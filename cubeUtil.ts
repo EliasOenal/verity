@@ -1,16 +1,16 @@
-// Block.ts
+// cubeUtil.ts
 import { Buffer } from 'buffer';
 import * as nacl from 'tweetnacl';
 import { createHash } from 'crypto';
-import { Block } from './block';
+import { Cube } from './cube';
 
-export function blockLifetime(d1: number, d2: number, c1: number, c2: number, x: number): number {
+export function cubeLifetime(d1: number, d2: number, c1: number, c2: number, x: number): number {
     // Calculate the base-2 logarithms
     let log2_c1 = Math.log2(c1);
     let log2_c2 = Math.log2(c2);
     let log2_x = Math.log2(x);
 
-    // Calculate the number of days the block lives
+    // Calculate the number of days the cube lives
     let days = ((d1 - d2) * log2_x / (log2_c1 - log2_c2)) + ((d1 * log2_c2 - d2 * log2_c1) / (log2_c2 - log2_c1));
 
     return days;
@@ -45,14 +45,14 @@ export function countTrailingZeroBits(buffer: Buffer): number {
     return count;
 }
 
-export async function printBlockInfo(block: Block) {
-    console.log("Version: " + block.getVersion());
-    console.log("Date: " + block.getDate());
+export async function printCubeInfo(cube: Cube) {
+    console.log("Version: " + cube.getVersion());
+    console.log("Date: " + cube.getDate());
     console.log("Fields: ");
-    for (let field of block.getFields()) {
+    for (let field of cube.getFields()) {
         console.log("    Type: " + field.type);
         console.log("    Length: " + field.length);
         //console.log("    Value: " + field.value.toString('hex'));
     }
-    console.log("Hash: " + (await block.getHash()).toString('hex'));
+    console.log("Hash: " + (await cube.getHash()).toString('hex'));
 }

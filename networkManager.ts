@@ -1,5 +1,5 @@
 import WebSocket from 'ws';
-import { BlockStorage } from './blockStorage';
+import { CubeStore } from './cubeStore';
 import { MessageClass, NetConstants } from './networkDefinitions';
 import { PeerDB, Peer } from './peerDB';
 import { EventEmitter } from 'events';
@@ -16,7 +16,7 @@ export class NetworkManager extends EventEmitter {
     server: WebSocket.Server | undefined; // The WebSocket server for incoming connections
     outgoingPeers: NetworkPeer[]; // The peers for outgoing connections
     incomingPeers: NetworkPeer[]; // The peers for incoming connections
-    private blockStorage: BlockStorage;
+    private cubeStore: CubeStore;
     private peerDB: PeerDB;
     private isConnectingPeers: boolean;
     private connectPeersInterval: NodeJS.Timeout | undefined;
@@ -32,7 +32,7 @@ export class NetworkManager extends EventEmitter {
      * Create a new NetworkManager.
      * @param port The port to listen on for incoming connections.
      *             If 0, the node will not listen for incoming connections.
-     * @param blockStorage The BlockStorage to use.
+     * @param cubeStore The CubeStore to use.
      * @param peerDB The PeerDB to use.
      * @param announce Whether to announce the node to the network.
      * @param lightNode Whether to run the node in light mode.
@@ -40,14 +40,14 @@ export class NetworkManager extends EventEmitter {
      * @remarks
      * The callbacks are called with the peer and the error as arguments.
      *  */
-    constructor(port: number, blockStorage: BlockStorage, peerDB: PeerDB,
+    constructor(port: number, cubeStore: CubeStore, peerDB: PeerDB,
         announce: boolean = true, lightNode: boolean = false) {
         super();
 
         this.isConnectingPeers = false;
         this.outgoingPeers = [];
         this.incomingPeers = [];
-        this.blockStorage = blockStorage;
+        this.cubeStore = cubeStore;
         this.peerDB = peerDB;
         this.announce = announce;
         this.server = undefined;
@@ -70,7 +70,7 @@ export class NetworkManager extends EventEmitter {
             // Handle incoming connections
             this.server?.on('connection', ws => {
                 logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort}`);
-                const peer = new NetworkPeer(ws, this.blockStorage, this.peerID, this.lightNode);
+                const peer = new NetworkPeer(ws, this.cubeStore, this.peerID, this.lightNode);
                 this.incomingPeers.push(peer);
                 peer.on('close', () => {
                     logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort} has been closed.`);
@@ -204,7 +204,7 @@ export class NetworkManager extends EventEmitter {
                 // Mark the peer as verified
                 this.peerDB.setPeersVerified([peer]);
                 // Create a new NetworkPeer
-                const networkPeer = new NetworkPeer(ws, this.blockStorage, this.peerID, this.lightNode);
+                const networkPeer = new NetworkPeer(ws, this.cubeStore, this.peerID, this.lightNode);
 
                 logger.info(`NetworkManager: Connected to ${peerURL}`);
                 // Add the new NetworkPeer to the list of outgoing peers
@@ -275,8 +275,8 @@ export class NetworkManager extends EventEmitter {
         output += `Local PeerID: ${this.peerID.toString('hex').toUpperCase()}\n`;
 
         output += `\nLocal Store\n`;
-        output += `Blocks: ${this.blockStorage.storage.size}\n`;
-        output += `Memory: ${this.blockStorage.storage.size * NetConstants.BLOCK_SIZE}\n`;
+        output += `Cubes: ${this.cubeStore.storage.size}\n`;
+        output += `Memory: ${this.cubeStore.storage.size * NetConstants.CUBE_SIZE}\n`;
 
         output += `\nNetwork Total\n`;
         const totalStats = this.getNetStatistics();

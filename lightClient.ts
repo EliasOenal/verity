@@ -1,8 +1,8 @@
 import { NetworkManager } from './networkManager';
-import { BlockStorage } from './blockStorage';
+import { CubeStore as CubeStore } from './cubeStore';
 import { PeerDB, Peer } from './peerDB';
 import { logger } from './logger';
-import { Block } from './block';
+import { Cube } from './cube';
 import { Buffer } from 'buffer';
 import readline from 'readline';
 import { vera } from './vera';
@@ -10,7 +10,7 @@ import { FieldType } from './fieldProcessing';
 
 // This is a light client that connects to a full node
 // it does not announce and does not accept incoming connections.
-// Light clients also do not request blocks unless they are explicitly requested.
+// Light clients also do not request cubes unless they are explicitly requested.
 
 async function main() {
     console.log("\x1b[36m" + vera + "\x1b[0m");
@@ -29,7 +29,7 @@ async function main() {
         process.exit(1);
     }
 
-    const blockStorage = new BlockStorage();
+    const cubeStore = new CubeStore();
     const peerDB = new PeerDB();
 
     const [initialPeerIp, initialPeerPort] = initialPeer.split(':');
@@ -38,7 +38,7 @@ async function main() {
 
     // The NetworkManager is created without a listening port,
     // it will not accept incoming connections.
-    const networkManager = new NetworkManager(0, blockStorage, peerDB, false, true);
+    const networkManager = new NetworkManager(0, cubeStore, peerDB, false, true);
     const onlinePromise = new Promise(resolve => networkManager.once('online', () => {
         resolve(undefined);
     }));
@@ -63,12 +63,12 @@ async function main() {
             logger.info('\n' + networkManager.prettyPrintStats());
         }
 
-        if (str === 'b') {
-            let block = new Block();
+        if (str === 'c') {
+            let cube = new Cube();
             let buffer = Buffer.alloc(4);
             // random buffer
             buffer.writeUInt32BE(Math.floor(Math.random() * 1000000));
-            block.setFields([
+            cube.setFields([
                 {
                     type: FieldType.PAYLOAD,
                     length: payloadString.length,
@@ -86,7 +86,7 @@ async function main() {
                     value: buffer
                 }
             ]);
-            blockStorage.addBlock(block);
+            cubeStore.addCube(cube);
         }
     });
 

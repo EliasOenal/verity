@@ -1,9 +1,9 @@
 import { NetworkManager } from './networkManager';
-import { BlockStorage } from './blockStorage';
+import { CubeStore } from './cubeStore';
 import { PeerDB, Peer } from './peerDB';
 import { logger } from './logger';
 import readline from 'readline';
-import { Block } from './block';
+import { Cube } from './cube';
 import { vera } from './vera';
 import { FieldType } from './fieldProcessing';
 
@@ -17,7 +17,7 @@ async function main() {
         port = '1984';
     }
 
-    const blockStorage = new BlockStorage();
+    const cubeStorage = new CubeStore();
     const peerDB = new PeerDB();
 
     if (initialPeer) {
@@ -30,7 +30,7 @@ async function main() {
         peerDB.setPeersVerified([peer]);
     }
 
-    const networkManager = new NetworkManager(parseInt(port), blockStorage, peerDB, true);
+    const networkManager = new NetworkManager(parseInt(port), cubeStorage, peerDB, true);
 
     const onlinePromise = new Promise(resolve => networkManager.once('online', () => {
         resolve(undefined);
@@ -56,14 +56,14 @@ async function main() {
             logger.info('\n' + networkManager.prettyPrintStats());
         }
 
-        if (str === 'b') {
+        if (str === 'c') {
             for (let i = 0; i < 1; i++) {
                 for (let j = 0; j < 1; j++) {
-                    let block = new Block();
+                    let cube = new Cube();
                     let buffer = Buffer.alloc(4);
                     // random buffer
                     buffer.writeUInt32BE(Math.floor(Math.random() * 1000000));
-                    block.setFields([
+                    cube.setFields([
                         {
                             type: FieldType.PAYLOAD,
                             length: "Hello Verity".length,
@@ -81,7 +81,7 @@ async function main() {
                             value: buffer
                         }
                     ]);
-                    blockStorage.addBlock(block);
+                    cubeStorage.addCube(cube);
                 }
                 await delay(10);
             }

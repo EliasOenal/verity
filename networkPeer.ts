@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { BlockStorage } from './blockStorage';
+import { CubeStore } from './cubeStore';
 import { MessageClass, NetConstants } from './networkDefinitions';
 import { WebSocket } from 'ws';
 import { Settings } from './config';
@@ -34,17 +34,17 @@ export interface NetworkStats {
  */
 export class NetworkPeer extends EventEmitter {
     ws: WebSocket; // The WebSocket connection associated with this peer
-    storage: BlockStorage; // The block storage instance associated with this peer
+    storage: CubeStore; // The cube storage instance associated with this peer
     stats: NetworkStats;
     hashRequestTimer?: NodeJS.Timeout; // Timer for hash requests
     private unsentHashes: Set<Buffer>;
     private lightMode: boolean = false;
     private hostNodePeerID: Buffer;
 
-    constructor(ws: WebSocket, blockStorage: BlockStorage, hostNodePeerID: Buffer, lightMode: boolean = false) {
+    constructor(ws: WebSocket, cubeStore: CubeStore, hostNodePeerID: Buffer, lightMode: boolean = false) {
         super();
         this.ws = ws;
-        this.storage = blockStorage;
+        this.storage = cubeStore;
         this.unsentHashes = new Set();
         this.hostNodePeerID = hostNodePeerID;
         this.lightMode = lightMode;
@@ -56,8 +56,8 @@ export class NetworkPeer extends EventEmitter {
             rx: { totalPackets: 0, totalBytes: 0, packetTypes: {} },
         };
 
-        // copy all hashes from blockStorage to unsentHashes
-        for (let hash of blockStorage.getAllHashes()) {
+        // copy all hashes from cubeStore to unsentHashes
+        for (let hash of cubeStore.getAllHashes()) {
             this.unsentHashes.add(hash);
         }
 
@@ -71,7 +71,7 @@ export class NetworkPeer extends EventEmitter {
             this.shutdown();
         });
 
-        blockStorage.on('hashAdded', (hash) => {
+        cubeStore.on('hashAdded', (hash) => {
             this.unsentHashes.add(hash);
         });
 
@@ -138,11 +138,11 @@ export class NetworkPeer extends EventEmitter {
             case MessageClass.HashResponse:
                 this.handleHashResponse(message.slice(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE));
                 break;
-            case MessageClass.BlockRequest:
-                this.handleBlockRequest(message.slice(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE));
+            case MessageClass.CubeRequest:
+                this.handleCubeRequest(message.slice(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE));
                 break;
-            case MessageClass.BlockResponse:
-                this.handleBlockResponse(message.slice(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE));
+            case MessageClass.CubeResponse:
+                this.handleCubeResponse(message.slice(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE));
                 break;
             default:
                 console.log(`NetworkPeer: Received message with unknown class: ${messageClass}`);
@@ -176,10 +176,10 @@ export class NetworkPeer extends EventEmitter {
      * Handle a HashRequest message.
      */
     handleHashRequest() {
-        // Send MAX_BLOCK_HASH_COUNT unsent hashes from unsentHashes
+        // Send MAX_CUBE_HASH_COUNT unsent hashes from unsentHashes
         let hashes: Buffer[] = [];
         let iterator = this.unsentHashes.values();
-        for (let i = 0; i < NetConstants.MAX_BLOCK_HASH_COUNT; i++) {
+        for (let i = 0; i < NetConstants.MAX_CUBE_HASH_COUNT; i++) {
             let hash = iterator.next().value;
             if (hash) {
                 hashes.push(Buffer.from(hash, 'hex'));
@@ -221,65 +221,65 @@ export class NetworkPeer extends EventEmitter {
                 NetConstants.COUNT_SIZE + (i + 1) * NetConstants.HASH_SIZE));
         }
 
-        // for each hash not in block storage, request the block
-        const missingHashes = hashes.filter(hash => !this.storage.hasBlock(hash));
+        // for each hash not in cube storage, request the cube
+        const missingHashes = hashes.filter(hash => !this.storage.hasCube(hash));
         if (missingHashes.length > 0) {
-            this.sendBlockRequest(missingHashes);
+            this.sendCubeRequest(missingHashes);
         }
     }
 
     /**
-     * Handle a BlockRequest message.
-     * @param data The BlockRequest data.
+     * Handle a CubeRequest message.
+     * @param data The CubeRequest data.
      */
-    handleBlockRequest(data: Buffer) {
-        const blockHashCount = Math.min(data.readUInt32BE(0), NetConstants.MAX_BLOCK_HASH_COUNT);
-        const requestedBlockHashes = [];
-        for (let i = 0; i < blockHashCount; i++) {
-            requestedBlockHashes.push(data.slice(NetConstants.COUNT_SIZE
+    handleCubeRequest(data: Buffer) {
+        const cubeHashCount = Math.min(data.readUInt32BE(0), NetConstants.MAX_CUBE_HASH_COUNT);
+        const requestedCubeHashes = [];
+        for (let i = 0; i < cubeHashCount; i++) {
+            requestedCubeHashes.push(data.slice(NetConstants.COUNT_SIZE
                 + i * NetConstants.HASH_SIZE, NetConstants.COUNT_SIZE
             + (i + 1) * NetConstants.HASH_SIZE));
         }
 
-        // Collect only defined blocks from the block storage
-        const blocks: Buffer[] = requestedBlockHashes.map(hash => this.storage.getBlockRaw(hash))
-            .filter((block): block is Buffer => block !== undefined);
+        // Collect only defined cubes from the cube storage
+        const cubes: Buffer[] = requestedCubeHashes.map(hash => this.storage.getCubeRaw(hash))
+            .filter((cube): cube is Buffer => cube !== undefined);
 
         const reply = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE
-            + NetConstants.COUNT_SIZE + blocks.length * NetConstants.BLOCK_SIZE);
+            + NetConstants.COUNT_SIZE + cubes.length * NetConstants.CUBE_SIZE);
         let offset = 0;
 
         reply.writeUInt8(NetConstants.PROTOCOL_VERSION, offset++);
-        reply.writeUInt8(MessageClass.BlockResponse, offset++);
-        reply.writeUInt32BE(blocks.length, offset);
+        reply.writeUInt8(MessageClass.CubeResponse, offset++);
+        reply.writeUInt32BE(cubes.length, offset);
         offset += NetConstants.COUNT_SIZE;
 
-        for (const block of blocks) {
-            block.copy(reply, offset);
-            offset += NetConstants.BLOCK_SIZE;
+        for (const cube of cubes) {
+            cube.copy(reply, offset);
+            offset += NetConstants.CUBE_SIZE;
         }
-        logger.trace(`NetworkPeer: handleBlockRequest: replying with ${blocks.length} blocks`);
+        logger.trace(`NetworkPeer: handleCubeRequest: replying with ${cubes.length} cubes`);
         this.txMessage(reply);
     }
 
     /**
-     * Handle a BlockResponse message.
-     * @param data The BlockResponse data.
+     * Handle a CubeResponse message.
+     * @param data The CubeResponse data.
      */
-    async handleBlockResponse(data: Buffer) {
-        const blockCount = data.readUInt32BE(0);
-        for (let i = 0; i < blockCount; i++) {
-            const blockData = data.slice(NetConstants.COUNT_SIZE + i * NetConstants.BLOCK_SIZE,
-                NetConstants.COUNT_SIZE + (i + 1) * NetConstants.BLOCK_SIZE);
+    async handleCubeResponse(data: Buffer) {
+        const cubeCount = data.readUInt32BE(0);
+        for (let i = 0; i < cubeCount; i++) {
+            const cubeData = data.slice(NetConstants.COUNT_SIZE + i * NetConstants.CUBE_SIZE,
+                NetConstants.COUNT_SIZE + (i + 1) * NetConstants.CUBE_SIZE);
 
-            // Add the block to the BlockStorage
-            let hash = await this.storage.addBlock(blockData);
+            // Add the cube to the CubeStorage
+            let hash = await this.storage.addCube(cubeData);
             if (!hash) {
-                logger.error(`NetworkPeer: handleBlockResponse: failed to add block ${hash}`);
+                logger.error(`NetworkPeer: handleCubeResponse: failed to add cube ${hash}`);
                 return;
             }
         }
-        logger.trace(`NetworkPeer: handleBlockResponse: added ${blockCount} blocks`);
+        logger.trace(`NetworkPeer: handleCubeResponse: added ${cubeCount} cubes`);
     }
 
     /**
@@ -294,22 +294,22 @@ export class NetworkPeer extends EventEmitter {
     }
 
     /**
-     * Send a BlockRequest message.
-     * @param hashes The list of block hashes to request.
+     * Send a CubeRequest message.
+     * @param hashes The list of cube hashes to request.
      */
-    sendBlockRequest(hashes: Buffer[]) {
+    sendCubeRequest(hashes: Buffer[]) {
         const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE
             + NetConstants.COUNT_SIZE + hashes.length * NetConstants.HASH_SIZE);
         let offset = 0;
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, offset++);
-        message.writeUInt8(MessageClass.BlockRequest, offset++);
+        message.writeUInt8(MessageClass.CubeRequest, offset++);
         message.writeUInt32BE(hashes.length, offset);
         offset += NetConstants.COUNT_SIZE;
         for (const hash of hashes) {
             hash.copy(message, offset);
             offset += NetConstants.HASH_SIZE;
         }
-        logger.trace(`NetworkPeer: sendBlockRequest: sending BlockRequest for ${hashes.length} blocks`);
+        logger.trace(`NetworkPeer: sendCubeRequest: sending CubeRequest for ${hashes.length} cubes`);
         this.txMessage(message);
     }
 

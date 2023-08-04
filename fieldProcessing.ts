@@ -1,6 +1,6 @@
 import { Buffer } from 'buffer';
 import { logger } from './logger';
-import { Block, BLOCK_HEADER_LENGTH } from './block';
+import { Cube, CUBE_HEADER_LENGTH } from './cube';
 
 export enum FieldType {
     PADDING_NONCE = 0x00 << 2,
@@ -10,7 +10,7 @@ export enum FieldType {
     SHARED_KEY = 0x04 << 2,
     ENCRYPTED = 0x05 << 2,
     TYPE_SIGNATURE = 0x06 << 2,
-    TYPE_SPECIAL_BLOCK = 0x07 << 2,
+    TYPE_SPECIAL_CUBE = 0x07 << 2,
     TYPE_PUBLIC_KEY = 0x08 << 2,
 }
 
@@ -22,20 +22,20 @@ export const FIELD_LENGTHS: { [key: number]: number | undefined } = {
     [FieldType.SHARED_KEY]: 32,
     [FieldType.ENCRYPTED]: undefined,
     [FieldType.TYPE_SIGNATURE]: 72,
-    [FieldType.TYPE_SPECIAL_BLOCK]: 0, // Just a single header byte
+    [FieldType.TYPE_SPECIAL_CUBE]: 0, // Just a single header byte
     [FieldType.TYPE_PUBLIC_KEY]: 32,
 };
 
-export enum SpecialBlockType {
-    BLOCK_TYPE_MUB = 0x00,
-    BLOCK_TYPE_IPB = 0x01,
-    BLOCK_TYPE_RESERVED = 0x02,
-    BLOCK_TYPE_RESERVED2 = 0x03,
+export enum SpecialCubeType {
+    CUBE_TYPE_MUB = 0x00,
+    CUBE_TYPE_IPB = 0x01,
+    CUBE_TYPE_RESERVED = 0x02,
+    CUBE_TYPE_RESERVED2 = 0x03,
 }
 
 export interface FullField {
     type: FieldType;
-    start: number; // Start of field as offset from beginning of block (binaryData)
+    start: number; // Start of field as offset from beginning of cube (binaryData)
     length: number;
     value: Buffer;
 }
@@ -53,7 +53,7 @@ export function getFieldHeaderLength(fieldType: FieldType): number {
 export function updateTLVBinaryData(binaryData: Buffer, fields: Array<{ type: FieldType; length: number; value: Buffer }>): void {
     if (binaryData === undefined)
         throw new Error("Binary data not initialized");
-    let index = BLOCK_HEADER_LENGTH; // Start after date field
+    let index = CUBE_HEADER_LENGTH; // Start after date field
     for (let field of fields) {
         let { nextIndex } = writeTLVHeader(binaryData, field.type, field.length, index);
         index = nextIndex;
@@ -67,10 +67,10 @@ export function updateTLVBinaryData(binaryData: Buffer, fields: Array<{ type: Fi
             throw new Error("Insufficient space in binaryData, got " + (index) + " bytes, need " + (index + field.length) + " bytes");
         }
     }
-    // verify block is full
+    // verify cube is full
     if (index != binaryData.length) {
-        logger.error("Block is not full, got " + index + " bytes, need " + binaryData.length + " bytes");
-        throw new Error("Block is not full, got " + index + " bytes, need " + binaryData.length + " bytes");
+        logger.error("Cube is not full, got " + index + " bytes, need " + binaryData.length + " bytes");
+        throw new Error("Cube is not full, got " + index + " bytes, need " + binaryData.length + " bytes");
     }
 }
 
@@ -95,7 +95,7 @@ export function parseTLVBinaryData(binaryData: Buffer): Array<Field | FullField>
     if (binaryData === undefined)
         throw new Error("Binary data not initialized");
     let fields = []; // Clear any existing fields
-    let index = BLOCK_HEADER_LENGTH; // Start after date field
+    let index = CUBE_HEADER_LENGTH; // Start after date field
     while (index < binaryData.length) {
         const { type, length, valueStartIndex } = readTLVHeader(binaryData, index);
         const start = index; // Start of TLV field
