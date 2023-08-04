@@ -1,11 +1,13 @@
 // Block.ts
 import { Buffer } from 'buffer';
+import * as nacl from 'tweetnacl';
 import { createHash } from 'crypto';
 import { Settings } from './config';
 import { logger } from './logger';
 import path from 'path';
 import { Worker } from 'worker_threads';
 import { type } from 'os';
+import { NetConstants } from './networkDefinitions';
 
 export enum FieldType {
     PADDING_NONCE = 0x00 << 2,
@@ -14,13 +16,9 @@ export enum FieldType {
     KEY_DISTRIBUTION = 0x03 << 2,
     SHARED_KEY = 0x04 << 2,
     ENCRYPTED = 0x05 << 2,
-    SIGNATURE = 0x06 << 2,
-}
-
-export interface Field {
-    type: number;
-    length: number;
-    value: Buffer;
+    TYPE_SIGNATURE = 0x06 << 2,
+    TYPE_SPECIAL_BLOCK = 0x07 << 2,
+    TYPE_PUBLIC_KEY = 0x08 << 2,
 }
 
 export const FIELD_LENGTHS: { [key: number]: number | undefined } = {
@@ -30,14 +28,36 @@ export const FIELD_LENGTHS: { [key: number]: number | undefined } = {
     [FieldType.KEY_DISTRIBUTION]: 40,
     [FieldType.SHARED_KEY]: 32,
     [FieldType.ENCRYPTED]: undefined,
-    [FieldType.SIGNATURE]: 64,
+    [FieldType.TYPE_SIGNATURE]: 72,
+    [FieldType.TYPE_SPECIAL_BLOCK]: 0, // Just a single header byte
+    [FieldType.TYPE_PUBLIC_KEY]: 32,
 };
+
+export enum SpecialBlockType {
+    BLOCK_TYPE_MUB = 0x00,
+    BLOCK_TYPE_IPB = 0x01,
+    BLOCK_TYPE_RESERVED = 0x02,
+    BLOCK_TYPE_RESERVED2 = 0x03,
+}
+
+interface FullField {
+    type: FieldType;
+    start: number; // Start of field as offset from beginning of block (binaryData)
+    length: number;
+    value: Buffer;
+}
+
+export interface Field {
+    type: FieldType;
+    length: number;
+    value: Buffer;
+}
 
 export class Block {
     private version: number;
     private reservedBits: number;
     private date: number;
-    private fields: Array<{ type: FieldType; length: number; value: Buffer }>;
+    private fields: Array<Field | FullField>;
     private binaryData: Buffer | undefined;
     private hash: Buffer | undefined;
 
@@ -53,9 +73,10 @@ export class Block {
             this.version = 0;
             this.reservedBits = 0;
             this.date = Math.floor(Date.now() / 1000);
+            const num_alloc = NetConstants.BLOCK_SIZE - Block.BLOCK_HEADER_LENGTH - Block.getFieldHeaderLength(FieldType.PADDING_NONCE);
             this.fields = [{
                 type: FieldType.PADDING_NONCE,
-                length: 1008, value: Buffer.alloc(1008)
+                length: num_alloc, value: Buffer.alloc(num_alloc)
             }];
             this.binaryData = undefined;
             this.hash = undefined;
@@ -70,16 +91,132 @@ export class Block {
             this.version = binaryData[0] >> 4;
             this.reservedBits = binaryData[0] & 0xF;
             this.date = binaryData.readUIntBE(1, 5);
-            this.fields = [];
-            this.parseTLVBinaryData();
+            this.fields = Block.parseTLVBinaryData(this.binaryData);
+        }
+        this.processTLVFields(this.fields, this.binaryData);
+    }
+
+    public static getFieldHeaderLength(fieldType: FieldType): number {
+        return (FIELD_LENGTHS[fieldType] == undefined) ? 2 : 1;
+    }
+
+    private verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
+        let hash = createHash('sha3-256');
+        let calculatedFingerprint = hash.update(publicKeyValue).digest().slice(0, 8);
+
+        if (!calculatedFingerprint.equals(providedFingerprint)) {
+            logger.error('Block: Fingerprint does not match');
+            throw new Error('Block: Fingerprint does not match');
         }
     }
 
-    getVersion(): number {
+    private verifySignature(publicKeyValue: Buffer, signatureValue: Buffer, dataToVerify: Buffer): void {
+        let isSignatureValid = nacl.sign.detached.verify(
+            new Uint8Array(dataToVerify),
+            new Uint8Array(signatureValue),
+            new Uint8Array(publicKeyValue)
+        );
+
+        if (!isSignatureValid) {
+            logger.error('Block: Invalid signature');
+            throw new Error('Block: Invalid signature');
+        }
+    }
+
+    // If binaryData is undefined, then this is a new local block in the process of being created.
+    // If binaryData is defined, then we expect a fully formed block meeting all requirements.
+    private processTLVFields(fields: Array<Field | FullField>, binaryData: Buffer | undefined): void {
+        let mub: FullField | undefined = undefined;
+        let publicKey: FullField | undefined = undefined;
+        let signature: FullField | undefined = undefined;
+
+        for (let field of fields) {
+            switch (field.type) {
+                case FieldType.PADDING_NONCE:
+                case FieldType.PAYLOAD:
+                    break;
+                case FieldType.RELATES_TO:
+                case FieldType.KEY_DISTRIBUTION:
+                case FieldType.SHARED_KEY:
+                case FieldType.ENCRYPTED:
+                    logger.error('Block: Field not implemented ' + field.type);
+                    throw new Error('Block: Fields not implemented ' + field.type);
+                case FieldType.TYPE_SIGNATURE:
+                    if ('start' in field && binaryData) {
+                        if (field.start + field.length !== binaryData.length) {
+                            logger.error('Block: Signature field is not the last field');
+                            throw new Error('Block: Signature field is not the last field');
+                        } else {
+                            signature = field;
+                        }
+                    } else {
+                        logger.error('Block: Signature field does not have start');
+                        throw new Error('Block: Signature field does not have start');
+                    }
+                    break;
+                case FieldType.TYPE_SPECIAL_BLOCK:
+                    // has to be very first field
+                    if ('start' in field) {
+                        if (field.start !== Block.BLOCK_HEADER_LENGTH) {
+                            logger.error('Block: Special block type is not the first field');
+                            throw new Error('Block: Special block type is not the first field');
+                        } else {
+                            mub = field;
+                        }
+                    }
+                    const specialBlockType = field.value[0] & 0x03;
+                    if (specialBlockType !== SpecialBlockType.BLOCK_TYPE_MUB) {
+                        logger.error('Block: Special block type not implemented ' + specialBlockType);
+                        throw new Error('Block: Special block type not implemented ' + specialBlockType);
+                    }
+                    break;
+                case FieldType.TYPE_PUBLIC_KEY:
+                    // TODO: add to keystore
+                    if ('start' in field) {
+                        publicKey = field;
+                    } else {
+                        logger.error('Block: Public key field does not have start');
+                        throw new Error('Block: Public key field does not have start');
+                    }
+                    break;
+                default:
+                    logger.error('Block: Unknown field type ' + field.type);
+                    throw new Error('Block: Unknown field type ' + field.type);
+            }
+        }
+
+        if (mub && publicKey && signature) {
+            if (binaryData) {
+                // Extract the public key, signature values and provided fingerprint
+                let publicKeyValue = publicKey.value;
+                let providedFingerprint = signature.value.slice(0, 8); // First 8 bytes of signature field
+                let signatureValue = signature.value.slice(8); // Remaining bytes are the actual signature
+
+                // Verify the fingerprint
+                this.verifyFingerprint(publicKeyValue, providedFingerprint);
+
+                // Create the data to be verified. 
+                // It includes all bytes of the block from the start up to and including
+                // the type byte of the signature field and the fingerprint.
+                const fingerprintLength = 8;
+                // From start of block up to the signature itself
+                let dataToVerify = binaryData.slice(0, signature.start
+                    + Block.getFieldHeaderLength(FieldType.TYPE_SIGNATURE + fingerprintLength));
+
+                // Verify the signature
+                this.verifySignature(publicKeyValue, signatureValue, dataToVerify);
+            } else {
+                logger.error('Block: binaryData is undefined');
+                throw new Error('Block: binaryData is undefined');
+            }
+        }
+    }
+
+    public getVersion(): number {
         return this.version;
     }
 
-    setVersion(version: number): void {
+    public setVersion(version: number): void {
         if (version !== 0) {
             logger.error('Only version 0 is supported');
             throw new Error("Only version 0 is supported");
@@ -89,35 +226,39 @@ export class Block {
         this.version = version;
     }
 
-    getDate(): number {
+    public getDate(): number {
         return this.date;
     }
 
-    setDate(date: number): void {
+    public setDate(date: number): void {
         const binaryData = undefined;
         this.hash = undefined;
         this.date = date;
     }
 
-    getFields(): Array<{ type: FieldType; length: number; value: Buffer }> {
+    public getFields(): Array<Field> {
         return this.fields;
     }
 
-    setFields(fields: Array<{ type: FieldType; length: number; value: Buffer }>): void {
+    public setFields(fields: Array<Field>): void {
         this.binaryData = undefined;
         this.hash = undefined;
         this.fields = fields;
-        // verify all fields together are less than 1008 bytes
-        let totalLength = 0;
-        for (let field of fields)
+        // verify all fields together are less than 1024 bytes
+        let totalLength = Block.BLOCK_HEADER_LENGTH;
+        for (let field of fields) {
             totalLength += field.length;
-        if (totalLength > 1008)
-            throw new Error('Block: Fields are ' + totalLength + ' bytes but must be less than 1008 bytes');
-        else if (totalLength != 1008) // Pad with padding nonce to reach 1008 bytes
+            totalLength += Block.getFieldHeaderLength(field.type);
+        }
+        if (totalLength > NetConstants.BLOCK_SIZE) {
+            throw new Error('Block: Fields are ' + totalLength + ' bytes but must be less than ' + NetConstants.BLOCK_SIZE + ' bytes');
+        } else if (totalLength != NetConstants.BLOCK_SIZE) { // Pad with padding nonce to reach 1024 bytes
+            const num_alloc = NetConstants.BLOCK_SIZE - totalLength - 2;
             fields.push({
                 type: FieldType.PADDING_NONCE,
-                length: 1008 - totalLength, value: Buffer.alloc(1008 - totalLength)
+                length: num_alloc, value: Buffer.alloc(num_alloc)
             });
+        }
     }
 
     public async getHash(): Promise<Buffer> {
@@ -136,7 +277,7 @@ export class Block {
         return this.hash;
     }
 
-    getBinaryData(): Buffer {
+    public getBinaryData(): Buffer {
         if (this.binaryData === undefined) {
             this.binaryData = Buffer.alloc(1024);
 
@@ -184,8 +325,14 @@ export class Block {
                 field.value.copy(this.binaryData, index);
                 index += field.length;
             } else {
+                logger.error(field.type + " field is too large, got " + field.length + " bytes, need " + (this.binaryData.length - index) + " bytes");
                 throw new Error("Insufficient space in binaryData, got " + (index) + " bytes, need " + (index + field.length) + " bytes");
             }
+        }
+        // verify block is full
+        if (index != this.binaryData.length) {
+            logger.error("Block is not full, got " + index + " bytes, need " + this.binaryData.length + " bytes");
+            throw new Error("Block is not full, got " + index + " bytes, need " + this.binaryData.length + " bytes");
         }
     }
 
@@ -206,26 +353,28 @@ export class Block {
         return { nextIndex: index };
     }
 
-    private parseTLVBinaryData(): void {
-        if (this.binaryData === undefined)
+    private static parseTLVBinaryData(binaryData: Buffer): Array<Field | FullField> {
+        if (binaryData === undefined)
             throw new Error("Binary data not initialized");
-        this.fields = []; // Clear any existing fields
+        let fields = []; // Clear any existing fields
         let index = Block.BLOCK_HEADER_LENGTH; // Start after date field
-        while (index < this.binaryData.length) {
-            const { type, length, valueStartIndex } = this.readTLVHeader(this.binaryData, index);
+        while (index < binaryData.length) {
+            const { type, length, valueStartIndex } = Block.readTLVHeader(binaryData, index);
+            const start = index; // Start of TLV field
             index = valueStartIndex;
 
-            if (index + length <= this.binaryData.length) {  // Check if enough data for value field
-                let value = this.binaryData.slice(index, index + length);
-                this.fields.push({ type, length, value });
+            if (index + length <= binaryData.length) {  // Check if enough data for value field
+                let value = binaryData.slice(index, index + length);
+                fields.push({ type: type, start: start, length: length, value: value });
                 index += length;
             } else {
                 throw new Error("Data ended unexpectedly while reading value of field");
             }
         }
+        return fields;
     }
 
-    private readTLVHeader(binaryData: Buffer, index: number): { type: number, length: number, valueStartIndex: number } {
+    private static readTLVHeader(binaryData: Buffer, index: number): { type: number, length: number, valueStartIndex: number } {
         // We first parse just type in order to detect whether a length field is present.
         // If the length field is present, we parse two bytes:
         // the first byte contains 6 bits of type information
@@ -250,7 +399,7 @@ export class Block {
     private findNonceFieldIndex(binaryData: Buffer): number | null {
         let index = Block.BLOCK_HEADER_LENGTH; // Start after date field
         while (index < binaryData.length) {
-            const { type, length, valueStartIndex } = this.readTLVHeader(binaryData, index);
+            const { type, length, valueStartIndex } = Block.readTLVHeader(binaryData, index);
             if (type === FieldType.PADDING_NONCE && length >= 4) {
                 return valueStartIndex; // Return the index of the start of the PADDING_NONCE field value
             }
@@ -352,7 +501,6 @@ export class Block {
         });
     }
 
-
     private static calculateHash(data: Buffer): Buffer {
         const hasher = createHash('sha3-256');
         hasher.update(data);
@@ -375,11 +523,11 @@ export class Block {
         let log2_c1 = Math.log2(c1);
         let log2_c2 = Math.log2(c2);
         let log2_x = Math.log2(x);
-      
+
         // Calculate the number of days the block lives
         let days = ((d1 - d2) * log2_x / (log2_c1 - log2_c2)) + ((d1 * log2_c2 - d2 * log2_c1) / (log2_c2 - log2_c1));
-      
+
         return days;
-      }
-      
+    }
+
 }

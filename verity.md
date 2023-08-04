@@ -25,6 +25,7 @@ Blocks are the elemental units of Verity. Every feature of the network is constr
     - 0b000101: `TYPE_ENCRYPTED`
     - 0b000110: `TYPE_SIGNATURE`
     - 0b000111: `TYPE_SPECIAL_BLOCK`
+    - 0b001000: `TYPE_PUBLIC_KEY`
     
     (Detailed description below)
 
@@ -46,9 +47,9 @@ Blocks are the elemental units of Verity. Every feature of the network is constr
 
   - **Padding/Nonce (optional, variable length)**: If the block includes a proof-of-work, a padding field is inserted to provide scratch space for the nonce. It is also used for signature fields, to fill the space between the prior field and the signature. The padding field has a type of `TYPE_PADDING`, and its length is calculated based on the size of the other fields and the signature. The last N bytes of the padding field serve as the nonce for the proof-of-work. The value of the nonce is initially set to zero, and is incremented with each attempt to generate a valid hash.
 
-  - **Signature (optional, 64 bytes)**: If present, the ED25519 signature is placed at the end of the block. The signature has a type of `TYPE_SIGNATURE` and does not have an associated length field because its size is fixed. The signature is calculated over all the bytes of the block from the start up to and including the type byte of the signature field.
+  - **Signature (optional, 72 bytes)**: If present, the public key fingerprint and ED25519 signature are placed into this field as the last field in the block. The field has a type of TYPE_SIGNATURE and does not have an associated length field because its size is fixed. The signature and fingerprint are calculated over all the bytes of the block from the start up to and including the type byte of this signature field, as well as the fingerprint. The first 8 bytes contain the fingerprint of the public key, and the last 64 bytes of the field contain the signature.
 
-  - **TYPE_SPECIAL_BLOCK**: If used, this field has to be first in the block following the header. This type activates special block formats, such as MUB or IPB. It is only one byte long, leaving just two bits after the 6 bit type encoding:
+  - **TYPE_SPECIAL_BLOCK**: If used, this field has to be first in the block following the header. This type activates special block formats, such as MUB or IPB. It is only one byte long, leaving just 2 bits after the 6 bit type encoding:
    - 0b00: `BLOCK_TYPE_MUB`
    - 0b01: `BLOCK_TYPE_IPB`
    - 0b10: `BLOCK_TYPE_RESERVED`

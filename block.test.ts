@@ -3,6 +3,7 @@ import { Block, FieldType } from './block';
 import { Buffer } from 'buffer';
 
 describe('block', () => {
+  // This test parses a bit weirdly, the zero fill after the nonce decodes into additional TLV fields of length 0
   it('should construct a Block object from binary data.', () => {
     const blockBuffer = Buffer.from([
       // Protocol Version and Reserved Bits (1 byte)
@@ -45,7 +46,7 @@ describe('block', () => {
   it('should create a new block with default values when no binary data is provided', () => {
     const block = new Block();
     expect(block.getVersion()).toEqual(0);
-    expect(block.getFields()).toEqual([{ type: FieldType.PADDING_NONCE, length: 1008, value: Buffer.alloc(1008) }]);
+    expect(block.getFields()).toEqual([{ type: FieldType.PADDING_NONCE, length: 1016, value: Buffer.alloc(1016) }]);
   }, 1000);
 
   it('should set and get the version correctly', () => {
@@ -101,7 +102,7 @@ describe('block', () => {
   it('should throw an error when there is not enough space for a field value', () => {
     const block = new Block();
     const fields = [{ type: FieldType.PAYLOAD, length: 2020, value: Buffer.alloc(2020) }]; // Too long for the binary data
-    expect(() => block.setFields(fields)).toThrowError('Fields are 2020 bytes but must be less than 1008 bytes');
+    expect(() => block.setFields(fields)).toThrowError('lock: Fields are 2028 bytes but must be less than 1024 bytes');
   }, 1000);
 
   it('should throw an error, invalid TLV type - but already fails at difficulty check', () => {
