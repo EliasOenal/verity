@@ -1,11 +1,11 @@
-import { NetworkManager } from './networkManager';
-import { NetworkPeer } from './networkPeer';
-import { CubeStore } from './cubeStore';
+import { NetworkManager } from './networkManager.js';
+import { NetworkPeer } from './networkPeer.js';
+import { CubeStore } from './cubeStore.js';
 import WebSocket from 'ws';
-import { Cube } from './cube';
-import { FieldType } from './fieldProcessing';
-import { PeerDB, Peer } from './peerDB';
-import { logger } from './logger';
+import { Cube } from './cube.js';
+import { FieldType } from './fieldProcessing.js';
+import { PeerDB, Peer } from './peerDB.js';
+import { logger } from './logger.js';
 
 describe('networkManager', () => {
 

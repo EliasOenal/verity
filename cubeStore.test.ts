@@ -1,6 +1,6 @@
 import exp from 'constants';
-import { Cube } from './cube';
-import { CubeStore as CubeStore } from './cubeStore';
+import { Cube } from './cube.js';
+import { CubeStore as CubeStore } from './cubeStore.js';
 
 describe('cubeStore', () => {
   let cubeStore: CubeStore;

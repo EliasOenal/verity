@@ -1,10 +1,10 @@
 import { EventEmitter } from 'events';
-import { CubeStore } from './cubeStore';
-import { MessageClass, NetConstants } from './networkDefinitions';
+import { CubeStore } from './cubeStore.js';
+import { MessageClass, NetConstants } from './networkDefinitions.js';
 import { WebSocket } from 'ws';
-import { Settings } from './config';
-import { logger } from './logger';
-import { Peer } from './peerDB';
+import { Settings } from './config.js';
+import { logger } from './logger.js';
+import { Peer } from './peerDB.js';
 import net from 'net';
 
 

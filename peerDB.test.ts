@@ -1,5 +1,5 @@
-import { PeerDB, Peer } from './peerDB';
-import { Settings } from './config';
+import { PeerDB, Peer } from './peerDB.js';
+import { Settings } from './config.js';
 
 describe('announce', () => {
     it.skip('should get peers from multiple trackers', async () => {

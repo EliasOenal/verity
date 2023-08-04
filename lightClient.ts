@@ -1,12 +1,12 @@
-import { NetworkManager } from './networkManager';
-import { CubeStore as CubeStore } from './cubeStore';
-import { PeerDB, Peer } from './peerDB';
-import { logger } from './logger';
-import { Cube } from './cube';
+import { NetworkManager } from './networkManager.js';
+import { CubeStore as CubeStore } from './cubeStore.js';
+import { PeerDB, Peer } from './peerDB.js';
+import { logger } from './logger.js';
+import { Cube } from './cube.js';
 import { Buffer } from 'buffer';
 import readline from 'readline';
-import { vera } from './vera';
-import { FieldType } from './fieldProcessing';
+import { vera } from './vera.js';
+import { FieldType } from './fieldProcessing.js';
 
 // This is a light client that connects to a full node
 // it does not announce and does not accept incoming connections.

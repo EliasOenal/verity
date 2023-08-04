@@ -1,6 +1,6 @@
 import { parentPort, workerData } from 'worker_threads';
 import { createHash } from 'crypto';
-import { logger } from './logger';
+import { logger } from './logger.js';
 import { exit } from 'process';
 
 if (parentPort === null || workerData === null) {

@@ -1,11 +1,11 @@
-import { NetworkManager } from './networkManager';
-import { CubeStore } from './cubeStore';
-import { PeerDB, Peer } from './peerDB';
-import { logger } from './logger';
+import { NetworkManager } from './networkManager.js';
+import { CubeStore } from './cubeStore.js';
+import { PeerDB, Peer } from './peerDB.js';
+import { logger } from './logger.js';
 import readline from 'readline';
-import { Cube } from './cube';
-import { vera } from './vera';
-import { FieldType } from './fieldProcessing';
+import { Cube } from './cube.js';
+import { vera } from './vera.js';
+import { FieldType } from './fieldProcessing.js';
 
 async function main() {
     console.log("\x1b[36m" + vera + "\x1b[0m");

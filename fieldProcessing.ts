@@ -1,6 +1,6 @@
 import { Buffer } from 'buffer';
-import { logger } from './logger';
-import { Cube, CUBE_HEADER_LENGTH } from './cube';
+import { logger } from './logger.js';
+import { Cube, CUBE_HEADER_LENGTH } from './cube.js';
 
 export enum FieldType {
     PADDING_NONCE = 0x00 << 2,

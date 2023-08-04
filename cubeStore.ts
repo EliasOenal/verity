@@ -1,5 +1,5 @@
-import { Cube } from './cube';
-import { logger } from './logger';
+import { Cube } from './cube.js';
+import { logger } from './logger.js';
 import { EventEmitter } from 'events';
 
 

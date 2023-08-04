@@ -1,8 +1,8 @@
 // cube.test.ts
-import { Cube } from './cube';
+import { Cube } from './cube.js';
 import { Buffer } from 'buffer';
-import { FieldType } from './fieldProcessing';
-import { countTrailingZeroBits } from './cubeUtil';
+import { FieldType } from './fieldProcessing.js';
+import { countTrailingZeroBits } from './cubeUtil.js';
 
 describe('cube', () => {
   // This test parses a bit weirdly, the zero fill after the nonce decodes into additional TLV fields of length 0

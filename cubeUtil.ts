@@ -2,7 +2,7 @@
 import { Buffer } from 'buffer';
 import * as nacl from 'tweetnacl';
 import { createHash } from 'crypto';
-import { Cube } from './cube';
+import { Cube } from './cube.js';
 
 export function cubeLifetime(d1: number, d2: number, c1: number, c2: number, x: number): number {
     // Calculate the base-2 logarithms

@@ -2,8 +2,8 @@ import http from 'http';
 import querystring from 'querystring';
 import { decode } from 'bencodec';
 import { EventEmitter } from 'events';
-import { Settings } from './config';
-import { logger } from './logger';
+import { Settings } from './config.js';
+import { logger } from './logger.js';
 import { log } from 'console';
 import axios from 'axios';
 

@@ -2,13 +2,13 @@
 import { Buffer } from 'buffer';
 import * as nacl from 'tweetnacl';
 import { createHash } from 'crypto';
-import { Settings } from './config';
-import { logger } from './logger';
+import { Settings } from './config.js';
+import { logger } from './logger.js';
 import path from 'path';
 import { Worker } from 'worker_threads';
-import { NetConstants } from './networkDefinitions';
-import * as fp from './fieldProcessing';
-import * as cu from './cubeUtil';
+import { NetConstants } from './networkDefinitions.js';
+import * as fp from './fieldProcessing.js';
+import * as cu from './cubeUtil.js';
 
 export const CUBE_HEADER_LENGTH: number = 6;
 

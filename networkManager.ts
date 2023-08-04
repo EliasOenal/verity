@@ -1,11 +1,11 @@
 import WebSocket from 'ws';
-import { CubeStore } from './cubeStore';
-import { MessageClass, NetConstants } from './networkDefinitions';
-import { PeerDB, Peer } from './peerDB';
+import { CubeStore } from './cubeStore.js';
+import { MessageClass, NetConstants } from './networkDefinitions.js';
+import { PeerDB, Peer } from './peerDB.js';
 import { EventEmitter } from 'events';
-import { Settings } from './config';
-import { NetworkPeer, NetworkStats } from './networkPeer';
-import { logger } from './logger';
+import { Settings } from './config.js';
+import { NetworkPeer, NetworkStats } from './networkPeer.js';
+import { logger } from './logger.js';
 import crypto from 'crypto';
 import net from 'net';
 
