@@ -2,10 +2,11 @@ import { NetworkManager } from './networkManager';
 import { BlockStorage } from './blockStorage';
 import { PeerDB, Peer } from './peerDB';
 import { logger } from './logger';
-import { Block, FieldType } from './block';
+import { Block } from './block';
 import { Buffer } from 'buffer';
 import readline from 'readline';
 import { vera } from './vera';
+import { FieldType } from './fieldProcessing';
 
 // This is a light client that connects to a full node
 // it does not announce and does not accept incoming connections.

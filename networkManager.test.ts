@@ -2,7 +2,8 @@ import { NetworkManager } from './networkManager';
 import { NetworkPeer } from './networkPeer';
 import { BlockStorage } from './blockStorage';
 import WebSocket from 'ws';
-import { Block, FieldType } from './block';
+import { Block } from './block';
+import { FieldType } from './fieldProcessing';
 import { PeerDB, Peer } from './peerDB';
 import { logger } from './logger';
 

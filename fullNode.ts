@@ -3,8 +3,9 @@ import { BlockStorage } from './blockStorage';
 import { PeerDB, Peer } from './peerDB';
 import { logger } from './logger';
 import readline from 'readline';
-import { Block, FieldType } from './block';
+import { Block } from './block';
 import { vera } from './vera';
+import { FieldType } from './fieldProcessing';
 
 async function main() {
     console.log("\x1b[36m" + vera + "\x1b[0m");

@@ -6,62 +6,19 @@ import { Settings } from './config';
 import { logger } from './logger';
 import path from 'path';
 import { Worker } from 'worker_threads';
-import { type } from 'os';
 import { NetConstants } from './networkDefinitions';
+import * as fp from './fieldProcessing';
+import * as bu from './blockUtil';
 
-export enum FieldType {
-    PADDING_NONCE = 0x00 << 2,
-    PAYLOAD = 0x01 << 2,
-    RELATES_TO = 0x02 << 2,
-    KEY_DISTRIBUTION = 0x03 << 2,
-    SHARED_KEY = 0x04 << 2,
-    ENCRYPTED = 0x05 << 2,
-    TYPE_SIGNATURE = 0x06 << 2,
-    TYPE_SPECIAL_BLOCK = 0x07 << 2,
-    TYPE_PUBLIC_KEY = 0x08 << 2,
-}
-
-export const FIELD_LENGTHS: { [key: number]: number | undefined } = {
-    [FieldType.PAYLOAD]: undefined,
-    [FieldType.RELATES_TO]: 32,
-    [FieldType.PADDING_NONCE]: undefined,
-    [FieldType.KEY_DISTRIBUTION]: 40,
-    [FieldType.SHARED_KEY]: 32,
-    [FieldType.ENCRYPTED]: undefined,
-    [FieldType.TYPE_SIGNATURE]: 72,
-    [FieldType.TYPE_SPECIAL_BLOCK]: 0, // Just a single header byte
-    [FieldType.TYPE_PUBLIC_KEY]: 32,
-};
-
-export enum SpecialBlockType {
-    BLOCK_TYPE_MUB = 0x00,
-    BLOCK_TYPE_IPB = 0x01,
-    BLOCK_TYPE_RESERVED = 0x02,
-    BLOCK_TYPE_RESERVED2 = 0x03,
-}
-
-interface FullField {
-    type: FieldType;
-    start: number; // Start of field as offset from beginning of block (binaryData)
-    length: number;
-    value: Buffer;
-}
-
-export interface Field {
-    type: FieldType;
-    length: number;
-    value: Buffer;
-}
+export const BLOCK_HEADER_LENGTH: number = 6;
 
 export class Block {
     private version: number;
     private reservedBits: number;
     private date: number;
-    private fields: Array<Field | FullField>;
+    private fields: Array<fp.Field | fp.FullField>;
     private binaryData: Buffer | undefined;
     private hash: Buffer | undefined;
-
-    private static BLOCK_HEADER_LENGTH: number = 6;
 
     constructor(binaryData?: Buffer) {
         if (binaryData && binaryData.length !== 1024) {
@@ -73,16 +30,16 @@ export class Block {
             this.version = 0;
             this.reservedBits = 0;
             this.date = Math.floor(Date.now() / 1000);
-            const num_alloc = NetConstants.BLOCK_SIZE - Block.BLOCK_HEADER_LENGTH - Block.getFieldHeaderLength(FieldType.PADDING_NONCE);
+            const num_alloc = NetConstants.BLOCK_SIZE - BLOCK_HEADER_LENGTH - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE);
             this.fields = [{
-                type: FieldType.PADDING_NONCE,
+                type: fp.FieldType.PADDING_NONCE,
                 length: num_alloc, value: Buffer.alloc(num_alloc)
             }];
             this.binaryData = undefined;
             this.hash = undefined;
         } else {
             this.binaryData = binaryData;
-            this.hash = Block.calculateHash(binaryData);
+            this.hash = bu.calculateHash(binaryData);
             let verified = this.verifyBlockDifficulty();
             if (!verified) {
                 logger.error('Block does not meet difficulty requirements');
@@ -91,13 +48,9 @@ export class Block {
             this.version = binaryData[0] >> 4;
             this.reservedBits = binaryData[0] & 0xF;
             this.date = binaryData.readUIntBE(1, 5);
-            this.fields = Block.parseTLVBinaryData(this.binaryData);
+            this.fields = fp.parseTLVBinaryData(this.binaryData);
         }
         this.processTLVFields(this.fields, this.binaryData);
-    }
-
-    public static getFieldHeaderLength(fieldType: FieldType): number {
-        return (FIELD_LENGTHS[fieldType] == undefined) ? 2 : 1;
     }
 
     private verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
@@ -125,23 +78,23 @@ export class Block {
 
     // If binaryData is undefined, then this is a new local block in the process of being created.
     // If binaryData is defined, then we expect a fully formed block meeting all requirements.
-    private processTLVFields(fields: Array<Field | FullField>, binaryData: Buffer | undefined): void {
-        let mub: FullField | undefined = undefined;
-        let publicKey: FullField | undefined = undefined;
-        let signature: FullField | undefined = undefined;
+    private processTLVFields(fields: Array<fp.Field | fp.FullField>, binaryData: Buffer | undefined): void {
+        let mub: fp.FullField | undefined = undefined;
+        let publicKey: fp.FullField | undefined = undefined;
+        let signature: fp.FullField | undefined = undefined;
 
         for (let field of fields) {
             switch (field.type) {
-                case FieldType.PADDING_NONCE:
-                case FieldType.PAYLOAD:
+                case fp.FieldType.PADDING_NONCE:
+                case fp.FieldType.PAYLOAD:
                     break;
-                case FieldType.RELATES_TO:
-                case FieldType.KEY_DISTRIBUTION:
-                case FieldType.SHARED_KEY:
-                case FieldType.ENCRYPTED:
+                case fp.FieldType.RELATES_TO:
+                case fp.FieldType.KEY_DISTRIBUTION:
+                case fp.FieldType.SHARED_KEY:
+                case fp.FieldType.ENCRYPTED:
                     logger.error('Block: Field not implemented ' + field.type);
                     throw new Error('Block: Fields not implemented ' + field.type);
-                case FieldType.TYPE_SIGNATURE:
+                case fp.FieldType.TYPE_SIGNATURE:
                     if ('start' in field && binaryData) {
                         if (field.start + field.length !== binaryData.length) {
                             logger.error('Block: Signature field is not the last field');
@@ -154,10 +107,10 @@ export class Block {
                         throw new Error('Block: Signature field does not have start');
                     }
                     break;
-                case FieldType.TYPE_SPECIAL_BLOCK:
+                case fp.FieldType.TYPE_SPECIAL_BLOCK:
                     // has to be very first field
                     if ('start' in field) {
-                        if (field.start !== Block.BLOCK_HEADER_LENGTH) {
+                        if (field.start !== BLOCK_HEADER_LENGTH) {
                             logger.error('Block: Special block type is not the first field');
                             throw new Error('Block: Special block type is not the first field');
                         } else {
@@ -165,12 +118,12 @@ export class Block {
                         }
                     }
                     const specialBlockType = field.value[0] & 0x03;
-                    if (specialBlockType !== SpecialBlockType.BLOCK_TYPE_MUB) {
+                    if (specialBlockType !== fp.SpecialBlockType.BLOCK_TYPE_MUB) {
                         logger.error('Block: Special block type not implemented ' + specialBlockType);
                         throw new Error('Block: Special block type not implemented ' + specialBlockType);
                     }
                     break;
-                case FieldType.TYPE_PUBLIC_KEY:
+                case fp.FieldType.TYPE_PUBLIC_KEY:
                     // TODO: add to keystore
                     if ('start' in field) {
                         publicKey = field;
@@ -201,7 +154,7 @@ export class Block {
                 const fingerprintLength = 8;
                 // From start of block up to the signature itself
                 let dataToVerify = binaryData.slice(0, signature.start
-                    + Block.getFieldHeaderLength(FieldType.TYPE_SIGNATURE + fingerprintLength));
+                    + fp.getFieldHeaderLength(fp.FieldType.TYPE_SIGNATURE + fingerprintLength));
 
                 // Verify the signature
                 this.verifySignature(publicKeyValue, signatureValue, dataToVerify);
@@ -236,26 +189,26 @@ export class Block {
         this.date = date;
     }
 
-    public getFields(): Array<Field> {
+    public getFields(): Array<fp.Field> {
         return this.fields;
     }
 
-    public setFields(fields: Array<Field>): void {
+    public setFields(fields: Array<fp.Field>): void {
         this.binaryData = undefined;
         this.hash = undefined;
         this.fields = fields;
         // verify all fields together are less than 1024 bytes
-        let totalLength = Block.BLOCK_HEADER_LENGTH;
+        let totalLength = BLOCK_HEADER_LENGTH;
         for (let field of fields) {
             totalLength += field.length;
-            totalLength += Block.getFieldHeaderLength(field.type);
+            totalLength += fp.getFieldHeaderLength(field.type);
         }
         if (totalLength > NetConstants.BLOCK_SIZE) {
             throw new Error('Block: Fields are ' + totalLength + ' bytes but must be less than ' + NetConstants.BLOCK_SIZE + ' bytes');
         } else if (totalLength != NetConstants.BLOCK_SIZE) { // Pad with padding nonce to reach 1024 bytes
-            const num_alloc = NetConstants.BLOCK_SIZE - totalLength - 2;
+            const num_alloc = NetConstants.BLOCK_SIZE - totalLength - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE);
             fields.push({
-                type: FieldType.PADDING_NONCE,
+                type: fp.FieldType.PADDING_NONCE,
                 length: num_alloc, value: Buffer.alloc(num_alloc)
             });
         }
@@ -281,154 +234,35 @@ export class Block {
         if (this.binaryData === undefined) {
             this.binaryData = Buffer.alloc(1024);
 
-            this.updateVersionBinaryData(this.version, this.reservedBits);
-            this.updateDateBinaryData(this.date);
-            this.updateTLVBinaryData(this.fields);
+            Block.updateVersionBinaryData(this.binaryData, this.version, this.reservedBits);
+            Block.updateDateBinaryData(this.binaryData, this.date);
+            fp.updateTLVBinaryData(this.binaryData, this.fields);
         }
         return this.binaryData;
     }
 
-    async printBlockInfo() {
-        console.log("Version: " + this.getVersion());
-        console.log("Date: " + this.getDate());
-        console.log("Fields: ");
-        for (let field of this.fields) {
-            console.log("    Type: " + field.type);
-            console.log("    Length: " + field.length);
-            //console.log("    Value: " + field.value.toString('hex'));
-        }
-        console.log("Hash: " + (await this.getHash()).toString('hex'));
-    }
-
-    private updateVersionBinaryData(version: number, reservedBits: number) {
-        if (this.binaryData === undefined)
-            throw new Error("Binary data not initialized");
-        this.binaryData[0] = (version << 4) | reservedBits;
-    }
-
-    private updateDateBinaryData(date: number) {
-        if (this.binaryData === undefined)
-            throw new Error("Binary data not initialized");
-        this.binaryData.writeUIntBE(date, 1, 5);
-    }
-
-    private updateTLVBinaryData(fields: Array<{ type: FieldType; length: number; value: Buffer }>): void {
-        if (this.binaryData === undefined)
-            throw new Error("Binary data not initialized");
-        let index = Block.BLOCK_HEADER_LENGTH; // Start after date field
-        for (let field of fields) {
-            let { nextIndex } = this.writeTLVHeader(field.type, field.length, index);
-            index = nextIndex;
-
-            if (index + field.length <= this.binaryData.length) {
-                // Write value
-                field.value.copy(this.binaryData, index);
-                index += field.length;
-            } else {
-                logger.error(field.type + " field is too large, got " + field.length + " bytes, need " + (this.binaryData.length - index) + " bytes");
-                throw new Error("Insufficient space in binaryData, got " + (index) + " bytes, need " + (index + field.length) + " bytes");
-            }
-        }
-        // verify block is full
-        if (index != this.binaryData.length) {
-            logger.error("Block is not full, got " + index + " bytes, need " + this.binaryData.length + " bytes");
-            throw new Error("Block is not full, got " + index + " bytes, need " + this.binaryData.length + " bytes");
-        }
-    }
-
-    private writeTLVHeader(type: number, length: number, index: number): { nextIndex: number } {
-        if (this.binaryData === undefined)
-            throw new Error("Binary data not initialized");
-        let implicitLength = FIELD_LENGTHS[type];
-        if (implicitLength === undefined) {
-            // Write type and length
-            this.binaryData.writeUInt16BE((length & 0x03FF), index);
-            this.binaryData[index] |= (type & 0xFC);
-            index += 2;
-        } else {
-            // Write only type
-            this.binaryData[index] = type;
-            index += 1;
-        }
-        return { nextIndex: index };
-    }
-
-    private static parseTLVBinaryData(binaryData: Buffer): Array<Field | FullField> {
+    private static updateVersionBinaryData(binaryData: Buffer, version: number, reservedBits: number) {
         if (binaryData === undefined)
             throw new Error("Binary data not initialized");
-        let fields = []; // Clear any existing fields
-        let index = Block.BLOCK_HEADER_LENGTH; // Start after date field
-        while (index < binaryData.length) {
-            const { type, length, valueStartIndex } = Block.readTLVHeader(binaryData, index);
-            const start = index; // Start of TLV field
-            index = valueStartIndex;
-
-            if (index + length <= binaryData.length) {  // Check if enough data for value field
-                let value = binaryData.slice(index, index + length);
-                fields.push({ type: type, start: start, length: length, value: value });
-                index += length;
-            } else {
-                throw new Error("Data ended unexpectedly while reading value of field");
-            }
-        }
-        return fields;
+        binaryData[0] = (version << 4) | reservedBits;
     }
 
-    private static readTLVHeader(binaryData: Buffer, index: number): { type: number, length: number, valueStartIndex: number } {
-        // We first parse just type in order to detect whether a length field is present.
-        // If the length field is present, we parse two bytes:
-        // the first byte contains 6 bits of type information
-        // and the last two bits of the first byte and the second byte contain the length
-        // information.
-        let type = binaryData[index] & 0xFC;
-        if (!(type in FieldType))
-            throw new Error("Invalid TLV type");
-        let implicit = FIELD_LENGTHS[type];
-        let length: number;
-        if (implicit === undefined) {
-            // Parse length
-            length = binaryData.readUInt16BE(index) & 0x03FF;
-            index += 2;
-        } else { // Implicit length saved one byte
-            length = implicit;
-            index += 1;
-        }
-        return { type, length, valueStartIndex: index };
+    private static updateDateBinaryData(binaryData: Buffer, date: number) {
+        if (binaryData === undefined)
+            throw new Error("Binary data not initialized");
+        binaryData.writeUIntBE(date, 1, 5);
     }
 
     private findNonceFieldIndex(binaryData: Buffer): number | null {
-        let index = Block.BLOCK_HEADER_LENGTH; // Start after date field
+        let index = BLOCK_HEADER_LENGTH; // Start after date field
         while (index < binaryData.length) {
-            const { type, length, valueStartIndex } = Block.readTLVHeader(binaryData, index);
-            if (type === FieldType.PADDING_NONCE && length >= 4) {
+            const { type, length, valueStartIndex } = fp.readTLVHeader(binaryData, index);
+            if (type === fp.FieldType.PADDING_NONCE && length >= 4) {
                 return valueStartIndex; // Return the index of the start of the PADDING_NONCE field value
             }
             index = valueStartIndex + length; // Move to the next field
         }
         return null; // Return null if no suitable PADDING_NONCE field is found
-    }
-
-    public static countTrailingZeroBits(buffer: Buffer): number {
-        let count = 0;
-        let byte = 0xFF;
-        for (let i = buffer.length - 1; i >= 0; i--) {
-            byte = buffer[i];
-            if (byte === 0) {
-                count += 8;
-            } else {
-                break;
-            }
-        }
-        // Count trailing zero bits in the last non-zero byte
-        for (let j = 0; j < 8; j++) {
-            if ((byte & 1) === 0) {
-                count++;
-                byte >>= 1;
-            } else {
-                break;
-            }
-        }
-        return count;
     }
 
     // Non-worker version kept for browser portability
@@ -445,9 +279,9 @@ export class Block {
                     // Write the nonce to binaryData
                     this.binaryData.writeUInt32BE(nonce, nonceStartIndex);
                     // Calculate the hash
-                    hash = Block.calculateHash(this.binaryData);
+                    hash = bu.calculateHash(this.binaryData);
                     // Check if the hash is valid
-                    if (Block.countTrailingZeroBits(hash) >= Settings.REQUIRED_DIFFICULTY) {
+                    if (bu.countTrailingZeroBits(hash) >= Settings.REQUIRED_DIFFICULTY) {
                         logger.debug("Found valid hash with nonce " + nonce);
                         resolve(hash);
                         return;  // This is important! It stops the for loop and the function if a valid hash is found
@@ -501,33 +335,15 @@ export class Block {
         });
     }
 
-    private static calculateHash(data: Buffer): Buffer {
-        const hasher = createHash('sha3-256');
-        hasher.update(data);
-        return hasher.digest();
-    }
-
     private verifyBlockDifficulty(): boolean {
         if (this.binaryData === undefined)
             throw new Error("Binary data not initialized");
         // Only calculate the hash if it has not been calculated yet
         if (this.hash === undefined)
-            this.hash = Block.calculateHash(this.binaryData);
+            this.hash = bu.calculateHash(this.binaryData);
 
         // Check the trailing zeroes
-        return Block.countTrailingZeroBits(this.hash) >= Settings.REQUIRED_DIFFICULTY;
-    }
-
-    public static blockLifetime(d1: number, d2: number, c1: number, c2: number, x: number): number {
-        // Calculate the base-2 logarithms
-        let log2_c1 = Math.log2(c1);
-        let log2_c2 = Math.log2(c2);
-        let log2_x = Math.log2(x);
-
-        // Calculate the number of days the block lives
-        let days = ((d1 - d2) * log2_x / (log2_c1 - log2_c2)) + ((d1 * log2_c2 - d2 * log2_c1) / (log2_c2 - log2_c1));
-
-        return days;
+        return bu.countTrailingZeroBits(this.hash) >= Settings.REQUIRED_DIFFICULTY;
     }
 
 }

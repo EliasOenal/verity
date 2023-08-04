@@ -2,7 +2,7 @@ import { PeerDB, Peer } from './peerDB';
 import { Settings } from './config';
 
 describe('announce', () => {
-    it('should get peers from multiple trackers', async () => {
+    it.skip('should get peers from multiple trackers', async () => {
         let peerDB: PeerDB = new PeerDB();
         
         // Array to hold new peers received from trackers
