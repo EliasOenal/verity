@@ -1,14 +1,13 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "commonjs",
     "strict": true,
     "esModuleInterop": true,
     "outDir": "./dist",
-    "moduleResolution": "node"
+    "moduleResolution": "node16"
   },
   "include": ["./**/*.ts"],
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules", "dist"],
   "scripts": {
     "pretest": "tsc",
     "test": "jest"
