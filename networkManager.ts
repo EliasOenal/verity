@@ -1,4 +1,4 @@
-import WebSocket from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 import { CubeStore } from './cubeStore.js';
 import { MessageClass, NetConstants } from './networkDefinitions.js';
 import { PeerDB, Peer } from './peerDB.js';
@@ -13,7 +13,7 @@ import net from 'net';
  * Class representing a network manager, responsible for handling incoming and outgoing connections.
  */
 export class NetworkManager extends EventEmitter {
-    server: WebSocket.Server | undefined; // The WebSocket server for incoming connections
+    server: WebSocketServer | undefined; // The WebSocket server for incoming connections
     outgoingPeers: NetworkPeer[]; // The peers for outgoing connections
     incomingPeers: NetworkPeer[]; // The peers for incoming connections
     private cubeStore: CubeStore;
@@ -64,7 +64,7 @@ export class NetworkManager extends EventEmitter {
 
     public start() {
         if (this.server_enabled) {
-            this.server = new WebSocket.Server({ port: this.server_port });
+            this.server = new WebSocketServer({ port: this.server_port });
             logger.trace('NetworkManager: Server has been started on port ' + this.server_port);
 
             // Handle incoming connections
