@@ -21,5 +21,5 @@ node fullNode.js
 
 ## Tests ##
 ```
-jest
+npm test
 ```
