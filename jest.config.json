@@ -1,0 +1,7 @@
+{
+    "testEnvironment": "node",
+    "testTimeout": 15000,
+    "runner": "jest-runner",
+    "maxWorkers": 8,
+    "testMatch": [ "**/dist/**/*.test.js" ]
+}

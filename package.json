@@ -6,10 +6,6 @@
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
-  "jest": {
-    "testMatch": [ "**/dist/**/*.test.js" ],
-    "testEnvironment": "node"
-  },
   "author": "Elias Oenal",
   "license": "",
   "type": "module",

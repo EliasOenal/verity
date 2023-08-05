@@ -1,7 +1,7 @@
 import { NetworkManager } from './networkManager.js';
 import { NetworkPeer } from './networkPeer.js';
 import { CubeStore } from './cubeStore.js';
-import WebSocket from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 import { Cube } from './cube.js';
 import { FieldType } from './fieldProcessing.js';
 import { PeerDB, Peer } from './peerDB.js';
@@ -20,7 +20,7 @@ describe('networkManager', () => {
     test('should create a WebSocket server on instantiation', done => {
         let manager = new NetworkManager(3000, new CubeStore(), new PeerDB(), false)
         manager.start();
-        expect(manager.server).toBeInstanceOf(WebSocket.Server);
+        expect(manager.server).toBeInstanceOf(WebSocketServer);
         manager.shutdown();
         done();
     }, 1000);
@@ -48,7 +48,7 @@ describe('networkManager', () => {
         // Wait for server to start listening
         await new Promise((resolve) => manager?.server?.on('listening', resolve));
 
-        let server = new WebSocket.Server({ port: 3002 });
+        let server = new WebSocketServer({ port: 3002 });
 
         // Wait for server2 to start listening
         await new Promise((resolve) => server?.on('listening', resolve));
