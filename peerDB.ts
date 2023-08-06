@@ -1,5 +1,4 @@
 import http from 'http';
-import querystring from 'querystring';
 import { decode } from 'bencodec';
 import { EventEmitter } from 'events';
 import { Settings } from './config';
@@ -136,9 +135,9 @@ export class PeerDB extends EventEmitter {
         }
 
         const tasks = PeerDB.trackerUrls.map(async (trackerUrl) => {
-            const params = querystring.stringify({
-                info_hash: PeerDB.infoHash,
-                port: this.ourPort,
+            const params = new URLSearchParams({
+                info_hash: String(PeerDB.infoHash),
+                port: String(this.ourPort),
             });
 
             logger.trace(`PeerDB: sending announce request to ${trackerUrl}?${params}`);
