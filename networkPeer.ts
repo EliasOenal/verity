@@ -5,7 +5,6 @@ import { WebSocket } from 'ws';
 import { Settings } from './config';
 import { logger } from './logger';
 import { Peer } from './peerDB';
-import net from 'net';
 
 
 export interface PacketStats {
@@ -317,7 +316,7 @@ export class NetworkPeer extends EventEmitter {
     // however for now this serves the purpose of being able to
     // prevent connecting to the same peer twice
     private convertIPv6toIPv4(ip: string): string {
-        if (net.isIPv6(ip) && ip.startsWith('::ffff:')) {
+        if ( ip.startsWith('::ffff:') ) {
             return ip.replace('::ffff:', '');
         }
         return ip;

@@ -7,7 +7,6 @@ import { Settings } from './config';
 import { NetworkPeer, NetworkStats } from './networkPeer';
 import { logger } from './logger';
 import crypto from 'crypto';
-import net from 'net';
 
 /**
  * Class representing a network manager, responsible for handling incoming and outgoing connections.
@@ -127,7 +126,7 @@ export class NetworkManager extends EventEmitter {
     // however for now this serves the purpose of being able to
     // prevent connecting to the same peer twice
     private convertIPv6toIPv4(ip: string): string {
-        if (net.isIPv6(ip) && ip.startsWith('::ffff:')) {
+        if ( ip.startsWith('::ffff:') ) {
             return ip.replace('::ffff:', '');
         }
         return ip;
