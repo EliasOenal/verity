@@ -1,7 +1,7 @@
 // cubeUtil.ts
 import { Buffer } from 'buffer';
 import * as nacl from 'tweetnacl';
-import { createHash } from 'crypto';
+import { sha3_256 } from 'js-sha3';
 import { Cube } from './cube';
 
 export function cubeLifetime(d1: number, d2: number, c1: number, c2: number, x: number): number {
@@ -17,9 +17,7 @@ export function cubeLifetime(d1: number, d2: number, c1: number, c2: number, x: 
 }
 
 export function calculateHash(data: Buffer): Buffer {
-    const hasher = createHash('sha3-256');
-    hasher.update(data);
-    return hasher.digest();
+    return Buffer.from(sha3_256.arrayBuffer(data));
 }
 
 export function countTrailingZeroBits(buffer: Buffer): number {

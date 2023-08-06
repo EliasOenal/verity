@@ -1,7 +1,9 @@
 // cube.ts
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers'
-import { createHash } from 'crypto';
+//import { createHash } from 'crypto';
+import * as nacl from 'tweetnacl';
+import { sha3_256 } from 'js-sha3';
 import { Settings } from './config';
 import { logger } from './logger';
 import path from 'path';
@@ -58,9 +60,8 @@ export class Cube {
         }
     }
 
-    private static verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
-        let hash = createHash('sha3-256');
-        let calculatedFingerprint = hash.update(publicKeyValue).digest().slice(0, 8);
+    private verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
+        let calculatedFingerprint = Buffer.from(sha3_256.arrayBuffer(publicKeyValue)).slice(0,8);
 
         if (!calculatedFingerprint.equals(providedFingerprint)) {
             logger.error('Cube: Fingerprint does not match');
