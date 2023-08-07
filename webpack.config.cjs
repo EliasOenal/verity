@@ -51,6 +51,7 @@ module.exports = {
     new CopyWebpackPlugin({
       patterns: [
         { from: './*.html' },
+	{ from: './img/vera_250px_nobg.png' },
       ]
     }),
    new webpack.ProvidePlugin({

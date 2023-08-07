@@ -2,14 +2,26 @@
 <html>
 
 <head>
-  <script>
-
-  </script>
+  <title>Verity</title>
   <script src="fullNode-bundle.js" />
 </head>
 
 <body>
     <script>main()</script>
+    <img src="vera_250px_nobg.png" alt=""/>
+
+    <h3>My Peers</h3>
+    <ol id="peerlist">
+    </ol>
+
+    <h3>Make new Cube</h3>
+    <label for="newcubemsg">New Cube content:</label>
+    <input type="text" id="newcubemsg" size="60" />
+    <button id="newcube" onclick="window.global.node.makeNewCube(document.getElementById('newcubemsg').value);">Create</button>
+
+    <h3>My Cubes</h3>
+    <ol id="cubelist">
+    </ol>
 </body>
 
 </html>

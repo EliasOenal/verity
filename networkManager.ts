@@ -230,6 +230,7 @@ export class NetworkManager extends EventEmitter {
                 logger.info(`NetworkManager: Connected to ${peerURL}`);
                 // Add the new NetworkPeer to the list of outgoing peers
                 this.outgoingPeers.push(networkPeer);
+                this.emit('newpeer', networkPeer);
 
                 // Listen for the 'close' event on the NetworkPeer
                 networkPeer.on('close', (closingPeer) => {
