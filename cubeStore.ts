@@ -1,7 +1,7 @@
 import { Cube } from './cube';
 import { logger } from './logger';
 import { EventEmitter } from 'events';
-
+import { Buffer } from 'buffer';
 
 export class CubeStore extends EventEmitter {
   storage: Map<string, Buffer>;

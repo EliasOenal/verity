@@ -26,6 +26,10 @@ export class Peer {
     equals(other: Peer): boolean {
         return this.ip === other.ip && this.port === other.port;
     }
+
+    toString() {
+        return `${this.ip}:${this.port}(${this.id})`;
+    }
 }
 
 export class PeerDB extends EventEmitter {
@@ -77,7 +81,7 @@ export class PeerDB extends EventEmitter {
     }
 
     setPeersVerified(peers: Peer[]): void {
-        logger.trace(`PeerDB: setPeersVerified`);
+        logger.info(`PeerDB: setting peer(s) ${peers.join(", ")} verified.`);
         // Check blacklisted peers
         peers = peers.filter(peer => !this.peersBlacklisted.some(blacklistedPeer => blacklistedPeer.equals(peer)));
 
@@ -89,7 +93,7 @@ export class PeerDB extends EventEmitter {
     }
 
     setPeersUnverified(peers: Peer[]): void {
-        logger.info(`PeerDB: setPeersUnverified`);
+        logger.info(`PeerDB: setting peer(s) ${peers.join(", ")} unverified.`);
         // Check blacklisted peers
         peers = peers.filter(peer => !this.peersBlacklisted.some(blacklistedPeer => blacklistedPeer.equals(peer)));
 
