@@ -1,4 +1,5 @@
-import WebSocket from 'ws';
+import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
+import WebSocket from 'isomorphic-ws';
 import { CubeStore } from './cubeStore';
 import { MessageClass, NetConstants } from './networkDefinitions';
 import { PeerDB, Peer } from './peerDB';
@@ -53,11 +54,15 @@ export class NetworkManager extends EventEmitter {
         this.server_port = port;
         this.lightNode = lightNode;
         this.peerID = crypto.randomBytes(16);
+        if (isNode) {
         if (port !== 0) {
-            this.server_enabled = true;
+                this.server_enabled = true;
+            } else {
+                this.server_enabled = false;
+                logger.info(`NetworkManager: Client mode is enabled. Listening for incoming connections is disabled.`);
+            }
         } else {
             this.server_enabled = false;
-            logger.info(`NetworkManager: Client mode is enabled. Listening for incoming connections is disabled.`);
         }
     }
 
@@ -69,7 +74,12 @@ export class NetworkManager extends EventEmitter {
             // Handle incoming connections
             this.server?.on('connection', ws => {
                 logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort}`);
-                const peer = new NetworkPeer(ws, this.cubeStore, this.peerID, this.lightNode);
+                const peer = new NetworkPeer(
+                    (ws as any)._socket.remoteAddress,
+                    (ws as any)._socket.remotePort,
+                    ws, this.cubeStore,
+                    this.peerID,
+                    this.lightNode);
                 this.incomingPeers.push(peer);
                 peer.on('close', () => {
                     logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort} has been closed.`);
@@ -187,11 +197,17 @@ export class NetworkManager extends EventEmitter {
         logger.info(`NetworkManager: Connecting to ${peerURL}...`);
 
         // Create a WebSocket connection with a handshake timeout
-        const ws = new WebSocket(peerURL, { handshakeTimeout: NetworkManager.WEBSOCKET_HANDSHAKE_TIMEOUT });
+        var WsOptions: any;
+        if (isNode) {
+            WsOptions = { handshakeTimeout: NetworkManager.WEBSOCKET_HANDSHAKE_TIMEOUT };
+        } else {
+            WsOptions = [];
+        }
+        const ws = new WebSocket(peerURL, WsOptions);
 
         // Listen for WebSocket errors
-        ws.on('error', (error) => {
-            logger.warn(`NetworkManager: WebSocket error: ${error}`);
+        ws.addEventListener("error", (error) => {
+            logger.warn(`NetworkManager: WebSocket error: ${error.message}`);
             // Remove all listeners and close the WebSocket connection in case of an error
             ws.close();
             ws.removeAllListeners();
@@ -199,11 +215,17 @@ export class NetworkManager extends EventEmitter {
 
         return new Promise((resolve) => {
             // Listen for the WebSocket 'open' event
-            ws.on('open', () => {
+            ws.addEventListener("open", () =>  {
                 // Mark the peer as verified
                 this.peerDB.setPeersVerified([peer]);
                 // Create a new NetworkPeer
-                const networkPeer = new NetworkPeer(ws, this.cubeStore, this.peerID, this.lightNode);
+                const networkPeer = new NetworkPeer(
+                    peer.ip,
+                    peer.port,
+                    ws,
+                    this.cubeStore,
+                    this.peerID,
+                    this.lightNode);
 
                 logger.info(`NetworkManager: Connected to ${peerURL}`);
                 // Add the new NetworkPeer to the list of outgoing peers

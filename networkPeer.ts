@@ -1,7 +1,9 @@
+import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
+import { Buffer } from 'buffer';
 import { EventEmitter } from 'events';
 import { CubeStore } from './cubeStore';
 import { MessageClass, NetConstants } from './networkDefinitions';
-import { WebSocket } from 'ws';
+import { WebSocket } from 'isomorphic-ws';
 import { Settings } from './config';
 import { logger } from './logger';
 import { Peer } from './peerDB';
@@ -40,7 +42,7 @@ export class NetworkPeer extends EventEmitter {
     private lightMode: boolean = false;
     private hostNodePeerID: Buffer;
 
-    constructor(ws: WebSocket, cubeStore: CubeStore, hostNodePeerID: Buffer, lightMode: boolean = false) {
+    constructor(ip: string, port: number, ws: WebSocket, cubeStore: CubeStore, hostNodePeerID: Buffer, lightMode: boolean = false) {
         super();
         this.ws = ws;
         this.storage = cubeStore;
@@ -48,8 +50,8 @@ export class NetworkPeer extends EventEmitter {
         this.hostNodePeerID = hostNodePeerID;
         this.lightMode = lightMode;
         this.stats = {
-            ip: (ws as any)._socket.remoteAddress,
-            port: (ws as any)._socket.remotePort,
+            ip: ip,
+            port: port,
             peerID: undefined,
             tx: { totalPackets: 0, totalBytes: 0, packetTypes: {} },
             rx: { totalPackets: 0, totalBytes: 0, packetTypes: {} },
@@ -61,11 +63,18 @@ export class NetworkPeer extends EventEmitter {
         }
 
         // Handle incoming messages
-        this.ws.on('message', (message: Buffer) => {
-            this.handleMessage(message);
+        this.ws.addEventListener("message", (event) => {
+            if (isNode) {
+                this.handleMessage(Buffer.from(event.data as Buffer));
+            } else {
+                var blob: Blob = event.data as unknown as Blob;
+                blob.arrayBuffer().then((value) => {
+                    this.handleMessage(Buffer.from(value));
+                });
+            }
         });
 
-        this.ws.on('close', () => {
+        this.ws.addEventListener('close', () => {
             this.emit('close', this);
             this.shutdown();
         });

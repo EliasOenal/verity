@@ -1,7 +1,7 @@
 import { NetworkManager } from './networkManager';
 import { NetworkPeer } from './networkPeer';
 import { CubeStore } from './cubeStore';
-import WebSocket from 'ws';
+import WebSocket from 'isomorphic-ws';
 import { Cube } from './cube';
 import { FieldType } from './fieldProcessing';
 import { PeerDB, Peer } from './peerDB';
