@@ -3,6 +3,8 @@ import { Cube } from './cube';
 import { Buffer } from 'buffer';
 import { FieldType } from './fieldProcessing';
 import { countTrailingZeroBits } from './cubeUtil';
+import sodium from 'libsodium-wrappers'
+import { logger } from './logger';
 
 describe('cube', () => {
   // This test parses a bit weirdly, the zero fill after the nonce decodes into additional TLV fields of length 0
@@ -96,9 +98,9 @@ describe('cube', () => {
 
   it('should calculate the hash correctly', async () => {
     const cube = new Cube();
-    const hash = await cube.getHash();
-    expect(hash).toBeDefined();
-    expect(hash.length).toEqual(32); // SHA-3-256 hash length is 32 bytes
+    const key = await cube.getKey();
+    expect(key).toBeDefined();
+    expect(key.length).toEqual(32); // SHA-3-256 hash length is 32 bytes
   }, 1000);
 
   it('should throw an error when there is not enough space for a field value', () => {
@@ -118,8 +120,8 @@ describe('cube', () => {
     cube.setVersion(0);
     let payload: Buffer = Buffer.from('Hello world, this is a payload for a cube!', 'ascii');
     cube.setFields([{ type: FieldType.PAYLOAD, length: payload.length, value: payload }]);
-    let hash: Buffer = await cube.getHash();
-    expect(hash[hash.length - 1]).toEqual(0);
+    let key: Buffer = await cube.getKey();
+    expect(key[key.length - 1]).toEqual(0);
   }, 1000);
 
   it('should count the zero bits', () => {
@@ -130,5 +132,53 @@ describe('cube', () => {
     expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000008", "hex"))).toEqual(3);
     expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000010", "hex"))).toEqual(4);
     expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000020", "hex"))).toEqual(5);
+  }, 1000);
+
+  it('should correctly generate and validate MUC with specified TLV fields', async () => {
+    // Generate a key pair for testing
+    const keyPair = sodium.crypto_sign_keypair();
+    const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+    const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+
+    // Create a new MUC with specified TLV fields
+    const muc = new Cube();
+    muc.setKeys(publicKey, privateKey);
+
+    const fields = [
+      { type: FieldType.TYPE_SPECIAL_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },
+      { type: FieldType.TYPE_PUBLIC_KEY, length: 32, value: publicKey },
+      { type: FieldType.PADDING_NONCE, length: 909, value: Buffer.alloc(909) },
+      { type: FieldType.TYPE_SIGNATURE, length: 72, value: Buffer.alloc(72) }];
+
+    muc.setFields(fields);
+    const key = await muc.getKey();
+    expect(key).toBeDefined();
+  }, 1000);
+
+  it('should correctly parse and validate MUC from binary', async () => {
+    // Generate a key pair for testing
+    const keyPair = sodium.crypto_sign_keypair();
+    const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+    const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+
+    // Create a new MUC with specified TLV fields
+    const muc = new Cube();
+    muc.setKeys(publicKey, privateKey);
+
+    const fields = [
+      { type: FieldType.TYPE_SPECIAL_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },
+      { type: FieldType.TYPE_PUBLIC_KEY, length: 32, value: publicKey },
+      { type: FieldType.PADDING_NONCE, length: 909, value: Buffer.alloc(909) },
+      { type: FieldType.TYPE_SIGNATURE, length: 72, value: Buffer.alloc(72) }];
+
+    muc.setFields(fields);
+    const key = await muc.getKey();
+    expect(key).toBeDefined();
+
+    const binMuc: Buffer = muc.getBinaryData();
+
+    // Parse the MUC from binary
+    const parsedMuc = new Cube(binMuc);
+    expect(parsedMuc).toBeDefined();
   }, 1000);
 });

@@ -54,5 +54,5 @@ export async function printCubeInfo(cube: Cube) {
         console.log("    Length: " + field.length);
         //console.log("    Value: " + field.value.toString('hex'));
     }
-    console.log("Hash: " + (await cube.getHash()).toString('hex'));
+    console.log("Key: " + (await cube.getKey()).toString('hex'));
 }

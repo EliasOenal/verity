@@ -17,5 +17,6 @@ export const NetConstants =  {
     HASH_SIZE: 32,
     PROTOCOL_VERSION_SIZE: 1,
     MESSAGE_CLASS_SIZE: 1,
-    COUNT_SIZE: 4
+    COUNT_SIZE: 4,
+    FINGERPRINT_SIZE: 8,
 }
