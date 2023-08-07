@@ -28,7 +28,7 @@ export class Peer {
     }
 
     toString() {
-        return `${this.ip}:${this.port}(${this.id})`;
+        return `${this.ip}:${this.port}(ID#${this.id})`;
     }
 }
 

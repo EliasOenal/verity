@@ -4,7 +4,10 @@ const webpack = require('webpack');
 
 module.exports = {
   target: 'web',
-  entry: './fullNode.ts',
+  entry: {
+    "fullNode-bundle": './fullNode.ts',
+    webuievents: './webui/webuievents.ts'
+  },
   mode: 'development',
   module: {
     rules: [
@@ -44,14 +47,14 @@ module.exports = {
     fs: "fs",
   },
   output: {
-    filename: 'fullNode-bundle.js',
+    filename: '[name].js',
     path: path.resolve(__dirname, 'bundle'),
   },
   plugins: [
     new CopyWebpackPlugin({
       patterns: [
         { from: './*.html' },
-	{ from: './img/vera_250px_nobg.png' },
+	      { from: './img/vera_250px_nobg.png' },
       ]
     }),
    new webpack.ProvidePlugin({

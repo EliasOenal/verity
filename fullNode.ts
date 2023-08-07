@@ -20,15 +20,6 @@ function delay(time: number) {
     return new Promise(resolve => setTimeout(resolve, time));
 }
 
-function hexEncode(msg: string) {
-    var hex, i;
-    var result = "";
-    for (i = 0; i < msg.length; i++) {
-      hex = msg.charCodeAt(i).toString(16);
-      result += ("000" + hex).slice(-4);
-    }
-    return result;
-  };
 
 export class fullNode {
     port: number = 1984;
@@ -157,27 +148,7 @@ async function main() {
     await node.onlinePromise;
     logger.info("Node is online");
 
-    if (isBrowser) {
-        // list peers
-        global.node.networkManager.on('newpeer', (peer: NetworkPeer) => {
-            let li = document.createElement("li");
-            li.innerText = `${peer.stats.ip}:${peer.stats.port} (ID ${peer.stats.peerID})`;
-            document.getElementById("peerlist").appendChild(li);
-        })
-        // list cubes
-        global.node.cubeStore.on('hashAdded', (hash: Buffer) => {
-            let li = document.createElement("li");
-            let cube = global.node.cubeStore.getCube(hash);
-             li.innerHTML = ""
-             li.innerHTML += `<small><i>${hexEncode(cube.hash.toString())}</i></small><br />`;
-            cube.fields.forEach(field => {
-                if (field.type == FieldType.PAYLOAD) {
-                    li.innerHTML += field.value.toString();
-                }
-            });
-            document.getElementById("cubelist").appendChild(li);
-        })
-    }
     await node.shutdownPromise;
 }
+
 main();
