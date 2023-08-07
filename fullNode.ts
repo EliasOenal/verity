@@ -18,7 +18,7 @@ async function main() {
     logger.info('Starting full node');
 
     let port = undefined;
-    let initialPeer = undefined;
+    let initialPeer = "132.145.174.233:1984";
     if (isNode) {
         port = process.argv[2];
         initialPeer = process.argv[3];
