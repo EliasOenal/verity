@@ -44,18 +44,20 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
 
   - **TYPE_ENCRYPTED**: This field holds encrypted data. It can contain any number of embedded TLV fields, which are to be parsed after decryption. The encryption key used is either the one associated with a preceding `TYPE_KEY_DISTRIBUTION` field in the same cube or a key previously distributed and stored in the recipient's key store. The first 8 bytes of the field contain the hash of the symmetric key (fingerprint) used for encryption, allowing the recipient to find the correct key for decryption. The rest of the field contains the encrypted data of further fields embedded within. (e.g. `TYPE_PAYLOAD` and `TYPE_SIGNATURE`)
 
-  - **Relates-To (optional, 32 bytes)**: If present, this field indicates that the cube is a continuation of another post. The field contains the hash of the post it relates to. The type code for this field is `TYPE_RELATES_TO`
+  - **TYPE_RELATES_TO (optional, 32 bytes)**: If present, this field indicates that the cube is a continuation of another post. The field contains the hash of the post it relates to. The type code for this field is `TYPE_RELATES_TO`
     > **TODO**: Implement different types of continuations, like replies, quotes, etc. This will require at least one more byte.
 
-  - **Padding/Nonce (optional, variable length)**: If the cube includes a proof-of-work, a padding field is inserted to provide scratch space for the nonce. It is also used for signature fields, to fill the space between the prior field and the signature. The padding field has a type of `TYPE_PADDING`, and its length is calculated based on the size of the other fields and the signature. The last N bytes of the padding field serve as the nonce for the proof-of-work. The value of the nonce is initially set to zero, and is incremented with each attempt to generate a valid hash.
+  - **TYPE_PADDING_NONCE (optional, variable length)**: If the cube includes a proof-of-work, a padding field is inserted to provide scratch space for the nonce. It is also used for signature fields, to fill the space between the prior field and the signature. The padding field has a type of `TYPE_PADDING_NONCE`, and its length is calculated based on the size of the other fields and the signature. The last N bytes of the padding field serve as the nonce for the proof-of-work. The value of the nonce is initially set to zero, and is incremented with each attempt to generate a valid hash.
 
-  - **Signature (optional, 72 bytes)**: If present, the public key fingerprint and ED25519 signature are placed into this field as the last field in the cube. The field has a type of TYPE_SIGNATURE and does not have an associated length field because its size is fixed. The signature and fingerprint are calculated over all the bytes of the cube from the start up to and including the type byte of this signature field, as well as the fingerprint. The first 8 bytes contain the fingerprint of the public key, and the last 64 bytes of the field contain the signature.
+  - **TYPE_SIGNATURE (optional, 72 bytes)**: If present, the public key fingerprint and ED25519 signature are placed into this field as the last field in the cube. The field has a type of TYPE_SIGNATURE and does not have an associated length field because its size is fixed. The signature and fingerprint are calculated over all the bytes of the cube from the start up to and including the type byte of this signature field, as well as the fingerprint. The first 8 bytes contain the fingerprint of the public key, and the last 64 bytes of the field contain the signature.
 
   - **TYPE_SPECIAL_CUBE**: If used, this field has to be first in the cube following the header. This type activates special cube formats, such as MUC or IPC. It is only one byte long, leaving just 2 bits after the 6 bit type encoding:
    - 0b00: `CUBE_TYPE_MUC`
    - 0b01: `CUBE_TYPE_IPC`
    - 0b10: `CUBE_TYPE_RESERVED`
    - 0b11: `CUBE_TYPE_RESERVED2` (Could be used to enable another byte of payload)
+
+- **TYPE_PUBLIC_KEY (32 bytes)**: This field stores an ED25519 public key. Given its fixed size of 32 bytes, it does not require an accompanying length field. It's used to share or broadcast the public key, enabling cryptographic operations like verifying signatures or initializing secure communications.
 
 # Cube Store
   The cube store is part of each node and contains all the cubes known. While a full node is online it tries to keep its Node Store synchronized with the rest of the network by regularly synchronizing with all connected peers.
