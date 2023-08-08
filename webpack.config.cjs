@@ -48,12 +48,12 @@ module.exports = {
   },
   output: {
     filename: '[name].js',
-    path: path.resolve(__dirname, 'bundle'),
+    path: path.resolve(__dirname, 'distweb'),
   },
   plugins: [
     new CopyWebpackPlugin({
       patterns: [
-        { from: './*.html' },
+        { from: './webui/*.html' },
 	      { from: './img/vera_250px_nobg.png' },
       ]
     }),
@@ -65,7 +65,7 @@ module.exports = {
    })
   ],
   devServer: {
-    static: path.join(__dirname, "bundle"),
+    static: path.join(__dirname, "distweb"),
     compress: true,
     port: 4000,
   },
