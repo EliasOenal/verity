@@ -60,7 +60,7 @@ export class Cube {
         }
     }
 
-    private verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
+    private static verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
         let calculatedFingerprint = Buffer.from(sha3_256.arrayBuffer(publicKeyValue)).slice(0,8);
 
         if (!calculatedFingerprint.equals(providedFingerprint)) {
