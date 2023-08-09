@@ -1,2 +1,2 @@
 require('ts-node').register();
-require('./HashWorker.ts');
+require('./hashWorker.ts');
