@@ -7,4 +7,7 @@ export const Settings = {
     RECONNECT_ATTEMPTS: 2,
     MAXIMUM_CONNECTIONS: 20, // Maximum number of connections to maintain
     HASH_REQUEST_TIME: (10 * 1000),  // 10 seconds in milliseconds
+
+    // debug/development settings -- should remove these later on
+    HASH_WORKERS: false,
 }

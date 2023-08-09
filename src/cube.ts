@@ -9,7 +9,7 @@ import { Settings } from './config';
 import { logger } from './logger';
 import { NetConstants } from './networkDefinitions';
 import * as fp from './fieldProcessing';
-import * as cu from './cubeUtil';
+import * as CubeUtil from './cubeUtil';
 
 export const CUBE_HEADER_LENGTH: number = 6;
 
@@ -45,7 +45,7 @@ export class Cube {
             this.cubeKey = undefined;
         } else {
             this.binaryData = binaryData;
-            this.hash = cu.calculateHash(binaryData);
+            this.hash = CubeUtil.calculateHash(binaryData);
             let verified = this.verifyCubeDifficulty();
             if (!verified) {
                 logger.error('Cube does not meet difficulty requirements');
@@ -273,9 +273,12 @@ export class Cube {
             });
         }
 
-        // Calculate hashcash. Use NodeJS worker based implementation if available.
+        // Calculate hashcash
         let findValidHashFunc: Function;
-        if ( typeof this['findValidHashWorker'] === 'function' ) findValidHashFunc = this['findValidHashWorker'];
+        // Use NodeJS worker based implementation if available and requested in config.ts
+        if ( Settings.HASH_WORKERS && typeof this['findValidHashWorker'] === 'function' ) {
+            findValidHashFunc = this['findValidHashWorker'];
+        }
         else findValidHashFunc = this['findValidHash'];
         this.hash = await findValidHashFunc.call(this, indexNonce, indexSignature);
 
@@ -333,7 +336,7 @@ export class Cube {
         }
 
         // Compute the fingerprint of the public key (first 8 bytes of its hash)
-        const fingerprint = cu.calculateHash(publicKey).slice(0, 8);
+        const fingerprint = CubeUtil.calculateHash(publicKey).slice(0, 8);
 
         // Write the fingerprint to binaryData
         this.binaryData.set(fingerprint, signatureStartIndex);
@@ -381,9 +384,9 @@ export class Cube {
                         this.signBinaryData(this.privateKey!, signatureStartIndex);
                     }
                     // Calculate the hash
-                    hash = cu.calculateHash(this.binaryData);
+                    hash = CubeUtil.calculateHash(this.binaryData);
                     // Check if the hash is valid
-                    if (cu.countTrailingZeroBits(hash) >= Settings.REQUIRED_DIFFICULTY) {
+                    if (CubeUtil.countTrailingZeroBits(hash) >= Settings.REQUIRED_DIFFICULTY) {
                         logger.debug("Found valid hash with nonce " + nonce);
                         resolve(hash);
                         return;  // This is important! It stops the for loop and the function if a valid hash is found
@@ -404,10 +407,10 @@ export class Cube {
             throw new Error("Binary data not initialized");
         // Only calculate the hash if it has not been calculated yet
         if (this.hash === undefined)
-            this.hash = cu.calculateHash(this.binaryData);
+            this.hash = CubeUtil.calculateHash(this.binaryData);
 
         // Check the trailing zeroes
-        return cu.countTrailingZeroBits(this.hash) >= Settings.REQUIRED_DIFFICULTY;
+        return CubeUtil.countTrailingZeroBits(this.hash) >= Settings.REQUIRED_DIFFICULTY;
     }
 
 }

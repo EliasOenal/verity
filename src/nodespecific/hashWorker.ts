@@ -1,6 +1,6 @@
 import { parentPort, workerData } from 'worker_threads';
-import { createHash } from 'crypto';
 import { logger } from '../logger';
+import { calculateHash } from '../cubeUtil';
 
 if (parentPort === null || workerData === null) {
     throw new Error('Parent port or worker data is null');
@@ -8,12 +8,6 @@ if (parentPort === null || workerData === null) {
 
 let nonce = 0;
 let binaryData = Buffer.from(workerData.binaryData);  // Create a Buffer from the transferred ArrayBuffer
-
-function calculateHash(data: Buffer): Buffer {
-    const hasher = createHash('sha3-256');
-    hasher.update(data);
-    return hasher.digest();
-}
 
 function countTrailingZeroBits(buffer: Buffer): number {
     let count = 0;
