@@ -155,6 +155,7 @@ describe('cube', () => {
     expect(key).toBeDefined();
   }, 5000);
 
+  // This test fails using Settings.HASH_WORKERS=true and I don't understand why :(
   it('should correctly parse and validate MUC from binary', async () => {
     // Generate a key pair for testing
     await sodium.ready;
