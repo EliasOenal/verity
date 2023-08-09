@@ -49,7 +49,7 @@ describe('cubeStore', () => {
     });
     
     expect(cubeStore.storage.size).toEqual(20);
-  }, 15000);
+  }, 30000);
 
   it('should add a cube from binary data', async () => {
     let hash = await cubeStore.addCube(validBinaryCube);

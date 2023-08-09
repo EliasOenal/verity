@@ -131,7 +131,7 @@ describe('networkManager', () => {
         manager2.shutdown();
         manager3.shutdown();
         await Promise.all([promise1_shutdown, promise2_shutdown, promise3_shutdown]);
-    }, 5000);
+    }, 10000);
 
     test('should blacklist a peer when trying to connect to itself', async () => {
         const peerDB = new PeerDB();

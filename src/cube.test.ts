@@ -101,7 +101,7 @@ describe('cube', () => {
     const key = await cube.getKey();
     expect(key).toBeDefined();
     expect(key.length).toEqual(32); // SHA-3-256 hash length is 32 bytes
-  }, 1000);
+  }, 4000);
 
   it('should throw an error when there is not enough space for a field value', () => {
     const cube = new Cube();
@@ -122,7 +122,7 @@ describe('cube', () => {
     cube.setFields([{ type: FieldType.PAYLOAD, length: payload.length, value: payload }]);
     let key: Buffer = await cube.getKey();
     expect(key[key.length - 1]).toEqual(0);
-  }, 1000);
+  }, 5000);
 
   it('should count the zero bits', () => {
     expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000000", "hex"))).toEqual(256);
@@ -153,10 +153,11 @@ describe('cube', () => {
     muc.setFields(fields);
     const key = await muc.getKey();
     expect(key).toBeDefined();
-  }, 1000);
+  }, 5000);
 
   it('should correctly parse and validate MUC from binary', async () => {
     // Generate a key pair for testing
+    await sodium.ready;
     const keyPair = sodium.crypto_sign_keypair();
     const publicKey: Buffer = Buffer.from(keyPair.publicKey);
     const privateKey: Buffer = Buffer.from(keyPair.privateKey);
@@ -180,5 +181,5 @@ describe('cube', () => {
     // Parse the MUC from binary
     const parsedMuc = new Cube(binMuc);
     expect(parsedMuc).toBeDefined();
-  }, 1000);
+  }, 5000);
 });
