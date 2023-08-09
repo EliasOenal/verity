@@ -1,10 +1,13 @@
 // cube.test.ts
-import { Cube } from './cube';
+import { BinaryLengthError, CUBE_HEADER_LENGTH, Cube, FieldSizeError, InsufficientDifficulty } from './cube';
 import { Buffer } from 'buffer';
 import { FieldType } from './fieldProcessing';
 import { countTrailingZeroBits } from './cubeUtil';
 import sodium from 'libsodium-wrappers'
 import { logger } from './logger';
+import { Settings } from './config';
+import { NetConstants } from './networkDefinitions';
+import * as fp from './fieldProcessing';
 
 describe('cube', () => {
   // This test parses a bit weirdly, the zero fill after the nonce decodes into additional TLV fields of length 0
@@ -61,7 +64,7 @@ describe('cube', () => {
 
   it('should throw an error when binary data is not 1024 bytes', () => {
     const binaryData = Buffer.alloc(512); // 512 bytes, not 1024
-    expect(() => new Cube(binaryData)).toThrowError('Cube must be 1024 bytes');
+    expect(() => new Cube(binaryData)).toThrow(BinaryLengthError);
   }, 1000);
 
   it('should set and get the date correctly', () => {
@@ -83,7 +86,7 @@ describe('cube', () => {
     // Manually set a field in the binary data for testing
     binaryData[6] = FieldType.PAYLOAD; // Type
     binaryData.writeUInt8(100, 7); // Length
-    expect(() => new Cube(binaryData)).toThrowError("Cube does not meet difficulty requirements");
+    expect(() => new Cube(binaryData)).toThrow(InsufficientDifficulty);
   }, 1000);
 
   it('should write fields to binary data correctly', () => {
@@ -105,14 +108,109 @@ describe('cube', () => {
 
   it('should throw an error when there is not enough space for a field value', () => {
     const cube = new Cube();
-    const fields = [{ type: FieldType.PAYLOAD, length: 2020, value: Buffer.alloc(2020) }]; // Too long for the binary data
-    expect(() => cube.setFields(fields)).toThrowError('Cube: Fields are 2028 bytes but must be less than 1024 bytes');
+    const fields = [{ type: FieldType.PAYLOAD, length: 8020, value: Buffer.alloc(8020) }]; // Too long for the binary data
+    expect(() => cube.setFields(fields)).toThrow(FieldSizeError);
   }, 1000);
 
   it('should throw an error, invalid TLV type - but already fails at difficulty check', () => {
     const binaryData = Buffer.alloc(1024);
     binaryData[6] = 0xFF; // Invalid type
-    expect(() => new Cube(binaryData)).toThrowError("Cube does not meet difficulty requirements");
+    expect(() => new Cube(binaryData)).toThrow(InsufficientDifficulty);
+  }, 1000);
+
+  it('should automatically add extra padding when cube is too small', () => {
+    const cube = new Cube();
+    cube.setFields([
+      {
+          type: FieldType.PAYLOAD,
+          length: 128,
+          value: Buffer.alloc(128),
+      }
+    ]);
+    expect(cube.getFields().length).toEqual(2);
+    expect(cube.getFields()[0].length + cube.getFields()[1].length).toEqual(
+      NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - fp.getFieldHeaderLength(FieldType.PAYLOAD) - fp.getFieldHeaderLength(FieldType.PADDING_NONCE));
+  }, 1000);
+
+  it('should accept maximum size cubes', () => {
+    const cube = new Cube();
+    const payloadLength = 500;
+    const paddingLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - fp.getFieldHeaderLength(FieldType.PADDING_NONCE) -
+      fp.getFieldHeaderLength(FieldType.PAYLOAD) - payloadLength;
+    const cubefields: Array<fp.Field> = [
+      {
+          type: FieldType.PAYLOAD,
+          length: payloadLength,
+          value: Buffer.alloc(payloadLength),
+      },
+      {
+        type: FieldType.PADDING_NONCE,
+        length: paddingLength,
+        value: Buffer.alloc(paddingLength),
+      }
+    ];
+    expect(CUBE_HEADER_LENGTH + fp.getFieldHeaderLength(FieldType.PAYLOAD) + payloadLength +
+            fp.getFieldHeaderLength(FieldType.PADDING_NONCE) + paddingLength).toEqual(NetConstants.CUBE_SIZE);
+    cube.setFields(cubefields);
+    expect(paddingLength).toBeGreaterThanOrEqual(Settings.HASHCASH_SIZE);
+    expect(cube.getFields().length).toEqual(2);
+    expect(cube.getFields()[0].length).toEqual(payloadLength);
+    expect(cube.getFields()[1].length).toEqual(paddingLength);
+  }, 1000);
+
+  it('should enforce there is enough space left for hashcash in manually padded cubes', () => {
+    const cube = new Cube();
+    const payloadLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH -
+      fp.getFieldHeaderLength(FieldType.PAYLOAD) -
+      fp.getFieldHeaderLength(FieldType.PADDING_NONCE) - 2;
+    const cubefields: Array<fp.Field> = [
+      {
+          type: FieldType.PAYLOAD,
+          length: payloadLength,
+          value: Buffer.alloc(payloadLength),
+      },
+      {
+        type: FieldType.PADDING_NONCE,
+        length: 2,
+        value: Buffer.alloc(2),
+      }
+    ];
+    expect(() => cube.setFields(cubefields)).toThrow(FieldSizeError);
+  }, 1000);
+
+  it('should enforce there is enough space left for hashcash in automatically padded cubes', () => {
+    const cube = new Cube();
+    const payloadLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - fp.getFieldHeaderLength(FieldType.PAYLOAD) - 2;
+    const cubefields: Array<fp.Field> = [
+      {
+          type: FieldType.PAYLOAD,
+          length: payloadLength,
+          value: Buffer.alloc(payloadLength),
+      },
+    ];
+    expect(() => cube.setFields(cubefields)).toThrow(FieldSizeError);
+  }, 1000);
+
+  it('should reject fringe cubes too small to be valid but too large to add padding', () => {
+    // construct a fringe cube that will end up exactly 1023 bytes long -- one byte too short, but minimum padding size is 2
+    const cube = new Cube();
+    const padding_length = 20;
+    const payloadLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH -
+      fp.getFieldHeaderLength(FieldType.PAYLOAD) - fp.getFieldHeaderLength(FieldType.PADDING_NONCE) -
+      padding_length - 1;
+    const cubefields: Array<fp.Field> = [
+      {
+          type: FieldType.PAYLOAD,
+          length: payloadLength,
+          value: Buffer.alloc(payloadLength),
+      },
+      {
+        type: FieldType.PADDING_NONCE,
+        length: padding_length,
+        value: Buffer.alloc(padding_length),
+      }
+    ];
+    expect(() => cube.setFields(cubefields)).toThrow(new FieldSizeError(`Cube: Cube is too small to be valid as is but too large to add extra padding.`));
   }, 1000);
 
   it('should create a new cube that meets the challenge requirements', async () => {

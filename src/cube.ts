@@ -2,10 +2,7 @@
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers'
-//import { createHash } from 'crypto';
-import * as nacl from 'tweetnacl';
-import { sha3_256 } from 'js-sha3';
-import { Settings } from './config';
+import { Settings, VerityError } from './config';
 import { logger } from './logger';
 import { NetConstants } from './networkDefinitions';
 import * as fp from './fieldProcessing';
@@ -26,9 +23,9 @@ export class Cube {
     private cubeKey: Buffer | undefined;
 
     constructor(binaryData?: Buffer) {
-        if (binaryData && binaryData.length !== 1024) {
-            logger.error('Cube must be 1024 bytes');
-            throw new Error('Cube must be 1024 bytes');
+        if (binaryData && binaryData.length !== NetConstants.CUBE_SIZE) {
+            logger.error(`Cube must be ${NetConstants.CUBE_SIZE} bytes`);
+            throw new BinaryLengthError(`Cube must be ${NetConstants.CUBE_SIZE} bytes`);
         }
 
         if (binaryData === undefined) {
@@ -49,7 +46,7 @@ export class Cube {
             let verified = this.verifyCubeDifficulty();
             if (!verified) {
                 logger.error('Cube does not meet difficulty requirements');
-                throw new Error("Cube does not meet difficulty requirements");
+                throw new InsufficientDifficulty("Cube does not meet difficulty requirements");
             }
             this.version = binaryData[0] >> 4;
             this.reservedBits = binaryData[0] & 0xF;
@@ -59,15 +56,17 @@ export class Cube {
         }
     }
 
+    // Verify fingerprint. This applies to special cubes only.
     private static verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
-        let calculatedFingerprint = Buffer.from(sha3_256.arrayBuffer(publicKeyValue)).slice(0,8);
+        let calculatedFingerprint = CubeUtil.calculateHash(publicKeyValue).slice(0,8);  // First 8 bytes of signature field
 
         if (!calculatedFingerprint.equals(providedFingerprint)) {
             logger.error('Cube: Fingerprint does not match');
-            throw new Error('Cube: Fingerprint does not match');
+            throw new FingerprintError('Cube: Fingerprint does not match');
         }
     }
 
+    // Verify signature. This applies to special cubes only.
     private static verifySignature(publicKeyValue: Buffer, signatureValue: Buffer, dataToVerify: Buffer): void {
         const data = new Uint8Array(dataToVerify);
         const signature = new Uint8Array(signatureValue);
@@ -77,7 +76,7 @@ export class Cube {
 
         if (!isSignatureValid) {
             logger.error('Cube: Invalid signature');
-            throw new Error('Cube: Invalid signature');
+            throw new CubeSignatureError('Cube: Invalid signature');
         }
     }
 
@@ -87,7 +86,7 @@ export class Cube {
                 return fp.SpecialCubeType.CUBE_TYPE_MUC;
             default:
                 logger.error('Cube: Special cube type not implemented ' + type);
-                throw new Error('Cube: Special cube type not implemented ' + type);
+                throw new SpecialCubeTypeNotImplemented('Cube: Special cube type not implemented ' + type);
         }
     }
 
@@ -118,29 +117,29 @@ export class Cube {
                 case fp.FieldType.SHARED_KEY:
                 case fp.FieldType.ENCRYPTED:
                     logger.error('Cube: Field not implemented ' + field.type);
-                    throw new Error('Cube: Fields not implemented ' + field.type);
+                    throw new FieldNotImplemented('Cube: Fields not implemented ' + field.type);
                 case fp.FieldType.TYPE_SIGNATURE:
                     if (field.start + fp.getFieldHeaderLength(fp.FieldType.TYPE_SIGNATURE) + field.length !== NetConstants.CUBE_SIZE) {
                         logger.error('Cube: Signature field is not the last field');
-                        throw new Error('Cube: Signature field is not the last field');
+                        throw new CubeSignatureError('Cube: Signature field is not the last field');
                     } else {
                         signature = field;
                     }
                     break;
                 case fp.FieldType.TYPE_SPECIAL_CUBE:
                     if (special !== undefined) {
-                        logger.error('Cube: Multiple special cube fields');
+                        logger.SpecialCubeError('Cube: Multiple special cube fields');
                     }
                     special = field;
                     // has to be very first field
                     if (field.start !== CUBE_HEADER_LENGTH) {
                         logger.error('Cube: Special cube type is not the first field');
-                        throw new Error('Cube: Special cube type is not the first field');
+                        throw new SpecialCubeError('Cube: Special cube type is not the first field');
                     }
                     const specialCubeType = Cube.parseSpecialCube(field.value[0]);
                     if (specialCubeType !== fp.SpecialCubeType.CUBE_TYPE_MUC) {
                         logger.error('Cube: Special cube type not implemented ' + specialCubeType);
-                        throw new Error('Cube: Special cube type not implemented ' + specialCubeType);
+                        throw new SpecialCubeTypeNotImplemented('Cube: Special cube type not implemented ' + specialCubeType);
                     }
                     break;
                 case fp.FieldType.TYPE_PUBLIC_KEY:
@@ -150,7 +149,7 @@ export class Cube {
                     break;
                 default:
                     logger.error('Cube: Unknown field type ' + field.type);
-                    throw new Error('Cube: Unknown field type ' + field.type);
+                    throw new UnknownFieldType('Cube: Unknown field type ' + field.type);
             }
         }
 
@@ -180,7 +179,7 @@ export class Cube {
                 this.cubeKey = publicKey.value; // MUC, key is public key
             } else {
                 logger.error('Cube: Public key or signature is undefined for MUC');
-                throw new Error('Cube: Public key or signature is undefined for MUC');
+                throw new CubeSignatureError('Cube: Public key or signature is undefined for MUC');
             }
         } else { // Not a special cube, key is hash
             this.cubeKey = this.hash;
@@ -194,7 +193,7 @@ export class Cube {
     public setVersion(version: number): void {
         if (version !== 0) {
             logger.error('Only version 0 is supported');
-            throw new Error("Only version 0 is supported");
+            throw new CubeError("Only version 0 is supported");
         }
         this.binaryData = undefined;
         this.hash = undefined;
@@ -224,19 +223,43 @@ export class Cube {
         this.binaryData = undefined;
         this.hash = undefined;
         this.fields = fields;
-        // verify all fields together are less than 1024 bytes
+
+        // verify all fields together are less than 1024 bytes, and there's still enough space left for the hashcash
         let totalLength = CUBE_HEADER_LENGTH;
         for (let field of fields) {
             totalLength += field.length;
             totalLength += fp.getFieldHeaderLength(field.type);
         }
-        if (totalLength > NetConstants.CUBE_SIZE) {
-            throw new Error('Cube: Fields are ' + totalLength + ' bytes but must be less than ' + NetConstants.CUBE_SIZE + ' bytes');
-        } else if (totalLength != NetConstants.CUBE_SIZE) { // Pad with padding nonce to reach 1024 bytes
+
+        // has the user already defined a sufficienly large padding field or do we have to add one?
+        const indexNonce = fields.findIndex((field: fp.Field) => field.type == fp.FieldType.PADDING_NONCE && field.length >= Settings.HASHCASH_SIZE);
+        let maxAcceptableLegth: number;
+        const minHashcashFieldSize = fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE) + Settings.HASHCASH_SIZE;
+        if (indexNonce == -1) maxAcceptableLegth = NetConstants.CUBE_SIZE - minHashcashFieldSize;
+        else maxAcceptableLegth = NetConstants.CUBE_SIZE;
+
+        if ( totalLength > maxAcceptableLegth ) {
+            // TODO: offer automatic cube segmentation
+            throw new FieldSizeError('Cube: Resulting cube size is ' + totalLength + ' bytes but must be less than ' + (NetConstants.CUBE_SIZE - minHashcashFieldSize) + ' bytes (potentially due to insufficient hash cash space)');
+        }
+
+        // do we need to add extra padding?
+        if ( totalLength < NetConstants.CUBE_SIZE )
+        {
+            // Edge case: Minimum padding field size is two bytes.
+            // If the cube is currently one byte below maximum, there is no way we can transform
+            // it into a valid cube, as it's one byte too short as is but will be one byte too large
+            // with minimum extra padding.
+            if (totalLength > NetConstants.CUBE_SIZE - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE)) {
+                throw new FieldSizeError('Cube: Cube is too small to be valid as is but too large to add extra padding.');
+            }
+            // Pad with random padding nonce to reach 1024 bytes
             const num_alloc = NetConstants.CUBE_SIZE - totalLength - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE);
+            let random_bytes = new Uint8Array(num_alloc);
+            for (let i=0; i<num_alloc; i++) random_bytes[i] = Math.floor(Math.random() * 256);
             fields.push({
                 type: fp.FieldType.PADDING_NONCE,
-                length: num_alloc, value: Buffer.alloc(num_alloc)
+                length: num_alloc, value: Buffer.from(random_bytes),
             });
         }
     }
@@ -251,7 +274,7 @@ export class Cube {
 
         // Fields of new blocks aren't FullFields and don't know their start offset
         // so we instead use the binary data to find it
-        const indexNonce = Cube.findFieldIndex(this.binaryData, fp.FieldType.PADDING_NONCE, 4);
+        const indexNonce = Cube.findFieldIndex(this.binaryData, fp.FieldType.PADDING_NONCE, Settings.HASHCASH_SIZE);
         if (indexNonce === undefined) {
             logger.error('No suitable PADDING_NONCE field found');
             throw new Error("No suitable PADDING_NONCE field found");
@@ -305,13 +328,13 @@ export class Cube {
 
     private static updateVersionBinaryData(binaryData: Buffer, version: number, reservedBits: number) {
         if (binaryData === undefined)
-            throw new Error("Binary data not initialized");
+            throw new BinaryDataError("Binary data not initialized");
         binaryData[0] = (version << 4) | reservedBits;
     }
 
     private static updateDateBinaryData(binaryData: Buffer, date: number) {
         if (binaryData === undefined)
-            throw new Error("Binary data not initialized");
+            throw new BinaryDataError("Binary data not initialized");
         binaryData.writeUIntBE(date, 1, 5);
     }
 
@@ -329,7 +352,7 @@ export class Cube {
 
     private writeFingerprint(publicKey: Buffer, signatureStartIndex: number): void {
         if (this.binaryData === undefined) {
-            throw new Error("Binary data not initialized");
+            throw new BinaryDataError("Binary data not initialized");
         }
         if (signatureStartIndex != 952) {
             throw new Error("Signature start index must be the last field at 952");
@@ -344,7 +367,7 @@ export class Cube {
 
     private signBinaryData(privateKey: Buffer, signatureStartIndex: number): void {
         if (this.binaryData === undefined) {
-            throw new Error("Binary data not initialized");
+            throw new BinaryDataError("Binary data not initialized");
         }
 
         // Extract the portion of binaryData to be signed: start to the type byte of the signature field + fingerprint
@@ -373,7 +396,7 @@ export class Cube {
             }
             const checkHash = () => {
                 if (this.binaryData === undefined) {
-                    throw new Error("Binary data not initialized");
+                    throw new BinaryDataError("Binary data not initialized");
                 }
                 // Check 1000 hashes before yielding control back to the event loop
                 for (let i = 0; i < 1000; i++) {
@@ -404,7 +427,7 @@ export class Cube {
 
     private verifyCubeDifficulty(): boolean {
         if (this.binaryData === undefined)
-            throw new Error("Binary data not initialized");
+            throw new BinaryDataError("Binary data not initialized");
         // Only calculate the hash if it has not been calculated yet
         if (this.hash === undefined)
             this.hash = CubeUtil.calculateHash(this.binaryData);
@@ -416,3 +439,22 @@ export class Cube {
 }
 
 if ( isNode ) require('./nodespecific/cube-extended');
+
+
+// Error definitions
+export class CubeError extends VerityError {}
+export class InsufficientDifficulty extends CubeError {}
+
+export class FieldError extends CubeError {}
+export class FieldSizeError extends CubeError {}
+export class UnknownFieldType extends FieldError {}
+export class FieldNotImplemented extends FieldError {}
+
+export class BinaryDataError extends CubeError {}
+export class BinaryLengthError extends BinaryDataError {}
+
+export class SpecialCubeError extends CubeError {}
+export class FingerprintError extends SpecialCubeError {}
+export class CubeSignatureError extends SpecialCubeError {}
+
+export class SpecialCubeTypeNotImplemented extends SpecialCubeError {}

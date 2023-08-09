@@ -3,6 +3,7 @@ import { Buffer } from 'buffer';
 import * as nacl from 'tweetnacl';
 import { sha3_256 } from 'js-sha3';
 import { Cube } from './cube';
+import { logger } from './logger';
 
 export function cubeLifetime(d1: number, d2: number, c1: number, c2: number, x: number): number {
     // Calculate the base-2 logarithms

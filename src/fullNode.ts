@@ -9,6 +9,7 @@ import sodium from 'libsodium-wrappers'
 import { FieldType, Field } from './fieldProcessing';
 import { EventEmitter } from 'events';
 import { NetworkPeer } from "./networkPeer";
+import * as fp from './fieldProcessing';
 import { Buffer } from 'buffer';
 
 var readline: any;
@@ -109,31 +110,28 @@ export class fullNode {
         this.cubeStore.addCube(muc);
     }
 
-    public async makeNewCube(message: string = "Hello Verity") {
+    public async makeNewCube(message: string = "Hello Verity", replyto?: string) {
         for (let i = 0; i < 1; i++) {
             for (let j = 0; j < 1; j++) {
                 let cube = new Cube();
-                let buffer = Buffer.alloc(4);
-                // random buffer
-                buffer.writeUInt32BE(Math.floor(Math.random() * 1000000));
-                cube.setFields([
+
+                let cubefields: Array<fp.Field> = [
                     {
                         type: FieldType.PAYLOAD,
                         length: message.length,
                         value: Buffer.from(message, 'utf8')
-                    },
-                    {
-                        // This one gets overwritten by the nonce
-                        type: FieldType.PADDING_NONCE,
-                        length: 4,
-                        value: buffer
-                    },
-                    {
-                        type: FieldType.PADDING_NONCE,
-                        length: 4,
-                        value: buffer
                     }
-                ]);
+                ];
+
+                if (replyto) {
+                    cubefields.push({
+                        type: FieldType.RELATES_TO,
+                        length: 32,
+                        value: Buffer.from(replyto, 'utf8').slice(0, 32),
+                    });
+                }
+
+                cube.setFields(cubefields);
                 this.cubeStore.addCube(cube);
             }
         }
