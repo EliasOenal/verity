@@ -55,11 +55,11 @@ export class fullNode {
             this.networkManager.connect(peer);
         }
 
-        const onlinePromise = new Promise(resolve => this.networkManager.once('online', () => {
+        this.onlinePromise = new Promise(resolve => this.networkManager.once('online', () => {
             resolve(undefined);
         }));
 
-        const shutdownPromise = new Promise(resolve => this.networkManager.once('shutdown', () => {
+        this.shutdownPromise = new Promise(resolve => this.networkManager.once('shutdown', () => {
             logger.info('NetworkManager has shut down. Exiting...');
             resolve(undefined);
         }));
