@@ -7,11 +7,10 @@
     "outDir": "./dist",
     "moduleResolution": "node"
   },
-  "include": ["./**/*.ts"],
-  "exclude": ["node_modules"],
+  "include": ["./src/**/*.ts"],
+  "exclude": ["webspecific"],
   "scripts": {
     "pretest": "tsc",
     "test": "jest"
   },
 }
-

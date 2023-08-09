@@ -1,7 +1,6 @@
 import { parentPort, workerData } from 'worker_threads';
 import { createHash } from 'crypto';
-import { logger } from './logger';
-import { exit } from 'process';
+import { logger } from '../logger';
 
 if (parentPort === null || workerData === null) {
     throw new Error('Parent port or worker data is null');

@@ -33,8 +33,8 @@ export class fullNode {
     constructor(){
         let initialPeer = "132.145.174.233:1984";
         if (isNode) {
-            this.port = Number(process.argv[2]);
-            initialPeer = process.argv[3];
+            if (process.argv[2]) this.port = Number(process.argv[2]);
+            if (process.argv[3]) initialPeer = process.argv[3];
         }
         if (isNode) {
             this.announce = true;
@@ -81,20 +81,7 @@ export class fullNode {
                 }
 
                 if ( str === 'm' ) {
-                    const keyPair = sodium.crypto_sign_keypair();
-                    const publicKey: Buffer = Buffer.from(keyPair.publicKey);
-                    const privateKey: Buffer = Buffer.from(keyPair.privateKey);
-                    let muc = new Cube();
-                    muc.setKeys(publicKey, privateKey);
-
-                    const fields = [
-                    { type: FieldType.TYPE_SPECIAL_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },
-                    { type: FieldType.TYPE_PUBLIC_KEY, length: 32, value: publicKey },
-                    { type: FieldType.PADDING_NONCE, length: 909, value: Buffer.alloc(909) },
-                    { type: FieldType.TYPE_SIGNATURE, length: 72, value: Buffer.alloc(72) }];
-                
-                    muc.setFields(fields);
-                    this.cubeStore.addCube(muc);
+                    this.makeNewMuc();
                 }
 
                 if (str === 'c') {
@@ -102,6 +89,24 @@ export class fullNode {
                 }
             });
         }
+    }
+
+    public async makeNewMuc() {
+        const keyPair = sodium.crypto_sign_keypair();
+        const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+        const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+        let muc = new Cube();
+        muc.setKeys(publicKey, privateKey);
+
+        const fields = [
+            { type: FieldType.TYPE_SPECIAL_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },
+            { type: FieldType.TYPE_PUBLIC_KEY, length: 32, value: publicKey },
+            { type: FieldType.PADDING_NONCE, length: 909, value: Buffer.alloc(909) },
+            { type: FieldType.TYPE_SIGNATURE, length: 72, value: Buffer.alloc(72) }
+        ];
+
+        muc.setFields(fields);
+        this.cubeStore.addCube(muc);
     }
 
     public async makeNewCube(message: string = "Hello Verity") {
@@ -114,8 +119,8 @@ export class fullNode {
                 cube.setFields([
                     {
                         type: FieldType.PAYLOAD,
-                        length: "Hello Verity".length,
-                        value: Buffer.from("Hello Verity", 'utf8')
+                        length: message.length,
+                        value: Buffer.from(message, 'utf8')
                     },
                     {
                         // This one gets overwritten by the nonce

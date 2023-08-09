@@ -1,4 +1,5 @@
 // cube.ts
+import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers'
 //import { createHash } from 'crypto';
@@ -6,8 +7,6 @@ import * as nacl from 'tweetnacl';
 import { sha3_256 } from 'js-sha3';
 import { Settings } from './config';
 import { logger } from './logger';
-import path from 'path';
-//import { Worker } from 'worker_threads';
 import { NetConstants } from './networkDefinitions';
 import * as fp from './fieldProcessing';
 import * as cu from './cubeUtil';
@@ -274,8 +273,13 @@ export class Cube {
             });
         }
 
-        // Swap this out to the non-worker version if we don't have nodejs worker threads
-        this.hash = await this.findValidHash(indexNonce, indexSignature);
+        // Calculate hashcash. Use NodeJS worker based implementation if available.
+        let findValidHashFunc: Function;
+        if ( typeof this['findValidHashWorker'] === 'function' ) findValidHashFunc = this['findValidHashWorker'];
+        else findValidHashFunc = this['findValidHash'];
+        this.hash = await findValidHashFunc.call(this, indexNonce, indexSignature);
+
+        logger.info("Using hash " + this.hash.toString('hex') + "as cubeKey");
         this.cubeKey = this.hash;
         if (mucField !== undefined && this.publicKey !== undefined) {
             // MUCs use the public key as the cube key
@@ -352,6 +356,7 @@ export class Cube {
 
     // Non-worker version kept for browser portability
     private async findValidHash(nonceStartIndex: number, signatureStartIndex: number | undefined = undefined): Promise<Buffer> {
+        logger.trace("Running findValidHash (non-worker)");
         await sodium.ready;
         return new Promise((resolve) => {
             let nonce: number = 0;
@@ -394,44 +399,6 @@ export class Cube {
         });
     }
 
-    // private async findValidHashWorker(nonceStartIndex: number): Promise<Buffer> {
-    //     return new Promise((resolve, reject) => {
-    //         if (this.binaryData === undefined) {
-    //             logger.error("Binary data not initialized");
-    //             throw new Error("Binary data not initialized");
-    //         }
-
-    //         const workerFilePath = path.resolve('./HashWorker.js');
-
-    //         const worker = new Worker(workerFilePath, {
-    //             workerData: {
-    //                 binaryData: this.binaryData.buffer,  // Pass the underlying ArrayBuffer
-    //                 nonceStartIndex: nonceStartIndex,
-    //                 requiredDifficulty: Settings.REQUIRED_DIFFICULTY
-    //             },
-    //             transferList: [this.binaryData.buffer]  // Transfer ownership of the ArrayBuffer to the worker
-    //         });
-
-    //         worker.on('message', (message) => {
-    //             this.hash = Buffer.from(message.hash);
-    //             this.binaryData = Buffer.from(message.binaryData);
-    //             logger.debug("Worker found valid hash, worker ID: " + worker.threadId + " hash: " + this.hash.toString('hex'));
-    //             // Our old binaryData is now invalid, so we replace it with the new one
-    //             resolve(this.hash);
-    //         });
-    //         worker.on('error', (err) => {
-    //             logger.error("Worker error: " + err.message);
-    //             reject(err);
-    //         });
-    //         worker.on('exit', (code) => {
-    //             if (code != 0) {
-    //                 logger.error(`Worker stopped with exit code ${code}`);
-    //                 reject(new Error(`Worker stopped with exit code ${code}`));
-    //             }
-    //         });
-    //     });
-    // }
-
     private verifyCubeDifficulty(): boolean {
         if (this.binaryData === undefined)
             throw new Error("Binary data not initialized");
@@ -444,3 +411,5 @@ export class Cube {
     }
 
 }
+
+if ( isNode ) require('./nodespecific/cube-extended');

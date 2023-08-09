@@ -5,7 +5,7 @@ const webpack = require('webpack');
 module.exports = {
   target: 'web',
   entry: {
-    "fullNode-bundle": './fullNode.ts',
+    "fullNode-bundle": './src/fullNode.ts',
     webuievents: './webui/webuievents.ts'
   },
   mode: 'development',
@@ -53,7 +53,7 @@ module.exports = {
   plugins: [
     new CopyWebpackPlugin({
       patterns: [
-        { from: './webui/*.html' },
+        { from: './webui/index.html' },
 	      { from: './img/vera_250px_nobg.png' },
       ]
     }),
@@ -62,6 +62,9 @@ module.exports = {
 	// because the `util` package expects there to be a global variable named `process`.
 	// Thanks to https://stackoverflow.com/a/65018686/14239942
 	//process: 'process/browser',
+   }),
+   new webpack.IgnorePlugin({
+    resourceRegExp: /nodespecific/,
    })
   ],
   devServer: {

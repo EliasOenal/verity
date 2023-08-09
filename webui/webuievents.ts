@@ -1,5 +1,5 @@
-import { Cube } from '../cube';
-import { FieldType, Field } from '../fieldProcessing';
+import { Cube } from '../src/cube';
+import { FieldType, Field } from '../src/fieldProcessing';
 
 // Stolen from https://stackoverflow.com/questions/21647928/javascript-unicode-string-to-hex
 // (in contrast to ChatGPT, it appears I can be held accountable for stealing stuff)
@@ -33,8 +33,6 @@ function genereateRandomSentence() {
         var rand4 = Math.floor(Math.random() * 10);
         var rand5 = Math.floor(Math.random() * 10);
         var rand6 = Math.floor(Math.random() * 10);
-        //                var randCol = [rand1,rand2,rand3,rand4,rand5];
-        //                var i = randGen();
         var content = "The " + adjectives[rand1] + " " + nouns[rand2] + " " + adverbs[rand3] + " " + verbs[rand4] + " because some " + nouns[rand1] + " " + adverbs[rand1] + " " + verbs[rand1] + " " + preposition[rand1] + " a " + adjectives[rand2] + " " + nouns[rand5] + " which became a " + adjectives[rand3] + ", " + adjectives[rand4] + " " + nouns[rand6] + ".";
         return content;
     };
