@@ -3,19 +3,8 @@ import { FieldType, Field } from '../src/fieldProcessing';
 import { Buffer } from 'buffer';
 import { logger } from '../src/logger'
 
-// Stolen from https://stackoverflow.com/questions/21647928/javascript-unicode-string-to-hex
+// TODO remove -- stolen from https://codepen.io/ovens/pen/EeprWN
 // (in contrast to ChatGPT, it appears I can be held accountable for stealing stuff)
-function hexEncode(msg: string) {
-    var hex, i;
-    var result = "";
-    for (i = 0; i < msg.length; i++) {
-      hex = msg.charCodeAt(i).toString(16);
-      result += ("000" + hex).slice(-4);
-    }
-    return result;
-  };
-
-// stolen from https://codepen.io/ovens/pen/EeprWN
 function genereateRandomSentence() {
     var verbs, nouns, adjectives, adverbs, preposition;
     nouns = ["bird", "clock", "boy", "plastic", "duck", "teacher", "old lady", "professor", "hamster", "dog"];
@@ -134,7 +123,7 @@ function displayCubeInList(cubekey: Buffer, cube: Cube, cubelist: HTMLUListEleme
     li.append(payload);
 
     // Show cube key as tooltip
-    li.title = `Cube Key ${hexEncode(cubekey.toString())}`;
+    li.title = `Cube Key ${cubekey.toString('hex')}`;
 
     // Display reply input field
     let replyfield: HTMLParagraphElement = document.createElement("p");
