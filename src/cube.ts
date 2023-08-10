@@ -111,13 +111,13 @@ export class Cube {
             switch (field.type & 0xFC) {
                 case fp.FieldType.PADDING_NONCE:
                 case fp.FieldType.PAYLOAD:
-                    break;
                 case fp.FieldType.RELATES_TO:
+                    break;
                 case fp.FieldType.KEY_DISTRIBUTION:
                 case fp.FieldType.SHARED_KEY:
                 case fp.FieldType.ENCRYPTED:
                     logger.error('Cube: Field not implemented ' + field.type);
-                    throw new FieldNotImplemented('Cube: Fields not implemented ' + field.type);
+                    throw new FieldNotImplemented('Cube: Field not implemented ' + field.type);
                 case fp.FieldType.TYPE_SIGNATURE:
                     if (field.start + fp.getFieldHeaderLength(fp.FieldType.TYPE_SIGNATURE) + field.length !== NetConstants.CUBE_SIZE) {
                         logger.error('Cube: Signature field is not the last field');
