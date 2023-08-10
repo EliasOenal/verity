@@ -87,7 +87,9 @@ export class NetworkPeer extends EventEmitter {
         // This allows us to identify if we're connected to ourselves
         this.sendHello();
 
+        // If we're a full node, ask for available cubes now, and then in regular intervals
         if (!lightMode) {
+            this.sendHashRequest();
             this.hashRequestTimer = setInterval(() => this.sendHashRequest(),
                 Settings.HASH_REQUEST_TIME);
         }
