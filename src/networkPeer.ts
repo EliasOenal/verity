@@ -170,6 +170,7 @@ export class NetworkPeer extends EventEmitter {
 
     handleHello(data: Buffer) {
         this.stats.peerID = data.slice(0, 16);
+        this.emit('updatepeer', this);
         // compare peerID to first 16 bytes of incoming packet
         logger.trace(`NetworkPeer: received 'Hello' from IP: ${this.stats.ip}, port: ${this.stats.port}, peerID: ${this.stats.peerID.toString('hex')}`);
         if (this.hostNodePeerID.compare(this.stats.peerID) === 0) {

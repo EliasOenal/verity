@@ -1,7 +1,8 @@
 import { Cube } from '../src/cube';
 import { FieldType, Field } from '../src/fieldProcessing';
-import { Buffer } from 'buffer';
 import { logger } from '../src/logger'
+import { NetworkPeer } from '../src/networkPeer'
+import { Buffer } from 'buffer';
 
 // TODO remove -- stolen from https://codepen.io/ovens/pen/EeprWN
 // (in contrast to ChatGPT, it appears I can be held accountable for stealing stuff)
@@ -152,17 +153,35 @@ function displayCubeInList(cubekey: Buffer, cube: Cube, cubelist: HTMLUListEleme
     return li;
 }
 
-// Display all newly connected peers.
-// This will handle networkManager newpeer events.
-function displayPeer(peer) {
-    let li = document.createElement("li");
-    li.innerText = `${peer.stats.ip}:${peer.stats.port} (ID ${peer.stats.peerID})`;
+// Display all peers.
+// This will handle all networkManager newpeer events and redraws the peer list
+function redisplayPeers() {
     let peerlist: HTMLElement | null = document.getElementById("peerlist");
-    if (peerlist) peerlist.appendChild(li);
+    if (!peerlist) return;
+    peerlist.textContent = '';  // remove all children
+    for (let i=0; i<window.global.node.networkManager.outgoingPeers.length; i++) {
+        peerlist.appendChild(drawSinglePeer(window.global.node.networkManager.outgoingPeers[i], true));
+    }
+    for (let i=0; i<window.global.node.networkManager.incomingPeers.length; i++) {
+        peerlist.appendChild(drawSinglePeer(window.global.node.networkManager.incomingPeers[i], false));
+    }
+}
+
+function drawSinglePeer(peer: NetworkPeer, outgoing: boolean): HTMLLIElement {
+    let li = document.createElement("li");
+    if (outgoing) li.innerText += '(out) '
+    else li.innerText += '(in) '
+    li.innerText += `${peer.stats.ip}:${peer.stats.port} (ID ${peer.stats.peerID?.toString('hex')})`;
+    return li;
 }
 
 function main() {
-    window.global.node.networkManager.on('newpeer', (peer) => displayPeer(peer)) // list peers
+    window.global.node.networkManager.on('newpeer', (peer) => redisplayPeers()) // list peers
+    window.global.node.networkManager.on('peerclosed', (peer) => redisplayPeers()) // list peers
+    window.global.node.networkManager.on('updatepeer', (peer) => redisplayPeers()) // list peers
+    window.global.node.networkManager.on('blacklist', (peer) => redisplayPeers()) // list peers
+    window.global.node.networkManager.on('online', (peer) => redisplayPeers()) // list peers
+    window.global.node.networkManager.on('shutdown', (peer) => redisplayPeers()) // list peers
     window.global.node.cubeStore.on('cubeAdded', (hash) => displayCube(hash)) // list cubes
 }
 main();

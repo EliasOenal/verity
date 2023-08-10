@@ -235,6 +235,7 @@ export class NetworkManager extends EventEmitter {
                 // Listen for the 'close' event on the NetworkPeer
                 networkPeer.on('close', (closingPeer) => {
                     logger.info(`NetworkManager: Connection to ${closingPeer.ip}:${closingPeer.port} has been closed.`);
+                    this.emit('peerclosed', networkPeer);
                     // Remove the closing peer from the list of outgoing peers
                     this.outgoingPeers = this.outgoingPeers.filter(peer => peer !== closingPeer);
                 });
