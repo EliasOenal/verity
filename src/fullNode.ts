@@ -32,10 +32,14 @@ export class fullNode {
     shutdownPromise: any = undefined;
 
     constructor(){
-        let initialPeer = "132.145.174.233:1984";
+        let initialPeers = [
+            "verity.hahn.mt:1984",
+            "132.145.174.233:1984",
+            "158.101.100.95:1984",
+        ];
         if (isNode) {
             if (process.argv[2]) this.port = Number(process.argv[2]);
-            if (process.argv[3]) initialPeer = process.argv[3];
+            if (process.argv[3]) initialPeers = [process.argv[3]];
         }
         if (isNode) {
             this.announce = true;
@@ -45,15 +49,17 @@ export class fullNode {
 
         this.networkManager = new NetworkManager(this.port, this.cubeStore, this.peerDB, this.announce);
 
-        if (initialPeer) {
-            logger.info(`Adding initial peer ${initialPeer}.`);
-            const [initialPeerIp, initialPeerPort] = initialPeer.split(':');
-            if (!initialPeerIp || !initialPeerPort) {
-                console.error('Invalid initial peer specified.');
+        if (initialPeers) {
+            for (let i=0; i<initialPeers.length; i++) {
+                logger.info(`Adding initial peer ${initialPeers[i]}.`);
+                const [initialPeerIp, initialPeerPort] = initialPeers[i].split(':');
+                if (!initialPeerIp || !initialPeerPort) {
+                    console.error('Invalid initial peer specified.');
+                }
+                const peer: Peer = new Peer(initialPeerIp, Number(initialPeerPort));
+                this.peerDB.setPeersUnverified([peer]);
+                this.networkManager.connect(peer);
             }
-            const peer: Peer = new Peer(initialPeerIp, Number(initialPeerPort));
-            this.peerDB.setPeersUnverified([peer]);
-            this.networkManager.connect(peer);
         }
 
         this.onlinePromise = new Promise(resolve => this.networkManager.once('online', () => {
