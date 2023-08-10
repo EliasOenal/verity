@@ -219,6 +219,15 @@ export class Cube {
         return this.fields;
     }
 
+    // get all fields of a specified type
+    public getFieldsByType(type: fp.FieldType): Array<fp.Field> {
+        let ret = [];
+        for (let i=0; i<this.fields.length; i++) {
+            if (this.fields[i].type == type) ret.push(this.fields[i]);
+        }
+        return ret;
+    }
+
     public setFields(fields: Array<fp.Field>): void {
         this.binaryData = undefined;
         this.hash = undefined;
