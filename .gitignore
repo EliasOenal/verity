@@ -1,5 +1,8 @@
 # .gitignore
 
+# Test artifacts
+coverage/
+
 # macOS
 .DS_Store
 .AppleDouble
