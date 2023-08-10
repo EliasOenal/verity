@@ -99,7 +99,7 @@ export class NetworkPeer extends EventEmitter {
             clearInterval(this.hashRequestTimer);
         }
         this.ws.close();
-        this.ws.removeAllListeners();
+        this.ws.removeAllListeners();  // TODO FIXME: not available in browser (as browser WebSockets don't inherit from EventEmitter)
         this.removeAllListeners();
     }
 

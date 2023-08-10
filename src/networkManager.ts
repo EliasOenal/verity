@@ -210,7 +210,7 @@ export class NetworkManager extends EventEmitter {
             logger.warn(`NetworkManager: WebSocket error: ${error.message}`);
             // Remove all listeners and close the WebSocket connection in case of an error
             ws.close();
-            ws.removeAllListeners();
+            ws.removeAllListeners();  // TODO FIXME: not available in browser (as browser WebSockets don't inherit from EventEmitter)
         });
 
         return new Promise((resolve) => {
