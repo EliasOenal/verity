@@ -4,6 +4,7 @@
   "description": "",
   "main": "",
   "scripts": {
+    "start": "node dist/fullNode.js",
     "test": "jest",
     "webpack": "webpack",
     "build": "tsc",
