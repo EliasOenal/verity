@@ -34,6 +34,8 @@ export class fullNode {
     constructor(){
         let initialPeers = [
             "verity.hahn.mt:1984",
+            "verity.hahn.mt:1985",
+            "verity.hahn.mt:1986",
             "132.145.174.233:1984",
             "158.101.100.95:1984",
         ];
