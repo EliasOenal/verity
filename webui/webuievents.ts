@@ -39,7 +39,7 @@ async function makeRandomCubes() {
 window.global.makeRandomCubes = makeRandomCubes;
 
 // Show all new cubes received.
-// This will handle cubeStore hashAdded events.
+// This will handle cubeStore cubeAdded events.
 function displayCube(cubekey: Buffer) {
     const cube = window.global.node.cubeStore.getCube(cubekey);
     let cubelist: HTMLElement | null = document.getElementById("cubelist")
@@ -163,6 +163,6 @@ function displayPeer(peer) {
 
 function main() {
     window.global.node.networkManager.on('newpeer', (peer) => displayPeer(peer)) // list peers
-    window.global.node.cubeStore.on('hashAdded', (hash) => displayCube(hash)) // list cubes
+    window.global.node.cubeStore.on('cubeAdded', (hash) => displayCube(hash)) // list cubes
 }
 main();

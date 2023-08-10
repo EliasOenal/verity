@@ -31,7 +31,7 @@ export class CubeStore extends EventEmitter {
         }
         this.storage.set(key.toString('hex'), cube.getBinaryData());
         this.allKeys = undefined;
-        this.emit('hashAdded', key);
+        this.emit('cubeAdded', key);
         return key;
       } catch (e) {
         if (e instanceof Error) {

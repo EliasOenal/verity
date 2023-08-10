@@ -79,7 +79,7 @@ export class NetworkPeer extends EventEmitter {
             this.shutdown();
         });
 
-        cubeStore.on('hashAdded', (hash) => {
+        cubeStore.on('cubeAdded', (hash) => {
             this.unsentHashes.add(hash);
         });
 
