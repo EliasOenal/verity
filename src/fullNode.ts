@@ -67,27 +67,15 @@ export class fullNode {
 
         this.networkManager.start();
 
-        if (isNode) {
-            // Print stats when 's' is pressed
+        if (isNode) {  // Provide debugging hotkeys
             readline.emitKeypressEvents(process.stdin);
             if (process.stdin.isTTY) process.stdin.setRawMode(true);
 
             process.stdin.on('keypress', async (str, key) => {
-                if (key && key.ctrl && key.name == 'c') {
-                    process.exit();
-                }
-
-                if (str === 's') {
-                    logger.info('\n' + this.networkManager.prettyPrintStats());
-                }
-
-                if ( str === 'm' ) {
-                    this.makeNewMuc();
-                }
-
-                if (str === 'c') {
-                    this.makeNewCube();
-                }
+                if (key && key.ctrl && key.name == 'c') process.exit();
+                if (str === 's') logger.info('\n' + this.networkManager.prettyPrintStats());
+                if ( str === 'm' ) this.makeNewMuc();
+                if (str === 'c') this.makeNewCube();
             });
         }
     }
@@ -127,7 +115,7 @@ export class fullNode {
                     cubefields.push({
                         type: FieldType.RELATES_TO,
                         length: 32,
-                        value: Buffer.from(replyto, 'utf8').slice(0, 32),
+                        value: Buffer.from(replyto, 'hex').slice(0, 32),
                     });
                 }
 
