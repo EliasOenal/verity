@@ -80,9 +80,10 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
   - `0x02`: `HashResponse`
   - `0x03`: `CubeRequest`
   - `0x04`: `CubeResponse`
-  - `0x05`: `NodeRequest`
-  - `0x06`: `NodeResponse`
-  - `0x07`: `NodeBroadcast`
+  - `0x05`: `CubeSend`
+  - `0x06`: `NodeRequest`
+  - `0x07`: `NodeResponse`
+  - `0x08`: `NodeBroadcast`
 
   Each of these message classes will have different data payloads:
   - `Hello`: **Node Identifier (16 bytes)**: This is a unique NodeID that's generated at startup. Primary purpose is to detect when we connected to ourselves. This may happen if we don't know our external IP. (e.g. NAT)
@@ -91,18 +92,18 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
 
   - `HashResponse`:
     - **Hash Count (4 bytes)**: This is an integer indicating the number of hashes being sent.
-    - **Hashes (32 bytes each)**: This is a series of 32-byte hash values. The number of hashes should match the Hash Count.<br><br>
+    - **Hashes (32 bytes each)**: This is a series of 32-byte hash values. The number of hashes should match the Hash Count.
 
   - `CubeRequest`:
     - **Cube Hash Count (4 bytes)**: This is an integer indicating the number of cube hashes being requested.
-    - **Cube Hashes (32 bytes each)**: This is a series of 32-byte hash values. The number of hashes should match the Cube Hash Count.<br><br>
+    - **Cube Hashes (32 bytes each)**: This is a series of 32-byte hash values. The number of hashes should match the Cube Hash Count.
 
   - `CubeResponse` and `CubeSend`:
     - **Cube Count (4 bytes)**: This is an integer indicating the number of cubes being sent.
-    - **Cubes (1024 bytes each)**: This is a series of cubes. Each cube is 1024 bytes as per your cube specification. The number of cubes should match the Cube Count.<br><br>
+    - **Cubes (1024 bytes each)**: This is a series of cubes. Each cube is 1024 bytes as per your cube specification. The number of cubes should match the Cube Count.
 
   - `NodeRequest`: This message requests a list of known node addresses from a peer.
-    - **Payload**: None<br><br>
+    - **Payload**: None
 
   - `NodeResponse`: This message provides a list of known node addresses to a peer.
 
