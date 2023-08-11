@@ -66,6 +66,9 @@ export class NetworkManager extends EventEmitter {
         }
     }
 
+    public getPeerDB() { return this.peerDB; }
+    public getCubeStore() { return this.cubeStore; }
+
     public start() {
         if (this.server_enabled) {
             this.server = new WebSocket.Server({ port: this.server_port });
@@ -75,6 +78,7 @@ export class NetworkManager extends EventEmitter {
             this.server?.on('connection', ws => {
                 logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort}`);
                 const peer = new NetworkPeer(
+                    this,
                     (ws as any)._socket.remoteAddress,
                     (ws as any)._socket.remotePort,
                     ws, this.cubeStore,
@@ -220,6 +224,7 @@ export class NetworkManager extends EventEmitter {
                 this.peerDB.setPeersVerified([peer]);
                 // Create a new NetworkPeer
                 const networkPeer = new NetworkPeer(
+                    this,
                     peer.ip,
                     peer.port,
                     ws,
@@ -259,7 +264,6 @@ export class NetworkManager extends EventEmitter {
             });
         });
     }
-
 
     private consolidateStats(totalStats: { [key: string]: { count: number, bytes: number } }, peerStats: { [key: string]: { count: number, bytes: number } }) {
         for (let type in peerStats) {
