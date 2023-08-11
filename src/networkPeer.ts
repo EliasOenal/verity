@@ -308,7 +308,7 @@ export class NetworkPeer extends EventEmitter {
                 return;
             }
         }
-        logger.trace(`NetworkPeer: handleCubeResponse: received ${cubeCount} cubes from ${this.stats.ip}:${this.stats.port}`);
+        logger.info(`NetworkPeer: handleCubeResponse: received ${cubeCount} cubes from ${this.stats.ip}:${this.stats.port}`);
     }
 
     /**
@@ -414,13 +414,13 @@ export class NetworkPeer extends EventEmitter {
 
             // skip peer if already known
             if (this.networkManager.getPeerDB().isPeerKnown(peer)) {
-                logger.trace(`NetworkPeer: Received peer ${peerIp}:${peerPort} from ${this.stats.ip}:${this.stats.port}, but we already knew them`);
+                logger.info(`NetworkPeer: Received peer ${peerIp}:${peerPort} from ${this.stats.ip}:${this.stats.port}, but we already knew them`);
                 continue;
             }
 
             // register peer
             this.networkManager.getPeerDB().setPeersUnverified([peer]);
-            logger.trace(`NetworkPeer: Received new peer ${peerIp}:${peerPort} from ${this.stats.ip}:${this.stats.port}`);
+            logger.info(`NetworkPeer: Received new peer ${peerIp}:${peerPort} from ${this.stats.ip}:${this.stats.port}`);
 
             // Connect to new peer
             // TODO: This obviously does not scale.
