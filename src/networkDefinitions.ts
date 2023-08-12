@@ -6,10 +6,8 @@ export enum MessageClass {
     HashResponse = 0x02,
     CubeRequest = 0x03,
     CubeResponse = 0x04,
-    CubeSend = 0x05,
     NodeRequest = 0x06,
     NodeResponse = 0x07,
-    NodeBroadcast = 0x08,
 }
   
 export const NetConstants =  {

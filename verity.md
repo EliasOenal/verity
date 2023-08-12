@@ -80,7 +80,7 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
   - `0x02`: `HashResponse`
   - `0x03`: `CubeRequest`
   - `0x04`: `CubeResponse`
-  - `0x05`: `CubeSend`
+  - `0x05`: `Unused - to be assigned`
   - `0x06`: `NodeRequest`
   - `0x07`: `NodeResponse`
   - `0x08`: `NodeBroadcast`
@@ -98,7 +98,7 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
     - **Cube Hash Count (4 bytes)**: This is an integer indicating the number of cube hashes being requested.
     - **Cube Hashes (32 bytes each)**: This is a series of 32-byte hash values. The number of hashes should match the Cube Hash Count.
 
-  - `CubeResponse` and `CubeSend`:
+  - `CubeResponse`:
     - **Cube Count (4 bytes)**: This is an integer indicating the number of cubes being sent.
     - **Cubes (1024 bytes each)**: This is a series of cubes. Each cube is 1024 bytes as per your cube specification. The number of cubes should match the Cube Count.
 
@@ -204,6 +204,7 @@ This word means "truthfulness" or "accuracy", which could refer to the authentic
 ## Outlook
 ### Network
 - `Light Nodes`: Besides full nodes with full replication one can also operate light nodes that only request cubes on demand. They should prefer to connect to full nodes and communicate their status as network leaves.
+- `Bloom filters`: To further improve efficiency light nodes receive bloom filters of connected nodes in order to determine which peers to request cubes from.
 - `DHT Nodes`: Another extension could be DHT nodes. Instead of aiming for full replication, these nodes just replicate a portion of the cube-space within their DHT address range. They have a bit less utility to the network, but also can operate with less resources.
 - `Merkle Patricia Trie`: To improve efficiency during synchronization we can store all hashes in an MPT. This would allow efficient comparison and synchronization with a time complexity of O(log(n)). Likely advisable to scale beyond a million cubes per day.
 ### Client
@@ -294,7 +295,3 @@ The cube lifetime function has several key properties that make it well-suited f
 3. **Continuity and Differentiability**: The function is continuous for $x > 0$ and differentiable for $x > 0$, which means it has no breaks, jumps, or sharp turns for $x > 0$. This ensures that small changes in the hashcash challenge level lead to small changes in the cube lifetime.
 
 4. **Bounds**: The function correctly maps a hashcash challenge level of $c_{1}$ bits to a cube lifetime of $d_{1}$ days, and a challenge level of $c_{2}$ bits to a cube lifetime of $d_{2}$ days. This allows the network to control the minimum and maximum cube lifetimes.
-
-# Specification Version
-* `07-25-2023: Version 0.1.0:` Initial draft
-* `08-03-2023: Version 0.1.1:` IPC, lifetime function, advanced cube keys, special cube type
