@@ -5,6 +5,7 @@ import { EventEmitter } from 'events';
 import * as fp from './fieldProcessing';
 import { Buffer } from 'buffer';
 
+// TODO: merge CubeDataset into CubeInfo
 export class CubeDataset {
   cubeInfo: CubeInfo = undefined;  // more efficient than storing cube objects
   reverseRelationships: Array<fp.Relationship> = [];
@@ -17,6 +18,7 @@ export class CubeDataset {
     else this.cubeInfo = undefined;
   }
 
+  // TODO: use fp.getRelationships for that
   getReverseRelationships(type?: fp.RelationshipType, remoteKey?: string): Array<fp.Relationship> {
     let ret = [];
     for (const reverseRelationship of this.reverseRelationships) {
@@ -109,8 +111,9 @@ export class CubeStore extends EventEmitter {
   }
 
 
-  hasCube(key: Buffer): boolean {
-    return this.storage.has(key.toString('hex'));
+  hasCube(key: string): boolean {
+    if (this.getCubeRaw(key)) return true;
+    else return false;
   }
 
   getNumberOfStoredCubes(): number {

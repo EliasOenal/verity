@@ -251,7 +251,7 @@ export class NetworkPeer extends EventEmitter {
         }
 
         // for each hash not in cube storage, request the cube
-        const missingHashes = hashes.filter(hash => !this.storage.hasCube(hash));
+        const missingHashes = hashes.filter(hash => !this.storage.hasCube(hash.toString('hex')));
         if (missingHashes.length > 0) {
             this.sendCubeRequest(missingHashes);
         }
@@ -271,6 +271,7 @@ export class NetworkPeer extends EventEmitter {
         }
 
         // Collect only defined cubes from the cube storage
+        // TODO: Rename variables to reflect that we're using CubeInfos
         const cubes: CubeInfo[] = requestedCubeHashes.map(hash => this.storage.getCubeRaw(hash))
             .filter((cube): cube is CubeInfo => cube !== undefined);
 
