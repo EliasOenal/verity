@@ -243,7 +243,7 @@ describe('cube', () => {
     muc.setKeys(publicKey, privateKey);
 
     const fields = [
-      { type: FieldType.TYPE_SPECIAL_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },
+      { type: FieldType.TYPE_SMART_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },
       { type: FieldType.TYPE_PUBLIC_KEY, length: 32, value: publicKey },
       { type: FieldType.PADDING_NONCE, length: 909, value: Buffer.alloc(909) },
       { type: FieldType.TYPE_SIGNATURE, length: 72, value: Buffer.alloc(72) }];
@@ -266,7 +266,7 @@ describe('cube', () => {
     muc.setKeys(publicKey, privateKey);
 
     const fields = [
-      { type: FieldType.TYPE_SPECIAL_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },
+      { type: FieldType.TYPE_SMART_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },
       { type: FieldType.TYPE_PUBLIC_KEY, length: 32, value: publicKey },
       { type: FieldType.PADDING_NONCE, length: 909, value: Buffer.alloc(909) },
       { type: FieldType.TYPE_SIGNATURE, length: 72, value: Buffer.alloc(72) }];

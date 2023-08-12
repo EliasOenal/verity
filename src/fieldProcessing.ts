@@ -10,7 +10,7 @@ export enum FieldType {
     SHARED_KEY = 0x04 << 2,
     ENCRYPTED = 0x05 << 2,
     TYPE_SIGNATURE = 0x06 << 2,
-    TYPE_SPECIAL_CUBE = 0x07 << 2,
+    TYPE_SMART_CUBE = 0x07 << 2,
     TYPE_PUBLIC_KEY = 0x08 << 2,
 }
 
@@ -22,11 +22,11 @@ export const FIELD_LENGTHS: { [key: number]: number | undefined } = {
     [FieldType.SHARED_KEY]: 32,
     [FieldType.ENCRYPTED]: undefined,
     [FieldType.TYPE_SIGNATURE]: 72,
-    [FieldType.TYPE_SPECIAL_CUBE]: 0, // Just a single header byte
+    [FieldType.TYPE_SMART_CUBE]: 0, // Just a single header byte
     [FieldType.TYPE_PUBLIC_KEY]: 32,
 };
 
-export enum SpecialCubeType {
+export enum SmartCubeType {
     CUBE_TYPE_MUC = 0x00,
     CUBE_TYPE_IPB = 0x01,
     CUBE_TYPE_RESERVED = 0x02,

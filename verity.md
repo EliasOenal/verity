@@ -26,7 +26,7 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
     - 0b000100: `TYPE_SHARED_KEY`
     - 0b000101: `TYPE_ENCRYPTED`
     - 0b000110: `TYPE_SIGNATURE`
-    - 0b000111: `TYPE_SPECIAL_CUBE`
+    - 0b000111: `TYPE_SMART_CUBE`
     - 0b001000: `TYPE_PUBLIC_KEY`
     
     (Detailed description below)
@@ -51,7 +51,7 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
 
   - **TYPE_SIGNATURE (optional, 72 bytes)**: If present, the public key fingerprint and ED25519 signature are placed into this field as the last field in the cube. The field has a type of TYPE_SIGNATURE and does not have an associated length field because its size is fixed. The signature and fingerprint are calculated over all the bytes of the cube from the start up to and including the type byte of this signature field, as well as the fingerprint. The first 8 bytes contain the fingerprint of the public key, and the last 64 bytes of the field contain the signature.
 
-  - **TYPE_SPECIAL_CUBE**: If used, this field has to be first in the cube following the header. This type activates special cube formats, such as MUC or IPC. It is only one byte long, leaving just 2 bits after the 6 bit type encoding:
+  - **TYPE_SMART_CUBE**: If used, this field has to be first in the cube following the header. This type activates smart cube formats, such as MUC or IPC. It is only one byte long, leaving just 2 bits after the 6 bit type encoding:
    - 0b00: `CUBE_TYPE_MUC`
    - 0b01: `CUBE_TYPE_IPC`
    - 0b10: `CUBE_TYPE_RESERVED`
@@ -214,7 +214,7 @@ This word means "truthfulness" or "accuracy", which could refer to the authentic
 
 ### Mutable User Cubes (MUCs)
 
-Mutable User Cubes (MUCs) are a special type of cube in the Verity network that can be updated by their respective owners. This functionality provides users with the flexibility to change the content of these cubes while preserving their identity within the network.
+Mutable User Cubes (MUCs) are a smart type of cube in the Verity network that can be updated by their respective owners. This functionality provides users with the flexibility to change the content of these cubes while preserving their identity within the network.
 
 #### Specification
 

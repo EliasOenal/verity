@@ -64,7 +64,7 @@ export class Cube {
         }
     }
 
-    // Verify fingerprint. This applies to special cubes only.
+    // Verify fingerprint. This applies to smart cubes only.
     private static verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
         let calculatedFingerprint = CubeUtil.calculateHash(publicKeyValue).slice(0, 8);  // First 8 bytes of signature field
 
@@ -74,7 +74,7 @@ export class Cube {
         }
     }
 
-    // Verify signature. This applies to special cubes only.
+    // Verify signature. This applies to smart cubes only.
     private static verifySignature(publicKeyValue: Buffer, signatureValue: Buffer, dataToVerify: Buffer): void {
         const data = new Uint8Array(dataToVerify);
         const signature = new Uint8Array(signatureValue);
@@ -88,13 +88,13 @@ export class Cube {
         }
     }
 
-    private static parseSpecialCube(type: number): number {
+    private static parseSmartCube(type: number): number {
         switch (type & 0x03) {
-            case fp.SpecialCubeType.CUBE_TYPE_MUC:
-                return fp.SpecialCubeType.CUBE_TYPE_MUC;
+            case fp.SmartCubeType.CUBE_TYPE_MUC:
+                return fp.SmartCubeType.CUBE_TYPE_MUC;
             default:
-                logger.error('Cube: Special cube type not implemented ' + type);
-                throw new SpecialCubeTypeNotImplemented('Cube: Special cube type not implemented ' + type);
+                logger.error('Cube: Smart cube type not implemented ' + type);
+                throw new SmartCubeTypeNotImplemented('Cube: Smart cube type not implemented ' + type);
         }
     }
 
@@ -102,7 +102,7 @@ export class Cube {
     // If binaryData is undefined, then this is a new local cube in the process of being created.
     // If binaryData is defined, then we expect a fully formed cube meeting all requirements.
     private processTLVFields(fields: Array<fp.Field | fp.FullField>, binaryData: Buffer | undefined): void {
-        let special: fp.FullField | fp.Field | undefined = undefined;
+        let smart: fp.FullField | fp.Field | undefined = undefined;
         let publicKey: fp.FullField | undefined = undefined;
         let signature: fp.FullField | undefined = undefined;
 
@@ -139,20 +139,20 @@ export class Cube {
                         signature = field;
                     }
                     break;
-                case fp.FieldType.TYPE_SPECIAL_CUBE:
-                    if (special !== undefined) {
-                        logger.SpecialCubeError('Cube: Multiple special cube fields');
+                case fp.FieldType.TYPE_SMART_CUBE:
+                    if (smart !== undefined) {
+                        logger.error('Cube: Multiple smart cube fields');
                     }
-                    special = field;
+                    smart = field;
                     // has to be very first field
                     if (field.start !== CUBE_HEADER_LENGTH) {
-                        logger.error('Cube: Special cube type is not the first field');
-                        throw new SpecialCubeError('Cube: Special cube type is not the first field');
+                        logger.error('Cube: Smart cube type is not the first field');
+                        throw new SmartCubeError('Cube: Smart cube type is not the first field');
                     }
-                    const specialCubeType = Cube.parseSpecialCube(field.value[0]);
-                    if (specialCubeType !== fp.SpecialCubeType.CUBE_TYPE_MUC) {
-                        logger.error('Cube: Special cube type not implemented ' + specialCubeType);
-                        throw new SpecialCubeTypeNotImplemented('Cube: Special cube type not implemented ' + specialCubeType);
+                    const smartCubeType = Cube.parseSmartCube(field.value[0]);
+                    if (smartCubeType !== fp.SmartCubeType.CUBE_TYPE_MUC) {
+                        logger.error('Cube: Smart cube type not implemented ' + smartCubeType);
+                        throw new SmartCubeTypeNotImplemented('Cube: Smart cube type not implemented ' + smartCubeType);
                     }
                     break;
                 case fp.FieldType.TYPE_PUBLIC_KEY:
@@ -166,7 +166,7 @@ export class Cube {
             }
         }
 
-        if (special && (Cube.parseSpecialCube(special.type) === fp.SpecialCubeType.CUBE_TYPE_MUC)) {
+        if (smart && (Cube.parseSmartCube(smart.type) === fp.SmartCubeType.CUBE_TYPE_MUC)) {
             if (publicKey && signature) {
                 if (binaryData) {
                     // Extract the public key, signature values and provided fingerprint
@@ -187,14 +187,14 @@ export class Cube {
                     // Verify the signature
                     Cube.verifySignature(publicKeyValue, signatureValue, dataToVerify);
                 }
-                this.smartCube = fp.SpecialCubeType.CUBE_TYPE_MUC;
+                this.smartCube = fp.SmartCubeType.CUBE_TYPE_MUC;
                 this.publicKey = publicKey.value;
                 this.cubeKey = publicKey.value; // MUC, key is public key
             } else {
                 logger.error('Cube: Public key or signature is undefined for MUC');
                 throw new CubeSignatureError('Cube: Public key or signature is undefined for MUC');
             }
-        } else { // Not a special cube, key is hash
+        } else { // Not a smart cube, key is hash
             this.cubeKey = this.hash;
         }
     }
@@ -323,7 +323,7 @@ export class Cube {
         if (publicKeyField !== undefined) {
             // find muc field
             mucField = this.fields.find((field) => {
-                return field.type === (fp.FieldType.TYPE_SPECIAL_CUBE | fp.SpecialCubeType.CUBE_TYPE_MUC);
+                return field.type === (fp.FieldType.TYPE_SMART_CUBE | fp.SmartCubeType.CUBE_TYPE_MUC);
             });
         }
 
@@ -484,8 +484,8 @@ export class FieldNotImplemented extends FieldError { }
 export class BinaryDataError extends CubeError { }
 export class BinaryLengthError extends BinaryDataError { }
 
-export class SpecialCubeError extends CubeError { }
-export class FingerprintError extends SpecialCubeError { }
-export class CubeSignatureError extends SpecialCubeError { }
+export class SmartCubeError extends CubeError { }
+export class FingerprintError extends SmartCubeError { }
+export class CubeSignatureError extends SmartCubeError { }
 
-export class SpecialCubeTypeNotImplemented extends SpecialCubeError { }
+export class SmartCubeTypeNotImplemented extends SmartCubeError { }

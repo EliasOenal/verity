@@ -96,7 +96,7 @@ export class fullNode {
         muc.setKeys(publicKey, privateKey);
 
         const fields = [
-            { type: FieldType.TYPE_SPECIAL_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },
+            { type: FieldType.TYPE_SMART_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },
             { type: FieldType.TYPE_PUBLIC_KEY, length: 32, value: publicKey },
             { type: FieldType.PAYLOAD, length: 9, value: Buffer.from("Hello MUC", 'utf8') },
             { type: FieldType.PADDING_NONCE, length: 898, value: Buffer.alloc(898) },
