@@ -1,5 +1,5 @@
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
-import { Cube } from './cube';
+import { Cube, CubeInfo } from './cube';
 import { logger } from './logger';
 import { EventEmitter } from 'events';
 import { VerityError } from "./config";
@@ -22,10 +22,11 @@ export class CubePersistence extends EventEmitter {
       dbname,
       {
         valueEncoding: 'buffer',
-        version: CUBEDB_VERSION} );
+        version: CUBEDB_VERSION
+      });
     this.db.open().then(() => {
       this.emit('ready');
-    }).catch( (error) => {
+    }).catch((error) => {
       logger.error("cubePersistence: Could not open indexedDB: " + error);
     });
   }
@@ -36,6 +37,14 @@ export class CubePersistence extends EventEmitter {
       this.storeRawCube(key, rawcube)
     }
   }
+
+  storeCubeInfos(data: Map<string, CubeInfo>) {
+    if (this.db.status != 'open') return;
+    for (const [key, rawcube] of data) {
+      this.storeRawCube(key, rawcube.cubeData)
+    }
+  }
+
   storeRawCube(key: string, rawcube: Buffer): Promise<void> {
     // TODO: This is an asynchroneous storage operation, because just about
     // every damn thing in this language is asynchroneous.
@@ -53,4 +62,4 @@ export class CubePersistence extends EventEmitter {
 }
 
 // Exception classes
-class PersistenceError extends VerityError {}
+class PersistenceError extends VerityError { }

@@ -10,6 +10,14 @@ import * as CubeUtil from './cubeUtil';
 
 export const CUBE_HEADER_LENGTH: number = 6;
 
+export interface CubeInfo {
+    hash: Buffer;
+    cubeData: Buffer;
+    smartCube: boolean;
+    date: number;
+    challengeLevel: number;
+}
+
 export class Cube {
     private version: number;
     private reservedBits: number;
@@ -19,7 +27,7 @@ export class Cube {
     private hash: Buffer | undefined;
     private privateKey: Buffer | undefined;
     private publicKey: Buffer | undefined;
-    private specialCube: number | undefined;
+    private smartCube: number | undefined;
     private cubeKey: Buffer | undefined;
 
     constructor(binaryData?: Buffer) {
@@ -179,7 +187,7 @@ export class Cube {
                     // Verify the signature
                     Cube.verifySignature(publicKeyValue, signatureValue, dataToVerify);
                 }
-                this.specialCube = fp.SpecialCubeType.CUBE_TYPE_MUC;
+                this.smartCube = fp.SpecialCubeType.CUBE_TYPE_MUC;
                 this.publicKey = publicKey.value;
                 this.cubeKey = publicKey.value; // MUC, key is public key
             } else {
@@ -189,6 +197,16 @@ export class Cube {
         } else { // Not a special cube, key is hash
             this.cubeKey = this.hash;
         }
+    }
+
+    public getCubeInfo(): CubeInfo {
+        return {
+            hash: this.hash,
+            cubeData: this.getBinaryData(),
+            smartCube: this.smartCube !== undefined,
+            date: this.date,
+            challengeLevel: CubeUtil.countTrailingZeroBits(this.hash),
+        };
     }
 
     public getVersion(): number {
