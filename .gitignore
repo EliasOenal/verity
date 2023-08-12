@@ -6,6 +6,9 @@ cubes.db
 # Test artifacts
 coverage/
 
+# Private scripts
+deployweb.sh
+
 # macOS
 .DS_Store
 .AppleDouble
