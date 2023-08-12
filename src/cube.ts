@@ -246,35 +246,6 @@ export class Cube {
         return this.fields;
     }
 
-     /**
-     * Gets all fields of a specified type
-     * @param type Which type of field to get
-     * @return An array of Field objects, which may be empty.
-     */
-    public getFieldsByType(type: fp.FieldType): Array<fp.Field> {
-        let ret = [];
-        for (let i = 0; i < this.fields.length; i++) {
-            if (this.fields[i].type == type) ret.push(this.fields[i]);
-        }
-        return ret;
-    }
-
-     /**
-     * Gets the relationships this cube has to other cubes, if any.
-     * @param [type] If specified, only get relationships of the specified type.
-     * @return An array of Relationship objects, which may be empty.
-     */
-    public getRelationships(type?: fp.RelationshipType): Array<fp.Relationship> {
-      const relationshipfields = this.getFieldsByType(fp.FieldType.RELATES_TO);
-      let ret = [];
-      for (const relationshipfield of relationshipfields) {
-        const relationship: fp.Relationship =
-          fp.Relationship.fromField(relationshipfield);
-        if (!type || relationship.type == type) ret.push(relationship);
-      }
-      return ret;
-    }
-
     public setFields(fields: Array<fp.Field>): void {
         this.binaryData = undefined;
         this.hash = undefined;

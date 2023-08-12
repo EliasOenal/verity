@@ -165,7 +165,7 @@ export class CubeStore extends EventEmitter {
   private autoAnnotate(key: string, cube: Cube, dataset: CubeDataset) {
     if (!this.auto_annotate) return;  // do I have to?
 
-    for (const relationship of cube.getRelationships()) {
+    for (const relationship of fp.getRelationships(cube.getFields())) {
       const remoteDataset: CubeDataset =
         this.getOrCreateCubeDataset(relationship.remoteKey);
       const existingReverse: Array<fp.Relationship> =

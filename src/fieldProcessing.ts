@@ -66,7 +66,7 @@ export class Relationship {
     static fromField(field?: Field) {
         let relationship = new Relationship();
         if (field.type != FieldType.RELATES_TO) {
-            throw(new WrongFieldType(
+            throw (new WrongFieldType(
                 "Can only construct relationship object from RELATES_TO field, " +
                 "got " + field.type + "."));
         }
@@ -77,6 +77,35 @@ export class Relationship {
             toString('hex');
         return relationship;
     }
+}
+
+/**
+* Gets all fields of a specified type
+* @param type Which type of field to get
+* @return An array of Field objects, which may be empty.
+*/
+export function getFieldsByType(fields: Field[], type: FieldType): Array<Field> {
+    let ret = [];
+    for (let i = 0; i < fields.length; i++) {
+        if (fields[i].type == type) ret.push(fields[i]);
+    }
+    return ret;
+}
+
+/**
+* Gets the relationships this cube has to other cubes, if any.
+* @param [type] If specified, only get relationships of the specified type.
+* @return An array of Relationship objects, which may be empty.
+*/
+export function getRelationships(fields: Field[], type?: RelationshipType): Array<Relationship> {
+    const relationshipfields = getFieldsByType(fields, FieldType.RELATES_TO);
+    let ret = [];
+    for (const relationshipfield of relationshipfields) {
+        const relationship: Relationship =
+            Relationship.fromField(relationshipfield);
+        if (!type || relationship.type == type) ret.push(relationship);
+    }
+    return ret;
 }
 
 export function getFieldHeaderLength(fieldType: FieldType): number {
