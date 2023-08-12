@@ -58,7 +58,7 @@ export class Cube {
 
     // Verify fingerprint. This applies to special cubes only.
     private static verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
-        let calculatedFingerprint = CubeUtil.calculateHash(publicKeyValue).slice(0,8);  // First 8 bytes of signature field
+        let calculatedFingerprint = CubeUtil.calculateHash(publicKeyValue).slice(0, 8);  // First 8 bytes of signature field
 
         if (!calculatedFingerprint.equals(providedFingerprint)) {
             logger.error('Cube: Fingerprint does not match');
@@ -98,12 +98,17 @@ export class Cube {
         let publicKey: fp.FullField | undefined = undefined;
         let signature: fp.FullField | undefined = undefined;
 
-        // Upgrade fields to full fields
         let fullFields: Array<fp.FullField> = [];
-        let start = CUBE_HEADER_LENGTH;
-        for (const field of fields) {
-            fullFields.push({ ...field, start: start });
-            start += fp.getFieldHeaderLength(field.type & 0xFC) + field.length;
+        if (binaryData === undefined) {
+            // Upgrade fields to full fields
+            let start = CUBE_HEADER_LENGTH;
+            for (const field of fields) {
+                fullFields.push({ ...field, start: start });
+                start += fp.getFieldHeaderLength(field.type & 0xFC) + field.length;
+            }
+        } else {
+            // They're all full fields when parsed from binary data
+            fullFields = fields as Array<fp.FullField>;
         }
 
         this.fields = fullFields;
@@ -222,7 +227,7 @@ export class Cube {
     // get all fields of a specified type
     public getFieldsByType(type: fp.FieldType): Array<fp.Field> {
         let ret = [];
-        for (let i=0; i<this.fields.length; i++) {
+        for (let i = 0; i < this.fields.length; i++) {
             if (this.fields[i].type == type) ret.push(this.fields[i]);
         }
         return ret;
@@ -247,14 +252,13 @@ export class Cube {
         if (indexNonce == -1) maxAcceptableLegth = NetConstants.CUBE_SIZE - minHashcashFieldSize;
         else maxAcceptableLegth = NetConstants.CUBE_SIZE;
 
-        if ( totalLength > maxAcceptableLegth ) {
+        if (totalLength > maxAcceptableLegth) {
             // TODO: offer automatic cube segmentation
             throw new FieldSizeError('Cube: Resulting cube size is ' + totalLength + ' bytes but must be less than ' + (NetConstants.CUBE_SIZE - minHashcashFieldSize) + ' bytes (potentially due to insufficient hash cash space)');
         }
 
         // do we need to add extra padding?
-        if ( totalLength < NetConstants.CUBE_SIZE )
-        {
+        if (totalLength < NetConstants.CUBE_SIZE) {
             // Edge case: Minimum padding field size is two bytes.
             // If the cube is currently one byte below maximum, there is no way we can transform
             // it into a valid cube, as it's one byte too short as is but will be one byte too large
@@ -265,7 +269,7 @@ export class Cube {
             // Pad with random padding nonce to reach 1024 bytes
             const num_alloc = NetConstants.CUBE_SIZE - totalLength - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE);
             let random_bytes = new Uint8Array(num_alloc);
-            for (let i=0; i<num_alloc; i++) random_bytes[i] = Math.floor(Math.random() * 256);
+            for (let i = 0; i < num_alloc; i++) random_bytes[i] = Math.floor(Math.random() * 256);
             fields.push({
                 type: fp.FieldType.PADDING_NONCE,
                 length: num_alloc, value: Buffer.from(random_bytes),
@@ -308,7 +312,7 @@ export class Cube {
         // Calculate hashcash
         let findValidHashFunc: Function;
         // Use NodeJS worker based implementation if available and requested in config.ts
-        if ( Settings.HASH_WORKERS && typeof this['findValidHashWorker'] === 'function' ) {
+        if (Settings.HASH_WORKERS && typeof this['findValidHashWorker'] === 'function') {
             findValidHashFunc = this['findValidHashWorker'];
         }
         else findValidHashFunc = this['findValidHash'];
@@ -447,23 +451,23 @@ export class Cube {
 
 }
 
-if ( isNode ) require('./nodespecific/cube-extended');
+if (isNode) require('./nodespecific/cube-extended');
 
 
 // Error definitions
-export class CubeError extends VerityError {}
-export class InsufficientDifficulty extends CubeError {}
+export class CubeError extends VerityError { }
+export class InsufficientDifficulty extends CubeError { }
 
-export class FieldError extends CubeError {}
-export class FieldSizeError extends CubeError {}
-export class UnknownFieldType extends FieldError {}
-export class FieldNotImplemented extends FieldError {}
+export class FieldError extends CubeError { }
+export class FieldSizeError extends CubeError { }
+export class UnknownFieldType extends FieldError { }
+export class FieldNotImplemented extends FieldError { }
 
-export class BinaryDataError extends CubeError {}
-export class BinaryLengthError extends BinaryDataError {}
+export class BinaryDataError extends CubeError { }
+export class BinaryLengthError extends BinaryDataError { }
 
-export class SpecialCubeError extends CubeError {}
-export class FingerprintError extends SpecialCubeError {}
-export class CubeSignatureError extends SpecialCubeError {}
+export class SpecialCubeError extends CubeError { }
+export class FingerprintError extends SpecialCubeError { }
+export class CubeSignatureError extends SpecialCubeError { }
 
-export class SpecialCubeTypeNotImplemented extends SpecialCubeError {}
+export class SpecialCubeTypeNotImplemented extends SpecialCubeError { }

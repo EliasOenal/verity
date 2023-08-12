@@ -98,7 +98,8 @@ export class fullNode {
         const fields = [
             { type: FieldType.TYPE_SPECIAL_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },
             { type: FieldType.TYPE_PUBLIC_KEY, length: 32, value: publicKey },
-            { type: FieldType.PADDING_NONCE, length: 909, value: Buffer.alloc(909) },
+            { type: FieldType.PAYLOAD, length: 9, value: Buffer.from("Hello MUC", 'utf8') },
+            { type: FieldType.PADDING_NONCE, length: 898, value: Buffer.alloc(898) },
             { type: FieldType.TYPE_SIGNATURE, length: 72, value: Buffer.alloc(72) }
         ];
 
