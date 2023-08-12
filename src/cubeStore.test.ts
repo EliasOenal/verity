@@ -25,7 +25,7 @@ describe('cubeStore', () => {
   ])
 
   beforeEach(() => {
-    cubeStore = new CubeStore();
+    cubeStore = new CubeStore(false);
   }, 1000);
 
   it('should add 20 cubes to the storage and get them back', async () => {

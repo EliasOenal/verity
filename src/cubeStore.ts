@@ -90,14 +90,10 @@ export class CubeStore extends EventEmitter {
   // This gets called once a persistence object is ready.
   // We will then proceed to store all of our cubes into it,
   // and load all cubes from it.
-  // TODO: Move indexedDB specific code into cubePersistence or subclass thereof
-  private syncPersistentStorage() {
+  private async syncPersistentStorage() {
     if (!this.persistence) return;
-    this.persistence.requestRawCubes().onsuccess = (event) => {
-      const retrieved = (event.target as IDBRequest).result;
-      for (const rawcube of retrieved.values()) {
-        this.addCube(Buffer.from(rawcube));
-      }
+    for (const rawcube of await this.persistence.requestRawCubes()) {
+      this.addCube(Buffer.from(rawcube));
     }
     this.persistence.storeRawCubes(this.storage);
   }
