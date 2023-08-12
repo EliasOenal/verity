@@ -111,11 +111,12 @@ export class fullNode {
             for (let j = 0; j < 1; j++) {
                 let cube = new Cube();
 
+                const messagebuffer: Buffer = Buffer.from(message, 'utf8');
                 let cubefields: Array<fp.Field> = [
                     {
                         type: FieldType.PAYLOAD,
-                        length: message.length,
-                        value: Buffer.from(message, 'utf8')
+                        length: messagebuffer.length,
+                        value: messagebuffer,
                     }
                 ];
 
