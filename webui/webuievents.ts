@@ -1,5 +1,6 @@
 import { Cube } from '../src/cube';
-import { FieldType, Field } from '../src/fieldProcessing';
+import { CubeDataset } from '../src/cubeStore';
+import * as fp from '../src/fieldProcessing';
 import { logger } from '../src/logger'
 import { NetworkPeer } from '../src/networkPeer'
 import { Buffer } from 'buffer';
@@ -39,59 +40,30 @@ async function makeRandomCubes() {
 }
 window.global.makeRandomCubes = makeRandomCubes;
 
-// Show all new cubes received.
-// This will handle cubeStore cubeAdded events.
-function displayCube(cubekey: Buffer) {
-    const cube = window.global.node.cubeStore.getCube(cubekey);
-    let cubelist: HTMLElement | null = document.getElementById("cubelist")
-    if (!cubelist) return;
-    displayCubeStart(cubekey, cube, cubelist as HTMLUListElement);
-}
-
-function displayCubeStart(cubekey: Buffer, cube: Cube, cubelist: HTMLUListElement) {
-    // First of all, is this an original post or a reply?
-    let replyto: Buffer | undefined = undefined;
-    cube.getFields().forEach(field => {
-        if (field.type == FieldType.RELATES_TO) replyto = field.value;
-    });
-
-    if (replyto) {
-        // We received a reply.
-        // We need to check if we have the original post, and append the reply if we do.
-
-        // Replies can have multiple levels, so let's find all reply lists
-        let allists: Array<HTMLUListElement> = Array.from(cubelist.getElementsByTagName('ul')).concat([cubelist]);
-        // now check all lists for all posts:
-        allists.forEach(anycubelist => {
-            let allposts: Array<Element> = Array.from(anycubelist.children);
-            allposts.forEach(postsli => {
-                let candidatecubekeytext: string | null = postsli.getAttribute("cubekey");
-                if (!candidatecubekeytext) return;  // this return basically means continue, because JS is crazy
-                let candidatecubekey: Buffer = Buffer.from(candidatecubekeytext, 'hex');
-                if (candidatecubekey.equals(replyto as Buffer)) {  // this is the original post!
-                    displayCubeReply(cubekey, cube, postsli as HTMLLIElement);
-                }    
-        })
-        });
-    } else
-    {
-        // We received an original post.
-        // We need to display it, and then check if we have any replies.
-        let mypost: HTMLLIElement = displayCubeInList(cubekey, cube, cubelist as HTMLUListElement);  // display it
-        window.global.node.cubeStore.storage.forEach((candidatekey, candidateraw) => {
-            let candidatereply: Cube = window.global.node.cubeStore.getCube(candidateraw);
-            let relatesto: Array<Field> = candidatereply.getFieldsByType(FieldType.RELATES_TO);
-            if (relatesto.length>0) {
-                if (relatesto[0].value.equals(cubekey)) {  // [0]: We don't want to support replies to multiple posts. Make up your mind, will you?!
-                    // this is a reply to us! display it:
-                    displayCubeStart(candidatekey, candidatereply, cubelist);
-                }
-            }
-        });
+// Show all new cubes that are displayable.
+// This will handle cubeStore cubeDisplayable events.
+function displayCube(key: string) {
+    const dataset: CubeDataset = window.global.node.cubeStore.getCubeDataset(key);
+    const cube: Cube = new Cube(dataset.cubeInfo.cubeData);
+    
+    // is this a reply?
+    const replies: Array<fp.Relationship> = fp.getRelationships(cube.getFields(), fp.RelationshipType.REPLY_TO);
+    if (replies.length > 0) {  // yes
+      const originalpostkey: string = replies[0].remoteKey;
+      const originalpost: CubeDataset = window.global.node.cubeStore.getCubeDataset(
+        originalpostkey);
+      const originalpostli: HTMLLIElement = originalpost.applicationNotes.get('li');
+      displayCubeReply(key, cube, originalpostli);
+    }
+    else {  // no, this is an original post
+    const cubelist: HTMLElement | null = document.getElementById("cubelist")
+    if (!cubelist) return;  // who deleted my cube list?!?!?!?!
+    displayCubeInList(key, cube, cubelist as HTMLUListElement);
     }
 }
 
-function displayCubeReply(key: Buffer, reply: Cube, original: HTMLLIElement) {
+
+function displayCubeReply(key: string, reply: Cube, original: HTMLLIElement) {
     // Does this post already have a reply list?
     let replylist: HTMLUListElement | null = original.getElementsByTagName("ul").item(0);
     if (!replylist) {  // no? time to create one
@@ -101,10 +73,10 @@ function displayCubeReply(key: Buffer, reply: Cube, original: HTMLLIElement) {
     displayCubeInList(key, reply, replylist);
 }
 
-function displayCubeInList(cubekey: Buffer, cube: Cube, cubelist: HTMLUListElement): HTMLLIElement {
+function displayCubeInList(key: string, cube: Cube, cubelist: HTMLUListElement): HTMLLIElement {
     // Create cube entry
     let li: HTMLLIElement = document.createElement("li");
-    li.setAttribute("cubekey", cubekey.toString('hex'));
+    li.setAttribute("cubekey", key);  // do we still need this?
     li.setAttribute("timestamp", String(cube.getDate())) // keep raw timestamp for later reference
 
     // Display cube display header (timestamp, later on we'll also show the user etc)
@@ -117,19 +89,19 @@ function displayCubeInList(cubekey: Buffer, cube: Cube, cubelist: HTMLUListEleme
     // Display cube payload
     let payload: HTMLParagraphElement = document.createElement('p');
     cube.getFields().forEach(field => {
-        if (field.type == FieldType.PAYLOAD) {
+        if (field.type == fp.FieldType.PAYLOAD) {
             payload.innerHTML += field.value.toString();
         }
     });
     li.append(payload);
 
     // Show cube key as tooltip
-    li.title = `Cube Key ${cubekey.toString('hex')}`;
+    li.title = `Cube Key ${key}`;
 
     // Display reply input field
     let replyfield: HTMLParagraphElement = document.createElement("p");
-    replyfield.innerHTML += `<input id="replyinput-${cubekey.toString('hex')}" type="text" size="60" /> `;
-    replyfield.innerHTML += `<button id="replybutton-${cubekey.toString('hex')}" onclick="window.global.node.makeNewCube(document.getElementById('replyinput-${cubekey.toString('hex')}').value, '${cubekey.toString('hex')}');">Reply</button>`;
+    replyfield.innerHTML += `<input id="replyinput-${key}" type="text" size="60" /> `;
+    replyfield.innerHTML += `<button id="replybutton-${key}" onclick="window.global.node.makeNewCube(document.getElementById('replyinput-${key}').value, '${key}');">Reply</button>`;
 
     li.append(replyfield);
 
@@ -182,6 +154,6 @@ function main() {
     window.global.node.networkManager.on('blacklist', (peer) => redisplayPeers()) // list peers
     window.global.node.networkManager.on('online', (peer) => redisplayPeers()) // list peers
     window.global.node.networkManager.on('shutdown', (peer) => redisplayPeers()) // list peers
-    window.global.node.cubeStore.on('cubeAdded', (hash) => displayCube(hash)) // list cubes
+    window.global.node.cubeStore.on('cubeDisplayable', (hash) => displayCube(hash)) // list cubes
 }
 main();

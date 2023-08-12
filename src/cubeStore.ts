@@ -97,8 +97,15 @@ export class CubeStore extends EventEmitter {
         if (this.persistence) this.persistence.storeRawCube(key, dataset.cubeInfo.cubeData);
 
         // inform our application(s) about the new cube
-        this.emit('cubeAdded', key, dataset, cube);
+        this.emit('cubeAdded', key);
+        if (this.isCubeDisplayable(dataset, cube, key)) {
+          this.emit('cubeDisplayable', key);
+        }
+        // Also emit events (in method) if receipt of this cube makes other
+        // cubes we already have displayable now.
+        this.doesThisCubeMakeOthersDisplayable(dataset, cube, key);
 
+        // All done finally, just return the key in case anyone cares.
         return key;
       } catch (e) {
         if (e instanceof Error) {
@@ -152,6 +159,38 @@ export class CubeStore extends EventEmitter {
     }
     this.allKeys = Array.from(this.storage.keys()).map(key => Buffer.from(key, 'hex'));
     return this.allKeys;
+  }
+
+  isCubeDisplayable(dataset: CubeDataset, cube?: Cube, key?: String): boolean {
+    if (!cube) cube = new Cube(dataset.cubeInfo.cubeData);
+    if (!key) key = dataset.cubeInfo.hash.toString('hex');  // TODO beautify
+
+    // TODO: handle continuation chains
+    // TODO: parametrize and handle additional relationship types on request
+    // TODO: as discussed, this whole decision process (and the related attributes
+    // in CubeDataset) should at some point not be applies to all cubes,
+    // just to interesting ones that are actually to be displayed.
+
+    // are we a reply?
+    // if we are, we can only be displayed if we have the original post
+    const replies: Array<fp.Relationship> = cube.getFields().getRelationships(fp.RelationshipType.REPLY_TO);
+    if (replies.length > 0) {
+      const reply: fp.Relationship = replies[0];
+      if (!this.hasCube(reply.remoteKey)) return false;
+    }
+
+    return true;
+  }
+
+  // Emits cubeDisplayable events if this is the case
+  doesThisCubeMakeOthersDisplayable(dataset: CubeDataset, cube: Cube, key: string) {
+    // Am I the base post to a reply we already have?
+    const replies: Array<fp.Relationship> = dataset.getReverseRelationships(fp.RelationshipType.REPLY_TO);
+    for (const reply of replies) {
+      // TODO REMOVE
+      if (!this.isCubeDisplayable(this.getCubeDataset(reply.remoteKey))) throw(new Error("?!?!?!?!?!?!")); // TODO REMOVE
+      this.emit('cubeDisplayable', reply.remoteKey);
+    }
   }
 
   // This gets called once a persistence object is ready.
