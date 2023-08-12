@@ -109,6 +109,7 @@ export class Cube {
         this.fields = fullFields;
         for (const field of fullFields) {
             switch (field.type & 0xFC) {
+            // "& 0xFC" zeroes out the last two bits as field.type is only 6 bits long
                 case fp.FieldType.PADDING_NONCE:
                 case fp.FieldType.PAYLOAD:
                 case fp.FieldType.RELATES_TO:
@@ -119,7 +120,10 @@ export class Cube {
                     logger.error('Cube: Field not implemented ' + field.type);
                     throw new FieldNotImplemented('Cube: Field not implemented ' + field.type);
                 case fp.FieldType.TYPE_SIGNATURE:
-                    if (field.start + fp.getFieldHeaderLength(fp.FieldType.TYPE_SIGNATURE) + field.length !== NetConstants.CUBE_SIZE) {
+                    if (field.start +
+                        fp.getFieldHeaderLength(fp.FieldType.TYPE_SIGNATURE) +
+                        field.length
+                        !== NetConstants.CUBE_SIZE) {
                         logger.error('Cube: Signature field is not the last field');
                         throw new CubeSignatureError('Cube: Signature field is not the last field');
                     } else {
@@ -219,13 +223,33 @@ export class Cube {
         return this.fields;
     }
 
-    // get all fields of a specified type
+     /**
+     * Gets all fields of a specified type
+     * @param type Which type of field to get
+     * @return An array of Field objects, which may be empty.
+     */
     public getFieldsByType(type: fp.FieldType): Array<fp.Field> {
         let ret = [];
         for (let i=0; i<this.fields.length; i++) {
             if (this.fields[i].type == type) ret.push(this.fields[i]);
         }
         return ret;
+    }
+
+     /**
+     * Gets the relationships this cube has to other cubes, if any.
+     * @param [type] If specified, only get relationships of the specified type.
+     * @return An array of Relationship objects, which may be empty.
+     */
+    public getRelationships(type?: fp.RelationshipType): Array<fp.Relationship> {
+      const relationshipfields = this.getFieldsByType(fp.FieldType.RELATES_TO);
+      let ret = [];
+      for (const relationshipfield of relationshipfields) {
+        const relationship: fp.Relationship =
+          fp.Relationship.fromField(relationshipfield);
+        if (!type || relationship.type == type) ret.push(relationship);
+      }
+      return ret;
     }
 
     public setFields(fields: Array<fp.Field>): void {
@@ -458,6 +482,8 @@ export class FieldError extends CubeError {}
 export class FieldSizeError extends CubeError {}
 export class UnknownFieldType extends FieldError {}
 export class FieldNotImplemented extends FieldError {}
+export class CubeRelationshipError extends FieldError {}
+export class WrongFieldType extends FieldError {}
 
 export class BinaryDataError extends CubeError {}
 export class BinaryLengthError extends BinaryDataError {}

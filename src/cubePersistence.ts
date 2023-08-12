@@ -6,8 +6,9 @@ import { VerityError } from "./config";
 import { Buffer } from 'buffer';
 import { Level, ValueIteratorOptions } from 'level';
 import { AbstractValueIterator } from "abstract-level";
+import { CubeDataset } from "./cubeStore";
 
-const CUBEDB_VERSION = 2;
+const CUBEDB_VERSION = 3;
 
 // Will emit a ready event once available
 export class CubePersistence extends EventEmitter {
@@ -30,19 +31,19 @@ export class CubePersistence extends EventEmitter {
     });
   }
 
-  storeRawCubes(data: Map<string, Buffer>) {
+  storeRawCubes(data: Map<string, CubeDataset>) {
     if (this.db.status != 'open') return;
-    for (const [key, rawcube] of data) {
-      this.storeRawCube(key, rawcube)
+    for (const [key, dataset] of data) {
+      this.storeRawCube(key, dataset)
     }
   }
-  storeRawCube(key: string, rawcube: Buffer): Promise<void> {
+  storeRawCube(key: string, dataset: CubeDataset): Promise<void> {
     // TODO: This is an asynchroneous storage operation, because just about
     // every damn thing in this language is asynchroneous.
     // Handle the result event some time, maybe... or don't, whatever.
     if (this.db.status != 'open') return;
     logger.trace("cubePersistent: Storing cube " + key);
-    return this.db.put(key, rawcube);
+    return this.db.put(key, dataset.rawcube);
   }
 
   // Creates an asynchroneous request for all raw cubes.

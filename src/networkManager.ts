@@ -302,8 +302,8 @@ export class NetworkManager extends EventEmitter {
         output += `Local PeerID: ${this.peerID.toString('hex').toUpperCase()}\n`;
 
         output += `\nLocal Store\n`;
-        output += `Cubes: ${this.cubeStore.storage.size}\n`;
-        output += `Memory: ${this.cubeStore.storage.size * NetConstants.CUBE_SIZE}\n`;
+        output += `Cubes: ${this.cubeStore.getNumberOfStoredCubes()}\n`;
+        output += `Memory: ${this.cubeStore.getNumberOfStoredCubes() * NetConstants.CUBE_SIZE}\n`;
 
         output += `\nNetwork Total\n`;
         const totalStats = this.getNetStatistics();

@@ -2,15 +2,49 @@ import { Cube } from './cube';
 import { logger } from './logger';
 import { CubePersistence } from "./cubePersistence";
 import { EventEmitter } from 'events';
+import * as fp from './fieldProcessing';
 import { Buffer } from 'buffer';
 
-export class CubeStore extends EventEmitter {
-  storage: Map<string, Buffer>;
-  allKeys: Buffer[] | undefined;
-  persistence: CubePersistence = undefined;
+export class CubeDataset {
+  rawcube: Buffer;  // more efficient than storing cube objects
+  reverseRelationships: Array<fp.Relationship> = [];
+  applicationNotes: Map<any, any> = new Map();
 
-  constructor(enable_persistence: boolean = true) {
+  constructor(rawcube?: Buffer) {
+    this.rawcube = rawcube;
+  }
+
+  getReverseRelationships(type?: fp.RelationshipType, remoteKey?: string): Array<fp.Relationship> {
+    let ret = [];
+    for (const reverseRelationship of this.reverseRelationships) {
+      if (
+        (!type || type == reverseRelationship.type) &&
+        (!remoteKey) || remoteKey == reverseRelationship.remoteKey ) {
+          ret.push(reverseRelationship);
+        }
+    }
+    return ret;
+  }
+}
+
+export class CubeStore extends EventEmitter {
+  // Maps can't work with Buffers as keys, they would match references,
+  // not values. So we store the hashes as hex strings.
+  // Maybe we should use a different data structure for this.
+  private storage: Map<string, CubeDataset> = new Map();
+  private allKeys: Buffer[] | undefined = undefined;
+
+  // Refers to the persistant cube storage database, if available and enabled
+  private persistence: CubePersistence = undefined;
+
+  // Automatically generate reverse relationship annotations for each cube
+  private auto_annotate: boolean = true;
+
+  constructor(
+    enable_persistence: boolean = true,
+    auto_annotate: boolean = true) {
     super();
+    this.auto_annotate = auto_annotate;
     if (enable_persistence) {
       this.persistence = new CubePersistence();
 
@@ -21,35 +55,46 @@ export class CubeStore extends EventEmitter {
       });
     }
 
-    // Maps can't work with Buffers as keys, they would match references,
-    // not values. So we store the hashes as hex strings.
-    // Maybe we should use a different data structure for this.
     this.storage = new Map();
     this.allKeys = undefined;
-
-
   }
 
-  async addCube(cube: Buffer): Promise<Buffer | undefined>;
-  async addCube(cube: Cube): Promise<Buffer | undefined>;
-  async addCube(cube: Cube | Buffer): Promise<Buffer | undefined> {
+  async addCube(cube: Buffer): Promise<string | undefined>;
+  async addCube(cube: Cube): Promise<string | undefined>;
+  async addCube(cube: Cube | Buffer): Promise<string | undefined> {
       try {
+        // Cube objects are ephemeral as storing binary data is more efficient.
+        // Create cube object if we don't have one yet.
         if (cube instanceof Buffer)
           cube = new Cube(cube);
-        const key: Buffer = await cube.getKey();
-        // Sometimes we get the same cube twice (e.g. due to network latency)
-        // No need to invalidate the hash or to emit an event
-        if (this.storage.has(key.toString('hex'))) {
+
+        const keybuffer: Buffer = await cube.getKey();
+        const key: string = keybuffer.toString('hex');
+
+        // Sometimes we get the same cube twice (e.g. due to network latency).
+        // In that case, do nothing -- no need to invalidate the hash or to emit an event.
+        if (this.storage.has(key)) {
           logger.error('CubeStorage: duplicate - cube already exists');
           return key;
         }
-        this.storage.set(key.toString('hex'), cube.getBinaryData());
-        this.allKeys = undefined;
-        if (this.persistence) {
-          this.persistence.storeRawCubes(
-            new Map([[key.toString('hex'), cube.getBinaryData()]]));
-        }
-        this.emit('cubeAdded', key);
+        this.allKeys = undefined;  // invalidate cache, will regenerate automatically
+
+        // Store the cube
+        // (This either creates a new dataset, or completes the existing dataset
+        // with the actual cube if we already learnt some relationship
+        // information beforehand.
+        let dataset: CubeDataset = this.getOrCreateCubeDataset(
+          key, cube.getBinaryData());
+
+        // Create automatic relationship annotations for this cube (if not disabled)
+        this.autoAnnotate(key, cube, dataset);
+
+        // save cube to disk (if available and enabled)
+        if (this.persistence) this.persistence.storeRawCube(key, dataset);
+
+        // inform our application(s) about the new cube
+        this.emit('cubeAdded', key, dataset, cube);
+
         return key;
       } catch (e) {
         if (e instanceof Error) {
@@ -61,25 +106,42 @@ export class CubeStore extends EventEmitter {
       }
   }
 
-  getCube(key: Buffer): Cube | undefined {
-    const cube = this.storage.get(key.toString('hex'));
-
-    if (cube) {
-      return new Cube(cube);
-    }
-
-    return undefined;
-  }
 
   hasCube(key: Buffer): boolean {
     return this.storage.has(key.toString('hex'));
   }
 
-  getCubeRaw(key: Buffer): Buffer | undefined {
-    return this.storage.get(key.toString('hex'));
+  getNumberOfStoredCubes(): number {
+    let ret = 0;
+    for (const dataset of this.storage.values()) {
+      if (dataset.rawcube) ret++;
+    }
+    return ret;
   }
 
-  getAllHashes(): Buffer[] {
+  getCubeDataset(key: string): CubeDataset {
+    return this.storage.get(key);
+  }
+  private getOrCreateCubeDataset(key: string, rawcube?: Buffer): CubeDataset {
+    let dataset: CubeDataset = this.getCubeDataset(key);
+    if (!dataset) {
+      dataset = new CubeDataset(rawcube);
+      this.storage.set(key, dataset);
+    }
+    return dataset;
+  }
+  getCubeRaw(key: string): Buffer | undefined {
+    const dataset: CubeDataset = this.getCubeDataset(key);
+    if (dataset) return dataset.rawcube;
+    else return undefined;
+  }
+  getCube(key: string): Cube | undefined {
+    const dataset: CubeDataset = this.storage.get(key);
+    if (dataset) return new Cube(dataset.rawcube);
+    else return undefined;
+  }
+
+  getAllKeysAsBuffer(): Buffer[] {
     if (this.allKeys) {
       return this.allKeys;
     }
@@ -96,6 +158,20 @@ export class CubeStore extends EventEmitter {
       this.addCube(Buffer.from(rawcube));
     }
     this.persistence.storeRawCubes(this.storage);
+  }
+
+  private autoAnnotate(key: string, cube: Cube, dataset: CubeDataset) {
+    if (!this.auto_annotate) return;  // do I have to?
+
+    for (const relationship of cube.getRelationships()) {
+      const remoteDataset: CubeDataset =
+        this.getOrCreateCubeDataset(relationship.remoteKey);
+      const existingReverse: Array<fp.Relationship> =
+        remoteDataset.getReverseRelationships(relationship.type, key);
+      if (existingReverse.length == 0) {
+        remoteDataset.reverseRelationships.push(new fp.Relationship(relationship.type, key));
+      }
+    }
   }
 
 }

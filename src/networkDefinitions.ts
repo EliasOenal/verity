@@ -18,9 +18,11 @@ export const NetConstants =  {
     MAX_CUBE_HASH_COUNT: 1000,
     MAX_NODE_ADDRESS_COUNT: 1000,
     CUBE_SIZE: 1024,
-    HASH_SIZE: 32,
+    HASH_SIZE: 32,      // TODO: HASH_SIZE may still be used instead of
+    CUBE_KEY_SIZE: 32,  // CUBE_KEY_SIZE at some points
     PROTOCOL_VERSION_SIZE: 1,
     MESSAGE_CLASS_SIZE: 1,
+    RELATIONSHIP_TYPE_SIZE: 1,
     COUNT_SIZE: 4,
     FINGERPRINT_SIZE: 8,
 }

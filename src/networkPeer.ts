@@ -62,7 +62,7 @@ export class NetworkPeer extends EventEmitter {
         };
 
         // copy all hashes from cubeStore to unsentHashes
-        for (let hash of cubeStore.getAllHashes()) {
+        for (let hash of cubeStore.getAllKeysAsBuffer()) {
             this.unsentHashes.add(hash);
         }
 
