@@ -48,7 +48,7 @@ export async function printCubeInfo(cube: Cube) {
     console.log("Version: " + cube.getVersion());
     console.log("Date: " + cube.getDate());
     console.log("Fields: ");
-    for (let field of cube.getFields()) {
+    for (let field of cube.getFieldsArray()) {
         console.log("    Type: " + field.type);
         console.log("    Length: " + field.length);
         //console.log("    Value: " + field.value.toString('hex'));

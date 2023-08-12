@@ -34,7 +34,7 @@ describe('cube', () => {
 
     expect(() => cubeBuffer.length === 1024).toBeTruthy();
     const cube = new Cube(cubeBuffer);
-    let fields = cube.getFields();
+    let fields = cube.getFieldsArray();
     fields.forEach(field => {
       expect(field.length).toBeLessThanOrEqual(1024);
       expect(field.length).toBeGreaterThanOrEqual(0);
@@ -53,7 +53,7 @@ describe('cube', () => {
   it('should create a new cube with default values when no binary data is provided', () => {
     const cube = new Cube();
     expect(cube.getVersion()).toEqual(0);
-    expect(cube.getFields()).toEqual([{ type: FieldType.PADDING_NONCE, length: 1016, value: Buffer.alloc(1016) }]);
+    expect(cube.getFieldsArray()).toEqual([{ type: FieldType.PADDING_NONCE, length: 1016, value: Buffer.alloc(1016) }]);
   }, 1000);
 
   it('should set and get the version correctly', () => {
@@ -78,7 +78,7 @@ describe('cube', () => {
     const cube = new Cube();
     const fields = [{ type: FieldType.PAYLOAD, length: 100, value: Buffer.alloc(100) }];
     cube.setFields(fields);
-    expect(cube.getFields()).toEqual(fields);
+    expect(cube.getFieldsArray()).toEqual(fields);
   }, 1000);
 
   it('should fail difficulty requirements', () => {
@@ -127,8 +127,8 @@ describe('cube', () => {
           value: Buffer.alloc(128),
       }
     ]);
-    expect(cube.getFields().length).toEqual(2);
-    expect(cube.getFields()[0].length + cube.getFields()[1].length).toEqual(
+    expect(cube.getFieldsArray().length).toEqual(2);
+    expect(cube.getFieldsArray()[0].length + cube.getFieldsArray()[1].length).toEqual(
       NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - fp.getFieldHeaderLength(FieldType.PAYLOAD) - fp.getFieldHeaderLength(FieldType.PADDING_NONCE));
   }, 1000);
 
@@ -153,9 +153,9 @@ describe('cube', () => {
             fp.getFieldHeaderLength(FieldType.PADDING_NONCE) + paddingLength).toEqual(NetConstants.CUBE_SIZE);
     cube.setFields(cubefields);
     expect(paddingLength).toBeGreaterThanOrEqual(Settings.HASHCASH_SIZE);
-    expect(cube.getFields().length).toEqual(2);
-    expect(cube.getFields()[0].length).toEqual(payloadLength);
-    expect(cube.getFields()[1].length).toEqual(paddingLength);
+    expect(cube.getFieldsArray().length).toEqual(2);
+    expect(cube.getFieldsArray()[0].length).toEqual(payloadLength);
+    expect(cube.getFieldsArray()[1].length).toEqual(paddingLength);
   }, 1000);
 
   it('should enforce there is enough space left for hashcash in manually padded cubes', () => {

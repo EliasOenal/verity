@@ -79,33 +79,66 @@ export class Relationship {
     }
 }
 
-/**
-* Gets all fields of a specified type
-* @param type Which type of field to get
-* @return An array of Field objects, which may be empty.
-*/
-export function getFieldsByType(fields: Field[], type: FieldType): Array<Field> {
-    let ret = [];
-    for (let i = 0; i < fields.length; i++) {
-        if (fields[i].type == type) ret.push(fields[i]);
+export class Fields {
+    public data: Array<Field>;
+
+    constructor(fields: Array<Field>) {
+        this.data = fields;
     }
-    return ret;
+
+    /**
+    * Gets all fields of a specified type
+    * @param type Which type of field to get
+    * @return An array of Field objects, which may be empty.
+    */
+    public getFieldsByType(type: FieldType): Array<Field> {
+        let ret = [];
+        for (let i = 0; i < this.data.length; i++) {
+            if (this.data[i].type == type) ret.push(this.data[i]);
+        }
+        return ret;
+    }
+
+    /**
+    * Gets the relationships this cube has to other cubes, if any.
+    * @param [type] If specified, only get relationships of the specified type.
+    * @return An array of Relationship objects, which may be empty.
+    */
+    public getRelationships(type?: RelationshipType): Array<Relationship> {
+        const relationshipfields = this.getFieldsByType(FieldType.RELATES_TO);
+        let ret = [];
+        for (const relationshipfield of relationshipfields) {
+            const relationship: Relationship =
+                Relationship.fromField(relationshipfield);
+            if (!type || relationship.type == type) ret.push(relationship);
+        }
+        return ret;
+    }
+
+    public fromTLVBinaryData(binaryData: Buffer): Fields {
+        return new Fields(parseTLVBinaryData(binaryData));
+    }
 }
 
-/**
-* Gets the relationships this cube has to other cubes, if any.
-* @param [type] If specified, only get relationships of the specified type.
-* @return An array of Relationship objects, which may be empty.
-*/
-export function getRelationships(fields: Field[], type?: RelationshipType): Array<Relationship> {
-    const relationshipfields = getFieldsByType(fields, FieldType.RELATES_TO);
-    let ret = [];
-    for (const relationshipfield of relationshipfields) {
-        const relationship: Relationship =
-            Relationship.fromField(relationshipfield);
-        if (!type || relationship.type == type) ret.push(relationship);
+export function parseTLVBinaryData(binaryData: Buffer): Array<FullField> {
+    if (binaryData === undefined)
+        throw new Error("Binary data not initialized");
+    let fieldsArray = [];
+    let index = CUBE_HEADER_LENGTH; // Start after date field
+    while (index < binaryData.length) {
+        const { type, length, valueStartIndex } = readTLVHeader(binaryData, index);
+        const start = index; // Start of TLV field
+        index = valueStartIndex;
+
+        if (index + length <= binaryData.length) {  // Check if enough data for value field
+            let value = binaryData.slice(index, index + length);
+            fieldsArray.push({ type: type, start: start, length: length, value: value });
+            index += length;
+        } else {
+            throw new Error("Data ended unexpectedly while reading value of field");
+        }
     }
-    return ret;
+    return fieldsArray;
 }
 
 export function getFieldHeaderLength(fieldType: FieldType): number {
@@ -151,27 +184,6 @@ export function writeTLVHeader(binaryData: Buffer, type: number, length: number,
         index += 1;
     }
     return { nextIndex: index };
-}
-
-export function parseTLVBinaryData(binaryData: Buffer): Array<Field | FullField> {
-    if (binaryData === undefined)
-        throw new Error("Binary data not initialized");
-    let fields = []; // Clear any existing fields
-    let index = CUBE_HEADER_LENGTH; // Start after date field
-    while (index < binaryData.length) {
-        const { type, length, valueStartIndex } = readTLVHeader(binaryData, index);
-        const start = index; // Start of TLV field
-        index = valueStartIndex;
-
-        if (index + length <= binaryData.length) {  // Check if enough data for value field
-            let value = binaryData.slice(index, index + length);
-            fields.push({ type: type, start: start, length: length, value: value });
-            index += length;
-        } else {
-            throw new Error("Data ended unexpectedly while reading value of field");
-        }
-    }
-    return fields;
 }
 
 export function readTLVHeader(binaryData: Buffer, index: number): { type: number, length: number, valueStartIndex: number } {

@@ -6,6 +6,7 @@ import { Settings, VerityError } from './config';
 import { logger } from './logger';
 import { NetConstants } from './networkDefinitions';
 import * as fp from './fieldProcessing';
+import { Fields } from './fieldProcessing';
 import * as CubeUtil from './cubeUtil';
 
 export const CUBE_HEADER_LENGTH: number = 6;
@@ -242,24 +243,32 @@ export class Cube {
         this.date = date;
     }
 
-    public getFields(): Array<fp.Field> {
+    public getFields(): Fields {
+        return new Fields(this.fields)
+    }
+
+    public getFieldsArray(): Array<fp.Field> {
         return this.fields;
     }
 
-    public setFields(fields: Array<fp.Field>): void {
+    public setFields(fields: Fields): void;
+    public setFields(fields: Array<fp.Field>): void;
+    public setFields(fields: Array<fp.Field> | Fields): void {
         this.binaryData = undefined;
         this.hash = undefined;
-        this.fields = fields;
+        if (fields instanceof Fields) this.fields = fields.data;
+        else if(fields instanceof Array) this.fields = fields;
+        else throw new Error("Invalid fields type");
 
         // verify all fields together are less than 1024 bytes, and there's still enough space left for the hashcash
         let totalLength = CUBE_HEADER_LENGTH;
-        for (let field of fields) {
+        for (let field of this.fields) {
             totalLength += field.length;
             totalLength += fp.getFieldHeaderLength(field.type);
         }
 
         // has the user already defined a sufficienly large padding field or do we have to add one?
-        const indexNonce = fields.findIndex((field: fp.Field) => field.type == fp.FieldType.PADDING_NONCE && field.length >= Settings.HASHCASH_SIZE);
+        const indexNonce = this.fields.findIndex((field: fp.Field) => field.type == fp.FieldType.PADDING_NONCE && field.length >= Settings.HASHCASH_SIZE);
         let maxAcceptableLegth: number;
         const minHashcashFieldSize = fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE) + Settings.HASHCASH_SIZE;
         if (indexNonce == -1) maxAcceptableLegth = NetConstants.CUBE_SIZE - minHashcashFieldSize;
@@ -283,7 +292,7 @@ export class Cube {
             const num_alloc = NetConstants.CUBE_SIZE - totalLength - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE);
             let random_bytes = new Uint8Array(num_alloc);
             for (let i = 0; i < num_alloc; i++) random_bytes[i] = Math.floor(Math.random() * 256);
-            fields.push({
+            this.fields.push({
                 type: fp.FieldType.PADDING_NONCE,
                 length: num_alloc, value: Buffer.from(random_bytes),
             });
