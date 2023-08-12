@@ -75,7 +75,7 @@ export class NetworkManager extends EventEmitter {
             logger.trace('NetworkManager: Server has been started on port ' + this.server_port);
 
             // Handle incoming connections
-            this.server?.on('connection', ws => {
+            this.server.on('connection', ws => {
                 logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort}`);
                 const peer = new NetworkPeer(
                     this,
@@ -91,7 +91,7 @@ export class NetworkManager extends EventEmitter {
                 });
             });
 
-            this.server?.on('listening', () => {
+            this.server.on('listening', () => {
                 this.emit('listening');
                 logger.debug(`NetworkManager: Server is listening on port ${this.server_port}.`);
             }
@@ -165,7 +165,6 @@ export class NetworkManager extends EventEmitter {
             this.shutdownPeers();
             this.emit('shutdown');
         }
-        //this.removeAllListeners();
     }
 
     getOnline(): boolean {

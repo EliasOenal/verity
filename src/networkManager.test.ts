@@ -109,7 +109,7 @@ describe('networkManager', () => {
         }
         expect(manager3.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
         manager3.incomingPeers[0].sendHashRequest();
-        // wait 2 seconds for the hash request to be sent
+        // wait 3 seconds for the hash request to be sent
         for (let i = 0; i < 30; i++) {
             if (cubeStore3.getAllKeysAsBuffer().length == numberOfCubes) {
                 break;
@@ -124,8 +124,6 @@ describe('networkManager', () => {
         for (let hash of cubeStore3.getAllKeysAsBuffer()) {
             expect(cubeStore.getCube(hash.toString('hex'))).toBeInstanceOf(Cube);
         }
-
-        //manager2!.prettyPrintStats();
 
         manager1.shutdown();
         manager2.shutdown();
