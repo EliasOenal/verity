@@ -1,7 +1,7 @@
 # .gitignore
 
 # Cube DB
-cubes.db
+cubes.db*
 
 # Test artifacts
 coverage/

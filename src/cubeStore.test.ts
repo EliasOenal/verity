@@ -25,7 +25,7 @@ describe('cubeStore', () => {
   ])
 
   beforeEach(() => {
-    cubeStore = new CubeStore(false);
+    cubeStore = new CubeStore(false, true);
   }, 1000);
 
   it('should add 20 cubes to the storage and get them back', async () => {
@@ -41,21 +41,21 @@ describe('cubeStore', () => {
     hashes.forEach((hash, i) => {
       if(!hash) throw new Error(`Hash is undefined for cube ${i}`);
       let binaryData = cubeStore.getCube(hash)?.getBinaryData();
-      expect(hash).toBeInstanceOf(Buffer);
+      expect(typeof hash).toEqual('string');
       if (hash) {
-        expect(hash.length).toEqual(32);
+        expect(hash.length).toEqual(64);
         expect(cubeStore.getCube(hash)?.getBinaryData()).toEqual(binaryData);
       }
     });
     
-    expect(cubeStore.storage.size).toEqual(20);
+    expect(cubeStore.getNumberOfStoredCubes()).toEqual(20);
   }, 30000);
 
   it('should add a cube from binary data', async () => {
     let hash = await cubeStore.addCube(validBinaryCube);
-    expect(hash).toBeInstanceOf(Buffer);
+    expect(typeof hash).toEqual('string');
     if (hash) {
-      expect(hash.length).toEqual(32);
+      expect(hash.length).toEqual(64);
       expect(cubeStore.getCube(hash)?.getBinaryData()).toEqual(validBinaryCube);
     }
   }, 1000);
@@ -67,7 +67,7 @@ describe('cubeStore', () => {
 
   it('should error when getting a cube with invalid hash', async () => {
     let buffer = Buffer.alloc(32);
-    expect(cubeStore.getCube(buffer)).toBeUndefined();
+    expect(cubeStore.getCube(buffer.toString('hex'))).toBeUndefined();
   }, 1000);
 
 });

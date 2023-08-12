@@ -34,10 +34,10 @@ export class fullNode {
     constructor(){
         let initialPeers = [
             "verity.hahn.mt:1984",
-            "verity.hahn.mt:1985",
-            "verity.hahn.mt:1986",
-            "132.145.174.233:1984",
-            "158.101.100.95:1984",
+            // "verity.hahn.mt:1985",
+            // "verity.hahn.mt:1986",
+            // "132.145.174.233:1984",
+            // "158.101.100.95:1984",
         ];
         if (isNode) {
             if (process.argv[2]) this.port = Number(process.argv[2]);
@@ -122,10 +122,17 @@ export class fullNode {
                 ];
 
                 if (replyto) {
+                    const relationshiptype: Buffer = Buffer.alloc(1);
+                    relationshiptype.writeInt8(3);
+                    const originalpost: Buffer = Buffer.from(
+                        replyto, 'hex').subarray(0, 32);
                     cubefields.push({
                         type: FieldType.RELATES_TO,
-                        length: 32,
-                        value: Buffer.from(replyto, 'hex').slice(0, 32),
+                        length: 33,
+                        value: Buffer.concat([
+                            relationshiptype,
+                            originalpost
+                        ])
                     });
                 }
 

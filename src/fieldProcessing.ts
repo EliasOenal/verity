@@ -1,6 +1,7 @@
 import { Buffer } from 'buffer';
 import { logger } from './logger';
-import { Cube, CUBE_HEADER_LENGTH } from './cube';
+import { Cube, CUBE_HEADER_LENGTH, WrongFieldType } from './cube';
+import { NetConstants } from './networkDefinitions';
 
 export enum FieldType {
     PADDING_NONCE = 0x00 << 2,
@@ -16,7 +17,7 @@ export enum FieldType {
 
 export const FIELD_LENGTHS: { [key: number]: number | undefined } = {
     [FieldType.PAYLOAD]: undefined,
-    [FieldType.RELATES_TO]: 32,
+    [FieldType.RELATES_TO]: 33,
     [FieldType.PADDING_NONCE]: undefined,
     [FieldType.KEY_DISTRIBUTION]: 40,
     [FieldType.SHARED_KEY]: 32,
@@ -33,6 +34,13 @@ export enum SmartCubeType {
     CUBE_TYPE_RESERVED2 = 0x03,
 }
 
+export enum RelationshipType {
+    CONTINUED_IN = 1,
+    MENTION = 2,
+    REPLY_TO = 3,
+    QUOTATION = 4,
+}
+
 export interface FullField {
     type: FieldType;
     start: number; // Start of field as offset from beginning of cube (binaryData)
@@ -44,6 +52,31 @@ export interface Field {
     type: FieldType;
     length: number;
     value: Buffer;
+}
+
+export class Relationship {
+    type: RelationshipType;
+    remoteKey: string;
+
+    constructor(type = undefined, remoteKey = undefined) {
+        this.type = type;
+        this.remoteKey = remoteKey;
+    }
+
+    static fromField(field?: Field) {
+        let relationship = new Relationship();
+        if (field.type != FieldType.RELATES_TO) {
+            throw(new WrongFieldType(
+                "Can only construct relationship object from RELATES_TO field, " +
+                "got " + field.type + "."));
+        }
+        relationship.type = field.value.readIntBE(0, NetConstants.RELATIONSHIP_TYPE_SIZE);
+        relationship.remoteKey = field.value.subarray(
+            NetConstants.RELATIONSHIP_TYPE_SIZE,
+            NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE).
+            toString('hex');
+        return relationship;
+    }
 }
 
 export function getFieldHeaderLength(fieldType: FieldType): number {
