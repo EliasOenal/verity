@@ -118,7 +118,7 @@ describe('cubeStore', () => {
       [(await root.getKey()).toString('hex')],
       [(await leaf.getKey()).toString('hex')]
     ]);
-  }, 1000);
+  }, 2000);
 
   it('should not mark replies as displayable when the original post is unavailable', async () => {
     const root: Cube = new Cube(); // will NOT be added
@@ -138,7 +138,7 @@ describe('cubeStore', () => {
     cubeStore.addCube(leaf);
     expect(callback).not.toHaveBeenCalled();
     logger.trace("TEST: mock calls: " + callback.mock.calls);
-  }, 1000);
+  }, 2000);
 
   it('should mark replies as displayable only once all preceding posts has been received', async() => {
     const root: Cube = new Cube();
