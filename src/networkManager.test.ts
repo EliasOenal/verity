@@ -102,7 +102,7 @@ describe('networkManager', () => {
         manager2.outgoingPeers[0].sendHashRequest();
         // wait 3 seconds for the hash request to be sent
         for (let i = 0; i < 30; i++) {
-            if (cubeStore2.getAllKeysAsBuffer().length == numberOfCubes) {
+            if (cubeStore2.getAllStoredCubeKeys().size == numberOfCubes) {
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -111,18 +111,18 @@ describe('networkManager', () => {
         manager3.incomingPeers[0].sendHashRequest();
         // wait 3 seconds for the hash request to be sent
         for (let i = 0; i < 30; i++) {
-            if (cubeStore3.getAllKeysAsBuffer().length == numberOfCubes) {
+            if (cubeStore3.getAllStoredCubeKeys().size == numberOfCubes) {
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         // verify cubes are synced
-        for (let hash of cubeStore2.getAllKeysAsBuffer()) {
-            expect(cubeStore.getCube(hash.toString('hex'))).toBeInstanceOf(Cube);
+        for (let hash of cubeStore2.getAllStoredCubeKeys()) {
+            expect(cubeStore.getCube(hash)).toBeInstanceOf(Cube);
         }
-        for (let hash of cubeStore3.getAllKeysAsBuffer()) {
-            expect(cubeStore.getCube(hash.toString('hex'))).toBeInstanceOf(Cube);
+        for (let hash of cubeStore3.getAllStoredCubeKeys()) {
+            expect(cubeStore.getCube(hash)).toBeInstanceOf(Cube);
         }
 
         manager1.shutdown();
