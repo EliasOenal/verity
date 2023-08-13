@@ -1,6 +1,5 @@
 // cubeUtil.ts
 import { Buffer } from 'buffer';
-import * as nacl from 'tweetnacl';
 import { sha3_256 } from 'js-sha3';
 import { Cube } from './cube';
 import { logger } from './logger';
