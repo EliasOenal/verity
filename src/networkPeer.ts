@@ -42,7 +42,7 @@ export class NetworkPeer extends EventEmitter {
     stats: NetworkStats;
     hashRequestTimer?: NodeJS.Timeout; // Timer for hash requests
     nodeRequestTimer?: NodeJS.Timeout; // Timer for node requests
-    private unsentHashes: Set<Buffer>;
+    private unsentHashes: Set<string>;
     private lightMode: boolean = false;
     private hostNodePeerID: Buffer;
 
@@ -63,9 +63,7 @@ export class NetworkPeer extends EventEmitter {
         };
 
         // copy all hashes from cubeStore to unsentHashes
-        for (let hash of cubeStore.getAllKeysAsBuffer()) {
-            this.unsentHashes.add(hash);
-        }
+        this.unsentHashes = cubeStore.getAllStoredCubeKeys();
 
         // Handle incoming messages
         this.ws.addEventListener("message", (event) => {

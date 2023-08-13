@@ -32,7 +32,6 @@ export class CubeDataset {
 
 export class CubeStore extends EventEmitter {
   private storage: Map<string, CubeDataset> = new Map();
-  private allKeys: Buffer[] | undefined = undefined;
   private allCubeInfos: CubeInfo[] | undefined;
 
   // Refers to the persistant cube storage database, if available and enabled
@@ -63,7 +62,6 @@ export class CubeStore extends EventEmitter {
     }
 
     this.storage = new Map();
-    this.allKeys = undefined;
   }
 
   // TODO: implement importing CubeInfo directly
@@ -85,7 +83,6 @@ export class CubeStore extends EventEmitter {
           logger.error('CubeStorage: duplicate - cube already exists');
           return key;
         }
-        this.allKeys = undefined;  // invalidate cache, will regenerate automatically
 
         // Store the cube
         // (This either creates a new dataset, or completes the existing dataset
@@ -159,12 +156,14 @@ export class CubeStore extends EventEmitter {
     else return undefined;
   }
 
-  getAllKeysAsBuffer(): Buffer[] {
-    if (this.allKeys) {
-      return this.allKeys;
+  getAllStoredCubeKeys(): Set<string> {
+    let ret: Set<string> = new Set();
+    for (const [key, cubeDataset] of this.storage ) {
+      if (cubeDataset.cubeInfo) {  // if we actually have this cube
+        ret.add(key);
+      }
     }
-    this.allKeys = Array.from(this.storage.keys()).map(key => Buffer.from(key, 'hex'));
-    return this.allKeys;
+    return ret;
   }
 
   // Emits cubeDisplayable events if this is the case
