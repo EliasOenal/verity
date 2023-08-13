@@ -270,7 +270,7 @@ export class NetworkPeer extends EventEmitter {
         for (let i = 0; i < cubeHashCount; i++) {
             requestedCubeHashes.push(data.slice(NetConstants.COUNT_SIZE
                 + i * NetConstants.HASH_SIZE, NetConstants.COUNT_SIZE
-            + (i + 1) * NetConstants.HASH_SIZE));
+            + (i + 1) * NetConstants.HASH_SIZE).toString('hex'));
         }
 
         // Collect only defined cubes from the cube storage

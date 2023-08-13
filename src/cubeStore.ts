@@ -4,6 +4,7 @@ import { CubePersistence } from "./cubePersistence";
 import { EventEmitter } from 'events';
 import * as fp from './fieldProcessing';
 import { Buffer } from 'buffer';
+import { Settings } from './config';
 
 // TODO: merge CubeDataset into CubeInfo
 export class CubeDataset {
@@ -45,6 +46,7 @@ export class CubeStore extends EventEmitter {
       enable_persistence: boolean = true,
       displayability_annotations: boolean = true) {
     super();
+    this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS + 10);  // one for each peer and a few for ourselves
     this.displayability_annotations = displayability_annotations;
     if (this.displayability_annotations) {
       this.on('cubeAdded', (key) => this.emitIfCubeDisplayable(key));
