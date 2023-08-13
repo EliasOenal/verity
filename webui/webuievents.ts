@@ -47,33 +47,33 @@ function displayCube(key: string) {
     const cube: Cube = new Cube(dataset.cubeInfo.cubeData);
     
     // is this a reply?
-    const replies: Array<fp.Relationship> = fp.getRelationships(cube.getFields(), fp.RelationshipType.REPLY_TO);
+    const replies: Array<fp.Relationship> = cube.getFields().getRelationships(fp.RelationshipType.REPLY_TO);
     if (replies.length > 0) {  // yes
       const originalpostkey: string = replies[0].remoteKey;
       const originalpost: CubeDataset = window.global.node.cubeStore.getCubeDataset(
         originalpostkey);
       const originalpostli: HTMLLIElement = originalpost.applicationNotes.get('li');
-      displayCubeReply(key, cube, originalpostli);
+      displayCubeReply(key, dataset, cube, originalpostli);
     }
     else {  // no, this is an original post
     const cubelist: HTMLElement | null = document.getElementById("cubelist")
     if (!cubelist) return;  // who deleted my cube list?!?!?!?!
-    displayCubeInList(key, cube, cubelist as HTMLUListElement);
+    displayCubeInList(key, dataset, cube, cubelist as HTMLUListElement);
     }
 }
 
 
-function displayCubeReply(key: string, reply: Cube, original: HTMLLIElement) {
+function displayCubeReply(key: string, replydataset: CubeDataset, reply: Cube, original: HTMLLIElement) {
     // Does this post already have a reply list?
     let replylist: HTMLUListElement | null = original.getElementsByTagName("ul").item(0);
     if (!replylist) {  // no? time to create one
         replylist = document.createElement('ul');
         original.appendChild(replylist);
     }
-    displayCubeInList(key, reply, replylist);
+    displayCubeInList(key, replydataset, reply, replylist);
 }
 
-function displayCubeInList(key: string, cube: Cube, cubelist: HTMLUListElement): HTMLLIElement {
+function displayCubeInList(key: string, dataset: CubeDataset, cube: Cube, cubelist: HTMLUListElement): HTMLLIElement {
     // Create cube entry
     let li: HTMLLIElement = document.createElement("li");
     li.setAttribute("cubekey", key);  // do we still need this?
@@ -88,11 +88,9 @@ function displayCubeInList(key: string, cube: Cube, cubelist: HTMLUListElement):
 
     // Display cube payload
     let payload: HTMLParagraphElement = document.createElement('p');
-    cube.getFields().forEach(field => {
-        if (field.type == fp.FieldType.PAYLOAD) {
-            payload.innerHTML += field.value.toString();
-        }
-    });
+    for (const field of cube.getFields().getFieldsByType(fp.FieldType.PAYLOAD)) {
+        payload.innerHTML += field.value.toString();
+    }
     li.append(payload);
 
     // Show cube key as tooltip
@@ -121,7 +119,9 @@ function displayCubeInList(key: string, cube: Cube, cubelist: HTMLUListElement):
         }
         if (!appended) cubelist.appendChild(li);
     }
-
+    // save this post's li as application note in the cube store
+    // so we can later append replies to it
+    dataset.applicationNotes.set('li', li); 
     return li;
 }
 

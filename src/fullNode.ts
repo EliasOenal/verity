@@ -108,38 +108,18 @@ export class fullNode {
     }
 
     public async makeNewCube(message: string = "Hello Verity", replyto?: string) {
-        for (let i = 0; i < 1; i++) {
-            for (let j = 0; j < 1; j++) {
-                let cube = new Cube();
+        let cube = new Cube();
+        const messagebuffer: Buffer = Buffer.from(message, 'utf8');
+        let cubefields: Array<fp.Field> = [fp.Field.Payload(messagebuffer)];
 
-                const messagebuffer: Buffer = Buffer.from(message, 'utf8');
-                let cubefields: Array<fp.Field> = [
-                    {
-                        type: FieldType.PAYLOAD,
-                        length: messagebuffer.length,
-                        value: messagebuffer,
-                    }
-                ];
-
-                if (replyto) {
-                    const relationshiptype: Buffer = Buffer.alloc(1);
-                    relationshiptype.writeInt8(3);
-                    const originalpost: Buffer = Buffer.from(
-                        replyto, 'hex').subarray(0, 32);
-                    cubefields.push({
-                        type: FieldType.RELATES_TO,
-                        length: 33,
-                        value: Buffer.concat([
-                            relationshiptype,
-                            originalpost
-                        ])
-                    });
-                }
-
-                cube.setFields(cubefields);
-                this.cubeStore.addCube(cube);
-            }
+        if (replyto) {
+            cubefields.push(fp.Field.RelatesTo(
+                new fp.Relationship(fp.RelationshipType.REPLY_TO, replyto)
+            ));
         }
+
+        cube.setFields(cubefields);
+        this.cubeStore.addCube(cube);
     }
 }
 

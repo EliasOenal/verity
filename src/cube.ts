@@ -12,11 +12,21 @@ import * as CubeUtil from './cubeUtil';
 export const CUBE_HEADER_LENGTH: number = 6;
 
 export class CubeInfo {
-    hash: Buffer;
+    key: Buffer;
     cubeData: Buffer;
     smartCube: boolean;
     date: number;
     challengeLevel: number;
+
+    constructor(
+            key: Buffer, cubeData: Buffer, smartCube: boolean,
+            date: number,  challengeLevel: number) {
+        this.key = key;
+        this.cubeData = cubeData;
+        this.smartCube = smartCube;
+        this.date = date;
+        this.challengeLevel = challengeLevel;
+    }
 }
 
 export class Cube {
@@ -204,14 +214,14 @@ export class Cube {
         }
     }
 
-    public getCubeInfo(): CubeInfo {
-        return {
-            hash: this.hash,
-            cubeData: this.getBinaryData(),
-            smartCube: this.smartCube !== undefined,
-            date: this.date,
-            challengeLevel: CubeUtil.countTrailingZeroBits(this.hash),
-        };
+    public async getCubeInfo(): Promise<CubeInfo> {
+        return new CubeInfo(
+            await this.getKey(),
+            this.getBinaryData(),
+            this.smartCube !== undefined,
+            this.date,
+            CubeUtil.countTrailingZeroBits(this.hash),
+        );
     }
 
     public getVersion(): number {
@@ -340,7 +350,7 @@ export class Cube {
         else findValidHashFunc = this['findValidHash'];
         this.hash = await findValidHashFunc.call(this, indexNonce, indexSignature);
 
-        logger.info("Using hash " + this.hash.toString('hex') + "as cubeKey");
+        logger.info("cube: Using hash " + this.hash.toString('hex') + "as cubeKey");
         this.cubeKey = this.hash;
         if (mucField !== undefined && this.publicKey !== undefined) {
             // MUCs use the public key as the cube key
@@ -479,6 +489,7 @@ if (isNode) require('./nodespecific/cube-extended');
 // Error definitions
 export class CubeError extends VerityError { }
 export class InsufficientDifficulty extends CubeError { }
+export class InvalidCubeKey extends CubeError { }
 
 export class FieldError extends CubeError { }
 export class FieldSizeError extends CubeError { }
