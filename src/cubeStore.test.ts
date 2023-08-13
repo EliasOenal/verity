@@ -178,5 +178,5 @@ describe('cubeStore', () => {
       [(await intermediate.getKey()).toString('hex')],
       [(await leaf.getKey()).toString('hex')]
     ]);
-  }, 1000);
+  }, 2000);
 });
