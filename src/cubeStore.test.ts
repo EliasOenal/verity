@@ -1,5 +1,7 @@
 import exp from 'constants';
 import { Cube } from './cube';
+import { logger } from './logger';
+import * as fp from './fieldProcessing';
 import { CubeStore as CubeStore } from './cubeStore';
 
 describe('cubeStore', () => {
@@ -56,7 +58,7 @@ describe('cubeStore', () => {
     expect(typeof hash).toEqual('string');
     if (hash) {
       expect(hash.length).toEqual(64);
-      expect(cubeStore.getCube(hash)?.getBinaryData()).toEqual(validBinaryCube);
+      expect(cubeStore.getCube(hash).getBinaryData()).toEqual(validBinaryCube);
     }
   }, 1000);
 
@@ -70,4 +72,111 @@ describe('cubeStore', () => {
     expect(cubeStore.getCube(buffer.toString('hex'))).toBeUndefined();
   }, 1000);
 
+
+
+  // TODO: Create own test suite for Fields and move this there
+  it('correctly sets and retrieves a reply_to relationship field', async () => {
+    const root: Cube = new Cube(); // will only be used as referenc
+    const payloadfield: fp.Field = fp.Field.Payload(Buffer.alloc(200));
+    root.setFields([payloadfield]);
+
+    const leaf: Cube = new Cube();
+
+    leaf.setFields([
+      payloadfield,
+      fp.Field.RelatesTo(new fp.Relationship(
+        fp.RelationshipType.REPLY_TO, (await root.getKey()).toString('hex')))
+    ]);
+
+    const retrievedRel: fp.Relationship = leaf.getFields().getFirstRelationship();
+    expect(retrievedRel.type).toEqual(fp.RelationshipType.REPLY_TO);
+    expect(retrievedRel.remoteKey).toEqual((await root.getKey()).toString('hex'));
+  }, 1000);
+
+
+
+  // TODO: move displayability logic somewhere else
+  it('should mark a cube and a reply received in sync as displayable', async () => {
+    const root: Cube = new Cube();
+    const payloadfield: fp.Field = fp.Field.Payload(Buffer.alloc(200));
+    root.setFields([payloadfield]);
+
+    const leaf: Cube = new Cube();
+    leaf.setFields([
+      payloadfield,
+      fp.Field.RelatesTo(new fp.Relationship(
+        fp.RelationshipType.REPLY_TO, (await root.getKey()).toString('hex')))
+    ]);
+
+    const callback = jest.fn();
+    cubeStore.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
+
+    cubeStore.addCube(root);
+    cubeStore.addCube(leaf);
+
+    expect(callback.mock.calls).toEqual([
+      [(await root.getKey()).toString('hex')],
+      [(await leaf.getKey()).toString('hex')]
+    ]);
+  }, 1000);
+
+  it('should not mark replies as displayable when the original post is unavailable', async () => {
+    const root: Cube = new Cube(); // will NOT be added
+    const payloadfield: fp.Field = fp.Field.Payload(Buffer.alloc(200));
+    root.setFields([payloadfield]);
+
+    const leaf: Cube = new Cube();
+    leaf.setFields([
+      payloadfield,
+      fp.Field.RelatesTo(new fp.Relationship(
+        fp.RelationshipType.REPLY_TO, (await root.getKey()).toString('hex')))
+    ]);
+
+    const callback = jest.fn();
+    cubeStore.on('cubeDisplayable', (hash) => callback(hash));
+
+    cubeStore.addCube(leaf);
+    expect(callback).not.toHaveBeenCalled();
+    logger.trace("TEST: mock calls: " + callback.mock.calls);
+  }, 1000);
+
+  it('should mark replies as displayable only once all preceding posts has been received', async() => {
+    const root: Cube = new Cube();
+    const payloadfield: fp.Field = fp.Field.Payload(Buffer.alloc(200));
+    root.setFields([payloadfield]);
+
+    const intermediate: Cube = new Cube();
+    intermediate.setFields([
+      fp.Field.RelatesTo(new fp.Relationship(
+        fp.RelationshipType.REPLY_TO, (await root.getKey()).toString('hex'))),
+      payloadfield,  // let's shift the payload field around a bit for good measure :)
+    ]);
+
+    const leaf: Cube = new Cube();
+    leaf.setFields([
+      payloadfield,
+      fp.Field.RelatesTo(new fp.Relationship(
+        fp.RelationshipType.REPLY_TO, (await intermediate.getKey()).toString('hex')))
+    ]);
+
+    const callback = jest.fn();
+    cubeStore.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
+
+    logger.trace(`TEST: root ID ${(await root.getKey()).toString('hex')}`);
+    logger.trace(`TEST: intermediate ID ${(await intermediate.getKey()).toString('hex')}`);
+    logger.trace(`TEST: leaf ID ${(await leaf.getKey()).toString('hex')}`);
+
+    // add in reverse order:
+    cubeStore.addCube(leaf);
+    cubeStore.addCube(intermediate);
+    cubeStore.addCube(root);
+
+    logger.trace("mock calls received: " + callback.mock.calls);
+
+    expect(callback.mock.calls).toEqual([
+      [(await root.getKey()).toString('hex')],
+      [(await intermediate.getKey()).toString('hex')],
+      [(await leaf.getKey()).toString('hex')]
+    ]);
+  }, 1000);
 });

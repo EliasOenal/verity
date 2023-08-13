@@ -1,6 +1,6 @@
 import { Buffer } from 'buffer';
 import { logger } from './logger';
-import { Cube, CUBE_HEADER_LENGTH, WrongFieldType } from './cube';
+import { Cube, CUBE_HEADER_LENGTH, InvalidCubeKey, WrongFieldType } from './cube';
 import { NetConstants } from './networkDefinitions';
 
 export enum FieldType {
@@ -17,7 +17,7 @@ export enum FieldType {
 
 export const FIELD_LENGTHS: { [key: number]: number | undefined } = {
     [FieldType.PAYLOAD]: undefined,
-    [FieldType.RELATES_TO]: 33,
+    [FieldType.RELATES_TO]: NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE,
     [FieldType.PADDING_NONCE]: undefined,
     [FieldType.KEY_DISTRIBUTION]: 40,
     [FieldType.SHARED_KEY]: 32,
@@ -48,17 +48,42 @@ export interface FullField {
     value: Buffer;
 }
 
-export interface Field {
+export class Field {
     type: FieldType;
     length: number;
     value: Buffer;
+
+    static Payload(buf: Buffer): Field {
+        return {
+            type: FieldType.PAYLOAD,
+            length: buf.length,
+            value: buf,
+        };
+    }
+    static RelatesTo(rel: Relationship): Field {
+        logger.trace(typeof rel.remoteKey);
+        const value: Buffer = Buffer.alloc(
+            NetConstants.RELATIONSHIP_TYPE_SIZE +
+            NetConstants.CUBE_KEY_SIZE);
+        value.writeIntBE(rel.type, 0, NetConstants.RELATIONSHIP_TYPE_SIZE);
+        value.write(
+            rel.remoteKey,  // what to write
+            NetConstants.RELATIONSHIP_TYPE_SIZE,  // offset
+            NetConstants.CUBE_KEY_SIZE,  // length
+            'hex');  // encoding
+        return {
+            type: FieldType.RELATES_TO,
+            length: FIELD_LENGTHS[FieldType.RELATES_TO],
+            value: value
+        };
+    }
 }
 
 export class Relationship {
     type: RelationshipType;
     remoteKey: string;
 
-    constructor(type = undefined, remoteKey = undefined) {
+    constructor(type: RelationshipType = undefined, remoteKey: string = undefined) {
         this.type = type;
         this.remoteKey = remoteKey;
     }
@@ -113,6 +138,11 @@ export class Fields {
             if (!type || relationship.type == type) ret.push(relationship);
         }
         return ret;
+    }
+    public getFirstRelationship(type?: RelationshipType): Relationship {
+        const rels: Array<Relationship> = this.getRelationships(type);
+        if (rels.length) return rels[0];
+        else return undefined;
     }
 
     public fromTLVBinaryData(binaryData: Buffer): Fields {
