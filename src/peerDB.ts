@@ -24,7 +24,9 @@ export class Peer {
     }
 
     equals(other: Peer): boolean {
-        return this.ip === other.ip && this.port === other.port;
+        if (this.ip === other.ip && this.port === other.port) return true;
+        else if (this.id && other.id && this.id == other.id) return true;
+        else return false;
     }
 
     address(): string { return `${this.ip}:${this.port}`}
@@ -67,6 +69,10 @@ export class PeerDB extends EventEmitter {
         return this.peersUnverified;
     }
 
+    getPeersBlacklisted(): Peer[] {
+        return this.peersBlacklisted;
+    }
+
     isPeerKnown(peer): boolean {
         for (const candidate of this.peersVerified.concat(this.peersUnverified, this.peersBlacklisted)) {
             if ( candidate.equals(peer) ) return true;
@@ -83,10 +89,6 @@ export class PeerDB extends EventEmitter {
         // Remove the peers from the verified and unverified lists
         this.peersVerified = this.peersVerified.filter(verifiedPeer => !peers.some(peer => peer.equals(verifiedPeer)));
         this.peersUnverified = this.peersUnverified.filter(unverifiedPeer => !peers.some(peer => peer.equals(unverifiedPeer)));
-    }
-
-    getPeersBlacklisted(): Peer[] {
-        return this.peersBlacklisted;
     }
 
     setPeersVerified(peers: Peer[]): void {
