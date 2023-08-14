@@ -162,10 +162,6 @@ describe('cubeStore', () => {
     const callback = jest.fn();
     cubeStore.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
 
-    logger.trace(`TEST: root ID ${(await root.getKey()).toString('hex')}`);
-    logger.trace(`TEST: intermediate ID ${(await intermediate.getKey()).toString('hex')}`);
-    logger.trace(`TEST: leaf ID ${(await leaf.getKey()).toString('hex')}`);
-
     // add in reverse order:
     cubeStore.addCube(leaf);
     cubeStore.addCube(intermediate);

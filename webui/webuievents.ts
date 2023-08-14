@@ -1,5 +1,5 @@
 import { Cube } from '../src/cube';
-import { CubeDataset } from '../src/cubeStore';
+import { CubeInfo } from '../src/cubeInfo';
 import * as fp from '../src/fieldProcessing';
 import { logger } from '../src/logger'
 import { NetworkPeer } from '../src/networkPeer'
@@ -43,37 +43,38 @@ window.global.makeRandomCubes = makeRandomCubes;
 // Show all new cubes that are displayable.
 // This will handle cubeStore cubeDisplayable events.
 function displayCube(key: string) {
-    const dataset: CubeDataset = window.global.node.cubeStore.getCubeDataset(key);
-    const cube: Cube = new Cube(dataset.cubeInfo.cubeData);
-    
+    const cubeInfo: CubeInfo = window.global.node.cubeStore.getCubeInfo(key);
+    if (!cubeInfo.isComplete()) return;
+    const cube: Cube = cubeInfo.instantiate() as Cube;
+
     // is this a reply?
     const replies: Array<fp.Relationship> = cube.getFields().getRelationships(fp.RelationshipType.REPLY_TO);
     if (replies.length > 0) {  // yes
       const originalpostkey: string = replies[0].remoteKey;
-      const originalpost: CubeDataset = window.global.node.cubeStore.getCubeDataset(
+      const originalpost: CubeInfo = window.global.node.cubeStore.getCubeInfo(
         originalpostkey);
       const originalpostli: HTMLLIElement = originalpost.applicationNotes.get('li');
-      displayCubeReply(key, dataset, cube, originalpostli);
+      displayCubeReply(key, cubeInfo, cube, originalpostli);
     }
     else {  // no, this is an original post
     const cubelist: HTMLElement | null = document.getElementById("cubelist")
     if (!cubelist) return;  // who deleted my cube list?!?!?!?!
-    displayCubeInList(key, dataset, cube, cubelist as HTMLUListElement);
+    displayCubeInList(key, cubeInfo, cube, cubelist as HTMLUListElement);
     }
 }
 
 
-function displayCubeReply(key: string, replydataset: CubeDataset, reply: Cube, original: HTMLLIElement) {
+function displayCubeReply(key: string, replyInfo: CubeInfo, reply: Cube, original: HTMLLIElement) {
     // Does this post already have a reply list?
     let replylist: HTMLUListElement | null = original.getElementsByTagName("ul").item(0);
     if (!replylist) {  // no? time to create one
         replylist = document.createElement('ul');
         original.appendChild(replylist);
     }
-    displayCubeInList(key, replydataset, reply, replylist);
+    displayCubeInList(key, replyInfo, reply, replylist);
 }
 
-function displayCubeInList(key: string, dataset: CubeDataset, cube: Cube, cubelist: HTMLUListElement): HTMLLIElement {
+function displayCubeInList(key: string, cubeInfo: CubeInfo, cube: Cube, cubelist: HTMLUListElement): HTMLLIElement {
     // Create cube entry
     let li: HTMLLIElement = document.createElement("li");
     li.setAttribute("cubekey", key);  // do we still need this?
@@ -121,7 +122,7 @@ function displayCubeInList(key: string, dataset: CubeDataset, cube: Cube, cubeli
     }
     // save this post's li as application note in the cube store
     // so we can later append replies to it
-    dataset.applicationNotes.set('li', li); 
+    cubeInfo.applicationNotes.set('li', li);
     return li;
 }
 
