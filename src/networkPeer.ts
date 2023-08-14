@@ -1,15 +1,15 @@
-import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
-import { Buffer } from 'buffer';
-import { EventEmitter } from 'events';
 import { CubeStore } from './cubeStore';
 import { CubeInfo } from './cubeInfo';
 import { MessageClass, NetConstants } from './networkDefinitions';
-import { WebSocket } from 'isomorphic-ws';
 import { Settings } from './config';
 import { logger } from './logger';
 import { Peer } from './peerDB';
 import { NetworkManager } from "./networkManager";
 
+import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
+import { Buffer } from 'buffer';
+import { EventEmitter } from 'events';
+import { WebSocket } from 'isomorphic-ws';
 
 export interface PacketStats {
     count: number,
@@ -46,7 +46,17 @@ export class NetworkPeer extends EventEmitter {
     private lightMode: boolean = false;
     private hostNodePeerID: Buffer;
 
-    constructor(networkManager: NetworkManager, ip: string, port: number, ws: WebSocket, cubeStore: CubeStore, hostNodePeerID: Buffer, lightMode: boolean = false) {
+    // these two represent a very cumbersome but cross-platform way to remove
+    // listeners from web sockets (which we need to do once a peer connection closes)
+    private socketClosedController: AbortController = new AbortController();
+    private socketClosedSignal: AbortSignal = this.socketClosedController.signal;
+
+    constructor(
+            networkManager: NetworkManager, ip: string, port: number,
+            ws: WebSocket, cubeStore: CubeStore, hostNodePeerID: Buffer,
+            lightMode: boolean = false,
+            socketClosedController: AbortController = new AbortController(),
+            socketClosedSignal: AbortSignal = socketClosedController.signal) {
         super();
         this.networkManager = networkManager;
         this.ws = ws;
@@ -54,6 +64,8 @@ export class NetworkPeer extends EventEmitter {
         this.unsentHashes = new Set();
         this.hostNodePeerID = hostNodePeerID;
         this.lightMode = lightMode;
+        this.socketClosedController = socketClosedController;
+        this.socketClosedSignal = socketClosedSignal;
         this.stats = {
             ip: ip,
             port: port,
@@ -66,6 +78,7 @@ export class NetworkPeer extends EventEmitter {
         this.unsentHashes = cubeStore.getAllStoredCubeKeys();
 
         // Handle incoming messages
+        //@ts-ignore
         this.ws.addEventListener("message", (event) => {
             if (isNode) {
                 this.handleMessage(Buffer.from(event.data as Buffer));
@@ -75,7 +88,7 @@ export class NetworkPeer extends EventEmitter {
                     this.handleMessage(Buffer.from(value));
                 });
             }
-        });
+        }, { signal: this.socketClosedSignal });
 
         this.ws.addEventListener('close', () => {
             this.emit('close', this);
@@ -100,7 +113,7 @@ export class NetworkPeer extends EventEmitter {
             clearInterval(this.nodeRequestTimer);
         }
         this.ws.close();
-        this.ws.removeAllListeners();  // TODO FIXME: not available in browser (as browser WebSockets don't inherit from EventEmitter)
+        this.socketClosedController.abort();  // removes all listeners from this.ws
         this.removeAllListeners();
     }
 
@@ -176,7 +189,6 @@ export class NetworkPeer extends EventEmitter {
 
     handleHello(data: Buffer) {
         this.stats.peerID = data.slice(0, 16);
-        this.emit('updatepeer', this);
 
         // compare peerID to first 16 bytes of incoming packet
         logger.trace(`NetworkPeer: received 'Hello' from IP: ${this.stats.ip}, port: ${this.stats.port}, peerID: ${this.stats.peerID.toString('hex')}`);
@@ -188,6 +200,7 @@ export class NetworkPeer extends EventEmitter {
             this.emit('blacklist', peer);
             this.ws.close();
         } else {
+        this.emit('updatepeer', this);  // let listeners know we learnt the peer's ID
         // Asks for their know peers now, and then in regular intervals
         this.sendNodeRequest();
         this.nodeRequestTimer = setInterval(() => this.sendNodeRequest(), Settings.NODE_REQUEST_TIME);
@@ -198,7 +211,6 @@ export class NetworkPeer extends EventEmitter {
             this.hashRequestTimer = setInterval(() => this.sendHashRequest(),
                 Settings.HASH_REQUEST_TIME);
         }
-
         }
     }
 

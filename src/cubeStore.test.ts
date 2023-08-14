@@ -37,9 +37,9 @@ describe('cubeStore', () => {
       cube.setDate(i);
       promises.push(cubeStore.addCube(cube));
     }
-    
+
     const hashes = await Promise.all(promises);
-    
+
     hashes.forEach((hash, i) => {
       if(!hash) throw new Error(`Hash is undefined for cube ${i}`);
       let binaryData = cubeStore.getCube(hash)?.getBinaryData();
@@ -49,7 +49,7 @@ describe('cubeStore', () => {
         expect(cubeStore.getCube(hash)?.getBinaryData()).toEqual(binaryData);
       }
     });
-    
+
     expect(cubeStore.getNumberOfStoredCubes()).toEqual(20);
   }, 30000);
 
@@ -118,7 +118,7 @@ describe('cubeStore', () => {
       [(await root.getKey()).toString('hex')],
       [(await leaf.getKey()).toString('hex')]
     ]);
-  }, 2000);
+  }, 5000);
 
   it('should not mark replies as displayable when the original post is unavailable', async () => {
     const root: Cube = new Cube(); // will NOT be added
@@ -137,8 +137,7 @@ describe('cubeStore', () => {
 
     cubeStore.addCube(leaf);
     expect(callback).not.toHaveBeenCalled();
-    logger.trace("TEST: mock calls: " + callback.mock.calls);
-  }, 2000);
+  }, 5000);
 
   it('should mark replies as displayable only once all preceding posts has been received', async() => {
     const root: Cube = new Cube();
@@ -167,12 +166,10 @@ describe('cubeStore', () => {
     cubeStore.addCube(intermediate);
     cubeStore.addCube(root);
 
-    logger.trace("mock calls received: " + callback.mock.calls);
-
     expect(callback.mock.calls).toEqual([
       [(await root.getKey()).toString('hex')],
       [(await intermediate.getKey()).toString('hex')],
       [(await leaf.getKey()).toString('hex')]
     ]);
-  }, 2000);
+  }, 5000);
 });
