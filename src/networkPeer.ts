@@ -2,7 +2,7 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node
 import { Buffer } from 'buffer';
 import { EventEmitter } from 'events';
 import { CubeStore } from './cubeStore';
-import { Cube, CubeInfo } from './cube';
+import { CubeInfo } from './cubeInfo';
 import { MessageClass, NetConstants } from './networkDefinitions';
 import { WebSocket } from 'isomorphic-ws';
 import { Settings } from './config';
@@ -273,8 +273,9 @@ export class NetworkPeer extends EventEmitter {
 
         // Collect only defined cubes from the cube storage
         // TODO: Rename variables to reflect that we're using CubeInfos
-        const cubes: CubeInfo[] = requestedCubeHashes.map(hash => this.storage.getCubeRaw(hash))
-            .filter((cube): cube is CubeInfo => cube !== undefined);
+        const cubes: CubeInfo[] = requestedCubeHashes.map(
+            key => this.storage.getCubeInfo(key))
+            .filter((cube): cube is CubeInfo => cube.isComplete() );
 
         const reply = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE
             + NetConstants.COUNT_SIZE + cubes.length * NetConstants.CUBE_SIZE);
@@ -285,8 +286,8 @@ export class NetworkPeer extends EventEmitter {
         reply.writeUInt32BE(cubes.length, offset);
         offset += NetConstants.COUNT_SIZE;
 
-        for (const cube of cubes) {
-            cube.cubeData.copy(reply, offset);
+        for (const cubeInfo of cubes) {
+            cubeInfo.binaryCube.copy(reply, offset);
             offset += NetConstants.CUBE_SIZE;
         }
         logger.trace(`NetworkPeer: handleCubeRequest: sending ${cubes.length} cubes to ${this.stats.ip}:${this.stats.port}`);

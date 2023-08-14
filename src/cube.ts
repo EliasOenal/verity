@@ -1,33 +1,17 @@
 // cube.ts
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
-import { Buffer } from 'buffer';
-import sodium from 'libsodium-wrappers'
+import { CubeInfo } from "./cubeInfo";
+import * as CubeUtil from './cubeUtil';
 import { Settings, VerityError } from './config';
 import { logger } from './logger';
 import { NetConstants } from './networkDefinitions';
 import * as fp from './fieldProcessing';
 import { Fields } from './fieldProcessing';
-import * as CubeUtil from './cubeUtil';
+
+import sodium from 'libsodium-wrappers'
+import { Buffer } from 'buffer';
 
 export const CUBE_HEADER_LENGTH: number = 6;
-
-export class CubeInfo {
-    key: Buffer;
-    cubeData: Buffer;
-    smartCube: boolean;
-    date: number;
-    challengeLevel: number;
-
-    constructor(
-            key: Buffer, cubeData: Buffer, smartCube: boolean,
-            date: number,  challengeLevel: number) {
-        this.key = key;
-        this.cubeData = cubeData;
-        this.smartCube = smartCube;
-        this.date = date;
-        this.challengeLevel = challengeLevel;
-    }
-}
 
 export class Cube {
     private version: number;
@@ -214,14 +198,30 @@ export class Cube {
         }
     }
 
+    // This is only used (or useful) for locally created cubes.
+    // It will create a CubeInfo object for our new cube once we found the
+    // cube key, which involves the hashcash proof of work and therefore can
+    // take a little while.
     public async getCubeInfo(): Promise<CubeInfo> {
         return new CubeInfo(
-            await this.getKey(),
+            (await this.getKey()).toString('hex'),
             this.getBinaryData(),
             this.smartCube !== undefined,
             this.date,
             CubeUtil.countTrailingZeroBits(this.hash),
         );
+    }
+
+    // In contrast to getCubeInfo, populateCubeInfo is useful for
+    // remote-generated cubes.
+    // For those, the CubeStore will generate a CubeInfo object once it learns
+    // of the cube. Once the full cube has been received, this method will be
+    // called.
+    public populateCubeInfo(cubeInfo: CubeInfo) {
+        cubeInfo.binaryCube = this.getBinaryData();
+        cubeInfo.smartCube = this.smartCube !== undefined,
+        cubeInfo.date = this.date;
+        cubeInfo.challengeLevel = CubeUtil.countTrailingZeroBits(this.hash);
     }
 
     public getVersion(): number {

@@ -1,4 +1,5 @@
-import { Cube, CubeInfo } from './cube';
+import { Cube } from './cube';
+import { CubeInfo } from './cubeInfo'
 import { logger } from './logger';
 import { CubePersistence } from "./cubePersistence";
 import { EventEmitter } from 'events';
@@ -6,32 +7,8 @@ import * as fp from './fieldProcessing';
 import { Buffer } from 'buffer';
 import { Settings } from './config';
 
-// TODO: merge CubeDataset into CubeInfo
-export class CubeDataset {
-  cubeInfo: CubeInfo = undefined;  // more efficient than storing cube objects
-  reverseRelationships: Array<fp.Relationship> = [];
-  applicationNotes: Map<any, any> = new Map();
-
-  constructor(cubeInfo: CubeInfo) {
-    this.cubeInfo = cubeInfo;
-  }
-
-  // TODO: use fp.getRelationships for that
-  getReverseRelationships(type?: fp.RelationshipType, remoteKey?: string): Array<fp.Relationship> {
-    let ret = [];
-    for (const reverseRelationship of this.reverseRelationships) {
-      if (
-        (!type || type == reverseRelationship.type) &&
-        (!remoteKey) || remoteKey == reverseRelationship.remoteKey ) {
-          ret.push(reverseRelationship);
-        }
-    }
-    return ret;
-  }
-}
-
 export class CubeStore extends EventEmitter {
-  private storage: Map<string, CubeDataset> = new Map();
+  private storage: Map<string, CubeInfo> = new Map();
   private allCubeInfos: CubeInfo[] | undefined;
 
   // Refers to the persistant cube storage database, if available and enabled
@@ -67,18 +44,27 @@ export class CubeStore extends EventEmitter {
   // TODO: implement importing CubeInfo directly
   async addCube(cube: Buffer): Promise<string | undefined>;
   async addCube(cube: Cube): Promise<string | undefined>;
-  async addCube(cube: Cube | Buffer): Promise<string | undefined> {
+  async addCube(cube_input: Cube | Buffer): Promise<string | undefined> {
       try {
         // Cube objects are ephemeral as storing binary data is more efficient.
         // Create cube object if we don't have one yet.
-        if (cube instanceof Buffer)
-          cube = new Cube(cube);
+        let binaryCube: Buffer;
+        let cube: Cube;
+        if (cube_input instanceof Cube) {
+          cube = cube_input;
+          binaryCube = cube_input.getBinaryData();
+        }
+        else { // cube_input instanceof Buffer
+          binaryCube = cube_input;
+          cube = new Cube(binaryCube);
+        }
 
         const cubeInfo: CubeInfo = await cube.getCubeInfo();
-        const key: string = cubeInfo.key.toString('hex');
+        const key: string = cubeInfo.key;
 
         // Sometimes we get the same cube twice (e.g. due to network latency).
-        // In that case, do nothing -- no need to invalidate the hash or to emit an event.
+        // In that case, do nothing -- no need to invalidate the hash or to
+        // emit an event.
         if (this.hasCube(key)) {
           logger.error('CubeStorage: duplicate - cube already exists');
           return key;
@@ -88,14 +74,16 @@ export class CubeStore extends EventEmitter {
         // (This either creates a new dataset, or completes the existing dataset
         // with the actual cube if we already learnt some relationship
         // information beforehand.
-        let dataset: CubeDataset = this.getOrCreateCubeDataset(
-          key, cubeInfo);
+        let dataset: CubeInfo = this.getOrCreateCubeInfo(key, binaryCube);
 
-        // Create automatic relationship annotations for this cube (if not disabled)
+        // Create automatic relationship annotations for this cube
+        // (if not disabled)
         this.autoAnnotate(key, cube, dataset);
 
         // save cube to disk (if available and enabled)
-        if (this.persistence) this.persistence.storeRawCube(key, cubeInfo.cubeData);
+        if (this.persistence) {
+          this.persistence.storeRawCube(key, cubeInfo.binaryCube);
+        }
 
         // inform our application(s) about the new cube
         this.emit('cubeAdded', key);
@@ -114,52 +102,58 @@ export class CubeStore extends EventEmitter {
 
 
   hasCube(key: string): boolean {
-    if (this.getCubeRaw(key)) return true;
+    const cubeInfo: CubeInfo = this.getCubeInfo(key);
+    if (cubeInfo && cubeInfo.isComplete()) return true;
     else return false;
   }
 
   getNumberOfStoredCubes(): number {
     let ret = 0;
-    for (const dataset of this.storage.values()) {
-      if (dataset.cubeInfo) ret++;
+    for (const cubeInfo of this.storage.values()) {
+      if (cubeInfo.isComplete()) ret++;
     }
     return ret;
   }
 
 
-  private getOrCreateCubeDataset(key: string, cubeInfo?: CubeInfo): CubeDataset {
-    let dataset: CubeDataset = this.getCubeDataset(key);
-    if (!dataset) {
-      dataset = new CubeDataset(cubeInfo);
-      this.storage.set(key, dataset);
-      if (!cubeInfo) logger.trace("cubeStore: creating CubeDataset for anticipated unknown cube " + key);
-      else {
-        logger.trace(`cubeStore: creating full CubeDataset (including the cube) for ${key}`);
-      }
-    } else if (cubeInfo && !dataset.cubeInfo) {
-      dataset.cubeInfo = cubeInfo;
-      logger.trace("cubeStore: populating existing CubeDataset with actual cube " + key);
+  private getOrCreateCubeInfo(key: string, binaryCube?: Buffer): CubeInfo {
+    let cubeInfo: CubeInfo = this.getCubeInfo(key);
+    if (!cubeInfo) {
+      // we've never heard of this cube before -- create a new CubeInfo for it
+      cubeInfo = new CubeInfo(key);
+      this.storage.set(key, cubeInfo);
+      // if (!cubeInfo) logger.trace("cubeStore: creating CubeInfo for anticipated unknown cube " + key);
+      // else {
+      //   logger.trace(`cubeStore: creating full CubeInfo (including the cube) for ${key}`);
+      // }
     }
-    return dataset;
+    // Do we still need to populate this cubeInfo with the actual cube?
+    if (!cubeInfo.isComplete() && binaryCube) {
+      cubeInfo.binaryCube = binaryCube;
+      const cube: Cube = new Cube(binaryCube);
+      cube.populateCubeInfo(cubeInfo);
+      // logger.trace("cubeStore: populating CubeInfo with actual cube " + key);
+    }
+    return cubeInfo;
   }
-  getCubeDataset(key: string): CubeDataset {
+  getCubeInfo(key: string): CubeInfo {
     return this.storage.get(key);
   }
-  getCubeRaw(key: string): CubeInfo | undefined {
-    const dataset: CubeDataset = this.getCubeDataset(key);
-    if (dataset) return dataset.cubeInfo;
+  getCubeRaw(key: string): Buffer | undefined {
+    const cubeInfo: CubeInfo = this.getCubeInfo(key);
+    if (cubeInfo) return cubeInfo.binaryCube;
     else return undefined;
   }
   getCube(key: string): Cube | undefined {
-    const cubeInfo: CubeInfo = this.getCubeRaw(key);
-    if (cubeInfo) return new Cube(cubeInfo.cubeData);
+    const cubeInfo: CubeInfo = this.getCubeInfo(key);
+    if (cubeInfo) return cubeInfo.instantiate();
     else return undefined;
   }
 
   getAllStoredCubeKeys(): Set<string> {
     let ret: Set<string> = new Set();
-    for (const [key, cubeDataset] of this.storage ) {
-      if (cubeDataset.cubeInfo) {  // if we actually have this cube
+    for (const [key, cubeInfo] of this.storage ) {
+      if (cubeInfo.isComplete()) {  // if we actually have this cube
         ret.add(key);
       }
     }
@@ -167,11 +161,11 @@ export class CubeStore extends EventEmitter {
   }
 
   // Emits cubeDisplayable events if this is the case
-  isCubeDisplayable(key: string, dataset?: CubeDataset, cube?: Cube): boolean {
+  isCubeDisplayable(key: string, cubeInfo?: CubeInfo, cube?: Cube): boolean {
   // TODO: move displayability logic somewhere else
-    if (!dataset) dataset = this.getCubeDataset(key);
-    if (!dataset.cubeInfo) return false;  // we don't even have this cube yet
-    if (!cube) cube = new Cube(dataset.cubeInfo.cubeData);
+    if (!cubeInfo) cubeInfo = this.getCubeInfo(key);
+    if (!cubeInfo.isComplete()) return false;  // we don't even have this cube yet
+    if (!cube) cube = cubeInfo.instantiate();
 
     // TODO: handle continuation chains
     // TODO: parametrize and handle additional relationship types on request
@@ -185,36 +179,35 @@ export class CubeStore extends EventEmitter {
     const reply_to: fp.Relationship =
       cube.getFields().getFirstRelationship(fp.RelationshipType.REPLY_TO);
     if (reply_to) {
-      const basePost: CubeDataset = this.getCubeDataset(reply_to.remoteKey);
+      const basePost: CubeInfo = this.getCubeInfo(reply_to.remoteKey);
       if (!basePost) return false;
       if (!this.isCubeDisplayable(reply_to.remoteKey)) return false;
     }
-    logger.trace(`cubeStore: marking cube ${key} displayable`);
     return true;
   }
-  private emitIfCubeDisplayable(key: string, dataset?: CubeDataset, cube?: Cube): boolean {
-    const displayable: boolean = this.isCubeDisplayable(key, dataset, cube);
+  private emitIfCubeDisplayable(
+        key: string, cubeInfo?: CubeInfo, cube?: Cube): boolean {
+    const displayable: boolean = this.isCubeDisplayable(key, cubeInfo, cube);
+    logger.trace(`cubeStore: marking cube ${key} displayable`);
     if (displayable) this.emit('cubeDisplayable', key);
     return displayable;
   }
 
- static eventtest(event) {
-    logger.trace("EVENT HANDLER CALLED");
-  }
-
   // Emits cubeDisplayable events if this is the case
-  emitIfCubeMakesOthersDisplayable(key: string, dataset?: CubeDataset, cube?: Cube): boolean {
+  emitIfCubeMakesOthersDisplayable(
+      key: string, cubeInfo?: CubeInfo, cube?: Cube): boolean {
     let ret: boolean = false;
-    if (!dataset) dataset = this.getCubeDataset(key);
-    if (!cube) cube = new Cube(dataset.cubeInfo.cubeData);
+    if (!cubeInfo) cubeInfo = this.getCubeInfo(key);
+    if (!cube) cube = cubeInfo.instantiate();
 
     // Am I the base post to a reply we already have?
-    if (this.isCubeDisplayable(key, dataset, cube)) {
-      // in a base-reply relationship, I as a base can only make my reply displayable
-      // if I am displayable myself
-      const replies: Array<fp.Relationship> = dataset.getReverseRelationships(fp.RelationshipType.REPLY_TO);
+    if (this.isCubeDisplayable(key, cubeInfo, cube)) {
+      // In a base-reply relationship, I as a base can only make my reply
+      // displayable if I am displayable myself.
+      const replies: Array<fp.Relationship> = cubeInfo.getReverseRelationships(
+        fp.RelationshipType.REPLY_TO);
       for (const reply of replies) {
-        logger.trace("cubeStore: for cube " + key + " I see a base post cube " + reply.remoteKey);
+        // logger.trace("cubeStore: for cube " + key + " I see a base post cube " + reply.remoteKey);
         if (this.emitIfCubeDisplayable(reply.remoteKey)) {  // will emit a cubeDisplayable event for reply.remoteKey if so
           ret = true;
           this.emitIfCubeMakesOthersDisplayable(reply.remoteKey);
@@ -232,20 +225,21 @@ export class CubeStore extends EventEmitter {
     for (const rawcube of await this.persistence.requestRawCubes()) {
       this.addCube(Buffer.from(rawcube));
     }
-    this.persistence.storeRawCubes(this.storage);
+    this.persistence.storeCubes(this.storage);
   }
 
-  private autoAnnotate(key: string, cube: Cube, dataset: CubeDataset) {
+  private autoAnnotate(key: string, cube: Cube, dataset: CubeInfo) {
     if (!this.displayability_annotations) return;  // do I have to?
 
     for (const relationship of cube.getFields().getRelationships()) {
-      const remoteDataset: CubeDataset =
-        this.getOrCreateCubeDataset(relationship.remoteKey);
+      const remoteDataset: CubeInfo =
+        this.getOrCreateCubeInfo(relationship.remoteKey);
       const existingReverse: Array<fp.Relationship> =
         remoteDataset.getReverseRelationships(relationship.type, key);
       if (existingReverse.length == 0) {
-        remoteDataset.reverseRelationships.push(new fp.Relationship(relationship.type, key));
-        logger.trace(`cubeStore: learning reverse relationship from ${relationship.remoteKey} to ${key}`)
+        remoteDataset.reverseRelationships.push(
+          new fp.Relationship(relationship.type, key));
+        // logger.trace(`cubeStore: learning reverse relationship from ${relationship.remoteKey} to ${key}`)
       }
     }
   }
