@@ -1,12 +1,13 @@
-import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
-import WebSocket from 'isomorphic-ws';
 import { CubeStore } from './cubeStore';
 import { MessageClass, NetConstants } from './networkDefinitions';
 import { PeerDB, Peer } from './peerDB';
-import { EventEmitter } from 'events';
 import { Settings } from './config';
 import { NetworkPeer, NetworkStats } from './networkPeer';
 import { logger } from './logger';
+
+import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
+import { EventEmitter } from 'events';
+import WebSocket from 'isomorphic-ws';
 import crypto from 'crypto';
 
 /**
@@ -36,7 +37,7 @@ export class NetworkManager extends EventEmitter {
      * @param peerDB The PeerDB to use.
      * @param announce Whether to announce the node to the network.
      * @param lightNode Whether to run the node in light mode.
-     * 
+     *
      * @remarks
      * The callbacks are called with the peer and the error as arguments.
      *  */
@@ -207,14 +208,17 @@ export class NetworkManager extends EventEmitter {
             WsOptions = [];
         }
         const ws = new WebSocket(peerURL, WsOptions);
+        const socketClosedController: AbortController = new AbortController();
+        const socketClosedSignal: AbortSignal = socketClosedController.signal;
 
         // Listen for WebSocket errors
+        // @ts-ignore When using socketCloseSignal the compiler mismatches the function overload
         ws.addEventListener("error", (error) => {
             logger.warn(`NetworkManager: WebSocket error: ${error.message}`);
             // Remove all listeners and close the WebSocket connection in case of an error
+            socketClosedController.abort();
             ws.close();
-            ws.removeAllListeners();  // TODO FIXME: not available in browser (as browser WebSockets don't inherit from EventEmitter)
-        });
+        }, { socketClosedSignal });
 
         return new Promise((resolve) => {
             // Listen for the WebSocket 'open' event
@@ -239,9 +243,9 @@ export class NetworkManager extends EventEmitter {
                 // Listen for the 'close' event on the NetworkPeer
                 networkPeer.on('close', (closingPeer) => {
                     logger.info(`NetworkManager: Connection to ${closingPeer.ip}:${closingPeer.port} has been closed.`);
-                    this.emit('peerclosed', networkPeer);
                     // Remove the closing peer from the list of outgoing peers
                     this.outgoingPeers = this.outgoingPeers.filter(peer => peer !== closingPeer);
+                    this.emit('peerclosed', networkPeer);
                 });
 
                 // Listen for the 'blacklist' event on the NetworkPeer
@@ -252,6 +256,11 @@ export class NetworkManager extends EventEmitter {
                     this.emit('blacklist', bannedPeer);
                 });
 
+                // Relay the peer's updatepeer signal for our listeners
+                networkPeer.on('updatepeer', (peer) => {
+                    this.emit('updatepeer', peer);
+                });
+
                 // If this is the first successful connection, emit an 'online' event
                 if (!this.online) {
                     this.online = true;
@@ -260,7 +269,8 @@ export class NetworkManager extends EventEmitter {
 
                 // Resolve the promise with the new NetworkPeer
                 resolve(networkPeer);
-            });
+            // @ts-ignore I don't know why the compiler complains about this
+            }, { signal: socketClosedSignal });
         });
     }
 

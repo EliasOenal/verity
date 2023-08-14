@@ -61,7 +61,6 @@ export class Field {
         };
     }
     static RelatesTo(rel: Relationship): Field {
-        logger.trace(typeof rel.remoteKey);
         const value: Buffer = Buffer.alloc(
             NetConstants.RELATIONSHIP_TYPE_SIZE +
             NetConstants.CUBE_KEY_SIZE);
