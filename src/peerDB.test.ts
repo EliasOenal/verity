@@ -18,15 +18,7 @@ describe('announce', () => {
 
         // Check if we received any new peers
         expect(newPeers.length).toBeGreaterThan(0);
-    }, 10000);    
-
-    it('should throw an error if the request fails', async () => {
-        let peerDB: PeerDB = new PeerDB();
-        const infoHash = 'invalid_info_hash';
-        const port = 6881;
-
-        await expect(peerDB.announce([`http://domain.invalid:1337/announce`])).rejects.toThrow();
-    }, 1000);
+    }, 10000);
 });
 
 describe('parsePeers', () => {

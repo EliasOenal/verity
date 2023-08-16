@@ -93,7 +93,7 @@ export class fullNode {
         const publicKey: Buffer = Buffer.from(keyPair.publicKey);
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
         let muc = new Cube();
-        muc.setKeys(publicKey, privateKey);
+        muc.setCryptoKeys(publicKey, privateKey);
 
         const fields = [
             { type: FieldType.TYPE_SMART_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },

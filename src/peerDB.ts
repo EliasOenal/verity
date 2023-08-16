@@ -191,7 +191,8 @@ export class PeerDB extends EventEmitter {
         const allRejected = results.every(result => result.status === 'rejected');
 
         if (allRejected) {
-            throw new Error("All tracker requests failed");
+            logger.warn("All tracker requests failed");
+            return;
         }
     }
 
