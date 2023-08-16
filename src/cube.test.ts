@@ -240,7 +240,7 @@ describe('cube', () => {
 
     // Create a new MUC with specified TLV fields
     const muc = new Cube();
-    muc.setKeys(publicKey, privateKey);
+    muc.setCryptoKeys(publicKey, privateKey);
 
     const fields = [
       { type: FieldType.TYPE_SMART_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },
@@ -263,7 +263,7 @@ describe('cube', () => {
 
     // Create a new MUC with specified TLV fields
     const muc = new Cube();
-    muc.setKeys(publicKey, privateKey);
+    muc.setCryptoKeys(publicKey, privateKey);
 
     const fields = [
       { type: FieldType.TYPE_SMART_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },

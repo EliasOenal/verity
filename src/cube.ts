@@ -238,7 +238,7 @@ export class Cube {
         this.version = version;
     }
 
-    public setKeys(publicKey: Buffer, privateKey: Buffer): void {
+    public setCryptoKeys(publicKey: Buffer, privateKey: Buffer): void {
         this.publicKey = publicKey;
         this.privateKey = privateKey;
     }
