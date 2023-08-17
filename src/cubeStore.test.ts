@@ -43,10 +43,10 @@ describe('cubeStore', () => {
     hashes.forEach((hash, i) => {
       if(!hash) throw new Error(`Hash is undefined for cube ${i}`);
       let binaryData = cubeStore.getCube(hash)?.getBinaryData();
-      expect(typeof hash).toEqual('string');
+      expect(hash).toBeInstanceOf(Buffer);
       if (hash) {
-        expect(hash.length).toEqual(64);
-        expect(cubeStore.getCube(hash)?.getBinaryData()).toEqual(binaryData);
+        expect(hash.length).toEqual(32);
+        expect(cubeStore.getCube(hash).getBinaryData()).toEqual(binaryData);
       }
     });
 
@@ -55,9 +55,9 @@ describe('cubeStore', () => {
 
   it('should add a cube from binary data', async () => {
     let hash = await cubeStore.addCube(validBinaryCube);
-    expect(typeof hash).toEqual('string');
+    expect(hash).toBeInstanceOf(Buffer);
     if (hash) {
-      expect(hash.length).toEqual(64);
+      expect(hash.length).toEqual(32);
       expect(cubeStore.getCube(hash).getBinaryData()).toEqual(validBinaryCube);
     }
   }, 1000);
@@ -69,7 +69,7 @@ describe('cubeStore', () => {
 
   it('should error when getting a cube with invalid hash', async () => {
     let buffer = Buffer.alloc(32);
-    expect(cubeStore.getCube(buffer.toString('hex'))).toBeUndefined();
+    expect(cubeStore.getCube(buffer)).toBeUndefined();
   }, 1000);
 
 
@@ -85,12 +85,12 @@ describe('cubeStore', () => {
     leaf.setFields([
       payloadfield,
       fp.Field.RelatesTo(new fp.Relationship(
-        fp.RelationshipType.REPLY_TO, (await root.getKey()).toString('hex')))
+        fp.RelationshipType.REPLY_TO, (await root.getKey())))
     ]);
 
     const retrievedRel: fp.Relationship = leaf.getFields().getFirstRelationship();
     expect(retrievedRel.type).toEqual(fp.RelationshipType.REPLY_TO);
-    expect(retrievedRel.remoteKey).toEqual((await root.getKey()).toString('hex'));
+    expect(retrievedRel.remoteKey.toString('hex')).toEqual((await root.getKey()).toString('hex'));
   }, 1000);
 
 });

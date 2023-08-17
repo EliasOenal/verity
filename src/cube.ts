@@ -204,7 +204,7 @@ export class Cube {
     // take a little while.
     public async getCubeInfo(): Promise<CubeInfo> {
         return new CubeInfo(
-            (await this.getKey()).toString('hex'),
+            await this.getKey(),
             this.getBinaryData(),
             this.smartCube !== undefined,
             this.date,

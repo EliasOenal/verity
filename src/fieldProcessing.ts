@@ -65,11 +65,13 @@ export class Field {
             NetConstants.RELATIONSHIP_TYPE_SIZE +
             NetConstants.CUBE_KEY_SIZE);
         value.writeIntBE(rel.type, 0, NetConstants.RELATIONSHIP_TYPE_SIZE);
-        value.write(
-            rel.remoteKey,  // what to write
-            NetConstants.RELATIONSHIP_TYPE_SIZE,  // offset
-            NetConstants.CUBE_KEY_SIZE,  // length
-            'hex');  // encoding
+        rel.remoteKey.copy(
+            value,  // target buffer
+            NetConstants.RELATIONSHIP_TYPE_SIZE,  // target start position
+            0,  // source start
+            NetConstants.CUBE_KEY_SIZE  // source end
+        );
+
         return {
             type: FieldType.RELATES_TO,
             length: FIELD_LENGTHS[FieldType.RELATES_TO],
@@ -80,9 +82,9 @@ export class Field {
 
 export class Relationship {
     type: RelationshipType;
-    remoteKey: string;
+    remoteKey: Buffer;
 
-    constructor(type: RelationshipType = undefined, remoteKey: string = undefined) {
+    constructor(type: RelationshipType = undefined, remoteKey: Buffer = undefined) {
         this.type = type;
         this.remoteKey = remoteKey;
     }
@@ -97,8 +99,7 @@ export class Relationship {
         relationship.type = field.value.readIntBE(0, NetConstants.RELATIONSHIP_TYPE_SIZE);
         relationship.remoteKey = field.value.subarray(
             NetConstants.RELATIONSHIP_TYPE_SIZE,
-            NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE).
-            toString('hex');
+            NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE);
         return relationship;
     }
 }

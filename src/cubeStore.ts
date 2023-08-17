@@ -38,9 +38,9 @@ export class CubeStore extends EventEmitter {
   }
 
   // TODO: implement importing CubeInfo directly
-  async addCube(cube: Buffer): Promise<string | undefined>;
-  async addCube(cube: Cube): Promise<string | undefined>;
-  async addCube(cube_input: Cube | Buffer): Promise<string | undefined> {
+  async addCube(cube: Buffer): Promise<Buffer | undefined>;
+  async addCube(cube: Cube): Promise<Buffer | undefined>;
+  async addCube(cube_input: Cube | Buffer): Promise<Buffer | undefined> {
       try {
         // Cube objects are ephemeral as storing binary data is more efficient.
         // Create cube object if we don't have one yet.
@@ -56,7 +56,7 @@ export class CubeStore extends EventEmitter {
         }
 
         const cubeInfo: CubeInfo = await cube.getCubeInfo();
-        const key: string = cubeInfo.key;
+        const key: Buffer = cubeInfo.key;
 
         // Sometimes we get the same cube twice (e.g. due to network latency).
         // In that case, do nothing -- no need to invalidate the hash or to
@@ -74,7 +74,7 @@ export class CubeStore extends EventEmitter {
 
         // save cube to disk (if available and enabled)
         if (this.persistence) {
-          this.persistence.storeRawCube(key, cubeInfo.binaryCube);
+          this.persistence.storeRawCube(key.toString('hex'), cubeInfo.binaryCube);
         }
 
         // inform our application(s) about the new cube
@@ -93,7 +93,7 @@ export class CubeStore extends EventEmitter {
   }
 
 
-  hasCube(key: string): boolean {
+  hasCube(key: Buffer): boolean {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
     if (cubeInfo && cubeInfo.isComplete()) return true;
     else return false;
@@ -109,12 +109,12 @@ export class CubeStore extends EventEmitter {
 
   // This should only really be used by addCube and the AnnotationEngine,
   // but I can't make it private
-  getCreateOrPopulateCubeInfo(key: string, binaryCube?: Buffer): CubeInfo {
+  getCreateOrPopulateCubeInfo(key: Buffer, binaryCube?: Buffer): CubeInfo {
     let cubeInfo: CubeInfo = this.getCubeInfo(key);
     if (!cubeInfo) {
       // we've never heard of this cube before -- create a new CubeInfo for it
       cubeInfo = new CubeInfo(key);
-      this.storage.set(key, cubeInfo);
+      this.storage.set(key.toString('hex'), cubeInfo);
       // if (!cubeInfo) logger.trace("cubeStore: creating CubeInfo for anticipated unknown cube " + key);
       // else {
       //   logger.trace(`cubeStore: creating full CubeInfo (including the cube) for ${key}`);
@@ -129,25 +129,25 @@ export class CubeStore extends EventEmitter {
     }
     return cubeInfo;
   }
-  getCubeInfo(key: string): CubeInfo {
-    return this.storage.get(key);
+  getCubeInfo(key: Buffer): CubeInfo {
+    return this.storage.get(key.toString('hex'));
   }
-  getCubeRaw(key: string): Buffer | undefined {
+  getCubeRaw(key: Buffer): Buffer | undefined {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
     if (cubeInfo) return cubeInfo.binaryCube;
     else return undefined;
   }
-  getCube(key: string): Cube | undefined {
+  getCube(key: Buffer): Cube | undefined {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
     if (cubeInfo) return cubeInfo.instantiate();
     else return undefined;
   }
 
-  getAllStoredCubeKeys(): Set<string> {
-    let ret: Set<string> = new Set();
+  getAllStoredCubeKeys(): Set<Buffer> {
+    let ret: Set<Buffer> = new Set();
     for (const [key, cubeInfo] of this.storage ) {
       if (cubeInfo.isComplete()) {  // if we actually have this cube
-        ret.add(key);
+        ret.add(Buffer.from(key));
       }
     }
     return ret;

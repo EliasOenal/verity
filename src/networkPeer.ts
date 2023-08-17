@@ -42,7 +42,7 @@ export class NetworkPeer extends EventEmitter {
     stats: NetworkStats;
     hashRequestTimer?: NodeJS.Timeout; // Timer for hash requests
     nodeRequestTimer?: NodeJS.Timeout; // Timer for node requests
-    private unsentHashes: Set<string>;
+    private unsentHashes: Set<Buffer>;
     private lightMode: boolean = false;
     private hostNodePeerID: Buffer;
 
@@ -264,7 +264,7 @@ export class NetworkPeer extends EventEmitter {
         }
 
         // for each hash not in cube storage, request the cube
-        const missingHashes = hashes.filter(hash => !this.storage.hasCube(hash.toString('hex')));
+        const missingHashes = hashes.filter(hash => !this.storage.hasCube(hash));
         if (missingHashes.length > 0) {
             this.sendCubeRequest(missingHashes);
         }
@@ -280,7 +280,7 @@ export class NetworkPeer extends EventEmitter {
         for (let i = 0; i < cubeHashCount; i++) {
             requestedCubeHashes.push(data.slice(NetConstants.COUNT_SIZE
                 + i * NetConstants.HASH_SIZE, NetConstants.COUNT_SIZE
-            + (i + 1) * NetConstants.HASH_SIZE).toString('hex'));
+            + (i + 1) * NetConstants.HASH_SIZE));
         }
 
         // Collect only defined cubes from the cube storage
