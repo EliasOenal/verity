@@ -155,6 +155,6 @@ function main() {
     window.global.node.networkManager.on('blacklist', (peer) => redisplayPeers()) // list peers
     window.global.node.networkManager.on('online', (peer) => redisplayPeers()) // list peers
     window.global.node.networkManager.on('shutdown', (peer) => redisplayPeers()) // list peers
-    window.global.node.cubeStore.on('cubeDisplayable', (hash) => displayCube(hash)) // list cubes
+    window.global.node.cubeStore.annotationEngine.on('cubeDisplayable', (hash) => displayCube(hash)) // list cubes
 }
 main();
