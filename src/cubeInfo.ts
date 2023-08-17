@@ -1,6 +1,10 @@
 import { Cube } from './cube'
 import * as fp from './fieldProcessing';
 
+interface CubeMeta {
+
+}
+
 /**
  * @classdesc CubeInfo describes a cube as seen by our local node.
  * While a cube is always a cube, our view of it changes over time.
@@ -33,7 +37,7 @@ export class CubeInfo {
   //              that must always be present. Knowledge of the key is what
   //              gives us a perception of this cube and (apparently)
   //              justified creating a CubeInfo object for it.
-  key: string;
+  key: Buffer;
 
   // @member binaryCube: The binary representation of this cube.
   binaryCube: Buffer = undefined;
@@ -45,7 +49,7 @@ export class CubeInfo {
   applicationNotes: Map<any, any> = new Map();
 
   constructor(
-          key: string, binaryCube?: Buffer, smartCube?: boolean,
+          key: Buffer, binaryCube?: Buffer, smartCube?: boolean,
           date?: number,  challengeLevel?: number) {
       this.key = key;
       this.binaryCube = binaryCube;
@@ -55,7 +59,7 @@ export class CubeInfo {
   }
 
   isComplete(): boolean { return this.binaryCube? true : false }
-  binaryKey(): Buffer { return Buffer.from(this.key, 'hex'); }
+  binaryKey(): Buffer { return this.key; }
 
   instantiate(): Cube | undefined {
     if (this.isComplete()) return new Cube(this.binaryCube);
@@ -65,7 +69,7 @@ export class CubeInfo {
   // TODO: use fp.getRelationships for that
   getReverseRelationships(
         type?: fp.RelationshipType,
-        remoteKey?: string)
+        remoteKey?: Buffer)
     :Array<fp.Relationship> {
       let ret = [];
       for (const reverseRelationship of this.reverseRelationships) {

@@ -17,7 +17,7 @@ export class AnnotationEngine extends EventEmitter {
     this.cubeStore.on('cubeAdded', (key) => this.emitIfCubeMakesOthersDisplayable(key));
   }
 
-  private autoAnnotate(key: string, cube?: Cube, cubeInfo?: CubeInfo) {
+  private autoAnnotate(key: Buffer, cube?: Cube, cubeInfo?: CubeInfo) {
     if (!cubeInfo) cubeInfo = this.cubeStore.getCubeInfo(key);
     if (!cube) cube = cubeInfo.instantiate();
     for (const relationship of cube.getFields().getRelationships()) {
@@ -34,7 +34,7 @@ export class AnnotationEngine extends EventEmitter {
   }
 
   // Emits cubeDisplayable events if this is the case
-  isCubeDisplayable(key: string, cubeInfo?: CubeInfo, cube?: Cube): boolean {
+  isCubeDisplayable(key: Buffer, cubeInfo?: CubeInfo, cube?: Cube): boolean {
     // TODO: move displayability logic somewhere else
       if (!cubeInfo) cubeInfo = this.cubeStore.getCubeInfo(key);
       if (!cubeInfo.isComplete()) return false;  // we don't even have this cube yet
@@ -59,7 +59,7 @@ export class AnnotationEngine extends EventEmitter {
       return true;
     }
     private emitIfCubeDisplayable(
-          key: string, cubeInfo?: CubeInfo, cube?: Cube): boolean {
+          key: Buffer, cubeInfo?: CubeInfo, cube?: Cube): boolean {
       const displayable: boolean = this.isCubeDisplayable(key, cubeInfo, cube);
       logger.trace(`cubeStore: marking cube ${key} displayable`);
       if (displayable) this.emit('cubeDisplayable', key);
@@ -68,7 +68,7 @@ export class AnnotationEngine extends EventEmitter {
 
     // Emits cubeDisplayable events if this is the case
     emitIfCubeMakesOthersDisplayable(
-        key: string, cubeInfo?: CubeInfo, cube?: Cube): boolean {
+        key: Buffer, cubeInfo?: CubeInfo, cube?: Cube): boolean {
       let ret: boolean = false;
       if (!cubeInfo) cubeInfo = this.cubeStore.getCubeInfo(key);
       if (!cube) cube = cubeInfo.instantiate();

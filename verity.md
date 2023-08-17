@@ -130,15 +130,6 @@ To further enhance the efficiency and functionality of network communication, a 
 
  > Has synergies with extension: Cube Lifetime Function
 
-### Key Structure
-
-This new key structure will still have more than enough bits to work reliably as a hash, while also including critical information about the cube's age directly in the key. 
-
-With this update, the key for a cube will be generated as follows:
-
-- The first five bytes will represent the date of the cube.
-- The remaining bytes will represent a truncated hash of the cube.
-
 ### Benefits 
 
 This modification will allow nodes to easily determine the age and the hashcash challenge level of a cube just from its key, without needing to download the entire cube. 

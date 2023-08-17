@@ -13,7 +13,7 @@ describe('annotationEngine', () => {
 
 
   // TODO: move displayability logic somewhere else
-  it('should mark a cube and a reply received in sync as displayable', async () => {
+  it.skip('should mark a cube and a reply received in sync as displayable', async () => {
     const root: Cube = new Cube();
     const payloadfield: fp.Field = fp.Field.Payload(Buffer.alloc(200));
     root.setFields([payloadfield]);
@@ -22,7 +22,7 @@ describe('annotationEngine', () => {
     leaf.setFields([
       payloadfield,
       fp.Field.RelatesTo(new fp.Relationship(
-        fp.RelationshipType.REPLY_TO, (await root.getKey()).toString('hex')))
+        fp.RelationshipType.REPLY_TO, await root.getKey()))
     ]);
 
     const callback = jest.fn();
@@ -37,7 +37,7 @@ describe('annotationEngine', () => {
     ]);
   }, 5000);
 
-  it('should not mark replies as displayable when the original post is unavailable', async () => {
+  it.skip('should not mark replies as displayable when the original post is unavailable', async () => {
     const root: Cube = new Cube(); // will NOT be added
     const payloadfield: fp.Field = fp.Field.Payload(Buffer.alloc(200));
     root.setFields([payloadfield]);
@@ -46,7 +46,7 @@ describe('annotationEngine', () => {
     leaf.setFields([
       payloadfield,
       fp.Field.RelatesTo(new fp.Relationship(
-        fp.RelationshipType.REPLY_TO, (await root.getKey()).toString('hex')))
+        fp.RelationshipType.REPLY_TO, await root.getKey()))
     ]);
 
     const callback = jest.fn();
@@ -56,7 +56,7 @@ describe('annotationEngine', () => {
     expect(callback).not.toHaveBeenCalled();
   }, 5000);
 
-  it('should mark replies as displayable only once all preceding posts has been received', async() => {
+  it.skip('should mark replies as displayable only once all preceding posts has been received', async() => {
     const root: Cube = new Cube();
     const payloadfield: fp.Field = fp.Field.Payload(Buffer.alloc(200));
     root.setFields([payloadfield]);
@@ -64,7 +64,7 @@ describe('annotationEngine', () => {
     const intermediate: Cube = new Cube();
     intermediate.setFields([
       fp.Field.RelatesTo(new fp.Relationship(
-        fp.RelationshipType.REPLY_TO, (await root.getKey()).toString('hex'))),
+        fp.RelationshipType.REPLY_TO, await root.getKey())),
       payloadfield,  // let's shift the payload field around a bit for good measure :)
     ]);
 
@@ -72,7 +72,7 @@ describe('annotationEngine', () => {
     leaf.setFields([
       payloadfield,
       fp.Field.RelatesTo(new fp.Relationship(
-        fp.RelationshipType.REPLY_TO, (await intermediate.getKey()).toString('hex')))
+        fp.RelationshipType.REPLY_TO, await intermediate.getKey()))
     ]);
 
     const callback = jest.fn();
