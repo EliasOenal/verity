@@ -207,8 +207,9 @@ export class NetworkManager extends EventEmitter {
 
         logger.info(`NetworkManager: Connecting to ${peerURL}...`);
 
-        // Create a WebSocket connection with a handshake timeout
+        // Create a WebSocket connection
         var WsOptions: any;
+        // set a handshake timeout on NodeJS, not possible in the browser
         if (isNode) {
             WsOptions = { handshakeTimeout: NetworkManager.WEBSOCKET_HANDSHAKE_TIMEOUT };
         } else {
