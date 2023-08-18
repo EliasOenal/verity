@@ -1,8 +1,12 @@
 import { Cube } from './cube'
 import * as fp from './fieldProcessing';
 
-interface CubeMeta {
-
+export interface CubeMeta {
+  key: Buffer;
+  binaryCube: Buffer;
+  cubeType: number;
+  date: number;
+  challengeLevel: number;
 }
 
 /**
@@ -41,7 +45,7 @@ export class CubeInfo {
 
   // @member binaryCube: The binary representation of this cube.
   binaryCube: Buffer = undefined;
-  smartCube: boolean = undefined;
+  cubeType: number = undefined;
   date: number = undefined;
   challengeLevel: number = undefined;
 
@@ -49,11 +53,11 @@ export class CubeInfo {
   applicationNotes: Map<any, any> = new Map();
 
   constructor(
-          key: Buffer, binaryCube?: Buffer, smartCube?: boolean,
+          key: Buffer, binaryCube?: Buffer, cubeType?: number,
           date?: number,  challengeLevel?: number) {
       this.key = key;
       this.binaryCube = binaryCube;
-      this.smartCube = smartCube;
+      this.cubeType = cubeType;
       this.date = date;
       this.challengeLevel = challengeLevel;
   }

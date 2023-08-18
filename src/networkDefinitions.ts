@@ -23,4 +23,7 @@ export const NetConstants =  {
     RELATIONSHIP_TYPE_SIZE: 1,
     COUNT_SIZE: 4,
     FINGERPRINT_SIZE: 8,
+    TIMESTAMP_SIZE: 5,
+    CUBE_TYPE_SIZE: 1,
+    CHALLENGE_LEVEL_SIZE: 1,
 }

@@ -1,5 +1,5 @@
 import { CubeStore } from './cubeStore';
-import { CubeInfo } from './cubeInfo';
+import { CubeInfo, CubeMeta } from './cubeInfo';
 import { MessageClass, NetConstants } from './networkDefinitions';
 import { Settings } from './config';
 import { logger } from './logger';
@@ -42,7 +42,7 @@ export class NetworkPeer extends EventEmitter {
     stats: NetworkStats;
     hashRequestTimer?: NodeJS.Timeout; // Timer for hash requests
     nodeRequestTimer?: NodeJS.Timeout; // Timer for node requests
-    private unsentHashes: Set<Buffer>;
+    private unsentCubeMeta: Set<CubeMeta>;
     private lightMode: boolean = false;
     private hostNodePeerID: Buffer;
 
@@ -52,16 +52,15 @@ export class NetworkPeer extends EventEmitter {
     private socketClosedSignal: AbortSignal = this.socketClosedController.signal;
 
     constructor(
-            networkManager: NetworkManager, ip: string, port: number,
-            ws: WebSocket, cubeStore: CubeStore, hostNodePeerID: Buffer,
-            lightMode: boolean = false,
-            socketClosedController: AbortController = new AbortController(),
-            socketClosedSignal: AbortSignal = socketClosedController.signal) {
+        networkManager: NetworkManager, ip: string, port: number,
+        ws: WebSocket, cubeStore: CubeStore, hostNodePeerID: Buffer,
+        lightMode: boolean = false,
+        socketClosedController: AbortController = new AbortController(),
+        socketClosedSignal: AbortSignal = socketClosedController.signal) {
         super();
         this.networkManager = networkManager;
         this.ws = ws;
         this.storage = cubeStore;
-        this.unsentHashes = new Set();
         this.hostNodePeerID = hostNodePeerID;
         this.lightMode = lightMode;
         this.socketClosedController = socketClosedController;
@@ -76,9 +75,9 @@ export class NetworkPeer extends EventEmitter {
 
         // Copy all hashes from cubeStore to unsentHashes.
         // Later, add hash to unsentHashes whenever we get a new cube.
-        this.unsentHashes = cubeStore.getAllStoredCubeKeys();
-        cubeStore.on('cubeAdded', (hash) => {
-            this.unsentHashes.add(hash);
+        this.unsentCubeMeta = cubeStore.getAllStoredCubeMeta();
+        cubeStore.on('cubeAdded', (cube: CubeMeta) => {
+            this.unsentCubeMeta.add(cube);
         });
 
         // Handle incoming messages
@@ -145,36 +144,42 @@ export class NetworkPeer extends EventEmitter {
      * @param message The incoming message as a Buffer.
      */
     handleMessage(message: Buffer) {
-        const messageClass = message.readUInt8(NetConstants.PROTOCOL_VERSION_SIZE);
-        const messageContent = message.subarray(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
-        logger.trace(`NetworkPeer: handleMessage() messageClass: ${MessageClass[messageClass]}`);
-        this.logRxStats(message, messageClass);
+        try {
+            const messageClass = message.readUInt8(NetConstants.PROTOCOL_VERSION_SIZE);
+            const messageContent = message.subarray(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
+            logger.trace(`NetworkPeer: handleMessage() messageClass: ${MessageClass[messageClass]}`);
+            this.logRxStats(message, messageClass);
 
-        // Process the message based on its class
-        switch (messageClass) {
-            case MessageClass.Hello:
-                this.handleHello(messageContent);
-                break;
-            case MessageClass.HashRequest:
-                this.handleHashRequest();
-                break;
-            case MessageClass.HashResponse:
-                this.handleHashResponse(messageContent);
-                break;
-            case MessageClass.CubeRequest:
-                this.handleCubeRequest(messageContent);
-                break;
-            case MessageClass.CubeResponse:
-                this.handleCubeResponse(messageContent);
-                break;
-            case MessageClass.NodeRequest:
-                this.handleNodeRequest();
-                break;
-            case MessageClass.NodeResponse:
-                this.handleNodeResponse(messageContent);
-                break;
-            default:
-                console.log(`NetworkPeer: Received message with unknown class: ${messageClass}`);
+            // Process the message based on its class
+            switch (messageClass) {
+                case MessageClass.Hello:
+                    this.handleHello(messageContent);
+                    break;
+                case MessageClass.HashRequest:
+                    this.handleHashRequest();
+                    break;
+                case MessageClass.HashResponse:
+                    this.handleHashResponse(messageContent);
+                    break;
+                case MessageClass.CubeRequest:
+                    this.handleCubeRequest(messageContent);
+                    break;
+                case MessageClass.CubeResponse:
+                    this.handleCubeResponse(messageContent);
+                    break;
+                case MessageClass.NodeRequest:
+                    this.handleNodeRequest();
+                    break;
+                case MessageClass.NodeResponse:
+                    this.handleNodeResponse(messageContent);
+                    break;
+                default:
+                    console.log(`NetworkPeer: Received message with unknown class: ${messageClass}`);
+            }
+        } catch (err) {
+            logger.error(`NetworkPeer: ${this.stats.ip}:${this.stats.port} error while handling message: ${err}`);
+            this.emit('blacklist', new Peer(this.stats.ip, this.stats.port));
+            this.ws.close();
         }
     }
 
@@ -200,17 +205,17 @@ export class NetworkPeer extends EventEmitter {
             this.emit('blacklist', peer);
             this.ws.close();
         } else {
-        this.emit('updatepeer', this);  // let listeners know we learnt the peer's ID
-        // Asks for their know peers now, and then in regular intervals
-        this.sendNodeRequest();
-        this.nodeRequestTimer = setInterval(() => this.sendNodeRequest(), Settings.NODE_REQUEST_TIME);
+            this.emit('updatepeer', this);  // let listeners know we learnt the peer's ID
+            // Asks for their know peers now, and then in regular intervals
+            this.sendNodeRequest();
+            this.nodeRequestTimer = setInterval(() => this.sendNodeRequest(), Settings.NODE_REQUEST_TIME);
 
-        // If we're a full node, ask for available cubes now, and then in regular intervals
-        if (!this.lightMode) {
-            this.sendHashRequest();
-            this.hashRequestTimer = setInterval(() => this.sendHashRequest(),
-                Settings.HASH_REQUEST_TIME);
-        }
+            // If we're a full node, ask for available cubes now, and then in regular intervals
+            if (!this.lightMode) {
+                this.sendHashRequest();
+                this.hashRequestTimer = setInterval(() => this.sendHashRequest(),
+                    Settings.HASH_REQUEST_TIME);
+            }
         }
     }
 
@@ -219,33 +224,48 @@ export class NetworkPeer extends EventEmitter {
      */
     handleHashRequest() {
         // Send MAX_CUBE_HASH_COUNT unsent hashes from unsentHashes
-        let hashes: Buffer[] = [];
-        let iterator = this.unsentHashes.values();
+        let cubes: CubeMeta[] = [];
+        let iterator: IterableIterator<CubeMeta> = this.unsentCubeMeta.values();
         for (let i = 0; i < NetConstants.MAX_CUBE_HASH_COUNT; i++) {
-            let hash = iterator.next().value;
-            if (hash) {
-                hashes.push(Buffer.from(hash, 'hex'));
-                this.unsentHashes.delete(hash);
+            const result = iterator.next();
+            if (result.done) break;  // check if the iterator is exhausted
+
+            const cube: CubeMeta = result.value;
+            if (cube.key) {
+                cubes.push(cube);
+                this.unsentCubeMeta.delete(cube);
             }
             else
                 break;
         }
 
+        const CUBE_META_WIRE_SIZE = NetConstants.CUBE_KEY_SIZE + NetConstants.TIMESTAMP_SIZE
+            + NetConstants.CHALLENGE_LEVEL_SIZE + NetConstants.CUBE_TYPE_SIZE;
         const reply = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE
             + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.COUNT_SIZE
-            + hashes.length * NetConstants.HASH_SIZE);
+            + cubes.length * CUBE_META_WIRE_SIZE);
         let offset = 0;
 
         reply.writeUInt8(NetConstants.PROTOCOL_VERSION, offset++);
         reply.writeUInt8(MessageClass.HashResponse, offset++);
-        reply.writeUInt32BE(hashes.length, offset);
+        reply.writeUInt32BE(cubes.length, offset);
         offset += NetConstants.COUNT_SIZE;
 
-        for (const hash of hashes) {
-            hash.copy(reply, offset);
-            offset += NetConstants.HASH_SIZE;
+        const timestampBuffer = Buffer.alloc(NetConstants.TIMESTAMP_SIZE);
+        for (const cube of cubes) {
+            reply.writeUInt8(cube.cubeType, offset++);
+            reply.writeUInt8(cube.challengeLevel, offset++);
+
+            // Convert the date (timestamp) to a 5-byte buffer and copy
+            timestampBuffer.writeUIntBE(cube.date, 0, NetConstants.TIMESTAMP_SIZE);
+            timestampBuffer.copy(reply, offset);
+            offset += NetConstants.TIMESTAMP_SIZE;
+
+            cube.key.copy(reply, offset);
+            offset += NetConstants.CUBE_KEY_SIZE;
         }
-        logger.trace(`NetworkPeer: handleHashRequest: sending ${hashes.length} hashes to ${this.stats.ip}:${this.stats.port}`);
+
+        logger.trace(`NetworkPeer: handleHashRequest: sending ${cubes.length} cube details to ${this.stats.ip}:${this.stats.port}`);
         this.txMessage(reply);
     }
 
@@ -256,15 +276,27 @@ export class NetworkPeer extends EventEmitter {
     handleHashResponse(data: Buffer) {
         const hashCount = data.readUInt32BE(0);
         logger.trace(`NetworkPeer: handleHashResponse: received ${hashCount} hashes from ${this.stats.ip}:${this.stats.port}`);
-        const hashes = [];
+        const cubeMeta = [];
 
+        let offset = NetConstants.COUNT_SIZE;
         for (let i = 0; i < hashCount; i++) {
-            hashes.push(data.slice(NetConstants.COUNT_SIZE + i * NetConstants.HASH_SIZE,
-                NetConstants.COUNT_SIZE + (i + 1) * NetConstants.HASH_SIZE));
-        }
+            const cubeType = data.readUInt8(offset++);
+            const challengeLevel = data.readUInt8(offset++);
+            // Read timestamp as a 5-byte number
+            const timestamp = data.readUIntBE(offset, NetConstants.TIMESTAMP_SIZE);
+            offset += NetConstants.TIMESTAMP_SIZE;
+            const hash = data.slice(offset, offset + NetConstants.CUBE_KEY_SIZE);
+            offset += NetConstants.CUBE_KEY_SIZE;
 
-        // for each hash not in cube storage, request the cube
-        const missingHashes = hashes.filter(hash => !this.storage.hasCube(hash));
+            cubeMeta.push({
+                hash: hash,
+                timestamp: timestamp,
+                challengeLevel: challengeLevel,
+                cubeType: cubeType
+            });
+        }
+        // For each hash not in cube storage, request the cube
+        const missingHashes: Buffer[] = cubeMeta.filter(detail => !this.storage.hasCube(detail.hash)).map(detail => detail.hash);
         if (missingHashes.length > 0) {
             this.sendCubeRequest(missingHashes);
         }
@@ -289,7 +321,7 @@ export class NetworkPeer extends EventEmitter {
         // map/reduce/filter is really cool and stuff, but I'm not smart enough to understand it
         const cubes: CubeInfo[] = requestedCubeHashes.map(
             key => this.storage.getCubeInfo(key))
-            .filter(cube => { if (cube) return cube.isComplete(); else return false; } );
+            .filter(cube => { if (cube) return cube.isComplete(); else return false; });
 
         const reply = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE
             + NetConstants.COUNT_SIZE + cubes.length * NetConstants.CUBE_SIZE);
@@ -388,14 +420,14 @@ export class NetworkPeer extends EventEmitter {
         }
         // Select random peers in random order
         let chosenPeers: Array<Peer> = [];
-        for (let i=0; i<numberToSend; i++) {
+        for (let i = 0; i < numberToSend; i++) {
             let rnd = Math.floor(Math.random() * availablePeerCount);
             chosenPeers.push(availablePeers[rnd]);
             availablePeers.slice(rnd, 1); availablePeerCount--;
         }
         // Determine message length
         let msgLength = NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.COUNT_SIZE;
-        for (let i=0; i<numberToSend; i++) {
+        for (let i = 0; i < numberToSend; i++) {
             msgLength += 2;  // for the node address length field
             msgLength += chosenPeers[i].address().length;
         }
@@ -451,7 +483,7 @@ export class NetworkPeer extends EventEmitter {
     // however for now this serves the purpose of being able to
     // prevent connecting to the same peer twice
     private convertIPv6toIPv4(ip: string): string {
-        if ( ip.startsWith('::ffff:') ) {
+        if (ip.startsWith('::ffff:')) {
             return ip.replace('::ffff:', '');
         }
         return ip;
