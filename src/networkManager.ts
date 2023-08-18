@@ -23,7 +23,7 @@ export class NetworkManager extends EventEmitter {
     private connectPeersInterval: NodeJS.Timeout | undefined;
     private static WEBSOCKET_HANDSHAKE_TIMEOUT = 2500;
     private online: boolean = false;
-    private announce: boolean;
+    private announceToTorrentTrackers: boolean;
     private server_enabled: boolean;
     private server_port: number;
     private lightNode: boolean;
@@ -50,7 +50,7 @@ export class NetworkManager extends EventEmitter {
         this.incomingPeers = [];
         this.cubeStore = cubeStore;
         this.peerDB = peerDB;
-        this.announce = announce;
+        this.announceToTorrentTrackers = announce;
         this.server = undefined;
         this.server_port = port;
         this.lightNode = lightNode;
@@ -106,7 +106,7 @@ export class NetworkManager extends EventEmitter {
             }, Math.random() * 31337);
         });
 
-        if (this.announce) {
+        if (this.announceToTorrentTrackers) {
             this.peerDB.startAnnounceTimer();
             this.peerDB.announce();
         }

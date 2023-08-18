@@ -13,7 +13,7 @@ describe('annotationEngine', () => {
 
 
   // TODO: move displayability logic somewhere else
-  it.skip('should mark a cube and a reply received in sync as displayable', async () => {
+  it('should mark a cube and a reply received in sync as displayable', async () => {
     const root: Cube = new Cube();
     const payloadfield: fp.Field = fp.Field.Payload(Buffer.alloc(200));
     root.setFields([payloadfield]);
@@ -32,12 +32,12 @@ describe('annotationEngine', () => {
     cubeStore.addCube(leaf);
 
     expect(callback.mock.calls).toEqual([
-      [(await root.getKey()).toString('hex')],
-      [(await leaf.getKey()).toString('hex')]
+      [await root.getKey()],
+      [await leaf.getKey()]
     ]);
   }, 5000);
 
-  it.skip('should not mark replies as displayable when the original post is unavailable', async () => {
+  it('should not mark replies as displayable when the original post is unavailable', async () => {
     const root: Cube = new Cube(); // will NOT be added
     const payloadfield: fp.Field = fp.Field.Payload(Buffer.alloc(200));
     root.setFields([payloadfield]);
@@ -56,7 +56,7 @@ describe('annotationEngine', () => {
     expect(callback).not.toHaveBeenCalled();
   }, 5000);
 
-  it.skip('should mark replies as displayable only once all preceding posts has been received', async() => {
+  it('should mark replies as displayable only once all preceding posts has been received', async() => {
     const root: Cube = new Cube();
     const payloadfield: fp.Field = fp.Field.Payload(Buffer.alloc(200));
     root.setFields([payloadfield]);
@@ -84,9 +84,9 @@ describe('annotationEngine', () => {
     cubeStore.addCube(root);
 
     expect(callback.mock.calls).toEqual([
-      [(await root.getKey()).toString('hex')],
-      [(await intermediate.getKey()).toString('hex')],
-      [(await leaf.getKey()).toString('hex')]
+      [await root.getKey()],
+      [await intermediate.getKey()],
+      [await leaf.getKey()]
     ]);
   }, 5000);
 });
