@@ -27,7 +27,8 @@ export const FIELD_LENGTHS: { [key: number]: number | undefined } = {
     [FieldType.TYPE_PUBLIC_KEY]: 32,
 };
 
-export enum SmartCubeType {
+export enum CubeType {
+    CUBE_TYPE_REGULAR = 0xFF,
     CUBE_TYPE_MUC = 0x00,
     CUBE_TYPE_IPB = 0x01,
     CUBE_TYPE_RESERVED = 0x02,
