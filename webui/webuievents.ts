@@ -91,7 +91,7 @@ function displayCubeInList(key: string, cubeInfo: CubeInfo, cube: Cube, cubelist
     // Display cube payload
     let payload: HTMLParagraphElement = document.createElement('p');
     for (const field of cube.getFields().getFieldsByType(fp.FieldType.PAYLOAD)) {
-        payload.innerHTML += field.value.toString();
+        payload.innerText += field.value.toString();
     }
     li.append(payload);
 
