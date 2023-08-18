@@ -5,12 +5,13 @@
     "strict": false,
     "esModuleInterop": true,
     "outDir": "./dist",
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "lib": ["ES2022", "dom", "dom.iterable"]
   },
   "include": ["./src/**/*.ts"],
   "exclude": ["webspecific"],
   "scripts": {
     "pretest": "tsc",
     "test": "jest"
-  },
+  }
 }
