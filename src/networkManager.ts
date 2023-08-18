@@ -8,8 +8,15 @@ import { logger } from './logger';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { EventEmitter } from 'events';
 import WebSocket from 'isomorphic-ws';
-import crypto from 'crypto';
+import { Buffer } from 'buffer';
 
+if (isBrowser || isWebWorker) {
+    // @ts-ignore
+    var crypto = window.crypto;
+} else {
+    // @ts-ignore
+    var crypto = require('crypto');
+}
 /**
  * Class representing a network manager, responsible for handling incoming and outgoing connections.
  */
@@ -54,7 +61,7 @@ export class NetworkManager extends EventEmitter {
         this.server = undefined;
         this.server_port = port;
         this.lightNode = lightNode;
-        this.peerID = crypto.randomBytes(16);
+        this.peerID = Buffer.from(crypto.getRandomValues(new Uint8Array(16)));
         if (isNode) {
         if (port !== 0) {
                 this.server_enabled = true;
