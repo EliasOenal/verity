@@ -252,7 +252,7 @@ export class NetworkManager extends EventEmitter {
                 networkPeer.on('blacklist', (bannedPeer: Peer) => {
                     // Add the banned peer to the blacklist
                     this.peerDB.setPeersBlacklisted([bannedPeer]);
-                    logger.info(`NetworkManager: Peer ${bannedPeer.ip}:${bannedPeer.port} has been blacklisted.`);
+                    logger.warn(`NetworkManager: Peer ${bannedPeer.ip}:${bannedPeer.port} has been blacklisted.`);
                     this.emit('blacklist', bannedPeer);
                 });
 

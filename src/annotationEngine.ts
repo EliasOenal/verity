@@ -1,5 +1,5 @@
 import { CubeStore } from './cubeStore';
-import { CubeInfo } from './cubeInfo'
+import { CubeInfo, CubeMeta } from './cubeInfo'
 import { Cube } from './cube';
 import { logger } from './logger';
 import * as fp from './fieldProcessing';
@@ -12,9 +12,9 @@ export class AnnotationEngine extends EventEmitter {
   constructor(cubeStore: CubeStore) {
     super();
     this.cubeStore = cubeStore;
-    this.cubeStore.on('cubeAdded', (key) => this.autoAnnotate(key));
-    this.cubeStore.on('cubeAdded', (key) => this.emitIfCubeDisplayable(key));
-    this.cubeStore.on('cubeAdded', (key) => this.emitIfCubeMakesOthersDisplayable(key));
+    this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.autoAnnotate(cube.key));
+    this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.emitIfCubeDisplayable(cube.key));
+    this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.emitIfCubeMakesOthersDisplayable(cube.key));
   }
 
   private autoAnnotate(key: Buffer, cube?: Cube, cubeInfo?: CubeInfo) {

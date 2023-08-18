@@ -99,7 +99,11 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
 
   - `HashResponse`:
     - **Hash Count (4 bytes)**: This is an integer indicating the number of hashes being sent.
-    - **Hashes (32 bytes each)**: This is a series of 32-byte hash values. The number of hashes should match the Hash Count.
+    - **Cube Details**: Each detail includes:
+      - **Cube Type (1 byte)**: The type of the cube (e.g., regular, MUC, IPC).
+      - **Challenge Level (1 byte)**: The challenge level the cube adheres to.
+      - **Timestamp (5 bytes)**: The timestamp of the cube.
+      - **Hash (32 bytes)**: The hash of the cube.
 
   - `CubeRequest`:
     - **Cube Hash Count (4 bytes)**: This is an integer indicating the number of cube hashes being requested.
