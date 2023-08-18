@@ -1,4 +1,3 @@
-import http from 'http';
 import { decode } from 'bencodec';
 import { EventEmitter } from 'events';
 import { Settings } from './config';
