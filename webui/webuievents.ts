@@ -42,15 +42,16 @@ window.global.makeRandomCubes = makeRandomCubes;
 
 // Show all new cubes that are displayable.
 // This will handle cubeStore cubeDisplayable events.
-function displayCube(key: string) {
-    const cubeInfo: CubeInfo = window.global.node.cubeStore.getCubeInfo(key);
+function displayCube(binaryKey: Buffer) {
+    let key = binaryKey.toString('hex');
+    const cubeInfo: CubeInfo = window.global.node.cubeStore.getCubeInfo(binaryKey);
     if (!cubeInfo.isComplete()) return;
     const cube: Cube = cubeInfo.instantiate() as Cube;
 
     // is this a reply?
     const replies: Array<fp.Relationship> = cube.getFields().getRelationships(fp.RelationshipType.REPLY_TO);
     if (replies.length > 0) {  // yes
-      const originalpostkey: string = replies[0].remoteKey;
+      const originalpostkey: string = replies[0].remoteKey.toString('hex');
       const originalpost: CubeInfo = window.global.node.cubeStore.getCubeInfo(
         originalpostkey);
       const originalpostli: HTMLLIElement = originalpost.applicationNotes.get('li');
@@ -148,13 +149,13 @@ function drawSinglePeer(peer: NetworkPeer, outgoing: boolean): HTMLLIElement {
     return li;
 }
 
-function main() {
+async function main() {
     window.global.node.networkManager.on('newpeer', (peer) => redisplayPeers()) // list peers
     window.global.node.networkManager.on('peerclosed', (peer) => redisplayPeers()) // list peers
     window.global.node.networkManager.on('updatepeer', (peer) => redisplayPeers()) // list peers
     window.global.node.networkManager.on('blacklist', (peer) => redisplayPeers()) // list peers
     window.global.node.networkManager.on('online', (peer) => redisplayPeers()) // list peers
     window.global.node.networkManager.on('shutdown', (peer) => redisplayPeers()) // list peers
-    window.global.node.cubeStore.annotationEngine.on('cubeDisplayable', (hash) => displayCube(hash)) // list cubes
+    window.global.node.cubeStore.annotationEngine.on('cubeDisplayable', (binaryKey) => displayCube(binaryKey)) // list cubes
 }
 main();

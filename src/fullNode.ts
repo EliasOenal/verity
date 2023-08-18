@@ -26,7 +26,6 @@ export class fullNode {
     port: number = 1984;
     cubeStore: CubeStore = new CubeStore();
     peerDB: PeerDB = new PeerDB();
-    announce: boolean = false;
     networkManager: NetworkManager;
     onlinePromise: any = undefined;
     shutdownPromise: any = undefined;
@@ -43,13 +42,12 @@ export class fullNode {
             if (process.argv[2]) this.port = Number(process.argv[2]);
             if (process.argv[3]) initialPeers = [process.argv[3]];
         }
-        if (isNode) {
-            this.announce = true;
-        } else {
-            this.announce = false;
-        }
 
-        this.networkManager = new NetworkManager(this.port, this.cubeStore, this.peerDB, this.announce);
+        let announceToTorrentTrackers: boolean;
+        if (isNode) announceToTorrentTrackers = true;
+        else announceToTorrentTrackers = false;
+
+        this.networkManager = new NetworkManager(this.port, this.cubeStore, this.peerDB, announceToTorrentTrackers);
 
         if (initialPeers) {
             for (let i=0; i<initialPeers.length; i++) {
@@ -114,8 +112,8 @@ export class fullNode {
 
         if (replyto) {
             cubefields.push(fp.Field.RelatesTo(
-                new fp.Relationship(fp.RelationshipType.REPLY_TO, replyto)
-            ));
+                new fp.Relationship(fp.RelationshipType.REPLY_TO, Buffer.from(
+                    replyto, 'hex'))));
         }
 
         cube.setFields(cubefields);

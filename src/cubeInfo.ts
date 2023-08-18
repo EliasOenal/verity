@@ -59,7 +59,6 @@ export class CubeInfo {
   }
 
   isComplete(): boolean { return this.binaryCube? true : false }
-  binaryKey(): Buffer { return this.key; }
 
   instantiate(): Cube | undefined {
     if (this.isComplete()) return new Cube(this.binaryCube);

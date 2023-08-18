@@ -115,17 +115,11 @@ export class CubeStore extends EventEmitter {
       // we've never heard of this cube before -- create a new CubeInfo for it
       cubeInfo = new CubeInfo(key);
       this.storage.set(key.toString('hex'), cubeInfo);
-      // if (!cubeInfo) logger.trace("cubeStore: creating CubeInfo for anticipated unknown cube " + key);
-      // else {
-      //   logger.trace(`cubeStore: creating full CubeInfo (including the cube) for ${key}`);
-      // }
     }
     // Do we still need to populate this cubeInfo with the actual cube?
     if (!cubeInfo.isComplete() && binaryCube) {
-      cubeInfo.binaryCube = binaryCube;
       const cube: Cube = new Cube(binaryCube);
       cube.populateCubeInfo(cubeInfo);
-      // logger.trace("cubeStore: populating CubeInfo with actual cube " + key);
     }
     return cubeInfo;
   }
@@ -147,7 +141,7 @@ export class CubeStore extends EventEmitter {
     let ret: Set<Buffer> = new Set();
     for (const [key, cubeInfo] of this.storage ) {
       if (cubeInfo.isComplete()) {  // if we actually have this cube
-        ret.add(Buffer.from(key));
+        ret.add(Buffer.from(key, 'hex'));
       }
     }
     return ret;

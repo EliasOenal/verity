@@ -74,8 +74,12 @@ export class NetworkPeer extends EventEmitter {
             rx: { totalPackets: 0, totalBytes: 0, packetTypes: {} },
         };
 
-        // copy all hashes from cubeStore to unsentHashes
+        // Copy all hashes from cubeStore to unsentHashes.
+        // Later, add hash to unsentHashes whenever we get a new cube.
         this.unsentHashes = cubeStore.getAllStoredCubeKeys();
+        cubeStore.on('cubeAdded', (hash) => {
+            this.unsentHashes.add(hash);
+        });
 
         // Handle incoming messages
         //@ts-ignore
@@ -93,10 +97,6 @@ export class NetworkPeer extends EventEmitter {
         this.ws.addEventListener('close', () => {
             this.emit('close', this);
             this.shutdown();
-        });
-
-        cubeStore.on('cubeAdded', (hash) => {
-            this.unsentHashes.add(hash);
         });
 
         // Be polite and send a hello message
@@ -285,9 +285,11 @@ export class NetworkPeer extends EventEmitter {
 
         // Collect only defined cubes from the cube storage
         // TODO: Rename variables to reflect that we're using CubeInfos
+
+        // map/reduce/filter is really cool and stuff, but I'm not smart enough to understand it
         const cubes: CubeInfo[] = requestedCubeHashes.map(
             key => this.storage.getCubeInfo(key))
-            .filter((cube): cube is CubeInfo => cube.isComplete() );
+            .filter(cube => { if (cube) return cube.isComplete(); else return false; } );
 
         const reply = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE
             + NetConstants.COUNT_SIZE + cubes.length * NetConstants.CUBE_SIZE);

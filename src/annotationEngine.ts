@@ -61,7 +61,7 @@ export class AnnotationEngine extends EventEmitter {
     private emitIfCubeDisplayable(
           key: Buffer, cubeInfo?: CubeInfo, cube?: Cube): boolean {
       const displayable: boolean = this.isCubeDisplayable(key, cubeInfo, cube);
-      logger.trace(`cubeStore: marking cube ${key} displayable`);
+      logger.trace(`cubeStore: marking cube ${key.toString('hex')} displayable`);
       if (displayable) this.emit('cubeDisplayable', key);
       return displayable;
     }
@@ -80,7 +80,6 @@ export class AnnotationEngine extends EventEmitter {
         const replies: Array<fp.Relationship> = cubeInfo.getReverseRelationships(
           fp.RelationshipType.REPLY_TO);
         for (const reply of replies) {
-          // logger.trace("cubeStore: for cube " + key + " I see a base post cube " + reply.remoteKey);
           if (this.emitIfCubeDisplayable(reply.remoteKey)) {  // will emit a cubeDisplayable event for reply.remoteKey if so
             ret = true;
             this.emitIfCubeMakesOthersDisplayable(reply.remoteKey);

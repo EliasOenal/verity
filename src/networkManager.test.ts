@@ -61,10 +61,10 @@ describe('networkManager', () => {
     }, 1000);
 
     test('sync cubes between three nodes', async () => {
-        const numberOfCubes = 50;
-        let cubeStore = new CubeStore();
-        let cubeStore2 = new CubeStore();
-        let cubeStore3 = new CubeStore();
+        const numberOfCubes = 10;
+        let cubeStore = new CubeStore(false, false);  // no persistence, no annotations
+        let cubeStore2 = new CubeStore(false, false);
+        let cubeStore3 = new CubeStore(false, false);
         let manager1 = new NetworkManager(4000, cubeStore, new PeerDB(), false, false);
         let manager2 = new NetworkManager(4001, cubeStore2, new PeerDB(), false, false);
         let manager3 = new NetworkManager(4002, cubeStore3, new PeerDB(), false, false);
@@ -76,21 +76,23 @@ describe('networkManager', () => {
         let promise2_shutdown = new Promise(resolve => manager2.on('shutdown', resolve));
         let promise3_shutdown = new Promise(resolve => manager3.on('shutdown', resolve));
 
+        // Start all three nodes
         manager1.start();
         manager2.start();
         manager3.start();
-
         await Promise.all([promise1_listening, promise2_listening, promise3_listening]);
+
+        // Connect peer 2 to both peer 1 and peer 3
         await new Promise<NetworkPeer>(resolve => {
             manager2.connect('ws://localhost:4000').then(peer => resolve(peer));
         });
         await new Promise<NetworkPeer>(resolve => {
             manager2.connect('ws://localhost:4002').then(peer => resolve(peer));
         });
-
         expect(manager2.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
         expect(manager2.outgoingPeers[1]).toBeInstanceOf(NetworkPeer);
 
+        // Create new cubes at peer 1
         for (let i = 0; i < numberOfCubes; i++) {
             let cube = new Cube();
             let buffer: Buffer = Buffer.alloc(1);
@@ -98,31 +100,35 @@ describe('networkManager', () => {
             cube.setFields([{ type: FieldType.PAYLOAD, length: 1, value: buffer }]);
             await cubeStore.addCube(cube);
         }
+
+        expect(cubeStore.getAllStoredCubeKeys().size).toEqual(numberOfCubes);
+
+        // sync cubes from peer 1 to peer 2
         expect(manager1.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
         manager2.outgoingPeers[0].sendHashRequest();
-        // wait 3 seconds for the hash request to be sent
+        // Verify cubes have been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
             if (cubeStore2.getAllStoredCubeKeys().size == numberOfCubes) {
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
+        for (let hash of cubeStore.getAllStoredCubeKeys()) {
+            expect(cubeStore2.getCube(hash)).toBeInstanceOf(Cube);
+        }
+
+        // sync cubes from peer 2 to peer 3
         expect(manager3.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
         manager3.incomingPeers[0].sendHashRequest();
-        // wait 3 seconds for the hash request to be sent
+        // Verify cubes have been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
             if (cubeStore3.getAllStoredCubeKeys().size == numberOfCubes) {
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
-
-        // verify cubes are synced
         for (let hash of cubeStore2.getAllStoredCubeKeys()) {
-            expect(cubeStore.getCube(hash)).toBeInstanceOf(Cube);
-        }
-        for (let hash of cubeStore3.getAllStoredCubeKeys()) {
-            expect(cubeStore.getCube(hash)).toBeInstanceOf(Cube);
+            expect(cubeStore3.getCube(hash)).toBeInstanceOf(Cube);
         }
 
         manager1.shutdown();
