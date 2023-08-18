@@ -22,7 +22,7 @@ export class Cube {
     private hash: Buffer | undefined;
     private privateKey: Buffer | undefined;
     private publicKey: Buffer | undefined;
-    private smartCube: number | undefined;
+    private cubeType: number | undefined;
     private cubeKey: Buffer | undefined;
 
     constructor(binaryData?: Buffer) {
@@ -55,6 +55,7 @@ export class Cube {
             this.reservedBits = binaryData[0] & 0xF;
             this.date = binaryData.readUIntBE(1, 5);
             this.fields = fp.parseTLVBinaryData(this.binaryData);
+            this.cubeType = fp.CubeType.CUBE_TYPE_REGULAR;
             this.processTLVFields(this.fields, this.binaryData);
         }
     }
@@ -85,8 +86,8 @@ export class Cube {
 
     private static parseSmartCube(type: number): number {
         switch (type & 0x03) {
-            case fp.SmartCubeType.CUBE_TYPE_MUC:
-                return fp.SmartCubeType.CUBE_TYPE_MUC;
+            case fp.CubeType.CUBE_TYPE_MUC:
+                return fp.CubeType.CUBE_TYPE_MUC;
             default:
                 logger.error('Cube: Smart cube type not implemented ' + type);
                 throw new SmartCubeTypeNotImplemented('Cube: Smart cube type not implemented ' + type);
@@ -149,7 +150,7 @@ export class Cube {
                         throw new SmartCubeError('Cube: Smart cube type is not the first field');
                     }
                     const smartCubeType = Cube.parseSmartCube(field.value[0]);
-                    if (smartCubeType !== fp.SmartCubeType.CUBE_TYPE_MUC) {
+                    if (smartCubeType !== fp.CubeType.CUBE_TYPE_MUC) {
                         logger.error('Cube: Smart cube type not implemented ' + smartCubeType);
                         throw new SmartCubeTypeNotImplemented('Cube: Smart cube type not implemented ' + smartCubeType);
                     }
@@ -165,7 +166,7 @@ export class Cube {
             }
         }
 
-        if (smart && (Cube.parseSmartCube(smart.type) === fp.SmartCubeType.CUBE_TYPE_MUC)) {
+        if (smart && (Cube.parseSmartCube(smart.type) === fp.CubeType.CUBE_TYPE_MUC)) {
             if (publicKey && signature) {
                 if (binaryData) {
                     // Extract the public key, signature values and provided fingerprint
@@ -186,7 +187,7 @@ export class Cube {
                     // Verify the signature
                     Cube.verifySignature(publicKeyValue, signatureValue, dataToVerify);
                 }
-                this.smartCube = fp.SmartCubeType.CUBE_TYPE_MUC;
+                this.cubeType = fp.CubeType.CUBE_TYPE_MUC;
                 this.publicKey = publicKey.value;
                 this.cubeKey = publicKey.value; // MUC, key is public key
             } else {
@@ -206,7 +207,7 @@ export class Cube {
         return new CubeInfo(
             await this.getKey(),
             this.getBinaryData(),
-            this.smartCube !== undefined,
+            this.cubeType,
             this.date,
             CubeUtil.countTrailingZeroBits(this.hash),
         );
@@ -219,7 +220,7 @@ export class Cube {
     // called.
     public populateCubeInfo(cubeInfo: CubeInfo) {
         cubeInfo.binaryCube = this.getBinaryData();
-        cubeInfo.smartCube = this.smartCube !== undefined,
+        cubeInfo.cubeType = this.cubeType,
         cubeInfo.date = this.date;
         cubeInfo.challengeLevel = CubeUtil.countTrailingZeroBits(this.hash);
     }
@@ -337,7 +338,7 @@ export class Cube {
         if (publicKeyField !== undefined) {
             // find muc field
             mucField = this.fields.find((field) => {
-                return field.type === (fp.FieldType.TYPE_SMART_CUBE | fp.SmartCubeType.CUBE_TYPE_MUC);
+                return field.type === (fp.FieldType.TYPE_SMART_CUBE | fp.CubeType.CUBE_TYPE_MUC);
             });
         }
 

@@ -1,6 +1,6 @@
 import { AnnotationEngine } from './annotationEngine';
 import { Cube } from './cube';
-import { CubeInfo } from './cubeInfo'
+import { CubeInfo, CubeMeta } from './cubeInfo'
 import { logger } from './logger';
 import { CubePersistence } from "./cubePersistence";
 import { EventEmitter } from 'events';
@@ -78,7 +78,8 @@ export class CubeStore extends EventEmitter {
         }
 
         // inform our application(s) about the new cube
-        this.emit('cubeAdded', key);
+        const metaCube: CubeMeta = cubeInfo;
+        this.emit('cubeAdded', metaCube);
 
         // All done finally, just return the key in case anyone cares.
         return key;
@@ -141,7 +142,17 @@ export class CubeStore extends EventEmitter {
     let ret: Set<Buffer> = new Set();
     for (const [key, cubeInfo] of this.storage ) {
       if (cubeInfo.isComplete()) {  // if we actually have this cube
-        ret.add(Buffer.from(key, 'hex'));
+        ret.add(cubeInfo.key);
+      }
+    }
+    return ret;
+  }
+
+  getAllStoredCubeMeta(): Set<CubeMeta> {
+    let ret: Set<CubeMeta> = new Set();
+    for (const [key, cubeInfo] of this.storage ) {
+      if (cubeInfo.isComplete()) {  // if we actually have this cube
+        ret.add(cubeInfo);
       }
     }
     return ret;
