@@ -1,4 +1,5 @@
 import { Cube } from './cube'
+import { logger } from './logger';
 import * as fp from './fieldProcessing';
 
 interface CubeMeta {
@@ -48,6 +49,8 @@ export class CubeInfo {
   reverseRelationships: Array<fp.Relationship> = [];
   applicationNotes: Map<any, any> = new Map();
 
+  private objectCache: WeakRef<Cube> = undefined;
+
   constructor(
           key: Buffer, binaryCube?: Buffer, smartCube?: boolean,
           date?: number,  challengeLevel?: number) {
@@ -61,7 +64,17 @@ export class CubeInfo {
   isComplete(): boolean { return this.binaryCube? true : false }
 
   instantiate(): Cube | undefined {
-    if (this.isComplete()) return new Cube(this.binaryCube);
+    if (this.isComplete()) {
+      if (this.objectCache && this.objectCache.deref()) {
+        // logger.trace("cubeInfo: Yay! Saving us one instantiation");
+        return this.objectCache.deref();
+      }
+      else {
+        let cube = new Cube(this.binaryCube);
+        this.objectCache = new WeakRef(cube);
+        return new Cube(this.binaryCube);
+      }
+    }
     else return undefined;
   }
 
