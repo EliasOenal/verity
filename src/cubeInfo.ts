@@ -49,6 +49,8 @@ export class CubeInfo {
   reverseRelationships: Array<fp.Relationship> = [];
   applicationNotes: Map<any, any> = new Map();
 
+  // @member objectCache: Will remember the last instantiated Cube object
+  //                      for as long as the garbage collector keeps it alive
   private objectCache: WeakRef<Cube> = undefined;
 
   constructor(
@@ -64,18 +66,21 @@ export class CubeInfo {
   isComplete(): boolean { return this.binaryCube? true : false }
 
   instantiate(): Cube | undefined {
-    if (this.isComplete()) {
-      if (this.objectCache && this.objectCache.deref()) {
+    if (!this.isComplete()) return undefined; // nope, no cube available yet
+
+    // Keep returning the same Cube object until it gets garbage collected
+    if (this.objectCache) {
+      const cachedCube: Cube = this.objectCache.deref();
+      if (cachedCube) {
         // logger.trace("cubeInfo: Yay! Saving us one instantiation");
         return this.objectCache.deref();
       }
-      else {
-        let cube = new Cube(this.binaryCube);
-        this.objectCache = new WeakRef(cube);
-        return new Cube(this.binaryCube);
-      }
     }
-    else return undefined;
+
+    // Nope, no Cube object cached. Create a new one and remember it.
+    let cube = new Cube(this.binaryCube);
+    this.objectCache = new WeakRef(cube);
+    return cube;
   }
 
   // TODO: use fp.getRelationships for that
