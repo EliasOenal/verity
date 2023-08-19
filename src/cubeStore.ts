@@ -38,6 +38,8 @@ export class CubeStore extends EventEmitter {
   }
 
   // TODO: implement importing CubeInfo directly
+  async addCube(cube_input: Buffer): Promise<Buffer | undefined>;
+  async addCube(cube_input: Cube): Promise<Buffer | undefined>;
   async addCube(cube_input: Cube | Buffer): Promise<Buffer | undefined> {
       try {
         // Cube objects are ephemeral as storing binary data is more efficient.
