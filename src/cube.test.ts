@@ -122,9 +122,9 @@ describe('cube', () => {
     const cube = new Cube();
     cube.setFields([
       {
-          type: FieldType.PAYLOAD,
-          length: 128,
-          value: Buffer.alloc(128),
+        type: FieldType.PAYLOAD,
+        length: 128,
+        value: Buffer.alloc(128),
       }
     ]);
     expect(cube.getFieldsArray().length).toEqual(2);
@@ -139,9 +139,9 @@ describe('cube', () => {
       fp.getFieldHeaderLength(FieldType.PAYLOAD) - payloadLength;
     const cubefields: Array<fp.Field> = [
       {
-          type: FieldType.PAYLOAD,
-          length: payloadLength,
-          value: Buffer.alloc(payloadLength),
+        type: FieldType.PAYLOAD,
+        length: payloadLength,
+        value: Buffer.alloc(payloadLength),
       },
       {
         type: FieldType.PADDING_NONCE,
@@ -150,7 +150,7 @@ describe('cube', () => {
       }
     ];
     expect(CUBE_HEADER_LENGTH + fp.getFieldHeaderLength(FieldType.PAYLOAD) + payloadLength +
-            fp.getFieldHeaderLength(FieldType.PADDING_NONCE) + paddingLength).toEqual(NetConstants.CUBE_SIZE);
+      fp.getFieldHeaderLength(FieldType.PADDING_NONCE) + paddingLength).toEqual(NetConstants.CUBE_SIZE);
     cube.setFields(cubefields);
     expect(paddingLength).toBeGreaterThanOrEqual(Settings.HASHCASH_SIZE);
     expect(cube.getFieldsArray().length).toEqual(2);
@@ -165,9 +165,9 @@ describe('cube', () => {
       fp.getFieldHeaderLength(FieldType.PADDING_NONCE) - 2;
     const cubefields: Array<fp.Field> = [
       {
-          type: FieldType.PAYLOAD,
-          length: payloadLength,
-          value: Buffer.alloc(payloadLength),
+        type: FieldType.PAYLOAD,
+        length: payloadLength,
+        value: Buffer.alloc(payloadLength),
       },
       {
         type: FieldType.PADDING_NONCE,
@@ -183,9 +183,9 @@ describe('cube', () => {
     const payloadLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - fp.getFieldHeaderLength(FieldType.PAYLOAD) - 2;
     const cubefields: Array<fp.Field> = [
       {
-          type: FieldType.PAYLOAD,
-          length: payloadLength,
-          value: Buffer.alloc(payloadLength),
+        type: FieldType.PAYLOAD,
+        length: payloadLength,
+        value: Buffer.alloc(payloadLength),
       },
     ];
     expect(() => cube.setFields(cubefields)).toThrow(FieldSizeError);
@@ -200,9 +200,9 @@ describe('cube', () => {
       padding_length - 1;
     const cubefields: Array<fp.Field> = [
       {
-          type: FieldType.PAYLOAD,
-          length: payloadLength,
-          value: Buffer.alloc(payloadLength),
+        type: FieldType.PAYLOAD,
+        length: payloadLength,
+        value: Buffer.alloc(payloadLength),
       },
       {
         type: FieldType.PADDING_NONCE,
@@ -250,7 +250,9 @@ describe('cube', () => {
 
     muc.setFields(fields);
     const key = await muc.getKey();
+    const info = await muc.getCubeInfo();
     expect(key).toBeDefined();
+    expect(info).toBeDefined();
   }, 5000);
 
   // This test fails using Settings.HASH_WORKERS=true and I don't understand why :(

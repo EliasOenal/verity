@@ -118,7 +118,7 @@ export class Cube {
         this.fields = fullFields;
         for (const field of fullFields) {
             switch (field.type & 0xFC) {
-            // "& 0xFC" zeroes out the last two bits as field.type is only 6 bits long
+                // "& 0xFC" zeroes out the last two bits as field.type is only 6 bits long
                 case fp.FieldType.PADDING_NONCE:
                 case fp.FieldType.PAYLOAD:
                 case fp.FieldType.RELATES_TO:
@@ -204,8 +204,9 @@ export class Cube {
     // cube key, which involves the hashcash proof of work and therefore can
     // take a little while.
     public async getCubeInfo(): Promise<CubeInfo> {
+        const key: Buffer = await this.getKey();
         return new CubeInfo(
-            await this.getKey(),
+            key,
             this.getBinaryData(),
             this.cubeType,
             this.date,
@@ -221,7 +222,7 @@ export class Cube {
     public populateCubeInfo(cubeInfo: CubeInfo) {
         cubeInfo.binaryCube = this.getBinaryData();
         cubeInfo.cubeType = this.cubeType,
-        cubeInfo.date = this.date;
+            cubeInfo.date = this.date;
         cubeInfo.challengeLevel = CubeUtil.countTrailingZeroBits(this.hash);
     }
 
@@ -268,7 +269,7 @@ export class Cube {
         this.binaryData = undefined;
         this.hash = undefined;
         if (fields instanceof Fields) this.fields = fields.data;
-        else if(fields instanceof Array) this.fields = fields;
+        else if (fields instanceof Array) this.fields = fields;
         else throw new Error("Invalid fields type");
 
         // verify all fields together are less than 1024 bytes, and there's still enough space left for the hashcash

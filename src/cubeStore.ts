@@ -6,6 +6,9 @@ import { CubePersistence } from "./cubePersistence";
 import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
 import { Settings } from './config';
+import { NetConstants } from './networkDefinitions';
+import { CubeType } from './fieldProcessing';
+import { cubeContest } from './cubeUtil';
 
 export class CubeStore extends EventEmitter {
   private storage: Map<string, CubeInfo> = new Map();
@@ -17,8 +20,8 @@ export class CubeStore extends EventEmitter {
   annotationEngine: AnnotationEngine = undefined;
 
   constructor(
-      enable_persistence: boolean = true,
-      auto_annotations: boolean = true) {
+    enable_persistence: boolean = true,
+    auto_annotations: boolean = true) {
     super();
     this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS + 10);  // one for each peer and a few for ourselves
     if (auto_annotations) {
@@ -41,58 +44,69 @@ export class CubeStore extends EventEmitter {
   async addCube(cube_input: Buffer): Promise<Buffer | undefined>;
   async addCube(cube_input: Cube): Promise<Buffer | undefined>;
   async addCube(cube_input: Cube | Buffer): Promise<Buffer | undefined> {
-      try {
-        // Cube objects are ephemeral as storing binary data is more efficient.
-        // Create cube object if we don't have one yet.
-        let binaryCube: Buffer;
-        let cube: Cube;
-        if (cube_input instanceof Cube) {
-          cube = cube_input;
-          binaryCube = cube_input.getBinaryData();
-        }
-        else { // cube_input instanceof Buffer
-          binaryCube = cube_input;
-          cube = new Cube(binaryCube);
-        }
-
-        const cubeInfo: CubeInfo = await cube.getCubeInfo();
-        const key: Buffer = cubeInfo.key;
-
-        // Sometimes we get the same cube twice (e.g. due to network latency).
-        // In that case, do nothing -- no need to invalidate the hash or to
-        // emit an event.
-        if (this.hasCube(key)) {
-          logger.error('CubeStorage: duplicate - cube already exists');
-          return key;
-        }
-
-        // Store the cube
-        // (This either creates a new CubeInfo, or completes the existing CubeInfo
-        // with the actual cube if we already learnt some relationship
-        // information beforehand.
-        this.getCreateOrPopulateCubeInfo(key, binaryCube);
-
-        // save cube to disk (if available and enabled)
-        if (this.persistence) {
-          this.persistence.storeRawCube(key.toString('hex'), cubeInfo.binaryCube);
-        }
-
-        // inform our application(s) about the new cube
-        const metaCube: CubeMeta = cubeInfo;
-        this.emit('cubeAdded', metaCube);
-
-        // All done finally, just return the key in case anyone cares.
-        return key;
-      } catch (e) {
-        if (e instanceof Error) {
-          logger.error('Error adding cube:' + e.message);
-        } else {
-          logger.error('Error adding cube:' + e);
-        }
-        return undefined;
+    try {
+      // Cube objects are ephemeral as storing binary data is more efficient.
+      // Create cube object if we don't have one yet.
+      let binaryCube: Buffer;
+      let cube: Cube;
+      if (cube_input instanceof Cube) {
+        cube = cube_input;
+        binaryCube = cube_input.getBinaryData();
       }
-  }
+      else { // cube_input instanceof Buffer
+        binaryCube = cube_input;
+        cube = new Cube(binaryCube);
+      }
 
+      const cubeInfo: CubeInfo = await cube.getCubeInfo();
+
+      // Sometimes we get the same cube twice (e.g. due to network latency).
+      // In that case, do nothing -- no need to invalidate the hash or to
+      // emit an event.
+      if (this.hasCube(cubeInfo.key) && cubeInfo.cubeType == CubeType.CUBE_TYPE_REGULAR) {
+        logger.warn('CubeStorage: duplicate - cube already exists');
+        return cubeInfo.key;
+      }
+
+      if (cubeInfo.cubeType == CubeType.CUBE_TYPE_MUC) {
+        if (this.hasCube(cubeInfo.key)) {
+          const storedCube: CubeMeta = this.getCubeInfo(cubeInfo.key);
+          const winningCube: CubeMeta = cubeContest(storedCube, cubeInfo);
+          if (winningCube === storedCube) {
+            logger.info('CubeStorage: Keeping stored MUC over incoming MUC');
+            return cubeInfo.key;
+          } else {
+            logger.info('CubeStorage: Replacing stored MUC with incoming MUC');
+          }
+        }
+      }
+
+      // Store the cube
+      // (This either creates a new CubeInfo, or completes the existing CubeInfo
+      // with the actual cube if we already learnt some relationship
+      // information beforehand.
+      this.getCreateOrPopulateCubeInfo(cubeInfo.key, binaryCube);
+
+      // save cube to disk (if available and enabled)
+      if (this.persistence) {
+        this.persistence.storeRawCube(cubeInfo.key.toString('hex'), cubeInfo.binaryCube);
+      }
+
+      // inform our application(s) about the new cube
+      const metaCube: CubeMeta = cubeInfo;
+      this.emit('cubeAdded', metaCube);
+
+      // All done finally, just return the key in case anyone cares.
+      return cubeInfo.key;
+    } catch (e) {
+      if (e instanceof Error) {
+        logger.error('Error adding cube:' + e.message);
+      } else {
+        logger.error('Error adding cube:' + e);
+      }
+      return undefined;
+    }
+  }
 
   hasCube(key: Buffer): boolean {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
@@ -124,6 +138,7 @@ export class CubeStore extends EventEmitter {
     }
     return cubeInfo;
   }
+
   getCubeInfo(key: Buffer): CubeInfo {
     return this.storage.get(key.toString('hex'));
   }
@@ -140,7 +155,7 @@ export class CubeStore extends EventEmitter {
 
   getAllStoredCubeKeys(): Set<Buffer> {
     let ret: Set<Buffer> = new Set();
-    for (const [key, cubeInfo] of this.storage ) {
+    for (const [key, cubeInfo] of this.storage) {
       if (cubeInfo.isComplete()) {  // if we actually have this cube
         ret.add(cubeInfo.key);
       }
@@ -150,7 +165,7 @@ export class CubeStore extends EventEmitter {
 
   getAllStoredCubeMeta(): Set<CubeMeta> {
     let ret: Set<CubeMeta> = new Set();
-    for (const [key, cubeInfo] of this.storage ) {
+    for (const [key, cubeInfo] of this.storage) {
       if (cubeInfo.isComplete()) {  // if we actually have this cube
         ret.add(cubeInfo);
       }
