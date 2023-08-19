@@ -1,4 +1,3 @@
-import exp from 'constants';
 import { Cube } from './cube';
 import { logger } from './logger';
 import * as fp from './fieldProcessing';
@@ -27,7 +26,7 @@ describe('cubeStore', () => {
   ])
 
   beforeEach(() => {
-    cubeStore = new CubeStore(false, true);
+    cubeStore = new CubeStore(false, false);
   }, 1000);
 
   it('should add 20 cubes to the storage and get them back', async () => {
@@ -73,20 +72,19 @@ describe('cubeStore', () => {
   }, 1000);
 
 
-
   // TODO: Create own test suite for Fields and move this there
   it('correctly sets and retrieves a reply_to relationship field', async () => {
     const root: Cube = new Cube(); // will only be used as referenc
     const payloadfield: fp.Field = fp.Field.Payload(Buffer.alloc(200));
-    root.setFields([payloadfield]);
+    root.setFields(payloadfield);
 
     const leaf: Cube = new Cube();
 
-    leaf.setFields([
+    leaf.setFields(new fp.Fields([
       payloadfield,
       fp.Field.RelatesTo(new fp.Relationship(
         fp.RelationshipType.REPLY_TO, (await root.getKey())))
-    ]);
+    ]));
 
     const retrievedRel: fp.Relationship = leaf.getFields().getFirstRelationship();
     expect(retrievedRel.type).toEqual(fp.RelationshipType.REPLY_TO);

@@ -6,7 +6,7 @@ import { Settings, VerityError } from './config';
 import { logger } from './logger';
 import { NetConstants } from './networkDefinitions';
 import * as fp from './fieldProcessing';
-import { Fields } from './fieldProcessing';
+import { Field, Fields } from './fieldProcessing';
 
 import sodium from 'libsodium-wrappers'
 import { Buffer } from 'buffer';
@@ -17,7 +17,7 @@ export class Cube {
     private version: number;
     private reservedBits: number;
     private date: number;
-    private fields: Array<fp.Field | fp.FullField>;
+    private fields: fp.Fields;
     private binaryData: Buffer | undefined;
     private hash: Buffer | undefined;
     private privateKey: Buffer | undefined;
@@ -36,10 +36,8 @@ export class Cube {
             this.reservedBits = 0;
             this.date = Math.floor(Date.now() / 1000);
             const num_alloc = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE);
-            this.fields = [{
-                type: fp.FieldType.PADDING_NONCE,
-                length: num_alloc, value: Buffer.alloc(num_alloc)
-            }];
+            this.fields = new Fields(new Field(
+                fp.FieldType.PADDING_NONCE, num_alloc, Buffer.alloc(num_alloc)));
             this.binaryData = undefined;
             this.hash = undefined;
             this.cubeKey = undefined;
@@ -58,6 +56,163 @@ export class Cube {
             this.cubeType = fp.CubeType.CUBE_TYPE_REGULAR;
             this.processTLVFields(this.fields, this.binaryData);
         }
+    }
+
+    // This is only used (or useful) for locally created cubes.
+    // It will create a CubeInfo object for our new cube once we found the
+    // cube key, which involves the hashcash proof of work and therefore can
+    // take a little while.
+    public async getCubeInfo(): Promise<CubeInfo> {
+        return new CubeInfo(
+            await this.getKey(),
+            this.getBinaryData(),
+            this.cubeType,
+            this.date,
+            CubeUtil.countTrailingZeroBits(this.hash),
+        );
+    }
+
+    // In contrast to getCubeInfo, populateCubeInfo is useful for
+    // remote-generated cubes.
+    // For those, the CubeStore will generate a CubeInfo object once it learns
+    // of the cube. Once the full cube has been received, this method will be
+    // called.
+    public populateCubeInfo(cubeInfo: CubeInfo) {
+        cubeInfo.binaryCube = this.getBinaryData();
+        cubeInfo.cubeType = this.cubeType,
+        cubeInfo.date = this.date;
+        cubeInfo.challengeLevel = CubeUtil.countTrailingZeroBits(this.hash);
+    }
+
+    public getVersion(): number {
+        return this.version;
+    }
+
+    public setVersion(version: number): void {
+        this.cubeManipulated();
+        if (version !== 0) {
+            logger.error('Only version 0 is supported');
+            throw new CubeError("Only version 0 is supported");
+        }
+    }
+
+    public setCryptoKeys(publicKey: Buffer, privateKey: Buffer): void {
+        this.cubeManipulated();
+        this.publicKey = publicKey;
+        this.privateKey = privateKey;
+    }
+
+    public getDate(): number {
+        return this.date;
+    }
+
+    public setDate(date: number): void {
+        this.cubeManipulated();
+        this.date = date;
+    }
+
+    public getFields(): Fields {
+        return this.fields;
+    }
+
+    public setFields(fields: Fields | Field): void {
+        this.cubeManipulated();
+        if (fields instanceof Fields) this.fields = fields;
+        else if (fields instanceof Field) this.fields = new Fields(fields);
+        else throw TypeError("Invalid fields type");
+
+        // verify all fields together are less than 1024 bytes,
+        // and there's still enough space left for the hashcash
+        let totalLength = CUBE_HEADER_LENGTH;
+        for (let field of this.fields.data) {
+            totalLength += field.length;
+            totalLength += fp.getFieldHeaderLength(field.type);
+        }
+
+        // has the user already defined a sufficienly large padding field or do we have to add one?
+        const indexNonce = this.fields.data.findIndex((field: fp.Field) => field.type == fp.FieldType.PADDING_NONCE && field.length >= Settings.HASHCASH_SIZE);
+        let maxAcceptableLegth: number;
+        const minHashcashFieldSize = fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE) + Settings.HASHCASH_SIZE;
+        if (indexNonce == -1) maxAcceptableLegth = NetConstants.CUBE_SIZE - minHashcashFieldSize;
+        else maxAcceptableLegth = NetConstants.CUBE_SIZE;
+
+        if (totalLength > maxAcceptableLegth) {
+            // TODO: offer automatic cube segmentation
+            throw new FieldSizeError('Cube: Resulting cube size is ' + totalLength + ' bytes but must be less than ' + (NetConstants.CUBE_SIZE - minHashcashFieldSize) + ' bytes (potentially due to insufficient hash cash space)');
+        }
+
+        // do we need to add extra padding?
+        if (totalLength < NetConstants.CUBE_SIZE) {
+            // Edge case: Minimum padding field size is two bytes.
+            // If the cube is currently one byte below maximum, there is no way we can transform
+            // it into a valid cube, as it's one byte too short as is but will be one byte too large
+            // with minimum extra padding.
+            if (totalLength > NetConstants.CUBE_SIZE - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE)) {
+                throw new FieldSizeError('Cube: Cube is too small to be valid as is but too large to add extra padding.');
+            }
+            // Pad with random padding nonce to reach 1024 bytes
+            const num_alloc = NetConstants.CUBE_SIZE - totalLength - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE);
+            let random_bytes = new Uint8Array(num_alloc);
+            for (let i = 0; i < num_alloc; i++) random_bytes[i] = Math.floor(Math.random() * 256);
+
+            // Is there a signature field? If so, add the padding *before* the signature.
+            // Otherwise, add it at the very end.
+            this.fields
+            this.fields.insertFieldBefore(fp.FieldType.TYPE_SIGNATURE,
+                new Field(
+                    fp.FieldType.PADDING_NONCE,
+                    num_alloc,
+                    Buffer.from(random_bytes))
+            );
+        }
+    }
+
+    public async getKey(): Promise<Buffer> {
+        if (this.cubeKey && this.hash) return this.cubeKey;
+        else {
+            await this.generateCubeHash();
+            return this.cubeKey;
+        }
+    }
+
+    public async getHash(): Promise<Buffer> {
+        if (this.hash) return this.hash;
+        else {
+            await this.generateCubeHash();
+            return this.hash;
+        }
+    }
+
+    public getBinaryData(): Buffer {
+        if (this.binaryData === undefined) return this.setBinaryData();
+        if (!this.hash) this.generateCubeHash();
+        return this.binaryData;
+    }
+
+
+
+    private static updateVersionBinaryData(binaryData: Buffer, version: number, reservedBits: number) {
+        if (binaryData === undefined)
+            throw new BinaryDataError("Binary data not initialized");
+        binaryData[0] = (version << 4) | reservedBits;
+    }
+
+    private static updateDateBinaryData(binaryData: Buffer, date: number) {
+        if (binaryData === undefined)
+            throw new BinaryDataError("Binary data not initialized");
+        binaryData.writeUIntBE(date, 1, 5);
+    }
+
+    private static findFieldIndex(binaryData: Buffer, fieldType: fp.FieldType, minLength: number = 0): number | undefined {
+        let index = CUBE_HEADER_LENGTH; // Start after the header
+        while (index < binaryData.length) {
+            const { type, length, valueStartIndex } = fp.readTLVHeader(binaryData, index);
+            if (type === fieldType && length >= minLength) {
+                return valueStartIndex; // Return the index of the start of the desired field value
+            }
+            index = valueStartIndex + length; // Move to the next field
+        }
+        return undefined; // Return undefined if the desired field is not found
     }
 
     // Verify fingerprint. This applies to smart cubes only.
@@ -95,30 +250,45 @@ export class Cube {
     }
 
 
+    /// @method Any change to a cube invalidates it and basically returns it to
+    /// "new cube in the making" state. Binary data, hash and potentially cube key
+    /// are now invalid. Delete them; out getter methods will make sure to
+    /// recreate them when needed.
+    private cubeManipulated() {
+        this.binaryData = undefined;
+        this.hash = undefined;
+        this.cubeKey = undefined;
+    }
+
+    private setBinaryData(): Buffer {
+        this.processTLVFields(this.fields, this.binaryData);
+        this.binaryData = Buffer.alloc(1024);
+
+        Cube.updateVersionBinaryData(this.binaryData, this.version, this.reservedBits);
+        Cube.updateDateBinaryData(this.binaryData, this.date);
+        fp.updateTLVBinaryData(this.binaryData, this.fields);
+        return this.binaryData;
+    }
+
     // If binaryData is undefined, then this is a new local cube in the process of being created.
     // If binaryData is defined, then we expect a fully formed cube meeting all requirements.
-    private processTLVFields(fields: Array<fp.Field | fp.FullField>, binaryData: Buffer | undefined): void {
-        let smart: fp.FullField | fp.Field | undefined = undefined;
-        let publicKey: fp.FullField | undefined = undefined;
-        let signature: fp.FullField | undefined = undefined;
+    private processTLVFields(fields: Fields, binaryData: Buffer | undefined): void {
+        let smart: fp.Field = undefined;
+        let publicKey: fp.Field = undefined;
+        let signature: fp.Field = undefined;
 
-        let fullFields: Array<fp.FullField> = [];
         if (binaryData === undefined) {
             // Upgrade fields to full fields
             let start = CUBE_HEADER_LENGTH;
-            for (const field of fields) {
-                fullFields.push({ ...field, start: start });
+            for (const field of fields.data) {
+                field.start = start;
                 start += fp.getFieldHeaderLength(field.type & 0xFC) + field.length;
             }
-        } else {
-            // They're all full fields when parsed from binary data
-            fullFields = fields as Array<fp.FullField>;
         }
 
-        this.fields = fullFields;
-        for (const field of fullFields) {
+        for (const field of this.fields.data) {
             switch (field.type & 0xFC) {
-                // "& 0xFC" zeroes out the last two bits as field.type is only 6 bits long
+            // "& 0xFC" zeroes out the last two bits as field.type is only 6 bits long
                 case fp.FieldType.PADDING_NONCE:
                 case fp.FieldType.PAYLOAD:
                 case fp.FieldType.RELATES_TO:
@@ -199,121 +369,12 @@ export class Cube {
         }
     }
 
-    // This is only used (or useful) for locally created cubes.
-    // It will create a CubeInfo object for our new cube once we found the
-    // cube key, which involves the hashcash proof of work and therefore can
-    // take a little while.
-    public async getCubeInfo(): Promise<CubeInfo> {
-        const key: Buffer = await this.getKey();
-        return new CubeInfo(
-            key,
-            this.getBinaryData(),
-            this.cubeType,
-            this.date,
-            CubeUtil.countTrailingZeroBits(this.hash),
-        );
-    }
-
-    // In contrast to getCubeInfo, populateCubeInfo is useful for
-    // remote-generated cubes.
-    // For those, the CubeStore will generate a CubeInfo object once it learns
-    // of the cube. Once the full cube has been received, this method will be
-    // called.
-    public populateCubeInfo(cubeInfo: CubeInfo) {
-        cubeInfo.binaryCube = this.getBinaryData();
-        cubeInfo.cubeType = this.cubeType,
-            cubeInfo.date = this.date;
-        cubeInfo.challengeLevel = CubeUtil.countTrailingZeroBits(this.hash);
-    }
-
-    public getVersion(): number {
-        return this.version;
-    }
-
-    public setVersion(version: number): void {
-        if (version !== 0) {
-            logger.error('Only version 0 is supported');
-            throw new CubeError("Only version 0 is supported");
-        }
-        this.binaryData = undefined;
-        this.hash = undefined;
-        this.version = version;
-    }
-
-    public setCryptoKeys(publicKey: Buffer, privateKey: Buffer): void {
-        this.publicKey = publicKey;
-        this.privateKey = privateKey;
-    }
-
-    public getDate(): number {
-        return this.date;
-    }
-
-    public setDate(date: number): void {
-        const binaryData = undefined;
-        this.hash = undefined;
-        this.date = date;
-    }
-
-    public getFields(): Fields {
-        return new Fields(this.fields)
-    }
-
-    public getFieldsArray(): Array<fp.Field> {
-        return this.fields;
-    }
-
-    public setFields(fields: Fields): void;
-    public setFields(fields: Array<fp.Field>): void;
-    public setFields(fields: Array<fp.Field> | Fields): void {
-        this.binaryData = undefined;
-        this.hash = undefined;
-        if (fields instanceof Fields) this.fields = fields.data;
-        else if (fields instanceof Array) this.fields = fields;
-        else throw new Error("Invalid fields type");
-
-        // verify all fields together are less than 1024 bytes, and there's still enough space left for the hashcash
-        let totalLength = CUBE_HEADER_LENGTH;
-        for (let field of this.fields) {
-            totalLength += field.length;
-            totalLength += fp.getFieldHeaderLength(field.type);
-        }
-
-        // has the user already defined a sufficienly large padding field or do we have to add one?
-        const indexNonce = this.fields.findIndex((field: fp.Field) => field.type == fp.FieldType.PADDING_NONCE && field.length >= Settings.HASHCASH_SIZE);
-        let maxAcceptableLegth: number;
-        const minHashcashFieldSize = fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE) + Settings.HASHCASH_SIZE;
-        if (indexNonce == -1) maxAcceptableLegth = NetConstants.CUBE_SIZE - minHashcashFieldSize;
-        else maxAcceptableLegth = NetConstants.CUBE_SIZE;
-
-        if (totalLength > maxAcceptableLegth) {
-            // TODO: offer automatic cube segmentation
-            throw new FieldSizeError('Cube: Resulting cube size is ' + totalLength + ' bytes but must be less than ' + (NetConstants.CUBE_SIZE - minHashcashFieldSize) + ' bytes (potentially due to insufficient hash cash space)');
-        }
-
-        // do we need to add extra padding?
-        if (totalLength < NetConstants.CUBE_SIZE) {
-            // Edge case: Minimum padding field size is two bytes.
-            // If the cube is currently one byte below maximum, there is no way we can transform
-            // it into a valid cube, as it's one byte too short as is but will be one byte too large
-            // with minimum extra padding.
-            if (totalLength > NetConstants.CUBE_SIZE - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE)) {
-                throw new FieldSizeError('Cube: Cube is too small to be valid as is but too large to add extra padding.');
-            }
-            // Pad with random padding nonce to reach 1024 bytes
-            const num_alloc = NetConstants.CUBE_SIZE - totalLength - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE);
-            let random_bytes = new Uint8Array(num_alloc);
-            for (let i = 0; i < num_alloc; i++) random_bytes[i] = Math.floor(Math.random() * 256);
-            this.fields.push({
-                type: fp.FieldType.PADDING_NONCE,
-                length: num_alloc, value: Buffer.from(random_bytes),
-            });
-        }
-    }
-
-    public async getKey(): Promise<Buffer> {
-        if (this.cubeKey && this.hash)
-            return this.cubeKey;
+    // @member Calculates the cube hash, including the hashcash challenge
+    // It makes no sense to call this method more than once on any particular
+    // cube object (except maybe to heat your home).
+    // Cube's getter method will make sure to call generateCubeHash() whenever
+    // appropriate (i.e. when the hash is required but has not yet been calculated).
+    private async generateCubeHash(): Promise<Buffer> {
         // This is a new cube in the making
         if (this.binaryData === undefined) {
             this.binaryData = this.getBinaryData();
@@ -332,13 +393,13 @@ export class Cube {
         let mucField;
         if (indexSignature !== undefined) {
             // find the public key field
-            publicKeyField = this.fields.find((field) => {
+            publicKeyField = this.fields.data.find((field) => {
                 return field.type === fp.FieldType.TYPE_PUBLIC_KEY;
             });
         }
         if (publicKeyField !== undefined) {
             // find muc field
-            mucField = this.fields.find((field) => {
+            mucField = this.fields.data.find((field) => {
                 return field.type === (fp.FieldType.TYPE_SMART_CUBE | fp.CubeType.CUBE_TYPE_MUC);
             });
         }
@@ -359,42 +420,6 @@ export class Cube {
             this.cubeKey = this.publicKey;
         }
         return this.cubeKey;
-    }
-
-    public getBinaryData(): Buffer {
-        if (this.binaryData === undefined) {
-            this.processTLVFields(this.fields, this.binaryData);
-            this.binaryData = Buffer.alloc(1024);
-
-            Cube.updateVersionBinaryData(this.binaryData, this.version, this.reservedBits);
-            Cube.updateDateBinaryData(this.binaryData, this.date);
-            fp.updateTLVBinaryData(this.binaryData, this.fields);
-        }
-        return this.binaryData;
-    }
-
-    private static updateVersionBinaryData(binaryData: Buffer, version: number, reservedBits: number) {
-        if (binaryData === undefined)
-            throw new BinaryDataError("Binary data not initialized");
-        binaryData[0] = (version << 4) | reservedBits;
-    }
-
-    private static updateDateBinaryData(binaryData: Buffer, date: number) {
-        if (binaryData === undefined)
-            throw new BinaryDataError("Binary data not initialized");
-        binaryData.writeUIntBE(date, 1, 5);
-    }
-
-    private static findFieldIndex(binaryData: Buffer, fieldType: fp.FieldType, minLength: number = 0): number | undefined {
-        let index = CUBE_HEADER_LENGTH; // Start after the header
-        while (index < binaryData.length) {
-            const { type, length, valueStartIndex } = fp.readTLVHeader(binaryData, index);
-            if (type === fieldType && length >= minLength) {
-                return valueStartIndex; // Return the index of the start of the desired field value
-            }
-            index = valueStartIndex + length; // Move to the next field
-        }
-        return undefined; // Return undefined if the desired field is not found
     }
 
     private writeFingerprint(publicKey: Buffer, signatureStartIndex: number): void {
@@ -490,6 +515,7 @@ if (isNode) require('./nodespecific/cube-extended');
 
 // Error definitions
 export class CubeError extends VerityError { }
+export class CubeApiUsageError extends CubeError { }
 export class InsufficientDifficulty extends CubeError { }
 export class InvalidCubeKey extends CubeError { }
 

@@ -42,25 +42,27 @@ export enum RelationshipType {
     QUOTATION = 4,
 }
 
-export interface FullField {
-    type: FieldType;
-    start: number; // Start of field as offset from beginning of cube (binaryData)
-    length: number;
-    value: Buffer;
-}
-
 export class Field {
     type: FieldType;
     length: number;
     value: Buffer;
 
-    static Payload(buf: Buffer): Field {
-        return {
-            type: FieldType.PAYLOAD,
-            length: buf.length,
-            value: buf,
-        };
+    // Start of field as offset from beginning of cube (binaryData)
+    start: number = undefined;
+
+    constructor(type: FieldType, length: number, value: Buffer, start?: number) {
+        this.type = type;
+        this.length = length;
+        this.value = value;
+        this.start = start;
     }
+
+    public isFull() { if (this.start) return true; else return false; }
+
+    static Payload(buf: Buffer): Field {
+        return new Field(FieldType.PAYLOAD, buf.length, buf);
+    }
+
     static RelatesTo(rel: Relationship): Field {
         const value: Buffer = Buffer.alloc(
             NetConstants.RELATIONSHIP_TYPE_SIZE +
@@ -72,12 +74,10 @@ export class Field {
             0,  // source start
             NetConstants.CUBE_KEY_SIZE  // source end
         );
-
-        return {
-            type: FieldType.RELATES_TO,
-            length: FIELD_LENGTHS[FieldType.RELATES_TO],
-            value: value
-        };
+        return new Field(
+            FieldType.RELATES_TO,
+            FIELD_LENGTHS[FieldType.RELATES_TO],
+            value);
     }
 }
 
@@ -108,8 +108,12 @@ export class Relationship {
 export class Fields {
     public data: Array<Field>;
 
-    constructor(fields: Array<Field>) {
-        this.data = fields;
+    constructor(data?: Array<Field> | Field) {
+        if (data) {
+            if (data instanceof Array) this.data = data;
+            else this.data = [data];
+        }
+        else this.data = [];
     }
 
     /**
@@ -146,15 +150,30 @@ export class Fields {
         else return undefined;
     }
 
-    public fromTLVBinaryData(binaryData: Buffer): Fields {
-        return new Fields(parseTLVBinaryData(binaryData));
+    /// @ method Inserts a new field before the *first* existing field of the
+    ///          specified type, or at the very end if no such field exists.
+    ///          (This is used, in particular, by Cube.setFields() to determine
+    ///          if any auto-padding needs to be inserted before a signature.)
+    public insertFieldBefore(type: FieldType, field: Field) {
+        for (let i = 0; i < this.data.length; i++) {
+            if (this.data[i].type == type) {
+                this.data.splice(i, 0, field)
+                return;
+            }
+        }
+        // no such field
+        this.data.push(field);
+    }
+
+    public static fromTLVBinaryData(binaryData: Buffer): Fields {
+        return parseTLVBinaryData(binaryData);
     }
 }
 
-export function parseTLVBinaryData(binaryData: Buffer): Array<FullField> {
+export function parseTLVBinaryData(binaryData: Buffer): Fields {
     if (binaryData === undefined)
         throw new Error("Binary data not initialized");
-    let fieldsArray = [];
+    let fields: Fields = new Fields();
     let index = CUBE_HEADER_LENGTH; // Start after date field
     while (index < binaryData.length) {
         const { type, length, valueStartIndex } = readTLVHeader(binaryData, index);
@@ -163,24 +182,24 @@ export function parseTLVBinaryData(binaryData: Buffer): Array<FullField> {
 
         if (index + length <= binaryData.length) {  // Check if enough data for value field
             let value = binaryData.slice(index, index + length);
-            fieldsArray.push({ type: type, start: start, length: length, value: value });
+            fields.data.push(new Field(type, length, value, start));
             index += length;
         } else {
             throw new Error("Data ended unexpectedly while reading value of field");
         }
     }
-    return fieldsArray;
+    return fields;
 }
 
 export function getFieldHeaderLength(fieldType: FieldType): number {
     return (FIELD_LENGTHS[fieldType] == undefined) ? 2 : 1;
 }
 
-export function updateTLVBinaryData(binaryData: Buffer, fields: Array<{ type: FieldType; length: number; value: Buffer }>): void {
+export function updateTLVBinaryData(binaryData: Buffer, fields: Fields): void {
     if (binaryData === undefined)
         throw new Error("Binary data not initialized");
     let index = CUBE_HEADER_LENGTH; // Start after date field
-    for (let field of fields) {
+    for (let field of fields.data) {
         let { nextIndex } = writeTLVHeader(binaryData, field.type, field.length, index);
         index = nextIndex;
 

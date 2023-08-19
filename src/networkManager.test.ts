@@ -3,7 +3,7 @@ import { NetworkPeer } from './networkPeer';
 import { CubeStore } from './cubeStore';
 import WebSocket from 'isomorphic-ws';
 import { Cube } from './cube';
-import { FieldType } from './fieldProcessing';
+import { Field, FieldType, Fields } from './fieldProcessing';
 import { PeerDB, Peer } from './peerDB';
 import { logger } from './logger';
 
@@ -18,7 +18,7 @@ describe('networkManager', () => {
     });
 
     test('should create a WebSocket server on instantiation', done => {
-        let manager = new NetworkManager(3000, new CubeStore(), new PeerDB(), false)
+        let manager = new NetworkManager(3000, new CubeStore(false), new PeerDB(), false)
         manager.start();
         expect(manager.server).toBeInstanceOf(WebSocket.Server);
         manager.shutdown();
@@ -26,7 +26,7 @@ describe('networkManager', () => {
     }, 1000);
 
     test('should create a NetworkPeer on incoming connection', done => {
-        let manager = new NetworkManager(3001, new CubeStore(), new PeerDB(), false);
+        let manager = new NetworkManager(3001, new CubeStore(false), new PeerDB(), false);
         manager.start();
         manager.server = manager.server;
         manager.server?.on('connection', () => {
@@ -42,7 +42,7 @@ describe('networkManager', () => {
     }, 1000);
 
     test('should create a NetworkPeer on outgoing connection', async () => {
-        let manager = new NetworkManager(3003, new CubeStore(), new PeerDB(), false);
+        let manager = new NetworkManager(3003, new CubeStore(false), new PeerDB(), false);
         manager.start();
 
         // Wait for server to start listening
@@ -97,7 +97,7 @@ describe('networkManager', () => {
             let cube = new Cube();
             let buffer: Buffer = Buffer.alloc(1);
             buffer.writeInt8(i);
-            cube.setFields([{ type: FieldType.PAYLOAD, length: 1, value: buffer }]);
+            cube.setFields(new Field(FieldType.PAYLOAD, 1, buffer));
             await cubeStore.addCube(cube);
         }
 
@@ -139,7 +139,7 @@ describe('networkManager', () => {
 
     test('should blacklist a peer when trying to connect to itself', async () => {
         const peerDB = new PeerDB();
-        let manager = new NetworkManager(3004, new CubeStore(), peerDB, false);
+        let manager = new NetworkManager(3004, new CubeStore(false), peerDB, false);
         manager.start();
 
         // Wait for server to start listening

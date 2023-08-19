@@ -6,7 +6,7 @@ import { Cube } from './cube';
 import { Buffer } from 'buffer';
 import readline from 'readline';
 import { vera } from './vera';
-import { FieldType } from './fieldProcessing';
+import { Field, FieldType, Fields } from './fieldProcessing';
 
 // This is a light client that connects to a full node
 // it does not announce and does not accept incoming connections.
@@ -68,24 +68,24 @@ async function main() {
             let buffer = Buffer.alloc(4);
             // random buffer
             buffer.writeUInt32BE(Math.floor(Math.random() * 1000000));
-            cube.setFields([
-                {
-                    type: FieldType.PAYLOAD,
-                    length: payloadString.length,
-                    value: Buffer.from(payloadString, 'utf8')
-                },
-                {
+            cube.setFields(new Fields([
+                new Field(
+                    FieldType.PAYLOAD,
+                    payloadString.length,
+                    Buffer.from(payloadString, 'utf8')
+                ),
+                new Field(
                     // This one gets overwritten by the nonce
-                    type: FieldType.PADDING_NONCE,
-                    length: 4,
-                    value: buffer
-                },
-                {
-                    type: FieldType.PADDING_NONCE,
-                    length: 4,
-                    value: buffer
-                }
-            ]);
+                    FieldType.PADDING_NONCE,
+                    4,
+                    buffer
+                ),
+                new Field(
+                    FieldType.PADDING_NONCE,
+                    4,
+                    buffer
+                )
+            ]));
             cubeStore.addCube(cube);
         }
     });
