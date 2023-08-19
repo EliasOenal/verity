@@ -6,7 +6,7 @@ import { logger } from './logger';
 import { Cube } from './cube';
 import { vera } from './vera';
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { FieldType, Field } from './fieldProcessing';
+import { FieldType, Field, Fields } from './fieldProcessing';
 import { EventEmitter } from 'events';
 import { NetworkPeer } from "./networkPeer";
 import * as fp from './fieldProcessing';
@@ -101,14 +101,14 @@ export class fullNode {
         messageBuffer.writeUInt32BE(this.mucUpdateCounter);
         this.mucUpdateCounter++;
 
-        const fields = [
-            { type: FieldType.TYPE_SMART_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },
-            { type: FieldType.TYPE_PUBLIC_KEY, length: 32, value: publicKey },
-            { type: FieldType.PAYLOAD, length: 9, value: Buffer.from("Hello MUC", 'utf8') },
-            { type: FieldType.PAYLOAD, length: 4, value: messageBuffer },
-            { type: FieldType.PADDING_NONCE, length: 892, value: Buffer.alloc(892) },
-            { type: FieldType.TYPE_SIGNATURE, length: 72, value: Buffer.alloc(72) }
-        ];
+        const fields = new Fields([
+            new Field(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
+            new Field(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
+            new Field(FieldType.PAYLOAD, 9, Buffer.from("Hello MUC", 'utf8')),
+            new Field(FieldType.PAYLOAD, 4, messageBuffer),
+            new Field(FieldType.PADDING_NONCE, 892, Buffer.alloc(892)),
+            new Field(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
+        ]);
 
         muc.setFields(fields);
         this.cubeStore.addCube(muc);
@@ -117,10 +117,10 @@ export class fullNode {
     public async makeNewCube(message: string = "Hello Verity", replyto?: string) {
         let cube = new Cube();
         const messagebuffer: Buffer = Buffer.from(message, 'utf8');
-        let cubefields: Array<fp.Field> = [fp.Field.Payload(messagebuffer)];
+        let cubefields: Fields = new Fields(fp.Field.Payload(messagebuffer));
 
         if (replyto) {
-            cubefields.push(fp.Field.RelatesTo(
+            cubefields.data.push(fp.Field.RelatesTo(
                 new fp.Relationship(fp.RelationshipType.REPLY_TO, Buffer.from(
                     replyto, 'hex'))));
         }
