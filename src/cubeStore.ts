@@ -131,8 +131,8 @@ export class CubeStore extends EventEmitter {
       cubeInfo = new CubeInfo(key);
       this.storage.set(key.toString('hex'), cubeInfo);
     }
-    // Do we still need to populate this cubeInfo with the actual cube?
-    if (!cubeInfo.isComplete() && binaryCube) {
+    // (Re-)populate this cube
+    if (binaryCube) {
       const cube: Cube = new Cube(binaryCube);
       cube.populateCubeInfo(cubeInfo);
     }
