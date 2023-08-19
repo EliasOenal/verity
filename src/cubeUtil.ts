@@ -32,8 +32,8 @@ export function cubeLifetime(x: number, d1: number = 7, d2: number = 28, c1: num
 
 export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMeta {
     // Calculate the expiration date of each cube
-    const expirationA = localCube.date + (cubeLifetime(localCube.challengeLevel) * 24 * 3600 * 1000); // convert days to milliseconds
-    const expirationB = incomingCube.date + (cubeLifetime(incomingCube.challengeLevel) * 24 * 3600 * 1000);
+    const expirationA = localCube.date + (cubeLifetime(localCube.challengeLevel) * 24 * 3600);
+    const expirationB = incomingCube.date + (cubeLifetime(incomingCube.challengeLevel) * 24 * 3600);
 
     // Resolve the conflict based on expiration dates
     if (expirationA > expirationB) {
