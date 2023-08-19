@@ -177,7 +177,7 @@ export class Cube {
                     // Verify the fingerprint
                     Cube.verifyFingerprint(publicKeyValue, providedFingerprint);
 
-                    // Create the data to be verified. 
+                    // Create the data to be verified.
                     // It includes all bytes of the cube from the start up to and including
                     // the type byte of the signature field and the fingerprint.
                     // From start of cube up to the signature itself
@@ -311,7 +311,7 @@ export class Cube {
     }
 
     public async getKey(): Promise<Buffer> {
-        if (this.cubeKey !== undefined)
+        if (this.cubeKey && this.hash)
             return this.cubeKey;
         // This is a new cube in the making
         if (this.binaryData === undefined) {
