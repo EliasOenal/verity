@@ -5,11 +5,12 @@ import { Settings } from './config';
 import { logger } from './logger';
 import { Peer } from './peerDB';
 import { NetworkManager } from "./networkManager";
-
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { Buffer } from 'buffer';
 import { EventEmitter } from 'events';
 import { WebSocket } from 'isomorphic-ws';
+import { CubeType } from './fieldProcessing';
+import { cubeContest } from './cubeUtil';
 
 export interface PacketStats {
     count: number,
@@ -276,7 +277,8 @@ export class NetworkPeer extends EventEmitter {
     handleHashResponse(data: Buffer) {
         const hashCount = data.readUInt32BE(0);
         logger.trace(`NetworkPeer: handleHashResponse: received ${hashCount} hashes from ${this.stats.ip}:${this.stats.port}`);
-        const cubeMeta = [];
+        const regularCubeMeta: CubeMeta[] = [];
+        const mucMeta = [];
 
         let offset = NetConstants.COUNT_SIZE;
         for (let i = 0; i < hashCount; i++) {
@@ -287,16 +289,38 @@ export class NetworkPeer extends EventEmitter {
             offset += NetConstants.TIMESTAMP_SIZE;
             const hash = data.slice(offset, offset + NetConstants.CUBE_KEY_SIZE);
             offset += NetConstants.CUBE_KEY_SIZE;
-
-            cubeMeta.push({
-                hash: hash,
-                timestamp: timestamp,
+            const incomingCubeMeta: CubeMeta = {
+                key: hash,
+                date: timestamp,
                 challengeLevel: challengeLevel,
                 cubeType: cubeType
-            });
+            }
+
+            if (cubeType === CubeType.CUBE_TYPE_REGULAR) {
+                regularCubeMeta.push(incomingCubeMeta);
+            } else if (cubeType === CubeType.CUBE_TYPE_MUC) {
+                mucMeta.push(incomingCubeMeta);
+            }
         }
-        // For each hash not in cube storage, request the cube
-        const missingHashes: Buffer[] = cubeMeta.filter(detail => !this.storage.hasCube(detail.hash)).map(detail => detail.hash);
+        // For each regular hash not in cube storage, request the cube
+        const missingHashes: Buffer[] = regularCubeMeta.filter(detail => !this.storage.hasCube(detail.key)).map(detail => detail.key);
+        for (const muc of mucMeta) {
+            // Request any MUC not in cube storage
+            if (!this.storage.hasCube(muc.key)) {
+                missingHashes.push(muc.key);
+            } else {
+                // For each MUC in cube storage, identify winner and request if necessary
+                const storedCube: CubeMeta = this.storage.getCubeInfo(muc.key);
+                const winningCube: CubeMeta = cubeContest(storedCube, muc);
+                if (winningCube === storedCube) {
+                    logger.trace('CubeStorage: Keeping stored MUC, not requesting offered MUC');
+                } else {
+                    logger.trace('CubeStorage: Replacing stored MUC, requesting updated MUC');
+                    missingHashes.push(muc.key);
+                }
+            }
+        }
+
         if (missingHashes.length > 0) {
             this.sendCubeRequest(missingHashes);
         }

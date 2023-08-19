@@ -5,7 +5,7 @@ import { PeerDB, Peer } from './peerDB';
 import { logger } from './logger';
 import { Cube } from './cube';
 import { vera } from './vera';
-import sodium from 'libsodium-wrappers'
+import sodium, { KeyPair } from 'libsodium-wrappers'
 import { FieldType, Field } from './fieldProcessing';
 import { EventEmitter } from 'events';
 import { NetworkPeer } from "./networkPeer";
@@ -29,8 +29,10 @@ export class fullNode {
     networkManager: NetworkManager;
     onlinePromise: any = undefined;
     shutdownPromise: any = undefined;
+    keyPair: KeyPair;
+    mucUpdateCounter: number = 0;
 
-    constructor(){
+    constructor() {
         let initialPeers = [
             "verity.hahn.mt:1984",
             // "verity.hahn.mt:1985",
@@ -38,6 +40,8 @@ export class fullNode {
             // "132.145.174.233:1984",
             // "158.101.100.95:1984",
         ];
+
+        this.keyPair = sodium.crypto_sign_keypair();
         if (isNode) {
             if (process.argv[2]) this.port = Number(process.argv[2]);
             if (process.argv[3]) initialPeers = [process.argv[3]];
@@ -50,7 +54,7 @@ export class fullNode {
         this.networkManager = new NetworkManager(this.port, this.cubeStore, this.peerDB, announceToTorrentTrackers);
 
         if (initialPeers) {
-            for (let i=0; i<initialPeers.length; i++) {
+            for (let i = 0; i < initialPeers.length; i++) {
                 logger.info(`Adding initial peer ${initialPeers[i]}.`);
                 const [initialPeerIp, initialPeerPort] = initialPeers[i].split(':');
                 if (!initialPeerIp || !initialPeerPort) {
@@ -80,24 +84,29 @@ export class fullNode {
             process.stdin.on('keypress', async (str, key) => {
                 if (key && key.ctrl && key.name == 'c') process.exit();
                 if (str === 's') logger.info('\n' + this.networkManager.prettyPrintStats());
-                if ( str === 'm' ) this.makeNewMuc();
+                if (str === 'm') this.updateMuc();
                 if (str === 'c') this.makeNewCube();
             });
         }
     }
 
-    public async makeNewMuc() {
-        const keyPair = sodium.crypto_sign_keypair();
-        const publicKey: Buffer = Buffer.from(keyPair.publicKey);
-        const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+    public async updateMuc() {
+        const publicKey: Buffer = Buffer.from(this.keyPair.publicKey);
+        const privateKey: Buffer = Buffer.from(this.keyPair.privateKey);
         let muc = new Cube();
+
         muc.setCryptoKeys(publicKey, privateKey);
+        // buffer from number BE 32bit
+        const messageBuffer: Buffer = Buffer.alloc(4);
+        messageBuffer.writeUInt32BE(this.mucUpdateCounter);
+        this.mucUpdateCounter++;
 
         const fields = [
             { type: FieldType.TYPE_SMART_CUBE | 0b00, length: 0, value: Buffer.alloc(0) },
             { type: FieldType.TYPE_PUBLIC_KEY, length: 32, value: publicKey },
             { type: FieldType.PAYLOAD, length: 9, value: Buffer.from("Hello MUC", 'utf8') },
-            { type: FieldType.PADDING_NONCE, length: 898, value: Buffer.alloc(898) },
+            { type: FieldType.PAYLOAD, length: 4, value: messageBuffer },
+            { type: FieldType.PADDING_NONCE, length: 892, value: Buffer.alloc(892) },
             { type: FieldType.TYPE_SIGNATURE, length: 72, value: Buffer.alloc(72) }
         ];
 
@@ -126,6 +135,7 @@ declare var node: fullNode;
 async function main() {
     console.log("\x1b[36m" + vera + "\x1b[0m");
     logger.info('Starting full node');
+    await sodium.ready;
     global.node = new fullNode()
     if (isBrowser) {
         window.global = global

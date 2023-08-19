@@ -56,7 +56,7 @@ describe('annotationEngine', () => {
     expect(callback).not.toHaveBeenCalled();
   }, 5000);
 
-  it('should mark replies as displayable only once all preceding posts has been received', async() => {
+  it('should mark replies as displayable only once all preceding posts has been received', async () => {
     const root: Cube = new Cube();
     const payloadfield: fp.Field = fp.Field.Payload(Buffer.alloc(200));
     root.setFields([payloadfield]);

@@ -4,7 +4,6 @@ import * as fp from './fieldProcessing';
 
 export interface CubeMeta {
   key: Buffer;
-  binaryCube: Buffer;
   cubeType: number;
   date: number;
   challengeLevel: number;
@@ -58,16 +57,16 @@ export class CubeInfo {
   private objectCache: WeakRef<Cube> = undefined;
 
   constructor(
-          key: Buffer, binaryCube?: Buffer, cubeType?: number,
-          date?: number,  challengeLevel?: number) {
-      this.key = key;
-      this.binaryCube = binaryCube;
-      this.cubeType = cubeType;
-      this.date = date;
-      this.challengeLevel = challengeLevel;
+    key: Buffer, binaryCube?: Buffer, cubeType?: number,
+    date?: number, challengeLevel?: number) {
+    this.key = key;
+    this.binaryCube = binaryCube;
+    this.cubeType = cubeType;
+    this.date = date;
+    this.challengeLevel = challengeLevel;
   }
 
-  isComplete(): boolean { return this.binaryCube? true : false }
+  isComplete(): boolean { return this.binaryCube ? true : false }
 
   instantiate(): Cube | undefined {
     if (!this.isComplete()) return undefined; // nope, no cube available yet
@@ -89,18 +88,18 @@ export class CubeInfo {
 
   // TODO: use fp.getRelationships for that
   getReverseRelationships(
-        type?: fp.RelationshipType,
-        remoteKey?: Buffer)
-    :Array<fp.Relationship> {
-      let ret = [];
-      for (const reverseRelationship of this.reverseRelationships) {
-        if (
-          (!type || type == reverseRelationship.type) &&
-          (!remoteKey) || remoteKey == reverseRelationship.remoteKey ) {
-            ret.push(reverseRelationship);
-          }
+    type?: fp.RelationshipType,
+    remoteKey?: Buffer)
+    : Array<fp.Relationship> {
+    let ret = [];
+    for (const reverseRelationship of this.reverseRelationships) {
+      if (
+        (!type || type == reverseRelationship.type) &&
+        (!remoteKey) || remoteKey == reverseRelationship.remoteKey) {
+        ret.push(reverseRelationship);
       }
-      return ret;
     }
+    return ret;
+  }
 
 }

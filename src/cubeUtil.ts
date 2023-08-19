@@ -2,9 +2,23 @@
 import { Buffer } from 'buffer';
 import { sha3_256 } from 'js-sha3';
 import { Cube } from './cube';
+import { CubeMeta } from './cubeInfo';
 import { logger } from './logger';
 
-export function cubeLifetime(d1: number, d2: number, c1: number, c2: number, x: number): number {
+/*
+ * Calculate the lifetime of a cube based on the hashcash challenge level x.
+ *
+ * Parameters:
+ *   x (int): Hashcash challenge level
+ *   d1 (int): Lower bound for the cube lifetime
+ *   d2 (int): Upper bound for the cube lifetime
+ *   c1 (int): Lower bound for the hashcash challenge level
+ *   c2 (int): Upper bound for the hashcash challenge level
+ *  
+ * Returns:
+ *  float: Cube lifetime
+ */
+export function cubeLifetime(x: number, d1: number = 7, d2: number = 28, c1: number = 12, c2: number = 20): number {
     // Calculate the base-2 logarithms
     let log2_c1 = Math.log2(c1);
     let log2_c2 = Math.log2(c2);
@@ -14,6 +28,22 @@ export function cubeLifetime(d1: number, d2: number, c1: number, c2: number, x: 
     let days = ((d1 - d2) * log2_x / (log2_c1 - log2_c2)) + ((d1 * log2_c2 - d2 * log2_c1) / (log2_c2 - log2_c1));
 
     return days;
+}
+
+export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMeta {
+    // Calculate the expiration date of each cube
+    const expirationA = localCube.date + (cubeLifetime(localCube.challengeLevel) * 24 * 3600 * 1000); // convert days to milliseconds
+    const expirationB = incomingCube.date + (cubeLifetime(incomingCube.challengeLevel) * 24 * 3600 * 1000);
+
+    // Resolve the conflict based on expiration dates
+    if (expirationA > expirationB) {
+        return localCube;
+    } else if (expirationB > expirationA) {
+        return incomingCube;
+    } else {
+        logger.trace(`cubeUtil: Two Cubes with the key ${localCube.key.toString('hex')} have the same expiration date, local wins.`);
+        return localCube;
+    }
 }
 
 export function calculateHash(data: Buffer): Buffer {
