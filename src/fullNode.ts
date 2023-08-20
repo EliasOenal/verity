@@ -96,17 +96,19 @@ export class fullNode {
         let muc = new Cube();
 
         muc.setCryptoKeys(publicKey, privateKey);
-        // buffer from number BE 32bit
-        const messageBuffer: Buffer = Buffer.alloc(4);
-        messageBuffer.writeUInt32BE(this.mucUpdateCounter);
+        let counterBuffer: Buffer = Buffer.alloc(8);
+        // write counter to buffer in ascii text
+        counterBuffer.write(this.mucUpdateCounter.toString(), 0, 8, 'ascii');
+        // concat buffer with message
+        const messageBuffer = Buffer.concat([Buffer.from("Hello MUC: ", 'utf8'), counterBuffer]);
         this.mucUpdateCounter++;
+
 
         const fields = new Fields([
             new Field(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
             new Field(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
-            new Field(FieldType.PAYLOAD, 9, Buffer.from("Hello MUC", 'utf8')),
-            new Field(FieldType.PAYLOAD, 4, messageBuffer),
-            new Field(FieldType.PADDING_NONCE, 892, Buffer.alloc(892)),
+            new Field(FieldType.PAYLOAD, 19, messageBuffer),
+            new Field(FieldType.PADDING_NONCE, 888, Buffer.alloc(888)),
             new Field(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
         ]);
 
