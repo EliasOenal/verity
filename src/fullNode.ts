@@ -1,15 +1,15 @@
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
-import { NetworkManager } from './networkManager';
-import { CubeStore } from './cubeStore';
-import { PeerDB, Peer } from './peerDB';
-import { logger } from './logger';
-import { Cube } from './cube';
-import { vera } from './vera';
+import { NetworkManager } from './model/networkManager';
+import { CubeStore } from './model/cubeStore';
+import { PeerDB, Peer } from './model/peerDB';
+import { logger } from './model/logger';
+import { Cube } from './model/cube';
+import { vera } from './misc/vera';
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { FieldType, Field, Fields } from './fieldProcessing';
+import { FieldType, Field, Fields } from './model/fieldProcessing';
 import { EventEmitter } from 'events';
-import { NetworkPeer } from "./networkPeer";
-import * as fp from './fieldProcessing';
+import { NetworkPeer } from "./model/networkPeer";
+import * as fp from './model/fieldProcessing';
 import { Buffer } from 'buffer';
 
 var readline: any;
@@ -138,7 +138,8 @@ async function main() {
     await sodium.ready;
     global.node = new fullNode()
     if (isBrowser) {
-        window.global = global
+        // @ts-ignore
+        window.webmain();
     }
 
     await node.onlinePromise;
@@ -147,4 +148,7 @@ async function main() {
     await node.shutdownPromise;
 }
 
+if (isBrowser) {
+    window.global = global;
+}
 main();

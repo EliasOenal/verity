@@ -173,6 +173,10 @@ export class CubeStore extends EventEmitter {
     return ret;
   }
 
+  getAllCubeInfo(): IterableIterator<CubeInfo> {
+    return this.storage.values();
+  }
+
   // This gets called once a persistence object is ready.
   // We will then proceed to store all of our cubes into it,
   // and load all cubes from it.
