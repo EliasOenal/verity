@@ -312,10 +312,7 @@ export class NetworkPeer extends EventEmitter {
                 // For each MUC in cube storage, identify winner and request if necessary
                 const storedCube: CubeMeta = this.storage.getCubeInfo(muc.key);
                 const winningCube: CubeMeta = cubeContest(storedCube, muc);
-                if (winningCube === storedCube) {
-                    logger.trace('CubeStorage: Keeping stored MUC, not requesting offered MUC');
-                } else {
-                    logger.trace('CubeStorage: Replacing stored MUC, requesting updated MUC');
+                if (winningCube !== storedCube) {
                     missingHashes.push(muc.key);
                 }
             }

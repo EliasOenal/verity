@@ -30,7 +30,7 @@ export const FIELD_LENGTHS: { [key: number]: number | undefined } = {
 export enum CubeType {
     CUBE_TYPE_REGULAR = 0xFF,
     CUBE_TYPE_MUC = 0x00,
-    CUBE_TYPE_IPB = 0x01,
+    CUBE_TYPE_IPC = 0x01,
     CUBE_TYPE_RESERVED = 0x02,
     CUBE_TYPE_RESERVED2 = 0x03,
 }
