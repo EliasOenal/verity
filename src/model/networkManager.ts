@@ -15,7 +15,7 @@ if (isBrowser || isWebWorker) {
     var crypto = window.crypto;
 } else {
     // @ts-ignore
-    var crypto = require('crypto');
+    var crypto = require('crypto').webcrypto;
 }
 /**
  * Class representing a network manager, responsible for handling incoming and outgoing connections.
