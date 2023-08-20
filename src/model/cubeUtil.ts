@@ -4,6 +4,7 @@ import { sha3_256 } from 'js-sha3';
 import { Cube } from './cube';
 import { CubeMeta } from './cubeInfo';
 import { logger } from './logger';
+import { CubeType } from './fieldProcessing';
 
 /*
  * Calculate the lifetime of a cube based on the hashcash challenge level x.
@@ -31,18 +32,33 @@ export function cubeLifetime(x: number, d1: number = 7, d2: number = 28, c1: num
 }
 
 export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMeta {
-    // Calculate the expiration date of each cube
-    const expirationA = localCube.date + (cubeLifetime(localCube.challengeLevel) * 24 * 3600);
-    const expirationB = incomingCube.date + (cubeLifetime(incomingCube.challengeLevel) * 24 * 3600);
+    switch (localCube.cubeType) {
+        case CubeType.CUBE_TYPE_REGULAR:
+            throw new Error("cubeUtil: Regular cubes cannot be contested.");
+        case CubeType.CUBE_TYPE_MUC:
+            // For MUCs the most recently minted cube wins. If they tie, the local
+            // cube wins. We expect the owner of the MUC not to cause collisions.
+            // If you do anyway - you brought it upon yourself.
+            if (localCube.date >= incomingCube.date)
+                return localCube;
+            else
+                return incomingCube;
+        case CubeType.CUBE_TYPE_IPC:
+            // Calculate the expiration date of each cube
+            const expirationLocalCube = localCube.date + (cubeLifetime(localCube.challengeLevel) * 24 * 3600);
+            const expirationIncomingCube = incomingCube.date + (cubeLifetime(incomingCube.challengeLevel) * 24 * 3600);
 
-    // Resolve the conflict based on expiration dates
-    if (expirationA > expirationB) {
-        return localCube;
-    } else if (expirationB > expirationA) {
-        return incomingCube;
-    } else {
-        logger.trace(`cubeUtil: Two Cubes with the key ${localCube.key.toString('hex')} have the same expiration date, local wins.`);
-        return localCube;
+            // Resolve the conflict based on expiration dates
+            if (expirationLocalCube > expirationIncomingCube) {
+                return localCube;
+            } else if (expirationIncomingCube > expirationLocalCube) {
+                return incomingCube;
+            } else {
+                logger.trace(`cubeUtil: Two Cubes with the key ${localCube.key.toString('hex')} have the same expiration date, local wins.`);
+                return localCube;
+            }
+        default:
+            throw new Error("cubeUtil: Unknown cube type.");
     }
 }
 
