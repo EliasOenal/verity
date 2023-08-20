@@ -1,3 +1,5 @@
+// TODO: move to viewmodel, weaken strong coupling with CubeStore
+
 import { CubeStore } from './cubeStore';
 import { CubeInfo, CubeMeta } from './cubeInfo'
 import { Cube } from './cube';

@@ -1,7 +1,6 @@
-import { Cube } from './cube';
-import { logger } from './logger';
-import * as fp from './fieldProcessing';
-import { CubeStore as CubeStore } from './cubeStore';
+import { Cube } from '../src/model/cube';
+import * as fp from '../src/model/fieldProcessing';
+import { CubeStore as CubeStore } from '../src/model/cubeStore';
 
 describe('cubeStore', () => {
   let cubeStore: CubeStore;

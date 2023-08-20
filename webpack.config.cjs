@@ -6,7 +6,7 @@ module.exports = {
   target: 'web',
   entry: {
     "fullNode-bundle": './src/fullNode.ts',
-    webuievents: './webui/webuievents.ts'
+    webuievents: './src/webui/webuievents.ts'
   },
   mode: 'development',
   module: {
@@ -53,7 +53,7 @@ module.exports = {
   plugins: [
     new CopyWebpackPlugin({
       patterns: [
-        { from: './webui/index.html' },
+        { from: './src/webui/index.html' },
 	      { from: './img/vera_250px_nobg.png' },
       ]
     }),

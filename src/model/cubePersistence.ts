@@ -43,7 +43,7 @@ export class CubePersistence extends EventEmitter {
     // every damn thing in this language is asynchroneous.
     // Handle the result event some time, maybe... or don't, whatever.
     if (this.db.status != 'open') return;
-    logger.trace("cubePersistent: Storing cube " + key);
+    // logger.trace("cubePersistent: Storing cube " + key);
     return this.db.put(key, rawcube);
   }
 

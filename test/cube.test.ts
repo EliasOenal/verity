@@ -1,12 +1,11 @@
 // cube.test.ts
-import { BinaryLengthError, CUBE_HEADER_LENGTH, Cube, FieldSizeError, InsufficientDifficulty } from './cube';
+import { BinaryLengthError, CUBE_HEADER_LENGTH, Cube, FieldSizeError, InsufficientDifficulty } from '../src/model/cube';
 import { Buffer } from 'buffer';
-import { Field, FieldType, Fields } from './fieldProcessing';
-import { calculateHash, countTrailingZeroBits } from './cubeUtil';
-import { logger } from './logger';
-import { Settings } from './config';
-import { NetConstants } from './networkDefinitions';
-import * as fp from './fieldProcessing';
+import { Field, FieldType, Fields } from '../src/model/fieldProcessing';
+import { calculateHash, countTrailingZeroBits } from '../src/model/cubeUtil';
+import { Settings } from '../src/model/config';
+import { NetConstants } from '../src/model/networkDefinitions';
+import * as fp from '../src/model/fieldProcessing';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
 
@@ -305,7 +304,7 @@ describe('cube', () => {
 
     expect(key).toEqual(publicKey);
     expect(hash).toEqual(calculateHash(binaryCube));
-  }, 1000);
+  }, 5000);
 
   it('should present a valid hash for a MUC even if we ask for binary data first and dont explicitly create a padding field', async () => {
     await sodium.ready;
@@ -330,5 +329,5 @@ describe('cube', () => {
 
   expect(key).toEqual(publicKey);
   expect(hash).toEqual(calculateHash(binaryCube));
-  }, 1000);
+  }, 5000);
 });

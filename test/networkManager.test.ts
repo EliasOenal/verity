@@ -1,11 +1,11 @@
-import { NetworkManager } from './networkManager';
-import { NetworkPeer } from './networkPeer';
-import { CubeStore } from './cubeStore';
+import { NetworkManager } from '../src/model/networkManager';
+import { NetworkPeer } from '../src/model/networkPeer';
+import { CubeStore } from '../src/model/cubeStore';
 import WebSocket from 'isomorphic-ws';
-import { Cube } from './cube';
-import { Field, FieldType, Fields } from './fieldProcessing';
-import { PeerDB, Peer } from './peerDB';
-import { logger } from './logger';
+import { Cube } from '../src/model/cube';
+import { Field, FieldType, Fields } from '../src/model/fieldProcessing';
+import { PeerDB, Peer } from '../src/model/peerDB';
+import { logger } from '../src/model/logger';
 
 describe('networkManager', () => {
 
