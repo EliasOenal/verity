@@ -1,8 +1,8 @@
-import { AnnotationEngine } from '../src/model/annotationEngine';
-import { Cube } from '../src/model/cube';
-import * as fp from '../src/model/fieldProcessing';
-import { CubeStore as CubeStore } from '../src/model/cubeStore';
-import { Fields } from '../src/model/fieldProcessing';
+import { AnnotationEngine } from '../../src/viewmodel/annotationEngine';
+import { Cube } from '../../src/model/cube';
+import * as fp from '../../src/model/fieldProcessing';
+import { CubeStore as CubeStore } from '../../src/model/cubeStore';
+import { Fields } from '../../src/model/fieldProcessing';
 
 describe('annotationEngine', () => {
   let cubeStore: CubeStore;
