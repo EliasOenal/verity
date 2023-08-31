@@ -26,7 +26,7 @@ export class CubePersistence extends EventEmitter {
     this.db.open().then(() => {
       this.emit('ready');
     }).catch((error) => {
-      logger.error("cubePersistence: Could not open indexedDB: " + error);
+      logger.error("cubePersistence: Could not open DB: " + error);
     });
   }
 

@@ -1,10 +1,11 @@
-// TODO: move to viewmodel, weaken strong coupling with CubeStore
+// TODO: weaken coupling with CubeStore, make AnnotationEngine refer to CubeStore
+// instead of the other way around (model should never depend on viewmodel)
 
-import { CubeStore } from './cubeStore';
-import { CubeInfo, CubeMeta } from './cubeInfo'
-import { Cube } from './cube';
-import { logger } from './logger';
-import * as fp from './fieldProcessing';
+import { CubeStore } from '../model/cubeStore';
+import { CubeInfo, CubeMeta } from '../model/cubeInfo'
+import { Cube } from '../model/cube';
+import { logger } from '../model/logger';
+import * as fp from '../model/fieldProcessing';
 
 import { EventEmitter } from 'events';
 

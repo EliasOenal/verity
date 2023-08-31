@@ -1,4 +1,4 @@
-import { PeerDB, Peer } from '../src/model/peerDB';
+import { PeerDB, Peer } from '../../src/model/peerDB';
 
 describe('announce', () => {
     it.skip('should get peers from multiple trackers', async () => {

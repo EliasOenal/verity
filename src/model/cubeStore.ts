@@ -1,4 +1,3 @@
-import { AnnotationEngine } from './annotationEngine';
 import { Cube } from './cube';
 import { CubeInfo, CubeMeta } from './cubeInfo'
 import { logger } from './logger';
@@ -9,6 +8,10 @@ import { Settings } from './config';
 import { NetConstants } from './networkDefinitions';
 import { CubeType } from './fieldProcessing';
 import { cubeContest } from './cubeUtil';
+
+// TODO: reverse this relationship to loosen the coupling;
+// model should never depend on viewmodel
+import { AnnotationEngine } from '../viewmodel/annotationEngine';
 
 export class CubeStore extends EventEmitter {
   private storage: Map<string, CubeInfo> = new Map();

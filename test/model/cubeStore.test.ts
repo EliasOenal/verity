@@ -1,8 +1,8 @@
-import { Cube } from '../src/model/cube';
-import * as fp from '../src/model/fieldProcessing';
-import { CubeStore as CubeStore } from '../src/model/cubeStore';
+import { Cube } from '../../src/model/cube';
+import * as fp from '../../src/model/fieldProcessing';
+import { CubeStore as CubeStore } from '../../src/model/cubeStore';
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { Field, FieldType, Fields } from '../src/model/fieldProcessing';
+import { Field, FieldType, Fields } from '../../src/model/fieldProcessing';
 
 describe('cubeStore', () => {
   let cubeStore: CubeStore;
