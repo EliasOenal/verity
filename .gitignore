@@ -9,6 +9,9 @@ coverage/
 # Private scripts
 deployweb.sh
 
+# "Compiled" documentation
+verity.pdf
+
 # macOS
 .DS_Store
 .AppleDouble
