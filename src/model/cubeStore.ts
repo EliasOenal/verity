@@ -146,7 +146,7 @@ export class CubeStore extends EventEmitter {
   }
 
   getAllStoredCubeKeys(): Set<Buffer> {
-    let ret: Set<Buffer> = new Set();
+    const ret: Set<Buffer> = new Set();
     for (const [key, cubeInfo] of this.storage) {
       if (cubeInfo.isComplete()) {  // if we actually have this cube
         ret.add(cubeInfo.key);
@@ -156,7 +156,7 @@ export class CubeStore extends EventEmitter {
   }
 
   getAllStoredCubeMeta(): Set<CubeMeta> {
-    let ret: Set<CubeMeta> = new Set();
+    const ret: Set<CubeMeta> = new Set();
     for (const [key, cubeInfo] of this.storage) {
       if (cubeInfo.isComplete()) {  // if we actually have this cube
         ret.add(cubeInfo);

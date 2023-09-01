@@ -14,31 +14,31 @@ if (isNode) {
   class DummyLogger {
     private loglevel: number = 5;
 
-    public trace(message: String) {
+    public trace(message: string) {
       if (this.loglevel >= 5) {
         console.debug(message);
       }
     }
 
-    public debug(message: String) {
+    public debug(message: string) {
       if (this.loglevel >= 4) {
         console.debug(message);
       }
     }
 
-    public info(message: String) {
+    public info(message: string) {
       if (this.loglevel >= 3) {
         console.info(message);
       }
     }
 
-    public warn(message: String) {
+    public warn(message: string) {
       if (this.loglevel >= 2) {
         console.warn(message);
       }
     }
 
-    public error(message: String) {
+    public error(message: string) {
       if (this.loglevel >= 1) {
         console.error(message);
       }

@@ -16,8 +16,8 @@ async function main() {
     console.log("\x1b[36m" + vera + "\x1b[0m");
     logger.info('Starting light client');
 
-    let initialPeer = process.argv[2];
-    let payloadString = process.argv[3];
+    const initialPeer = process.argv[2];
+    const payloadString = process.argv[3];
 
     if (!initialPeer) {
         console.error('An initial peer must be specified as a command line argument.');
@@ -64,8 +64,8 @@ async function main() {
         }
 
         if (str === 'c') {
-            let cube = new Cube();
-            let buffer = Buffer.alloc(4);
+            const cube = new Cube();
+            const buffer = Buffer.alloc(4);
             // random buffer
             buffer.writeUInt32BE(Math.floor(Math.random() * 1000000));
             cube.setFields(new Fields([

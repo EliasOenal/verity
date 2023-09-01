@@ -7,7 +7,7 @@ if (parentPort === null || workerData === null) {
 }
 
 let nonce = 0;
-let binaryData = Buffer.from(workerData.binaryData);  // Create a Buffer from the transferred ArrayBuffer
+const binaryData = Buffer.from(workerData.binaryData);  // Create a Buffer from the transferred ArrayBuffer
 
 function countTrailingZeroBits(buffer: Buffer): number {
     let count = 0;
@@ -44,7 +44,7 @@ async function checkHash() {
     } while (countTrailingZeroBits(hash) < workerData.requiredDifficulty)
     parentPort?.postMessage({ hash: hash, binaryData: Buffer.from(binaryData) });
     return;
-};
+}
 
 // Start the hash checking
 checkHash();

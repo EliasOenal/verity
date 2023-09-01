@@ -21,12 +21,12 @@ import { CubeType } from './fieldProcessing';
  */
 export function cubeLifetime(x: number, d1: number = 7, d2: number = 28, c1: number = 12, c2: number = 20): number {
     // Calculate the base-2 logarithms
-    let log2_c1 = Math.log2(c1);
-    let log2_c2 = Math.log2(c2);
-    let log2_x = Math.log2(x);
+    const log2_c1 = Math.log2(c1);
+    const log2_c2 = Math.log2(c2);
+    const log2_x = Math.log2(x);
 
     // Calculate the number of days the cube lives
-    let days = ((d1 - d2) * log2_x / (log2_c1 - log2_c2)) + ((d1 * log2_c2 - d2 * log2_c1) / (log2_c2 - log2_c1));
+    const days = ((d1 - d2) * log2_x / (log2_c1 - log2_c2)) + ((d1 * log2_c2 - d2 * log2_c1) / (log2_c2 - log2_c1));
 
     return days;
 }
@@ -93,7 +93,7 @@ export async function printCubeInfo(cube: Cube) {
     console.log("Version: " + cube.getVersion());
     console.log("Date: " + cube.getDate());
     console.log("Fields: ");
-    for (let field of cube.getFields().data) {
+    for (const field of cube.getFields().data) {
         console.log("    Type: " + field.type);
         console.log("    Length: " + field.length);
         //console.log("    Value: " + field.value.toString('hex'));

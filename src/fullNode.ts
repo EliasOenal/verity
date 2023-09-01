@@ -12,7 +12,7 @@ import { vera } from './misc/vera';
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer';
 
-var readline: any;
+let readline: any;
 if (isNode) {
     readline = require('readline');
 }
@@ -97,10 +97,10 @@ export class fullNode {
     public async updateMuc() {
         const publicKey: Buffer = Buffer.from(this.keyPair.publicKey);
         const privateKey: Buffer = Buffer.from(this.keyPair.privateKey);
-        let muc = new Cube();
+        const muc = new Cube();
 
         muc.setCryptoKeys(publicKey, privateKey);
-        let counterBuffer: Buffer = Buffer.alloc(8);
+        const counterBuffer: Buffer = Buffer.alloc(8);
         // write counter to buffer in ascii text
         counterBuffer.write(this.mucUpdateCounter.toString(), 0, 8, 'ascii');
         // concat buffer with message
@@ -121,9 +121,9 @@ export class fullNode {
     }
 
     public async makeNewCube(message: string = "Hello Verity", replyto?: string) {
-        let cube = new Cube();
+        const cube = new Cube();
         const messagebuffer: Buffer = Buffer.from(message, 'utf8');
-        let cubefields: Fields = new Fields(Field.Payload(messagebuffer));
+        const cubefields: Fields = new Fields(Field.Payload(messagebuffer));
 
         if (replyto) {
             cubefields.data.push(Field.RelatesTo(
@@ -136,7 +136,7 @@ export class fullNode {
     }
 }
 
-declare var node: fullNode;
+declare let node: fullNode;
 
 async function main() {
     console.log("\x1b[36m" + vera + "\x1b[0m");

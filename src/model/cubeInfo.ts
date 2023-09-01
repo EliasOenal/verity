@@ -85,7 +85,7 @@ export class CubeInfo {
     }
 
     // Nope, no Cube object cached. Create a new one and remember it.
-    let cube = new Cube(this.binaryCube);
+    const cube = new Cube(this.binaryCube);
     this.objectCache = new WeakRef(cube);
     return cube;
   }
@@ -95,7 +95,7 @@ export class CubeInfo {
     type?: fp.RelationshipType,
     remoteKey?: Buffer)
     : Array<fp.Relationship> {
-    let ret = [];
+    const ret = [];
     for (const reverseRelationship of this.reverseRelationships) {
       if (
         (!type || type == reverseRelationship.type) &&
