@@ -2,6 +2,10 @@ import { Cube } from './cube'
 import { logger } from './logger';
 import * as fp from './fieldProcessing';
 
+/**
+ * @interface CubeMeta is a restricted view on CubeInfo containing metadata only.
+ *            Basically, it's the CubeInfo without the actual Cube :)
+*/
 export interface CubeMeta {
   key: Buffer;
   cubeType: number;

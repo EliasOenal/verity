@@ -13,6 +13,8 @@ import { Buffer } from 'buffer';
 
 export const CUBE_HEADER_LENGTH: number = 6;
 
+export class CubeKey extends Buffer {}  // semantic typedef, TODO use this everywhere
+
 export class Cube {
     private version: number;
     private reservedBits: number;
@@ -23,7 +25,7 @@ export class Cube {
     private privateKey: Buffer | undefined;
     private publicKey: Buffer | undefined;
     private cubeType: number | undefined;
-    private cubeKey: Buffer | undefined;
+    private cubeKey: CubeKey | undefined;
 
     constructor(binaryData?: Buffer) {
         if (binaryData && binaryData.length !== NetConstants.CUBE_SIZE) {
