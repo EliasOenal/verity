@@ -63,9 +63,9 @@ describe('networkManager', () => {
 
     test('sync cubes between three nodes', async () => {
         const numberOfCubes = 10;
-        let cubeStore = new CubeStore(false, false);  // no persistence, no annotations
-        let cubeStore2 = new CubeStore(false, false);
-        let cubeStore3 = new CubeStore(false, false);
+        let cubeStore = new CubeStore(false);  // no persistence
+        let cubeStore2 = new CubeStore(false);
+        let cubeStore3 = new CubeStore(false);
         let manager1 = new NetworkManager(4000, cubeStore, new PeerDB(), false, false);
         let manager2 = new NetworkManager(4001, cubeStore2, new PeerDB(), false, false);
         let manager3 = new NetworkManager(4002, cubeStore3, new PeerDB(), false, false);

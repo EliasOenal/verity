@@ -42,7 +42,7 @@ window.global.makeRandomCubes = makeRandomCubes;
 
 function redisplayCubes() {
     for (const cubeInfo of window.global.node.cubeStore.getAllCubeInfo()) {
-        if (window.global.node.cubeStore.annotationEngine.isCubeDisplayable(cubeInfo.key)) {
+        if (window.global.node.annotationEngine.isCubeDisplayable(cubeInfo.key)) {
             displayCube(cubeInfo.key);
         }
     }
@@ -173,7 +173,7 @@ function webmain() {
     window.global.node.networkManager.on('shutdown', (peer) => redisplayPeers()) // list peers
 
     redisplayCubes();
-    window.global.node.cubeStore.annotationEngine.on('cubeDisplayable', (binaryKey) => displayCube(binaryKey)) // list cubes
+    window.global.node.annotationEngine.on('cubeDisplayable', (binaryKey) => displayCube(binaryKey)) // list cubes
 }
 // @ts-ignore
 window.webmain = webmain;

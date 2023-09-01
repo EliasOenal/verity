@@ -1,15 +1,15 @@
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
+
 import { NetworkManager } from './model/networkManager';
-import { CubeStore } from './model/cubeStore';
-import { PeerDB, Peer } from './model/peerDB';
-import { logger } from './model/logger';
 import { Cube } from './model/cube';
+import { CubeStore } from './model/cubeStore';
+import { FieldType, Field, Fields, Relationship, RelationshipType } from './model/fieldProcessing';
+import { PeerDB, Peer } from './model/peerDB';
+import { AnnotationEngine } from "./viewmodel/annotationEngine";
+import { logger } from './model/logger';
 import { vera } from './misc/vera';
+
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { FieldType, Field, Fields } from './model/fieldProcessing';
-import { EventEmitter } from 'events';
-import { NetworkPeer } from "./model/networkPeer";
-import * as fp from './model/fieldProcessing';
 import { Buffer } from 'buffer';
 
 var readline: any;
@@ -23,13 +23,17 @@ function delay(time: number) {
 
 
 export class fullNode {
-    port: number = 1984;
     cubeStore: CubeStore = new CubeStore();
     peerDB: PeerDB = new PeerDB();
     networkManager: NetworkManager;
+    annotationEngine: AnnotationEngine = new AnnotationEngine(this.cubeStore);
+
+    port: number = 1984;
+    keyPair: KeyPair;
+
     onlinePromise: any = undefined;
     shutdownPromise: any = undefined;
-    keyPair: KeyPair;
+
     mucUpdateCounter: number = 0;
 
     constructor() {
@@ -119,11 +123,11 @@ export class fullNode {
     public async makeNewCube(message: string = "Hello Verity", replyto?: string) {
         let cube = new Cube();
         const messagebuffer: Buffer = Buffer.from(message, 'utf8');
-        let cubefields: Fields = new Fields(fp.Field.Payload(messagebuffer));
+        let cubefields: Fields = new Fields(Field.Payload(messagebuffer));
 
         if (replyto) {
-            cubefields.data.push(fp.Field.RelatesTo(
-                new fp.Relationship(fp.RelationshipType.REPLY_TO, Buffer.from(
+            cubefields.data.push(Field.RelatesTo(
+                new Relationship(RelationshipType.REPLY_TO, Buffer.from(
                     replyto, 'hex'))));
         }
 

@@ -9,27 +9,16 @@ import { NetConstants } from './networkDefinitions';
 import { CubeType } from './fieldProcessing';
 import { cubeContest } from './cubeUtil';
 
-// TODO: reverse this relationship to loosen the coupling;
-// model should never depend on viewmodel
-import { AnnotationEngine } from '../viewmodel/annotationEngine';
-
 export class CubeStore extends EventEmitter {
   private storage: Map<string, CubeInfo> = new Map();
 
   // Refers to the persistant cube storage database, if available and enabled
   private persistence: CubePersistence = undefined;
 
-  // If enabled, automatically generate reverse relationship annotations for each cube
-  annotationEngine: AnnotationEngine = undefined;
-
   constructor(
-    enable_persistence: boolean = true,
-    auto_annotations: boolean = true) {
+    enable_persistence: boolean = true) {
     super();
     this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS + 10);  // one for each peer and a few for ourselves
-    if (auto_annotations) {
-      this.annotationEngine = new AnnotationEngine(this);
-    }
     if (enable_persistence) {
       this.persistence = new CubePersistence();
 
