@@ -1,7 +1,9 @@
 # .gitignore
 
-# Cube DB
+# Verity databases
 cubes.db*
+identity.db*
+testidentity.db*
 
 # Test artifacts
 coverage/
