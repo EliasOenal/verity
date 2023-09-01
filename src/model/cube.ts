@@ -46,7 +46,7 @@ export class Cube {
         } else {
             this.binaryData = binaryData;
             this.hash = CubeUtil.calculateHash(binaryData);
-            let verified = this.verifyCubeDifficulty();
+            const verified = this.verifyCubeDifficulty();
             if (!verified) {
                 logger.error('Cube does not meet difficulty requirements');
                 throw new InsufficientDifficulty("Cube does not meet difficulty requirements");
@@ -126,7 +126,7 @@ export class Cube {
         // verify all fields together are less than 1024 bytes,
         // and there's still enough space left for the hashcash
         let totalLength = CUBE_HEADER_LENGTH;
-        for (let field of this.fields.data) {
+        for (const field of this.fields.data) {
             totalLength += field.length;
             totalLength += fp.getFieldHeaderLength(field.type);
         }
@@ -154,7 +154,7 @@ export class Cube {
             }
             // Pad with random padding nonce to reach 1024 bytes
             const num_alloc = NetConstants.CUBE_SIZE - totalLength - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE);
-            let random_bytes = new Uint8Array(num_alloc);
+            const random_bytes = new Uint8Array(num_alloc);
             for (let i = 0; i < num_alloc; i++) random_bytes[i] = Math.floor(Math.random() * 256);
 
             // Is there a signature field? If so, add the padding *before* the signature.
@@ -219,7 +219,7 @@ export class Cube {
 
     // Verify fingerprint. This applies to smart cubes only.
     private static verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
-        let calculatedFingerprint = CubeUtil.calculateHash(publicKeyValue).slice(0, 8);  // First 8 bytes of signature field
+        const calculatedFingerprint = CubeUtil.calculateHash(publicKeyValue).slice(0, 8);  // First 8 bytes of signature field
 
         if (!calculatedFingerprint.equals(providedFingerprint)) {
             logger.error('Cube: Fingerprint does not match');
@@ -233,7 +233,7 @@ export class Cube {
         const signature = new Uint8Array(signatureValue);
         const publicKey = new Uint8Array(publicKeyValue);
 
-        let isSignatureValid = sodium.crypto_sign_verify_detached(signature, data, publicKey);
+        const isSignatureValid = sodium.crypto_sign_verify_detached(signature, data, publicKey);
 
         if (!isSignatureValid) {
             logger.error('Cube: Invalid signature');
@@ -342,9 +342,9 @@ export class Cube {
             if (publicKey && signature) {
                 if (binaryData) {
                     // Extract the public key, signature values and provided fingerprint
-                    let publicKeyValue = publicKey.value;
-                    let providedFingerprint = signature.value.slice(0, 8); // First 8 bytes of signature field
-                    let signatureValue = signature.value.slice(8); // Remaining bytes are the actual signature
+                    const publicKeyValue = publicKey.value;
+                    const providedFingerprint = signature.value.slice(0, 8); // First 8 bytes of signature field
+                    const signatureValue = signature.value.slice(8); // Remaining bytes are the actual signature
 
                     // Verify the fingerprint
                     Cube.verifyFingerprint(publicKeyValue, providedFingerprint);
@@ -353,7 +353,7 @@ export class Cube {
                     // It includes all bytes of the cube from the start up to and including
                     // the type byte of the signature field and the fingerprint.
                     // From start of cube up to the signature itself
-                    let dataToVerify = binaryData.slice(0, signature.start
+                    const dataToVerify = binaryData.slice(0, signature.start
                         + fp.getFieldHeaderLength(fp.FieldType.TYPE_SIGNATURE) + NetConstants.FINGERPRINT_SIZE);
 
                     // Verify the signature

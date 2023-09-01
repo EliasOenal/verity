@@ -2,10 +2,10 @@ import { PeerDB, Peer } from '../../src/model/peerDB';
 
 describe('announce', () => {
     it.skip('should get peers from multiple trackers', async () => {
-        let peerDB: PeerDB = new PeerDB();
+        const peerDB: PeerDB = new PeerDB();
 
         // Array to hold new peers received from trackers
-        let newPeers: Peer[] = [];
+        const newPeers: Peer[] = [];
 
         // Listen for 'newPeer' event
         peerDB.on('newPeer', (peer: Peer) => {

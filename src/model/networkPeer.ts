@@ -87,7 +87,7 @@ export class NetworkPeer extends EventEmitter {
             if (isNode) {
                 this.handleMessage(Buffer.from(event.data as Buffer));
             } else {
-                var blob: Blob = event.data as unknown as Blob;
+                const blob: Blob = event.data as unknown as Blob;
                 blob.arrayBuffer().then((value) => {
                     this.handleMessage(Buffer.from(value));
                 });
@@ -120,7 +120,7 @@ export class NetworkPeer extends EventEmitter {
     logRxStats(message: Buffer, messageType: MessageClass) {
         this.stats.rx.totalPackets++;
         this.stats.rx.totalBytes += message.length;
-        let packetTypeStats = this.stats.rx.packetTypes[messageType] || { count: 0, bytes: 0 };
+        const packetTypeStats = this.stats.rx.packetTypes[messageType] || { count: 0, bytes: 0 };
         packetTypeStats.count++;
         packetTypeStats.bytes += message.length;
         this.stats.rx.packetTypes[messageType] = packetTypeStats;
@@ -129,7 +129,7 @@ export class NetworkPeer extends EventEmitter {
     logTxStats(message: Buffer, messageType: MessageClass) {
         this.stats.tx.totalPackets++;
         this.stats.tx.totalBytes += message.length;
-        let packetTypeStats = this.stats.tx.packetTypes[messageType] || { count: 0, bytes: 0 };
+        const packetTypeStats = this.stats.tx.packetTypes[messageType] || { count: 0, bytes: 0 };
         packetTypeStats.count++;
         packetTypeStats.bytes += message.length;
         this.stats.tx.packetTypes[messageType] = packetTypeStats;
@@ -225,8 +225,8 @@ export class NetworkPeer extends EventEmitter {
      */
     handleHashRequest() {
         // Send MAX_CUBE_HASH_COUNT unsent hashes from unsentHashes
-        let cubes: CubeMeta[] = [];
-        let iterator: IterableIterator<CubeMeta> = this.unsentCubeMeta.values();
+        const cubes: CubeMeta[] = [];
+        const iterator: IterableIterator<CubeMeta> = this.unsentCubeMeta.values();
         for (let i = 0; i < NetConstants.MAX_CUBE_HASH_COUNT; i++) {
             const result = iterator.next();
             if (result.done) break;  // check if the iterator is exhausted
@@ -373,7 +373,7 @@ export class NetworkPeer extends EventEmitter {
                 NetConstants.COUNT_SIZE + (i + 1) * NetConstants.CUBE_SIZE);
 
             // Add the cube to the CubeStorage
-            let hash = await this.storage.addCube(cubeData);
+            const hash = await this.storage.addCube(cubeData);
             if (!hash) {
                 logger.error(`NetworkPeer: handleCubeResponse: failed to add cube ${hash}`);
                 return;
@@ -415,7 +415,7 @@ export class NetworkPeer extends EventEmitter {
 
     sendNodeRequest() {
         // Determine message length
-        let msgLength = NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE;
+        const msgLength = NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE;
         // Prepare message
         const message = Buffer.alloc(msgLength);
         let offset = 0;
@@ -428,7 +428,7 @@ export class NetworkPeer extends EventEmitter {
     handleNodeRequest() {
         // Send MAX_NODE_ADDRESS_COUNT peer addresses
         // ... do we even know that many?
-        let availablePeers = this.networkManager.getPeerDB().getPeersVerified();
+        const availablePeers = this.networkManager.getPeerDB().getPeersVerified();
         // TODO FIXME: This includes incoming peers, and for incoming peers we only know their client socket.
         // TODO FIXME: Most universally, clients can accept incoming connections on client sockets.
         // TODO FIXME: We should include the server port in the hello message and save it.
@@ -440,9 +440,9 @@ export class NetworkPeer extends EventEmitter {
             numberToSend = availablePeerCount;
         }
         // Select random peers in random order
-        let chosenPeers: Array<Peer> = [];
+        const chosenPeers: Array<Peer> = [];
         for (let i = 0; i < numberToSend; i++) {
-            let rnd = Math.floor(Math.random() * availablePeerCount);
+            const rnd = Math.floor(Math.random() * availablePeerCount);
             chosenPeers.push(availablePeers[rnd]);
             availablePeers.slice(rnd, 1); availablePeerCount--;
         }
@@ -473,7 +473,7 @@ export class NetworkPeer extends EventEmitter {
         const peerCount: number = message.readUIntBE(offset, NetConstants.COUNT_SIZE);
         offset += NetConstants.COUNT_SIZE;
         for (let i = 0; i < peerCount; i++) {
-            let addressLength: number = message.readUint16BE(offset);
+            const addressLength: number = message.readUint16BE(offset);
             offset += 2;
             const peerAddress = message.subarray(offset, offset + addressLength);
             offset += addressLength;

@@ -35,7 +35,7 @@ describe('cube', () => {
 
     expect(() => cubeBuffer.length === 1024).toBeTruthy();
     const cube = new Cube(cubeBuffer);
-    let fields = cube.getFields().data;
+    const fields = cube.getFields().data;
     fields.forEach(field => {
       expect(field.length).toBeLessThanOrEqual(1024);
       expect(field.length).toBeGreaterThanOrEqual(0);
@@ -210,11 +210,11 @@ describe('cube', () => {
   }, 1000);
 
   it('should create a new cube that meets the challenge requirements', async () => {
-    let cube: Cube = new Cube();
+    const cube: Cube = new Cube();
     cube.setVersion(0);
-    let payload: Buffer = Buffer.from('Hello world, this is a payload for a cube!', 'ascii');
+    const payload: Buffer = Buffer.from('Hello world, this is a payload for a cube!', 'ascii');
     cube.setFields(new Field(FieldType.PAYLOAD, payload.length, payload));
-    let key: Buffer = await cube.getKey();
+    const key: Buffer = await cube.getKey();
     expect(key[key.length - 1]).toEqual(0);
   }, 5000);
 
@@ -312,7 +312,7 @@ describe('cube', () => {
     const publicKey: Buffer = Buffer.from(keyPair.publicKey);
     const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-    let muc = new Cube();
+    const muc = new Cube();
     muc.setCryptoKeys(publicKey, privateKey);
     const fields = new Fields([
       new Field(fp.FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),

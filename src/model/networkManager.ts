@@ -208,7 +208,7 @@ export class NetworkManager extends EventEmitter {
         logger.info(`NetworkManager: Connecting to ${peerURL}...`);
 
         // Create a WebSocket connection
-        var WsOptions: any;
+        let WsOptions: any;
         // set a handshake timeout on NodeJS, not possible in the browser
         if (isNode) {
             WsOptions = { handshakeTimeout: NetworkManager.WEBSOCKET_HANDSHAKE_TIMEOUT };
@@ -283,7 +283,7 @@ export class NetworkManager extends EventEmitter {
     }
 
     private consolidateStats(totalStats: { [key: string]: { count: number, bytes: number } }, peerStats: { [key: string]: { count: number, bytes: number } }) {
-        for (let type in peerStats) {
+        for (const type in peerStats) {
             if (!(type in totalStats)) {
                 totalStats[type] = { count: 0, bytes: 0 };
             }
@@ -293,7 +293,7 @@ export class NetworkManager extends EventEmitter {
     }
 
     getNetStatistics(): NetworkStats {
-        let totalStats: NetworkStats = {
+        const totalStats: NetworkStats = {
             ip: "",
             port: 0,
             peerID: this.peerID,
@@ -301,7 +301,7 @@ export class NetworkManager extends EventEmitter {
             rx: { totalPackets: 0, totalBytes: 0, packetTypes: {} },
         };
 
-        for (let peer of this.outgoingPeers.concat(this.incomingPeers)) {
+        for (const peer of this.outgoingPeers.concat(this.incomingPeers)) {
             totalStats.tx.totalPackets += peer.stats.tx.totalPackets;
             totalStats.tx.totalBytes += peer.stats.tx.totalBytes;
             totalStats.rx.totalPackets += peer.stats.rx.totalPackets;
@@ -332,17 +332,17 @@ export class NetworkManager extends EventEmitter {
         output += `Blacklisted Peers: ${this.peerDB.getPeersBlacklisted().map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
         output += 'Packet Types:\n';
 
-        for (let type in totalStats.tx.packetTypes) {
+        for (const type in totalStats.tx.packetTypes) {
             const typeEnum = type as unknown as MessageClass;
             output += `TX ${MessageClass[typeEnum]}: ${totalStats.tx.packetTypes[typeEnum]?.count} packets, ${totalStats.tx.packetTypes[typeEnum]?.bytes} bytes\n`;
         }
 
-        for (let type in totalStats.rx.packetTypes) {
+        for (const type in totalStats.rx.packetTypes) {
             const typeEnum = type as unknown as MessageClass;
             output += `RX ${MessageClass[typeEnum]}: ${totalStats.rx.packetTypes[typeEnum]?.count} packets, ${totalStats.rx.packetTypes[typeEnum]?.bytes} bytes\n`;
         }
 
-        for (let peer of this.outgoingPeers.concat(this.incomingPeers)) {
+        for (const peer of this.outgoingPeers.concat(this.incomingPeers)) {
             output += '\n';
 
             const stats = peer.stats;
@@ -352,12 +352,12 @@ export class NetworkManager extends EventEmitter {
             output += `Bytes: TX: ${stats.tx.totalBytes}, RX: ${stats.rx.totalBytes}\n`;
             output += 'Packet Types:\n';
 
-            for (let type in stats.tx.packetTypes) {
+            for (const type in stats.tx.packetTypes) {
                 const typeEnum = type as unknown as MessageClass;
                 output += `TX ${MessageClass[typeEnum]}: ${stats.tx.packetTypes[typeEnum]?.count} packets, ${stats.tx.packetTypes[typeEnum]?.bytes} bytes\n`;
             }
 
-            for (let type in stats.rx.packetTypes) {
+            for (const type in stats.rx.packetTypes) {
                 const typeEnum = type as unknown as MessageClass;
                 output += `RX ${MessageClass[typeEnum]}: ${stats.rx.packetTypes[typeEnum]?.count} packets, ${stats.rx.packetTypes[typeEnum]?.bytes} bytes\n`;
             }

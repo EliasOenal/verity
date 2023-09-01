@@ -33,7 +33,7 @@ describe('cubeStore', () => {
   it('should add 20 cubes to the storage and get them back', async () => {
     const promises = [];
     for (let i = 0; i < 20; i++) {
-      let cube = new Cube();
+      const cube = new Cube();
       cube.setDate(i);
       promises.push(cubeStore.addCube(cube));
     }
@@ -42,7 +42,7 @@ describe('cubeStore', () => {
 
     hashes.forEach((hash, i) => {
       if (!hash) throw new Error(`Hash is undefined for cube ${i}`);
-      let binaryData = cubeStore.getCube(hash)?.getBinaryData();
+      const binaryData = cubeStore.getCube(hash)?.getBinaryData();
       expect(hash).toBeInstanceOf(Buffer);
       if (hash) {
         expect(hash.length).toEqual(32);
@@ -54,7 +54,7 @@ describe('cubeStore', () => {
   }, 30000);
 
   it('should add a cube from binary data', async () => {
-    let hash = await cubeStore.addCube(validBinaryCube);
+    const hash = await cubeStore.addCube(validBinaryCube);
     expect(hash).toBeInstanceOf(Buffer);
     if (hash) {
       expect(hash.length).toEqual(32);
@@ -63,12 +63,12 @@ describe('cubeStore', () => {
   }, 1000);
 
   it('should error when adding a cube with invalid binary data', async () => {
-    let buffer = Buffer.alloc(1024);
+    const buffer = Buffer.alloc(1024);
     expect(await cubeStore.addCube(buffer)).toBeUndefined();
   }, 1000);
 
   it('should error when getting a cube with invalid hash', async () => {
-    let buffer = Buffer.alloc(32);
+    const buffer = Buffer.alloc(32);
     expect(cubeStore.getCube(buffer)).toBeUndefined();
   }, 1000);
 

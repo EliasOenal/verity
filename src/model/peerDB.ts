@@ -166,8 +166,8 @@ export class PeerDB extends EventEmitter {
                     return;
                 }
 
-                let peers = PeerDB.parsePeers(decoded.peers, decoded.peers6);
-                let knownPeers: Peer[] = [...this.peersVerified, ...this.peersUnverified];
+                const peers = PeerDB.parsePeers(decoded.peers, decoded.peers6);
+                const knownPeers: Peer[] = [...this.peersVerified, ...this.peersUnverified];
 
                 let newPeers = peers.filter(peer => !knownPeers.some(p => p.ip === peer.ip && p.port === peer.port));
                 logger.debug(`Got ${newPeers.length} new peers from trackers: ${newPeers.map(peer => `${peer.ip}:${peer.port}`).join(', ')}`);
