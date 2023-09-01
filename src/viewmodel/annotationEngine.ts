@@ -1,6 +1,3 @@
-// TODO: weaken coupling with CubeStore, make AnnotationEngine refer to CubeStore
-// instead of the other way around (model should never depend on viewmodel)
-
 import { CubeStore } from '../model/cubeStore';
 import { CubeInfo, CubeMeta } from '../model/cubeInfo'
 import { Cube } from '../model/cube';

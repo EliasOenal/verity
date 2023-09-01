@@ -6,9 +6,11 @@ import { Fields } from '../../src/model/fieldProcessing';
 
 describe('annotationEngine', () => {
   let cubeStore: CubeStore;
+  let annotationEngine: AnnotationEngine;
 
   beforeEach(() => {
-    cubeStore = new CubeStore(false, true);
+    cubeStore = new CubeStore(false);
+    annotationEngine = new AnnotationEngine(cubeStore);
   }, 1000);
 
 
@@ -26,7 +28,7 @@ describe('annotationEngine', () => {
     ]));
 
     const callback = jest.fn();
-    cubeStore.annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
+    annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
 
     cubeStore.addCube(root);
     cubeStore.addCube(leaf);
@@ -50,7 +52,7 @@ describe('annotationEngine', () => {
     ]));
 
     const callback = jest.fn();
-    cubeStore.annotationEngine.on('cubeDisplayable', (hash) => callback(hash));
+    annotationEngine.on('cubeDisplayable', (hash) => callback(hash));
 
     cubeStore.addCube(leaf);
     expect(callback).not.toHaveBeenCalled();
@@ -76,7 +78,7 @@ describe('annotationEngine', () => {
     ]));
 
     const callback = jest.fn();
-    cubeStore.annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
+    annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
 
     // add in reverse order:
     cubeStore.addCube(leaf);
