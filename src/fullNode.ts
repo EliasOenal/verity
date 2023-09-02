@@ -95,26 +95,21 @@ export class fullNode {
     public async updateMuc() {
         const publicKey: Buffer = Buffer.from(this.keyPair.publicKey);
         const privateKey: Buffer = Buffer.from(this.keyPair.privateKey);
-        const muc = new Cube();
 
-        muc.setCryptoKeys(publicKey, privateKey);
-        const counterBuffer: Buffer = Buffer.alloc(8);
         // write counter to buffer in ascii text
+        const counterBuffer: Buffer = Buffer.alloc(8);
         counterBuffer.write(this.mucUpdateCounter.toString(), 0, 8, 'ascii');
-        // concat buffer with message
-        const messageBuffer = Buffer.concat([Buffer.from("Hello MUC: ", 'utf8'), counterBuffer]);
         this.mucUpdateCounter++;
 
+        // concat buffer with message
+        const messageBuffer = Buffer.concat(
+            [Buffer.from("Hello MUC: ", 'utf8'), counterBuffer]);
 
-        const fields = new Fields([
-            new Field(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-            new Field(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
-            new Field(FieldType.PAYLOAD, 19, messageBuffer),
-            new Field(FieldType.PADDING_NONCE, 888, Buffer.alloc(888)),
-            new Field(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
-        ]);
-
-        muc.setFields(fields);
+        const muc = Cube.MUC(
+            Buffer.from(this.keyPair.publicKey),
+            Buffer.from(this.keyPair.privateKey),
+            [new Field(FieldType.PAYLOAD, 19, messageBuffer)]
+        );
         this.cubeStore.addCube(muc);
     }
 

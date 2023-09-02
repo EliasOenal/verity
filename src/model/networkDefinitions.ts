@@ -9,7 +9,7 @@ export enum MessageClass {
     NodeRequest = 0x06,
     NodeResponse = 0x07,
 }
-  
+
 export const NetConstants =  {
     PROTOCOL_VERSION: 0x00,
     PEER_ID_SIZE: 16,
@@ -26,4 +26,6 @@ export const NetConstants =  {
     TIMESTAMP_SIZE: 5,
     CUBE_TYPE_SIZE: 1,
     CHALLENGE_LEVEL_SIZE: 1,
+    PUBLIC_KEY_SIZE: 32,
+    SIGNATURE_SIZE: 72,
 }
