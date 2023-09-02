@@ -108,7 +108,7 @@ export class fullNode {
         const muc = Cube.MUC(
             Buffer.from(this.keyPair.publicKey),
             Buffer.from(this.keyPair.privateKey),
-            [new Field(FieldType.PAYLOAD, 19, messageBuffer)]
+            Field.Payload(messageBuffer)
         );
         this.cubeStore.addCube(muc);
     }

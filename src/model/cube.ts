@@ -8,7 +8,7 @@ import { NetConstants } from './networkDefinitions';
 import * as fp from './fieldProcessing';
 import { CubeType, Field, FieldType, Fields } from './fieldProcessing';
 
-import sodium from 'libsodium-wrappers'
+import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer';
 
 export const CUBE_HEADER_LENGTH: number = 6;
@@ -37,7 +37,8 @@ export class Cube {
      *   fields, i.e. SMART_CUBE, PUBLIC_KEY and SIGNATUE.
      */
     static MUC(publicKey: Buffer, privateKey: Buffer,
-               customfields: Array<Field> = []): Cube {
+               customfields: Array<Field> | Field = []): Cube {
+        if (customfields instanceof Field) customfields = [customfields];
         const cube: Cube = new Cube();
         cube.setCryptoKeys(publicKey, privateKey);
         const fields: Fields = new Fields([
