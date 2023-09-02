@@ -60,7 +60,10 @@ export class Field {
 
     public isFull() { if (this.start) return true; else return false; }
 
-    static Payload(buf: Buffer): Field {
+    static Payload(buf: Buffer | string): Field {
+        if (typeof buf === 'string' || buf instanceof String)  {
+            buf = Buffer.from(buf, 'utf-8');
+        }
         return new Field(FieldType.PAYLOAD, buf.length, buf);
     }
 

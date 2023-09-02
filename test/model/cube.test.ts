@@ -330,4 +330,28 @@ describe('cube', () => {
   expect(key).toEqual(publicKey);
   expect(hash).toEqual(calculateHash(binaryCube));
   }, 5000);
+
+  it('should generate a valid MUC using Cube.MUC', async () => {
+    await sodium.ready;
+    const keyPair = sodium.crypto_sign_keypair();
+
+    const muc: Cube = Cube.MUC(
+      Buffer.from(keyPair.publicKey),
+      Buffer.from(keyPair.privateKey),
+      Field.Payload("just testing, nothing to see here")
+    );
+    const key = await muc.getKey();
+    expect(key).toBeDefined();
+
+    const binMuc: Buffer = muc.getBinaryData();
+
+    // Parse the MUC from binary
+    const parsedMuc = new Cube(binMuc);
+    expect(parsedMuc).toBeDefined();
+    expect(await parsedMuc.getKey()).toEqual(key);
+    const parsedPayloads = parsedMuc.getFields().getFieldsByType(
+      FieldType.PAYLOAD);
+    expect(parsedPayloads.length).toEqual(1);
+    expect(parsedPayloads[0].value.toString()).toEqual("just testing, nothing to see here");
+  }, 5000);
 });
