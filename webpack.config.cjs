@@ -6,7 +6,7 @@ module.exports = {
   target: 'web',
   entry: {
     "fullNode-bundle": './src/fullNode.ts',
-    webuievents: './src/webui/webuievents.ts'
+    verityUI: './src/webui/VerityUI.ts'
   },
   mode: 'development',
   module: {

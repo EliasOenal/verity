@@ -1,0 +1,114 @@
+import { Cube } from "../model/cube";
+import { CubeInfo } from "../model/cubeInfo";
+import { Relationship, RelationshipType, FieldType } from "../model/fieldProcessing";
+import { VerityUI } from "./VerityUI";
+
+export class CubeDisplay {
+  parent: VerityUI;
+
+  constructor(parent: VerityUI) {
+    this.parent = parent;
+    this.parent.node.annotationEngine.on('cubeDisplayable', (binaryKey) => this.displayCube(binaryKey)) // list cubes
+  }
+
+
+
+  redisplayCubes() {
+    for (const cubeInfo of this.parent.node.cubeStore.getAllCubeInfo()) {
+        if (this.parent.node.annotationEngine.isCubeDisplayable(cubeInfo.key)) {
+            this.displayCube(cubeInfo.key);
+        }
+    }
+  }
+
+  // Show all new cubes that are displayable.
+  // This will handle cubeStore cubeDisplayable events.
+  displayCube(key: Buffer) {
+    const cubeInfo: CubeInfo = this.parent.node.cubeStore.getCubeInfo(key);
+    if (!cubeInfo.isComplete()) return;
+    const cube: Cube = cubeInfo.instantiate() as Cube;
+
+    // is this a reply?
+    const replies: Array<Relationship> = cube.getFields().getRelationships(RelationshipType.REPLY_TO);
+    if (replies.length > 0) {  // yes
+      const originalpostkey: Buffer = replies[0].remoteKey;
+      const originalpost: CubeInfo = this.parent.node.cubeStore.getCubeInfo(
+        originalpostkey);
+      let originalpostli: HTMLLIElement = originalpost.applicationNotes.get('li');
+      if (!originalpostli) {  // apparently the original post has not yet been displayed
+        this.displayCube(originalpostkey);
+        originalpostli = originalpost.applicationNotes.get('li');
+      }
+      this.displayCubeReply(key, cubeInfo, cube, originalpostli);
+    }
+    else {  // no, this is an original post
+    const cubelist: HTMLElement | null = document.getElementById("cubelist")
+    if (!cubelist) return;  // who deleted my cube list?!?!?!?!
+    this.displayCubeInList(key, cubeInfo, cube, cubelist as HTMLUListElement);
+    }
+  }
+
+
+  displayCubeReply(key: Buffer, replyInfo: CubeInfo, reply: Cube, original: HTMLLIElement) {
+    // Does this post already have a reply list?
+    let replylist: HTMLUListElement | null = original.getElementsByTagName("ul").item(0);
+    if (!replylist) {  // no? time to create one
+        replylist = document.createElement('ul');
+        original.appendChild(replylist);
+    }
+    this.displayCubeInList(key, replyInfo, reply, replylist);
+  }
+
+  displayCubeInList(binaryKey: Buffer, cubeInfo: CubeInfo, cube: Cube, cubelist: HTMLUListElement): HTMLLIElement {
+    const keystring = binaryKey.toString('hex');
+    // Create cube entry
+    const li: HTMLLIElement = document.createElement("li");
+    li.setAttribute("cubekey", keystring);  // do we still need this?
+    li.setAttribute("timestamp", String(cube.getDate())) // keep raw timestamp for later reference
+
+    // Display cube display header (timestamp, later on we'll also show the user etc)
+    const header: HTMLParagraphElement = document.createElement("p");
+    const date: Date = new Date(cube.getDate()*1000);
+    const dateformat: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    header.innerHTML += `<small>${date.toLocaleDateString(navigator.language, dateformat)} ${date.toLocaleTimeString(navigator.language)}</small><br />`
+    li.appendChild(header);
+
+    // Display cube payload
+    const payload: HTMLParagraphElement = document.createElement('p');
+    for (const field of cube.getFields().getFieldsByType(FieldType.PAYLOAD)) {
+        payload.innerText += field.value.toString();
+    }
+    li.append(payload);
+
+    // Show cube key as tooltip
+    li.title = `Cube Key ${keystring}`;
+
+    // Display reply input field
+    const replyfield: HTMLParagraphElement = document.createElement("p");
+    replyfield.innerHTML += `<input id="replyinput-${keystring}" type="text" size="60" /> `;
+    replyfield.innerHTML += `<button id="replybutton-${keystring}" onclick="window.verityUI.node.makeNewCube(document.getElementById('replyinput-${keystring}').value, '${keystring}');">Reply</button>`;
+
+    li.append(replyfield);
+
+    // Insert sorted by date
+    if (cubelist) {
+        let appended: boolean = false;
+        for (const child of cubelist.children) {
+            const timestamp: string | null = child.getAttribute("timestamp");
+            if (timestamp) {
+                const childdate: number = parseInt(timestamp);
+                if (childdate < cube.getDate()) {
+                    cubelist.insertBefore(li, child);
+                    appended = true;
+                    break;
+                }
+            }
+        }
+        if (!appended) cubelist.appendChild(li);
+    }
+    // save this post's li as application note in the cube store
+    // so we can later append replies to it
+    cubeInfo.applicationNotes.set('li', li);
+    return li;
+  }
+}
