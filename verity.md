@@ -28,11 +28,11 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
     - 0b000110: `TYPE_SIGNATURE`
     - 0b000111: `TYPE_SMART_CUBE`
     - 0b001000: `TYPE_PUBLIC_KEY`
-    
+
     (Detailed description below)
 
   - **Length (10 bits, optional)**: This is the length of the value in bytes. For types with a fixed length, such as the "relates-to" hash (32 bytes), the digital signature (64 bytes), and the Shared Key (32 bytes), this field is omitted and the length is implicitly known. For types with variable length, this field specifies the length of the value.
-   
+
   - **Value (variable length)**: This is the actual data. The length of this field is specified by the length field or is implicitly known based on the type.
 
 5. **Type Fields**
@@ -50,7 +50,8 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
     - 2: `MENTION`: This cube refers to a user. Multiple `MENTION` relationships are allowed per cube. The referred cube must be a MUC. Client software may scan cubes for MENTIONs of their user's own MUC to notify them of.
     - 3: `REPLY TO`: This cube's payload constitutes a reply to an earlier payload, available in the referenced cube. Client software may attempt to display the original cube alongside the reply. While client software may consider multiple `REPLY TO` relations per cube depending on the type of application, it is usually expected to only heed the first one.
     - 4: `QUOTATION`: This cube's payload refers to an earlier payload which client software shall usually display alongside this cube's payload. Multiple `QUOTATION` relationships are allowed per cube, in which case client software may provide an abridged view.
-  
+    - 5: `OWNS`: Refers to another cube this cube's owner has authored. Must only be used within a MUC (as MUCs represent owners) or within another cube that is directly or indirectly owned by a MUC.
+
   is a continuation of another post. The field contains the hash of the post it relates to. The type code for this field is `TYPE_RELATES_TO`
     > **TODO**: Implement different types of continuations, like replies, quotes, etc. This will require at least one more byte.
 
@@ -134,14 +135,14 @@ To further enhance the efficiency and functionality of network communication, a 
 
  > Has synergies with extension: Cube Lifetime Function
 
-### Benefits 
+### Benefits
 
-This modification will allow nodes to easily determine the age and the hashcash challenge level of a cube just from its key, without needing to download the entire cube. 
+This modification will allow nodes to easily determine the age and the hashcash challenge level of a cube just from its key, without needing to download the entire cube.
 
 This has several benefits:
 
 - **Efficient Cube Evaluation**: Nodes can efficiently determine whether the cubes on offer meet their local requirements in terms of the hashcash challenge and cube lifetime. This allows nodes to make more informed decisions about which cubes to request and save bandwidth by avoiding downloading cubes that do not meet their requirements.
-  
+
 - **Cube Lifetime Enforcement**: The age of a cube can be easily calculated from its key, enabling nodes to efficiently manage their cube storage and drop cubes that have exceeded their lifetime.
 
 This enhancement is expected to improve the overall efficiency of network communication and resource utilization in the Verity network.
@@ -185,7 +186,7 @@ For 1:1 messages, the sender creates a single cube with the recipient's public k
 
 **1:n Messages:**
 
-For 1:n messages, the sender creates multiple cubes, one for each recipient. Each cube contains a `TYPE_KEY_DISTRIBUTION` field with an ephemeral public key (different for each cube) and the hash of the recipient's public key. The `TYPE_ENCRYPTED` section of each cube can contain the same or different payloads for each recipient. 
+For 1:n messages, the sender creates multiple cubes, one for each recipient. Each cube contains a `TYPE_KEY_DISTRIBUTION` field with an ephemeral public key (different for each cube) and the hash of the recipient's public key. The `TYPE_ENCRYPTED` section of each cube can contain the same or different payloads for each recipient.
 
 Additionally, the sender can include one or more `TYPE_SHARED_KEY` fields within the `TYPE_ENCRYPTED` section of each cube. These fields contain symmetric keys that the recipients should add to their key store for decrypting future messages. This allows the sender to establish multiple shared keys with each recipient in a single cube.
 
@@ -269,7 +270,7 @@ In the event of a conflict where different versions of the same IPC exist within
 
 ## Cube Lifetime Function
 
-In the Verity network, the lifetime of cubes can be extended by increasing the hashcash challenge level. The function that determines the cube lifetime, given the hashcash challenge level, is designed to provide a balance between computational investment and the extension of cube lifetime. 
+In the Verity network, the lifetime of cubes can be extended by increasing the hashcash challenge level. The function that determines the cube lifetime, given the hashcash challenge level, is designed to provide a balance between computational investment and the extension of cube lifetime.
 
 ### Function Definition
 

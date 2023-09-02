@@ -40,6 +40,7 @@ export enum RelationshipType {
     MENTION = 2,
     REPLY_TO = 3,
     QUOTATION = 4,
+    OWNS = 5,
 }
 
 export class Field {

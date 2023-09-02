@@ -1,6 +1,7 @@
-import { Cube } from "../model/cube";
+import { Cube, CubeKey } from "../model/cube";
 import { CubeInfo } from "../model/cubeInfo";
 import { Relationship, RelationshipType, FieldType } from "../model/fieldProcessing";
+import { Identity } from "../viewmodel/identity";
 import { VerityUI } from "./VerityUI";
 
 export class CubeDisplay {
@@ -8,14 +9,14 @@ export class CubeDisplay {
 
   constructor(parent: VerityUI) {
     this.parent = parent;
-    this.parent.node.annotationEngine.on('cubeDisplayable', (binaryKey) => this.displayCube(binaryKey)) // list cubes
+    this.parent.annotationEngine.on('cubeDisplayable', (binaryKey) => this.displayCube(binaryKey)) // list cubes
   }
 
 
 
   redisplayCubes() {
     for (const cubeInfo of this.parent.node.cubeStore.getAllCubeInfo()) {
-        if (this.parent.node.annotationEngine.isCubeDisplayable(cubeInfo.key)) {
+        if (this.parent.annotationEngine.isCubeDisplayable(cubeInfo.key)) {
             this.displayCube(cubeInfo.key);
         }
     }
@@ -23,7 +24,7 @@ export class CubeDisplay {
 
   // Show all new cubes that are displayable.
   // This will handle cubeStore cubeDisplayable events.
-  displayCube(key: Buffer) {
+  displayCube(key: CubeKey) {
     const cubeInfo: CubeInfo = this.parent.node.cubeStore.getCubeInfo(key);
     if (!cubeInfo.isComplete()) return;
     const cube: Cube = cubeInfo.instantiate() as Cube;
@@ -31,7 +32,7 @@ export class CubeDisplay {
     // is this a reply?
     const replies: Array<Relationship> = cube.getFields().getRelationships(RelationshipType.REPLY_TO);
     if (replies.length > 0) {  // yes
-      const originalpostkey: Buffer = replies[0].remoteKey;
+      const originalpostkey: CubeKey = replies[0].remoteKey;
       const originalpost: CubeInfo = this.parent.node.cubeStore.getCubeInfo(
         originalpostkey);
       let originalpostli: HTMLLIElement = originalpost.applicationNotes.get('li');
@@ -48,8 +49,8 @@ export class CubeDisplay {
     }
   }
 
-
-  displayCubeReply(key: Buffer, replyInfo: CubeInfo, reply: Cube, original: HTMLLIElement) {
+  // TODO: clean up this mess of params
+  displayCubeReply(key: CubeKey, replyInfo: CubeInfo, reply: Cube, original: HTMLLIElement) {
     // Does this post already have a reply list?
     let replylist: HTMLUListElement | null = original.getElementsByTagName("ul").item(0);
     if (!replylist) {  // no? time to create one
@@ -59,15 +60,28 @@ export class CubeDisplay {
     this.displayCubeInList(key, replyInfo, reply, replylist);
   }
 
-  displayCubeInList(binaryKey: Buffer, cubeInfo: CubeInfo, cube: Cube, cubelist: HTMLUListElement): HTMLLIElement {
-    const keystring = binaryKey.toString('hex');
+  // TODO: clean up this mess of params
+  displayCubeInList(key: CubeKey, cubeInfo: CubeInfo, cube: Cube, cubelist: HTMLUListElement): HTMLLIElement {
+    const keystring = key.toString('hex');
     // Create cube entry
     const li: HTMLLIElement = document.createElement("li");
     li.setAttribute("cubekey", keystring);  // do we still need this?
     li.setAttribute("timestamp", String(cube.getDate())) // keep raw timestamp for later reference
 
-    // Display cube display header (timestamp, later on we'll also show the user etc)
+    // Display cube display header (timestamp, user)
     const header: HTMLParagraphElement = document.createElement("p");
+
+    // authorship information
+    const author: Identity = this.parent.annotationEngine.cubeOwner(key);
+    let authorText: string = ""
+    if (author) {
+      // TODO: display if this authorship information is authenticated,
+      // i.e. if it comes from a MUC we trust
+      authorText = author.name;
+    } else {
+      authorText = "Unknown user";
+    }
+    header.innerHTML += `<small><b>${authorText}</b></small><br />` // TODO: DO NOT USE innerHTML as partial strings (e.g. author name) are untrusted
     const date: Date = new Date(cube.getDate()*1000);
     const dateformat: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     header.innerHTML += `<small>${date.toLocaleDateString(navigator.language, dateformat)} ${date.toLocaleTimeString(navigator.language)}</small><br />`

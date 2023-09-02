@@ -5,7 +5,6 @@ import { Cube } from './model/cube';
 import { CubeStore } from './model/cubeStore';
 import { FieldType, Field, Fields, Relationship, RelationshipType } from './model/fieldProcessing';
 import { PeerDB, Peer } from './model/peerDB';
-import { AnnotationEngine } from "./viewmodel/annotationEngine";
 import { logger } from './model/logger';
 import { vera } from './misc/vera';
 
@@ -26,7 +25,6 @@ export class fullNode {
     cubeStore: CubeStore = new CubeStore();
     peerDB: PeerDB = new PeerDB();
     networkManager: NetworkManager;
-    annotationEngine: AnnotationEngine = new AnnotationEngine(this.cubeStore);
 
     port: number = 1984;
     keyPair: KeyPair;
