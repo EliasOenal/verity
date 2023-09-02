@@ -2,14 +2,18 @@ import { CubeDisplay } from './CubeDisplay';
 import { PeerDisplay } from './PeerDisplay';
 import { logger } from '../model/logger'
 import { fullNode } from '../fullNode';
+import { AnnotationEngine } from '../viewmodel/annotationEngine';
 
 export class VerityUI {
   node: fullNode = undefined;  // TODO: change this to a Node base class that still needs to be defined, so we can transparently use the UI with full and light nodes (actually not "Node", "Node" is a DOM class... make it VerityNode or something)
+  annotationEngine: AnnotationEngine;
+
   cubeDisplay: CubeDisplay;
   peerDisplay: PeerDisplay;
 
   constructor(node: fullNode) {
     this.node = node;
+    this.annotationEngine = new AnnotationEngine(this.node.cubeStore);
 
     this.peerDisplay = new PeerDisplay(this);
     this.peerDisplay.redisplayPeers();
