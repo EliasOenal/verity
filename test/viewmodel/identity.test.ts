@@ -34,8 +34,8 @@ describe('Identity', () => {
       idkey = id.key;
       id.persistance = persistance;
       expect(id.name).toBeUndefined();
-      id.name = "Testar Identitates";  // setting anything implicitly saves the Identity
-      await persistance.store(id);     // save it manually anyway so we can await the result
+      id.name = "Testar Identitates";
+      await id.store();
     }
     { // phase 2: retrieve, compare and delete the identity
       const ids: Array<Identity> = await persistance.retrieve();

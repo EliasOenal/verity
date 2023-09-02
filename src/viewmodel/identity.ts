@@ -78,6 +78,15 @@ export class Identity {
     this._keys = sodium.crypto_sign_keypair();
   }
 
+  store(): Promise<void> {
+    if (this.persistance) return this.persistance.store(this);
+    else return undefined;
+  }
+
+  makeMUC() {
+    // TODO implement
+  }
+
   /** @method Serialize, used before storing object in persistant storage */
   toJSON() {
     return Object.assign({}, this, {

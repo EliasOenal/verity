@@ -6,7 +6,7 @@ import { Settings, VerityError } from './config';
 import { logger } from './logger';
 import { NetConstants } from './networkDefinitions';
 import * as fp from './fieldProcessing';
-import { Field, Fields } from './fieldProcessing';
+import { CubeType, Field, FieldType, Fields } from './fieldProcessing';
 
 import sodium from 'libsodium-wrappers'
 import { Buffer } from 'buffer';
@@ -19,13 +19,51 @@ export class Cube {
     private version: number;
     private reservedBits: number;
     private date: number;
-    private fields: fp.Fields;
+    private fields: Fields;
     private binaryData: Buffer | undefined;
     private hash: Buffer | undefined;
     private privateKey: Buffer | undefined;
     private publicKey: Buffer | undefined;
     private cubeType: number | undefined;
     private cubeKey: CubeKey | undefined;
+
+    /**
+     * Create a new Mutable User Cube, which is a type of smart cube usually
+     * representing a user and storing data usually associated with a user
+     * profile.
+     * @param customfields
+     *   An array of all custom fields, e.g. PAYLOAD, RELATES_TO etc.
+     *   This method will supplement your fields with the required "boilerplate"
+     *   fields, i.e. SMART_CUBE, PUBLIC_KEY and SIGNATUE.
+     */
+    static MUC(publicKey: Buffer, privateKey: Buffer,
+               customfields: Array<Field> = []): Cube {
+        const cube: Cube = new Cube();
+        cube.setCryptoKeys(publicKey, privateKey);
+        const fields: Fields = new Fields([
+            new Field(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
+            new Field(
+                FieldType.TYPE_PUBLIC_KEY,
+                NetConstants.PUBLIC_KEY_SIZE,
+                publicKey)
+        ].concat(customfields).concat([
+            new Field(
+                FieldType.TYPE_SIGNATURE,
+                NetConstants.SIGNATURE_SIZE,
+                Buffer.alloc(NetConstants.SIGNATURE_SIZE))
+        ]));
+        cube.setFields(fields);
+        return cube;
+    }
+
+    /**
+     * Create an Immutable Persistant Cube, which is a type of smart cube used
+     * for data which should be made available long-term.
+     */
+    static IPC(): Cube {
+        // TODO implement
+        return undefined;
+    }
 
     constructor(binaryData?: Buffer) {
         if (binaryData && binaryData.length !== NetConstants.CUBE_SIZE) {
@@ -37,9 +75,9 @@ export class Cube {
             this.version = 0;
             this.reservedBits = 0;
             this.date = Math.floor(Date.now() / 1000);
-            const num_alloc = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE);
+            const num_alloc = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - fp.getFieldHeaderLength(FieldType.PADDING_NONCE);
             this.fields = new Fields(new Field(
-                fp.FieldType.PADDING_NONCE, num_alloc, Buffer.alloc(num_alloc)));
+                FieldType.PADDING_NONCE, num_alloc, Buffer.alloc(num_alloc)));
             this.binaryData = undefined;
             this.hash = undefined;
             this.cubeKey = undefined;
@@ -55,7 +93,7 @@ export class Cube {
             this.reservedBits = binaryData[0] & 0xF;
             this.date = binaryData.readUIntBE(1, 5);
             this.fields = fp.parseTLVBinaryData(this.binaryData);
-            this.cubeType = fp.CubeType.CUBE_TYPE_REGULAR;
+            this.cubeType = CubeType.CUBE_TYPE_REGULAR;
             this.processTLVFields(this.fields, this.binaryData);
         }
     }
@@ -132,9 +170,9 @@ export class Cube {
         }
 
         // has the user already defined a sufficienly large padding field or do we have to add one?
-        const indexNonce = this.fields.data.findIndex((field: fp.Field) => field.type == fp.FieldType.PADDING_NONCE && field.length >= Settings.HASHCASH_SIZE);
+        const indexNonce = this.fields.data.findIndex((field: Field) => field.type == FieldType.PADDING_NONCE && field.length >= Settings.HASHCASH_SIZE);
         let maxAcceptableLegth: number;
-        const minHashcashFieldSize = fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE) + Settings.HASHCASH_SIZE;
+        const minHashcashFieldSize = fp.getFieldHeaderLength(FieldType.PADDING_NONCE) + Settings.HASHCASH_SIZE;
         if (indexNonce == -1) maxAcceptableLegth = NetConstants.CUBE_SIZE - minHashcashFieldSize;
         else maxAcceptableLegth = NetConstants.CUBE_SIZE;
 
@@ -149,27 +187,27 @@ export class Cube {
             // If the cube is currently one byte below maximum, there is no way we can transform
             // it into a valid cube, as it's one byte too short as is but will be one byte too large
             // with minimum extra padding.
-            if (totalLength > NetConstants.CUBE_SIZE - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE)) {
+            if (totalLength > NetConstants.CUBE_SIZE - fp.getFieldHeaderLength(FieldType.PADDING_NONCE)) {
                 throw new FieldSizeError('Cube: Cube is too small to be valid as is but too large to add extra padding.');
             }
             // Pad with random padding nonce to reach 1024 bytes
-            const num_alloc = NetConstants.CUBE_SIZE - totalLength - fp.getFieldHeaderLength(fp.FieldType.PADDING_NONCE);
+            const num_alloc = NetConstants.CUBE_SIZE - totalLength - fp.getFieldHeaderLength(FieldType.PADDING_NONCE);
             const random_bytes = new Uint8Array(num_alloc);
             for (let i = 0; i < num_alloc; i++) random_bytes[i] = Math.floor(Math.random() * 256);
 
             // Is there a signature field? If so, add the padding *before* the signature.
             // Otherwise, add it at the very end.
             this.fields
-            this.fields.insertFieldBefore(fp.FieldType.TYPE_SIGNATURE,
+            this.fields.insertFieldBefore(FieldType.TYPE_SIGNATURE,
                 new Field(
-                    fp.FieldType.PADDING_NONCE,
+                    FieldType.PADDING_NONCE,
                     num_alloc,
                     Buffer.from(random_bytes))
             );
         }
     }
 
-    public async getKey(): Promise<Buffer> {
+    public async getKey(): Promise<CubeKey> {
         if (this.cubeKey && this.hash) return this.cubeKey;
         else {
             await this.generateCubeHash();
@@ -192,20 +230,21 @@ export class Cube {
     }
 
 
-
+    // TODO document
     private static updateVersionBinaryData(binaryData: Buffer, version: number, reservedBits: number) {
         if (binaryData === undefined)
             throw new BinaryDataError("Binary data not initialized");
         binaryData[0] = (version << 4) | reservedBits;
     }
 
+    // TODO document
     private static updateDateBinaryData(binaryData: Buffer, date: number) {
         if (binaryData === undefined)
             throw new BinaryDataError("Binary data not initialized");
         binaryData.writeUIntBE(date, 1, 5);
     }
 
-    private static findFieldIndex(binaryData: Buffer, fieldType: fp.FieldType, minLength: number = 0): number | undefined {
+    private static findFieldIndex(binaryData: Buffer, fieldType: FieldType, minLength: number = 0): number | undefined {
         let index = CUBE_HEADER_LENGTH; // Start after the header
         while (index < binaryData.length) {
             const { type, length, valueStartIndex } = fp.readTLVHeader(binaryData, index);
@@ -243,8 +282,8 @@ export class Cube {
 
     private static parseSmartCube(type: number): number {
         switch (type & 0x03) {
-            case fp.CubeType.CUBE_TYPE_MUC:
-                return fp.CubeType.CUBE_TYPE_MUC;
+            case CubeType.CUBE_TYPE_MUC:
+                return CubeType.CUBE_TYPE_MUC;
             default:
                 logger.error('Cube: Smart cube type not implemented ' + type);
                 throw new SmartCubeTypeNotImplemented('Cube: Smart cube type not implemented ' + type);
@@ -275,9 +314,9 @@ export class Cube {
     // If binaryData is undefined, then this is a new local cube in the process of being created.
     // If binaryData is defined, then we expect a fully formed cube meeting all requirements.
     private processTLVFields(fields: Fields, binaryData: Buffer | undefined): void {
-        let smart: fp.Field = undefined;
-        let publicKey: fp.Field = undefined;
-        let signature: fp.Field = undefined;
+        let smart: Field = undefined;
+        let publicKey: Field = undefined;
+        let signature: Field = undefined;
 
         if (binaryData === undefined) {
             // Upgrade fields to full fields
@@ -291,18 +330,18 @@ export class Cube {
         for (const field of this.fields.data) {
             switch (field.type & 0xFC) {
             // "& 0xFC" zeroes out the last two bits as field.type is only 6 bits long
-                case fp.FieldType.PADDING_NONCE:
-                case fp.FieldType.PAYLOAD:
-                case fp.FieldType.RELATES_TO:
+                case FieldType.PADDING_NONCE:
+                case FieldType.PAYLOAD:
+                case FieldType.RELATES_TO:
                     break;
-                case fp.FieldType.KEY_DISTRIBUTION:
-                case fp.FieldType.SHARED_KEY:
-                case fp.FieldType.ENCRYPTED:
+                case FieldType.KEY_DISTRIBUTION:
+                case FieldType.SHARED_KEY:
+                case FieldType.ENCRYPTED:
                     logger.error('Cube: Field not implemented ' + field.type);
                     throw new FieldNotImplemented('Cube: Field not implemented ' + field.type);
-                case fp.FieldType.TYPE_SIGNATURE:
+                case FieldType.TYPE_SIGNATURE:
                     if (field.start +
-                        fp.getFieldHeaderLength(fp.FieldType.TYPE_SIGNATURE) +
+                        fp.getFieldHeaderLength(FieldType.TYPE_SIGNATURE) +
                         field.length
                         !== NetConstants.CUBE_SIZE) {
                         logger.error('Cube: Signature field is not the last field');
@@ -311,7 +350,7 @@ export class Cube {
                         signature = field;
                     }
                     break;
-                case fp.FieldType.TYPE_SMART_CUBE:
+                case FieldType.TYPE_SMART_CUBE:
                     if (smart !== undefined) {
                         logger.error('Cube: Multiple smart cube fields');
                     }
@@ -322,12 +361,12 @@ export class Cube {
                         throw new SmartCubeError('Cube: Smart cube type is not the first field');
                     }
                     const smartCubeType = Cube.parseSmartCube(field.value[0]);
-                    if (smartCubeType !== fp.CubeType.CUBE_TYPE_MUC) {
+                    if (smartCubeType !== CubeType.CUBE_TYPE_MUC) {
                         logger.error('Cube: Smart cube type not implemented ' + smartCubeType);
                         throw new SmartCubeTypeNotImplemented('Cube: Smart cube type not implemented ' + smartCubeType);
                     }
                     break;
-                case fp.FieldType.TYPE_PUBLIC_KEY:
+                case FieldType.TYPE_PUBLIC_KEY:
                     // TODO: add to keystore
                     // TODO: implement keystore
                     publicKey = field;
@@ -338,7 +377,7 @@ export class Cube {
             }
         }
 
-        if (smart && (Cube.parseSmartCube(smart.type) === fp.CubeType.CUBE_TYPE_MUC)) {
+        if (smart && (Cube.parseSmartCube(smart.type) === CubeType.CUBE_TYPE_MUC)) {
             if (publicKey && signature) {
                 if (binaryData) {
                     // Extract the public key, signature values and provided fingerprint
@@ -354,12 +393,12 @@ export class Cube {
                     // the type byte of the signature field and the fingerprint.
                     // From start of cube up to the signature itself
                     const dataToVerify = binaryData.slice(0, signature.start
-                        + fp.getFieldHeaderLength(fp.FieldType.TYPE_SIGNATURE) + NetConstants.FINGERPRINT_SIZE);
+                        + fp.getFieldHeaderLength(FieldType.TYPE_SIGNATURE) + NetConstants.FINGERPRINT_SIZE);
 
                     // Verify the signature
                     Cube.verifySignature(publicKeyValue, signatureValue, dataToVerify);
                 }
-                this.cubeType = fp.CubeType.CUBE_TYPE_MUC;
+                this.cubeType = CubeType.CUBE_TYPE_MUC;
                 this.publicKey = publicKey.value;
                 this.cubeKey = publicKey.value; // MUC, key is public key
             } else {
@@ -384,25 +423,25 @@ export class Cube {
 
         // Fields of new blocks aren't FullFields and don't know their start offset
         // so we instead use the binary data to find it
-        const indexNonce = Cube.findFieldIndex(this.binaryData, fp.FieldType.PADDING_NONCE, Settings.HASHCASH_SIZE);
+        const indexNonce = Cube.findFieldIndex(this.binaryData, FieldType.PADDING_NONCE, Settings.HASHCASH_SIZE);
         if (indexNonce === undefined) {
             logger.error('No suitable PADDING_NONCE field found');
             throw new Error("No suitable PADDING_NONCE field found");
         }
 
-        const indexSignature = Cube.findFieldIndex(this.binaryData, fp.FieldType.TYPE_SIGNATURE, 72);
+        const indexSignature = Cube.findFieldIndex(this.binaryData, FieldType.TYPE_SIGNATURE, 72);
         let publicKeyField;
         let mucField;
         if (indexSignature !== undefined) {
             // find the public key field
             publicKeyField = this.fields.data.find((field) => {
-                return field.type === fp.FieldType.TYPE_PUBLIC_KEY;
+                return field.type === FieldType.TYPE_PUBLIC_KEY;
             });
         }
         if (publicKeyField !== undefined) {
             // find muc field
             mucField = this.fields.data.find((field) => {
-                return field.type === (fp.FieldType.TYPE_SMART_CUBE | fp.CubeType.CUBE_TYPE_MUC);
+                return field.type === (FieldType.TYPE_SMART_CUBE | CubeType.CUBE_TYPE_MUC);
             });
         }
 
@@ -454,6 +493,14 @@ export class Cube {
         this.binaryData.set(signature, signatureStartIndex + NetConstants.FINGERPRINT_SIZE);  // after fingerprint
     }
 
+    /**
+     * This method is only used for newly created, locally originating cubes.
+     * It will be called automatically when you try to get the Cube's hash, key
+     * or binary data.
+     * It finds, sets and returns a valid cube hash fulfilling the current local
+     * hashcash difficulty.
+     * For MUCs, it also signs the cube, populating its SIGNATURE field.
+     */
     // Non-worker version kept for browser portability
     private async findValidHash(nonceStartIndex: number, signatureStartIndex: number | undefined = undefined): Promise<Buffer> {
         logger.trace("Running findValidHash (non-worker)");
