@@ -136,16 +136,16 @@ export class fullNode {
     }
 }
 
-declare let node: fullNode;
 
 async function main() {
     console.log("\x1b[36m" + vera + "\x1b[0m");
     logger.info('Starting full node');
     await sodium.ready;
-    global.node = new fullNode()
+    const node = new fullNode();
+    global.node = node;  // TODO de-uglify
     if (isBrowser) {
-        // @ts-ignore
-        window.webmain();
+        // @ts-ignore Defined in VerityUI.ts -- TODO remove main() from fullNode.ts, write separate main() stubs for Web and NodeJS
+        window.webmain(node);
     }
 
     await node.onlinePromise;
