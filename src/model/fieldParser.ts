@@ -23,6 +23,7 @@ export class FieldParser {
   });
   return FieldParser._toplevel;
 }
+
   constructor(private fieldDef: FieldDefinition) { }
 
   getFieldHeaderLength(fieldType: number): number {

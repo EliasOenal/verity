@@ -1,4 +1,4 @@
-import { Cube } from './cube'
+import { Cube, CubeKey } from './cube'
 import { logger } from './logger';
 import * as fp from './fields';
 
@@ -7,7 +7,7 @@ import * as fp from './fields';
  *            Basically, it's the CubeInfo without the actual Cube :)
 */
 export interface CubeMeta {
-  key: Buffer;
+  key: CubeKey;
   cubeType: number;
   date: number;
   challengeLevel: number;
@@ -45,7 +45,7 @@ export class CubeInfo {
   //              that must always be present. Knowledge of the key is what
   //              gives us a perception of this cube and (apparently)
   //              justified creating a CubeInfo object for it.
-  key: Buffer;
+  key: CubeKey;
 
   // @member binaryCube: The binary representation of this cube.
   binaryCube: Buffer = undefined;
@@ -61,7 +61,7 @@ export class CubeInfo {
   private objectCache: WeakRef<Cube> = undefined;
 
   constructor(
-    key: Buffer, binaryCube?: Buffer, cubeType?: number,
+    key: CubeKey, binaryCube?: Buffer, cubeType?: number,
     date?: number, challengeLevel?: number) {
     this.key = key;
     this.binaryCube = binaryCube;
@@ -93,7 +93,7 @@ export class CubeInfo {
   // TODO: use fp.getRelationships for that
   getReverseRelationships(
     type?: fp.RelationshipType,
-    remoteKey?: Buffer)
+    remoteKey?: CubeKey)
     : Array<fp.Relationship> {
     const ret = [];
     for (const reverseRelationship of this.reverseRelationships) {
