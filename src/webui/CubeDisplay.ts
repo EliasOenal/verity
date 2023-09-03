@@ -1,6 +1,6 @@
 import { Cube, CubeKey } from "../model/cube";
 import { CubeInfo } from "../model/cubeInfo";
-import { Relationship, RelationshipType, FieldType } from "../model/fieldProcessing";
+import { Relationship, RelationshipType, FieldType } from "../model/fields";
 import { Identity } from "../viewmodel/identity";
 import { VerityUI } from "./VerityUI";
 

@@ -6,7 +6,7 @@ import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
 import { Settings } from './config';
 import { NetConstants } from './networkDefinitions';
-import { CubeType } from './fieldProcessing';
+import { CubeType } from './fields';
 import { cubeContest } from './cubeUtil';
 
 export class CubeStore extends EventEmitter {

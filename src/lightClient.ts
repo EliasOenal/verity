@@ -6,7 +6,7 @@ import { Cube } from './model/cube';
 import { Buffer } from 'buffer';
 import readline from 'readline';
 import { vera } from './misc/vera';
-import { Field, FieldType, Fields } from './model/fieldProcessing';
+import { Field, FieldType, Fields } from './model/fields';
 
 // This is a light client that connects to a full node
 // it does not announce and does not accept incoming connections.

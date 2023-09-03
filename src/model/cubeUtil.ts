@@ -4,7 +4,7 @@ import { sha3_256 } from 'js-sha3';
 import { Cube } from './cube';
 import { CubeMeta } from './cubeInfo';
 import { logger } from './logger';
-import { CubeType } from './fieldProcessing';
+import { CubeType } from './fields';
 
 /*
  * Calculate the lifetime of a cube based on the hashcash challenge level x.

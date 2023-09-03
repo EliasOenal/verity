@@ -3,6 +3,13 @@ import { logger } from './logger';
 import { Cube, CUBE_HEADER_LENGTH, InvalidCubeKey, WrongFieldType } from './cube';
 import { NetConstants } from './networkDefinitions';
 
+/**
+ * Top-level field definitions.
+ * These are used for the FieldParser in the core library.
+ * Applications will usually supplement this with their own sub-field structure
+ * within the top-level payload field; for this, they can re-use our FieldParser
+ * by supplying it with their own field structure data.
+ */
 export enum FieldType {
     PADDING_NONCE = 0x00 << 2,
     PAYLOAD = 0x01 << 2,
@@ -109,7 +116,7 @@ export class Relationship {
     }
 }
 
-export class Fields {
+export class Fields {  // TODO: subclass stuff that's specific to top-level fields
     public data: Array<Field>;
 
     constructor(data?: Array<Field> | Field) {
@@ -168,96 +175,4 @@ export class Fields {
         // no such field
         this.data.push(field);
     }
-
-    public static fromTLVBinaryData(binaryData: Buffer): Fields {
-        return parseTLVBinaryData(binaryData);
-    }
-}
-
-export function parseTLVBinaryData(binaryData: Buffer): Fields {
-    if (binaryData === undefined)
-        throw new Error("Binary data not initialized");
-    const fields: Fields = new Fields();
-    let index = CUBE_HEADER_LENGTH; // Start after date field
-    while (index < binaryData.length) {
-        const { type, length, valueStartIndex } = readTLVHeader(binaryData, index);
-        const start = index; // Start of TLV field
-        index = valueStartIndex;
-
-        if (index + length <= binaryData.length) {  // Check if enough data for value field
-            const value = binaryData.slice(index, index + length);
-            fields.data.push(new Field(type, length, value, start));
-            index += length;
-        } else {
-            throw new Error("Data ended unexpectedly while reading value of field");
-        }
-    }
-    return fields;
-}
-
-export function getFieldHeaderLength(fieldType: FieldType): number {
-    return (FIELD_LENGTHS[fieldType] == undefined) ? 2 : 1;
-}
-
-export function updateTLVBinaryData(binaryData: Buffer, fields: Fields): void {
-    if (binaryData === undefined)
-        throw new Error("Binary data not initialized");
-    let index = CUBE_HEADER_LENGTH; // Start after date field
-    for (const field of fields.data) {
-        const { nextIndex } = writeTLVHeader(binaryData, field.type, field.length, index);
-        index = nextIndex;
-
-        if (index + field.length <= binaryData.length) {
-            // Write value
-            field.value.copy(binaryData, index);
-            index += field.length;
-        } else {
-            logger.error(field.type + " field is too large, got " + field.length + " bytes, need " + (binaryData.length - index) + " bytes");
-            throw new Error("Insufficient space in binaryData, got " + (index) + " bytes, need " + (index + field.length) + " bytes");
-        }
-    }
-    // verify cube is full
-    if (index != binaryData.length) {
-        logger.error("Cube is not full, got " + index + " bytes, need " + binaryData.length + " bytes");
-        throw new Error("Cube is not full, got " + index + " bytes, need " + binaryData.length + " bytes");
-    }
-}
-
-export function writeTLVHeader(binaryData: Buffer, type: number, length: number, index: number): { nextIndex: number } {
-    if (binaryData === undefined)
-        throw new Error("Binary data not initialized");
-    const implicitLength = FIELD_LENGTHS[type];
-    if (implicitLength === undefined) {
-        // Write type and length
-        binaryData.writeUInt16BE((length & 0x03FF), index);
-        binaryData[index] |= (type & 0xFC);
-        index += 2;
-    } else {
-        // Write only type
-        binaryData[index] = type;
-        index += 1;
-    }
-    return { nextIndex: index };
-}
-
-export function readTLVHeader(binaryData: Buffer, index: number): { type: number, length: number, valueStartIndex: number } {
-    // We first parse just type in order to detect whether a length field is present.
-    // If the length field is present, we parse two bytes:
-    // the first byte contains 6 bits of type information
-    // and the last two bits of the first byte and the second byte contain the length
-    // information.
-    const type = binaryData[index] & 0xFC;
-    if (!(type in FieldType))
-        throw new Error("Invalid TLV type");
-    const implicit = FIELD_LENGTHS[type];
-    let length: number;
-    if (implicit === undefined) {
-        // Parse length
-        length = binaryData.readUInt16BE(index) & 0x03FF;
-        index += 2;
-    } else { // Implicit length saved one byte
-        length = implicit;
-        index += 1;
-    }
-    return { type, length, valueStartIndex: index };
 }

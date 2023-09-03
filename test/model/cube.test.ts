@@ -1,11 +1,11 @@
 // cube.test.ts
 import { BinaryLengthError, CUBE_HEADER_LENGTH, Cube, FieldSizeError, InsufficientDifficulty } from '../../src/model/cube';
 import { Buffer } from 'buffer';
-import { Field, FieldType, Fields } from '../../src/model/fieldProcessing';
+import { Field, FieldType, Fields } from '../../src/model/fields';
 import { calculateHash, countTrailingZeroBits } from '../../src/model/cubeUtil';
 import { Settings } from '../../src/model/config';
 import { NetConstants } from '../../src/model/networkDefinitions';
-import * as fp from '../../src/model/fieldProcessing';
+import { FieldParser } from '../../src/model/fieldParser';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
 
@@ -128,14 +128,14 @@ describe('cube', () => {
       [new Field(FieldType.PAYLOAD, 128, Buffer.alloc(128))]));
     expect(cube.getFields().data.length).toEqual(2);
     expect(cube.getFields().data[0].length + cube.getFields().data[1].length).toEqual(
-      NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - fp.getFieldHeaderLength(FieldType.PAYLOAD) - fp.getFieldHeaderLength(FieldType.PADDING_NONCE));
+      NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - FieldParser.toplevel.getFieldHeaderLength(FieldType.PAYLOAD) - FieldParser.toplevel.getFieldHeaderLength(FieldType.PADDING_NONCE));
   }, 1000);
 
   it('should accept maximum size cubes', () => {
     const cube = new Cube();
     const payloadLength = 500;
-    const paddingLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - fp.getFieldHeaderLength(FieldType.PADDING_NONCE) -
-      fp.getFieldHeaderLength(FieldType.PAYLOAD) - payloadLength;
+    const paddingLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - FieldParser.toplevel.getFieldHeaderLength(FieldType.PADDING_NONCE) -
+      FieldParser.toplevel.getFieldHeaderLength(FieldType.PAYLOAD) - payloadLength;
     const cubefields: Fields = new Fields([
       new Field(
         FieldType.PAYLOAD,
@@ -148,8 +148,8 @@ describe('cube', () => {
         Buffer.alloc(paddingLength),
       )
     ]);
-    expect(CUBE_HEADER_LENGTH + fp.getFieldHeaderLength(FieldType.PAYLOAD) + payloadLength +
-      fp.getFieldHeaderLength(FieldType.PADDING_NONCE) + paddingLength).toEqual(NetConstants.CUBE_SIZE);
+    expect(CUBE_HEADER_LENGTH + FieldParser.toplevel.getFieldHeaderLength(FieldType.PAYLOAD) + payloadLength +
+      FieldParser.toplevel.getFieldHeaderLength(FieldType.PADDING_NONCE) + paddingLength).toEqual(NetConstants.CUBE_SIZE);
     cube.setFields(cubefields);
     expect(paddingLength).toBeGreaterThanOrEqual(Settings.HASHCASH_SIZE);
     expect(cube.getFields().data.length).toEqual(2);
@@ -160,8 +160,8 @@ describe('cube', () => {
   it('should enforce there is enough space left for hashcash in manually padded cubes', () => {
     const cube = new Cube();
     const payloadLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH -
-      fp.getFieldHeaderLength(FieldType.PAYLOAD) -
-      fp.getFieldHeaderLength(FieldType.PADDING_NONCE) - 2;
+      FieldParser.toplevel.getFieldHeaderLength(FieldType.PAYLOAD) -
+      FieldParser.toplevel.getFieldHeaderLength(FieldType.PADDING_NONCE) - 2;
     const cubefields: Fields = new Fields([
       new Field(
         FieldType.PAYLOAD,
@@ -179,7 +179,7 @@ describe('cube', () => {
 
   it('should enforce there is enough space left for hashcash in automatically padded cubes', () => {
     const cube = new Cube();
-    const payloadLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - fp.getFieldHeaderLength(FieldType.PAYLOAD) - 2;
+    const payloadLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - FieldParser.toplevel.getFieldHeaderLength(FieldType.PAYLOAD) - 2;
     const cubefields: Fields = new Fields(new Field(
         FieldType.PAYLOAD,
         payloadLength,
@@ -193,7 +193,7 @@ describe('cube', () => {
     const cube = new Cube();
     const padding_length = 20;
     const payloadLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH -
-      fp.getFieldHeaderLength(FieldType.PAYLOAD) - fp.getFieldHeaderLength(FieldType.PADDING_NONCE) -
+      FieldParser.toplevel.getFieldHeaderLength(FieldType.PAYLOAD) - FieldParser.toplevel.getFieldHeaderLength(FieldType.PADDING_NONCE) -
       padding_length - 1;
     const cubefields: Fields = new Fields([
       new Field(
@@ -315,10 +315,10 @@ describe('cube', () => {
     const muc = new Cube();
     muc.setCryptoKeys(publicKey, privateKey);
     const fields = new Fields([
-      new Field(fp.FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-      new Field(fp.FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
-      new Field(fp.FieldType.PAYLOAD, 9, Buffer.from("Hello MUC", 'utf8')),
-      new Field(fp.FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
+      new Field(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
+      new Field(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
+      new Field(FieldType.PAYLOAD, 9, Buffer.from("Hello MUC", 'utf8')),
+      new Field(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
     ]);
 
   muc.setFields(fields);

@@ -3,7 +3,7 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node
 import { NetworkManager } from './model/networkManager';
 import { Cube } from './model/cube';
 import { CubeStore } from './model/cubeStore';
-import { FieldType, Field, Fields, Relationship, RelationshipType } from './model/fieldProcessing';
+import { FieldType, Field, Fields, Relationship, RelationshipType } from './model/fields';
 import { PeerDB, Peer } from './model/peerDB';
 import { logger } from './model/logger';
 import { vera } from './misc/vera';
