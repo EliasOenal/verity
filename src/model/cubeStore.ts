@@ -131,22 +131,22 @@ export class CubeStore extends EventEmitter {
     return cubeInfo;
   }
 
-  getCubeInfo(key: Buffer): CubeInfo {
+  getCubeInfo(key: CubeKey): CubeInfo {
     return this.storage.get(key.toString('hex'));
   }
-  getCubeRaw(key: Buffer): Buffer | undefined {
+  getCubeRaw(key: CubeKey): Buffer | undefined {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
     if (cubeInfo) return cubeInfo.binaryCube;
     else return undefined;
   }
-  getCube(key: Buffer): Cube | undefined {
+  getCube(key: CubeKey): Cube | undefined {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
     if (cubeInfo) return cubeInfo.instantiate();
     else return undefined;
   }
 
-  getAllStoredCubeKeys(): Set<Buffer> {
-    const ret: Set<Buffer> = new Set();
+  getAllStoredCubeKeys(): Set<CubeKey> {
+    const ret: Set<CubeKey> = new Set();
     for (const [key, cubeInfo] of this.storage) {
       if (cubeInfo.isComplete()) {  // if we actually have this cube
         ret.add(cubeInfo.key);
