@@ -5,7 +5,7 @@ import { NetConstants } from "./networkDefinitions";
 
 interface FieldDefinition {
   firstFieldOffset: number;
-  fieldLengths: Object;  // maps field IDs to field lenghths,
+  fieldLengths: object;  // maps field IDs to field lenghths,
                          // e.g. FIELD_LENGTHS defined in field.ts
 }
 
@@ -64,10 +64,10 @@ export class FieldParser {
         throw new BinaryDataError("Insufficient space in binaryData, got " + (index) + " bytes, need " + (index + field.length) + " bytes");
       }
     }
-    // verify cube is full -- TODO generalize
+    // verify compiled header&field length exactly matches the allocated space
     if (index != binaryData.length) {
-      logger.error("Cube is not full, got " + index + " bytes, need " + binaryData.length + " bytes");
-      throw new Error("Cube is not full, got " + index + " bytes, need " + binaryData.length + " bytes");
+      logger.error("Space allocated for compiled TLV data does not match allocated space, data is " + index + " bytes, but allocated space is " + binaryData.length + " bytes.");
+      throw new BinaryDataError("Space allocated for compiled TLV data does not match allocated space, data is " + index + " bytes, but allocated space is " + binaryData.length + " bytes.");
     }
   }
 
@@ -76,7 +76,7 @@ export class FieldParser {
       throw new BinaryDataError("Binary data not initialized");
     const implicitLength = this.fieldDef.fieldLengths[type];
     if (implicitLength === undefined) {
-      // Write type and length
+      // Write type and length -- TODO generalize type and length field sizes
       binaryData.writeUInt16BE((length & 0x03FF), index);
       binaryData[index] |= (type & 0xFC);
       index += 2;

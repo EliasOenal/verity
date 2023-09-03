@@ -1,6 +1,6 @@
 import { Buffer } from 'buffer';
 import { logger } from './logger';
-import { Cube, CUBE_HEADER_LENGTH, CubeKey, InvalidCubeKey, WrongFieldType } from './cube';
+import { CubeKey, WrongFieldType } from './cube';
 import { NetConstants } from './networkDefinitions';
 
 /**
