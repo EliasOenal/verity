@@ -1,8 +1,7 @@
 import { Cube } from '../../src/model/cube';
-import * as fp from '../../src/model/fieldProcessing';
 import { CubeStore as CubeStore } from '../../src/model/cubeStore';
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { Field, FieldType, Fields } from '../../src/model/fieldProcessing';
+import { Field, FieldType, Fields, Relationship, RelationshipType } from '../../src/model/fields';
 
 describe('cubeStore', () => {
   let cubeStore: CubeStore;
@@ -31,7 +30,7 @@ describe('cubeStore', () => {
   }, 1000);
 
   it('should add 20 cubes to the storage and get them back', async () => {
-    const promises = [];
+    const promises: Array<Promise<Buffer>> = [];
     for (let i = 0; i < 20; i++) {
       const cube = new Cube();
       cube.setDate(i);
@@ -76,19 +75,19 @@ describe('cubeStore', () => {
   // TODO: Create own test suite for Fields and move this there
   it('correctly sets and retrieves a reply_to relationship field', async () => {
     const root: Cube = new Cube(); // will only be used as referenc
-    const payloadfield: fp.Field = fp.Field.Payload(Buffer.alloc(200));
+    const payloadfield: Field = Field.Payload(Buffer.alloc(200));
     root.setFields(payloadfield);
 
     const leaf: Cube = new Cube();
 
-    leaf.setFields(new fp.Fields([
+    leaf.setFields(new Fields([
       payloadfield,
-      fp.Field.RelatesTo(new fp.Relationship(
-        fp.RelationshipType.REPLY_TO, (await root.getKey())))
+      Field.RelatesTo(new Relationship(
+        RelationshipType.REPLY_TO, (await root.getKey())))
     ]));
 
-    const retrievedRel: fp.Relationship = leaf.getFields().getFirstRelationship();
-    expect(retrievedRel.type).toEqual(fp.RelationshipType.REPLY_TO);
+    const retrievedRel: Relationship = leaf.getFields().getFirstRelationship();
+    expect(retrievedRel.type).toEqual(RelationshipType.REPLY_TO);
     expect(retrievedRel.remoteKey.toString('hex')).toEqual((await root.getKey()).toString('hex'));
   }, 1000);
 

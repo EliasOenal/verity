@@ -1,6 +1,6 @@
 import { Cube } from './cube'
 import { logger } from './logger';
-import * as fp from './fieldProcessing';
+import * as fp from './fields';
 
 /**
  * @interface CubeMeta is a restricted view on CubeInfo containing metadata only.

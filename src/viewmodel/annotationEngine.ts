@@ -2,7 +2,7 @@ import { CubeStore } from '../model/cubeStore';
 import { CubeInfo, CubeMeta } from '../model/cubeInfo'
 import { Cube, CubeKey } from '../model/cube';
 import { logger } from '../model/logger';
-import * as fp from '../model/fieldProcessing';
+import * as fp from '../model/fields';
 
 import { EventEmitter } from 'events';
 

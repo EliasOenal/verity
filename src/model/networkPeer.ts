@@ -9,7 +9,7 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node
 import { Buffer } from 'buffer';
 import { EventEmitter } from 'events';
 import { WebSocket } from 'isomorphic-ws';
-import { CubeType } from './fieldProcessing';
+import { CubeType } from './fields';
 import { cubeContest } from './cubeUtil';
 
 export interface PacketStats {

@@ -5,11 +5,12 @@ import * as CubeUtil from './cubeUtil';
 import { Settings, VerityError } from './config';
 import { logger } from './logger';
 import { NetConstants } from './networkDefinitions';
-import * as fp from './fieldProcessing';
-import { CubeType, Field, FieldType, Fields } from './fieldProcessing';
+import * as fp from './fields';
+import { CubeType, Field, FieldType, Fields } from './fields';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer';
+import { FieldParser } from "./fieldParser";
 
 export const CUBE_HEADER_LENGTH: number = 6;
 
@@ -76,7 +77,7 @@ export class Cube {
             this.version = 0;
             this.reservedBits = 0;
             this.date = Math.floor(Date.now() / 1000);
-            const num_alloc = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - fp.getFieldHeaderLength(FieldType.PADDING_NONCE);
+            const num_alloc = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - FieldParser.toplevel.getFieldHeaderLength(FieldType.PADDING_NONCE);
             this.fields = new Fields(new Field(
                 FieldType.PADDING_NONCE, num_alloc, Buffer.alloc(num_alloc)));
             this.binaryData = undefined;
@@ -93,7 +94,7 @@ export class Cube {
             this.version = binaryData[0] >> 4;
             this.reservedBits = binaryData[0] & 0xF;
             this.date = binaryData.readUIntBE(1, 5);
-            this.fields = fp.parseTLVBinaryData(this.binaryData);
+            this.fields = FieldParser.toplevel.parseTLVBinaryData(this.binaryData);
             this.cubeType = CubeType.CUBE_TYPE_REGULAR;
             this.processTLVFields(this.fields, this.binaryData);
         }
@@ -167,13 +168,13 @@ export class Cube {
         let totalLength = CUBE_HEADER_LENGTH;
         for (const field of this.fields.data) {
             totalLength += field.length;
-            totalLength += fp.getFieldHeaderLength(field.type);
+            totalLength += FieldParser.toplevel.getFieldHeaderLength(field.type);
         }
 
         // has the user already defined a sufficienly large padding field or do we have to add one?
         const indexNonce = this.fields.data.findIndex((field: Field) => field.type == FieldType.PADDING_NONCE && field.length >= Settings.HASHCASH_SIZE);
         let maxAcceptableLegth: number;
-        const minHashcashFieldSize = fp.getFieldHeaderLength(FieldType.PADDING_NONCE) + Settings.HASHCASH_SIZE;
+        const minHashcashFieldSize = FieldParser.toplevel.getFieldHeaderLength(FieldType.PADDING_NONCE) + Settings.HASHCASH_SIZE;
         if (indexNonce == -1) maxAcceptableLegth = NetConstants.CUBE_SIZE - minHashcashFieldSize;
         else maxAcceptableLegth = NetConstants.CUBE_SIZE;
 
@@ -188,11 +189,11 @@ export class Cube {
             // If the cube is currently one byte below maximum, there is no way we can transform
             // it into a valid cube, as it's one byte too short as is but will be one byte too large
             // with minimum extra padding.
-            if (totalLength > NetConstants.CUBE_SIZE - fp.getFieldHeaderLength(FieldType.PADDING_NONCE)) {
+            if (totalLength > NetConstants.CUBE_SIZE - FieldParser.toplevel.getFieldHeaderLength(FieldType.PADDING_NONCE)) {
                 throw new FieldSizeError('Cube: Cube is too small to be valid as is but too large to add extra padding.');
             }
             // Pad with random padding nonce to reach 1024 bytes
-            const num_alloc = NetConstants.CUBE_SIZE - totalLength - fp.getFieldHeaderLength(FieldType.PADDING_NONCE);
+            const num_alloc = NetConstants.CUBE_SIZE - totalLength - FieldParser.toplevel.getFieldHeaderLength(FieldType.PADDING_NONCE);
             const random_bytes = new Uint8Array(num_alloc);
             for (let i = 0; i < num_alloc; i++) random_bytes[i] = Math.floor(Math.random() * 256);
 
@@ -248,7 +249,7 @@ export class Cube {
     private static findFieldIndex(binaryData: Buffer, fieldType: FieldType, minLength: number = 0): number | undefined {
         let index = CUBE_HEADER_LENGTH; // Start after the header
         while (index < binaryData.length) {
-            const { type, length, valueStartIndex } = fp.readTLVHeader(binaryData, index);
+            const { type, length, valueStartIndex } = FieldParser.toplevel.readTLVHeader(binaryData, index);
             if (type === fieldType && length >= minLength) {
                 return valueStartIndex; // Return the index of the start of the desired field value
             }
@@ -308,7 +309,7 @@ export class Cube {
 
         Cube.updateVersionBinaryData(this.binaryData, this.version, this.reservedBits);
         Cube.updateDateBinaryData(this.binaryData, this.date);
-        fp.updateTLVBinaryData(this.binaryData, this.fields);
+        FieldParser.toplevel.updateTLVBinaryData(this.binaryData, this.fields);
         return this.binaryData;
     }
 
@@ -324,7 +325,7 @@ export class Cube {
             let start = CUBE_HEADER_LENGTH;
             for (const field of fields.data) {
                 field.start = start;
-                start += fp.getFieldHeaderLength(field.type & 0xFC) + field.length;
+                start += FieldParser.toplevel.getFieldHeaderLength(field.type & 0xFC) + field.length;
             }
         }
 
@@ -342,7 +343,7 @@ export class Cube {
                     throw new FieldNotImplemented('Cube: Field not implemented ' + field.type);
                 case FieldType.TYPE_SIGNATURE:
                     if (field.start +
-                        fp.getFieldHeaderLength(FieldType.TYPE_SIGNATURE) +
+                        FieldParser.toplevel.getFieldHeaderLength(FieldType.TYPE_SIGNATURE) +
                         field.length
                         !== NetConstants.CUBE_SIZE) {
                         logger.error('Cube: Signature field is not the last field');
@@ -394,7 +395,7 @@ export class Cube {
                     // the type byte of the signature field and the fingerprint.
                     // From start of cube up to the signature itself
                     const dataToVerify = binaryData.slice(0, signature.start
-                        + fp.getFieldHeaderLength(FieldType.TYPE_SIGNATURE) + NetConstants.FINGERPRINT_SIZE);
+                        + FieldParser.toplevel.getFieldHeaderLength(FieldType.TYPE_SIGNATURE) + NetConstants.FINGERPRINT_SIZE);
 
                     // Verify the signature
                     Cube.verifySignature(publicKeyValue, signatureValue, dataToVerify);
