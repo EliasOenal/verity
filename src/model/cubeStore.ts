@@ -1,4 +1,4 @@
-import { Cube } from './cube';
+import { Cube, CubeKey } from './cube';
 import { CubeInfo, CubeMeta } from './cubeInfo'
 import { logger } from './logger';
 import { CubePersistence } from "./cubePersistence";
@@ -100,7 +100,7 @@ export class CubeStore extends EventEmitter {
     }
   }
 
-  hasCube(key: Buffer): boolean {
+  hasCube(key: CubeKey): boolean {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
     if (cubeInfo && cubeInfo.isComplete()) return true;
     else return false;
@@ -116,7 +116,7 @@ export class CubeStore extends EventEmitter {
 
   // This should only really be used by addCube and the AnnotationEngine,
   // but I can't make it private
-  getCreateOrPopulateCubeInfo(key: Buffer, binaryCube?: Buffer): CubeInfo {
+  getCreateOrPopulateCubeInfo(key: CubeKey, binaryCube?: Buffer): CubeInfo {
     let cubeInfo: CubeInfo = this.getCubeInfo(key);
     if (!cubeInfo) {
       // we've never heard of this cube before -- create a new CubeInfo for it

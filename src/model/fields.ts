@@ -1,6 +1,6 @@
 import { Buffer } from 'buffer';
 import { logger } from './logger';
-import { Cube, CUBE_HEADER_LENGTH, InvalidCubeKey, WrongFieldType } from './cube';
+import { Cube, CUBE_HEADER_LENGTH, CubeKey, InvalidCubeKey, WrongFieldType } from './cube';
 import { NetConstants } from './networkDefinitions';
 
 /**
@@ -94,9 +94,9 @@ export class Field {
 
 export class Relationship {
     type: RelationshipType;
-    remoteKey: Buffer;
+    remoteKey: CubeKey;
 
-    constructor(type: RelationshipType = undefined, remoteKey: Buffer = undefined) {
+    constructor(type: RelationshipType = undefined, remoteKey: CubeKey = undefined) {
         this.type = type;
         this.remoteKey = remoteKey;
     }
