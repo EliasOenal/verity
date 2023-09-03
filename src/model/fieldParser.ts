@@ -1,6 +1,7 @@
 import { BinaryDataError, CUBE_HEADER_LENGTH, FieldError } from "./cube";
-import { FIELD_LENGTHS, Fields, Field } from "./fields";
+import { FIELD_LENGTHS, Fields, Field, FieldType } from "./fields";
 import { logger } from "./logger";
+import { NetConstants } from "./networkDefinitions";
 
 interface FieldDefinition {
   firstFieldOffset: number;
@@ -27,7 +28,23 @@ export class FieldParser {
   constructor(private fieldDef: FieldDefinition) { }
 
   getFieldHeaderLength(fieldType: number): number {
-    return (this.fieldDef.fieldLengths[fieldType] == undefined) ? 2 : 1;
+    // It's two bytes for "regular" fields including length informatione,
+    // but just one byte for fields with implicitly known length.
+    return (this.fieldDef.fieldLengths[fieldType] == undefined) ?
+      NetConstants.MESSAGE_CLASS_SIZE + NetConstants.FIELD_LENGTH_SIZE :
+      NetConstants.MESSAGE_CLASS_SIZE;
+  }
+
+  findFieldIndex(binaryData: Buffer, fieldType: FieldType, minLength: number = 0): number | undefined {
+    let index = this.fieldDef.firstFieldOffset; // Respect initial offset. For top-level headers, this leaves room for the date field
+    while (index < binaryData.length) {
+      const { type, length, valueStartIndex } = this.readTLVHeader(binaryData, index);
+      if (type === fieldType && length >= minLength) {
+        return valueStartIndex; // Return the index of the start of the desired field value
+      }
+      index = valueStartIndex + length; // Move to the next field
+    }
+    return undefined; // Return undefined if the desired field is not found
   }
 
   updateTLVBinaryData(binaryData: Buffer, fields: Fields): void {

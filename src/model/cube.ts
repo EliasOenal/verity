@@ -246,18 +246,6 @@ export class Cube {
         binaryData.writeUIntBE(date, 1, 5);
     }
 
-    private static findFieldIndex(binaryData: Buffer, fieldType: FieldType, minLength: number = 0): number | undefined {
-        let index = CUBE_HEADER_LENGTH; // Start after the header
-        while (index < binaryData.length) {
-            const { type, length, valueStartIndex } = FieldParser.toplevel.readTLVHeader(binaryData, index);
-            if (type === fieldType && length >= minLength) {
-                return valueStartIndex; // Return the index of the start of the desired field value
-            }
-            index = valueStartIndex + length; // Move to the next field
-        }
-        return undefined; // Return undefined if the desired field is not found
-    }
-
     // Verify fingerprint. This applies to smart cubes only.
     private static verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
         const calculatedFingerprint = CubeUtil.calculateHash(publicKeyValue).slice(0, 8);  // First 8 bytes of signature field
@@ -425,13 +413,13 @@ export class Cube {
 
         // Fields of new blocks aren't FullFields and don't know their start offset
         // so we instead use the binary data to find it
-        const indexNonce = Cube.findFieldIndex(this.binaryData, FieldType.PADDING_NONCE, Settings.HASHCASH_SIZE);
+        const indexNonce = FieldParser.toplevel.findFieldIndex(this.binaryData, FieldType.PADDING_NONCE, Settings.HASHCASH_SIZE);
         if (indexNonce === undefined) {
             logger.error('No suitable PADDING_NONCE field found');
             throw new Error("No suitable PADDING_NONCE field found");
         }
 
-        const indexSignature = Cube.findFieldIndex(this.binaryData, FieldType.TYPE_SIGNATURE, 72);
+        const indexSignature = FieldParser.toplevel.findFieldIndex(this.binaryData, FieldType.TYPE_SIGNATURE, 72);
         let publicKeyField;
         let mucField;
         if (indexSignature !== undefined) {
