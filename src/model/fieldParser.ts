@@ -1,5 +1,4 @@
-import { BinaryDataError, FieldError } from "./cube";
-import { CUBE_HEADER_LENGTH, FIELD_LENGTHS, FieldType } from "./cubeDefinitions";
+import { BinaryDataError, CUBE_HEADER_LENGTH, FIELD_LENGTHS, FieldError, FieldType } from "./cubeDefinitions";
 import { Fields, Field, TopLevelField } from "./fields";
 import { logger } from "./logger";
 import { NetConstants } from "./networkDefinitions";
