@@ -1,7 +1,8 @@
 import { AnnotationEngine } from '../../src/viewmodel/annotationEngine';
 import { Cube } from '../../src/model/cube';
 import { CubeStore as CubeStore } from '../../src/model/cubeStore';
-import { Field, Fields, Relationship, RelationshipType } from '../../src/model/fields';
+import { Field, Fields, Relationship, TopLevelField, TopLevelFields } from '../../src/model/fields';
+import { RelationshipType } from '../../src/model/cubeDefinitions';
 
 describe('annotationEngine', () => {
   let cubeStore: CubeStore;
@@ -12,17 +13,30 @@ describe('annotationEngine', () => {
     annotationEngine = new AnnotationEngine(cubeStore);
   }, 1000);
 
+  it('should mark a single root cube as displayable', async () => {
+    const root: Cube = new Cube();
+    const payloadfield: TopLevelField = TopLevelField.Payload(Buffer.alloc(200));
+    root.setFields(payloadfield);
 
-  // TODO: move displayability logic somewhere else
+    const callback = jest.fn();
+    annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
+
+    cubeStore.addCube(root);
+
+    expect(callback.mock.calls).toEqual([
+      [await root.getKey()],
+    ]);
+  }, 5000);
+
   it('should mark a cube and a reply received in sync as displayable', async () => {
     const root: Cube = new Cube();
-    const payloadfield: Field = Field.Payload(Buffer.alloc(200));
+    const payloadfield: TopLevelField = TopLevelField.Payload(Buffer.alloc(200));
     root.setFields(payloadfield);
 
     const leaf: Cube = new Cube();
-    leaf.setFields(new Fields([
+    leaf.setFields(new TopLevelFields([
       payloadfield,
-      Field.RelatesTo(new Relationship(
+      TopLevelField.RelatesTo(new Relationship(
         RelationshipType.REPLY_TO, await root.getKey()))
     ]));
 
@@ -40,13 +54,13 @@ describe('annotationEngine', () => {
 
   it('should not mark replies as displayable when the original post is unavailable', async () => {
     const root: Cube = new Cube(); // will NOT be added
-    const payloadfield: Field = Field.Payload(Buffer.alloc(200));
+    const payloadfield: TopLevelField = TopLevelField.Payload(Buffer.alloc(200));
     root.setFields(payloadfield);
 
     const leaf: Cube = new Cube();
-    leaf.setFields(new Fields([
+    leaf.setFields(new TopLevelFields([
       payloadfield,
-      Field.RelatesTo(new Relationship(
+      TopLevelField.RelatesTo(new Relationship(
         RelationshipType.REPLY_TO, await root.getKey()))
     ]));
 
@@ -59,20 +73,20 @@ describe('annotationEngine', () => {
 
   it('should mark replies as displayable only once all preceding posts has been received', async () => {
     const root: Cube = new Cube();
-    const payloadfield: Field = Field.Payload(Buffer.alloc(200));
+    const payloadfield: TopLevelField = TopLevelField.Payload(Buffer.alloc(200));
     root.setFields(payloadfield);
 
     const intermediate: Cube = new Cube();
-    intermediate.setFields(new Fields([
-      Field.RelatesTo(new Relationship(
+    intermediate.setFields(new TopLevelFields([
+      TopLevelField.RelatesTo(new Relationship(
         RelationshipType.REPLY_TO, await root.getKey())),
       payloadfield,  // let's shift the payload field around a bit for good measure :)
     ]));
 
     const leaf: Cube = new Cube();
-    leaf.setFields(new Fields([
+    leaf.setFields(new TopLevelFields([
       payloadfield,
-      Field.RelatesTo(new Relationship(
+      TopLevelField.RelatesTo(new Relationship(
         RelationshipType.REPLY_TO, await intermediate.getKey()))
     ]));
 

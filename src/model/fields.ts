@@ -2,71 +2,38 @@ import { Buffer } from 'buffer';
 import { logger } from './logger';
 import { CubeKey, WrongFieldType } from './cube';
 import { NetConstants } from './networkDefinitions';
-
-/**
- * Top-level field definitions.
- * These are used for the FieldParser in the core library.
- * Applications will usually supplement this with their own sub-field structure
- * within the top-level payload field; for this, they can re-use our FieldParser
- * by supplying it with their own field structure data.
- */
-export enum FieldType {
-    PADDING_NONCE = 0x00 << 2,
-    PAYLOAD = 0x01 << 2,
-    RELATES_TO = 0x02 << 2,
-    KEY_DISTRIBUTION = 0x03 << 2,
-    SHARED_KEY = 0x04 << 2,
-    ENCRYPTED = 0x05 << 2,
-    TYPE_SIGNATURE = 0x06 << 2,
-    TYPE_SMART_CUBE = 0x07 << 2,
-    TYPE_PUBLIC_KEY = 0x08 << 2,
-}
-
-export const FIELD_LENGTHS: { [key: number]: number | undefined } = {
-    [FieldType.PAYLOAD]: undefined,
-    [FieldType.RELATES_TO]: NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE,
-    [FieldType.PADDING_NONCE]: undefined,
-    [FieldType.KEY_DISTRIBUTION]: 40,
-    [FieldType.SHARED_KEY]: 32,
-    [FieldType.ENCRYPTED]: undefined,
-    [FieldType.TYPE_SIGNATURE]: 72,
-    [FieldType.TYPE_SMART_CUBE]: 0, // Just a single header byte
-    [FieldType.TYPE_PUBLIC_KEY]: 32,
-};
-
-export enum CubeType {
-    CUBE_TYPE_REGULAR = 0xFF,
-    CUBE_TYPE_MUC = 0x00,
-    CUBE_TYPE_IPC = 0x01,
-    CUBE_TYPE_RESERVED = 0x02,
-    CUBE_TYPE_RESERVED2 = 0x03,
-}
-
-export enum RelationshipType {
-    CONTINUED_IN = 1,
-    MENTION = 2,
-    REPLY_TO = 3,
-    QUOTATION = 4,
-    OWNS = 5,
-}
+import { FIELD_LENGTHS, FieldType, RelationshipType } from './cubeDefinitions';
 
 export class Field {
-    type: FieldType;
+    type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Applications may or may not chose to keep their application-level fields compatible with our top-level numbering.
     length: number;
     value: Buffer;
 
-    // Start of field as offset from beginning of cube (binaryData)
+    /**
+     * Start of field as offset from beginning of cube (binaryData).
+     * When creating a Cube, this is not know yet. Only when you finalize the
+     * cube, i.e. compile it by calling getBinaryData() on it, these will be
+     * calculated.
+     * We refer to a field as a `full field` once this offset is know and you
+     * can check whether a field is full by calling isFull().
+     */
     start: number = undefined;
 
-    constructor(type: FieldType, length: number, value: Buffer, start?: number) {
+    constructor(type: number, length: number, value: Buffer, start?: number) {
         this.type = type;
         this.length = length;
         this.value = value;
         this.start = start;
     }
 
+    /**
+     * Is this a full field, i.e. is it's start index within a compiled cube's
+     * binary data known yet?
+     */
     public isFull() { if (this.start) return true; else return false; }
+}
 
+export class TopLevelField extends Field {
     static Payload(buf: Buffer | string): Field {
         if (typeof buf === 'string' || buf instanceof String)  {
             buf = Buffer.from(buf, 'utf-8');
@@ -92,18 +59,26 @@ export class Field {
     }
 }
 
+/**
+ * This represents a relationship between two cubes and is the object-representation
+ * of a RELATES_TO field.
+ * For application-layer fields, this may only be used if the application
+ * re-uses top-level field definition or creates their own, compatible
+ * `RELATES_TO` field type and also calls it `RELATES TO`.
+ * (tl;dr: If you deviate too much from our fields, it's your fault if it breaks.)
+ */
 export class Relationship {
-    type: RelationshipType;
+    type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Application may or may not chose to re-use this relationship system on the application layer, and if they do so they may or may not chose to keep their relationship types compatible with ours.
     remoteKey: CubeKey;
 
-    constructor(type: RelationshipType = undefined, remoteKey: CubeKey = undefined) {
+    constructor(type: number = undefined, remoteKey: CubeKey = undefined) {
         this.type = type;
         this.remoteKey = remoteKey;
     }
 
-    static fromField(field?: Field) {
+    static fromField(field?: Field, fieldDefinition = FieldType) {
         const relationship = new Relationship();
-        if (field.type != FieldType.RELATES_TO) {
+        if (field.type != fieldDefinition.RELATES_TO) {
             throw (new WrongFieldType(
                 "Can only construct relationship object from RELATES_TO field, " +
                 "got " + field.type + "."));
@@ -116,7 +91,8 @@ export class Relationship {
     }
 }
 
-export class Fields {  // TODO: subclass stuff that's specific to top-level fields
+
+export class Fields {
     public data: Array<Field>;
 
     constructor(data?: Array<Field> | Field) {
@@ -132,12 +108,33 @@ export class Fields {  // TODO: subclass stuff that's specific to top-level fiel
     * @param type Which type of field to get
     * @return An array of Field objects, which may be empty.
     */
-    public getFieldsByType(type: FieldType): Array<Field> {
+    public getFieldsByType(type: number): Array<Field> {  // in top-level fields, type must be one of FieldType as defined in cubeDefinitions.ts
         const ret = [];
         for (let i = 0; i < this.data.length; i++) {
             if (this.data[i].type == type) ret.push(this.data[i]);
         }
         return ret;
+    }
+
+    /// @ method Inserts a new field before the *first* existing field of the
+    ///          specified type, or at the very end if no such field exists.
+    ///          (This is used, in particular, by Cube.setFields() to determine
+    ///          if any auto-padding needs to be inserted before a signature.)
+    public insertFieldBefore(type: number, field: Field) {  // in top-level fields, type must be one of FieldType as defined in cubeDefinitions.ts
+        for (let i = 0; i < this.data.length; i++) {
+            if (this.data[i].type == type) {
+                this.data.splice(i, 0, field)
+                return;
+            }
+        }
+        // no such field
+        this.data.push(field);
+    }
+}
+
+export class TopLevelFields extends Fields {
+    constructor(data?: Array<TopLevelField> | TopLevelField) {
+        super(data);
     }
 
     /**
@@ -161,18 +158,4 @@ export class Fields {  // TODO: subclass stuff that's specific to top-level fiel
         else return undefined;
     }
 
-    /// @ method Inserts a new field before the *first* existing field of the
-    ///          specified type, or at the very end if no such field exists.
-    ///          (This is used, in particular, by Cube.setFields() to determine
-    ///          if any auto-padding needs to be inserted before a signature.)
-    public insertFieldBefore(type: FieldType, field: Field) {
-        for (let i = 0; i < this.data.length; i++) {
-            if (this.data[i].type == type) {
-                this.data.splice(i, 0, field)
-                return;
-            }
-        }
-        // no such field
-        this.data.push(field);
-    }
 }

@@ -1,18 +1,16 @@
 // cube.ts
-import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { Settings, VerityError } from './config';
-import { logger } from './logger';
 import { NetConstants } from './networkDefinitions';
-import * as fp from './fields';
-import { CubeType, Field, FieldType, Fields } from './fields';
+import { Field, Fields, TopLevelField, TopLevelFields } from './fields';
+import { FieldParser } from "./fieldParser";
+import { CUBE_HEADER_LENGTH, CubeType, FieldType } from "./cubeDefinitions";
+import { logger } from './logger';
 
+import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer';
-import { FieldParser } from "./fieldParser";
-
-export const CUBE_HEADER_LENGTH: number = 6;
 
 export class CubeKey extends Buffer {}  // semantic typedef, TODO use this everywhere
 
@@ -20,11 +18,11 @@ export class Cube {
     private version: number;
     private reservedBits: number;
     private date: number;
-    private fields: Fields;
+    private fields: TopLevelFields;
     private binaryData: Buffer | undefined;
     private hash: Buffer | undefined;
-    private privateKey: Buffer | undefined;
-    private publicKey: Buffer | undefined;
+    private _privateKey: Buffer | undefined;
+    private _publicKey: Buffer | undefined;
     private cubeType: number | undefined;
     private cubeKey: CubeKey | undefined;
 
@@ -42,7 +40,7 @@ export class Cube {
         if (customfields instanceof Field) customfields = [customfields];
         const cube: Cube = new Cube();
         cube.setCryptoKeys(publicKey, privateKey);
-        const fields: Fields = new Fields([
+        const fields: TopLevelFields = new TopLevelFields([
             new Field(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
             new Field(
                 FieldType.TYPE_PUBLIC_KEY,
@@ -78,7 +76,7 @@ export class Cube {
             this.reservedBits = 0;
             this.date = Math.floor(Date.now() / 1000);
             const num_alloc = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - FieldParser.toplevel.getFieldHeaderLength(FieldType.PADDING_NONCE);
-            this.fields = new Fields(new Field(
+            this.fields = new TopLevelFields(new TopLevelField(
                 FieldType.PADDING_NONCE, num_alloc, Buffer.alloc(num_alloc)));
             this.binaryData = undefined;
             this.hash = undefined;
@@ -94,7 +92,7 @@ export class Cube {
             this.version = binaryData[0] >> 4;
             this.reservedBits = binaryData[0] & 0xF;
             this.date = binaryData.readUIntBE(1, 5);
-            this.fields = FieldParser.toplevel.parseTLVBinaryData(this.binaryData);
+            this.fields = new TopLevelFields(FieldParser.toplevel.parseTLVBinaryData(this.binaryData));
             this.cubeType = CubeType.CUBE_TYPE_REGULAR;
             this.processTLVFields(this.fields, this.binaryData);
         }
@@ -138,10 +136,13 @@ export class Cube {
         }
     }
 
+    get privateKey() { return this._privateKey; }
+    get publicKey() { return this._publicKey; }
+
     public setCryptoKeys(publicKey: Buffer, privateKey: Buffer): void {
         this.cubeManipulated();
-        this.publicKey = publicKey;
-        this.privateKey = privateKey;
+        this._publicKey = publicKey;
+        this._privateKey = privateKey;
     }
 
     public getDate(): number {
@@ -153,14 +154,14 @@ export class Cube {
         this.date = date;
     }
 
-    public getFields(): Fields {
+    public getFields(): TopLevelFields {
         return this.fields;
     }
 
-    public setFields(fields: Fields | Field): void {
+    public setFields(fields: TopLevelFields | TopLevelField): void {
         this.cubeManipulated();
         if (fields instanceof Fields) this.fields = fields;
-        else if (fields instanceof Field) this.fields = new Fields(fields);
+        else if (fields instanceof Field) this.fields = new TopLevelFields(fields);
         else throw TypeError("Invalid fields type");
 
         // verify all fields together are less than 1024 bytes,
@@ -232,55 +233,6 @@ export class Cube {
     }
 
 
-    // TODO document
-    private static updateVersionBinaryData(binaryData: Buffer, version: number, reservedBits: number) {
-        if (binaryData === undefined)
-            throw new BinaryDataError("Binary data not initialized");
-        binaryData[0] = (version << 4) | reservedBits;
-    }
-
-    // TODO document
-    private static updateDateBinaryData(binaryData: Buffer, date: number) {
-        if (binaryData === undefined)
-            throw new BinaryDataError("Binary data not initialized");
-        binaryData.writeUIntBE(date, 1, 5);
-    }
-
-    // Verify fingerprint. This applies to smart cubes only.
-    private static verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
-        const calculatedFingerprint = CubeUtil.calculateHash(publicKeyValue).slice(0, 8);  // First 8 bytes of signature field
-
-        if (!calculatedFingerprint.equals(providedFingerprint)) {
-            logger.error('Cube: Fingerprint does not match');
-            throw new FingerprintError('Cube: Fingerprint does not match');
-        }
-    }
-
-    // Verify signature. This applies to smart cubes only.
-    private static verifySignature(publicKeyValue: Buffer, signatureValue: Buffer, dataToVerify: Buffer): void {
-        const data = new Uint8Array(dataToVerify);
-        const signature = new Uint8Array(signatureValue);
-        const publicKey = new Uint8Array(publicKeyValue);
-
-        const isSignatureValid = sodium.crypto_sign_verify_detached(signature, data, publicKey);
-
-        if (!isSignatureValid) {
-            logger.error('Cube: Invalid signature');
-            throw new CubeSignatureError('Cube: Invalid signature');
-        }
-    }
-
-    private static parseSmartCube(type: number): number {
-        switch (type & 0x03) {
-            case CubeType.CUBE_TYPE_MUC:
-                return CubeType.CUBE_TYPE_MUC;
-            default:
-                logger.error('Cube: Smart cube type not implemented ' + type);
-                throw new SmartCubeTypeNotImplemented('Cube: Smart cube type not implemented ' + type);
-        }
-    }
-
-
     /// @method Any change to a cube invalidates it and basically returns it to
     /// "new cube in the making" state. Binary data, hash and potentially cube key
     /// are now invalid. Delete them; out getter methods will make sure to
@@ -295,9 +247,9 @@ export class Cube {
         this.processTLVFields(this.fields, this.binaryData);
         this.binaryData = Buffer.alloc(1024);
 
-        Cube.updateVersionBinaryData(this.binaryData, this.version, this.reservedBits);
-        Cube.updateDateBinaryData(this.binaryData, this.date);
-        FieldParser.toplevel.updateTLVBinaryData(this.binaryData, this.fields);
+        CubeUtil.updateVersionBinaryData(this.binaryData, this.version, this.reservedBits);
+        CubeUtil.updateDateBinaryData(this.binaryData, this.date);
+        FieldParser.toplevel.updateTLVBinaryData(this.binaryData, this.fields.data);
         return this.binaryData;
     }
 
@@ -350,7 +302,7 @@ export class Cube {
                         logger.error('Cube: Smart cube type is not the first field');
                         throw new SmartCubeError('Cube: Smart cube type is not the first field');
                     }
-                    const smartCubeType = Cube.parseSmartCube(field.value[0]);
+                    const smartCubeType = CubeUtil.parseSmartCube(field.value[0]);
                     if (smartCubeType !== CubeType.CUBE_TYPE_MUC) {
                         logger.error('Cube: Smart cube type not implemented ' + smartCubeType);
                         throw new SmartCubeTypeNotImplemented('Cube: Smart cube type not implemented ' + smartCubeType);
@@ -367,7 +319,7 @@ export class Cube {
             }
         }
 
-        if (smart && (Cube.parseSmartCube(smart.type) === CubeType.CUBE_TYPE_MUC)) {
+        if (smart && (CubeUtil.parseSmartCube(smart.type) === CubeType.CUBE_TYPE_MUC)) {
             if (publicKey && signature) {
                 if (binaryData) {
                     // Extract the public key, signature values and provided fingerprint
@@ -376,7 +328,7 @@ export class Cube {
                     const signatureValue = signature.value.slice(8); // Remaining bytes are the actual signature
 
                     // Verify the fingerprint
-                    Cube.verifyFingerprint(publicKeyValue, providedFingerprint);
+                    CubeUtil.verifyFingerprint(publicKeyValue, providedFingerprint);
 
                     // Create the data to be verified.
                     // It includes all bytes of the cube from the start up to and including
@@ -386,10 +338,10 @@ export class Cube {
                         + FieldParser.toplevel.getFieldHeaderLength(FieldType.TYPE_SIGNATURE) + NetConstants.FINGERPRINT_SIZE);
 
                     // Verify the signature
-                    Cube.verifySignature(publicKeyValue, signatureValue, dataToVerify);
+                    CubeUtil.verifySignature(publicKeyValue, signatureValue, dataToVerify);
                 }
                 this.cubeType = CubeType.CUBE_TYPE_MUC;
-                this.publicKey = publicKey.value;
+                this._publicKey = publicKey.value;
                 this.cubeKey = publicKey.value; // MUC, key is public key
             } else {
                 logger.error('Cube: Public key or signature is undefined for MUC');
@@ -446,9 +398,9 @@ export class Cube {
 
         logger.info("cube: Using hash " + this.hash.toString('hex') + "as cubeKey");
         this.cubeKey = this.hash;
-        if (mucField !== undefined && this.publicKey !== undefined) {
+        if (mucField !== undefined && this._publicKey !== undefined) {
             // MUCs use the public key as the cube key
-            this.cubeKey = this.publicKey;
+            this.cubeKey = this._publicKey;
         }
         return this.cubeKey;
     }
@@ -500,10 +452,10 @@ export class Cube {
             let hash: Buffer;
             // If this is a MUC and signatureStartIndex is provided, set fingerprint once before the loop starts
             if (signatureStartIndex !== undefined) {
-                if (this.publicKey === undefined || this.privateKey === undefined) {
+                if (this._publicKey === undefined || this._privateKey === undefined) {
                     throw new Error("Public/private key not initialized");
                 }
-                this.writeFingerprint(this.publicKey, signatureStartIndex);
+                this.writeFingerprint(this._publicKey, signatureStartIndex);
             }
             const checkHash = () => {
                 if (this.binaryData === undefined) {
@@ -515,7 +467,7 @@ export class Cube {
                     this.binaryData.writeUInt32BE(nonce, nonceStartIndex);
                     // If this is a MUC and signatureStartIndex is provided, sign the updated data
                     if (signatureStartIndex !== undefined) {
-                        this.signBinaryData(this.privateKey!, signatureStartIndex);
+                        this.signBinaryData(this._privateKey!, signatureStartIndex);
                     }
                     // Calculate the hash
                     hash = CubeUtil.calculateHash(this.binaryData);

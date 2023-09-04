@@ -1,10 +1,12 @@
 // cubeUtil.ts
+import { BinaryDataError, Cube, CubeSignatureError, FingerprintError, SmartCubeTypeNotImplemented } from './cube';
+import { CubeMeta } from './cubeInfo';
+import { CubeType } from './cubeDefinitions';
+import { logger } from './logger';
+
 import { Buffer } from 'buffer';
 import { sha3_256 } from 'js-sha3';
-import { Cube } from './cube';
-import { CubeMeta } from './cubeInfo';
-import { logger } from './logger';
-import { CubeType } from './fields';
+import sodium, { KeyPair } from 'libsodium-wrappers'
 
 /*
  * Calculate the lifetime of a cube based on the hashcash challenge level x.
@@ -87,6 +89,54 @@ export function countTrailingZeroBits(buffer: Buffer): number {
         }
     }
     return count;
+}
+
+// TODO document
+export function updateVersionBinaryData(binaryData: Buffer, version: number, reservedBits: number) {
+    if (binaryData === undefined)
+        throw new BinaryDataError("Binary data not initialized");
+    binaryData[0] = (version << 4) | reservedBits;
+}
+
+// TODO document
+export function updateDateBinaryData(binaryData: Buffer, date: number) {
+    if (binaryData === undefined)
+        throw new BinaryDataError("Binary data not initialized");
+    binaryData.writeUIntBE(date, 1, 5);
+}
+
+// Verify fingerprint. This applies to smart cubes only.
+export function verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
+    const calculatedFingerprint = calculateHash(publicKeyValue).slice(0, 8);  // First 8 bytes of signature field
+
+    if (!calculatedFingerprint.equals(providedFingerprint)) {
+        logger.error('Cube: Fingerprint does not match');
+        throw new FingerprintError('Cube: Fingerprint does not match');
+    }
+}
+
+// Verify signature. This applies to smart cubes only.
+export function verifySignature(publicKeyValue: Buffer, signatureValue: Buffer, dataToVerify: Buffer): void {
+    const data = new Uint8Array(dataToVerify);
+    const signature = new Uint8Array(signatureValue);
+    const publicKey = new Uint8Array(publicKeyValue);
+
+    const isSignatureValid = sodium.crypto_sign_verify_detached(signature, data, publicKey);
+
+    if (!isSignatureValid) {
+        logger.error('Cube: Invalid signature');
+        throw new CubeSignatureError('Cube: Invalid signature');
+    }
+}
+
+export function parseSmartCube(type: number): number {
+    switch (type & 0x03) {
+        case CubeType.CUBE_TYPE_MUC:
+            return CubeType.CUBE_TYPE_MUC;
+        default:
+            logger.error('Cube: Smart cube type not implemented ' + type);
+            throw new SmartCubeTypeNotImplemented('Cube: Smart cube type not implemented ' + type);
+    }
 }
 
 export async function printCubeInfo(cube: Cube) {

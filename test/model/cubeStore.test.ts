@@ -1,7 +1,8 @@
 import { Cube } from '../../src/model/cube';
 import { CubeStore as CubeStore } from '../../src/model/cubeStore';
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { Field, FieldType, Fields, Relationship, RelationshipType } from '../../src/model/fields';
+import { Field, Fields, Relationship, TopLevelField, TopLevelFields } from '../../src/model/fields';
+import { RelationshipType, FieldType } from '../../src/model/cubeDefinitions';
 
 describe('cubeStore', () => {
   let cubeStore: CubeStore;
@@ -75,14 +76,14 @@ describe('cubeStore', () => {
   // TODO: Create own test suite for Fields and move this there
   it('correctly sets and retrieves a reply_to relationship field', async () => {
     const root: Cube = new Cube(); // will only be used as referenc
-    const payloadfield: Field = Field.Payload(Buffer.alloc(200));
+    const payloadfield: TopLevelField = TopLevelField.Payload(Buffer.alloc(200));
     root.setFields(payloadfield);
 
     const leaf: Cube = new Cube();
 
-    leaf.setFields(new Fields([
+    leaf.setFields(new TopLevelFields([
       payloadfield,
-      Field.RelatesTo(new Relationship(
+      TopLevelField.RelatesTo(new Relationship(
         RelationshipType.REPLY_TO, (await root.getKey())))
     ]));
 
@@ -98,11 +99,11 @@ describe('cubeStore', () => {
     const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
     // Define required MUC fields
-    const fields = new Fields([
-      new Field(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-      new Field(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
-      new Field(FieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
-      new Field(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
+    const fields = new TopLevelFields([
+      new TopLevelField(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
+      new TopLevelField(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
+      new TopLevelField(FieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
+      new TopLevelField(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
     ]);
 
     // Create first MUC with specified TLV fields

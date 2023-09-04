@@ -9,7 +9,7 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node
 import { Buffer } from 'buffer';
 import { EventEmitter } from 'events';
 import { WebSocket } from 'isomorphic-ws';
-import { CubeType } from './fields';
+import { CubeType } from './cubeDefinitions';
 import { cubeContest } from './cubeUtil';
 
 export interface PacketStats {
@@ -432,6 +432,7 @@ export class NetworkPeer extends EventEmitter {
         // TODO FIXME: This includes incoming peers, and for incoming peers we only know their client socket.
         // TODO FIXME: Most universally, clients can accept incoming connections on client sockets.
         // TODO FIXME: We should include the server port in the hello message and save it.
+        // TODO FIXME: Also, stop resending the same addresses to the same peer over and over again.
         let availablePeerCount: number = availablePeers.length;
         let numberToSend: number;
         if (availablePeerCount >= NetConstants.MAX_NODE_ADDRESS_COUNT) {
