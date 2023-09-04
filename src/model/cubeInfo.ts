@@ -1,6 +1,7 @@
 import { Cube, CubeKey } from './cube'
+import { RelationshipType } from './cubeDefinitions';
+import { Relationship } from './fields';
 import { logger } from './logger';
-import * as fp from './fields';
 
 /**
  * @interface CubeMeta is a restricted view on CubeInfo containing metadata only.
@@ -53,7 +54,7 @@ export class CubeInfo {
   date: number = undefined;
   challengeLevel: number = undefined;
 
-  reverseRelationships: Array<fp.Relationship> = [];
+  reverseRelationships: Array<Relationship> = [];
   applicationNotes: Map<any, any> = new Map();
 
   // @member objectCache: Will remember the last instantiated Cube object
@@ -72,7 +73,7 @@ export class CubeInfo {
 
   isComplete(): boolean { return this.binaryCube ? true : false }
 
-  instantiate(): Cube | undefined {
+  getCube(): Cube | undefined {
     if (!this.isComplete()) return undefined; // nope, no cube available yet
 
     // Keep returning the same Cube object until it gets garbage collected
@@ -92,9 +93,9 @@ export class CubeInfo {
 
   // TODO: use fp.getRelationships for that
   getReverseRelationships(
-    type?: fp.RelationshipType,
+    type?: RelationshipType,
     remoteKey?: CubeKey)
-    : Array<fp.Relationship> {
+    : Array<Relationship> {
     const ret = [];
     for (const reverseRelationship of this.reverseRelationships) {
       if (

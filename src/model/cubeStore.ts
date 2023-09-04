@@ -1,13 +1,13 @@
+import { Settings } from './config';
 import { Cube, CubeKey } from './cube';
 import { CubeInfo, CubeMeta } from './cubeInfo'
-import { logger } from './logger';
 import { CubePersistence } from "./cubePersistence";
+import { CubeType } from './cubeDefinitions';
+import { cubeContest } from './cubeUtil';
+import { logger } from './logger';
+
 import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
-import { Settings } from './config';
-import { NetConstants } from './networkDefinitions';
-import { CubeType } from './fields';
-import { cubeContest } from './cubeUtil';
 
 export class CubeStore extends EventEmitter {
   private storage: Map<string, CubeInfo> = new Map();
@@ -60,6 +60,8 @@ export class CubeStore extends EventEmitter {
         return cubeInfo.key;
       }
 
+      // If this is a MUC, check if we already have a MUC with this key.
+      // Replace it with the incoming MUC if it's newer than the one we have.
       if (cubeInfo.cubeType == CubeType.CUBE_TYPE_MUC) {
         if (this.hasCube(cubeInfo.key)) {
           const storedCube: CubeMeta = this.getCubeInfo(cubeInfo.key);
@@ -141,7 +143,7 @@ export class CubeStore extends EventEmitter {
   }
   getCube(key: CubeKey): Cube | undefined {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
-    if (cubeInfo) return cubeInfo.instantiate();
+    if (cubeInfo) return cubeInfo.getCube();
     else return undefined;
   }
 

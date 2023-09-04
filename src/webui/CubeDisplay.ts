@@ -1,6 +1,8 @@
+import { FieldType, RelationshipType } from "../model/cubeDefinitions";
 import { Cube, CubeKey } from "../model/cube";
 import { CubeInfo } from "../model/cubeInfo";
-import { Relationship, RelationshipType, FieldType } from "../model/fields";
+import { Relationship } from "../model/fields";
+
 import { Identity } from "../viewmodel/identity";
 import { VerityUI } from "./VerityUI";
 
@@ -27,7 +29,7 @@ export class CubeDisplay {
   displayCube(key: CubeKey) {
     const cubeInfo: CubeInfo = this.parent.node.cubeStore.getCubeInfo(key);
     if (!cubeInfo.isComplete()) return;
-    const cube: Cube = cubeInfo.instantiate() as Cube;
+    const cube: Cube = cubeInfo.getCube() as Cube;
 
     // is this a reply?
     const replies: Array<Relationship> = cube.getFields().getRelationships(RelationshipType.REPLY_TO);

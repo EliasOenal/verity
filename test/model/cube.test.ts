@@ -1,13 +1,14 @@
 // cube.test.ts
-import { BinaryLengthError, CUBE_HEADER_LENGTH, Cube, FieldSizeError, InsufficientDifficulty } from '../../src/model/cube';
+import { NetConstants } from '../../src/model/networkDefinitions';
+import { BinaryLengthError, Cube, FieldSizeError, InsufficientDifficulty } from '../../src/model/cube';
 import { Buffer } from 'buffer';
-import { Field, FieldType, Fields } from '../../src/model/fields';
+import { TopLevelField, TopLevelFields } from '../../src/model/fields';
 import { calculateHash, countTrailingZeroBits } from '../../src/model/cubeUtil';
 import { Settings } from '../../src/model/config';
-import { NetConstants } from '../../src/model/networkDefinitions';
 import { FieldParser } from '../../src/model/fieldParser';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
+import { CUBE_HEADER_LENGTH, FieldType } from '../../src/model/cubeDefinitions';
 
 
 describe('cube', () => {
@@ -54,7 +55,7 @@ describe('cube', () => {
   it('should create a new cube with default values when no binary data is provided', () => {
     const cube = new Cube();
     expect(cube.getVersion()).toEqual(0);
-    expect(cube.getFields().data).toEqual([new Field(FieldType.PADDING_NONCE, 1016, Buffer.alloc(1016))]);
+    expect(cube.getFields().data).toEqual([new TopLevelField(FieldType.PADDING_NONCE, 1016, Buffer.alloc(1016))]);
   }, 1000);
 
   it('should set and get the version correctly', () => {
@@ -77,8 +78,8 @@ describe('cube', () => {
 
   it('should set and get fields correctly', () => {
     const cube = new Cube();
-    const fields = new Fields([
-      new Field(FieldType.PAYLOAD, 100, Buffer.alloc(100))]);
+    const fields = new TopLevelFields([
+      new TopLevelField(FieldType.PAYLOAD, 100, Buffer.alloc(100))]);
     cube.setFields(fields);
     expect(cube.getFields()).toEqual(fields);
   }, 1000);
@@ -93,8 +94,8 @@ describe('cube', () => {
 
   it('should write fields to binary data correctly', () => {
     const cube = new Cube();
-    const fields = new Fields([
-      new Field(FieldType.PAYLOAD, 100, Buffer.alloc(100))]);
+    const fields = new TopLevelFields([
+      new TopLevelField(FieldType.PAYLOAD, 100, Buffer.alloc(100))]);
     cube.setFields(fields);
     const binaryData = cube.getBinaryData();
     // The type and length should be written to the binary data at index 6 and 7
@@ -111,8 +112,8 @@ describe('cube', () => {
 
   it('should throw an error when there is not enough space for a field value', () => {
     const cube = new Cube();
-    const fields = new Fields([
-      new Field(FieldType.PAYLOAD, 8020, Buffer.alloc(8020))]); // Too long for the binary data
+    const fields = new TopLevelFields([
+      new TopLevelField(FieldType.PAYLOAD, 8020, Buffer.alloc(8020))]); // Too long for the binary data
     expect(() => cube.setFields(fields)).toThrow(FieldSizeError);
   }, 1000);
 
@@ -124,8 +125,8 @@ describe('cube', () => {
 
   it('should automatically add extra padding when cube is too small', () => {
     const cube = new Cube();
-    cube.setFields(new Fields(
-      [new Field(FieldType.PAYLOAD, 128, Buffer.alloc(128))]));
+    cube.setFields(new TopLevelFields(
+      [new TopLevelField(FieldType.PAYLOAD, 128, Buffer.alloc(128))]));
     expect(cube.getFields().data.length).toEqual(2);
     expect(cube.getFields().data[0].length + cube.getFields().data[1].length).toEqual(
       NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - FieldParser.toplevel.getFieldHeaderLength(FieldType.PAYLOAD) - FieldParser.toplevel.getFieldHeaderLength(FieldType.PADDING_NONCE));
@@ -136,13 +137,13 @@ describe('cube', () => {
     const payloadLength = 500;
     const paddingLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - FieldParser.toplevel.getFieldHeaderLength(FieldType.PADDING_NONCE) -
       FieldParser.toplevel.getFieldHeaderLength(FieldType.PAYLOAD) - payloadLength;
-    const cubefields: Fields = new Fields([
-      new Field(
+    const cubefields: TopLevelFields = new TopLevelFields([
+      new TopLevelField(
         FieldType.PAYLOAD,
         payloadLength,
         Buffer.alloc(payloadLength),
       ),
-      new Field(
+      new TopLevelField(
         FieldType.PADDING_NONCE,
         paddingLength,
         Buffer.alloc(paddingLength),
@@ -162,13 +163,13 @@ describe('cube', () => {
     const payloadLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH -
       FieldParser.toplevel.getFieldHeaderLength(FieldType.PAYLOAD) -
       FieldParser.toplevel.getFieldHeaderLength(FieldType.PADDING_NONCE) - 2;
-    const cubefields: Fields = new Fields([
-      new Field(
+    const cubefields: TopLevelFields = new TopLevelFields([
+      new TopLevelField(
         FieldType.PAYLOAD,
         payloadLength,
         Buffer.alloc(payloadLength),
       ),
-      new Field(
+      new TopLevelField(
         FieldType.PADDING_NONCE,
         2,
         Buffer.alloc(2),
@@ -180,7 +181,7 @@ describe('cube', () => {
   it('should enforce there is enough space left for hashcash in automatically padded cubes', () => {
     const cube = new Cube();
     const payloadLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - FieldParser.toplevel.getFieldHeaderLength(FieldType.PAYLOAD) - 2;
-    const cubefields: Fields = new Fields(new Field(
+    const cubefields: TopLevelFields = new TopLevelFields(new TopLevelField(
         FieldType.PAYLOAD,
         payloadLength,
         Buffer.alloc(payloadLength)
@@ -195,13 +196,13 @@ describe('cube', () => {
     const payloadLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH -
       FieldParser.toplevel.getFieldHeaderLength(FieldType.PAYLOAD) - FieldParser.toplevel.getFieldHeaderLength(FieldType.PADDING_NONCE) -
       padding_length - 1;
-    const cubefields: Fields = new Fields([
-      new Field(
+    const cubefields: TopLevelFields = new TopLevelFields([
+      new TopLevelField(
         FieldType.PAYLOAD,
         payloadLength,
         Buffer.alloc(payloadLength),
       ),
-      new Field(
+      new TopLevelField(
         FieldType.PADDING_NONCE,
         padding_length,
         Buffer.alloc(padding_length),
@@ -213,7 +214,7 @@ describe('cube', () => {
     const cube: Cube = new Cube();
     cube.setVersion(0);
     const payload: Buffer = Buffer.from('Hello world, this is a payload for a cube!', 'ascii');
-    cube.setFields(new Field(FieldType.PAYLOAD, payload.length, payload));
+    cube.setFields(new TopLevelField(FieldType.PAYLOAD, payload.length, payload));
     const key: Buffer = await cube.getKey();
     expect(key[key.length - 1]).toEqual(0);
   }, 5000);
@@ -238,11 +239,11 @@ describe('cube', () => {
     const muc = new Cube();
     muc.setCryptoKeys(publicKey, privateKey);
 
-    const fields = new Fields([
-      new Field(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-      new Field(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
-      new Field(FieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
-      new Field(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
+    const fields = new TopLevelFields([
+      new TopLevelField(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
+      new TopLevelField(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
+      new TopLevelField(FieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
+      new TopLevelField(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
     ]);
 
     muc.setFields(fields);
@@ -264,11 +265,11 @@ describe('cube', () => {
     const muc = new Cube();
     muc.setCryptoKeys(publicKey, privateKey);
 
-    const fields = new Fields([
-      new Field(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-      new Field(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
-      new Field(FieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
-      new Field(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72)),
+    const fields = new TopLevelFields([
+      new TopLevelField(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
+      new TopLevelField(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
+      new TopLevelField(FieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
+      new TopLevelField(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72)),
     ]);
 
     muc.setFields(fields);
@@ -290,11 +291,11 @@ describe('cube', () => {
 
     const muc: Cube = new Cube();
     muc.setCryptoKeys(publicKey, privateKey);
-    const fields = new Fields([
-      new Field(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-      new Field(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
-      new Field(FieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
-      new Field(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
+    const fields = new TopLevelFields([
+      new TopLevelField(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
+      new TopLevelField(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
+      new TopLevelField(FieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
+      new TopLevelField(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
     ]);
     muc.setFields(fields);
 
@@ -314,11 +315,11 @@ describe('cube', () => {
 
     const muc = new Cube();
     muc.setCryptoKeys(publicKey, privateKey);
-    const fields = new Fields([
-      new Field(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-      new Field(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
-      new Field(FieldType.PAYLOAD, 9, Buffer.from("Hello MUC", 'utf8')),
-      new Field(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
+    const fields = new TopLevelFields([
+      new TopLevelField(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
+      new TopLevelField(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
+      new TopLevelField(FieldType.PAYLOAD, 9, Buffer.from("Hello MUC", 'utf8')),
+      new TopLevelField(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
     ]);
 
   muc.setFields(fields);
@@ -338,7 +339,7 @@ describe('cube', () => {
     const muc: Cube = Cube.MUC(
       Buffer.from(keyPair.publicKey),
       Buffer.from(keyPair.privateKey),
-      Field.Payload("just testing, nothing to see here")
+      TopLevelField.Payload("just testing, nothing to see here")
     );
     const key = await muc.getKey();
     expect(key).toBeDefined();

@@ -2,11 +2,12 @@ import { NetworkManager } from '../../src/model/networkManager';
 import { NetworkPeer } from '../../src/model/networkPeer';
 import { CubeStore } from '../../src/model/cubeStore';
 import { Cube } from '../../src/model/cube';
-import { Field, FieldType, Fields } from '../../src/model/fields';
+import { TopLevelField } from '../../src/model/fields';
 import { PeerDB, Peer } from '../../src/model/peerDB';
 import { logger } from '../../src/model/logger';
 
 import WebSocket from 'isomorphic-ws';
+import { FieldType } from '../../src/model/cubeDefinitions';
 
 describe('networkManager', () => {
 
@@ -98,7 +99,7 @@ describe('networkManager', () => {
             const cube = new Cube();
             const buffer: Buffer = Buffer.alloc(1);
             buffer.writeInt8(i);
-            cube.setFields(new Field(FieldType.PAYLOAD, 1, buffer));
+            cube.setFields(new TopLevelField(FieldType.PAYLOAD, 1, buffer));
             await cubeStore.addCube(cube);
         }
 

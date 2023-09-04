@@ -2,9 +2,10 @@ import { CubeStore } from '../model/cubeStore';
 import { CubeInfo, CubeMeta } from '../model/cubeInfo'
 import { Cube, CubeKey } from '../model/cube';
 import { logger } from '../model/logger';
-import * as fp from '../model/fields';
 
 import { EventEmitter } from 'events';
+import { Relationship } from '../model/fields';
+import { RelationshipType } from '../model/cubeDefinitions';
 
 export class AnnotationEngine extends EventEmitter {
   private cubeStore: CubeStore;
@@ -17,17 +18,18 @@ export class AnnotationEngine extends EventEmitter {
     this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.emitIfCubeMakesOthersDisplayable(cube.key));
   }
 
-  private autoAnnotate(key: CubeKey, cube?: Cube, cubeInfo?: CubeInfo) {
-    if (!cubeInfo) cubeInfo = this.cubeStore.getCubeInfo(key);
-    if (!cube) cube = cubeInfo.instantiate();
+  private autoAnnotate(key: CubeKey) {
+    const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(key);
+    const cube: Cube = cubeInfo.getCube();
+
     for (const relationship of cube.getFields().getRelationships()) {
       const remoteDataset: CubeInfo =
         this.cubeStore.getCreateOrPopulateCubeInfo(relationship.remoteKey);
-      const existingReverse: Array<fp.Relationship> =
+      const existingReverse: Array<Relationship> =
         remoteDataset.getReverseRelationships(relationship.type, key);
       if (existingReverse.length == 0) {
         remoteDataset.reverseRelationships.push(
-          new fp.Relationship(relationship.type, key));
+          new Relationship(relationship.type, key));
         // logger.trace(`cubeStore: learning reverse relationship from ${relationship.remoteKey} to ${key}`)
       }
     }
@@ -35,10 +37,9 @@ export class AnnotationEngine extends EventEmitter {
 
   // Emits cubeDisplayable events if this is the case
   isCubeDisplayable(key: CubeKey, cubeInfo?: CubeInfo, cube?: Cube): boolean {
-    // TODO: move displayability logic somewhere else
     if (!cubeInfo) cubeInfo = this.cubeStore.getCubeInfo(key);
     if (!cubeInfo.isComplete()) return false;  // we don't even have this cube yet
-    if (!cube) cube = cubeInfo.instantiate();
+    if (!cube) cube = cubeInfo.getCube();
 
     // TODO: handle continuation chains
     // TODO: parametrize and handle additional relationship types on request
@@ -49,13 +50,15 @@ export class AnnotationEngine extends EventEmitter {
     // are we a reply?
     // if we are, we can only be displayed if we have the original post,
     // and the original post is displayable too
-    const reply_to: fp.Relationship =
-      cube.getFields().getFirstRelationship(fp.RelationshipType.REPLY_TO);
+    const reply_to: Relationship =
+      cube.getFields().getFirstRelationship(RelationshipType.REPLY_TO);
     if (reply_to) {
+      // logger.trace("annotationEngine: Checking for displayability of a reply")
       const basePost: CubeInfo = this.cubeStore.getCubeInfo(reply_to.remoteKey);
       if (!basePost) return false;
-      if (!this.isCubeDisplayable(reply_to.remoteKey)) return false;
+      if (!this.isCubeDisplayable(basePost.key, basePost)) return false;
     }
+    // logger.trace("annotationEngine: Confiming cube " + key.toString('hex') + " is displayable.");
     return true;
   }
 
@@ -76,14 +79,14 @@ export class AnnotationEngine extends EventEmitter {
     key: CubeKey, cubeInfo?: CubeInfo, cube?: Cube): boolean {
     let ret: boolean = false;
     if (!cubeInfo) cubeInfo = this.cubeStore.getCubeInfo(key);
-    if (!cube) cube = cubeInfo.instantiate();
+    if (!cube) cube = cubeInfo.getCube();
 
     // Am I the base post to a reply we already have?
     if (this.isCubeDisplayable(key, cubeInfo, cube)) {
       // In a base-reply relationship, I as a base can only make my reply
       // displayable if I am displayable myself.
-      const replies: Array<fp.Relationship> = cubeInfo.getReverseRelationships(
-        fp.RelationshipType.REPLY_TO);
+      const replies: Array<Relationship> = cubeInfo.getReverseRelationships(
+        RelationshipType.REPLY_TO);
       for (const reply of replies) {
         if (this.emitIfCubeDisplayable(reply.remoteKey)) {  // will emit a cubeDisplayable event for reply.remoteKey if so
           ret = true;

@@ -1,12 +1,13 @@
-import { BinaryDataError, CUBE_HEADER_LENGTH, FieldError } from "./cube";
-import { FIELD_LENGTHS, Fields, Field, FieldType } from "./fields";
+import { BinaryDataError, FieldError } from "./cube";
+import { CUBE_HEADER_LENGTH, FIELD_LENGTHS, FieldType } from "./cubeDefinitions";
+import { Fields, Field, TopLevelField } from "./fields";
 import { logger } from "./logger";
 import { NetConstants } from "./networkDefinitions";
 
 interface FieldDefinition {
   firstFieldOffset: number;
-  fieldLengths: object;  // maps field IDs to field lenghths,
-                         // e.g. FIELD_LENGTHS defined in field.ts
+  fieldLengths: object;  // maps field IDs to field lenghths, e.g. FIELD_LENGTHS defined in field.ts
+  fieldType: any,     // the Field class you'd like to use, e.g. TopLevelField for... you know... top-level fields
 }
 
 export class FieldParser {
@@ -21,6 +22,7 @@ export class FieldParser {
     if (!FieldParser._toplevel) FieldParser._toplevel = new FieldParser({
       firstFieldOffset: CUBE_HEADER_LENGTH,
       fieldLengths: FIELD_LENGTHS,
+      fieldType: TopLevelField,
   });
   return FieldParser._toplevel;
 }
@@ -35,7 +37,7 @@ export class FieldParser {
       NetConstants.MESSAGE_CLASS_SIZE;
   }
 
-  findFieldIndex(binaryData: Buffer, fieldType: FieldType, minLength: number = 0): number | undefined {
+  findFieldIndex(binaryData: Buffer, fieldType: number, minLength: number = 0): number | undefined {
     let index = this.fieldDef.firstFieldOffset; // Respect initial offset. For top-level headers, this leaves room for the date field
     while (index < binaryData.length) {
       const { type, length, valueStartIndex } = this.readTLVHeader(binaryData, index);
@@ -47,11 +49,11 @@ export class FieldParser {
     return undefined; // Return undefined if the desired field is not found
   }
 
-  updateTLVBinaryData(binaryData: Buffer, fields: Fields): void {
+  updateTLVBinaryData(binaryData: Buffer, fields: Array<Field>): void {
     if (binaryData === undefined)
       throw new BinaryDataError("Binary data not initialized");
     let index = this.fieldDef.firstFieldOffset; // Respect initial offset. For top-level headers, this leaves room for the date field
-    for (const field of fields.data) {
+    for (const field of fields) {
       const { nextIndex } = this.writeTLVHeader(binaryData, field.type, field.length, index);
       index = nextIndex;
 
@@ -112,10 +114,10 @@ export class FieldParser {
     return { type, length, valueStartIndex: index };
   }
 
-  parseTLVBinaryData(binaryData: Buffer): Fields {
+  parseTLVBinaryData(binaryData: Buffer): Array<any> {
     if (binaryData === undefined)
       throw new BinaryDataError("Binary data not initialized");
-    const fields: Fields = new Fields();
+    const fields = [];
     let index = this.fieldDef.firstFieldOffset; // Respect initial offset. For top-level headers, this leaves room for the date field
     while (index < binaryData.length) {
       const { type, length, valueStartIndex } = this.readTLVHeader(binaryData, index);
@@ -124,7 +126,7 @@ export class FieldParser {
 
       if (index + length <= binaryData.length) {  // Check if enough data for value field
         const value = binaryData.slice(index, index + length);
-        fields.data.push(new Field(type, length, value, start));
+        fields.push(new this.fieldDef.fieldType(type, length, value, start));
         index += length;
       } else {
         throw new BinaryDataError("Data ended unexpectedly while reading value of field");

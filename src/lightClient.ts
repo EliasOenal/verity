@@ -6,7 +6,8 @@ import { Cube } from './model/cube';
 import { Buffer } from 'buffer';
 import readline from 'readline';
 import { vera } from './misc/vera';
-import { Field, FieldType, Fields } from './model/fields';
+import { Field, Fields, TopLevelFields } from './model/fields';
+import { FieldType } from './model/cubeDefinitions';
 
 // This is a light client that connects to a full node
 // it does not announce and does not accept incoming connections.
@@ -68,7 +69,7 @@ async function main() {
             const buffer = Buffer.alloc(4);
             // random buffer
             buffer.writeUInt32BE(Math.floor(Math.random() * 1000000));
-            cube.setFields(new Fields([
+            cube.setFields(new TopLevelFields([
                 new Field(
                     FieldType.PAYLOAD,
                     payloadString.length,
