@@ -37,7 +37,7 @@
     "browser-or-node": "^2.1.1",
     "events": "^3.3.0",
     "isomorphic-ws": "^5.0.0",
-    "js-sha3": "^0.8.0",
+    "js-sha3": "^0.9.1",
     "level": "^8.0.0",
     "pino": "^8.14.2",
     "pino-pretty": "^10.2.0",
