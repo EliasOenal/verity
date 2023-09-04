@@ -1,7 +1,7 @@
 // cubeUtil.ts
-import { BinaryDataError, Cube, CubeSignatureError, FingerprintError, SmartCubeTypeNotImplemented } from './cube';
+import { BinaryDataError, CubeSignatureError, CubeType, FingerprintError, SmartCubeTypeNotImplemented } from './cubeDefinitions';
+import { Cube } from './cube';
 import { CubeMeta } from './cubeInfo';
-import { CubeType } from './cubeDefinitions';
 import { logger } from './logger';
 
 import { Buffer } from 'buffer';

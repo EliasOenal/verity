@@ -1,8 +1,9 @@
-import { Buffer } from 'buffer';
-import { logger } from './logger';
-import { CubeKey, WrongFieldType } from './cube';
 import { NetConstants } from './networkDefinitions';
-import { FIELD_LENGTHS, FieldType, RelationshipType } from './cubeDefinitions';
+import { FIELD_LENGTHS, FieldType, RelationshipType, WrongFieldType } from './cubeDefinitions';
+import { CubeKey } from './cube';
+import { logger } from './logger';
+
+import { Buffer } from 'buffer';
 
 export class Field {
     type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Applications may or may not chose to keep their application-level fields compatible with our top-level numbering.

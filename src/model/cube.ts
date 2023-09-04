@@ -1,11 +1,11 @@
 // cube.ts
+import { BinaryDataError, BinaryLengthError, CUBE_HEADER_LENGTH, CubeError, CubeSignatureError, CubeType, FieldNotImplemented, FieldSizeError, FieldType, InsufficientDifficulty, SmartCubeError, SmartCubeTypeNotImplemented, UnknownFieldType } from "./cubeDefinitions";
+import { Settings } from './config';
+import { NetConstants } from './networkDefinitions';
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
-import { Settings, VerityError } from './config';
-import { NetConstants } from './networkDefinitions';
 import { Field, Fields, TopLevelField, TopLevelFields } from './fields';
 import { FieldParser } from "./fieldParser";
-import { CUBE_HEADER_LENGTH, CubeType, FieldType } from "./cubeDefinitions";
 import { logger } from './logger';
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
@@ -94,7 +94,7 @@ export class Cube {
             this.date = binaryData.readUIntBE(1, 5);
             this.fields = new TopLevelFields(FieldParser.toplevel.parseTLVBinaryData(this.binaryData));
             this.cubeType = CubeType.CUBE_TYPE_REGULAR;
-            this.processTLVFields(this.fields, this.binaryData);
+            this.processTLVFields();
         }
     }
 
@@ -244,7 +244,7 @@ export class Cube {
     }
 
     private setBinaryData(): Buffer {
-        this.processTLVFields(this.fields, this.binaryData);
+        this.processTLVFields();
         this.binaryData = Buffer.alloc(1024);
 
         CubeUtil.updateVersionBinaryData(this.binaryData, this.version, this.reservedBits);
@@ -255,15 +255,15 @@ export class Cube {
 
     // If binaryData is undefined, then this is a new local cube in the process of being created.
     // If binaryData is defined, then we expect a fully formed cube meeting all requirements.
-    private processTLVFields(fields: Fields, binaryData: Buffer | undefined): void {
+    private processTLVFields(): void {
         let smart: Field = undefined;
         let publicKey: Field = undefined;
         let signature: Field = undefined;
 
-        if (binaryData === undefined) {
+        if (this.binaryData === undefined) {
             // Upgrade fields to full fields
             let start = CUBE_HEADER_LENGTH;
-            for (const field of fields.data) {
+            for (const field of this.fields.data) {
                 field.start = start;
                 start += FieldParser.toplevel.getFieldHeaderLength(field.type & 0xFC) + field.length;
             }
@@ -321,7 +321,7 @@ export class Cube {
 
         if (smart && (CubeUtil.parseSmartCube(smart.type) === CubeType.CUBE_TYPE_MUC)) {
             if (publicKey && signature) {
-                if (binaryData) {
+                if (this.binaryData) {
                     // Extract the public key, signature values and provided fingerprint
                     const publicKeyValue = publicKey.value;
                     const providedFingerprint = signature.value.slice(0, 8); // First 8 bytes of signature field
@@ -334,8 +334,11 @@ export class Cube {
                     // It includes all bytes of the cube from the start up to and including
                     // the type byte of the signature field and the fingerprint.
                     // From start of cube up to the signature itself
-                    const dataToVerify = binaryData.slice(0, signature.start
-                        + FieldParser.toplevel.getFieldHeaderLength(FieldType.TYPE_SIGNATURE) + NetConstants.FINGERPRINT_SIZE);
+                    const dataToVerify = this.binaryData.slice(0,
+                        signature.start +
+                        FieldParser.toplevel.getFieldHeaderLength(
+                            FieldType.TYPE_SIGNATURE) +
+                        NetConstants.FINGERPRINT_SIZE);
 
                     // Verify the signature
                     CubeUtil.verifySignature(publicKeyValue, signatureValue, dataToVerify);
@@ -502,26 +505,3 @@ export class Cube {
 }
 
 if (isNode) require('./nodespecific/cube-extended');
-
-
-// Error definitions
-export class CubeError extends VerityError { }
-export class CubeApiUsageError extends CubeError { }
-export class InsufficientDifficulty extends CubeError { }
-export class InvalidCubeKey extends CubeError { }
-
-export class FieldError extends CubeError { }
-export class FieldSizeError extends CubeError { }
-export class UnknownFieldType extends FieldError { }
-export class FieldNotImplemented extends FieldError { }
-export class CubeRelationshipError extends FieldError { }
-export class WrongFieldType extends FieldError { }
-
-export class BinaryDataError extends CubeError { }
-export class BinaryLengthError extends BinaryDataError { }
-
-export class SmartCubeError extends CubeError { }
-export class FingerprintError extends SmartCubeError { }
-export class CubeSignatureError extends SmartCubeError { }
-
-export class SmartCubeTypeNotImplemented extends SmartCubeError { }
