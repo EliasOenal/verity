@@ -3,7 +3,7 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node
 import { NetworkManager } from './model/networkManager';
 import { Cube } from './model/cube';
 import { CubeStore } from './model/cubeStore';
-import { CubeField, Fields, Relationship, CubeFields, CubeRelationshipType } from './model/fields';
+import { CubeField, CubeRelationship, CubeFields, CubeRelationshipType } from './model/cubeFields';
 import { PeerDB, Peer } from './model/peerDB';
 import { logger } from './model/logger';
 import { vera } from './misc/vera';
@@ -120,7 +120,7 @@ export class fullNode {
 
         if (replyto) {
             cubefields.data.push(CubeField.RelatesTo(
-                new Relationship(CubeRelationshipType.REPLY_TO, Buffer.from(
+                new CubeRelationship(CubeRelationshipType.REPLY_TO, Buffer.from(
                     replyto, 'hex'))));
         }
 

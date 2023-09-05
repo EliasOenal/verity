@@ -1,7 +1,7 @@
 import { Cube } from '../../src/model/cube';
 import { CubeStore as CubeStore } from '../../src/model/cubeStore';
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { CubeField, CubeFieldType, CubeFields, CubeRelationshipType, Relationship } from '../../src/model/fields';
+import { CubeField, CubeFieldType, CubeFields, CubeRelationshipType, CubeRelationship } from '../../src/model/cubeFields';
 
 describe('cubeStore', () => {
   let cubeStore: CubeStore;
@@ -83,11 +83,11 @@ describe('cubeStore', () => {
 
     leaf.setFields(new CubeFields([
       payloadfield,
-      CubeField.RelatesTo(new Relationship(
+      CubeField.RelatesTo(new CubeRelationship(
         CubeRelationshipType.REPLY_TO, (await root.getKey())))
     ]));
 
-    const retrievedRel: Relationship = leaf.getFields().getFirstRelationship();
+    const retrievedRel: CubeRelationship = leaf.getFields().getFirstRelationship();
     expect(retrievedRel.type).toEqual(CubeRelationshipType.REPLY_TO);
     expect(retrievedRel.remoteKey.toString('hex')).toEqual((await root.getKey()).toString('hex'));
   }, 1000);

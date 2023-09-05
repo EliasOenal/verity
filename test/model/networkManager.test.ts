@@ -2,7 +2,7 @@ import { NetworkManager } from '../../src/model/networkManager';
 import { NetworkPeer } from '../../src/model/networkPeer';
 import { CubeStore } from '../../src/model/cubeStore';
 import { Cube } from '../../src/model/cube';
-import { CubeField, CubeFieldType } from '../../src/model/fields';
+import { CubeField, CubeFieldType } from '../../src/model/cubeFields';
 import { PeerDB, Peer } from '../../src/model/peerDB';
 import { logger } from '../../src/model/logger';
 

@@ -1,5 +1,5 @@
 import { Cube, CubeKey } from './cube'
-import { Relationship, CubeRelationshipType } from './fields';
+import { CubeRelationship, CubeRelationshipType } from './cubeFields';
 import { logger } from './logger';
 
 /**
@@ -53,7 +53,7 @@ export class CubeInfo {
   date: number = undefined;
   challengeLevel: number = undefined;
 
-  reverseRelationships: Array<Relationship> = [];
+  reverseRelationships: Array<CubeRelationship> = [];
   applicationNotes: Map<any, any> = new Map();
 
   // @member objectCache: Will remember the last instantiated Cube object
@@ -94,7 +94,7 @@ export class CubeInfo {
   getReverseRelationships(
     type?: CubeRelationshipType,
     remoteKey?: CubeKey)
-    : Array<Relationship> {
+    : Array<CubeRelationship> {
     const ret = [];
     for (const reverseRelationship of this.reverseRelationships) {
       if (

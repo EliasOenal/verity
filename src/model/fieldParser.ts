@@ -1,7 +1,8 @@
 import { BinaryDataError, FieldError } from "./cubeDefinitions";
-import { Fields, Field, FieldDefinition, cubeFieldDefinition } from "./fields";
+import { BaseFields, BaseField, FieldDefinition } from "./baseFields";
 import { logger } from "./logger";
 import { NetConstants } from "./networkDefinitions";
+import { cubeFieldDefinition } from "./cubeFields";
 
 export class FieldParser {
   private static _toplevel = undefined;
@@ -24,8 +25,8 @@ export class FieldParser {
    * @param fields An array of fields, which must be of the type described by
    *               this.fieldDef.fieldType
    */
-  compileFields(fields: Fields | Array<Field>): Buffer {
-    if (!(fields instanceof Fields)) fields = new Fields(fields);
+  compileFields(fields: BaseFields | Array<BaseField>): Buffer {
+    if (!(fields instanceof BaseFields)) fields = new BaseFields(fields, this.fieldDef);
     this.finalizeFields(fields.data);            // prepare fields
       const buf = Buffer.alloc(                    // allocate buffer
       this.fieldDef.firstFieldOffset + fields.getLength());
@@ -39,7 +40,7 @@ export class FieldParser {
    * @returns An array of fields, the exact type of which being determined by
    *          this.fieldDef.fieldType.
    */
-  decompileFields(binaryData: Buffer): Array<Field> {
+  decompileFields(binaryData: Buffer): Array<BaseField> {
     if (binaryData === undefined)
       throw new BinaryDataError("Binary data not initialized");
     const fields = [];
@@ -99,7 +100,7 @@ export class FieldParser {
     return undefined; // Return undefined if the desired field is not found
   }
 
-  updateTLVBinaryData(binaryData: Buffer, fields: Array<Field>): void {
+  updateTLVBinaryData(binaryData: Buffer, fields: Array<BaseField>): void {
     if (binaryData === undefined)
       throw new BinaryDataError("Binary data not initialized");
     let index = this.fieldDef.firstFieldOffset; // Respect initial offset. For top-level headers, this leaves room for the date field

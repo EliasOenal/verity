@@ -8,7 +8,7 @@ import { calculateHash, countTrailingZeroBits } from '../../src/model/cubeUtil';
 import { FieldParser } from '../../src/model/fieldParser';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { CubeField, CubeFieldType, CubeFields } from '../../src/model/fields';
+import { CubeField, CubeFieldType, CubeFields } from '../../src/model/cubeFields';
 
 describe('cube', () => {
   // This test parses a bit weirdly, the zero fill after the nonce decodes into additional TLV fields of length 0

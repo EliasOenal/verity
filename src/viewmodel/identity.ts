@@ -6,12 +6,13 @@ import { logger } from '../model/logger';
 
 import { Level } from 'level';
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { Field, Relationship, CubeField, CubeFieldType } from '../model/fields';
+import { BaseField, BaseRelationship } from '../model/baseFields';
 import { ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from './zwFields';
 import { CubeError } from '../model/cubeDefinitions';
 
 import { Buffer } from 'buffer';
 import { VerityUI } from '../webui/VerityUI';
+import { CubeField, CubeFieldType } from '../model/cubeFields';
 
 const IDENTITYDB_VERSION = 1;
 
@@ -162,18 +163,18 @@ export class Identity {
 
     // Write profile picture reference
     if (this.profilepic) zwFields.data.push(ZwField.RelatesTo(
-      new Relationship(ZwRelationshipType.PROFILEPIC, this.profilepic)
+      new BaseRelationship(ZwRelationshipType.PROFILEPIC, this.profilepic)
     ));
 
     // Write key backup cube reference (not actually implemented yet)
     if (this.keyBackupCube) zwFields.data.push(ZwField.RelatesTo(
-      new Relationship(ZwRelationshipType.KEY_BACKUP_CUBE, this.keyBackupCube)
+      new BaseRelationship(ZwRelationshipType.KEY_BACKUP_CUBE, this.keyBackupCube)
     ));
     // Write my post references
     if (this.posts.length) {
       for (let i = this.posts.length-1; i>=0 && i >= this.posts.length - 21; i--) {
         zwFields.data.push(ZwField.RelatesTo(
-          new Relationship(ZwRelationshipType.MYPOST, this.posts[i])
+          new BaseRelationship(ZwRelationshipType.MYPOST, this.posts[i])
         ));
       }
     }
@@ -189,7 +190,7 @@ export class Identity {
 
   parseMuc(muc: Cube): void {
     // Is this MUC valid for this application?
-    const zwData: Field = muc.getFields().getFirstField(CubeFieldType.PAYLOAD);
+    const zwData: BaseField = muc.getFields().getFirstField(CubeFieldType.PAYLOAD);
     if (!zwData) {
       throw new CubeError("Identity: Supplied MUC is not an Identity MUC, lacks top level PAYLOAD field.")
     }
@@ -197,13 +198,13 @@ export class Identity {
     if (!zwFields) {
       throw new CubeError("Identity: Supplied MUC is not an Identity MUC, payload content does not consist of zwFields");
     }
-    const appField: Field = zwFields.getFirstField(ZwFieldType.APPLICATION);
+    const appField: BaseField = zwFields.getFirstField(ZwFieldType.APPLICATION);
     if (!appField || appField.value.toString('utf-8') != "ZW") {
       throw new CubeError("Identity: Supplied MUC is not an Identity MUC, lacks ZW application field");
     }
 
     // read name (mandatory)
-    const nameField: Field = zwFields.getFirstField(ZwFieldType.USERNAME);
+    const nameField: BaseField = zwFields.getFirstField(ZwFieldType.USERNAME);
     if (nameField) this.name = nameField.value.toString('utf-8');
     if (!this.name) {
       throw new CubeError("Identity: Supplied MUC lacks user name");
