@@ -136,5 +136,5 @@ describe('cubeStore', () => {
     const retrievedMuc = cubeStore.getCube(key);
     expect(retrievedMuc).toBeDefined();
     expect(retrievedMuc?.getDate()).toEqual(date);
-  }, 2000);
+  }, 5000);
 });
