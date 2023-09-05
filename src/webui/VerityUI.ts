@@ -49,13 +49,13 @@ export class VerityUI {
   }
 
   async initializeIdentity(): Promise<void> {
-    this.identity = await Identity.retrieve();
+    this.identity = await Identity.retrieve(this.node.cubeStore);
     (document.getElementById("idname") as HTMLInputElement).value = this.identity.name;
   }
 
   saveIdentity(): void {
     this.identity.name = (document.getElementById("idname") as HTMLInputElement).value;
-    this.identity.store();
+    this.identity.store(this.node.cubeStore);
   }
 }
 

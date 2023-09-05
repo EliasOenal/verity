@@ -3,16 +3,19 @@ import { CubeKey } from '../../src/model/cube'
 import { NetConstants } from '../../src/model/networkDefinitions';
 
 import sodium from 'libsodium-wrappers'
+import { CubeStore } from '../../src/model/cubeStore';
 
 describe('Identity persistance', () => {
   let persistance: IdentityPersistance;
+  let cubeStore: CubeStore;
 
   beforeEach(async () => {
     await sodium.ready;
     // Open the DB and make sure it's empty
     persistance = await IdentityPersistance.create("testidentity");
     await persistance.deleteAll();
-    const ids: Array<Identity> = await persistance.retrieve();
+    cubeStore = new CubeStore();
+    const ids: Array<Identity> = await persistance.retrieve(cubeStore);
     expect(ids).toBeDefined();
     expect(ids.length).toEqual(0);
 });
@@ -20,15 +23,15 @@ describe('Identity persistance', () => {
   afterEach(async () => {
     // Empty the DB and then close it
     await persistance.deleteAll();
-    const ids: Array<Identity> = await persistance.retrieve();
+    const ids: Array<Identity> = await persistance.retrieve(cubeStore);
     expect(ids).toBeDefined();
     expect(ids.length).toEqual(0);
     await persistance.close();
   });
 
-  it.skip('should store and retrieve an Identity locally', async () => {
+  it('should store and retrieve an Identity locally', async () => {
     {  // expect DB to be empty at the beginning
-      const ids: Array<Identity> = await persistance.retrieve();
+      const ids: Array<Identity> = await persistance.retrieve(cubeStore);
       expect(ids.length).toEqual(0);
     }
 
@@ -39,10 +42,10 @@ describe('Identity persistance', () => {
       id.persistance = persistance;
       expect(id.name).toBeUndefined();
       id.name = "Testar Identitates";
-      await id.store();
+      await id.store(cubeStore);
     }
     { // phase 2: retrieve, compare and delete the identity
-      const ids: Array<Identity> = await persistance.retrieve();
+      const ids: Array<Identity> = await persistance.retrieve(cubeStore);
       expect(ids.length).toEqual(1);
       const id: Identity = ids[0];
       expect(id.name).toEqual("Testar Identitates");
