@@ -138,7 +138,7 @@ export class Relationship {
         this.remoteKey = remoteKey;
     }
 
-    static fromField(field?: Field, fieldDefinition: FieldDefinition = cubeFieldDefinition) {
+    static fromField(field: Field, fieldDefinition: FieldDefinition): Relationship {
         const relationship = new Relationship();
         if (field.type != fieldDefinition.fieldNames['RELATES_TO']) {
             throw (new WrongFieldType(
@@ -150,6 +150,11 @@ export class Relationship {
             NetConstants.RELATIONSHIP_TYPE_SIZE,
             NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE);
         return relationship;
+    }
+}
+export class CubeRelationship extends Relationship {
+    static fromField(field?: Field): CubeRelationship {
+        return super.fromField(field, cubeFieldDefinition);
     }
 }
 
@@ -219,7 +224,7 @@ export class Fields {
     * @return An array of Relationship objects, which may be empty.
     */
     public getRelationships(type: number, fieldDefinition: FieldDefinition): Array<Relationship> {
-        const relationshipfields = this.getFieldsByType(CubeFieldType.RELATES_TO);
+        const relationshipfields = this.getFieldsByType(fieldDefinition.fieldNames['RELATES_TO']);
         const ret = [];
         for (const relationshipfield of relationshipfields) {
             const relationship: Relationship =

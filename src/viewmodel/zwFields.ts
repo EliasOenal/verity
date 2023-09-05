@@ -78,6 +78,12 @@ export class ZwFields extends Fields {
   }
 }
 
+export class ZwRelationship extends Relationship {
+  static fromField(field?: Field): ZwRelationship {
+    return super.fromField(field, zwFieldDefinition);
+  }
+}
+
 // NOTE: Never move this to another file. This only works if it is defined
 // strictly after ZwField.
 // Javascript is crazy.

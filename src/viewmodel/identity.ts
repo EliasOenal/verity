@@ -7,10 +7,11 @@ import { logger } from '../model/logger';
 import { Level } from 'level';
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Field, Relationship, CubeField, CubeFieldType } from '../model/fields';
-import { ZwField, ZwFieldType, ZwFields, ZwRelationshipType } from './zwFields';
+import { ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from './zwFields';
 import { CubeError } from '../model/cubeDefinitions';
 
 import { Buffer } from 'buffer';
+import { VerityUI } from '../webui/VerityUI';
 
 const IDENTITYDB_VERSION = 1;
 
@@ -100,36 +101,8 @@ export class Identity {
 
   constructor(muc: Cube = undefined, persistance: IdentityPersistance = undefined) {
     this.persistance = persistance;
-    if (muc) {
-      // Is this MUC valid for this application?
-      const topLevelPayload: Field = muc.getFields().getFirstField(CubeFieldType.PAYLOAD);
-      if (!topLevelPayload) {
-        throw new CubeError("Identity: Supplied MUC is not an Identity MUC, lacks top level PAYLOAD field.")
-      }
-
-      const appField: Field = muc.getFields().getFirstField(ZwFieldType.APPLICATION);
-      if (!appField || appField.value.toString('utf-8') != "ZW") {
-        throw new CubeError("Identity: Supplied MUC is not an Identity MUC, lacks ZW application field");
-      }
-
-      // read name (mandatory)
-      const nameField: Field = muc.getFields().getFirstField(ZwFieldType.USERNAME);
-      let nameString: string = undefined;
-      if (nameField) nameString = nameField.value.toString('utf-8');
-      if (!nameString) {
-        throw new CubeError("Identity: Supplied MUC lacks user name");
-      }
-
-      // read cube references, these being:
-      const references: Field = muc.getFields().getFirstField(ZwFieldType.RELATES_TO)
-      // - profile picture reference
-
-      // - key backup cube reference
-
-      // - own post references
-
-
-    } else {  // create new Identity
+    if (muc) this.parseMuc(muc);
+    else {  // create new Identity
       let keys: KeyPair = sodium.crypto_sign_keypair();
       muc = Cube.MUC(Buffer.from(keys.publicKey), Buffer.from(keys.privateKey));
     }
@@ -172,7 +145,7 @@ export class Identity {
     // For now, let's just eyeball it... :D
     // After mandatory boilerplate, there's 904 bytes left in a MUC.
     // We use up 163 of those for APPLICATION (3), a potentially maximum length
-    // USERNAME (62), and the cube references for USER_PROFILEPIC,
+    // USERNAME (62), and the cube references for PROFILEPIC,
     // KEY_BACKUP_CUBE and SUBSCRIPTION_RECOMMENDATION_INDEX (33 each including header).
     // That leaves 740 bytes. With that we can always safely include 21 posts
     // in MYPOST fields (34 bytes each [32 bytes key, 1 byte header,
@@ -184,16 +157,19 @@ export class Identity {
     const zwFields: ZwFields = new ZwFields(ZwField.Application());
 
     // Write username
-    if (this.name) zwFields.data.push(ZwField.Username(this.name));
+    if (!this.name) throw new CubeError("Identity: Cannot create a MUC for this Identity, name field is mandatory.");
+    zwFields.data.push(ZwField.Username(this.name));
+
     // Write profile picture reference
     if (this.profilepic) zwFields.data.push(ZwField.RelatesTo(
       new Relationship(ZwRelationshipType.PROFILEPIC, this.profilepic)
     ));
+
     // Write key backup cube reference (not actually implemented yet)
     if (this.keyBackupCube) zwFields.data.push(ZwField.RelatesTo(
       new Relationship(ZwRelationshipType.KEY_BACKUP_CUBE, this.keyBackupCube)
     ));
-    // Write own post references
+    // Write my post references
     if (this.posts.length) {
       for (let i = this.posts.length-1; i>=0 && i >= this.posts.length - 21; i--) {
         zwFields.data.push(ZwField.RelatesTo(
@@ -203,13 +179,57 @@ export class Identity {
     }
     // TODO add subscription recommendations
 
-    const zwFieldLength: number = zwFields.getLength();
-    const zwContent: Buffer = Buffer.alloc(zwFieldLength);
+    const zwData: Buffer = VerityUI.zwFieldParser.compileFields(zwFields);
     const newMuc: Cube = Cube.MUC(this._muc.publicKey, this._muc.privateKey,
-      CubeField.Payload(zwContent));
-
+      CubeField.Payload(zwData));
+    newMuc.getBinaryData();  // compile MUC
     this._muc = newMuc;
     return newMuc;
+  }
+
+  parseMuc(muc: Cube): void {
+    // Is this MUC valid for this application?
+    const zwData: Field = muc.getFields().getFirstField(CubeFieldType.PAYLOAD);
+    if (!zwData) {
+      throw new CubeError("Identity: Supplied MUC is not an Identity MUC, lacks top level PAYLOAD field.")
+    }
+    const zwFields = new ZwFields(VerityUI.zwFieldParser.decompileFields(zwData.value));
+    if (!zwFields) {
+      throw new CubeError("Identity: Supplied MUC is not an Identity MUC, payload content does not consist of zwFields");
+    }
+    const appField: Field = zwFields.getFirstField(ZwFieldType.APPLICATION);
+    if (!appField || appField.value.toString('utf-8') != "ZW") {
+      throw new CubeError("Identity: Supplied MUC is not an Identity MUC, lacks ZW application field");
+    }
+
+    // read name (mandatory)
+    const nameField: Field = zwFields.getFirstField(ZwFieldType.USERNAME);
+    if (nameField) this.name = nameField.value.toString('utf-8');
+    if (!this.name) {
+      throw new CubeError("Identity: Supplied MUC lacks user name");
+    }
+
+    // read cube references, these being:
+    const relfields: ZwFields = new ZwFields(
+      zwFields.getFieldsByType(ZwFieldType.RELATES_TO));
+    if (relfields) {
+      // - profile picture reference
+      const profilePictureRel: ZwRelationship = relfields.getFirstRelationship(
+        ZwRelationshipType.PROFILEPIC);
+      if (profilePictureRel) this.profilepic = profilePictureRel.remoteKey;
+
+      // - key backup cube reference
+      const keyBackupCubeRel: ZwRelationship = relfields.getFirstRelationship(
+        ZwRelationshipType.KEY_BACKUP_CUBE);
+      if (keyBackupCubeRel) this.keyBackupCube = keyBackupCubeRel.remoteKey;
+
+      // - my post references
+      const myPostRels: ZwRelationship[] = relfields.getRelationships(
+        ZwRelationshipType.MYPOST);
+      for (const postrel of myPostRels) {
+        this.posts.unshift(postrel.remoteKey);  // insert at beginning -- this is not efficient but I think it doesn't matter
+      }
+    }
   }
 
   /** @method Serialize, used before storing object in persistant storage */

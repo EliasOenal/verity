@@ -6,7 +6,8 @@
     "esModuleInterop": true,
     "outDir": "./dist",
     "moduleResolution": "node",
-    "lib": ["ES2022", "dom", "dom.iterable"]
+    "lib": ["ES2022", "dom", "dom.iterable"],
+    "sourceMap": true,
   },
   "include": ["./src/**/*.ts"],
   "exclude": ["webspecific"],

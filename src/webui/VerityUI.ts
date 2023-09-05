@@ -7,6 +7,7 @@ import { AnnotationEngine } from '../viewmodel/annotationEngine';
 import { Identity } from '../viewmodel/identity';
 import { FieldParser } from '../model/fieldParser';
 import { ZwFieldLengths, ZwField, zwFieldDefinition } from '../viewmodel/zwFields';
+import { isBrowser } from 'browser-or-node';
 
 
 export class VerityUI {
@@ -67,4 +68,4 @@ async function webmain(node: fullNode) {
 }
 
 // @ts-ignore TypeScript does not like us creating extra window attributes
-window.webmain = webmain;
+if (isBrowser) window.webmain = webmain;
