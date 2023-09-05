@@ -50,7 +50,6 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
     - 2: `MENTION`: This cube refers to a user. Multiple `MENTION` relationships are allowed per cube. The referred cube must be a MUC. Client software may scan cubes for MENTIONs of their user's own MUC to notify them of.
     - 3: `REPLY TO`: This cube's payload constitutes a reply to an earlier payload, available in the referenced cube. Client software may attempt to display the original cube alongside the reply. While client software may consider multiple `REPLY TO` relations per cube depending on the type of application, it is usually expected to only heed the first one.
     - 4: `QUOTATION`: This cube's payload refers to an earlier payload which client software shall usually display alongside this cube's payload. Multiple `QUOTATION` relationships are allowed per cube, in which case client software may provide an abridged view.
-    - 5: `OWNS`: Refers to another cube this cube's owner has authored. Must only be used within a MUC (as MUCs represent owners) or within another cube that is directly or indirectly owned by a MUC.
 
   is a continuation of another post. The field contains the hash of the post it relates to. The type code for this field is `TYPE_RELATES_TO`
     > **TODO**: Implement different types of continuations, like replies, quotes, etc. This will require at least one more byte.

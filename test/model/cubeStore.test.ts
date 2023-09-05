@@ -1,8 +1,7 @@
 import { Cube } from '../../src/model/cube';
 import { CubeStore as CubeStore } from '../../src/model/cubeStore';
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { Field, Fields, Relationship, TopLevelField, TopLevelFields } from '../../src/model/fields';
-import { RelationshipType, FieldType } from '../../src/model/cubeDefinitions';
+import { CubeField, CubeFieldType, CubeFields, CubeRelationshipType, Relationship } from '../../src/model/fields';
 
 describe('cubeStore', () => {
   let cubeStore: CubeStore;
@@ -35,6 +34,7 @@ describe('cubeStore', () => {
     for (let i = 0; i < 20; i++) {
       const cube = new Cube();
       cube.setDate(i);
+      // @ts-ignore cube could be Promise<undefined> instead of Promise<Buffer> but I don't care
       promises.push(cubeStore.addCube(cube));
     }
 
@@ -46,7 +46,7 @@ describe('cubeStore', () => {
       expect(hash).toBeInstanceOf(Buffer);
       if (hash) {
         expect(hash.length).toEqual(32);
-        expect(cubeStore.getCube(hash).getBinaryData()).toEqual(binaryData);
+        expect(cubeStore.getCube(hash)!.getBinaryData()).toEqual(binaryData);
       }
     });
 
@@ -58,7 +58,7 @@ describe('cubeStore', () => {
     expect(hash).toBeInstanceOf(Buffer);
     if (hash) {
       expect(hash.length).toEqual(32);
-      expect(cubeStore.getCube(hash).getBinaryData()).toEqual(validBinaryCube);
+      expect(cubeStore.getCube(hash)!.getBinaryData()).toEqual(validBinaryCube);
     }
   }, 1000);
 
@@ -76,19 +76,19 @@ describe('cubeStore', () => {
   // TODO: Create own test suite for Fields and move this there
   it('correctly sets and retrieves a reply_to relationship field', async () => {
     const root: Cube = new Cube(); // will only be used as referenc
-    const payloadfield: TopLevelField = TopLevelField.Payload(Buffer.alloc(200));
+    const payloadfield: CubeField = CubeField.Payload(Buffer.alloc(200));
     root.setFields(payloadfield);
 
     const leaf: Cube = new Cube();
 
-    leaf.setFields(new TopLevelFields([
+    leaf.setFields(new CubeFields([
       payloadfield,
-      TopLevelField.RelatesTo(new Relationship(
-        RelationshipType.REPLY_TO, (await root.getKey())))
+      CubeField.RelatesTo(new Relationship(
+        CubeRelationshipType.REPLY_TO, (await root.getKey())))
     ]));
 
     const retrievedRel: Relationship = leaf.getFields().getFirstRelationship();
-    expect(retrievedRel.type).toEqual(RelationshipType.REPLY_TO);
+    expect(retrievedRel.type).toEqual(CubeRelationshipType.REPLY_TO);
     expect(retrievedRel.remoteKey.toString('hex')).toEqual((await root.getKey()).toString('hex'));
   }, 1000);
 
@@ -99,11 +99,11 @@ describe('cubeStore', () => {
     const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
     // Define required MUC fields
-    const fields = new TopLevelFields([
-      new TopLevelField(FieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-      new TopLevelField(FieldType.TYPE_PUBLIC_KEY, 32, publicKey),
-      new TopLevelField(FieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
-      new TopLevelField(FieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
+    const fields = new CubeFields([
+      new CubeField(CubeFieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
+      new CubeField(CubeFieldType.TYPE_PUBLIC_KEY, 32, publicKey),
+      new CubeField(CubeFieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
+      new CubeField(CubeFieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
     ]);
 
     // Create first MUC with specified TLV fields

@@ -1,7 +1,6 @@
-import { FieldType, RelationshipType } from "../model/cubeDefinitions";
 import { Cube, CubeKey } from "../model/cube";
 import { CubeInfo } from "../model/cubeInfo";
-import { Relationship } from "../model/fields";
+import { Relationship, CubeFieldType, CubeRelationshipType } from "../model/fields";
 
 import { Identity } from "../viewmodel/identity";
 import { VerityUI } from "./VerityUI";
@@ -32,7 +31,7 @@ export class CubeDisplay {
     const cube: Cube = cubeInfo.getCube() as Cube;
 
     // is this a reply?
-    const replies: Array<Relationship> = cube.getFields().getRelationships(RelationshipType.REPLY_TO);
+    const replies: Array<Relationship> = cube.getFields().getRelationships(CubeRelationshipType.REPLY_TO);
     if (replies.length > 0) {  // yes
       const originalpostkey: CubeKey = replies[0].remoteKey;
       const originalpost: CubeInfo = this.parent.node.cubeStore.getCubeInfo(
@@ -91,7 +90,7 @@ export class CubeDisplay {
 
     // Display cube payload
     const payload: HTMLParagraphElement = document.createElement('p');
-    for (const field of cube.getFields().getFieldsByType(FieldType.PAYLOAD)) {
+    for (const field of cube.getFields().getFieldsByType(CubeFieldType.PAYLOAD)) {
         payload.innerText += field.value.toString();
     }
     li.append(payload);

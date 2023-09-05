@@ -9,6 +9,11 @@ import { logger } from './logger';
 import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
 
+// Note: Once we implement pruning, we need to be able to pin certain cubes
+// to prevent them from being pruned. This may be used to preserve cubes
+// authored by our local user, for example. Indeed, the social media
+// application's Identity implementation relies on having our own posts preserved.
+
 export class CubeStore extends EventEmitter {
   private storage: Map<string, CubeInfo> = new Map();
 
