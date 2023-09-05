@@ -1,13 +1,7 @@
-import { BinaryDataError, CUBE_HEADER_LENGTH, FIELD_LENGTHS, FieldError, FieldType } from "./cubeDefinitions";
-import { Fields, Field, TopLevelField } from "./fields";
+import { BinaryDataError, FieldError } from "./cubeDefinitions";
+import { Fields, Field, FieldDefinition, cubeFieldDefinition } from "./fields";
 import { logger } from "./logger";
 import { NetConstants } from "./networkDefinitions";
-
-interface FieldDefinition {
-  firstFieldOffset: number;
-  fieldLengths: object;  // maps field IDs to field lenghths, e.g. FIELD_LENGTHS defined in field.ts
-  fieldType: any,     // the Field class you'd like to use, e.g. TopLevelField for... you know... top-level fields
-}
 
 export class FieldParser {
   private static _toplevel = undefined;
@@ -18,22 +12,79 @@ export class FieldParser {
    * sub-fields they might want to use.
    */
   static get toplevel(): FieldParser {
-    if (!FieldParser._toplevel) FieldParser._toplevel = new FieldParser({
-      firstFieldOffset: CUBE_HEADER_LENGTH,
-      fieldLengths: FIELD_LENGTHS,
-      fieldType: TopLevelField,
-  });
-  return FieldParser._toplevel;
-}
+    if (!FieldParser._toplevel) FieldParser._toplevel = new FieldParser(
+      cubeFieldDefinition);
+    return FieldParser._toplevel;
+  }
 
   constructor(private fieldDef: FieldDefinition) { }
+
+  /**
+   * Takes an array of fields and gets you a Buffer of matching binary data.
+   * @param fields An array of fields, which must be of the type described by
+   *               this.fieldDef.fieldType
+   */
+  compileFields(fields: Fields | Array<Field>): Buffer {
+    if (!(fields instanceof Fields)) fields = new Fields(fields);
+    this.finalizeFields(fields.data);            // prepare fields
+      const buf = Buffer.alloc(                    // allocate buffer
+      this.fieldDef.firstFieldOffset + fields.getLength());
+    this.updateTLVBinaryData(buf, fields.data);  // write data into buffer
+    return buf;
+  }
+
+  /**
+   * Takes a binary Buffer of compiled fields and parses it for you into a neat
+   * Field object array.
+   * @returns An array of fields, the exact type of which being determined by
+   *          this.fieldDef.fieldType.
+   */
+  decompileFields(binaryData: Buffer): Array<Field> {
+    if (binaryData === undefined)
+      throw new BinaryDataError("Binary data not initialized");
+    const fields = [];
+    let index = this.fieldDef.firstFieldOffset; // Respect initial offset. For top-level headers, this leaves room for the date field
+    while (index < binaryData.length) {
+      const { type, length, valueStartIndex } = this.readTLVHeader(binaryData, index);
+      const start = index; // Start of TLV field
+      index = valueStartIndex;
+
+      if (index + length <= binaryData.length) {  // Check if enough data for value field
+        const value = binaryData.slice(index, index + length);
+        fields.push(new this.fieldDef.fieldType(type, length, value, start));
+        index += length;
+      } else {
+        throw new BinaryDataError("Data ended unexpectedly while reading value of field");
+      }
+    }
+    return fields;
+}
+
+
+  /**
+   * Upgrade fields to full fields.
+   * @param fields An array of fields, which must be of the type described by
+   *               this.fieldDef.fieldType
+   */
+  finalizeFields(fields: Array<any>): void {
+    let start = this.fieldDef.firstFieldOffset;
+    for (const field of fields) {
+      field.start = start;
+      start += this.getFieldHeaderLength(field.type & 0xFC) + field.length;  // TODO: generalize from the currently hardcoded 6 bit field type and 10 bit length
+    }
+  }
 
   getFieldHeaderLength(fieldType: number): number {
     // It's two bytes for "regular" fields including length informatione,
     // but just one byte for fields with implicitly known length.
-    return (this.fieldDef.fieldLengths[fieldType] == undefined) ?
+    return FieldParser.getFieldHeaderLength(fieldType, this.fieldDef);
+  }
+  // TODO de-uglify
+  static getFieldHeaderLength(fieldType: number, fieldDef: FieldDefinition): number {
+    return (fieldDef.fieldLengths[fieldType] == undefined) ?
       NetConstants.MESSAGE_CLASS_SIZE + NetConstants.FIELD_LENGTH_SIZE :
       NetConstants.MESSAGE_CLASS_SIZE;
+
   }
 
   findFieldIndex(binaryData: Buffer, fieldType: number, minLength: number = 0): number | undefined {
@@ -112,28 +163,5 @@ export class FieldParser {
     }
     return { type, length, valueStartIndex: index };
   }
-
-  parseTLVBinaryData(binaryData: Buffer): Array<any> {
-    if (binaryData === undefined)
-      throw new BinaryDataError("Binary data not initialized");
-    const fields = [];
-    let index = this.fieldDef.firstFieldOffset; // Respect initial offset. For top-level headers, this leaves room for the date field
-    while (index < binaryData.length) {
-      const { type, length, valueStartIndex } = this.readTLVHeader(binaryData, index);
-      const start = index; // Start of TLV field
-      index = valueStartIndex;
-
-      if (index + length <= binaryData.length) {  // Check if enough data for value field
-        const value = binaryData.slice(index, index + length);
-        fields.push(new this.fieldDef.fieldType(type, length, value, start));
-        index += length;
-      } else {
-        throw new BinaryDataError("Data ended unexpectedly while reading value of field");
-      }
-    }
-    return fields;
-}
-
-
 
 }

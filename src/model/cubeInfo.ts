@@ -1,6 +1,5 @@
 import { Cube, CubeKey } from './cube'
-import { RelationshipType } from './cubeDefinitions';
-import { Relationship } from './fields';
+import { Relationship, CubeRelationshipType } from './fields';
 import { logger } from './logger';
 
 /**
@@ -93,7 +92,7 @@ export class CubeInfo {
 
   // TODO: use fp.getRelationships for that
   getReverseRelationships(
-    type?: RelationshipType,
+    type?: CubeRelationshipType,
     remoteKey?: CubeKey)
     : Array<Relationship> {
     const ret = [];

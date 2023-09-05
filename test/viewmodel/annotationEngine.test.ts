@@ -1,8 +1,8 @@
 import { AnnotationEngine } from '../../src/viewmodel/annotationEngine';
 import { Cube } from '../../src/model/cube';
 import { CubeStore as CubeStore } from '../../src/model/cubeStore';
-import { Field, Fields, Relationship, TopLevelField, TopLevelFields } from '../../src/model/fields';
-import { RelationshipType } from '../../src/model/cubeDefinitions';
+import { Field, Relationship, CubeField, CubeFields, CubeRelationshipType } from '../../src/model/fields';
+import { logger } from '../../src/model/logger';
 
 describe('annotationEngine', () => {
   let cubeStore: CubeStore;
@@ -15,13 +15,12 @@ describe('annotationEngine', () => {
 
   it('should mark a single root cube as displayable', async () => {
     const root: Cube = new Cube();
-    const payloadfield: TopLevelField = TopLevelField.Payload(Buffer.alloc(200));
-    root.setFields(payloadfield);
+    root.setFields(CubeField.Payload("Mein kleiner grüner Kaktus"));
 
     const callback = jest.fn();
     annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
 
-    cubeStore.addCube(root);
+    await cubeStore.addCube(root);
 
     expect(callback.mock.calls).toEqual([
       [await root.getKey()],
@@ -30,21 +29,21 @@ describe('annotationEngine', () => {
 
   it('should mark a cube and a reply received in sync as displayable', async () => {
     const root: Cube = new Cube();
-    const payloadfield: TopLevelField = TopLevelField.Payload(Buffer.alloc(200));
+    const payloadfield: CubeField = CubeField.Payload(Buffer.alloc(200));
     root.setFields(payloadfield);
 
     const leaf: Cube = new Cube();
-    leaf.setFields(new TopLevelFields([
+    leaf.setFields(new CubeFields([
       payloadfield,
-      TopLevelField.RelatesTo(new Relationship(
-        RelationshipType.REPLY_TO, await root.getKey()))
+      CubeField.RelatesTo(new Relationship(
+        CubeRelationshipType.REPLY_TO, await root.getKey()))
     ]));
 
     const callback = jest.fn();
     annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
 
-    cubeStore.addCube(root);
-    cubeStore.addCube(leaf);
+    await cubeStore.addCube(root);
+    await cubeStore.addCube(leaf);
 
     expect(callback.mock.calls).toEqual([
       [await root.getKey()],
@@ -54,49 +53,49 @@ describe('annotationEngine', () => {
 
   it('should not mark replies as displayable when the original post is unavailable', async () => {
     const root: Cube = new Cube(); // will NOT be added
-    const payloadfield: TopLevelField = TopLevelField.Payload(Buffer.alloc(200));
+    const payloadfield: CubeField = CubeField.Payload(Buffer.alloc(200));
     root.setFields(payloadfield);
 
     const leaf: Cube = new Cube();
-    leaf.setFields(new TopLevelFields([
+    leaf.setFields(new CubeFields([
       payloadfield,
-      TopLevelField.RelatesTo(new Relationship(
-        RelationshipType.REPLY_TO, await root.getKey()))
+      CubeField.RelatesTo(new Relationship(
+        CubeRelationshipType.REPLY_TO, await root.getKey()))
     ]));
 
     const callback = jest.fn();
     annotationEngine.on('cubeDisplayable', (hash) => callback(hash));
 
-    cubeStore.addCube(leaf);
+    await cubeStore.addCube(leaf);
     expect(callback).not.toHaveBeenCalled();
   }, 5000);
 
   it('should mark replies as displayable only once all preceding posts has been received', async () => {
     const root: Cube = new Cube();
-    const payloadfield: TopLevelField = TopLevelField.Payload(Buffer.alloc(200));
+    const payloadfield: CubeField = CubeField.Payload(Buffer.alloc(200));
     root.setFields(payloadfield);
 
     const intermediate: Cube = new Cube();
-    intermediate.setFields(new TopLevelFields([
-      TopLevelField.RelatesTo(new Relationship(
-        RelationshipType.REPLY_TO, await root.getKey())),
+    intermediate.setFields(new CubeFields([
+      CubeField.RelatesTo(new Relationship(
+        CubeRelationshipType.REPLY_TO, await root.getKey())),
       payloadfield,  // let's shift the payload field around a bit for good measure :)
     ]));
 
     const leaf: Cube = new Cube();
-    leaf.setFields(new TopLevelFields([
+    leaf.setFields(new CubeFields([
       payloadfield,
-      TopLevelField.RelatesTo(new Relationship(
-        RelationshipType.REPLY_TO, await intermediate.getKey()))
+      CubeField.RelatesTo(new Relationship(
+        CubeRelationshipType.REPLY_TO, await intermediate.getKey()))
     ]));
 
     const callback = jest.fn();
     annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
 
     // add in reverse order:
-    cubeStore.addCube(leaf);
-    cubeStore.addCube(intermediate);
-    cubeStore.addCube(root);
+    await cubeStore.addCube(leaf);
+    await cubeStore.addCube(intermediate);
+    await cubeStore.addCube(root);
 
     expect(callback.mock.calls).toEqual([
       [await root.getKey()],

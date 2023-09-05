@@ -3,8 +3,7 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node
 import { NetworkManager } from './model/networkManager';
 import { Cube } from './model/cube';
 import { CubeStore } from './model/cubeStore';
-import { TopLevelField, Fields, Relationship, TopLevelFields } from './model/fields';
-import { CubeType, RelationshipType } from "./model/cubeDefinitions";
+import { CubeField, Fields, Relationship, CubeFields, CubeRelationshipType } from './model/fields';
 import { PeerDB, Peer } from './model/peerDB';
 import { logger } from './model/logger';
 import { vera } from './misc/vera';
@@ -109,7 +108,7 @@ export class fullNode {
         const muc = Cube.MUC(
             Buffer.from(this.keyPair.publicKey),
             Buffer.from(this.keyPair.privateKey),
-            TopLevelField.Payload(messageBuffer)
+            CubeField.Payload(messageBuffer)
         );
         this.cubeStore.addCube(muc);
     }
@@ -117,11 +116,11 @@ export class fullNode {
     public async makeNewCube(message: string = "Hello Verity", replyto?: string) {
         const cube = new Cube();
         const messagebuffer: Buffer = Buffer.from(message, 'utf8');
-        const cubefields: TopLevelFields = new TopLevelFields(TopLevelField.Payload(messagebuffer));
+        const cubefields: CubeFields = new CubeFields(CubeField.Payload(messagebuffer));
 
         if (replyto) {
-            cubefields.data.push(TopLevelField.RelatesTo(
-                new Relationship(RelationshipType.REPLY_TO, Buffer.from(
+            cubefields.data.push(CubeField.RelatesTo(
+                new Relationship(CubeRelationshipType.REPLY_TO, Buffer.from(
                     replyto, 'hex'))));
         }
 

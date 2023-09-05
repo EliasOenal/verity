@@ -4,8 +4,7 @@ import { Cube, CubeKey } from '../model/cube';
 import { logger } from '../model/logger';
 
 import { EventEmitter } from 'events';
-import { Relationship } from '../model/fields';
-import { RelationshipType } from '../model/cubeDefinitions';
+import { Relationship, CubeRelationshipType } from '../model/fields';
 
 export class AnnotationEngine extends EventEmitter {
   private cubeStore: CubeStore;
@@ -51,7 +50,7 @@ export class AnnotationEngine extends EventEmitter {
     // if we are, we can only be displayed if we have the original post,
     // and the original post is displayable too
     const reply_to: Relationship =
-      cube.getFields().getFirstRelationship(RelationshipType.REPLY_TO);
+      cube.getFields().getFirstRelationship(CubeRelationshipType.REPLY_TO);
     if (reply_to) {
       // logger.trace("annotationEngine: Checking for displayability of a reply")
       const basePost: CubeInfo = this.cubeStore.getCubeInfo(reply_to.remoteKey);
@@ -86,7 +85,7 @@ export class AnnotationEngine extends EventEmitter {
       // In a base-reply relationship, I as a base can only make my reply
       // displayable if I am displayable myself.
       const replies: Array<Relationship> = cubeInfo.getReverseRelationships(
-        RelationshipType.REPLY_TO);
+        CubeRelationshipType.REPLY_TO);
       for (const reply of replies) {
         if (this.emitIfCubeDisplayable(reply.remoteKey)) {  // will emit a cubeDisplayable event for reply.remoteKey if so
           ret = true;

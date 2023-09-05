@@ -1,62 +1,66 @@
+// WIP / BROKEN / NOTHING TO SEE HERE / REFACTORING FIRST / MOVE SOMEWHERE ELSE / WILL YOU CLOSE THIS FILE NOW ALREADY?!?!?!?!
+
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
-import { CubeKey } from '../model/cube';
+import { Cube, CubeKey } from '../model/cube';
 import { logger } from '../model/logger';
 
 import { Level } from 'level';
 import sodium, { KeyPair } from 'libsodium-wrappers'
+import { Field, Relationship, CubeField, CubeFieldType } from '../model/fields';
+import { ZwField, ZwFieldType, ZwFields, ZwRelationshipType } from './zwFields';
+import { CubeError } from '../model/cubeDefinitions';
+
+import { Buffer } from 'buffer';
 
 const IDENTITYDB_VERSION = 1;
 
 
 /**
  * @classdesc An identity describes who a user is.
- * We could also just call this "user" or "profile" maybe.
- * An identity is defined by its key pair, and an identity's key (pair) is
- * the only part that's immutable.
- * You should probably never instantiate Identity directly, instead always call
- * Identity.retrieve() instead.
- * Constructing a new identity creates a new cryptographic key pair.
-*/
+ * - We could also just call this a "user" or a "profile" maybe.
+ * - Identities can be "local" (representing a user of this node) or "remote"
+ *   (representing a different user). The only really difference is that we
+ *   obviously don't know the private key for remote Identites and therefore
+ *   cannot edit them.
+ * - An Identity is represented in the core / network as a Mutable User Cube, or MUC.
+ *   Therefore, this class is at least partially just an interface to a MUC.
+ * - An identity is defined by its key pair, and an identity's key (pair) is
+ *   the only part that's immutable.
+ * - You should probably never instantiate Identity directly. Instead always call
+ *   Identity.retrieve(), which either gets your existing Identity from persistant
+ *   storage or creates a new one for you.
+ * - Constructing a new identity creates a new cryptographic key pair.
+ *
+ * To represent a identities for this application, we use MUCs containing these
+ * fields.
+ *   - core lib field RELATES_TO type OWNS: Links to a post made by this user.
+ *       (These posts itself will contain more RELATES_TO/OWNS fields, building
+ *       a kind of linked list of a user's posts.)
+ *   - USER_NAME (mandatory, only once): Self-explanatory. UTF-8, maximum 60 bytes.
+ *       Note this might be less than 60 chars.
+ *   - USER_PROFILEPIC (only once): Links to the first cube of a continuation chain containing
+ *       this user's profile picture in JPEG format. Maximum size of three
+ *       cubes, i.e. just below 3kB.
+ *   - SUBSCRIPTION_RECOMMENDATION: Links to another user's MUC which this user
+ *       recommends. (A "recommendation" is a publically visible subscription.)
+ *       This is used to build a multi-level web-of-trust. Users can (and are
+ *       expected to) only view posts made by their subscribed creators, their
+ *       recommended creators, and potentially beyond depending on user settings.
+ *       This is to mitigate spam which will be unavoidable due to the uncensorable
+ *       nature of Verity. It also segments our users in distinct filter bubbles which has
+ *       proven to be one of the most successful features of all social media.
+ *   - SUBSCRIPTION_RECOMMENDATION_INDEX: I kinda sorta lied to you.
+ *       We usually don't actually put SUBSCRIPTION_RECOMMENDATIONs directly
+ *       into the MUC. We could, but we won't.
+ *       Even for moderately active users they wouldn't fit.
+ *       Instead, we create an IPC (or regular cube until IPCs are implemented),
+ *       put the SUBSCRIPTION_RECOMMENDATIONs into the IPC and link the IPC here.
+ *       Makes much more sense, doesn't it?
+ * We don't require fields to be in any specific order above the core lib requirements.
+ *
+ * TODO: Specify maximums to make sure all of that nicely fits into a single MUC.
+ */
 export class Identity {
-  private _name: string = undefined;
-  private _keys: KeyPair = undefined;
-
-  /// @member Points to first cube in the profile picture continuation chain
-  private _profilepic: CubeKey = undefined;
-
-  /// @member The key of the cube containing our private key encrypted with our password
-  private _keyBackupCube: CubeKey = undefined;
-
-  persistance: IdentityPersistance = undefined;
-
-  /**
-   * @member Get this Identity's key, which equals it's MUC's cube key,
-   * which is it's cryptographic public key.
-  */
-  get key(): CubeKey { return Buffer.from(this.keys.publicKey); }
-
-  get name() { return this._name; }
-  set name(val: string) {
-    this._name = val;
-    if (this.persistance) this.persistance.store(this);
-  }
-
-  get keys() { return this._keys; }
-  // there is no setter for keys:
-  // setting new keys is equivalent with creating a new identity
-
-  get profilepic() { return this._profilepic; }
-  set profilepic(val: Buffer) {
-    this._profilepic = val;
-    if (this.persistance) this.persistance.store(this);
-  }
-  get keyBackupCube() { return this._keyBackupCube; }
-  set keyBackupCube(val: CubeKey) {
-    this._keyBackupCube = val;
-    if (this.persistance) this.persistance.store(this);
-  }
-
-
   /// @static This gets you an identity!
   ///         It either retrieves all Identity objects stored in persistant storage,
   ///         or creates a new one if there is none.
@@ -68,32 +72,152 @@ export class Identity {
       id = ids[0];
     }
     else {
-      id = new Identity(persistance);
+      id = new Identity(undefined, persistance);
     }
     return id;
   }
 
-  constructor(persistance: IdentityPersistance = undefined) {
+  /** @member This Identity's display name */
+  name: string = undefined;
+
+  /**
+   * If this Identity object knows an IdentityPersistant object
+   * it can be stored in a local database. If it doesn't... then it can't.
+   */
+  persistance: IdentityPersistance;
+
+  /** @member The MUC in which this Identity information is stored and published */
+  private _muc: Cube = undefined;
+
+  /** @member Points to first cube in the profile picture continuation chain */
+  profilepic: CubeKey = undefined;
+
+  /** @member The key of the cube containing our private key encrypted with our password */
+  keyBackupCube: CubeKey = undefined;
+
+  posts: Array<CubeKey> = [];
+  // TODO add subscription_recommendations
+
+  constructor(muc: Cube = undefined, persistance: IdentityPersistance = undefined) {
     this.persistance = persistance;
-    this._keys = sodium.crypto_sign_keypair();
+    if (muc) {
+      // Is this MUC valid for this application?
+      const topLevelPayload: Field = muc.getFields().getFirstField(CubeFieldType.PAYLOAD);
+      if (!topLevelPayload) {
+        throw new CubeError("Identity: Supplied MUC is not an Identity MUC, lacks top level PAYLOAD field.")
+      }
+
+      const appField: Field = muc.getFields().getFirstField(ZwFieldType.APPLICATION);
+      if (!appField || appField.value.toString('utf-8') != "ZW") {
+        throw new CubeError("Identity: Supplied MUC is not an Identity MUC, lacks ZW application field");
+      }
+
+      // read name (mandatory)
+      const nameField: Field = muc.getFields().getFirstField(ZwFieldType.USERNAME);
+      let nameString: string = undefined;
+      if (nameField) nameString = nameField.value.toString('utf-8');
+      if (!nameString) {
+        throw new CubeError("Identity: Supplied MUC lacks user name");
+      }
+
+      // read cube references, these being:
+      const references: Field = muc.getFields().getFirstField(ZwFieldType.RELATES_TO)
+      // - profile picture reference
+
+      // - key backup cube reference
+
+      // - own post references
+
+
+    } else {  // create new Identity
+      let keys: KeyPair = sodium.crypto_sign_keypair();
+      muc = Cube.MUC(Buffer.from(keys.publicKey), Buffer.from(keys.privateKey));
+    }
+    this._muc = muc;
   }
 
+  get privateKey(): Buffer { return this._muc.privateKey; }
+  get publicKey(): Buffer { return this._muc.publicKey; }
+  // there is no setter for keys:
+  // setting new keys is equivalent with creating a new identity
+  // (yes, you can reset the keys by going directly to the MUC,
+  // just be nice and don't)
+
+  /**
+   * @member Get this Identity's key, which equals its MUC's cube key,
+   * which is its cryptographic public key.
+   * (Yes, I know this is functionally identical with publicKey(), but it's
+   * about the semantics :-P )
+  */
+  get key(): CubeKey { return Buffer.from(this._muc.publicKey); }
+
+  /**
+   * Save this Identity locally by storing it in the local database.
+   */
   store(): Promise<void> {
     if (this.persistance) return this.persistance.store(this);
     else return undefined;
   }
 
-  makeMUC() {
-    // TODO implement
+  /**
+  * Compiles this Identity into a MUC for publishing.
+  * Make sure to call this after changes have been performed so they
+  * will be visible to other users, and make sure to only call it once *all*
+  * changes have been performed to avoid spamming multiple MUC versions
+  * (and having to compute hashcash for all of them).
+  */
+  makeMUC(): Cube {
+    // TODO: calculate lengths dynamically so we can always cram as much useful
+    // information into the MUC as possible.
+    // For now, let's just eyeball it... :D
+    // After mandatory boilerplate, there's 904 bytes left in a MUC.
+    // We use up 163 of those for APPLICATION (3), a potentially maximum length
+    // USERNAME (62), and the cube references for USER_PROFILEPIC,
+    // KEY_BACKUP_CUBE and SUBSCRIPTION_RECOMMENDATION_INDEX (33 each including header).
+    // That leaves 740 bytes. With that we can always safely include 21 posts
+    // in MYPOST fields (34 bytes each [32 bytes key, 1 byte header,
+    // 1 byte rerelation ship type, 740/34 = 21.76).
+    // Hope I didn't miss anything or it will throw my mistake in your face :)
+
+    // Write boilerplate "ZW" application header.
+    // We still won't tell you what that stands for.
+    const zwFields: ZwFields = new ZwFields(ZwField.Application());
+
+    // Write username
+    if (this.name) zwFields.data.push(ZwField.Username(this.name));
+    // Write profile picture reference
+    if (this.profilepic) zwFields.data.push(ZwField.RelatesTo(
+      new Relationship(ZwRelationshipType.PROFILEPIC, this.profilepic)
+    ));
+    // Write key backup cube reference (not actually implemented yet)
+    if (this.keyBackupCube) zwFields.data.push(ZwField.RelatesTo(
+      new Relationship(ZwRelationshipType.KEY_BACKUP_CUBE, this.keyBackupCube)
+    ));
+    // Write own post references
+    if (this.posts.length) {
+      for (let i = this.posts.length-1; i>=0 && i >= this.posts.length - 21; i--) {
+        zwFields.data.push(ZwField.RelatesTo(
+          new Relationship(ZwRelationshipType.MYPOST, this.posts[i])
+        ));
+      }
+    }
+    // TODO add subscription recommendations
+
+    const zwFieldLength: number = zwFields.getLength();
+    const zwContent: Buffer = Buffer.alloc(zwFieldLength);
+    const newMuc: Cube = Cube.MUC(this._muc.publicKey, this._muc.privateKey,
+      CubeField.Payload(zwContent));
+
+    this._muc = newMuc;
+    return newMuc;
   }
 
   /** @method Serialize, used before storing object in persistant storage */
   toJSON() {
     return Object.assign({}, this, {
       name: this.name,
-      keytype: this.keys.keyType,
-      publickey: Buffer.from(this.keys.publicKey),  // Buffer has its own toJSON
-      privatekey: Buffer.from(this.keys.privateKey),
+      publickey: Buffer.from(this._muc.publicKey),  // Buffer has its own toJSON
+      privatekey: Buffer.from(this._muc.privateKey),
       profilepic: this.profilepic,
       keybackupblock: this.keyBackupCube,
     });
@@ -125,7 +249,7 @@ export class Identity {
  * IdentityPersistance objects represent a database connection used for
  * storing and retrieving identities.
  * You will not need to deal with this class, Identity will do that for you :)
-*/
+ */
 export class IdentityPersistance {
   private dbname: string;
   private db: Level<string, string>;  // key => JSON-serialized Identity object

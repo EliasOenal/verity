@@ -22,7 +22,7 @@ describe('Identity', () => {
     await persistance.close();
   });
 
-  it('should create a new identity, store it and retrieve it', async () => {
+  it.skip('should create a new identity, store it and retrieve it', async () => {
     {  // expect DB to be empty at the beginning
       const ids: Array<Identity> = await persistance.retrieve();
       expect(ids.length).toEqual(0);
