@@ -4,7 +4,7 @@ import { Settings } from './config';
 import { NetConstants } from './networkDefinitions';
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
-import { Field, Fields, CubeField, CubeFieldType, CubeFields } from './fields';
+import { CubeField, CubeFieldType, CubeFields } from './cubeFields';
 import { FieldParser } from "./fieldParser";
 import { logger } from './logger';
 
@@ -39,18 +39,18 @@ export class Cube {
     // this makes a boilerplate cube 120 bytes long,
     // meaning there's 904 bytes left for payload.
     static MUC(publicKey: Buffer, privateKey: Buffer,
-               customfields: Array<Field> | Field = []): Cube {
-        if (customfields instanceof Field) customfields = [customfields];
+               customfields: Array<CubeField> | CubeField = []): Cube {
+        if (customfields instanceof CubeField) customfields = [customfields];
         const cube: Cube = new Cube();
         cube.setCryptoKeys(publicKey, privateKey);
         const fields: CubeFields = new CubeFields([
-            new Field(CubeFieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-            new Field(
+            new CubeField(CubeFieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
+            new CubeField(
                 CubeFieldType.TYPE_PUBLIC_KEY,
                 NetConstants.PUBLIC_KEY_SIZE,
                 publicKey)
         ].concat(customfields).concat([
-            new Field(
+            new CubeField(
                 CubeFieldType.TYPE_SIGNATURE,
                 NetConstants.SIGNATURE_SIZE,
                 Buffer.alloc(NetConstants.SIGNATURE_SIZE))
@@ -163,8 +163,8 @@ export class Cube {
 
     public setFields(fields: CubeFields | CubeField): void {
         this.cubeManipulated();
-        if (fields instanceof Fields) this.fields = fields;
-        else if (fields instanceof Field) this.fields = new CubeFields(fields);
+        if (fields instanceof CubeFields) this.fields = fields;
+        else if (fields instanceof CubeField) this.fields = new CubeFields(fields);
         else throw TypeError("Invalid fields type");
 
         // verify all fields together are less than 1024 bytes,
@@ -176,7 +176,7 @@ export class Cube {
         }
 
         // has the user already defined a sufficienly large padding field or do we have to add one?
-        const indexNonce = this.fields.data.findIndex((field: Field) => field.type == CubeFieldType.PADDING_NONCE && field.length >= Settings.HASHCASH_SIZE);
+        const indexNonce = this.fields.data.findIndex((field: CubeField) => field.type == CubeFieldType.PADDING_NONCE && field.length >= Settings.HASHCASH_SIZE);
         let maxAcceptableLegth: number;
         const minHashcashFieldSize = FieldParser.toplevel.getFieldHeaderLength(CubeFieldType.PADDING_NONCE) + Settings.HASHCASH_SIZE;
         if (indexNonce == -1) maxAcceptableLegth = NetConstants.CUBE_SIZE - minHashcashFieldSize;
@@ -205,7 +205,7 @@ export class Cube {
             // Otherwise, add it at the very end.
             this.fields
             this.fields.insertFieldBefore(CubeFieldType.TYPE_SIGNATURE,
-                new Field(
+                new CubeField(
                     CubeFieldType.PADDING_NONCE,
                     num_alloc,
                     Buffer.from(random_bytes))
@@ -259,9 +259,9 @@ export class Cube {
     // If binaryData is undefined, then this is a new local cube in the process of being created.
     // If binaryData is defined, then we expect a fully formed cube meeting all requirements.
     private processTLVFields(): void {
-        let smart: Field = undefined;
-        let publicKey: Field = undefined;
-        let signature: Field = undefined;
+        let smart: CubeField = undefined;
+        let publicKey: CubeField = undefined;
+        let signature: CubeField = undefined;
 
         if (this.binaryData === undefined) {
             // Upgrade fields to full fields

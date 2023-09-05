@@ -6,7 +6,7 @@ import { Cube } from './model/cube';
 import { Buffer } from 'buffer';
 import readline from 'readline';
 import { vera } from './misc/vera';
-import { Field, Fields, CubeFieldType, CubeFields } from './model/fields';
+import { CubeField, CubeFieldType, CubeFields } from './model/cubeFields';
 
 // This is a light client that connects to a full node
 // it does not announce and does not accept incoming connections.
@@ -69,18 +69,18 @@ async function main() {
             // random buffer
             buffer.writeUInt32BE(Math.floor(Math.random() * 1000000));
             cube.setFields(new CubeFields([
-                new Field(
+                new CubeField(
                     CubeFieldType.PAYLOAD,
                     payloadString.length,
                     Buffer.from(payloadString, 'utf8')
                 ),
-                new Field(
+                new CubeField(
                     // This one gets overwritten by the nonce
                     CubeFieldType.PADDING_NONCE,
                     4,
                     buffer
                 ),
-                new Field(
+                new CubeField(
                     CubeFieldType.PADDING_NONCE,
                     4,
                     buffer

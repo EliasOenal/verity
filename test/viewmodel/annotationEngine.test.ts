@@ -1,7 +1,7 @@
 import { AnnotationEngine } from '../../src/viewmodel/annotationEngine';
 import { Cube } from '../../src/model/cube';
 import { CubeStore as CubeStore } from '../../src/model/cubeStore';
-import { Field, Relationship, CubeField, CubeFields, CubeRelationshipType } from '../../src/model/fields';
+import { CubeField, CubeFields, CubeRelationship, CubeRelationshipType } from '../../src/model/cubeFields';
 import { logger } from '../../src/model/logger';
 
 describe('annotationEngine', () => {
@@ -35,7 +35,7 @@ describe('annotationEngine', () => {
     const leaf: Cube = new Cube();
     leaf.setFields(new CubeFields([
       payloadfield,
-      CubeField.RelatesTo(new Relationship(
+      CubeField.RelatesTo(new CubeRelationship(
         CubeRelationshipType.REPLY_TO, await root.getKey()))
     ]));
 
@@ -59,7 +59,7 @@ describe('annotationEngine', () => {
     const leaf: Cube = new Cube();
     leaf.setFields(new CubeFields([
       payloadfield,
-      CubeField.RelatesTo(new Relationship(
+      CubeField.RelatesTo(new CubeRelationship(
         CubeRelationshipType.REPLY_TO, await root.getKey()))
     ]));
 
@@ -77,7 +77,7 @@ describe('annotationEngine', () => {
 
     const intermediate: Cube = new Cube();
     intermediate.setFields(new CubeFields([
-      CubeField.RelatesTo(new Relationship(
+      CubeField.RelatesTo(new CubeRelationship(
         CubeRelationshipType.REPLY_TO, await root.getKey())),
       payloadfield,  // let's shift the payload field around a bit for good measure :)
     ]));
@@ -85,7 +85,7 @@ describe('annotationEngine', () => {
     const leaf: Cube = new Cube();
     leaf.setFields(new CubeFields([
       payloadfield,
-      CubeField.RelatesTo(new Relationship(
+      CubeField.RelatesTo(new CubeRelationship(
         CubeRelationshipType.REPLY_TO, await intermediate.getKey()))
     ]));
 

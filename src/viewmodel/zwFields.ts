@@ -1,4 +1,4 @@
-import { Field, FieldDefinition, Fields, Relationship, CubeField, CubeFieldType } from "../model/fields";
+import { BaseField, FieldDefinition, BaseFields, BaseRelationship } from "../model/baseFields";
 import { NetConstants } from "../model/networkDefinitions";
 
 export enum ZwFieldType {
@@ -44,12 +44,12 @@ export enum MediaTypes {
 }
 
 
-export class ZwField extends Field {
+export class ZwField extends BaseField {
   static Application(): ZwField {
     return new ZwField(ZwFieldType.APPLICATION, 2, Buffer.from("ZW", 'utf-8'));
   }
 
-  static RelatesTo(rel: Relationship): ZwField {
+  static RelatesTo(rel: BaseRelationship): ZwField {
     return super.RelatesTo(rel, zwFieldDefinition);
   }
 
@@ -63,23 +63,23 @@ export class ZwField extends Field {
   }
 }
 
-export class ZwFields extends Fields {
+export class ZwFields extends BaseFields {
   constructor(
-    data?: Array<Field> | Field) {
+    data?: Array<BaseField> | BaseField) {
       super(data, zwFieldDefinition);
   }
 
-  public getRelationships(type?: number): Array<Relationship> {
+  public getRelationships(type?: number): Array<BaseRelationship> {
     return super.getRelationships(type, zwFieldDefinition);
   }
 
-  public getFirstRelationship(type?: number): Relationship {
+  public getFirstRelationship(type?: number): BaseRelationship {
     return super.getFirstRelationship(type, zwFieldDefinition);
   }
 }
 
-export class ZwRelationship extends Relationship {
-  static fromField(field?: Field): ZwRelationship {
+export class ZwRelationship extends BaseRelationship {
+  static fromField(field?: BaseField): ZwRelationship {
     return super.fromField(field, zwFieldDefinition);
   }
 }

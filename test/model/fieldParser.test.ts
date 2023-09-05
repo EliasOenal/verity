@@ -1,7 +1,7 @@
 import { FieldParser } from "../../src/model/fieldParser";
-import { Relationship, CubeField, CubeFieldType, CubeFields, CubeRelationshipType, CubeRelationship } from "../../src/model/fields";
+import { CubeField, CubeFieldType, CubeFields, CubeRelationshipType, CubeRelationship } from "../../src/model/cubeFields";
 import { NetConstants } from "../../src/model/networkDefinitions";
-import { ZwField, ZwFieldType, ZwFields, ZwRelationshipType, zwFieldDefinition } from '../../src/viewmodel/zwFields';
+import { ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from '../../src/viewmodel/zwFields';
 
 describe('fieldParser', () => {
   it('should correctly compile and decompile top level fields', () => {
@@ -14,7 +14,7 @@ describe('fieldParser', () => {
     );
     fields.data.push(
       CubeField.RelatesTo(
-        new Relationship(CubeRelationshipType.CONTINUED_IN,
+        new CubeRelationship(CubeRelationshipType.CONTINUED_IN,
         Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA))
       )
     );
@@ -50,7 +50,7 @@ describe('fieldParser', () => {
     );
     fields.data.push(
       ZwField.RelatesTo(
-        new Relationship(ZwRelationshipType.MYPOST,
+        new CubeRelationship(ZwRelationshipType.MYPOST,
         Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA))
       )
     );
@@ -70,7 +70,7 @@ describe('fieldParser', () => {
     expect(
       restored.getFirstField(ZwFieldType.PAYLOAD).value.toString('utf-8')).
       toEqual("Mein kleiner grüner Kaktus");
-    const restoredrel = Relationship.fromField(restored.getFirstField(ZwFieldType.RELATES_TO), zwFieldDefinition);
+    const restoredrel = ZwRelationship.fromField(restored.getFirstField(ZwFieldType.RELATES_TO));
     expect(restoredrel.type).toEqual(ZwRelationshipType.MYPOST);
     expect(restoredrel.remoteKey[0]).toEqual(0xDA);
   });
