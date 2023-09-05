@@ -1,5 +1,3 @@
-// WIP / BROKEN / NOTHING TO SEE HERE / REFACTORING FIRST / MOVE SOMEWHERE ELSE / WILL YOU CLOSE THIS FILE NOW ALREADY?!?!?!?!
-
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
 import { Cube, CubeKey } from '../model/cube';
 import { logger } from '../model/logger';
@@ -13,6 +11,7 @@ import { CubeError } from '../model/cubeDefinitions';
 import { Buffer } from 'buffer';
 import { VerityUI } from '../webui/VerityUI';
 import { CubeField, CubeFieldType } from '../model/cubeFields';
+import { CubeStore } from '../model/cubeStore';
 
 const IDENTITYDB_VERSION = 1;
 
@@ -66,9 +65,9 @@ export class Identity {
   /// @static This gets you an identity!
   ///         It either retrieves all Identity objects stored in persistant storage,
   ///         or creates a new one if there is none.
-  static async retrieve(dbname: string = "identity"): Promise<Identity> {
+  static async retrieve(cubeStore: CubeStore, dbname: string = "identity"): Promise<Identity> {
     const persistance: IdentityPersistance = await IdentityPersistance.create(dbname);
-    const ids: Array<Identity> = await persistance.retrieve();
+    const ids: Array<Identity> = await persistance.retrieve(cubeStore);
     let id: Identity = undefined;
     if (ids && ids.length) {
       id = ids[0];
@@ -126,9 +125,12 @@ export class Identity {
   get key(): CubeKey { return Buffer.from(this._muc.publicKey); }
 
   /**
-   * Save this Identity locally by storing it in the local database.
+   * Save this Identity locally by storing it in the local database
+   * and publish it by inserting it into the CubeStore.
+   * (You could also provide a private cubeStore instead, but why should you?)
    */
-  store(): Promise<void> {
+  store(cubeStore: CubeStore): Promise<void> {
+    cubeStore.addCube(this.makeMUC());
     if (this.persistance) return this.persistance.store(this);
     else return undefined;
   }
@@ -292,7 +294,8 @@ export class IdentityPersistance {
     this.db = new Level<string, string>(
       this.dbname,
       {
-        valueEncoding: 'json',
+        keyEncoding: 'utf8',
+        valueEncoding: 'utf8',
         version: IDENTITYDB_VERSION
       });
   }
@@ -314,24 +317,23 @@ export class IdentityPersistance {
     }
     return this.db.put(
       id.key.toString('hex'),
-      JSON.stringify(id)
+      id.privateKey.toString('hex')
     );
   }
 
-  async retrieve(): Promise<Array<Identity>> {
+  async retrieve(cubeStore: CubeStore): Promise<Array<Identity>> {
     // if (this.db.status != 'open') {
     //   logger.error("IdentityPersistance: Could not retrieve identity, DB not open");
     //   return undefined;
     // }
     const identities: Array<Identity> = [];
-    for await (const json of this.db.values() ) {
-      let id: Identity;
+    for await (const [pubkey, privkey] of this.db.iterator() ) {
       try {
-        id = Identity.fromJSON(JSON.parse(json));
-        id.persistance = this;
+        const muc = cubeStore.getCube(Buffer.from(pubkey, 'hex'));
+        const id = new Identity(muc, this);
+        muc.setCryptoKeys(Buffer.from(pubkey, 'hex'), Buffer.from(privkey, 'hex'));
         identities.push(id);
         } catch (error) {
-          throw error;
           logger.error("IdentityPersistance: Could not parse an identity from DB");
       }
     }
