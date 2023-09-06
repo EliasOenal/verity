@@ -20,7 +20,7 @@ export interface FieldDefinition {
  * You should best consider this an abstract base class, although it is not
  * technically abstract.
  */
-export class BaseField {
+export abstract class BaseField {
     type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Applications may or may not chose to keep their application-level fields compatible with our top-level numbering.
     length: number;
     value: Buffer;
@@ -89,7 +89,7 @@ export class BaseField {
  * creates their own, compatible `RELATES_TO` field type and also call it `RELATES TO`.
  * (tl;dr: If you deviate too much from top-level cube fields, it's your fault if it breaks.)
  */
-export class BaseRelationship {
+export abstract class BaseRelationship {
     type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Application may or may not chose to re-use this relationship system on the application layer, and if they do so they may or may not chose to keep their relationship types compatible with ours.
     remoteKey: CubeKey;
 
@@ -99,7 +99,7 @@ export class BaseRelationship {
     }
 
     static fromField(field: BaseField, fieldDefinition: FieldDefinition): BaseRelationship {
-        const relationship = new BaseRelationship();
+        const relationship = new fieldDefinition.fieldType.relationshipType();
         if (field.type != fieldDefinition.fieldNames['RELATES_TO']) {
             throw (new WrongFieldType(
                 "Can only construct relationship object from RELATES_TO field, " +
@@ -115,7 +115,7 @@ export class BaseRelationship {
 
 
 /** Nice wrapper around a field array providing some useful methods. */
-export class BaseFields {
+export class BaseFields {  // cannot make abstract, FieldParser creates temporary BaseField objects
     fieldDefinition: FieldDefinition = undefined;
     data: Array<BaseField> = undefined;
 
