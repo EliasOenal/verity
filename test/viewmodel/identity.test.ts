@@ -42,17 +42,20 @@ describe('Identity persistance', () => {
       id.persistance = persistance;
       expect(id.name).toBeUndefined();
       id.name = "Testar Identitates";
-      await id.store(cubeStore);
-      await new Promise(resolve => setTimeout(resolve, 1000));  // TODO this is a Heisentest... it sometimes fails and I don't know why. Some asynchroneous crap most probably. It doesn't really matter though as Identity saves are not time-critical, the whole system is just eventually consistent anyway.
+      const storePromise: Promise<void> = id.store(cubeStore);
+      expect(storePromise).toBeInstanceOf(Promise<void>);
+      await storePromise;
     }
     { // phase 2: retrieve, compare and delete the identity
-      const ids: Array<Identity> = await persistance.retrieve(cubeStore);
+      const idsPromise: Promise<Identity[]> = persistance.retrieve(cubeStore);
+      expect(idsPromise).toBeInstanceOf(Promise<Identity[]>);
+      const ids: Array<Identity> = await idsPromise;
       expect(ids.length).toEqual(1);
       const id: Identity = ids[0];
       expect(id.name).toEqual("Testar Identitates");
       expect(id.key).toEqual(idkey);
     }
-  }, 5000);
+  }, 2000);
 });
 
 

@@ -129,10 +129,13 @@ export class Identity {
    * and publish it by inserting it into the CubeStore.
    * (You could also provide a private cubeStore instead, but why should you?)
    */
-  store(cubeStore: CubeStore): Promise<void> {
-    cubeStore.addCube(this.makeMUC());
-    if (this.persistance) return this.persistance.store(this);
-    else return undefined;
+  store(cubeStore: CubeStore): Promise<any> {
+    const cubeAddPromise: Promise<any> = cubeStore.addCube(this.makeMUC());
+    if (this.persistance) {
+      const dbPromise: Promise<void> = this.persistance.store(this);
+      return Promise.all([cubeAddPromise, dbPromise]);
+    }
+    else return cubeAddPromise;
   }
 
   /**
@@ -322,20 +325,24 @@ export class IdentityPersistance {
   }
 
   async retrieve(cubeStore: CubeStore): Promise<Array<Identity>> {
-    // if (this.db.status != 'open') {
-    //   logger.error("IdentityPersistance: Could not retrieve identity, DB not open");
-    //   return undefined;
-    // }
+    if (this.db.status != 'open') {
+      logger.error("IdentityPersistance: Could not retrieve identity, DB not open");
+      return undefined;
+    }
     const identities: Array<Identity> = [];
     for await (const [pubkey, privkey] of this.db.iterator() ) {
-      try {
+      // try {
         const muc = cubeStore.getCube(Buffer.from(pubkey, 'hex'));
+        if (muc === undefined) {
+          logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkey + " is not present");
+          continue;
+        }
         const id = new Identity(muc, this);
         muc.setCryptoKeys(Buffer.from(pubkey, 'hex'), Buffer.from(privkey, 'hex'));
         identities.push(id);
-        } catch (error) {
-          logger.error("IdentityPersistance: Could not parse an identity from DB");
-      }
+        // } catch (error) {
+        //   logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
+        // }
     }
     return identities;
   }
