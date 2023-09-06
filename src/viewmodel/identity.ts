@@ -195,14 +195,7 @@ export class Identity {
 
   parseMuc(muc: Cube): void {
     // Is this MUC valid for this application?
-    const zwData: BaseField = muc.getFields().getFirstField(CubeFieldType.PAYLOAD);
-    if (!zwData) {
-      throw new CubeError("Identity: Supplied MUC is not an Identity MUC, lacks top level PAYLOAD field.")
-    }
-    const zwFields = new ZwFields(VerityUI.zwFieldParser.decompileFields(zwData.value));
-    if (!zwFields) {
-      throw new CubeError("Identity: Supplied MUC is not an Identity MUC, payload content does not consist of zwFields");
-    }
+    const zwFields: ZwFields = ZwFields.get(muc);
     const appField: BaseField = zwFields.getFirstField(ZwFieldType.APPLICATION);
     if (!appField || appField.value.toString('utf-8') != "ZW") {
       throw new CubeError("Identity: Supplied MUC is not an Identity MUC, lacks ZW application field");

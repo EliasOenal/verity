@@ -101,7 +101,7 @@ export class CubeDisplay {
     // Display reply input field
     const replyfield: HTMLParagraphElement = document.createElement("p");
     replyfield.innerHTML += `<input id="replyinput-${keystring}" type="text" size="60" /> `;
-    replyfield.innerHTML += `<button id="replybutton-${keystring}" onclick="window.verityUI.node.makeNewCube(document.getElementById('replyinput-${keystring}').value, '${keystring}');">Reply</button>`;
+    replyfield.innerHTML += `<button id="replybutton-${keystring}" onclick="window.verityUI.postReply(document.getElementById('replyinput-${keystring}').value, '${keystring}');">Reply</button>`;
 
     li.append(replyfield);
 
