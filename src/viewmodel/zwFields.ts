@@ -43,8 +43,15 @@ export enum MediaTypes {
   RESERVED = 255,  // may be used for an extension header
 }
 
+export class ZwRelationship extends BaseRelationship {
+  static fromField(field?: BaseField): ZwRelationship {
+    return super.fromField(field, zwFieldDefinition);
+  }
+}
 
 export class ZwField extends BaseField {
+  static relationshipType = ZwRelationship;
+
   static Application(): ZwField {
     return new ZwField(ZwFieldType.APPLICATION, 2, Buffer.from("ZW", 'utf-8'));
   }
@@ -75,12 +82,6 @@ export class ZwFields extends BaseFields {
 
   public getFirstRelationship(type?: number): BaseRelationship {
     return super.getFirstRelationship(type, zwFieldDefinition);
-  }
-}
-
-export class ZwRelationship extends BaseRelationship {
-  static fromField(field?: BaseField): ZwRelationship {
-    return super.fromField(field, zwFieldDefinition);
   }
 }
 

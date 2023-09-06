@@ -40,16 +40,6 @@ export enum CubeRelationshipType {
   QUOTATION = 4,
 }
 
-export class CubeField extends BaseField {
-  static RelatesTo(rel: BaseRelationship): CubeField {
-      return super.RelatesTo(rel, cubeFieldDefinition);
-    }
-
-    static Payload(buf: Buffer | string): CubeField  {
-      return super.Payload(buf, cubeFieldDefinition);
-    }
-}
-
 /**
  * This represents a relationship between two cubes and is the object-representation
  * of a RELATES_TO field.
@@ -60,15 +50,27 @@ export class CubeRelationship extends BaseRelationship {
   }
 }
 
+export class CubeField extends BaseField {
+  static relationshipType = CubeRelationship;
+
+  static RelatesTo(rel: CubeRelationship): CubeField {
+      return super.RelatesTo(rel, cubeFieldDefinition);
+    }
+
+    static Payload(buf: Buffer | string): CubeField  {
+      return super.Payload(buf, cubeFieldDefinition);
+    }
+}
+
 export class CubeFields extends BaseFields {
   constructor(data?: Array<CubeField> | CubeField) {
       super(data, cubeFieldDefinition);
   }
 
-  public getRelationships(type?: number): BaseRelationship[] {
+  public getRelationships(type?: number): CubeRelationship[] {
       return super.getRelationships(type, cubeFieldDefinition);
   }
-  public getFirstRelationship(type?: number): BaseRelationship {
+  public getFirstRelationship(type?: number): CubeRelationship {
       return super.getFirstRelationship(type, cubeFieldDefinition);
   }
 }

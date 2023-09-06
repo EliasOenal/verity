@@ -168,18 +168,18 @@ export class Identity {
 
     // Write profile picture reference
     if (this.profilepic) zwFields.data.push(ZwField.RelatesTo(
-      new BaseRelationship(ZwRelationshipType.PROFILEPIC, this.profilepic)
+      new ZwRelationship(ZwRelationshipType.PROFILEPIC, this.profilepic)
     ));
 
     // Write key backup cube reference (not actually implemented yet)
     if (this.keyBackupCube) zwFields.data.push(ZwField.RelatesTo(
-      new BaseRelationship(ZwRelationshipType.KEY_BACKUP_CUBE, this.keyBackupCube)
+      new ZwRelationship(ZwRelationshipType.KEY_BACKUP_CUBE, this.keyBackupCube)
     ));
     // Write my post references
     if (this.posts.length) {
       for (let i = this.posts.length-1; i>=0 && i >= this.posts.length - 21; i--) {
         zwFields.data.push(ZwField.RelatesTo(
-          new BaseRelationship(ZwRelationshipType.MYPOST, this.posts[i])
+          new ZwRelationship(ZwRelationshipType.MYPOST, this.posts[i])
         ));
       }
     }
