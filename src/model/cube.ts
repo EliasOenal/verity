@@ -397,10 +397,10 @@ export class Cube {
         // Calculate hashcash
         let findValidHashFunc: Function;
         // Use NodeJS worker based implementation if available and requested in config.ts
-        if (Settings.HASH_WORKERS && typeof this['findValidHashWorker'] === 'function') {
-            findValidHashFunc = this['findValidHashWorker'];
+        if (Settings.HASH_WORKERS && typeof this.findValidHashWorker === 'function') {
+            findValidHashFunc = this.findValidHashWorker;
         }
-        else findValidHashFunc = this['findValidHash'];
+        else findValidHashFunc = this.findValidHash;
         this.hash = await findValidHashFunc.call(this, indexNonce, indexSignature);
 
         logger.info("cube: Using hash " + this.hash.toString('hex') + "as cubeKey");

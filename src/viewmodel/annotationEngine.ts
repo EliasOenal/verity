@@ -5,6 +5,7 @@ import { logger } from '../model/logger';
 
 import { EventEmitter } from 'events';
 import { CubeRelationship, CubeRelationshipType } from '../model/cubeFields';
+import { BaseFields } from '../model/baseFields';
 
 export class AnnotationEngine extends EventEmitter {
   private cubeStore: CubeStore;
@@ -22,8 +23,26 @@ export class AnnotationEngine extends EventEmitter {
    */
   reverseRelationships: Map<string, Array<CubeRelationship>> = new Map();  // using string representation of CubeKey as maps don't work well with Buffers
 
-  constructor(cubeStore: CubeStore) {
+  /**
+   * The AnnotationEngine can be used on (top-level) Cube fields as well as on
+   * any application-defined sub-fields, as long as they are similar enough.
+   * getFieldsFunc refers to a function which returns the fields this AnnotationEngine
+   * is supposed to work on. By default, for top-level Cube fields, it is just an
+   * alias to cube.getFields().
+   */
+  getFieldsFunc: Function;
+  defaultGetFieldsFunc(cube: Cube): BaseFields {
+    return cube.getFields();
+  }
+
+  constructor(cubeStore: CubeStore, getFieldsFunc = undefined) {
     super();
+
+    // define how this AnnotationEngine reaches the fields it is supposed to work on
+    if (getFieldsFunc === undefined) getFieldsFunc = this.defaultGetFieldsFunc;
+    this.getFieldsFunc = getFieldsFunc;
+
+    // set CubeStore and subscribe to events
     this.cubeStore = cubeStore;
     this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.autoAnnotate(cube.key));
     this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.emitIfCubeDisplayable(cube.key));
@@ -34,7 +53,7 @@ export class AnnotationEngine extends EventEmitter {
     const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(key);
     const cube: Cube = cubeInfo.getCube();
 
-    for (const relationship of cube.getFields().getRelationships()) {
+    for (const relationship of this.getFieldsFunc(cube).getRelationships()) {
       // The the remote Cubes's reverse-relationship list
       let remoteCubeRels = this.reverseRelationships.get(
         relationship.remoteKey.toString('hex'));
