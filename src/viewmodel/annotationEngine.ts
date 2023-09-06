@@ -4,11 +4,11 @@ import { Cube, CubeKey } from '../model/cube';
 import { logger } from '../model/logger';
 
 import { EventEmitter } from 'events';
-import { CubeRelationship, CubeRelationshipType } from '../model/cubeFields';
-import { BaseFields } from '../model/baseFields';
+import { CubeRelationship } from '../model/cubeFields';
+import { BaseFields, BaseRelationship } from '../model/baseFields';
 
 export class AnnotationEngine extends EventEmitter {
-  private cubeStore: CubeStore;
+  protected cubeStore: CubeStore;
 
   /**
    * Stores reverse relationships for each Cube.
@@ -21,7 +21,7 @@ export class AnnotationEngine extends EventEmitter {
    * reverseRelations stores a List of reverse relationships (that's the map's value)
    * for every Cube we know (the map's key is the stringified Cube key).
    */
-  reverseRelationships: Map<string, Array<CubeRelationship>> = new Map();  // using string representation of CubeKey as maps don't work well with Buffers
+  reverseRelationships: Map<string, Array<BaseRelationship>> = new Map();  // using string representation of CubeKey as maps don't work well with Buffers
 
   /**
    * The AnnotationEngine can be used on (top-level) Cube fields as well as on
@@ -30,30 +30,34 @@ export class AnnotationEngine extends EventEmitter {
    * is supposed to work on. By default, for top-level Cube fields, it is just an
    * alias to cube.getFields().
    */
-  getFieldsFunc: Function;
-  defaultGetFieldsFunc(cube: Cube): BaseFields {
+  getFields: Function;
+  static defaultGetFieldsFunc(cube: Cube): BaseFields {
     return cube.getFields();
   }
 
-  constructor(cubeStore: CubeStore, getFieldsFunc = undefined) {
+  relationshipClass: any = CubeRelationship;  // e.g. CubeRelationship
+
+  constructor(cubeStore: CubeStore, getFieldsFunc?, relationshipClass?) {
     super();
 
     // define how this AnnotationEngine reaches the fields it is supposed to work on
-    if (getFieldsFunc === undefined) getFieldsFunc = this.defaultGetFieldsFunc;
-    this.getFieldsFunc = getFieldsFunc;
+    if (getFieldsFunc === undefined) getFieldsFunc = AnnotationEngine.defaultGetFieldsFunc;
+    this.getFields = getFieldsFunc;
+
+    // define on which kind of Relationships this AnnotationEngine works on
+    if (relationshipClass === undefined) relationshipClass = CubeRelationship;
+    this.relationshipClass = relationshipClass;
 
     // set CubeStore and subscribe to events
     this.cubeStore = cubeStore;
     this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.autoAnnotate(cube.key));
-    this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.emitIfCubeDisplayable(cube.key));
-    this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.emitIfCubeMakesOthersDisplayable(cube.key));
   }
 
   private autoAnnotate(key: CubeKey) {
     const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(key);
     const cube: Cube = cubeInfo.getCube();
 
-    for (const relationship of this.getFieldsFunc(cube).getRelationships()) {
+    for (const relationship of this.getFields(cube).getRelationships()) {
       // The the remote Cubes's reverse-relationship list
       let remoteCubeRels = this.reverseRelationships.get(
         relationship.remoteKey.toString('hex'));
@@ -63,13 +67,13 @@ export class AnnotationEngine extends EventEmitter {
           relationship.remoteKey.toString('hex'), remoteCubeRels);
       }
 
-      // Now add a reverse relationship for the remote Cube, but only
-      // it that actually something we didn't know before:
-      const alreadyKnown: Array<CubeRelationship> =
+      // Now add a reverse relationship for the remote Cube, but only if
+      // that's actually something we didn't know before:
+      const alreadyKnown: Array<BaseRelationship> =
         this.getReverseRelationships(remoteCubeRels, relationship.type, key);
       if (alreadyKnown.length === 0) {
         remoteCubeRels.push(
-          new CubeRelationship(relationship.type, key));
+          new this.relationshipClass(relationship.type, key));
         // logger.trace(`cubeStore: learning reverse relationship from ${relationship.remoteKey} to ${key}`)
       }
     }
@@ -84,9 +88,9 @@ export class AnnotationEngine extends EventEmitter {
    * @returns An array of reversed relationship objects.
    */
   getReverseRelationships(
-      cubeKey: CubeKey | string | Array<CubeRelationship>,
-      type?: CubeRelationshipType,
-      remoteKey?: CubeKey): Array<CubeRelationship> {
+      cubeKey: CubeKey | string | Array<BaseRelationship>,
+      type?: number,  // e.g. one of CubeRelationshipType
+      remoteKey?: CubeKey): Array<BaseRelationship> {
     let reverseRelationshipArray;
     if (cubeKey instanceof Array) {
       reverseRelationshipArray = cubeKey;
@@ -103,69 +107,6 @@ export class AnnotationEngine extends EventEmitter {
         (!type || type == reverseRelationship.type) &&
         (!remoteKey) || remoteKey == reverseRelationship.remoteKey) {
         ret.push(reverseRelationship);
-      }
-    }
-    return ret;
-  }
-
-
-  /** Emits cubeDisplayable events if a Cube is, well... displayable */
-  isCubeDisplayable(key: CubeKey, cubeInfo?: CubeInfo, cube?: Cube): boolean {
-    if (!cubeInfo) cubeInfo = this.cubeStore.getCubeInfo(key);
-    if (!cube) cube = cubeInfo.getCube();
-
-    // TODO: handle continuation chains
-    // TODO: parametrize and handle additional relationship types on request
-    // TODO: as discussed, this whole decision process (and the related attributes
-    // in CubeDataset) should at some point not be applies to all cubes,
-    // just to interesting ones that are actually to be displayed.
-
-    // are we a reply?
-    // if we are, we can only be displayed if we have the original post,
-    // and the original post is displayable too
-    const reply_to: CubeRelationship =
-      cube.getFields().getFirstRelationship(CubeRelationshipType.REPLY_TO);
-    if (reply_to) {
-      // logger.trace("annotationEngine: Checking for displayability of a reply")
-      const basePost: CubeInfo = this.cubeStore.getCubeInfo(reply_to.remoteKey);
-      if (!basePost) return false;
-      if (!this.isCubeDisplayable(basePost.key, basePost)) return false;
-    }
-    // logger.trace("annotationEngine: Confiming cube " + key.toString('hex') + " is displayable.");
-    return true;
-  }
-
-  cubeOwner(key: CubeKey): undefined {
-    // TODO implement
-    return undefined;
-  }
-
-  private emitIfCubeDisplayable(
-    key: CubeKey, cubeInfo?: CubeInfo, cube?: Cube): boolean {
-    const displayable: boolean = this.isCubeDisplayable(key, cubeInfo, cube);
-    if (displayable) this.emit('cubeDisplayable', key);
-    return displayable;
-  }
-
-  // Emits cubeDisplayable events if this is the case
-  private emitIfCubeMakesOthersDisplayable(
-    key: CubeKey, cubeInfo?: CubeInfo, cube?: Cube): boolean {
-    let ret: boolean = false;
-    if (!cubeInfo) cubeInfo = this.cubeStore.getCubeInfo(key);
-    if (!cube) cube = cubeInfo.getCube();
-
-    // Am I the base post to a reply we already have?
-    if (this.isCubeDisplayable(key, cubeInfo, cube)) {
-      // In a base-reply relationship, I as a base can only make my reply
-      // displayable if I am displayable myself.
-      const replies: Array<CubeRelationship> = this.getReverseRelationships(
-        cubeInfo.key,
-        CubeRelationshipType.REPLY_TO);
-      for (const reply of replies) {
-        if (this.emitIfCubeDisplayable(reply.remoteKey)) {  // will emit a cubeDisplayable event for reply.remoteKey if so
-          ret = true;
-          this.emitIfCubeMakesOthersDisplayable(reply.remoteKey);
-        }
       }
     }
     return ret;

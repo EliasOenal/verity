@@ -1,6 +1,17 @@
 import { BaseField, FieldDefinition, BaseFields, BaseRelationship } from "../model/baseFields";
+import { Cube } from "../model/cube";
+import { CubeError } from "../model/cubeDefinitions";
+import { CubeField, CubeFieldType } from "../model/cubeFields";
+import { FieldParser } from "../model/fieldParser";
+import { logger } from "../model/logger";
 import { NetConstants } from "../model/networkDefinitions";
+import { VerityUI } from "../webui/VerityUI";
 
+/**
+ * Defines all possible types of second-level, application specific fields.
+ * There may of course be many, potentially incompatible, standard of second-level
+ * fields. This one is called "ZW" and is used for our microblogging application.
+ */
 export enum ZwFieldType {
   // Starting above 30 (out of a maximum of 63) to keep this conflict-free
   // with the top level types, even though this is not required.
@@ -43,12 +54,23 @@ export enum MediaTypes {
   RESERVED = 255,  // may be used for an extension header
 }
 
+/**
+ * Represents a relationship between two "ZW" cubes, i.e. two cubes containing
+ * some second-level, application specific "ZW" fields, of which at least one is
+ * a RELATES_TO ZW field.
+ */
 export class ZwRelationship extends BaseRelationship {
   static fromField(field?: BaseField): ZwRelationship {
     return super.fromField(field, zwFieldDefinition);
   }
 }
 
+/**
+ * Represents a single application-specific, second-level field
+ * which is located inside a top-level PAYLOAD cube field.
+ * This specific type of application-specific second-level field is called "ZW",
+ * and we won't tell you what that stands for.
+ */
 export class ZwField extends BaseField {
   static relationshipType = ZwRelationship;
 
@@ -56,12 +78,16 @@ export class ZwField extends BaseField {
     return new ZwField(ZwFieldType.APPLICATION, 2, Buffer.from("ZW", 'utf-8'));
   }
 
-  static RelatesTo(rel: BaseRelationship): ZwField {
+  static RelatesTo(rel: ZwRelationship): ZwField {
     return super.RelatesTo(rel, zwFieldDefinition);
   }
 
   static Payload(buf: Buffer | string): ZwField  {
     return super.Payload(buf, zwFieldDefinition);
+  }
+
+  static MediaType(type: MediaTypes) {
+    return new ZwField(ZwFieldType.MEDIA_TYPE, 1, Buffer.alloc(1).fill(type));
   }
 
   static Username(name: string): ZwField {
@@ -70,17 +96,37 @@ export class ZwField extends BaseField {
   }
 }
 
+/**
+ * Represents a collection of application-specific, second-level fields
+ * which are located inside a top-level PAYLOAD cube field.
+ * This specific type of application-specific second-level fields is called "ZW",
+ * and we won't tell you what that stands for.
+ */
 export class ZwFields extends BaseFields {
+  static get(cube: Cube): ZwFields {
+    const zwData: CubeField = cube.getFields().getFirstField(CubeFieldType.PAYLOAD);
+    if (!zwData) {
+      logger.info("ZwFields: Cannot get ZwFields from this Cube, there's no top-level PAYLOAD cube field.")
+      return undefined;
+    }
+    const zwFields = new ZwFields(new FieldParser(zwFieldDefinition).decompileFields(zwData.value));
+    if (!zwFields) {
+      logger.info("ZwFields: Cannot get ZwFields from this Cube, the top-level PAYLOAD cube fields does not appear to be parseable as such.");
+      return undefined;
+    }
+    return zwFields;
+  }
+
   constructor(
-    data?: Array<BaseField> | BaseField) {
+    data?: Array<ZwField> | ZwField) {
       super(data, zwFieldDefinition);
   }
 
-  public getRelationships(type?: number): Array<BaseRelationship> {
+  public getRelationships(type?: number): Array<ZwRelationship> {
     return super.getRelationships(type, zwFieldDefinition);
   }
 
-  public getFirstRelationship(type?: number): BaseRelationship {
+  public getFirstRelationship(type?: number): ZwRelationship {
     return super.getFirstRelationship(type, zwFieldDefinition);
   }
 }

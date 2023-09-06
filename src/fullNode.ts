@@ -10,6 +10,7 @@ import { vera } from './misc/vera';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer';
+import { ZwAnnotationEngine } from "./viewmodel/zwAnnotationEngine";
 
 let readline: any;
 if (isNode) {
@@ -23,6 +24,7 @@ function delay(time: number) {
 
 export class fullNode {
     cubeStore: CubeStore = new CubeStore();
+    annotationEngine: ZwAnnotationEngine = new ZwAnnotationEngine(this.cubeStore);
     peerDB: PeerDB = new PeerDB();
     networkManager: NetworkManager;
 

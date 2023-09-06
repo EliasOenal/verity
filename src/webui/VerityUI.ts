@@ -8,6 +8,7 @@ import { Identity } from '../viewmodel/identity';
 import { FieldParser } from '../model/fieldParser';
 import { ZwFieldLengths, ZwField, zwFieldDefinition } from '../viewmodel/zwFields';
 import { isBrowser } from 'browser-or-node';
+import { ZwAnnotationEngine } from '../viewmodel/zwAnnotationEngine';
 
 
 export class VerityUI {
@@ -30,7 +31,7 @@ export class VerityUI {
   }
 
   node: fullNode = undefined;  // TODO: change this to a Node base class that still needs to be defined, so we can transparently use the UI with full and light nodes (actually not "Node", "Node" is a DOM class... make it VerityNode or something)
-  annotationEngine: AnnotationEngine;
+  annotationEngine: ZwAnnotationEngine;
   identity: Identity;
 
   cubeDisplay: CubeDisplay;
@@ -39,7 +40,7 @@ export class VerityUI {
 
   constructor(node: fullNode) {
     this.node = node;
-    this.annotationEngine = new AnnotationEngine(this.node.cubeStore);
+    this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore);
 
     this.peerDisplay = new PeerDisplay(this);
     this.peerDisplay.redisplayPeers();
@@ -56,6 +57,14 @@ export class VerityUI {
   saveIdentity(): void {
     this.identity.name = (document.getElementById("idname") as HTMLInputElement).value;
     this.identity.store(this.node.cubeStore);
+  }
+
+  makeNewPost(text: string): void {
+
+  }
+
+  postReply(text: string, replyto: string) {
+
   }
 }
 
