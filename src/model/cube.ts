@@ -12,7 +12,12 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer';
 
-export class CubeKey extends Buffer {}  // semantic typedef, TODO use this everywhere
+// semantic typedef
+// TAKE CARE! TRAP! TYPESCRIPT IS CRAP! (that rhymes)
+// Never check if something is instanceof CubeKey, it never will be.
+// All the underlying lib will ever give us are Buffers, and Typescript will
+// gladly allow you to treat a Buffer as CubeKey without correctly downcasting it :(
+export class CubeKey extends Buffer {}
 
 export class Cube {
     private version: number;

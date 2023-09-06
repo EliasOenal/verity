@@ -13,6 +13,22 @@ describe('annotationEngine', () => {
     annotationEngine = new AnnotationEngine(cubeStore);
   }, 1000);
 
+  it('correctly creates a reverse relationship', async () => {
+    const referrer = new Cube();
+    const referee = new Cube();
+
+    referrer.setFields(
+      CubeField.RelatesTo(new CubeRelationship(
+        CubeRelationshipType.CONTINUED_IN, await referee.getKey())
+      ));
+    await cubeStore.addCube(referrer);
+
+    const reverserels = annotationEngine.getReverseRelationships(await referee.getKey());
+    expect(reverserels.length).toEqual(1);
+    expect(reverserels[0].type).toEqual(CubeRelationshipType.CONTINUED_IN);
+    expect(reverserels[0].remoteKey.toString('hex')).toEqual((await referrer.getKey()).toString('hex'));
+  });
+
   it('should mark a single root cube as displayable', async () => {
     const root: Cube = new Cube();
     root.setFields(CubeField.Payload("Mein kleiner grüner Kaktus"));

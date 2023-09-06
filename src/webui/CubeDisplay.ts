@@ -28,7 +28,6 @@ export class CubeDisplay {
   // This will handle cubeStore cubeDisplayable events.
   displayCube(key: CubeKey) {
     const cubeInfo: CubeInfo = this.parent.node.cubeStore.getCubeInfo(key);
-    if (!cubeInfo.isComplete()) return;
     const cube: Cube = cubeInfo.getCube() as Cube;
 
     // is this a reply?

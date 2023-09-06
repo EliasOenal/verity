@@ -1,4 +1,4 @@
-import { Settings } from './config';
+import { Settings, VerityError } from './config';
 import { Cube, CubeKey } from './cube';
 import { CubeInfo, CubeMeta } from './cubeInfo'
 import { CubePersistence } from "./cubePersistence";
@@ -81,10 +81,7 @@ export class CubeStore extends EventEmitter {
       }
 
       // Store the cube
-      // (This either creates a new CubeInfo, or completes the existing CubeInfo
-      // with the actual cube if we already learnt some relationship
-      // information beforehand.
-      this.getCreateOrPopulateCubeInfo(cubeInfo.key, binaryCube);
+      this.storage.set(cubeInfo.key.toString('hex'), cubeInfo);
 
       // save cube to disk (if available and enabled)
       if (this.persistence) {
@@ -98,44 +95,21 @@ export class CubeStore extends EventEmitter {
       // All done finally, just return the key in case anyone cares.
       return cubeInfo.key;
     } catch (e) {
-      if (e instanceof Error) {
+      if (e instanceof VerityError) {
         logger.error('Error adding cube:' + e.message);
       } else {
-        logger.error('Error adding cube:' + e);
+        throw e;
       }
       return undefined;
     }
   }
 
   hasCube(key: CubeKey): boolean {
-    const cubeInfo: CubeInfo = this.getCubeInfo(key);
-    if (cubeInfo && cubeInfo.isComplete()) return true;
-    else return false;
+    return this.storage.has(key.toString('hex'));
   }
 
   getNumberOfStoredCubes(): number {
-    let ret = 0;
-    for (const cubeInfo of this.storage.values()) {
-      if (cubeInfo.isComplete()) ret++;
-    }
-    return ret;
-  }
-
-  // This should only really be used by addCube and the AnnotationEngine,
-  // but I can't make it private
-  getCreateOrPopulateCubeInfo(key: CubeKey, binaryCube?: Buffer): CubeInfo {
-    let cubeInfo: CubeInfo = this.getCubeInfo(key);
-    if (!cubeInfo) {
-      // we've never heard of this cube before -- create a new CubeInfo for it
-      cubeInfo = new CubeInfo(key);
-      this.storage.set(key.toString('hex'), cubeInfo);
-    }
-    // (Re-)populate this cube
-    if (binaryCube) {
-      const cube: Cube = new Cube(binaryCube);
-      cube.populateCubeInfo(cubeInfo);
-    }
-    return cubeInfo;
+    return this.storage.size;
   }
 
   getCubeInfo(key: CubeKey): CubeInfo {
@@ -152,22 +126,23 @@ export class CubeStore extends EventEmitter {
     else return undefined;
   }
 
+  /**
+   * Converts all cube keys to actual CubeKeys (i.e. binary buffers).
+   * If you're fine with strings, just call this.storage.keys instead, much cheaper.
+   */
   getAllStoredCubeKeys(): Set<CubeKey> {
     const ret: Set<CubeKey> = new Set();
     for (const [key, cubeInfo] of this.storage) {
-      if (cubeInfo.isComplete()) {  // if we actually have this cube
-        ret.add(cubeInfo.key);
-      }
+      ret.add(cubeInfo.key);
     }
     return ret;
   }
 
+  // TODO: we can probably get rid of this method now
   getAllStoredCubeMeta(): Set<CubeMeta> {
     const ret: Set<CubeMeta> = new Set();
     for (const [key, cubeInfo] of this.storage) {
-      if (cubeInfo.isComplete()) {  // if we actually have this cube
-        ret.add(cubeInfo);
-      }
+      ret.add(cubeInfo);
     }
     return ret;
   }
