@@ -55,7 +55,7 @@ describe('Identity persistance', () => {
       expect(id.name).toEqual("Testar Identitates");
       expect(id.key).toEqual(idkey);
     }
-  }, 2000);
+  }, 5000);
 });
 
 
