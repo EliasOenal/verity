@@ -341,8 +341,7 @@ export class NetworkPeer extends EventEmitter {
 
         // map/reduce/filter is really cool and stuff, but I'm not smart enough to understand it
         const cubes: CubeInfo[] = requestedCubeHashes.map(
-            key => this.storage.getCubeInfo(key))
-            .filter(cube => { if (cube) return cube.isComplete(); else return false; });
+            key => this.storage.getCubeInfo(key));
 
         const reply = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE
             + NetConstants.COUNT_SIZE + cubes.length * NetConstants.CUBE_SIZE);

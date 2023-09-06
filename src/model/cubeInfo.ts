@@ -17,7 +17,7 @@ export interface CubeMeta {
  * @classdesc CubeInfo describes a cube as seen by our local node.
  * While a cube is always a cube, our view of it changes over time.
  * From our local point of view, in this specific Verity instance any cube can
- * be in any of these three states:
+ * be in any of these two states:
  * - active:     The most complete state: We know the cube, have its binary
  *               representation stored and we have a Cube object in memory that we
  *               can use and call methods on.
@@ -27,17 +27,16 @@ export interface CubeMeta {
  *               in active use on our node at any time is usually small and keeping
  *               a Cube object is much more memory intense than just keeping the
  *               binary blob.
- * - incomplete: This is the most incomplete state and only exists when the
- *               AnnotationEngine is switched on. (TODO move reverse relations stuff etc to a new class AnnotationEngine)
- *               It means we have heard of this cube and know its key (e.g. because
- *               it was referenced in a RELATES_TO field) but we have not received
- *               the actual cube yet.
  *
- * We also call a cube `complete` if we actually have its data, i.e. if it is
- * either in the active or dormant state.
+ * There's a third state that's not actually relevant in the context of CubeInfo
+ * or in fact anywhere in the core library, but it still exists and is tracked by
+ * viemodel/AnnotationEngine:
+ * - incomplete: It means we have heard of this cube and know its key (e.g. because
+ *               it was referenced in a RELATES_TO field) but we have not received
+ *               the actual cube yet. There is no CubeInfo for incomplete cubes.
  *
  * CubeInfo keeps track of cubes and their local states, provides useful
- * information even in the dormant and unseen states, and allows us to activate
+ * information even in the dormant state, and allows us to activate
  * a dormant cube (i.e. instantiate it and get a Cube object).
 */
 export class CubeInfo {
@@ -53,7 +52,11 @@ export class CubeInfo {
   date: number = undefined;
   challengeLevel: number = undefined;
 
-  reverseRelationships: Array<CubeRelationship> = [];
+  /**
+   * Application code may store any notes they may have on a Cube here.
+   * For example, the WebUI uses this to store references to the DOM objects
+   * displaying a Cube's content.
+   */
   applicationNotes: Map<any, any> = new Map();
 
   // @member objectCache: Will remember the last instantiated Cube object
@@ -70,11 +73,14 @@ export class CubeInfo {
     this.challengeLevel = challengeLevel;
   }
 
-  isComplete(): boolean { return this.binaryCube ? true : false }
-
+  /**
+   * Gets the Cube object representing this Cube.
+   * If the cube is currently in dormant state, this instantiates the Cube object
+   * for you.
+   * We use an object cache (WeakRef) to prevent unnecessary re-instantiations of
+   * Cube objects, so there's no need to cache them by the caller.
+   */
   getCube(): Cube | undefined {
-    if (!this.isComplete()) return undefined; // nope, no cube available yet
-
     // Keep returning the same Cube object until it gets garbage collected
     if (this.objectCache) {
       const cachedCube: Cube = this.objectCache.deref();
@@ -88,22 +94,6 @@ export class CubeInfo {
     const cube = new Cube(this.binaryCube);
     this.objectCache = new WeakRef(cube);
     return cube;
-  }
-
-  // TODO: use fp.getRelationships for that
-  getReverseRelationships(
-    type?: CubeRelationshipType,
-    remoteKey?: CubeKey)
-    : Array<CubeRelationship> {
-    const ret = [];
-    for (const reverseRelationship of this.reverseRelationships) {
-      if (
-        (!type || type == reverseRelationship.type) &&
-        (!remoteKey) || remoteKey == reverseRelationship.remoteKey) {
-        ret.push(reverseRelationship);
-      }
-    }
-    return ret;
   }
 
 }

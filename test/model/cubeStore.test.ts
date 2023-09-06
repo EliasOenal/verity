@@ -1,4 +1,4 @@
-import { Cube } from '../../src/model/cube';
+import { Cube, CubeKey } from '../../src/model/cube';
 import { CubeStore as CubeStore } from '../../src/model/cubeStore';
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { CubeField, CubeFieldType, CubeFields, CubeRelationshipType, CubeRelationship } from '../../src/model/cubeFields';
@@ -54,12 +54,11 @@ describe('cubeStore', () => {
   }, 30000);
 
   it('should add a cube from binary data', async () => {
-    const hash = await cubeStore.addCube(validBinaryCube);
-    expect(hash).toBeInstanceOf(Buffer);
-    if (hash) {
-      expect(hash.length).toEqual(32);
-      expect(cubeStore.getCube(hash)!.getBinaryData()).toEqual(validBinaryCube);
-    }
+    const cubeKey = await cubeStore.addCube(validBinaryCube);
+    expect(cubeKey).toBeInstanceOf(Buffer);
+    expect(cubeKey!.length).toEqual(32);
+    expect(cubeStore.getCube(cubeKey!)).toBeDefined();
+    expect(cubeStore.getCube(cubeKey!)!.getBinaryData()).toEqual(validBinaryCube);
   }, 1000);
 
   it('should error when adding a cube with invalid binary data', async () => {

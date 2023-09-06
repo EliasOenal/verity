@@ -33,7 +33,6 @@ export class CubePersistence extends EventEmitter {
   storeCubes(data: Map<string, CubeInfo>) {
     if (this.db.status != 'open') return;
     for (const [key, cubeInfo] of data) {
-      if (!cubeInfo.isComplete()) continue;  // can't store a cube we don't actually have
       this.storeRawCube(key, cubeInfo.binaryCube)
     }
   }
