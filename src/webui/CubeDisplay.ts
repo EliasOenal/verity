@@ -5,6 +5,7 @@ import { BaseRelationship } from "../model/baseFields";
 import { Identity } from "../viewmodel/identity";
 import { VerityUI } from "./VerityUI";
 import { CubeFieldType, CubeRelationshipType } from "../model/cubeFields";
+import { ZwFieldType, ZwFields } from "../viewmodel/zwFields";
 
 export class CubeDisplay {
   parent: VerityUI;
@@ -62,6 +63,7 @@ export class CubeDisplay {
   }
 
   // TODO: clean up this mess of params
+  // TODO: move Cube stuff to viewmodel and just handle displayable data (i.e. text) here
   displayCubeInList(key: CubeKey, cubeInfo: CubeInfo, cube: Cube, cubelist: HTMLUListElement): HTMLLIElement {
     const keystring = key.toString('hex');
     // Create cube entry
@@ -90,7 +92,7 @@ export class CubeDisplay {
 
     // Display cube payload
     const payload: HTMLParagraphElement = document.createElement('p');
-    for (const field of cube.getFields().getFieldsByType(CubeFieldType.PAYLOAD)) {
+    for (const field of ZwFields.get(cube).getFieldsByType(ZwFieldType.PAYLOAD)) {
         payload.innerText += field.value.toString();
     }
     li.append(payload);
