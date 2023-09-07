@@ -136,13 +136,6 @@ async function main() {
     logger.info('Starting full node');
     await sodium.ready;
     const node = new fullNode();
-    global.node = node;  // TODO de-uglify
-    if (isBrowser) {
-        // @ts-ignore Defined in VerityUI.ts -- TODO remove main() from fullNode.ts, write separate main() stubs for Web and NodeJS
-        window.webmain(node);
-    }
-
-    const annotationEngine: ZwAnnotationEngine = new ZwAnnotationEngine(node.cubeStore);
 
     await node.onlinePromise;
     logger.info("Node is online");
@@ -150,7 +143,4 @@ async function main() {
     await node.shutdownPromise;
 }
 
-if (isBrowser) {
-    window.global = global;
-}
 main();

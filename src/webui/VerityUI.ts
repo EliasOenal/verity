@@ -11,6 +11,7 @@ import { isBrowser } from 'browser-or-node';
 import { ZwAnnotationEngine } from '../viewmodel/zwAnnotationEngine';
 import { makePost } from '../viewmodel/zwCubes';
 
+import sodium, { KeyPair } from 'libsodium-wrappers'
 
 export class VerityUI {
   private static _zwFieldParser: FieldParser = undefined;
@@ -69,13 +70,18 @@ export class VerityUI {
   }
 }
 
-async function webmain(node: fullNode) {
-  logger.trace("in web main");
-  // @ts-ignore TypeScript does not like us creating extra window attributes.. TODO refactor this
+async function webmain() {
+  logger.info('Starting web node');
+  await sodium.ready;
+
+  const node = new fullNode();
+  await node.onlinePromise;
+  logger.info("Node is online");
+
+// @ts-ignore TypeScript does not like us creating extra window attributes
   window.verityUI = await VerityUI.Construct(node);
-  // @ts-ignore TypeScript does not recognize window.verityUI even though it was defined right in the previous line
+
   await node.shutdownPromise;
 }
 
-// @ts-ignore TypeScript does not like us creating extra window attributes
-if (isBrowser) window.webmain = webmain;
+if (isBrowser) webmain();

@@ -130,7 +130,8 @@ export class Identity {
    * (You could also provide a private cubeStore instead, but why should you?)
    */
   store(cubeStore: CubeStore): Promise<any> {
-    const cubeAddPromise: Promise<any> = cubeStore.addCube(this.makeMUC());
+    const muc = this.makeMUC();
+    const cubeAddPromise: Promise<any> = cubeStore.addCube(muc);
     if (this.persistance) {
       const dbPromise: Promise<void> = this.persistance.store(this);
       return Promise.all([cubeAddPromise, dbPromise]);
