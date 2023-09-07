@@ -9,6 +9,7 @@ import { FieldParser } from '../model/fieldParser';
 import { ZwFieldLengths, ZwField, zwFieldDefinition } from '../viewmodel/zwFields';
 import { isBrowser } from 'browser-or-node';
 import { ZwAnnotationEngine } from '../viewmodel/zwAnnotationEngine';
+import { makePost } from '../viewmodel/zwCubes';
 
 
 export class VerityUI {
@@ -60,11 +61,11 @@ export class VerityUI {
   }
 
   makeNewPost(text: string): void {
-
+    this.node.cubeStore.addCube(makePost(text));
   }
 
   postReply(text: string, replyto: string) {
-
+    this.node.cubeStore.addCube(makePost(text, Buffer.from(replyto, 'hex')));
   }
 }
 
