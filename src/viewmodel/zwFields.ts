@@ -104,16 +104,31 @@ export class ZwField extends BaseField {
  */
 export class ZwFields extends BaseFields {
   static get(cube: Cube): ZwFields {
+    // ZwFields live in the Cube's (first/only) PAYLOAD field.
     const zwData: CubeField = cube.getFields().getFirstField(CubeFieldType.PAYLOAD);
     if (!zwData) {
       logger.info("ZwFields: Cannot get ZwFields from this Cube, there's no top-level PAYLOAD cube field.")
       return undefined;
     }
-    const zwFields = new ZwFields(new FieldParser(zwFieldDefinition).decompileFields(zwData.value));
+    // Decompile payload into ZwFields
+    let zwFields = undefined;
+    try {
+      zwFields = new ZwFields(new FieldParser(zwFieldDefinition).decompileFields(zwData.value));
+    } catch (err) { /* handled below */ }
     if (!zwFields) {
       logger.info("ZwFields: Cannot get ZwFields from this Cube, the top-level PAYLOAD cube fields does not appear to be parseable as such.");
       return undefined;
     }
+    // To distinguish it from garbage, a valid Zw field structure starts with
+    // an APPLICATION ZwField containing "ZW". That's 24 bits of of known data,
+    // meaning we will only falsely identiy a Cube as Zw-compliant every 16 billion
+    // times.
+    const AppField = zwFields.getFirstField(ZwFieldType.APPLICATION);
+    if (!AppField || AppField.value.toString('utf-8') != "ZW") {
+      logger.info("ZwFields: Cannot get ZwFields from this Cube, there's no 'APPLICATION ZW' field so this is probably garbage.")
+      return undefined;
+    }
+
     return zwFields;
   }
 
@@ -123,11 +138,11 @@ export class ZwFields extends BaseFields {
   }
 
   public getRelationships(type?: number): Array<ZwRelationship> {
-    return super.getRelationships(type, zwFieldDefinition);
+    return super.getRelationships(type);
   }
 
   public getFirstRelationship(type?: number): ZwRelationship {
-    return super.getFirstRelationship(type, zwFieldDefinition);
+    return super.getFirstRelationship(type);
   }
 }
 

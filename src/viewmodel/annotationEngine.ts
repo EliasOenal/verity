@@ -7,6 +7,8 @@ import { EventEmitter } from 'events';
 import { CubeRelationship } from '../model/cubeFields';
 import { BaseFields, BaseRelationship } from '../model/baseFields';
 
+import { Buffer } from 'buffer';
+
 export class AnnotationEngine extends EventEmitter {
   protected cubeStore: CubeStore;
 
@@ -53,11 +55,15 @@ export class AnnotationEngine extends EventEmitter {
     this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.autoAnnotate(cube.key));
   }
 
-  private autoAnnotate(key: CubeKey) {
+  private autoAnnotate(key: CubeKey): void {
     const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(key);
     const cube: Cube = cubeInfo.getCube();
 
-    for (const relationship of this.getFields(cube).getRelationships()) {
+    // does this Cube even have a valid field structure?
+    const fields: BaseFields = this.getFields(cube);
+    if (!fields) return;
+
+    for (const relationship of fields.getRelationships()) {
       // The the remote Cubes's reverse-relationship list
       let remoteCubeRels = this.reverseRelationships.get(
         relationship.remoteKey.toString('hex'));

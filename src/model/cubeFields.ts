@@ -68,10 +68,10 @@ export class CubeFields extends BaseFields {
   }
 
   public getRelationships(type?: number): CubeRelationship[] {
-      return super.getRelationships(type, cubeFieldDefinition);
+      return super.getRelationships(type);
   }
   public getFirstRelationship(type?: number): CubeRelationship {
-      return super.getFirstRelationship(type, cubeFieldDefinition);
+      return super.getFirstRelationship(type);
   }
 }
 
