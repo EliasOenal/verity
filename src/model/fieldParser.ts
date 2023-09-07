@@ -4,6 +4,8 @@ import { logger } from "./logger";
 import { NetConstants } from "./networkDefinitions";
 import { cubeFieldDefinition } from "./cubeFields";
 
+import { Buffer } from 'buffer';
+
 export class FieldParser {
   private static _toplevel = undefined;
 

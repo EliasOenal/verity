@@ -1,5 +1,5 @@
 import { Identity, IdentityPersistance } from '../../src/viewmodel/identity'
-import { CubeKey } from '../../src/model/cube'
+import { Cube, CubeKey } from '../../src/model/cube'
 import { NetConstants } from '../../src/model/networkDefinitions';
 
 import sodium from 'libsodium-wrappers'
@@ -65,7 +65,8 @@ describe('Identity MUC', () => {
     await sodium.ready;
   });
 
-  it('should store and retrieve an Identity to and from a MUC', async () => {
+  it('should store and retrieve an Identity to and from a MUC object', async () => {
+    const cubeStore = new CubeStore(false);
     const original = new Identity();
     original.name = "Testar Identitates";
     original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
@@ -77,8 +78,45 @@ describe('Identity MUC', () => {
     original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(5));
     original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(6));
     const muc = original.makeMUC();
+    const mucadded = await cubeStore.addCube(muc);
+    expect(mucadded).toEqual(original.publicKey);
 
-    const restored = new Identity(muc);
+    const restoredmuc = cubeStore.getCube(await muc.getKey());
+    expect(restoredmuc).toBeInstanceOf(Cube);
+    const restored = new Identity(restoredmuc);
+    expect(restored).toBeInstanceOf(Identity);
+    expect(restored.name).toEqual("Testar Identitates");
+    expect(restored.profilepic[0]).toEqual(0xDA);
+    expect(restored.keyBackupCube[0]).toEqual(0x13);
+    expect(restored.posts.length).toEqual(6);
+    expect(restored.posts[4][0]).toEqual(5);
+  });
+
+  it('should store and retrieve an Identity to and from a binary MUC', async () => {
+    const cubeStore = new CubeStore(false);
+    const original = new Identity();
+    original.name = "Testar Identitates";
+    original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
+    original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
+    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1));
+    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2));
+    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3));
+    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(4));
+    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(5));
+    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(6));
+    const muc = original.makeMUC();
+    const muckey = await muc.getKey();
+    expect(muckey).toBeInstanceOf(Buffer);
+    expect(muckey).toEqual(original.publicKey);
+    const binarymuc = muc.getBinaryData();
+    expect(binarymuc).toBeInstanceOf(Buffer);
+    const mucadded = await cubeStore.addCube(binarymuc);
+    expect(mucadded).toEqual(original.publicKey);
+
+    const restoredmuc = cubeStore.getCube(await muc.getKey());
+    expect(restoredmuc).toBeInstanceOf(Cube);
+    const restored = new Identity(restoredmuc);
+    expect(restored).toBeInstanceOf(Identity);
     expect(restored.name).toEqual("Testar Identitates");
     expect(restored.profilepic[0]).toEqual(0xDA);
     expect(restored.keyBackupCube[0]).toEqual(0x13);

@@ -2,7 +2,7 @@ import { Cube, CubeKey } from "../model/cube";
 import { CubeMeta, CubeInfo } from "../model/cubeInfo";
 import { CubeStore } from "../model/cubeStore";
 import { AnnotationEngine } from "./annotationEngine";
-import { ZwFields, ZwRelationship, ZwRelationshipType } from "./zwFields";
+import { MediaTypes, ZwFieldLengths, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "./zwFields";
 
 import { Buffer } from 'buffer';
 
@@ -14,13 +14,26 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   }
 
   /** Emits cubeDisplayable events if a Cube is, well... displayable */
-  isCubeDisplayable(key: CubeKey, cubeInfo?: CubeInfo, cube?: Cube): boolean {
+  isCubeDisplayable(
+      key: CubeKey, cubeInfo?: CubeInfo, cube?: Cube,
+      mediaType: MediaTypes = MediaTypes.TEXT): boolean {
     if (!cubeInfo) cubeInfo = this.cubeStore.getCubeInfo(key);
     if (!cube) cube = cubeInfo.getCube();
 
     // is this even a valid ZwCube?
     const fields: ZwFields = this.getFields(cube);
     if (!fields) return false;
+
+    // does this have a ZwPayload field?
+    const payload = fields.getFirstField(ZwFieldType.PAYLOAD);
+    if (!payload) return false;
+
+    // does it have the correct media type?
+    const typefield = fields.getFirstField(ZwFieldType.MEDIA_TYPE);
+    if (!typefield) return;
+    if (mediaType && mediaType != typefield.value.readUIntBE(0, ZwFieldLengths[ZwFieldType.MEDIA_TYPE])) {
+      return false;
+    }
 
     // TODO: handle continuation chains
     // TODO: parametrize and handle additional relationship types on request
@@ -49,8 +62,9 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   }
 
   private emitIfCubeDisplayable(
-    key: CubeKey, cubeInfo?: CubeInfo, cube?: Cube): boolean {
-    const displayable: boolean = this.isCubeDisplayable(key, cubeInfo, cube);
+      key:  CubeKey, cubeInfo?: CubeInfo, cube?: Cube,
+      mediaType: MediaTypes = MediaTypes.TEXT): boolean {
+    const displayable: boolean = this.isCubeDisplayable(key, cubeInfo, cube, mediaType);
     if (displayable) this.emit('cubeDisplayable', key);
     return displayable;
   }

@@ -91,8 +91,32 @@ describe('cubeStore', () => {
     expect(retrievedRel.remoteKey.toString('hex')).toEqual((await root.getKey()).toString('hex'));
   }, 1000);
 
+  it('correctly stores and retrieves a binary MUC with payload', async () => {
+    // Generate a key pair for testing
+    await sodium.ready;
+    const keyPair = sodium.crypto_sign_keypair();
+    const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+    const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+
+    const muc = Cube.MUC(publicKey, privateKey, CubeField.Payload("Hi, I'm a MUC!"));
+    const muckey = await muc.getKey();
+    expect(muckey).toEqual(publicKey);
+
+    const binarymuc = muc.getBinaryData();
+    expect(binarymuc).toBeDefined();
+    const cubeadded = await cubeStore.addCube(binarymuc);
+    expect(cubeadded).toEqual(muckey);
+
+    const restoredmuc = cubeStore.getCube(muckey);
+    expect(restoredmuc).toBeDefined();
+    const restoredpayload = restoredmuc?.getFields().getFirstField(CubeFieldType.PAYLOAD);
+    expect(restoredpayload).toBeDefined();
+    expect(restoredpayload?.value.toString('utf8')).toEqual("Hi, I'm a MUC!");
+  });
+
   it('should update the initial MUC with the updated MUC.', async () => {
     // Generate a key pair for testing
+    await sodium.ready;
     const keyPair = sodium.crypto_sign_keypair();
     const publicKey: Buffer = Buffer.from(keyPair.publicKey);
     const privateKey: Buffer = Buffer.from(keyPair.privateKey);
