@@ -14,7 +14,7 @@ describe('Identity persistance', () => {
     // Open the DB and make sure it's empty
     persistance = await IdentityPersistance.create("testidentity");
     await persistance.deleteAll();
-    cubeStore = new CubeStore();
+    cubeStore = new CubeStore(false);
     const ids: Array<Identity> = await persistance.retrieve(cubeStore);
     expect(ids).toBeDefined();
     expect(ids.length).toEqual(0);
