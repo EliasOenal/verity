@@ -50,9 +50,12 @@ export class CubeStore extends EventEmitter {
         cube = cube_input;
         binaryCube = cube_input.getBinaryData();
       }
-      else { // cube_input instanceof Buffer
+      else if (cube_input instanceof Buffer) { // cube_input instanceof Buffer
         binaryCube = cube_input;
         cube = new Cube(binaryCube);
+      } else {  // should never be even possible to happen, and yet, there was this one time when it did
+        // @ts-ignore If we end up here, we're well outside any kind of sanity TypeScript can possibly be expected to understand.
+        throw new TypeError("CubeStore: invalid type supplied to addCube: " + cube_input.constructor.name);
       }
 
       const cubeInfo: CubeInfo = await cube.getCubeInfo();

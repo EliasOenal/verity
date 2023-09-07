@@ -4,6 +4,7 @@ import { NetConstants } from '../../src/model/networkDefinitions';
 
 import sodium from 'libsodium-wrappers'
 import { CubeStore } from '../../src/model/cubeStore';
+import { VerityUI } from '../../src/webui/VerityUI';
 
 describe('Identity persistance', () => {
   let persistance: IdentityPersistance;
@@ -65,7 +66,23 @@ describe('Identity MUC', () => {
     await sodium.ready;
   });
 
-  it('should store and retrieve an Identity to and from a MUC object', async () => {
+  it('should store and retrieve a minimal Identity to and from a MUC object', async() => {
+    const cubeStore = new CubeStore(false);
+    const original = new Identity();
+    original.name = "Victor";
+    const muc = original.makeMUC();
+    expect(muc).toBeInstanceOf(Cube);
+    const mucadded = await cubeStore.addCube(muc);
+    expect(mucadded).toEqual(original.publicKey);
+
+    const restoredmuc = cubeStore.getCube(await muc.getKey());
+    expect(restoredmuc).toBeInstanceOf(Cube);
+    const restored = new Identity(restoredmuc);
+    expect(restored).toBeInstanceOf(Identity);
+    expect(restored.name).toEqual("Victor");
+  });
+
+  it('should store and retrieve an extended Identity to and from a MUC object', async () => {
     const cubeStore = new CubeStore(false);
     const original = new Identity();
     original.name = "Testar Identitates";
@@ -78,6 +95,7 @@ describe('Identity MUC', () => {
     original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(5));
     original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(6));
     const muc = original.makeMUC();
+    expect(muc).toBeInstanceOf(Cube);
     const mucadded = await cubeStore.addCube(muc);
     expect(mucadded).toEqual(original.publicKey);
 
@@ -105,6 +123,7 @@ describe('Identity MUC', () => {
     original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(5));
     original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(6));
     const muc = original.makeMUC();
+    expect(muc).toBeInstanceOf(Cube);
     const muckey = await muc.getKey();
     expect(muckey).toBeInstanceOf(Buffer);
     expect(muckey).toEqual(original.publicKey);
