@@ -179,18 +179,18 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
     * @param [type] If specified, only get relationships of the specified type.
     * @return An array of Relationship objects, which may be empty.
     */
-    public getRelationships(type: number, fieldDefinition: FieldDefinition): Array<BaseRelationship> {
-        const relationshipfields = this.getFieldsByType(fieldDefinition.fieldNames['RELATES_TO']);
+    public getRelationships(type?: number): Array<BaseRelationship> {
+        const relationshipfields = this.getFieldsByType(this.fieldDefinition.fieldNames['RELATES_TO']);
         const ret = [];
         for (const relationshipfield of relationshipfields) {
             const relationship: BaseRelationship =
-                BaseRelationship.fromField(relationshipfield, fieldDefinition);
+                BaseRelationship.fromField(relationshipfield, this.fieldDefinition);
             if (!type || relationship.type == type) ret.push(relationship);
         }
         return ret;
     }
-    public getFirstRelationship(type: number, fieldDefinition: FieldDefinition): BaseRelationship {
-        const rels: Array<BaseRelationship> = this.getRelationships(type, fieldDefinition);
+    public getFirstRelationship(type?: number): BaseRelationship {
+        const rels: Array<BaseRelationship> = this.getRelationships(type);
         if (rels.length) return rels[0];
         else return undefined;
     }

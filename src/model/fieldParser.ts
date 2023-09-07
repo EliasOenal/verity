@@ -39,6 +39,7 @@ export class FieldParser {
    * Field object array.
    * @returns An array of fields, the exact type of which being determined by
    *          this.fieldDef.fieldType.
+   * @throws A (subclass of) FieldError when not parseable
    */
   decompileFields(binaryData: Buffer): Array<BaseField> {
     if (binaryData === undefined)

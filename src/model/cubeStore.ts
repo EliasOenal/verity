@@ -90,13 +90,17 @@ export class CubeStore extends EventEmitter {
 
       // inform our application(s) about the new cube
       const metaCube: CubeMeta = cubeInfo;
-      this.emit('cubeAdded', metaCube);
+      try {
+        this.emit('cubeAdded', metaCube);
+      } catch(error) {
+        logger.error("CubeStore: While adding Cube " + cubeInfo.key.toString('hex') + "a cubeAdded subscriber experienced an error: " + error.message);
+      }
 
       // All done finally, just return the key in case anyone cares.
       return cubeInfo.key;
     } catch (e) {
       if (e instanceof VerityError) {
-        logger.error('Error adding cube:' + e.message);
+        logger.error('CubeStore: Error adding cube:' + e.message);
       } else {
         throw e;
       }

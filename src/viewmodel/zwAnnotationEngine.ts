@@ -4,6 +4,8 @@ import { CubeStore } from "../model/cubeStore";
 import { AnnotationEngine } from "./annotationEngine";
 import { ZwFields, ZwRelationship, ZwRelationshipType } from "./zwFields";
 
+import { Buffer } from 'buffer';
+
 export class ZwAnnotationEngine extends AnnotationEngine {
   constructor(cubeStore: CubeStore) {
     super(cubeStore, ZwFields.get);
@@ -16,6 +18,10 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     if (!cubeInfo) cubeInfo = this.cubeStore.getCubeInfo(key);
     if (!cube) cube = cubeInfo.getCube();
 
+    // is this even a valid ZwCube?
+    const fields: ZwFields = this.getFields(cube);
+    if (!fields) return false;
+
     // TODO: handle continuation chains
     // TODO: parametrize and handle additional relationship types on request
     // TODO: as discussed, this whole decision process (and the related attributes
@@ -26,7 +32,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     // if we are, we can only be displayed if we have the original post,
     // and the original post is displayable too
     const reply_to: ZwRelationship =
-      this.getFields(cube).getFirstRelationship(ZwRelationshipType.REPLY_TO);
+      fields.getFirstRelationship(ZwRelationshipType.REPLY_TO);
     if (reply_to) {
       // logger.trace("annotationEngine: Checking for displayability of a reply")
       const basePost: CubeInfo = this.cubeStore.getCubeInfo(reply_to.remoteKey);

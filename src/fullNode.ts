@@ -24,7 +24,6 @@ function delay(time: number) {
 
 export class fullNode {
     cubeStore: CubeStore = new CubeStore();
-    annotationEngine: ZwAnnotationEngine = new ZwAnnotationEngine(this.cubeStore);
     peerDB: PeerDB = new PeerDB();
     networkManager: NetworkManager;
 
@@ -142,6 +141,8 @@ async function main() {
         // @ts-ignore Defined in VerityUI.ts -- TODO remove main() from fullNode.ts, write separate main() stubs for Web and NodeJS
         window.webmain(node);
     }
+
+    const annotationEngine: ZwAnnotationEngine = new ZwAnnotationEngine(node.cubeStore);
 
     await node.onlinePromise;
     logger.info("Node is online");
