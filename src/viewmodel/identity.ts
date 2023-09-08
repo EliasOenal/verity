@@ -99,14 +99,20 @@ export class Identity {
   posts: Array<CubeKey> = [];
   // TODO add subscription_recommendations
 
-  constructor(muc: Cube = undefined, persistance: IdentityPersistance = undefined) {
+  constructor(
+    muc: Cube = undefined,
+    persistance: IdentityPersistance = undefined,
+    createByDefault = true) {
     this.persistance = persistance;
     if (muc) this.parseMuc(muc);
-    else {  // create new Identity
+    else if (createByDefault) {  // create new Identity
       let keys: KeyPair = sodium.crypto_sign_keypair();
       muc = Cube.MUC(Buffer.from(keys.publicKey), Buffer.from(keys.privateKey));
+      this._muc = muc;
     }
-    this._muc = muc;
+    else {
+      throw new CubeError("Identity: Cannot restore Identity without valid MUC.")
+    }
   }
 
   get privateKey(): Buffer { return this._muc.privateKey; }
@@ -194,9 +200,15 @@ export class Identity {
     return newMuc;
   }
 
-  parseMuc(muc: Cube): void {
+  /**
+   * Sets this Identity based on a MUC; should only be used on construction.
+   */
+  private parseMuc(muc: Cube): void {
     // Is this MUC valid for this application?
     const zwFields: ZwFields = ZwFields.get(muc);
+    if (!zwFields) {
+      throw new CubeError("Identity: Supplied MUC is not an Identity MUC, lacks ZW fields");
+    }
     const appField: BaseField = zwFields.getFirstField(ZwFieldType.APPLICATION);
     if (!appField || appField.value.toString('utf-8') != "ZW") {
       throw new CubeError("Identity: Supplied MUC is not an Identity MUC, lacks ZW application field");
