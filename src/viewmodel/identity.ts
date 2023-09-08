@@ -5,13 +5,13 @@ import { logger } from '../model/logger';
 import { Level } from 'level';
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { BaseField, BaseRelationship } from '../model/baseFields';
-import { ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from './zwFields';
+import { ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from './zwFields';
 import { CubeError } from '../model/cubeDefinitions';
 
 import { Buffer } from 'buffer';
-import { VerityUI } from '../webui/VerityUI';
 import { CubeField, CubeFieldType } from '../model/cubeFields';
 import { CubeStore } from '../model/cubeStore';
+import { FieldParser } from '../model/fieldParser';
 
 const IDENTITYDB_VERSION = 1;
 
@@ -192,7 +192,7 @@ export class Identity {
     }
     // TODO add subscription recommendations
 
-    const zwData: Buffer = VerityUI.zwFieldParser.compileFields(zwFields);
+    const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(zwFields);
     const newMuc: Cube = Cube.MUC(this._muc.publicKey, this._muc.privateKey,
       CubeField.Payload(zwData));
     newMuc.getBinaryData();  // compile MUC
@@ -242,6 +242,8 @@ export class Identity {
         this.posts.unshift(postrel.remoteKey);  // insert at beginning -- this is not efficient but I think it doesn't matter
       }
     }
+    // last but not least: store this MUC as our MUC
+    this._muc = muc;
   }
 
   /** @method Serialize, used before storing object in persistant storage */
@@ -337,7 +339,7 @@ export class IdentityPersistance {
     }
     const identities: Array<Identity> = [];
     for await (const [pubkey, privkey] of this.db.iterator() ) {
-      // try {
+      try {
         const muc = cubeStore.getCube(Buffer.from(pubkey, 'hex'));
         if (muc === undefined) {
           logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkey + " is not present");
@@ -346,9 +348,9 @@ export class IdentityPersistance {
         const id = new Identity(muc, this);
         muc.setCryptoKeys(Buffer.from(pubkey, 'hex'), Buffer.from(privkey, 'hex'));
         identities.push(id);
-        // } catch (error) {
-        //   logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
-        // }
+        } catch (error) {
+          logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
+        }
     }
     return identities;
   }

@@ -12,9 +12,9 @@ import { Identity } from "./identity";
 import { MediaTypes, ZwField, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from "./zwFields";
 
 export function makePost(
-  text: string,
-  replyto?: CubeKey,
-  id?: Identity): Cube {
+    text: string,
+    replyto?: CubeKey,
+    id?: Identity): Cube {
   const zwFields: ZwFields = new ZwFields(ZwField.Application());
   zwFields.data.push(ZwField.MediaType(MediaTypes.TEXT));
   zwFields.data.push(ZwField.Payload(text));

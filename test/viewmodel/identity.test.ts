@@ -4,7 +4,6 @@ import { NetConstants } from '../../src/model/networkDefinitions';
 
 import sodium from 'libsodium-wrappers'
 import { CubeStore } from '../../src/model/cubeStore';
-import { VerityUI } from '../../src/webui/VerityUI';
 
 describe('Identity persistance', () => {
   let persistance: IdentityPersistance;
@@ -42,19 +41,19 @@ describe('Identity persistance', () => {
       idkey = id.key;
       id.persistance = persistance;
       expect(id.name).toBeUndefined();
-      id.name = "Testar Identitates";
+      id.name = "Probator Identitatum";
       const storePromise: Promise<void> = id.store(cubeStore);
       expect(storePromise).toBeInstanceOf(Promise<void>);
       await storePromise;
     }
     { // phase 2: retrieve, compare and delete the identity
-      const idsPromise: Promise<Identity[]> = persistance.retrieve(cubeStore);
-      expect(idsPromise).toBeInstanceOf(Promise<Identity[]>);
-      const ids: Array<Identity> = await idsPromise;
-      expect(ids.length).toEqual(1);
-      const id: Identity = ids[0];
-      expect(id.name).toEqual("Testar Identitates");
-      expect(id.key).toEqual(idkey);
+      const restoredIdsPromise: Promise<Identity[]> = persistance.retrieve(cubeStore);
+      expect(restoredIdsPromise).toBeInstanceOf(Promise<Identity[]>);
+      const restoredIds: Array<Identity> = await restoredIdsPromise;
+      expect(restoredIds.length).toEqual(1);
+      const restoredId: Identity = restoredIds[0];
+      expect(restoredId.name).toEqual("Probator Identitatum");
+      expect(restoredId.key).toEqual(idkey);
     }
   }, 5000);
 });
@@ -85,7 +84,7 @@ describe('Identity MUC', () => {
   it('should store and retrieve an extended Identity to and from a MUC object', async () => {
     const cubeStore = new CubeStore(false);
     const original = new Identity();
-    original.name = "Testar Identitates";
+    original.name = "Probator Identitatum";
     original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
     original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
     original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1));
@@ -103,7 +102,7 @@ describe('Identity MUC', () => {
     expect(restoredmuc).toBeInstanceOf(Cube);
     const restored = new Identity(restoredmuc);
     expect(restored).toBeInstanceOf(Identity);
-    expect(restored.name).toEqual("Testar Identitates");
+    expect(restored.name).toEqual("Probator Identitatum");
     expect(restored.profilepic[0]).toEqual(0xDA);
     expect(restored.keyBackupCube[0]).toEqual(0x13);
     expect(restored.posts.length).toEqual(6);
@@ -113,7 +112,7 @@ describe('Identity MUC', () => {
   it('should store and retrieve an Identity to and from a binary MUC', async () => {
     const cubeStore = new CubeStore(false);
     const original = new Identity();
-    original.name = "Testar Identitates";
+    original.name = "Probator Identitatum";
     original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
     original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
     original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1));
@@ -136,7 +135,7 @@ describe('Identity MUC', () => {
     expect(restoredmuc).toBeInstanceOf(Cube);
     const restored = new Identity(restoredmuc);
     expect(restored).toBeInstanceOf(Identity);
-    expect(restored.name).toEqual("Testar Identitates");
+    expect(restored.name).toEqual("Probator Identitatum");
     expect(restored.profilepic[0]).toEqual(0xDA);
     expect(restored.keyBackupCube[0]).toEqual(0x13);
     expect(restored.posts.length).toEqual(6);

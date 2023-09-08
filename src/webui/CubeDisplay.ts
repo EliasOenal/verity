@@ -96,7 +96,7 @@ export class CubeDisplay {
     const header: HTMLParagraphElement = document.createElement("p");
 
     // authorship information
-    const author: Identity = this.annotationEngine.cubeOwner(key);
+    const author: Identity = this.annotationEngine.cubeAuthor(key);
     let authorText: string = ""
     if (author) {
       // TODO: display if this authorship information is authenticated,
