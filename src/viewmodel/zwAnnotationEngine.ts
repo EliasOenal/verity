@@ -8,7 +8,7 @@ import { MediaTypes, ZwFieldLengths, ZwFieldType, ZwFields, ZwRelationship, ZwRe
 import { Buffer } from 'buffer';
 
 export class ZwAnnotationEngine extends AnnotationEngine {
-  identityMucs: Map<string, any> = new Map();
+  identityMucs: Map<string, CubeInfo> = new Map();
 
   constructor(cubeStore: CubeStore) {
     super(cubeStore, ZwFields.get);
@@ -62,7 +62,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
 
   // TODO test this
   // TODO recurse through the linked list of owned posts
-  cubeOwner(key: CubeKey): Identity {
+  cubeAuthor(key: CubeKey): Identity {
     // check all MUCs
     for (const mucInfo of this.identityMucs.values()) {
       const postrels: Array<ZwRelationship> = ZwFields.get(mucInfo.getCube())?.
