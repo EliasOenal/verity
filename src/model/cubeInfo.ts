@@ -54,8 +54,7 @@ export class CubeInfo {
 
   /**
    * Application code may store any notes they may have on a Cube here.
-   * For example, the WebUI uses this to store references to the DOM objects
-   * displaying a Cube's content.
+   * This is currently unused.
    */
   applicationNotes: Map<any, any> = new Map();
 

@@ -1,81 +1,102 @@
 import { Cube, CubeKey } from "../model/cube";
 import { CubeInfo } from "../model/cubeInfo";
-import { BaseRelationship } from "../model/baseFields";
+import { CubeStore } from "../model/cubeStore";
 
 import { Identity } from "../viewmodel/identity";
-import { VerityUI } from "./VerityUI";
-import { CubeFieldType, CubeRelationshipType } from "../model/cubeFields";
-import { ZwFieldType, ZwFields } from "../viewmodel/zwFields";
+import { ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "../viewmodel/zwFields";
+import { ZwAnnotationEngine } from "../viewmodel/zwAnnotationEngine";
+
+import { logger } from "../model/logger";
 
 export class CubeDisplay {
-  parent: VerityUI;
+  private displayedCubes: Map<string, HTMLLIElement> = new Map();
+  private cubelist: HTMLUListElement = (document.getElementById("cubelist") as HTMLUListElement);
 
-  constructor(parent: VerityUI) {
-    this.parent = parent;
-    this.parent.annotationEngine.on('cubeDisplayable', (binaryKey) => this.displayCube(binaryKey)) // list cubes
+  constructor(
+      private cubeStore: CubeStore,
+      private annotationEngine: ZwAnnotationEngine) {
+    this.annotationEngine.on('cubeDisplayable', (binaryKey) => this.displayCube(binaryKey)) // list cubes
+    this.redisplayCubes();
   }
 
 
 
   redisplayCubes() {
-    for (const cubeInfo of this.parent.node.cubeStore.getAllCubeInfo()) {
-        if (this.parent.annotationEngine.isCubeDisplayable(cubeInfo.key)) {
+    // clear all currently displayed cubes:
+    this.clearAllCubes();
+    // redisplay them one by one:
+    // logger.trace("CubeDisplay: Redisplaying all cubes");
+    for (const cubeInfo of this.cubeStore.getAllCubeInfo()) {
+        if (this.annotationEngine.isCubeDisplayable(cubeInfo.key)) {
             this.displayCube(cubeInfo.key);
         }
     }
   }
 
+  /**
+   * Must always be called when clearing the cube display, otherwise
+   * CubeDisplay will still think the cubes are being displayed.
+   */
+  clearAllCubes() {
+    // logger.trace("CubeDisplay: Clearing all displayed cubes")
+    this.displayedCubes.clear();
+    this.cubelist.innerText='';
+  }
+
   // Show all new cubes that are displayable.
   // This will handle cubeStore cubeDisplayable events.
   displayCube(key: CubeKey) {
-    const cubeInfo: CubeInfo = this.parent.node.cubeStore.getCubeInfo(key);
-    const cube: Cube = cubeInfo.getCube() as Cube;
+    // is this post already displayed?
+    if (this.displayedCubes.has(key.toString('hex'))) return;
 
     // is this a reply?
-    const replies: Array<BaseRelationship> = cube.getFields().getRelationships(CubeRelationshipType.REPLY_TO);
-    if (replies.length > 0) {  // yes
-      const originalpostkey: CubeKey = replies[0].remoteKey;
-      const originalpost: CubeInfo = this.parent.node.cubeStore.getCubeInfo(
-        originalpostkey);
-      let originalpostli: HTMLLIElement = originalpost.applicationNotes.get('li');
-      if (!originalpostli) {  // apparently the original post has not yet been displayed
+    const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(key);
+    const reply: ZwRelationship = ZwFields.get(cubeInfo.getCube()).getFirstRelationship(ZwRelationshipType.REPLY_TO);
+    if (reply !== undefined) {  // yes
+      const originalpostkey: CubeKey = reply.remoteKey;
+      let originalpostli: HTMLLIElement = this.displayedCubes.get(originalpostkey.toString('hex'));
+      if (originalpostli === undefined) {  // apparently the original post has not yet been displayed
         this.displayCube(originalpostkey);
-        originalpostli = originalpost.applicationNotes.get('li');
+        originalpostli = this.displayedCubes.get(originalpostkey.toString('hex'));
       }
-      this.displayCubeReply(key, cubeInfo, cube, originalpostli);
+      this.displayCubeReply(key, cubeInfo, originalpostli);
     }
     else {  // no, this is an original post
-    const cubelist: HTMLElement | null = document.getElementById("cubelist")
-    if (!cubelist) return;  // who deleted my cube list?!?!?!?!
-    this.displayCubeInList(key, cubeInfo, cube, cubelist as HTMLUListElement);
+    this.displayCubeInList(key, cubeInfo, this.cubelist as HTMLUListElement);
     }
   }
 
   // TODO: clean up this mess of params
-  displayCubeReply(key: CubeKey, replyInfo: CubeInfo, reply: Cube, original: HTMLLIElement) {
+  displayCubeReply(key: CubeKey, replyInfo: CubeInfo, original: HTMLLIElement) {
     // Does this post already have a reply list?
     let replylist: HTMLUListElement | null = original.getElementsByTagName("ul").item(0);
     if (!replylist) {  // no? time to create one
         replylist = document.createElement('ul');
         original.appendChild(replylist);
     }
-    this.displayCubeInList(key, replyInfo, reply, replylist);
+    this.displayCubeInList(key, replyInfo, replylist);
   }
 
   // TODO: clean up this mess of params
   // TODO: move Cube stuff to viewmodel and just handle displayable data (i.e. text) here
-  displayCubeInList(key: CubeKey, cubeInfo: CubeInfo, cube: Cube, cubelist: HTMLUListElement): HTMLLIElement {
+  /**
+   * @param localcubelist The cube list this cube should be displayed in.
+   *                      Besides the global cube list (this.cubelist), this could
+   *                      also be a sub-list representing replies.
+   * @returns
+   */
+  displayCubeInList(key: CubeKey, cubeInfo: CubeInfo, localcubelist: HTMLUListElement): HTMLLIElement {
     const keystring = key.toString('hex');
     // Create cube entry
     const li: HTMLLIElement = document.createElement("li");
     li.setAttribute("cubekey", keystring);  // do we still need this?
-    li.setAttribute("timestamp", String(cube.getDate())) // keep raw timestamp for later reference
+    li.setAttribute("timestamp", String(cubeInfo.getCube().getDate())) // keep raw timestamp for later reference
 
     // Display cube display header (timestamp, user)
     const header: HTMLParagraphElement = document.createElement("p");
 
     // authorship information
-    const author: Identity = this.parent.annotationEngine.cubeOwner(key);
+    const author: Identity = this.annotationEngine.cubeOwner(key);
     let authorText: string = ""
     if (author) {
       // TODO: display if this authorship information is authenticated,
@@ -85,14 +106,14 @@ export class CubeDisplay {
       authorText = "Unknown user";
     }
     header.innerHTML += `<small><b>${authorText}</b></small><br />` // TODO: DO NOT USE innerHTML as partial strings (e.g. author name) are untrusted
-    const date: Date = new Date(cube.getDate()*1000);
+    const date: Date = new Date(cubeInfo.getCube().getDate()*1000);
     const dateformat: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     header.innerHTML += `<small>${date.toLocaleDateString(navigator.language, dateformat)} ${date.toLocaleTimeString(navigator.language)}</small><br />`
     li.appendChild(header);
 
     // Display cube payload
     const payload: HTMLParagraphElement = document.createElement('p');
-    for (const field of ZwFields.get(cube).getFieldsByType(ZwFieldType.PAYLOAD)) {
+    for (const field of ZwFields.get(cubeInfo.getCube()).getFieldsByType(ZwFieldType.PAYLOAD)) {
         payload.innerText += field.value.toString();
     }
     li.append(payload);
@@ -108,24 +129,24 @@ export class CubeDisplay {
     li.append(replyfield);
 
     // Insert sorted by date
-    if (cubelist) {
+    if (localcubelist) {
         let appended: boolean = false;
-        for (const child of cubelist.children) {
+        for (const child of localcubelist.children) {
             const timestamp: string | null = child.getAttribute("timestamp");
             if (timestamp) {
                 const childdate: number = parseInt(timestamp);
-                if (childdate < cube.getDate()) {
-                    cubelist.insertBefore(li, child);
+                if (childdate < cubeInfo.getCube().getDate()) {
+                    localcubelist.insertBefore(li, child);
                     appended = true;
                     break;
                 }
             }
         }
-        if (!appended) cubelist.appendChild(li);
+        if (!appended) localcubelist.appendChild(li);
     }
     // save this post's li as application note in the cube store
     // so we can later append replies to it
-    cubeInfo.applicationNotes.set('li', li);
+    this.displayedCubes.set(keystring, li);
     return li;
   }
 }

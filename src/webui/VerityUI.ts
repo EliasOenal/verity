@@ -12,6 +12,7 @@ import { ZwAnnotationEngine } from '../viewmodel/zwAnnotationEngine';
 import { makePost } from '../viewmodel/zwCubes';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
+import { Buffer } from 'buffer'
 
 export class VerityUI {
   private static _zwFieldParser: FieldParser = undefined;
@@ -36,19 +37,18 @@ export class VerityUI {
   annotationEngine: ZwAnnotationEngine;
   identity: Identity;
 
-  cubeDisplay: CubeDisplay;
-  peerDisplay: PeerDisplay;
+  cubeDisplay: CubeDisplay = undefined;
+  peerDisplay: PeerDisplay = undefined;
 
 
   constructor(node: fullNode) {
     this.node = node;
-    this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore);
 
     this.peerDisplay = new PeerDisplay(this);
     this.peerDisplay.redisplayPeers();
 
-    this.cubeDisplay = new CubeDisplay(this);
-    this.cubeDisplay.redisplayCubes();
+    this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore);
+    this.cubeDisplay = new CubeDisplay(this.node.cubeStore, this.annotationEngine);
   }
 
   async initializeIdentity(): Promise<void> {
@@ -62,11 +62,11 @@ export class VerityUI {
   }
 
   makeNewPost(text: string): void {
-    this.node.cubeStore.addCube(makePost(text));
+    this.node.cubeStore.addCube(makePost(text, undefined, this.identity));
   }
 
   postReply(text: string, replyto: string) {
-    this.node.cubeStore.addCube(makePost(text, Buffer.from(replyto, 'hex')));
+    this.node.cubeStore.addCube(makePost(text, Buffer.from(replyto, 'hex'), this.identity));
   }
 }
 

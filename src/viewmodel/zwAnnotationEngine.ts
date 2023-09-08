@@ -2,13 +2,17 @@ import { Cube, CubeKey } from "../model/cube";
 import { CubeMeta, CubeInfo } from "../model/cubeInfo";
 import { CubeStore } from "../model/cubeStore";
 import { AnnotationEngine } from "./annotationEngine";
+import { Identity } from "./identity";
 import { MediaTypes, ZwFieldLengths, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "./zwFields";
 
 import { Buffer } from 'buffer';
 
 export class ZwAnnotationEngine extends AnnotationEngine {
+  identityMucs: Map<string, any> = new Map();
+
   constructor(cubeStore: CubeStore) {
     super(cubeStore, ZwFields.get);
+    this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.rememberIdentityMucs(cube.key));
     this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.emitIfCubeDisplayable(cube.key));
     this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.emitIfCubeMakesOthersDisplayable(cube.key));
   }
@@ -56,8 +60,21 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     return true;
   }
 
-  cubeOwner(key: CubeKey): undefined {
-    // TODO implement
+  // TODO test this
+  // TODO recurse through the linked list of owned posts
+  cubeOwner(key: CubeKey): Identity {
+    // check all MUCs
+    for (const mucInfo of this.identityMucs.values()) {
+      const postrels: Array<ZwRelationship> = ZwFields.get(mucInfo.getCube())?.
+        getRelationships(ZwRelationshipType.MYPOST);
+      if (!postrels) continue;  // not a valid MUC
+      for (const postrel of postrels) {
+        if (postrel.remoteKey.equals(key)) {
+          const id: Identity = new Identity(mucInfo.getCube());
+          return id;
+        }
+      }
+    }
     return undefined;
   }
 
@@ -91,5 +108,15 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       }
     }
     return ret;
+  }
+
+  // TODO write test
+  private async rememberIdentityMucs(key: CubeKey) {
+    const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(key);
+    let id: Identity;
+    try {
+      id = new Identity(cubeInfo.getCube());
+    } catch (error) { return; }
+    this.identityMucs.set(cubeInfo.key.toString('hex'), cubeInfo);
   }
 }

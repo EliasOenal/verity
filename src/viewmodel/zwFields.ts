@@ -107,7 +107,7 @@ export class ZwFields extends BaseFields {
     // ZwFields live in the Cube's (first/only) PAYLOAD field.
     const zwData: CubeField = cube.getFields().getFirstField(CubeFieldType.PAYLOAD);
     if (!zwData) {
-      logger.info("ZwFields: Cannot get ZwFields from this Cube, there's no top-level PAYLOAD cube field.")
+      // logger.info("ZwFields: Cannot get ZwFields from this Cube, there's no top-level PAYLOAD cube field.")
       return undefined;
     }
     // Decompile payload into ZwFields
@@ -116,7 +116,7 @@ export class ZwFields extends BaseFields {
       zwFields = new ZwFields(new FieldParser(zwFieldDefinition).decompileFields(zwData.value));
     } catch (err) { /* handled below */ }
     if (!zwFields) {
-      logger.info("ZwFields: Cannot get ZwFields from this Cube, the top-level PAYLOAD cube fields does not appear to be parseable as such.");
+      // logger.info("ZwFields: Cannot get ZwFields from this Cube, the top-level PAYLOAD cube fields does not appear to be parseable as such.");
       return undefined;
     }
     // To distinguish it from garbage, a valid Zw field structure starts with
@@ -125,7 +125,7 @@ export class ZwFields extends BaseFields {
     // times.
     const AppField = zwFields.getFirstField(ZwFieldType.APPLICATION);
     if (!AppField || AppField.value.toString('utf-8') != "ZW") {
-      logger.info("ZwFields: Cannot get ZwFields from this Cube, there's no 'APPLICATION ZW' field so this is probably garbage.")
+      // logger.info("ZwFields: Cannot get ZwFields from this Cube, there's no 'APPLICATION ZW' field so this is probably garbage.")
       return undefined;
     }
 
