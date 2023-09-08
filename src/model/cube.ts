@@ -218,12 +218,18 @@ export class Cube {
         }
     }
 
+    // TODO: Having something as simple as getKey() async keeps causing hickups.
+    // We should make hash generation explicit and getKey() immediate.
     public async getKey(): Promise<CubeKey> {
         if (this.cubeKey && this.hash) return this.cubeKey;
         else {
             await this.generateCubeHash();
             return this.cubeKey;
         }
+    }
+
+    public getKeyIfAvailable(): CubeKey | undefined {
+        return this.cubeKey;
     }
 
     public async getHash(): Promise<Buffer> {

@@ -60,22 +60,37 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     return true;
   }
 
-  // TODO test this
-  // TODO recurse through the linked list of owned posts
+  /**
+   * Finds the author of a post, i.e. the Identity object of a cube's author.
+   */
   cubeAuthor(key: CubeKey): Identity {
     // check all MUCs
     for (const mucInfo of this.identityMucs.values()) {
-      const postrels: Array<ZwRelationship> = ZwFields.get(mucInfo.getCube())?.
-        getRelationships(ZwRelationshipType.MYPOST);
-      if (!postrels) continue;  // not a valid MUC
-      for (const postrel of postrels) {
-        if (postrel.remoteKey.equals(key)) {
-          const id: Identity = new Identity(mucInfo.getCube());
-          return id;
-        }
-      }
+      const muc = mucInfo.getCube();
+      if (!muc) continue;
+      const potentialResult: Identity = this.cubeAuthorRecursion(key, muc);
+      if (potentialResult) return potentialResult;
     }
     return undefined;
+  }
+
+  /** This is the recursive part of cubeAuthor() */
+  private cubeAuthorRecursion(key: CubeKey, mucOrMucExtension: Cube): Identity {
+    const postrels: Array<ZwRelationship> = ZwFields.get(mucOrMucExtension).
+      getRelationships(ZwRelationshipType.MYPOST);
+    if (!postrels) return undefined;  // not a valid MUC or MUC extension cube
+    for (const postrel of postrels) {
+      if (postrel.remoteKey.equals(key)) {  // bingo!
+        const id: Identity = new Identity(this.cubeStore, mucOrMucExtension);
+        return id;
+      } else {  // maybe this other post contains the authorship information we seek?
+        const subpost = this.cubeStore.getCube(postrel.remoteKey);
+        const potentialResult = this.cubeAuthorRecursion(key, subpost);
+        if (potentialResult) return potentialResult;
+        else continue;
+      }
+    }
+    return undefined;  // no authorship information found, not even really deep down
   }
 
   private emitIfCubeDisplayable(
@@ -110,12 +125,11 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     return ret;
   }
 
-  // TODO write test
   private async rememberIdentityMucs(key: CubeKey) {
     const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(key);
     let id: Identity;
     try {
-      id = new Identity(cubeInfo.getCube());
+      id = new Identity(this.cubeStore, cubeInfo.getCube());
     } catch (error) { return; }
     this.identityMucs.set(cubeInfo.key.toString('hex'), cubeInfo);
   }

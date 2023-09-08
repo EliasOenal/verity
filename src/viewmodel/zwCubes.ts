@@ -11,10 +11,10 @@ import { FieldParser } from "../model/fieldParser";
 import { Identity } from "./identity";
 import { MediaTypes, ZwField, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from "./zwFields";
 
-export function makePost(
+export async function makePost(
     text: string,
     replyto?: CubeKey,
-    id?: Identity): Cube {
+    id?: Identity): Promise<Cube> {
   const zwFields: ZwFields = new ZwFields(ZwField.Application());
   zwFields.data.push(ZwField.MediaType(MediaTypes.TEXT));
   zwFields.data.push(ZwField.Payload(text));
@@ -26,13 +26,25 @@ export function makePost(
   }
 
   if (id) {
-    // TODO include MYPOSTs
+    // TODO calculate how many post references fit based on actual free size
+    // in this Cube.
+    // For now, let's just say 10. I think 10 will fit.
+    // TODO: use fibonacci spacing for post references instead of linear,
+    // but only if there are actually enough posts to justify it
+    // TODO: move this logic to Identity (or vice-versa) as Identity does
+    // exactly the same stuff when generating a MUC
+    for (let i = 0; i < id.posts.length && i < 10; i++) {
+      zwFields.data.push(ZwField.RelatesTo(
+        new ZwRelationship(ZwRelationshipType.MYPOST, Buffer.from(id.posts[i], 'hex'))
+      ));
+    }
   }
 
   const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(zwFields);
   const cube: Cube = new Cube();
   cube.setFields(CubeField.Payload(zwData));
   cube.getBinaryData();  // finalize Cube & compile fields
+  if (id) id.posts.unshift((await cube.getKey()).toString('hex'));
   return cube;
 }
 

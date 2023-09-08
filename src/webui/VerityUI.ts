@@ -3,10 +3,9 @@ import { logger } from '../model/logger'
 
 import { CubeDisplay } from './CubeDisplay';
 import { PeerDisplay } from './PeerDisplay';
-import { AnnotationEngine } from '../viewmodel/annotationEngine';
 import { Identity } from '../viewmodel/identity';
 import { FieldParser } from '../model/fieldParser';
-import { ZwFieldLengths, ZwField, zwFieldDefinition } from '../viewmodel/zwFields';
+import { zwFieldDefinition } from '../viewmodel/zwFields';
 import { isBrowser } from 'browser-or-node';
 import { ZwAnnotationEngine } from '../viewmodel/zwAnnotationEngine';
 import { makePost } from '../viewmodel/zwCubes';
@@ -58,15 +57,15 @@ export class VerityUI {
 
   saveIdentity(): void {
     this.identity.name = (document.getElementById("idname") as HTMLInputElement).value;
-    this.identity.store(this.node.cubeStore);
+    this.identity.store();
   }
 
-  makeNewPost(text: string): void {
-    this.node.cubeStore.addCube(makePost(text, undefined, this.identity));
+  async makeNewPost(text: string) {
+    this.node.cubeStore.addCube(await makePost(text, undefined, this.identity));
   }
 
-  postReply(text: string, replyto: string) {
-    this.node.cubeStore.addCube(makePost(text, Buffer.from(replyto, 'hex'), this.identity));
+  async postReply(text: string, replyto: string) {
+    this.node.cubeStore.addCube(await makePost(text, Buffer.from(replyto, 'hex'), this.identity));
   }
 }
 
