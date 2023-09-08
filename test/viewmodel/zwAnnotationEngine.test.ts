@@ -19,7 +19,7 @@ describe('ZwAnnotationEngine', () => {
 
   describe('displayability', () => {
     it('should mark a single root cube as displayable', async () => {
-      const root: Cube = makePost("Mein kleiner grüner Kaktus");
+      const root: Cube = await makePost("Mein kleiner grüner Kaktus");
 
       const callback = jest.fn();
       annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
@@ -32,8 +32,8 @@ describe('ZwAnnotationEngine', () => {
     }, 5000);
 
     it('should mark a cube and a reply received in sync as displayable', async () => {
-      const root: Cube = makePost("Mein kleiner grüner Kaktus");
-      const leaf: Cube = makePost("steht draußen am Balkon", await root.getKey());
+      const root: Cube = await makePost("Mein kleiner grüner Kaktus");
+      const leaf: Cube = await makePost("steht draußen am Balkon", await root.getKey());
 
       const callback = jest.fn();
       annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
@@ -48,8 +48,8 @@ describe('ZwAnnotationEngine', () => {
     }, 5000);
 
     it('should not mark replies as displayable when the original post is unavailable', async () => {
-      const root: Cube = makePost("Mein kleiner grüner Kaktus");
-      const leaf: Cube = makePost("steht draußen am Balkon", await root.getKey());
+      const root: Cube = await makePost("Mein kleiner grüner Kaktus");
+      const leaf: Cube = await makePost("steht draußen am Balkon", await root.getKey());
 
       const callback = jest.fn();
       annotationEngine.on('cubeDisplayable', (hash) => callback(hash));
@@ -59,9 +59,9 @@ describe('ZwAnnotationEngine', () => {
     }, 5000);
 
     it('should mark replies as displayable only once all preceding posts has been received', async () => {
-      const root: Cube = makePost("Mein kleiner grüner Kaktus");
-      const intermediate: Cube = makePost("steht draußen am Balkon", await root.getKey());
-      const leaf: Cube = makePost("hollari, hollari, hollaroooo", await intermediate.getKey());
+      const root: Cube = await makePost("Mein kleiner grüner Kaktus");
+      const intermediate: Cube = await makePost("steht draußen am Balkon", await root.getKey());
+      const leaf: Cube = await makePost("hollari, hollari, hollaroooo", await intermediate.getKey());
 
       const callback = jest.fn();
       annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
@@ -81,12 +81,13 @@ describe('ZwAnnotationEngine', () => {
 
   describe('cube ownership', () => {
     it('should remember Identity MUCs', async () => {
-      const id: Identity = new Identity();
+      const id: Identity = new Identity(cubeStore);
       id.name = "Probator Annotationem";
       await cubeStore.addCube(id.makeMUC());
 
       expect(annotationEngine.identityMucs.size).toEqual(1);
-      const restored: Identity = new Identity(annotationEngine.identityMucs.get(id.publicKey.toString('hex'))?.getCube());
+      const restored: Identity = new Identity(cubeStore,
+        annotationEngine.identityMucs.get(id.publicKey.toString('hex'))?.getCube());
       expect(restored).toBeInstanceOf(Identity);
       expect(restored.name).toEqual("Probator Annotationem");
     });
@@ -104,9 +105,9 @@ describe('ZwAnnotationEngine', () => {
     });
 
     it('should identify the author of a post directly referred to from a MUC', async () => {
-      const id: Identity = new Identity();
+      const id: Identity = new Identity(cubeStore);
       id.name = "Probator Attributionis Auctoris";
-      const post: Cube = makePost("I got important stuff to say", undefined, id);
+      const post: Cube = await makePost("I got important stuff to say", undefined, id);
       await cubeStore.addCube(post);
       expect(annotationEngine.cubeAuthor(await post.getKey()).name).
         toEqual("Probator Attributionis Auctoris");
@@ -117,12 +118,12 @@ describe('ZwAnnotationEngine', () => {
     // But hey, at least we get a feel for how expensive spam will be :D
     it('should identify the author of a post indirectly referred to through other posts', async () => {
       const TESTPOSTCOUNT = 40;  // 40 keys are more than guaranteed not to fit in the MUC
-      const id: Identity = new Identity();
+      const id: Identity = new Identity(cubeStore);
       id.name = "Probator Attributionis Auctoris";
       const posts: CubeKey[] = [];
 
       for (let i=0; i<TESTPOSTCOUNT; i++) {
-        const post: Cube = makePost("I got important stuff to say", undefined, id);
+        const post: Cube = await makePost("I got important stuff to say", undefined, id);
         posts.push(await post.getKey());
         await cubeStore.addCube(post);
       }

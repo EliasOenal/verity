@@ -4,8 +4,10 @@ import { NetConstants } from '../../src/model/networkDefinitions';
 
 import sodium from 'libsodium-wrappers'
 import { CubeStore } from '../../src/model/cubeStore';
+import { makePost } from '../../src/viewmodel/zwCubes';
+import { ZwFieldType, ZwFields, ZwRelationshipType } from '../../src/viewmodel/zwFields';
 
-describe('Identity persistance', () => {
+describe('Identity', () => {
   let persistance: IdentityPersistance;
   let cubeStore: CubeStore;
 
@@ -37,12 +39,12 @@ describe('Identity persistance', () => {
 
     let idkey: CubeKey | undefined = undefined;
     {  // phase 1: create new identity and store it
-      const id = new Identity();
+      const id = new Identity(cubeStore);
       idkey = id.key;
       id.persistance = persistance;
       expect(id.name).toBeUndefined();
       id.name = "Probator Identitatum";
-      const storePromise: Promise<void> = id.store(cubeStore);
+      const storePromise: Promise<void> = id.store();
       expect(storePromise).toBeInstanceOf(Promise<void>);
       await storePromise;
     }
@@ -56,19 +58,11 @@ describe('Identity persistance', () => {
       expect(restoredId.key).toEqual(idkey);
     }
   }, 5000);
-});
-
-
-
-describe('Identity MUC', () => {
-  beforeEach(async () => {
-    await sodium.ready;
-  });
 
   it('should store and retrieve a minimal Identity to and from a MUC object', async() => {
     const cubeStore = new CubeStore(false);
-    const original = new Identity();
-    original.name = "Victor";
+    const original = new Identity(cubeStore);
+    original.name = "Probator Identitatum";
     const muc = original.makeMUC();
     expect(muc).toBeInstanceOf(Cube);
     const mucadded = await cubeStore.addCube(muc);
@@ -76,51 +70,66 @@ describe('Identity MUC', () => {
 
     const restoredmuc = cubeStore.getCube(await muc.getKey());
     expect(restoredmuc).toBeInstanceOf(Cube);
-    const restored = new Identity(restoredmuc);
+    const restored = new Identity(cubeStore, restoredmuc);
     expect(restored).toBeInstanceOf(Identity);
-    expect(restored.name).toEqual("Victor");
+    expect(restored.name).toEqual("Probator Identitatum");
   });
 
-  it('should store and retrieve an extended Identity to and from a MUC object', async () => {
+  it('should store and retrieve an Identity to and from a MUC object', async () => {
     const cubeStore = new CubeStore(false);
-    const original = new Identity();
+    const original = new Identity(cubeStore);
+
+    // populate ID
     original.name = "Probator Identitatum";
     original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
     original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
-    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1));
-    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2));
-    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3));
-    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(4));
-    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(5));
-    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(6));
+
+    const postkey = (await cubeStore.addCube(await makePost("I got important stuff to say", undefined, original))) as CubeKey;
+    expect(postkey).toBeInstanceOf(Buffer);
+    expect(original.posts.length).toEqual(1);
+    expect(ZwFields.get(cubeStore.getCube(original.posts[0]) as Cube).getFirstField(ZwFieldType.PAYLOAD).value.toString('utf-8')).
+      toEqual("I got important stuff to say");
+
+    // compile ID into MUC
     const muc = original.makeMUC();
     expect(muc).toBeInstanceOf(Cube);
+
+    // double check everything's in there
+    expect(ZwFields.get(muc).getFirstRelationship(ZwRelationshipType.PROFILEPIC).remoteKey).
+      toEqual(original.profilepic);
+    expect(ZwFields.get(muc).getFirstRelationship(ZwRelationshipType.KEY_BACKUP_CUBE).remoteKey).
+      toEqual(original.keyBackupCube);
+    expect(ZwFields.get(muc).getFirstRelationship(ZwRelationshipType.MYPOST).remoteKey).
+      toEqual(postkey);
+
+    // Store the MUC
     const mucadded = await cubeStore.addCube(muc);
     expect(mucadded).toEqual(original.publicKey);
 
+    // Restore the Identity from the stored MUC
     const restoredmuc = cubeStore.getCube(await muc.getKey());
     expect(restoredmuc).toBeInstanceOf(Cube);
-    const restored = new Identity(restoredmuc);
+    const restored = new Identity(cubeStore, restoredmuc);
     expect(restored).toBeInstanceOf(Identity);
     expect(restored.name).toEqual("Probator Identitatum");
     expect(restored.profilepic[0]).toEqual(0xDA);
     expect(restored.keyBackupCube[0]).toEqual(0x13);
-    expect(restored.posts.length).toEqual(6);
-    expect(restored.posts[4][0]).toEqual(5);
+    expect(restored.posts.length).toEqual(1);
+    expect(ZwFields.get(cubeStore.getCube(restored.posts[0]) as Cube).getFirstField(ZwFieldType.PAYLOAD).value.toString('utf-8')).
+      toEqual("I got important stuff to say");
   });
 
   it('should store and retrieve an Identity to and from a binary MUC', async () => {
     const cubeStore = new CubeStore(false);
-    const original = new Identity();
+    const original = new Identity(cubeStore);
+
+    // populate ID
     original.name = "Probator Identitatum";
     original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
     original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
-    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1));
-    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2));
-    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3));
-    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(4));
-    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(5));
-    original.posts.push(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(6));
+    const postkey = (await cubeStore.addCube(await makePost("I got important stuff to say", undefined, original))) as CubeKey;
+
+    // compile ID into binary MUC
     const muc = original.makeMUC();
     expect(muc).toBeInstanceOf(Cube);
     const muckey = await muc.getKey();
@@ -131,14 +140,51 @@ describe('Identity MUC', () => {
     const mucadded = await cubeStore.addCube(binarymuc);
     expect(mucadded).toEqual(original.publicKey);
 
+    // restore Identity from stored MUC
     const restoredmuc = cubeStore.getCube(await muc.getKey());
     expect(restoredmuc).toBeInstanceOf(Cube);
-    const restored = new Identity(restoredmuc);
+    const restored = new Identity(cubeStore, restoredmuc);
     expect(restored).toBeInstanceOf(Identity);
     expect(restored.name).toEqual("Probator Identitatum");
     expect(restored.profilepic[0]).toEqual(0xDA);
     expect(restored.keyBackupCube[0]).toEqual(0x13);
-    expect(restored.posts.length).toEqual(6);
-    expect(restored.posts[4][0]).toEqual(5);
+    expect(restored.posts.length).toEqual(1);
+    expect(ZwFields.get(cubeStore.getCube(restored.posts[0]) as Cube).getFirstField(ZwFieldType.PAYLOAD).value.toString('utf-8')).
+      toEqual("I got important stuff to say");
   });
+
+  // This wastes incredible amounts of CPU time for hash-cashing 100 posts.
+  // We should dynamically reduce hash difficulty to 0 just for this test.
+  // Until we do that, we'll keep this test skipped.
+  // Also, to check for correct order by date we currently wait one second between
+  // posts creations as we only store date with one second resolution. So 100
+  // seconds of this test are actually just spent waiting.
+  // We either need to redesign this test completely or it will stay eternally skipped.
+  it.skip('restores its post list recursively and sorted by creation time descending', async () => {
+    const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
+    const original: Identity = new Identity(cubeStore);
+    original.name = "Probator memoriae tabellae";
+    const idkey = original.publicKey;
+
+    for (let i=0; i<TESTPOSTCOUNT; i++) {
+      const post: Cube = await makePost("I got " + (i+1).toString() + " important things to say", undefined, original);
+      await cubeStore.addCube(post);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    expect(original.posts.length).toEqual(TESTPOSTCOUNT);
+
+    const muc = await original.store()
+    await cubeStore.addCube(muc);
+
+    const restored = new Identity(cubeStore, cubeStore.getCube(idkey))
+    expect(restored.posts.length).toEqual(TESTPOSTCOUNT);
+    let newerPost: Cube = cubeStore.getCube(restored.posts[0])!;
+    for (let i=0; i<TESTPOSTCOUNT; i++) {
+      const restoredPost = cubeStore.getCube(restored.posts[i])!;
+      const postText: string = ZwFields.get(restoredPost!).getFirstField(ZwFieldType.PAYLOAD).value.toString('utf-8');
+      expect(postText).toEqual("I got " + (TESTPOSTCOUNT-i).toString() + " important things to say");
+      expect(restoredPost!.getDate()).toBeLessThanOrEqual(newerPost!.getDate());
+      newerPost = restoredPost;
+    }
+  }, 300000);
 });

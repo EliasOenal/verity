@@ -38,9 +38,9 @@ export class CubeStore extends EventEmitter {
   }
 
   // TODO: implement importing CubeInfo directly
-  async addCube(cube_input: Buffer): Promise<Buffer | undefined>;
-  async addCube(cube_input: Cube): Promise<Buffer | undefined>;
-  async addCube(cube_input: Cube | Buffer): Promise<Buffer | undefined> {
+  async addCube(cube_input: Buffer): Promise<CubeKey | undefined>;
+  async addCube(cube_input: Cube): Promise<CubeKey | undefined>;
+  async addCube(cube_input: Cube | Buffer): Promise<CubeKey | undefined> {
     try {
       // Cube objects are ephemeral as storing binary data is more efficient.
       // Create cube object if we don't have one yet.
@@ -111,23 +111,25 @@ export class CubeStore extends EventEmitter {
     }
   }
 
-  hasCube(key: CubeKey): boolean {
-    return this.storage.has(key.toString('hex'));
+  hasCube(key: CubeKey | string): boolean {
+    if (key instanceof Buffer) key = key.toString('hex');
+    return this.storage.has(key);
   }
 
   getNumberOfStoredCubes(): number {
     return this.storage.size;
   }
 
-  getCubeInfo(key: CubeKey): CubeInfo {
-    return this.storage.get(key.toString('hex'));
+  getCubeInfo(key: CubeKey | string): CubeInfo {
+    if (key instanceof Buffer) key = key.toString('hex');
+    return this.storage.get(key);
   }
-  getCubeRaw(key: CubeKey): Buffer | undefined {
+  getCubeRaw(key: CubeKey | string): Buffer | undefined {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
     if (cubeInfo) return cubeInfo.binaryCube;
     else return undefined;
   }
-  getCube(key: CubeKey): Cube | undefined {
+  getCube(key: CubeKey | string): Cube | undefined {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
     if (cubeInfo) return cubeInfo.getCube();
     else return undefined;

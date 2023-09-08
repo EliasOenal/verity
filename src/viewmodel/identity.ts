@@ -73,7 +73,7 @@ export class Identity {
       id = ids[0];
     }
     else {
-      id = new Identity(undefined, persistance);
+      id = new Identity(cubeStore, undefined, persistance);
     }
     return id;
   }
@@ -87,6 +87,8 @@ export class Identity {
    */
   persistance: IdentityPersistance;
 
+  private cubeStore;
+
   /** @member The MUC in which this Identity information is stored and published */
   private _muc: Cube = undefined;
 
@@ -96,13 +98,16 @@ export class Identity {
   /** @member The key of the cube containing our private key encrypted with our password */
   keyBackupCube: CubeKey = undefined;
 
-  posts: Array<CubeKey> = [];
+  /** List of own posts, sorted by date descending */
+  posts: Array<string> = [];  // binary Cube keys (Buffers) don't compare well with standard methods
   // TODO add subscription_recommendations
 
   constructor(
-    muc: Cube = undefined,
-    persistance: IdentityPersistance = undefined,
-    createByDefault = true) {
+      cubeStore: CubeStore,
+      muc: Cube = undefined,
+      persistance: IdentityPersistance = undefined,
+      createByDefault = true) {
+    this.cubeStore = cubeStore;
     this.persistance = persistance;
     if (muc) this.parseMuc(muc);
     else if (createByDefault) {  // create new Identity
@@ -135,9 +140,9 @@ export class Identity {
    * and publish it by inserting it into the CubeStore.
    * (You could also provide a private cubeStore instead, but why should you?)
    */
-  store(cubeStore: CubeStore): Promise<any> {
+  store(): Promise<any> {
     const muc = this.makeMUC();
-    const cubeAddPromise: Promise<any> = cubeStore.addCube(muc);
+    const cubeAddPromise: Promise<any> = this.cubeStore.addCube(muc);
     if (this.persistance) {
       const dbPromise: Promise<void> = this.persistance.store(this);
       return Promise.all([cubeAddPromise, dbPromise]);
@@ -183,12 +188,12 @@ export class Identity {
       new ZwRelationship(ZwRelationshipType.KEY_BACKUP_CUBE, this.keyBackupCube)
     ));
     // Write my post references
-    if (this.posts.length) {
-      for (let i = this.posts.length-1; i>=0 && i >= this.posts.length - 21; i--) {
-        zwFields.data.push(ZwField.RelatesTo(
-          new ZwRelationship(ZwRelationshipType.MYPOST, this.posts[i])
-        ));
-      }
+    // TODO: use fibonacci spacing for post references instead of linear,
+    // but only if there are actually enough posts to justify it
+    for (let i = 0; i < this.posts.length && i < 22; i++) {
+      zwFields.data.push(ZwField.RelatesTo(
+        new ZwRelationship(ZwRelationshipType.MYPOST, Buffer.from(this.posts[i], 'hex'))
+      ));
     }
     // TODO add subscription recommendations
 
@@ -235,42 +240,50 @@ export class Identity {
         ZwRelationshipType.KEY_BACKUP_CUBE);
       if (keyBackupCubeRel) this.keyBackupCube = keyBackupCubeRel.remoteKey;
 
-      // - my post references
-      const myPostRels: ZwRelationship[] = relfields.getRelationships(
-        ZwRelationshipType.MYPOST);
-      for (const postrel of myPostRels) {
-        this.posts.unshift(postrel.remoteKey);  // insert at beginning -- this is not efficient but I think it doesn't matter
-      }
+      // - recursively fetch my-post references
+      this.recursiveParsePostReferences(muc, []);
     }
     // last but not least: store this MUC as our MUC
     this._muc = muc;
   }
 
-  /** @method Serialize, used before storing object in persistant storage */
-  toJSON() {
-    return Object.assign({}, this, {
-      name: this.name,
-      publickey: Buffer.from(this._muc.publicKey),  // Buffer has its own toJSON
-      privatekey: Buffer.from(this._muc.privateKey),
-      profilepic: this.profilepic,
-      keybackupblock: this.keyBackupCube,
-    });
-  }
+  /**
+   * Extension of and only to be called by parseMuc().
+   * Parsing a MUC involves retrieving all own-post references from the MUC
+   * as well as indirect my-post references contained down the line in other
+   * posts (can't fit them all in the MUC, cube space is fixed, remember?).
+   * This is the recursive part of that.
+   */
+  private recursiveParsePostReferences(mucOrMucExtension: Cube, alreadyTraversedCubes: string[]) {
+    // have we been here before? avoid endless recursion
+    const thisCubesKeyString = (mucOrMucExtension.getKeyIfAvailable()).toString('hex');
+    if (thisCubesKeyString === undefined || alreadyTraversedCubes.includes(thisCubesKeyString)) return;
+    else alreadyTraversedCubes.push(thisCubesKeyString);
 
-  /** @static Deserialize, used after retrieving from persistant storage */
-  static fromJSON(json, persistance: IdentityPersistance = undefined): Identity {
-    const obj = Object.create(Identity.prototype);
-    return Object.assign(obj, {
-        _name: json.name,
-        _keys: {
-          keyType: json.keytype,
-          publicKey: Buffer.from(json.publickey),  // Buffer extends UInt8Array
-          privateKey: Buffer.from(json.privatekey),
-        },
-        _profilepic: json.profilepic,
-        _keybackupblock: json.keybackupblock,
-        persistance: persistance,
-    });
+    const zwFields: ZwFields = ZwFields.get(mucOrMucExtension);
+    if (!zwFields) return;
+
+    const myPostRels: ZwRelationship[] = zwFields.getRelationships(
+      ZwRelationshipType.MYPOST);
+    for (const postrel of myPostRels) {
+      if (!(this.posts.includes(postrel.remoteKey.toString('hex')))) {
+        // Insert sorted by date. This is not efficient but I think it doesn't matter.
+        let inserted: boolean = false;
+        for (let i = 0; i < this.posts.length; i++) {
+          // if the post to insert is newer than the post we're currently looking at,
+          // insert before
+          const postrelDate = this.cubeStore.getCubeInfo(postrel.remoteKey).date;
+          const compareToDate = this.cubeStore.getCubeInfo(this.posts[i]).date;
+          if (postrelDate >= compareToDate) {
+              this.posts.splice(i, 0, postrel.remoteKey.toString('hex'));  // inserts at position i
+              inserted = true;
+              break;
+            }
+        }
+        if (!inserted) this.posts.push(postrel.remoteKey.toString('hex'));
+      }
+      this.recursiveParsePostReferences(this.cubeStore.getCube(postrel.remoteKey), alreadyTraversedCubes);
+    }
   }
 }
 
@@ -345,7 +358,7 @@ export class IdentityPersistance {
           logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkey + " is not present");
           continue;
         }
-        const id = new Identity(muc, this);
+        const id = new Identity(cubeStore, muc, this);
         muc.setCryptoKeys(Buffer.from(pubkey, 'hex'), Buffer.from(privkey, 'hex'));
         identities.push(id);
         } catch (error) {
