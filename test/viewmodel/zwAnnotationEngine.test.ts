@@ -12,7 +12,8 @@ describe('ZwAnnotationEngine', () => {
   let cubeStore: CubeStore;
   let annotationEngine: ZwAnnotationEngine;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await sodium.ready;
     cubeStore = new CubeStore(false);
     annotationEngine = new ZwAnnotationEngine(cubeStore);
   }, 1000);
@@ -83,7 +84,7 @@ describe('ZwAnnotationEngine', () => {
     it('should remember Identity MUCs', async () => {
       const id: Identity = new Identity(cubeStore);
       id.name = "Probator Annotationem";
-      await cubeStore.addCube(id.makeMUC());
+      await id.store();
 
       expect(annotationEngine.identityMucs.size).toEqual(1);
       const restored: Identity = new Identity(cubeStore,
@@ -93,7 +94,6 @@ describe('ZwAnnotationEngine', () => {
     });
 
     it('should not remember non-Identity MUCs', async () => {
-      await sodium.ready;
       const keys: KeyPair = sodium.crypto_sign_keypair();
       const muc: Cube = Cube.MUC(
         Buffer.from(keys.publicKey),
@@ -109,7 +109,13 @@ describe('ZwAnnotationEngine', () => {
       id.name = "Probator Attributionis Auctoris";
       const post: Cube = await makePost("I got important stuff to say", undefined, id);
       await cubeStore.addCube(post);
-      expect(annotationEngine.cubeAuthor(await post.getKey()).name).
+      const postKey = await post.getKey();
+      expect(postKey).toBeDefined;
+      await id.store();
+
+      const restoredAuthor: Identity = annotationEngine.cubeAuthor(postKey);
+      expect(restoredAuthor).toBeInstanceOf(Identity);
+      expect(restoredAuthor.name).
         toEqual("Probator Attributionis Auctoris");
     });
 
@@ -127,6 +133,7 @@ describe('ZwAnnotationEngine', () => {
         posts.push(await post.getKey());
         await cubeStore.addCube(post);
       }
+      await id.store();
 
       for (let i=0; i<TESTPOSTCOUNT; i++) {
         expect(annotationEngine.cubeAuthor(posts[i]).name).

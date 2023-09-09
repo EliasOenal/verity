@@ -1,6 +1,7 @@
 import { Cube, CubeKey } from "../model/cube";
 import { CubeMeta, CubeInfo } from "../model/cubeInfo";
 import { CubeStore } from "../model/cubeStore";
+import { logger } from "../model/logger";
 import { AnnotationEngine } from "./annotationEngine";
 import { Identity } from "./identity";
 import { MediaTypes, ZwFieldLengths, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "./zwFields";
@@ -67,25 +68,33 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     // check all MUCs
     for (const mucInfo of this.identityMucs.values()) {
       const muc = mucInfo.getCube();
-      if (!muc) continue;
-      const potentialResult: Identity = this.cubeAuthorRecursion(key, muc);
+      if (!muc) {
+        logger.error("ZwAnnotationEngine: A MUC we remembered has gone missing.");
+        continue;
+      }
+      const potentialResult: Identity = this.cubeAuthorRecursion(key, muc, muc);
       if (potentialResult) return potentialResult;
     }
+    logger.trace("ZwAnnotationEngine: Failed to find author for cube " + key.toString('hex'));
     return undefined;
   }
 
   /** This is the recursive part of cubeAuthor() */
-  private cubeAuthorRecursion(key: CubeKey, mucOrMucExtension: Cube): Identity {
-    const postrels: Array<ZwRelationship> = ZwFields.get(mucOrMucExtension).
-      getRelationships(ZwRelationshipType.MYPOST);
+  private cubeAuthorRecursion(key: CubeKey, mucOrMucExtension: Cube, rootmuc: Cube): Identity {
+    const zwFields = ZwFields.get(mucOrMucExtension);
+    if (!zwFields) return undefined;  // not a valid MUC or MUC extension cube
+    const postrels: Array<ZwRelationship> = zwFields.getRelationships(ZwRelationshipType.MYPOST);
     if (!postrels) return undefined;  // not a valid MUC or MUC extension cube
+
     for (const postrel of postrels) {
       if (postrel.remoteKey.equals(key)) {  // bingo!
-        const id: Identity = new Identity(this.cubeStore, mucOrMucExtension);
-        return id;
+        let id: Identity = undefined;
+        try {id = new Identity(this.cubeStore, rootmuc);} catch {}
+        if (id) return id;
       } else {  // maybe this other post contains the authorship information we seek?
         const subpost = this.cubeStore.getCube(postrel.remoteKey);
-        const potentialResult = this.cubeAuthorRecursion(key, subpost);
+        let potentialResult: Identity = undefined;
+        try {potentialResult = this.cubeAuthorRecursion(key, subpost, rootmuc);} catch {}
         if (potentialResult) return potentialResult;
         else continue;
       }

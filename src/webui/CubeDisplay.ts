@@ -8,18 +8,24 @@ import { ZwAnnotationEngine } from "../viewmodel/zwAnnotationEngine";
 
 import { logger } from "../model/logger";
 
+import { Buffer } from 'buffer';
+
 export class CubeDisplay {
   private displayedCubes: Map<string, HTMLLIElement> = new Map();
   private cubelist: HTMLUListElement = (document.getElementById("cubelist") as HTMLUListElement);
+  private cubeAuthorRedisplayTimer: NodeJS.Timeout = undefined;  // TODO replace, ugly.
 
   constructor(
       private cubeStore: CubeStore,
       private annotationEngine: ZwAnnotationEngine) {
     this.annotationEngine.on('cubeDisplayable', (binaryKey) => this.displayCube(binaryKey)) // list cubes
     this.redisplayCubes();
+    this.cubeAuthorRedisplayTimer = setInterval(() => this.redisplayAllCubeAuthors(), 10000);
   }
 
-
+  shutdown() {
+    clearInterval(this.cubeAuthorRedisplayTimer);
+  }
 
   redisplayCubes() {
     // clear all currently displayed cubes:
@@ -105,7 +111,7 @@ export class CubeDisplay {
     } else {
       authorText = "Unknown user";
     }
-    header.innerHTML += `<small><b>${authorText}</b></small><br />` // TODO: DO NOT USE innerHTML as partial strings (e.g. author name) are untrusted
+    header.innerHTML += `<small><b id="${keystring}-author" class="cubeauthor">${authorText}</b></small><br />` // TODO: DO NOT USE innerHTML as partial strings (e.g. author name) are untrusted
     const date: Date = new Date(cubeInfo.getCube().getDate()*1000);
     const dateformat: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     header.innerHTML += `<small>${date.toLocaleDateString(navigator.language, dateformat)} ${date.toLocaleTimeString(navigator.language)}</small><br />`
@@ -148,5 +154,26 @@ export class CubeDisplay {
     // so we can later append replies to it
     this.displayedCubes.set(keystring, li);
     return li;
+  }
+
+  redisplayAllCubeAuthors() {
+    logger.trace("CubeDisplay: Redisplaying all cube authors");
+    for (const [keystring, li] of this.displayedCubes) {
+      const authorelementCollection = li.getElementsByClassName("cubeauthor");
+      if (!authorelementCollection) continue;
+      const authorelement = authorelementCollection[0] as HTMLElement;
+      if (!authorelement) continue;
+
+      const author: Identity = this.annotationEngine.cubeAuthor(Buffer.from(keystring, 'hex'));
+      let authorText: string = ""
+      if (author) {
+        // TODO: display if this authorship information is authenticated,
+        // i.e. if it comes from a MUC we trust
+        authorText = author.name;
+      } else {
+        authorText = "Unknown user";
+      }
+      authorelement.innerText = authorText;
+    }
   }
 }
