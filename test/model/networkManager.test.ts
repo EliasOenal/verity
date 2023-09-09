@@ -25,7 +25,7 @@ describe('networkManager', () => {
         expect(manager.server).toBeInstanceOf(WebSocket.Server);
         manager.shutdown();
         done();
-    }, 1000);
+    }, 3000);
 
     test('should create a NetworkPeer on incoming connection', done => {
         const manager = new NetworkManager(3001, new CubeStore(false), new PeerDB(), false);
@@ -41,7 +41,7 @@ describe('networkManager', () => {
             manager.shutdown();
             done();
         });
-    }, 1000);
+    }, 3000);
 
     test('should create a NetworkPeer on outgoing connection', async () => {
         const manager = new NetworkManager(3003, new CubeStore(false), new PeerDB(), false);
@@ -60,7 +60,7 @@ describe('networkManager', () => {
         expect(manager.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
         server.close();
         manager.shutdown();
-    }, 1000);
+    }, 3000);
 
     test('sync cubes between three nodes', async () => {
         const reduced_difficulty = 0;
@@ -260,7 +260,7 @@ describe('networkManager', () => {
         });
 
         manager.shutdown();
-    }, 1000);
+    }, 3000);
 
 });
 

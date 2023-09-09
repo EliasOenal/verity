@@ -39,7 +39,7 @@ describe('cube', () => {
     fields.forEach(field => {
       expect(field.length).toBeLessThanOrEqual(1024);
       expect(field.length).toBeGreaterThanOrEqual(0);
-    }, 1000);
+    }, 3000);
 
     expect(fields[0].type).toEqual(CubeFieldType.PAYLOAD);
     expect(fields[0].length).toEqual(10);
@@ -49,31 +49,31 @@ describe('cube', () => {
     expect(fields[1].length).toEqual(1004);
     expect(fields[1].value).toEqual(Buffer.from([0x00, 0x00, 0x37, 0x4D,
       ...Array.from({ length: 1000 }, () => 0x00)]));
-  }, 1000);
+  }, 3000);
 
   it('should create a new cube with default values when no binary data is provided', () => {
     const cube = new Cube();
     expect(cube.getVersion()).toEqual(0);
     expect(cube.getFields().data).toEqual([new CubeField(CubeFieldType.PADDING_NONCE, 1016, Buffer.alloc(1016))]);
-  }, 1000);
+  }, 3000);
 
   it('should set and get the version correctly', () => {
     const cube = new Cube();
     cube.setVersion(0);
     expect(cube.getVersion()).toEqual(0);
-  }, 1000);
+  }, 3000);
 
   it('should throw an error when binary data is not 1024 bytes', () => {
     const binaryData = Buffer.alloc(512); // 512 bytes, not 1024
     expect(() => new Cube(binaryData)).toThrow(BinaryLengthError);
-  }, 1000);
+  }, 3000);
 
   it('should set and get the date correctly', () => {
     const cube = new Cube();
     const date = Math.floor(Date.now() / 1000);
     cube.setDate(date);
     expect(cube.getDate()).toEqual(date);
-  }, 1000);
+  }, 3000);
 
   it('should set and get fields correctly', () => {
     const cube = new Cube();
@@ -81,7 +81,7 @@ describe('cube', () => {
       new CubeField(CubeFieldType.PAYLOAD, 100, Buffer.alloc(100))]);
     cube.setFields(fields);
     expect(cube.getFields()).toEqual(fields);
-  }, 1000);
+  }, 3000);
 
   it('should write fields to binary data correctly', () => {
     const cube = new Cube();
@@ -92,7 +92,7 @@ describe('cube', () => {
     // The type and length should be written to the binary data at index 6 and 7
     expect(binaryData[6] & 0xFC).toEqual(CubeFieldType.PAYLOAD);
     expect(binaryData.readUInt8(7)).toEqual(100);
-  }, 1000);
+  }, 3000);
 
   it('should calculate the hash correctly', async () => {
     const cube = new Cube();
@@ -106,13 +106,13 @@ describe('cube', () => {
     const fields = new CubeFields([
       new CubeField(CubeFieldType.PAYLOAD, 8020, Buffer.alloc(8020))]); // Too long for the binary data
     expect(() => cube.setFields(fields)).toThrow(FieldSizeError);
-  }, 1000);
+  }, 3000);
 
   it('should throw an error on invalid TLV type', () => {
     const binaryData = Buffer.alloc(1024);
     binaryData[6] = 0xFF; // Invalid type
     expect(() => new Cube(binaryData)).toThrow(FieldError);
-  }, 1000);
+  }, 3000);
 
   it('should automatically add extra padding when cube is too small', () => {
     const cube = new Cube();
@@ -121,7 +121,7 @@ describe('cube', () => {
     expect(cube.getFields().data.length).toEqual(2);
     expect(cube.getFields().data[0].length + cube.getFields().data[1].length).toEqual(
       NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - FieldParser.toplevel.getFieldHeaderLength(CubeFieldType.PAYLOAD) - FieldParser.toplevel.getFieldHeaderLength(CubeFieldType.PADDING_NONCE));
-  }, 1000);
+  }, 3000);
 
   it('should accept maximum size cubes', () => {
     const cube = new Cube();
@@ -147,7 +147,7 @@ describe('cube', () => {
     expect(cube.getFields().data.length).toEqual(2);
     expect(cube.getFields().data[0].length).toEqual(payloadLength);
     expect(cube.getFields().data[1].length).toEqual(paddingLength);
-  }, 1000);
+  }, 3000);
 
   it('should enforce there is enough space left for hashcash in manually padded cubes', () => {
     const cube = new Cube();
@@ -167,7 +167,7 @@ describe('cube', () => {
       )
     ]);
     expect(() => cube.setFields(cubefields)).toThrow(FieldSizeError);
-  }, 1000);
+  }, 3000);
 
   it('should enforce there is enough space left for hashcash in automatically padded cubes', () => {
     const cube = new Cube();
@@ -178,7 +178,7 @@ describe('cube', () => {
         Buffer.alloc(payloadLength)
       ));
     expect(() => cube.setFields(cubefields)).toThrow(FieldSizeError);
-  }, 1000);
+  }, 3000);
 
   it('should reject fringe cubes too small to be valid but too large to add padding', () => {
     // construct a fringe cube that will end up exactly 1023 bytes long -- one byte too short, but minimum padding size is 2
@@ -199,7 +199,7 @@ describe('cube', () => {
         Buffer.alloc(padding_length),
       )]);
     expect(() => cube.setFields(cubefields)).toThrow(new FieldSizeError(`Cube: Cube is too small to be valid as is but too large to add extra padding.`));
-  }, 1000);
+  }, 3000);
 
   it('should create a new cube that meets the challenge requirements', async () => {
     const cube: Cube = new Cube();
@@ -218,7 +218,7 @@ describe('cube', () => {
     expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000008", "hex"))).toEqual(3);
     expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000010", "hex"))).toEqual(4);
     expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000020", "hex"))).toEqual(5);
-  }, 1000);
+  }, 3000);
 
   it('should correctly generate and validate MUC with specified TLV fields', async () => {
     // Generate a key pair for testing

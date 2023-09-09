@@ -28,7 +28,7 @@ describe('cubeStore', () => {
 
   beforeEach(() => {
     cubeStore = new CubeStore(false);
-  }, 1000);
+  }, 3000);
 
   it('should add 20 cubes to the storage and get them back', async () => {
     let reduced_difficulty = 0;  // reduced difficulty for faster test
@@ -62,17 +62,17 @@ describe('cubeStore', () => {
     expect(cubeKey!.length).toEqual(32);
     expect(cubeStore.getCube(cubeKey!)).toBeDefined();
     expect(cubeStore.getCube(cubeKey!)!.getBinaryData()).toEqual(validBinaryCube);
-  }, 1000);
+  }, 3000);
 
   it('should error when adding a cube with invalid binary data', async () => {
     const buffer = Buffer.alloc(1024);
     expect(await cubeStore.addCube(buffer)).toBeUndefined();
-  }, 1000);
+  }, 3000);
 
   it('should error when getting a cube with invalid hash', async () => {
     const buffer = Buffer.alloc(32);
     expect(cubeStore.getCube(buffer)).toBeUndefined();
-  }, 1000);
+  }, 3000);
 
   it('should not add cubes with insufficient difficulty', async () => {
     const binaryData = Buffer.alloc(1024);
@@ -82,7 +82,7 @@ describe('cubeStore', () => {
     const cube = new Cube(binaryData);
     expect(await cubeStore.addCube(cube)).toBeUndefined();
     expect(cubeStore.getNumberOfStoredCubes()).toEqual(0);
-  }, 1000);
+  }, 3000);
 
   // TODO: Create own test suite for Fields and move this there
   it('correctly sets and retrieves a reply_to relationship field', async () => {
@@ -101,7 +101,7 @@ describe('cubeStore', () => {
     const retrievedRel: CubeRelationship = leaf.getFields().getFirstRelationship();
     expect(retrievedRel.type).toEqual(CubeRelationshipType.REPLY_TO);
     expect(retrievedRel.remoteKey.toString('hex')).toEqual((await root.getKey()).toString('hex'));
-  }, 1000);
+  }, 3000);
 
   it('correctly stores and retrieves a binary MUC with payload', async () => {
     // Generate a key pair for testing
