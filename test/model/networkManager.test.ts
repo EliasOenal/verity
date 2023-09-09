@@ -11,7 +11,6 @@ import sodium, { KeyPair } from 'libsodium-wrappers'
 import { FieldParser } from '../../src/model/fieldParser';
 
 describe('networkManager', () => {
-
     beforeEach((done) => {
         done();
     });
@@ -179,6 +178,7 @@ describe('networkManager', () => {
             CubeField.Payload(counterBuffer)
         );
         mucKey = await cubeStore.addCube(muc);
+        const firstMucHash = await muc.getHash();
         expect(cubeStore.getAllStoredCubeKeys().size).toEqual(1);
 
         // sync MUC from peer 1 to peer 2
@@ -195,10 +195,12 @@ describe('networkManager', () => {
         // check MUC has been received correctly at peer 2
         expect(cubeStore2.getAllStoredCubeKeys().size).toEqual(1);
         expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
+        expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(firstMucHash)).toBeTruthy();
         receivedFields = cubeStore2.getCube(mucKey)?.getFields()!;
         expect(receivedFields?.getFirstField(CubeFieldType.PAYLOAD).value.toString()).toEqual("My first MUC version");
 
         // update MUC at peer 1
+        await new Promise(resolve => setTimeout(resolve, 1000));  // wait one second as we don't have better time resolution
         counterBuffer = Buffer.from("My second MUC version");
         muc = Cube.MUC(
             Buffer.from(keyPair.publicKey),
@@ -206,13 +208,14 @@ describe('networkManager', () => {
             CubeField.Payload(counterBuffer)
         );
         mucKey = await cubeStore.addCube(muc);
+        const secondMucHash = await muc.getHash();
         expect(cubeStore.getAllStoredCubeKeys().size).toEqual(1);  // still just one, new MUC version replaces old MUC version
 
         // sync MUC from peer 1 to peer 2, again
         manager2.incomingPeers[0].sendHashRequest();
         // Verify MUC has been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
-            if (cubeStore2.getCube(mucKey)) {
+            if (cubeStore2.getCube(mucKey)?.getHashIfAvailable()?.equals(secondMucHash)) {
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -221,6 +224,7 @@ describe('networkManager', () => {
         // check MUC has been updated correctly at peer 2
         expect(cubeStore2.getAllStoredCubeKeys().size).toEqual(1);
         expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
+        expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(secondMucHash)).toBeTruthy();
         receivedFields = cubeStore2.getCube(mucKey)?.getFields()!;
         expect(receivedFields?.getFirstField(CubeFieldType.PAYLOAD).value.toString()).toEqual("My second MUC version");
 
