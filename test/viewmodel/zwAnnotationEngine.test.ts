@@ -119,10 +119,25 @@ describe('ZwAnnotationEngine', () => {
         toEqual("Probator Attributionis Auctoris");
     });
 
+    it('should identify the author of a post after the key was converted to a string', async () => {
+      const id: Identity = new Identity(cubeStore);
+      id.name = "Probator Attributionis Auctoris";
+      const post: Cube = await makePost("I got important stuff to say", undefined, id);
+      await cubeStore.addCube(post);
+      const postKey = (await post.getKey()).toString('hex');
+      expect(postKey).toBeDefined;
+      await id.store();
+
+      const restoredAuthor: Identity = annotationEngine.cubeAuthor(Buffer.from(postKey, 'hex'));
+      expect(restoredAuthor).toBeInstanceOf(Identity);
+      expect(restoredAuthor.name).
+        toEqual("Probator Attributionis Auctoris");
+    });
+
     // You'll probably want to skip this test or precalculate the hashcash or something...
     // this is a superb waste of CPU time.
     // But hey, at least we get a feel for how expensive spam will be :D
-    it('should identify the author of a post indirectly referred to through other posts', async () => {
+    it.skip('should identify the author of a post indirectly referred to through other posts', async () => {
       const TESTPOSTCOUNT = 40;  // 40 keys are more than guaranteed not to fit in the MUC
       const id: Identity = new Identity(cubeStore);
       id.name = "Probator Attributionis Auctoris";

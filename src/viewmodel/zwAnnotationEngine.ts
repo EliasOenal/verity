@@ -14,6 +14,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   constructor(cubeStore: CubeStore) {
     super(cubeStore, ZwFields.get);
     this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.rememberIdentityMucs(cube.key));
+    this.reloadIdentityMucs();
     this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.emitIfCubeDisplayable(cube.key));
     this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.emitIfCubeMakesOthersDisplayable(cube.key));
   }
@@ -67,13 +68,17 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   cubeAuthor(key: CubeKey): Identity {
     // check all MUCs
     for (const mucInfo of this.identityMucs.values()) {
+      // logger.trace("ZwAnnotationEngine: Searching for author of cube " + key.toString('hex') + " in MUC " + mucInfo.key.toString('hex'));
       const muc = mucInfo.getCube();
       if (!muc) {
         logger.error("ZwAnnotationEngine: A MUC we remembered has gone missing.");
         continue;
       }
       const potentialResult: Identity = this.cubeAuthorRecursion(key, muc, muc);
-      if (potentialResult) return potentialResult;
+      if (potentialResult) {
+        logger.trace("ZwAnnotationEngine: I found out that the author of cube " + key.toString('hex') + " is " + potentialResult.name);
+        return potentialResult;
+      }
     }
     logger.trace("ZwAnnotationEngine: Failed to find author for cube " + key.toString('hex'));
     return undefined;
@@ -86,6 +91,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     const postrels: Array<ZwRelationship> = zwFields.getRelationships(ZwRelationshipType.MYPOST);
     if (!postrels) return undefined;  // not a valid MUC or MUC extension cube
 
+    // logger.trace("ZwAnnotationEngine: Searching for author of cube " + key.toString('hex') + " in subcube " + mucOrMucExtension.getKeyIfAvailable().toString('hex') + " extending MUC " + rootmuc.getKeyIfAvailable().toString('hex'));
     for (const postrel of postrels) {
       if (postrel.remoteKey.equals(key)) {  // bingo!
         let id: Identity = undefined;
@@ -134,12 +140,19 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     return ret;
   }
 
-  private async rememberIdentityMucs(key: CubeKey) {
+  private rememberIdentityMucs(key: CubeKey) {
     const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(key);
     let id: Identity;
     try {
       id = new Identity(this.cubeStore, cubeInfo.getCube());
     } catch (error) { return; }
+    logger.trace("ZwAnnotationEngine: Remembering Identity MUC " + key.toString('hex'));
     this.identityMucs.set(cubeInfo.key.toString('hex'), cubeInfo);
+  }
+
+  private reloadIdentityMucs() {
+    for (const cubeInfo of this.cubeStore.getAllCubeInfo()) {
+      this.rememberIdentityMucs(cubeInfo.key);
+    }
   }
 }
