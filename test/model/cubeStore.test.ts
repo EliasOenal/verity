@@ -2,6 +2,7 @@ import { Cube, CubeKey } from '../../src/model/cube';
 import { CubeStore as CubeStore } from '../../src/model/cubeStore';
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { CubeField, CubeFieldType, CubeFields, CubeRelationshipType, CubeRelationship } from '../../src/model/cubeFields';
+import { InsufficientDifficulty } from '../../src/model/cubeDefinitions';
 
 describe('cubeStore', () => {
   let cubeStore: CubeStore;
@@ -30,9 +31,11 @@ describe('cubeStore', () => {
   }, 1000);
 
   it('should add 20 cubes to the storage and get them back', async () => {
+    let reduced_difficulty = 0;  // reduced difficulty for faster test
+    cubeStore = new CubeStore(false, reduced_difficulty);
     const promises: Array<Promise<Buffer>> = [];
     for (let i = 0; i < 20; i++) {
-      const cube = new Cube();
+      const cube = new Cube(undefined, reduced_difficulty);
       cube.setDate(i);
       // @ts-ignore cube could be Promise<undefined> instead of Promise<Buffer> but I don't care
       promises.push(cubeStore.addCube(cube));
@@ -71,6 +74,15 @@ describe('cubeStore', () => {
     expect(cubeStore.getCube(buffer)).toBeUndefined();
   }, 1000);
 
+  it('should not add cubes with insufficient difficulty', async () => {
+    const binaryData = Buffer.alloc(1024);
+    // Manually set a field in the binary data for testing
+    binaryData[6] = CubeFieldType.PAYLOAD; // Type
+    binaryData.writeUInt8(100, 7); // Length
+    const cube = new Cube(binaryData);
+    expect(await cubeStore.addCube(cube)).toBeUndefined();
+    expect(cubeStore.getNumberOfStoredCubes()).toEqual(0);
+  }, 1000);
 
   // TODO: Create own test suite for Fields and move this there
   it('correctly sets and retrieves a reply_to relationship field', async () => {

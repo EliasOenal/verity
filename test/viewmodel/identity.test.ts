@@ -11,12 +11,14 @@ describe('Identity', () => {
   let persistance: IdentityPersistance;
   let cubeStore: CubeStore;
 
+  const reduced_difficulty = 0;
+
   beforeEach(async () => {
     await sodium.ready;
     // Open the DB and make sure it's empty
     persistance = await IdentityPersistance.create("testidentity");
     await persistance.deleteAll();
-    cubeStore = new CubeStore(false);
+    cubeStore = new CubeStore(false, reduced_difficulty);  // require no hashcash for faster testing
     const ids: Array<Identity> = await persistance.retrieve(cubeStore);
     expect(ids).toBeDefined();
     expect(ids.length).toEqual(0);
@@ -60,10 +62,9 @@ describe('Identity', () => {
   }, 5000);
 
   it('should store and retrieve a minimal Identity to and from a MUC object', async() => {
-    const cubeStore = new CubeStore(false);
     const original = new Identity(cubeStore);
     original.name = "Probator Identitatum";
-    const muc = original.makeMUC();
+    const muc = original.makeMUC(reduced_difficulty);
     expect(muc).toBeInstanceOf(Cube);
     const mucadded = await cubeStore.addCube(muc);
     expect(mucadded).toEqual(original.publicKey);
@@ -76,7 +77,6 @@ describe('Identity', () => {
   });
 
   it('should store and retrieve an Identity to and from a MUC object', async () => {
-    const cubeStore = new CubeStore(false);
     const original = new Identity(cubeStore);
 
     // populate ID
@@ -84,14 +84,14 @@ describe('Identity', () => {
     original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
     original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
 
-    const postkey = (await cubeStore.addCube(await makePost("I got important stuff to say", undefined, original))) as CubeKey;
+    const postkey = (await cubeStore.addCube(await makePost("I got important stuff to say", undefined, original, reduced_difficulty))) as CubeKey;
     expect(postkey).toBeInstanceOf(Buffer);
     expect(original.posts.length).toEqual(1);
     expect(ZwFields.get(cubeStore.getCube(original.posts[0]) as Cube).getFirstField(ZwFieldType.PAYLOAD).value.toString('utf-8')).
       toEqual("I got important stuff to say");
 
     // compile ID into MUC
-    const muc = original.makeMUC();
+    const muc = original.makeMUC(reduced_difficulty);
     expect(muc).toBeInstanceOf(Cube);
 
     // double check everything's in there
@@ -120,17 +120,16 @@ describe('Identity', () => {
   });
 
   it('should store and retrieve an Identity to and from a binary MUC', async () => {
-    const cubeStore = new CubeStore(false);
     const original = new Identity(cubeStore);
 
     // populate ID
     original.name = "Probator Identitatum";
     original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
     original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
-    const postkey = (await cubeStore.addCube(await makePost("I got important stuff to say", undefined, original))) as CubeKey;
+    const postkey = (await cubeStore.addCube(await makePost("I got important stuff to say", undefined, original, reduced_difficulty))) as CubeKey;
 
     // compile ID into binary MUC
-    const muc = original.makeMUC();
+    const muc = original.makeMUC(reduced_difficulty);
     expect(muc).toBeInstanceOf(Cube);
     const muckey = await muc.getKey();
     expect(muckey).toBeInstanceOf(Buffer);
@@ -160,16 +159,17 @@ describe('Identity', () => {
   // posts creations as we only store date with one second resolution. So 100
   // seconds of this test are actually just spent waiting.
   // We either need to redesign this test completely or it will stay eternally skipped.
-  it.skip('restores its post list recursively and sorted by creation time descending', async () => {
+  it('restores its post list recursively and sorted by creation time descending', async () => {
     const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
     const original: Identity = new Identity(cubeStore);
     original.name = "Probator memoriae tabellae";
     const idkey = original.publicKey;
 
     for (let i=0; i<TESTPOSTCOUNT; i++) {
-      const post: Cube = await makePost("I got " + (i+1).toString() + " important things to say", undefined, original);
+      const post: Cube = await makePost("I got " + (i+1).toString() + " important things to say", undefined, original, reduced_difficulty);
+      // @ts-ignore Fake private field date to avoid this test taking forever
+      post.date = 1694284300 + i;
       await cubeStore.addCube(post);
-      await new Promise(resolve => setTimeout(resolve, 1000));
     }
     expect(original.posts.length).toEqual(TESTPOSTCOUNT);
 
