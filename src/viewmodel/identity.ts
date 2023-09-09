@@ -135,6 +135,8 @@ export class Identity {
   */
   get key(): CubeKey { return Buffer.from(this._muc.publicKey); }
 
+  get muc(): Cube { return this._muc; }
+
   /**
    * Save this Identity locally by storing it in the local database
    * and publish it by inserting it into the CubeStore.

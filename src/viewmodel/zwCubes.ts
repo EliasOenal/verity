@@ -11,6 +11,10 @@ import { FieldParser } from "../model/fieldParser";
 import { Identity } from "./identity";
 import { MediaTypes, ZwField, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from "./zwFields";
 
+/**
+ * Creates a new Cube containing a correctly formed text post.
+ * Don't forget to call Identity.store() on your Identity object afterwards!
+ */
 export async function makePost(
     text: string,
     replyto?: CubeKey,
@@ -26,6 +30,8 @@ export async function makePost(
   }
 
   if (id) {
+    // Add MYPOST references
+
     // TODO calculate how many post references fit based on actual free size
     // in this Cube.
     // For now, let's just say 10. I think 10 will fit.
@@ -44,7 +50,11 @@ export async function makePost(
   const cube: Cube = new Cube();
   cube.setFields(CubeField.Payload(zwData));
   cube.getBinaryData();  // finalize Cube & compile fields
-  if (id) id.posts.unshift((await cube.getKey()).toString('hex'));
+
+  if (id) {
+    // Have the Identity remember this new post
+    id.posts.unshift((await cube.getKey()).toString('hex'));
+  }
   return cube;
 }
 
