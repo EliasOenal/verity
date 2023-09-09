@@ -1,4 +1,4 @@
-import { fullNode } from '../fullNode';
+import { VerityNode } from '../model/verityNode';
 import { logger } from '../model/logger'
 
 import { CubeDisplay } from './CubeDisplay';
@@ -26,13 +26,13 @@ export class VerityUI {
    * Workaround to those damn omnipresent async constructs.
    * Always create your VerityUI this way or it won't have an Identity 🤷
    */
-  static async Construct(node: fullNode): Promise<VerityUI> {
+  static async Construct(node: VerityNode): Promise<VerityUI> {
     const ui: VerityUI = new VerityUI(node);
     await ui.initializeIdentity();
     return ui;
   }
 
-  node: fullNode = undefined;  // TODO: change this to a Node base class that still needs to be defined, so we can transparently use the UI with full and light nodes (actually not "Node", "Node" is a DOM class... make it VerityNode or something)
+  node: VerityNode = undefined;
   annotationEngine: ZwAnnotationEngine;
   identity: Identity;
 
@@ -40,7 +40,7 @@ export class VerityUI {
   peerDisplay: PeerDisplay = undefined;
 
 
-  constructor(node: fullNode) {
+  constructor(node: VerityNode) {
     this.node = node;
 
     this.peerDisplay = new PeerDisplay(this);
@@ -79,11 +79,24 @@ async function webmain() {
   logger.info('Starting web node');
   await sodium.ready;
 
-  const node = new fullNode();
-  await node.onlinePromise;
+  // default params
+  const lightNode = false;
+  const port = undefined;  // no listening web sockets allowed, need WebRTC :(
+  const initialPeers = [
+      "verity.hahn.mt:1984",
+      // "verity.hahn.mt:1985",
+      // "verity.hahn.mt:1986",
+      // "132.145.174.233:1984",
+      // "158.101.100.95:1984",
+    ];
+  const announceToTorrentTrackers = false;
+
+  // construct node and UI
+  const node = new VerityNode(lightNode, port, initialPeers, announceToTorrentTrackers);
+  const verityUI = await VerityUI.Construct(node);
+  await verityUI.node.onlinePromise;
   logger.info("Node is online");
 
-  const verityUI = await VerityUI.Construct(node);
   // @ts-ignore TypeScript does not like us creating extra window attributes
   window.verityUI = verityUI;
 
