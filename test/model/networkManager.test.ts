@@ -1,12 +1,14 @@
 import { NetworkManager } from '../../src/model/networkManager';
 import { NetworkPeer } from '../../src/model/networkPeer';
 import { CubeStore } from '../../src/model/cubeStore';
-import { Cube } from '../../src/model/cube';
-import { CubeField, CubeFieldType } from '../../src/model/cubeFields';
+import { Cube, CubeKey } from '../../src/model/cube';
+import { CubeField, CubeFieldType, CubeFields, cubeFieldDefinition } from '../../src/model/cubeFields';
 import { PeerDB, Peer } from '../../src/model/peerDB';
 import { logger } from '../../src/model/logger';
 
 import WebSocket from 'isomorphic-ws';
+import sodium, { KeyPair } from 'libsodium-wrappers'
+import { FieldParser } from '../../src/model/fieldParser';
 
 describe('networkManager', () => {
 
@@ -136,6 +138,96 @@ describe('networkManager', () => {
         manager2.shutdown();
         manager3.shutdown();
         await Promise.all([promise1_shutdown, promise2_shutdown, promise3_shutdown]);
+    }, 20000);
+
+    test('sync MUC updates', async () => {
+        await sodium.ready;
+        const keyPair = sodium.crypto_sign_keypair();
+
+        const cubeStore = new CubeStore(false);
+        const cubeStore2 = new CubeStore(false);
+        const manager1 = new NetworkManager(4000, cubeStore, new PeerDB(), false, false);
+        const manager2 = new NetworkManager(4001, cubeStore2, new PeerDB(), false, false);
+
+        const promise1_listening = new Promise(resolve => manager1.on('listening', resolve));
+        const promise2_listening = new Promise(resolve => manager2.on('listening', resolve));
+        const promise1_shutdown = new Promise(resolve => manager1.on('shutdown', resolve));
+        const promise2_shutdown = new Promise(resolve => manager2.on('shutdown', resolve));
+
+        // Start both nodes
+        manager1.start();
+        manager2.start();
+        await Promise.all([promise1_listening, promise2_listening]);
+
+        // Connect peer 1 to peer 2
+        await new Promise<NetworkPeer>(resolve => {
+            manager1.connect('ws://localhost:4001').then(peer => resolve(peer));
+        });
+        expect(manager1.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
+
+        // just defining some vars, bear with me...
+        let counterBuffer: Buffer;
+        let muc: Cube;
+        let mucKey: CubeKey;
+        let receivedFields: CubeFields;
+
+        // Create MUC at peer 1
+        counterBuffer = Buffer.from("My first MUC version");
+        muc = Cube.MUC(
+            Buffer.from(keyPair.publicKey),
+            Buffer.from(keyPair.privateKey),
+            CubeField.Payload(counterBuffer)
+        );
+        mucKey = await cubeStore.addCube(muc);
+        expect(cubeStore.getAllStoredCubeKeys().size).toEqual(1);
+
+        // sync MUC from peer 1 to peer 2
+        expect(manager2.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
+        manager2.incomingPeers[0].sendHashRequest();
+        // Verify MUC has been synced. Wait up to three seconds for that to happen.
+        for (let i = 0; i < 30; i++) {
+            if (cubeStore2.getCube(mucKey)) {
+                break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // check MUC has been received correctly at peer 2
+        expect(cubeStore2.getAllStoredCubeKeys().size).toEqual(1);
+        expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
+        receivedFields = cubeStore2.getCube(mucKey)?.getFields()!;
+        expect(receivedFields?.getFirstField(CubeFieldType.PAYLOAD).value.toString()).toEqual("My first MUC version");
+
+        // update MUC at peer 1
+        counterBuffer = Buffer.from("My second MUC version");
+        muc = Cube.MUC(
+            Buffer.from(keyPair.publicKey),
+            Buffer.from(keyPair.privateKey),
+            CubeField.Payload(counterBuffer)
+        );
+        mucKey = await cubeStore.addCube(muc);
+        expect(cubeStore.getAllStoredCubeKeys().size).toEqual(1);  // still just one, new MUC version replaces old MUC version
+
+        // sync MUC from peer 1 to peer 2, again
+        manager2.incomingPeers[0].sendHashRequest();
+        // Verify MUC has been synced. Wait up to three seconds for that to happen.
+        for (let i = 0; i < 30; i++) {
+            if (cubeStore2.getCube(mucKey)) {
+                break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // check MUC has been updated correctly at peer 2
+        expect(cubeStore2.getAllStoredCubeKeys().size).toEqual(1);
+        expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
+        receivedFields = cubeStore2.getCube(mucKey)?.getFields()!;
+        expect(receivedFields?.getFirstField(CubeFieldType.PAYLOAD).value.toString()).toEqual("My second MUC version");
+
+        // teardown
+        manager1.shutdown();
+        manager2.shutdown();
+        await Promise.all([promise1_shutdown, promise2_shutdown]);
     }, 20000);
 
     test('should blacklist a peer when trying to connect to itself', async () => {
