@@ -2,7 +2,7 @@ import { Settings, VerityError } from './config';
 import { Cube, CubeKey } from './cube';
 import { CubeInfo, CubeMeta } from './cubeInfo'
 import { CubePersistence } from "./cubePersistence";
-import { CubeType } from './cubeDefinitions';
+import { CubeType, InsufficientDifficulty } from './cubeDefinitions';
 import { cubeContest } from './cubeUtil';
 import { logger } from './logger';
 
@@ -20,14 +20,16 @@ export class CubeStore extends EventEmitter {
   // Refers to the persistant cube storage database, if available and enabled
   private persistence: CubePersistence = undefined;
 
+  public readonly required_difficulty;
+
   constructor(
-    enable_persistence: boolean = true) {
+    enable_persistence: boolean = true, required_difficulty = Settings.REQUIRED_DIFFICULTY) {
     super();
+    this.required_difficulty = required_difficulty;
     this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS + 10);  // one for each peer and a few for ourselves
     if (enable_persistence) {
       this.persistence = new CubePersistence();
 
-      // this.persistence.on("ready", this.syncPersistentStorage);
       this.persistence.on('ready', () => {
         logger.trace("cubeStore: received ready event from cubePersistence");
         this.syncPersistentStorage();
@@ -66,6 +68,10 @@ export class CubeStore extends EventEmitter {
       if (this.hasCube(cubeInfo.key) && cubeInfo.cubeType == CubeType.CUBE_TYPE_REGULAR) {
         logger.warn('CubeStorage: duplicate - cube already exists');
         return cubeInfo.key;
+      }
+
+      if (cube.getDifficulty() < this.required_difficulty) {
+        throw new InsufficientDifficulty("CubeStore: Cube does not meet difficulty requirements");
       }
 
       // If this is a MUC, check if we already have a MUC with this key.

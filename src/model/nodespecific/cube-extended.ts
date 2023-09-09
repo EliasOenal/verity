@@ -24,7 +24,7 @@ Cube.prototype.findValidHashWorker = async function(nonceStartIndex: number): Pr
             workerData: {
                 binaryData: this.binaryData.buffer,  // Pass the underlying ArrayBuffer
                 nonceStartIndex: nonceStartIndex,
-                requiredDifficulty: Settings.REQUIRED_DIFFICULTY
+                requiredDifficulty: this.required_difficulty,
             },
             transferList: [this.binaryData.buffer]  // Transfer ownership of the ArrayBuffer to the worker
         });
@@ -47,4 +47,4 @@ Cube.prototype.findValidHashWorker = async function(nonceStartIndex: number): Pr
             }
         });
     });
-}    
+}

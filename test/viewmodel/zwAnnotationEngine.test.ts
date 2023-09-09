@@ -11,16 +11,17 @@ import sodium, { KeyPair } from 'libsodium-wrappers'
 describe('ZwAnnotationEngine', () => {
   let cubeStore: CubeStore;
   let annotationEngine: ZwAnnotationEngine;
+  let reduced_difficulty = 0;
 
   beforeEach(async () => {
     await sodium.ready;
-    cubeStore = new CubeStore(false);
+    cubeStore = new CubeStore(false, reduced_difficulty);
     annotationEngine = new ZwAnnotationEngine(cubeStore);
   }, 1000);
 
   describe('displayability', () => {
     it('should mark a single root cube as displayable', async () => {
-      const root: Cube = await makePost("Mein kleiner grüner Kaktus");
+      const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reduced_difficulty);
 
       const callback = jest.fn();
       annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
@@ -33,8 +34,8 @@ describe('ZwAnnotationEngine', () => {
     }, 5000);
 
     it('should mark a cube and a reply received in sync as displayable', async () => {
-      const root: Cube = await makePost("Mein kleiner grüner Kaktus");
-      const leaf: Cube = await makePost("steht draußen am Balkon", await root.getKey());
+      const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reduced_difficulty);
+      const leaf: Cube = await makePost("steht draußen am Balkon", await root.getKey(), undefined, reduced_difficulty);
 
       const callback = jest.fn();
       annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
@@ -49,8 +50,8 @@ describe('ZwAnnotationEngine', () => {
     }, 5000);
 
     it('should not mark replies as displayable when the original post is unavailable', async () => {
-      const root: Cube = await makePost("Mein kleiner grüner Kaktus");
-      const leaf: Cube = await makePost("steht draußen am Balkon", await root.getKey());
+      const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reduced_difficulty);
+      const leaf: Cube = await makePost("steht draußen am Balkon", await root.getKey(), undefined, reduced_difficulty);
 
       const callback = jest.fn();
       annotationEngine.on('cubeDisplayable', (hash) => callback(hash));
@@ -60,9 +61,9 @@ describe('ZwAnnotationEngine', () => {
     }, 5000);
 
     it('should mark replies as displayable only once all preceding posts has been received', async () => {
-      const root: Cube = await makePost("Mein kleiner grüner Kaktus");
-      const intermediate: Cube = await makePost("steht draußen am Balkon", await root.getKey());
-      const leaf: Cube = await makePost("hollari, hollari, hollaroooo", await intermediate.getKey());
+      const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reduced_difficulty);
+      const intermediate: Cube = await makePost("steht draußen am Balkon", await root.getKey(), undefined, reduced_difficulty);
+      const leaf: Cube = await makePost("hollari, hollari, hollaroooo", await intermediate.getKey(), undefined, reduced_difficulty);
 
       const callback = jest.fn();
       annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
@@ -84,7 +85,7 @@ describe('ZwAnnotationEngine', () => {
     it('should remember Identity MUCs', async () => {
       const id: Identity = new Identity(cubeStore);
       id.name = "Probator Annotationem";
-      await id.store();
+      await id.store(reduced_difficulty);
 
       expect(annotationEngine.identityMucs.size).toEqual(1);
       const restored: Identity = new Identity(cubeStore,
@@ -98,7 +99,8 @@ describe('ZwAnnotationEngine', () => {
       const muc: Cube = Cube.MUC(
         Buffer.from(keys.publicKey),
         Buffer.from(keys.privateKey),
-        CubeField.Payload("hoc non est identitatis")
+        CubeField.Payload("hoc non est identitatis"),
+        reduced_difficulty
       );
       await cubeStore.addCube(muc);
       expect(annotationEngine.identityMucs.size).toEqual(0);
@@ -107,11 +109,11 @@ describe('ZwAnnotationEngine', () => {
     it('should identify the author of a post directly referred to from a MUC', async () => {
       const id: Identity = new Identity(cubeStore);
       id.name = "Probator Attributionis Auctoris";
-      const post: Cube = await makePost("I got important stuff to say", undefined, id);
+      const post: Cube = await makePost("I got important stuff to say", undefined, id, reduced_difficulty);
       await cubeStore.addCube(post);
       const postKey = await post.getKey();
       expect(postKey).toBeDefined;
-      await id.store();
+      await id.store(reduced_difficulty);
 
       const restoredAuthor: Identity = annotationEngine.cubeAuthor(postKey);
       expect(restoredAuthor).toBeInstanceOf(Identity);
@@ -122,7 +124,7 @@ describe('ZwAnnotationEngine', () => {
     // This test is a bit lengthy and convoluted as I was chasing a Heisenbug
     // involving the MUC's key suddenly becoming undefined.
     // It did not help in finding the bug.
-    it.only('should identify the author multiple times while other stuff takes place', async () => {
+    it('should identify the author multiple times while other stuff takes place', async () => {
       // create and store identity
       const id: Identity = new Identity(cubeStore);
       id.name = "Probator Attributionis Auctoris";
@@ -206,7 +208,7 @@ describe('ZwAnnotationEngine', () => {
       await new Promise(resolve => setTimeout(resolve, 250));
       // our user changes it's name
       id.name = "Probator Attributionis Auctoris et Gravissima Persona in Generali";
-      await id.store();
+      await id.store(reduced_difficulty);
       await new Promise(resolve => setTimeout(resolve, 250));
       const idHashAfterNameChange = id.muc.getHashIfAvailable();
 
@@ -227,11 +229,11 @@ describe('ZwAnnotationEngine', () => {
     it('should identify the author of a post after the key was converted to a string', async () => {
       const id: Identity = new Identity(cubeStore);
       id.name = "Probator Attributionis Auctoris";
-      const post: Cube = await makePost("I got important stuff to say", undefined, id);
+      const post: Cube = await makePost("I got important stuff to say", undefined, id, reduced_difficulty);
       await cubeStore.addCube(post);
       const postKey = (await post.getKey()).toString('hex');
       expect(postKey).toBeDefined;
-      await id.store();
+      await id.store(reduced_difficulty);
 
       const restoredAuthor: Identity = annotationEngine.cubeAuthor(Buffer.from(postKey, 'hex'));
       expect(restoredAuthor).toBeInstanceOf(Identity);
@@ -239,21 +241,18 @@ describe('ZwAnnotationEngine', () => {
         toEqual("Probator Attributionis Auctoris");
     });
 
-    // You'll probably want to skip this test or precalculate the hashcash or something...
-    // this is a superb waste of CPU time.
-    // But hey, at least we get a feel for how expensive spam will be :D
-    it.skip('should identify the author of a post indirectly referred to through other posts', async () => {
-      const TESTPOSTCOUNT = 40;  // 40 keys are more than guaranteed not to fit in the MUC
+    it('should identify the author of a post indirectly referred to through other posts', async () => {
+      const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
       const id: Identity = new Identity(cubeStore);
       id.name = "Probator Attributionis Auctoris";
       const posts: CubeKey[] = [];
 
       for (let i=0; i<TESTPOSTCOUNT; i++) {
-        const post: Cube = await makePost("I got important stuff to say", undefined, id);
+        const post: Cube = await makePost("I got important stuff to say", undefined, id, reduced_difficulty);
         posts.push(await post.getKey());
         await cubeStore.addCube(post);
       }
-      await id.store();
+      await id.store(reduced_difficulty);
 
       for (let i=0; i<TESTPOSTCOUNT; i++) {
         expect(annotationEngine.cubeAuthor(posts[i]).name).

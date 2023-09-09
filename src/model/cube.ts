@@ -1,5 +1,5 @@
 // cube.ts
-import { BinaryDataError, BinaryLengthError, CUBE_HEADER_LENGTH, CubeError, CubeSignatureError, CubeType, FieldNotImplemented, FieldSizeError, InsufficientDifficulty, SmartCubeError, SmartCubeTypeNotImplemented, UnknownFieldType } from "./cubeDefinitions";
+import { BinaryDataError, BinaryLengthError, CUBE_HEADER_LENGTH, CubeError, CubeSignatureError, CubeType, FieldNotImplemented, FieldSizeError,  SmartCubeError, SmartCubeTypeNotImplemented, UnknownFieldType } from "./cubeDefinitions";
 import { Settings } from './config';
 import { NetConstants } from './networkDefinitions';
 import { CubeInfo } from "./cubeInfo";
@@ -44,9 +44,10 @@ export class Cube {
     // this makes a boilerplate cube 120 bytes long,
     // meaning there's 904 bytes left for payload.
     static MUC(publicKey: Buffer, privateKey: Buffer,
-               customfields: Array<CubeField> | CubeField = []): Cube {
+               customfields: Array<CubeField> | CubeField = [],
+               required_difficulty = Settings.REQUIRED_DIFFICULTY): Cube {
         if (customfields instanceof CubeField) customfields = [customfields];
-        const cube: Cube = new Cube();
+        const cube: Cube = new Cube(undefined, required_difficulty);
         cube.setCryptoKeys(publicKey, privateKey);
         const fields: CubeFields = new CubeFields([
             new CubeField(CubeFieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
@@ -68,12 +69,12 @@ export class Cube {
      * Create an Immutable Persistant Cube, which is a type of smart cube used
      * for data to be made available long-term.
      */
-    static IPC(): Cube {
+    static IPC(required_difficulty = Settings.REQUIRED_DIFFICULTY): Cube {
         // TODO implement
         return undefined;
     }
 
-    constructor(binaryData?: Buffer) {
+    constructor(binaryData?: Buffer, private readonly required_difficulty = Settings.REQUIRED_DIFFICULTY) {
         if (binaryData && binaryData.length !== NetConstants.CUBE_SIZE) {
             logger.error(`Cube must be ${NetConstants.CUBE_SIZE} bytes`);
             throw new BinaryLengthError(`Cube must be ${NetConstants.CUBE_SIZE} bytes`);
@@ -92,11 +93,6 @@ export class Cube {
         } else {
             this.binaryData = binaryData;
             this.hash = CubeUtil.calculateHash(binaryData);
-            const verified = this.verifyCubeDifficulty();
-            if (!verified) {
-                logger.error('Cube does not meet difficulty requirements');
-                throw new InsufficientDifficulty("Cube does not meet difficulty requirements");
-            }
             this.version = binaryData[0] >> 4;
             this.reservedBits = binaryData[0] & 0xF;
             this.date = binaryData.readUIntBE(1, 5);
@@ -492,7 +488,7 @@ export class Cube {
                     // Calculate the hash
                     hash = CubeUtil.calculateHash(this.binaryData);
                     // Check if the hash is valid
-                    if (CubeUtil.countTrailingZeroBits(hash) >= Settings.REQUIRED_DIFFICULTY) {
+                    if (CubeUtil.countTrailingZeroBits(hash) >= this.required_difficulty) {
                         logger.debug("Found valid hash with nonce " + nonce);
                         resolve(hash);
                         return;  // This is important! It stops the for loop and the function if a valid hash is found
@@ -508,15 +504,10 @@ export class Cube {
         });
     }
 
-    private verifyCubeDifficulty(): boolean {
-        if (this.binaryData === undefined)
-            throw new BinaryDataError("Binary data not initialized");
-        // Only calculate the hash if it has not been calculated yet
-        if (this.hash === undefined)
-            this.hash = CubeUtil.calculateHash(this.binaryData);
-
-        // Check the trailing zeroes
-        return CubeUtil.countTrailingZeroBits(this.hash) >= Settings.REQUIRED_DIFFICULTY;
+    getDifficulty(): number {
+        if (this.binaryData === undefined) this.setBinaryData();
+        if (this.hash === undefined) this.generateCubeHash();
+        return CubeUtil.countTrailingZeroBits(this.hash);
     }
 
 }

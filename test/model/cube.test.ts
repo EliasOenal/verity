@@ -1,7 +1,7 @@
 // cube.test.ts
 import { Settings } from '../../src/model/config';
 import { NetConstants } from '../../src/model/networkDefinitions';
-import { BinaryLengthError, CUBE_HEADER_LENGTH, FieldSizeError, InsufficientDifficulty } from '../../src/model/cubeDefinitions';
+import { BinaryLengthError, CUBE_HEADER_LENGTH, FieldError, FieldSizeError, InsufficientDifficulty } from '../../src/model/cubeDefinitions';
 import { Cube } from '../../src/model/cube';
 import { Buffer } from 'buffer';
 import { calculateHash, countTrailingZeroBits } from '../../src/model/cubeUtil';
@@ -83,14 +83,6 @@ describe('cube', () => {
     expect(cube.getFields()).toEqual(fields);
   }, 1000);
 
-  it('should fail difficulty requirements', () => {
-    const binaryData = Buffer.alloc(1024);
-    // Manually set a field in the binary data for testing
-    binaryData[6] = CubeFieldType.PAYLOAD; // Type
-    binaryData.writeUInt8(100, 7); // Length
-    expect(() => new Cube(binaryData)).toThrow(InsufficientDifficulty);
-  }, 1000);
-
   it('should write fields to binary data correctly', () => {
     const cube = new Cube();
     const fields = new CubeFields([
@@ -116,10 +108,10 @@ describe('cube', () => {
     expect(() => cube.setFields(fields)).toThrow(FieldSizeError);
   }, 1000);
 
-  it('should throw an error, invalid TLV type - but already fails at difficulty check', () => {
+  it('should throw an error on invalid TLV type', () => {
     const binaryData = Buffer.alloc(1024);
     binaryData[6] = 0xFF; // Invalid type
-    expect(() => new Cube(binaryData)).toThrow(InsufficientDifficulty);
+    expect(() => new Cube(binaryData)).toThrow(FieldError);
   }, 1000);
 
   it('should automatically add extra padding when cube is too small', () => {

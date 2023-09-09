@@ -63,10 +63,11 @@ describe('networkManager', () => {
     }, 1000);
 
     test('sync cubes between three nodes', async () => {
+        const reduced_difficulty = 0;
         const numberOfCubes = 10;
-        const cubeStore = new CubeStore(false);  // no persistence
-        const cubeStore2 = new CubeStore(false);
-        const cubeStore3 = new CubeStore(false);
+        const cubeStore = new CubeStore(false, reduced_difficulty);  // no persistence
+        const cubeStore2 = new CubeStore(false, reduced_difficulty);
+        const cubeStore3 = new CubeStore(false, reduced_difficulty);
         const manager1 = new NetworkManager(4000, cubeStore, new PeerDB(), false, false);
         const manager2 = new NetworkManager(4001, cubeStore2, new PeerDB(), false, false);
         const manager3 = new NetworkManager(4002, cubeStore3, new PeerDB(), false, false);
@@ -96,7 +97,7 @@ describe('networkManager', () => {
 
         // Create new cubes at peer 1
         for (let i = 0; i < numberOfCubes; i++) {
-            const cube = new Cube();
+            const cube = new Cube(undefined, reduced_difficulty);
             const buffer: Buffer = Buffer.alloc(1);
             buffer.writeInt8(i);
             cube.setFields(new CubeField(CubeFieldType.PAYLOAD, 1, buffer));

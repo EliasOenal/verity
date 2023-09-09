@@ -5,6 +5,7 @@
  * They just follow a standardized field structure.
  */
 
+import { Settings } from "../model/config";
 import { Cube, CubeKey } from "../model/cube";
 import { CubeField } from "../model/cubeFields";
 import { FieldParser } from "../model/fieldParser";
@@ -20,7 +21,8 @@ import { Buffer } from 'buffer';
 export async function makePost(
     text: string,
     replyto?: CubeKey,
-    id?: Identity): Promise<Cube> {
+    id?: Identity,
+    required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<Cube> {
   const zwFields: ZwFields = new ZwFields(ZwField.Application());
   zwFields.data.push(ZwField.MediaType(MediaTypes.TEXT));
   zwFields.data.push(ZwField.Payload(text));
@@ -49,7 +51,7 @@ export async function makePost(
   }
 
   const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(zwFields);
-  const cube: Cube = new Cube();
+  const cube: Cube = new Cube(undefined, required_difficulty);
   cube.setFields(CubeField.Payload(zwData));
   cube.getBinaryData();  // finalize Cube & compile fields
 
