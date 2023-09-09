@@ -31,7 +31,7 @@ export class VerityNode {
 
     // Start networking
     this.networkManager = new NetworkManager(
-      this.port, this.cubeStore, this.peerDB, this.announceToTorrentTrackers, lightNode);
+      this.port, this.cubeStore, this.peerDB, announceToTorrentTrackers, lightNode);
     this.onlinePromise = new Promise(resolve => this.networkManager.once('online', () => {
         resolve(undefined);
     }));
@@ -41,7 +41,7 @@ export class VerityNode {
     }));
     this.networkManager.start();
 
-    if (this.initialPeers) {
+    if (initialPeers) {
       for (let i = 0; i < initialPeers.length; i++) {
         logger.info(`Adding initial peer ${initialPeers[i]}.`);
         const [initialPeerIp, initialPeerPort] = initialPeers[i].split(':');
