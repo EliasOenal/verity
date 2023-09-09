@@ -363,7 +363,7 @@ export class IdentityPersistance {
           continue;
         }
         const id = new Identity(cubeStore, muc, this);
-        muc.setCryptoKeys(Buffer.from(pubkey, 'hex'), Buffer.from(privkey, 'hex'));
+        muc.setCryptoKeys(Buffer.from(pubkey, 'hex'), Buffer.from(privkey, 'hex'), true);
         identities.push(id);
         } catch (error) {
           logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
