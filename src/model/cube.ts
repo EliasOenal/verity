@@ -147,8 +147,11 @@ export class Cube {
     get privateKey() { return this._privateKey; }
     get publicKey() { return this._publicKey; }
 
-    public setCryptoKeys(publicKey: Buffer, privateKey: Buffer): void {
-        this.cubeManipulated();
+    public setCryptoKeys(
+            publicKey: Buffer,
+            privateKey: Buffer,
+            iSwearImOnlyResupplyingThePrivateKeyAndNotChangingAnythingElse: boolean = false): void {
+        if (!iSwearImOnlyResupplyingThePrivateKeyAndNotChangingAnythingElse) this.cubeManipulated();  // TODO this is obviously ugly as hell
         this._publicKey = publicKey;
         this._privateKey = privateKey;
     }
