@@ -141,6 +141,7 @@ export class Identity {
    * (You could also provide a private cubeStore instead, but why should you?)
    */
   store(): Promise<any> {
+    logger.trace("Identity: Storing identity " + this.name);
     const muc = this.makeMUC();
     const cubeAddPromise: Promise<any> = this.cubeStore.addCube(muc);
     if (this.persistance) {
@@ -209,6 +210,7 @@ export class Identity {
    * Sets this Identity based on a MUC; should only be used on construction.
    */
   private parseMuc(muc: Cube): void {
+    // TODO: is this even a valid MUC?
     // Is this MUC valid for this application?
     const zwFields: ZwFields = ZwFields.get(muc);
     if (!zwFields) {

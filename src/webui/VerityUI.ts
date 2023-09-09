@@ -50,6 +50,10 @@ export class VerityUI {
     this.cubeDisplay = new CubeDisplay(this.node.cubeStore, this.annotationEngine);
   }
 
+  shutdown() {
+    this.cubeDisplay.shutdown();
+  }
+
   async initializeIdentity(): Promise<void> {
     this.identity = await Identity.retrieve(this.node.cubeStore);
     (document.getElementById("idname") as HTMLInputElement).value = this.identity.name;
@@ -77,10 +81,12 @@ async function webmain() {
   await node.onlinePromise;
   logger.info("Node is online");
 
-// @ts-ignore TypeScript does not like us creating extra window attributes
-  window.verityUI = await VerityUI.Construct(node);
+  const verityUI = await VerityUI.Construct(node);
+  // @ts-ignore TypeScript does not like us creating extra window attributes
+  window.verityUI = verityUI;
 
   await node.shutdownPromise;
+  verityUI.shutdown();
 }
 
 if (isBrowser) webmain();
