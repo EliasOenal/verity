@@ -228,7 +228,7 @@ export class Cube {
         }
     }
 
-    public getKeyIfAvailable(): CubeKey | undefined {
+    public getKeyIfAvailable(): CubeKey {
         return this.cubeKey;
     }
 
@@ -238,6 +238,10 @@ export class Cube {
             await this.generateCubeHash();
             return this.hash;
         }
+    }
+
+    public getHashIfAvailable(): Buffer {
+        return this.hash;
     }
 
     public getBinaryData(): Buffer {

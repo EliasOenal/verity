@@ -68,8 +68,8 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   cubeAuthor(key: CubeKey): Identity {
     // check all MUCs
     for (const mucInfo of this.identityMucs.values()) {
-      // logger.trace("ZwAnnotationEngine: Searching for author of cube " + key.toString('hex') + " in MUC " + mucInfo.key.toString('hex'));
       const muc = mucInfo.getCube();
+      logger.trace("ZwAnnotationEngine: Searching for author of cube " + key.toString('hex') + " in MUC " + muc.getKeyIfAvailable()?.toString('hex'));
       if (!muc) {
         logger.error("ZwAnnotationEngine: A MUC we remembered has gone missing.");
         continue;
@@ -91,18 +91,20 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     const postrels: Array<ZwRelationship> = zwFields.getRelationships(ZwRelationshipType.MYPOST);
     if (!postrels) return undefined;  // not a valid MUC or MUC extension cube
 
-    // logger.trace("ZwAnnotationEngine: Searching for author of cube " + key.toString('hex') + " in subcube " + mucOrMucExtension.getKeyIfAvailable().toString('hex') + " extending MUC " + rootmuc.getKeyIfAvailable().toString('hex'));
+    logger.trace("ZwAnnotationEngine: Searching for author of cube " + key.toString('hex') + " in subcube " + mucOrMucExtension.getKeyIfAvailable()?.toString('hex') + " extending MUC " + rootmuc.getKeyIfAvailable()?.toString('hex'));
     for (const postrel of postrels) {
       if (postrel.remoteKey.equals(key)) {  // bingo!
         let id: Identity = undefined;
-        try {id = new Identity(this.cubeStore, rootmuc);} catch {}
+        try {
+          id = new Identity(this.cubeStore, rootmuc);
+        } catch(error) {
+          logger.info("ZwAnnotationEngine: While searching for author of " + key.toString('hex') + " I failed to create an Identity out of MUC " + rootmuc.getKeyIfAvailable()?.toString('hex') + " even though there's a MYPOST chain through " + mucOrMucExtension.getKeyIfAvailable()?.toString('hex'));
+        }
         if (id) return id;
       } else {  // maybe this other post contains the authorship information we seek?
         const subpost = this.cubeStore.getCube(postrel.remoteKey);
-        let potentialResult: Identity = undefined;
-        try {potentialResult = this.cubeAuthorRecursion(key, subpost, rootmuc);} catch {}
+        const potentialResult: Identity = this.cubeAuthorRecursion(key, subpost, rootmuc);
         if (potentialResult) return potentialResult;
-        else continue;
       }
     }
     return undefined;  // no authorship information found, not even really deep down

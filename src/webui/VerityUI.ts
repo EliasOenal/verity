@@ -66,10 +66,12 @@ export class VerityUI {
 
   async makeNewPost(text: string) {
     this.node.cubeStore.addCube(await makePost(text, undefined, this.identity));
+    this.identity.store();
   }
 
   async postReply(text: string, replyto: string) {
     this.node.cubeStore.addCube(await makePost(text, Buffer.from(replyto, 'hex'), this.identity));
+    this.identity.store();
   }
 }
 
