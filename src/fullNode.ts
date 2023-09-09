@@ -22,9 +22,8 @@ if (isNode) {
 class VerityCmdClient {
   public node: VerityNode;
   private mucUpdateCounter: number = 0;
-  private keyPair: KeyPair;
 
-  constructor() {
+  constructor(private keyPair: KeyPair) {
     if (isNode) {  // Provide debugging hotkeys
       readline.emitKeypressEvents(process.stdin);
       if (process.stdin.isTTY) process.stdin.setRawMode(true);
@@ -96,9 +95,11 @@ class VerityCmdClient {
 async function main() {
   console.log("\x1b[36m" + vera + "\x1b[0m");
   logger.info('Starting full node');
-  await sodium.ready;
 
-  const client = new VerityCmdClient;
+  await sodium.ready;
+  const keyPair = sodium.crypto_sign_keypair();
+
+  const client = new VerityCmdClient(keyPair);
   await client.node.onlinePromise;
   logger.info("Node is online");
 
