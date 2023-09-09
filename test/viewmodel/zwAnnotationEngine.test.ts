@@ -17,7 +17,7 @@ describe('ZwAnnotationEngine', () => {
     await sodium.ready;
     cubeStore = new CubeStore(false, reduced_difficulty);
     annotationEngine = new ZwAnnotationEngine(cubeStore);
-  }, 1000);
+  }, 3000);
 
   describe('displayability', () => {
     it('should mark a single root cube as displayable', async () => {

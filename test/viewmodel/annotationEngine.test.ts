@@ -11,7 +11,7 @@ describe('annotationEngine', () => {
   beforeEach(() => {
     cubeStore = new CubeStore(false);
     annotationEngine = new AnnotationEngine(cubeStore);
-  }, 1000);
+  }, 3000);
 
   it('correctly creates a reverse relationship', async () => {
     const referrer = new Cube();

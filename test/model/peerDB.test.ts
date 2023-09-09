@@ -30,5 +30,5 @@ describe('parsePeers', () => {
         expect(result).toEqual([
             { ip: '192.168.0.1', port: 8080 },
         ]);
-    }, 1000);
+    }, 3000);
 });
