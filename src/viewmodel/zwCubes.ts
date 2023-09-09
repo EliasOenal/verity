@@ -11,6 +11,8 @@ import { FieldParser } from "../model/fieldParser";
 import { Identity } from "./identity";
 import { MediaTypes, ZwField, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from "./zwFields";
 
+import { Buffer } from 'buffer';
+
 /**
  * Creates a new Cube containing a correctly formed text post.
  * Don't forget to call Identity.store() on your Identity object afterwards!
