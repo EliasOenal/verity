@@ -13,7 +13,7 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
 
 2. **Protocol Version and Reserved Bits (1 byte)**: The first nibble (4 bits) of the first byte of the cube is the protocol version. Currently, the only defined protocol version is 0. The second nibble of the first byte is reserved for future use.
 
-3. **Date (5 bytes)**: The next 5 bytes represent the date when the cube was created, encoded as a truncated UNIX timestamp. This timestamp represents the number of seconds since the UNIX epoch (1970-01-01), truncated to 5 bytes. This is used to prune old cubes from the network.
+3. **Date (5 bytes)**: The next 5 bytes represent the date when the cube was created, encoded as a truncated UNIX timestamp. This timestamp represents the number of seconds since the UNIX epoch (1970-01-01), truncated to 5 bytes. This is used to prune old cubes from the network. Cubes with dates from the future are to be rejected. (We may accept up to 24h into the future to account for time zone differences or make sure to use UTC.)
 
 4. **Type-Length-Value (TLV) Fields (variable length)**: The rest of the cube consists of a series of TLV fields. Each field starts with a one-byte type identifier, followed by a length (types of static length may omit this) and the actual value. The type is a 6-bit identifier, and the length, if present, is encoded as a 10-bit integer, both packed into a two-byte header. The length is encoded as big endian.
 
@@ -52,13 +52,16 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
     - 4: `QUOTATION`: This cube's payload refers to an earlier payload which client software shall usually display alongside this cube's payload. Multiple `QUOTATION` relationships are allowed per cube, in which case client software may provide an abridged view.
 
   is a continuation of another post. The field contains the hash of the post it relates to. The type code for this field is `TYPE_RELATES_TO`
-    > **TODO**: Implement different types of continuations, like replies, quotes, etc. This will require at least one more byte.
+  
+  > **TODO**: This is to be replaced with the following:<br/>
+  TYPE_RELATES_TO (optional, 32 bytes) and TYPE_CONTINUES (optional, 32 bytes)<br/>
+  This removes one byte for the relationship class. Each of these two types can at most occur once per cube. (For performance reasons it may make sense to fix the position within the cube as well.) TYPE_RELATES_TO will be indexed by full nodes, which then provide a lookup service to light nodes. This allows displaying replies from users that one has not subscribed yet.
 
   - **TYPE_PADDING_NONCE (mandatory, variable length)**: As cubes are of fixed length (see total size above), a padding field is used to fill up each cube. If a signature field is used (see below), this fills the space between other cube contents and the signature. The padding field has a type of `TYPE_PADDING_NONCE`, and its length is calculated by subtracting the size all other fields, including the signature if present, from the total cube size. The last N bytes of the padding field serve as the nonce for the proof-of-work. The value of the nonce is initially set to zero, and is incremented with each attempt to generate a valid hash. The padding subfield length N is decided by the client but is recommended to be at least 4 bytes.
 
   - **TYPE_SIGNATURE (optional, 72 bytes)**: If present, the public key fingerprint and ED25519 signature are placed into this field as the last field in the cube. The field has a type of TYPE_SIGNATURE and does not have an associated length field because its size is fixed. The signature and fingerprint are calculated over all the bytes of the cube from the start up to and including the type byte of this signature field, as well as the fingerprint. The first 8 bytes contain the fingerprint of the public key, and the last 64 bytes of the field contain the signature.
 
-  - **TYPE_SMART_CUBE (optional, 1 byte)**: If used, this field has to be first in the cube following the header. This type activates smart cube formats, such as MUC or IPC. It is only one byte long, leaving just 2 bits after the 6 bit type encoding:
+  - **TYPE_SMART_CUBE (optional, fixed position, 0 byte value)**: If used, this field has to be first in the cube following the header. This type activates smart cube formats, such as MUC or IPC. It is only one byte long, leaving just 2 bits after the 6 bit type encoding:
    - 0b00: `CUBE_TYPE_MUC`
    - 0b01: `CUBE_TYPE_IPC`
    - 0b10: `CUBE_TYPE_RESERVED`
@@ -72,11 +75,11 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
 ## Spam Prevention
   Verity has two primary defenses against Denial of Service (DoS):
 ### Hashcash
-  The network sets a challenge level of trailing zeroes for each cube, any cubes that fail this challenge get rejected and dropped. The level initially will be hardcoded, but later may be adjusted to scale with the amount of data in the Cube Store. This is a well proven defense against spam and sufficiently effective.
+  The node's cube store sets a challenge level of trailing zeroes for each cube, any cubes that fail this challenge get rejected and dropped. The level initially will be hardcoded, but later may be adjusted to scale with the amount of data in the Cube Store. This is a well proven defense against spam and sufficiently effective.
 ### Ephemeral Cubes
   Cubes have a limited lifetime. By default they will only live for 7 days until dropped from the network. Though once switching to Merkle Patricia Trie (MPT) timestamps can be easily sorted into different subtrees, allowing flexible control over cube retention times. Nodes may regularly re-inject their posts to keep them available online, if desired.
 
-  > Upcoming Extension: See chapter Cube Lifetime Function
+  > Also see chapter Cube Lifetime Function
 
 # Network Communication
   1. **Protocol Version (1 byte)**: This is the version of the protocol being used. This allows for future updates and backward compatibility. For now, you can set this to 0x01.
@@ -90,12 +93,11 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
   - `0x05`: `Unused - to be assigned`
   - `0x06`: `NodeRequest`
   - `0x07`: `NodeResponse`
-  - `0x08`: `NodeBroadcast`
 
   Each of these message classes will have different data payloads:
-  - `Hello`: **Node Identifier (16 bytes)**: This is a unique NodeID that's generated at startup. Primary purpose is to detect when we connected to ourselves. This may happen if we don't know our external IP. (e.g. NAT)
+  - `Hello`: **Node Identifier (16 bytes)**: This is a unique NodeID that's randomly generated at startup. Primary purpose is to detect when we connected to ourselves. This may happen if we don't know our external IP. (e.g. NAT) Secondarily this may be used to detect duplicate connections to the same node, which may happen if the node is reachable via multiple IPs.
 
-  - `HashRequest`: This message also might not need any further data. The act of sending it could suffice to request all cube hashes.
+  - `HashRequest`: This message does not need any further data. The act of repeatedly sending it is sufficient to request all cube hashes iteratively. This message may get extended in the future to allow for more fine-grained control over which hashes to request. (e.g. by date or by MPT subtree)
 
   - `HashResponse`:
     - **Hash Count (4 bytes)**: This is an integer indicating the number of hashes being sent.
@@ -123,28 +125,6 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
         - **Node Entries (variable length)**: A series of node entries. Each entry consists of:
           - **Node Address Length (2 bytes)**: An integer indicating the length of the node address.
           - **Node Address (variable length)**: The node address (e.g., WebSocket URL). The length of the address should match the Node Address Length.
-<br><br>
-  - `NodeBroadcast`: This message voluntarily sends a list of known node addresses to a peer, without a prior NodeRequest.
-
-    - **Payload:** Same as NodeResponse.
-
-## Planned Extension: Cube Key Modification for Efficient Network Communication
-
-To further enhance the efficiency and functionality of network communication, a modification to the structure of cube keys is planned. The first five bytes of the cube key, which currently represent a portion of the cube hash, will be replaced with the five bytes of the cube header that store the cube's date.
-
- > Has synergies with extension: Cube Lifetime Function
-
-### Benefits
-
-This modification will allow nodes to easily determine the age and the hashcash challenge level of a cube just from its key, without needing to download the entire cube.
-
-This has several benefits:
-
-- **Efficient Cube Evaluation**: Nodes can efficiently determine whether the cubes on offer meet their local requirements in terms of the hashcash challenge and cube lifetime. This allows nodes to make more informed decisions about which cubes to request and save bandwidth by avoiding downloading cubes that do not meet their requirements.
-
-- **Cube Lifetime Enforcement**: The age of a cube can be easily calculated from its key, enabling nodes to efficiently manage their cube storage and drop cubes that have exceeded their lifetime.
-
-This enhancement is expected to improve the overall efficiency of network communication and resource utilization in the Verity network.
 
 # Encryption
 
@@ -176,7 +156,7 @@ The field value for the `TYPE_SHARED_KEY` field is a 32-byte symmetric key, whic
 
 This type is used for fields that contain encrypted data. The encryption is done using a symmetric key, which could be distributed in the same cube or derived from a key in the recipient's key store.
 
-1. The field starts with an 8-byte (64-bit) hash of the symmetric key used for encryption. The recipient uses this hash to identify the correct key for decryption.
+1. The field starts with an 8-byte (64-bit) hash/fingerprint of the symmetric key used for encryption. The recipient uses this hash to identify the correct key for decryption.
 2. The rest of the field contains the encrypted data.
 
 **1:1 Messages:**
@@ -208,9 +188,13 @@ This word means "truthfulness" or "accuracy", which could refer to the authentic
 - `Light Nodes`: Besides full nodes with full replication one can also operate light nodes that only request cubes on demand. They should prefer to connect to full nodes and communicate their status as network leaves.
 - `Bloom filters`: To further improve efficiency light nodes receive bloom filters of connected nodes in order to determine which peers to request cubes from.
 - `DHT Nodes`: Another extension could be DHT nodes. Instead of aiming for full replication, these nodes just replicate a portion of the cube-space within their DHT address range. They have a bit less utility to the network, but also can operate with less resources.
-- `Merkle Patricia Trie`: To improve efficiency during synchronization we can store all hashes in an MPT. This would allow efficient comparison and synchronization with a time complexity of O(log(n)). Likely advisable to scale beyond a million cubes per day.
+- `Merkle Patricia Trie`: To improve efficiency during synchronization we can store all hashes in an MPT. This would allow efficient comparison and synchronization with a complexity of O(log(n)). Likely advisable to scale beyond a million cubes per day.
+
+When two nodes synchronize, they compare the root hash of their MPTs. If the hashes are different, this indicates that the nodes have a different set of cubes. The nodes can then recursively compare the hashes of their children, continuing down the tree, until they identify the cubes that differ. This allows the nodes to find the specific cubes that need to be updated, without having to compare every single cube hash.
+
 ### Client
-- `Reference Client`: The reference client is to be written in TypeScript and support a WebSocket transport. This will allow porting the client to the web for easier access. PWA could be an option, especially for light nodes.
+- `Reference Client`: The reference client is to be written in TypeScript and supports a WebSocket transport. This will allow porting the client to the web for easier access. PWA could be an option, especially for light nodes.
+> TODO: PWAs prohibit self-signed certificates. By switching to WebRTC we can avoid this issue and also gain NAT traversal.
 ### Features
 - `Accounts`: Identities will be implemented through asymmetric cryptography. Users can create one or more public/private key pairs and use them to receive direct messages addressed to the hash of their public key, as well as to sign their messaged.
 
@@ -220,31 +204,19 @@ Mutable User Cubes (MUCs) are a smart type of cube in the Verity network that ca
 
 #### Specification
 
-MUCs are similar to standard cubes, but with an additional field:
+MUCs are similar to standard cubes, but with additional fields to implement ownership:
 
-1. **Public Key**: This is the user's public key. It serves to verify the signature of the cube. The hash of the public key is used to track the cube within the network and as the key for the MPT. Their full hash still serves to verify the challenge of the cube.
+1. **TYPE_SMART_CUBE**: Indicating the cube is a MUC.
 
+2. **TYPE_PUBLIC_KEY**: This is the user's public key. It serves to verify the signature of the cube. The public key is used to track the cube within the network, like the cube hash does for regular cubes. The cube hash of a MUC still serves to verify the challenge of the cube, keeping challenge verification consistent among cube types.
+
+3. **TYPE_SIGNATURE**: This is the user's signature of the cube, which is verified with the key in the TYPE_PUBLIC_KEY field. This proves ownership of the cube.
+
+#### Functionality
 The content of a MUC can be updated by the user, and the updated cube is signed with the user's private key. The signature can be verified with the public key in the cube. When a MUC is updated, the timestamp is set to the current time. This timestamp serves as the version number for the cube. The cube with the latest timestamp is considered the most recent version.
 
-#### Synchronization
-
-Synchronization of MUCs leverages the Merkle Patricia Trie (MPT) structure, allowing efficient comparison and synchronization of cubes with a time complexity of O(log(n)).
-
-When two nodes synchronize, they compare the root hash of their MPTs. If the hashes are different, this indicates that the nodes have a different set of cubes. The nodes can then recursively compare the hashes of their children, continuing down the tree, until they identify the cubes that differ. This allows the nodes to find the specific cubes that need to be updated, without having to compare every single cube hash.
-
-For MUCs, the timestamp is incorporated into the cube hash stored in the MPT. If a MUC is updated and its timestamp changes, its hash will change, and the change will propagate up the MPT. Nodes can then identify the updated cube when synchronizing their MPTs.
-
 #### Conflict Resolution
-
-In the event of a conflict where different versions of the same MUC exist within the network with the same timestamp, the version with the "higher" cube hash is considered the most recent. "Higher" can be defined in various ways - for example, you might interpret the hash as a big-endian number and choose the cube with the larger number, or you could choose the cube with the lexicographically later hash when interpreted as a string.
-
-This method is arbitrary and doesn't inherently favor any particular cube, but it provides a deterministic way to decide between two versions of a cube with the same timestamp. The choice of "higher" as larger numeric value or later lexicographic value doesn't affect the security or functionality of the network, but should be consistent across all nodes.
-
-  > The extension Cube Lifetime Function will enable an improved conflict resolution where the exact remaining lifetime of a cube can be calculated and used to arbitrate between conflicting cubes. Longer lifetime is always to be preferred.
-
-#### Implementation
-
-Implementation of MUCs requires changes to the cube handling and network synchronization code to accommodate the additional fields and the different method of tracking and synchronizing cubes. The MPT data structure must also be implemented and maintained by each node.
+In the event of a conflict where different versions of the same MUC exist within the network with the same timestamp, the mainline client will keep the local cube. Clients may optionally compare cube hashes and favor the cube with the lexicographically higher hash. This deterministic method ensures a fair resolution of conflicts and doesn't inherently favor any particular cube.
 
 ### Immutable Persistence Cubes (IPCs)
 
@@ -263,9 +235,7 @@ Any network participant can sponsor an extension of the lifespan of an IPC by se
 
 #### Conflict Resolution
 
-In the event of a conflict where different versions of the same IPC exist within the network with the same timestamp and same challenge level, the version with the "higher" cube hash is considered the most recent. "Higher" can be defined in various ways, such as interpreting the hash as a big-endian number and choosing the cube with the larger number, or interpreting the hash as a string and choosing the cube with the lexicographically later hash. This deterministic method ensures a fair resolution of conflicts and doesn't inherently favor any particular cube.
-
- > See MUC conflict resolution
+In the event of a conflict where different versions of the same IPC exist within the network, the cube lifetime function is used to determine the cube with the longest lifespan. The cube with the longest lifespan is considered the most recent version and is to be favored.
 
 ## Cube Lifetime Function
 
