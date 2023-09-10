@@ -10,30 +10,35 @@ export class PostView {
   displayPost(data: PostData): void {
     const container = this.getOrCreateContainer(data);
     const li: HTMLLIElement = document.createElement("li");
-    li.setAttribute("cubekey", data.key);  // do we still need this?
+    li.setAttribute("cubekey", data.keystring);  // do we still need this?
     li.setAttribute("timestamp", String(data.timestamp)); // keep raw timestamp for later reference
 
     // Display cube display header (timestamp, user)
     const header: HTMLParagraphElement = document.createElement("p");
-    let headercontent = "";
 
     // show author
-    headercontent += `<small><b id="${data.key}-author" class="cubeauthor">${data.author}</b></small><br />` // TODO: DO NOT USE innerHTML as partial strings (e.g. author name) are untrusted
+    const authorelem: HTMLElement = document.createElement("small");
+    this.displayCubeAuthor(data, authorelem);
+    header.appendChild(authorelem);
+    header.appendChild(document.createElement("br"));
 
     // show date
     const date: Date = new Date(data.timestamp*1000);
     const dateformat: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    headercontent += `<small>${date.toLocaleDateString(navigator.language, dateformat)} ${date.toLocaleTimeString(navigator.language)}</small><br />`
-    header.innerHTML = headercontent;
-    li.appendChild(header);
+    const dateelem: HTMLElement = document.createElement("small");
+    dateelem.appendChild(document.createTextNode(
+      date.toLocaleDateString(navigator.language, dateformat) + " " +
+      date.toLocaleTimeString(navigator.language)
+    ));
+    dateelem.appendChild(document.createElement("br"));
+    header.appendChild(dateelem);
+    li.appendChild(header);  // display whole header now
 
     // Display post text
     const text: HTMLParagraphElement = document.createElement('p');
     text.innerText = data.text;
+    text.title = `Cube Key ${data.keystring}`;  // show cube key as tooltip
     li.append(text);
-
-    // Show cube key as tooltip
-    li.title = `Cube Key ${data.key}`;
 
     // Display reply input field
     const replyfield: HTMLParagraphElement = document.createElement("p");
@@ -68,9 +73,16 @@ export class PostView {
     if (!authorelementCollection) return;
     const authorelement = authorelementCollection[0] as HTMLElement;
     if (!authorelement) return;
+    this.displayCubeAuthor(data, authorelement);
+  }
 
-    if (data.author) authorelement.innerText = data.author;
-    else authorelement.innerText = "Unknown user";
+  private displayCubeAuthor(data: PostData, authorelem: HTMLElement) {
+    authorelem.innerText = '';  // start with a clean slate
+    authorelem.setAttribute("style", "font-weight: bold");
+    authorelem.setAttribute("id", data.keystring + "-author");
+    authorelem.setAttribute("class", "cubeauthor");
+    if (data.authorkey) authorelem.setAttribute("title", "MUC key " + data.authorkey);
+    authorelem.appendChild(document.createTextNode(data.author));
   }
 
   private getOrCreateContainer(data: PostData): HTMLUListElement {

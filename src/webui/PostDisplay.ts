@@ -13,10 +13,12 @@ import { logger } from "../model/logger";
 import { Buffer } from 'buffer';
 
 export interface PostData {
-  key: string;
-  timestamp: number;
-  author: string;
-  text: string;
+  key?: CubeKey;
+  keystring?: string;
+  timestamp?: number;
+  author?: string;
+  authorkey?: string
+  text?: string;
 
   /** @param If this is a reply, this refers to the superior post. */
   superior?: PostData;
@@ -71,62 +73,58 @@ export class PostDisplay {
   // Show all new cubes that are displayable.
   // This will handle cubeStore cubeDisplayable events.
   displayPost(key: CubeKey): void {
-    // is this post already displayed?
-    if (this.displayedPosts.has(key.toString('hex'))) return;
+    // get Cube
     const cube = this.cubeStore.getCube(key);
+    const fields: ZwFields = ZwFields.get(cube);
 
     // gather PostData
-    const keystring = key.toString('hex');
-    const text = ZwFields.get(cube).getFirstField(ZwFieldType.PAYLOAD).value.toString();
+    const data: PostData = {};
+    data.key = key;
+    data.keystring = key.toString('hex');
+    data.timestamp = cube.getDate();
+    data.text = fields.getFirstField(ZwFieldType.PAYLOAD).value.toString();
+    this.findAuthor(data);  // this sets data.author and data.authorkey
 
-    let superior: PostData = undefined;
+    // is this post already displayed?
+    if (this.displayedPosts.has(data.keystring)) return;
+
     // is this a reply?
-    const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(key);
-    const reply: ZwRelationship = ZwFields.get(cubeInfo.getCube()).getFirstRelationship(ZwRelationshipType.REPLY_TO);
+    const reply: ZwRelationship = fields.getFirstRelationship(ZwRelationshipType.REPLY_TO);
     if (reply !== undefined) {  // yes
       const originalpostkey: CubeKey = reply.remoteKey;
-      superior = this.displayedPosts.get(originalpostkey.toString('hex'));
-      if (superior.displayElement === undefined) {
+      data.superior = this.displayedPosts.get(originalpostkey.toString('hex'));
+      if (data.superior.displayElement === undefined) {
         // Apparently the original post has not yet been displayed, so let's display it
         this.displayPost(originalpostkey);
-        if (superior.displayElement === undefined) {  // STILL not displayed?!?!
+        if (data.superior.displayElement === undefined) {  // STILL not displayed?!?!
           logger.error("PostDisplay: Failed to display a post because the superior post cannot be displayed. This indicates displayPost was called on a non-displayable post, which should not be done.");
           return;
         }
       }
     }
 
-    // compile all post information into a neat object
-    const data: PostData = {
-      key: keystring,
-      timestamp: cube.getDate(),
-      author: this.getAuthorString(key),
-      text: text,
-      superior: superior,
-    }
     this.view.displayPost(data);  // have the view display the post
-    this.displayedPosts.set(keystring, data);  // remember the displayed post
+    this.displayedPosts.set(data.keystring, data);  // remember the displayed post
   }
 
 
-  redisplayAllCubeAuthors() {
+  redisplayAllCubeAuthors(): void {
     logger.trace("CubeDisplay: Redisplaying all cube authors");
     for (const data of this.displayedPosts.values()) {
-      data.author = this.getAuthorString(Buffer.from(data.key, 'hex'));
+      this.findAuthor(data);  // this (re-)sets data.author and data.authorkey
       this.view.redisplayCubeAuthor(data);
     }
   }
 
-  private getAuthorString(key: CubeKey) {
-    const authorObject: Identity = this.annotationEngine.cubeAuthor(key);
-    let authorstring: string = "";
+  private findAuthor(data: PostData): void {
+    const authorObject: Identity = this.annotationEngine.cubeAuthor(data.key);
     if (authorObject) {
+      data.authorkey = authorObject.key.toString('hex');
       // TODO: display if this authorship information is authenticated,
       // i.e. if it comes from a MUC we trust
-      authorstring = authorObject.name;
+      data.author = authorObject.name;
     } else {
-      authorstring = "Unknown user";
+      data.author = "Unknown user";
     }
-    return authorstring;
   }
 }
