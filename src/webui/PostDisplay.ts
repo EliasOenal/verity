@@ -13,7 +13,7 @@ import { logger } from "../model/logger";
 import { Buffer } from 'buffer';
 
 export interface PostData {
-  key?: CubeKey;
+  binarykey?: CubeKey;
   keystring?: string;
   timestamp?: number;
   author?: string;
@@ -72,15 +72,15 @@ export class PostDisplay {
 
   // Show all new cubes that are displayable.
   // This will handle cubeStore cubeDisplayable events.
-  displayPost(key: CubeKey): void {
+  displayPost(binarykey: CubeKey): void {
     // get Cube
-    const cube = this.cubeStore.getCube(key);
+    const cube = this.cubeStore.getCube(binarykey);
     const fields: ZwFields = ZwFields.get(cube);
 
     // gather PostData
     const data: PostData = {};
-    data.key = key;
-    data.keystring = key.toString('hex');
+    data.binarykey = binarykey;
+    data.keystring = binarykey.toString('hex');
     data.timestamp = cube.getDate();
     data.text = fields.getFirstField(ZwFieldType.PAYLOAD).value.toString();
     this.findAuthor(data);  // this sets data.author and data.authorkey
@@ -117,7 +117,7 @@ export class PostDisplay {
   }
 
   private findAuthor(data: PostData): void {
-    const authorObject: Identity = this.annotationEngine.cubeAuthor(data.key);
+    const authorObject: Identity = this.annotationEngine.cubeAuthor(data.binarykey);
     if (authorObject) {
       data.authorkey = authorObject.key.toString('hex');
       // TODO: display if this authorship information is authenticated,
