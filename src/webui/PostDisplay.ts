@@ -112,8 +112,7 @@ export class PostDisplay {
   redisplayAllCubeAuthors() {
     logger.trace("CubeDisplay: Redisplaying all cube authors");
     for (const data of this.displayedPosts.values()) {
-      const author: Identity = this.annotationEngine.cubeAuthor(Buffer.from(data.key, 'hex'));
-      data.author = author.name;
+      data.author = this.getAuthorString(Buffer.from(data.key, 'hex'));
       this.view.redisplayCubeAuthor(data);
     }
   }

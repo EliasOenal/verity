@@ -54,6 +54,8 @@ module.exports = {
       patterns: [
         { from: './src/webui/index.html' },
 	      { from: './img/vera_250px_nobg.png' },
+        { from: './img/bootstrap.bundle.min.js' },
+        { from: './img/bootstrap.min.css' },
       ]
     }),
    new webpack.ProvidePlugin({
