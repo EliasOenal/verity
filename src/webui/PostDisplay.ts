@@ -91,12 +91,13 @@ export class PostDisplay {
     // is this a reply?
     const reply: ZwRelationship = fields.getFirstRelationship(ZwRelationshipType.REPLY_TO);
     if (reply !== undefined) {  // yes
-      const originalpostkey: CubeKey = reply.remoteKey;
-      data.superior = this.displayedPosts.get(originalpostkey.toString('hex'));
-      if (data.superior.displayElement === undefined) {
+      const superiorPostKey: CubeKey = reply.remoteKey;
+      data.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));
+      if (!data.superior) {
         // Apparently the original post has not yet been displayed, so let's display it
-        this.displayPost(originalpostkey);
-        if (data.superior.displayElement === undefined) {  // STILL not displayed?!?!
+        this.displayPost(superiorPostKey);
+        data.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));
+        if (!data.superior || !data.superior.displayElement) {  // STILL not displayed?!?!
           logger.error("PostDisplay: Failed to display a post because the superior post cannot be displayed. This indicates displayPost was called on a non-displayable post, which should not be done.");
           return;
         }

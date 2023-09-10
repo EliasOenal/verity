@@ -143,15 +143,13 @@ export class Identity {
    * and publish it by inserting it into the CubeStore.
    * (You could also provide a private cubeStore instead, but why should you?)
    */
-  store(required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<any> {
+  async store(required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<void> {
     logger.trace("Identity: Storing identity " + this.name);
-    const muc = this.makeMUC(required_difficulty);
-    const cubeAddPromise: Promise<any> = this.cubeStore.addCube(muc);
+    const muc = await this.makeMUC(required_difficulty);
+    await this.cubeStore.addCube(muc);
     if (this.persistance) {
-      const dbPromise: Promise<void> = this.persistance.store(this);
-      return Promise.all([cubeAddPromise, dbPromise]);
+      await this.persistance.store(this);
     }
-    else return cubeAddPromise;
   }
 
   /**
@@ -161,7 +159,7 @@ export class Identity {
   * changes have been performed to avoid spamming multiple MUC versions
   * (and having to compute hashcash for all of them).
   */
-  makeMUC(required_difficulty = Settings.REQUIRED_DIFFICULTY): Cube {
+  async makeMUC(required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<Cube> {
     // TODO: calculate lengths dynamically so we can always cram as much useful
     // information into the MUC as possible.
     // For now, let's just eyeball it... :D
@@ -204,7 +202,7 @@ export class Identity {
     const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(zwFields);
     const newMuc: Cube = Cube.MUC(this._muc.publicKey, this._muc.privateKey,
       CubeField.Payload(zwData), required_difficulty);
-    newMuc.getBinaryData();  // compile MUC
+    await newMuc.getBinaryData();  // compile MUC
     this._muc = newMuc;
     return newMuc;
   }

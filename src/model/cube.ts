@@ -109,23 +109,11 @@ export class Cube {
     public async getCubeInfo(): Promise<CubeInfo> {
         return new CubeInfo(
             await this.getKey(),
-            this.getBinaryData(),
+            await this.getBinaryData(),
             this.cubeType,
             this.date,
             CubeUtil.countTrailingZeroBits(this.hash),
         );
-    }
-
-    // In contrast to getCubeInfo, populateCubeInfo is useful for
-    // remote-generated cubes.
-    // For those, the CubeStore will generate a CubeInfo object once it learns
-    // of the cube. Once the full cube has been received, this method will be
-    // called.
-    public populateCubeInfo(cubeInfo: CubeInfo) {
-        cubeInfo.binaryCube = this.getBinaryData();
-        cubeInfo.cubeType = this.cubeType,
-        cubeInfo.date = this.date;
-        cubeInfo.challengeLevel = CubeUtil.countTrailingZeroBits(this.hash);
     }
 
     public getVersion(): number {
@@ -243,9 +231,9 @@ export class Cube {
         return this.hash;
     }
 
-    public getBinaryData(): Buffer {
+    public async getBinaryData(): Promise<Buffer> {
         if (this.binaryData === undefined) return this.setBinaryData();
-        if (!this.hash) this.generateCubeHash();
+        if (!this.hash) await this.generateCubeHash();
         return this.binaryData;
     }
 
@@ -376,7 +364,7 @@ export class Cube {
     private async generateCubeHash(): Promise<Buffer> {
         // This is a new cube in the making
         if (this.binaryData === undefined) {
-            this.binaryData = this.getBinaryData();
+            this.binaryData = await this.getBinaryData();
         }
 
         // Fields of new blocks aren't FullFields and don't know their start offset
