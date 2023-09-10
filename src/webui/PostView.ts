@@ -37,8 +37,9 @@ export class PostView {
 
     // Display reply input field
     const replyfield: HTMLParagraphElement = document.createElement("p");
-    replyfield.innerHTML += `<input id="replyinput-${data.key}" type="text" size="60" /> `;
-    replyfield.innerHTML += `<button id="replybutton-${data.key}" onclick="window.verityUI.postReply(document.getElementById('replyinput-${data.key}').value, '${data.key}');">Reply</button>`;
+    replyfield.setAttribute("class", "input-group");
+    replyfield.innerHTML += `<input class="form-control" placeholder="Reply" id="replyinput-${data.key}" type="text" size="60" /> `;
+    replyfield.innerHTML += `<button class="btn btn-primary" id="replybutton-${data.key}" onclick="window.verityUI.postReply(document.getElementById('replyinput-${data.key}').value, '${data.key}');">Post</button>`;
     li.append(replyfield);
 
     // Insert sorted by date
@@ -83,6 +84,7 @@ export class PostView {
       data.superior.displayElement.getElementsByTagName("ul").item(0);
     if (!replylist) {  // no? time to create one
         replylist = document.createElement('ul');
+        replylist.setAttribute("class", "replyposts");
         data.superior.displayElement.appendChild(replylist);
     }
     return replylist;

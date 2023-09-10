@@ -4,39 +4,52 @@
 <head>
   <title>Verity</title>
   <link rel="icon" type="image/png" href="vera_250px_nobg.png">
+  <link href="bootstrap.min.css" rel="stylesheet" integrity="sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9">
+  <script src="bootstrap.bundle.min.js" integrity="sha384-HwwvtgBNo3bZJJLYd8oVXjrBZt8cqVSpeBNS5n7C8IVInixGAoxmnlMuBnhbgrkm"></script>
+
+  <style>
+    ul.replyposts {
+      list-style-type: none;
+    }
+  </style>
+
 </head>
 
-<body>
-    <img src="vera_250px_nobg.png" alt=""/>
+<body><div class="container"><div class="row" id="globalrow">
+  <div class="col-sm-3 px-sm-2" id="leftnav">
 
-    <h3>My Peers</h3>
-    <ul id="peerlist">
-    </ul>
+    <div class="row my-3" id="veralogo">
+      <img src="vera_250px_nobg.png" class="img-fluid py-3" alt="">
+    </div>
 
-    <h3>My Identity</h3>
-    <form id="idform" action="javascript:void(0);" onsubmit="window.verityUI.saveIdentity();">
-      Name: <input type="text" id="idname" size="30" /><br />
-      <input type="submit" value="Save" />
+    <div class="row" id="identityrow">
+      <h5>My Identity</h5>
+      <form class="input-group" id="idform" action="javascript:void(0);" onsubmit="window.verityUI.saveIdentity();">
+        <input class="form-control-sm" type="text" id="idname" placeholder="Choose your user name" required>
+        <button class="btn btn-sm btn-primary" type="submit">Save</button>
+      </form>
+    </div> <!-- identityrow-->
+
+    <div class="row my-3" id="peerrow">
+      <h5 class="my-1">Peers</h5>
+      <ul id="peerlist" class="list-unstyled text-truncate">
+      </ul>
+    </div> <!-- peerrow -->
+  </div> <!-- leftnav -->
+
+  <div class="col-sm-8 offset-sm-1" class="maincontent">
+    <form id="newpostform" class="row my-5 form-floating" action="javascript:void(0);" onsubmit="window.verityUI.makeNewPost(document.getElementById('newcubemsg').value);">
+        <input class="form-control" type="text" id="newcubemsg" placeholder="Make new post" required>
+        <label class="form-label" for="newcubemsg">Make new post</label>
+        <button class="btn btn-primary" id="newcube">Post</button>
     </form>
 
-    <h3>Make new Cube</h3>
-    <p>
-      <label for="newcubemsg">New Cube content:</label>
-      <input type="text" id="newcubemsg" size="60" />
-      <button id="newcube" onclick="window.verityUI.makeNewPost(document.getElementById('newcubemsg').value);">Create</button>
-    </p>
-<!--
-   <p>
-      or make <input type="number" id="randomcubecount" min="1" max="1000" value="5" /> random new Cubes:
-      <button id="randomnewcubes" onclick="makeRandomCubes()">Go</button>
-    </p>
--->
-
-    <h3>My Cubes</h3>
-    <ul id="cubelist">
-    </ul>
+    <div class="row" id="postsrow">
+      <ul id="cubelist" class="list-unstyled">
+      </ul>
+    </div> <!-- postsrow -->
 
     <script src="verityUI.js"></script>
-</body>
-
+  </div> <!-- maincontent -->
+</div></div></body> <!-- globalrow, container and body -->
 </html>
