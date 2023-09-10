@@ -53,7 +53,7 @@ module.exports = {
     new CopyWebpackPlugin({
       patterns: [
         { from: './src/webui/index.html' },
-	      { from: './img/vera_250px_nobg.png' },
+	      { from: './img/vera_300px_nobg.png' },
         { from: './img/bootstrap.bundle.min.js' },
         { from: './img/bootstrap.min.css' },
       ]
