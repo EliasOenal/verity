@@ -1,7 +1,7 @@
 import { VerityNode } from '../model/verityNode';
 import { logger } from '../model/logger'
 
-import { CubeDisplay } from './CubeDisplay';
+import { PostDisplay } from './PostDisplay';
 import { PeerDisplay } from './PeerDisplay';
 import { Identity } from '../viewmodel/identity';
 import { FieldParser } from '../model/fieldParser';
@@ -36,7 +36,7 @@ export class VerityUI {
   annotationEngine: ZwAnnotationEngine;
   identity: Identity;
 
-  cubeDisplay: CubeDisplay = undefined;
+  postDisplay: PostDisplay = undefined;
   peerDisplay: PeerDisplay = undefined;
 
 
@@ -47,11 +47,11 @@ export class VerityUI {
     this.peerDisplay.redisplayPeers();
 
     this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore);
-    this.cubeDisplay = new CubeDisplay(this.node.cubeStore, this.annotationEngine);
+    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine);
   }
 
   shutdown() {
-    this.cubeDisplay.shutdown();
+    this.postDisplay.shutdown();
   }
 
   async initializeIdentity(): Promise<void> {
