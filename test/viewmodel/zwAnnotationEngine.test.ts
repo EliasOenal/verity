@@ -16,6 +16,7 @@ describe('ZwAnnotationEngine', () => {
   beforeEach(async () => {
     await sodium.ready;
     cubeStore = new CubeStore(false, reduced_difficulty);
+    await cubeStore.readyPromise;
     annotationEngine = new ZwAnnotationEngine(cubeStore);
   }, 3000);
 

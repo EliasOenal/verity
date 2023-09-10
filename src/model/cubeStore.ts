@@ -15,6 +15,8 @@ import { Buffer } from 'buffer';
 // application's Identity implementation relies on having our own posts preserved.
 
 export class CubeStore extends EventEmitter {
+  readyPromise: Promise<any>;
+
   private storage: Map<string, CubeInfo> = new Map();
 
   // Refers to the persistant cube storage database, if available and enabled
@@ -29,6 +31,9 @@ export class CubeStore extends EventEmitter {
     this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS + 10);  // one for each peer and a few for ourselves
     this.storage = new Map();
 
+    this.readyPromise = new Promise(resolve => this.once('ready', () => {
+      resolve(undefined);
+    }));
     if (enable_persistence) {
       this.persistence = new CubePersistence();
 
