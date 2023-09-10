@@ -76,11 +76,11 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       }
       const potentialResult: Identity = this.cubeAuthorRecursion(key, muc, muc);
       if (potentialResult) {
-        logger.trace("ZwAnnotationEngine: I found out that the author of cube " + key.toString('hex') + " is " + potentialResult.name);
+        // logger.trace("ZwAnnotationEngine: I found out that the author of cube " + key.toString('hex') + " is " + potentialResult.name);
         return potentialResult;
       }
     }
-    logger.trace("ZwAnnotationEngine: Failed to find author for cube " + key.toString('hex'));
+    // logger.trace("ZwAnnotationEngine: Failed to find author for cube " + key.toString('hex'));
     return undefined;
   }
 

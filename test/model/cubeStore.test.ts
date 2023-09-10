@@ -61,7 +61,7 @@ describe('cubeStore', () => {
     expect(cubeKey).toBeInstanceOf(Buffer);
     expect(cubeKey!.length).toEqual(32);
     expect(cubeStore.getCube(cubeKey!)).toBeDefined();
-    expect(cubeStore.getCube(cubeKey!)!.getBinaryData()).toEqual(validBinaryCube);
+    expect(await (cubeStore.getCube(cubeKey!)!.getBinaryData())).toEqual(validBinaryCube);
   }, 3000);
 
   it('should error when adding a cube with invalid binary data', async () => {
@@ -114,7 +114,7 @@ describe('cubeStore', () => {
     const muckey = await muc.getKey();
     expect(muckey).toEqual(publicKey);
 
-    const binarymuc = muc.getBinaryData();
+    const binarymuc = await muc.getBinaryData();
     expect(binarymuc).toBeDefined();
     const cubeadded = await cubeStore.addCube(binarymuc);
     expect(cubeadded).toEqual(muckey);

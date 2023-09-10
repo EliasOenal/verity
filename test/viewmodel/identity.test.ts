@@ -64,7 +64,7 @@ describe('Identity', () => {
   it('should store and retrieve a minimal Identity to and from a MUC object', async() => {
     const original = new Identity(cubeStore);
     original.name = "Probator Identitatum";
-    const muc = original.makeMUC(reduced_difficulty);
+    const muc = await original.makeMUC(reduced_difficulty);
     expect(muc).toBeInstanceOf(Cube);
     const mucadded = await cubeStore.addCube(muc);
     expect(mucadded).toEqual(original.publicKey);
@@ -91,7 +91,7 @@ describe('Identity', () => {
       toEqual("I got important stuff to say");
 
     // compile ID into MUC
-    const muc = original.makeMUC(reduced_difficulty);
+    const muc = await original.makeMUC(reduced_difficulty);
     expect(muc).toBeInstanceOf(Cube);
 
     // double check everything's in there
@@ -129,12 +129,12 @@ describe('Identity', () => {
     const postkey = (await cubeStore.addCube(await makePost("I got important stuff to say", undefined, original, reduced_difficulty))) as CubeKey;
 
     // compile ID into binary MUC
-    const muc = original.makeMUC(reduced_difficulty);
+    const muc = await original.makeMUC(reduced_difficulty);
     expect(muc).toBeInstanceOf(Cube);
     const muckey = await muc.getKey();
     expect(muckey).toBeInstanceOf(Buffer);
     expect(muckey).toEqual(original.publicKey);
-    const binarymuc = muc.getBinaryData();
+    const binarymuc = await muc.getBinaryData();
     expect(binarymuc).toBeInstanceOf(Buffer);
     const mucadded = await cubeStore.addCube(binarymuc);
     expect(mucadded).toEqual(original.publicKey);
@@ -173,7 +173,8 @@ describe('Identity', () => {
     }
     expect(original.posts.length).toEqual(TESTPOSTCOUNT);
 
-    const muc = await original.store()
+    await original.store()
+    const muc: Cube = original.muc;
     await cubeStore.addCube(muc);
 
     const restored = new Identity(cubeStore, cubeStore.getCube(idkey))

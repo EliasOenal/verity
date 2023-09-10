@@ -83,12 +83,12 @@ describe('cube', () => {
     expect(cube.getFields()).toEqual(fields);
   }, 3000);
 
-  it('should write fields to binary data correctly', () => {
+  it('should write fields to binary data correctly', async () => {
     const cube = new Cube();
     const fields = new CubeFields([
       new CubeField(CubeFieldType.PAYLOAD, 100, Buffer.alloc(100))]);
     cube.setFields(fields);
-    const binaryData = cube.getBinaryData();
+    const binaryData = await cube.getBinaryData();
     // The type and length should be written to the binary data at index 6 and 7
     expect(binaryData[6] & 0xFC).toEqual(CubeFieldType.PAYLOAD);
     expect(binaryData.readUInt8(7)).toEqual(100);
@@ -267,7 +267,7 @@ describe('cube', () => {
     const key = await muc.getKey();
     expect(key).toBeDefined();
 
-    const binMuc: Buffer = muc.getBinaryData();
+    const binMuc: Buffer = await muc.getBinaryData();
 
     // Parse the MUC from binary
     const parsedMuc = new Cube(binMuc);
@@ -292,7 +292,7 @@ describe('cube', () => {
 
     const hash: Buffer = await muc.getHash();
     const key: Buffer = await muc.getKey();
-    const binaryCube = muc.getBinaryData();
+    const binaryCube = await muc.getBinaryData();
 
     expect(key).toEqual(publicKey);
     expect(hash).toEqual(calculateHash(binaryCube));
@@ -315,7 +315,7 @@ describe('cube', () => {
 
   muc.setFields(fields);
 
-  const binaryCube = muc.getBinaryData();
+  const binaryCube = await muc.getBinaryData();
   const key = await muc.getKey();
   const hash = await muc.getHash();
 
@@ -335,7 +335,7 @@ describe('cube', () => {
     const key = await muc.getKey();
     expect(key).toBeDefined();
 
-    const binMuc: Buffer = muc.getBinaryData();
+    const binMuc: Buffer = await muc.getBinaryData();
 
     // Parse the MUC from binary
     const parsedMuc = new Cube(binMuc);
