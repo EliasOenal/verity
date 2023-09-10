@@ -27,16 +27,17 @@ export class CubeStore extends EventEmitter {
     super();
     this.required_difficulty = required_difficulty;
     this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS + 10);  // one for each peer and a few for ourselves
+    this.storage = new Map();
+
     if (enable_persistence) {
       this.persistence = new CubePersistence();
 
-      this.persistence.on('ready', () => {
+      this.persistence.on('ready', async () => {
         logger.trace("cubeStore: received ready event from cubePersistence");
-        this.syncPersistentStorage();
+        await this.syncPersistentStorage();
+        this.emit("ready");
       });
-    }
-
-    this.storage = new Map();
+    } else this.emit("ready");
   }
 
   // TODO: implement importing CubeInfo directly
@@ -50,7 +51,7 @@ export class CubeStore extends EventEmitter {
       let cube: Cube;
       if (cube_input instanceof Cube) {
         cube = cube_input;
-        binaryCube = cube_input.getBinaryData();
+        binaryCube = await cube_input.getBinaryData();
       }
       else if (cube_input instanceof Buffer) { // cube_input instanceof Buffer
         binaryCube = cube_input;
@@ -172,7 +173,7 @@ export class CubeStore extends EventEmitter {
   private async syncPersistentStorage() {
     if (!this.persistence) return;
     for (const rawcube of await this.persistence.requestRawCubes()) {
-      this.addCube(Buffer.from(rawcube));
+      await this.addCube(Buffer.from(rawcube));
     }
     this.persistence.storeCubes(this.storage);
   }

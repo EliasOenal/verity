@@ -93,8 +93,10 @@ async function webmain() {
 
   // construct node and UI
   const node = new VerityNode(lightNode, port, initialPeers, announceToTorrentTrackers);
+  await node.cubeStoreReadyPromise;
+  logger.info("Cube Store is ready");
   const verityUI = await VerityUI.Construct(node);
-  await verityUI.node.onlinePromise;
+  await node.onlinePromise;
   logger.info("Node is online");
 
   // @ts-ignore TypeScript does not like us creating extra window attributes
