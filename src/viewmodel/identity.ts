@@ -13,6 +13,7 @@ import { CubeField, CubeFieldType } from '../model/cubeFields';
 import { CubeStore } from '../model/cubeStore';
 import { FieldParser } from '../model/fieldParser';
 import { Settings } from '../model/config';
+import { ZwConfig } from './zwConfig';
 
 const IDENTITYDB_VERSION = 1;
 
@@ -103,11 +104,18 @@ export class Identity {
   posts: Array<string> = [];  // binary Cube keys (Buffers) don't compare well with standard methods
   // TODO add subscription_recommendations
 
+  /** When the user tries to rebuild their Identity MUC too often, we'll
+   * remember their request in this promise. Any subsequent Identity changes
+   * will then be handles in a single rebuild.
+   */
+  private makeMucPromise: Promise<Cube> = undefined;
+
   constructor(
       cubeStore: CubeStore,
       muc: Cube = undefined,
       persistance: IdentityPersistance = undefined,
-      createByDefault = true) {
+      createByDefault = true,
+      private minMucRebuildDelay = ZwConfig.MIN_MUC_REBUILD_DELAY) {
     this.cubeStore = cubeStore;
     this.persistance = persistance;
     if (muc) this.parseMuc(muc);
@@ -143,13 +151,14 @@ export class Identity {
    * and publish it by inserting it into the CubeStore.
    * (You could also provide a private cubeStore instead, but why should you?)
    */
-  async store(required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<void> {
+  async store(required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<Cube> {
     logger.trace("Identity: Storing identity " + this.name);
     const muc = await this.makeMUC(required_difficulty);
     await this.cubeStore.addCube(muc);
     if (this.persistance) {
       await this.persistance.store(this);
     }
+    return muc;
   }
 
   /**
@@ -160,6 +169,28 @@ export class Identity {
   * (and having to compute hashcash for all of them).
   */
   async makeMUC(required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<Cube> {
+    // Make sure we don't rebuild our MUC too often. This is to limit spam,
+    // reduce local hash cash load and to prevent rapid subsequent changes to
+    // be lost due to our one second minimum time resolution.
+    let makeMucPromiseResolve: Function;
+    if (this.makeMucPromise) {
+      // MUC rebuild already scheduled, just return it:
+      return this.makeMucPromise;
+    }
+    else {
+      // Register our run so there will be no other concurrent attempts
+      this.makeMucPromise = new Promise(function(resolve){
+        makeMucPromiseResolve = resolve;
+      });
+    }
+
+    // If the last MUC rebuild was too short a while ago, wait a little.
+    const earliestAllowed: number = this.muc.getDate() + this.minMucRebuildDelay;
+    if (Math.floor(Date.now() / 1000) < earliestAllowed) {
+      const waitFor = earliestAllowed - (Math.floor(Date.now() / 1000));
+      await new Promise(resolve => setTimeout(resolve, waitFor*1000));
+    }
+
     // TODO: calculate lengths dynamically so we can always cram as much useful
     // information into the MUC as possible.
     // For now, let's just eyeball it... :D
@@ -204,6 +235,9 @@ export class Identity {
       CubeField.Payload(zwData), required_difficulty);
     await newMuc.getBinaryData();  // compile MUC
     this._muc = newMuc;
+
+    makeMucPromiseResolve(newMuc);
+    this.makeMucPromise = undefined;  // all done, no more open promises!
     return newMuc;
   }
 

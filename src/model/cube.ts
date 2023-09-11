@@ -400,7 +400,7 @@ export class Cube {
         else findValidHashFunc = this.findValidHash;
         this.hash = await findValidHashFunc.call(this, indexNonce, indexSignature);
 
-        logger.info("cube: Using hash " + this.hash.toString('hex') + "as cubeKey");
+        // logger.info("cube: Using hash " + this.hash.toString('hex') + "as cubeKey");
         this.cubeKey = this.hash;
         if (mucField !== undefined && this._publicKey !== undefined) {
             // MUCs use the public key as the cube key
@@ -449,7 +449,7 @@ export class Cube {
      */
     // Non-worker version kept for browser portability
     private async findValidHash(nonceStartIndex: number, signatureStartIndex: number | undefined = undefined): Promise<Buffer> {
-        logger.trace("Running findValidHash (non-worker)");
+        // logger.trace("Cube: Running findValidHash (non-worker)");
         await sodium.ready;
         return new Promise((resolve) => {
             let nonce: number = 0;
@@ -477,7 +477,7 @@ export class Cube {
                     hash = CubeUtil.calculateHash(this.binaryData);
                     // Check if the hash is valid
                     if (CubeUtil.countTrailingZeroBits(hash) >= this.required_difficulty) {
-                        logger.debug("Found valid hash with nonce " + nonce);
+                        // logger.trace("Cube: Found valid hash with nonce " + nonce);
                         resolve(hash);
                         return;  // This is important! It stops the for loop and the function if a valid hash is found
                     }

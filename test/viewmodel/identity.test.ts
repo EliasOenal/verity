@@ -6,6 +6,7 @@ import sodium from 'libsodium-wrappers'
 import { CubeStore } from '../../src/model/cubeStore';
 import { makePost } from '../../src/viewmodel/zwCubes';
 import { ZwFieldType, ZwFields, ZwRelationshipType } from '../../src/viewmodel/zwFields';
+import { logger } from '../../src/model/logger';
 
 describe('Identity', () => {
   let persistance: IdentityPersistance;
@@ -46,8 +47,8 @@ describe('Identity', () => {
       id.persistance = persistance;
       expect(id.name).toBeUndefined();
       id.name = "Probator Identitatum";
-      const storePromise: Promise<void> = id.store();
-      expect(storePromise).toBeInstanceOf(Promise<void>);
+      const storePromise: Promise<Cube> = id.store(reduced_difficulty);
+      expect(storePromise).toBeInstanceOf(Promise<Cube>);
       await storePromise;
     }
     { // phase 2: retrieve, compare and delete the identity
@@ -59,7 +60,7 @@ describe('Identity', () => {
       expect(restoredId.name).toEqual("Probator Identitatum");
       expect(restoredId.key).toEqual(idkey);
     }
-  }, 5000);
+  }, 10000);
 
   it('should store and retrieve a minimal Identity to and from a MUC object', async() => {
     const original = new Identity(cubeStore);
@@ -74,7 +75,7 @@ describe('Identity', () => {
     const restored = new Identity(cubeStore, restoredmuc);
     expect(restored).toBeInstanceOf(Identity);
     expect(restored.name).toEqual("Probator Identitatum");
-  });
+  }, 10000);
 
   it('should store and retrieve an Identity to and from a MUC object', async () => {
     const original = new Identity(cubeStore);
@@ -117,7 +118,7 @@ describe('Identity', () => {
     expect(restored.posts.length).toEqual(1);
     expect(ZwFields.get(cubeStore.getCube(restored.posts[0]) as Cube).getFirstField(ZwFieldType.PAYLOAD).value.toString('utf-8')).
       toEqual("I got important stuff to say");
-  });
+  }, 10000);
 
   it('should store and retrieve an Identity to and from a binary MUC', async () => {
     const original = new Identity(cubeStore);
@@ -150,15 +151,42 @@ describe('Identity', () => {
     expect(restored.posts.length).toEqual(1);
     expect(ZwFields.get(cubeStore.getCube(restored.posts[0]) as Cube).getFirstField(ZwFieldType.PAYLOAD).value.toString('utf-8')).
       toEqual("I got important stuff to say");
-  });
+  }, 10000);
 
-  // This wastes incredible amounts of CPU time for hash-cashing 100 posts.
-  // We should dynamically reduce hash difficulty to 0 just for this test.
-  // Until we do that, we'll keep this test skipped.
-  // Also, to check for correct order by date we currently wait one second between
-  // posts creations as we only store date with one second resolution. So 100
-  // seconds of this test are actually just spent waiting.
-  // We either need to redesign this test completely or it will stay eternally skipped.
+  it('correctly handles subsequent changes', async () => {
+    const id = new Identity(cubeStore, undefined, undefined, true, 1);  // reduce min time between MUCs to one second for this test
+    id.name = "Probator Identitatum";
+    const firstMuc: Cube = await id.store(reduced_difficulty);
+    const firstMucHash: Buffer = firstMuc.getHashIfAvailable();
+    expect(firstMuc).toBeInstanceOf(Cube);
+    expect(firstMucHash).toBeInstanceOf(Buffer);
+    expect(id.name).toEqual("Probator Identitatum");
+    expect(id.profilepic).toBeUndefined();
+    expect(id.keyBackupCube).toBeUndefined();
+
+    id.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
+    id.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
+    const secondMuc: Cube = await id.store(reduced_difficulty)
+    const secondMucHash: Buffer = secondMuc.getHashIfAvailable();
+    expect(secondMuc).toBeInstanceOf(Cube);
+    expect(secondMucHash).toBeInstanceOf(Buffer);
+    expect(secondMucHash.equals(firstMucHash)).toBeFalsy();
+    expect(id.name).toEqual("Probator Identitatum");
+    expect(id.profilepic).toBeInstanceOf(Buffer);
+    expect(id.keyBackupCube).toBeInstanceOf(Buffer);
+
+    id.name = "Probator Identitatum Repetitus";
+    const thirdMuc: Cube = await id.store(reduced_difficulty)
+    const thirdMucHash: Buffer = thirdMuc.getHashIfAvailable();
+    expect(thirdMuc).toBeInstanceOf(Cube);
+    expect(thirdMucHash).toBeInstanceOf(Buffer);
+    expect(thirdMucHash.equals(firstMucHash)).toBeFalsy();
+    expect(thirdMucHash.equals(secondMucHash)).toBeFalsy();
+    expect(id.name).toEqual("Probator Identitatum Repetitus");
+    expect(id.profilepic).toBeInstanceOf(Buffer);
+    expect(id.keyBackupCube).toBeInstanceOf(Buffer);
+  }, 30000);
+
   it('restores its post list recursively and sorted by creation time descending', async () => {
     const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
     const original: Identity = new Identity(cubeStore);
@@ -168,12 +196,12 @@ describe('Identity', () => {
     for (let i=0; i<TESTPOSTCOUNT; i++) {
       const post: Cube = await makePost("I got " + (i+1).toString() + " important things to say", undefined, original, reduced_difficulty);
       // @ts-ignore Fake private field date to avoid this test taking forever
-      post.date = 1694284300 + i;
+      post.date = 1694284300 + i;  // now you know when this test was written!
       await cubeStore.addCube(post);
     }
     expect(original.posts.length).toEqual(TESTPOSTCOUNT);
 
-    await original.store()
+    await original.store(reduced_difficulty)
     const muc: Cube = original.muc;
     await cubeStore.addCube(muc);
 
@@ -187,5 +215,37 @@ describe('Identity', () => {
       expect(restoredPost!.getDate()).toBeLessThanOrEqual(newerPost!.getDate());
       newerPost = restoredPost;
     }
-  }, 300000);
+  }, 10000);
+
+  it('combines makeMUC requests spaced less than 5 seconds apart', async () => {
+    const id: Identity = new Identity(cubeStore);
+    // Creating a new Identity does build a MUC, although it will never be compiler
+    // nor added to the CubeStore.
+    // The five second minimum delay till regeneration still applies.
+    const firstMuc = id.muc;
+    const firstMucDate = firstMuc.getDate();
+
+    id.name = "Probator Distantiae Temporis";
+    // store() now requests generation of a new, second MUC.
+    // This will not happen, though, as the first MUC is less than five seconds old.
+    // Instead, the operation will be rescheduled five seconds from now.
+    id.store(reduced_difficulty);  // note there's no "await"
+
+    id.name = "Probator Minimae Distantiae Temporis";
+    const thirdMuc: Cube = await id.store(reduced_difficulty);  // with await this time
+    expect(thirdMuc).toEqual(id.muc);
+    expect(thirdMuc.getHashIfAvailable()).toEqual(id.muc.getHashIfAvailable());
+    const thirdMucDate = thirdMuc.getDate();
+
+    // First (=preliminary) MUC and actual content-bearing MUC should not be equal
+    expect(firstMuc).not.toEqual(thirdMuc);
+
+    // MUCs should be spaced at least 5 seconds apart, indicating minimum
+    // distance has been observed.
+    // They should be spaced less than 10 seconds apart, indicating the two store()
+    // opeations have been combined into one.
+    const mucTimeDistance = thirdMucDate - firstMucDate;
+    expect(mucTimeDistance).toBeGreaterThanOrEqual(5);
+    expect(mucTimeDistance).toBeLessThanOrEqual(10);
+  }, 20000);
 });
