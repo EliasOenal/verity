@@ -1,14 +1,14 @@
-import { Cube, CubeKey } from "../model/cube";
-import { CubeInfo } from "../model/cubeInfo";
-import { CubeStore } from "../model/cubeStore";
+import { Cube, CubeKey } from "../core/cube";
+import { CubeInfo } from "../core/cubeInfo";
+import { CubeStore } from "../core/cubeStore";
 
-import { Identity } from "../viewmodel/identity";
-import { ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "../viewmodel/zwFields";
-import { ZwAnnotationEngine } from "../viewmodel/zwAnnotationEngine";
+import { Identity } from "../app/identity";
+import { ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "../app/zwFields";
+import { ZwAnnotationEngine } from "../app/zwAnnotationEngine";
 
 import { PostView } from "./PostView";
 
-import { logger } from "../model/logger";
+import { logger } from "../core/logger";
 
 import { Buffer } from 'buffer';
 

@@ -1,18 +1,18 @@
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
-import { Cube, CubeKey } from '../model/cube';
-import { logger } from '../model/logger';
+import { Cube, CubeKey } from '../core/cube';
+import { logger } from '../core/logger';
 
 import { Level } from 'level';
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { BaseField, BaseRelationship } from '../model/baseFields';
+import { BaseField, BaseRelationship } from '../core/baseFields';
 import { ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from './zwFields';
-import { CubeError } from '../model/cubeDefinitions';
+import { CubeError } from '../core/cubeDefinitions';
 
 import { Buffer } from 'buffer';
-import { CubeField, CubeFieldType } from '../model/cubeFields';
-import { CubeStore } from '../model/cubeStore';
-import { FieldParser } from '../model/fieldParser';
-import { Settings } from '../model/config';
+import { CubeField, CubeFieldType } from '../core/cubeFields';
+import { CubeStore } from '../core/cubeStore';
+import { FieldParser } from '../core/fieldParser';
+import { Settings } from '../core/config';
 import { ZwConfig } from './zwConfig';
 
 const IDENTITYDB_VERSION = 1;

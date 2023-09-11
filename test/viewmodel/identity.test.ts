@@ -1,12 +1,12 @@
-import { Identity, IdentityPersistance } from '../../src/viewmodel/identity'
-import { Cube, CubeKey } from '../../src/model/cube'
-import { NetConstants } from '../../src/model/networkDefinitions';
+import { Identity, IdentityPersistance } from '../../src/app/identity'
+import { Cube, CubeKey } from '../../src/core/cube'
+import { NetConstants } from '../../src/core/networkDefinitions';
 
 import sodium from 'libsodium-wrappers'
-import { CubeStore } from '../../src/model/cubeStore';
-import { makePost } from '../../src/viewmodel/zwCubes';
-import { ZwFieldType, ZwFields, ZwRelationshipType } from '../../src/viewmodel/zwFields';
-import { logger } from '../../src/model/logger';
+import { CubeStore } from '../../src/core/cubeStore';
+import { makePost } from '../../src/app/zwCubes';
+import { ZwFieldType, ZwFields, ZwRelationshipType } from '../../src/app/zwFields';
+import { logger } from '../../src/core/logger';
 
 describe('Identity', () => {
   let persistance: IdentityPersistance;

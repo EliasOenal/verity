@@ -1,14 +1,14 @@
-import { NetworkManager } from '../../src/model/networkManager';
-import { NetworkPeer } from '../../src/model/networkPeer';
-import { CubeStore } from '../../src/model/cubeStore';
-import { Cube, CubeKey } from '../../src/model/cube';
-import { CubeField, CubeFieldType, CubeFields, cubeFieldDefinition } from '../../src/model/cubeFields';
-import { PeerDB, Peer } from '../../src/model/peerDB';
-import { logger } from '../../src/model/logger';
+import { NetworkManager } from '../../src/core/networkManager';
+import { NetworkPeer } from '../../src/core/networkPeer';
+import { CubeStore } from '../../src/core/cubeStore';
+import { Cube, CubeKey } from '../../src/core/cube';
+import { CubeField, CubeFieldType, CubeFields, cubeFieldDefinition } from '../../src/core/cubeFields';
+import { PeerDB, Peer } from '../../src/core/peerDB';
+import { logger } from '../../src/core/logger';
 
 import WebSocket from 'isomorphic-ws';
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { FieldParser } from '../../src/model/fieldParser';
+import { FieldParser } from '../../src/core/fieldParser';
 
 describe('networkManager', () => {
     beforeEach((done) => {

@@ -1,8 +1,8 @@
-import { Cube, CubeKey } from "../model/cube";
-import { CubeMeta, CubeInfo } from "../model/cubeInfo";
-import { CubeStore } from "../model/cubeStore";
-import { logger } from "../model/logger";
-import { AnnotationEngine } from "./annotationEngine";
+import { Cube, CubeKey } from "../core/cube";
+import { CubeMeta, CubeInfo } from "../core/cubeInfo";
+import { CubeStore } from "../core/cubeStore";
+import { logger } from "../core/logger";
+import { AnnotationEngine } from "../core/annotationEngine";
 import { Identity } from "./identity";
 import { MediaTypes, ZwFieldLengths, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "./zwFields";
 

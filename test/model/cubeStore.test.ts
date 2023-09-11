@@ -1,8 +1,8 @@
-import { Cube, CubeKey } from '../../src/model/cube';
-import { CubeStore as CubeStore } from '../../src/model/cubeStore';
+import { Cube, CubeKey } from '../../src/core/cube';
+import { CubeStore as CubeStore } from '../../src/core/cubeStore';
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { CubeField, CubeFieldType, CubeFields, CubeRelationshipType, CubeRelationship } from '../../src/model/cubeFields';
-import { InsufficientDifficulty } from '../../src/model/cubeDefinitions';
+import { CubeField, CubeFieldType, CubeFields, CubeRelationshipType, CubeRelationship } from '../../src/core/cubeFields';
+import { InsufficientDifficulty } from '../../src/core/cubeDefinitions';
 
 describe('cubeStore', () => {
   let cubeStore: CubeStore;

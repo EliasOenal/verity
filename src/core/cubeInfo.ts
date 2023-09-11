@@ -30,7 +30,7 @@ export interface CubeMeta {
  *
  * There's a third state that's not actually relevant in the context of CubeInfo
  * or in fact anywhere in the core library, but it still exists and is tracked by
- * viemodel/AnnotationEngine:
+ * AnnotationEngine:
  * - incomplete: It means we have heard of this cube and know its key (e.g. because
  *               it was referenced in a RELATES_TO field) but we have not received
  *               the actual cube yet. There is no CubeInfo for incomplete cubes.

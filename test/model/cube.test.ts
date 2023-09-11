@@ -1,14 +1,14 @@
 // cube.test.ts
-import { Settings } from '../../src/model/config';
-import { NetConstants } from '../../src/model/networkDefinitions';
-import { BinaryLengthError, CUBE_HEADER_LENGTH, FieldError, FieldSizeError, InsufficientDifficulty } from '../../src/model/cubeDefinitions';
-import { Cube } from '../../src/model/cube';
+import { Settings } from '../../src/core/config';
+import { NetConstants } from '../../src/core/networkDefinitions';
+import { BinaryLengthError, CUBE_HEADER_LENGTH, FieldError, FieldSizeError, InsufficientDifficulty } from '../../src/core/cubeDefinitions';
+import { Cube } from '../../src/core/cube';
 import { Buffer } from 'buffer';
-import { calculateHash, countTrailingZeroBits } from '../../src/model/cubeUtil';
-import { FieldParser } from '../../src/model/fieldParser';
+import { calculateHash, countTrailingZeroBits } from '../../src/core/cubeUtil';
+import { FieldParser } from '../../src/core/fieldParser';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { CubeField, CubeFieldType, CubeFields } from '../../src/model/cubeFields';
+import { CubeField, CubeFieldType, CubeFields } from '../../src/core/cubeFields';
 
 describe('cube', () => {
   // This test parses a bit weirdly, the zero fill after the nonce decodes into additional TLV fields of length 0

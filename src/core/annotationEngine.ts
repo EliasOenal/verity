@@ -1,11 +1,11 @@
-import { CubeStore } from '../model/cubeStore';
-import { CubeInfo, CubeMeta } from '../model/cubeInfo'
-import { Cube, CubeKey } from '../model/cube';
-import { logger } from '../model/logger';
+import { CubeStore } from './cubeStore';
+import { CubeInfo, CubeMeta } from './cubeInfo'
+import { Cube, CubeKey } from './cube';
+import { logger } from './logger';
 
 import { EventEmitter } from 'events';
-import { CubeRelationship } from '../model/cubeFields';
-import { BaseFields, BaseRelationship } from '../model/baseFields';
+import { CubeRelationship } from './cubeFields';
+import { BaseFields, BaseRelationship } from './baseFields';
 
 import { Buffer } from 'buffer';
 
