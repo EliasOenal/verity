@@ -337,6 +337,8 @@ export class IdentityPersistance {
     }
   }
 
+  // TODO: Ensure this does not get called more than once a second, otherwise
+  // the updated cube will lose the CubeContest and not actually be stored
   store(id: Identity): Promise<void> {
     if (this.db.status != 'open') {
       logger.error("IdentityPersistance: Could not store identity, DB not open");
