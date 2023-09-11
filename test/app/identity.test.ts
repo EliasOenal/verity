@@ -9,61 +9,20 @@ import { ZwFieldType, ZwFields, ZwRelationshipType } from '../../src/app/zwField
 import { logger } from '../../src/core/logger';
 
 describe('Identity', () => {
-  let persistance: IdentityPersistance;
   let cubeStore: CubeStore;
 
   const reduced_difficulty = 0;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     await sodium.ready;
-    // Open the DB and make sure it's empty
-    persistance = await IdentityPersistance.create("testidentity");
-    await persistance.deleteAll();
-    cubeStore = new CubeStore(false, reduced_difficulty);  // require no hashcash for faster testing
-    const ids: Array<Identity> = await persistance.retrieve(cubeStore);
-    expect(ids).toBeDefined();
-    expect(ids.length).toEqual(0);
-});
-
-  afterEach(async () => {
-    // Empty the DB and then close it
-    await persistance.deleteAll();
-    const ids: Array<Identity> = await persistance.retrieve(cubeStore);
-    expect(ids).toBeDefined();
-    expect(ids.length).toEqual(0);
-    await persistance.close();
   });
 
-  it('should store and retrieve an Identity locally', async () => {
-    {  // expect DB to be empty at the beginning
-      const ids: Array<Identity> = await persistance.retrieve(cubeStore);
-      expect(ids.length).toEqual(0);
-    }
-
-    let idkey: CubeKey | undefined = undefined;
-    {  // phase 1: create new identity and store it
-      const id = new Identity(cubeStore);
-      idkey = id.key;
-      id.persistance = persistance;
-      expect(id.name).toBeUndefined();
-      id.name = "Probator Identitatum";
-      const storePromise: Promise<Cube> = id.store(reduced_difficulty);
-      expect(storePromise).toBeInstanceOf(Promise<Cube>);
-      await storePromise;
-    }
-    { // phase 2: retrieve, compare and delete the identity
-      const restoredIdsPromise: Promise<Identity[]> = persistance.retrieve(cubeStore);
-      expect(restoredIdsPromise).toBeInstanceOf(Promise<Identity[]>);
-      const restoredIds: Array<Identity> = await restoredIdsPromise;
-      expect(restoredIds.length).toEqual(1);
-      const restoredId: Identity = restoredIds[0];
-      expect(restoredId.name).toEqual("Probator Identitatum");
-      expect(restoredId.key).toEqual(idkey);
-    }
-  }, 10000);
+  beforeEach(async () => {
+    cubeStore = new CubeStore(false, reduced_difficulty);  // require no hashcash for faster testing
+  });
 
   it('should store and retrieve a minimal Identity to and from a MUC object', async() => {
-    const original = new Identity(cubeStore);
+    const original: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduced minimum MUC rebuild time for faster tests
     original.name = "Probator Identitatum";
     const muc = await original.makeMUC(reduced_difficulty);
     expect(muc).toBeInstanceOf(Cube);
@@ -78,7 +37,7 @@ describe('Identity', () => {
   }, 10000);
 
   it('should store and retrieve an Identity to and from a MUC object', async () => {
-    const original = new Identity(cubeStore);
+    const original: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduced minimum MUC rebuild time for faster tests
 
     // populate ID
     original.name = "Probator Identitatum";
@@ -121,7 +80,7 @@ describe('Identity', () => {
   }, 10000);
 
   it('should store and retrieve an Identity to and from a binary MUC', async () => {
-    const original = new Identity(cubeStore);
+    const original: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduced minimum MUC rebuild time for faster tests
 
     // populate ID
     original.name = "Probator Identitatum";
@@ -189,7 +148,7 @@ describe('Identity', () => {
 
   it('restores its post list recursively and sorted by creation time descending', async () => {
     const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
-    const original: Identity = new Identity(cubeStore);
+    const original: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduced minimum MUC rebuild time for faster tests
     original.name = "Probator memoriae tabellae";
     const idkey = original.publicKey;
 
@@ -248,4 +207,55 @@ describe('Identity', () => {
     expect(mucTimeDistance).toBeGreaterThanOrEqual(5);
     expect(mucTimeDistance).toBeLessThanOrEqual(10);
   }, 20000);
+
+
+  describe('local persistant storage', () => {
+    let persistance: IdentityPersistance;
+
+    beforeEach(async () => {
+      // Open the DB and make sure it's empty
+      persistance = await IdentityPersistance.create("testidentity");
+      await persistance.deleteAll();
+      const ids: Array<Identity> = await persistance.retrieve(cubeStore);
+      expect(ids).toBeDefined();
+      expect(ids.length).toEqual(0);
+    });
+
+    afterEach(async () => {
+      // Empty the DB and then close it
+      await persistance.deleteAll();
+      const ids: Array<Identity> = await persistance.retrieve(cubeStore);
+      expect(ids).toBeDefined();
+      expect(ids.length).toEqual(0);
+      await persistance.close();
+    });
+
+    it('should store and retrieve an Identity locally', async () => {
+      {  // expect DB to be empty at the beginning
+        const ids: Array<Identity> = await persistance.retrieve(cubeStore);
+        expect(ids.length).toEqual(0);
+      }
+
+      let idkey: CubeKey | undefined = undefined;
+      {  // phase 1: create new identity and store it
+        const id: Identity = new Identity(cubeStore, undefined, persistance, true, 1);  // reduced minimum MUC rebuild time for faster tests
+        idkey = id.key;
+        expect(id.name).toBeUndefined();
+        id.name = "Probator Identitatum";
+        const storePromise: Promise<Cube> = id.store(reduced_difficulty);
+        expect(storePromise).toBeInstanceOf(Promise<Cube>);
+        await storePromise;
+      }
+      { // phase 2: retrieve, compare and delete the identity
+        const restoredIdsPromise: Promise<Identity[]> = persistance.retrieve(cubeStore);
+        expect(restoredIdsPromise).toBeInstanceOf(Promise<Identity[]>);
+        const restoredIds: Array<Identity> = await restoredIdsPromise;
+        expect(restoredIds.length).toEqual(1);
+        const restoredId: Identity = restoredIds[0];
+        expect(restoredId.name).toEqual("Probator Identitatum");
+        expect(restoredId.key).toEqual(idkey);
+      }
+    }, 10000);
+  });  // local persistant storage tests
+
 });

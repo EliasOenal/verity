@@ -86,7 +86,7 @@ describe('ZwAnnotationEngine', () => {
 
   describe('cube ownership', () => {
     it('should remember Identity MUCs', async () => {
-      const id: Identity = new Identity(cubeStore);
+      const id: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduced minimum MUC rebuild time for faster tests
       id.name = "Probator Annotationem";
       await id.store(reduced_difficulty);
 
@@ -110,7 +110,7 @@ describe('ZwAnnotationEngine', () => {
     });
 
     it('should identify the author of a post directly referred to from a MUC', async () => {
-      const id: Identity = new Identity(cubeStore);
+      const id: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduced minimum MUC rebuild time for faster tests
       id.name = "Probator Attributionis Auctoris";
       const post: Cube = await makePost("I got important stuff to say", undefined, id, reduced_difficulty);
       await cubeStore.addCube(post);
@@ -126,6 +126,7 @@ describe('ZwAnnotationEngine', () => {
 
     // This test is a bit lengthy and convoluted as I was chasing a Heisenbug
     // involving the MUC's key suddenly becoming undefined.
+    // SKIPPED due to execution time (min time between MUC updates)
     it('should identify the author multiple times while other stuff takes place', async () => {
       // create and store identity
       const id: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduce min time between MUCs to one second for this test
@@ -263,7 +264,7 @@ describe('ZwAnnotationEngine', () => {
     }, 30000);
 
     it('should identify the author of a post after the key was converted to a string', async () => {
-      const id: Identity = new Identity(cubeStore);
+      const id: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduced minimum MUC rebuild time for faster tests
       id.name = "Probator Attributionis Auctoris";
       const post: Cube = await makePost("I got important stuff to say", undefined, id, reduced_difficulty);
       await cubeStore.addCube(post);
@@ -279,7 +280,7 @@ describe('ZwAnnotationEngine', () => {
 
     it('should identify the author of a post indirectly referred to through other posts', async () => {
       const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
-      const id: Identity = new Identity(cubeStore);
+      const id: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduced minimum MUC rebuild time for faster tests
       id.name = "Probator Attributionis Auctoris";
       const posts: CubeKey[] = [];
 
