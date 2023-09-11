@@ -19,7 +19,13 @@ cd dist
 node fullNode.js
 ```
 
+## Building the Web Node ##
+```
+npm run webpack
+```
+Then open `distweb/index.html` in a browser.
+
 ## Tests ##
 ```
-jest
+npm test
 ```
