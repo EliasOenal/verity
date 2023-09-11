@@ -1,5 +1,6 @@
 import { Cube, CubeKey } from "../../src/model/cube";
 import { CubeField, CubeFields, CubeRelationship, CubeRelationshipType } from "../../src/model/cubeFields";
+import { CubeInfo } from "../../src/model/cubeInfo";
 import { CubeStore } from "../../src/model/cubeStore";
 import { AnnotationEngine } from "../../src/viewmodel/annotationEngine";
 import { Identity } from "../../src/viewmodel/identity";
@@ -7,6 +8,7 @@ import { ZwAnnotationEngine } from "../../src/viewmodel/zwAnnotationEngine";
 import { makePost } from "../../src/viewmodel/zwCubes"
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
+import { ZwField, ZwFields, ZwRelationship, ZwRelationshipType } from "../../src/viewmodel/zwFields";
 
 describe('ZwAnnotationEngine', () => {
   let cubeStore: CubeStore;
@@ -125,15 +127,15 @@ describe('ZwAnnotationEngine', () => {
     // This test is a bit lengthy and convoluted as I was chasing a Heisenbug
     // involving the MUC's key suddenly becoming undefined.
     // It did not help in finding the bug.
-    it('should identify the author multiple times while other stuff takes place', async () => {
+    it.only('should identify the author multiple times while other stuff takes place', async () => {
       // create and store identity
       const id: Identity = new Identity(cubeStore);
       id.name = "Probator Attributionis Auctoris";
       expect(id.muc).toBeInstanceOf(Cube);
       await id.store();
-      const firstIdKey = id.muc.getKeyIfAvailable();
+      const idKey = id.muc.getKeyIfAvailable();
       expect(id.muc).toBeInstanceOf(Cube);
-      expect(firstIdKey).toBeInstanceOf(Buffer);
+      expect(idKey).toBeInstanceOf(Buffer);
       const preliminaryIdHash = id.muc.getHashIfAvailable();
       expect(preliminaryIdHash).toBeInstanceOf(Buffer);
 
@@ -145,18 +147,41 @@ describe('ZwAnnotationEngine', () => {
       expect(id.muc).toBeInstanceOf(Cube);
       const secondIdKey = id.muc.getKeyIfAvailable();
       expect(secondIdKey).toBeInstanceOf(Buffer);
-      expect(firstIdKey.equals(secondIdKey)).toBeTruthy();
-      const idHash = id.muc.getHashIfAvailable();
-      expect(idHash).toBeInstanceOf(Buffer);
-      expect(preliminaryIdHash.equals(idHash)).toBeFalsy();
+      expect(idKey.equals(secondIdKey)).toBeTruthy();
+      const firstIdHash = id.muc.getHashIfAvailable();
+      expect(firstIdHash).toBeInstanceOf(Buffer);
+      expect(preliminaryIdHash.equals(firstIdHash)).toBeFalsy();
+
+      // make sure the new post is referenced directly in the MUC
+      let mucRelToPost: any = undefined;
+      for (const rel of ZwFields.get(id.muc).getRelationships(ZwRelationshipType.MYPOST)) {
+        if (rel.remoteKey.equals(postKey)) mucRelToPost = rel;
+      }
+      expect(mucRelToPost).toBeInstanceOf(ZwRelationship);
+
+      // Wait for the annotationEngine to take note of the MUC change.
+      // This is event driven, so it may take a short while.
+      // In production use this is not an issue as inter-node Cube sync time
+      // will be orders of magnitude longer anyway.
+      for (let i = 0; i < 30; i++) {
+        const mucInAnnotationEngine: CubeInfo = annotationEngine.identityMucs.get(idKey.toString('hex'))!;
+        if(mucInAnnotationEngine.getCube()!.getHashIfAvailable().equals(firstIdHash)) break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      const mucInAnnotationEngine: CubeInfo = annotationEngine.identityMucs.get(idKey.toString('hex'))!;
+      expect(mucInAnnotationEngine).toBeInstanceOf(CubeInfo);
+      expect(mucInAnnotationEngine.key).toBeInstanceOf(Buffer);
+      expect(mucInAnnotationEngine.key.equals(idKey)).toBeTruthy();
+      expect(mucInAnnotationEngine.getCube()!.getKeyIfAvailable()).toEqual(idKey);
 
       {  // check 1
       const restoredAuthor: Identity = annotationEngine.cubeAuthor(postKey);
+      expect(restoredAuthor).toBeDefined();
       expect(restoredAuthor.muc).toBeInstanceOf(Cube);
       expect(restoredAuthor.muc.getKeyIfAvailable()).toBeInstanceOf(Buffer);
       expect(restoredAuthor.muc.getKeyIfAvailable().equals(id.muc.getKeyIfAvailable())).toBeTruthy();
       expect(restoredAuthor.muc.getHashIfAvailable()).toBeInstanceOf(Buffer);
-      expect(restoredAuthor.muc.getHashIfAvailable().equals(idHash)).toBeTruthy();
+      expect(restoredAuthor.muc.getHashIfAvailable().equals(firstIdHash)).toBeTruthy();
       expect(restoredAuthor).toBeInstanceOf(Identity);
       expect(restoredAuthor.name).
         toEqual("Probator Attributionis Auctoris");
@@ -178,7 +203,7 @@ describe('ZwAnnotationEngine', () => {
         expect(restoredAuthor.muc.getKeyIfAvailable()).toBeInstanceOf(Buffer);
         expect(restoredAuthor.muc.getKeyIfAvailable().equals(id.muc.getKeyIfAvailable())).toBeTruthy();
         expect(restoredAuthor.muc.getHashIfAvailable()).toBeInstanceOf(Buffer);
-        expect(restoredAuthor.muc.getHashIfAvailable().equals(idHash)).toBeTruthy();
+        expect(restoredAuthor.muc.getHashIfAvailable().equals(firstIdHash)).toBeTruthy();
           expect(restoredAuthor).toBeInstanceOf(Identity);
         expect(restoredAuthor.name).
           toEqual("Probator Attributionis Auctoris");
@@ -196,10 +221,10 @@ describe('ZwAnnotationEngine', () => {
         const restoredAuthor: Identity = annotationEngine.cubeAuthor(postKey);
         expect(restoredAuthor.muc).toBeInstanceOf(Cube);
         expect(restoredAuthor.muc.getKeyIfAvailable()).toBeInstanceOf(Buffer);
-        expect(restoredAuthor.muc.getKeyIfAvailable().equals(firstIdKey)).toBeTruthy();
+        expect(restoredAuthor.muc.getKeyIfAvailable().equals(idKey)).toBeTruthy();
         expect(restoredAuthor.muc.getHashIfAvailable()).toBeInstanceOf(Buffer);
         expect(restoredAuthor.muc.getHashIfAvailable().equals(idHashAfterOneNewPost)).toBeTruthy();
-        expect(restoredAuthor.muc.getHashIfAvailable().equals(idHash)).toBeFalsy();
+        expect(restoredAuthor.muc.getHashIfAvailable().equals(firstIdHash)).toBeFalsy();
         expect(restoredAuthor).toBeInstanceOf(Identity);
         expect(restoredAuthor.name).
           toEqual("Probator Attributionis Auctoris");
@@ -217,10 +242,10 @@ describe('ZwAnnotationEngine', () => {
         const restoredAuthor: Identity = annotationEngine.cubeAuthor(postKey);
         expect(restoredAuthor.muc).toBeInstanceOf(Cube);
         expect(restoredAuthor.muc.getKeyIfAvailable()).toBeInstanceOf(Buffer);
-        expect(restoredAuthor.muc.getKeyIfAvailable().equals(firstIdKey)).toBeTruthy();
+        expect(restoredAuthor.muc.getKeyIfAvailable().equals(idKey)).toBeTruthy();
         expect(restoredAuthor.muc.getHashIfAvailable()).toBeInstanceOf(Buffer);
         expect(restoredAuthor.muc.getHashIfAvailable().equals(idHashAfterNameChange)).toBeTruthy();
-        expect(restoredAuthor.muc.getHashIfAvailable().equals(idHash)).toBeFalsy();
+        expect(restoredAuthor.muc.getHashIfAvailable().equals(firstIdHash)).toBeFalsy();
         expect(restoredAuthor).toBeInstanceOf(Identity);
         expect(restoredAuthor.name).
           toEqual("Probator Attributionis Auctoris et Gravissima Persona in Generali");
