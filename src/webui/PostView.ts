@@ -41,11 +41,26 @@ export class PostView {
     li.append(text);
 
     // Display reply input field
-    const replyfield: HTMLParagraphElement = document.createElement("p");
-    replyfield.setAttribute("class", "input-group");
-    replyfield.innerHTML += `<input class="form-control" placeholder="Reply" id="replyinput-${data.keystring}" type="text" size="60" /> `;
-    replyfield.innerHTML += `<button class="btn btn-primary" id="replybutton-${data.keystring}" onclick="window.verityUI.postReply(document.getElementById('replyinput-${data.keystring}').value, '${data.keystring}');">Post</button>`;
-    li.append(replyfield);
+    const replypara: HTMLParagraphElement = document.createElement("p");
+    const replyform: HTMLFormElement = document.createElement("form");
+    replypara.appendChild(replyform);
+    replyform.setAttribute("action", "javascript:void(0);");
+    replyform.setAttribute("onsubmit", `window.verityUI.postReply(document.getElementById('replyinput-${data.keystring}').value, '${data.keystring}');`)
+    replyform.setAttribute("class", "input-group");
+    const replyfield: HTMLTextAreaElement = document.createElement("textarea");
+    replyfield.setAttribute("class", "form-control");
+    replyfield.setAttribute("rows", "1");
+    replyfield.setAttribute("placeholder", "Reply");
+    replyfield.setAttribute("id", `replyinput-${data.keystring}`);
+    replyfield.setAttribute("type", "text");
+    replyform.appendChild(replyfield);
+    const replybutton: HTMLButtonElement = document.createElement("button");
+    replybutton.setAttribute("type", "submit");
+    replybutton.setAttribute("class", "btn btn-primary");
+    replybutton.setAttribute("id", `replybutton-${data.keystring}`);
+    replybutton.appendChild(document.createTextNode("Post"));
+    replyform.appendChild(replybutton);
+    li.append(replypara);
 
     // Insert sorted by date
     let appended: boolean = false;
