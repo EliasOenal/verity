@@ -126,30 +126,29 @@ describe('ZwAnnotationEngine', () => {
 
     // This test is a bit lengthy and convoluted as I was chasing a Heisenbug
     // involving the MUC's key suddenly becoming undefined.
-    // It did not help in finding the bug.
     it('should identify the author multiple times while other stuff takes place', async () => {
       // create and store identity
-      const id: Identity = new Identity(cubeStore);
+      const id: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduce min time between MUCs to one second for this test
       id.name = "Probator Attributionis Auctoris";
       expect(id.muc).toBeInstanceOf(Cube);
-      await id.store(reduced_difficulty);
-      const idKey = id.muc.getKeyIfAvailable();
+      const preliminaryMuc: Cube = await id.store(reduced_difficulty);
+      expect(preliminaryMuc).toEqual(id.muc);
       expect(id.muc).toBeInstanceOf(Cube);
+      const idKey = id.muc.getKeyIfAvailable();
       expect(idKey).toBeInstanceOf(Buffer);
       const preliminaryIdHash = id.muc.getHashIfAvailable();
       expect(preliminaryIdHash).toBeInstanceOf(Buffer);
       expect(preliminaryIdHash.equals(await cubeStore.getCube(idKey)?.getHash()!)).toBeTruthy();
 
-      // wait to make sure a new MUC version will be at least a second newer
-      // than the old one, otherwise it will fail the CubeContest
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
       // add post and re-store Identity
       const postKey: CubeKey = await cubeStore.addCube(await makePost("I got important stuff to say", undefined, id, reduced_difficulty));
       expect(postKey).toBeInstanceOf(Buffer);
-      await id.store(reduced_difficulty);
+      const firstMuc: Cube = await id.store(reduced_difficulty);
+
       // re-storing the Identity changes it's hash but keeps it's key
       expect(id.muc).toBeInstanceOf(Cube);
+      expect(firstMuc).toEqual(id.muc);
+      expect((await firstMuc.getHash()).equals(await id.muc.getHash())).toBeTruthy();
       const secondIdKey = id.muc.getKeyIfAvailable();
       expect(secondIdKey).toBeInstanceOf(Buffer);
       expect(idKey.equals(secondIdKey)).toBeTruthy();
@@ -216,10 +215,6 @@ describe('ZwAnnotationEngine', () => {
           toEqual("Probator Attributionis Auctoris");
       }
 
-      // wait to make sure a new MUC version will be at least a second newer
-      // than the old one, otherwise it will fail the CubeContest
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
       // do some marginally related stuff...
       await new Promise(resolve => setTimeout(resolve, 250));
       // our user makes a new post
@@ -248,7 +243,7 @@ describe('ZwAnnotationEngine', () => {
       // do something that actually makes a difference...
       await new Promise(resolve => setTimeout(resolve, 250));
       // our user changes it's name
-      id.name = "Probator Attributionis Auctoris et Gravissima Persona in Generali";
+      id.name = "Probator Attributionis Auctoris et Persona Gravissima in Generali";
       await id.store(reduced_difficulty);
       await new Promise(resolve => setTimeout(resolve, 250));
       const idHashAfterNameChange = id.muc.getHashIfAvailable();
@@ -263,9 +258,9 @@ describe('ZwAnnotationEngine', () => {
         expect(restoredAuthor.muc.getHashIfAvailable().equals(firstIdHash)).toBeFalsy();
         expect(restoredAuthor).toBeInstanceOf(Identity);
         expect(restoredAuthor.name).
-          toEqual("Probator Attributionis Auctoris et Gravissima Persona in Generali");
+          toEqual("Probator Attributionis Auctoris et Persona Gravissima in Generali");
       }
-    });
+    }, 30000);
 
     it('should identify the author of a post after the key was converted to a string', async () => {
       const id: Identity = new Identity(cubeStore);
