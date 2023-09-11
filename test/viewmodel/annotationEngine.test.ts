@@ -1,8 +1,8 @@
-import { AnnotationEngine } from '../../src/viewmodel/annotationEngine';
-import { Cube } from '../../src/model/cube';
-import { CubeStore as CubeStore } from '../../src/model/cubeStore';
-import { CubeField, CubeFields, CubeRelationship, CubeRelationshipType } from '../../src/model/cubeFields';
-import { logger } from '../../src/model/logger';
+import { AnnotationEngine } from '../../src/core/annotationEngine';
+import { Cube } from '../../src/core/cube';
+import { CubeStore as CubeStore } from '../../src/core/cubeStore';
+import { CubeField, CubeFields, CubeRelationship, CubeRelationshipType } from '../../src/core/cubeFields';
+import { logger } from '../../src/core/logger';
 
 describe('annotationEngine', () => {
   let cubeStore: CubeStore;

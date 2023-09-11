@@ -4,11 +4,11 @@
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 
-import { Cube } from './model/cube';
-import { CubeField, CubeRelationship, CubeFields, CubeRelationshipType } from './model/cubeFields';
-import { VerityNode } from "./model/verityNode";
+import { Cube } from './core/cube';
+import { CubeField, CubeRelationship, CubeFields, CubeRelationshipType } from './core/cubeFields';
+import { VerityNode } from "./core/verityNode";
 
-import { logger } from './model/logger';
+import { logger } from './core/logger';
 import { vera } from './misc/vera';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'

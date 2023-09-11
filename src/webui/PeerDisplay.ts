@@ -1,4 +1,4 @@
-import { NetworkPeer } from "../model/networkPeer";
+import { NetworkPeer } from "../core/networkPeer";
 import { VerityUI } from "./VerityUI";
 
 export class PeerDisplay {

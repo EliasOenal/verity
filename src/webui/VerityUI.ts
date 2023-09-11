@@ -1,14 +1,14 @@
-import { VerityNode } from '../model/verityNode';
-import { logger } from '../model/logger'
+import { VerityNode } from '../core/verityNode';
+import { logger } from '../core/logger'
 
 import { PostDisplay } from './PostDisplay';
 import { PeerDisplay } from './PeerDisplay';
-import { Identity } from '../viewmodel/identity';
-import { FieldParser } from '../model/fieldParser';
-import { zwFieldDefinition } from '../viewmodel/zwFields';
+import { Identity } from '../app/identity';
+import { FieldParser } from '../core/fieldParser';
+import { zwFieldDefinition } from '../app/zwFields';
 import { isBrowser } from 'browser-or-node';
-import { ZwAnnotationEngine } from '../viewmodel/zwAnnotationEngine';
-import { makePost } from '../viewmodel/zwCubes';
+import { ZwAnnotationEngine } from '../app/zwAnnotationEngine';
+import { makePost } from '../app/zwCubes';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer'

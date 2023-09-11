@@ -1,7 +1,7 @@
-import { FieldParser } from "../../src/model/fieldParser";
-import { CubeField, CubeFieldType, CubeFields, CubeRelationshipType, CubeRelationship } from "../../src/model/cubeFields";
-import { NetConstants } from "../../src/model/networkDefinitions";
-import { ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from '../../src/viewmodel/zwFields';
+import { FieldParser } from "../../src/core/fieldParser";
+import { CubeField, CubeFieldType, CubeFields, CubeRelationshipType, CubeRelationship } from "../../src/core/cubeFields";
+import { NetConstants } from "../../src/core/networkDefinitions";
+import { ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from '../../src/app/zwFields';
 
 describe('fieldParser', () => {
   it('should correctly compile and decompile top level fields', () => {

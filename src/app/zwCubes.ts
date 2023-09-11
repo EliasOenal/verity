@@ -5,10 +5,10 @@
  * They just follow a standardized field structure.
  */
 
-import { Settings } from "../model/config";
-import { Cube, CubeKey } from "../model/cube";
-import { CubeField } from "../model/cubeFields";
-import { FieldParser } from "../model/fieldParser";
+import { Settings } from "../core/config";
+import { Cube, CubeKey } from "../core/cube";
+import { CubeField } from "../core/cubeFields";
+import { FieldParser } from "../core/fieldParser";
 import { Identity } from "./identity";
 import { MediaTypes, ZwField, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from "./zwFields";
 

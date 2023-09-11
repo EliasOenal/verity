@@ -1,14 +1,14 @@
-import { Cube, CubeKey } from "../../src/model/cube";
-import { CubeField, CubeFields, CubeRelationship, CubeRelationshipType } from "../../src/model/cubeFields";
-import { CubeInfo } from "../../src/model/cubeInfo";
-import { CubeStore } from "../../src/model/cubeStore";
-import { AnnotationEngine } from "../../src/viewmodel/annotationEngine";
-import { Identity } from "../../src/viewmodel/identity";
-import { ZwAnnotationEngine } from "../../src/viewmodel/zwAnnotationEngine";
-import { makePost } from "../../src/viewmodel/zwCubes"
+import { Cube, CubeKey } from "../../src/core/cube";
+import { CubeField, CubeFields, CubeRelationship, CubeRelationshipType } from "../../src/core/cubeFields";
+import { CubeInfo } from "../../src/core/cubeInfo";
+import { CubeStore } from "../../src/core/cubeStore";
+import { AnnotationEngine } from "../../src/core/annotationEngine";
+import { Identity } from "../../src/app/identity";
+import { ZwAnnotationEngine } from "../../src/app/zwAnnotationEngine";
+import { makePost } from "../../src/app/zwCubes"
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { ZwField, ZwFields, ZwRelationship, ZwRelationshipType } from "../../src/viewmodel/zwFields";
+import { ZwField, ZwFields, ZwRelationship, ZwRelationshipType } from "../../src/app/zwFields";
 
 describe('ZwAnnotationEngine', () => {
   let cubeStore: CubeStore;
