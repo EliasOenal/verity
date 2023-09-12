@@ -182,6 +182,11 @@ export class NetworkPeer extends EventEmitter {
             }
         } catch (err) {
             logger.error(`NetworkPeer: ${this.stats.ip}:${this.stats.port} error while handling message: ${err}`);
+            // TODO: Maybe be a bit less harsh with the blacklisting on errors.
+            // Maybe only blacklist repeat offenders, maybe remove blacklisting
+            // after a defined timespan (increasing for repeat offenders)?
+            // Blacklist entries based on IP/Port are especially sensitive
+            // as the address could be reused by another node in a NAT environment.
             this.emit('blacklist', new Peer(this.stats.ip, this.stats.port));
             this.ws.close();
         }
