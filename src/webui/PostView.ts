@@ -14,13 +14,22 @@ export class PostView {
     li.setAttribute("timestamp", String(data.timestamp)); // keep raw timestamp for later reference
 
     // Display cube display header (timestamp, user)
-    const header: HTMLParagraphElement = document.createElement("p");
+    const header: HTMLDivElement = document.createElement('div');
+    header.setAttribute("class", "postHeader")
+
+    // Profile pic part of header
+    const profilepic: HTMLImageElement = document.createElement('img');
+    profilepic.setAttribute("class", "postProfilePic");
+    this.displayCubeProfilepic(data, profilepic);
+
+    // Text part of header
+    const headertext: HTMLParagraphElement = document.createElement("p");
 
     // show author
-    const authorelem: HTMLElement = document.createElement("small");
+    const authorelem: HTMLElement = document.createElement("b");
     this.displayCubeAuthor(data, authorelem);
-    header.appendChild(authorelem);
-    header.appendChild(document.createElement("br"));
+    headertext.appendChild(authorelem);
+    headertext.appendChild(document.createElement("br"));
 
     // show date
     const date: Date = new Date(data.timestamp*1000);
@@ -31,7 +40,10 @@ export class PostView {
       date.toLocaleTimeString(navigator.language)
     ));
     dateelem.appendChild(document.createElement("br"));
-    header.appendChild(dateelem);
+    headertext.appendChild(dateelem);
+
+    header.appendChild(profilepic);
+    header.appendChild(headertext);
     li.appendChild(header);  // display whole header now
 
     // Display post text
@@ -89,15 +101,23 @@ export class PostView {
     const authorelement = authorelementCollection[0] as HTMLElement;
     if (!authorelement) return;
     this.displayCubeAuthor(data, authorelement);
+    const profilepicCollection = data.displayElement.getElementsByClassName("postProfilePic");
+    if (!profilepicCollection) return;
+    const profilepicElem = profilepicCollection[0] as HTMLImageElement;
+    if (!profilepicElem) return;
+    this.displayCubeProfilepic(data, profilepicElem);
   }
 
   private displayCubeAuthor(data: PostData, authorelem: HTMLElement) {
     authorelem.innerText = '';  // start with a clean slate
-    authorelem.setAttribute("style", "font-weight: bold");
     authorelem.setAttribute("id", data.keystring + "-author");
     authorelem.setAttribute("class", "cubeauthor");
     if (data.authorkey) authorelem.setAttribute("title", "MUC key " + data.authorkey);
     authorelem.appendChild(document.createTextNode(data.author));
+  }
+
+  displayCubeProfilepic(data: PostData, profilepicelem: HTMLImageElement) {
+    profilepicelem.setAttribute("src", data.profilepic);
   }
 
   private getOrCreateContainer(data: PostData): HTMLUListElement {
