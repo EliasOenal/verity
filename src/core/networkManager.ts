@@ -313,7 +313,7 @@ export class NetworkManager extends EventEmitter {
         if (peer.stats.peerID.equals(this.peerID)) this.blacklistPeer(peer);
         for (const other of [...this.outgoingPeers, ...this.incomingPeers]) {  // is this efficient or does it copy the array? I don't know, I just watched a YouTube tutorial.
             if (!Object.is(other, peer)) {  // this is required so we don't blacklist this very same connection
-                if (other.stats.peerID.equals(peer.stats.peerID)) {
+                if (other.stats.peerID?.equals(peer.stats.peerID)) {
                     this.blacklistPeer(peer);
                     return true;
                 }
