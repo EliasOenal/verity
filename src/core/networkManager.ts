@@ -24,17 +24,12 @@ export class NetworkManager extends EventEmitter {
     server: WebSocket.Server | undefined; // The WebSocket server for incoming connections
     outgoingPeers: NetworkPeer[]; // The peers for outgoing connections
     incomingPeers: NetworkPeer[]; // The peers for incoming connections
-    private cubeStore: CubeStore;
-    private peerDB: PeerDB;
     private isConnectingPeers: boolean;
     private connectPeersInterval: NodeJS.Timeout | undefined;
     private static WEBSOCKET_HANDSHAKE_TIMEOUT = 2500;
     private online: boolean = false;
-    private announceToTorrentTrackers: boolean;
     private server_enabled: boolean;
-    private server_port: number;
-    private lightNode: boolean;
-    private peerID: Buffer;
+    public readonly peerID: Buffer;
 
     /**
      * Create a new NetworkManager.
@@ -48,22 +43,21 @@ export class NetworkManager extends EventEmitter {
      * @remarks
      * The callbacks are called with the peer and the error as arguments.
      *  */
-    constructor(port: number, cubeStore: CubeStore, peerDB: PeerDB,
-        announce: boolean = true, lightNode: boolean = false) {
+    constructor(
+            private server_port: number,
+            private cubeStore: CubeStore,
+            private peerDB: PeerDB,
+            private announceToTorrentTrackers: boolean = true,
+            private lightNode: boolean = false) {
         super();
 
         this.isConnectingPeers = false;
         this.outgoingPeers = [];
         this.incomingPeers = [];
-        this.cubeStore = cubeStore;
-        this.peerDB = peerDB;
-        this.announceToTorrentTrackers = announce;
         this.server = undefined;
-        this.server_port = port;
-        this.lightNode = lightNode;
         this.peerID = Buffer.from(crypto.getRandomValues(new Uint8Array(16)));
         if (isNode) {
-        if (port !== 0) {
+        if (server_port !== 0) {
                 this.server_enabled = true;
             } else {
                 this.server_enabled = false;
@@ -83,21 +77,7 @@ export class NetworkManager extends EventEmitter {
             logger.trace('NetworkManager: Server has been started on port ' + this.server_port);
 
             // Handle incoming connections
-            this.server.on('connection', ws => {
-                logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort}`);
-                const peer = new NetworkPeer(
-                    this,
-                    (ws as any)._socket.remoteAddress,
-                    (ws as any)._socket.remotePort,
-                    ws, this.cubeStore,
-                    this.peerID,
-                    this.lightNode);
-                this.incomingPeers.push(peer);
-                peer.on('close', () => {
-                    logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort} has been closed.`);
-                    this.incomingPeers = this.incomingPeers.filter(p => p !== peer);
-                });
-            });
+            this.server.on('connection', ws => this.handleIncomingPeer(ws));
 
             this.server.on('listening', () => {
                 this.emit('listening');
@@ -107,6 +87,8 @@ export class NetworkManager extends EventEmitter {
         }
 
         this.peerDB.on('newPeer', (newPeer: Peer) => {
+            // TODO: Limit active connections to Settings.MAXIMUM_CONNECTIONS
+
             // add a delay to prevent load spikes
             setTimeout(() => {
                 this.connect(newPeer);
@@ -196,6 +178,51 @@ export class NetworkManager extends EventEmitter {
         return { peer, peerURL };
     }
 
+    /**
+     * Event handler for incoming peer connections.
+     * As such, it should never be called manually.
+     */
+    private handleIncomingPeer(ws: WebSocket) {
+        logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort}`);
+        const networkPeer = new NetworkPeer(
+            this,
+            (ws as any)._socket.remoteAddress,
+            (ws as any)._socket.remotePort,
+            ws, this.cubeStore,
+            this.peerID,
+            this.lightNode);
+        this.incomingPeers.push(networkPeer);
+        this.peerDB.setPeersVerified([new Peer(networkPeer.stats.ip, networkPeer.stats.port)]);
+
+        networkPeer.on('updatepeer', (peer: NetworkPeer) => this.handleUpdatePeer(peer));
+
+        networkPeer.on('close', () => {
+            logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort} has been closed.`);
+            this.incomingPeers = this.incomingPeers.filter(p => p !== networkPeer);
+        });
+    }
+
+    /**
+     * Event handler that will be called once we learn new stuff about a peer,
+     * in particular their peer ID.
+     */
+    private handleUpdatePeer(peer: NetworkPeer) {
+        // Does this peer need to be blacklisted?
+        if (this.blacklistPeerIfInvalid(peer)) return;
+
+        // Verify this peer is valid (just checking if there is an ID for now)
+        if (!peer.stats.peerID) return;
+
+        // Ask for cube keys and node exchange now
+        // This is a pure optimisation to enhance startup time; NetworkPeer
+        // will periodically ask for the same stuff in a short while.
+        peer.sendHashRequest();
+        peer.sendNodeRequest();
+
+        // Relay the updatepeer event to our subscribers
+        this.emit('updatepeer', peer);
+    }
+
     /*
      * Connect to a peer
      * @param peer_param - Peer to connect to
@@ -256,18 +283,7 @@ export class NetworkManager extends EventEmitter {
                     this.emit('peerclosed', networkPeer);
                 });
 
-                // Listen for the 'blacklist' event on the NetworkPeer
-                networkPeer.on('blacklist', (bannedPeer: Peer) => {
-                    // Add the banned peer to the blacklist
-                    this.peerDB.setPeersBlacklisted([bannedPeer]);
-                    logger.warn(`NetworkManager: Peer ${bannedPeer.ip}:${bannedPeer.port} has been blacklisted.`);
-                    this.emit('blacklist', bannedPeer);
-                });
-
-                // Relay the peer's updatepeer signal for our listeners
-                networkPeer.on('updatepeer', (peer) => {
-                    this.emit('updatepeer', peer);
-                });
+                networkPeer.on('updatepeer', (peer) => this.handleUpdatePeer(peer));
 
                 // If this is the first successful connection, emit an 'online' event
                 if (!this.online) {
@@ -280,6 +296,41 @@ export class NetworkManager extends EventEmitter {
             // @ts-ignore I don't know why the compiler complains about this
             }, { signal: socketClosedSignal });
         });
+    }
+
+    /**
+     * Checks if a peer should be disconnected and blacklisted.
+     * We currently blacklist peers under three circumstances:
+     *  1) We're connected to ourselves (happens really easily due to peer exchange)
+     *  2) We somehow connected to two different addresses for the same node
+     *     (also happens really easily as nodes can, for example, be referred
+     *      to by IP address or domain name)
+     *  3) Node sending invalid messages
+     *     (this case is handled in NetworkPeer rather than here)
+     * @returns Whether the peer has been disconnedted and blacklisted
+     */
+    private blacklistPeerIfInvalid(peer: NetworkPeer): boolean {
+        if (peer.stats.peerID.equals(this.peerID)) this.blacklistPeer(peer);
+        for (const other of [...this.outgoingPeers, ...this.incomingPeers]) {  // is this efficient or does it copy the array? I don't know, I just watched a YouTube tutorial.
+            if (!Object.is(other, peer)) {  // this is required so we don't blacklist this very same connection
+                if (other.stats.peerID.equals(peer.stats.peerID)) {
+                    this.blacklistPeer(peer);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Disconnect and blacklist this peer */
+    private blacklistPeer(peer: NetworkPeer): void {
+        // disconnect
+        peer.shutdown();
+        // blacklist
+        const nonNetworkPeerThatShouldReallyBeBaseClassed: Peer = new Peer(peer.stats.ip, peer.stats.port);
+        this.peerDB.setPeersBlacklisted([nonNetworkPeerThatShouldReallyBeBaseClassed]);
+        logger.warn(`NetworkManager: Peer ${nonNetworkPeerThatShouldReallyBeBaseClassed.ip}:${nonNetworkPeerThatShouldReallyBeBaseClassed.port} has been blacklisted.`);
+        this.emit('blacklist', nonNetworkPeerThatShouldReallyBeBaseClassed);
     }
 
     private consolidateStats(totalStats: { [key: string]: { count: number, bytes: number } }, peerStats: { [key: string]: { count: number, bytes: number } }) {

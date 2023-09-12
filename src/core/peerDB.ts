@@ -36,6 +36,8 @@ export class Peer {
 }
 
 export class PeerDB extends EventEmitter {
+    // TODO: what exactly means verified? when does it get set?
+    // We probably should consider a peer verified only after receiving a correct HELLO and their peer ID
     private peersVerified: Peer[];
     private peersUnverified: Peer[];
     private peersBlacklisted: Peer[];
@@ -80,7 +82,7 @@ export class PeerDB extends EventEmitter {
     }
 
     setPeersBlacklisted(peers: Peer[]): void {
-        logger.info(`PeerDB: setPeersBlacklisted`);
+        logger.info('PeerDB: Blacklisting peers ' + peers + '; my peers are: ' + [...this.peersVerified, ...this.peersUnverified]);
         // Add the peers to the blacklist
         peers = peers.filter(peer => !this.peersBlacklisted.some(blacklistedPeer => blacklistedPeer.equals(peer)));
         this.peersBlacklisted.push(...peers);

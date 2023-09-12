@@ -95,7 +95,6 @@ export class NetworkPeer extends EventEmitter {
         }, { signal: this.socketClosedSignal });
 
         this.ws.addEventListener('close', () => {
-            this.emit('close', this);
             this.shutdown();
         });
 
@@ -105,6 +104,10 @@ export class NetworkPeer extends EventEmitter {
     }
 
     public shutdown(): void {
+        // Let everybody know this connection is now closed.
+        // In particular, this removes us from the NetworkManager.
+        this.emit('close', this);
+
         // Remove all listeners attached to this instance to avoid memory leaks
         if (this.hashRequestTimer) {
             clearInterval(this.hashRequestTimer);
@@ -198,25 +201,14 @@ export class NetworkPeer extends EventEmitter {
 
         // compare peerID to first 16 bytes of incoming packet
         logger.trace(`NetworkPeer: received 'Hello' from IP: ${this.stats.ip}, port: ${this.stats.port}, peerID: ${this.stats.peerID.toString('hex')}`);
-        if (this.hostNodePeerID.compare(this.stats.peerID) === 0) {
-            // We're connected to ourselves, close the connection
-            // and blacklist the IP
-            logger.debug(`NetworkPeer: connected to ourselves, closing connection and blacklisting IP: ${this.stats.ip} port: ${this.stats.port}`);
-            const peer: Peer = new Peer(this.stats.ip, this.stats.port);
-            this.emit('blacklist', peer);
-            this.ws.close();
-        } else {
-            this.emit('updatepeer', this);  // let listeners know we learnt the peer's ID
-            // Asks for their know peers now, and then in regular intervals
-            this.sendNodeRequest();
-            this.nodeRequestTimer = setInterval(() => this.sendNodeRequest(), Settings.NODE_REQUEST_TIME);
+        this.emit('updatepeer', this);  // let listeners know we learnt the peer's ID
+        // Asks for their know peers in regular intervals
+        this.nodeRequestTimer = setInterval(() => this.sendNodeRequest(), Settings.NODE_REQUEST_TIME);
 
-            // If we're a full node, ask for available cubes now, and then in regular intervals
-            if (!this.lightMode) {
-                this.sendHashRequest();
-                this.hashRequestTimer = setInterval(() => this.sendHashRequest(),
-                    Settings.HASH_REQUEST_TIME);
-            }
+        // If we're a full node, ask for available cubes in regular intervals
+        if (!this.lightMode) {
+            this.hashRequestTimer = setInterval(() => this.sendHashRequest(),
+                Settings.HASH_REQUEST_TIME);
         }
     }
 
