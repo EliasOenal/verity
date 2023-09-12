@@ -11,6 +11,7 @@ import { PostView } from "./PostView";
 import { logger } from "../core/logger";
 
 import { Buffer } from 'buffer';
+import multiavatar from '@multiavatar/multiavatar'
 
 export interface PostData {
   binarykey?: CubeKey;
@@ -19,6 +20,7 @@ export interface PostData {
   author?: string;
   authorkey?: string
   text?: string;
+  profilepic?: string;  // SVG or base64 representation of a raster image
 
   /** @param If this is a reply, this refers to the superior post. */
   superior?: PostData;
@@ -127,5 +129,15 @@ export class PostDisplay {
     } else {
       data.author = "Unknown user";
     }
+    if (data.author.length > 60) {
+      data.author = data.author.slice(0, 57) + "...";
+    }
+
+    // Get profile image if the use has one, otherwise generate an avatar
+    // for them based on their MUC key. Use the post key if there's no MUC.
+    // TODO: real profile pictures not implemented yet
+    if (data.authorkey) data.profilepic = multiavatar(data.authorkey);
+    else data.profilepic = multiavatar(data.keystring);
+    data.profilepic = "data:image/svg+xml;base64," + btoa(data.profilepic);
   }
 }

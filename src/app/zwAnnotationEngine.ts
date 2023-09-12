@@ -148,7 +148,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     try {
       id = new Identity(this.cubeStore, cubeInfo.getCube());
     } catch (error) { return; }
-    logger.trace("ZwAnnotationEngine: Remembering Identity MUC " + key.toString('hex'));
+    // logger.trace("ZwAnnotationEngine: Remembering Identity MUC " + key.toString('hex'));
     this.identityMucs.set(cubeInfo.key.toString('hex'), cubeInfo);
   }
 
