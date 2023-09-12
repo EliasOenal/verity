@@ -281,6 +281,13 @@ export class NetworkManager extends EventEmitter {
                     // Remove the closing peer from the list of outgoing peers
                     this.outgoingPeers = this.outgoingPeers.filter(peer => peer !== closingPeer);
                     this.emit('peerclosed', networkPeer);
+
+                    // TODO: blacklist entries caused by duplicate address
+                    // should be removed when the original connection to a peer
+                    // is closed
+
+                    // TODO: centralize peer connection closed handling for both
+                    // outgoing and incoming peer connections
                 });
 
                 networkPeer.on('updatepeer', (peer) => this.handleUpdatePeer(peer));
