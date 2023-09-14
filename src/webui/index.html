@@ -4,62 +4,139 @@
 <head>
   <title>Verity</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/png" href="vera_300px_nobg.png">
+  <link rel="icon" type="image/png" href="vera.svg">
   <link href="bootstrap.min.css" rel="stylesheet">
   <script src="bootstrap.bundle.min.js"></script>
 
   <style>
+    :root {
+      --bg-color-light: #ffffff;
+      --bg-color-dark: #222222;
+      --text-color-light: #222222;
+      --text-color-dark: #ffffff;
+    }
+
+    body {
+      background-color: var(--bg-color-light);
+      color: var(--text-color-light);
+      transition: background-color 0.3s, color 0.3s;
+      /* Smooth transition */
+    }
+
+    body.dark-mode {
+      background-color: var(--bg-color-dark);
+      color: var(--text-color-dark);
+    }
+
+    body.dark-mode .form-label {
+      color: var(--text-color-dark);
+    }
+
+    body.dark-mode .form-control {
+      background-color: #333333;
+      /* Dark background color for input fields */
+      color: #e0e0e0;
+      /* Light text color for input fields */
+      border-color: #444444;
+      /* Dark border color for input fields */
+    }
+
+    body.dark-mode .btn-primary {
+      opacity: 0.7;
+    }
+
+    body.dark-mode .form-check-input:checked {
+      opacity: 0.7;
+    }
+
+    body.dark-mode .form-control::placeholder {
+      color: #e0e0e0;
+      /* Light text color for placeholder */
+    }
+
+
     ul.replyposts {
       list-style-type: none;
     }
+
     div.postHeader {
       display: flex;
       align-items: center;
     }
+
     img.postProfilePic {
       height: 4em;
       margin-right: 1em;
       margin-bottom: 1em;
     }
+
+    #veralogo img {
+      width: 70%;
+      max-width: 200px;
+      display: block;
+      margin: 0 auto;
+    }
   </style>
 
 </head>
 
-<body><div class="container px-xl-5"><div class="row" id="globalrow">
-  <div class="col-sm-3 px-sm-2" id="leftnav">
-
-    <div class="row my-3" id="veralogo">
-      <img src="vera_300px_nobg.png" class="img-fluid py-3" alt="" style="max-width: 150px; display: block; margin: 0 auto;">
+<body>
+  <div class="position-absolute top-0 end-0 m-3">
+    <div class="form-check form-switch">
+      <input class="form-check-input" type="checkbox" id="darkModeSwitch" onclick="toggleDarkMode()">
     </div>
+  </div>
+  <div class="container px-xl-5">
+    <div class="row" id="globalrow">
+      <div class="col-sm-3 px-sm-2" id="leftnav">
+        <div class="row my-3" id="veralogo">
+          <img src="vera.svg" class="img-fluid py-3" alt="">
+        </div>
 
-    <div class="row" id="identityrow">
-      <h5>My Identity</h5>
-      <form class="input-group" id="idform" action="javascript:void(0);" onsubmit="window.verityUI.saveIdentity();">
-        <input class="form-control form-control-sm" type="text" id="idname" placeholder="Choose your user name" required>
-        <button class="btn btn-sm btn-primary" type="submit">Save</button>
-      </form>
-    </div> <!-- identityrow-->
+        <div class="row" id="identityrow">
+          <h5>My Identity</h5>
+          <form class="input-group" id="idform" action="javascript:void(0);" onsubmit="window.verityUI.saveIdentity();">
+            <input class="form-control form-control-sm" type="text" id="idname" placeholder="Choose your user name"
+              required>
+            <button class="btn btn-sm btn-primary" type="submit">Save</button>
+          </form>
+        </div> <!-- identityrow-->
 
-    <div class="row my-3" id="peerrow">
-      <h5 class="my-1">Peers</h5>
-      <ul id="peerlist" class="list-unstyled text-truncate">
-      </ul>
-    </div> <!-- peerrow -->
-  </div> <!-- leftnav -->
+        <div class="row my-3" id="peerrow">
+          <h5 class="my-1">Peers</h5>
+          <ul id="peerlist" class="list-unstyled text-truncate">
+          </ul>
+        </div> <!-- peerrow -->
+      </div> <!-- leftnav -->
 
-  <div class="col-sm-8 offset-sm-1" class="maincontent">
-    <form id="newpostform" class="row my-5 form-floating" action="javascript:void(0);" onsubmit="window.verityUI.makeNewPost(document.getElementById('newcubemsg').value);">
-        <textarea class="form-control" rows="2" id="newcubemsg" placeholder="Make new post" required></textarea>
-        <label class="form-label" for="newcubemsg">Make new post</label>
-        <button class="btn btn-primary" type="submit" id="newcube">Post</button>
-    </form>
+      <div class="col-sm-8 offset-sm-1" class="maincontent">
+        <form id="newpostform" class="row my-5 form-floating" action="javascript:void(0);"
+          onsubmit="window.verityUI.makeNewPost(document.getElementById('newcubemsg').value);">
+          <textarea class="form-control" rows="2" id="newcubemsg" placeholder="" required></textarea>
+          <label class="form-label" for="newcubemsg">Make new post</label>
+          <button class="btn btn-primary" type="submit" id="newcube">Post</button>
+        </form>
 
-    <div class="row" id="postsrow">
-      <ul id="cubelist" class="list-unstyled">
-      </ul>
-    </div> <!-- postsrow -->
+        <div class="row" id="postsrow">
+          <ul id="cubelist" class="list-unstyled">
+          </ul>
+        </div> <!-- postsrow -->
 
-    <script src="verityUI.js"></script>
-  </div> <!-- maincontent -->
-</div></div></body> <!-- globalrow, container and body -->
+        <script src="verityUI.js"></script>
+      </div> <!-- maincontent -->
+    </div>
+  </div>
+  <script>
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+    }
+
+    // Check if the user has set their system to use a dark color scheme and apply the dark mode class if true
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.body.classList.add('dark-mode');
+      document.getElementById('darkModeSwitch').checked = true;
+    }
+  </script>
+</body> <!-- globalrow, container and body -->
+
 </html>
