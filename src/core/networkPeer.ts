@@ -36,7 +36,7 @@ export interface NetworkStats {
 /**
  * Class representing a network peer, responsible for handling incoming and outgoing messages.
  */
-export class NetworkPeer {
+export class NetworkPeer extends Peer {
     stats: NetworkStats;
     hashRequestTimer?: NodeJS.Timeout = undefined; // Timer for hash requests
     nodeRequestTimer?: NodeJS.Timeout = undefined; // Timer for node requests
@@ -73,7 +73,7 @@ export class NetworkPeer {
             private socketClosedController: AbortController = new AbortController(),
             private socketClosedSignal: AbortSignal = socketClosedController.signal)
     {
-        // super();
+        super(ip, port);
         this.networkManager = networkManager;
         this.ws = ws;
         this.cubeStore = cubeStore;
@@ -108,7 +108,7 @@ export class NetworkPeer {
         networkManager.on('peeronline', (peer: NetworkPeer) => {
             if (! (peer.stats.ip == ip && peer.stats.port == port)) {
                // add peer to exchangeable list, but don't share a peer with itself
-               const nonNetworkPeerThatShouldReallyBeBaseClassed: Peer = new Peer(peer.stats.ip, peer.stats.port, peer.stats.peerID.toString('hex'));  // TODO refactor
+               const nonNetworkPeerThatShouldReallyBeBaseClassed: Peer = new Peer(peer.stats.ip, peer.stats.port, peer.stats.peerID);  // TODO refactor
                this.unsentPeers.push(nonNetworkPeerThatShouldReallyBeBaseClassed);
             }
         });

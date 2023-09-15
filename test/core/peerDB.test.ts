@@ -34,11 +34,11 @@ describe ('PeerDB', () => {
         const peerDB = new PeerDB();
         peerDB.setPeersVerified([
             new Peer("127.0.0.1", 1337),
-            new Peer("127.0.0.1", 1338, "bd806506666ea6ae759878ac1463344e")
+            new Peer("127.0.0.1", 1338, Buffer.from("bd806506666ea6ae759878ac1463344e", 'hex'))
         ]);
         peerDB.setPeersUnverified([
             new Peer("127.0.0.1", 1339),
-            new Peer("127.0.0.1", 1340, "a0cffa47a81fe5cf72e3a9ac1d0f2f16")
+            new Peer("127.0.0.1", 1340, Buffer.from("a0cffa47a81fe5cf72e3a9ac1d0f2f16", 'hex'))
         ]);
         expect(peerDB.getPeersVerified().length).toEqual(2);
         expect(peerDB.getPeersUnverified().length).toEqual(2);
@@ -49,7 +49,7 @@ describe ('PeerDB', () => {
         expect(peerDB.getPeersUnverified().length).toEqual(2);
         expect(peerDB.getPeersBlacklisted().length).toEqual(1);
 
-        peerDB.setPeersBlacklisted([new Peer("1.1.1.1", 40404, "a0cffa47a81fe5cf72e3a9ac1d0f2f16")]);
+        peerDB.setPeersBlacklisted([new Peer("1.1.1.1", 40404, Buffer.from("a0cffa47a81fe5cf72e3a9ac1d0f2f16", 'hex'))]);
         expect(peerDB.getPeersVerified().length).toEqual(1);
         expect(peerDB.getPeersUnverified().length).toEqual(1);
         expect(peerDB.getPeersBlacklisted().length).toEqual(2);
