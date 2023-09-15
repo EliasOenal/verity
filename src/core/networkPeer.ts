@@ -36,16 +36,25 @@ export interface NetworkStats {
 /**
  * Class representing a network peer, responsible for handling incoming and outgoing messages.
  */
-export class NetworkPeer extends EventEmitter {
+export class NetworkPeer {
     stats: NetworkStats;
     hashRequestTimer?: NodeJS.Timeout = undefined; // Timer for hash requests
     nodeRequestTimer?: NodeJS.Timeout = undefined; // Timer for node requests
 
+    private onlinePromiseResolve: Function;
     /**
      * A peer will be considered to be online once a correct HELLO message
      * has been received.
+     * If this NetworPeer never gets online, the promise will be resolved
+     * with undefined.
      */
-    private onlineFlag: boolean = false;
+    private _onlinePromise: Promise<NetworkPeer> = new Promise<NetworkPeer>(
+        (resolve) => {
+            this.onlinePromiseResolve = resolve;
+        });
+    get onlinePromise() { return this._onlinePromise; }
+    private _online: boolean = false;  // extra bool because JS doesn't let us query the promise's internal state :(
+    get online() { return this._online; }
 
     private unsentCubeMeta: Set<CubeMeta> = undefined;
     private unsentPeers: Peer[] = undefined;  // TODO this should probably be a Set instead
@@ -64,7 +73,7 @@ export class NetworkPeer extends EventEmitter {
             private socketClosedController: AbortController = new AbortController(),
             private socketClosedSignal: AbortSignal = socketClosedController.signal)
     {
-        super();
+        // super();
         this.networkManager = networkManager;
         this.ws = ws;
         this.cubeStore = cubeStore;
@@ -137,28 +146,8 @@ export class NetworkPeer extends EventEmitter {
         }
     }
 
-    /**
-     * Returns a promise that will resolve once this node is ready for business,
-     * i.e. socket is open and HELLOs have been exchanged.
-     * @returns A promise referring to this NetworkPeer object.
-     */
-    async online(): Promise<NetworkPeer> {
-        return new Promise<NetworkPeer>((resolve, reject) => {
-            if (this.onlineFlag) {  // that was easy
-                resolve(this);
-            } else { // wait for online event
-            this.on('online', () => resolve(this));
-            this.on('close', () => reject(this));
-            }
-        });
-    }
-
     public close(): void {
-        // Let everybody know this connection is now closed.
-        // In particular, this removes us from the NetworkManager.
-        this.emit('close', this);
-
-        // Remove all listeners attached to this instance to avoid memory leaks
+        // Remove all listeners and timers to avoid memory leaks
         if (this.hashRequestTimer) {
             clearInterval(this.hashRequestTimer);
         }
@@ -167,7 +156,14 @@ export class NetworkPeer extends EventEmitter {
         }
         this.ws.close();
         this.socketClosedController.abort();  // removes all listeners from this.ws
-        this.removeAllListeners();
+
+        // If we never got online, "resolve" the promise with undefined.
+        // Rejecting it would be the cleaner choice, but then we'd need to catch
+        // the rejection every single time and that just adds unnecessary complexity.
+        this.onlinePromiseResolve(undefined);
+
+        // Let the network manager know we're closed
+        this.networkManager.handlePeerClosed(this);
     }
 
     logRxStats(message: Buffer, messageType: MessageClass) {
@@ -240,8 +236,7 @@ export class NetworkPeer extends EventEmitter {
             // after a defined timespan (increasing for repeat offenders)?
             // Blacklist entries based on IP/Port are especially sensitive
             // as the address could be reused by another node in a NAT environment.
-            this.emit('blacklist', new Peer(this.stats.ip, this.stats.port, this.stats.peerID.toString('hex')));
-            this.close();
+            this.networkManager.blacklistPeer(this);
         }
     }
 
@@ -264,7 +259,7 @@ export class NetworkPeer extends EventEmitter {
         }
 
         // Is this a spurious repeat HELLO?
-        if (this.onlineFlag) {
+        if (this._online) {
             // If the peer has unexpectedly changed its ID, disconnect.
             if (!this.stats.peerID.equals(peerID)) {
                 logger.info(`NetworkPeer: Peer at ${this.stats.ip}:${this.stats.port} suddenly changed its ID from ${this.stats.peerID?.toString('hex')} to ${peerID.toString('hex')}, closing connection.`);
@@ -276,8 +271,9 @@ export class NetworkPeer extends EventEmitter {
         } else {  // not a repeat hello
             logger.trace(`NetworkPeer: received HELLO from IP: ${this.stats.ip}, port: ${this.stats.port}, peerID: ${peerID.toString('hex')}, peer now considered online`);
             this.stats.peerID = peerID;
-            this.onlineFlag = true;
-            this.emit('online', this);  // let listeners know we learnt the peer's ID
+            this._online = true;
+            this.networkManager.handlePeerOnline(this);
+            this.onlinePromiseResolve(this);  // let listeners know we learnt the peer's ID
         }
 
         // Asks for their know peers in regular intervals

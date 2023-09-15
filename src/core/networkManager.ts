@@ -189,20 +189,12 @@ export class NetworkManager extends EventEmitter {
             this.lightNode);
         this.incomingPeers.push(networkPeer);
         this.peerDB.setPeersUnverified([new Peer(networkPeer.stats.ip, networkPeer.stats.port)]);
-
-        networkPeer.on('online', (peer: NetworkPeer) => this.handlePeerOnline(peer));
-
-        networkPeer.on('close', (peer) => {
-            logger.debug(`NetworkManager: Incoming connection from ${peer.stats.ip}:${peer.stats.port} has been closed.`);
-            this.incomingPeers = this.incomingPeers.filter(p => p !== networkPeer);
-            this.emit('peerclosed', networkPeer);
-        });
     }
 
     /**
      * Event handler that will be called once a NetworkPeer is ready for business
      */
-    private handlePeerOnline(peer: NetworkPeer) {
+    handlePeerOnline(peer: NetworkPeer) {
         // Does this peer need to be blacklisted?
         if (this.blacklistPeerIfInvalid(peer)) return;
 
@@ -227,6 +219,16 @@ export class NetworkManager extends EventEmitter {
 
         // Relay the online event to our subscribers
         this.emit('peeronline', peer);
+    }
+
+    /**
+     * Callback executed when a NetworkPeer connection is closed.
+     */
+    handlePeerClosed(peer: NetworkPeer) {
+        logger.debug(`NetworkManager: Connection to peer ${peer.stats.ip}:${peer.stats.port}, ID ${peer.stats.peerID?.toString('hex')} has been closed.`);
+        this.incomingPeers = this.incomingPeers.filter(p => p !== peer);
+        this.outgoingPeers = this.outgoingPeers.filter(p => p !== peer);
+        this.emit('peerclosed', peer);
     }
 
     /*
@@ -266,20 +268,6 @@ export class NetworkManager extends EventEmitter {
         this.emit('newpeer', networkPeer);
 
         // Listen for events on this new network peer
-        networkPeer.on('online', (peer) => this.handlePeerOnline(peer));
-        networkPeer.on('close', (closingPeer: NetworkPeer) => {
-            logger.info(`NetworkManager: Outgoing connection to ${closingPeer.stats.ip}:${closingPeer.stats.port} has been closed.`);
-            // Remove the closing peer from the list of outgoing peers
-            this.outgoingPeers = this.outgoingPeers.filter(peer => peer !== closingPeer);
-            this.emit('peerclosed', networkPeer);
-
-            // TODO: blacklist entries caused by duplicate address
-            // should be removed when the original connection to a peer
-            // is closed
-
-            // TODO: centralize peer connection closed handling for both
-            // outgoing and incoming peer connections
-        });
         return networkPeer;
     }
 
@@ -294,7 +282,10 @@ export class NetworkManager extends EventEmitter {
      *     (this case is handled in NetworkPeer rather than here)
      * @returns Whether the peer has been disconnedted and blacklisted
      */
-    private blacklistPeerIfInvalid(peer: NetworkPeer): boolean {
+    // TODO: blacklist entries caused by duplicate address
+    // should be removed when the original connection to a peer
+    // is closed
+    blacklistPeerIfInvalid(peer: NetworkPeer): boolean {
         if (peer.stats.peerID.equals(this.peerID)) this.blacklistPeer(peer);
         for (const other of [...this.outgoingPeers, ...this.incomingPeers]) {  // is this efficient or does it copy the array? I don't know, I just watched a YouTube tutorial.
             if (!Object.is(other, peer)) {  // this is required so we don't blacklist this very same connection
@@ -308,7 +299,7 @@ export class NetworkManager extends EventEmitter {
     }
 
     /** Disconnect and blacklist this peer */
-    private blacklistPeer(peer: NetworkPeer): void {
+    blacklistPeer(peer: NetworkPeer): void {
         // disconnect
         peer.close();
         // blacklist

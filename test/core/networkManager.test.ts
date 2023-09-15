@@ -90,8 +90,8 @@ describe('networkManager', () => {
         manager2.connect('ws://localhost:4002');
         expect(manager2.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
         expect(manager2.outgoingPeers[1]).toBeInstanceOf(NetworkPeer);
-        await manager2.outgoingPeers[0].online()
-        await manager2.outgoingPeers[1].online()
+        await manager2.outgoingPeers[0].onlinePromise
+        await manager2.outgoingPeers[1].onlinePromise
 
         // Create new cubes at peer 1
         for (let i = 0; i < numberOfCubes; i++) {
@@ -144,8 +144,8 @@ describe('networkManager', () => {
 
         const cubeStore = new CubeStore(false);
         const cubeStore2 = new CubeStore(false);
-        const manager1 = new NetworkManager(4000, cubeStore, new PeerDB(), false, false);
-        const manager2 = new NetworkManager(4001, cubeStore2, new PeerDB(), false, false);
+        const manager1 = new NetworkManager(5000, cubeStore, new PeerDB(), false, false);
+        const manager2 = new NetworkManager(5001, cubeStore2, new PeerDB(), false, false);
 
         const promise1_listening = new Promise(resolve => manager1.on('listening', resolve));
         const promise2_listening = new Promise(resolve => manager2.on('listening', resolve));
@@ -158,9 +158,9 @@ describe('networkManager', () => {
         await Promise.all([promise1_listening, promise2_listening]);
 
         // Connect peer 1 to peer 2
-        manager1.connect('ws://localhost:4001');
+        manager1.connect('ws://localhost:5001');
         expect(manager1.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
-        await manager1.outgoingPeers[0].online();
+        await manager1.outgoingPeers[0].onlinePromise;
 
         // just defining some vars, bear with me...
         let counterBuffer: Buffer;
@@ -234,14 +234,14 @@ describe('networkManager', () => {
 
     test('should blacklist a peer when trying to connect to itself', async () => {
         const peerDB = new PeerDB();
-        const manager = new NetworkManager(3004, new CubeStore(false), peerDB, false);
+        const manager = new NetworkManager(6004, new CubeStore(false), peerDB, false);
         manager.start();
 
         // Wait for server to start listening
         await new Promise((resolve) => manager.server?.on('listening', resolve));
 
         // Trigger a connection to itself
-        manager.connect(`ws://localhost:3004`);
+        manager.connect(`ws://localhost:6004`);
 
         let peer: Peer;
         // Wait for the 'blacklist' event to be triggered
@@ -261,11 +261,11 @@ describe('networkManager', () => {
 
     test('should blacklist a peer when ID is equal to existing peer', async () => {
         const myPeerDB = new PeerDB();
-        const myManager = new NetworkManager(3004, new CubeStore(false), myPeerDB, false);
+        const myManager = new NetworkManager(7004, new CubeStore(false), myPeerDB, false);
         myManager.start();
 
         const otherPeerDB = new PeerDB();
-        const otherManager = new NetworkManager(3005, new CubeStore(false), otherPeerDB, false);
+        const otherManager = new NetworkManager(7005, new CubeStore(false), otherPeerDB, false);
         otherManager.start();
 
         // Wait for server to start listening
@@ -280,7 +280,7 @@ describe('networkManager', () => {
         const iHaveConnected = new Promise((resolve) => myManager.on('peeronline', resolve));
         const otherHasConnected = new Promise((resolve) => otherManager.on('peeronline', resolve));
         const bothHaveConnected = Promise.all([iHaveConnected, otherHasConnected]);
-        myManager.connect('ws://localhost:3005');
+        myManager.connect('ws://localhost:7005');
         await bothHaveConnected;
 
         // ensure connected
@@ -300,11 +300,11 @@ describe('networkManager', () => {
             otherManager.on('blacklist', () => { resolve(undefined); })
         });
         const bothHaveBlacklisted = Promise.all([iHaveBlacklisted, otherHasBlacklisted]);
-        myManager.connect('ws://127.0.0.1:3005');
+        myManager.connect('ws://127.0.0.1:7005');
         await bothHaveBlacklisted;
 
         expect(myPeerDB.getPeersBlacklisted()[0]).toBeInstanceOf(Peer);
-        expect(myPeerDB.getPeersBlacklisted()[0].address()).toEqual('127.0.0.1:3005');
+        expect(myPeerDB.getPeersBlacklisted()[0].address()).toEqual('127.0.0.1:7005');
         expect(otherPeerDB.getPeersBlacklisted()[0]).toBeInstanceOf(Peer);
         expect(myManager.outgoingPeers.length).toEqual(1);
         expect(myManager.incomingPeers.length).toEqual(0);
