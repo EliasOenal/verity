@@ -23,7 +23,10 @@ node fullNode.js
 ```
 npm run webpack
 ```
-Then open `distweb/index.html` in a browser.
+Then open `distweb/index.html` in a browser. Or alternatively directly spawn a web server with:
+```
+npm run webpack serve
+```
 
 ## Tests ##
 ```
