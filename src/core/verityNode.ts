@@ -5,10 +5,10 @@ import { Peer, PeerDB } from "./peerDB";
 import { logger } from "./logger";
 
 export class VerityNode {
-  cubeStore: CubeStore = new CubeStore();
-  peerDB: PeerDB = new PeerDB();
-  networkManager: NetworkManager;
   port = 1984;
+  cubeStore: CubeStore = new CubeStore();
+  peerDB: PeerDB = new PeerDB(this.port);
+  networkManager: NetworkManager;
 
   onlinePromise: Promise<any>;
   cubeStoreReadyPromise: Promise<any>;
