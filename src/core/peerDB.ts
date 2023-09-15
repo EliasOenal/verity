@@ -15,7 +15,17 @@ interface TrackerResponse {
     peers6?: Buffer;
 }
 
-class Address {
+export class Address {
+    // There is a point to be made to use IPv6 notation for all IPs
+    // however for now this serves the purpose of being able to
+    // prevent connecting to the same peer twice
+    static convertIPv6toIPv4(ip: string): string {
+        if ( ip.startsWith('::ffff:') ) {
+            return ip.replace('::ffff:', '');
+        }
+        return ip;
+    }
+
     constructor(
         public ip: string,  // could be IPv4, IPv6 or even a DNS name
         public port: number
@@ -128,10 +138,36 @@ export class PeerDB extends EventEmitter {
     }
 
     isPeerKnown(peer): boolean {
-        for (const candidate of this.peersVerified.concat(this.peersUnverified, this.peersBlacklisted)) {
-            if ( candidate.equals(peer) ) return true;
+        const knownPeers = this.peersUnverified.concat(this.peersVerified).concat(this.peersBlacklisted);
+        return knownPeers.some(knownPeer => knownPeer.equals(peer));
+    }
+
+    /**
+     * Returns a random verified or unverified peer.
+     * If exclude is specified, no peer equal to one of the exclude list will
+     * be eligible.
+     * This is primarily used by NetworkManager when selecting a peer to connect to.
+     */
+    getRandomPeer(exclude: Peer[] = []) {
+        const eligible: Peer[] = this.peersVerified.concat(this.peersUnverified).
+            filter((candidate: Peer) =>
+                exclude.every((tobeExcluded: Peer) =>
+                    !candidate.equals(tobeExcluded)));
+        if (eligible.length) {
+            const rnd = Math.floor(Math.random() * eligible.length);
+            return eligible[rnd];
+        } else {
+            return undefined;  // no eligible peers available
         }
-        return false;
+    }
+
+    learnPeer(peer: Peer) {
+        // Do nothing if we know this peer already
+        const knownPeers = this.peersUnverified.concat(this.peersVerified).concat(this.peersBlacklisted);
+        if (knownPeers.some(knownPeer => knownPeer.equals(peer))) return;
+        // Otherwise, add it to the list of unverified peers and let our listeners know
+        this.peersUnverified.push(peer);
+        this.emit('newPeer', peer)
     }
 
     setPeersBlacklisted(peers: Peer[]): void;
@@ -230,22 +266,13 @@ export class PeerDB extends EventEmitter {
                 logger.trace(`PeerDB: received announce response from ${trackerUrl}: ${JSON.stringify(decoded)}`);
 
                 if (!decoded.peers) {
-                    logger.error('No peers field in response');
+                    logger.error('PeerDB: No peers field in tracker response');
                     return;
                 }
 
-                const peers = PeerDB.parsePeers(decoded.peers, decoded.peers6);
-                const knownPeers: Peer[] = [...this.peersVerified, ...this.peersUnverified];
-
-                let newPeers = peers.filter(peer => !knownPeers.some(p => p.ip === peer.ip && p.port === peer.port));
-                logger.debug(`Got ${newPeers.length} new peers from trackers: ${newPeers.map(peer => `${peer.ip}:${peer.port}`).join(', ')}`);
-
-                // remove blacklisted peers
-                newPeers = newPeers.filter(peer => !this.peersBlacklisted.some(blacklistedPeer => blacklistedPeer.equals(peer)));
-
-                this.peersUnverified.push(...newPeers);
-                // emit new peer event for each new peer
-                newPeers.forEach(peer => this.emit('newPeer', peer));
+                const peers: Peer[] = PeerDB.parsePeers(decoded.peers, decoded.peers6);
+                logger.debug(`PeerDB: Got ${peers.length} peers from trackers: ${peers.map(peer => `${peer.ip}:${peer.port}`).join(', ')}`);
+                for (const peer of peers) this.learnPeer(peer);  // add peers
             } catch (err) {
                 logger.warn(`Error occurred while announcing to ${trackerUrl}: ${err}`);
                 throw err;  // Re-throw the error

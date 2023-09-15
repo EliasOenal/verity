@@ -11,20 +11,11 @@ import sodium, { KeyPair } from 'libsodium-wrappers'
 import { FieldParser } from '../../src/core/fieldParser';
 
 describe('networkManager', () => {
-    beforeEach((done) => {
-        done();
-    });
-
-    afterEach((done) => {
-        done();
-    });
-
-    test('should create a WebSocket server on instantiation', done => {
+    test('should create a WebSocket server on instantiation', () => {
         const manager = new NetworkManager(3000, new CubeStore(false), new PeerDB(), false)
         manager.start();
         expect(manager.server).toBeInstanceOf(WebSocket.Server);
         manager.shutdown();
-        done();
     }, 3000);
 
     test('should create a NetworkPeer on incoming connection', done => {

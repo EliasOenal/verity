@@ -31,7 +31,7 @@ export class VerityNode {
     if (lightNode) this.port = undefined;
     else this.port = port;
 
-    // Start networking and inform client's when this node is fully ready
+    // Start networking and inform clients when this node is fully ready
     this.networkManager = new NetworkManager(
       this.port, this.cubeStore, this.peerDB, announceToTorrentTrackers, lightNode);
     this.onlinePromise = new Promise(resolve => this.networkManager.once('online', () => {
@@ -42,6 +42,7 @@ export class VerityNode {
     }))
     this.readyPromise = Promise.all([this.onlinePromise, this.cubeStoreReadyPromise]);
 
+    // Inform clients when this node will eventually shut down
     this.shutdownPromise = new Promise(resolve => this.networkManager.once('shutdown', () => {
       logger.info('NetworkManager has shut down. Exiting...');
       resolve(undefined);
@@ -60,5 +61,10 @@ export class VerityNode {
         this.networkManager.connect(peer);
       }
     }
+  }
+
+  shutdown() {
+    this.networkManager.shutdown();
+    this.peerDB.shutdown();
   }
 }

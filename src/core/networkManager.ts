@@ -1,6 +1,6 @@
 import { CubeStore } from './cubeStore';
 import { MessageClass, NetConstants } from './networkDefinitions';
-import { PeerDB, Peer } from './peerDB';
+import { PeerDB, Peer, Address } from './peerDB';
 import { Settings } from './config';
 import { NetworkPeer, NetworkStats } from './networkPeer';
 import { logger } from './logger';
@@ -25,6 +25,7 @@ export class NetworkManager extends EventEmitter {
     outgoingPeers: NetworkPeer[] = []; // The peers for outgoing connections
     incomingPeers: NetworkPeer[] = []; // The peers for incoming connections
     private isConnectingPeers: boolean = false;
+    private isShuttingDown: boolean = false;
     private connectPeersInterval: NodeJS.Timeout = undefined;
     private static WEBSOCKET_HANDSHAKE_TIMEOUT = 2500;
     private online: boolean = false;
@@ -81,22 +82,12 @@ export class NetworkManager extends EventEmitter {
             }
             );
         }
-
-        this.peerDB.on('newPeer', (newPeer: Peer) => {
-            // TODO: Limit active connections to Settings.MAXIMUM_CONNECTIONS
-
-            // add a delay to prevent load spikes
-            setTimeout(() => {
-                this.connect(newPeer);
-            }, Math.random() * 31337);
-        });
-
         if (this.announceToTorrentTrackers) {
             this.peerDB.startAnnounceTimer();
             this.peerDB.announce();
         }
-        // TODO: rework this
-        //this.startConnectingPeers();
+        this.connectPeers();
+        this.peerDB.on('newPeer', (newPeer: Peer) => this.connectPeers());
     }
 
     private shutdownPeers() {
@@ -104,36 +95,42 @@ export class NetworkManager extends EventEmitter {
         this.incomingPeers.forEach(peer => peer.close());
     }
 
-    private startConnectingPeers(): void {
-        logger.trace('NetworkManager: startConnectingPeers()');
-        // Call connectPeers immediately, then every 5 minutes
-        this.connectPeersInterval = setInterval(() => {
-            if (!this.isConnectingPeers) {
-                //this.connectPeers();
+    private connectPeers() {
+        // Don't do anything if we're already in the process of connecting new peers
+        // or if we're shutting down.
+        if (this.isConnectingPeers || this.isShuttingDown) return;
+        clearInterval(this.connectPeersInterval);  // will re-set if necessary
+        // Only connect a new peer if we're not over the maximum,
+        // and if we're not already in the process of connecting new peers
+        if (this.outgoingPeers.length + this.incomingPeers.length <
+                Settings.MAXIMUM_CONNECTIONS) {
+            const connectTo: Peer = this.peerDB.getRandomPeer(
+                this.outgoingPeers.concat(this.incomingPeers));  // I'm almost certain this is not efficient.
+            if (connectTo){
+                this.isConnectingPeers = true;
+                this.connect(connectTo);
+                this.connectPeersInterval
+            } else {
+                this.isConnectingPeers = false;
+                this.connectPeersInterval = setInterval(() =>
+                    this.connectPeers(), Settings.NEW_PEER_INTERVAL);
             }
-        }, Settings.NEW_PEER_INTERVAL);
+        } else {  // we're done, enough peers connected
+            clearInterval(this.connectPeersInterval);
+            this.isConnectingPeers = false;
+        }
     }
 
     private stopConnectingPeers(): void {
         logger.trace('NetworkManager: stopConnectingPeers()');
         if (this.connectPeersInterval) {
             clearInterval(this.connectPeersInterval);
-            this.connectPeersInterval = undefined;
         }
-    }
-
-    // There is a point to be made to use IPv6 notation for all IPs
-    // however for now this serves the purpose of being able to
-    // prevent connecting to the same peer twice
-    private convertIPv6toIPv4(ip: string): string {
-        if ( ip.startsWith('::ffff:') ) {
-            return ip.replace('::ffff:', '');
-        }
-        return ip;
     }
 
     public shutdown() {
         logger.trace('NetworkManager: shutdown()');
+        this.isShuttingDown = true;
         this.peerDB.shutdown();
         this.stopConnectingPeers();
 
@@ -182,13 +179,15 @@ export class NetworkManager extends EventEmitter {
         logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort}`);
         const networkPeer = new NetworkPeer(
             this,
-            (ws as any)._socket.remoteAddress,
+            Address.convertIPv6toIPv4((ws as any)._socket.remoteAddress),
             (ws as any)._socket.remotePort,
             ws, this.cubeStore,
             this.peerID,
             this.lightNode);
         this.incomingPeers.push(networkPeer);
-        this.peerDB.setPeersUnverified(networkPeer);
+        // TODO HACKHACK: Until we include some way for incoming peers to indicate
+        // their server port (if any), we just don't store them to PeerDB.
+        // this.peerDB.setPeersUnverified(networkPeer);
     }
 
     /**
@@ -228,6 +227,7 @@ export class NetworkManager extends EventEmitter {
         this.incomingPeers = this.incomingPeers.filter(p => p !== peer);
         this.outgoingPeers = this.outgoingPeers.filter(p => p !== peer);
         this.emit('peerclosed', peer);
+        this.connectPeers();  // find a replacement peer
     }
 
     /*

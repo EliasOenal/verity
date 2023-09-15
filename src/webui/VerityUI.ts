@@ -51,6 +51,7 @@ export class VerityUI {
   }
 
   shutdown() {
+    this.node.shutdown();
     this.postDisplay.shutdown();
   }
 
@@ -102,8 +103,9 @@ async function webmain() {
   // @ts-ignore TypeScript does not like us creating extra window attributes
   window.verityUI = verityUI;
 
-  await node.shutdownPromise;
-  verityUI.shutdown();
+  // Shut node down cleanly when user exits
+  // @ts-ignore TypeScript does not like us creating extra window attributes
+  window.onbeforeunload = function(){ window.verityUI.shutdown() }
 }
 
 if (isBrowser) webmain();
