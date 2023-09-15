@@ -45,7 +45,7 @@
       padding: 0.5em;
     }
 
-    #cubelist {
+    .cubelist {
       overflow-wrap: anywhere;
     }
 
@@ -84,14 +84,20 @@
     .vera-roll {
       animation: barrelRoll 1s ease-in-out forwards;
     }
+
+    .dark-mode-toggle {
+      font-size: 1.5em;
+    }
   </style>
 </head>
 
 <body>
   <div class="content-wrapper">
-    <div class="position-absolute top-0 end-0 m-3">
-      <button class="btn btn-link" onclick="toggleDarkMode()" type="button">
-        <i class="bi bi-circle-half"></i>
+    <div class="position-absolute top-0 end-0 m-0">
+      <button class="btn btn-link dark-mode-toggle" onclick="toggleDarkMode()" type="button">
+        <span id="theme-icon">
+          <!-- The icon will be set here by the updateIcon function -->
+        </span>
       </button>
     </div>
     <div class="container-fluid">
@@ -138,12 +144,24 @@
     </div>
   </div>
   <script>
+    function updateIcon() {
+      const iconSpan = document.getElementById('theme-icon');
+      if (document.documentElement.getAttribute('data-bs-theme') === 'dark') {
+        iconSpan.innerHTML = '<i class="bi bi-moon-stars-fill"></i>';
+      } else {
+        iconSpan.innerHTML = '<i class="bi bi-sun-fill"></i>';
+      }
+    }
+
+    updateIcon();
+
     function toggleDarkMode() {
       if (document.documentElement.getAttribute('data-bs-theme') === 'dark') {
         document.documentElement.setAttribute('data-bs-theme', 'light');
       } else {
         document.documentElement.setAttribute('data-bs-theme', 'dark');
       }
+      updateIcon();
     }
   </script>
 </body> <!-- globalrow, container and body -->
