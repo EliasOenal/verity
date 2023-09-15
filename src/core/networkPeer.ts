@@ -83,6 +83,8 @@ export class NetworkPeer extends Peer {
         // On WebSocket errors just shut down this peer
         // @ts-ignore When using socketCloseSignal the compiler mismatches the function overload
         ws.addEventListener("error", (error) => {
+            // TODO: We should probably "greylist" peers that closed with an error,
+            // i.e. not try to reconnect them for some time.
             logger.warn(`NetworkPeer: WebSocket error: ${error.message}`);
             this.close();
         }, { socketClosedSignal });
@@ -537,20 +539,9 @@ export class NetworkPeer extends Peer {
             if (!peerIp || !peerPort) continue;  // ignore invalid
             const peer: Peer = new Peer(peerIp, parseInt(peerPort));
 
-            // skip peer if already known
-            if (this.networkManager.getPeerDB().isPeerKnown(peer)) {
-                logger.info(`NetworkPeer: Received peer ${peerIp}:${peerPort} from ${this.ip}:${this.port}, but we already knew them`);
-                continue;
-            }
-
             // register peer
-            this.networkManager.getPeerDB().setPeersUnverified([peer]);
-            logger.info(`NetworkPeer: Received new peer ${peerIp}:${peerPort} from ${this.ip}:${this.port}`);
-
-            // Connect to new peer
-            // TODO: This obviously does not scale.
-            // TODO: Find a suitable algorithm to decide which and how many peers to connect to.
-            this.networkManager.connect(peer);
+            this.networkManager.getPeerDB().learnPeer(peer);
+            logger.info(`NetworkPeer: Received peer ${peerIp}:${peerPort} from ${this.toString()}`);
         }
     }
 

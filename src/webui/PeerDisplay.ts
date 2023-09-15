@@ -23,7 +23,7 @@ export class PeerDisplay {
   public redisplayPeers() {
     const peerlist: HTMLElement | null = document.getElementById("peerlist");
     if (!peerlist) return;
-    
+
     // Get the current peers from NetworkManager
     const currentPeers = [
         ...this.parent.node.networkManager.outgoingPeers,
