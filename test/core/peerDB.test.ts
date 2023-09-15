@@ -25,9 +25,7 @@ describe ('PeerDB', () => {
 
         const result = PeerDB.parsePeers(peers, peers6);
 
-        expect(result).toEqual([
-            { ip: '192.168.0.1', port: 8080 },
-        ]);
+        expect(result).toEqual([new Peer('192.168.0.1', 8080)]);
     }, 3000);
 
     it('correctly blacklists peers', () => {

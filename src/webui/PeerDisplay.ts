@@ -35,10 +35,10 @@ export class PeerDisplay {
   drawSinglePeer(peer: NetworkPeer, outgoing: boolean): HTMLLIElement {
     const li = document.createElement("li");
     li.setAttribute("class", "mb-3");
-    const peeraddr = document.createTextNode(`${peer.stats.ip}:${peer.stats.port}`);
+    const peeraddr = document.createTextNode(`${peer.ip}:${peer.port}`);
     li.appendChild(peeraddr);
     li.appendChild(document.createElement("br"));
-    const peerid = document.createTextNode(`ID ${peer.stats.peerID?.toString('hex')}`);
+    const peerid = document.createTextNode(`ID ${peer.id?.toString('hex')}`);
     li.appendChild(peerid);
     return li;
   }
