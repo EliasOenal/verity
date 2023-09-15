@@ -56,6 +56,8 @@ module.exports = {
 	      { from: './img/vera.svg' },
         { from: './img/bootstrap.bundle.min.js' },
         { from: './img/bootstrap.min.css' },
+        { from: './img/bootstrap-icons.min.css' },
+        { from: './img/fonts/bootstrap-icons.woff', to: 'fonts/bootstrap-icons.woff' },
       ]
     }),
    new webpack.ProvidePlugin({

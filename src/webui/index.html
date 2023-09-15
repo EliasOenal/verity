@@ -1,59 +1,21 @@
 <!DOCTYPE html>
 <html>
-
 <head>
   <title>Verity</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/png" href="vera.svg">
   <link href="bootstrap.min.css" rel="stylesheet">
+  <link href="bootstrap-icons.min.css" rel="stylesheet">
   <script src="bootstrap.bundle.min.js"></script>
-
+  <script>
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.setAttribute('data-bs-theme', 'dark');
+    }
+  </script>
   <style>
-    :root {
-      --bg-color-light: #ffffff;
-      --bg-color-dark: #222222;
-      --text-color-light: #222222;
-      --text-color-dark: #ffffff;
+    * {
+      transition: 0.35s ease, color 0.05s ease, background-color 0.2s ease;
     }
-
-    body {
-      background-color: var(--bg-color-light);
-      color: var(--text-color-light);
-      transition: background-color 0.3s, color 0.3s;
-      /* Smooth transition */
-    }
-
-    body.dark-mode {
-      background-color: var(--bg-color-dark);
-      color: var(--text-color-dark);
-    }
-
-    body.dark-mode .form-label {
-      color: var(--text-color-dark);
-    }
-
-    body.dark-mode .form-control {
-      background-color: #333333;
-      /* Dark background color for input fields */
-      color: #e0e0e0;
-      /* Light text color for input fields */
-      border-color: #444444;
-      /* Dark border color for input fields */
-    }
-
-    body.dark-mode .btn-primary {
-      opacity: 0.7;
-    }
-
-    body.dark-mode .form-check-input:checked {
-      opacity: 0.7;
-    }
-
-    body.dark-mode .form-control::placeholder {
-      color: #e0e0e0;
-      /* Light text color for placeholder */
-    }
-
 
     ul.replyposts {
       list-style-type: none;
@@ -82,9 +44,9 @@
 
 <body>
   <div class="position-absolute top-0 end-0 m-3">
-    <div class="form-check form-switch">
-      <input class="form-check-input" type="checkbox" id="darkModeSwitch" onclick="toggleDarkMode()">
-    </div>
+    <button class="btn btn-link" onclick="toggleDarkMode()" type="button">
+      <i class="bi bi-circle-half"></i>
+    </button>
   </div>
   <div class="container px-xl-5">
     <div class="row" id="globalrow">
@@ -128,13 +90,11 @@
   </div>
   <script>
     function toggleDarkMode() {
-      document.body.classList.toggle('dark-mode');
-    }
-
-    // Check if the user has set their system to use a dark color scheme and apply the dark mode class if true
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      document.body.classList.add('dark-mode');
-      document.getElementById('darkModeSwitch').checked = true;
+      if (document.documentElement.getAttribute('data-bs-theme') === 'dark') {
+        document.documentElement.setAttribute('data-bs-theme', 'light');
+      } else {
+        document.documentElement.setAttribute('data-bs-theme', 'dark');
+      }
     }
   </script>
 </body> <!-- globalrow, container and body -->
