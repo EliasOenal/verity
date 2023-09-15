@@ -202,7 +202,7 @@ export class NetworkManager extends EventEmitter {
         if (!peer.stats.peerID) return;
 
         // Mark the peer as verified
-        const nonNetworkPeerThatShouldReallyBeBaseClassed: Peer = new Peer(peer.stats.ip, peer.stats.port, peer.stats.peerID.toString('hex'));  // TODO refactor
+        const nonNetworkPeerThatShouldReallyBeBaseClassed: Peer = new Peer(peer.stats.ip, peer.stats.port, peer.stats.peerID);  // TODO refactor
         this.peerDB.setPeersVerified([nonNetworkPeerThatShouldReallyBeBaseClassed]);
 
         // If this is the first successful connection, emit an 'online' event

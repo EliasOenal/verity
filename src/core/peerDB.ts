@@ -3,7 +3,9 @@ import { EventEmitter } from 'events';
 import { Settings } from './config';
 import { logger } from './logger';
 import { log } from 'console';
+
 import axios from 'axios';
+import { Buffer } from 'buffer';
 
 interface TrackerResponse {
     interval: number;
@@ -14,9 +16,9 @@ interface TrackerResponse {
 export class Peer {
     ip: string;
     port: number;
-    id?: string;
+    id?: Buffer;
 
-    constructor(ip: string, port: number, id?: string) {
+    constructor(ip: string, port: number, id?: Buffer) {
         this.ip = ip;
         this.port = port;
         this.id = id;
@@ -24,14 +26,14 @@ export class Peer {
 
     equals(other: Peer): boolean {
         if (this.ip === other.ip && this.port === other.port) return true;
-        else if (this.id && other.id && this.id == other.id) return true;
+        else if (this.id && other.id && this.id.equals(other.id)) return true;
         else return false;
     }
 
     address(): string { return `${this.ip}:${this.port}`}
 
     toString() {
-        return `${this.ip}:${this.port}(ID#${this.id})`;
+        return `${this.ip}:${this.port}(ID#${this.id?.toString('hex')})`;
     }
 }
 
