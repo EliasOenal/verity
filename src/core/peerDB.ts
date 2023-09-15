@@ -7,30 +7,82 @@ import { log } from 'console';
 import axios from 'axios';
 import { Buffer } from 'buffer';
 
+// Maybe TODO: Move tracker handling out of PeerDB, maybe into a new TorrentTrackerClient?
+
 interface TrackerResponse {
     interval: number;
     peers: Buffer;
     peers6?: Buffer;
 }
 
+class Address {
+    constructor(
+        public ip: string,  // could be IPv4, IPv6 or even a DNS name
+        public port: number
+    ) {}
+
+    equals(other: Address): boolean {
+        return (this.ip === other.ip && this.port === other.port);
+    }
+}
+
 export class Peer {
-    ip: string;
-    port: number;
-    id?: Buffer;
+    /** The 16 byte node ID. We usually only learn this upen successfull HELLO exchange. */
+    id?: Buffer = undefined;
+
+    /**
+     * A peer can have multiple addresses, e.g. an IPv4 one, an IPv6 one
+     * and one or multiple domain names.
+     * Server-capable incoming peers always have at least two addresses:
+     * one using the client port from which they connected to us and
+     * one using their server port.
+     */
+    addresses: Address[] = [];
+    /**
+     * We arbitrarily define one address as primary, usually the first one we
+     * learn. It's the one we connect to.
+     * TODO: On incoming connections, capable nodes should expose their server
+     * port. When they do, their server address should be marked as primary.
+     * Will not implement this until we switched to WebRTC.
+    */
+    private primaryAddressIndex: number = undefined;
+    /** Shortcut to get the primary address object */
+    get address() { return this.addresses[this.primaryAddressIndex]; }
+    /** Shortcut to get the primary IP */
+    get ip() { return this.addresses[this.primaryAddressIndex].ip; }
+    /** Shortcut to get the primary port */
+    get port() { return this.addresses[this.primaryAddressIndex].port; }
 
     constructor(ip: string, port: number, id?: Buffer) {
-        this.ip = ip;
-        this.port = port;
+        this.addresses.push(new Address(ip, port));
         this.id = id;
+        this.primaryAddressIndex = 0;
     }
 
+    /** Two peers are equal if they either have the same ID or have a common address. */
     equals(other: Peer): boolean {
-        if (this.ip === other.ip && this.port === other.port) return true;
+        const addressEquals: boolean = this.addresses.some(myaddress =>
+            other.addresses.some(othersaddress => myaddress.equals(othersaddress)));
+        if (addressEquals) return true;
         else if (this.id && other.id && this.id.equals(other.id)) return true;
         else return false;
     }
 
-    address(): string { return `${this.ip}:${this.port}`}
+    addAddress(address: Address);
+    addAddress(ip: string, port: number);
+    /** Leans a new address for this peer, if it's actually a new one. */
+    addAddress(address: Address | string, port?: number) {
+        if ( !(address instanceof Address) ) {
+            address = new Address(address, port);
+        }
+        // @ts-ignore Somehow Typescript doesn't realize address is now guarantueed to be instanceof Address
+        if (!this.addresses.some(existingaddr => address.equals(existingaddr))) {
+            this.addresses.push(address);
+        }
+    }
+
+    /** Shortcut to get the primary address string */
+    get addressString(): string { return `${this.ip}:${this.port}`}
 
     toString() {
         return `${this.ip}:${this.port}(ID#${this.id?.toString('hex')})`;
@@ -82,18 +134,26 @@ export class PeerDB extends EventEmitter {
         return false;
     }
 
-    setPeersBlacklisted(peers: Peer[]): void {
+    setPeersBlacklisted(peers: Peer[]): void;
+    setPeersBlacklisted(peers: Peer): void;
+    setPeersBlacklisted(peers: Peer[] | Peer): void {
+        if ( !(peers instanceof Array) ) peers = [peers];
         logger.info('PeerDB: Blacklisting peers ' + peers + '; my peers are: ' + [...this.peersVerified, ...this.peersUnverified]);
         // Add the peers to the blacklist
         peers = peers.filter(peer => !this.peersBlacklisted.some(blacklistedPeer => blacklistedPeer.equals(peer)));
         this.peersBlacklisted.push(...peers);
 
         // Remove the peers from the verified and unverified lists
+        // @ts-ignore Typescript seems to have forgotten that peers is now guaranteed to be an Array
         this.peersVerified = this.peersVerified.filter(verifiedPeer => !peers.some(peer => peer.equals(verifiedPeer)));
+        // @ts-ignore Typescript seems to have forgotten that peers is now guaranteed to be an Array
         this.peersUnverified = this.peersUnverified.filter(unverifiedPeer => !peers.some(peer => peer.equals(unverifiedPeer)));
     }
 
-    setPeersVerified(peers: Peer[]): void {
+    setPeersVerified(peers: Peer[]): void;
+    setPeersVerified(peers: Peer): void;
+    setPeersVerified(peers: Peer[] | Peer): void {
+        if ( !(peers instanceof Array) ) peers = [peers];
         logger.info(`PeerDB: setting peer(s) ${peers.join(", ")} verified.`);
         // Check blacklisted peers
         peers = peers.filter(peer => !this.peersBlacklisted.some(blacklistedPeer => blacklistedPeer.equals(peer)));
@@ -102,10 +162,14 @@ export class PeerDB extends EventEmitter {
         this.peersVerified.push(...peers);
 
         // Remove the peers from the unverified list
+        // @ts-ignore Typescript seems to have forgotten that peers is now guaranteed to be an Array
         this.peersUnverified = this.peersUnverified.filter(unverifiedPeer => !peers.some(peer => peer.equals(unverifiedPeer)));
     }
 
-    setPeersUnverified(peers: Peer[]): void {
+    setPeersUnverified(peers: Peer[]): void;
+    setPeersUnverified(peers: Peer): void;
+    setPeersUnverified(peers: Peer[] | Peer): void {
+        if ( !(peers instanceof Array) ) peers = [peers];
         logger.info(`PeerDB: setting peer(s) ${peers.join(", ")} unverified.`);
         // Check blacklisted peers
         peers = peers.filter(peer => !this.peersBlacklisted.some(blacklistedPeer => blacklistedPeer.equals(peer)));
@@ -114,6 +178,7 @@ export class PeerDB extends EventEmitter {
         this.peersUnverified.push(...peers);
 
         // Remove the peers from the verified list
+        // @ts-ignore Typescript seems to have forgotten that peers is now guaranteed to be an Array
         this.peersVerified = this.peersVerified.filter(verifiedPeer => !peers.some(peer => peer.equals(verifiedPeer)));
     }
 

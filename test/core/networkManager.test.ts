@@ -136,7 +136,7 @@ describe('networkManager', () => {
         manager2.shutdown();
         manager3.shutdown();
         await Promise.all([promise1_shutdown, promise2_shutdown, promise3_shutdown]);
-    }, 20000);
+    }, 10000);
 
     test('sync MUC updates', async () => {
         await sodium.ready;
@@ -230,7 +230,7 @@ describe('networkManager', () => {
         manager1.shutdown();
         manager2.shutdown();
         await Promise.all([promise1_shutdown, promise2_shutdown]);
-    }, 20000);
+    }, 10000);
 
     test('should blacklist a peer when trying to connect to itself', async () => {
         const peerDB = new PeerDB();
@@ -239,26 +239,23 @@ describe('networkManager', () => {
 
         // Wait for server to start listening
         await new Promise((resolve) => manager.server?.on('listening', resolve));
+        expect(peerDB.getPeersBlacklisted().length).toEqual(0);
 
         // Trigger a connection to itself
         manager.connect(`ws://localhost:6004`);
 
-        let peer: Peer;
         // Wait for the 'blacklist' event to be triggered
-        await new Promise((resolve, reject) => {
+        await new Promise<void>((resolve, reject) => {
             manager.on('blacklist', (bannedPeer: Peer) => {
-                logger.warn(`Peer ${bannedPeer.ip}:${bannedPeer.port} was blacklisted`);
-                peer = bannedPeer;
-                expect(bannedPeer).toBeInstanceOf(Peer);
-                const blacklistedPeers = peerDB.getPeersBlacklisted();
-                expect(blacklistedPeers).toContain(peer);
-                resolve(undefined);
-            });
+                resolve();
+            })
         });
+        expect(peerDB.getPeersBlacklisted().length).toEqual(1);
 
         manager.shutdown();
     }, 3000);
 
+    // TODO rename, this is no longer formally blacklisting
     test('should blacklist a peer when ID is equal to existing peer', async () => {
         const myPeerDB = new PeerDB();
         const myManager = new NetworkManager(7004, new CubeStore(false), myPeerDB, false);
@@ -284,28 +281,34 @@ describe('networkManager', () => {
         await bothHaveConnected;
 
         // ensure connected
+        expect(myManager.outgoingPeers.length).toEqual(1);
+        expect(myManager.incomingPeers.length).toEqual(0);
         expect(myManager.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
-        expect(myManager.outgoingPeers[0].stats.peerID?.equals(otherManager.peerID));
+        expect(myManager.outgoingPeers[0].id?.equals(otherManager.peerID));
+        expect(otherManager.outgoingPeers.length).toEqual(0);
+        expect(otherManager.incomingPeers.length).toEqual(1);
         expect(otherManager.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
-        expect(otherManager.incomingPeers[0].stats.peerID?.equals(myManager.peerID));
+        expect(otherManager.incomingPeers[0].id?.equals(myManager.peerID));
+        expect(myPeerDB.getPeersVerified().length).toEqual(1);
+        expect(otherPeerDB.getPeersVerified().length).toEqual(1);
+
 
         // Connect again through different address.
         // This will trigger the blacklist signal on both peers.
         // Wait for these signals; if they don't come, this test will fail
         // due to *timeout only*.
         const iHaveBlacklisted = new Promise((resolve) => {
-            myManager.on('blacklist', () => { resolve(undefined); })
+            myManager.on('duplicatepeer', () => { resolve(undefined); })
         });
         const otherHasBlacklisted = new Promise((resolve) => {
-            otherManager.on('blacklist', () => { resolve(undefined); })
+            otherManager.on('duplicatepeer', () => { resolve(undefined); })
         });
         const bothHaveBlacklisted = Promise.all([iHaveBlacklisted, otherHasBlacklisted]);
         myManager.connect('ws://127.0.0.1:7005');
         await bothHaveBlacklisted;
 
-        expect(myPeerDB.getPeersBlacklisted()[0]).toBeInstanceOf(Peer);
-        expect(myPeerDB.getPeersBlacklisted()[0].address()).toEqual('127.0.0.1:7005');
-        expect(otherPeerDB.getPeersBlacklisted()[0]).toBeInstanceOf(Peer);
+        expect(myPeerDB.getPeersBlacklisted().length).toEqual(0);  // duplicate is not / no longer blacklisting
+        expect(otherPeerDB.getPeersBlacklisted().length).toEqual(0);
         expect(myManager.outgoingPeers.length).toEqual(1);
         expect(myManager.incomingPeers.length).toEqual(0);
         expect(otherManager.outgoingPeers.length).toEqual(0);
@@ -319,7 +322,7 @@ describe('networkManager', () => {
         // Teardown
         myManager.shutdown();
         otherManager.shutdown();
-    }, 20000);
+    }, 10000);
 
 });
 

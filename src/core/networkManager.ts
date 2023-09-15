@@ -188,7 +188,7 @@ export class NetworkManager extends EventEmitter {
             this.peerID,
             this.lightNode);
         this.incomingPeers.push(networkPeer);
-        this.peerDB.setPeersUnverified([new Peer(networkPeer.stats.ip, networkPeer.stats.port)]);
+        this.peerDB.setPeersUnverified(networkPeer);
     }
 
     /**
@@ -199,11 +199,10 @@ export class NetworkManager extends EventEmitter {
         if (this.blacklistPeerIfInvalid(peer)) return;
 
         // Verify this peer is valid (just checking if there is an ID for now)
-        if (!peer.stats.peerID) return;
+        if (!peer.id) return;
 
         // Mark the peer as verified
-        const nonNetworkPeerThatShouldReallyBeBaseClassed: Peer = new Peer(peer.stats.ip, peer.stats.port, peer.stats.peerID);  // TODO refactor
-        this.peerDB.setPeersVerified([nonNetworkPeerThatShouldReallyBeBaseClassed]);
+        this.peerDB.setPeersVerified([peer]);
 
         // If this is the first successful connection, emit an 'online' event
         if (!this.online) {
@@ -225,7 +224,7 @@ export class NetworkManager extends EventEmitter {
      * Callback executed when a NetworkPeer connection is closed.
      */
     handlePeerClosed(peer: NetworkPeer) {
-        logger.debug(`NetworkManager: Connection to peer ${peer.stats.ip}:${peer.stats.port}, ID ${peer.stats.peerID?.toString('hex')} has been closed.`);
+        logger.debug(`NetworkManager: Connection to peer ${peer.ip}:${peer.port}, ID ${peer.id?.toString('hex')} has been closed.`);
         this.incomingPeers = this.incomingPeers.filter(p => p !== peer);
         this.outgoingPeers = this.outgoingPeers.filter(p => p !== peer);
         this.emit('peerclosed', peer);
@@ -264,7 +263,7 @@ export class NetworkManager extends EventEmitter {
             this.peerID,
             this.lightNode);
         this.outgoingPeers.push(networkPeer);
-        this.peerDB.setPeersUnverified([new Peer(networkPeer.stats.ip, networkPeer.stats.port)]);
+        this.peerDB.setPeersUnverified(networkPeer);
         this.emit('newpeer', networkPeer);
 
         // Listen for events on this new network peer
@@ -280,21 +279,18 @@ export class NetworkManager extends EventEmitter {
      *      to by IP address or domain name)
      *  3) Node sending invalid messages
      *     (this case is handled in NetworkPeer rather than here)
-     * @returns Whether the peer has been disconnedted and blacklisted
+     * @returns Whether the peer has been disconnected and blacklisted
      */
     // TODO: blacklist entries caused by duplicate address
     // should be removed when the original connection to a peer
     // is closed
     blacklistPeerIfInvalid(peer: NetworkPeer): boolean {
-        if (peer.stats.peerID.equals(this.peerID)) this.blacklistPeer(peer);
-        for (const other of [...this.outgoingPeers, ...this.incomingPeers]) {  // is this efficient or does it copy the array? I don't know, I just watched a YouTube tutorial.
-            if (!Object.is(other, peer)) {  // this is required so we don't blacklist this very same connection
-                if (other.stats.peerID?.equals(peer.stats.peerID)) {
-                    this.blacklistPeer(peer);
-                    return true;
-                }
-            }
+        if (peer.id.equals(this.peerID)) {
+            this.blacklistPeer(peer);
+            return true;
         }
+        const duplicate: boolean = this.checkForDuplicatePeer(peer);
+        if (duplicate) return true;
         return false;
     }
 
@@ -303,10 +299,32 @@ export class NetworkManager extends EventEmitter {
         // disconnect
         peer.close();
         // blacklist
-        const nonNetworkPeerThatShouldReallyBeBaseClassed: Peer = new Peer(peer.stats.ip, peer.stats.port);  // TODO refactor
-        this.peerDB.setPeersBlacklisted([nonNetworkPeerThatShouldReallyBeBaseClassed]);
-        logger.warn(`NetworkManager: Peer ${nonNetworkPeerThatShouldReallyBeBaseClassed.ip}:${nonNetworkPeerThatShouldReallyBeBaseClassed.port} has been blacklisted.`);
-        this.emit('blacklist', nonNetworkPeerThatShouldReallyBeBaseClassed);
+        this.peerDB.setPeersBlacklisted(peer);
+        logger.warn(`NetworkManager: Peer ${peer.ip}:${peer.port} has been blacklisted.`);
+        this.emit('blacklist', peer);
+    }
+
+    /**
+     * Checks if this peer connection is a duplicate, i.e. if were
+     */
+    private checkForDuplicatePeer(peer: NetworkPeer): boolean {
+        for (const other of [...this.outgoingPeers, ...this.incomingPeers]) {  // is this efficient or does it copy the array? I don't know, I just watched a YouTube tutorial.
+            if (!Object.is(other, peer)) {  // this is required so we don't blacklist this very same connection
+                if (other.id?.equals(peer.id)) {
+                    this.handleDuplicatePeer(peer, other);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private handleDuplicatePeer(duplicate: NetworkPeer, original: Peer): void {
+        duplicate.close();  // disconnect the duplicate
+        this.peerDB.removeUnverifiedPeer(duplicate);
+        original.addAddress(duplicate.address);
+        logger.info(`NetworkManager: Closing connection ${duplicate.addressString} as duplicate to ${original.toString()}.`)
+        this.emit('duplicatepeer', duplicate);
     }
 
     private consolidateStats(totalStats: { [key: string]: { count: number, bytes: number } }, peerStats: { [key: string]: { count: number, bytes: number } }) {
@@ -321,9 +339,6 @@ export class NetworkManager extends EventEmitter {
 
     getNetStatistics(): NetworkStats {
         const totalStats: NetworkStats = {
-            ip: "",
-            port: 0,
-            peerID: this.peerID,
             tx: { totalPackets: 0, totalBytes: 0, packetTypes: {} },
             rx: { totalPackets: 0, totalBytes: 0, packetTypes: {} },
         };
@@ -373,8 +388,8 @@ export class NetworkManager extends EventEmitter {
             output += '\n';
 
             const stats = peer.stats;
-            output += `Peer: ${peer.stats.ip}:${stats.port}\n`;
-            output += `Peer ID: ${peer.stats.peerID?.toString('hex').toUpperCase()}\n`;
+            output += `Peer: ${peer.ip}:${peer.port}\n`;
+            output += `Peer ID: ${peer.id?.toString('hex').toUpperCase()}\n`;
             output += `Packets: TX: ${stats.tx.totalPackets}, RX: ${stats.rx.totalPackets}\n`;
             output += `Bytes: TX: ${stats.tx.totalBytes}, RX: ${stats.rx.totalBytes}\n`;
             output += 'Packet Types:\n';
