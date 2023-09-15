@@ -8,12 +8,12 @@ export class PeerDisplay {
     this.parent = parent;
 
     // redraw peer list on NetworkManager events
-    this.parent.node.networkManager.on('newpeer', (peer) => this.redisplayPeers());
+    // this.parent.node.networkManager.on('newpeer', (peer) => this.redisplayPeers());  // a peer is not actually ready and probably not even connected on the "newpeer" event, so let's ignore this
     this.parent.node.networkManager.on('peerclosed', (peer) => this.redisplayPeers());
-    this.parent.node.networkManager.on('updatepeer', (peer) => this.redisplayPeers());
-    this.parent.node.networkManager.on('blacklist', (peer) => this.redisplayPeers());
-    this.parent.node.networkManager.on('online', (peer) => this.redisplayPeers());
-    this.parent.node.networkManager.on('shutdown', (peer) => this.redisplayPeers());
+    this.parent.node.networkManager.on('peeronline', (peer) => this.redisplayPeers());
+    // this.parent.node.networkManager.on('blacklist', (peer) => this.redisplayPeers());  // we don't really have to react to this event, at least not in this very crude way
+    // this.parent.node.networkManager.on('online', (peer) => this.redisplayPeers());  // we don't really have to react to this event, at least not in this very crude way
+    // this.parent.node.networkManager.on('shutdown', (peer) => this.redisplayPeers());  // we don't really have to react to this event, at least not in this very crude way
   }
 
   /**

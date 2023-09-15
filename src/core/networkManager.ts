@@ -21,11 +21,11 @@ if (isBrowser || isWebWorker) {
  * Class representing a network manager, responsible for handling incoming and outgoing connections.
  */
 export class NetworkManager extends EventEmitter {
-    server: WebSocket.Server | undefined; // The WebSocket server for incoming connections
-    outgoingPeers: NetworkPeer[]; // The peers for outgoing connections
-    incomingPeers: NetworkPeer[]; // The peers for incoming connections
-    private isConnectingPeers: boolean;
-    private connectPeersInterval: NodeJS.Timeout | undefined;
+    server: WebSocket.Server = undefined; // The WebSocket server for incoming connections
+    outgoingPeers: NetworkPeer[] = []; // The peers for outgoing connections
+    incomingPeers: NetworkPeer[] = []; // The peers for incoming connections
+    private isConnectingPeers: boolean = false;
+    private connectPeersInterval: NodeJS.Timeout = undefined;
     private static WEBSOCKET_HANDSHAKE_TIMEOUT = 2500;
     private online: boolean = false;
     private server_enabled: boolean;
@@ -51,10 +51,6 @@ export class NetworkManager extends EventEmitter {
             private lightNode: boolean = false) {
         super();
 
-        this.isConnectingPeers = false;
-        this.outgoingPeers = [];
-        this.incomingPeers = [];
-        this.server = undefined;
         this.peerID = Buffer.from(crypto.getRandomValues(new Uint8Array(16)));
         if (isNode) {
         if (server_port !== 0) {
@@ -104,8 +100,8 @@ export class NetworkManager extends EventEmitter {
     }
 
     private shutdownPeers() {
-        this.outgoingPeers.forEach(peer => peer.shutdown());
-        this.incomingPeers.forEach(peer => peer.shutdown());
+        this.outgoingPeers.forEach(peer => peer.close());
+        this.incomingPeers.forEach(peer => peer.close());
     }
 
     private startConnectingPeers(): void {
@@ -192,26 +188,36 @@ export class NetworkManager extends EventEmitter {
             this.peerID,
             this.lightNode);
         this.incomingPeers.push(networkPeer);
-        this.peerDB.setPeersVerified([new Peer(networkPeer.stats.ip, networkPeer.stats.port)]);
+        this.peerDB.setPeersUnverified([new Peer(networkPeer.stats.ip, networkPeer.stats.port)]);
 
-        networkPeer.on('updatepeer', (peer: NetworkPeer) => this.handleUpdatePeer(peer));
+        networkPeer.on('online', (peer: NetworkPeer) => this.handlePeerOnline(peer));
 
-        networkPeer.on('close', () => {
-            logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort} has been closed.`);
+        networkPeer.on('close', (peer) => {
+            logger.debug(`NetworkManager: Incoming connection from ${peer.stats.ip}:${peer.stats.port} has been closed.`);
             this.incomingPeers = this.incomingPeers.filter(p => p !== networkPeer);
+            this.emit('peerclosed', networkPeer);
         });
     }
 
     /**
-     * Event handler that will be called once we learn new stuff about a peer,
-     * in particular their peer ID.
+     * Event handler that will be called once a NetworkPeer is ready for business
      */
-    private handleUpdatePeer(peer: NetworkPeer) {
+    private handlePeerOnline(peer: NetworkPeer) {
         // Does this peer need to be blacklisted?
         if (this.blacklistPeerIfInvalid(peer)) return;
 
         // Verify this peer is valid (just checking if there is an ID for now)
         if (!peer.stats.peerID) return;
+
+        // Mark the peer as verified
+        const nonNetworkPeerThatShouldReallyBeBaseClassed: Peer = new Peer(peer.stats.ip, peer.stats.port, peer.stats.peerID.toString('hex'));  // TODO refactor
+        this.peerDB.setPeersVerified([nonNetworkPeerThatShouldReallyBeBaseClassed]);
+
+        // If this is the first successful connection, emit an 'online' event
+        if (!this.online) {
+            this.online = true;
+            this.emit('online');
+        }
 
         // Ask for cube keys and node exchange now
         // This is a pure optimisation to enhance startup time; NetworkPeer
@@ -219,8 +225,8 @@ export class NetworkManager extends EventEmitter {
         peer.sendHashRequest();
         peer.sendNodeRequest();
 
-        // Relay the updatepeer event to our subscribers
-        this.emit('updatepeer', peer);
+        // Relay the online event to our subscribers
+        this.emit('peeronline', peer);
     }
 
     /*
@@ -228,7 +234,7 @@ export class NetworkManager extends EventEmitter {
      * @param peer_param - Peer to connect to
      * @returns Promise<NetworkPeer> - Resolves with a NetworkPeer if connection is successful
      */
-    public async connect(peer_param: string | Peer): Promise<NetworkPeer> {
+    public connect(peer_param: string | Peer): NetworkPeer {
         // Create a Peer and its associated URL
         const { peer, peerURL } = this.createPeer(peer_param);
 
@@ -246,63 +252,35 @@ export class NetworkManager extends EventEmitter {
         const socketClosedController: AbortController = new AbortController();
         const socketClosedSignal: AbortSignal = socketClosedController.signal;
 
-        // Listen for WebSocket errors
-        // @ts-ignore When using socketCloseSignal the compiler mismatches the function overload
-        ws.addEventListener("error", (error) => {
-            logger.warn(`NetworkManager: WebSocket error: ${error.message}`);
-            // Remove all listeners and close the WebSocket connection in case of an error
-            socketClosedController.abort();
-            ws.close();
-        }, { socketClosedSignal });
+        // Create a new NetworkPeer
+        const networkPeer = new NetworkPeer(
+            this,
+            peer.ip,
+            peer.port,
+            ws,
+            this.cubeStore,
+            this.peerID,
+            this.lightNode);
+        this.outgoingPeers.push(networkPeer);
+        this.peerDB.setPeersUnverified([new Peer(networkPeer.stats.ip, networkPeer.stats.port)]);
+        this.emit('newpeer', networkPeer);
 
-        return new Promise((resolve) => {
-            // Listen for the WebSocket 'open' event
-            ws.addEventListener("open", () =>  {
-                // Mark the peer as verified
-                this.peerDB.setPeersVerified([peer]);
-                // Create a new NetworkPeer
-                const networkPeer = new NetworkPeer(
-                    this,
-                    peer.ip,
-                    peer.port,
-                    ws,
-                    this.cubeStore,
-                    this.peerID,
-                    this.lightNode);
+        // Listen for events on this new network peer
+        networkPeer.on('online', (peer) => this.handlePeerOnline(peer));
+        networkPeer.on('close', (closingPeer: NetworkPeer) => {
+            logger.info(`NetworkManager: Outgoing connection to ${closingPeer.stats.ip}:${closingPeer.stats.port} has been closed.`);
+            // Remove the closing peer from the list of outgoing peers
+            this.outgoingPeers = this.outgoingPeers.filter(peer => peer !== closingPeer);
+            this.emit('peerclosed', networkPeer);
 
-                logger.info(`NetworkManager: Connected to ${peerURL}`);
-                // Add the new NetworkPeer to the list of outgoing peers
-                this.outgoingPeers.push(networkPeer);
-                this.emit('newpeer', networkPeer);
+            // TODO: blacklist entries caused by duplicate address
+            // should be removed when the original connection to a peer
+            // is closed
 
-                // Listen for the 'close' event on the NetworkPeer
-                networkPeer.on('close', (closingPeer) => {
-                    logger.info(`NetworkManager: Connection to ${closingPeer.ip}:${closingPeer.port} has been closed.`);
-                    // Remove the closing peer from the list of outgoing peers
-                    this.outgoingPeers = this.outgoingPeers.filter(peer => peer !== closingPeer);
-                    this.emit('peerclosed', networkPeer);
-
-                    // TODO: blacklist entries caused by duplicate address
-                    // should be removed when the original connection to a peer
-                    // is closed
-
-                    // TODO: centralize peer connection closed handling for both
-                    // outgoing and incoming peer connections
-                });
-
-                networkPeer.on('updatepeer', (peer) => this.handleUpdatePeer(peer));
-
-                // If this is the first successful connection, emit an 'online' event
-                if (!this.online) {
-                    this.online = true;
-                    this.emit('online');
-                }
-
-                // Resolve the promise with the new NetworkPeer
-                resolve(networkPeer);
-            // @ts-ignore I don't know why the compiler complains about this
-            }, { signal: socketClosedSignal });
+            // TODO: centralize peer connection closed handling for both
+            // outgoing and incoming peer connections
         });
+        return networkPeer;
     }
 
     /**
@@ -332,9 +310,9 @@ export class NetworkManager extends EventEmitter {
     /** Disconnect and blacklist this peer */
     private blacklistPeer(peer: NetworkPeer): void {
         // disconnect
-        peer.shutdown();
+        peer.close();
         // blacklist
-        const nonNetworkPeerThatShouldReallyBeBaseClassed: Peer = new Peer(peer.stats.ip, peer.stats.port);
+        const nonNetworkPeerThatShouldReallyBeBaseClassed: Peer = new Peer(peer.stats.ip, peer.stats.port);  // TODO refactor
         this.peerDB.setPeersBlacklisted([nonNetworkPeerThatShouldReallyBeBaseClassed]);
         logger.warn(`NetworkManager: Peer ${nonNetworkPeerThatShouldReallyBeBaseClassed.ip}:${nonNetworkPeerThatShouldReallyBeBaseClassed.port} has been blacklisted.`);
         this.emit('blacklist', nonNetworkPeerThatShouldReallyBeBaseClassed);
