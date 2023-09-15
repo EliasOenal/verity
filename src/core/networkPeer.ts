@@ -37,35 +37,39 @@ export interface NetworkStats {
  * Class representing a network peer, responsible for handling incoming and outgoing messages.
  */
 export class NetworkPeer extends EventEmitter {
-    networkManager: NetworkManager;
-    ws: WebSocket; // The WebSocket connection associated with this peer
-    storage: CubeStore; // The cube storage instance associated with this peer
     stats: NetworkStats;
-    hashRequestTimer?: NodeJS.Timeout; // Timer for hash requests
-    nodeRequestTimer?: NodeJS.Timeout; // Timer for node requests
-    private unsentCubeMeta: Set<CubeMeta>;
-    private lightMode: boolean = false;
-    private hostNodePeerID: Buffer;
+    hashRequestTimer?: NodeJS.Timeout = undefined; // Timer for hash requests
+    nodeRequestTimer?: NodeJS.Timeout = undefined; // Timer for node requests
 
-    // these two represent a very cumbersome but cross-platform way to remove
-    // listeners from web sockets (which we need to do once a peer connection closes)
-    private socketClosedController: AbortController = new AbortController();
-    private socketClosedSignal: AbortSignal = this.socketClosedController.signal;
+    /**
+     * A peer will be considered to be online once a correct HELLO message
+     * has been received.
+     */
+    private onlineFlag: boolean = false;
+
+    private unsentCubeMeta: Set<CubeMeta> = undefined;
+    private unsentPeers: Peer[] = undefined;  // TODO this should probably be a Set instead
 
     constructor(
-        networkManager: NetworkManager, ip: string, port: number,
-        ws: WebSocket, cubeStore: CubeStore, hostNodePeerID: Buffer,
-        lightMode: boolean = false,
-        socketClosedController: AbortController = new AbortController(),
-        socketClosedSignal: AbortSignal = socketClosedController.signal) {
+            private networkManager: NetworkManager,
+            ip: string,
+            port: number,
+            private ws: WebSocket,  // The WebSocket connection associated with this peer
+            private cubeStore: CubeStore,  // The cube storage instance associated with this peer
+            private hostNodePeerID: Buffer,
+            private lightMode: boolean = false,
+
+            // these two represent a very cumbersome but cross-platform way to remove
+            // listeners from web sockets (which we need to do once a peer connection closes)
+            private socketClosedController: AbortController = new AbortController(),
+            private socketClosedSignal: AbortSignal = socketClosedController.signal)
+    {
         super();
         this.networkManager = networkManager;
         this.ws = ws;
-        this.storage = cubeStore;
+        this.cubeStore = cubeStore;
         this.hostNodePeerID = hostNodePeerID;
         this.lightMode = lightMode;
-        this.socketClosedController = socketClosedController;
-        this.socketClosedSignal = socketClosedSignal;
         this.stats = {
             ip: ip,
             port: port,
@@ -74,16 +78,38 @@ export class NetworkPeer extends EventEmitter {
             rx: { totalPackets: 0, totalBytes: 0, packetTypes: {} },
         };
 
-        // Copy all hashes from cubeStore to unsentHashes.
-        // Later, add hash to unsentHashes whenever we get a new cube.
+        // On WebSocket errors just shut down this peer
+        // @ts-ignore When using socketCloseSignal the compiler mismatches the function overload
+        ws.addEventListener("error", (error) => {
+            logger.warn(`NetworkPeer: WebSocket error: ${error.message}`);
+            this.close();
+        }, { socketClosedSignal });
+
+        // Take note of all cubes I could share with this new peer. While the
+        // connection lasts, supplement this with any newly learned cubes.
+        // This is used to ensure we don't offer peers the same cube twice.
         this.unsentCubeMeta = cubeStore.getAllStoredCubeMeta();
         cubeStore.on('cubeAdded', (cube: CubeMeta) => {
             this.unsentCubeMeta.add(cube);
         });
 
+        // Take note of all other peers I could exchange with this new peer.
+        // This is used to ensure we don't exchange the same peers twice.
+        this.unsentPeers = this.networkManager.getPeerDB().getPeersVerified();
+        networkManager.on('peeronline', (peer: NetworkPeer) => {
+            if (! (peer.stats.ip == ip && peer.stats.port == port)) {
+               // add peer to exchangeable list, but don't share a peer with itself
+               const nonNetworkPeerThatShouldReallyBeBaseClassed: Peer = new Peer(peer.stats.ip, peer.stats.port, peer.stats.peerID.toString('hex'));  // TODO refactor
+               this.unsentPeers.push(nonNetworkPeerThatShouldReallyBeBaseClassed);
+            }
+        });
+        // TODO FIXME: This includes incoming peers, and for incoming peers we only know their client socket.
+        // TODO FIXME: Most universally, clients can't accept incoming connections on client sockets.
+        // TODO FIXME: We should include the server port in the hello message and save it.
+
         // Handle incoming messages
         //@ts-ignore
-        this.ws.addEventListener("message", (event) => {
+        ws.addEventListener("message", (event) => {
             if (isNode) {
                 this.handleMessage(Buffer.from(event.data as Buffer));
             } else {
@@ -92,18 +118,42 @@ export class NetworkPeer extends EventEmitter {
                     this.handleMessage(Buffer.from(value));
                 });
             }
-        }, { signal: this.socketClosedSignal });
+        }, { signal: socketClosedSignal });
 
-        this.ws.addEventListener('close', () => {
-            this.shutdown();
+        ws.addEventListener('close', () => {
+            this.close();
         });
 
-        // Be polite and send a hello message
-        // This allows us to identify if we're connected to ourselves
-        this.sendHello();
+        // Send HELLO message once connected
+        if (ws.readyState > 0) {
+            logger.info(`NetworkPeer: Connected to ${ip}:${port}`);
+            this.sendHello();
+        } else {
+            ws.addEventListener("open", () =>  {
+                logger.info(`NetworkPeer: Connected to ${ip}:${port}`);
+                this.sendHello();
+            // @ts-ignore I don't know why the compiler complains about this
+            }, { signal: socketClosedSignal });
+        }
     }
 
-    public shutdown(): void {
+    /**
+     * Returns a promise that will resolve once this node is ready for business,
+     * i.e. socket is open and HELLOs have been exchanged.
+     * @returns A promise referring to this NetworkPeer object.
+     */
+    async online(): Promise<NetworkPeer> {
+        return new Promise<NetworkPeer>((resolve, reject) => {
+            if (this.onlineFlag) {  // that was easy
+                resolve(this);
+            } else { // wait for online event
+            this.on('online', () => resolve(this));
+            this.on('close', () => reject(this));
+            }
+        });
+    }
+
+    public close(): void {
         // Let everybody know this connection is now closed.
         // In particular, this removes us from the NetworkManager.
         this.emit('close', this);
@@ -148,6 +198,9 @@ export class NetworkPeer extends EventEmitter {
      * @param message The incoming message as a Buffer.
      */
     handleMessage(message: Buffer) {
+        // maybe TODO: We currently don't enforce the HELLO message exchange.
+        // If we want to do that, we can simple check for this.onlineFlag
+        // on handling other messages.
         try {
             const messageClass = message.readUInt8(NetConstants.PROTOCOL_VERSION_SIZE);
             const messageContent = message.subarray(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
@@ -187,13 +240,13 @@ export class NetworkPeer extends EventEmitter {
             // after a defined timespan (increasing for repeat offenders)?
             // Blacklist entries based on IP/Port are especially sensitive
             // as the address could be reused by another node in a NAT environment.
-            this.emit('blacklist', new Peer(this.stats.ip, this.stats.port));
-            this.ws.close();
+            this.emit('blacklist', new Peer(this.stats.ip, this.stats.port, this.stats.peerID.toString('hex')));
+            this.close();
         }
     }
 
     sendHello() {
-        logger.trace(`NetworkPeer: sendHello()`);
+        logger.trace(`NetworkPeer: Sending HELLO to ${this.stats.ip}:${this.stats.port}`);
         const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.PEER_ID_SIZE);
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, 0);
         message.writeUInt8(MessageClass.Hello, 1);
@@ -202,16 +255,38 @@ export class NetworkPeer extends EventEmitter {
     }
 
     handleHello(data: Buffer) {
-        this.stats.peerID = data.slice(0, 16);
+        // receive peer ID
+        const peerID: Buffer = data.subarray(0, NetConstants.PEER_ID_SIZE);
+        if (peerID.length != NetConstants.PEER_ID_SIZE) {  // ID too short
+            logger.info(`NetworkPeer: Received invalid peer ID sized ${peerID.length} bytes, should be ${NetConstants.PEER_ID_SIZE} bytes. Closing connection to ${this.stats.ip}:${this.stats.port}.`)
+            this.close();
+            return;
+        }
 
-        // compare peerID to first 16 bytes of incoming packet
-        logger.trace(`NetworkPeer: received 'Hello' from IP: ${this.stats.ip}, port: ${this.stats.port}, peerID: ${this.stats.peerID.toString('hex')}`);
-        this.emit('updatepeer', this);  // let listeners know we learnt the peer's ID
+        // Is this a spurious repeat HELLO?
+        if (this.onlineFlag) {
+            // If the peer has unexpectedly changed its ID, disconnect.
+            if (!this.stats.peerID.equals(peerID)) {
+                logger.info(`NetworkPeer: Peer at ${this.stats.ip}:${this.stats.port} suddenly changed its ID from ${this.stats.peerID?.toString('hex')} to ${peerID.toString('hex')}, closing connection.`);
+                this.close();
+                return;
+            } else {  // no unexpedted ID change
+                logger.trace(`NetworkPeer: Received spurious repeat HELLO from ${this.stats.ip}:${this.stats.port}, ID ${this.stats.peerID.toString('hex')}`);
+            }
+        } else {  // not a repeat hello
+            logger.trace(`NetworkPeer: received HELLO from IP: ${this.stats.ip}, port: ${this.stats.port}, peerID: ${peerID.toString('hex')}, peer now considered online`);
+            this.stats.peerID = peerID;
+            this.onlineFlag = true;
+            this.emit('online', this);  // let listeners know we learnt the peer's ID
+        }
+
         // Asks for their know peers in regular intervals
-        this.nodeRequestTimer = setInterval(() => this.sendNodeRequest(), Settings.NODE_REQUEST_TIME);
-
+        if (!this.nodeRequestTimer) {
+            this.nodeRequestTimer = setInterval(() =>
+                this.sendNodeRequest(), Settings.NODE_REQUEST_TIME);
+        }
         // If we're a full node, ask for available cubes in regular intervals
-        if (!this.lightMode) {
+        if (!this.lightMode && !this.hashRequestTimer) {
             this.hashRequestTimer = setInterval(() => this.sendHashRequest(),
                 Settings.HASH_REQUEST_TIME);
         }
@@ -300,14 +375,14 @@ export class NetworkPeer extends EventEmitter {
             }
         }
         // For each regular hash not in cube storage, request the cube
-        const missingHashes: Buffer[] = regularCubeMeta.filter(detail => !this.storage.hasCube(detail.key)).map(detail => detail.key);
+        const missingHashes: Buffer[] = regularCubeMeta.filter(detail => !this.cubeStore.hasCube(detail.key)).map(detail => detail.key);
         for (const muc of mucMeta) {
             // Request any MUC not in cube storage
-            if (!this.storage.hasCube(muc.key)) {
+            if (!this.cubeStore.hasCube(muc.key)) {
                 missingHashes.push(muc.key);
             } else {
                 // For each MUC in cube storage, identify winner and request if necessary
-                const storedCube: CubeMeta = this.storage.getCubeInfo(muc.key);
+                const storedCube: CubeMeta = this.cubeStore.getCubeInfo(muc.key);
                 const winningCube: CubeMeta = cubeContest(storedCube, muc);
                 if (winningCube !== storedCube) {
                     missingHashes.push(muc.key);
@@ -338,7 +413,7 @@ export class NetworkPeer extends EventEmitter {
 
         // map/reduce/filter is really cool and stuff, but I'm not smart enough to understand it
         const cubes: CubeInfo[] = requestedCubeHashes.map(
-            key => this.storage.getCubeInfo(key));
+            key => this.cubeStore.getCubeInfo(key));
 
         const reply = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE
             + NetConstants.COUNT_SIZE + cubes.length * NetConstants.CUBE_SIZE);
@@ -369,7 +444,7 @@ export class NetworkPeer extends EventEmitter {
                 NetConstants.COUNT_SIZE + (i + 1) * NetConstants.CUBE_SIZE);
 
             // Add the cube to the CubeStorage
-            const hash = await this.storage.addCube(cubeData);
+            const hash = await this.cubeStore.addCube(cubeData);
             if (!hash) {
                 logger.error(`NetworkPeer: handleCubeResponse: failed to add cube ${hash}`);
                 return;
@@ -424,24 +499,18 @@ export class NetworkPeer extends EventEmitter {
     handleNodeRequest() {
         // Send MAX_NODE_ADDRESS_COUNT peer addresses
         // ... do we even know that many?
-        const availablePeers = this.networkManager.getPeerDB().getPeersVerified();
-        // TODO FIXME: This includes incoming peers, and for incoming peers we only know their client socket.
-        // TODO FIXME: Most universally, clients can accept incoming connections on client sockets.
-        // TODO FIXME: We should include the server port in the hello message and save it.
-        // TODO FIXME: Also, stop resending the same addresses to the same peer over and over again.
-        let availablePeerCount: number = availablePeers.length;
         let numberToSend: number;
-        if (availablePeerCount >= NetConstants.MAX_NODE_ADDRESS_COUNT) {
+        if (this.unsentPeers.length >= NetConstants.MAX_NODE_ADDRESS_COUNT) {
             numberToSend = NetConstants.MAX_NODE_ADDRESS_COUNT;
         } else {
-            numberToSend = availablePeerCount;
+            numberToSend = this.unsentPeers.length;
         }
         // Select random peers in random order
         const chosenPeers: Array<Peer> = [];
         for (let i = 0; i < numberToSend; i++) {
-            const rnd = Math.floor(Math.random() * availablePeerCount);
-            chosenPeers.push(availablePeers[rnd]);
-            availablePeers.slice(rnd, 1); availablePeerCount--;
+            const rnd = Math.floor(Math.random() * this.unsentPeers.length);
+            chosenPeers.push(this.unsentPeers[rnd]);
+            this.unsentPeers.slice(rnd, 1);
         }
         // Determine message length
         let msgLength = NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.COUNT_SIZE;

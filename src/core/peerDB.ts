@@ -36,9 +36,8 @@ export class Peer {
 }
 
 export class PeerDB extends EventEmitter {
-    // TODO: what exactly means verified? when does it get set?
-    // We probably should consider a peer verified only after receiving a correct HELLO and their peer ID
-    private peersVerified: Peer[];
+    /** A peer is verified if we have received a HELLO and learned their ID */
+    private peersVerified: Peer[];  // these should probably all be Sets
     private peersUnverified: Peer[];
     private peersBlacklisted: Peer[];
     private ourPort: number;

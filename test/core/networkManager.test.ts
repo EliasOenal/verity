@@ -86,14 +86,12 @@ describe('networkManager', () => {
         await Promise.all([promise1_listening, promise2_listening, promise3_listening]);
 
         // Connect peer 2 to both peer 1 and peer 3
-        await new Promise<NetworkPeer>(resolve => {
-            manager2.connect('ws://localhost:4000').then(peer => resolve(peer));
-        });
-        await new Promise<NetworkPeer>(resolve => {
-            manager2.connect('ws://localhost:4002').then(peer => resolve(peer));
-        });
+        manager2.connect('ws://localhost:4000');
+        manager2.connect('ws://localhost:4002');
         expect(manager2.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
         expect(manager2.outgoingPeers[1]).toBeInstanceOf(NetworkPeer);
+        await manager2.outgoingPeers[0].online()
+        await manager2.outgoingPeers[1].online()
 
         // Create new cubes at peer 1
         for (let i = 0; i < numberOfCubes; i++) {
@@ -160,10 +158,9 @@ describe('networkManager', () => {
         await Promise.all([promise1_listening, promise2_listening]);
 
         // Connect peer 1 to peer 2
-        await new Promise<NetworkPeer>(resolve => {
-            manager1.connect('ws://localhost:4001').then(peer => resolve(peer));
-        });
+        manager1.connect('ws://localhost:4001');
         expect(manager1.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
+        await manager1.outgoingPeers[0].online();
 
         // just defining some vars, bear with me...
         let counterBuffer: Buffer;
@@ -278,10 +275,10 @@ describe('networkManager', () => {
         await bothListen;
 
         // connect to peer and wait till connected
-        // (= wait for the updatepeer signal, which is emitted after the
+        // (= wait for the peeronline signal, which is emitted after the
         //    hello exchange is completed)
-        const iHaveConnected = new Promise((resolve) => myManager.on('updatepeer', resolve));
-        const otherHasConnected = new Promise((resolve) => otherManager.on('updatepeer', resolve));
+        const iHaveConnected = new Promise((resolve) => myManager.on('peeronline', resolve));
+        const otherHasConnected = new Promise((resolve) => otherManager.on('peeronline', resolve));
         const bothHaveConnected = Promise.all([iHaveConnected, otherHasConnected]);
         myManager.connect('ws://localhost:3005');
         await bothHaveConnected;
@@ -322,7 +319,7 @@ describe('networkManager', () => {
         // Teardown
         myManager.shutdown();
         otherManager.shutdown();
-    }, 1000000);
+    }, 20000);
 
 });
 
