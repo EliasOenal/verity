@@ -16,6 +16,7 @@
   <style>
     * {
       transition: 0.35s ease, color 0.05s ease, background-color 0.2s ease;
+      /* border: 1px solid red; /* Debug overflow */
     }
 
     ul.replyposts {
@@ -42,6 +43,10 @@
 
     .content-wrapper {
       padding: 0.5em;
+    }
+
+    #cubelist {
+      overflow-wrap: anywhere;
     }
 
     @keyframes float {
