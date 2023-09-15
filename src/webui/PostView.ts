@@ -12,6 +12,7 @@ export class PostView {
     const li: HTMLLIElement = document.createElement("li");
     li.setAttribute("cubekey", data.keystring);  // do we still need this?
     li.setAttribute("timestamp", String(data.timestamp)); // keep raw timestamp for later reference
+    li.setAttribute("class", "move-fade-in");
 
     // Display cube display header (timestamp, user)
     const header: HTMLDivElement = document.createElement('div');

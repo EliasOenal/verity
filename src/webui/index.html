@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-
 <head>
   <title>Verity</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,6 +16,30 @@
     * {
       transition: 0.35s ease, color 0.05s ease, background-color 0.2s ease;
       /* border: 1px solid red; /* Debug overflow */
+    }
+
+    .fade-in {
+      opacity: 0;
+      animation: fadeIn 0.5s ease-in forwards;
+    }
+
+    .move-fade-in {
+      opacity: 0;
+      transform: translateY(-3em);
+      animation: moveFadeIn 0.2s ease-out forwards;
+    }
+
+    @keyframes moveFadeIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+      }
     }
 
     ul.replyposts {
@@ -45,7 +68,7 @@
       padding: 0.5em;
     }
 
-    .cubelist {
+    #cubelist {
       overflow-wrap: anywhere;
     }
 
@@ -94,7 +117,7 @@
 <body>
   <div class="content-wrapper">
     <div class="position-absolute top-0 end-0 m-0">
-      <button class="btn btn-link dark-mode-toggle" onclick="toggleDarkMode()" type="button">
+      <button class="btn btn-link dark-mode-toggle fade-in" onclick="toggleDarkMode()" type="button">
         <span id="theme-icon">
           <!-- The icon will be set here by the updateIcon function -->
         </span>
