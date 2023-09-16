@@ -118,7 +118,7 @@ export class NetworkManager extends EventEmitter {
         // and if we're not already in the process of connecting new peers
         if (this.outgoingPeers.length + this.incomingPeers.length <
                 Settings.MAXIMUM_CONNECTIONS) {
-            const connectTo: Peer = this.peerDB.getRandomPeer(
+            const connectTo: Peer = this.peerDB.selectPeerToConnect(
                 this.outgoingPeers.concat(this.incomingPeers));  // I'm almost certain this is not efficient.
             logger.trace(`NetworkManager: connectPeers() running, next up is ${connectTo?.toString()}`);
             if (connectTo){
@@ -126,6 +126,7 @@ export class NetworkManager extends EventEmitter {
                 // Return here after a short while to connect further peers
                 // if possible and required.
                 this.isConnectingPeers = true;
+                connectTo.lastConnectAttempt = Math.floor(Date.now() / 1000);
                 this.connect(connectTo);
                 // TODO: We should distinguish between successful and unsuccessful
                 // connection attempts and use a much smaller interval when
@@ -134,11 +135,15 @@ export class NetworkManager extends EventEmitter {
                 this.connectPeersInterval = setInterval(() =>
                     this.connectPeers(true), Settings.NEW_PEER_INTERVAL);
             } else {  // no suitable peers found, so stop trying
-                clearInterval(this.connectPeersInterval);
+                // TODO HACKHACK:
+                // We currently re-call this method every Settings.RECONNECT_INTERVAL
+                // as we won't otherwise notice when a reconnect interval has passed.
+                // This is not really elegant but it's what we currently do.
+                this.connectPeersInterval = setInterval(() =>
+                    this.connectPeers(), Settings.RECONNECT_INTERVAL);
                 this.isConnectingPeers = false;
             }
         } else {  // we're done, enough peers connected
-            clearInterval(this.connectPeersInterval);
             this.isConnectingPeers = false;
         }
     }

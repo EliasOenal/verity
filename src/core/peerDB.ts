@@ -63,6 +63,13 @@ export class Peer {
     /** Shortcut to get the primary port */
     get port() { return this.addresses[this.primaryAddressIndex].port; }
 
+    /**
+     * Unix timestamp showing when we last tried to initiate a connection to
+     * this peer.
+     * This is required to honor Settings.RECONNECT_INTERVAL.
+     */
+    lastConnectAttempt: number = 0;
+
     constructor(ip: string, port: number, id?: Buffer) {
         this.addresses.push(new Address(ip, port));
         this.id = id;
@@ -155,9 +162,11 @@ export class PeerDB extends EventEmitter {
     // known good MAXIMUM_CONNECTIONS/2 nodes and always use them first.
     // This seems like a pretty good tradeoff between having stable connection
     // to the network and giving new nodes a chance to join.
-    getRandomPeer(exclude: Peer[] = []) {
+    selectPeerToConnect(exclude: Peer[] = []) {
+        const now: number = Math.floor(Date.now() / 1000);
         const eligible: Peer[] = this.peersVerified.concat(this.peersUnverified).
             filter((candidate: Peer) =>
+                candidate.lastConnectAttempt < now - Settings.RECONNECT_INTERVAL &&
                 exclude.every((tobeExcluded: Peer) =>
                     !candidate.equals(tobeExcluded)));
         logger.trace(`PeerDB: Eligible peers are ${eligible}`)
