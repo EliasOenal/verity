@@ -232,7 +232,7 @@ export class NetworkPeer extends Peer {
             // after a defined timespan (increasing for repeat offenders)?
             // Blacklist entries based on IP/Port are especially sensitive
             // as the address could be reused by another node in a NAT environment.
-            this.networkManager.blacklistPeer(this);
+            this.networkManager.closeAndBlacklistPeer(this);
         }
     }
 

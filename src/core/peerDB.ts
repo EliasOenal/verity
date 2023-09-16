@@ -179,53 +179,36 @@ export class PeerDB extends EventEmitter {
         this.emit('newPeer', peer)
     }
 
-    setPeersBlacklisted(peers: Peer[]): void;
-    setPeersBlacklisted(peers: Peer): void;
-    setPeersBlacklisted(peers: Peer[] | Peer): void {
-        if ( !(peers instanceof Array) ) peers = [peers];
-        logger.info('PeerDB: Blacklisting peers ' + peers + '; my peers are: ' + [...this.peersVerified, ...this.peersUnverified]);
-        // Add the peers to the blacklist
-        peers = peers.filter(peer => !this.peersBlacklisted.some(blacklistedPeer => blacklistedPeer.equals(peer)));
-        this.peersBlacklisted.push(...peers);
-
-        // Remove the peers from the verified and unverified lists
+    blacklistPeer(peer: Peer): void {
+        // Duplicate?
+        if (this.peersBlacklisted.some(
+            knownPeer => knownPeer.equals(peer))) {
+                logger.trace(`PeerDB: Peer ${peer.toString()} is already blacklisted`);
+                return;
+        }
+        logger.info('PeerDB: Blacklisting peer ' + peer.toString());
+        this.peersBlacklisted.push(peer);
+        // Remove the peer from the verified and unverified lists
         // @ts-ignore Typescript seems to have forgotten that peers is now guaranteed to be an Array
-        this.peersVerified = this.peersVerified.filter(verifiedPeer => !peers.some(peer => peer.equals(verifiedPeer)));
+        this.peersVerified = this.peersVerified.filter(verifiedPeer => !peer.equals(verifiedPeer));
         // @ts-ignore Typescript seems to have forgotten that peers is now guaranteed to be an Array
-        this.peersUnverified = this.peersUnverified.filter(unverifiedPeer => !peers.some(peer => peer.equals(unverifiedPeer)));
+        this.peersUnverified = this.peersUnverified.filter(unverifiedPeer => !peer.equals(unverifiedPeer));
     }
 
-    setPeersVerified(peers: Peer[]): void;
-    setPeersVerified(peers: Peer): void;
-    setPeersVerified(peers: Peer[] | Peer): void {
-        if ( !(peers instanceof Array) ) peers = [peers];
-        logger.info(`PeerDB: setting peer(s) ${peers.join(", ")} verified.`);
-        // Check blacklisted peers
-        peers = peers.filter(peer => !this.peersBlacklisted.some(blacklistedPeer => blacklistedPeer.equals(peer)));
-
-        // Add the peers to the verified list
-        this.peersVerified.push(...peers);
-
+    verifyPeer(peer: Peer): void {
+        // Duplicate?
+        if (this.peersBlacklisted.concat(this.peersVerified).some(
+            knownPeer => knownPeer.equals(peer))) {
+                logger.trace(`PeerDB: Not verifying duplicate or blacklisted peer ${peer.toString()}`);
+                return;
+        }
+        // Add the peerr to the verified list
+        this.peersVerified.push(peer);
         // Remove the peers from the unverified list
         // @ts-ignore Typescript seems to have forgotten that peers is now guaranteed to be an Array
-        this.peersUnverified = this.peersUnverified.filter(unverifiedPeer => !peers.some(peer => peer.equals(unverifiedPeer)));
-        for (const peer of peers) this.emit('verifiedPeer', peer);
-    }
-
-    setPeersUnverified(peers: Peer[]): void;
-    setPeersUnverified(peers: Peer): void;
-    setPeersUnverified(peers: Peer[] | Peer): void {
-        if ( !(peers instanceof Array) ) peers = [peers];
-        logger.info(`PeerDB: setting peer(s) ${peers.join(", ")} unverified.`);
-        // Check blacklisted peers
-        peers = peers.filter(peer => !this.peersBlacklisted.some(blacklistedPeer => blacklistedPeer.equals(peer)));
-
-        // Add the peers to the unverified list
-        this.peersUnverified.push(...peers);
-
-        // Remove the peers from the verified list
-        // @ts-ignore Typescript seems to have forgotten that peers is now guaranteed to be an Array
-        this.peersVerified = this.peersVerified.filter(verifiedPeer => !peers.some(peer => peer.equals(verifiedPeer)));
+        this.peersUnverified = this.peersUnverified.filter(unverifiedPeer => !peer.equals(unverifiedPeer));
+        logger.info(`PeerDB: setting peer ${peer.toString()} verified.`);
+        this.emit('verifiedPeer', peer);
     }
 
     removeUnverifiedPeer(peer: Peer): void {
