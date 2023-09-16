@@ -126,6 +126,7 @@ export class NetworkPeer extends Peer {
         ws.addEventListener('close', () => {
             // TODO: We should at some point drop nodes closing on us from our PeerDB,
             // at least if they did that repeatedly and never even sent a valid HELLO.
+            logger.trace(`NetworkPeer: Peer ${this.toString()} closed on us`);
             this.close();
         });
 
@@ -232,7 +233,7 @@ export class NetworkPeer extends Peer {
             // after a defined timespan (increasing for repeat offenders)?
             // Blacklist entries based on IP/Port are especially sensitive
             // as the address could be reused by another node in a NAT environment.
-            this.networkManager.closeAndBlacklistPeer(this);
+            // this.networkManager.closeAndBlacklistPeer(this);
         }
     }
 
@@ -364,6 +365,8 @@ export class NetworkPeer extends Peer {
                 regularCubeMeta.push(incomingCubeMeta);
             } else if (cubeType === CubeType.CUBE_TYPE_MUC) {
                 mucMeta.push(incomingCubeMeta);
+            } else {
+                logger.info(`NetworkPeer: in handleHashResponse I saw a CubeType of ${cubeType}. I don't know what that is.`)
             }
         }
         // For each regular hash not in cube storage, request the cube
@@ -375,9 +378,13 @@ export class NetworkPeer extends Peer {
             } else {
                 // For each MUC in cube storage, identify winner and request if necessary
                 const storedCube: CubeMeta = this.cubeStore.getCubeInfo(muc.key);
-                const winningCube: CubeMeta = cubeContest(storedCube, muc);
-                if (winningCube !== storedCube) {
-                    missingHashes.push(muc.key);
+                try {
+                    const winningCube: CubeMeta = cubeContest(storedCube, muc);
+                    if (winningCube !== storedCube) {
+                        missingHashes.push(muc.key);
+                    }
+                } catch(error) {
+                    logger.info(`NetworkPeer: handleHashResponse(): Error handling incoming MUC ${muc.key} from peer ${this.toString()}: ${error}`);
                 }
             }
         }

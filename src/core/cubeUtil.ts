@@ -1,5 +1,5 @@
 // cubeUtil.ts
-import { BinaryDataError, CubeSignatureError, CubeType, FingerprintError, SmartCubeTypeNotImplemented } from './cubeDefinitions';
+import { BinaryDataError, CubeError, CubeSignatureError, CubeType, FingerprintError, SmartCubeTypeNotImplemented } from './cubeDefinitions';
 import { Cube } from './cube';
 import { CubeMeta } from './cubeInfo';
 import { logger } from './logger';
@@ -36,7 +36,7 @@ export function cubeLifetime(x: number, d1: number = 7, d2: number = 28, c1: num
 export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMeta {
     switch (localCube.cubeType) {
         case CubeType.CUBE_TYPE_REGULAR:
-            throw new Error("cubeUtil: Regular cubes cannot be contested.");
+            throw new CubeError("cubeUtil: Regular cubes cannot be contested.");
         case CubeType.CUBE_TYPE_MUC:
             // For MUCs the most recently minted cube wins. If they tie, the local
             // cube wins. We expect the owner of the MUC not to cause collisions.
@@ -60,7 +60,7 @@ export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMe
                 return localCube;
             }
         default:
-            throw new Error("cubeUtil: Unknown cube type.");
+            throw new CubeError("cubeUtil: Unknown cube type.");
     }
 }
 
