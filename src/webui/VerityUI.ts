@@ -66,13 +66,25 @@ export class VerityUI {
   }
 
   async makeNewPost(text: string) {
-    this.node.cubeStore.addCube(await makePost(text, undefined, this.identity));
-    this.identity.store();
+    if (text.length) return;  // don't make empty posts
+    // clear the input
+    (document.getElementById(`newpostinput`) as HTMLTextAreaElement).value = '';
+    // First create the post, then update the identity, then add the cube.
+    // This way the UI directly displays you as the author.
+    const post = await makePost(text, undefined, this.identity);
+    await this.identity.store();
+    this.node.cubeStore.addCube(post);
   }
 
   async postReply(text: string, replyto: string) {
-    this.node.cubeStore.addCube(await makePost(text, Buffer.from(replyto, 'hex'), this.identity));
-    this.identity.store();
+    if (text.length) return;  // don't make empty posts
+    // clear the input
+    (document.getElementById(`replyinput-${replyto}`) as HTMLTextAreaElement).value = '';
+    // First create the post, then update the identity, then add the cube.
+    // This way the UI directly displays you as the author.
+    const post = await makePost(text, Buffer.from(replyto, 'hex'), this.identity);
+    await this.identity.store();
+    this.node.cubeStore.addCube(post);
   }
 }
 

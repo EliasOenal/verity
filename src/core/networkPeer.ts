@@ -130,6 +130,10 @@ export class NetworkPeer extends Peer {
             this.close();
         });
 
+        // TODO: We should close the connection if we don't hear from this peer
+        // for some defined time. Currently we just keep talking to a wall and
+        // occupying a connection slot.
+
         // Send HELLO message once connected
         if (ws.readyState > 0) {
             logger.info(`NetworkPeer: Connected to ${ip}:${port}`);
