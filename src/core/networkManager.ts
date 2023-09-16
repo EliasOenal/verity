@@ -217,7 +217,7 @@ export class NetworkManager extends EventEmitter {
      */
     handlePeerOnline(peer: NetworkPeer) {
         // Does this peer need to be blacklisted?
-        if (this.blacklistPeerIfInvalid(peer)) return;
+        if (this.closePeerIfInvalid(peer)) return;
 
         // Verify this peer is valid (just checking if there is an ID for now)
         if (!peer.id) return;
@@ -229,7 +229,7 @@ export class NetworkManager extends EventEmitter {
             // trying to connect to them or peer-exchanging them.
             // We should rework peerDB to properly represent "server-capable"
             // as node attribute.
-            this.peerDB.setPeersVerified([peer]);
+            this.peerDB.verifyPeer(peer);
         }
 
         // If this is the first successful connection, emit an 'online' event
@@ -292,7 +292,6 @@ export class NetworkManager extends EventEmitter {
             this.peerID,
             this.lightNode);
         this.outgoingPeers.push(networkPeer);
-        this.peerDB.setPeersUnverified(networkPeer);
         this.emit('newpeer', networkPeer);
 
         // Listen for events on this new network peer
@@ -300,35 +299,35 @@ export class NetworkManager extends EventEmitter {
     }
 
     /**
-     * Checks if a peer should be disconnected and blacklisted.
-     * We currently blacklist peers under three circumstances:
-     *  1) We're connected to ourselves (happens really easily due to peer exchange)
-     *  2) We somehow connected to two different addresses for the same node
+     * Checks if a peer should be blacklisted or disconnect as duplicate.
+     * We currently blacklist peers:
+     *  1) If we're connected to ourselves (happens really easily due to peer exchange)
+     *  2) Node sending invalid messages
+     *     (this case is handled in NetworkPeer rather than here)
+     * As a third case that is not technically blacklisting:
+     *  3) We note if we somehow connected to two different addresses for the same
+     *     node; in this case, we close the duplicate connection and remember
+     *     the duplicate address.
      *     (also happens really easily as nodes can, for example, be referred
      *      to by IP address or domain name)
-     *  3) Node sending invalid messages
-     *     (this case is handled in NetworkPeer rather than here)
-     * @returns Whether the peer has been disconnected and blacklisted
+     * @returns Whether the peer has been disconnected and/or blacklisted
      */
-    // TODO: blacklist entries caused by duplicate address
-    // should be removed when the original connection to a peer
-    // is closed
-    blacklistPeerIfInvalid(peer: NetworkPeer): boolean {
+    closePeerIfInvalid(peer: NetworkPeer): boolean {
         if (peer.id.equals(this.peerID)) {
-            this.blacklistPeer(peer);
+            this.closeAndBlacklistPeer(peer);
             return true;
         }
-        const duplicate: boolean = this.checkForDuplicatePeer(peer);
+        const duplicate: boolean = this.closePeerIfDuplicate(peer);
         if (duplicate) return true;
         return false;
     }
 
     /** Disconnect and blacklist this peer */
-    blacklistPeer(peer: NetworkPeer): void {
+    closeAndBlacklistPeer(peer: NetworkPeer): void {
         // disconnect
         peer.close();
         // blacklist
-        this.peerDB.setPeersBlacklisted(peer);
+        this.peerDB.blacklistPeer(peer);
         logger.warn(`NetworkManager: Peer ${peer.ip}:${peer.port} has been blacklisted.`);
         this.emit('blacklist', peer);
     }
@@ -336,7 +335,7 @@ export class NetworkManager extends EventEmitter {
     /**
      * Checks if this peer connection is a duplicate, i.e. if were
      */
-    private checkForDuplicatePeer(peer: NetworkPeer): boolean {
+    private closePeerIfDuplicate(peer: NetworkPeer): boolean {
         for (const other of [...this.outgoingPeers, ...this.incomingPeers]) {  // is this efficient or does it copy the array? I don't know, I just watched a YouTube tutorial.
             if (!Object.is(other, peer)) {  // this is required so we don't blacklist this very same connection
                 if (other.id?.equals(peer.id)) {

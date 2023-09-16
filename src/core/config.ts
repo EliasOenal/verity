@@ -6,7 +6,7 @@ export const Settings = {
 
     // Network manager related:
     ANNOUNCEMENT_INTERVAL: (25 * 60 * 1000),  // 25 minutes in milliseconds
-    NEW_PEER_INTERVAL: (1 * 1000),
+    NEW_PEER_INTERVAL: (5 * 1000),
     MAXIMUM_CONNECTIONS: 20, // Maximum number of connections to maintain
 
     // Network peer related:
