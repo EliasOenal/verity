@@ -95,10 +95,24 @@ export class NetworkManager extends EventEmitter {
         this.incomingPeers.forEach(peer => peer.close());
     }
 
-    private connectPeers() {
+    /**
+    * Will try to connect more peers until we either run out of eligible peers
+    * or the connection limit is reached.
+    * You never need to call this manually. It will automatically be called when
+    * a peer disconnects and when we learn new peers.
+    * @param existingRun Be nice and never set this! connectPeers() will re-call
+    * itself observing Settings.NEW_PEER_INTERVAL. These re-calls to self represent
+    * a contiguous run, during which this.isConnectingPeers will be set.
+    * To distinguish its continuous run from further external calls, automatic
+    * re-calls to self will set existingRun, and nobody else should.
+    */
+    private connectPeers(existingRun: boolean = false) {
         // Don't do anything if we're already in the process of connecting new peers
         // or if we're shutting down.
-        if (this.isConnectingPeers || this.isShuttingDown) return;
+        if (this.isShuttingDown || (!existingRun && this.isConnectingPeers)) {
+            logger.trace("NetworkManager: Somebody called connectPeers(), but this is just not the time.");
+            return;
+        }
         clearInterval(this.connectPeersInterval);  // will re-set if necessary
         // Only connect a new peer if we're not over the maximum,
         // and if we're not already in the process of connecting new peers
@@ -106,14 +120,22 @@ export class NetworkManager extends EventEmitter {
                 Settings.MAXIMUM_CONNECTIONS) {
             const connectTo: Peer = this.peerDB.getRandomPeer(
                 this.outgoingPeers.concat(this.incomingPeers));  // I'm almost certain this is not efficient.
+            logger.trace(`NetworkManager: connectPeers() running, next up is ${connectTo?.toString()}`);
             if (connectTo){
+                // Suitable peer found, start connecting.
+                // Return here after a short while to connect further peers
+                // if possible and required.
                 this.isConnectingPeers = true;
                 this.connect(connectTo);
-                this.connectPeersInterval
-            } else {
-                this.isConnectingPeers = false;
+                // TODO: We should distinguish between successful and unsuccessful
+                // connection attempts and use a much smaller interval when
+                // unsuccessful. In case of getting spammed with fake nodes,
+                // this currently takes forever till we even try a legit one.
                 this.connectPeersInterval = setInterval(() =>
-                    this.connectPeers(), Settings.NEW_PEER_INTERVAL);
+                    this.connectPeers(true), Settings.NEW_PEER_INTERVAL);
+            } else {  // no suitable peers found, so stop trying
+                clearInterval(this.connectPeersInterval);
+                this.isConnectingPeers = false;
             }
         } else {  // we're done, enough peers connected
             clearInterval(this.connectPeersInterval);

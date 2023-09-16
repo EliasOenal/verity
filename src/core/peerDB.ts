@@ -99,6 +99,7 @@ export class Peer {
     }
 }
 
+// TODO: We should persist known peers locally, at least the verified ones.
 export class PeerDB extends EventEmitter {
     /** A peer is verified if we have received a HELLO and learned their ID */
     private peersVerified: Peer[];  // these should probably all be Sets
@@ -118,6 +119,7 @@ export class PeerDB extends EventEmitter {
         this.peersUnverified = [];
         this.peersBlacklisted = [];
         this.ourPort = ourPort;
+        this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS + 10);  // one for each peer and a few for ourselves
     }
 
     public shutdown(): void {
@@ -148,11 +150,17 @@ export class PeerDB extends EventEmitter {
      * be eligible.
      * This is primarily used by NetworkManager when selecting a peer to connect to.
      */
+    // TODO: Rather than selecting peer purely randomly, we should at least to a
+    // certain point prefer verified nodes. Maybe we should even pin our first
+    // known good MAXIMUM_CONNECTIONS/2 nodes and always use them first.
+    // This seems like a pretty good tradeoff between having stable connection
+    // to the network and giving new nodes a chance to join.
     getRandomPeer(exclude: Peer[] = []) {
         const eligible: Peer[] = this.peersVerified.concat(this.peersUnverified).
             filter((candidate: Peer) =>
                 exclude.every((tobeExcluded: Peer) =>
                     !candidate.equals(tobeExcluded)));
+        logger.trace(`PeerDB: Eligible peers are ${eligible}`)
         if (eligible.length) {
             const rnd = Math.floor(Math.random() * eligible.length);
             return eligible[rnd];
@@ -167,6 +175,7 @@ export class PeerDB extends EventEmitter {
         if (knownPeers.some(knownPeer => knownPeer.equals(peer))) return;
         // Otherwise, add it to the list of unverified peers and let our listeners know
         this.peersUnverified.push(peer);
+        logger.trace(`PeerDB: Learned new peer ${peer.toString()}, emitting newPeer.`)
         this.emit('newPeer', peer)
     }
 
@@ -200,6 +209,7 @@ export class PeerDB extends EventEmitter {
         // Remove the peers from the unverified list
         // @ts-ignore Typescript seems to have forgotten that peers is now guaranteed to be an Array
         this.peersUnverified = this.peersUnverified.filter(unverifiedPeer => !peers.some(peer => peer.equals(unverifiedPeer)));
+        for (const peer of peers) this.emit('verifiedPeer', peer);
     }
 
     setPeersUnverified(peers: Peer[]): void;
