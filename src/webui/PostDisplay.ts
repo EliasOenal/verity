@@ -44,7 +44,7 @@ export class PostDisplay {
     this.view = new PostView();
     this.annotationEngine.on('cubeDisplayable', (binaryKey) => this.displayPost(binaryKey)) // list cubes
     this.redisplayPosts();
-    this.cubeAuthorRedisplayTimer = setInterval(() => this.redisplayAllCubeAuthors(), 10000);
+    this.cubeAuthorRedisplayTimer = setInterval(() => this.redisplayAllCubeAuthors(), 60000);
   }
 
   shutdown() {

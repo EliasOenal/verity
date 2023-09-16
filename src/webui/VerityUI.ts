@@ -66,7 +66,7 @@ export class VerityUI {
   }
 
   async makeNewPost(text: string) {
-    if (text.length) return;  // don't make empty posts
+    if (!text.length) return;  // don't make empty posts
     // clear the input
     (document.getElementById(`newpostinput`) as HTMLTextAreaElement).value = '';
     // First create the post, then update the identity, then add the cube.
@@ -77,7 +77,7 @@ export class VerityUI {
   }
 
   async postReply(text: string, replyto: string) {
-    if (text.length) return;  // don't make empty posts
+    if (!text.length) return;  // don't make empty posts
     // clear the input
     (document.getElementById(`replyinput-${replyto}`) as HTMLTextAreaElement).value = '';
     // First create the post, then update the identity, then add the cube.
