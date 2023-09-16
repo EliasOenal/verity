@@ -66,6 +66,7 @@ export class PostView {
     replyfield.setAttribute("placeholder", "Reply");
     replyfield.setAttribute("id", `replyinput-${data.keystring}`);
     replyfield.setAttribute("type", "text");
+    replyfield.setAttribute("required", "");
     replyform.appendChild(replyfield);
     const replybutton: HTMLButtonElement = document.createElement("button");
     replybutton.setAttribute("type", "submit");

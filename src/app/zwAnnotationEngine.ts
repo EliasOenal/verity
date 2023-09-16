@@ -30,9 +30,9 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     const fields: ZwFields = this.getFields(cube);
     if (!fields) return false;
 
-    // does this have a ZwPayload field?
+    // does this have a ZwPayload field and does it contain something??
     const payload = fields.getFirstField(ZwFieldType.PAYLOAD);
-    if (!payload) return false;
+    if (!payload || !payload.length) return false;
 
     // does it have the correct media type?
     const typefield = fields.getFirstField(ZwFieldType.MEDIA_TYPE);
