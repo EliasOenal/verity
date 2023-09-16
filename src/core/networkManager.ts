@@ -223,7 +223,14 @@ export class NetworkManager extends EventEmitter {
         if (!peer.id) return;
 
         // Mark the peer as verified
-        this.peerDB.setPeersVerified([peer]);
+        if (this.outgoingPeers.includes(peer)) {
+            // TODO HACKHACK:
+            // We currently only mark outgoing peers verified to avoid
+            // trying to connect to them or peer-exchanging them.
+            // We should rework peerDB to properly represent "server-capable"
+            // as node attribute.
+            this.peerDB.setPeersVerified([peer]);
+        }
 
         // If this is the first successful connection, emit an 'online' event
         if (!this.online) {
