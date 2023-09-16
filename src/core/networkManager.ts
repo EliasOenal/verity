@@ -257,9 +257,9 @@ export class NetworkManager extends EventEmitter {
      * Callback executed when a NetworkPeer connection is closed.
      */
     handlePeerClosed(peer: NetworkPeer) {
-        logger.debug(`NetworkManager: Connection to peer ${peer.ip}:${peer.port}, ID ${peer.id?.toString('hex')} has been closed.`);
         this.incomingPeers = this.incomingPeers.filter(p => p !== peer);
         this.outgoingPeers = this.outgoingPeers.filter(p => p !== peer);
+        logger.trace(`NetworkManager: Connection to peer ${peer.ip}:${peer.port}, ID ${peer.id?.toString('hex')} has been closed. My outgoing peers now are: ${this.outgoingPeers} -- my incoming peers now are: ${this.incomingPeers}`);
         this.emit('peerclosed', peer);
         this.connectPeers();  // find a replacement peer
     }
