@@ -100,7 +100,7 @@ export class NetworkPeer extends Peer {
         // Take note of all other peers I could exchange with this new peer.
         // This is used to ensure we don't exchange the same peers twice.
         this.unsentPeers = this.networkManager.getPeerDB().getPeersVerified();
-        networkManager.on('peeronline', (peer: NetworkPeer) => {
+        networkManager.getPeerDB().on('peerVerified', (peer: Peer) => {
             if (! (peer.ip == ip && peer.port == port)) {
                // add peer to exchangeable list, but don't share a peer with itself
                this.unsentPeers.push(peer);
@@ -124,6 +124,8 @@ export class NetworkPeer extends Peer {
         }, { signal: socketClosedSignal });
 
         ws.addEventListener('close', () => {
+            // TODO: We should at some point drop nodes closing on us from our PeerDB,
+            // at least if they did that repeatedly and never even sent a valid HELLO.
             this.close();
         });
 

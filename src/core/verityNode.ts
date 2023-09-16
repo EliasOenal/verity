@@ -57,8 +57,7 @@ export class VerityNode {
           logger.error('Invalid initial peer specified.');
         }
         const peer: Peer = new Peer(initialPeerIp, Number(initialPeerPort));
-        this.peerDB.setPeersUnverified([peer]);
-        this.networkManager.connect(peer);
+        this.peerDB.learnPeer(peer);
       }
     }
   }
