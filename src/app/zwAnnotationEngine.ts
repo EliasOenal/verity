@@ -11,15 +11,30 @@ import { Buffer } from 'buffer';
 export class ZwAnnotationEngine extends AnnotationEngine {
   identityMucs: Map<string, CubeInfo> = new Map();
 
-  constructor(cubeStore: CubeStore) {
-    super(cubeStore, ZwFields.get);
-    this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.rememberIdentityMucs(cube.key));
-    this.reloadIdentityMucs();
+  constructor(
+      cubeStore: CubeStore,
+      private autoLearnMucs = true) {
+    super(cubeStore, ZwFields.get, ZwRelationship);
     this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.emitIfCubeDisplayable(cube.key));
     this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.emitIfCubeMakesOthersDisplayable(cube.key));
+    if (autoLearnMucs) {
+      this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.learnMuc(cube.key));
+    }
+    this.crawlCubeStore();
   }
 
-  /** Emits cubeDisplayable events if a Cube is, well... displayable */
+  /**
+   * Emits cubeDisplayable events if a Cube is, well... displayable.
+   * Displayability depends on a number of criteria, all of which must be
+   * fulfilled:
+   * 1) Cube must contain a valid Zw structure, contain a "ZW" APPLICATION field,
+   *    a MEDIA_TYPE field with the correct value.
+   * 2) Have a PAYLOAD field that is not empty
+   * 3) If it is a reply (= contains a RELATES_TO/REPLY_TO field) the referred
+   *    post must already be displayable.
+   * 4) Must be owned by a MUC we're interested in
+   * @param [mediaType] Only mark cubes displayable if they are of this media type.
+   */
   isCubeDisplayable(
       key: CubeKey, cubeInfo?: CubeInfo, cube?: Cube,
       mediaType: MediaTypes = MediaTypes.TEXT): boolean {
@@ -64,8 +79,41 @@ export class ZwAnnotationEngine extends AnnotationEngine {
 
   /**
    * Finds the author of a post, i.e. the Identity object of a cube's author.
+   * It does that by leveraging the stored reverse-MYPOST relationships created
+   * by this engine.
    */
   cubeAuthor(key: CubeKey): Identity {
+    const parentrel = this.getFirstReverseRelationship(key, ZwRelationshipType.MYPOST);
+    // logger.trace(`ZwAnnotationEngine: Looking for the author of ${key.toString('hex')} whose parent is ${parentrel?.remoteKey?.toString('hex')}`);
+    if (!parentrel) return undefined;
+    const parentkey = parentrel.remoteKey;
+    if (this.identityMucs.has(parentkey.toString('hex'))) {
+      const idmuc = this.cubeStore.getCube(parentkey);
+      if (!idmuc) return undefined;
+      let id: Identity = undefined;
+      try {
+        id = new Identity(this.cubeStore, idmuc, undefined, false);
+      } catch(error) {
+        // logger.info("ZwAnnotationEngine: While searching for author of " + key.toString('hex') + " I failed to create an Identity out of MUC " + rootmuc.getKeyIfAvailable()?.toString('hex') + " even though there's a MYPOST chain through " + mucOrMucExtension.getKeyIfAvailable()?.toString('hex'));
+      }
+      if (id) return id;
+      else return undefined;
+    } else {
+      return this.cubeAuthor(parentkey);
+    }
+
+  }
+
+  /**
+   * Finds the author of a post, i.e. the Identity object of a cube's author.
+   * It does that by checking ALL MUCs and ALL their owned posts to find an
+   * ownership association to the given post.
+   * This is HORRIBLY inefficient and is only needed when displaying random
+   * cubes whether or not they are associated with any MUC, which we probably
+   * should not do anyway.
+   * So TODO remove I guess?
+   */
+  cubeAuthorWithoutAnnotations(key: CubeKey): Identity {
     // check all MUCs
     for (const mucInfo of this.identityMucs.values()) {
       const muc = mucInfo.getCube();
@@ -74,7 +122,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
         logger.error("ZwAnnotationEngine: A MUC we remembered has gone missing.");
         continue;
       }
-      const potentialResult: Identity = this.cubeAuthorRecursion(key, muc, muc);
+      const potentialResult: Identity = this.cubeAuthorWithoutAnnotationsRecursion(key, muc, muc);
       if (potentialResult) {
         // logger.trace("ZwAnnotationEngine: I found out that the author of cube " + key.toString('hex') + " is " + potentialResult.name);
         return potentialResult;
@@ -85,7 +133,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   }
 
   /** This is the recursive part of cubeAuthor() */
-  private cubeAuthorRecursion(key: CubeKey, mucOrMucExtension: Cube, rootmuc: Cube): Identity {
+  private cubeAuthorWithoutAnnotationsRecursion(key: CubeKey, mucOrMucExtension: Cube, rootmuc: Cube): Identity {
     const zwFields = ZwFields.get(mucOrMucExtension);
     if (!zwFields) return undefined;  // not a valid MUC or MUC extension cube
     const postrels: Array<ZwRelationship> = zwFields.getRelationships(ZwRelationshipType.MYPOST);
@@ -103,7 +151,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
         if (id) return id;
       } else {  // maybe this other post contains the authorship information we seek?
         const subpost = this.cubeStore.getCube(postrel.remoteKey);
-        const potentialResult: Identity = this.cubeAuthorRecursion(key, subpost, rootmuc);
+        const potentialResult: Identity = this.cubeAuthorWithoutAnnotationsRecursion(key, subpost, rootmuc);
         if (potentialResult) return potentialResult;
       }
     }
@@ -114,7 +162,10 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       key:  CubeKey, cubeInfo?: CubeInfo, cube?: Cube,
       mediaType: MediaTypes = MediaTypes.TEXT): boolean {
     const displayable: boolean = this.isCubeDisplayable(key, cubeInfo, cube, mediaType);
-    if (displayable) this.emit('cubeDisplayable', key);
+    if (displayable) {
+      // logger.trace(`ZwAnnotationEngine: Marking cube ${key.toString('hex')} displayable.`)
+      this.emit('cubeDisplayable', key);
+    }
     return displayable;
   }
 
@@ -142,19 +193,32 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     return ret;
   }
 
-  private rememberIdentityMucs(key: CubeKey) {
-    const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(key);
+  /**
+   * Add this MUC to the list of known MUCs. Annotations and events
+   * will be created for these known MUCs and their owned cubes.
+   * @param key Must be the key of a valid Identity MUC
+   */
+  private learnMuc(key: CubeKey): void {
+    const mucInfo: CubeInfo = this.cubeStore.getCubeInfo(key);
     let id: Identity;
     try {
-      id = new Identity(this.cubeStore, cubeInfo.getCube());
+      id = new Identity(this.cubeStore, mucInfo.getCube());
     } catch (error) { return; }
     // logger.trace("ZwAnnotationEngine: Remembering Identity MUC " + key.toString('hex'));
-    this.identityMucs.set(cubeInfo.key.toString('hex'), cubeInfo);
+    this.identityMucs.set(mucInfo.key.toString('hex'), mucInfo);
+    // logger.trace(`ZwAnnotationEngine: Learned Identity MUC ${key.toString('hex')}, user name ${id.name}`);
   }
 
-  private reloadIdentityMucs() {
+  protected crawlCubeStore(): void {
+    super.crawlCubeStore();
+    if (this.autoLearnMucs) {
+      for (const cubeInfo of this.cubeStore.getAllCubeInfo()) {
+        this.learnMuc(cubeInfo.key);
+      }
+    }
     for (const cubeInfo of this.cubeStore.getAllCubeInfo()) {
-      this.rememberIdentityMucs(cubeInfo.key);
+      this.emitIfCubeDisplayable(cubeInfo.key);
+      this.emitIfCubeMakesOthersDisplayable(cubeInfo.key);
     }
   }
 }

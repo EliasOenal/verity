@@ -28,7 +28,7 @@ export class CubeStore extends EventEmitter {
     enable_persistence: boolean = true, required_difficulty = Settings.REQUIRED_DIFFICULTY) {
     super();
     this.required_difficulty = required_difficulty;
-    this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS + 10);  // one for each peer and a few for ourselves
+    this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 10);  // one for each peer and a few for ourselves
     this.storage = new Map();
 
     this.readyPromise = new Promise(resolve => this.once('ready', () => {
@@ -49,6 +49,7 @@ export class CubeStore extends EventEmitter {
   async addCube(cube_input: Buffer): Promise<CubeKey>;
   async addCube(cube_input: Cube): Promise<CubeKey>;
   async addCube(cube_input: Cube | Buffer): Promise<CubeKey> {
+    logger.trace(`CubeStore: About to add a cube`)
     try {
       // Cube objects are ephemeral as storing binary data is more efficient.
       // Create cube object if we don't have one yet.
@@ -97,7 +98,7 @@ export class CubeStore extends EventEmitter {
 
       // Store the cube
       this.storage.set(cubeInfo.key.toString('hex'), cubeInfo);
-
+      logger.trace(`CubeStore: Added cube ${cubeInfo.key.toString('hex')}`)
       // save cube to disk (if available and enabled)
       if (this.persistence) {
         this.persistence.storeRawCube(cubeInfo.key.toString('hex'), cubeInfo.binaryCube);
@@ -106,6 +107,7 @@ export class CubeStore extends EventEmitter {
       // inform our application(s) about the new cube
       const metaCube: CubeMeta = cubeInfo;
       try {
+        logger.trace(`CubeStore: Added cube ${cubeInfo.key.toString('hex')}, emitting cubeAdded`)
         this.emit('cubeAdded', metaCube);
       } catch(error) {
         logger.error("CubeStore: While adding Cube " + cubeInfo.key.toString('hex') + "a cubeAdded subscriber experienced an error: " + error.message);

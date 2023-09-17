@@ -56,7 +56,7 @@ export class CubeInfo {
    * Application code may store any notes they may have on a Cube here.
    * This is currently unused.
    */
-  applicationNotes: Map<any, any> = new Map();
+  applicationNotes: object = {}
 
   // @member objectCache: Will remember the last instantiated Cube object
   //                      for as long as the garbage collector keeps it alive
