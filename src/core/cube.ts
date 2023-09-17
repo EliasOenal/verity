@@ -198,7 +198,6 @@ export class Cube {
 
             // Is there a signature field? If so, add the padding *before* the signature.
             // Otherwise, add it at the very end.
-            this.fields
             this.fields.insertFieldBefore(CubeFieldType.TYPE_SIGNATURE,
                 new CubeField(
                     CubeFieldType.PADDING_NONCE,
