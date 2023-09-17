@@ -11,18 +11,20 @@ import { CubeType } from "../core/cubeDefinitions";
 
 export class ZwAnnotationEngine extends AnnotationEngine {
   identityMucs: Map<string, CubeInfo> = new Map();
-  authorsPosts: Map<string, Set<string>> = new Map();
+  authorsCubes: Map<string, Set<string>> = new Map();
 
   constructor(
       cubeStore: CubeStore,
-      private autoLearnMucs = true) {
+      private autoLearnMucs: boolean = true,
+      private handleAnonymousCubes: boolean = false) {
     super(cubeStore, ZwFields.get, ZwRelationship);
-    this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
-    this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeMakesOthersDisplayable(cubeInfo));
-    if (autoLearnMucs) {
+    if (this.autoLearnMucs) {
       this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
     }
-    this.crawlCubeStore();
+    this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnAuthorsPosts(cubeInfo));
+    this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
+    this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeMakesOthersDisplayable(cubeInfo));
+    this.crawlCubeStoreZw();
   }
 
   /**
@@ -34,13 +36,28 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    * 2) Have a PAYLOAD field that is not empty
    * 3) If it is a reply (= contains a RELATES_TO/REPLY_TO field) the referred
    *    post must already be displayable.
-   * 4) Must be owned by a MUC we're interested in (TODO implement)
+   * 4) Must be owned by a MUC we're interested in (unless allowAnonymous is set)
    * @param [mediaType] Only mark cubes displayable if they are of this media type.
+   * @param [allowAnonymous] Unless set, only cubes which are owned by one of
+   *                         authors in this.identityMucs are considered displayable.
    */
   isCubeDisplayable(
       cubeInfo: CubeInfo | CubeKey,
-      mediaType: MediaTypes = MediaTypes.TEXT): boolean {
+      mediaType: MediaTypes = MediaTypes.TEXT,
+      allowAnonymous = this.handleAnonymousCubes): boolean {
     if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo);
+
+    if (!allowAnonymous) {
+      // Is this owned by one if the authors in this.identityMucs?
+      // TODO: maybe following the ownership chain of this cube up to the author
+      // is actually faster than checking all know posts
+      let known: boolean = false;
+      for (const knownSet of this.authorsCubes.values()) {
+        known = knownSet.has(cubeInfo.key.toString('hex'));
+        if (known) break;
+      }
+      if (!known) return false;
+    }
 
     // is this even a valid ZwCube?
     const fields: ZwFields = this.getFields(cubeInfo.getCube());
@@ -217,16 +234,60 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     // logger.trace(`ZwAnnotationEngine: Learned Identity MUC ${key.toString('hex')}, user name ${id.name}`);
   }
 
-  protected crawlCubeStore(): void {
-    super.crawlCubeStore();
+  /**
+   * Takes a MUC CubeInfo representing an Identity, the author.
+   * Will learn all posts by the author as represented by direct or indirect
+   * MYPOST relations.
+   */
+  private learnAuthorsPosts(mucInfo: CubeInfo): void {
+    // Is this even a MUC? Otherwise, it's definitely not a valid Identity.
+    if (mucInfo.cubeType != CubeType.CUBE_TYPE_MUC) return;
+    // are we even interested in this author?
+    const muckeystring: string = mucInfo.key.toString('hex');
+    if (!this.identityMucs.has(muckeystring)) return;
+
+    // if this is the first time we learn of this author, initialize their cube set
+    let cubeSet: Set<string>;
+    if (!this.authorsCubes.has(muckeystring)) {
+      cubeSet = new Set();
+      this.authorsCubes.set(muckeystring, cubeSet);
+    } else {
+      cubeSet = this.authorsCubes.get(muckeystring);
+    }
+
+    // traverse cube and unknown subcubes
+    this.learnAuthorsPostsRecursion(mucInfo, mucInfo);
+  }
+
+  /** Recursive part of learnAuthorsPosts */
+  private learnAuthorsPostsRecursion(mucInfo: CubeInfo, postInfo: CubeInfo): void {
+    const muckeystring: string = mucInfo.key.toString('hex');
+    // if we already know this cube, do nothing...
+    // except if it's a MUC, then it could have changed
+    if (postInfo.cubeType != CubeType.CUBE_TYPE_MUC && this.authorsCubes.has(muckeystring)) {
+      return;
+    }
+    // otherwise, process all MYPOST references
+    const fields: ZwFields = this.getFields(postInfo.getCube());
+    if (!fields) return;
+    const postRefs: ZwRelationship[] = fields.getRelationships(ZwRelationshipType.MYPOST);
+    for (const postRef of postRefs) {
+      this.authorsCubes.get(muckeystring).add(postRef.remoteKey.toString('hex'));
+      this.learnAuthorsPostsRecursion(
+        mucInfo, this.cubeStore.getCubeInfo(postRef.remoteKey));
+    }
+  }
+
+  crawlCubeStoreZw(): void {
     if (this.autoLearnMucs) {
       for (const cubeInfo of this.cubeStore.getAllCubeInfo()) {
         this.learnMuc(cubeInfo);
       }
     }
     for (const cubeInfo of this.cubeStore.getAllCubeInfo()) {
-      this.emitIfCubeDisplayable(cubeInfo.key);
-      this.emitIfCubeMakesOthersDisplayable(cubeInfo.key);
+      this.learnAuthorsPosts(cubeInfo);
+      this.emitIfCubeDisplayable(cubeInfo);
+      this.emitIfCubeMakesOthersDisplayable(cubeInfo);
     }
   }
 }
