@@ -46,7 +46,7 @@ export class VerityUI {
     this.peerDisplay = new PeerDisplay(this);
     this.peerDisplay.redisplayPeers();
 
-    this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore);
+    this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore, true, false);
     this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine);
   }
 
@@ -85,6 +85,18 @@ export class VerityUI {
     const post = await makePost(text, Buffer.from(replyto, 'hex'), this.identity);
     await this.identity.store();
     this.node.cubeStore.addCube(post);
+  }
+
+  navPostsWithAuthors() {
+    logger.trace("VerityUI: Displaying posts associated with a MUC");
+    this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore, true, false);
+    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine);
+  }
+
+  navPostsAll() {
+    logger.trace("VerityUI: Displaying all posts including anonymous ones");
+    this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore, true, true);
+    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine);
   }
 }
 
