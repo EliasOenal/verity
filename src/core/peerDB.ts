@@ -92,8 +92,7 @@ export class Peer {
         if ( !(address instanceof Address) ) {
             address = new Address(address, port);
         }
-        // @ts-ignore Somehow Typescript doesn't realize address is now guarantueed to be instanceof Address
-        if (!this.addresses.some(existingaddr => address.equals(existingaddr))) {
+        if (!this.addresses.some(existingaddr => (address as Address).equals(existingaddr))) {
             this.addresses.push(address);
         }
     }
@@ -198,9 +197,7 @@ export class PeerDB extends EventEmitter {
         logger.info('PeerDB: Blacklisting peer ' + peer.toString());
         this.peersBlacklisted.push(peer);
         // Remove the peer from the verified and unverified lists
-        // @ts-ignore Typescript seems to have forgotten that peers is now guaranteed to be an Array
         this.peersVerified = this.peersVerified.filter(verifiedPeer => !peer.equals(verifiedPeer));
-        // @ts-ignore Typescript seems to have forgotten that peers is now guaranteed to be an Array
         this.peersUnverified = this.peersUnverified.filter(unverifiedPeer => !peer.equals(unverifiedPeer));
     }
 
@@ -214,7 +211,6 @@ export class PeerDB extends EventEmitter {
         // Add the peerr to the verified list
         this.peersVerified.push(peer);
         // Remove the peers from the unverified list
-        // @ts-ignore Typescript seems to have forgotten that peers is now guaranteed to be an Array
         this.peersUnverified = this.peersUnverified.filter(unverifiedPeer => !peer.equals(unverifiedPeer));
         logger.info(`PeerDB: setting peer ${peer.toString()} verified.`);
         this.emit('verifiedPeer', peer);

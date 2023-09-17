@@ -11,10 +11,9 @@ import WebSocket from 'isomorphic-ws';
 import { Buffer } from 'buffer';
 
 if (isBrowser || isWebWorker) {
-    // @ts-ignore
     var crypto = window.crypto;
 } else {
-    // @ts-ignore
+    // @ts-ignore Typescript complains about the duplicate var, but it's guaranteed that only one of these lines will run
     var crypto = require('crypto').webcrypto;
 }
 /**

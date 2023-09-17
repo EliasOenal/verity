@@ -111,7 +111,7 @@ export class NetworkPeer extends Peer {
         // TODO FIXME: We should include the server port in the hello message and save it.
 
         // Handle incoming messages
-        //@ts-ignore
+        // @ts-ignore When using socketCloseSignal the compiler mismatches the function overload
         ws.addEventListener("message", (event) => {
             if (isNode) {
                 this.handleMessage(Buffer.from(event.data as Buffer));
