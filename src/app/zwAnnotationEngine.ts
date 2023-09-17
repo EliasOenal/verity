@@ -45,7 +45,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       cubeInfo: CubeInfo | CubeKey,
       mediaType: MediaTypes = MediaTypes.TEXT,
       allowAnonymous = this.handleAnonymousCubes): boolean {
-    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo);
+    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo) as CubeInfo;
 
     if (!allowAnonymous) {
       // Is this owned by one if the authors in this.identityMucs?
@@ -76,9 +76,6 @@ export class ZwAnnotationEngine extends AnnotationEngine {
 
     // TODO: handle continuation chains
     // TODO: parametrize and handle additional relationship types on request
-    // TODO: as discussed, this whole decision process (and the related attributes
-    // in CubeDataset) should at some point not be applies to all cubes,
-    // just to interesting ones that are actually to be displayed.
 
     // are we a reply?
     // if we are, we can only be displayed if we have the original post,
@@ -180,7 +177,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   private emitIfCubeDisplayable(
       cubeInfo: CubeInfo | CubeKey,
       mediaType: MediaTypes = MediaTypes.TEXT): boolean {
-    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo);
+    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo) as CubeInfo;
     const displayable: boolean = this.isCubeDisplayable(cubeInfo, mediaType);
     if (displayable) {
       // logger.trace(`ZwAnnotationEngine: Marking cube ${key.toString('hex')} displayable.`)
@@ -193,7 +190,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   private emitIfCubeMakesOthersDisplayable(
       cubeInfo: CubeInfo | CubeKey,
       mediaType: MediaTypes = MediaTypes.TEXT): boolean {
-    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo);
+    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo) as CubeInfo;
     let ret: boolean = false;
 
     // Am I the base post to a reply we already have?

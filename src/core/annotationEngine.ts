@@ -9,9 +9,9 @@ import { BaseFields, BaseRelationship } from './baseFields';
 
 import { Buffer } from 'buffer';
 
-export class AnnotationEngine extends EventEmitter {
-  protected cubeStore: CubeStore;
+type RelationshipClassConstructor = new (type: number, remoteKey: CubeKey) => BaseRelationship;
 
+export class AnnotationEngine extends EventEmitter {
   /**
    * Stores reverse relationships for each Cube.
    * Getting the relationships of any particular Cube is easy -- just read the
@@ -25,6 +25,7 @@ export class AnnotationEngine extends EventEmitter {
    */
   reverseRelationships: Map<string, Array<BaseRelationship>> = new Map();  // using string representation of CubeKey as maps don't work well with Buffers
 
+  constructor(
   /**
    * The AnnotationEngine can be used on (top-level) Cube fields as well as on
    * any application-defined sub-fields, as long as they are similar enough.
@@ -32,24 +33,10 @@ export class AnnotationEngine extends EventEmitter {
    * is supposed to work on. By default, for top-level Cube fields, it is just an
    * alias to cube.getFields().
    */
-  getFields: Function;
-  static defaultGetFieldsFunc(cube: Cube): BaseFields {
-    return cube.getFields();
-  }
-
-  relationshipClass: any = CubeRelationship;  // e.g. CubeRelationship
-
-  constructor(cubeStore: CubeStore, getFieldsFunc?, relationshipClass?) {
+      public readonly cubeStore,
+      public readonly getFields: (cube: Cube) => BaseFields = (cube) => { return cube.getFields() },
+      public readonly relationshipClass: RelationshipClassConstructor = CubeRelationship) {
     super();
-
-    // define how this AnnotationEngine reaches the fields it is supposed to work on
-    if (getFieldsFunc === undefined) getFieldsFunc = AnnotationEngine.defaultGetFieldsFunc;
-    this.getFields = getFieldsFunc;
-
-    // define on which kind of Relationships this AnnotationEngine works on
-    if (relationshipClass === undefined) relationshipClass = CubeRelationship;
-    this.relationshipClass = relationshipClass;
-
     // set CubeStore and subscribe to events
     this.cubeStore = cubeStore;
     this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.autoAnnotate(cubeInfo));
