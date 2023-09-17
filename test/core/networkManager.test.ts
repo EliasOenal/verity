@@ -135,7 +135,7 @@ describe('networkManager', () => {
 
         const cubeStore = new CubeStore(false);
         const cubeStore2 = new CubeStore(false);
-        const manager1 = new NetworkManager(5000, cubeStore, new PeerDB(), false, false);
+        const manager1 = new NetworkManager(5002, cubeStore, new PeerDB(), false, false);
         const manager2 = new NetworkManager(5001, cubeStore2, new PeerDB(), false, false);
 
         const promise1_listening = new Promise(resolve => manager1.on('listening', resolve));
