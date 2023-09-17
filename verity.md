@@ -219,9 +219,9 @@ MUCs are similar to standard cubes, but with additional fields to implement owne
 
 1. **TYPE_SMART_CUBE**: Indicating the cube is a MUC.
 
-2. **TYPE_PUBLIC_KEY**: This is the user's public key. It serves to verify the signature of the cube. The public key is used to track the cube within the network, like the cube hash does for regular cubes. The cube hash of a MUC still serves to verify the challenge of the cube, keeping challenge verification consistent among cube types.
+2. **TYPE_PUBLIC_KEY**: This is the user's public key. It serves to verify the signature of the cube. The public key is used to track the cube within the network, like the cube hash does for regular cubes. The cube hash of a MUC still serves to verify the challenge of the cube, keeping challenge verification consistent among cube types. A MUC may contain more than one public key, the fingerprint in the signature field is used to identify the correct key for verification.
 
-3. **TYPE_SIGNATURE**: This is the user's signature of the cube, which is verified with the key in the TYPE_PUBLIC_KEY field. This proves ownership of the cube.
+3. **TYPE_SIGNATURE**: This is the user's signature of the cube, which is verified with the key in the TYPE_PUBLIC_KEY field. This proves ownership of the cube. For MUCs this field is defined to be the last field in the cube, ending exactly at the last byte of the cube. This ensures that the signature covers the entire cube and prevents unauthorized modifications.
 
 #### Functionality
 The content of a MUC can be updated by the user, and the updated cube is signed with the user's private key. The signature can be verified with the public key in the cube. When a MUC is updated, the timestamp is set to the current time. This timestamp serves as the version number for the cube. The cube with the latest timestamp is considered the most recent version.
