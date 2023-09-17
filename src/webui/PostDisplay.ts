@@ -44,7 +44,7 @@ export class PostDisplay {
     this.view = new PostView();
     this.annotationEngine.on('cubeDisplayable', (binaryKey) => this.displayPost(binaryKey)) // list cubes
     this.redisplayPosts();
-    this.cubeAuthorRedisplayTimer = setInterval(() => this.redisplayAllCubeAuthors(), 60000);
+    this.cubeAuthorRedisplayTimer = setInterval(() => this.redisplayAllCubeAuthors(), 5000);
   }
 
   shutdown() {
@@ -75,6 +75,7 @@ export class PostDisplay {
   // Show all new cubes that are displayable.
   // This will handle cubeStore cubeDisplayable events.
   displayPost(binarykey: CubeKey): void {
+    logger.trace(`PostDisplay: Attempting to display post ${binarykey.toString('hex')}`)
     // get Cube
     const cube = this.cubeStore.getCube(binarykey);
     const fields: ZwFields = ZwFields.get(cube);

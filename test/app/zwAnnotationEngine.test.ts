@@ -22,6 +22,19 @@ describe('ZwAnnotationEngine', () => {
     annotationEngine = new ZwAnnotationEngine(cubeStore);
   }, 3000);
 
+  describe('reverse relationships', () => {
+    it.only('correctly creates a reverse relationship', async () => {
+      const referee: Cube = await makePost("I am the base post");
+      const referrer = await makePost("I am a reply", await referee.getKey());
+      await cubeStore.addCube(referrer);
+
+      const reverserels = annotationEngine.getReverseRelationships(await referee.getKey());
+      expect(reverserels.length).toEqual(1);
+      expect(reverserels[0].type).toEqual(ZwRelationshipType.REPLY_TO);
+      expect(reverserels[0].remoteKey.toString('hex')).toEqual((await referrer.getKey()).toString('hex'));
+    });
+  });
+
   describe('displayability', () => {
     it('should mark a single root cube as displayable', async () => {
       const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reduced_difficulty);
@@ -296,7 +309,7 @@ describe('ZwAnnotationEngine', () => {
           toEqual("Probator Attributionis Auctoris");
       }
     });
-  });
+  });  // cube ownership
 
 
 });

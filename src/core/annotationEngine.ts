@@ -53,9 +53,11 @@ export class AnnotationEngine extends EventEmitter {
     // set CubeStore and subscribe to events
     this.cubeStore = cubeStore;
     this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.autoAnnotate(cube.key));
+    this.crawlCubeStore();  // we may have missed some events
   }
 
-  private autoAnnotate(key: CubeKey): void {
+  autoAnnotate(key: CubeKey): void {
+    // logger.trace(`AnnotationEngine: Auto-annotating cube ${key.toString('hex')}`);
     const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(key);
     const cube: Cube = cubeInfo.getCube();
 
@@ -80,7 +82,7 @@ export class AnnotationEngine extends EventEmitter {
       if (alreadyKnown.length === 0) {
         remoteCubeRels.push(
           new this.relationshipClass(relationship.type, key));
-        // logger.trace(`cubeStore: learning reverse relationship from ${relationship.remoteKey} to ${key}`)
+        // logger.trace(`AnnotationEngine: learning reverse relationship type ${relationship.type} from ${relationship.remoteKey.toString('hex')} to ${key.toString('hex')}`);
       }
     }
   }
@@ -116,6 +118,22 @@ export class AnnotationEngine extends EventEmitter {
       }
     }
     return ret;
+  }
+
+  getFirstReverseRelationship(
+    cubeKey: CubeKey | string | Array<BaseRelationship>,
+    type?: number,  // e.g. one of CubeRelationshipType
+    remoteKey?: CubeKey): BaseRelationship {
+      // note this is not efficient, but the list of reverse relationships will be small
+      const rels = this.getReverseRelationships(cubeKey, type, remoteKey);
+      if (rels.length) return rels[0];
+      else return undefined;
+  }
+
+  protected crawlCubeStore(): void {
+    for (const cubeInfo of this.cubeStore.getAllCubeInfo()) {
+      this.autoAnnotate(cubeInfo.key);
+    }
   }
 
 }
