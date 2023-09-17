@@ -1,4 +1,5 @@
 import { Cube, CubeKey } from './cube'
+import { CubeType } from './cubeDefinitions';
 import { CubeRelationship, CubeRelationshipType } from './cubeFields';
 import { logger } from './logger';
 
@@ -48,7 +49,7 @@ export class CubeInfo {
 
   // @member binaryCube: The binary representation of this cube.
   binaryCube: Buffer = undefined;
-  cubeType: number = undefined;
+  cubeType: CubeType = undefined;
   date: number = undefined;
   challengeLevel: number = undefined;
 

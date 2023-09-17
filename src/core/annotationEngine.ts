@@ -52,13 +52,12 @@ export class AnnotationEngine extends EventEmitter {
 
     // set CubeStore and subscribe to events
     this.cubeStore = cubeStore;
-    this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.autoAnnotate(cube.key));
+    this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.autoAnnotate(cubeInfo));
     this.crawlCubeStore();  // we may have missed some events
   }
 
-  autoAnnotate(key: CubeKey): void {
+  autoAnnotate(cubeInfo: CubeInfo): void {
     // logger.trace(`AnnotationEngine: Auto-annotating cube ${key.toString('hex')}`);
-    const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(key);
     const cube: Cube = cubeInfo.getCube();
 
     // does this Cube even have a valid field structure?
@@ -78,10 +77,10 @@ export class AnnotationEngine extends EventEmitter {
       // Now add a reverse relationship for the remote Cube, but only if
       // that's actually something we didn't know before:
       const alreadyKnown: Array<BaseRelationship> =
-        this.getReverseRelationships(remoteCubeRels, relationship.type, key);
+        this.getReverseRelationships(remoteCubeRels, relationship.type, cubeInfo.key);
       if (alreadyKnown.length === 0) {
         remoteCubeRels.push(
-          new this.relationshipClass(relationship.type, key));
+          new this.relationshipClass(relationship.type, cubeInfo.key));
         // logger.trace(`AnnotationEngine: learning reverse relationship type ${relationship.type} from ${relationship.remoteKey.toString('hex')} to ${key.toString('hex')}`);
       }
     }
@@ -132,7 +131,7 @@ export class AnnotationEngine extends EventEmitter {
 
   protected crawlCubeStore(): void {
     for (const cubeInfo of this.cubeStore.getAllCubeInfo()) {
-      this.autoAnnotate(cubeInfo.key);
+      this.autoAnnotate(cubeInfo);
     }
   }
 

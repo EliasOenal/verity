@@ -7,18 +7,20 @@ import { Identity } from "./identity";
 import { MediaTypes, ZwFieldLengths, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "./zwFields";
 
 import { Buffer } from 'buffer';
+import { CubeType } from "../core/cubeDefinitions";
 
 export class ZwAnnotationEngine extends AnnotationEngine {
   identityMucs: Map<string, CubeInfo> = new Map();
+  authorsPosts: Map<string, Set<string>> = new Map();
 
   constructor(
       cubeStore: CubeStore,
       private autoLearnMucs = true) {
     super(cubeStore, ZwFields.get, ZwRelationship);
-    this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.emitIfCubeDisplayable(cube.key));
-    this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.emitIfCubeMakesOthersDisplayable(cube.key));
+    this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
+    this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeMakesOthersDisplayable(cubeInfo));
     if (autoLearnMucs) {
-      this.cubeStore.on('cubeAdded', (cube: CubeMeta) => this.learnMuc(cube.key));
+      this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
     }
     this.crawlCubeStore();
   }
@@ -32,17 +34,16 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    * 2) Have a PAYLOAD field that is not empty
    * 3) If it is a reply (= contains a RELATES_TO/REPLY_TO field) the referred
    *    post must already be displayable.
-   * 4) Must be owned by a MUC we're interested in
+   * 4) Must be owned by a MUC we're interested in (TODO implement)
    * @param [mediaType] Only mark cubes displayable if they are of this media type.
    */
   isCubeDisplayable(
-      key: CubeKey, cubeInfo?: CubeInfo, cube?: Cube,
+      cubeInfo: CubeInfo | CubeKey,
       mediaType: MediaTypes = MediaTypes.TEXT): boolean {
-    if (!cubeInfo) cubeInfo = this.cubeStore.getCubeInfo(key);
-    if (!cube) cube = cubeInfo.getCube();
+    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo);
 
     // is this even a valid ZwCube?
-    const fields: ZwFields = this.getFields(cube);
+    const fields: ZwFields = this.getFields(cubeInfo.getCube());
     if (!fields) return false;
 
     // does this have a ZwPayload field and does it contain something??
@@ -71,7 +72,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       // logger.trace("annotationEngine: Checking for displayability of a reply")
       const basePost: CubeInfo = this.cubeStore.getCubeInfo(reply_to.remoteKey);
       if (!basePost) return false;
-      if (!this.isCubeDisplayable(basePost.key, basePost)) return false;
+      if (!this.isCubeDisplayable(basePost, mediaType)) return false;
     }
     // logger.trace("annotationEngine: Confiming cube " + key.toString('hex') + " is displayable.");
     return true;
@@ -105,6 +106,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   }
 
   /**
+   * Unused, use cubeAuthor instead.
    * Finds the author of a post, i.e. the Identity object of a cube's author.
    * It does that by checking ALL MUCs and ALL their owned posts to find an
    * ownership association to the given post.
@@ -159,34 +161,35 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   }
 
   private emitIfCubeDisplayable(
-      key:  CubeKey, cubeInfo?: CubeInfo, cube?: Cube,
+      cubeInfo: CubeInfo | CubeKey,
       mediaType: MediaTypes = MediaTypes.TEXT): boolean {
-    const displayable: boolean = this.isCubeDisplayable(key, cubeInfo, cube, mediaType);
+    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo);
+    const displayable: boolean = this.isCubeDisplayable(cubeInfo, mediaType);
     if (displayable) {
       // logger.trace(`ZwAnnotationEngine: Marking cube ${key.toString('hex')} displayable.`)
-      this.emit('cubeDisplayable', key);
+      this.emit('cubeDisplayable', cubeInfo.key);  // TODO: why not just emit the cubeInfo?
     }
     return displayable;
   }
 
   // Emits cubeDisplayable events if this is the case
   private emitIfCubeMakesOthersDisplayable(
-    key: CubeKey, cubeInfo?: CubeInfo, cube?: Cube): boolean {
+      cubeInfo: CubeInfo | CubeKey,
+      mediaType: MediaTypes = MediaTypes.TEXT): boolean {
+    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo);
     let ret: boolean = false;
-    if (!cubeInfo) cubeInfo = this.cubeStore.getCubeInfo(key);
-    if (!cube) cube = cubeInfo.getCube();
 
     // Am I the base post to a reply we already have?
-    if (this.isCubeDisplayable(key, cubeInfo, cube)) {
+    if (this.isCubeDisplayable(cubeInfo, mediaType)) {
       // In a base-reply relationship, I as a base can only make my reply
       // displayable if I am displayable myself.
       const replies: Array<ZwRelationship> = this.getReverseRelationships(
         cubeInfo.key,
         ZwRelationshipType.REPLY_TO);
       for (const reply of replies) {
-        if (this.emitIfCubeDisplayable(reply.remoteKey)) {  // will emit a cubeDisplayable event for reply.remoteKey if so
+        if (this.emitIfCubeDisplayable(reply.remoteKey, mediaType)) {  // will emit a cubeDisplayable event for reply.remoteKey if so
           ret = true;
-          this.emitIfCubeMakesOthersDisplayable(reply.remoteKey);
+          this.emitIfCubeMakesOthersDisplayable(reply.remoteKey, mediaType);
         }
       }
     }
@@ -198,8 +201,13 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    * will be created for these known MUCs and their owned cubes.
    * @param key Must be the key of a valid Identity MUC
    */
-  private learnMuc(key: CubeKey): void {
-    const mucInfo: CubeInfo = this.cubeStore.getCubeInfo(key);
+  private learnMuc(mucInfo: CubeInfo): void {
+    // is this even a MUC?
+    if (mucInfo.cubeType != CubeType.CUBE_TYPE_MUC) return;
+
+    // Check if this is an Identity MUC by trying to create an Identity object
+    // for it.
+    // I'm not sure if that's efficient.
     let id: Identity;
     try {
       id = new Identity(this.cubeStore, mucInfo.getCube());
@@ -213,7 +221,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     super.crawlCubeStore();
     if (this.autoLearnMucs) {
       for (const cubeInfo of this.cubeStore.getAllCubeInfo()) {
-        this.learnMuc(cubeInfo.key);
+        this.learnMuc(cubeInfo);
       }
     }
     for (const cubeInfo of this.cubeStore.getAllCubeInfo()) {
