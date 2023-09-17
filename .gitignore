@@ -13,6 +13,7 @@ deployweb.sh
 
 # "Compiled" documentation
 verity.pdf
+cci.pdf
 
 # macOS
 .DS_Store

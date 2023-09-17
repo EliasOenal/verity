@@ -1,6 +1,6 @@
 ![](img/vera_300px_nobg.png)
 
-# Project Verity
+# Verity
 This project aims to create a decentralized and censorship-resistant social networking platform akin to Twitter, Threads or Reddit. It leverages unique cube structures, each containing 1kB of data, which are then synchronized across participating nodes. To ensure data integrity and authenticity, posts are signed with user-specific cryptographic keys and utilize a hashcash challenge to mitigate spam. The platform supports 1:1 and 1:n encrypted messaging, protecting user privacy by minimizing metadata leakage and allowing secure, private communication between users. By offering a high degree of privacy, security, and resistance to censorship, this project offers a compelling alternative to traditional, centralized social networks.
 
 Although light nodes are supported, nodes are encouraged to be operated as full nodes, replicating all cubes.
@@ -9,6 +9,17 @@ Although light nodes are supported, nodes are encouraged to be operated as full 
 
 # Cube Specification
 Cubes are the elemental units of Verity. Every feature of the network is constructed on top of cubes.
+
+| Data             | Size (bits/bytes) | Description                                             |
+|------------------|-------------------|---------------------------------------------------------|
+| Protocol Version | 4 bits            | Currently defined to be 0                               |
+| Reserved Bits    | 4 bits            | Reserved for future use                                 |
+| Date             | 5 bytes           | Truncated UNIX timestamp representing the creation date |
+| TLV Fields       | Variable length   | Multiple fields of different types, e.g.:               |
+|                  |                   | TYPE_PAYLOAD                                            |
+|                  |                   | TYPE_PADDING_NONCE                                      |
+|                  |                   | etc.                                                    |
+
 1. **Total Size**: Each cube has a total size of 1024 bytes.
 
 2. **Protocol Version and Reserved Bits (1 byte)**: The first nibble (4 bits) of the first byte of the cube is the protocol version. Currently, the only defined protocol version is 0. The second nibble of the first byte is reserved for future use.
