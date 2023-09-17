@@ -26,9 +26,15 @@ export class Cube {
     private fields: CubeFields;
     private binaryData: Buffer | undefined;
     private hash: Buffer | undefined;
+
     private _privateKey: Buffer | undefined;
+    get privateKey() { return this._privateKey; }
     private _publicKey: Buffer | undefined;
-    private cubeType: number | undefined;
+    get publicKey() { return this._publicKey; }
+
+    private _cubeType: CubeType;
+    get cubeType(): CubeType { return this._cubeType }
+
     private cubeKey: CubeKey | undefined;
 
     /**
@@ -97,7 +103,7 @@ export class Cube {
             this.reservedBits = binaryData[0] & 0xF;
             this.date = binaryData.readUIntBE(1, 5);
             this.fields = new CubeFields(FieldParser.toplevel.decompileFields(this.binaryData));
-            this.cubeType = CubeType.CUBE_TYPE_REGULAR;
+            this._cubeType = CubeType.CUBE_TYPE_REGULAR;
             this.processTLVFields();
         }
     }
@@ -110,7 +116,7 @@ export class Cube {
         return new CubeInfo(
             await this.getKey(),
             await this.getBinaryData(),
-            this.cubeType,
+            this._cubeType,
             this.date,
             CubeUtil.countTrailingZeroBits(this.hash),
         );
@@ -127,9 +133,6 @@ export class Cube {
             throw new CubeError("Only version 0 is supported");
         }
     }
-
-    get privateKey() { return this._privateKey; }
-    get publicKey() { return this._publicKey; }
 
     public setCryptoKeys(
             publicKey: Buffer,
@@ -344,7 +347,7 @@ export class Cube {
                     // Verify the signature
                     CubeUtil.verifySignature(publicKeyValue, signatureValue, dataToVerify);
                 }
-                this.cubeType = CubeType.CUBE_TYPE_MUC;
+                this._cubeType = CubeType.CUBE_TYPE_MUC;
                 this._publicKey = publicKey.value;
                 this.cubeKey = publicKey.value; // MUC, key is public key
             } else {
