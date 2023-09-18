@@ -48,6 +48,18 @@ export enum ZwRelationshipType {
   SUBSCRIPTION_RECOMMENDATION = 81,
 }
 
+export const ZwRelationshipLimits: Map<ZwRelationshipType, number> = new Map([
+  [ZwRelationshipType.CONTINUED_IN, 1],
+  [ZwRelationshipType.MENTION, undefined],
+  [ZwRelationshipType.REPLY_TO, 1],
+  [ZwRelationshipType.QUOTATION, undefined],
+  [ZwRelationshipType.MYPOST, undefined],
+  [ZwRelationshipType.PROFILEPIC, 1],
+  [ZwRelationshipType.KEY_BACKUP_CUBE, undefined],
+  [ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX, undefined],
+  [ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION, undefined]
+]);
+
 export enum MediaTypes {
   TEXT = 1,  // may contain markdown
   JPEG = 2,

@@ -10,6 +10,9 @@ import { BaseFields, BaseRelationship } from './baseFields';
 import { Buffer } from 'buffer';
 
 type RelationshipClassConstructor = new (type: number, remoteKey: CubeKey) => BaseRelationship;
+export function defaultGetFieldsFunc(cube: Cube): BaseFields {
+  return cube.getFields();
+}
 
 export class AnnotationEngine extends EventEmitter {
   /**
@@ -34,8 +37,19 @@ export class AnnotationEngine extends EventEmitter {
    * alias to cube.getFields().
    */
       public readonly cubeStore,
-      public readonly getFields: (cube: Cube) => BaseFields = (cube) => { return cube.getFields() },
-      public readonly relationshipClass: RelationshipClassConstructor = CubeRelationship) {
+      public readonly getFields: (cube: Cube) => BaseFields = defaultGetFieldsFunc,
+      public readonly relationshipClass: RelationshipClassConstructor = CubeRelationship,
+
+      /**
+   * A map mapping a numeric RelationshipType to the maximum number of Relationships
+   * allowed per Cube for this type.
+   * If specified, the AnnotationEngine will only create annotations of the specified
+   * types.
+   * If the maximum number of Relationships of a specific type allowed per Cube
+   * is undefined it will be considered unlimited.
+   */
+      private readonly limitRelationshipTypes: Map<number, number> = undefined)
+    {
     super();
     // set CubeStore and subscribe to events
     this.cubeStore = cubeStore;
@@ -44,15 +58,34 @@ export class AnnotationEngine extends EventEmitter {
   }
 
   autoAnnotate(cubeInfo: CubeInfo): void {
-    // logger.trace(`AnnotationEngine: Auto-annotating cube ${key.toString('hex')}`);
+    // logger.trace(`AnnotationEngine: Auto-annotating cube ${cubeInfo.key.toString('hex')}`);
     const cube: Cube = cubeInfo.getCube();
 
     // does this Cube even have a valid field structure?
     const fields: BaseFields = this.getFields(cube);
     if (!fields) return;
 
+    // Keep track of how many relationships of each type this cube has
+    const relsPerType: Map<number, number> = new Map();
+
+    // Let's get real and handle those relationships
     for (const relationship of fields.getRelationships()) {
-      // The the remote Cubes's reverse-relationship list
+      if (this.limitRelationshipTypes) {
+        // Is this a type of Relationship we care about?
+        if (!this.limitRelationshipTypes.has(relationship.type)) {
+          continue;
+        }
+        // Did we reach the relationship limit for this type?
+        let relsPerThisType = relsPerType.get(relationship.type) || 0;
+        if (relsPerThisType >= this.limitRelationshipTypes.get(relationship.type)) {
+          continue;
+        }
+        // Okay, the rel's good, count it:
+        relsPerThisType++;
+        relsPerType.set(relationship.type, relsPerThisType);
+      }
+
+      // Get or create the remote Cubes's reverse-relationship list
       let remoteCubeRels = this.reverseRelationships.get(
         relationship.remoteKey.toString('hex'));
       if (!remoteCubeRels) {
@@ -70,7 +103,7 @@ export class AnnotationEngine extends EventEmitter {
           new this.relationshipClass(relationship.type, cubeInfo.key));
         // logger.trace(`AnnotationEngine: learning reverse relationship type ${relationship.type} from ${relationship.remoteKey.toString('hex')} to ${key.toString('hex')}`);
       }
-    }
+    }  // for each relationship
   }
 
   /**
