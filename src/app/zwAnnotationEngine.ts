@@ -4,7 +4,7 @@ import { CubeStore } from "../core/cubeStore";
 import { logger } from "../core/logger";
 import { AnnotationEngine } from "../core/annotationEngine";
 import { Identity } from "./identity";
-import { MediaTypes, ZwFieldLengths, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "./zwFields";
+import { MediaTypes, ZwFieldLengths, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipLimits, ZwRelationshipType } from "./zwFields";
 
 import { Buffer } from 'buffer';
 import { CubeType } from "../core/cubeDefinitions";
@@ -16,8 +16,10 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   constructor(
       cubeStore: CubeStore,
       private autoLearnMucs: boolean = true,
-      private handleAnonymousCubes: boolean = false) {
-    super(cubeStore, ZwFields.get, ZwRelationship);
+      private handleAnonymousCubes: boolean = true,
+      limitRelationshipTypes: Map<number, number> = ZwRelationshipLimits,
+    ) {
+    super(cubeStore, ZwFields.get, ZwRelationship, limitRelationshipTypes);
     if (this.autoLearnMucs) {
       this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
     }
