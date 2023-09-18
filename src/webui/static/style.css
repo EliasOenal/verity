@@ -1,3 +1,7 @@
+body {
+  min-width: 20em;
+}
+
 * {
   transition: 0.35s ease, color 0.05s ease, background-color 0.2s ease;
   /* border: 1px solid red; /* Debug overflow */
@@ -31,20 +35,19 @@ ul.replyposts {
   list-style-type: none;
 }
 
-div.postHeader {
+div.verityPostHeader {
   display: flex;
   align-items: center;
 }
 
-img.postProfilePic {
+img.verityPostProfilePic {
   height: 4em;
   margin-right: 1em;
   margin-bottom: 1em;
 }
 
 img#veralogo {
-  width: 70%;
-  max-width: 200px;
+  max-width: 15em;
   display: block;
   margin: 0 auto;
 }
@@ -99,7 +102,24 @@ img#veralogo {
 
 /* Out post input text areas auto-resize using JS, so no overflow and no
 manual resizing please. */
-textarea.veritypostinput {
+textarea.verityPostInput {
   overflow-y: hidden;
   resize: none;
+}
+
+li.verityPost {
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.verityPostCharCountBarContainer {
+  /* Will be overriden on user input */
+  display: none;
+}
+.verityPostRemainingChars {
+  flex-grow: 1;
+  flex-direction: row-reverse;
+  color: white;
+  font-weight: bold;
+  padding-right: 1em;
 }

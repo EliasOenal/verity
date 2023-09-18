@@ -1,3 +1,5 @@
+import { ZwConfig } from "../../app/zwConfig";
+import { logger } from "../../core/logger";
 import { PostData } from "../PostDisplay";
 
 export class PostView {
@@ -8,83 +10,58 @@ export class PostView {
   }
 
   displayPost(data: PostData): void {
+    // Get the post template from HTML and clone it
     const container = this.getOrCreateContainer(data);
-    const li: HTMLLIElement = document.createElement("li");
-    li.setAttribute("cubekey", data.keystring);  // do we still need this?
-    li.setAttribute("timestamp", String(data.timestamp)); // keep raw timestamp for later reference
-    li.setAttribute("class", "move-fade-in");
+    const template: HTMLTemplateElement =
+      document.getElementById("verityPostTemplate") as HTMLTemplateElement;
+    const li: HTMLLIElement =
+      template.content.firstElementChild.cloneNode(true) as HTMLLIElement;
 
-    // Display cube display header (timestamp, user)
-    const header: HTMLDivElement = document.createElement('div');
-    header.setAttribute("class", "postHeader")
-
-    // Profile pic part of header
-    const profilepic: HTMLImageElement = document.createElement('img');
-    profilepic.setAttribute("class", "postProfilePic");
-    this.displayCubeProfilepic(data, profilepic);
-
-    // Text part of header
-    const headertext: HTMLParagraphElement = document.createElement("p");
-
-    // show author
-    const authorelem: HTMLElement = document.createElement("b");
+    // Fill in this post's data
+    // metadata
+    li.setAttribute("data-cubekey", data.keystring);
+    li.setAttribute("data-timestamp", String(data.timestamp));
+    // profile pic
+    this.displayCubeProfilepic(data,
+      li.getElementsByClassName("verityPostProfilePic")[0] as HTMLImageElement);
+    // author
+    const authorelem: HTMLElement =
+      li.getElementsByClassName("verityCubeAuthor")[0] as HTMLElement;
     this.displayCubeAuthor(data, authorelem);
-    headertext.appendChild(authorelem);
-    headertext.appendChild(document.createElement("br"));
-
-    // show date
+    // date
+    const dateelem = li.getElementsByClassName("verityPostDate")[0] as HTMLElement;
     const date: Date = new Date(data.timestamp*1000);
-    const dateformat: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const dateelem: HTMLElement = document.createElement("small");
-    dateelem.appendChild(document.createTextNode(
+    const dateformat: Intl.DateTimeFormatOptions =
+      { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    dateelem.innerText =
       date.toLocaleDateString(navigator.language, dateformat) + " " +
-      date.toLocaleTimeString(navigator.language)
-    ));
-    dateelem.appendChild(document.createElement("br"));
-    headertext.appendChild(dateelem);
-
-    header.appendChild(profilepic);
-    header.appendChild(headertext);
-    li.appendChild(header);  // display whole header now
-
-    // Display post text
-    const text: HTMLParagraphElement = document.createElement('p');
+      date.toLocaleTimeString(navigator.language);
+    // post text
+    const text: HTMLParagraphElement =
+      li.getElementsByClassName("verityPostContent")[0] as HTMLParagraphElement;
     text.innerText = data.text;
     text.title = `Cube Key ${data.keystring}`;  // show cube key as tooltip
-    li.append(text);
 
-    // Display reply input field
-    const replypara: HTMLParagraphElement = document.createElement("p");
-    const replyform: HTMLFormElement = document.createElement("form");
-    replypara.appendChild(replyform);
-    replyform.setAttribute("action", "javascript:void(0);");
-    replyform.setAttribute("onsubmit", `window.verityUI.postReply(document.getElementById('replyinput-${data.keystring}').value, '${data.keystring}');`)
-    replyform.setAttribute("class", "input-group");
-    const replyfield: HTMLTextAreaElement = document.createElement("textarea");
-    replyfield.setAttribute("class", "form-control veritypostinput");
-    replyfield.setAttribute("rows", "1");
-    replyfield.setAttribute("placeholder", "Reply");
-    replyfield.setAttribute("id", `replyinput-${data.keystring}`);
-    replyfield.setAttribute("type", "text");
-    replyfield.setAttribute("required", "");
-    // auto-resize textares
-    replyfield.setAttribute("style", `height: ${replyfield.scrollHeight}px;`);
-    replyfield.addEventListener("input", function(){
-        this.style.height = "0"; this.style.height = `${this.scrollHeight}px`
-      }, false);
-    replyform.appendChild(replyfield);
-    const replybutton: HTMLButtonElement = document.createElement("button");
-    replybutton.setAttribute("type", "submit");
-    replybutton.setAttribute("class", "btn btn-primary");
+    // Configure reply input field
+    const replyform: HTMLFormElement =
+      li.getElementsByClassName("verityReplyForm")[0] as HTMLFormElement;
+    replyform.setAttribute("onsubmit",
+      `window.verityUI.postReply(document.getElementById('verityReplyInput-${data.keystring}').value, '${data.keystring}');`)
+    const replyfield: HTMLTextAreaElement =
+      li.getElementsByClassName("verityPostInput")[0] as HTMLTextAreaElement;
+    replyfield.setAttribute("maxlength", ZwConfig.MAXIMUM_POST_LENGTH.toString());
+    replyfield.setAttribute("id", `verityReplyInput-${data.keystring}`);
+    replyfield.setAttribute("style", `height: ${replyfield.scrollHeight}px;`);  // for auto-resize
+    // @ts-ignore Typescript does not like us using custom window attributes
+    replyfield.addEventListener("input", window.onTextareaInput, false);
+    const replybutton: HTMLButtonElement =
+      li.getElementsByClassName("verityPostButton")[0] as HTMLButtonElement
     replybutton.setAttribute("id", `replybutton-${data.keystring}`);
-    replybutton.appendChild(document.createTextNode("Post"));
-    replyform.appendChild(replybutton);
-    li.append(replypara);
 
     // Insert sorted by date
     let appended: boolean = false;
     for (const child of container.children) {
-        const timestamp: string | null = child.getAttribute("timestamp");
+        const timestamp: string | null = child.getAttribute("data-timestamp");
         if (timestamp) {
             const childdate: number = parseInt(timestamp);
             if (childdate < data.timestamp) {
@@ -103,12 +80,14 @@ export class PostView {
   redisplayCubeAuthor(data: PostData): void {
     // Get the HTML element the author of this post is displayed in.
     // Fail silently if there isn't any (shouldn't happen).
-    const authorelementCollection = data.displayElement.getElementsByClassName("cubeauthor");
+    const authorelementCollection =
+      data.displayElement.getElementsByClassName("cubeauthor");
     if (!authorelementCollection) return;
     const authorelement = authorelementCollection[0] as HTMLElement;
     if (!authorelement) return;
     this.displayCubeAuthor(data, authorelement);
-    const profilepicCollection = data.displayElement.getElementsByClassName("postProfilePic");
+    const profilepicCollection =
+      data.displayElement.getElementsByClassName("postProfilePic");
     if (!profilepicCollection) return;
     const profilepicElem = profilepicCollection[0] as HTMLImageElement;
     if (!profilepicElem) return;
