@@ -27,7 +27,7 @@ describe('Identity', () => {
     const muc = await original.makeMUC(reduced_difficulty);
     expect(muc).toBeInstanceOf(Cube);
     const mucadded = await cubeStore.addCube(muc);
-    expect(mucadded).toEqual(original.publicKey);
+    expect(mucadded.getKeyIfAvailable()).toEqual(original.publicKey);
 
     const restoredmuc = cubeStore.getCube(await muc.getKey());
     expect(restoredmuc).toBeInstanceOf(Cube);
@@ -44,7 +44,7 @@ describe('Identity', () => {
     original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
     original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
 
-    const postkey = (await cubeStore.addCube(await makePost("I got important stuff to say", undefined, original, reduced_difficulty))) as CubeKey;
+    const postkey = (await cubeStore.addCube(await makePost("I got important stuff to say", undefined, original, reduced_difficulty))).getKeyIfAvailable();
     expect(postkey).toBeInstanceOf(Buffer);
     expect(original.posts.length).toEqual(1);
     expect(ZwFields.get(cubeStore.getCube(original.posts[0]) as Cube).getFirstField(ZwFieldType.PAYLOAD).value.toString('utf-8')).
@@ -64,7 +64,7 @@ describe('Identity', () => {
 
     // Store the MUC
     const mucadded = await cubeStore.addCube(muc);
-    expect(mucadded).toEqual(original.publicKey);
+    expect(mucadded.getKeyIfAvailable()).toEqual(original.publicKey);
 
     // Restore the Identity from the stored MUC
     const restoredmuc = cubeStore.getCube(await muc.getKey());
@@ -86,7 +86,7 @@ describe('Identity', () => {
     original.name = "Probator Identitatum";
     original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
     original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
-    const postkey = (await cubeStore.addCube(await makePost("I got important stuff to say", undefined, original, reduced_difficulty))) as CubeKey;
+    await cubeStore.addCube(await makePost("I got important stuff to say", undefined, original, reduced_difficulty));
 
     // compile ID into binary MUC
     const muc = await original.makeMUC(reduced_difficulty);
@@ -97,7 +97,7 @@ describe('Identity', () => {
     const binarymuc = await muc.getBinaryData();
     expect(binarymuc).toBeInstanceOf(Buffer);
     const mucadded = await cubeStore.addCube(binarymuc);
-    expect(mucadded).toEqual(original.publicKey);
+    expect(mucadded.getKeyIfAvailable()).toEqual(original.publicKey);
 
     // restore Identity from stored MUC
     const restoredmuc = cubeStore.getCube(await muc.getKey());

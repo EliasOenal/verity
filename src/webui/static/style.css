@@ -1,0 +1,98 @@
+* {
+  transition: 0.35s ease, color 0.05s ease, background-color 0.2s ease;
+  /* border: 1px solid red; /* Debug overflow */
+}
+
+.fade-in {
+  opacity: 0;
+  animation: fadeIn 0.5s ease-in forwards;
+}
+
+.move-fade-in {
+  opacity: 0;
+  transform: translateY(-3em);
+  animation: moveFadeIn 0.2s ease-out forwards;
+}
+
+@keyframes moveFadeIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+ul.replyposts {
+  list-style-type: none;
+}
+
+div.postHeader {
+  display: flex;
+  align-items: center;
+}
+
+img.postProfilePic {
+  height: 4em;
+  margin-right: 1em;
+  margin-bottom: 1em;
+}
+
+img#veralogo {
+  width: 70%;
+  max-width: 200px;
+  display: block;
+  margin: 0 auto;
+}
+
+.content-wrapper {
+  padding: 0.5em;
+}
+
+#cubelist {
+  overflow-wrap: anywhere;
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0em);
+  }
+
+  50% {
+    transform: translateY(0.75em);
+  }
+}
+
+.vera-anim {
+  animation: float 2s ease-in-out infinite;
+  animation-play-state: paused;
+  transition: animation-play-state 1s ease-in-out;
+}
+
+.vera-anim:hover {
+  animation-play-state: running;
+}
+
+@keyframes barrelRoll {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+.vera-roll {
+  animation: barrelRoll 1s ease-in-out forwards;
+}
+
+.dark-mode-toggle {
+  font-size: 1.5em;
+}

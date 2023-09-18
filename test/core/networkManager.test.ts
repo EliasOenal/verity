@@ -166,7 +166,7 @@ describe('networkManager', () => {
             Buffer.from(keyPair.privateKey),
             CubeField.Payload(counterBuffer)
         );
-        mucKey = await cubeStore.addCube(muc);
+        mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
         const firstMucHash = await muc.getHash();
         expect(cubeStore.getAllStoredCubeKeys().size).toEqual(1);
 
@@ -196,7 +196,7 @@ describe('networkManager', () => {
             Buffer.from(keyPair.privateKey),
             CubeField.Payload(counterBuffer)
         );
-        mucKey = await cubeStore.addCube(muc);
+        mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
         const secondMucHash = await muc.getHash();
         expect(cubeStore.getAllStoredCubeKeys().size).toEqual(1);  // still just one, new MUC version replaces old MUC version
 

@@ -190,7 +190,7 @@ describe('ZwAnnotationEngine', () => {
         expect(preliminaryIdHash.equals(await cubeStore.getCube(idKey)?.getHash()!)).toBeTruthy();
 
         // add post and re-store Identity
-        const postKey: CubeKey = await cubeStore.addCube(await makePost("I got important stuff to say", undefined, id, reduced_difficulty));
+        const postKey: CubeKey = (await cubeStore.addCube(await makePost("I got important stuff to say", undefined, id, reduced_difficulty))).getKeyIfAvailable();
         expect(postKey).toBeInstanceOf(Buffer);
         const firstMuc: Cube = await id.store(reduced_difficulty);
 
