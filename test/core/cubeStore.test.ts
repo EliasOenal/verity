@@ -33,7 +33,7 @@ describe('cubeStore', () => {
   it('should add 20 cubes to the storage and get them back', async () => {
     let reduced_difficulty = 0;  // reduced difficulty for faster test
     cubeStore = new CubeStore(false, reduced_difficulty);
-    const promises: Array<Promise<Buffer>> = [];
+    const promises: Array<Promise<Cube>> = [];
     for (let i = 0; i < 20; i++) {
       const cube = new Cube(undefined, reduced_difficulty);
       cube.setDate(i);
@@ -41,9 +41,10 @@ describe('cubeStore', () => {
       promises.push(cubeStore.addCube(cube));
     }
 
-    const hashes = await Promise.all(promises);
+    const cubes = await Promise.all(promises);
 
-    hashes.forEach((hash, i) => {
+    cubes.forEach((cube, i) => {
+      const hash = cube.getKeyIfAvailable();
       if (!hash) throw new Error(`Hash is undefined for cube ${i}`);
       const binaryData = cubeStore.getCube(hash)?.getBinaryData();
       expect(hash).toBeInstanceOf(Buffer);
@@ -57,7 +58,7 @@ describe('cubeStore', () => {
   }, 30000);
 
   it('should add a cube from binary data', async () => {
-    const cubeKey = await cubeStore.addCube(validBinaryCube);
+    const cubeKey = (await cubeStore.addCube(validBinaryCube)).getKeyIfAvailable();
     expect(cubeKey).toBeInstanceOf(Buffer);
     expect(cubeKey!.length).toEqual(32);
     expect(cubeStore.getCube(cubeKey!)).toBeDefined();
@@ -117,7 +118,7 @@ describe('cubeStore', () => {
     const binarymuc = await muc.getBinaryData();
     expect(binarymuc).toBeDefined();
     const cubeadded = await cubeStore.addCube(binarymuc);
-    expect(cubeadded).toEqual(muckey);
+    expect(cubeadded.getKeyIfAvailable()).toEqual(muckey);
 
     const restoredmuc = cubeStore.getCube(muckey);
     expect(restoredmuc).toBeDefined();

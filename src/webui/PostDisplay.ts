@@ -6,7 +6,7 @@ import { Identity } from "../app/identity";
 import { ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "../app/zwFields";
 import { ZwAnnotationEngine } from "../app/zwAnnotationEngine";
 
-import { PostView } from "./PostView";
+import { PostView } from "./view/PostView";
 
 import { logger } from "../core/logger";
 
@@ -34,13 +34,13 @@ export interface PostData {
 
 /** This is the presenter class for viewing posts */
 export class PostDisplay {
-  private view: PostView;
   private displayedPosts: Map<string, PostData> = new Map();
   private cubeAuthorRedisplayTimer: NodeJS.Timeout = undefined;  // TODO replace, ugly.
 
   constructor(
       private cubeStore: CubeStore,
-      private annotationEngine: ZwAnnotationEngine) {
+      private annotationEngine: ZwAnnotationEngine,
+      private view: PostView = new PostView()) {
     this.view = new PostView();
     this.annotationEngine.on('cubeDisplayable', (binaryKey) => this.displayPost(binaryKey)) // list cubes
     this.redisplayPosts();

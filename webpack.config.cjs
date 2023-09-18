@@ -52,12 +52,14 @@ module.exports = {
   plugins: [
     new CopyWebpackPlugin({
       patterns: [
-        { from: './src/webui/index.html' },
+        { from: './src/webui/static/index.html' },
+        { from: './src/webui/static/style.css' },
+        { from: './src/webui/static/frontend.js' },  // alternatively, we could write that in Typescript and make it a second bundle
 	      { from: './img/vera.svg' },
         { from: './img/bootstrap.bundle.min.js' },
         { from: './img/bootstrap.min.css' },
         { from: './img/bootstrap-icons.min.css' },
-        { from: './img/fonts/bootstrap-icons.woff', to: 'fonts/bootstrap-icons.woff' },
+        { from: './img/bootstrap-icons.woff', to: 'fonts/bootstrap-icons.woff' },
       ]
     }),
    new webpack.ProvidePlugin({

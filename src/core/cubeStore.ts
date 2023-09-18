@@ -46,9 +46,9 @@ export class CubeStore extends EventEmitter {
   }
 
   // TODO: implement importing CubeInfo directly
-  async addCube(cube_input: Buffer): Promise<CubeKey>;
-  async addCube(cube_input: Cube): Promise<CubeKey>;
-  async addCube(cube_input: Cube | Buffer): Promise<CubeKey> {
+  async addCube(cube_input: Buffer): Promise<Cube>;
+  async addCube(cube_input: Cube): Promise<Cube>;
+  async addCube(cube_input: Cube | Buffer): Promise<Cube> {
     try {
       // Cube objects are ephemeral as storing binary data is more efficient.
       // Create cube object if we don't have one yet.
@@ -73,7 +73,7 @@ export class CubeStore extends EventEmitter {
       // emit an event.
       if (this.hasCube(cubeInfo.key) && cubeInfo.cubeType == CubeType.CUBE_TYPE_REGULAR) {
         logger.warn('CubeStorage: duplicate - cube already exists');
-        return cubeInfo.key;
+        return cube;
       }
 
       if (cube.getDifficulty() < this.required_difficulty) {
@@ -84,11 +84,11 @@ export class CubeStore extends EventEmitter {
       // Replace it with the incoming MUC if it's newer than the one we have.
       if (cubeInfo.cubeType == CubeType.CUBE_TYPE_MUC) {
         if (this.hasCube(cubeInfo.key)) {
-          const storedCube: CubeMeta = this.getCubeInfo(cubeInfo.key);
+          const storedCube: CubeInfo = this.getCubeInfo(cubeInfo.key);
           const winningCube: CubeMeta = cubeContest(storedCube, cubeInfo);
           if (winningCube === storedCube) {
             logger.info('CubeStorage: Keeping stored MUC over incoming MUC');
-            return cubeInfo.key;
+            return storedCube.getCube();
           } else {
             logger.info('CubeStorage: Replacing stored MUC with incoming MUC');
           }
@@ -103,15 +103,15 @@ export class CubeStore extends EventEmitter {
       }
 
       // inform our application(s) about the new cube
-      try {
+      // try {
         // logger.trace(`CubeStore: Added cube ${cubeInfo.key.toString('hex')}, emitting cubeAdded`)
         this.emit('cubeAdded', cubeInfo);
-      } catch(error) {
-        logger.error("CubeStore: While adding Cube " + cubeInfo.key.toString('hex') + "a cubeAdded subscriber experienced an error: " + error.message);
-      }
+      // } catch(error) {
+        // logger.error("CubeStore: While adding Cube " + cubeInfo.key.toString('hex') + "a cubeAdded subscriber experienced an error: " + error.message);
+      // }
 
       // All done finally, just return the key in case anyone cares.
-      return cubeInfo.key;
+      return cube;
     } catch (e) {
       if (e instanceof VerityError) {
         logger.error('CubeStore: Error adding cube:' + e.message);

@@ -261,9 +261,9 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   /** Recursive part of learnAuthorsPosts */
   private learnAuthorsPostsRecursion(mucInfo: CubeInfo, postInfo: CubeInfo): void {
     const muckeystring: string = mucInfo.key.toString('hex');
-    // if we already know this cube, do nothing...
+    // If we either don't have this cube or know it already, do nothing...
     // except if it's a MUC, then it could have changed
-    if (postInfo.cubeType != CubeType.CUBE_TYPE_MUC && this.authorsCubes.has(muckeystring)) {
+    if (postInfo?.cubeType != CubeType.CUBE_TYPE_MUC && this.authorsCubes.has(muckeystring)) {
       return;
     }
     // otherwise, process all MYPOST references

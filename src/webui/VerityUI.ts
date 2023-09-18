@@ -1,4 +1,5 @@
 import { VerityNode } from '../core/verityNode';
+import { Cube } from '../core/cube';
 import { logger } from '../core/logger'
 
 import { PostDisplay } from './PostDisplay';
@@ -57,12 +58,17 @@ export class VerityUI {
 
   async initializeIdentity(): Promise<void> {
     this.identity = await Identity.retrieve(this.node.cubeStore);
-    (document.getElementById("idname") as HTMLInputElement).value = this.identity.name;
+    if (this.identity.name) {
+      (document.getElementById("idname") as HTMLInputElement).
+        value = this.identity.name;
+    }
   }
 
-  saveIdentity(): void {
-    this.identity.name = (document.getElementById("idname") as HTMLInputElement).value;
-    this.identity.store();
+  async saveIdentity(): Promise<Cube> {
+    const username = (document.getElementById("idname") as HTMLInputElement).value;
+    if (username.length) this.identity.name = username;
+    else this.identity.name = "New user";
+    return this.identity.store();
   }
 
   async makeNewPost(text: string) {
@@ -72,7 +78,7 @@ export class VerityUI {
     // First create the post, then update the identity, then add the cube.
     // This way the UI directly displays you as the author.
     const post = await makePost(text, undefined, this.identity);
-    await this.identity.store();
+    await this.saveIdentity();
     this.node.cubeStore.addCube(post);
   }
 
@@ -83,7 +89,7 @@ export class VerityUI {
     // First create the post, then update the identity, then add the cube.
     // This way the UI directly displays you as the author.
     const post = await makePost(text, Buffer.from(replyto, 'hex'), this.identity);
-    await this.identity.store();
+    await this.saveIdentity();
     this.node.cubeStore.addCube(post);
   }
 

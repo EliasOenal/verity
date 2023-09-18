@@ -1,4 +1,4 @@
-import { PostData } from "./PostDisplay";
+import { PostData } from "../PostDisplay";
 
 export class PostView {
   private cubelist: HTMLUListElement = (document.getElementById("cubelist") as HTMLUListElement);
