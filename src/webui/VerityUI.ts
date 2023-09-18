@@ -78,7 +78,7 @@ export class VerityUI {
   async makeNewPost(text: string) {
     if (!text.length) return;  // don't make empty posts
     // clear the input
-    (document.getElementById(`newpostinput`) as HTMLTextAreaElement).value = '';
+    (document.getElementById('verityNewPostInput') as HTMLTextAreaElement).value = '';
     // First create the post, then update the identity, then add the cube.
     // This way the UI directly displays you as the author.
     const post = await makePost(text, undefined, this.identity);
@@ -89,7 +89,7 @@ export class VerityUI {
   async postReply(text: string, replyto: string) {
     if (!text.length) return;  // don't make empty posts
     // clear the input
-    (document.getElementById(`replyinput-${replyto}`) as HTMLTextAreaElement).value = '';
+    (document.getElementById(`verityReplyInput-${replyto}`) as HTMLTextAreaElement).value = '';
     // First create the post, then update the identity, then add the cube.
     // This way the UI directly displays you as the author.
     const post = await makePost(text, Buffer.from(replyto, 'hex'), this.identity);
