@@ -42,9 +42,10 @@ export class PostDisplay {
       private annotationEngine: ZwAnnotationEngine,
       private view: PostView = new PostView()) {
     this.view = new PostView();
-    this.annotationEngine.on('cubeDisplayable', (binaryKey) => this.displayPost(binaryKey)) // list cubes
+    this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey)); // list cubes
+    this.annotationEngine.on('authorLearned', (cubeInfo: CubeInfo) => this.redisplayCubeAuthor(cubeInfo));
     this.redisplayPosts();
-    this.cubeAuthorRedisplayTimer = setInterval(() => this.redisplayAllCubeAuthors(), 5000);
+    // this.cubeAuthorRedisplayTimer = setInterval(() => this.redisplayAllCubeAuthors(), 5000);
   }
 
   shutdown() {
@@ -112,6 +113,14 @@ export class PostDisplay {
   }
 
 
+  redisplayCubeAuthor(cubeInfo: CubeInfo) {
+    const postData: PostData = this.displayedPosts.get(cubeInfo.key.toString('hex'));
+    if (!postData) return;
+    this.findAuthor(postData);  // this (re-)sets data.author and data.authorkey
+    this.view.redisplayCubeAuthor(postData);
+  }
+
+  // Maybe TODO remove? This should no longer be needed.
   redisplayAllCubeAuthors(): void {
     logger.trace("CubeDisplay: Redisplaying all cube authors");
     for (const data of this.displayedPosts.values()) {

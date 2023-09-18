@@ -14,6 +14,7 @@ import { CubeStore } from '../core/cubeStore';
 import { FieldParser } from '../core/fieldParser';
 import { Settings } from '../core/config';
 import { ZwConfig } from './zwConfig';
+import { CubeInfo } from '../core/cubeInfo';
 
 const IDENTITYDB_VERSION = 1;
 
@@ -291,7 +292,9 @@ export class Identity {
    * posts (can't fit them all in the MUC, cube space is fixed, remember?).
    * This is the recursive part of that.
    */
-  private recursiveParsePostReferences(mucOrMucExtension: Cube, alreadyTraversedCubes: string[]) {
+  private recursiveParsePostReferences(mucOrMucExtension: Cube, alreadyTraversedCubes: string[]): void {
+    // do we even have this cube?
+    if (!mucOrMucExtension) return;
     // have we been here before? avoid endless recursion
     const thisCubesKeyString = (mucOrMucExtension.getKeyIfAvailable()).toString('hex');
     if (thisCubesKeyString === undefined || alreadyTraversedCubes.includes(thisCubesKeyString)) return;
@@ -303,13 +306,15 @@ export class Identity {
     const myPostRels: ZwRelationship[] = zwFields.getRelationships(
       ZwRelationshipType.MYPOST);
     for (const postrel of myPostRels) {
+      const postInfo: CubeInfo = this.cubeStore.getCubeInfo(postrel.remoteKey);
+      if (!postInfo) continue;  // skip posts we don't actually have
       if (!(this.posts.includes(postrel.remoteKey.toString('hex')))) {
         // Insert sorted by date. This is not efficient but I think it doesn't matter.
         let inserted: boolean = false;
         for (let i = 0; i < this.posts.length; i++) {
           // if the post to insert is newer than the post we're currently looking at,
           // insert before
-          const postrelDate = this.cubeStore.getCubeInfo(postrel.remoteKey).date;
+          const postrelDate = postInfo.date;
           const compareToDate = this.cubeStore.getCubeInfo(this.posts[i]).date;
           if (postrelDate >= compareToDate) {
               this.posts.splice(i, 0, postrel.remoteKey.toString('hex'));  // inserts at position i
@@ -391,7 +396,7 @@ export class IdentityPersistance {
     }
     const identities: Array<Identity> = [];
     for await (const [pubkey, privkey] of this.db.iterator() ) {
-      try {
+      // try {
         const muc = cubeStore.getCube(Buffer.from(pubkey, 'hex'));
         if (muc === undefined) {
           logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkey + " is not present");
@@ -400,9 +405,9 @@ export class IdentityPersistance {
         const id = new Identity(cubeStore, muc, this);
         muc.setCryptoKeys(Buffer.from(pubkey, 'hex'), Buffer.from(privkey, 'hex'), true);
         identities.push(id);
-        } catch (error) {
-          logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
-        }
+        // } catch (error) {
+        //   logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
+        // }
     }
     return identities;
   }

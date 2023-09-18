@@ -189,6 +189,9 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   }
 
   // Emits cubeDisplayable events if this is the case
+  // Note: In case anonymous posts are disallowed, learning authorship
+  // information will make a post displayable. This case is not handled here but
+  // in learnAuthorsPosts()
   private emitIfCubeMakesOthersDisplayable(
       cubeInfo: CubeInfo | CubeKey,
       mediaType: MediaTypes = MediaTypes.TEXT): boolean {
@@ -237,6 +240,8 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    * Takes a MUC CubeInfo representing an Identity, the author.
    * Will learn all posts by the author as represented by direct or indirect
    * MYPOST relations.
+   * @emits "authorLearned" with a post CubeInfo if we just learned who the
+   *        author of that post is.
    */
   private learnAuthorsPosts(mucInfo: CubeInfo): void {
     // Is this even a MUC? Otherwise, it's definitely not a valid Identity.
@@ -271,9 +276,22 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     if (!fields) return;
     const postRefs: ZwRelationship[] = fields.getRelationships(ZwRelationshipType.MYPOST);
     for (const postRef of postRefs) {
-      this.authorsCubes.get(muckeystring).add(postRef.remoteKey.toString('hex'));
-      this.learnAuthorsPostsRecursion(
-        mucInfo, this.cubeStore.getCubeInfo(postRef.remoteKey));
+      const postkeystring: string = postRef.remoteKey.toString('hex');
+      // If we don't know the referred post already, learn it and
+      // traverse it for further MYPOST references.
+      if (!this.authorsCubes.get(muckeystring).has(postkeystring)) {
+        this.authorsCubes.get(muckeystring).add(postkeystring);
+        const postInfo: CubeInfo = this.cubeStore.getCubeInfo(postRef.remoteKey);
+        // We learned the authorship -- but but have we actually received this post yet?
+        // (It's about a 50/50 chance we see the post or the authorship reference first.)
+        // Only if we actually have this post, emit an event, check for displayability
+        // and continue traversing the post:
+        if (postInfo) {
+          this.emit('authorLearned', postInfo);
+          this.emitIfCubeDisplayable(postInfo);
+          this.learnAuthorsPostsRecursion(mucInfo, postInfo);
+        }
+      }
     }
   }
 
