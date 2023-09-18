@@ -61,12 +61,17 @@ export class PostView {
     replyform.setAttribute("onsubmit", `window.verityUI.postReply(document.getElementById('replyinput-${data.keystring}').value, '${data.keystring}');`)
     replyform.setAttribute("class", "input-group");
     const replyfield: HTMLTextAreaElement = document.createElement("textarea");
-    replyfield.setAttribute("class", "form-control");
+    replyfield.setAttribute("class", "form-control veritypostinput");
     replyfield.setAttribute("rows", "1");
     replyfield.setAttribute("placeholder", "Reply");
     replyfield.setAttribute("id", `replyinput-${data.keystring}`);
     replyfield.setAttribute("type", "text");
     replyfield.setAttribute("required", "");
+    // auto-resize textares
+    replyfield.setAttribute("style", `height: ${replyfield.scrollHeight}px;`);
+    replyfield.addEventListener("input", function(){
+        this.style.height = "0"; this.style.height = `${this.scrollHeight}px`
+      }, false);
     replyform.appendChild(replyfield);
     const replybutton: HTMLButtonElement = document.createElement("button");
     replybutton.setAttribute("type", "submit");

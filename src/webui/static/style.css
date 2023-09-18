@@ -96,3 +96,10 @@ img#veralogo {
 .dark-mode-toggle {
   font-size: 1.5em;
 }
+
+/* Out post input text areas auto-resize using JS, so no overflow and no
+manual resizing please. */
+textarea.veritypostinput {
+  overflow-y: hidden;
+  resize: none;
+}
