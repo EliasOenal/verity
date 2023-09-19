@@ -1,5 +1,5 @@
 import { VerityNode } from '../core/verityNode';
-import { Cube } from '../core/cube';
+import { Cube, CubeKey } from '../core/cube';
 import { logger } from '../core/logger'
 
 import { PostDisplay } from './PostDisplay';
@@ -75,24 +75,21 @@ export class VerityUI {
     return this.identity.store();
   }
 
-  async makeNewPost(text: string) {
+  async makeNewPost(input: HTMLFormElement) {
+    const replytostring: string = input.getAttribute("data-cubekey");
+    const replyto: CubeKey =
+      replytostring? Buffer.from(replytostring, 'hex') : undefined;
+    const textarea: HTMLTextAreaElement =
+      input.getElementsByTagName("textarea")[0] as HTMLTextAreaElement;
+    const text = textarea.value;
     if (!text.length) return;  // don't make empty posts
     // clear the input
-    (document.getElementById('verityNewPostInput') as HTMLTextAreaElement).value = '';
+    textarea.value = '';
+    // @ts-ignore Typescript doesn't like us using custom window attributes
+    window.onTextareaInput(textarea);
     // First create the post, then update the identity, then add the cube.
     // This way the UI directly displays you as the author.
-    const post = await makePost(text, undefined, this.identity);
-    await this.saveIdentity();
-    this.node.cubeStore.addCube(post);
-  }
-
-  async postReply(text: string, replyto: string) {
-    if (!text.length) return;  // don't make empty posts
-    // clear the input
-    (document.getElementById(`verityReplyInput-${replyto}`) as HTMLTextAreaElement).value = '';
-    // First create the post, then update the identity, then add the cube.
-    // This way the UI directly displays you as the author.
-    const post = await makePost(text, Buffer.from(replyto, 'hex'), this.identity);
+    const post = await makePost(text, replyto, this.identity);
     await this.saveIdentity();
     this.node.cubeStore.addCube(post);
   }
