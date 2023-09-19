@@ -1,9 +1,3 @@
-function selectDefaultTheme() {
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    document.documentElement.setAttribute('data-bs-theme', 'dark');
-  }
-}
-
 function updateIcon() {
   const iconSpan = document.getElementById('theme-icon');
   if (document.documentElement.getAttribute('data-bs-theme') === 'dark') {
@@ -76,7 +70,6 @@ function onTextareaInput() {
 window.onTextareaInput = onTextareaInput;
 
 function frontendMain() {
-  selectDefaultTheme();
   updateIcon();
   autoResizeTextareas();
 }
