@@ -69,9 +69,10 @@
         <div class="col-sm-8 container-fluid maincontent">
           <div class="verityNewPostDiv mt-3 mt-sm-5 mb-3">
             <form id="verityNewPostForm" class="form-floating row" action="javascript:void(0);"
-              onsubmit="window.verityUI.makeNewPost(document.getElementById('verityNewPostInput').value);">
+              onsubmit="window.verityUI.makeNewPost(this);">
               <textarea id="verityNewPostInput" class="form-control verityPostInput"
-                        maxlength="600" rows="2" placeholder="Make new post" required></textarea>
+                        maxlength="600" rows="2" placeholder="Make new post"
+                        oninput="window.onTextareaInput(this)" required></textarea>
               <label class="form-label" for="verityNewPostInput">Make new post</label>
               <button class="btn btn-primary" type="submit" id="newcube">Post</button>
             </form>
@@ -110,11 +111,12 @@
       <p class="verityPostContent" title="Cube Key <cubekey>">Text</p>
       <div class="verityReplyDiv">
         <form action="javascript:void(0);"
-              onsubmit="window.verityUI.postReply(document.getElementById('verityReplyInput-<cubekey>').value, '<cubekey>');"
+              onsubmit="window.verityUI.makeNewPost(this);"
               class="verityReplyForm input-group">
           <textarea maxlength="600" class="form-control verityPostInput" rows="1"
                     placeholder="Reply" id="verityReplyInput-<cubekey>" type="text"
-                    required="" style="height: 0px;"></textarea>
+                    required="" style="height: 0px;"
+                    oninput="window.onTextareaInput(this)"></textarea>
           <button type="submit" class="btn btn-primary verityPostButton" id="replybutton-<cubkey>">Post</button>
         </form>
         <div class="progress bg-danger verityPostCharCountBarContainer" role="progressbar">

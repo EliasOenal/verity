@@ -16,10 +16,13 @@ export class PostView {
       document.getElementById("verityPostTemplate") as HTMLTemplateElement;
     const li: HTMLLIElement =
       template.content.firstElementChild.cloneNode(true) as HTMLLIElement;
+    const form: HTMLFormElement =
+      li.getElementsByTagName("form")[0] as HTMLFormElement;
 
     // Fill in this post's data
     // metadata
     li.setAttribute("data-cubekey", data.keystring);
+    form.setAttribute("data-cubekey", data.keystring);
     li.setAttribute("data-timestamp", String(data.timestamp));
     // profile pic
     this.displayCubeProfilepic(data,
@@ -45,15 +48,12 @@ export class PostView {
     // Configure reply input field
     const replyform: HTMLFormElement =
       li.getElementsByClassName("verityReplyForm")[0] as HTMLFormElement;
-    replyform.setAttribute("onsubmit",
-      `window.verityUI.postReply(document.getElementById('verityReplyInput-${data.keystring}').value, '${data.keystring}');`)
     const replyfield: HTMLTextAreaElement =
       li.getElementsByClassName("verityPostInput")[0] as HTMLTextAreaElement;
     replyfield.setAttribute("maxlength", ZwConfig.MAXIMUM_POST_LENGTH.toString());
     replyfield.setAttribute("id", `verityReplyInput-${data.keystring}`);
     replyfield.setAttribute("style", `height: ${replyfield.scrollHeight}px;`);  // for auto-resize
     // @ts-ignore Typescript does not like us using custom window attributes
-    replyfield.addEventListener("input", window.onTextareaInput, false);
     const replybutton: HTMLButtonElement =
       li.getElementsByClassName("verityPostButton")[0] as HTMLButtonElement
     replybutton.setAttribute("id", `replybutton-${data.keystring}`);
