@@ -31,6 +31,13 @@ export class PostView {
     const authorelem: HTMLElement =
       li.getElementsByClassName("verityCubeAuthor")[0] as HTMLElement;
     this.displayCubeAuthor(data, authorelem);
+    const subscribeButton: HTMLButtonElement =
+      li.getElementsByClassName("veritySubscribeButton")[0] as HTMLButtonElement;
+    if (data.authorkey) {
+      subscribeButton.setAttribute("data-authorkey", data.authorkey);
+    } else {
+      subscribeButton.setAttribute("style", "display: none");
+    }
     // date
     const dateelem = li.getElementsByClassName("verityPostDate")[0] as HTMLElement;
     const date: Date = new Date(data.timestamp*1000);

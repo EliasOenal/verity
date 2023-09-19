@@ -94,6 +94,12 @@ export class VerityUI {
     this.node.cubeStore.addCube(post);
   }
 
+  subscribeUser(subscribeButton: HTMLButtonElement) {
+    const authorkeystring = subscribeButton.getAttribute("data-authorkey");
+    const authorkey = Buffer.from(authorkeystring, 'hex');
+    logger.trace("VerityUI: Subscribing to " + authorkeystring);
+  }
+
   navPostsWithAuthors() {
     logger.trace("VerityUI: Displaying posts associated with a MUC");
     this.navbarMarkActive("navPostsWithAuthors");
