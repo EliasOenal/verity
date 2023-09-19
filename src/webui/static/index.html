@@ -23,40 +23,46 @@
     </div>
     <div class="container-fluid">
       <div class="row" id="globalrow">
-        <div class="col-sm-3" id="leftnav">
+        <div class="col-sm-3" id="leftnav navbar bg-dark navbar-dark">
           <div class="row my-3">
             <img src="vera.svg" class="img-fluid py-3 vera-anim vera-spin" id="veralogo" alt=""
               onclick="veraRoll()" />
           </div>
 
-          <ul id="toplevelnav" class="nav navbar-nav my-5">
-            <li class="nav-item">
-              <a href="#" class="nav-link" onclick="window.verityUI.navPostsWithAuthors()">Posts with authors</a>
-            </li>
-            <li class="nav-item">
-              <a href="#" class="nav-link" onclick="window.verityUI.navPostsAll()">All posts</a>
-            </li>
-          </ul>
-
-          <div class="row" id="identityrow">
-            <h5>My Identity</h5>
-            <form class="input-group" id="idform" action="javascript:void(0);"
-              onsubmit="window.verityUI.saveIdentity();">
-              <input class="form-control form-control-sm" type="text" id="idname" placeholder="Choose your user name"
-                required>
-              <button class="btn btn-sm btn-primary" type="submit">Save</button>
-            </form>
-          </div> <!-- identityrow-->
-
-          <div class="row my-3" id="peerrow">
-            <h5 class="my-1">Peers</h5>
-            <ul id="peerlist" class="list-unstyled text-truncate">
+          <!-- leftnavCollapsible (navigation, identity and peers) default collapsed on mobile view -->
+          <button id="leftnavCollapseToggler" class="navbar-toggler d-sm-none navbar-toggler-icon"
+                  type="button" data-bs-toggle="collapse" data-bs-target="#leftnavCollapsible">
+          </button>
+          <div id="leftnavCollapsible" class="collapse navbar-collapse d-sm-block">
+            <ul id="toplevelnav" class="navbar-nav my-5">
+                <li class="nav-item active" id="navPostsWithAuthors">
+                <a href="#" class="nav-link" onclick="window.verityUI.navPostsWithAuthors()">Posts with authors</a>
+              </li>
+              <li class="nav-item" id="navPostsAll">
+                <a href="#" class="nav-link" onclick="window.verityUI.navPostsAll()">All posts</a>
+              </li>
             </ul>
-          </div> <!-- peerrow -->
+
+            <div class="row" id="identityrow">
+              <h5>My Identity</h5>
+              <form class="input-group" id="idform" action="javascript:void(0);"
+                onsubmit="window.verityUI.saveIdentity();">
+                <input class="form-control form-control-sm" type="text" id="idname" placeholder="Choose your user name"
+                  required>
+                <button class="btn btn-sm btn-primary" type="submit">Save</button>
+              </form>
+            </div> <!-- identityrow-->
+
+            <div class="row my-3 mb-0" id="peerrow">
+              <h5 class="my-1">Peers</h5>
+              <ul id="peerlist" class="list-unstyled text-truncate mb-0">
+              </ul>
+            </div> <!-- peerrow -->
+          </div> <!-- leftnavCollapsible -->
         </div> <!-- leftnav -->
 
         <div class="col-sm-8 container-fluid maincontent">
-          <div class="verityNewPostDiv mt-5 mb-3">
+          <div class="verityNewPostDiv mt-3 mt-sm-5 mb-3">
             <form id="verityNewPostForm" class="form-floating row" action="javascript:void(0);"
               onsubmit="window.verityUI.makeNewPost(document.getElementById('verityNewPostInput').value);">
               <textarea id="verityNewPostInput" class="form-control verityPostInput"
