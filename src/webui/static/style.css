@@ -50,6 +50,7 @@ img#veralogo {
   max-width: 15em;
   display: block;
   margin: 0 auto;
+  z-index: 1;
 }
 
 .content-wrapper {
@@ -122,4 +123,28 @@ li.verityPost {
   color: white;
   font-weight: bold;
   padding-right: 1em;
+}
+
+.nav-item.active {
+  font-weight: bold;
+}
+
+#leftnavCollapseToggler {
+  display: block;
+  position: relative;
+  font-size: 150%;
+  bottom: 3em;
+  margin-bottom: -3em;
+  background-repeat: no-repeat;
+  z-index: 2;
+}
+
+#leftnav {
+  display: sticky;
+  top: 0;
+}
+
+:root {
+  /* This should automatically be applies from the Bootstrap CSS, but for some reason it isn't */
+  --bs-navbar-toggler-icon-bg:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%2833, 37, 41, 0.75%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
 }

@@ -99,14 +99,23 @@ export class VerityUI {
 
   navPostsWithAuthors() {
     logger.trace("VerityUI: Displaying posts associated with a MUC");
+    this.navbarMarkActive("navPostsWithAuthors");
     this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore, true, false);
     this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine);
   }
 
   navPostsAll() {
     logger.trace("VerityUI: Displaying all posts including anonymous ones");
+    this.navbarMarkActive("navPostsAll");
     this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore, true, true);
     this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine);
+  }
+
+  private navbarMarkActive(id: string) {
+    for (const nav of document.getElementsByClassName("nav-item")) {
+      if (nav.id == id) nav.classList.add("active");
+      else nav.classList.remove("active");
+    }
   }
 }
 
