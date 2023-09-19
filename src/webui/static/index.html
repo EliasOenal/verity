@@ -9,7 +9,7 @@
   <script src="bootstrap.bundle.min.js"></script>
   <script src="frontend.js" defer></script>
   <script src="verityUI.js" defer></script>
-  <script>
+  <script> // This script tag prevents a flash of unstyled content (FOUC) on page load and should not be moved.
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       document.documentElement.setAttribute('data-bs-theme', 'dark');
     }
