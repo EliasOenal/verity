@@ -1,15 +1,20 @@
 import { NetConstants } from './networkDefinitions';
-import { CUBE_HEADER_LENGTH, WrongFieldType } from './cubeDefinitions';
+import { CUBE_HEADER_LENGTH, FieldError, WrongFieldType } from './cubeDefinitions';
 import { CubeKey } from './cube';
 import { logger } from './logger';
 
 import { Buffer } from 'buffer';
 import { FieldParser } from './fieldParser';
 
+export type EnumType =  { [key: number|string]: number|string|undefined };
+export type FieldNumericalParam = { [key: number]: number | undefined };
+export type FieldRunningOrder = { [key: number]: number };
+
 export interface FieldDefinition {
-    fieldNames: object;
-    fieldLengths: object;  // maps field IDs to field lenghths, e.g. FIELD_LENGTHS defined in field.ts
-    fieldType: any,     // the Field class you'd like to use, e.g. TopLevelField for... you know... top-level fields
+    fieldNames: EnumType;
+    fieldLengths: FieldNumericalParam;  // maps field IDs to field lenghths, e.g. FIELD_LENGTHS defined in field.ts
+    positionalFields: FieldNumericalParam;
+    fieldObjectClass: any,     // the Field class you'd like to use, e.g. TopLevelField for... you know... top-level fields. Using type any as it turns out to be much to complex to declare a type of "class".
     firstFieldOffset: number;
 }
 
@@ -22,7 +27,7 @@ export interface FieldDefinition {
  */
 export abstract class BaseField {
     type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Applications may or may not chose to keep their application-level fields compatible with our top-level numbering.
-    length: number;
+    length: number;  // TODO remove -- length of field value not including header, which is completely unnecessary as it's always equal to value.length
     value: Buffer;
 
     /**
@@ -39,7 +44,7 @@ export abstract class BaseField {
         if (typeof buf === 'string' || buf instanceof String)  {
             buf = Buffer.from(buf, 'utf-8');
         }
-        return new fieldDefinition.fieldType(
+        return new fieldDefinition.fieldObjectClass(
             fieldDefinition.fieldNames["PAYLOAD"], buf.length, buf);
     }
 
@@ -60,13 +65,16 @@ export abstract class BaseField {
             0,  // source start
             NetConstants.CUBE_KEY_SIZE  // source end
         );
-        return new fieldDefinition.fieldType(
+        return new fieldDefinition.fieldObjectClass(
             fieldDefinition.fieldNames['RELATES_TO'],
             fieldDefinition.fieldLengths[fieldDefinition.fieldNames['RELATES_TO']],
             value);
     }
 
     constructor(type: number, length: number, value: Buffer, start?: number) {
+        if (length === undefined) {
+            throw new FieldError("Field length must be defined");
+        }
         this.type = type;
         this.length = length;
         this.value = value;
@@ -77,7 +85,10 @@ export abstract class BaseField {
      * Is this a finalized field, i.e. is it's start index within the compiled
      * binary data known yet?
      */
-    public isFinalized() { if (this.start) return true; else return false; }
+    public isFinalized() {
+        if (this.start !== undefined) return true;
+        else return false;
+    }
 }
 
 
@@ -99,7 +110,7 @@ export abstract class BaseRelationship {
     }
 
     static fromField(field: BaseField, fieldDefinition: FieldDefinition): BaseRelationship {
-        const relationship = new fieldDefinition.fieldType.relationshipType();
+        const relationship = new fieldDefinition.fieldObjectClass.relationshipType();
         if (field.type != fieldDefinition.fieldNames['RELATES_TO']) {
             throw (new WrongFieldType(
                 "Can only construct relationship object from RELATES_TO field, " +
@@ -180,7 +191,9 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
     * @return An array of Relationship objects, which may be empty.
     */
     public getRelationships(type?: number): Array<BaseRelationship> {
-        const relationshipfields = this.getFieldsByType(this.fieldDefinition.fieldNames['RELATES_TO']);
+        const relationshipfields = this.getFieldsByType(
+            this.fieldDefinition.fieldNames['RELATES_TO'] as number);
+            // "as number" required as enums are two-way lookup tables
         const ret = [];
         for (const relationshipfield of relationshipfields) {
             const relationship: BaseRelationship =

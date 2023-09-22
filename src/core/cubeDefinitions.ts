@@ -1,7 +1,7 @@
 import { VerityError } from "./config";
 import { NetConstants } from "./networkDefinitions";
 
-export const CUBE_HEADER_LENGTH: number = 6;  // 1 byte version, 5 bytes unix time
+export const CUBE_HEADER_LENGTH: number = 0;  // Former headers now considered positional fields -- TODO remove this constant
 
 export enum CubeType {
   CUBE_TYPE_REGULAR = 0xFF,

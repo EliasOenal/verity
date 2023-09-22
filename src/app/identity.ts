@@ -162,6 +162,16 @@ export class Identity {
     return muc;
   }
 
+  /** Stores a new cube key a the the beginning of my post list */
+  rememberMyPost(cubeKey: CubeKey) {
+    this.posts.unshift(cubeKey.toString('hex'));
+  }
+
+  /** Removes a cube key from my post list */
+  forgetMyPost(cubeKey: CubeKey) {
+    this.posts = this.posts.filter(p => p !== cubeKey.toString('hex'));
+  }
+
   /**
   * Compiles this Identity into a MUC for publishing.
   * Make sure to call this after changes have been performed so they

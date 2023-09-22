@@ -28,7 +28,7 @@ describe('fieldParser', () => {
     const restored: CubeFields = new CubeFields(restoredarray);
 
     // compare
-    expect(restored.data.length).toEqual(3);
+    expect(restored.data.length).toEqual(5);  // three explicit plus two auto-generated VERSION and DATE fields
     expect(restored.getFieldsByType(CubeFieldType.PAYLOAD).length).toEqual(2);
     expect(restored.getFieldsByType(CubeFieldType.RELATES_TO).length).toEqual(1);
     expect(

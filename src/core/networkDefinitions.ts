@@ -20,7 +20,7 @@ export const NetConstants =  {
     CUBE_KEY_SIZE: 32,  // CUBE_KEY_SIZE at some points
     PROTOCOL_VERSION_SIZE: 1,
     MESSAGE_CLASS_SIZE: 1,  // note: it's actually 6 bits, with 2 bits borrowed to FIELD_LENGTH
-    FIELD_LENGTH_SIZE: 1,   // note: it's actually 10 bists, with 2 bits borrowed from MESSAGE_CLASS
+    FIELD_LENGTH_SIZE: 1,   // note: it's actually 10 bits, with 2 bits borrowed from MESSAGE_CLASS
     RELATIONSHIP_TYPE_SIZE: 1,
     COUNT_SIZE: 4,
     FINGERPRINT_SIZE: 8,

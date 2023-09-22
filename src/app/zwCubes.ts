@@ -57,7 +57,7 @@ export async function makePost(
 
   if (id) {
     // Have the Identity remember this new post
-    id.posts.unshift((await cube.getKey()).toString('hex'));
+    id.rememberMyPost(await cube.getKey());
   }
   return cube;
 }
