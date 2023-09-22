@@ -70,7 +70,7 @@ describe('ZwAnnotationEngine', () => {
       }, 5000);
     });
 
-    describe('displayability', () => {
+    describe('basic displayability', () => {
       it('should mark a single root cube as displayable', async () => {
         const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reduced_difficulty);
 
@@ -130,7 +130,21 @@ describe('ZwAnnotationEngine', () => {
           [await leaf.getKey()]
         ]);
       }, 5000);
-    });  // displayability
+    });  // basic displayability
+
+    describe('MUC-based displayability', () => {
+      it('correctly marks a post displayable if it is received after its MUC', () => {
+        // TODO implement
+      });
+
+      it('correctly marks a post displayable if it is received before its MUC', () => {
+        // TODO implement
+      });
+
+      it('correctly marks a post displayable if it is received while we still hold an older version of the MUC', () => {
+        // TODO implement
+      });
+    });
 
     describe('cube ownership', () => {
       it('should remember Identity MUCs', async () => {

@@ -1,4 +1,4 @@
-import { BaseField, FieldDefinition, BaseFields, BaseRelationship } from "../core/baseFields";
+import { BaseField, FieldDefinition, BaseFields, BaseRelationship, FieldNumericalParam } from "../core/baseFields";
 import { Cube } from "../core/cube";
 import { CubeField, CubeFieldType } from "../core/cubeFields";
 import { FieldParser } from "../core/fieldParser";
@@ -24,7 +24,7 @@ export enum ZwFieldType {
   USERNAME = 51 << 2,
 }
 
-export const ZwFieldLengths: { [key: number]: number | undefined } = {
+export const ZwFieldLengths: FieldNumericalParam = {
   [ZwFieldType.APPLICATION]: 2,
   [ZwFieldType.MEDIA_TYPE]: 1,
   [ZwFieldType.RELATES_TO]: NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE,
@@ -164,6 +164,7 @@ export class ZwFields extends BaseFields {
 export const zwFieldDefinition: FieldDefinition = {
   fieldNames: ZwFieldType,
   fieldLengths: ZwFieldLengths,
-  fieldType: ZwField,
+  positionalFields: {}, // currently no positional ZwFields. This will change once Zw gets replaced by CCI.
+  fieldObjectClass: ZwField,
   firstFieldOffset: 0,
 }

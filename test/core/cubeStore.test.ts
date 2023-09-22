@@ -136,41 +136,44 @@ describe('cubeStore', () => {
 
     // Define required MUC fields
     const fields = new CubeFields([
-      new CubeField(CubeFieldType.TYPE_SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-      new CubeField(CubeFieldType.TYPE_PUBLIC_KEY, 32, publicKey),
+      new CubeField(CubeFieldType.SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
+      new CubeField(CubeFieldType.PUBLIC_KEY, 32, publicKey),
       new CubeField(CubeFieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
-      new CubeField(CubeFieldType.TYPE_SIGNATURE, 72, Buffer.alloc(72))
+      new CubeField(CubeFieldType.SIGNATURE, 72, Buffer.alloc(72))
     ]);
 
     // Create first MUC with specified TLV fields
     const muc = new Cube();
     muc.setCryptoKeys(publicKey, privateKey);
     muc.setFields(fields);
-    // set date to now unix time
-    const date = Math.floor(Date.now() / 1000);
-    // make sure date is ever so slightly dated
-    muc.setDate(date - 1);
+    muc.setDate(1695340000);
     const key = await muc.getKey();
     const info = await muc.getCubeInfo();
     expect(key).toBeDefined();
     expect(info).toBeDefined();
-    cubeStore.addCube(muc);
+    expect(muc.getDate()).toEqual(1695340000);
+    expect(info.date).toEqual(1695340000);
+    await cubeStore.addCube(muc);
+    expect(cubeStore.getCube(key).getDate()).toEqual(1695340000);
+    expect(cubeStore.getCubeInfo(key).date).toEqual(1695340000);
 
     // Create second MUC with specified TLV fields
     const muc2 = new Cube();
     muc2.setCryptoKeys(publicKey, privateKey);
     muc2.setFields(fields);
     // Make sure date is ever so slightly newer
-    muc2.setDate(date);
+    muc2.setDate(1695340001);
     const key2 = await muc2.getKey();
     const info2 = await muc2.getCubeInfo();
     expect(key2).toBeDefined();
     expect(info2).toBeDefined();
+    expect(muc2.getDate()).toEqual(1695340001);
+    expect(info2.date).toEqual(1695340001);
     await cubeStore.addCube(muc2);
 
     // Verify that the first MUC has been updated with the second MUC
     const retrievedMuc = cubeStore.getCube(key);
     expect(retrievedMuc).toBeDefined();
-    expect(retrievedMuc?.getDate()).toEqual(date);
+    expect(retrievedMuc.getDate()).toEqual(1695340001);
   }, 5000);
 });

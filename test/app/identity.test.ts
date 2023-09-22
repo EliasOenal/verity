@@ -154,8 +154,11 @@ describe('Identity', () => {
 
     for (let i=0; i<TESTPOSTCOUNT; i++) {
       const post: Cube = await makePost("I got " + (i+1).toString() + " important things to say", undefined, original, reduced_difficulty);
-      // @ts-ignore Fake private field date to avoid this test taking forever
-      post.date = 1694284300 + i;  // now you know when this test was written!
+      // manually save post to ID rather then through makePost because we will
+      // manipulate the date below, and that changes the key
+      original.forgetMyPost(await post.getKey());
+      post.setDate(1694284300 + i);  // now you know when this test was written!
+      original.rememberMyPost(await post.getKey());
       await cubeStore.addCube(post);
     }
     expect(original.posts.length).toEqual(TESTPOSTCOUNT);

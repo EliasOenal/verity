@@ -1,6 +1,8 @@
-import { BaseField, BaseRelationship, BaseFields, FieldDefinition } from "./baseFields";
-import { CUBE_HEADER_LENGTH } from "./cubeDefinitions";
+import { BaseField, BaseRelationship, BaseFields, FieldDefinition, FieldNumericalParam, FieldRunningOrder as PositionalFields } from "./baseFields";
+import { Settings } from "./config";
 import { NetConstants } from "./networkDefinitions";
+
+import { Buffer } from 'buffer';
 
 /**
  * Top-level field definitions.
@@ -16,21 +18,41 @@ export enum CubeFieldType {
   KEY_DISTRIBUTION = 0x03 << 2,
   SHARED_KEY = 0x04 << 2,
   ENCRYPTED = 0x05 << 2,
-  TYPE_SIGNATURE = 0x06 << 2,
-  TYPE_SMART_CUBE = 0x07 << 2,
-  TYPE_PUBLIC_KEY = 0x08 << 2,
+  SIGNATURE = 0x06 << 2,
+  SMART_CUBE = 0x07 << 2,
+  PUBLIC_KEY = 0x08 << 2,
+
+  // positional fields; assigned ID is for local purposes only
+  VERSION = 0x101,
+  DATE = 0x102,
 }
 
-export const CubeFieldLengths: { [key: number]: number | undefined } = {
+export const CubeFieldLength: FieldNumericalParam = {
+  [CubeFieldType.PADDING_NONCE]: undefined,
   [CubeFieldType.PAYLOAD]: undefined,
   [CubeFieldType.RELATES_TO]: NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE,
-  [CubeFieldType.PADDING_NONCE]: undefined,
   [CubeFieldType.KEY_DISTRIBUTION]: 40,  // TODO calculate this based on NetConstants
   [CubeFieldType.SHARED_KEY]: 32,  // TODO calculate this based on NetConstants
   [CubeFieldType.ENCRYPTED]: undefined,
-  [CubeFieldType.TYPE_SIGNATURE]: NetConstants.SIGNATURE_SIZE,
-  [CubeFieldType.TYPE_SMART_CUBE]: 0, // Just a single header byte
-  [CubeFieldType.TYPE_PUBLIC_KEY]: NetConstants.PUBLIC_KEY_SIZE,
+  [CubeFieldType.SIGNATURE]: NetConstants.SIGNATURE_SIZE,
+  [CubeFieldType.SMART_CUBE]: 0, // Just a single header byte
+  [CubeFieldType.PUBLIC_KEY]: NetConstants.PUBLIC_KEY_SIZE,
+  [CubeFieldType.VERSION]: NetConstants.PROTOCOL_VERSION_SIZE,
+  [CubeFieldType.DATE]: NetConstants.TIMESTAMP_SIZE,
+};
+
+/**
+ * For positional fields, defines the running order this field must be at.
+ * It follows that positional fields are both mandatory and can only occur once.
+ * Note: The current implementation requires positional fields to be at the very
+ * beginning. Positional fields at not supported and must be enforced at a higher
+ * level, if required.
+ * Note: In the current implementation, positional fields MUST have a defined length.
+ * Note: Numbering starts at 1 (not 0).
+ */
+export const CubePositionalFields: PositionalFields = {
+  1: CubeFieldType.VERSION,
+  2: CubeFieldType.DATE,
 };
 
 export enum CubeRelationshipType {
@@ -57,14 +79,40 @@ export class CubeField extends BaseField {
       return super.RelatesTo(rel, cubeFieldDefinition);
     }
 
-    static Payload(buf: Buffer | string): CubeField  {
-      return super.Payload(buf, cubeFieldDefinition);
-    }
+  static Payload(buf: Buffer | string): CubeField  {
+    return super.Payload(buf, cubeFieldDefinition);
+  }
 }
 
 export class CubeFields extends BaseFields {
-  constructor(data?: Array<CubeField> | CubeField) {
+  constructor(data?: Array<CubeField> | CubeField, autoGenerateHeader: boolean = true) {
       super(data, cubeFieldDefinition);
+      if (autoGenerateHeader) {
+        // CubeFields must always start with a positional version and date field
+        // Create a version field if there isn't already one.
+        // maybe TODO: This does not ensure existing DATE and VERSION fields
+        // are at the correct position
+        // Note implementation detail: Creating header fields in reverse order
+        // as we're inserting them at the beginning of the array with unshift
+        if (this.getFirstField(CubeFieldType.DATE) == undefined) {
+          const cubeDate: Buffer = Buffer.alloc(CubeFieldLength[CubeFieldType.DATE]);
+          cubeDate.writeUIntBE(
+            Math.floor(Date.now() / 1000), 0, CubeFieldLength[CubeFieldType.DATE]);
+          this.data.unshift(new CubeField(
+            CubeFieldType.DATE, CubeFieldLength[CubeFieldType.DATE], cubeDate
+          ));
+        }
+        if (this.getFirstField(CubeFieldType.VERSION) == undefined) {
+          const cubeVersion: Buffer = Buffer.alloc(
+            CubeFieldLength[CubeFieldType.VERSION]);
+          // TODO document, move the literal 4 to config
+          cubeVersion.writeUIntBE(Settings.CUBE_VERISION << 4,
+                                  0, CubeFieldLength[CubeFieldType.VERSION]);
+          this.data.unshift(new CubeField(
+            CubeFieldType.VERSION, CubeFieldLength[CubeFieldType.VERSION], cubeVersion
+          ));
+        }
+      }
   }
 
   public getRelationships(type?: number): CubeRelationship[] {
@@ -82,7 +130,8 @@ export class CubeFields extends BaseFields {
 // Javascript is crazy.
 export const cubeFieldDefinition: FieldDefinition = {
   fieldNames: CubeFieldType,
-  fieldLengths: CubeFieldLengths,
-  fieldType: CubeField,
-  firstFieldOffset: CUBE_HEADER_LENGTH,
+  fieldLengths: CubeFieldLength,
+  positionalFields: CubePositionalFields,
+  fieldObjectClass: CubeField,
+  firstFieldOffset: 0,
 }

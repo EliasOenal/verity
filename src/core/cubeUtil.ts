@@ -91,20 +91,6 @@ export function countTrailingZeroBits(buffer: Buffer): number {
     return count;
 }
 
-// TODO document
-export function updateVersionBinaryData(binaryData: Buffer, version: number, reservedBits: number) {
-    if (binaryData === undefined)
-        throw new BinaryDataError("Binary data not initialized");
-    binaryData[0] = (version << 4) | reservedBits;
-}
-
-// TODO document
-export function updateDateBinaryData(binaryData: Buffer, date: number) {
-    if (binaryData === undefined)
-        throw new BinaryDataError("Binary data not initialized");
-    binaryData.writeUIntBE(date, 1, 5);
-}
-
 // Verify fingerprint. This applies to smart cubes only.
 export function verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
     const calculatedFingerprint = calculateHash(publicKeyValue).slice(0, 8);  // First 8 bytes of signature field
