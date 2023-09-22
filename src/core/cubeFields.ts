@@ -98,7 +98,7 @@ export class CubeFields extends BaseFields {
           const cubeDate: Buffer = Buffer.alloc(CubeFieldLength[CubeFieldType.DATE]);
           cubeDate.writeUIntBE(
             Math.floor(Date.now() / 1000), 0, CubeFieldLength[CubeFieldType.DATE]);
-          this.data.unshift(new CubeField(
+          this.insertFieldInFront(new CubeField(
             CubeFieldType.DATE, CubeFieldLength[CubeFieldType.DATE], cubeDate
           ));
         }
@@ -108,7 +108,7 @@ export class CubeFields extends BaseFields {
           // TODO document, move the literal 4 to config
           cubeVersion.writeUIntBE(Settings.CUBE_VERISION << 4,
                                   0, CubeFieldLength[CubeFieldType.VERSION]);
-          this.data.unshift(new CubeField(
+          this.insertFieldInFront(new CubeField(
             CubeFieldType.VERSION, CubeFieldLength[CubeFieldType.VERSION], cubeVersion
           ));
         }

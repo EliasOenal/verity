@@ -81,7 +81,7 @@ class VerityCmdClient {
     const cubefields: CubeFields = new CubeFields(CubeField.Payload(messagebuffer));
 
     if (replyto) {
-      cubefields.data.push(CubeField.RelatesTo(
+      cubefields.appendField(CubeField.RelatesTo(
         new CubeRelationship(CubeRelationshipType.REPLY_TO, Buffer.from(
           replyto, 'hex'))));
     }

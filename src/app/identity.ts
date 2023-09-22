@@ -220,22 +220,22 @@ export class Identity {
 
     // Write username
     if (!this.name) throw new CubeError("Identity: Cannot create a MUC for this Identity, name field is mandatory.");
-    zwFields.data.push(ZwField.Username(this.name));
+    zwFields.appendField(ZwField.Username(this.name));
 
     // Write profile picture reference
-    if (this.profilepic) zwFields.data.push(ZwField.RelatesTo(
+    if (this.profilepic) zwFields.appendField(ZwField.RelatesTo(
       new ZwRelationship(ZwRelationshipType.PROFILEPIC, this.profilepic)
     ));
 
     // Write key backup cube reference (not actually implemented yet)
-    if (this.keyBackupCube) zwFields.data.push(ZwField.RelatesTo(
+    if (this.keyBackupCube) zwFields.appendField(ZwField.RelatesTo(
       new ZwRelationship(ZwRelationshipType.KEY_BACKUP_CUBE, this.keyBackupCube)
     ));
     // Write my post references
     // TODO: use fibonacci spacing for post references instead of linear,
     // but only if there are actually enough posts to justify it
     for (let i = 0; i < this.posts.length && i < 22; i++) {
-      zwFields.data.push(ZwField.RelatesTo(
+      zwFields.appendField(ZwField.RelatesTo(
         new ZwRelationship(ZwRelationshipType.MYPOST, Buffer.from(this.posts[i], 'hex'))
       ));
     }
