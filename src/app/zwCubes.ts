@@ -24,11 +24,11 @@ export async function makePost(
     id?: Identity,
     required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<Cube> {
   const zwFields: ZwFields = new ZwFields(ZwField.Application());
-  zwFields.data.push(ZwField.MediaType(MediaTypes.TEXT));
-  zwFields.data.push(ZwField.Payload(text));
+  zwFields.appendField(ZwField.MediaType(MediaTypes.TEXT));
+  zwFields.appendField(ZwField.Payload(text));
 
   if (replyto) {
-    zwFields.data.push(ZwField.RelatesTo(
+    zwFields.appendField(ZwField.RelatesTo(
       new ZwRelationship(ZwRelationshipType.REPLY_TO, replyto)
     ));
   }
@@ -44,7 +44,7 @@ export async function makePost(
     // TODO: move this logic to Identity (or vice-versa) as Identity does
     // exactly the same stuff when generating a MUC
     for (let i = 0; i < id.posts.length && i < 10; i++) {
-      zwFields.data.push(ZwField.RelatesTo(
+      zwFields.appendField(ZwField.RelatesTo(
         new ZwRelationship(ZwRelationshipType.MYPOST, Buffer.from(id.posts[i], 'hex'))
       ));
     }

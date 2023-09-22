@@ -38,7 +38,7 @@ describe('cube', () => {
 
     expect(() => cubeBuffer.length === 1024).toBeTruthy();
     const cube = new Cube(cubeBuffer, reduced_difficulty);
-    const fields = cube.getFields().data;
+    const fields = cube.getFields().all();
     fields.forEach(field => {
       expect(field.length).toBeLessThanOrEqual(1024);
       expect(field.length).toBeGreaterThanOrEqual(0);
@@ -59,10 +59,10 @@ describe('cube', () => {
 
   it('should create a new cube with default values when no binary data is provided', () => {
     const cube = new Cube(undefined, reduced_difficulty);
-    expect(cube.getFields().data[0].type).toEqual(CubeFieldType.VERSION);
-    expect(cube.getFields().data[1].type).toEqual(CubeFieldType.DATE);
+    expect(cube.getFields().all()[0].type).toEqual(CubeFieldType.VERSION);
+    expect(cube.getFields().all()[1].type).toEqual(CubeFieldType.DATE);
     expect(cube.getVersion()).toEqual(0);
-    expect(cube.getFields().data[2].length).toEqual(1016);
+    expect(cube.getFields().all()[2].length).toEqual(1016);
   }, 3000);
 
   // Can this be removed?
@@ -129,8 +129,8 @@ describe('cube', () => {
     const cube = new Cube(undefined, reduced_difficulty);
     cube.setFields(new CubeFields(
       [new CubeField(CubeFieldType.PAYLOAD, 128, Buffer.alloc(128))]));
-    expect(cube.getFields().data.length).toEqual(4);
-    expect(cube.getFields().data[3].type).toEqual(CubeFieldType.PADDING_NONCE);
+    expect(cube.getFields().getFieldCount()).toEqual(4);
+    expect(cube.getFields().all()[3].type).toEqual(CubeFieldType.PADDING_NONCE);
     expect((await cube.getBinaryData()).length).toEqual(NetConstants.CUBE_SIZE);
   }, 3000);
 
@@ -165,9 +165,9 @@ describe('cube', () => {
       toEqual(NetConstants.CUBE_SIZE);
     cube.setFields(cubefields);
     expect(paddingLength).toBeGreaterThanOrEqual(Settings.HASHCASH_SIZE);
-    expect(cube.getFields().data.length).toEqual(4);
-    expect(cube.getFields().data[2].length).toEqual(payloadLength);
-    expect(cube.getFields().data[3].length).toEqual(paddingLength);
+    expect(cube.getFields().getFieldCount()).toEqual(4);
+    expect(cube.getFields().all()[2].length).toEqual(payloadLength);
+    expect(cube.getFields().all()[3].length).toEqual(paddingLength);
   }, 3000);
 
   it('should enforce there is enough space left for hashcash in manually padded cubes', () => {

@@ -9,16 +9,16 @@ describe('fieldParser', () => {
     const fields = new CubeFields();
 
     // define a few fields
-    fields.data.push(
+    fields.appendField(
       CubeField.Payload("Mein kleiner grüner Kaktus")
     );
-    fields.data.push(
+    fields.appendField(
       CubeField.RelatesTo(
         new CubeRelationship(CubeRelationshipType.CONTINUED_IN,
         Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA))
       )
     );
-    fields.data.push(
+    fields.appendField(
       CubeField.Payload("steht draußen am Balkon")
     );
 
@@ -28,7 +28,7 @@ describe('fieldParser', () => {
     const restored: CubeFields = new CubeFields(restoredarray);
 
     // compare
-    expect(restored.data.length).toEqual(5);  // three explicit plus two auto-generated VERSION and DATE fields
+    expect(restored.getFieldCount()).toEqual(5);  // three explicit plus two auto-generated VERSION and DATE fields
     expect(restored.getFieldsByType(CubeFieldType.PAYLOAD).length).toEqual(2);
     expect(restored.getFieldsByType(CubeFieldType.RELATES_TO).length).toEqual(1);
     expect(
@@ -45,16 +45,16 @@ describe('fieldParser', () => {
     const fields = new ZwFields();
 
     // define a few fields
-    fields.data.push(
+    fields.appendField(
       ZwField.Payload("Mein kleiner grüner Kaktus")
     );
-    fields.data.push(
+    fields.appendField(
       ZwField.RelatesTo(
         new CubeRelationship(ZwRelationshipType.MYPOST,
         Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA))
       )
     );
-    fields.data.push(
+    fields.appendField(
       ZwField.Payload("steht draußen am Balkon")
     );
 
@@ -64,7 +64,7 @@ describe('fieldParser', () => {
     const restored: ZwFields = new ZwFields(restoredarray);
 
     // compare
-    expect(restored.data.length).toEqual(3);
+    expect(restored.getFieldCount()).toEqual(3);
     expect(restored.getFieldsByType(ZwFieldType.PAYLOAD).length).toEqual(2);
     expect(restored.getFieldsByType(ZwFieldType.RELATES_TO).length).toEqual(1);
     expect(

@@ -170,13 +170,13 @@ export class Cube {
         // verify all fields together are less than 1024 bytes,
         // and there's still enough space left for the hashcash
         let totalLength = CUBE_HEADER_LENGTH;
-        for (const field of this.fields.data) {
+        for (const field of this.fields.all()) {
             totalLength += field.length;
             totalLength += FieldParser.toplevel.getFieldHeaderLength(field.type);
         }
 
         // has the user already defined a sufficienly large padding field or do we have to add one?
-        const indexNonce = this.fields.data.findIndex((field: CubeField) => field.type == CubeFieldType.PADDING_NONCE && field.length >= Settings.HASHCASH_SIZE);
+        const indexNonce = this.fields.all().findIndex((field: CubeField) => field.type == CubeFieldType.PADDING_NONCE && field.length >= Settings.HASHCASH_SIZE);
         let maxAcceptableLegth: number;
         const minHashcashFieldSize = FieldParser.toplevel.getFieldHeaderLength(CubeFieldType.PADDING_NONCE) + Settings.HASHCASH_SIZE;
         if (indexNonce == -1) maxAcceptableLegth = NetConstants.CUBE_SIZE - minHashcashFieldSize;
@@ -282,8 +282,8 @@ export class Cube {
             throw new BinaryDataError("Cube: processTLVField() called on undefined binary data");
         }
 
-        for (let i = 0; i < this.fields.data.length; i++) {
-            const field = this.fields.data[i];
+        for (let i = 0; i < this.fields.getFieldCount(); i++) {
+            const field = this.fields.all()[i];
             switch (field.type & 0xFC) {
             // "& 0xFC" zeroes out the last two bits as field.type is only 6 bits long
                 case CubeFieldType.PADDING_NONCE:

@@ -42,12 +42,12 @@ describe('ZwAnnotationEngine', () => {
 
         // referrer can't be build with makePost because it's deliberately invalid
         const zwFields: ZwFields = new ZwFields(ZwField.Application());
-        zwFields.data.push(ZwField.MediaType(MediaTypes.TEXT));
-        zwFields.data.push(ZwField.Payload("I will reply to everybody at one and NO ONE CAN STOP ME AHAHAHAHAHAHAHAHAHAHAHA!!!!!!!!1111"));
-        zwFields.data.push(ZwField.RelatesTo(
+        zwFields.appendField(ZwField.MediaType(MediaTypes.TEXT));
+        zwFields.appendField(ZwField.Payload("I will reply to everybody at one and NO ONE CAN STOP ME AHAHAHAHAHAHAHAHAHAHAHA!!!!!!!!1111"));
+        zwFields.appendField(ZwField.RelatesTo(
           new ZwRelationship(ZwRelationshipType.REPLY_TO, await referee.getKey())
         ));
-        zwFields.data.push(ZwField.RelatesTo(
+        zwFields.appendField(ZwField.RelatesTo(
           new ZwRelationship(ZwRelationshipType.REPLY_TO, await spurious_referee.getKey())
         ));
         const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(zwFields);

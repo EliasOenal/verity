@@ -128,7 +128,7 @@ export abstract class BaseRelationship {
 /** Nice wrapper around a field array providing some useful methods. */
 export class BaseFields {  // cannot make abstract, FieldParser creates temporary BaseField objects
     fieldDefinition: FieldDefinition = undefined;
-    data: Array<BaseField> = undefined;
+    private data: Array<BaseField> = undefined;
 
     constructor(
             data: Array<BaseField> | BaseField | undefined,
@@ -141,13 +141,21 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         else this.data = [];
     }
 
-    getLength() {
+    getByteLength() {
         let length = 0;
         for (const field of this.data) {
             length += FieldParser.getFieldHeaderLength(field.type, this.fieldDefinition);
             length += field.length;
         }
         return length;
+    }
+
+    getFieldCount() {
+        return this.data.length;
+    }
+
+    public all(): Array<BaseField> {
+        return this.data;
     }
 
     /**
@@ -157,8 +165,8 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
     */
     public getFieldsByType(type: number): Array<BaseField> {  // in top-level fields, type must be one of FieldType as defined in cubeDefinitions.ts
         const ret = [];
-        for (let i = 0; i < this.data.length; i++) {
-            if (this.data[i].type == type) ret.push(this.data[i]);
+        for (const field of this.data) {
+            if (field.type == type) ret.push(field);
         }
         return ret;
     }
@@ -168,6 +176,14 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
             if (field.type == type) return field;
         }
         return undefined;  // none found
+    }
+
+    public appendField(field: BaseField) {
+        this.data.push(field);
+    }
+
+    public insertFieldInFront(field: BaseField) {
+        this.data.unshift(field);
     }
 
     /// @ method Inserts a new field before the *first* existing field of the
@@ -182,7 +198,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
             }
         }
         // no such field
-        this.data.push(field);
+        this.appendField(field);
     }
 
     /**

@@ -44,10 +44,10 @@ export class FieldParser {
    */
   compileFields(fields: BaseFields | Array<BaseField>): Buffer {
     if (!(fields instanceof BaseFields)) fields = new BaseFields(fields, this.fieldDef);
-    this.finalizeFields(fields.data);            // prepare fields
+    this.finalizeFields(fields.all());            // prepare fields
     const buf = Buffer.alloc(                    // allocate buffer
-      this.fieldDef.firstFieldOffset + fields.getLength());
-    this.updateTLVBinaryData(buf, fields.data);  // write data into buffer
+      this.fieldDef.firstFieldOffset + fields.getByteLength());
+    this.updateTLVBinaryData(buf, fields.all());  // write data into buffer
     return buf;
   }
 
