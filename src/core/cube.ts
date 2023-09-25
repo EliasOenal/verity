@@ -52,18 +52,22 @@ export class Cube {
     // Note: Including minimum hashcash space and the payload field header,
     // this makes a boilerplate cube 120 bytes long,
     // meaning there's 904 bytes left for payload.
-    static MUC(publicKey: Buffer, privateKey: Buffer,
-               customfields: Array<CubeField> | CubeField = [],
+    static MUC(publicKey: Buffer | Uint8Array,
+               privateKey: Buffer | Uint8Array,
+               customfields: CubeFields | Array<CubeField> | CubeField = [],
                required_difficulty = Settings.REQUIRED_DIFFICULTY): Cube {
         if (customfields instanceof CubeField) customfields = [customfields];
+        if (customfields instanceof CubeFields) customfields = customfields.all();
+        if (!(publicKey instanceof Buffer)) publicKey = Buffer.from(publicKey);
+        if (!(privateKey instanceof Buffer)) privateKey = Buffer.from(privateKey);
         const cube: Cube = new Cube(undefined, required_difficulty);
-        cube.setCryptoKeys(publicKey, privateKey);
+        cube.setCryptoKeys(publicKey as Buffer, privateKey as Buffer);
         const fields: CubeFields = new CubeFields([
             new CubeField(CubeFieldType.SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
             new CubeField(
                 CubeFieldType.PUBLIC_KEY,
                 NetConstants.PUBLIC_KEY_SIZE,
-                publicKey)
+                publicKey as Buffer)
         ].concat(customfields).concat([
             new CubeField(
                 CubeFieldType.SIGNATURE,
@@ -326,9 +330,6 @@ export class Cube {
                     // TODO: add to keystore
                     // TODO: implement keystore
                     break;
-                default:
-                    logger.error('Cube: Unknown field type ' + field.type);
-                    throw new UnknownFieldType('Cube: Unknown field type ' + field.type);
             }
         }
     }

@@ -5,12 +5,14 @@
  * They just follow a standardized field structure.
  */
 
+import { BaseField } from "../core/baseFields";
 import { Settings } from "../core/config";
 import { Cube, CubeKey } from "../core/cube";
+import { CubeError, CubeType } from "../core/cubeDefinitions";
 import { CubeField } from "../core/cubeFields";
 import { FieldParser } from "../core/fieldParser";
 import { Identity } from "./identity";
-import { MediaTypes, ZwField, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from "./zwFields";
+import { MediaTypes, ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from "./zwFields";
 
 import { Buffer } from 'buffer';
 
@@ -60,6 +62,22 @@ export async function makePost(
     id.rememberMyPost(await cube.getKey());
   }
   return cube;
+}
+
+// TODO remove, unnecessary
+export function assertZwCube(cube: Cube): ZwFields {
+  const zwFields: ZwFields = ZwFields.get(cube);
+  if (!zwFields) {
+    throw new CubeError("Supplied cube is not a ZW cube, lacks ZW fields");
+  }
+  return zwFields;
+}
+
+export function assertZwMuc(cube: Cube): ZwFields {
+  if (cube.cubeType != CubeType.CUBE_TYPE_MUC) {
+    throw new CubeError("Supplied Cube is not a ZW Muc, as it's not a MUC at all.");
+  }
+  else return assertZwCube(cube);
 }
 
 // maybe provide a makeMUC() function as well?
