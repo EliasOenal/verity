@@ -350,7 +350,6 @@ export class Identity {
       // reaching end of life.
       // Note: As inserting is only done in store(), store() must check if
       // any of the extension MUC hashes have changed
-      // TODO GET EXISTING NONCE!!!!!!!!!
 
       // retrieve or create the index cube
       // indexCube = undefined;
@@ -360,7 +359,7 @@ export class Identity {
       // }
       // if (!indexCube) {
       const indexCube: Cube = CciUtil.sculptExtensionMuc(
-        this.masterKey, payload, required_difficulty);
+        this.masterKey, payload, i, "Subscription recommendation indices");
       // }
       this.subscriptionRecommendationIndices[i] =
         indexCube;  // it's a MUC, the key is always available
