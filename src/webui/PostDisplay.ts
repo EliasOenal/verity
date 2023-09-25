@@ -138,6 +138,13 @@ export class PostDisplay {
       // TODO: display if this authorship information is authenticated,
       // i.e. if it comes from a MUC we trust
       data.author = authorObject.name;
+
+      // is this author subscribed?
+      if (this.identity) {
+        data.authorsubscribed = this.identity.isSubscribed(authorObject.key);
+      } else {
+        data.authorsubscribed = false;  // no Identity, no subscriptions
+      }
     } else {
       data.author = "Unknown user";
     }
@@ -151,12 +158,5 @@ export class PostDisplay {
     if (data.authorkey) data.profilepic = multiavatar(data.authorkey);
     else data.profilepic = multiavatar(data.keystring);
     data.profilepic = "data:image/svg+xml;base64," + btoa(data.profilepic);
-
-    // is this author subscribed?
-    if (this.identity) {
-      data.authorsubscribed = this.identity.isSubscribed(authorObject.key);
-    } else {
-      data.authorsubscribed = false;  // no Identity, no subscriptions
-    }
   }
 }

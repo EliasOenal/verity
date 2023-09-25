@@ -58,14 +58,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
 
     if (!allowAnonymous) {
       // Is this owned by one if the authors in this.identityMucs?
-      // TODO: maybe following the ownership chain of this cube up to the author
-      // is actually faster than checking all know posts
-      let known: boolean = false;
-      for (const knownSet of this.authorsCubes.values()) {
-        known = knownSet.has(cubeInfo.key.toString('hex'));
-        if (known) break;
-      }
-      if (!known) return false;
+      if (!this.isAuthorKnown(cubeInfo.key)) return false;
     }
 
     // is this even a valid ZwCube?
@@ -99,6 +92,15 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     }
     // logger.trace("annotationEngine: Confiming cube " + key.toString('hex') + " is displayable.");
     return true;
+  }
+
+  isAuthorKnown(key: CubeKey): boolean {
+    // TODO: maybe following the ownership chain of this cube up to the author
+    // is actually faster than checking all know posts
+    for (const knownSet of this.authorsCubes.values()) {
+      if(knownSet.has(key.toString('hex'))) return true;
+    }
+    return false;
   }
 
   /**
