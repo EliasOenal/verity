@@ -312,10 +312,11 @@ export class Identity {
     // 1 byte relationship type, 32 bytes cube key).
     // So we can safely fit 23 subscription recommendations per cube.
     const relsPerCube = 23;
-    let indexCubeNum = 0;
-    let indexCube: Cube = undefined;
-    let fields: ZwFields = new ZwFields(ZwField.Application());
 
+    // Prepare index field sets, one for each index cube.
+    // The cubes themselves will be sculpted in the next step.
+    const fieldSets: ZwFields[] = [];
+    let fields: ZwFields = new ZwFields(ZwField.Application());
     for (let i=0; i<this.subscriptionRecommendations.length; i++) {
       // write rel
       fields.appendField(ZwField.RelatesTo(new ZwRelationship(
@@ -323,35 +324,46 @@ export class Identity {
         this.subscriptionRecommendations[i]
       )));
 
-      // time to finalize this index cube?
+      // time to roll over to the field set for the next cube?
       if (i % relsPerCube == relsPerCube - 1 ||
-          i == this.subscriptionRecommendations.length - 1) {
-        const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(fields);
-        const payload = CubeField.Payload(zwData);
-        // do we actually need to rewrite this index cube?
-        // TODO implement
-        // Note we also need to keep in mind that unchanged index cubes
-        // must still be updated/reinserted once in a while to prevent them from
-        // reaching end of life.
-        // Note: As inserting is only done in store(), store() must check if
-        // any of the extension MUC hashes have changed
-
-        // retrieve or create the index cube
-        // indexCube = undefined;
-        // if (this.subscriptionRecommendationIndices.length > indexCubeNum) {
-        //   indexCube = this.cubeStore.getCube(
-        //     this.subscriptionRecommendationIndices[indexCubeNum]);
-        // }
-        // if (!indexCube) {
-        indexCube = CciUtil.sculptExtensionMuc(
-          this.masterKey, payload, required_difficulty);
-        // }
-        this.subscriptionRecommendationIndices[indexCubeNum] =
-          indexCube;  // it's a MUC, the key is always available
-        // roll over to next index cube:
-        indexCubeNum++;
-        fields = new ZwFields();
+          i == this._subscriptionRecommendations.length - 1) {
+        fieldSets.push(fields);
+        fields = new ZwFields(ZwField.Application());
       }
+    }
+    // Now sculpt the index cubes using the field sets generated before,
+    // in reverse order so we can link them together
+    for (let i=fieldSets.length - 1; i>=0; i--) {
+      // chain the index cubes together:
+      if (i < fieldSets.length - 1 ) {  // last one has no successor, obviously
+        fieldSets[i].appendField(ZwField.RelatesTo(new ZwRelationship(
+          ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
+            this.subscriptionRecommendationIndices[i+1].getKeyIfAvailable())));
+      }
+      const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(
+        fieldSets[i]);
+      const payload = CubeField.Payload(zwData);
+      // do we actually need to rewrite this index cube?
+      // TODO implement
+      // Note we also need to keep in mind that unchanged index cubes
+      // must still be updated/reinserted once in a while to prevent them from
+      // reaching end of life.
+      // Note: As inserting is only done in store(), store() must check if
+      // any of the extension MUC hashes have changed
+      // TODO GET EXISTING NONCE!!!!!!!!!
+
+      // retrieve or create the index cube
+      // indexCube = undefined;
+      // if (this.subscriptionRecommendationIndices.length > indexCubeNum) {
+      //   indexCube = this.cubeStore.getCube(
+      //     this.subscriptionRecommendationIndices[indexCubeNum]);
+      // }
+      // if (!indexCube) {
+      const indexCube: Cube = CciUtil.sculptExtensionMuc(
+        this.masterKey, payload, required_difficulty);
+      // }
+      this.subscriptionRecommendationIndices[i] =
+        indexCube;  // it's a MUC, the key is always available
     }
   }
 
@@ -383,12 +395,22 @@ export class Identity {
     this.recursiveParsePostReferences(muc, []);
 
     // recursively fetch my own SUBSCRIPTION_RECOMMENDATION references
-    this.recursiveParseSubscriptionRecommendations(zwFields);
+    this.recursiveParseSubscriptionRecommendations(muc);
     // last but not least: store this MUC as our MUC
     this._muc = muc;
   }
 
-  recursiveParseSubscriptionRecommendations(zwFields: ZwFields) {
+  recursiveParseSubscriptionRecommendations(mucOrMucExtension: Cube, alreadyTraversedCubes: string[] = []) {
+    // do we even have this cube?
+    if (!mucOrMucExtension) return;
+    // have we been here before? avoid endless recursion
+    const thisCubesKeyString = (mucOrMucExtension.getKeyIfAvailable()).toString('hex');
+    if (thisCubesKeyString === undefined || alreadyTraversedCubes.includes(thisCubesKeyString)) return;
+    else alreadyTraversedCubes.push(thisCubesKeyString);
+
+    // parse this index cube
+    const zwFields: ZwFields = ZwFields.get(mucOrMucExtension);
+    if (!zwFields) return;
     // save the subscriptions recommendations provided:
     const subs = zwFields.getRelationships(
       ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION);
@@ -401,10 +423,7 @@ export class Identity {
     for (const furtherIndex of furtherIndices) {
       const furtherCube: Cube = this.cubeStore.getCube(furtherIndex.remoteKey);
       if (furtherCube) {
-        const furtherFields: ZwFields = ZwFields.get(furtherCube);
-        if (furtherFields) {
-          this.recursiveParseSubscriptionRecommendations(furtherFields);
-        }
+        this.recursiveParseSubscriptionRecommendations(furtherCube, alreadyTraversedCubes);
       }
     }
   }

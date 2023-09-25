@@ -9,7 +9,7 @@ export const Settings = {
      * Seed bytes used to derive a MUC extension key from a user's master key.
      * Can't be more than 6 for the current implementation.
      */
-    MUC_EXTENSION_SEED_SIZE: 6,
+    MUC_EXTENSION_SEED_SIZE: 3,
 
     // Network manager related:
     ANNOUNCEMENT_INTERVAL: (25 * 60 * 1000),  // 25 minutes in milliseconds
