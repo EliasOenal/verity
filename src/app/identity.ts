@@ -340,29 +340,23 @@ export class Identity {
           ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
             this.subscriptionRecommendationIndices[i+1].getKeyIfAvailable())));
       }
-      const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(
-        fieldSets[i]);
-      const payload = CubeField.Payload(zwData);
       // do we actually need to rewrite this index cube?
-      // TODO implement
-      // Note we also need to keep in mind that unchanged index cubes
-      // must still be updated/reinserted once in a while to prevent them from
-      // reaching end of life.
-      // Note: As inserting is only done in store(), store() must check if
-      // any of the extension MUC hashes have changed
+      if (!this.subscriptionRecommendationIndices[i] ||
+          !fieldSets[i].equals(ZwFields.get(this.subscriptionRecommendationIndices[i]))) {
+        const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(
+          fieldSets[i]);
+        const payload = CubeField.Payload(zwData);
 
-      // retrieve or create the index cube
-      // indexCube = undefined;
-      // if (this.subscriptionRecommendationIndices.length > indexCubeNum) {
-      //   indexCube = this.cubeStore.getCube(
-      //     this.subscriptionRecommendationIndices[indexCubeNum]);
-      // }
-      // if (!indexCube) {
-      const indexCube: Cube = CciUtil.sculptExtensionMuc(
-        this.masterKey, payload, i, "Subscription recommendation indices");
-      // }
-      this.subscriptionRecommendationIndices[i] =
-        indexCube;  // it's a MUC, the key is always available
+        const indexCube: Cube = CciUtil.sculptExtensionMuc(
+          this.masterKey, payload, i, "Subscription recommendation indices");
+        this.subscriptionRecommendationIndices[i] =
+          indexCube;  // it's a MUC, the key is always available
+      }
+      // Note: Once calling store(), we will still try to reinsert non-changed
+      // extension MUCs -- CubeStore will however discard them as they're unchanged.
+      // TODO: We need to keep in mind that unchanged index cubes
+      // must still be updated/reinserted once in a while to prevent them from
+      // reaching end of life. We currently ignore that.
     }
   }
 

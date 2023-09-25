@@ -179,8 +179,40 @@ describe('Identity', () => {
       }
     }, 10000);
 
+    it('combines makeMUC requests spaced less than 5 seconds apart', async () => {
+      const id: Identity = new Identity(cubeStore);
+      // Creating a new Identity does build a MUC, although it will never be compiler
+      // nor added to the CubeStore.
+      // The five second minimum delay till regeneration still applies.
+      const firstMuc = id.muc;
+      const firstMucDate = firstMuc.getDate();
+
+      id.name = "Probator Distantiae Temporis";
+      // store() now requests generation of a new, second MUC.
+      // This will not happen, though, as the first MUC is less than five seconds old.
+      // Instead, the operation will be rescheduled five seconds from now.
+      id.store(reduced_difficulty);  // note there's no "await"
+
+      id.name = "Probator Minimae Distantiae Temporis";
+      const thirdMuc: Cube = await id.store(reduced_difficulty);  // with await this time
+      expect(thirdMuc).toEqual(id.muc);
+      expect(thirdMuc.getHashIfAvailable()).toEqual(id.muc.getHashIfAvailable());
+      const thirdMucDate = thirdMuc.getDate();
+
+      // First (=preliminary) MUC and actual content-bearing MUC should not be equal
+      expect(firstMuc).not.toEqual(thirdMuc);
+
+      // MUCs should be spaced at least 5 seconds apart, indicating minimum
+      // distance has been observed.
+      // They should be spaced less than 10 seconds apart, indicating the two store()
+      // opeations have been combined into one.
+      const mucTimeDistance = thirdMucDate - firstMucDate;
+      expect(mucTimeDistance).toBeGreaterThanOrEqual(5);
+      expect(mucTimeDistance).toBeLessThanOrEqual(10);
+    }, 20000);
+
     describe('subscription recommendations via extension MUCs', ()  => {
-      it.only('correctly saves and restores recommended subscriptions to and from extension MUCs', async () => {
+      it('correctly saves and restores recommended subscriptions to and from extension MUCs', async () => {
         // Create a subject and subscribe 100 other authors
         const TESTSUBCOUNT = 100;
         const subject: Identity = new Identity(cubeStore);
@@ -240,46 +272,64 @@ describe('Identity', () => {
         }
       }, 30000);
 
-      it('preserves extension MUC key when adding subscriptions', async () => {
-        // TODO implement
-      });
+      it('preserves extension MUC keys and does not update unchanged MUCs when adding subscriptions', async () => {
+        // Create a subject. First subscribe 40 authors, then add one more.
+        const TESTSUBCOUNT = 40;
+        const subject: Identity = new Identity(cubeStore);
+        subject.name = "Subscriptor consuentus novarum interessantiarum";
+        for (let i=0; i<TESTSUBCOUNT; i++) {
+          const other = new Identity(cubeStore);
+          other.name = "Figurarius " + i + "-tus";
+          other.muc.setDate(0);  // skip waiting period for the test
+          other.store(reduced_difficulty);
+          subject.addSubscriptionRecommendation(other.key);
+          expect(subject.subscriptionRecommendations[i].equals(other.key)).toBeTruthy();
+        }
+        subject.muc.setDate(0);  // hack, just for the test let's not wait 5s for the MUC update
+        const muc: Cube = await subject.store(reduced_difficulty);
 
-      it('does not reinsert unchanged extension MUCs', async () => {
-        // TODO implement
+        // Good, 40 added. Now let's have a look at the extension MUCs.
+        const firstExtensionMuc: Cube = subject.subscriptionRecommendationIndices[0];
+        const firstExtensionMucKey: CubeKey = firstExtensionMuc.getKeyIfAvailable();
+        expect(firstExtensionMucKey).toBeInstanceOf(Buffer);
+        const firstExtensionMucHash: Buffer = firstExtensionMuc.getHashIfAvailable();
+        expect(firstExtensionMucHash).toBeInstanceOf(Buffer);
+
+        const secondExtensionMuc: Cube = subject.subscriptionRecommendationIndices[1];
+        const secondExtensionMucKey: CubeKey = secondExtensionMuc.getKeyIfAvailable();
+        expect(secondExtensionMucKey).toBeInstanceOf(Buffer);
+        const secondExtensionMucHash: Buffer = secondExtensionMuc.getHashIfAvailable();
+        expect(secondExtensionMucHash).toBeInstanceOf(Buffer);
+
+        // Now add one more subscription
+        const plusone: Identity = new Identity(cubeStore);
+        plusone.name = "Figurarius adiectus"
+        plusone.muc.setDate(0);  // accelerate test
+        plusone.store(reduced_difficulty);
+        subject.addSubscriptionRecommendation(plusone.key);
+        subject.muc.setDate(0);  // accelarate test
+        await subject.store();
+
+        // Extension MUC keys should not have changed.
+        // First extension MUC hash should not have changed either,
+        // but the second one's must have.
+        const firstExtensionMucAfterChange: Cube = subject.subscriptionRecommendationIndices[0];
+        const firstExtensionMucKeyAfterChange: CubeKey = firstExtensionMucAfterChange.getKeyIfAvailable();
+        expect(firstExtensionMucKeyAfterChange).toBeInstanceOf(Buffer);
+        const firstExtensionMucHashAfterChange: Buffer = firstExtensionMucAfterChange.getHashIfAvailable();
+        expect(firstExtensionMucHashAfterChange).toBeInstanceOf(Buffer);
+        expect(firstExtensionMucKeyAfterChange.equals(firstExtensionMucKey)).toBeTruthy();
+        expect(firstExtensionMucHashAfterChange.equals(firstExtensionMucHash)).toBeTruthy();
+
+        const secondExtensionMucAfterChange: Cube = subject.subscriptionRecommendationIndices[1];
+        const secondExtensionMucKeyAfterChange: CubeKey = secondExtensionMucAfterChange.getKeyIfAvailable();
+        expect(secondExtensionMucKeyAfterChange).toBeInstanceOf(Buffer);
+        const secondExtensionMucHashAfterChange: Buffer = secondExtensionMucAfterChange.getHashIfAvailable();
+        expect(secondExtensionMucHashAfterChange).toBeInstanceOf(Buffer);
+        expect(secondExtensionMucKeyAfterChange.equals(secondExtensionMucKey)).toBeTruthy();
+        expect(secondExtensionMucHashAfterChange.equals(secondExtensionMucHash)).toBeFalsy();
       });
     });
-
-    it('combines makeMUC requests spaced less than 5 seconds apart', async () => {
-      const id: Identity = new Identity(cubeStore);
-      // Creating a new Identity does build a MUC, although it will never be compiler
-      // nor added to the CubeStore.
-      // The five second minimum delay till regeneration still applies.
-      const firstMuc = id.muc;
-      const firstMucDate = firstMuc.getDate();
-
-      id.name = "Probator Distantiae Temporis";
-      // store() now requests generation of a new, second MUC.
-      // This will not happen, though, as the first MUC is less than five seconds old.
-      // Instead, the operation will be rescheduled five seconds from now.
-      id.store(reduced_difficulty);  // note there's no "await"
-
-      id.name = "Probator Minimae Distantiae Temporis";
-      const thirdMuc: Cube = await id.store(reduced_difficulty);  // with await this time
-      expect(thirdMuc).toEqual(id.muc);
-      expect(thirdMuc.getHashIfAvailable()).toEqual(id.muc.getHashIfAvailable());
-      const thirdMucDate = thirdMuc.getDate();
-
-      // First (=preliminary) MUC and actual content-bearing MUC should not be equal
-      expect(firstMuc).not.toEqual(thirdMuc);
-
-      // MUCs should be spaced at least 5 seconds apart, indicating minimum
-      // distance has been observed.
-      // They should be spaced less than 10 seconds apart, indicating the two store()
-      // opeations have been combined into one.
-      const mucTimeDistance = thirdMucDate - firstMucDate;
-      expect(mucTimeDistance).toBeGreaterThanOrEqual(5);
-      expect(mucTimeDistance).toBeLessThanOrEqual(10);
-    }, 20000);
   });
 
   describe('local persistant storage', () => {
