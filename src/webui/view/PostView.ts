@@ -16,6 +16,8 @@ export class PostView {
       document.getElementById("verityPostTemplate") as HTMLTemplateElement;
     const li: HTMLLIElement =
       template.content.firstElementChild.cloneNode(true) as HTMLLIElement;
+    // save the display element to the PostData record
+    data.displayElement = li;
     const form: HTMLFormElement =
       li.getElementsByTagName("form")[0] as HTMLFormElement;
 
@@ -28,9 +30,7 @@ export class PostView {
     this.displayCubeProfilepic(data,
       li.getElementsByClassName("verityPostProfilePic")[0] as HTMLImageElement);
     // author
-    const authorelem: HTMLElement =
-      li.getElementsByClassName("verityCubeAuthor")[0] as HTMLElement;
-    this.displayCubeAuthor(data, authorelem);
+    this.displayCubeAuthor(data);
     // date
     const dateelem = li.getElementsByClassName("verityPostDate")[0] as HTMLElement;
     const date: Date = new Date(data.timestamp*1000);
@@ -72,9 +72,6 @@ export class PostView {
         }
     }
     if (!appended) container.appendChild(li);
-
-    // save the display element to the PostData record
-    data.displayElement = li;
   }
 
   redisplayCubeAuthor(data: PostData): void {
@@ -85,7 +82,7 @@ export class PostView {
     if (!authorelementCollection) return;
     const authorelement = authorelementCollection[0] as HTMLElement;
     if (!authorelement) return;
-    this.displayCubeAuthor(data, authorelement);
+    this.displayCubeAuthor(data);
     const profilepicCollection =
       data.displayElement.getElementsByClassName("postProfilePic");
     if (!profilepicCollection) return;
@@ -94,12 +91,23 @@ export class PostView {
     this.displayCubeProfilepic(data, profilepicElem);
   }
 
-  private displayCubeAuthor(data: PostData, authorelem: HTMLElement) {
+  private displayCubeAuthor(data: PostData) {
+    const authorelem: HTMLElement =
+      data.displayElement.getElementsByClassName("verityCubeAuthor")[0] as HTMLElement;
     authorelem.innerText = '';  // start with a clean slate
     authorelem.setAttribute("id", data.keystring + "-author");
     authorelem.setAttribute("class", "cubeauthor");
     if (data.authorkey) authorelem.setAttribute("title", "MUC key " + data.authorkey);
     authorelem.appendChild(document.createTextNode(data.author));
+
+    const subscribeButton: HTMLButtonElement =
+    data.displayElement.getElementsByClassName("veritySubscribeButton")[0] as HTMLButtonElement;
+    if (data.authorkey) {
+      subscribeButton.setAttribute("data-authorkey", data.authorkey);
+      if (data.authorsubscribed) subscribeButton.classList.add("active");
+    } else {
+      subscribeButton.setAttribute("style", "display: none");
+    }
   }
 
   displayCubeProfilepic(data: PostData, profilepicelem: HTMLImageElement) {

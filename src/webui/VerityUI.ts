@@ -34,6 +34,7 @@ export class VerityUI {
     const ui: VerityUI = new VerityUI(node);
     await ui.node.cubeStore.readyPromise;
     await ui.initializeIdentity();
+    ui.navPostsWithAuthors();
     return ui;
   }
 
@@ -50,9 +51,6 @@ export class VerityUI {
 
     this.peerDisplay = new PeerDisplay(this);
     this.peerDisplay.redisplayPeers();
-
-    this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore, true, false);
-    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine);
   }
 
   shutdown() {
@@ -94,18 +92,45 @@ export class VerityUI {
     this.node.cubeStore.addCube(post);
   }
 
+  subscribeUser(subscribeButton: HTMLButtonElement) {
+    const authorkeystring = subscribeButton.getAttribute("data-authorkey");
+    const authorkey = Buffer.from(authorkeystring, 'hex');
+    // subscribing or unsubscribing?
+    if (subscribeButton.classList.contains("active")) {
+      subscribeButton.classList.remove("active");
+      logger.trace("VerityUI: Unsubscribing from " + authorkeystring);
+      this.identity.removeSubscriptionRecommendation(authorkey);
+      this.identity.store();
+
+    } else {
+      subscribeButton.classList.add("active");
+      logger.trace("VerityUI: Subscribing to " + authorkeystring);
+      this.identity.addSubscriptionRecommendation(authorkey);
+      this.identity.store();
+    }
+  }
+
   navPostsWithAuthors() {
     logger.trace("VerityUI: Displaying posts associated with a MUC");
     this.navbarMarkActive("navPostsWithAuthors");
     this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore, true, false);
-    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine);
+    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
   navPostsAll() {
     logger.trace("VerityUI: Displaying all posts including anonymous ones");
     this.navbarMarkActive("navPostsAll");
     this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore, true, true);
-    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine);
+    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
+  }
+
+  navPostsSubscribedStrict() {
+    if (!this.identity) return;
+    logger.trace("VerityUI: Displaying posts from subscribed authors strictly");
+    this.navbarMarkActive("navPostsSubscribedStrict");
+    this.annotationEngine = new ZwAnnotationEngine(
+      this.node.cubeStore, this.identity.subscriptionRecommendations, false);
+    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
   private navbarMarkActive(id: string) {

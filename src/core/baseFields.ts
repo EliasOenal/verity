@@ -81,6 +81,13 @@ export abstract class BaseField {
         this.start = start;
     }
 
+    equals(other: BaseField, compareLocation: boolean = false) {
+        if (this.type != other.type) return false;
+        if (!this.value.equals(other.value)) return false;
+        if (compareLocation && this.start != other.start) return false;
+        return true;
+    }
+
     /**
      * Is this a finalized field, i.e. is it's start index within the compiled
      * binary data known yet?
@@ -139,6 +146,14 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
             else this.data = [data];
         }
         else this.data = [];
+    }
+
+    equals(other: BaseFields, compareLocation: boolean = false) {
+        if (this.getFieldCount() != other.getFieldCount()) return false;
+        for (let i=0; i<this.getFieldCount(); i++) {
+            if (!this.all()[i].equals(other.all()[i], compareLocation)) return false;
+        }
+        return true;
     }
 
     getByteLength() {

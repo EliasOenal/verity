@@ -88,8 +88,6 @@ export class CubeStore extends EventEmitter {
           const winningCube: CubeMeta = cubeContest(storedCube, cubeInfo);
           if (winningCube === storedCube) {
             logger.info('CubeStorage: Keeping stored MUC over incoming MUC');
-            logger.error(storedCube.date);
-            logger.error(cubeInfo.date);
             return storedCube.getCube();
           } else {
             logger.info('CubeStorage: Replacing stored MUC with incoming MUC');

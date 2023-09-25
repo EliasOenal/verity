@@ -12,16 +12,23 @@ import { CubeType } from "../core/cubeDefinitions";
 export class ZwAnnotationEngine extends AnnotationEngine {
   identityMucs: Map<string, CubeInfo> = new Map();
   authorsCubes: Map<string, Set<string>> = new Map();
+  readonly autoLearnMucs: boolean;
 
   constructor(
       cubeStore: CubeStore,
-      private autoLearnMucs: boolean = true,
+      learnMucs: CubeKey[] | boolean = true,
       private handleAnonymousCubes: boolean = true,
       limitRelationshipTypes: Map<number, number> = ZwRelationshipLimits,
     ) {
     super(cubeStore, ZwFields.get, ZwRelationship, limitRelationshipTypes);
-    if (this.autoLearnMucs) {
+    if (learnMucs instanceof Array) {
+      this.autoLearnMucs = false;
+      for (const key of learnMucs) this.learnMuc(key);
+    } else if (learnMucs === true) {
+      this.autoLearnMucs = true;
       this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
+    } else {
+      this.autoLearnMucs = false;
     }
     this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnAuthorsPosts(cubeInfo));
     this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
@@ -220,7 +227,10 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    * will be created for these known MUCs and their owned cubes.
    * @param key Must be the key of a valid Identity MUC
    */
-  private learnMuc(mucInfo: CubeInfo): void {
+  private learnMuc(input: CubeInfo | CubeKey): void {
+    let mucInfo: CubeInfo;
+    if (input instanceof CubeInfo) mucInfo = input;
+    else mucInfo = this.cubeStore.getCubeInfo(input);
     // is this even a MUC?
     if (mucInfo.cubeType != CubeType.CUBE_TYPE_MUC) return;
 
