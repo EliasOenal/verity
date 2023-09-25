@@ -22,6 +22,18 @@ export enum CubeFieldType {
   SMART_CUBE = 0x07 << 2,
   PUBLIC_KEY = 0x08 << 2,
 
+  /**
+  * Seed used to derive a new key pair for an extension MUC.
+  * Note that this should not actually be public information as it's only needed
+  * by the author to derive their private key from their master key.
+  * We're still putting it right into the MUC out of convenience and due to
+  * the fact that this information must be available somewhere on the network
+  * for Identity recovery ("password-based login").
+  * We're pretty confident this does not actually expose any cryptographically
+  * sensitive information, but we maybe should encrypt it.
+  */
+  SUBKEY_SEED = 0x09 << 2,
+
   // positional fields; assigned ID is for local purposes only
   VERSION = 0x101,
   DATE = 0x102,
@@ -37,6 +49,7 @@ export const CubeFieldLength: FieldNumericalParam = {
   [CubeFieldType.SIGNATURE]: NetConstants.SIGNATURE_SIZE,
   [CubeFieldType.SMART_CUBE]: 0, // Just a single header byte
   [CubeFieldType.PUBLIC_KEY]: NetConstants.PUBLIC_KEY_SIZE,
+  [CubeFieldType.SUBKEY_SEED]: undefined,
   [CubeFieldType.VERSION]: NetConstants.PROTOCOL_VERSION_SIZE,
   [CubeFieldType.DATE]: NetConstants.TIMESTAMP_SIZE,
 };
@@ -82,6 +95,11 @@ export class CubeField extends BaseField {
   static Payload(buf: Buffer | string): CubeField  {
     return super.Payload(buf, cubeFieldDefinition);
   }
+
+  static SubkeySeed(buf: Buffer | Uint8Array): CubeField {
+    if (!(buf instanceof Buffer)) buf = Buffer.from(buf);
+    return new CubeField(CubeFieldType.SUBKEY_SEED, buf.length, buf as Buffer);
+  }
 }
 
 export class CubeFields extends BaseFields {
@@ -94,7 +112,7 @@ export class CubeFields extends BaseFields {
         // are at the correct position
         // Note implementation detail: Creating header fields in reverse order
         // as we're inserting them at the beginning of the array with unshift
-        if (this.getFirstField(CubeFieldType.DATE) == undefined) {
+        if (this.getFirstField(CubeFieldType.DATE) === undefined) {
           const cubeDate: Buffer = Buffer.alloc(CubeFieldLength[CubeFieldType.DATE]);
           cubeDate.writeUIntBE(
             Math.floor(Date.now() / 1000), 0, CubeFieldLength[CubeFieldType.DATE]);
@@ -102,7 +120,7 @@ export class CubeFields extends BaseFields {
             CubeFieldType.DATE, CubeFieldLength[CubeFieldType.DATE], cubeDate
           ));
         }
-        if (this.getFirstField(CubeFieldType.VERSION) == undefined) {
+        if (this.getFirstField(CubeFieldType.VERSION) === undefined) {
           const cubeVersion: Buffer = Buffer.alloc(
             CubeFieldLength[CubeFieldType.VERSION]);
           // TODO document, move the literal 4 to config

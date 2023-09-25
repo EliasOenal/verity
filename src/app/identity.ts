@@ -15,9 +15,16 @@ import { FieldParser } from '../core/fieldParser';
 import { Settings } from '../core/config';
 import { ZwConfig } from './zwConfig';
 import { CubeInfo } from '../core/cubeInfo';
+import { assertZwMuc } from './zwCubes';
+
+import * as CciUtil from '../cci/cciUtil'
 
 const IDENTITYDB_VERSION = 1;
 
+// TODO: Split out the MUC management code.
+// Much of it (like writing multi-cube long indexes of cube keys and deriving
+// extension MUC keys from a master key) are not even Identity specific and should
+// be moved to the CCI layer as common building blocks.
 
 /**
  * @classdesc An identity describes who a user is.
@@ -37,15 +44,15 @@ const IDENTITYDB_VERSION = 1;
  *
  * To represent a identities for this application, we use MUCs containing these
  * fields.
- *   - core lib field RELATES_TO type OWNS: Links to a post made by this user.
- *       (These posts itself will contain more RELATES_TO/OWNS fields, building
- *       a kind of linked list of a user's posts.)
  *   - USER_NAME (mandatory, only once): Self-explanatory. UTF-8, maximum 60 bytes.
  *       Note this might be less than 60 chars.
- *   - USER_PROFILEPIC (only once): Links to the first cube of a continuation chain containing
+ *   - RELATES_TO/USER_PROFILEPIC (only once): Links to the first cube of a continuation chain containing
  *       this user's profile picture in JPEG format. Maximum size of three
  *       cubes, i.e. just below 3kB.
- *   - SUBSCRIPTION_RECOMMENDATION: Links to another user's MUC which this user
+ *   - RELATES_TO/MYPOST: Links to a post made by this user.
+ *       (These posts itself will contain more RELATES_TO/MYPOST fields, building
+ *       a kind of linked list of a user's posts.)
+ *   - RELATES_TO/SUBSCRIPTION_RECOMMENDATION: Links to another user's MUC which this user
  *       recommends. (A "recommendation" is a publically visible subscription.)
  *       This is used to build a multi-level web-of-trust. Users can (and are
  *       expected to) only view posts made by their subscribed creators, their
@@ -53,7 +60,7 @@ const IDENTITYDB_VERSION = 1;
  *       This is to mitigate spam which will be unavoidable due to the uncensorable
  *       nature of Verity. It also segments our users in distinct filter bubbles which has
  *       proven to be one of the most successful features of all social media.
- *   - SUBSCRIPTION_RECOMMENDATION_INDEX: I kinda sorta lied to you.
+ *   - RELATES_TO/SUBSCRIPTION_RECOMMENDATION_INDEX: I kinda sorta lied to you.
  *       We usually don't actually put SUBSCRIPTION_RECOMMENDATIONs directly
  *       into the MUC. We could, but we won't.
  *       Even for moderately active users they wouldn't fit.
@@ -91,6 +98,22 @@ export class Identity {
   persistance: IdentityPersistance;
 
   private cubeStore;
+  private readonly masterKey;
+
+  /**
+   * Subscription recommendations are publically visible subscriptions of other
+   * authors. They are also currently the only available type of subscriptions.
+   * TODO: Implement private/"secret" subscriptions, too
+   */
+  private _subscriptionRecommendations: Array<CubeKey> = [];
+  get subscriptionRecommendations(): Array<CubeKey> {
+    return this._subscriptionRecommendations
+  };
+
+  private _subscriptionRecommendationIndices: Array<Cube> = [];
+  get subscriptionRecommendationIndices(): Array<Cube> {
+    return this._subscriptionRecommendationIndices;
+  }
 
   /** @member The MUC in which this Identity information is stored and published */
   private _muc: Cube = undefined;
@@ -121,9 +144,14 @@ export class Identity {
     this.persistance = persistance;
     if (muc) this.parseMuc(muc);
     else if (createByDefault) {  // create new Identity
+      // TODO BREAKING: Create Identity MUC key par by deriving our master key.
+      // We are currently using the same key as Identity MUC private key and
+      // as a base for deriving keys which probably does not follow best practices.
+      // Will implement this together with other breaking changes as it breaks all existing MUCs.
       let keys: KeyPair = sodium.crypto_sign_keypair();
       muc = Cube.MUC(Buffer.from(keys.publicKey), Buffer.from(keys.privateKey));
       this._muc = muc;
+      this.masterKey = this.privateKey.subarray(0, 32);  // TODO change this as discussed above
     }
     else {
       throw new CubeError("Identity: Cannot restore Identity without valid MUC.")
@@ -155,6 +183,9 @@ export class Identity {
   async store(required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<Cube> {
     logger.trace("Identity: Storing identity " + this.name);
     const muc = await this.makeMUC(required_difficulty);
+    for (const extensionMuc of this.subscriptionRecommendationIndices) {
+      await this.cubeStore.addCube(extensionMuc);
+    }
     await this.cubeStore.addCube(muc);
     if (this.persistance) {
       await this.persistance.store(this);
@@ -170,6 +201,15 @@ export class Identity {
   /** Removes a cube key from my post list */
   forgetMyPost(cubeKey: CubeKey) {
     this.posts = this.posts.filter(p => p !== cubeKey.toString('hex'));
+  }
+
+  addSubscriptionRecommendation(remoteIdentity: CubeKey) {
+    this._subscriptionRecommendations.push(remoteIdentity);
+  }
+
+  removeSubscriptionRecommendation(remoteIdentity: CubeKey) {
+    this._subscriptionRecommendations = this._subscriptionRecommendations.filter(
+      (existing: CubeKey) => !existing.equals(remoteIdentity));
   }
 
   /**
@@ -239,7 +279,14 @@ export class Identity {
         new ZwRelationship(ZwRelationshipType.MYPOST, Buffer.from(this.posts[i], 'hex'))
       ));
     }
-    // TODO add subscription recommendations
+    // write subscription recommendations
+    this.writeSubscriptionRecommendations(required_difficulty);
+    if (this.subscriptionRecommendationIndices.length) {
+      zwFields.appendField(ZwField.RelatesTo(
+        new ZwRelationship(ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
+          this.subscriptionRecommendationIndices[0].getKeyIfAvailable())));
+          // note: key is always available as this is a MUC
+    }
 
     const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(zwFields);
     const newMuc: Cube = Cube.MUC(this._muc.publicKey, this._muc.privateKey,
@@ -252,20 +299,67 @@ export class Identity {
     return newMuc;
   }
 
+  private writeSubscriptionRecommendations(
+      required_difficulty = Settings.REQUIRED_DIFFICULTY): void {
+    // TODO: properly calculate available space
+    // For now, let's just eyeball it:
+    // After mandatory boilerplate, there's 904 bytes left in a MUC.
+    // We use up 3 of those for APPLICATION (3), and let's calculate with
+    // 12 bytes subkey (10 byte = 80 bits subkey + 2 byte header).
+    // Also allow 102 bytes for three more index references.
+    // That gives us 787 bytes remaining.
+    // Each subscription recommendation is 34 byte long (1 byte RELATES_TO header,
+    // 1 byte relationship type, 32 bytes cube key).
+    // So we can safely fit 23 subscription recommendations per cube.
+    const relsPerCube = 23;
+    let indexCubeNum = 0;
+    let indexCube: Cube = undefined;
+    let fields: ZwFields = new ZwFields(ZwField.Application());
+
+    for (let i=0; i<this.subscriptionRecommendations.length; i++) {
+      // write rel
+      fields.appendField(ZwField.RelatesTo(new ZwRelationship(
+        ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+        this.subscriptionRecommendations[i]
+      )));
+
+      // time to finalize this index cube?
+      if (i % relsPerCube == relsPerCube - 1 ||
+          i == this.subscriptionRecommendations.length - 1) {
+        const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(fields);
+        const payload = CubeField.Payload(zwData);
+        // do we actually need to rewrite this index cube?
+        // TODO implement
+        // Note we also need to keep in mind that unchanged index cubes
+        // must still be updated/reinserted once in a while to prevent them from
+        // reaching end of life.
+        // Note: As inserting is only done in store(), store() must check if
+        // any of the extension MUC hashes have changed
+
+        // retrieve or create the index cube
+        // indexCube = undefined;
+        // if (this.subscriptionRecommendationIndices.length > indexCubeNum) {
+        //   indexCube = this.cubeStore.getCube(
+        //     this.subscriptionRecommendationIndices[indexCubeNum]);
+        // }
+        // if (!indexCube) {
+        indexCube = CciUtil.sculptExtensionMuc(
+          this.masterKey, payload, required_difficulty);
+        // }
+        this.subscriptionRecommendationIndices[indexCubeNum] =
+          indexCube;  // it's a MUC, the key is always available
+        // roll over to next index cube:
+        indexCubeNum++;
+        fields = new ZwFields();
+      }
+    }
+  }
+
   /**
    * Sets this Identity based on a MUC; should only be used on construction.
    */
   private parseMuc(muc: Cube): void {
-    // TODO: is this even a valid MUC?
-    // Is this MUC valid for this application?
-    const zwFields: ZwFields = ZwFields.get(muc);
-    if (!zwFields) {
-      throw new CubeError("Identity: Supplied MUC is not an Identity MUC, lacks ZW fields");
-    }
-    const appField: BaseField = zwFields.getFirstField(ZwFieldType.APPLICATION);
-    if (!appField || appField.value.toString('utf-8') != "ZW") {
-      throw new CubeError("Identity: Supplied MUC is not an Identity MUC, lacks ZW application field");
-    }
+    const zwFields = assertZwMuc(muc);
 
     // read name (mandatory)
     const nameField: BaseField = zwFields.getFirstField(ZwFieldType.USERNAME);
@@ -275,24 +369,44 @@ export class Identity {
     }
 
     // read cube references, these being:
-    const relfields: ZwFields = new ZwFields(
-      zwFields.getFieldsByType(ZwFieldType.RELATES_TO));
-    if (relfields) {
-      // - profile picture reference
-      const profilePictureRel: ZwRelationship = relfields.getFirstRelationship(
-        ZwRelationshipType.PROFILEPIC);
-      if (profilePictureRel) this.profilepic = profilePictureRel.remoteKey;
+    // - profile picture reference
+    const profilePictureRel: ZwRelationship = zwFields.getFirstRelationship(
+      ZwRelationshipType.PROFILEPIC);
+    if (profilePictureRel) this.profilepic = profilePictureRel.remoteKey;
 
-      // - key backup cube reference
-      const keyBackupCubeRel: ZwRelationship = relfields.getFirstRelationship(
-        ZwRelationshipType.KEY_BACKUP_CUBE);
-      if (keyBackupCubeRel) this.keyBackupCube = keyBackupCubeRel.remoteKey;
+    // - key backup cube reference
+    const keyBackupCubeRel: ZwRelationship = zwFields.getFirstRelationship(
+      ZwRelationshipType.KEY_BACKUP_CUBE);
+    if (keyBackupCubeRel) this.keyBackupCube = keyBackupCubeRel.remoteKey;
 
-      // - recursively fetch my-post references
-      this.recursiveParsePostReferences(muc, []);
-    }
+    // - recursively fetch my-post references
+    this.recursiveParsePostReferences(muc, []);
+
+    // recursively fetch my own SUBSCRIPTION_RECOMMENDATION references
+    this.recursiveParseSubscriptionRecommendations(zwFields);
     // last but not least: store this MUC as our MUC
     this._muc = muc;
+  }
+
+  recursiveParseSubscriptionRecommendations(zwFields: ZwFields) {
+    // save the subscriptions recommendations provided:
+    const subs = zwFields.getRelationships(
+      ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION);
+    for (const sub of subs) {
+      this.addSubscriptionRecommendation(sub.remoteKey);
+    }
+    // recurse through further index cubes, if any:
+    const furtherIndices = zwFields.getRelationships(
+      ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX);
+    for (const furtherIndex of furtherIndices) {
+      const furtherCube: Cube = this.cubeStore.getCube(furtherIndex.remoteKey);
+      if (furtherCube) {
+        const furtherFields: ZwFields = ZwFields.get(furtherCube);
+        if (furtherFields) {
+          this.recursiveParseSubscriptionRecommendations(furtherFields);
+        }
+      }
+    }
   }
 
   /**

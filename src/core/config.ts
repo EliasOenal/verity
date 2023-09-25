@@ -5,6 +5,12 @@ export const Settings = {
     REQUIRED_DIFFICULTY: 12,  // hash cash must have this many zero bits at the end
     HASHCASH_SIZE: 4,  // reverse at least 4 bytes as scratch space for hash cash, giving us 2^32 attempts which is more than enough
 
+    /**
+     * Seed bytes used to derive a MUC extension key from a user's master key.
+     * Can't be more than 6 for the current implementation.
+     */
+    MUC_EXTENSION_SEED_SIZE: 6,
+
     // Network manager related:
     ANNOUNCEMENT_INTERVAL: (25 * 60 * 1000),  // 25 minutes in milliseconds
     NEW_PEER_INTERVAL: (5 * 1000),

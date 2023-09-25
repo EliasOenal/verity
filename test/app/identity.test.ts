@@ -5,12 +5,11 @@ import { NetConstants } from '../../src/core/networkDefinitions';
 import sodium from 'libsodium-wrappers'
 import { CubeStore } from '../../src/core/cubeStore';
 import { makePost } from '../../src/app/zwCubes';
-import { ZwFieldType, ZwFields, ZwRelationshipType } from '../../src/app/zwFields';
+import { ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from '../../src/app/zwFields';
 import { logger } from '../../src/core/logger';
 
 describe('Identity', () => {
   let cubeStore: CubeStore;
-
   const reduced_difficulty = 0;
 
   beforeAll(async () => {
@@ -178,6 +177,56 @@ describe('Identity', () => {
       newerPost = restoredPost;
     }
   }, 10000);
+
+  it.only('correctly saves and restores recommended subscriptions to and from extension MUCs', async () => {
+    // Create a subject and subscribe 100 other authors
+    const TESTSUBCOUNT = 1;
+    const subject: Identity = new Identity(cubeStore);
+    subject.name = "Subscriptor novarum interessantiarum";
+    for (let i=0; i<TESTSUBCOUNT; i++) {
+      const other = new Identity(cubeStore);
+      other.name = "Figurarius " + i + "-tus";
+      other.muc.setDate(0);  // skip waiting period for the test
+      other.store(reduced_difficulty);
+      subject.addSubscriptionRecommendation(other.key);
+      expect(subject.subscriptionRecommendations[i].equals(other.key)).toBeTruthy();
+    }
+    subject.muc.setDate(0);  // hack, just for the test let's not wait 5s for the MUC update
+    const muc: Cube = await subject.store(reduced_difficulty);
+
+    // Master MUC stored in CubeStore?
+    const recovered_muc: Cube = cubeStore.getCube(subject.key);
+    expect(recovered_muc).toBeInstanceOf(Cube);
+
+    // First subscription recommendation index saved in MUC?
+    const fields = ZwFields.get(recovered_muc);
+    expect(fields).toBeInstanceOf(ZwFields);
+    const rel: ZwRelationship = fields.getFirstRelationship(
+      ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX);
+    expect(rel.remoteKey).toBeInstanceOf(Buffer);
+    expect(rel.remoteKey.equals(
+      subject.subscriptionRecommendationIndices[0].getKeyIfAvailable())).
+        toBeTruthy();
+    // First subscription recommendation index saved in CubeStore?
+    const firstIndexCube: Cube = cubeStore.getCube(rel.remoteKey);
+    expect(firstIndexCube).toBeInstanceOf(Cube);
+    // First subscription recommendation index contains for subscription recommendation?
+    const firstIndexFields = ZwFields.get(firstIndexCube);
+    expect(firstIndexFields).toBeInstanceOf(ZwFields);
+    expect(firstIndexFields.all().length).toBeGreaterThan(1);
+    expect(firstIndexFields.getFirstRelationship(
+      ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION).remoteKey.equals(
+        subject.subscriptionRecommendations[0])).toBeTruthy();
+
+    const restored: Identity = new Identity(cubeStore, muc);
+    expect(restored.subscriptionRecommendations.length).toEqual(TESTSUBCOUNT);
+    for (let i=0; i<TESTSUBCOUNT; i++) {
+      const othermuc = cubeStore.getCube(restored.subscriptionRecommendations[i]);
+      expect(othermuc).toBeInstanceOf(Cube);
+      const restoredother: Identity = new Identity(cubeStore, othermuc);
+      expect(restoredother.name).toEqual("Figurarius " + i + "-tus");
+    }
+  }, 30000);
 
   it('combines makeMUC requests spaced less than 5 seconds apart', async () => {
     const id: Identity = new Identity(cubeStore);
