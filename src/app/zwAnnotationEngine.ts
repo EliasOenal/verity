@@ -20,12 +20,14 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       private autoLearnMucs: boolean = true,
       private allowAnonymous: boolean = true,
       private allowRepliedTo: boolean = false,
-      trustedMucs: CubeKey[] = [],
+      trustedMucs: CubeKey[] = undefined,
       limitRelationshipTypes: Map<number, number> = ZwRelationshipLimits,
     ) {
     super(cubeStore, ZwFields.get, ZwRelationship, limitRelationshipTypes);
-    if (trustedMucs.length) this.trustedOnly = true;
-    for (const key of trustedMucs) this.trustMuc(key);
+    if (trustedMucs) {
+      this.trustedOnly = true;
+      for (const key of trustedMucs) this.trustMuc(key);
+    }
     if (autoLearnMucs === true) {
       this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
     }
