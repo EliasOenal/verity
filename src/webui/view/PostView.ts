@@ -75,13 +75,6 @@ export class PostView {
   }
 
   redisplayCubeAuthor(data: PostData): void {
-    // Get the HTML element the author of this post is displayed in.
-    // Fail silently if there isn't any (shouldn't happen).
-    const authorelementCollection =
-      data.displayElement.getElementsByClassName("cubeauthor");
-    if (!authorelementCollection) return;
-    const authorelement = authorelementCollection[0] as HTMLElement;
-    if (!authorelement) return;
     this.displayCubeAuthor(data);
     const profilepicCollection =
       data.displayElement.getElementsByClassName("postProfilePic");
@@ -92,13 +85,18 @@ export class PostView {
   }
 
   private displayCubeAuthor(data: PostData) {
-    const authorelem: HTMLElement =
-      data.displayElement.getElementsByClassName("verityCubeAuthor")[0] as HTMLElement;
-    authorelem.innerText = '';  // start with a clean slate
-    authorelem.setAttribute("id", data.keystring + "-author");
-    authorelem.setAttribute("class", "cubeauthor");
-    if (data.authorkey) authorelem.setAttribute("title", "MUC key " + data.authorkey);
-    authorelem.appendChild(document.createTextNode(data.author));
+    // Get the HTML element the author of this post is displayed in.
+    // Fail silently if there isn't any.
+    const authorelementCollection =
+      data.displayElement.getElementsByClassName("verityCubeAuthor");
+    if (!authorelementCollection) return;
+    const authorelement = authorelementCollection[0] as HTMLElement;
+    if (!authorelement) return;
+    authorelement.innerText = '';  // start with a clean slate
+    authorelement.setAttribute("id", data.keystring + "-author");
+    authorelement.setAttribute("class", "verityCubeAuthor");
+    if (data.authorkey) authorelement.setAttribute("title", "MUC key " + data.authorkey);
+    authorelement.appendChild(document.createTextNode(data.author));
 
     const subscribeButton: HTMLButtonElement =
     data.displayElement.getElementsByClassName("veritySubscribeButton")[0] as HTMLButtonElement;
