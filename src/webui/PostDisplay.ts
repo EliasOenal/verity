@@ -19,6 +19,7 @@ export interface PostData {
   timestamp?: number;
   author?: string;
   authorkey?: string
+  authorsubscribed?: boolean;
   text?: string;
   profilepic?: string;  // SVG or base64 representation of a raster image
 
@@ -40,6 +41,7 @@ export class PostDisplay {
   constructor(
       private cubeStore: CubeStore,
       private annotationEngine: ZwAnnotationEngine,
+      private identity: Identity = undefined,
       private view: PostView = new PostView()) {
     this.view = new PostView();
     this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey)); // list cubes
@@ -149,5 +151,12 @@ export class PostDisplay {
     if (data.authorkey) data.profilepic = multiavatar(data.authorkey);
     else data.profilepic = multiavatar(data.keystring);
     data.profilepic = "data:image/svg+xml;base64," + btoa(data.profilepic);
+
+    // is this author subscribed?
+    if (this.identity) {
+      data.authorsubscribed = this.identity.isSubscribed(authorObject.key);
+    } else {
+      data.authorsubscribed = false;  // no Identity, no subscriptions
+    }
   }
 }

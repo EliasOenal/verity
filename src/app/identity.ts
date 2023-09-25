@@ -12,12 +12,13 @@ import { Buffer } from 'buffer';
 import { CubeField, CubeFieldType } from '../core/cubeFields';
 import { CubeStore } from '../core/cubeStore';
 import { FieldParser } from '../core/fieldParser';
-import { Settings } from '../core/config';
+import { Settings, VerityError } from '../core/config';
 import { ZwConfig } from './zwConfig';
 import { CubeInfo } from '../core/cubeInfo';
 import { assertZwMuc } from './zwCubes';
 
 import * as CciUtil from '../cci/cciUtil'
+import { NetConstants } from '../core/networkDefinitions';
 
 const IDENTITYDB_VERSION = 1;
 
@@ -98,7 +99,12 @@ export class Identity {
   persistance: IdentityPersistance;
 
   private cubeStore;
-  private readonly masterKey;
+
+  // private readonly masterKey = undefined;
+  get masterKey(): Buffer {
+    return this.privateKey?.subarray(0, 32);  // TODO change this as discussed below
+  }
+
 
   /**
    * Subscription recommendations are publically visible subscriptions of other
@@ -144,14 +150,13 @@ export class Identity {
     this.persistance = persistance;
     if (muc) this.parseMuc(muc);
     else if (createByDefault) {  // create new Identity
-      // TODO BREAKING: Create Identity MUC key par by deriving our master key.
+      // TODO BREAKING: Create Identity MUC key pair by deriving our master key.
       // We are currently using the same key as Identity MUC private key and
       // as a base for deriving keys which probably does not follow best practices.
       // Will implement this together with other breaking changes as it breaks all existing MUCs.
       let keys: KeyPair = sodium.crypto_sign_keypair();
       muc = Cube.MUC(Buffer.from(keys.publicKey), Buffer.from(keys.privateKey));
       this._muc = muc;
-      this.masterKey = this.privateKey.subarray(0, 32);  // TODO change this as discussed above
     }
     else {
       throw new CubeError("Identity: Cannot restore Identity without valid MUC.")
@@ -181,6 +186,9 @@ export class Identity {
    * (You could also provide a private cubeStore instead, but why should you?)
    */
   async store(required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<Cube> {
+    if (!this.privateKey || !this.masterKey) {
+      throw new VerityError("Identity: Cannot store an Identity whose private key I don't have");
+    }
     logger.trace("Identity: Storing identity " + this.name);
     const muc = await this.makeMUC(required_difficulty);
     for (const extensionMuc of this.subscriptionRecommendationIndices) {
@@ -204,12 +212,21 @@ export class Identity {
   }
 
   addSubscriptionRecommendation(remoteIdentity: CubeKey) {
-    this._subscriptionRecommendations.push(remoteIdentity);
+    if (remoteIdentity instanceof Buffer && remoteIdentity.length == NetConstants.CUBE_KEY_SIZE) {
+      this._subscriptionRecommendations.push(remoteIdentity);
+    } else {
+      logger.error("Identity: Ignoring subscription request to something that does not at all look like a CubeKey");
+    }
   }
 
   removeSubscriptionRecommendation(remoteIdentity: CubeKey) {
     this._subscriptionRecommendations = this._subscriptionRecommendations.filter(
       (existing: CubeKey) => !existing.equals(remoteIdentity));
+  }
+
+  isSubscribed(remoteIdentity: CubeKey) {
+    return this.subscriptionRecommendations.some(
+      (subscription: CubeKey) => subscription.equals(remoteIdentity));
   }
 
   /**
@@ -343,6 +360,11 @@ export class Identity {
       // do we actually need to rewrite this index cube?
       if (!this.subscriptionRecommendationIndices[i] ||
           !fieldSets[i].equals(ZwFields.get(this.subscriptionRecommendationIndices[i]))) {
+        // TODO: Further minimize unnecessary extension MUC update.
+        // For example, if a user having let's say 10000 subscriptions ever
+        // unsubscribes one of the first ones, this would currently lead to a very
+        // expensive reinsert of ALL extension MUCs. In this case, it would be much
+        // cheaper to just keep an open slot on the first extension MUC.
         const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(
           fieldSets[i]);
         const payload = CubeField.Payload(zwData);

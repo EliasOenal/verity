@@ -211,7 +211,40 @@ describe('Identity', () => {
       expect(mucTimeDistance).toBeLessThanOrEqual(10);
     }, 20000);
 
-    describe('subscription recommendations via extension MUCs', ()  => {
+    describe('subscription recommendations', ()  => {
+      it('correctly identifies authors as subscribed or not subscribed', async () => {
+        const subject: Identity = new Identity(cubeStore);
+        subject.name = "Subscriptor novarum interessantiarum";
+
+        // Create 10 subscribed and 10 non-subscribed authors
+        const TESTSUBCOUNT = 10;
+        const subscribed: CubeKey[] = [];
+        const nonsubscribed: CubeKey[] = [];
+
+        for (let i=0; i<TESTSUBCOUNT; i++) {
+          const other = new Identity(cubeStore);
+          other.name = "Figurarius subscriptus numerus " + i;
+          other.muc.setDate(0);  // skip waiting period for the test
+          other.store(reduced_difficulty);
+          subscribed.push(other.key);
+          subject.addSubscriptionRecommendation(other.key);
+          expect(subject.subscriptionRecommendations[i].equals(other.key)).toBeTruthy();
+        }
+        for (let i=0; i<TESTSUBCOUNT; i++) {
+          const other = new Identity(cubeStore);
+          other.name = "Figurarius subscriptus numerus " + i;
+          other.muc.setDate(0);  // skip waiting period for the test
+          other.store(reduced_difficulty);
+          nonsubscribed.push(other.key);
+        }
+
+        // verify subscription status
+        for (let i=0; i<TESTSUBCOUNT; i++) {
+          expect(subject.isSubscribed(subscribed[i])).toBeTruthy();
+          expect(subject.isSubscribed(nonsubscribed[i])).toBeFalsy();
+        }
+      });
+
       it('correctly saves and restores recommended subscriptions to and from extension MUCs', async () => {
         // Create a subject and subscribe 100 other authors
         const TESTSUBCOUNT = 100;
