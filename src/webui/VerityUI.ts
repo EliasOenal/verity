@@ -113,14 +113,20 @@ export class VerityUI {
   navPostsWithAuthors() {
     logger.trace("VerityUI: Displaying posts associated with a MUC");
     this.navbarMarkActive("navPostsWithAuthors");
-    this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore, true, false);
+    this.annotationEngine = new ZwAnnotationEngine(
+      this.node.cubeStore,
+      true,     // auto-learn MUCs (posts associated with any Identity MUC are okay)
+      false);   // do not allow anonymous posts
     this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
   navPostsAll() {
     logger.trace("VerityUI: Displaying all posts including anonymous ones");
     this.navbarMarkActive("navPostsAll");
-    this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore, true, true);
+    this.annotationEngine = new ZwAnnotationEngine(
+      this.node.cubeStore,
+      true,     // auto-learn MUCs (to be able to display authors when available)
+      true);    // allow anonymous posts
     this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
@@ -129,7 +135,24 @@ export class VerityUI {
     logger.trace("VerityUI: Displaying posts from subscribed authors strictly");
     this.navbarMarkActive("navPostsSubscribedStrict");
     this.annotationEngine = new ZwAnnotationEngine(
-      this.node.cubeStore, this.identity.subscriptionRecommendations, false);
+      this.node.cubeStore,
+      false,    // do no auto-learn MUCs (strictly only posts by subscribed will be displayed)
+      false,    // do not allow anonymous posts
+      false,    // do not include posts replied-to by subscribed authors
+      this.identity.subscriptionRecommendations);  // subscriptions
+    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
+  }
+
+  navPostsSubscribedReplied() {
+    if (!this.identity) return;
+    logger.trace("VerityUI: Displaying posts from subscribed authors and their preceding posts");
+    this.navbarMarkActive("navPostsSubscribedReplied");
+    this.annotationEngine = new ZwAnnotationEngine(
+      this.node.cubeStore,
+      true,     // auto-learn MUCs (to be able to display authors when available)
+      false,    // do not allow anonymous posts
+      true,     // include posts replied-to by subscribed authors
+      this.identity.subscriptionRecommendations);  // subscriptions
     this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 

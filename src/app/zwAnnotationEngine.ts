@@ -11,24 +11,23 @@ import { CubeType } from "../core/cubeDefinitions";
 
 export class ZwAnnotationEngine extends AnnotationEngine {
   identityMucs: Map<string, CubeInfo> = new Map();
+  trustedMucs: Map<string, CubeInfo> = new Map();
   authorsCubes: Map<string, Set<string>> = new Map();
-  readonly autoLearnMucs: boolean;
+  private trustedOnly: boolean;
 
   constructor(
       cubeStore: CubeStore,
-      learnMucs: CubeKey[] | boolean = true,
-      private handleAnonymousCubes: boolean = true,
+      private autoLearnMucs: boolean = true,
+      private allowAnonymous: boolean = true,
+      private allowRepliedTo: boolean = false,
+      trustedMucs: CubeKey[] = [],
       limitRelationshipTypes: Map<number, number> = ZwRelationshipLimits,
     ) {
     super(cubeStore, ZwFields.get, ZwRelationship, limitRelationshipTypes);
-    if (learnMucs instanceof Array) {
-      this.autoLearnMucs = false;
-      for (const key of learnMucs) this.learnMuc(key);
-    } else if (learnMucs === true) {
-      this.autoLearnMucs = true;
+    if (trustedMucs.length) this.trustedOnly = true;
+    for (const key of trustedMucs) this.trustMuc(key);
+    if (autoLearnMucs === true) {
       this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
-    } else {
-      this.autoLearnMucs = false;
     }
     this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnAuthorsPosts(cubeInfo));
     this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
@@ -53,13 +52,10 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   isCubeDisplayable(
       cubeInfo: CubeInfo | CubeKey,
       mediaType: MediaTypes = MediaTypes.TEXT,
-      allowAnonymous = this.handleAnonymousCubes): boolean {
+      allowAnonymous: boolean = this.allowAnonymous,
+      allowRepliedTo: boolean = this.allowRepliedTo,
+      trustedOnly: boolean = this.trustedOnly): boolean {
     if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo) as CubeInfo;
-
-    if (!allowAnonymous) {
-      // Is this owned by one if the authors in this.identityMucs?
-      if (!this.isAuthorKnown(cubeInfo.key)) return false;
-    }
 
     // is this even a valid ZwCube?
     const fields: ZwFields = this.getFields(cubeInfo.getCube());
@@ -74,6 +70,15 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     if (!typefield) return;
     if (mediaType && mediaType != typefield.value.readUIntBE(0, ZwFieldLengths[ZwFieldType.MEDIA_TYPE])) {
       return false;
+    }
+
+    if (!allowAnonymous) {
+      // Is this owned by one if the authors in this.identityMucs?
+      if (!this.isAuthorKnown(cubeInfo.key, trustedOnly)) {
+        if (!allowRepliedTo) return false;
+        // does it have a reply by one of the authors in this.identityMucs?
+        if (!this.hasReplyByKnownAuthor(cubeInfo.key, trustedOnly)) return false;
+      }
     }
 
     // TODO: handle continuation chains
@@ -94,11 +99,23 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     return true;
   }
 
-  isAuthorKnown(key: CubeKey): boolean {
+  isAuthorKnown(key: CubeKey, trustedOnly: boolean = this.trustedOnly): boolean {
     // TODO: maybe following the ownership chain of this cube up to the author
     // is actually faster than checking all know posts
-    for (const knownSet of this.authorsCubes.values()) {
-      if(knownSet.has(key.toString('hex'))) return true;
+    for (const [authorkeystring, knownSet] of this.authorsCubes.entries()) {
+      if(knownSet.has(key.toString('hex'))) {
+        if (!trustedOnly || this.trustedMucs.has(authorkeystring)) return true;
+      }
+    }
+    return false;
+  }
+
+  hasReplyByKnownAuthor(key: CubeKey, trustedOnly: boolean = this.trustedOnly): boolean {
+    const replies: ZwRelationship[] =
+      this.getReverseRelationships(key, ZwRelationshipType.REPLY_TO);
+    for (const reply of replies) {
+      if (this.isAuthorKnown(reply.remoteKey, trustedOnly)) return true;
+      if (this.hasReplyByKnownAuthor(reply.remoteKey, trustedOnly)) return true;
     }
     return false;
   }
@@ -233,8 +250,34 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     let mucInfo: CubeInfo;
     if (input instanceof CubeInfo) mucInfo = input;
     else mucInfo = this.cubeStore.getCubeInfo(input);
+    if (this.validateMuc(mucInfo)) {
+      this.identityMucs.set(mucInfo.key.toString('hex'), mucInfo);
+      // logger.trace(`ZwAnnotationEngine: Learned Identity MUC ${key.toString('hex')}, user name ${id.name}`);
+    }
+  }
+
+  /**
+   * Add this MUC to the list of trusted MUCs.
+   * This is only relevant for determining displayability, and only when using
+   * certain settings.
+   * If the MUC is not yet known, it will also be marked known.
+   * @param key Must be the key of a valid Identity MUC
+   */
+  private trustMuc(input: CubeInfo | CubeKey): void {
+    let mucInfo: CubeInfo;
+    if (input instanceof CubeInfo) mucInfo = input;
+    else mucInfo = this.cubeStore.getCubeInfo(input);
+    // TODO: We could probably skip this very inefficient check for trusted MUCs.
+    if (this.validateMuc(mucInfo)) {
+      this.identityMucs.set(mucInfo.key.toString('hex'), mucInfo);
+      this.trustedMucs.set(mucInfo.key.toString('hex'), mucInfo);
+      // logger.trace(`ZwAnnotationEngine: Trusting Identity MUC ${key.toString('hex')}, user name ${id.name}`);
+    }
+  }
+
+  private validateMuc(mucInfo: CubeInfo): boolean {
     // is this even a MUC?
-    if (mucInfo.cubeType != CubeType.CUBE_TYPE_MUC) return;
+    if (mucInfo.cubeType != CubeType.CUBE_TYPE_MUC) return false;
 
     // Check if this is an Identity MUC by trying to create an Identity object
     // for it.
@@ -242,10 +285,8 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     let id: Identity;
     try {
       id = new Identity(this.cubeStore, mucInfo.getCube());
-    } catch (error) { return; }
-    // logger.trace("ZwAnnotationEngine: Remembering Identity MUC " + key.toString('hex'));
-    this.identityMucs.set(mucInfo.key.toString('hex'), mucInfo);
-    // logger.trace(`ZwAnnotationEngine: Learned Identity MUC ${key.toString('hex')}, user name ${id.name}`);
+    } catch (error) { return false; }
+    return true;  // all checks passed
   }
 
   /**
