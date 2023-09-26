@@ -117,7 +117,7 @@ export class ZwField extends BaseField {
 export class ZwFields extends BaseFields {
   static get(cube: Cube): ZwFields {
     // ZwFields live in the Cube's (first/only) PAYLOAD field.
-    const zwData: CubeField = cube.getFields().getFirstField(CubeFieldType.PAYLOAD);
+    const zwData: CubeField = cube?.getFields().getFirstField(CubeFieldType.PAYLOAD);
     if (!zwData) {
       // logger.info("ZwFields: Cannot get ZwFields from this Cube, there's no top-level PAYLOAD cube field.")
       return undefined;
