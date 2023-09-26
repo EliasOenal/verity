@@ -9,23 +9,28 @@ import { MediaTypes, ZwFieldLengths, ZwFieldType, ZwFields, ZwRelationship, ZwRe
 import { Buffer } from 'buffer';
 import { CubeType } from "../core/cubeDefinitions";
 
+export enum AuthorshipRequirement {
+  none = 0,
+  hasAuthor = 1,
+  trustedInTree = 2,
+  trustedReply = 3,
+  trustedOnly = 4,
+}
+
 export class ZwAnnotationEngine extends AnnotationEngine {
   identityMucs: Map<string, CubeInfo> = new Map();
   trustedMucs: Map<string, CubeInfo> = new Map();
   authorsCubes: Map<string, Set<string>> = new Map();
-  private trustedOnly: boolean;
 
   constructor(
       cubeStore: CubeStore,
-      private autoLearnMucs: boolean = true,
-      private allowAnonymous: boolean = true,
-      private allowRepliedTo: boolean = false,
+      private authorshipRequirement: AuthorshipRequirement = AuthorshipRequirement.none,
       trustedMucs: CubeKey[] = undefined,
+      private autoLearnMucs: boolean = true,
       limitRelationshipTypes: Map<number, number> = ZwRelationshipLimits,
     ) {
     super(cubeStore, ZwFields.get, ZwRelationship, limitRelationshipTypes);
     if (trustedMucs) {
-      this.trustedOnly = true;
       for (const key of trustedMucs) this.trustMuc(key);
     }
     if (autoLearnMucs === true) {
@@ -53,10 +58,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    */
   isCubeDisplayable(
       cubeInfo: CubeInfo | CubeKey,
-      mediaType: MediaTypes = MediaTypes.TEXT,
-      allowAnonymous: boolean = this.allowAnonymous,
-      allowRepliedTo: boolean = this.allowRepliedTo,
-      trustedOnly: boolean = this.trustedOnly): boolean {
+      mediaType: MediaTypes = MediaTypes.TEXT): boolean {
     if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo) as CubeInfo;
 
     // is this even a valid ZwCube?
@@ -74,13 +76,14 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       return false;
     }
 
-    if (!allowAnonymous) {
-      // Is this owned by one if the authors in this.identityMucs?
-      if (!this.isAuthorKnown(cubeInfo.key, trustedOnly)) {
-        if (!allowRepliedTo) return false;
-        // does it have a reply by one of the authors in this.identityMucs?
-        if (!this.hasReplyByKnownAuthor(cubeInfo.key, trustedOnly)) return false;
-      }
+    if (this.authorshipRequirement >= AuthorshipRequirement.trustedOnly &&
+        !this.isAuthorTrusted(cubeInfo.key)) {
+      return false;
+    }
+    if (this.authorshipRequirement >= AuthorshipRequirement.hasAuthor &&
+        !this.isAuthorTrusted(cubeInfo.key) &&
+        !this.recursiveTrustedAuthorInThread(cubeInfo.key)) {
+      return false;
     }
 
     // TODO: handle continuation chains
@@ -101,23 +104,39 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     return true;
   }
 
-  isAuthorKnown(key: CubeKey, trustedOnly: boolean = this.trustedOnly): boolean {
+  isAuthorTrusted(key: CubeKey): boolean {
     // TODO: maybe following the ownership chain of this cube up to the author
     // is actually faster than checking all know posts
     for (const [authorkeystring, knownSet] of this.authorsCubes.entries()) {
       if(knownSet.has(key.toString('hex'))) {
-        if (!trustedOnly || this.trustedMucs.has(authorkeystring)) return true;
+        // Author is known! Depending on the specified authorship requirements,
+        // this might already be enough or they might be trusted as well.
+        if (this.authorshipRequirement <= AuthorshipRequirement.hasAuthor ||
+            this.trustedMucs.has(authorkeystring)) return true;
       }
     }
     return false;
   }
 
-  hasReplyByKnownAuthor(key: CubeKey, trustedOnly: boolean = this.trustedOnly): boolean {
-    const replies: ZwRelationship[] =
+  recursiveTrustedAuthorInThread(key: CubeKey, alreadyTraversed: string[] = []): boolean {
+    // prevent endless recursion
+    if (alreadyTraversed.includes(key.toString('hex'))) return false;
+    alreadyTraversed.push(key.toString('hex'));
+
+    // check down the tree to find posts a trusted author has replied to
+    let toCheck: ZwRelationship[];
+    toCheck =
       this.getReverseRelationships(key, ZwRelationshipType.REPLY_TO);
-    for (const reply of replies) {
-      if (this.isAuthorKnown(reply.remoteKey, trustedOnly)) return true;
-      if (this.hasReplyByKnownAuthor(reply.remoteKey, trustedOnly)) return true;
+    // if specified authorship requirements are lax enough, also check
+    // up the tree to find replies to a trusted author's posts
+    if (this.authorshipRequirement <= AuthorshipRequirement.trustedInTree) {
+      const replies: ZwRelationship[] = ZwFields.get(this.cubeStore.getCube(key))?.
+        getRelationships(ZwRelationshipType.REPLY_TO);
+      if (replies) toCheck = toCheck.concat(replies);
+    }
+    for (const other of toCheck) {
+      if (this.isAuthorTrusted(other.remoteKey)) return true;
+      if (this.recursiveTrustedAuthorInThread(other.remoteKey, alreadyTraversed)) return true;
     }
     return false;
   }
