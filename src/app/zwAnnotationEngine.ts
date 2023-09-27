@@ -9,29 +9,34 @@ import { MediaTypes, ZwFieldLengths, ZwFieldType, ZwFields, ZwRelationship, ZwRe
 import { Buffer } from 'buffer';
 import { CubeType } from "../core/cubeDefinitions";
 
-export enum AuthorshipRequirement {
+// TODO: Split post selection and associated criteria out of here, moving it to
+// a new class ContentSelector. Instead of purely binary criteria, assign them
+// scores to heuristically determine the best posts to show based on multiple
+// factors.
+
+export enum SubscriptionRequirement {
   none = 0,
-  hasAuthor = 1,
-  trustedInTree = 2,
-  trustedReply = 3,
-  trustedOnly = 4,
+  subscribedInTree = 2,
+  subscribedReply = 3,
+  subscribedOnly = 4,
 }
 
 export class ZwAnnotationEngine extends AnnotationEngine {
   identityMucs: Map<string, CubeInfo> = new Map();
-  trustedMucs: Map<string, CubeInfo> = new Map();
+  subscribedMucs: Map<string, CubeInfo> = new Map();
   authorsCubes: Map<string, Set<string>> = new Map();
 
   constructor(
       cubeStore: CubeStore,
-      private authorshipRequirement: AuthorshipRequirement = AuthorshipRequirement.none,
-      trustedMucs: CubeKey[] = undefined,
+      private subscriptionRequirement: SubscriptionRequirement = SubscriptionRequirement.none,
+      subscribedMucs: CubeKey[] = undefined,
       private autoLearnMucs: boolean = true,
+      private allowAnonymous: boolean = false,
       limitRelationshipTypes: Map<number, number> = ZwRelationshipLimits,
     ) {
     super(cubeStore, ZwFields.get, ZwRelationship, limitRelationshipTypes);
-    if (trustedMucs) {
-      for (const key of trustedMucs) this.trustMuc(key);
+    if (subscribedMucs) {
+      for (const key of subscribedMucs) this.trustMuc(key);
     }
     if (autoLearnMucs === true) {
       this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
@@ -76,13 +81,19 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       return false;
     }
 
-    if (this.authorshipRequirement >= AuthorshipRequirement.trustedOnly &&
-        !this.isAuthorTrusted(cubeInfo.key)) {
+    // Reject anonymous posts unless explicitly allowed
+    if (!this.allowAnonymous && !this.isAuthorKnown(cubeInfo.key, false)) {
       return false;
     }
-    if (this.authorshipRequirement >= AuthorshipRequirement.hasAuthor &&
-        !this.isAuthorTrusted(cubeInfo.key) &&
-        !this.recursiveTrustedAuthorInThread(cubeInfo.key)) {
+    // Reject posts by non-subscribed authors (unless laxer requirements specified)
+    if (this.subscriptionRequirement >= SubscriptionRequirement.subscribedOnly &&
+        !this.isAuthorKnown(cubeInfo.key, true)) {
+      return false;
+    }
+    // Reject thread withut subscribed author participation (unless laxer requirements specified)
+    if (this.subscriptionRequirement >= SubscriptionRequirement.subscribedInTree &&
+        !this.isAuthorKnown(cubeInfo.key, true) &&
+        !this.recursiveSubscribedAuthorInThread(cubeInfo.key)) {
       return false;
     }
 
@@ -104,39 +115,42 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     return true;
   }
 
-  isAuthorTrusted(key: CubeKey): boolean {
+  isAuthorKnown(key: CubeKey, mustBeSubscribed: boolean): boolean {
     // TODO: maybe following the ownership chain of this cube up to the author
     // is actually faster than checking all know posts
     for (const [authorkeystring, knownSet] of this.authorsCubes.entries()) {
       if(knownSet.has(key.toString('hex'))) {
         // Author is known! Depending on the specified authorship requirements,
-        // this might already be enough or they might be trusted as well.
-        if (this.authorshipRequirement <= AuthorshipRequirement.hasAuthor ||
-            this.trustedMucs.has(authorkeystring)) return true;
+        // this might already be enough or they might be subscribed as well.
+        if (mustBeSubscribed) {
+          if (this.subscribedMucs.has(authorkeystring)) return true;
+        } else {
+          return true;
+        }
       }
     }
     return false;
   }
 
-  recursiveTrustedAuthorInThread(key: CubeKey, alreadyTraversed: string[] = []): boolean {
+  recursiveSubscribedAuthorInThread(key: CubeKey, alreadyTraversed: string[] = []): boolean {
     // prevent endless recursion
     if (alreadyTraversed.includes(key.toString('hex'))) return false;
     alreadyTraversed.push(key.toString('hex'));
 
-    // check down the tree to find posts a trusted author has replied to
+    // check down the tree to find posts a subscribed author has replied to
     let toCheck: ZwRelationship[];
     toCheck =
       this.getReverseRelationships(key, ZwRelationshipType.REPLY_TO);
     // if specified authorship requirements are lax enough, also check
-    // up the tree to find replies to a trusted author's posts
-    if (this.authorshipRequirement <= AuthorshipRequirement.trustedInTree) {
+    // up the tree to find replies to a subscribed author's posts
+    if (this.subscriptionRequirement <= SubscriptionRequirement.subscribedInTree) {
       const replies: ZwRelationship[] = ZwFields.get(this.cubeStore.getCube(key))?.
         getRelationships(ZwRelationshipType.REPLY_TO);
       if (replies) toCheck = toCheck.concat(replies);
     }
     for (const other of toCheck) {
-      if (this.isAuthorTrusted(other.remoteKey)) return true;
-      if (this.recursiveTrustedAuthorInThread(other.remoteKey, alreadyTraversed)) return true;
+      if (this.isAuthorKnown(other.remoteKey, true)) return true;
+      if (this.recursiveSubscribedAuthorInThread(other.remoteKey, alreadyTraversed)) return true;
     }
     return false;
   }
@@ -278,7 +292,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   }
 
   /**
-   * Add this MUC to the list of trusted MUCs.
+   * Add this MUC to the list of subscribed MUCs.
    * This is only relevant for determining displayability, and only when using
    * certain settings.
    * If the MUC is not yet known, it will also be marked known.
@@ -288,10 +302,10 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     let mucInfo: CubeInfo;
     if (input instanceof CubeInfo) mucInfo = input;
     else mucInfo = this.cubeStore.getCubeInfo(input);
-    // TODO: We could probably skip this very inefficient check for trusted MUCs.
+    // TODO: We could probably skip this very inefficient check for subscribed MUCs.
     if (this.validateMuc(mucInfo)) {
       this.identityMucs.set(mucInfo.key.toString('hex'), mucInfo);
-      this.trustedMucs.set(mucInfo.key.toString('hex'), mucInfo);
+      this.subscribedMucs.set(mucInfo.key.toString('hex'), mucInfo);
       // logger.trace(`ZwAnnotationEngine: Trusting Identity MUC ${key.toString('hex')}, user name ${id.name}`);
     }
   }
