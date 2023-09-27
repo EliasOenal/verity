@@ -229,6 +229,25 @@ export class Identity {
       (subscription: CubeKey) => subscription.equals(remoteIdentity));
   }
 
+  recursiveWebOfSubscriptions(maxDepth: number = 1, curDepth: number = 0): CubeKey[] {
+    let recursiveSubs: CubeKey[] = this.subscriptionRecommendations;
+    if (curDepth < maxDepth) {
+      for (const sub of this._subscriptionRecommendations) {
+        const muc: Cube = this.cubeStore.getCube(sub);
+        if (!muc) continue;
+        let id: Identity;
+        try {
+          id = new Identity(this.cubeStore, muc, undefined, false);
+        } catch(err) { continue; }
+        if (!id) continue;
+        recursiveSubs = recursiveSubs.concat(
+          id.recursiveWebOfSubscriptions(maxDepth, curDepth+1)
+        );
+      }
+    }
+    return recursiveSubs;
+  }
+
   /**
   * Compiles this Identity into a MUC for publishing.
   * Make sure to call this after changes have been performed so they

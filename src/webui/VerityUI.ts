@@ -110,18 +110,6 @@ export class VerityUI {
     }
   }
 
-  navPostsWithAuthors() {
-    logger.trace("VerityUI: Displaying posts associated with a MUC");
-    this.navbarMarkActive("navPostsWithAuthors");
-    this.annotationEngine = new ZwAnnotationEngine(
-      this.node.cubeStore,
-      SubscriptionRequirement.none,
-      [],       // no subscriptions as they don't play a role in this mode
-      true,     // auto-learn MUCs (posts associated with any Identity MUC are okay)
-      false);   // do not allow anonymous posts
-    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
-  }
-
   navPostsAll() {
     logger.trace("VerityUI: Displaying all posts including anonymous ones");
     this.navbarMarkActive("navPostsAll");
@@ -134,29 +122,15 @@ export class VerityUI {
     this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
-  navPostsSubscribedStrict() {
-    if (!this.identity) return;
-    logger.trace("VerityUI: Displaying posts from subscribed authors strictly");
-    this.navbarMarkActive("navPostsSubscribedStrict");
+  navPostsWithAuthors() {
+    logger.trace("VerityUI: Displaying posts associated with a MUC");
+    this.navbarMarkActive("navPostsWithAuthors");
     this.annotationEngine = new ZwAnnotationEngine(
       this.node.cubeStore,
-      SubscriptionRequirement.subscribedOnly,  // strictly show subscribed
-      this.identity.subscriptionRecommendations,  // subscriptions
-      false,     // do no auto-learn MUCs (strictly only posts by subscribed will be displayed)
-      false);    // do not allow anonymous posts
-    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
-  }
-
-  navPostsSubscribedReplied() {
-    if (!this.identity) return;
-    logger.trace("VerityUI: Displaying posts from subscribed authors and their preceding posts");
-    this.navbarMarkActive("navPostsSubscribedReplied");
-    this.annotationEngine = new ZwAnnotationEngine(
-      this.node.cubeStore,
-      SubscriptionRequirement.subscribedReply,
-      this.identity.subscriptionRecommendations,  // subscriptions
-      true,      // auto-learn MUCs (to be able to display authors when available)
-      false);    // do not allow anonymous posts
+      SubscriptionRequirement.none,
+      [],       // no subscriptions as they don't play a role in this mode
+      true,     // auto-learn MUCs (posts associated with any Identity MUC are okay)
+      false);   // do not allow anonymous posts
     this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
@@ -169,6 +143,34 @@ export class VerityUI {
       SubscriptionRequirement.subscribedInTree,
       this.identity.subscriptionRecommendations,  // subscriptions
       true,      // auto-learn MUCs (to be able to display authors when available)
+      false);    // do not allow anonymous posts
+    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
+  }
+
+  navPostsSubscribedReplied(wotDepth: number = 0) {
+    if (!this.identity) return;
+    logger.trace("VerityUI: Displaying posts from subscribed authors and their preceding posts");
+    let navName: string = "navPostsSubscribedReplied";
+    if (wotDepth) navName += wotDepth;
+    this.navbarMarkActive(navName);
+    this.annotationEngine = new ZwAnnotationEngine(
+      this.node.cubeStore,
+      SubscriptionRequirement.subscribedReply,
+      this.identity.recursiveWebOfSubscriptions(wotDepth),  // subscriptions
+      true,      // auto-learn MUCs (to be able to display authors when available)
+      false);    // do not allow anonymous posts
+    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
+  }
+
+  navPostsSubscribedStrict() {
+    if (!this.identity) return;
+    logger.trace("VerityUI: Displaying posts from subscribed authors strictly");
+    this.navbarMarkActive("navPostsSubscribedStrict");
+    this.annotationEngine = new ZwAnnotationEngine(
+      this.node.cubeStore,
+      SubscriptionRequirement.subscribedOnly,  // strictly show subscribed
+      this.identity.subscriptionRecommendations,  // subscriptions
+      false,     // do no auto-learn MUCs (strictly only posts by subscribed will be displayed)
       false);    // do not allow anonymous posts
     this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
   }
