@@ -4,7 +4,7 @@ import { CubeInfo } from "../../src/core/cubeInfo";
 import { CubeStore } from "../../src/core/cubeStore";
 import { AnnotationEngine } from "../../src/core/annotationEngine";
 import { Identity } from "../../src/app/identity";
-import { ZwAnnotationEngine } from "../../src/app/zwAnnotationEngine";
+import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zwAnnotationEngine";
 import { makePost } from "../../src/app/zwCubes"
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
@@ -16,12 +16,17 @@ describe('ZwAnnotationEngine', () => {
   let annotationEngine: ZwAnnotationEngine;
   let reduced_difficulty = 0;
 
-  describe('default config', () => {
+  describe('basic config', () => {
     beforeEach(async () => {
       await sodium.ready;
       cubeStore = new CubeStore(false, reduced_difficulty);
       await cubeStore.readyPromise;
-      annotationEngine = new ZwAnnotationEngine(cubeStore);
+      annotationEngine = new ZwAnnotationEngine(
+        cubeStore,
+        SubscriptionRequirement.none,
+        [],     // no subscriptions as they don't play a role for this group of tests
+        true,   // auto-learn MUCs cause why not (not actually used)
+        true);  // allow anonymous posts cause all posts in this group of tests are anonymous
     }, 3000);
 
     describe('reverse relationships', () => {

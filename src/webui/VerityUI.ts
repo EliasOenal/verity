@@ -8,7 +8,7 @@ import { Identity } from '../app/identity';
 import { FieldParser } from '../core/fieldParser';
 import { zwFieldDefinition } from '../app/zwFields';
 import { isBrowser } from 'browser-or-node';
-import { AuthorshipRequirement, ZwAnnotationEngine } from '../app/zwAnnotationEngine';
+import { SubscriptionRequirement, ZwAnnotationEngine } from '../app/zwAnnotationEngine';
 import { makePost } from '../app/zwCubes';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
@@ -115,16 +115,22 @@ export class VerityUI {
     this.navbarMarkActive("navPostsWithAuthors");
     this.annotationEngine = new ZwAnnotationEngine(
       this.node.cubeStore,
-      AuthorshipRequirement.hasAuthor,
+      SubscriptionRequirement.none,
       [],       // no subscriptions as they don't play a role in this mode
-      true);    // auto-learn MUCs (posts associated with any Identity MUC are okay)
+      true,     // auto-learn MUCs (posts associated with any Identity MUC are okay)
+      false);   // do not allow anonymous posts
     this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
   navPostsAll() {
     logger.trace("VerityUI: Displaying all posts including anonymous ones");
     this.navbarMarkActive("navPostsAll");
-    this.annotationEngine = new ZwAnnotationEngine(this.node.cubeStore);
+    this.annotationEngine = new ZwAnnotationEngine(
+      this.node.cubeStore,
+      SubscriptionRequirement.none,  // show all posts
+      [],       // subscriptions don't play a role in this mode
+      true,     // auto-learn MUCs to display authorship info if available
+      true);    // allow anonymous posts
     this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
@@ -134,9 +140,10 @@ export class VerityUI {
     this.navbarMarkActive("navPostsSubscribedStrict");
     this.annotationEngine = new ZwAnnotationEngine(
       this.node.cubeStore,
-      AuthorshipRequirement.trustedOnly,  // strictly show subscribed
+      SubscriptionRequirement.subscribedOnly,  // strictly show subscribed
       this.identity.subscriptionRecommendations,  // subscriptions
-      false);   // do no auto-learn MUCs (strictly only posts by subscribed will be displayed)
+      false,     // do no auto-learn MUCs (strictly only posts by subscribed will be displayed)
+      false);    // do not allow anonymous posts
     this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
@@ -146,9 +153,10 @@ export class VerityUI {
     this.navbarMarkActive("navPostsSubscribedReplied");
     this.annotationEngine = new ZwAnnotationEngine(
       this.node.cubeStore,
-      AuthorshipRequirement.trustedReply,
+      SubscriptionRequirement.subscribedReply,
       this.identity.subscriptionRecommendations,  // subscriptions
-      true);     // auto-learn MUCs (to be able to display authors when available)
+      true,      // auto-learn MUCs (to be able to display authors when available)
+      false);    // do not allow anonymous posts
     this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
@@ -158,9 +166,10 @@ export class VerityUI {
     this.navbarMarkActive("navPostsSubscribedInTree");
     this.annotationEngine = new ZwAnnotationEngine(
       this.node.cubeStore,
-      AuthorshipRequirement.trustedInTree,
+      SubscriptionRequirement.subscribedInTree,
       this.identity.subscriptionRecommendations,  // subscriptions
-      true);     // auto-learn MUCs (to be able to display authors when available)
+      true,      // auto-learn MUCs (to be able to display authors when available)
+      false);    // do not allow anonymous posts
     this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
