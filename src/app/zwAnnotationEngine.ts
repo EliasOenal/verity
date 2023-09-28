@@ -349,17 +349,24 @@ export class ZwAnnotationEngine extends AnnotationEngine {
 
     // traverse cube and unknown subcubes
     this.learnAuthorsPostsRecursion(mucInfo, mucInfo);
-  }
+
+    // Let our listeners know we've just processed a new or updated MUC.
+    // For example, PostView may use this to update the displayed authorship information.
+    this.emit("authorUpdated", mucInfo);  }
 
   /** Recursive part of learnAuthorsPosts */
-  private learnAuthorsPostsRecursion(mucInfo: CubeInfo, postInfo: CubeInfo): void {
+  private learnAuthorsPostsRecursion(mucInfo: CubeInfo, postInfo: CubeInfo, alreadyTraversed: Set<string> = new Set()): void {
     const muckeystring: string = mucInfo.key.toString('hex');
+    if (alreadyTraversed.has(muckeystring)) return;  // prevent endless recursion
     // If we either don't have this cube or know it already, do nothing...
     // except if it's a MUC, then it could have changed
     if (postInfo?.cubeType != CubeType.CUBE_TYPE_MUC && this.authorsCubes.has(muckeystring)) {
       return;
     }
-    // otherwise, process all MYPOST references
+    // Otherwise, process all MYPOST references.
+    // Mark this cube as already traversed to prevent endless recursion in case of
+    // maliciously crafted circular references.
+    alreadyTraversed.add(muckeystring);
     const fields: ZwFields = this.getFields(postInfo.getCube());
     if (!fields) return;
     const postRefs: ZwRelationship[] = fields.getRelationships(ZwRelationshipType.MYPOST);
@@ -377,7 +384,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
         if (postInfo) {
           this.emit('authorLearned', postInfo);
           this.emitIfCubeDisplayable(postInfo);
-          this.learnAuthorsPostsRecursion(mucInfo, postInfo);
+          this.learnAuthorsPostsRecursion(mucInfo, postInfo, alreadyTraversed);
         }
       }
     }

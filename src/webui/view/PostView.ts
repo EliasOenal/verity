@@ -92,17 +92,17 @@ export class PostView {
     if (!authorelementCollection) return;
     const authorelement = authorelementCollection[0] as HTMLElement;
     if (!authorelement) return;
-    authorelement.innerText = '';  // start with a clean slate
     authorelement.setAttribute("id", data.keystring + "-author");
     authorelement.setAttribute("class", "verityCubeAuthor");
     if (data.authorkey) authorelement.setAttribute("title", "MUC key " + data.authorkey);
-    authorelement.appendChild(document.createTextNode(data.author));
+    authorelement.innerText = data.author;
 
     const subscribeButton: HTMLButtonElement =
     data.displayElement.getElementsByClassName("veritySubscribeButton")[0] as HTMLButtonElement;
     if (data.authorkey) {
       subscribeButton.setAttribute("data-authorkey", data.authorkey);
       if (data.authorsubscribed) subscribeButton.classList.add("active");
+      else subscribeButton.classList.remove("active");
     } else {
       subscribeButton.setAttribute("style", "display: none");
     }

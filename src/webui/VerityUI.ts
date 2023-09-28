@@ -92,22 +92,22 @@ export class VerityUI {
     this.node.cubeStore.addCube(post);
   }
 
-  subscribeUser(subscribeButton: HTMLButtonElement) {
+  async subscribeUser(subscribeButton: HTMLButtonElement) {
     const authorkeystring = subscribeButton.getAttribute("data-authorkey");
     const authorkey = Buffer.from(authorkeystring, 'hex');
     // subscribing or unsubscribing?
     if (subscribeButton.classList.contains("active")) {
-      subscribeButton.classList.remove("active");
       logger.trace("VerityUI: Unsubscribing from " + authorkeystring);
       this.identity.removeSubscriptionRecommendation(authorkey);
-      this.identity.store();
-
+      subscribeButton.classList.remove("active");
+      await this.identity.store();
     } else {
-      subscribeButton.classList.add("active");
       logger.trace("VerityUI: Subscribing to " + authorkeystring);
       this.identity.addSubscriptionRecommendation(authorkey);
-      this.identity.store();
+      subscribeButton.classList.add("active");
+      await this.identity.store();
     }
+    this.postDisplay.redisplayAuthor(this.node.cubeStore.getCubeInfo(authorkeystring));
   }
 
   navPostsAll() {
