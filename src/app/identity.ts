@@ -131,8 +131,7 @@ export class Identity {
   keyBackupCube: CubeKey = undefined;
 
   /** List of own posts, sorted by date descending */
-  posts: Array<string> = [];  // binary Cube keys (Buffers) don't compare well with standard methods
-  // TODO add subscription_recommendations
+  posts: Array<string> = [];  // using strings as binary Cube keys (Buffers) don't compare well with standard methods
 
   /** When the user tries to rebuild their Identity MUC too often, we'll
    * remember their request in this promise. Any subsequent Identity changes

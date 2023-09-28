@@ -13,6 +13,7 @@ import { logger } from "../core/logger";
 import { Buffer } from 'buffer';
 import multiavatar from '@multiavatar/multiavatar'
 
+// TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
   binarykey?: CubeKey;
   keystring?: string;
@@ -45,7 +46,7 @@ export class PostDisplay {
       private view: PostView = new PostView()) {
     this.view = new PostView();
     this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey)); // list cubes
-    this.annotationEngine.on('authorLearned', (cubeInfo: CubeInfo) => this.redisplayCubeAuthor(cubeInfo));
+    this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
     this.redisplayPosts();
     // this.cubeAuthorRedisplayTimer = setInterval(() => this.redisplayAllCubeAuthors(), 5000);
   }
@@ -114,16 +115,32 @@ export class PostDisplay {
     this.displayedPosts.set(data.keystring, data);  // remember the displayed post
   }
 
-
-  redisplayCubeAuthor(cubeInfo: CubeInfo) {
-    const postData: PostData = this.displayedPosts.get(cubeInfo.key.toString('hex'));
+  /** Redisplays authorship information for a single post */
+  redisplayPostAuthor(key: CubeKey | string) {
+    if (key instanceof Buffer) key = key.toString('hex');
+    const postData: PostData = this.displayedPosts.get(key);
     if (!postData) return;
     this.findAuthor(postData);  // this (re-)sets data.author and data.authorkey
     this.view.redisplayCubeAuthor(postData);
   }
 
+  /** Redisplays authorship information for all of one author's posts */
+  redisplayAuthor(mucInfo: CubeInfo) {
+    let id: Identity;
+    // maybe TODO: Recreating the whole Identity is unnecessary.
+    // Identity should split out the post list retrieval code into a static method.
+    try {
+      id = new Identity(this.cubeStore, mucInfo.getCube(), undefined, false);
+    } catch(error) { return; }
+    for (const post of id.posts) {
+      const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(post);
+      if (!cubeInfo) continue;
+      this.redisplayPostAuthor(cubeInfo.key);
+    }
+  }
+
   // Maybe TODO remove? This should no longer be needed.
-  redisplayAllCubeAuthors(): void {
+  redisplayAllAuthors(): void {
     logger.trace("CubeDisplay: Redisplaying all cube authors");
     for (const data of this.displayedPosts.values()) {
       this.findAuthor(data);  // this (re-)sets data.author and data.authorkey
