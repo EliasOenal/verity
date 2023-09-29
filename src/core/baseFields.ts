@@ -4,19 +4,7 @@ import { CubeKey } from './cube';
 import { logger } from './logger';
 
 import { Buffer } from 'buffer';
-import { FieldParser } from './fieldParser';
-
-export type EnumType =  { [key: number|string]: number|string|undefined };
-export type FieldNumericalParam = { [key: number]: number | undefined };
-export type FieldRunningOrder = { [key: number]: number };
-
-export interface FieldDefinition {
-    fieldNames: EnumType;
-    fieldLengths: FieldNumericalParam;  // maps field IDs to field lenghths, e.g. FIELD_LENGTHS defined in field.ts
-    positionalFields: FieldNumericalParam;
-    fieldObjectClass: any,     // the Field class you'd like to use, e.g. TopLevelField for... you know... top-level fields. Using type any as it turns out to be much to complex to declare a type of "class".
-    firstFieldOffset: number;
-}
+import { FieldDefinition, FieldParser } from './fieldParser';
 
 /**
  * A field is a data entry in binary TLV data.
@@ -25,7 +13,7 @@ export interface FieldDefinition {
  * You should best consider this an abstract base class, although it is not
  * technically abstract.
  */
-export abstract class BaseField {
+export class BaseField {
     type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Applications may or may not chose to keep their application-level fields compatible with our top-level numbering.
     length: number;  // TODO remove -- length of field value not including header, which is completely unnecessary as it's always equal to value.length
     value: Buffer;

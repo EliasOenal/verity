@@ -1,14 +1,26 @@
 import { BinaryDataError, FieldError } from "./cubeDefinitions";
-import { BaseFields, BaseField, FieldDefinition } from "./baseFields";
+import { BaseFields, BaseField } from "./baseFields";
 import { logger } from "./logger";
 import { NetConstants } from "./networkDefinitions";
 import { cubeFieldDefinition } from "./cubeFields";
 
 import { Buffer } from 'buffer';
 
+export type EnumType =  { [key: number|string]: number|string|undefined };
+export type FieldNumericalParam = { [key: number]: number | undefined };
+export type PositionalFields = { [key: number]: number };
+
+export interface FieldDefinition {
+    fieldNames: EnumType;
+    fieldLengths: FieldNumericalParam;  // maps field IDs to field lenghths, e.g. FIELD_LENGTHS defined in field.ts
+    positionalFront: FieldNumericalParam;
+    positionalBack: FieldNumericalParam;
+    fieldObjectClass: any,     // the Field class you'd like to use, e.g. TopLevelField for... you know... top-level fields. Using type any as it turns out to be much to complex to declare a type of "class".
+    firstFieldOffset: number;
+}
+
 export class FieldParser {
 
-  // TODO: add support for positional fields
   // TODO: add support for flag-type fields
 
   private static _toplevel = undefined;
@@ -41,6 +53,7 @@ export class FieldParser {
    * Takes an array of fields and gets you a Buffer of matching binary data.
    * @param fields An array of fields, which must be of the type described by
    *               this.fieldDef.fieldType
+   * @returns The compiled binary data
    */
   compileFields(fields: BaseFields | Array<BaseField>): Buffer {
     if (!(fields instanceof BaseFields)) fields = new BaseFields(fields, this.fieldDef);
@@ -61,7 +74,8 @@ export class FieldParser {
   decompileFields(binaryData: Buffer): Array<BaseField> {
     if (binaryData === undefined)
       throw new BinaryDataError("Binary data not initialized");
-    const fields = [];
+    const fields: BaseField[] = [];
+    const {backPositionals, dataLength} = this.decompileBackPositionalFields(binaryData);
 
     // Respect initial offset. For top-level headers, this leaves room for the date field
     let byteIndex = this.fieldDef.firstFieldOffset;
@@ -69,29 +83,56 @@ export class FieldParser {
     let fieldIndex = 0;
 
     // traverse binary data and parse fields:
-    while (byteIndex < binaryData.length) {
-      const fieldStartsAtByte = byteIndex;
-      let type: number;
-      let length: number;
+    while (byteIndex < dataLength) {
       fieldIndex++;  // first field has number one
-      if (this.isPositionalField(fieldIndex)) {  // positional = no header
-        type = this.fieldDef.positionalFields[fieldIndex];
-        length = this.fieldDef.fieldLengths[type];
-      } else {  // "regular", non-positional field sporting a TLV header
-        ({type, length, byteIndex} = this.readTLVHeader(binaryData, byteIndex));
-      }
-
-      if (byteIndex + length <= binaryData.length) {  // Check if enough data for value field
-        const value = binaryData.slice(byteIndex, byteIndex + length);
-        fields.push(new this.fieldDef.fieldObjectClass(type, length, value, fieldStartsAtByte));
-        byteIndex += length;
-      } else {
-        throw new BinaryDataError("Data ended unexpectedly while reading value of field");
-      }
+      let field: BaseField;
+      ({field, byteIndex} = this.decompileField(binaryData, byteIndex, fieldIndex))
+      fields.push(field);
     }
-    return fields;
+    return fields.concat(backPositionals);
 }
 
+  private decompileField(binaryData: Buffer, byteIndex: number, fieldIndex: number): {field: BaseField, byteIndex: number } {
+    const fieldStartsAtByte = byteIndex;
+    let type: number, length: number;
+    type = this.frontPositionalFieldType(fieldIndex);  // positional field?
+    if (type) length = this.fieldDef.fieldLengths[type];
+    else ({type, length, byteIndex} = this.readTLVHeader(binaryData, byteIndex));
+
+    if (byteIndex + length <= binaryData.length) {  // Check if enough data for value field
+      const value = binaryData.subarray(byteIndex, byteIndex + length);
+      byteIndex += length;
+      const field: BaseField = new this.fieldDef.fieldObjectClass(type, length, value, fieldStartsAtByte);
+      return { field, byteIndex }
+    } else {
+      throw new BinaryDataError("Data ended unexpectedly while reading value of field");
+    }
+  }
+
+  private decompileBackPositionalFields(binaryData: Buffer): { backPositionals: BaseField[]; dataLength: number; } {
+    const backPositionals: BaseField[] = [];
+    let dataLength: number = binaryData.length;
+    let backFieldIndex = 1;  // we always start counting fields at 1, even from the back
+    let type = this.backPositionalFieldType(backFieldIndex);
+    while (type !== undefined ) {
+      const fieldLength = this.fieldDef.fieldLengths[type];
+      if (dataLength >= fieldLength) {  // Check if enough data for field value
+        const fieldStartsAtByte = dataLength-fieldLength;
+        const value = binaryData.subarray(fieldStartsAtByte, dataLength);
+        const field: BaseField = new this.fieldDef.fieldObjectClass(
+          type, fieldLength, value, dataLength-fieldLength-1);
+        backPositionals.unshift(field);
+      } else {
+        throw new BinaryDataError("Data too short, cannot contain all back positional fields specified.");
+      }
+      // update counters
+      backFieldIndex++;
+      dataLength -= fieldLength;
+      // prepare next round
+      type = this.backPositionalFieldType(backFieldIndex);
+    }
+    return { backPositionals, dataLength };
+  }
 
   /**
    * Upgrade fields to full fields.
@@ -113,11 +154,14 @@ export class FieldParser {
   }
   // TODO de-uglify
   static getFieldHeaderLength(fieldType: number, fieldDef: FieldDefinition): number {
-    if (Object.values(fieldDef.positionalFields).includes(fieldType)) return 0;
-    else return (fieldDef.fieldLengths[fieldType] == undefined) ?
-      NetConstants.MESSAGE_CLASS_SIZE + NetConstants.FIELD_LENGTH_SIZE :
-      NetConstants.MESSAGE_CLASS_SIZE;
-
+    if (Object.values(fieldDef.positionalFront).includes(fieldType) ||
+        Object.values(fieldDef.positionalBack).includes(fieldType)) {
+      return 0;
+    } else {
+      return (fieldDef.fieldLengths[fieldType] == undefined) ?
+        NetConstants.MESSAGE_CLASS_SIZE + NetConstants.FIELD_LENGTH_SIZE :
+        NetConstants.MESSAGE_CLASS_SIZE;
+    }
   }
 
   private updateTLVBinaryData(binaryData: Buffer, fields: Array<BaseField>): void {
@@ -127,11 +171,11 @@ export class FieldParser {
     for (let fieldIndex: number = 1; fieldIndex <= fields.length; fieldIndex++) {
       const field: BaseField = fields[fieldIndex-1];
       // First, handle the field header:
-      if (this.isPositionalField(fieldIndex)) {
+      if (this.isPositionalField(fields, fieldIndex)) {
         // assert the user has supplied the correct field
-        if (field.type !== this.fieldDef.positionalFields[fieldIndex]) {
-          logger.error("FieldParser: Supplied field definition requires field type " + this.fieldDef.positionalFields[fieldIndex] + " at position " + fieldIndex + ", however supplied field is of type " + field.type);
-          throw new FieldError("FieldParser: Supplied field definition requires field type " + this.fieldDef.positionalFields[fieldIndex] + " at position " + fieldIndex + ", however supplied field is of type " + field.type);
+        if (field.type !== this.positionalFieldType(fields.length, fieldIndex)) {
+          logger.error("FieldParser: Supplied field definition requires field type " + this.positionalFieldType(fields.length, fieldIndex) + " at position " + fieldIndex + ", however supplied field is of type " + field.type);
+          throw new FieldError("FieldParser: Supplied field definition requires field type " + this.positionalFieldType(fields.length, fieldIndex) + " at position " + fieldIndex + ", however supplied field is of type " + field.type);
         }
       } else {  // only regular, non-positional fields have a header
         byteIndex = this.writeTLVHeader(binaryData, field.type, field.length, byteIndex);
@@ -169,13 +213,13 @@ export class FieldParser {
     return index;
   }
 
-  private readTLVHeader(binaryData: Buffer, index: number): { type: number, length: number, byteIndex: number } {
+  private readTLVHeader(binaryData: Buffer, byteIndex: number): { type: number, length: number, byteIndex: number } {
     // We first parse just type in order to detect whether a length field is present.
     // If the length field is present, we parse two bytes:
     // the first byte contains 6 bits of type information
     // and the last two bits of the first byte and the second byte contain the length
     // information.
-    const type: number = binaryData[index] & 0xFC;
+    const type: number = binaryData[byteIndex] & 0xFC;
     const typestring: string = type.toString();  // object keys are strings, nothing I can do about it
     if ( !(Object.keys(this.fieldDef.fieldLengths).includes(typestring)) ) {
       throw new FieldError("Invalid TLV type " + typestring +", available types are: " + Object.keys(this.fieldDef.fieldLengths));
@@ -184,18 +228,45 @@ export class FieldParser {
     let length: number;
     if (implicit === undefined) {
       // Parse length
-      length = binaryData.readUInt16BE(index) & 0x03FF;
-      index += 2;
+      length = binaryData.readUInt16BE(byteIndex) & 0x03FF;
+      byteIndex += 2;
     } else { // Implicit length saved one byte
       length = implicit;
-      index += 1;
+      byteIndex += 1;
     }
-    return { type, length, byteIndex: index };
+    return { type, length, byteIndex };
   }
 
   // helper function to improve readability
-  private isPositionalField(fieldIndex: number) {
-    return this.fieldDef.positionalFields.hasOwnProperty(fieldIndex.toString());
+  private isPositionalField(fields: BaseField[], fieldIndex: number): boolean {
+    return this.fieldDef.positionalFront.hasOwnProperty(fieldIndex.toString()) ||
+           this.fieldDef.positionalBack.hasOwnProperty((fields.length-fieldIndex+1).toString());
   }
 
+  private frontPositionalFieldType(fieldIndex: number): number {
+    if (this.fieldDef.positionalFront.hasOwnProperty(fieldIndex.toString())) {
+      return this.fieldDef.positionalFront[fieldIndex];
+    } else {
+      return undefined;
+    }
+  }
+
+  private backPositionalFieldType(reverseFieldIndex: number): number {
+    if (this.fieldDef.positionalBack.hasOwnProperty((reverseFieldIndex).toString())) {
+      return this.fieldDef.positionalBack[reverseFieldIndex];
+    }
+    else return undefined;
+  }
+
+
+  // Note this can obviously only be used on compilation as during decompilation
+  // the total field count is not know yet.
+  // Thus, this is purely a helper method for compilation.
+  private positionalFieldType(totalFieldCount: number, fieldIndex: number): number {
+    // front positional field?
+    const front = this.frontPositionalFieldType(fieldIndex);
+    if (front !== undefined) return front;
+    // back positional field?
+    return this.backPositionalFieldType(totalFieldCount - fieldIndex + 1);
+  }
 }
