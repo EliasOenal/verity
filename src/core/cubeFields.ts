@@ -1,5 +1,6 @@
-import { BaseField, BaseRelationship, BaseFields, FieldDefinition, FieldNumericalParam, FieldRunningOrder as PositionalFields } from "./baseFields";
+import { BaseField, BaseRelationship, BaseFields } from "./baseFields";
 import { Settings } from "./config";
+import { FieldNumericalParam, PositionalFields, FieldDefinition } from "./fieldParser";
 import { NetConstants } from "./networkDefinitions";
 
 import { Buffer } from 'buffer';
@@ -149,7 +150,8 @@ export class CubeFields extends BaseFields {
 export const cubeFieldDefinition: FieldDefinition = {
   fieldNames: CubeFieldType,
   fieldLengths: CubeFieldLength,
-  positionalFields: CubePositionalFields,
+  positionalFront: CubePositionalFields,
+  positionalBack: {},
   fieldObjectClass: CubeField,
   firstFieldOffset: 0,
 }

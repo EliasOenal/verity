@@ -1,7 +1,7 @@
-import { BaseField, FieldDefinition, BaseFields, BaseRelationship, FieldNumericalParam } from "../core/baseFields";
+import { BaseField,  BaseFields, BaseRelationship } from "../core/baseFields";
 import { Cube } from "../core/cube";
 import { CubeField, CubeFieldType } from "../core/cubeFields";
-import { FieldParser } from "../core/fieldParser";
+import { FieldDefinition, FieldNumericalParam, FieldParser } from "../core/fieldParser";
 import { logger } from "../core/logger";
 import { NetConstants } from "../core/networkDefinitions";
 
@@ -164,7 +164,8 @@ export class ZwFields extends BaseFields {
 export const zwFieldDefinition: FieldDefinition = {
   fieldNames: ZwFieldType,
   fieldLengths: ZwFieldLengths,
-  positionalFields: {}, // currently no positional ZwFields. This will change once Zw gets replaced by CCI.
+  positionalFront: {}, // currently no positional ZwFields. This will change once Zw gets replaced by CCI.
+  positionalBack: {},
   fieldObjectClass: ZwField,
   firstFieldOffset: 0,
 }
