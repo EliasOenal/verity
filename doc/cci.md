@@ -34,7 +34,7 @@ Applications can define custom fields starting from `0x10` to `0x3F`, providing 
 
 # File Application
 
-The file application is a specific implementation leveraging the Common Cube Interface (CCI) to facilitate the transmission and reception of files over the Verity network. This application defines a set of custom fields tailored to handle file attributes efficiently.
+The file application is a specific implementation leveraging the Common Cube Interface (CCI) to facilitate the transmission and reception of files over the Verity network. It only supports PIC and PMUC cubes to prevent files from unexpectedly changing. This application defines a set of custom fields tailored to handle file attributes efficiently.
 
 ## Application Identifier
 

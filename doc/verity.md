@@ -8,6 +8,8 @@ Although light nodes are supported, nodes are encouraged to be operated as full 
 > Disclaimer: this project does not implement a cryptocurrency, nor does it resemble a blockchain.
 
 # Cube Specification
+
+> Superseded by [Cube 1.0](cube.md) and [CCI](cci.md). <br> **TODO**: Implement these and update this document.
 Cubes are the elemental units of Verity. Every feature of the network is constructed on top of cubes.
 
 | Data             | Size (bits/bytes) | Description                                             |
@@ -140,12 +142,23 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
 # Encryption
 
 ## Cryptographic primitives used
-   - All hashes are SHA3, truncated where sensible.
+   - All hashes are SHA3, may be truncated where sensible.
    - All signatures are ED25519
    - Fingerprints of either are truncated to 64 bit
 
   > Note: Signatures are very computationally expensive. Signing a cube with ED25519 is roughly 20 times as expensive as hashing with SHA3, verifying the signature even 60 times. Thus whenever signatures are to be verified, the cube challenge has to be verified first, in order to avoid creating a vector for Denial of Service (DoS).
 
+## Goals
+   - Everything should be encrypted by default.
+   - Encryption is handled in CCI
+   - Options are:
+     - Convergent encryption system with the plaintext hash as key and IV set to zero. (Key is never re-used so IV is not needed.)
+       - This allows for de-duplication of IPC cubes.
+       - This needs to be aware of continuation chains in order to avoid key re-use.
+     - Encryption with a custom key (randomly generated or pre-shared)
+   - We probably need an IV. But we can't use the nonce, since it changes after encryption to solve the challenge.
+
+## Crypto Fields
 **Key Distribution Field (`TYPE_KEY_DISTRIBUTION`):**
 
 This type is used for fields that distribute a symmetric key for decryption of subsequent fields in the cube.
