@@ -9,20 +9,28 @@ import { logger } from '../../src/core/logger';
 import WebSocket from 'isomorphic-ws';
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { FieldParser } from '../../src/core/fieldParser';
+import { SupportedServerTypes } from '../../src/core/networkServer';
 
 describe('networkManager', () => {
     test('should create a WebSocket server on instantiation', () => {
-        const manager = new NetworkManager(3000, new CubeStore(false), new PeerDB(), false)
+        const manager = new NetworkManager(
+            new CubeStore(false), new PeerDB(),
+            new Map([[SupportedServerTypes.ws, 3000]]),
+            false)
         manager.start();
-        expect(manager.server).toBeInstanceOf(WebSocket.Server);
+        // @ts-ignore Checking private attributes
+        expect(manager.servers[0].server).toBeInstanceOf(WebSocket.Server);
         manager.shutdown();
     }, 3000);
 
     test('should create a NetworkPeer on incoming connection', done => {
-        const manager = new NetworkManager(3001, new CubeStore(false), new PeerDB(), false);
+        const manager = new NetworkManager(
+            new CubeStore(false), new PeerDB(),
+            new Map([[SupportedServerTypes.ws, 3001]]),
+            false);
         manager.start();
-        manager.server = manager.server;
-        manager.server?.on('connection', () => {
+        // @ts-ignore Checking private attributes
+        manager.servers[0].server.on('connection', () => {
             expect(manager?.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
         });
 
@@ -35,11 +43,14 @@ describe('networkManager', () => {
     }, 3000);
 
     test('should create a NetworkPeer on outgoing connection', async () => {
-        const manager = new NetworkManager(3003, new CubeStore(false), new PeerDB(), false);
+        const manager = new NetworkManager(
+            new CubeStore(false), new PeerDB(),
+            new Map([[SupportedServerTypes.ws, 3003]]),
+            false);
         manager.start();
 
         // Wait for server to start listening
-        await new Promise((resolve) => manager?.server?.on('listening', resolve));
+        await new Promise((resolve) => manager?.on('listening', resolve));
 
         const server = new WebSocket.Server({ port: 3002 });
 
@@ -59,9 +70,18 @@ describe('networkManager', () => {
         const cubeStore = new CubeStore(false, reduced_difficulty);  // no persistence
         const cubeStore2 = new CubeStore(false, reduced_difficulty);
         const cubeStore3 = new CubeStore(false, reduced_difficulty);
-        const manager1 = new NetworkManager(4000, cubeStore, new PeerDB(), false, false);
-        const manager2 = new NetworkManager(4001, cubeStore2, new PeerDB(), false, false);
-        const manager3 = new NetworkManager(4002, cubeStore3, new PeerDB(), false, false);
+        const manager1 = new NetworkManager(
+            cubeStore, new PeerDB(),
+            new Map([[SupportedServerTypes.ws, 4000]]),
+            false, false);
+        const manager2 = new NetworkManager(
+            cubeStore2, new PeerDB(),
+            new Map([[SupportedServerTypes.ws, 4001]]),
+            false, false);
+        const manager3 = new NetworkManager(
+            cubeStore3, new PeerDB(),
+            new Map([[SupportedServerTypes.ws, 4002]]),
+            false, false);
 
         const promise1_listening = new Promise(resolve => manager1.on('listening', resolve));
         const promise2_listening = new Promise(resolve => manager2.on('listening', resolve));
@@ -135,8 +155,14 @@ describe('networkManager', () => {
 
         const cubeStore = new CubeStore(false);
         const cubeStore2 = new CubeStore(false);
-        const manager1 = new NetworkManager(5002, cubeStore, new PeerDB(), false, false);
-        const manager2 = new NetworkManager(5001, cubeStore2, new PeerDB(), false, false);
+        const manager1 = new NetworkManager(
+            cubeStore, new PeerDB(),
+            new Map([[SupportedServerTypes.ws, 5002]]),
+            false, false);
+        const manager2 = new NetworkManager(
+            cubeStore2, new PeerDB(),
+            new Map([[SupportedServerTypes.ws, 5001]]),
+            false, false);
 
         const promise1_listening = new Promise(resolve => manager1.on('listening', resolve));
         const promise2_listening = new Promise(resolve => manager2.on('listening', resolve));
@@ -225,11 +251,14 @@ describe('networkManager', () => {
 
     test('should blacklist a peer when trying to connect to itself', async () => {
         const peerDB = new PeerDB();
-        const manager = new NetworkManager(6004, new CubeStore(false), peerDB, false);
+        const manager = new NetworkManager(
+            new CubeStore(false), peerDB,
+            new Map([[SupportedServerTypes.ws, 6004]]),
+            false);
         manager.start();
 
         // Wait for server to start listening
-        await new Promise((resolve) => manager.server?.on('listening', resolve));
+        await new Promise((resolve) => manager.on('listening', resolve));
         expect(peerDB.getPeersBlacklisted().length).toEqual(0);
 
         // Trigger a connection to itself
@@ -248,16 +277,22 @@ describe('networkManager', () => {
 
     test('should close the connection to duplicate peer addressed', async () => {
         const myPeerDB = new PeerDB();
-        const myManager = new NetworkManager(7004, new CubeStore(false), myPeerDB, false);
+        const myManager = new NetworkManager(
+            new CubeStore(false), myPeerDB,
+            new Map([[SupportedServerTypes.ws, 7004]]),
+            false);
         myManager.start();
 
         const otherPeerDB = new PeerDB();
-        const otherManager = new NetworkManager(7005, new CubeStore(false), otherPeerDB, false);
+        const otherManager = new NetworkManager(
+            new CubeStore(false), otherPeerDB,
+            new Map([[SupportedServerTypes.ws, 7005]]),
+            false);
         otherManager.start();
 
         // Wait for server to start listening
-        const iListen = new Promise((resolve) => myManager.server?.on('listening', resolve));
-        const otherListens = new Promise((resolve) => otherManager.server?.on('listening', resolve));
+        const iListen = new Promise((resolve) => myManager.on('listening', resolve));
+        const otherListens = new Promise((resolve) => otherManager.on('listening', resolve));
         const bothListen = Promise.all([iListen, otherListens]);
         await bothListen;
 
