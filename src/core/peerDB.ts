@@ -15,7 +15,13 @@ interface TrackerResponse {
     peers6?: Buffer;
 }
 
-export class Address {
+/**
+ * Address notation used for native/legacy WebSocket connections,
+ * in contrast to libp2p connections and their multiaddrs.
+ */
+ // maybe TODO: We may want to remove this completely if we decide to fully
+ // switch to libp2p.
+export class WebSocketAddress {
     // There is a point to be made to use IPv6 notation for all IPs
     // however for now this serves the purpose of being able to
     // prevent connecting to the same peer twice
@@ -31,13 +37,13 @@ export class Address {
         public port: number
     ) {}
 
-    equals(other: Address): boolean {
+    equals(other: WebSocketAddress): boolean {
         return (this.ip === other.ip && this.port === other.port);
     }
 }
 
 export class Peer {
-    /** The 16 byte node ID. We usually only learn this upen successfull HELLO exchange. */
+    /** The 16 byte node ID. We usually only learn this upon successfull HELLO exchange. */
     id?: Buffer = undefined;
 
     /**
@@ -47,13 +53,13 @@ export class Peer {
      * one using the client port from which they connected to us and
      * one using their server port.
      */
-    addresses: Address[] = [];
+    addresses: WebSocketAddress[] = [];
     /**
      * We arbitrarily define one address as primary, usually the first one we
      * learn. It's the one we connect to.
      * TODO: On incoming connections, capable nodes should expose their server
      * port. When they do, their server address should be marked as primary.
-     * Will not implement this until we switched to WebRTC.
+     * Will not implement this until we switch to WebRTC.
     */
     private primaryAddressIndex: number = undefined;
     /** Shortcut to get the primary address object */
@@ -70,8 +76,9 @@ export class Peer {
      */
     lastConnectAttempt: number = 0;
 
-    constructor(ip: string, port: number, id?: Buffer) {
-        this.addresses.push(new Address(ip, port));
+    constructor(address: WebSocketAddress | WebSocketAddress[], id?: Buffer) {
+        if (address instanceof Array) this.addresses = address;
+        else this.addresses = [address];
         this.id = id;
         this.primaryAddressIndex = 0;
     }
@@ -85,20 +92,23 @@ export class Peer {
         else return false;
     }
 
-    addAddress(address: Address);
+    addAddress(address: WebSocketAddress);
     addAddress(ip: string, port: number);
     /** Leans a new address for this peer, if it's actually a new one. */
-    addAddress(address: Address | string, port?: number) {
-        if ( !(address instanceof Address) ) {
-            address = new Address(address, port);
+    addAddress(address: WebSocketAddress | string, port?: number) {
+        if ( !(address instanceof WebSocketAddress) ) {
+            address = new WebSocketAddress(address, port);
         }
-        if (!this.addresses.some(existingaddr => (address as Address).equals(existingaddr))) {
+        if (!this.addresses.some(existingaddr => (address as WebSocketAddress).equals(existingaddr))) {
             this.addresses.push(address);
         }
     }
 
     /** Shortcut to get the primary address string */
     get addressString(): string { return `${this.ip}:${this.port}`}
+
+    /** Shortcut to get the primary address string with ws:// prefix */
+    get url(): string { return `ws://${this.ip}:${this.port}` }
 
     toString() {
         return `${this.ip}:${this.port}(ID#${this.id?.toString('hex')})`;
@@ -301,14 +311,14 @@ export class PeerDB extends EventEmitter {
         for (let i = 0; i < peers.length; i += 6) {
             const ip = Array.from(peers.slice(i, i + 4)).join('.');
             const port = peers.readUInt16BE(i + 4);
-            peerList.push(new Peer(ip, port));
+            peerList.push(new Peer(new WebSocketAddress(ip, port)));
         }
 
         if (peers6) {
             for (let i = 0; i < peers6.length; i += 18) {
                 const ip = Array.from(peers6.slice(i, i + 16)).map(b => b.toString(16)).join(':');
                 const port = peers6.readUInt16BE(i + 16);
-                peerList.push(new Peer(ip, port));
+                peerList.push(new Peer(new WebSocketAddress(ip, port)));
             }
         }
 

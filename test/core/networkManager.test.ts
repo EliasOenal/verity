@@ -3,7 +3,7 @@ import { NetworkPeer } from '../../src/core/networkPeer';
 import { CubeStore } from '../../src/core/cubeStore';
 import { Cube, CubeKey } from '../../src/core/cube';
 import { CubeField, CubeFieldType, CubeFields, cubeFieldDefinition } from '../../src/core/cubeFields';
-import { PeerDB, Peer } from '../../src/core/peerDB';
+import { PeerDB, Peer, WebSocketAddress } from '../../src/core/peerDB';
 import { logger } from '../../src/core/logger';
 
 import WebSocket from 'isomorphic-ws';
@@ -46,7 +46,7 @@ describe('networkManager', () => {
         // Wait for server2 to start listening
         await new Promise((resolve) => server?.on('listening', resolve));
 
-        await manager.connect('ws://localhost:3002');
+        await manager.connect(new Peer(new WebSocketAddress('localhost', 3002)));
 
         expect(manager.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
         server.close();
@@ -77,8 +77,8 @@ describe('networkManager', () => {
         await Promise.all([promise1_listening, promise2_listening, promise3_listening]);
 
         // Connect peer 2 to both peer 1 and peer 3
-        manager2.connect('ws://localhost:4000');
-        manager2.connect('ws://localhost:4002');
+        manager2.connect(new Peer(new WebSocketAddress("localhost", 4000)));
+        manager2.connect(new Peer(new WebSocketAddress('localhost', 4002)));
         expect(manager2.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
         expect(manager2.outgoingPeers[1]).toBeInstanceOf(NetworkPeer);
         await manager2.outgoingPeers[0].onlinePromise
@@ -149,7 +149,7 @@ describe('networkManager', () => {
         await Promise.all([promise1_listening, promise2_listening]);
 
         // Connect peer 1 to peer 2
-        manager1.connect('ws://localhost:5001');
+        manager1.connect(new Peer(new WebSocketAddress('localhost', 5001)));
         expect(manager1.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
         await manager1.outgoingPeers[0].onlinePromise;
 
@@ -233,7 +233,7 @@ describe('networkManager', () => {
         expect(peerDB.getPeersBlacklisted().length).toEqual(0);
 
         // Trigger a connection to itself
-        manager.connect(`ws://localhost:6004`);
+        manager.connect(new Peer(new WebSocketAddress('localhost', 6004)));
 
         // Wait for the 'blacklist' event to be triggered
         await new Promise<void>((resolve, reject) => {
@@ -267,7 +267,7 @@ describe('networkManager', () => {
         const iHaveConnected = new Promise((resolve) => myManager.on('peeronline', resolve));
         const otherHasConnected = new Promise((resolve) => otherManager.on('peeronline', resolve));
         const bothHaveConnected = Promise.all([iHaveConnected, otherHasConnected]);
-        myManager.connect('ws://localhost:7005');
+        myManager.connect(new Peer(new WebSocketAddress('localhost', 7005)));
         await bothHaveConnected;
 
         // ensure connected
@@ -294,7 +294,7 @@ describe('networkManager', () => {
             otherManager.on('duplicatepeer', () => { resolve(undefined); })
         });
         const bothNotedDuplicate = Promise.all([iNotedDuplicate, otherNotedDuplicate]);
-        myManager.connect('ws://127.0.0.1:7005');
+        myManager.connect(new Peer(new WebSocketAddress('127.0.0.1', 7005)));
         await bothNotedDuplicate;
 
         expect(myPeerDB.getPeersBlacklisted().length).toEqual(0);  // duplicate is not / no longer blacklisting

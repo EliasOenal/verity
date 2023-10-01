@@ -3,7 +3,7 @@ import { CubeInfo, CubeMeta } from './cubeInfo';
 import { MessageClass, NetConstants } from './networkDefinitions';
 import { Settings } from './config';
 import { logger } from './logger';
-import { Peer } from './peerDB';
+import { WebSocketAddress, Peer } from './peerDB';
 import { NetworkManager } from "./networkManager";
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { Buffer } from 'buffer';
@@ -61,8 +61,7 @@ export class NetworkPeer extends Peer {
 
     constructor(
             private networkManager: NetworkManager,
-            ip: string,
-            port: number,
+            address: WebSocketAddress | WebSocketAddress[],
             private ws: WebSocket,  // The WebSocket connection associated with this peer
             private cubeStore: CubeStore,  // The cube storage instance associated with this peer
             private hostNodePeerID: Buffer,
@@ -73,7 +72,7 @@ export class NetworkPeer extends Peer {
             private socketClosedController: AbortController = new AbortController(),
             private socketClosedSignal: AbortSignal = socketClosedController.signal)
     {
-        super(ip, port);
+        super(address);
         this.networkManager = networkManager;
         this.ws = ws;
         this.cubeStore = cubeStore;
@@ -101,8 +100,7 @@ export class NetworkPeer extends Peer {
         // This is used to ensure we don't exchange the same peers twice.
         this.unsentPeers = this.networkManager.getPeerDB().getPeersVerified();
         networkManager.getPeerDB().on('peerVerified', (peer: Peer) => {
-            if (! (peer.ip == ip && peer.port == port)) {
-               // add peer to exchangeable list, but don't share a peer with itself
+            if (!this.equals(peer)) {  // but don't share a peer with itself
                this.unsentPeers.push(peer);
             }
         });
@@ -136,11 +134,11 @@ export class NetworkPeer extends Peer {
 
         // Send HELLO message once connected
         if (ws.readyState > 0) {
-            logger.info(`NetworkPeer: Connected to ${ip}:${port}`);
+            logger.info(`NetworkPeer: Connected to ${this.toString()}`);
             this.sendHello();
         } else {
             ws.addEventListener("open", () =>  {
-                logger.info(`NetworkPeer: Connected to ${ip}:${port}`);
+                logger.info(`NetworkPeer: Connected to ${this.toString()}`);
                 this.sendHello();
             // @ts-ignore I don't know why the compiler complains about this
             }, { signal: socketClosedSignal });
@@ -550,21 +548,11 @@ export class NetworkPeer extends Peer {
             // prepare peer object
             const [peerIp, peerPort] = peerAddress.toString('ascii').split(':');
             if (!peerIp || !peerPort) continue;  // ignore invalid
-            const peer: Peer = new Peer(peerIp, parseInt(peerPort));
+            const peer: Peer = new Peer(new WebSocketAddress(peerIp, parseInt(peerPort)));
 
             // register peer
             this.networkManager.getPeerDB().learnPeer(peer);
             logger.info(`NetworkPeer: Received peer ${peerIp}:${peerPort} from ${this.toString()}`);
         }
-    }
-
-    // There is a point to be made to use IPv6 notation for all IPs
-    // however for now this serves the purpose of being able to
-    // prevent connecting to the same peer twice
-    private convertIPv6toIPv4(ip: string): string {
-        if (ip.startsWith('::ffff:')) {
-            return ip.replace('::ffff:', '');
-        }
-        return ip;
     }
 }

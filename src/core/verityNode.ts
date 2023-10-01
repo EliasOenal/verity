@@ -1,6 +1,6 @@
 import { CubeStore } from "./cubeStore";
 import { NetworkManager } from "./networkManager";
-import { Peer, PeerDB } from "./peerDB";
+import { Peer, PeerDB, WebSocketAddress } from "./peerDB";
 
 import { logger } from "./logger";
 
@@ -56,7 +56,7 @@ export class VerityNode {
         if (!initialPeerIp || !initialPeerPort) {
           logger.error('Invalid initial peer specified.');
         }
-        const peer: Peer = new Peer(initialPeerIp, Number(initialPeerPort));
+        const peer: Peer = new Peer(new WebSocketAddress(initialPeerIp, Number(initialPeerPort)));
         this.peerDB.learnPeer(peer);
       }
     }
