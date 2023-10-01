@@ -1,14 +1,14 @@
 import { CubeStore } from './cubeStore';
 import { MessageClass, NetConstants } from './networkDefinitions';
-import { PeerDB, Peer, WebSocketAddress } from './peerDB';
+import { PeerDB, Peer } from './peerDB';
 import { Settings } from './config';
 import { NetworkPeer, NetworkStats } from './networkPeer';
 import { logger } from './logger';
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { EventEmitter } from 'events';
-import WebSocket from 'isomorphic-ws';
 import { Buffer } from 'buffer';
+import { NetworkServer, SupportedServerTypes, WebSocketServer } from './networkServer';
 
 if (isBrowser || isWebWorker) {
     var crypto = window.crypto;
@@ -20,14 +20,13 @@ if (isBrowser || isWebWorker) {
  * Class representing a network manager, responsible for handling incoming and outgoing connections.
  */
 export class NetworkManager extends EventEmitter {
-    server: WebSocket.Server = undefined; // The WebSocket server for incoming connections
+    private servers: NetworkServer[] = [];
     outgoingPeers: NetworkPeer[] = []; // The peers for outgoing connections
     incomingPeers: NetworkPeer[] = []; // The peers for incoming connections
     private isConnectingPeers: boolean = false;
     private isShuttingDown: boolean = false;
     private connectPeersInterval: NodeJS.Timeout = undefined;
     private online: boolean = false;
-    private server_enabled: boolean;
     public readonly peerID: Buffer;
 
     /**
@@ -43,42 +42,38 @@ export class NetworkManager extends EventEmitter {
      * The callbacks are called with the peer and the error as arguments.
      *  */
     constructor(
-            private server_port: number,
-            private cubeStore: CubeStore,
+            private _cubeStore: CubeStore,
             private peerDB: PeerDB,
+            servers: Map<SupportedServerTypes, any>,
             private announceToTorrentTrackers: boolean = true,
-            private lightNode: boolean = false) {
+            private _lightNode: boolean = false) {
         super();
 
         this.peerID = Buffer.from(crypto.getRandomValues(new Uint8Array(16)));
-        if (isNode) {
-        if (server_port !== 0) {
-                this.server_enabled = true;
-            } else {
-                this.server_enabled = false;
-                logger.info(`NetworkManager: Client mode is enabled. Listening for incoming connections is disabled.`);
+
+        for (const  [type, param] of servers.entries()) {
+            if (type == SupportedServerTypes.ws) {
+                if (isNode) {
+                    this.servers.push(new WebSocketServer(this, param));
+                } else {
+                    logger.error("NetworkManager: WebSocketServers are only supported on NodeJS.");
+                }
             }
-        } else {
-            this.server_enabled = false;
         }
     }
+
+    get cubeStore(): CubeStore { return this._cubeStore; }
+    get lightNode(): boolean { return this._lightNode; }
 
     public getPeerDB() { return this.peerDB; }
     public getCubeStore() { return this.cubeStore; }
 
     public start() {
-        if (this.server_enabled) {
-            this.server = new WebSocket.Server({ port: this.server_port });
-            logger.trace('NetworkManager: Server has been started on port ' + this.server_port);
-
-            // Handle incoming connections
-            this.server.on('connection', ws => this.handleIncomingPeer(ws));
-
-            this.server.on('listening', () => {
+        for (const server of this.servers) {
+            server.start();
+            server.on('listening', () => {
                 this.emit('listening');
-                logger.debug(`NetworkManager: Server is listening on port ${this.server_port}.`);
-            }
-            );
+            });
         }
         if (this.announceToTorrentTrackers) {
             this.peerDB.startAnnounceTimer();
@@ -158,43 +153,20 @@ export class NetworkManager extends EventEmitter {
         this.isShuttingDown = true;
         this.peerDB.shutdown();
         this.stopConnectingPeers();
-
-        if (this.server) {
-            this.server.close((err) => {
-                if (err) {
-                    logger.error(`NetworkManager: Error while closing server: ${err}`);
-                }
-                // close all peers after the server has successfully closed
-                this.shutdownPeers();
-                this.emit('shutdown');
-            });
-        } else {
-            // if there's no server, just close all peers
-            this.shutdownPeers();
-            this.emit('shutdown');
+        for (const server of this.servers) {
+            server.shutdown();
         }
+        this.shutdownPeers();
+        this.emit('shutdown');
     }
 
     getOnline(): boolean {
         return this.online;
     }
 
-    /**
-     * Event handler for incoming peer connections.
-     * As such, it should never be called manually.
-     */
-    private handleIncomingPeer(ws: WebSocket) {
-        logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort}`);
-        const networkPeer = new NetworkPeer(
-            this,
-            new WebSocketAddress(
-                WebSocketAddress.convertIPv6toIPv4((ws as any)._socket.remoteAddress),
-                (ws as any)._socket.remotePort),
-            this.cubeStore,
-            this.peerID,
-            this.lightNode,
-            ws);
-        this.incomingPeers.push(networkPeer);
+    /** Called by NetworkServer only, should never be called manually. */
+    handleIncomingPeer(peer: NetworkPeer) {
+        this.incomingPeers.push(peer);
         // TODO HACKHACK: Until we include some way for incoming peers to indicate
         // their server port (if any), we just don't store them to PeerDB.
         // this.peerDB.setPeersUnverified(networkPeer);

@@ -3,6 +3,7 @@ import { NetworkManager } from "./networkManager";
 import { Peer, PeerDB, WebSocketAddress } from "./peerDB";
 
 import { logger } from "./logger";
+import { SupportedServerTypes } from "./networkServer";
 
 export class VerityNode {
   port = 1984;
@@ -33,7 +34,9 @@ export class VerityNode {
 
     // Start networking and inform clients when this node is fully ready
     this.networkManager = new NetworkManager(
-      this.port, this.cubeStore, this.peerDB, announceToTorrentTrackers, lightNode);
+      this.cubeStore, this.peerDB,
+      new Map([[SupportedServerTypes.ws, 1984]]),
+      announceToTorrentTrackers, lightNode);
     this.onlinePromise = new Promise(resolve => this.networkManager.once('online', () => {
       resolve(undefined);
     }));
