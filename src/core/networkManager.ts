@@ -2,7 +2,7 @@ import { CubeStore } from './cubeStore';
 import { MessageClass, NetConstants } from './networkDefinitions';
 import { PeerDB, Peer, WebSocketAddress } from './peerDB';
 import { Settings } from './config';
-import { NetworkPeer, NetworkStats } from './networkPeer';
+import { NetworkPeer, NetworkStats, WebSocketPeerConnection } from './networkPeer';
 import { logger } from './logger';
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
@@ -26,7 +26,6 @@ export class NetworkManager extends EventEmitter {
     private isConnectingPeers: boolean = false;
     private isShuttingDown: boolean = false;
     private connectPeersInterval: NodeJS.Timeout = undefined;
-    private static WEBSOCKET_HANDSHAKE_TIMEOUT = 2500;
     private online: boolean = false;
     private server_enabled: boolean;
     public readonly peerID: Buffer;
@@ -191,9 +190,10 @@ export class NetworkManager extends EventEmitter {
             new WebSocketAddress(
                 WebSocketAddress.convertIPv6toIPv4((ws as any)._socket.remoteAddress),
                 (ws as any)._socket.remotePort),
-            ws, this.cubeStore,
+            this.cubeStore,
             this.peerID,
-            this.lightNode);
+            this.lightNode,
+            ws);
         this.incomingPeers.push(networkPeer);
         // TODO HACKHACK: Until we include some way for incoming peers to indicate
         // their server port (if any), we just don't store them to PeerDB.
@@ -258,23 +258,10 @@ export class NetworkManager extends EventEmitter {
     public connect(peer: Peer): NetworkPeer {
         logger.info(`NetworkManager: Connecting to ${peer.toString()}...`);
 
-        // Create a WebSocket connection
-        let WsOptions: any;
-        // set a handshake timeout on NodeJS, not possible in the browser
-        if (isNode) {
-            WsOptions = { handshakeTimeout: NetworkManager.WEBSOCKET_HANDSHAKE_TIMEOUT };
-        } else {
-            WsOptions = [];
-        }
-        const ws = new WebSocket(peer.url, WsOptions);
-        const socketClosedController: AbortController = new AbortController();
-        const socketClosedSignal: AbortSignal = socketClosedController.signal;
-
         // Create a new NetworkPeer
         const networkPeer = new NetworkPeer(
             this,
             peer.addresses,
-            ws,
             this.cubeStore,
             this.peerID,
             this.lightNode);
