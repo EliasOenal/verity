@@ -1,6 +1,6 @@
 import { CubeStore } from './cubeStore';
 import { MessageClass, NetConstants } from './networkDefinitions';
-import { PeerDB, Peer, Address } from './peerDB';
+import { PeerDB, Peer, WebSocketAddress } from './peerDB';
 import { Settings } from './config';
 import { NetworkPeer, NetworkStats } from './networkPeer';
 import { logger } from './logger';
@@ -180,23 +180,6 @@ export class NetworkManager extends EventEmitter {
         return this.online;
     }
 
-    // Helper function to create a Peer and its associated URL
-    private createPeer(peer_param: string | Peer): { peer: Peer, peerURL: string } {
-        let peer: Peer;
-        let peerURL: string;
-
-        if (typeof peer_param === 'string') {
-            const url = new URL(peer_param);
-            peer = new Peer(url.hostname, Number(url.port));
-            peerURL = `ws://${peer.ip}:${peer.port}`;
-        } else {
-            peer = peer_param;
-            peerURL = `ws://${peer.ip}:${peer.port}`;
-        }
-
-        return { peer, peerURL };
-    }
-
     /**
      * Event handler for incoming peer connections.
      * As such, it should never be called manually.
@@ -205,8 +188,9 @@ export class NetworkManager extends EventEmitter {
         logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort}`);
         const networkPeer = new NetworkPeer(
             this,
-            Address.convertIPv6toIPv4((ws as any)._socket.remoteAddress),
-            (ws as any)._socket.remotePort,
+            new WebSocketAddress(
+                WebSocketAddress.convertIPv6toIPv4((ws as any)._socket.remoteAddress),
+                (ws as any)._socket.remotePort),
             ws, this.cubeStore,
             this.peerID,
             this.lightNode);
@@ -260,6 +244,9 @@ export class NetworkManager extends EventEmitter {
         this.outgoingPeers = this.outgoingPeers.filter(p => p !== peer);
         logger.trace(`NetworkManager: Connection to peer ${peer.ip}:${peer.port}, ID ${peer.id?.toString('hex')} has been closed. My outgoing peers now are: ${this.outgoingPeers} -- my incoming peers now are: ${this.incomingPeers}`);
         this.emit('peerclosed', peer);
+        if (this.incomingPeers.length === 0 && this.outgoingPeers.length === 0) {
+            this.online = false;
+        }
         this.connectPeers();  // find a replacement peer
     }
 
@@ -268,11 +255,8 @@ export class NetworkManager extends EventEmitter {
      * @param peer_param - Peer to connect to
      * @returns Promise<NetworkPeer> - Resolves with a NetworkPeer if connection is successful
      */
-    public connect(peer_param: string | Peer): NetworkPeer {
-        // Create a Peer and its associated URL
-        const { peer, peerURL } = this.createPeer(peer_param);
-
-        logger.info(`NetworkManager: Connecting to ${peerURL}...`);
+    public connect(peer: Peer): NetworkPeer {
+        logger.info(`NetworkManager: Connecting to ${peer.toString()}...`);
 
         // Create a WebSocket connection
         let WsOptions: any;
@@ -282,15 +266,14 @@ export class NetworkManager extends EventEmitter {
         } else {
             WsOptions = [];
         }
-        const ws = new WebSocket(peerURL, WsOptions);
+        const ws = new WebSocket(peer.url, WsOptions);
         const socketClosedController: AbortController = new AbortController();
         const socketClosedSignal: AbortSignal = socketClosedController.signal;
 
         // Create a new NetworkPeer
         const networkPeer = new NetworkPeer(
             this,
-            peer.ip,
-            peer.port,
+            peer.addresses,
             ws,
             this.cubeStore,
             this.peerID,
