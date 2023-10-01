@@ -92,11 +92,41 @@ export class FieldParser {
     return fields.concat(backPositionals);
 }
 
+  /**
+   * Upgrade fields to full fields.
+   * @param fields An array of fields, which must be of the type described by
+   *               this.fieldDef.fieldType
+   */
+  finalizeFields(fields: Array<BaseField>): void {
+    let start = this.fieldDef.firstFieldOffset;
+    for (const field of fields) {
+      field.start = start;
+      start += this.getFieldHeaderLength(field.type) + field.length;  // TODO: generalize from the currently hardcoded 6 bit field type and 10 bit length
+    }
+  }
+
+  getFieldHeaderLength(fieldType: number): number {
+    // Implemented as a static method so BaseField can use it, too.
+    return FieldParser.getFieldHeaderLength(fieldType, this.fieldDef);
+  }
+  static getFieldHeaderLength(fieldType: number, fieldDef: FieldDefinition): number {
+    // It's two bytes for "regular" fields including length informatione,
+    // but just one byte for fields with implicitly known length.
+    if (Object.values(fieldDef.positionalFront).includes(fieldType) ||
+        Object.values(fieldDef.positionalBack).includes(fieldType)) {
+      return 0;
+    } else {
+      return (fieldDef.fieldLengths[fieldType] == undefined) ?
+        NetConstants.MESSAGE_CLASS_SIZE + NetConstants.FIELD_LENGTH_SIZE :
+        NetConstants.MESSAGE_CLASS_SIZE;
+    }
+  }
+
   private decompileField(binaryData: Buffer, byteIndex: number, fieldIndex: number): {field: BaseField, byteIndex: number } {
     const fieldStartsAtByte = byteIndex;
     let type: number, length: number;
     type = this.frontPositionalFieldType(fieldIndex);  // positional field?
-    if (type) length = this.fieldDef.fieldLengths[type];
+    if (type !== undefined) length = this.fieldDef.fieldLengths[type];
     else ({type, length, byteIndex} = this.readTLVHeader(binaryData, byteIndex));
 
     if (byteIndex + length <= binaryData.length) {  // Check if enough data for value field
@@ -132,36 +162,6 @@ export class FieldParser {
       type = this.backPositionalFieldType(backFieldIndex);
     }
     return { backPositionals, dataLength };
-  }
-
-  /**
-   * Upgrade fields to full fields.
-   * @param fields An array of fields, which must be of the type described by
-   *               this.fieldDef.fieldType
-   */
-  finalizeFields(fields: Array<BaseField>): void {
-    let start = this.fieldDef.firstFieldOffset;
-    for (const field of fields) {
-      field.start = start;
-      start += this.getFieldHeaderLength(field.type) + field.length;  // TODO: generalize from the currently hardcoded 6 bit field type and 10 bit length
-    }
-  }
-
-  getFieldHeaderLength(fieldType: number): number {
-    // It's two bytes for "regular" fields including length informatione,
-    // but just one byte for fields with implicitly known length.
-    return FieldParser.getFieldHeaderLength(fieldType, this.fieldDef);
-  }
-  // TODO de-uglify
-  static getFieldHeaderLength(fieldType: number, fieldDef: FieldDefinition): number {
-    if (Object.values(fieldDef.positionalFront).includes(fieldType) ||
-        Object.values(fieldDef.positionalBack).includes(fieldType)) {
-      return 0;
-    } else {
-      return (fieldDef.fieldLengths[fieldType] == undefined) ?
-        NetConstants.MESSAGE_CLASS_SIZE + NetConstants.FIELD_LENGTH_SIZE :
-        NetConstants.MESSAGE_CLASS_SIZE;
-    }
   }
 
   private updateTLVBinaryData(binaryData: Buffer, fields: Array<BaseField>): void {
