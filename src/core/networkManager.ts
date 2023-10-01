@@ -2,7 +2,7 @@ import { CubeStore } from './cubeStore';
 import { MessageClass, NetConstants } from './networkDefinitions';
 import { PeerDB, Peer, WebSocketAddress } from './peerDB';
 import { Settings } from './config';
-import { NetworkPeer, NetworkStats, WebSocketPeerConnection } from './networkPeer';
+import { NetworkPeer, NetworkStats } from './networkPeer';
 import { logger } from './logger';
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
