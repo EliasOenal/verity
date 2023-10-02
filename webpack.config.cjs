@@ -5,7 +5,8 @@ const webpack = require('webpack');
 module.exports = {
   target: 'web',
   entry: {
-    verityUI: './src/webui/VerityUI.ts'
+    verityUI: './src/webui/VerityUI.ts',
+    fullNode: './src/fullNode.ts'
   },
   mode: 'development',
   module: {
@@ -75,6 +76,6 @@ module.exports = {
   devServer: {
     static: path.join(__dirname, "distweb"),
     compress: true,
-    port: 4000,
+    port: 11984,
   },
 };

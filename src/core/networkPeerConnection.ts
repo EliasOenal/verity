@@ -8,6 +8,11 @@ import EventEmitter from "events";
 import WebSocket from 'isomorphic-ws';
 import { Buffer } from 'buffer';
 
+import { IncomingStreamData } from '@libp2p/interface/stream-handler'
+import { Connection, Stream } from '@libp2p/interface/connection'
+import { Multiaddr } from '@multiformats/multiaddr'
+import { pipe } from 'it-pipe'
+
 export class NetworkError extends VerityError  {}
 export class AddressError extends NetworkError {}
 
@@ -118,5 +123,37 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
 
   send(message: Buffer) {
       this.ws.send(message);
+  }
+}
+
+export class Libp2pPeerConnection extends NetworkPeerConnection {
+  private conn: Connection;
+  private stream: Stream;
+
+  constructor(
+      private peer: NetworkPeer,
+      private connParam: IncomingStreamData | Multiaddr )
+  {
+    super();
+    if ('stream' in connParam && 'connection' in connParam) { // "instanceof IncomingStreamData"
+      this.conn = connParam.connection;
+      this.stream = connParam.stream;
+    } else {  // "conn_param instanceof Multiaddr" -- I really don't want to manually check if this correctly implements Multiaddr
+      // create / "dial" new conn
+      // TODO...
+    }
+  }
+
+  async close(): Promise<void> {
+    await this.stream.close();
+    await this.conn.close();  // TODO: is it really proper in libp2p terms to close the connection and not just the stream? after all, .handle() dispatches the stream and the conn might be shared
+  }
+
+  ready(): boolean {
+    return (this.conn.status == "open");
+  }
+
+  send(message: Buffer): void {
+    pipe([message], this.stream);
   }
 }

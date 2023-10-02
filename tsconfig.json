@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "commonjs",
+    "module": "ES2022",
     "strict": false,
     "esModuleInterop": true,
     "outDir": "./dist",
-    "moduleResolution": "node",
+    "moduleResolution": "Bundler",
     "lib": ["ES2022", "dom", "dom.iterable"],
     "sourceMap": true,
   },

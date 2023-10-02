@@ -19,8 +19,7 @@ interface TrackerResponse {
  * Address notation used for native/legacy WebSocket connections,
  * in contrast to libp2p connections and their multiaddrs.
  */
- // maybe TODO: We may want to remove this completely if we decide to fully
- // switch to libp2p.
+// TODO: get rid of this crap and just use Multiaddr
 export class WebSocketAddress {
     // There is a point to be made to use IPv6 notation for all IPs
     // however for now this serves the purpose of being able to
@@ -53,7 +52,7 @@ export class Peer {
      * one using the client port from which they connected to us and
      * one using their server port.
      */
-    addresses: WebSocketAddress[] = [];
+    addresses: Array<WebSocketAddress> = [];
     /**
      * We arbitrarily define one address as primary, usually the first one we
      * learn. It's the one we connect to.
@@ -76,7 +75,9 @@ export class Peer {
      */
     lastConnectAttempt: number = 0;
 
-    constructor(address: WebSocketAddress | WebSocketAddress[], id?: Buffer) {
+    constructor(
+            address: WebSocketAddress | WebSocketAddress[],
+            id?: Buffer) {
         if (address instanceof Array) this.addresses = address;
         else this.addresses = [address];
         this.id = id;

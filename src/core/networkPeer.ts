@@ -1,5 +1,5 @@
 import { MessageClass, NetConstants } from './networkDefinitions';
-import { Settings } from './config';
+import { Settings, VerityError } from './config';
 
 import { CubeStore } from './cubeStore';
 import { CubeInfo, CubeMeta } from './cubeInfo';
@@ -7,12 +7,14 @@ import { WebSocketAddress, Peer } from './peerDB';
 import { NetworkManager } from "./networkManager";
 import { CubeType } from './cubeDefinitions';
 import { cubeContest } from './cubeUtil';
-import { NetworkPeerConnection, WebSocketPeerConnection } from './networkPeerConnection';
+import { Libp2pPeerConnection, NetworkPeerConnection, WebSocketPeerConnection } from './networkPeerConnection';
 
 import { logger } from './logger';
 
 import WebSocket from 'isomorphic-ws';
 import { Buffer } from 'buffer';
+
+import { IncomingStreamData } from '@libp2p/interface/stream-handler'
 
 export interface PacketStats {
     count: number,
@@ -69,16 +71,19 @@ export class NetworkPeer extends Peer {
             private cubeStore: CubeStore,  // The cube storage instance associated with this peer
             private hostNodePeerID: Buffer,
             private lightMode: boolean = false,
-            conn: NetworkPeerConnection | WebSocket = undefined,
+            conn: NetworkPeerConnection | WebSocket | IncomingStreamData = undefined,
         )
     {
         super(address);
-        if (conn === undefined) {
-            this.conn = NetworkPeerConnection.Create(this, this.address);
-        } else if (conn instanceof NetworkPeerConnection) {
+        if (conn instanceof NetworkPeerConnection) {
             this.conn = conn;
         } else if (conn instanceof WebSocket) {
             this.conn = new WebSocketPeerConnection(this, conn);
+        } else if (conn !== undefined && ('stream' in conn && 'connection' in conn)) { // "instanceof IncomingStreamData"
+            this.conn = new Libp2pPeerConnection(this, conn);
+        } else {  // undefined or invalid
+            // ...maybe we should explicitly throw on invalid?
+            this.conn = NetworkPeerConnection.Create(this, this.address);
         }
 
         // Take note of all cubes I could share with this new peer. While the
