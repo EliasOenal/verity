@@ -12,10 +12,9 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer';
 
-// NOTE! This silently kills NodeJS and I don't know why
-// if (isNode) {
-//     await import ('./nodespecific/cube-extended');
-// }
+if (isNode && Settings.HASH_WORKERS) {
+    await import ('./nodespecific/cube-extended');
+}
 
 // semantic typedef
 // TAKE CARE! TRAP! TYPESCRIPT IS CRAP! (that rhymes)
@@ -398,13 +397,7 @@ export class Cube {
             FieldParser.toplevel.getFieldHeaderLength(CubeFieldType.PADDING_NONCE);
 
         // Calculate hashcash
-        let findValidHashFunc: Function;
-        // Use NodeJS worker based implementation if available and requested in config.ts
-        if (Settings.HASH_WORKERS && typeof this.findValidHashWorker === 'function') {
-            findValidHashFunc = this.findValidHashWorker;
-        }
-        else findValidHashFunc = this.findValidHash;
-        this.hash = await findValidHashFunc.call(this, indexNonce);
+        this.hash = await this.findValidHash(indexNonce);
         // logger.info("cube: Using hash " + this.hash.toString('hex') + "as cubeKey");
     }
 
@@ -485,9 +478,7 @@ export class Cube {
      * For MUCs, it also signs the cube, populating its SIGNATURE field.
      */
     // Non-worker version kept for browser portability
-    private async findValidHash(nonceStartIndex: number): Promise<Buffer> {
-        // logger.trace("Cube: Running findValidHash (non-worker)");
-        await sodium.ready;
+    findValidHash(nonceStartIndex: number): Promise<Buffer> {
         return new Promise((resolve) => {
             let nonce: number = 0;
             let hash: Buffer;

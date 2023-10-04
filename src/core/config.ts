@@ -22,7 +22,9 @@ export const Settings = {
     NODE_REQUEST_TIME: (60 * 1000),  // asks nodes for their known nodes every minute
 
     // local implementation details:
-    HASH_WORKERS: false,  // whether or not to use the threaded hash cash implementation on NodeJS
+    // Whether or not to use the threaded hash cash implementation on NodeJS.
+    // This is currently broken. NodeJS will just silently DIE when you activate it o.O
+    HASH_WORKERS: false,
 }
 
 export class VerityError extends Error {}

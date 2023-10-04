@@ -4,13 +4,9 @@ import { Settings } from '../config';
 import { Worker } from 'worker_threads';
 import path from 'path';
 
-declare module "../cube" {
-    interface Cube {
-        findValidHashWorker(nonceStartIndex: number): Promise<Buffer>;
-    }
-}
-
-Cube.prototype.findValidHashWorker = async function(nonceStartIndex: number): Promise<Buffer> {
+// This is broken because NodeJS, in our current ESM module configuration,
+// just silently DIES when you do that o.O
+Cube.prototype.findValidHash = function(nonceStartIndex: number): Promise<Buffer> {
     logger.trace("Running findValidHashWorker");
     return new Promise((resolve, reject) => {
         if (this.binaryData === undefined) {
