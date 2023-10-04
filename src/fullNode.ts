@@ -16,7 +16,7 @@ import { Buffer } from 'buffer';
 
 let readline: any;
 if (isNode) {
-  readline = require('readline');
+  readline = await import('readline');
 }
 
 class VerityCmdClient {
@@ -56,7 +56,6 @@ class VerityCmdClient {
     else announceToTorrentTrackers = false;
 
     this.node = new VerityNode(false, port, initialPeers, announceToTorrentTrackers);
-
   }
 
   public async updateMuc() {

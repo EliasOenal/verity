@@ -5,8 +5,10 @@ import { CubeMeta } from './cubeInfo';
 import { logger } from './logger';
 
 import { Buffer } from 'buffer';
-import { sha3_256 } from 'js-sha3';
 import sodium, { KeyPair } from 'libsodium-wrappers'
+
+import pkg from 'js-sha3';  // strange standards compliant syntax for importing
+const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
 
 /*
  * Calculate the lifetime of a cube based on the hashcash challenge level x.

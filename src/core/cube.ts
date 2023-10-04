@@ -12,6 +12,11 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer';
 
+// NOTE! This silently kills NodeJS and I don't know why
+// if (isNode) {
+//     await import ('./nodespecific/cube-extended');
+// }
+
 // semantic typedef
 // TAKE CARE! TRAP! TYPESCRIPT IS CRAP! (that rhymes)
 // Never check if something is instanceof CubeKey, it never will be.
@@ -522,5 +527,3 @@ export class Cube {
     }
 
 }
-
-if (isNode) require('./nodespecific/cube-extended');

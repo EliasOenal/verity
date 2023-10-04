@@ -10,12 +10,14 @@ import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
 import { NetworkServer, SupportedServerTypes, WebSocketServer } from './networkServer';
 
+import * as cryptolib from 'crypto';
+let crypto;
 if (isBrowser || isWebWorker) {
-    var crypto = window.crypto;
+    crypto = window.crypto;
 } else {
-    // @ts-ignore Typescript complains about the duplicate var, but it's guaranteed that only one of these lines will run
-    var crypto = require('crypto').webcrypto;
+    crypto = cryptolib;
 }
+
 /**
  * Class representing a network manager, responsible for handling incoming and outgoing connections.
  */
