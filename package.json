@@ -1,9 +1,9 @@
 {
   "name": "verity",
   "version": "0.1.0",
-  "description": "",
+  "description": "Write something really important sounding here",
   "type": "module",
-  "main": "",
+  "exports": "./src/**/*.ts",
   "scripts": {
     "start": "node dist/fullNode.js",
     "test": "jest",
@@ -11,7 +11,7 @@
     "build": "webpack",
     "server": "webpack serve"
   },
-  "author": "Elias Oenal",
+  "author": "Elias Oenal, Victor Hahn",
   "license": "",
   "devDependencies": {
     "@types/jest": "^29.5.3",

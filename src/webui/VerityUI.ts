@@ -27,9 +27,6 @@ export class VerityUI {
    * Workaround to those damn omnipresent async constructs.
    * Always create your VerityUI this way or it won't have an Identity 🤷
    */
-  // TODO BUGBUG: There seems to be a race condition wherein CubeStore
-  // may not be done reconstructing all cubes from persistant storage
-  // when Identity tries to read our Identity MUC.
   static async Construct(node: VerityNode): Promise<VerityUI> {
     const ui: VerityUI = new VerityUI(node);
     await ui.node.cubeStore.readyPromise;

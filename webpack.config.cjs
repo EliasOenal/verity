@@ -6,7 +6,6 @@ module.exports = {
   target: 'web',
   entry: {
     verityUI: './src/webui/VerityUI.ts',
-    fullNode: './src/fullNode.ts'
   },
   mode: 'development',
   module: {

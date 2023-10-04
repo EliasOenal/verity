@@ -4,14 +4,15 @@
     "module": "ES2022",
     "strict": false,
     "esModuleInterop": true,
+    "baseUrl": "./src",
     "outDir": "./dist",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "Node",
     "lib": ["ES2022", "dom", "dom.iterable"],
     "sourceMap": true,
   },
   "include": [
-    "./src/**/*.ts",
-    "./test/**/*.ts",
+    "./**/*.ts",
+    "../test/**/*.ts",
   ],
   "exclude": ["webspecific"],
   "scripts": {
