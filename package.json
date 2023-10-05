@@ -5,10 +5,10 @@
   "type": "module",
   "exports": "./src/**/*.ts",
   "scripts": {
-    "start": "node dist/fullNode.js",
+    "start": "node --experimental-specifier-resolution=node dist/src/verity.js",
     "test": "jest",
     "webpack": "webpack",
-    "build": "webpack",
+    "build": "tsc",
     "server": "webpack serve"
   },
   "author": "Elias Oenal, Victor Hahn",
@@ -39,6 +39,7 @@
     "@types/libsodium-wrappers": "^0.7.10",
     "bencodec": "^3.0.1",
     "browser-or-node": "^2.1.1",
+    "cmd-ts": "^0.13.0",
     "eslint": "^8.50.0",
     "events": "^3.3.0",
     "isomorphic-ws": "^5.0.0",
@@ -57,6 +58,7 @@
     "pino": false,
     "pino-pretty": false,
     "readline": false,
-    "crypto": false
+    "crypto": false,
+    "cmd-ts": false
   }
 }

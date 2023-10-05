@@ -1,12 +1,11 @@
-// TODO: Rename this to commandlineclient.ts or something
-// TODO: Include a proper argument parser, with non-positional args and all the nice stuff.
-// TODO: Add command line argument to spawn a light client, currently only doing full nodes.
+Error.stackTraceLimit = Infinity;
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 
 import { Cube } from './core/cube';
 import { CubeField, CubeRelationship, CubeFields, CubeRelationshipType } from './core/cubeFields';
 import { VerityNode } from "./core/verityNode";
+import { SupportedServerTypes } from './core/networkServer';
 
 import { logger } from './core/logger';
 import { vera } from './misc/vera';
@@ -15,12 +14,15 @@ import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer';
 
 let readline: any;
+let cmd;
 if (isNode) {
   readline = await import('readline');
+  cmd = await import('cmd-ts');
 }
 
 class VerityCmdClient {
   public node: VerityNode;
+  public onlinePromise: Promise<void> = undefined;
   private mucUpdateCounter: number = 0;
 
   constructor(private keyPair: KeyPair) {
@@ -38,24 +40,63 @@ class VerityCmdClient {
 
     // Use local port and initial peers supplied on the command line,
     // or these defaults:
-    let port = 1984;
     let initialPeers = [
-        "verity.hahn.mt:1984",
+        // "verity.hahn.mt:1984",
         // "verity.hahn.mt:1985",
         // "verity.hahn.mt:1986",
         // "132.145.174.233:1984",
         // "158.101.100.95:1984",
     ];
+
     if (isNode) {
-        if (process.argv[2]) port = Number(process.argv[2]);
-        if (process.argv[3]) initialPeers = [process.argv[3]];
+      // prepare online promise
+      let onlinePromiseResolve: Function;
+      this.onlinePromise = new Promise<void>(
+        (resolve) => {onlinePromiseResolve = resolve});
+      // parse command line arguments
+      const parse = cmd.command({
+        name: "Verity",
+        args: {
+          ws: cmd.option({
+            type: cmd.number,
+            long: "websocketport",
+            env: "WEBSOCKETPORT",
+            short: "w",
+            description: "Listen for native WebSocket connections on specified TCP port",
+            defaultValue: () => undefined,
+          }),
+          peer: cmd.multioption({
+            type: cmd.array(cmd.string),
+            long: "peer",
+            short: 'p',
+            description: "Initially connect to this peer"
+          }),
+          tracker: cmd.flag({
+            type: cmd.boolean,
+            long: "tracker",
+            short: 't',
+            description: "Use Torrent trackers to find peers and announce our presence",
+          }),
+        },
+        handler: ({ ws, peer, tracker }) => {
+          let servers = new Map();
+          if (ws) servers.set(SupportedServerTypes.ws, ws);
+          if (peer.length) {
+            initialPeers = [];
+            for (const onepeer of peer) {
+              initialPeers.push(onepeer);
+            }
+          }
+          if (!ws) tracker = false;  // can't use Torrent trackers w/o native server capability
+          this.node = new VerityNode(false, servers, initialPeers, tracker);
+          this.node.onlinePromise.then(() => onlinePromiseResolve(undefined));
+        },
+      });
+      cmd.run(parse, process.argv.slice(2));
+    } else {
+      this.node = new VerityNode(false, new Map(), initialPeers, false);
+      this.onlinePromise = this.node.onlinePromise;
     }
-
-    let announceToTorrentTrackers: boolean;
-    if (isNode) announceToTorrentTrackers = true;
-    else announceToTorrentTrackers = false;
-
-    this.node = new VerityNode(false, port, initialPeers, announceToTorrentTrackers);
   }
 
   public async updateMuc() {
@@ -99,7 +140,7 @@ async function main() {
   const keyPair = sodium.crypto_sign_keypair();
 
   const client = new VerityCmdClient(keyPair);
-  await client.node.onlinePromise;
+  await client.onlinePromise;
   logger.info("Node is online");
 
   await client.node.shutdownPromise;

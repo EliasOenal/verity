@@ -10,7 +10,7 @@ import { EventEmitter } from 'events';
 
 import { createLibp2p } from 'libp2p';
 import { webSockets } from '@libp2p/websockets'
-import { webRTC } from '@libp2p/webrtc'
+import { webRTC, webRTCDirect } from '@libp2p/webrtc'
 import { noise } from '@chainsafe/libp2p-noise'
 import { circuitRelayTransport, circuitRelayServer } from 'libp2p/circuit-relay'
 import { yamux } from '@chainsafe/libp2p-yamux'
@@ -19,6 +19,7 @@ import { IncomingStreamData } from '@libp2p/interface/stream-handler'
 
 export enum SupportedServerTypes {
   ws,
+  libp2p,
 }
 
 export abstract class NetworkServer extends EventEmitter {
@@ -92,24 +93,27 @@ export class Libp2pServer extends NetworkServer {
 
   constructor(
       networkManager: NetworkManager,
-      private port: number = 1985)
+      private listen: string[] = [
+        `/ip4/0.0.0.0/tcp/1985/ws/`,  // for relay... or WebSocket via libp2p
+        `/ip6/::1/tcp/1985/ws/`,  // for relay again, IPv6 this time
+        `/ip4/0.0.0.0/udp/1985/webrtc/`,
+        `/ip6/::1/udp/1985/webrtc/`,
+        `/webrtc/`
+      ])
   {
     super(networkManager);
   }
 
   async start() {
+    // logger.error(this.listen)
     this.server = await createLibp2p({
       addresses: {
-        listen: [
-          `/ip4/0.0.0.0/tcp/${this.port}/ws`,  // for relay... or WebSocket via libp2p
-          `/ip6/::1/tcp/${this.port}/ws`,  // for relay again, IPv6 this time
-          `/ip4/0.0.0.0/udp/${this.port}/webrtc`,
-          `/ip6/::1/udp/${this.port}/webrtc`,
-        ],
+        listen: this.listen,
       },
       transports: [
         webSockets(),
         webRTC(),
+        webRTCDirect(),
         circuitRelayTransport(),
       ],
       connectionEncryption: [noise(),],
@@ -119,13 +123,12 @@ export class Libp2pServer extends NetworkServer {
         relay: circuitRelayServer(),
       },
       connectionGater: {
-        denyDialMultiaddr: async () => false,
+        denyDialMultiaddr: async() => false,
       },
       connectionManager: {
         minConnections: 0,  // we manage creating new peer connections ourselves
       }
     });
-    await this.server.start();
     this.server.handle("/verity/1.0.0", this.handleIncomingPeer);
   }
 

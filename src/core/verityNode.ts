@@ -6,15 +6,14 @@ import { logger } from "./logger";
 import { SupportedServerTypes } from "./networkServer";
 
 export class VerityNode {
-  port = 1984;
   cubeStore: CubeStore = new CubeStore();
-  peerDB: PeerDB = new PeerDB(this.port);
+  peerDB: PeerDB;
   networkManager: NetworkManager;
 
-  onlinePromise: Promise<any>;
-  cubeStoreReadyPromise: Promise<any>;
-  readyPromise: Promise<any>;
-  shutdownPromise: Promise<any>;
+  onlinePromise: Promise<void>;
+  cubeStoreReadyPromise: Promise<void>;
+  readyPromise: Promise<any>;  // apparently combining a void promise with another void promise does not yield a void promise
+  shutdownPromise: Promise<void>;
 
   constructor(
     /**
@@ -23,19 +22,22 @@ export class VerityNode {
      * They also do not request cubes unless they are explicitly requested.
      */
     public readonly lightNode: boolean = false,
-
-    port = 1984,
+    public readonly servers: Map<SupportedServerTypes, any> = new Map(),
     private initialPeers = [],
     private announceToTorrentTrackers = false,
-
   ){
-    if (lightNode) this.port = undefined;
-    else this.port = port;
+    // find a suitable port number for tracker announcement
+    let port;
+    const wsServerSpec = servers.get(SupportedServerTypes.ws);
+    if (wsServerSpec) port = wsServerSpec;
+    else port = undefined;
+    this.peerDB = new PeerDB(port);
+    if (port === undefined) this.announceToTorrentTrackers = false;
 
     // Start networking and inform clients when this node is fully ready
     this.networkManager = new NetworkManager(
       this.cubeStore, this.peerDB,
-      new Map([[SupportedServerTypes.ws, 1984]]),
+      this.servers,
       announceToTorrentTrackers, lightNode);
     this.onlinePromise = new Promise(resolve => this.networkManager.once('online', () => {
       resolve(undefined);

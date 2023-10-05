@@ -104,7 +104,7 @@ export class CubeStore extends EventEmitter {
 
       // inform our application(s) about the new cube
       try {
-        logger.trace(`CubeStore: Added cube ${cubeInfo.key.toString('hex')}, emitting cubeAdded`)
+        // logger.trace(`CubeStore: Added cube ${cubeInfo.key.toString('hex')}, emitting cubeAdded`)
         this.emit('cubeAdded', cubeInfo);
       } catch(error) {
         logger.error("CubeStore: While adding Cube " + cubeInfo.key.toString('hex') + "a cubeAdded subscriber experienced an error: " + error.message);

@@ -8,7 +8,7 @@ import { logger } from './logger';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
-import { NetworkServer, SupportedServerTypes, WebSocketServer } from './networkServer';
+import { Libp2pServer, NetworkServer, SupportedServerTypes, WebSocketServer } from './networkServer';
 
 import * as cryptolib from 'crypto';
 let crypto;
@@ -60,6 +60,9 @@ export class NetworkManager extends EventEmitter {
                 } else {
                     logger.error("NetworkManager: WebSocketServers are only supported on NodeJS.");
                 }
+            }
+            if (type == SupportedServerTypes.libp2p) {
+                this.servers.push(new Libp2pServer(this, param));
             }
         }
     }
@@ -226,8 +229,7 @@ export class NetworkManager extends EventEmitter {
 
     /*
      * Connect to a peer
-     * @param peer_param - Peer to connect to
-     * @returns Promise<NetworkPeer> - Resolves with a NetworkPeer if connection is successful
+     * @returns A NetworkPeer object
      */
     public connect(peer: Peer): NetworkPeer {
         logger.info(`NetworkManager: Connecting to ${peer.toString()}...`);
