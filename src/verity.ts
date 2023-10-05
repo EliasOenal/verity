@@ -87,6 +87,12 @@ class VerityCmdClient {
           }),
         },
         handler: ({ ws, webrtc, peer, tracker }) => {
+          if (!ws && !webrtc) {
+            logger.warn("Note: You have started this node without any of --websocketport and --webrtcport. This node will not be able to receive any incoming connections.");
+          }
+          if (!peer.length && !tracker) {
+            logger.warn("Note: You have started this node without any of --peer and --tracker. I will still start up, but make no effort to connect to anybody else. Your exprience might be quite limited.")
+          }
           let servers = new Map();
           if (ws) servers.set(SupportedServerTypes.ws, ws);
           if (webrtc) servers.set(SupportedServerTypes.libp2p, webrtc);
