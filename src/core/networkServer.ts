@@ -88,20 +88,34 @@ export class WebSocketServer extends NetworkServer {
   }
 }
 
+
+
+
 export class Libp2pServer extends NetworkServer {
   private server: any;  // libp2p types are much to complicated for my humble brain
+  private listen: string[];
 
   constructor(
       networkManager: NetworkManager,
-      private listen: string[] = [
-        `/ip4/0.0.0.0/tcp/1985/ws/`,  // for relay... or WebSocket via libp2p
-        `/ip6/::1/tcp/1985/ws/`,  // for relay again, IPv6 this time
-        `/ip4/0.0.0.0/udp/1985/webrtc/`,
-        `/ip6/::1/udp/1985/webrtc/`,
-        `/webrtc/`
-      ])
+      private listen_param: string | string[] | number = 1985)
   {
     super(networkManager);
+
+    // get or construct listen string array
+    if (!isNaN(listen_param as number)) {  // if listen_param is a port number
+      this.listen = [
+        `/ip4/0.0.0.0/tcp/${listen_param}/ws/`,  // for relay... or WebSocket via libp2p
+        `/ip6/::1/tcp/${listen_param}/ws/`,  // for relay again, IPv6 this time
+        `/ip4/0.0.0.0/udp/${listen_param}/webrtc/`,
+        `/ip6/::1/udp/${listen_param}/webrtc/`,
+        `/webrtc/`
+      ];
+    } else if (!(listen_param instanceof Array)) {
+      this.listen = [listen_param as string];
+    }
+    else {
+      this.listen = listen_param;  // correct format already, hopefully
+    }
   }
 
   async start() {

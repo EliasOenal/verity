@@ -65,6 +65,14 @@ class VerityCmdClient {
             description: "Listen for native WebSocket connections on specified TCP port",
             defaultValue: () => undefined,
           }),
+          webrtc: cmd.option({
+            type: cmd.number,
+            long: "webrtcport",
+            env: "WEBRTCPORT",
+            short: "r",
+            description: "Start a libp2p WebRTC listener on specified UDP port, as well as a relay server using the same port number for a corresponding TCP Websocket.",
+            defaultValue: () => undefined,
+          }),
           peer: cmd.multioption({
             type: cmd.array(cmd.string),
             long: "peer",
@@ -78,9 +86,10 @@ class VerityCmdClient {
             description: "Use Torrent trackers to find peers and announce our presence",
           }),
         },
-        handler: ({ ws, peer, tracker }) => {
+        handler: ({ ws, webrtc, peer, tracker }) => {
           let servers = new Map();
           if (ws) servers.set(SupportedServerTypes.ws, ws);
+          if (webrtc) servers.set(SupportedServerTypes.libp2p, webrtc);
           if (peer.length) {
             initialPeers = [];
             for (const onepeer of peer) {
