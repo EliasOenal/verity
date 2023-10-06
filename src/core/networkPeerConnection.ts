@@ -12,6 +12,15 @@ import { IncomingStreamData } from '@libp2p/interface/stream-handler'
 import { Connection, Stream } from '@libp2p/interface/connection'
 import { Multiaddr } from '@multiformats/multiaddr'
 import { pipe } from 'it-pipe'
+import { createLibp2p } from 'libp2p';
+import { Libp2p } from 'libp2p';
+import { webSockets } from '@libp2p/websockets'
+import { webRTC, webRTCDirect } from '@libp2p/webrtc'
+import { noise } from '@chainsafe/libp2p-noise'
+import { circuitRelayTransport, circuitRelayServer } from 'libp2p/circuit-relay'
+import { yamux } from '@chainsafe/libp2p-yamux'
+import * as filters from '@libp2p/websockets/filters'
+import { PassThrough } from 'stream';
 
 export class NetworkError extends VerityError  {}
 export class AddressError extends NetworkError {}
@@ -25,24 +34,24 @@ export class AddressError extends NetworkError {}
  */
 export abstract class NetworkPeerConnection extends EventEmitter {
   static Create(peer: NetworkPeer, address: AddressAbstraction) {
-      if (address.addr instanceof WebSocketAddress) {
-          return new WebSocketPeerConnection(peer, address.addr)
-      } else if ('getPeerId' in address.addr) {  // "addr instanceof Multiaddr"
-          return new Libp2pPeerConnection(peer, address.addr);
-      }
-      else {
-          throw new AddressError("NetworkPeerConnection: Unsupported address type");
-      }
+    if (address.addr instanceof WebSocketAddress) {
+        return new WebSocketPeerConnection(peer, address.addr)
+    } else if ('getPeerId' in address.addr) {  // "addr instanceof Multiaddr"
+        return new Libp2pPeerConnection(peer, address.addr);
+    }
+    else {
+        throw new AddressError("NetworkPeerConnection: Unsupported address type");
+    }
   }
 
   close(): void {
-      throw new VerityError("NetworkPeerConnection.close() to be implemented by subclass")
+    throw new VerityError("NetworkPeerConnection.close() to be implemented by subclass")
   }
   ready(): boolean {
-      throw new VerityError("NetworkPeerConnection.ready() to be implemented by subclass")
+    throw new VerityError("NetworkPeerConnection.ready() to be implemented by subclass")
   }
   send(message: Buffer): void {
-      throw new VerityError("NetworkPeerConnection.send() to be implemented by subclass")
+    throw new VerityError("NetworkPeerConnection.send() to be implemented by subclass")
   }
 
 }
@@ -57,57 +66,57 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
   private socketClosedSignal: AbortSignal = this.socketClosedController.signal;
 
   constructor(
-          private peer: NetworkPeer,
-          private conn_param: WebSocketAddress | WebSocket) {
-      super();
+      private peer: NetworkPeer,
+      private conn_param: WebSocketAddress | WebSocket) {
+    super();
 
-      if (conn_param instanceof WebSocket) {
-          this.ws = conn_param;
+    if (conn_param instanceof WebSocket) {
+        this.ws = conn_param;
+    } else {
+      // Create a WebSocket connection
+      let WsOptions: any;
+      // set a handshake timeout on NodeJS, not possible in the browser
+      if (isNode) {
+        WsOptions = { handshakeTimeout: WebSocketPeerConnection.WEBSOCKET_HANDSHAKE_TIMEOUT };
       } else {
-          // Create a WebSocket connection
-          let WsOptions: any;
-          // set a handshake timeout on NodeJS, not possible in the browser
-          if (isNode) {
-              WsOptions = { handshakeTimeout: WebSocketPeerConnection.WEBSOCKET_HANDSHAKE_TIMEOUT };
-          } else {
-              WsOptions = [];
-          }
-          this.ws = new WebSocket(peer.url, WsOptions);
+        WsOptions = [];
       }
+      this.ws = new WebSocket(peer.url, WsOptions);
+    }
 
-      // On WebSocket errors just shut down this peer
-      // @ts-ignore When using socketCloseSignal the compiler mismatches the function overload
-      this.ws.addEventListener("error", (error) => {
-          // TODO: We should probably "greylist" peers that closed with an error,
-          // i.e. not try to reconnect them for some time.
-          logger.warn(`WebSockerPeerConnection: WebSocket error: ${error.message}`);
-          this.peer.close();
-      }, { signal: this.socketClosedSignal });
+    // On WebSocket errors just shut down this peer
+    // @ts-ignore When using socketCloseSignal the compiler mismatches the function overload
+    this.ws.addEventListener("error", (error) => {
+      // TODO: We should probably "greylist" peers that closed with an error,
+      // i.e. not try to reconnect them for some time.
+      logger.warn(`WebSockerPeerConnection: WebSocket error: ${error.message}`);
+      this.peer.close();
+    }, { signal: this.socketClosedSignal });
 
-      // Handle incoming messages
-      // @ts-ignore When using socketCloseSignal the compiler mismatches the function overload
-      this.ws.addEventListener("message", (event) => {
-          if (isNode) {
-              this.peer.handleMessage(Buffer.from(event.data as Buffer));
-          } else {
-              const blob: Blob = event.data as unknown as Blob;
-              blob.arrayBuffer().then((value) => {
-                  this.peer.handleMessage(Buffer.from(value));
-              });
-          }
-      }, { signal: this.socketClosedSignal });
+    // Handle incoming messages
+    // @ts-ignore When using socketCloseSignal the compiler mismatches the function overload
+    this.ws.addEventListener("message", (event) => {
+      if (isNode) {
+        this.peer.handleMessage(Buffer.from(event.data as Buffer));
+      } else {
+        const blob: Blob = event.data as unknown as Blob;
+        blob.arrayBuffer().then((value) => {
+          this.peer.handleMessage(Buffer.from(value));
+        });
+      }
+    }, { signal: this.socketClosedSignal });
 
-      this.ws.addEventListener('close', () => {
-          // TODO: We should at some point drop nodes closing on us from our PeerDB,
-          // at least if they did that repeatedly and never even sent a valid HELLO.
-          logger.trace(`WebSocketPeerConnection: Peer ${this.peer.toString()} closed on us`);
-          this.peer.close();
-      });
+    this.ws.addEventListener('close', () => {
+      // TODO: We should at some point drop nodes closing on us from our PeerDB,
+      // at least if they did that repeatedly and never even sent a valid HELLO.
+      logger.trace(`WebSocketPeerConnection: Peer ${this.peer.toString()} closed on us`);
+      this.peer.close();
+    });
 
-      this.ws.addEventListener("open", () =>  {
-          this.emit("ready");
-      // @ts-ignore I don't know why the compiler complains about this
-      }, { signal: this.socketClosedSignal });
+    this.ws.addEventListener("open", () =>  {
+      this.emit("ready");
+    // @ts-ignore I don't know why the compiler complains about this
+    }, { signal: this.socketClosedSignal });
   }
 
   /**
@@ -116,22 +125,26 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
    * called directly.
    */
   close(): void {
-      this.ws.close();
-      this.socketClosedController.abort();  // removes all listeners from this.ws
+    this.ws.close();
+    this.socketClosedController.abort();  // removes all listeners from this.ws
   }
 
   ready(): boolean {
-      return (this.ws.readyState > 0)
+    return (this.ws.readyState > 0)
   }
 
   send(message: Buffer) {
-      this.ws.send(message);
+    this.ws.send(message);
   }
 }
 
+// TODO: We currently create a new Libp2p node object for each connection.
+// That's not how libp2p is supposed to be used.
 export class Libp2pPeerConnection extends NetworkPeerConnection {
-  private conn: Connection;
-  private stream: Stream;
+  private conn: Connection = undefined;
+  private stream: Stream = undefined;
+  private inputStream: PassThrough = new PassThrough();
+  private outputStream: PassThrough = new PassThrough();
 
   constructor(
       private peer: NetworkPeer,
@@ -141,22 +154,88 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
     if ('stream' in connParam && 'connection' in connParam) { // "instanceof IncomingStreamData"
       this.conn = connParam.connection;
       this.stream = connParam.stream;
+      if (this.ready()) this.emit("ready");
+      this.handleStreams();
     } else {  // "conn_param instanceof Multiaddr" -- I really don't want to manually check if this correctly implements Multiaddr
-      // create / "dial" new conn
-      // TODO...
+      this.createConn(connParam);
     }
   }
 
-  async close(): Promise<void> {
-    await this.stream.close();
-    await this.conn.close();  // TODO: is it really proper in libp2p terms to close the connection and not just the stream? after all, .handle() dispatches the stream and the conn might be shared
+  handleStreams() {
+    // pipe(this.outputStream, this.stream, async (source) => {
+    //   for await (const message of source) {
+    //     this.inputStream.write(Buffer.from(message.subarray()));
+    //   }
+    // }).catch(logger.error);
+    pipe(this.outputStream, this.stream.sink);
+    this.readStream();
+    // pipe(this.stream.source, this.inputStream); -- this doesn't work although the online howto looked really promising
+    this.inputStream.on("data", data => this.peer.handleMessage(data));
+  }
+
+  async readStream() {
+    if (this.stream.status == "open") {
+      await pipe(
+        this.stream.source,
+        async (source) => {
+          //  this must look ridiculous to anybody who actually understands it
+          for await (const msg of source) {
+            const buf = Buffer.from(msg.subarray());
+            logger.trace("Libp2pPeerConnection: Received from " + this.peer.addressString + ": " + buf.toString('hex'));
+            this.peer.handleMessage(buf);
+          }
+        }
+      );
+    }
+    logger.trace("Libp2pPeerConnection: Stream from " + this.peer.addressString + " ended, not closing connection.");
+    this.peer.close();
+  }
+
+  async createConn(addr: Multiaddr) {
+    try {
+      const node = await createLibp2p({
+        transports: [
+          webSockets({
+            filter:  filters.all,
+          }),
+            webRTC(),
+        ],
+        connectionEncryption: [noise(),],
+        streamMuxers: [yamux()],
+        connectionManager: {
+          minConnections: 0,
+        },
+        connectionGater: {
+          denyDialMultiaddr: async() => false,
+        },
+      });
+      logger.error(addr.toString());
+      this.conn = await node.dial(addr);
+      this.stream = await this.conn.newStream("/verity/1.0.0");
+      if (this.ready()) this.emit("ready");
+      else throw new VerityError("Libp2p connection not open and I have no clue why");
+      this.handleStreams();
+    } catch (error) {
+      logger.info("Libp2pPeerConnection: Connection to " + this.peer.addressString + " failed or closed or something: " + error);
+      this.peer.close();
+    }
+  }
+
+  close(): void {
+    if (this.stream) {
+      this.stream.close();  // note all of this is async and we're just firing-and-forgetting the request
+    }
+    if (this.conn) {
+      this.conn.close();  // TODO: is it really proper in libp2p terms to close the connection and not just the stream? after all, for servers, .handle() dispatches the stream and the conn might be shared
+    }
   }
 
   ready(): boolean {
-    return (this.conn.status == "open");
+    if (!this.stream) return false;
+    else return (this.stream.status == "open");
   }
 
   send(message: Buffer): void {
-    pipe([message], this.stream);
+    this.outputStream.write(message);
   }
 }

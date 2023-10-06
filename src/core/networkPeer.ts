@@ -124,6 +124,7 @@ export class NetworkPeer extends Peer {
     }
 
     public close(): void {
+        logger.trace("NetworkPeer: Closing connection to " + this.addressString);
         // Remove all listeners and timers to avoid memory leaks
         if (this.hashRequestTimer) {
             clearInterval(this.hashRequestTimer);

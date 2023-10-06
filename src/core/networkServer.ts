@@ -9,6 +9,7 @@ import WebSocket from 'isomorphic-ws';
 import { EventEmitter } from 'events';
 
 import { createLibp2p } from 'libp2p';
+import { Libp2p } from 'libp2p';
 import { webSockets } from '@libp2p/websockets'
 import { webRTC, webRTCDirect } from '@libp2p/webrtc'
 import { noise } from '@chainsafe/libp2p-noise'
@@ -92,7 +93,7 @@ export class WebSocketServer extends NetworkServer {
 
 
 export class Libp2pServer extends NetworkServer {
-  private server: any;  // libp2p types are much to complicated for my humble brain
+  private server: Libp2p;  // libp2p types are much to complicated for my humble brain
   private listen: string[];
 
   constructor(
@@ -104,11 +105,11 @@ export class Libp2pServer extends NetworkServer {
     // get or construct listen string array
     if (!isNaN(listen_param as number)) {  // if listen_param is a port number
       this.listen = [
-        `/ip4/0.0.0.0/tcp/${listen_param}/ws/`,  // for relay... or WebSocket via libp2p
-        `/ip6/::1/tcp/${listen_param}/ws/`,  // for relay again, IPv6 this time
-        `/ip4/0.0.0.0/udp/${listen_param}/webrtc/`,
-        `/ip6/::1/udp/${listen_param}/webrtc/`,
-        `/webrtc/`
+        `/ip4/0.0.0.0/tcp/${listen_param}/ws`,  // for relay... or WebSocket via libp2p
+        // `/ip6/::1/tcp/${listen_param}/ws`,  // for relay again, IPv6 this time
+        // `/ip4/0.0.0.0/udp/${listen_param}/webrtc`,
+        // `/ip6/::1/udp/${listen_param}/webrtc`,
+        // `/webrtc`
       ];
     } else if (!(listen_param instanceof Array)) {
       this.listen = [listen_param as string];
@@ -123,11 +124,11 @@ export class Libp2pServer extends NetworkServer {
     this.server = await createLibp2p({
       addresses: {
         listen: this.listen,
+        // listen: ['/ip4/127.0.0.1/tcp/0/ws']
       },
       transports: [
         webSockets(),
         webRTC(),
-        webRTCDirect(),
         circuitRelayTransport(),
       ],
       connectionEncryption: [noise(),],
@@ -143,11 +144,16 @@ export class Libp2pServer extends NetworkServer {
         minConnections: 0,  // we manage creating new peer connections ourselves
       }
     });
-    this.server.handle("/verity/1.0.0", this.handleIncomingPeer);
+    await this.server.handle(
+      "/verity/1.0.0",
+      (incomingStreamData: IncomingStreamData) => this.handleIncomingPeer(incomingStreamData));
+    logger.info("Libp2pServer: Listening to Libp2p multiaddrs: " + this.server.getMultiaddrs().toString());
+    // logger.info("Transports are: " + this.server.components.transportManager.getTransports());
+
   }
 
   private handleIncomingPeer(incomingStreamData: IncomingStreamData): void {
-    logger.debug(`NetworkManager: Incoming connection from ${incomingStreamData.connection.remoteAddr.toString()}`);
+    logger.debug(`Libp2pServer: Incoming connection from ${incomingStreamData.connection.remoteAddr.toString()}`);
     const networkPeer = new NetworkPeer(
       this.networkManager,
       new WebSocketAddress(incomingStreamData.connection.remoteAddr.nodeAddress().address, incomingStreamData.connection.remoteAddr.nodeAddress().port),  // TODO this is crazy, just use Multiaddr

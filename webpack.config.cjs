@@ -31,7 +31,7 @@ module.exports = {
       //https: require.resolve('https-browserify'),
       //os: require.resolve('os-browserify/browser'),
       buffer: require.resolve('buffer'),
-      //stream: require.resolve('stream-browserify'),
+      stream: require.resolve('stream-browserify'),
       // "util": require.resolve("util/"),
       // "path": require.resolve("path-browserify"),
       // "tty": require.resolve("tty-browserify"),
@@ -63,10 +63,10 @@ module.exports = {
       ]
     }),
    new webpack.ProvidePlugin({
-	// Make a global `process` variable that points to the `process` package,
-	// because the `util` package expects there to be a global variable named `process`.
-	// Thanks to https://stackoverflow.com/a/65018686/14239942
-	//process: 'process/browser',
+	   // Make a global `process` variable that points to the `process` package,
+	   // because the `util` package expects there to be a global variable named `process`.
+	   // Thanks to https://stackoverflow.com/a/65018686/14239942
+	   process: 'process/browser',
    }),
    new webpack.IgnorePlugin({
     resourceRegExp: /nodespecific/,

@@ -13,6 +13,7 @@ import { makePost } from '../app/zwCubes';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer'
+import { multiaddr } from '@multiformats/multiaddr'
 
 export class VerityUI {
   private static _zwFieldParser: FieldParser = undefined;
@@ -197,7 +198,8 @@ async function webmain() {
   const announceToTorrentTrackers = false;
 
   // construct node and UI
-  const node = new VerityNode(lightNode, port, initialPeers, announceToTorrentTrackers);
+  // const node = new VerityNode(lightNode, port, initialPeers, announceToTorrentTrackers);
+  const node = new VerityNode(false, undefined, [multiaddr("/ip4/127.0.0.1/tcp/1985/ws/")], false);
   await node.cubeStoreReadyPromise;
   logger.info("Cube Store is ready");
   const verityUI = await VerityUI.Construct(node);
