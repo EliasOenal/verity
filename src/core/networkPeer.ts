@@ -3,7 +3,7 @@ import { Settings, VerityError } from './config';
 
 import { CubeStore } from './cubeStore';
 import { CubeInfo, CubeMeta } from './cubeInfo';
-import { WebSocketAddress, Peer } from './peerDB';
+import { WebSocketAddress, Peer, AddressAbstraction } from './peerDB';
 import { NetworkManager } from "./networkManager";
 import { CubeType } from './cubeDefinitions';
 import { cubeContest } from './cubeUtil';
@@ -13,6 +13,7 @@ import { logger } from './logger';
 
 import WebSocket from 'isomorphic-ws';
 import { Buffer } from 'buffer';
+import { Multiaddr } from '@multiformats/multiaddr'
 
 import { IncomingStreamData } from '@libp2p/interface/stream-handler'
 
@@ -67,7 +68,7 @@ export class NetworkPeer extends Peer {
 
     constructor(
             private networkManager: NetworkManager,
-            address: WebSocketAddress | WebSocketAddress[],
+            address: WebSocketAddress | Multiaddr | AddressAbstraction[],
             private cubeStore: CubeStore,  // The cube storage instance associated with this peer
             private hostNodePeerID: Buffer,
             private lightMode: boolean = false,

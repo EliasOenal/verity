@@ -2,7 +2,7 @@ import { isNode } from "browser-or-node";
 import { VerityError } from "./config";
 import { logger } from "./logger";
 import { NetworkPeer } from "./networkPeer";
-import { WebSocketAddress } from "./peerDB";
+import { AddressAbstraction, WebSocketAddress } from "./peerDB";
 
 import EventEmitter from "events";
 import WebSocket from 'isomorphic-ws';
@@ -24,10 +24,13 @@ export class AddressError extends NetworkError {}
  * @emits "ready" when connection is... you know... ready
  */
 export abstract class NetworkPeerConnection extends EventEmitter {
-  static Create(peer: NetworkPeer, address: WebSocketAddress) {
-      if (address instanceof WebSocketAddress) {
-          return new WebSocketPeerConnection(peer, address)
-      } else {
+  static Create(peer: NetworkPeer, address: AddressAbstraction) {
+      if (address.addr instanceof WebSocketAddress) {
+          return new WebSocketPeerConnection(peer, address.addr)
+      } else if ('getPeerId' in address.addr) {  // "addr instanceof Multiaddr"
+          return new Libp2pPeerConnection(peer, address.addr);
+      }
+      else {
           throw new AddressError("NetworkPeerConnection: Unsupported address type");
       }
   }

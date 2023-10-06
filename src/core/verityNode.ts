@@ -4,6 +4,8 @@ import { Peer, PeerDB, WebSocketAddress } from "./peerDB";
 
 import { logger } from "./logger";
 import { SupportedServerTypes } from "./networkServer";
+import { WebSocketServer } from "ws";
+import { Multiaddr } from '@multiformats/multiaddr'
 
 export class VerityNode {
   cubeStore: CubeStore = new CubeStore();
@@ -23,7 +25,7 @@ export class VerityNode {
      */
     public readonly lightNode: boolean = false,
     public readonly servers: Map<SupportedServerTypes, any> = new Map(),
-    private initialPeers = [],
+    private initialPeers: Array<WebSocketAddress | Multiaddr> = [],
     private announceToTorrentTrackers = false,
   ){
     // find a suitable port number for tracker announcement
@@ -54,16 +56,8 @@ export class VerityNode {
     }));
     this.networkManager.start();
 
-    if (initialPeers) {
-      for (let i = 0; i < initialPeers.length; i++) {
-        logger.info(`Adding initial peer ${initialPeers[i]}.`);
-        const [initialPeerIp, initialPeerPort] = initialPeers[i].split(':');
-        if (!initialPeerIp || !initialPeerPort) {
-          logger.error('Invalid initial peer specified.');
-        }
-        const peer: Peer = new Peer(new WebSocketAddress(initialPeerIp, Number(initialPeerPort)));
-        this.peerDB.learnPeer(peer);
-      }
+    for (const initialPeer of initialPeers) {
+      this.peerDB.learnPeer(new Peer(initialPeer));
     }
   }
 

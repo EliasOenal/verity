@@ -6,6 +6,7 @@ import { log } from 'console';
 
 import axios from 'axios';
 import { Buffer } from 'buffer';
+import { Multiaddr } from '@multiformats/multiaddr'
 
 // Maybe TODO: Move tracker handling out of PeerDB, maybe into a new TorrentTrackerClient?
 
@@ -13,6 +14,35 @@ interface TrackerResponse {
     interval: number;
     peers: Buffer;
     peers6?: Buffer;
+}
+
+export class AddressAbstraction {
+    addr: WebSocketAddress | Multiaddr;
+
+    constructor(
+        addr: WebSocketAddress | Multiaddr | AddressAbstraction
+    ) {
+        if (addr instanceof AddressAbstraction) this.addr = addr.addr;
+        else this.addr = addr;
+    }
+
+    equals(other: AddressAbstraction) {
+        if (this.addr.constructor.name != other.addr.constructor.name ) {
+            return false;  // not of same type
+        }
+        // @ts-ignore It's fine... both sides are either WebSocketAddress or Multiaddr, and they compare well with each other
+        else return this.addr.equals(other.addr);
+    }
+
+    get ip(): string {
+        if (this.addr instanceof WebSocketAddress) return this.addr.ip;
+        else return this.addr.nodeAddress().address;
+    }
+
+    get port(): number {
+        if (this.addr instanceof WebSocketAddress) return this.addr.port;
+        else return this.addr.nodeAddress().port;
+    }
 }
 
 /**
@@ -52,7 +82,7 @@ export class Peer {
      * one using the client port from which they connected to us and
      * one using their server port.
      */
-    addresses: Array<WebSocketAddress> = [];
+    addresses: Array<AddressAbstraction> = [];
     /**
      * We arbitrarily define one address as primary, usually the first one we
      * learn. It's the one we connect to.
@@ -76,10 +106,10 @@ export class Peer {
     lastConnectAttempt: number = 0;
 
     constructor(
-            address: WebSocketAddress | WebSocketAddress[],
+            address: WebSocketAddress | Multiaddr | AddressAbstraction | AddressAbstraction[],
             id?: Buffer) {
         if (address instanceof Array) this.addresses = address;
-        else this.addresses = [address];
+        else this.addresses = [new AddressAbstraction(address)];
         this.id = id;
         this.primaryAddressIndex = 0;
     }
@@ -93,15 +123,11 @@ export class Peer {
         else return false;
     }
 
-    addAddress(address: WebSocketAddress);
-    addAddress(ip: string, port: number);
     /** Leans a new address for this peer, if it's actually a new one. */
-    addAddress(address: WebSocketAddress | string, port?: number) {
-        if ( !(address instanceof WebSocketAddress) ) {
-            address = new WebSocketAddress(address, port);
-        }
-        if (!this.addresses.some(existingaddr => (address as WebSocketAddress).equals(existingaddr))) {
-            this.addresses.push(address);
+    addAddress(address: WebSocketAddress | Multiaddr) {
+        const abstracted = new AddressAbstraction(address);
+        if (!this.addresses.some(existingaddr => (abstracted).equals(existingaddr))) {
+            this.addresses.push(abstracted);
         }
     }
 
