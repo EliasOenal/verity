@@ -72,20 +72,17 @@ export class NetworkPeer extends Peer {
             private cubeStore: CubeStore,  // The cube storage instance associated with this peer
             private hostNodePeerID: Buffer,
             private lightMode: boolean = false,
-            conn: NetworkPeerConnection | WebSocket | IncomingStreamData = undefined,
+            conn: NetworkPeerConnection | WebSocket = undefined,
         )
     {
         super(address);
         if (conn instanceof NetworkPeerConnection) {
             this.conn = conn;
-        } else if (conn instanceof WebSocket) {
-            this.conn = new WebSocketPeerConnection(this, conn);
-        } else if (conn !== undefined && ('stream' in conn && 'connection' in conn)) { // "instanceof IncomingStreamData"
-            this.conn = new Libp2pPeerConnection(this, conn);
-        } else {  // undefined or invalid
-            // ...maybe we should explicitly throw on invalid?
-            this.conn = NetworkPeerConnection.Create(this, this.address);
+        } else {  // WebSocketAddress (or invalid)
+            this.conn = NetworkPeerConnection.Create(this.address);
         }
+        this.conn.on("messageReceived", msg => this.handleMessage(msg));
+        this.conn.once("closed", () => this.close());
 
         // Take note of all cubes I could share with this new peer. While the
         // connection lasts, supplement this with any newly learned cubes.
@@ -132,7 +129,7 @@ export class NetworkPeer extends Peer {
         if (this.nodeRequestTimer) {
             clearInterval(this.nodeRequestTimer);
         }
-        this.conn.close();
+        this.conn.close();  // note: this means conn.close() gets called twice when closure originates from the conn, but that's okay
 
         // If we never got online, "resolve" the promise with undefined.
         // Rejecting it would be the cleaner choice, but then we'd need to catch

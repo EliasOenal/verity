@@ -55,7 +55,7 @@ class VerityCmdClient {
         (resolve) => {onlinePromiseResolve = resolve});
       // parse command line arguments
       const parse = cmd.command({
-        name: "Verity",
+        name: "verity",
         args: {
           ws: cmd.option({
             type: cmd.number,

@@ -21,6 +21,7 @@ import { circuitRelayTransport, circuitRelayServer } from 'libp2p/circuit-relay'
 import { yamux } from '@chainsafe/libp2p-yamux'
 import * as filters from '@libp2p/websockets/filters'
 import { PassThrough } from 'stream';
+import { identifyService } from 'libp2p/identify'
 
 export class NetworkError extends VerityError  {}
 export class AddressError extends NetworkError {}
@@ -33,14 +34,15 @@ export class AddressError extends NetworkError {}
  * @emits "ready" when connection is... you know... ready
  */
 export abstract class NetworkPeerConnection extends EventEmitter {
-  static Create(peer: NetworkPeer, address: AddressAbstraction) {
+  static Create(address: AddressAbstraction) {
     if (address.addr instanceof WebSocketAddress) {
-        return new WebSocketPeerConnection(peer, address.addr)
+        return new WebSocketPeerConnection(address.addr)
     } else if ('getPeerId' in address.addr) {  // "addr instanceof Multiaddr"
-        return new Libp2pPeerConnection(peer, address.addr);
+        // return new Libp2pPeerConnection(address.addr);
+        throw new AddressError("NetworkPeerConnection.Create: libp2p being a rather heavy framework, all libp2p connections must be created through the server object, even if you don't really intend to run a server.");
     }
     else {
-        throw new AddressError("NetworkPeerConnection: Unsupported address type");
+        throw new AddressError("NetworkPeerConnection.Create: Unsupported address type");
     }
   }
 
@@ -66,8 +68,7 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
   private socketClosedSignal: AbortSignal = this.socketClosedController.signal;
 
   constructor(
-      private peer: NetworkPeer,
-      private conn_param: WebSocketAddress | WebSocket) {
+      conn_param: WebSocketAddress | WebSocket) {
     super();
 
     if (conn_param instanceof WebSocket) {
@@ -81,7 +82,7 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
       } else {
         WsOptions = [];
       }
-      this.ws = new WebSocket(peer.url, WsOptions);
+      this.ws = new WebSocket(conn_param.toString(true), WsOptions);
     }
 
     // On WebSocket errors just shut down this peer
@@ -90,27 +91,27 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
       // TODO: We should probably "greylist" peers that closed with an error,
       // i.e. not try to reconnect them for some time.
       logger.warn(`WebSockerPeerConnection: WebSocket error: ${error.message}`);
-      this.peer.close();
+      this.close();
     }, { signal: this.socketClosedSignal });
 
     // Handle incoming messages
+    let msgData: Buffer;
     // @ts-ignore When using socketCloseSignal the compiler mismatches the function overload
-    this.ws.addEventListener("message", (event) => {
+    this.ws.addEventListener("message", async (event) => {
       if (isNode) {
-        this.peer.handleMessage(Buffer.from(event.data as Buffer));
+        msgData = Buffer.from(event.data as Buffer);
       } else {
         const blob: Blob = event.data as unknown as Blob;
-        blob.arrayBuffer().then((value) => {
-          this.peer.handleMessage(Buffer.from(value));
-        });
+        msgData = Buffer.from(await blob.arrayBuffer());
       }
+      this.emit("messageReceived", msgData);  // NetworkPeer will call handleMessage() on this
     }, { signal: this.socketClosedSignal });
 
     this.ws.addEventListener('close', () => {
       // TODO: We should at some point drop nodes closing on us from our PeerDB,
       // at least if they did that repeatedly and never even sent a valid HELLO.
-      logger.trace(`WebSocketPeerConnection: Peer ${this.peer.toString()} closed on us`);
-      this.peer.close();
+      logger.trace(`WebSocketPeerConnection: Peer closed on us`);
+      this.close();
     });
 
     this.ws.addEventListener("open", () =>  {
@@ -125,6 +126,8 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
    * called directly.
    */
   close(): void {
+    this.emit("closed");
+    this.removeAllListeners();
     this.ws.close();
     this.socketClosedController.abort();  // removes all listeners from this.ws
   }
@@ -147,7 +150,7 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
   private outputStream: PassThrough = new PassThrough();
 
   constructor(
-      private peer: NetworkPeer,
+      private node: Libp2p,
       private connParam: IncomingStreamData | Multiaddr )
   {
     super();
@@ -170,7 +173,7 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
     pipe(this.outputStream, this.stream.sink);
     this.readStream();
     // pipe(this.stream.source, this.inputStream); -- this doesn't work although the online howto looked really promising
-    this.inputStream.on("data", data => this.peer.handleMessage(data));
+    this.inputStream.on("data", data => this.emit("messageReceived", data));  // this will cause NetworkPeer to call handleMessage()
   }
 
   async readStream() {
@@ -185,6 +188,7 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
             // get message fragment
             let inbuf = Buffer.from(msg.subarray());
             // logger.trace("Libp2pPeerConnection: Received raw bytes from " + this.peer.addressString + ": " + inbuf.toString('hex'));
+            logger.trace("Libp2pPeerConnection: Just wanted to remind you that my multiaddrs still are " + this.node?.getMultiaddrs());
             // concatenate newly received fragment onto existing unprocessed fragment, if any
             msgbuf = Buffer.concat([msgbuf, inbuf]);
             // logger.trace("Libp2pPeerConnection: After receiving this message, my msgbuf for " + this.peer.addressString + " is now " + msgbuf.toString('hex'));
@@ -208,7 +212,7 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
                 msgbuf = msgbuf.subarray(msgsize, msgbuf.length);
                 // logger.trace("Libp2pPeerConnection: Fully received a message of length " + msgsize + " from " + this.peer.addressString + ", message is: " + msg.toString('hex') + "; my msgbuf is now: " + msgbuf.toString('hex'));
                 msgsize = 0;  // indicates no pending message fragment
-                this.peer.handleMessage(msg);
+                this.emit("messageReceived", msg);
                 tryToParseMessage = true;
               } else {
                 tryToParseMessage = false;
@@ -218,20 +222,25 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
         }
       );
     }
-    logger.trace("Libp2pPeerConnection: Stream from " + this.peer.addressString + " ended, not closing connection.");
-    this.peer.close();
+    logger.trace("Libp2pPeerConnection: Stream from " + this.conn.remoteAddr + " ended, closing connection.");
+    this.close();
   }
 
   async createConn(addr: Multiaddr) {
+    logger.trace("Libp2pPeerConnection: Creating new connection to " + addr.toString());
     try {
-      const node = await createLibp2p({
+      this.node = await createLibp2p({
+        addresses: { listen: ['/webrtc'] },
         transports: [
           webSockets({
             filter:  filters.all,
           }),
-            webRTC(),
+          webRTC(),
+          circuitRelayTransport({
+            discoverRelays: 1,
+          }),
         ],
-        connectionEncryption: [noise(),],
+        connectionEncryption: [noise()],
         streamMuxers: [yamux()],
         connectionManager: {
           minConnections: 0,
@@ -239,20 +248,25 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
         connectionGater: {
           denyDialMultiaddr: async() => false,
         },
+        services: {
+          identify: identifyService()
+        }
       });
-      logger.error(addr.toString());
-      this.conn = await node.dial(addr);
+      this.conn = await this.node.dial(addr);
       this.stream = await this.conn.newStream("/verity/1.0.0");
       if (this.ready()) this.emit("ready");
       else throw new VerityError("Libp2p connection not open and I have no clue why");
+      logger.trace("Libp2pPeerConnection: Successfully connected to " + addr.toString() + ". My multiaddrs are " + this.node.getMultiaddrs() + " and my peer ID is " + Buffer.from(this.node.peerId.publicKey).toString('hex'));
       this.handleStreams();
     } catch (error) {
-      logger.info("Libp2pPeerConnection: Connection to " + this.peer.addressString + " failed or closed or something: " + error);
-      this.peer.close();
+      logger.info("Libp2pPeerConnection: Connection to " + addr.toString() + " failed or closed or something: " + error);
+      this.close();
     }
   }
 
   close(): void {
+    this.emit("closed");
+    this.removeAllListeners();
     if (this.stream) {
       this.stream.close();  // note all of this is async and we're just firing-and-forgetting the request
     }

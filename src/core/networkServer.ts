@@ -17,6 +17,7 @@ import { circuitRelayTransport, circuitRelayServer } from 'libp2p/circuit-relay'
 import { yamux } from '@chainsafe/libp2p-yamux'
 import { identifyService } from 'libp2p/identify'
 import { IncomingStreamData } from '@libp2p/interface/stream-handler'
+import { Libp2pPeerConnection } from "./networkPeerConnection";
 
 export enum SupportedServerTypes {
   ws,
@@ -93,7 +94,7 @@ export class WebSocketServer extends NetworkServer {
 
 
 export class Libp2pServer extends NetworkServer {
-  private server: Libp2p;  // libp2p types are much to complicated for my humble brain
+  private node: Libp2p;  // libp2p types are much to complicated for my humble brain
   private listen: string[];
 
   constructor(
@@ -121,7 +122,7 @@ export class Libp2pServer extends NetworkServer {
 
   async start() {
     // logger.error(this.listen)
-    this.server = await createLibp2p({
+    this.node = await createLibp2p({
       addresses: {
         listen: this.listen,
         // listen: ['/ip4/127.0.0.1/tcp/0/ws']
@@ -144,23 +145,24 @@ export class Libp2pServer extends NetworkServer {
         minConnections: 0,  // we manage creating new peer connections ourselves
       }
     });
-    await this.server.handle(
+    await this.node.handle(
       "/verity/1.0.0",
       (incomingStreamData: IncomingStreamData) => this.handleIncomingPeer(incomingStreamData));
-    logger.info("Libp2pServer: Listening to Libp2p multiaddrs: " + this.server.getMultiaddrs().toString());
+    logger.info("Libp2pServer: Listening to Libp2p multiaddrs: " + this.node.getMultiaddrs().toString());
     // logger.info("Transports are: " + this.server.components.transportManager.getTransports());
 
   }
 
   private handleIncomingPeer(incomingStreamData: IncomingStreamData): void {
     logger.debug(`Libp2pServer: Incoming connection from ${incomingStreamData.connection.remoteAddr.toString()}`);
+    const conn = new Libp2pPeerConnection(this.node, incomingStreamData);
     const networkPeer = new NetworkPeer(
       this.networkManager,
-      new WebSocketAddress(incomingStreamData.connection.remoteAddr.nodeAddress().address, incomingStreamData.connection.remoteAddr.nodeAddress().port),  // TODO this is crazy, just use Multiaddr
+      incomingStreamData.connection.remoteAddr,
       this.networkManager.cubeStore,
       this.networkManager.peerID,
       this.networkManager.lightNode,
-      incomingStreamData);
+      conn);
     this.networkManager.handleIncomingPeer(networkPeer);
   }
 

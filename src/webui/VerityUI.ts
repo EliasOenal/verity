@@ -1,20 +1,21 @@
 import { VerityNode } from '../core/verityNode';
 import { Cube, CubeKey } from '../core/cube';
 import { logger } from '../core/logger'
+import { WebSocketAddress } from '../core/peerDB';
+import { SupportedServerTypes } from '../core/networkServer';
+import { FieldParser } from '../core/fieldParser';
 
 import { PostDisplay } from './PostDisplay';
 import { PeerDisplay } from './PeerDisplay';
 import { Identity } from '../app/identity';
-import { FieldParser } from '../core/fieldParser';
 import { zwFieldDefinition } from '../app/zwFields';
-import { isBrowser } from 'browser-or-node';
 import { SubscriptionRequirement, ZwAnnotationEngine } from '../app/zwAnnotationEngine';
 import { makePost } from '../app/zwCubes';
 
+import { isBrowser } from 'browser-or-node';
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer'
 import { multiaddr } from '@multiformats/multiaddr'
-import { WebSocketAddress } from '../core/peerDB';
 
 export class VerityUI {
   private static _zwFieldParser: FieldParser = undefined;
@@ -195,13 +196,14 @@ async function webmain() {
       // new WebSocketAddress("verity.hahn.mt", 1986),
       // new WebSocketAddress("132.145.174.233", 1984),
       // new WebSocketAddress("158.101.100.95", 1984),
-      multiaddr("/ip4/127.0.0.1/tcp/1985/ws/"),
+      // multiaddr('/ip4/192.168.0.81/tcp/1985/ws/p2p/12D3KooWKSFR3ogpGqF8bN9VioiEcWVXeUvPsgDn8J88JKwTpUsi/p2p-circuit/webrtc/p2p/12D3KooWR8CSNLGJ4iZ4XPr9Ked6WgauTw58sauAJB9G33ErLB1L'),
+      // multiaddr("/ip4/127.0.0.1/tcp/1985/ws/"),
     ];
   const announceToTorrentTrackers = false;
 
   // construct node and UI
   // const node = new VerityNode(lightNode, port, initialPeers, announceToTorrentTrackers);
-  const node = new VerityNode(false, undefined, initialPeers, false);
+  const node = new VerityNode(false, new Map([[SupportedServerTypes.libp2p, ['/webrtc']]]), initialPeers, false);
   await node.cubeStoreReadyPromise;
   logger.info("Cube Store is ready");
   const verityUI = await VerityUI.Construct(node);

@@ -1,7 +1,11 @@
 module.exports = {
     preset: 'ts-jest',
+    extensionsToTreatAsEsm: ['.ts'],
     transform: {
-      '^.+\\.ts$': 'ts-jest',
+      '^.+\\.ts$': [
+        'ts-jest',
+        { useESM: true}
+      ]
     },
     testEnvironment: 'node',
     testTimeout: 15000,
@@ -9,7 +13,6 @@ module.exports = {
     maxWorkers: 8, // Number of parallel processes for running test suites
     modulePathIgnorePatterns: ["<rootDir>/dist/"]
   };
-  
 
-  
-  
+
+

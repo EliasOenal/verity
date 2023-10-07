@@ -43,6 +43,8 @@ export class AddressAbstraction {
         if (this.addr instanceof WebSocketAddress) return this.addr.port;
         else return this.addr.nodeAddress().port;
     }
+
+    toString(): string { return this.addr.toString(); }
 }
 
 /**
@@ -68,6 +70,13 @@ export class WebSocketAddress {
 
     equals(other: WebSocketAddress): boolean {
         return (this.ip === other.ip && this.port === other.port);
+    }
+
+    toString(wsPrefix: boolean = false): string {
+        let str = "";
+        if (wsPrefix) str += "ws://";
+        str += this.ip + ":" + this.port;
+        return str;
     }
 }
 
@@ -133,9 +142,6 @@ export class Peer {
 
     /** Shortcut to get the primary address string */
     get addressString(): string { return `${this.ip}:${this.port}`}
-
-    /** Shortcut to get the primary address string with ws:// prefix */
-    get url(): string { return `ws://${this.ip}:${this.port}` }
 
     toString() {
         return `${this.ip}:${this.port}(ID#${this.id?.toString('hex')})`;
