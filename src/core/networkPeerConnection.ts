@@ -178,11 +178,42 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
       await pipe(
         this.stream.source,
         async (source) => {
-          //  this must look ridiculous to anybody who actually understands it
+          // this must look ridonculous to anybody who actually understands libp2p
+          let msgbuf: Buffer = Buffer.alloc(0);
+          let msgsize: number = 0;
           for await (const msg of source) {
-            const buf = Buffer.from(msg.subarray());
-            logger.trace("Libp2pPeerConnection: Received from " + this.peer.addressString + ": " + buf.toString('hex'));
-            this.peer.handleMessage(buf);
+            // get message fragment
+            let inbuf = Buffer.from(msg.subarray());
+            // logger.trace("Libp2pPeerConnection: Received raw bytes from " + this.peer.addressString + ": " + inbuf.toString('hex'));
+            // concatenate newly received fragment onto existing unprocessed fragment, if any
+            msgbuf = Buffer.concat([msgbuf, inbuf]);
+            // logger.trace("Libp2pPeerConnection: After receiving this message, my msgbuf for " + this.peer.addressString + " is now " + msgbuf.toString('hex'));
+
+            // parse data
+            let tryToParseLength: boolean = true;
+            let tryToParseMessage: boolean = true;
+            while (tryToParseLength || tryToParseMessage) {  // I wanted to use goto but there was none available
+              if (!msgsize && msgbuf.length >= 4) {  // if this is the start of a new message, read its length
+                msgsize = msgbuf.readUint32BE();
+                msgbuf = msgbuf.subarray(4, inbuf.length);
+                // logger.trace("Libp2pPeerConnection: Starting to receive a new message of length " + msgsize + " from " + this.peer.addressString + ", my msgbuf is now " + msgbuf.toString('hex'));
+                tryToParseLength = true;
+              } else {
+                tryToParseLength = false;
+              }
+              // message fully received?
+              if (msgsize && msgbuf.length >= msgsize) {
+                // Pull fully received message out of msgbuf
+                const msg: Buffer = msgbuf.subarray(0, msgsize);
+                msgbuf = msgbuf.subarray(msgsize, msgbuf.length);
+                // logger.trace("Libp2pPeerConnection: Fully received a message of length " + msgsize + " from " + this.peer.addressString + ", message is: " + msg.toString('hex') + "; my msgbuf is now: " + msgbuf.toString('hex'));
+                msgsize = 0;  // indicates no pending message fragment
+                this.peer.handleMessage(msg);
+                tryToParseMessage = true;
+              } else {
+                tryToParseMessage = false;
+              }
+            }
           }
         }
       );
@@ -236,6 +267,10 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
   }
 
   send(message: Buffer): void {
-    this.outputStream.write(message);
+    const lenbuf = Buffer.alloc(4);
+    lenbuf.writeUint32BE(message.length);
+    const combined = Buffer.concat([lenbuf, message]);
+    this.outputStream.write(combined);
+    // logger.info("Libp2pPeerConnection: Sending message of length " + message.length + " to " + this.peer.addressString + ", raw bytes: " + combined.toString('hex'));
   }
 }

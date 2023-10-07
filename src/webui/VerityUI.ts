@@ -14,6 +14,7 @@ import { makePost } from '../app/zwCubes';
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer'
 import { multiaddr } from '@multiformats/multiaddr'
+import { WebSocketAddress } from '../core/peerDB';
 
 export class VerityUI {
   private static _zwFieldParser: FieldParser = undefined;
@@ -189,17 +190,18 @@ async function webmain() {
   const lightNode = false;
   const port = undefined;  // no listening web sockets allowed, need WebRTC :(
   const initialPeers = [
-      "verity.hahn.mt:1984",
-      // "verity.hahn.mt:1985",
-      // "verity.hahn.mt:1986",
-      // "132.145.174.233:1984",
-      // "158.101.100.95:1984",
+      new WebSocketAddress("verity.hahn.mt" ,1984),
+      // new WebSocketAddress("verity.hahn.mt", 1985),
+      // new WebSocketAddress("verity.hahn.mt", 1986),
+      // new WebSocketAddress("132.145.174.233", 1984),
+      // new WebSocketAddress("158.101.100.95", 1984),
+      multiaddr("/ip4/127.0.0.1/tcp/1985/ws/"),
     ];
   const announceToTorrentTrackers = false;
 
   // construct node and UI
   // const node = new VerityNode(lightNode, port, initialPeers, announceToTorrentTrackers);
-  const node = new VerityNode(false, undefined, [multiaddr("/ip4/127.0.0.1/tcp/1985/ws/")], false);
+  const node = new VerityNode(false, undefined, initialPeers, false);
   await node.cubeStoreReadyPromise;
   logger.info("Cube Store is ready");
   const verityUI = await VerityUI.Construct(node);

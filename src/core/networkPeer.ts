@@ -204,7 +204,7 @@ export class NetworkPeer extends Peer {
                     this.handleNodeResponse(messageContent);
                     break;
                 default:
-                    console.log(`NetworkPeer: Received message with unknown class: ${messageClass}`);
+                    logger.warn(`NetworkPeer: Received message with unknown class: ${messageClass}`);
             }
         } catch (err) {
             logger.error(`NetworkPeer: ${this.ip}:${this.port} error while handling message: ${err}`);

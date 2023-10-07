@@ -106,10 +106,10 @@ export class Libp2pServer extends NetworkServer {
     if (!isNaN(listen_param as number)) {  // if listen_param is a port number
       this.listen = [
         `/ip4/0.0.0.0/tcp/${listen_param}/ws`,  // for relay... or WebSocket via libp2p
-        // `/ip6/::1/tcp/${listen_param}/ws`,  // for relay again, IPv6 this time
-        // `/ip4/0.0.0.0/udp/${listen_param}/webrtc`,
+        // `/ip6/::1/tcp/${listen_param}/ws`,  // configuring IPv6 always throws "Listener not ready"... so no IPv6 I guess
+        `/ip4/0.0.0.0/udp/${listen_param}/webrtc`,
         // `/ip6/::1/udp/${listen_param}/webrtc`,
-        // `/webrtc`
+        `/webrtc`
       ];
     } else if (!(listen_param instanceof Array)) {
       this.listen = [listen_param as string];
