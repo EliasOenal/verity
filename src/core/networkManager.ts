@@ -198,7 +198,8 @@ export class NetworkManager extends EventEmitter {
         this.incomingPeers.push(peer);
         // TODO HACKHACK: Until we include some way for incoming peers to indicate
         // their server port (if any), we just don't store them to PeerDB.
-        // this.peerDB.setPeersUnverified(networkPeer);
+        // TODO HACKHACK undone so we can exchange webrtc peers
+        this.peerDB.verifyPeer(peer);
     }
 
     /**
@@ -212,14 +213,15 @@ export class NetworkManager extends EventEmitter {
         if (!peer.id) return;
 
         // Mark the peer as verified
-        if (this.outgoingPeers.includes(peer)) {
+        // if (this.outgoingPeers.includes(peer)) {
             // TODO HACKHACK:
             // We currently only mark outgoing peers verified to avoid
             // trying to connect to them or peer-exchanging them.
             // We should rework peerDB to properly represent "server-capable"
             // as node attribute.
+        // TODO HACKHACK undone so we can exchange webrtc peers
             this.peerDB.verifyPeer(peer);
-        }
+        // }
 
         // If this is the first successful connection, emit an 'online' event
         if (!this.online) {
@@ -323,7 +325,7 @@ export class NetworkManager extends EventEmitter {
 
     private handleDuplicatePeer(duplicate: NetworkPeer, original: Peer): void {
         duplicate.close();  // disconnect the duplicate
-        this.peerDB.removeUnverifiedPeer(duplicate);
+        this.peerDB.removePeer(duplicate);
         original.addAddress(duplicate.address);
         logger.info(`NetworkManager: Closing connection ${duplicate.addressString} as duplicate to ${original.toString()}.`)
         this.emit('duplicatepeer', duplicate);

@@ -6,7 +6,7 @@ import { log } from 'console';
 
 import axios from 'axios';
 import { Buffer } from 'buffer';
-import { Multiaddr } from '@multiformats/multiaddr'
+import { Multiaddr, multiaddr } from '@multiformats/multiaddr'
 
 // Maybe TODO: Move tracker handling out of PeerDB, maybe into a new TorrentTrackerClient?
 
@@ -19,6 +19,15 @@ interface TrackerResponse {
 export class AddressAbstraction {
     addr: WebSocketAddress | Multiaddr;
 
+    static Create(address: string) {
+        if (!address.length) return undefined;
+        if (address[0]=='/') return multiaddr(address);
+        else {
+            const [peerIp, peerPort] = address.split(':');
+            if (!peerIp || !peerPort) return undefined;  // ignore invalid
+            return new WebSocketAddress(peerIp, parseInt(peerPort));
+        }
+    }
     constructor(
         addr: WebSocketAddress | Multiaddr | AddressAbstraction
     ) {
@@ -141,10 +150,10 @@ export class Peer {
     }
 
     /** Shortcut to get the primary address string */
-    get addressString(): string { return `${this.ip}:${this.port}`}
+    get addressString(): string { return this.address.toString(); }
 
     toString() {
-        return `${this.ip}:${this.port}(ID#${this.id?.toString('hex')})`;
+        return `${this.addressString}(ID#${this.id?.toString('hex')})`;
     }
 }
 
@@ -259,9 +268,17 @@ export class PeerDB extends EventEmitter {
         this.emit('verifiedPeer', peer);
     }
 
+    removePeer(peer: Peer): void {
+        this.removeUnverifiedPeer(peer);
+        this.removeUnverifiedPeer(peer);
+    }
     removeUnverifiedPeer(peer: Peer): void {
         // Remove the peer from the unverified list
         this.peersUnverified = this.peersUnverified.filter(p => !p.equals(peer));
+    }
+    removeVerifiedPeer(peer: Peer): void {
+        // Remove the peer from the unverified list
+        this.peersVerified = this.peersVerified.filter(p => !p.equals(peer));
     }
 
     startAnnounceTimer(): void {

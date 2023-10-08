@@ -171,7 +171,7 @@ export class NetworkPeer extends Peer {
         // maybe TODO: We currently don't enforce the HELLO message exchange.
         // If we want to do that, we can simple check for this.onlineFlag
         // on handling other messages.
-        try {
+        // try {
             const messageClass = message.readUInt8(NetConstants.PROTOCOL_VERSION_SIZE);
             const messageContent = message.subarray(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
             logger.trace(`NetworkPeer: handleMessage() messageClass: ${MessageClass[messageClass]}`);
@@ -203,15 +203,15 @@ export class NetworkPeer extends Peer {
                 default:
                     logger.warn(`NetworkPeer: Received message with unknown class: ${messageClass}`);
             }
-        } catch (err) {
-            logger.error(`NetworkPeer: ${this.ip}:${this.port} error while handling message: ${err}`);
-            // TODO: Maybe be a bit less harsh with the blacklisting on errors.
-            // Maybe only blacklist repeat offenders, maybe remove blacklisting
-            // after a defined timespan (increasing for repeat offenders)?
-            // Blacklist entries based on IP/Port are especially sensitive
-            // as the address could be reused by another node in a NAT environment.
-            // this.networkManager.closeAndBlacklistPeer(this);
-        }
+        // } catch (err) {
+        //     logger.error(`NetworkPeer: ${this.ip}:${this.port} error while handling message: ${err}`);
+        //     // TODO: Maybe be a bit less harsh with the blacklisting on errors.
+        //     // Maybe only blacklist repeat offenders, maybe remove blacklisting
+        //     // after a defined timespan (increasing for repeat offenders)?
+        //     // Blacklist entries based on IP/Port are especially sensitive
+        //     // as the address could be reused by another node in a NAT environment.
+        //     // this.networkManager.closeAndBlacklistPeer(this);
+        // }
     }
 
     sendHello() {
@@ -492,7 +492,7 @@ export class NetworkPeer extends Peer {
         let msgLength = NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.COUNT_SIZE;
         for (let i = 0; i < numberToSend; i++) {
             msgLength += 2;  // for the node address length field
-            msgLength += chosenPeers[i].addressString.length;
+            msgLength += chosenPeers[i].address.toString().length;
         }
         // Prepare message
         const message = Buffer.alloc(msgLength);
@@ -501,10 +501,10 @@ export class NetworkPeer extends Peer {
         message.writeUInt8(MessageClass.NodeResponse, offset++);
         message.writeUIntBE(numberToSend, offset, NetConstants.COUNT_SIZE); offset += NetConstants.COUNT_SIZE;
         for (const peer of chosenPeers) {
-            message.writeUInt16BE(peer.addressString.length, offset);
+            message.writeUInt16BE(peer.address.toString().length, offset);
             offset += 2;
-            message.write(peer.addressString, offset, peer.addressString.length, 'ascii');
-            offset += peer.addressString.length;
+            message.write(peer.address.toString(), offset, peer.address.toString().length, 'ascii');
+            offset += peer.address.toString().length;
         }
         logger.trace(`NetworkPeer: handleNodeRequest: sending ${numberToSend} peer addresses to ${this.ip}:${this.port}`);
         this.txMessage(message);
@@ -515,19 +515,16 @@ export class NetworkPeer extends Peer {
         const peerCount: number = message.readUIntBE(offset, NetConstants.COUNT_SIZE);
         offset += NetConstants.COUNT_SIZE;
         for (let i = 0; i < peerCount; i++) {
+            // read address
             const addressLength: number = message.readUint16BE(offset);
             offset += 2;
             const peerAddress = message.subarray(offset, offset + addressLength);
             offset += addressLength;
 
-            // prepare peer object
-            const [peerIp, peerPort] = peerAddress.toString('ascii').split(':');
-            if (!peerIp || !peerPort) continue;  // ignore invalid
-            const peer: Peer = new Peer(new WebSocketAddress(peerIp, parseInt(peerPort)));
-
             // register peer
+            const peer: Peer = new Peer(AddressAbstraction.Create(peerAddress.toString()));
+            logger.info(`NetworkPeer: Received peer ${peerAddress.toString()} (which we parsed to ${/*peer?.addressString*/undefined}) from ${this.toString()}`);
             this.networkManager.getPeerDB().learnPeer(peer);
-            logger.info(`NetworkPeer: Received peer ${peerIp}:${peerPort} from ${this.toString()}`);
         }
     }
 }
