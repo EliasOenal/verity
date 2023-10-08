@@ -18,6 +18,7 @@ import { yamux } from '@chainsafe/libp2p-yamux'
 import { identifyService } from 'libp2p/identify'
 import { IncomingStreamData } from '@libp2p/interface/stream-handler'
 import { Libp2pPeerConnection } from "./networkPeerConnection";
+import * as filters from '@libp2p/websockets/filters'
 
 export enum SupportedServerTypes {
   ws,
@@ -94,7 +95,8 @@ export class WebSocketServer extends NetworkServer {
 
 
 export class Libp2pServer extends NetworkServer {
-  private node: Libp2p;  // libp2p types are much to complicated for my humble brain
+  private _node: Libp2p;  // libp2p types are much to complicated for my humble brain
+  get node() { return this._node }
   private listen: string[];
 
   constructor(
@@ -122,15 +124,14 @@ export class Libp2pServer extends NetworkServer {
 
   async start() {
     // logger.error(this.listen)
-    this.node = await createLibp2p({
+    this._node = await createLibp2p({
       addresses: {
         listen: this.listen,
-        // listen: ['/ip4/127.0.0.1/tcp/0/ws']
       },
       transports: [
-        webSockets(),
+        webSockets({ filter: filters.all }),
         webRTC(),
-        circuitRelayTransport(),
+        circuitRelayTransport({ discoverRelays: 5 }),
       ],
       connectionEncryption: [noise(),],
       streamMuxers: [yamux()],
@@ -145,17 +146,17 @@ export class Libp2pServer extends NetworkServer {
         minConnections: 0,  // we manage creating new peer connections ourselves
       }
     });
-    await this.node.handle(
+    await this._node.handle(
       "/verity/1.0.0",
       (incomingStreamData: IncomingStreamData) => this.handleIncomingPeer(incomingStreamData));
-    logger.info("Libp2pServer: Listening to Libp2p multiaddrs: " + this.node.getMultiaddrs().toString());
+    logger.info("Libp2pServer: Listening to Libp2p multiaddrs: " + this._node.getMultiaddrs().toString());
     // logger.info("Transports are: " + this.server.components.transportManager.getTransports());
 
   }
 
   private handleIncomingPeer(incomingStreamData: IncomingStreamData): void {
     logger.debug(`Libp2pServer: Incoming connection from ${incomingStreamData.connection.remoteAddr.toString()}`);
-    const conn = new Libp2pPeerConnection(this.node, incomingStreamData);
+    const conn = new Libp2pPeerConnection(this._node, incomingStreamData);
     const networkPeer = new NetworkPeer(
       this.networkManager,
       incomingStreamData.connection.remoteAddr,

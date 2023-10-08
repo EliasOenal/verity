@@ -3,12 +3,14 @@ import { MessageClass, NetConstants } from './networkDefinitions';
 import { PeerDB, Peer } from './peerDB';
 import { Settings } from './config';
 import { NetworkPeer, NetworkStats } from './networkPeer';
+import { Libp2pServer, NetworkServer, SupportedServerTypes, WebSocketServer } from './networkServer';
 import { logger } from './logger';
+import { NetworkPeerConnection } from './networkPeerConnection';
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
-import { Libp2pServer, NetworkServer, SupportedServerTypes, WebSocketServer } from './networkServer';
+import { Libp2p } from 'libp2p';
 
 import * as cryptolib from 'crypto';
 let crypto;
@@ -51,9 +53,9 @@ export class NetworkManager extends EventEmitter {
             private _lightNode: boolean = false) {
         super();
 
-        this.peerID = Buffer.from(crypto.getRandomValues(new Uint8Array(16)));
-
-        for (const  [type, param] of servers.entries()) {
+        // Create all requested servers. You could also call them listeners if you like.
+        // You know, stuff that accepts connections via various protocols.
+        for (const [type, param] of servers.entries()) {
             if (type == SupportedServerTypes.ws) {
                 if (isNode) {
                     this.servers.push(new WebSocketServer(this, param));
@@ -65,6 +67,18 @@ export class NetworkManager extends EventEmitter {
                 this.servers.push(new Libp2pServer(this, param));
             }
         }
+
+        // Set a random peer ID
+        this.peerID = Buffer.from(crypto.getRandomValues(new Uint8Array(NetConstants.PEER_ID_SIZE)));
+    }
+
+    // maybe TODO: I don't like how badly encapsulated libp2p is here
+    get libp2pNode(): Libp2p {
+        const libp2pServer: Libp2pServer = (this.servers.find(
+            (server) => server instanceof Libp2pServer
+        )) as Libp2pServer;
+        if (libp2pServer) return libp2pServer.node;
+        else return undefined;
     }
 
     get cubeStore(): CubeStore { return this._cubeStore; }
@@ -104,7 +118,7 @@ export class NetworkManager extends EventEmitter {
     * To distinguish its continuous run from further external calls, automatic
     * re-calls to self will set existingRun, and nobody else should.
     */
-    private connectPeers(existingRun: boolean = false) {
+    private connectPeers(existingRun: boolean = false): void {
         // Don't do anything if we're already in the process of connecting new peers
         // or if we're shutting down.
         if (this.isShuttingDown || (!existingRun && this.isConnectingPeers)) {
@@ -124,14 +138,24 @@ export class NetworkManager extends EventEmitter {
                 // Return here after a short while to connect further peers
                 // if possible and required.
                 this.isConnectingPeers = true;
-                connectTo.lastConnectAttempt = Math.floor(Date.now() / 1000);
-                this.connect(connectTo);
-                // TODO: We should distinguish between successful and unsuccessful
-                // connection attempts and use a much smaller interval when
-                // unsuccessful. In case of getting spammed with fake nodes,
-                // this currently takes forever till we even try a legit one.
-                this.connectPeersInterval = setInterval(() =>
-                    this.connectPeers(true), Settings.NEW_PEER_INTERVAL);
+                try {
+                    this.connect(connectTo);
+                    connectTo.lastConnectAttempt = Math.floor(Date.now() / 1000);
+                    // TODO: We should distinguish between successful and unsuccessful
+                    // connection attempts and use a much smaller interval when
+                    // unsuccessful. In case of getting spammed with fake nodes,
+                    // this currently takes forever till we even try a legit one.
+                    this.connectPeersInterval = setInterval(() =>
+                        this.connectPeers(true), Settings.NEW_PEER_INTERVAL);
+                } catch (error) {
+                    logger.trace("NetworkManager: Connection attempt failed, retrying in " + Settings.RETRY_INTERVAL/1000 + " seconds");
+                    // Note this does not actually catch failed connections,
+                    // it just catched failed *connect calls*.
+                    // Actual connection failure usually happens much later down the
+                    // line and does not get detected here.
+                    this.connectPeersInterval = setInterval(() =>
+                        this.connectPeers(true), Settings.RETRY_INTERVAL);
+                }
             } else {  // no suitable peers found, so stop trying
                 // TODO HACKHACK:
                 // We currently re-call this method every Settings.RECONNECT_INTERVAL
@@ -233,18 +257,18 @@ export class NetworkManager extends EventEmitter {
      */
     public connect(peer: Peer): NetworkPeer {
         logger.info(`NetworkManager: Connecting to ${peer.toString()}...`);
-
-        // Create a new NetworkPeer
+        // Create a new NetworkPeer and its associated NetworkPeerConnection
+        // maybe TODO: I don't like how badly encapsulated libp2p is here
+        const conn = NetworkPeerConnection.Create(peer.address, this.libp2pNode);
         const networkPeer = new NetworkPeer(
             this,
             peer.addresses,
             this.cubeStore,
             this.peerID,
-            this.lightNode);
+            this.lightNode,
+            conn);
         this.outgoingPeers.push(networkPeer);
         this.emit('newpeer', networkPeer);
-
-        // Listen for events on this new network peer
         return networkPeer;
     }
 

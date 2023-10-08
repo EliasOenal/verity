@@ -34,12 +34,12 @@ export class AddressError extends NetworkError {}
  * @emits "ready" when connection is... you know... ready
  */
 export abstract class NetworkPeerConnection extends EventEmitter {
-  static Create(address: AddressAbstraction) {
+  static Create(address: AddressAbstraction, libp2pNode?: Libp2p) {
     if (address.addr instanceof WebSocketAddress) {
         return new WebSocketPeerConnection(address.addr)
     } else if ('getPeerId' in address.addr) {  // "addr instanceof Multiaddr"
-        // return new Libp2pPeerConnection(address.addr);
-        throw new AddressError("NetworkPeerConnection.Create: libp2p being a rather heavy framework, all libp2p connections must be created through the server object, even if you don't really intend to run a server.");
+        if (!libp2pNode) throw new AddressError("To create a libp2p connection the libp2p node object must be supplied.");
+        return new Libp2pPeerConnection(libp2pNode, address.addr);
     }
     else {
         throw new AddressError("NetworkPeerConnection.Create: Unsupported address type");
@@ -229,29 +229,6 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
   async createConn(addr: Multiaddr) {
     logger.trace("Libp2pPeerConnection: Creating new connection to " + addr.toString());
     try {
-      this.node = await createLibp2p({
-        addresses: { listen: ['/webrtc'] },
-        transports: [
-          webSockets({
-            filter:  filters.all,
-          }),
-          webRTC(),
-          circuitRelayTransport({
-            discoverRelays: 1,
-          }),
-        ],
-        connectionEncryption: [noise()],
-        streamMuxers: [yamux()],
-        connectionManager: {
-          minConnections: 0,
-        },
-        connectionGater: {
-          denyDialMultiaddr: async() => false,
-        },
-        services: {
-          identify: identifyService()
-        }
-      });
       this.conn = await this.node.dial(addr);
       this.stream = await this.conn.newStream("/verity/1.0.0");
       if (this.ready()) this.emit("ready");

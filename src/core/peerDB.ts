@@ -208,7 +208,7 @@ export class PeerDB extends EventEmitter {
         const now: number = Math.floor(Date.now() / 1000);
         const eligible: Peer[] = this.peersVerified.concat(this.peersUnverified).
             filter((candidate: Peer) =>
-                candidate.lastConnectAttempt < now - Settings.RECONNECT_INTERVAL / 1000 &&
+                candidate.lastConnectAttempt <= now - Settings.RECONNECT_INTERVAL / 1000 &&
                 exclude.every((tobeExcluded: Peer) =>
                     !candidate.equals(tobeExcluded)));
         logger.trace(`PeerDB: Eligible peers are ${eligible}`)

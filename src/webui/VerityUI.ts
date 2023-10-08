@@ -196,7 +196,7 @@ async function webmain() {
       // new WebSocketAddress("verity.hahn.mt", 1986),
       // new WebSocketAddress("132.145.174.233", 1984),
       // new WebSocketAddress("158.101.100.95", 1984),
-      // multiaddr('/ip4/192.168.0.81/tcp/1985/ws/p2p/12D3KooWKSFR3ogpGqF8bN9VioiEcWVXeUvPsgDn8J88JKwTpUsi/p2p-circuit/webrtc/p2p/12D3KooWR8CSNLGJ4iZ4XPr9Ked6WgauTw58sauAJB9G33ErLB1L'),
+      // multiaddr('/ip4/192.168.0.81/tcp/1985/ws/p2p/12D3KooWSEiJD9ymJtojq4Ahhwi8ZiYz7g6RrBPatiKfdSLZ8AgZ/p2p-circuit/webrtc/p2p/12D3KooWA32oeT3NA3FdSbEGjf85uRe2PjMVW7we1iuinBECvMBf'),
       // multiaddr("/ip4/127.0.0.1/tcp/1985/ws/"),
     ];
   const announceToTorrentTrackers = false;
