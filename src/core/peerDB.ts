@@ -7,6 +7,7 @@ import { log } from 'console';
 import axios from 'axios';
 import { Buffer } from 'buffer';
 import { Multiaddr, multiaddr } from '@multiformats/multiaddr'
+import { SupportedTransports } from './networkServer';
 
 // Maybe TODO: Move tracker handling out of PeerDB, maybe into a new TorrentTrackerClient?
 
@@ -19,15 +20,20 @@ interface TrackerResponse {
 export class AddressAbstraction {
     addr: WebSocketAddress | Multiaddr;
 
-    static Create(address: string) {
+    static CreateAddress(type: SupportedTransports, address: string) {
         if (!address.length) return undefined;
-        if (address[0]=='/') return multiaddr(address);
-        else {
+        if (type == SupportedTransports.ws) {
             const [peerIp, peerPort] = address.split(':');
             if (!peerIp || !peerPort) return undefined;  // ignore invalid
             return new WebSocketAddress(peerIp, parseInt(peerPort));
+        } else if (type == SupportedTransports.libp2p) {
+            return multiaddr(address);
+        }
+        else { // invalid
+            return undefined;
         }
     }
+
     constructor(
         addr: WebSocketAddress | Multiaddr | AddressAbstraction
     ) {
@@ -54,6 +60,11 @@ export class AddressAbstraction {
     }
 
     toString(): string { return this.addr.toString(); }
+
+    get type(): SupportedTransports {
+        if (this.addr instanceof WebSocketAddress) return SupportedTransports.ws;
+        else return SupportedTransports.libp2p;  // not motivated to properly check for multiaddr
+    }
 }
 
 /**
@@ -141,12 +152,29 @@ export class Peer {
         else return false;
     }
 
-    /** Leans a new address for this peer, if it's actually a new one. */
-    addAddress(address: WebSocketAddress | Multiaddr) {
+    /**
+     * Leans a new address for this peer, if it's actually a new one.
+     * @param [makePrimary=false] Mark the specified address as this node's new
+     *   primary address (even if we knew it already).
+     * @returns Whether the address was added, which is equivalent to whether it was new
+     */
+    addAddress(
+            address: WebSocketAddress | Multiaddr | AddressAbstraction,
+            makePrimary: boolean = false) {
         const abstracted = new AddressAbstraction(address);
-        if (!this.addresses.some(existingaddr => (abstracted).equals(existingaddr))) {
-            this.addresses.push(abstracted);
+        // is this address actually new?
+        let alreadyExists: boolean = false;
+        for (let i=0; i<this.addresses.length; i++) {
+            if (abstracted.equals(this.addresses[i])) {
+                alreadyExists = true;
+                if (makePrimary) this.primaryAddressIndex = i;
+            }
         }
+        if (!alreadyExists){
+            this.addresses.push(abstracted);
+            if (makePrimary) this.primaryAddressIndex = this.addresses.length-1;
+        }
+        return !alreadyExists;
     }
 
     /** Shortcut to get the primary address string */

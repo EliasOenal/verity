@@ -16,6 +16,7 @@ import { Buffer } from 'buffer';
 import { Multiaddr } from '@multiformats/multiaddr'
 
 import { IncomingStreamData } from '@libp2p/interface/stream-handler'
+import { SupportedTransports } from './networkServer';
 
 export interface PacketStats {
     count: number,
@@ -66,6 +67,8 @@ export class NetworkPeer extends Peer {
 
     private conn: NetworkPeerConnection = undefined;
 
+    private networkTimeout: NodeJS.Timeout;
+
     constructor(
             private networkManager: NetworkManager,
             address: WebSocketAddress | Multiaddr | AddressAbstraction[],
@@ -113,10 +116,15 @@ export class NetworkPeer extends Peer {
             logger.info(`NetworkPeer: Connected to ${this.toString()}`);
             this.sendHello();
         } else {
+            // Set connection timeout
+            this.networkTimeout = setTimeout(() => this.close(), Settings.NETWORK_TIMEOUT);
+            // On ready, cancel the timeout and send HELLO
             this.conn.on("ready", () => {
+                clearTimeout(this.networkTimeout);
                 logger.info(`NetworkPeer: Connected to ${this.toString()}`);
                 this.sendHello();
             });
+
         }
     }
 
@@ -140,7 +148,7 @@ export class NetworkPeer extends Peer {
         this.networkManager.handlePeerClosed(this);
     }
 
-    logRxStats(message: Buffer, messageType: MessageClass) {
+    private logRxStats(message: Buffer, messageType: MessageClass): void {
         this.stats.rx.totalPackets++;
         this.stats.rx.totalBytes += message.length;
         const packetTypeStats = this.stats.rx.packetTypes[messageType] || { count: 0, bytes: 0 };
@@ -149,7 +157,7 @@ export class NetworkPeer extends Peer {
         this.stats.rx.packetTypes[messageType] = packetTypeStats;
     }
 
-    logTxStats(message: Buffer, messageType: MessageClass) {
+    private logTxStats(message: Buffer, messageType: MessageClass): void {
         this.stats.tx.totalPackets++;
         this.stats.tx.totalBytes += message.length;
         const packetTypeStats = this.stats.tx.packetTypes[messageType] || { count: 0, bytes: 0 };
@@ -158,7 +166,7 @@ export class NetworkPeer extends Peer {
         this.stats.tx.packetTypes[messageType] = packetTypeStats;
     }
 
-    private txMessage(message: Buffer) {
+    private txMessage(message: Buffer): void {
         this.logTxStats(message, message.readUInt8(NetConstants.PROTOCOL_VERSION_SIZE));
         this.conn.send(message);
     }
@@ -167,11 +175,11 @@ export class NetworkPeer extends Peer {
      * Handle an incoming message.
      * @param message The incoming message as a Buffer.
      */
-    handleMessage(message: Buffer) {
+    private handleMessage(message: Buffer): void {
         // maybe TODO: We currently don't enforce the HELLO message exchange.
         // If we want to do that, we can simple check for this.onlineFlag
         // on handling other messages.
-        // try {
+        try {
             const messageClass = message.readUInt8(NetConstants.PROTOCOL_VERSION_SIZE);
             const messageContent = message.subarray(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
             logger.trace(`NetworkPeer: handleMessage() messageClass: ${MessageClass[messageClass]}`);
@@ -194,6 +202,9 @@ export class NetworkPeer extends Peer {
                 case MessageClass.CubeResponse:
                     this.handleCubeResponse(messageContent);
                     break;
+                case MessageClass.MyServerAddress:
+                    this.handleServerAddress(messageContent);
+                    break;
                 case MessageClass.NodeRequest:
                     this.handleNodeRequest();
                     break;
@@ -203,18 +214,18 @@ export class NetworkPeer extends Peer {
                 default:
                     logger.warn(`NetworkPeer: Received message with unknown class: ${messageClass}`);
             }
-        // } catch (err) {
-        //     logger.error(`NetworkPeer: ${this.ip}:${this.port} error while handling message: ${err}`);
-        //     // TODO: Maybe be a bit less harsh with the blacklisting on errors.
-        //     // Maybe only blacklist repeat offenders, maybe remove blacklisting
-        //     // after a defined timespan (increasing for repeat offenders)?
-        //     // Blacklist entries based on IP/Port are especially sensitive
-        //     // as the address could be reused by another node in a NAT environment.
-        //     // this.networkManager.closeAndBlacklistPeer(this);
-        // }
+        } catch (err) {
+            logger.error(`NetworkPeer: ${this.ip}:${this.port} error while handling message: ${err}`);
+            // TODO: Maybe be a bit less harsh with the blacklisting on errors.
+            // Maybe only blacklist repeat offenders, maybe remove blacklisting
+            // after a defined timespan (increasing for repeat offenders)?
+            // Blacklist entries based on IP/Port are especially sensitive
+            // as the address could be reused by another node in a NAT environment.
+            // this.networkManager.closeAndBlacklistPeer(this);
+        }
     }
 
-    sendHello() {
+    private sendHello(): void {
         logger.trace(`NetworkPeer: Sending HELLO to ${this.ip}:${this.port}`);
         const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.PEER_ID_SIZE);
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, 0);
@@ -223,7 +234,7 @@ export class NetworkPeer extends Peer {
         this.txMessage(message);
     }
 
-    handleHello(data: Buffer) {
+    private handleHello(data: Buffer): void {
         // receive peer ID
         const peerID: Buffer = data.subarray(0, NetConstants.PEER_ID_SIZE);
         if (peerID.length != NetConstants.PEER_ID_SIZE) {  // ID too short
@@ -265,7 +276,7 @@ export class NetworkPeer extends Peer {
     /**
      * Handle a HashRequest message.
      */
-    handleHashRequest() {
+    private handleHashRequest(): void {
         // Send MAX_CUBE_HASH_COUNT unsent hashes from unsentHashes
         const cubes: CubeMeta[] = [];
         const iterator: IterableIterator<CubeMeta> = this.unsentCubeMeta.values();
@@ -316,7 +327,7 @@ export class NetworkPeer extends Peer {
      * Handle a HashResponse message.
      * @param data The HashResponse data.
      */
-    handleHashResponse(data: Buffer) {
+    private handleHashResponse(data: Buffer): void {
         const hashCount = data.readUInt32BE(0);
         logger.trace(`NetworkPeer: handleHashResponse: received ${hashCount} hashes from ${this.ip}:${this.port}`);
         const regularCubeMeta: CubeMeta[] = [];
@@ -375,7 +386,7 @@ export class NetworkPeer extends Peer {
      * Handle a CubeRequest message.
      * @param data The CubeRequest data.
      */
-    handleCubeRequest(data: Buffer) {
+    private handleCubeRequest(data: Buffer): void {
         const cubeHashCount = Math.min(data.readUInt32BE(0), NetConstants.MAX_CUBE_HASH_COUNT);
         const requestedCubeHashes = [];
         for (let i = 0; i < cubeHashCount; i++) {
@@ -413,30 +424,58 @@ export class NetworkPeer extends Peer {
      * @param data The CubeResponse data.
      */
     // TODO: If we're a light node, make sure we actually requested those
-    async handleCubeResponse(data: Buffer) {
+    private handleCubeResponse(data: Buffer): void {
         const cubeCount = data.readUInt32BE(0);
         for (let i = 0; i < cubeCount; i++) {
             const cubeData = data.slice(NetConstants.COUNT_SIZE + i * NetConstants.CUBE_SIZE,
                 NetConstants.COUNT_SIZE + (i + 1) * NetConstants.CUBE_SIZE);
 
             // Add the cube to the CubeStorage
-            const hash = await this.cubeStore.addCube(cubeData);
-            if (!hash) {
-                logger.error(`NetworkPeer: handleCubeResponse: failed to add cube ${hash}`);
-                return;
-            }
+            // If this fails, CubeStore will log an error and we will ignore this cube.
+            this.cubeStore.addCube(cubeData);
         }
         logger.info(`NetworkPeer: handleCubeResponse: received ${cubeCount} cubes from ${this.ip}:${this.port}`);
     }
 
     /**
+     * Handles a MyServerAddress message, which is a remote (incoming) peer's
+     * way of telling us their publicly reachable address, making them eligible
+     * for peer exchange.
+     */
+    private handleServerAddress(messageContent: Buffer): void {
+        let offset = 0;
+        const type: SupportedTransports = messageContent.readUInt8(offset++);
+        const length: number = messageContent.readUInt16BE(offset); offset += 2;
+        const addrString: string =
+            messageContent.subarray(offset, messageContent.length).toString('ascii');
+        const address = AddressAbstraction.CreateAddress(type, addrString);
+        this.addAddress(address, true);  // learn address and make primary
+    }
+
+    sendMyServerAddress(type: SupportedTransports, address: string) {
+        const message = Buffer.alloc(
+            NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE +
+            1 + // type -- todo parametrize
+            2 + // address length -- todo parametrize
+            address.length);
+        let offset = 0;
+        message.writeUInt8(NetConstants.PROTOCOL_VERSION, offset++);
+        message.writeUInt8(MessageClass.MyServerAddress, offset++);
+        message.writeUInt8(type, offset++);
+        message.writeUInt16BE(address.length, offset); offset += 2;
+        message.write(address, offset, 'ascii'); offset += address.length;
+        logger.trace(`NetworkPeer: sending MyServerAddress ${address} to ${this.toString()}`);
+        this.txMessage(message);
+    }
+
+    /**
       * Send a HashRequest message.
       */
-    sendHashRequest() {
+    sendHashRequest(): void {
         const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
-        message.writeUInt8(NetConstants.PROTOCOL_VERSION, 0);
+        message.writeUInt8(NetConstants.PROTOCOL_VERSION, NetConstants.PROTOCOL_VERSION);
         message.writeUInt8(MessageClass.HashRequest, 1);
-        logger.trace(`NetworkPeer: sendHashRequest: sending HashRequest to ${this.ip}:${this.port}`);
+        logger.trace(`NetworkPeer: sendHashRequest: sending HashRequest to ${this.toString()}`);
         this.txMessage(message);
     }
 
@@ -444,7 +483,7 @@ export class NetworkPeer extends Peer {
      * Send a CubeRequest message.
      * @param hashes The list of cube hashes to request.
      */
-    sendCubeRequest(hashes: Buffer[]) {
+    sendCubeRequest(hashes: Buffer[]): void {
         const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE
             + NetConstants.COUNT_SIZE + hashes.length * NetConstants.HASH_SIZE);
         let offset = 0;
@@ -460,7 +499,7 @@ export class NetworkPeer extends Peer {
         this.txMessage(message);
     }
 
-    sendNodeRequest() {
+    sendNodeRequest(): void {
         // Determine message length
         const msgLength = NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE;
         // Prepare message
@@ -472,7 +511,7 @@ export class NetworkPeer extends Peer {
         this.txMessage(message);
     }
 
-    handleNodeRequest() {
+    private handleNodeRequest(): void {
         // Send MAX_NODE_ADDRESS_COUNT peer addresses
         // ... do we even know that many?
         let numberToSend: number;
@@ -491,6 +530,7 @@ export class NetworkPeer extends Peer {
         // Determine message length
         let msgLength = NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.COUNT_SIZE;
         for (let i = 0; i < numberToSend; i++) {
+            msgLength += 1;  // for the address type field
             msgLength += 2;  // for the node address length field
             msgLength += chosenPeers[i].address.toString().length;
         }
@@ -501,6 +541,7 @@ export class NetworkPeer extends Peer {
         message.writeUInt8(MessageClass.NodeResponse, offset++);
         message.writeUIntBE(numberToSend, offset, NetConstants.COUNT_SIZE); offset += NetConstants.COUNT_SIZE;
         for (const peer of chosenPeers) {
+            message.writeUInt8(peer.address.type, offset++);
             message.writeUInt16BE(peer.address.toString().length, offset);
             offset += 2;
             message.write(peer.address.toString(), offset, peer.address.toString().length, 'ascii');
@@ -510,19 +551,21 @@ export class NetworkPeer extends Peer {
         this.txMessage(message);
     }
 
-    handleNodeResponse(message: Buffer) {
+    private handleNodeResponse(message: Buffer): void {
         let offset = 0;
         const peerCount: number = message.readUIntBE(offset, NetConstants.COUNT_SIZE);
         offset += NetConstants.COUNT_SIZE;
         for (let i = 0; i < peerCount; i++) {
             // read address
+            const addressType: SupportedTransports = message.readUInt8(offset++);
             const addressLength: number = message.readUint16BE(offset);
             offset += 2;
             const peerAddress = message.subarray(offset, offset + addressLength);
             offset += addressLength;
 
             // register peer
-            const peer: Peer = new Peer(AddressAbstraction.Create(peerAddress.toString()));
+            const peer: Peer = new Peer(AddressAbstraction.CreateAddress(
+                addressType, peerAddress.toString()));
             logger.info(`NetworkPeer: Received peer ${peerAddress.toString()} (which we parsed to ${/*peer?.addressString*/undefined}) from ${this.toString()}`);
             this.networkManager.getPeerDB().learnPeer(peer);
         }

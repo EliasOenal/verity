@@ -9,13 +9,13 @@ import { logger } from '../../src/core/logger';
 import WebSocket from 'isomorphic-ws';
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { FieldParser } from '../../src/core/fieldParser';
-import { SupportedServerTypes } from '../../src/core/networkServer';
+import { SupportedTransports } from '../../src/core/networkServer';
 
 describe('networkManager', () => {
     test('should create a WebSocket server on instantiation', () => {
         const manager = new NetworkManager(
             new CubeStore(false), new PeerDB(),
-            new Map([[SupportedServerTypes.ws, 3000]]),
+            new Map([[SupportedTransports.ws, 3000]]),
             false)
         manager.start();
         // @ts-ignore Checking private attributes
@@ -26,7 +26,7 @@ describe('networkManager', () => {
     test('should create a NetworkPeer on incoming connection', done => {
         const manager = new NetworkManager(
             new CubeStore(false), new PeerDB(),
-            new Map([[SupportedServerTypes.ws, 3001]]),
+            new Map([[SupportedTransports.ws, 3001]]),
             false);
         manager.start();
         // @ts-ignore Checking private attributes
@@ -45,7 +45,7 @@ describe('networkManager', () => {
     test('should create a NetworkPeer on outgoing connection', async () => {
         const manager = new NetworkManager(
             new CubeStore(false), new PeerDB(),
-            new Map([[SupportedServerTypes.ws, 3003]]),
+            new Map([[SupportedTransports.ws, 3003]]),
             false);
         manager.start();
 
@@ -72,15 +72,15 @@ describe('networkManager', () => {
         const cubeStore3 = new CubeStore(false, reduced_difficulty);
         const manager1 = new NetworkManager(
             cubeStore, new PeerDB(),
-            new Map([[SupportedServerTypes.ws, 4000]]),
+            new Map([[SupportedTransports.ws, 4000]]),
             false, false);
         const manager2 = new NetworkManager(
             cubeStore2, new PeerDB(),
-            new Map([[SupportedServerTypes.ws, 4001]]),
+            new Map([[SupportedTransports.ws, 4001]]),
             false, false);
         const manager3 = new NetworkManager(
             cubeStore3, new PeerDB(),
-            new Map([[SupportedServerTypes.ws, 4002]]),
+            new Map([[SupportedTransports.ws, 4002]]),
             false, false);
 
         const promise1_listening = new Promise(resolve => manager1.on('listening', resolve));
@@ -157,11 +157,11 @@ describe('networkManager', () => {
         const cubeStore2 = new CubeStore(false);
         const manager1 = new NetworkManager(
             cubeStore, new PeerDB(),
-            new Map([[SupportedServerTypes.ws, 5002]]),
+            new Map([[SupportedTransports.ws, 5002]]),
             false, false);
         const manager2 = new NetworkManager(
             cubeStore2, new PeerDB(),
-            new Map([[SupportedServerTypes.ws, 5001]]),
+            new Map([[SupportedTransports.ws, 5001]]),
             false, false);
 
         const promise1_listening = new Promise(resolve => manager1.on('listening', resolve));
@@ -253,7 +253,7 @@ describe('networkManager', () => {
         const peerDB = new PeerDB();
         const manager = new NetworkManager(
             new CubeStore(false), peerDB,
-            new Map([[SupportedServerTypes.ws, 6004]]),
+            new Map([[SupportedTransports.ws, 6004]]),
             false);
         manager.start();
 
@@ -279,14 +279,14 @@ describe('networkManager', () => {
         const myPeerDB = new PeerDB();
         const myManager = new NetworkManager(
             new CubeStore(false), myPeerDB,
-            new Map([[SupportedServerTypes.ws, 7004]]),
+            new Map([[SupportedTransports.ws, 7004]]),
             false);
         myManager.start();
 
         const otherPeerDB = new PeerDB();
         const otherManager = new NetworkManager(
             new CubeStore(false), otherPeerDB,
-            new Map([[SupportedServerTypes.ws, 7005]]),
+            new Map([[SupportedTransports.ws, 7005]]),
             false);
         otherManager.start();
 

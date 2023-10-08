@@ -19,8 +19,9 @@ import { identifyService } from 'libp2p/identify'
 import { IncomingStreamData } from '@libp2p/interface/stream-handler'
 import { Libp2pPeerConnection } from "./networkPeerConnection";
 import * as filters from '@libp2p/websockets/filters'
+import { Multiaddr } from '@multiformats/multiaddr'
 
-export enum SupportedServerTypes {
+export enum SupportedTransports {
   ws,
   libp2p,
 }
@@ -98,6 +99,7 @@ export class Libp2pServer extends NetworkServer {
   private _node: Libp2p;  // libp2p types are much to complicated for my humble brain
   get node() { return this._node }
   private listen: string[];
+  private dialableAddress: Multiaddr = undefined;
 
   constructor(
       networkManager: NetworkManager,
@@ -151,12 +153,11 @@ export class Libp2pServer extends NetworkServer {
       (incomingStreamData: IncomingStreamData) => this.handleIncomingPeer(incomingStreamData));
     logger.info("Libp2pServer: Listening to Libp2p multiaddrs: " + this._node.getMultiaddrs().toString());
     // logger.info("Transports are: " + this.server.components.transportManager.getTransports());
-
   }
 
   private handleIncomingPeer(incomingStreamData: IncomingStreamData): void {
     logger.debug(`Libp2pServer: Incoming connection from ${incomingStreamData.connection.remoteAddr.toString()}`);
-    const conn = new Libp2pPeerConnection(this._node, incomingStreamData);
+    const conn = new Libp2pPeerConnection(this, incomingStreamData);
     const networkPeer = new NetworkPeer(
       this.networkManager,
       incomingStreamData.connection.remoteAddr,
@@ -166,5 +167,26 @@ export class Libp2pServer extends NetworkServer {
       conn);
     this.networkManager.handleIncomingPeer(networkPeer);
   }
+
+  addressChange(): void {
+    if (this.dialableAddress) {
+      return;
+      // It appears we already have a dialable address. Currently, a Peer (and
+      // in the eyes of our peers, we are obviously a peer) can only have one
+      // primary address, so we're done here.
+      // TODO generalize, we *should* actually register relay addresses with
+      // multiple relays and publish all of them
+    }
+    for (const multiaddr of this.node.getMultiaddrs()) {
+      const protos: string[] = multiaddr.protoNames();
+       if (protos.includes("p2p") && protos.includes("p2p-circuit") &&
+           protos.includes("webrtc")) {
+        this.dialableAddress = multiaddr;
+        for (const peer of this.networkManager.outgoingPeers.concat(this.networkManager.incomingPeers)) {
+          peer.sendMyServerAddress(SupportedTransports.libp2p, multiaddr.toString());
+        }
+      }
+    }
+}
 
 }

@@ -5,7 +5,7 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node
 import { Cube } from './core/cube';
 import { CubeField, CubeRelationship, CubeFields, CubeRelationshipType } from './core/cubeFields';
 import { VerityNode } from "./core/verityNode";
-import { SupportedServerTypes } from './core/networkServer';
+import { SupportedTransports } from './core/networkServer';
 
 import { logger } from './core/logger';
 import { vera } from './misc/vera';
@@ -94,8 +94,8 @@ class VerityCmdClient {
             logger.warn("Note: You have started this node without any of --peer and --tracker. I will still start up, but make no effort to connect to anybody else. Your exprience might be quite limited.")
           }
           let servers = new Map();
-          if (ws) servers.set(SupportedServerTypes.ws, ws);
-          if (webrtc) servers.set(SupportedServerTypes.libp2p, webrtc);
+          if (ws) servers.set(SupportedTransports.ws, ws);
+          if (webrtc) servers.set(SupportedTransports.libp2p, webrtc);
           if (peer.length) {
             initialPeers = [];
             for (const onepeer of peer) {

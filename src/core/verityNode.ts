@@ -3,7 +3,7 @@ import { NetworkManager } from "./networkManager";
 import { Peer, PeerDB, WebSocketAddress } from "./peerDB";
 
 import { logger } from "./logger";
-import { SupportedServerTypes } from "./networkServer";
+import { SupportedTransports } from "./networkServer";
 import { WebSocketServer } from "ws";
 import { Multiaddr } from '@multiformats/multiaddr'
 
@@ -24,13 +24,13 @@ export class VerityNode {
      * They also do not request cubes unless they are explicitly requested.
      */
     public readonly lightNode: boolean = false,
-    public readonly servers: Map<SupportedServerTypes, any> = new Map(),
+    public readonly servers: Map<SupportedTransports, any> = new Map(),
     private initialPeers: Array<WebSocketAddress | Multiaddr> = [],
     private announceToTorrentTrackers = false,
   ){
     // find a suitable port number for tracker announcement
     let port;
-    const wsServerSpec = servers.get(SupportedServerTypes.ws);
+    const wsServerSpec = servers.get(SupportedTransports.ws);
     if (wsServerSpec) port = wsServerSpec;
     else port = undefined;
     this.peerDB = new PeerDB(port);

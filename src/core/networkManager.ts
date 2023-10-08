@@ -3,7 +3,7 @@ import { MessageClass, NetConstants } from './networkDefinitions';
 import { PeerDB, Peer } from './peerDB';
 import { Settings } from './config';
 import { NetworkPeer, NetworkStats } from './networkPeer';
-import { Libp2pServer, NetworkServer, SupportedServerTypes, WebSocketServer } from './networkServer';
+import { Libp2pServer, NetworkServer, SupportedTransports, WebSocketServer } from './networkServer';
 import { logger } from './logger';
 import { NetworkPeerConnection } from './networkPeerConnection';
 
@@ -48,7 +48,7 @@ export class NetworkManager extends EventEmitter {
     constructor(
             private _cubeStore: CubeStore,
             private peerDB: PeerDB,
-            servers: Map<SupportedServerTypes, any>,
+            servers: Map<SupportedTransports, any>,
             private announceToTorrentTrackers: boolean = true,
             private _lightNode: boolean = false) {
         super();
@@ -56,14 +56,14 @@ export class NetworkManager extends EventEmitter {
         // Create all requested servers. You could also call them listeners if you like.
         // You know, stuff that accepts connections via various protocols.
         for (const [type, param] of servers.entries()) {
-            if (type == SupportedServerTypes.ws) {
+            if (type == SupportedTransports.ws) {
                 if (isNode) {
                     this.servers.push(new WebSocketServer(this, param));
                 } else {
                     logger.error("NetworkManager: WebSocketServers are only supported on NodeJS.");
                 }
             }
-            if (type == SupportedServerTypes.libp2p) {
+            if (type == SupportedTransports.libp2p) {
                 this.servers.push(new Libp2pServer(this, param));
             }
         }
@@ -73,11 +73,11 @@ export class NetworkManager extends EventEmitter {
     }
 
     // maybe TODO: I don't like how badly encapsulated libp2p is here
-    get libp2pNode(): Libp2p {
+    get libp2pServer(): Libp2pServer {
         const libp2pServer: Libp2pServer = (this.servers.find(
             (server) => server instanceof Libp2pServer
         )) as Libp2pServer;
-        if (libp2pServer) return libp2pServer.node;
+        if (libp2pServer) return libp2pServer;
         else return undefined;
     }
 
@@ -257,11 +257,12 @@ export class NetworkManager extends EventEmitter {
      * Connect to a peer
      * @returns A NetworkPeer object
      */
-    public connect(peer: Peer): NetworkPeer {
+    // TODO this should be private
+    connect(peer: Peer): NetworkPeer {
         logger.info(`NetworkManager: Connecting to ${peer.toString()}...`);
         // Create a new NetworkPeer and its associated NetworkPeerConnection
         // maybe TODO: I don't like how badly encapsulated libp2p is here
-        const conn = NetworkPeerConnection.Create(peer.address, this.libp2pNode);
+        const conn = NetworkPeerConnection.Create(peer.address, this.libp2pServer);
         const networkPeer = new NetworkPeer(
             this,
             peer.addresses,

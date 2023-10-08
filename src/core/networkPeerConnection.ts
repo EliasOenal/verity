@@ -22,6 +22,7 @@ import { yamux } from '@chainsafe/libp2p-yamux'
 import * as filters from '@libp2p/websockets/filters'
 import { PassThrough } from 'stream';
 import { identifyService } from 'libp2p/identify'
+import { Libp2pServer, SupportedTransports } from "./networkServer";
 
 export class NetworkError extends VerityError  {}
 export class AddressError extends NetworkError {}
@@ -34,12 +35,12 @@ export class AddressError extends NetworkError {}
  * @emits "ready" when connection is... you know... ready
  */
 export abstract class NetworkPeerConnection extends EventEmitter {
-  static Create(address: AddressAbstraction, libp2pNode?: Libp2p) {
+  static Create(address: AddressAbstraction, libp2pServer?: Libp2pServer) {
     if (address.addr instanceof WebSocketAddress) {
         return new WebSocketPeerConnection(address.addr)
     } else if ('getPeerId' in address.addr) {  // "addr instanceof Multiaddr"
-        if (!libp2pNode) throw new AddressError("To create a libp2p connection the libp2p node object must be supplied.");
-        return new Libp2pPeerConnection(libp2pNode, address.addr);
+        if (!libp2pServer) throw new AddressError("To create a libp2p connection the libp2p node object must be supplied.");
+        return new Libp2pPeerConnection(libp2pServer, address.addr);
     }
     else {
         throw new AddressError("NetworkPeerConnection.Create: Unsupported address type");
@@ -54,6 +55,10 @@ export abstract class NetworkPeerConnection extends EventEmitter {
   }
   send(message: Buffer): void {
     throw new VerityError("NetworkPeerConnection.send() to be implemented by subclass")
+  }
+
+  type(): SupportedTransports {
+    throw new VerityError("NetworkPeerConnection.type() to be implemented by subclass")
   }
 
 }
@@ -139,6 +144,10 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
   send(message: Buffer) {
     this.ws.send(message);
   }
+
+  type(): SupportedTransports {
+    return SupportedTransports.ws;
+  }
 }
 
 // TODO: We currently create a new Libp2p node object for each connection.
@@ -150,7 +159,7 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
   private outputStream: PassThrough = new PassThrough();
 
   constructor(
-      private node: Libp2p,
+      private server: Libp2pServer,
       private connParam: IncomingStreamData | Multiaddr )
   {
     super();
@@ -188,7 +197,6 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
             // get message fragment
             let inbuf = Buffer.from(msg.subarray());
             // logger.trace("Libp2pPeerConnection: Received raw bytes from " + this.peer.addressString + ": " + inbuf.toString('hex'));
-            logger.trace("Libp2pPeerConnection: Just wanted to remind you that my multiaddrs still are " + this.node?.getMultiaddrs());
             // concatenate newly received fragment onto existing unprocessed fragment, if any
             msgbuf = Buffer.concat([msgbuf, inbuf]);
             // logger.trace("Libp2pPeerConnection: After receiving this message, my msgbuf for " + this.peer.addressString + " is now " + msgbuf.toString('hex'));
@@ -218,6 +226,14 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
                 tryToParseMessage = false;
               }
             }
+
+            // HACKHACK: Abuse this method as event handler and check if we learned
+            // a new multiaddr. In particular, this may happen shortly after
+            // connecting to a relay-capable server node, in which case we will
+            // now learn our connectable WebRTC address used for browser-to-browser
+            // connections.
+            logger.trace("Libp2pPeerConnection: Just wanted to remind you that my multiaddrs still are " + this.server.node?.getMultiaddrs());
+            this.server.addressChange();  // HACKHACK: this is a lie, they might not even have changed
           }
         }
       );
@@ -229,19 +245,23 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
   async createConn(addr: Multiaddr) {
     logger.trace("Libp2pPeerConnection: Creating new connection to " + addr.toString());
     try {
-      this.conn = await this.node.dial(addr);
+      this.conn = await this.server.node.dial(addr);
       this.stream = await this.conn.newStream("/verity/1.0.0");
       if (this.ready()) this.emit("ready");
       else throw new VerityError("Libp2p connection not open and I have no clue why");
-      logger.trace("Libp2pPeerConnection: Successfully connected to " + addr.toString() + ". My multiaddrs are " + this.node.getMultiaddrs() + " and my peer ID is " + Buffer.from(this.node.peerId.publicKey).toString('hex'));
+      logger.trace("Libp2pPeerConnection: Successfully connected to " + addr.toString() + ". My multiaddrs are " + this.server.node.getMultiaddrs() + " and my peer ID is " + Buffer.from(this.server.node.peerId.publicKey).toString('hex'));
       this.handleStreams();
     } catch (error) {
+      // TODO FIXME: This currently happens when we try to dial a libp2p connection before
+      // our libp2p node object has been initialized, and we always do that on startup.
+      // TODO FIXME: If this happens, NetworkPeer.close() is not called, as apparently it's not listening on our close event yet.
       logger.info("Libp2pPeerConnection: Connection to " + addr.toString() + " failed or closed or something: " + error);
       this.close();
     }
   }
 
   close(): void {
+    logger.info("Libp2pPeerConnection: Closing connection to " + this.conn?.remoteAddr.toString());
     this.emit("closed");
     this.removeAllListeners();
     if (this.stream) {
@@ -263,5 +283,9 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
     const combined = Buffer.concat([lenbuf, message]);
     this.outputStream.write(combined);
     // logger.info("Libp2pPeerConnection: Sending message of length " + message.length + " to " + this.peer.addressString + ", raw bytes: " + combined.toString('hex'));
+  }
+
+  type(): SupportedTransports {
+    return SupportedTransports.libp2p;
   }
 }
