@@ -99,8 +99,8 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
 
   2. **Message Class (1 byte)**: This is an identifier for the type of message. Here's a possible mapping:
   - `0x00`: `Hello`
-  - `0x01`: `HashRequest`
-  - `0x02`: `HashResponse`
+  - `0x01`: `KeyRequest`
+  - `0x02`: `KeyResponse`
   - `0x03`: `CubeRequest`
   - `0x04`: `CubeResponse`
   - `0x05`: `MyServerAddress`
@@ -110,19 +110,19 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
   Each of these message classes will have different data payloads:
   - `Hello`: **Node Identifier (16 bytes)**: This is a unique NodeID that's randomly generated at startup. Primary purpose is to detect when we connected to ourselves. This may happen if we don't know our external IP. (e.g. NAT) Secondarily this may be used to detect duplicate connections to the same node, which may happen if the node is reachable via multiple IPs.
 
-  - `HashRequest`: This message does not need any further data. The act of repeatedly sending it is sufficient to request all cube hashes iteratively. This message may get extended in the future to allow for more fine-grained control over which hashes to request. (e.g. by date or by MPT subtree)
+  - `KeyRequest`: This message does not need any further data. The act of repeatedly sending it is sufficient to request all cube keys iteratively. This message may get extended in the future to allow for more fine-grained control over which keys to request. (e.g. by date or by MPT subtree)
 
-  - `HashResponse`:
-    - **Hash Count (4 bytes)**: This is an integer indicating the number of hashes being sent.
+  - `HeyResponse`:
+    - **Key Count (4 bytes)**: This is an integer indicating the number of keys being sent.
     - **Cube Details**: Each detail includes:
       - **Cube Type (1 byte)**: The type of the cube (e.g., regular, MUC, IPC).
       - **Challenge Level (1 byte)**: The challenge level the cube adheres to.
       - **Timestamp (5 bytes)**: The timestamp of the cube.
-      - **Hash (32 bytes)**: The hash of the cube.
+      - **Key (32 bytes)**: The key of the cube.
 
   - `CubeRequest`:
-    - **Cube Hash Count (4 bytes)**: This is an integer indicating the number of cube hashes being requested.
-    - **Cube Hashes (32 bytes each)**: This is a series of 32-byte hash values. The number of hashes should match the Cube Hash Count.
+    - **Cube Key Count (4 bytes)**: This is an integer indicating the number of cubes being requested.
+    - **Cube Keys (32 bytes each)**: This is a series of 32-byte Cube key values. The number of keys must match the previously indicated Cube Key Count.
 
   - `CubeResponse`:
     - **Cube Count (4 bytes)**: This is an integer indicating the number of cubes being sent.

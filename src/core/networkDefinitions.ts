@@ -2,8 +2,8 @@
 
 export enum MessageClass {
     Hello = 0x00,
-    HashRequest = 0x01,
-    HashResponse = 0x02,
+    KeyRequest = 0x01,
+    KeyResponse = 0x02,
     CubeRequest = 0x03,
     CubeResponse = 0x04,
     MyServerAddress = 0x05,

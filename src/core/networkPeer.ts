@@ -44,7 +44,7 @@ export class NetworkPeer extends Peer {
         tx: { totalPackets: 0, totalBytes: 0, packetTypes: {} },
         rx: { totalPackets: 0, totalBytes: 0, packetTypes: {} },
     }
-    hashRequestTimer?: NodeJS.Timeout = undefined; // Timer for hash requests
+    keyRequestTimer?: NodeJS.Timeout = undefined; // Timer for key requests
     nodeRequestTimer?: NodeJS.Timeout = undefined; // Timer for node requests
 
     private onlinePromiseResolve: Function;
@@ -109,7 +109,7 @@ export class NetworkPeer extends Peer {
 
         // Send HELLO message once connected
         if (this.conn.ready()) {
-            logger.info(`NetworkPeer: Connected to ${this.toString()}`);
+            logger.info(`NetworkPeer ${this.toString()}: Connected`);
             this.sendHello();
         } else {
             // Set connection timeout
@@ -117,7 +117,7 @@ export class NetworkPeer extends Peer {
             // On ready, cancel the timeout and send HELLO
             this.conn.on("ready", () => {
                 clearTimeout(this.networkTimeout);
-                logger.info(`NetworkPeer: Connected to ${this.toString()}`);
+                logger.info(`NetworkPeer ${this.toString()}: Connected`);
                 this.sendHello();
             });
 
@@ -125,10 +125,10 @@ export class NetworkPeer extends Peer {
     }
 
     public close(): void {
-        logger.trace("NetworkPeer: Closing connection to " + this.addressString);
+        logger.trace(`NetworkPeer ${this.toString()}: Closing connection.`);
         // Remove all listeners and timers to avoid memory leaks
-        if (this.hashRequestTimer) {
-            clearInterval(this.hashRequestTimer);
+        if (this.keyRequestTimer) {
+            clearInterval(this.keyRequestTimer);
         }
         if (this.nodeRequestTimer) {
             clearInterval(this.nodeRequestTimer);
@@ -180,7 +180,7 @@ export class NetworkPeer extends Peer {
         try {
             const messageClass = message.readUInt8(NetConstants.PROTOCOL_VERSION_SIZE);
             const messageContent = message.subarray(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
-            logger.trace(`NetworkPeer: handleMessage() messageClass: ${MessageClass[messageClass]}`);
+            logger.trace(`NetworkPeer ${this.toString()}: handleMessage() messageClass: ${MessageClass[messageClass]}`);
             this.logRxStats(message, messageClass);
 
             // Process the message based on its class
@@ -188,11 +188,11 @@ export class NetworkPeer extends Peer {
                 case MessageClass.Hello:
                     this.handleHello(messageContent);
                     break;
-                case MessageClass.HashRequest:
-                    this.handleHashRequest();
+                case MessageClass.KeyRequest:
+                    this.handleKeyRequest();
                     break;
-                case MessageClass.HashResponse:
-                    this.handleHashResponse(messageContent);
+                case MessageClass.KeyResponse:
+                    this.handleKeyResponse(messageContent);
                     break;
                 case MessageClass.CubeRequest:
                     this.handleCubeRequest(messageContent);
@@ -210,10 +210,10 @@ export class NetworkPeer extends Peer {
                     this.handleNodeResponse(messageContent);
                     break;
                 default:
-                    logger.warn(`NetworkPeer: Received message with unknown class: ${messageClass}`);
+                    logger.warn(`NetworkPeer ${this.toString()}: Received message with unknown class: ${messageClass}`);
             }
         } catch (err) {
-            logger.error(`NetworkPeer: ${this.ip}:${this.port} error while handling message: ${err}`);
+            logger.info(`NetworkPeer ${this.toString()}: error while handling message: ${err}`);
             // TODO: Maybe be a bit less harsh with the blacklisting on errors.
             // Maybe only blacklist repeat offenders, maybe remove blacklisting
             // after a defined timespan (increasing for repeat offenders)?
@@ -224,7 +224,7 @@ export class NetworkPeer extends Peer {
     }
 
     private sendHello(): void {
-        logger.trace(`NetworkPeer: Sending HELLO to ${this.ip}:${this.port}`);
+        logger.trace(`NetworkPeer ${this.toString()}: Sending HELLO`);
         const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.PEER_ID_SIZE);
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, 0);
         message.writeUInt8(MessageClass.Hello, 1);
@@ -236,7 +236,7 @@ export class NetworkPeer extends Peer {
         // receive peer ID
         const peerID: Buffer = data.subarray(0, NetConstants.PEER_ID_SIZE);
         if (peerID.length != NetConstants.PEER_ID_SIZE) {  // ID too short
-            logger.info(`NetworkPeer: Received invalid peer ID sized ${peerID.length} bytes, should be ${NetConstants.PEER_ID_SIZE} bytes. Closing connection to ${this.ip}:${this.port}.`)
+            logger.info(`NetworkPeer ${this.toString()}: Received invalid peer ID sized ${peerID.length} bytes, should be ${NetConstants.PEER_ID_SIZE} bytes. Closing connection.`)
             this.close();
             return;
         }
@@ -245,16 +245,16 @@ export class NetworkPeer extends Peer {
         if (this._online) {
             // If the peer has unexpectedly changed its ID, disconnect.
             if (!this.id.equals(peerID)) {
-                logger.info(`NetworkPeer: Peer at ${this.ip}:${this.port} suddenly changed its ID from ${this.id?.toString('hex')} to ${peerID.toString('hex')}, closing connection.`);
+                logger.info(`NetworkPeer ${this.toString()} suddenly changed its ID from ${this.id?.toString('hex')} to ${peerID.toString('hex')}, closing connection.`);
                 this.close();
                 return;
             } else {  // no unexpedted ID change
-                logger.trace(`NetworkPeer: Received spurious repeat HELLO from ${this.ip}:${this.port}, ID ${this.id.toString('hex')}`);
+                logger.trace(`NetworkPeer ${this.toString()}: Received spurious repeat HELLO`);
             }
         } else {  // not a repeat hello
-            logger.trace(`NetworkPeer: received HELLO from IP: ${this.ip}, port: ${this.port}, peerID: ${peerID.toString('hex')}, peer now considered online`);
             this.id = peerID;
             this._online = true;
+            logger.trace(`NetworkPeer ${this.toString()}: received HELLO, peer now considered online`);
             this.networkManager.handlePeerOnline(this);
             this.onlinePromiseResolve(this);  // let listeners know we learnt the peer's ID
         }
@@ -265,16 +265,16 @@ export class NetworkPeer extends Peer {
                 this.sendNodeRequest(), Settings.NODE_REQUEST_TIME);
         }
         // If we're a full node, ask for available cubes in regular intervals
-        if (!this.lightMode && !this.hashRequestTimer) {
-            this.hashRequestTimer = setInterval(() => this.sendHashRequest(),
+        if (!this.lightMode && !this.keyRequestTimer) {
+            this.keyRequestTimer = setInterval(() => this.sendHashRequest(),
                 Settings.HASH_REQUEST_TIME);
         }
     }
 
     /**
-     * Handle a HashRequest message.
+     * Handle a KeyRequest message.
      */
-    private handleHashRequest(): void {
+    private handleKeyRequest(): void {
         // Send MAX_CUBE_HASH_COUNT unsent hashes from unsentHashes
         const cubes: CubeMeta[] = [];
         const iterator: IterableIterator<CubeMeta> = this.unsentCubeMeta.values();
@@ -299,7 +299,7 @@ export class NetworkPeer extends Peer {
         let offset = 0;
 
         reply.writeUInt8(NetConstants.PROTOCOL_VERSION, offset++);
-        reply.writeUInt8(MessageClass.HashResponse, offset++);
+        reply.writeUInt8(MessageClass.KeyResponse, offset++);
         reply.writeUInt32BE(cubes.length, offset);
         offset += NetConstants.COUNT_SIZE;
 
@@ -317,7 +317,7 @@ export class NetworkPeer extends Peer {
             offset += NetConstants.CUBE_KEY_SIZE;
         }
 
-        logger.trace(`NetworkPeer: handleHashRequest: sending ${cubes.length} cube details to ${this.ip}:${this.port}`);
+        logger.trace(`NetworkPeer ${this.toString()}: handleKeyRequest: sending ${cubes.length} cube details`);
         this.txMessage(reply);
     }
 
@@ -325,14 +325,14 @@ export class NetworkPeer extends Peer {
      * Handle a HashResponse message.
      * @param data The HashResponse data.
      */
-    private handleHashResponse(data: Buffer): void {
-        const hashCount = data.readUInt32BE(0);
-        logger.trace(`NetworkPeer: handleHashResponse: received ${hashCount} hashes from ${this.ip}:${this.port}`);
+    private handleKeyResponse(data: Buffer): void {
+        const keyCount = data.readUInt32BE(0);
+        logger.trace(`NetworkPeer ${this.toString()}: handleKeyResponse: received ${keyCount} keys`);
         const regularCubeMeta: CubeMeta[] = [];
         const mucMeta = [];
 
         let offset = NetConstants.COUNT_SIZE;
-        for (let i = 0; i < hashCount; i++) {
+        for (let i = 0; i < keyCount; i++) {
             const cubeType = data.readUInt8(offset++);
             const challengeLevel = data.readUInt8(offset++);
             // Read timestamp as a 5-byte number
@@ -352,31 +352,30 @@ export class NetworkPeer extends Peer {
             } else if (cubeType === CubeType.CUBE_TYPE_MUC) {
                 mucMeta.push(incomingCubeMeta);
             } else {
-                logger.info(`NetworkPeer: in handleHashResponse I saw a CubeType of ${cubeType}. I don't know what that is.`)
+                logger.info(`NetworkPeer ${this.toString()}: in handleKeyResponse I saw a CubeType of ${cubeType}. I don't know what that is.`)
             }
         }
-        // For each regular hash not in cube storage, request the cube
-        const missingHashes: Buffer[] = regularCubeMeta.filter(detail => !this.cubeStore.hasCube(detail.key)).map(detail => detail.key);
+        // For each regular key not in cube storage, request the cube
+        const missingKeys: Buffer[] = regularCubeMeta.filter(detail => !this.cubeStore.hasCube(detail.key)).map(detail => detail.key);
         for (const muc of mucMeta) {
             // Request any MUC not in cube storage
             if (!this.cubeStore.hasCube(muc.key)) {
-                missingHashes.push(muc.key);
+                missingKeys.push(muc.key);
             } else {
                 // For each MUC in cube storage, identify winner and request if necessary
                 const storedCube: CubeMeta = this.cubeStore.getCubeInfo(muc.key);
                 try {
                     const winningCube: CubeMeta = cubeContest(storedCube, muc);
                     if (winningCube !== storedCube) {
-                        missingHashes.push(muc.key);
+                        missingKeys.push(muc.key);
                     }
                 } catch(error) {
-                    logger.info(`NetworkPeer: handleHashResponse(): Error handling incoming MUC ${muc.key} from peer ${this.toString()}: ${error}`);
+                    logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Error handling incoming MUC ${muc.key}: ${error}`);
                 }
             }
         }
-
-        if (missingHashes.length > 0) {
-            this.sendCubeRequest(missingHashes);
+        if (missingKeys.length > 0) {
+            this.sendCubeRequest(missingKeys);
         }
     }
 
@@ -413,7 +412,7 @@ export class NetworkPeer extends Peer {
             cubeInfo.binaryCube.copy(reply, offset);
             offset += NetConstants.CUBE_SIZE;
         }
-        logger.trace(`NetworkPeer: handleCubeRequest: sending ${cubes.length} cubes to ${this.ip}:${this.port}`);
+        logger.trace(`NetworkPeer: handleCubeRequest: sending ${cubes.length} cubes to ${this.toString()}`);
         this.txMessage(reply);
     }
 
@@ -432,7 +431,7 @@ export class NetworkPeer extends Peer {
             // If this fails, CubeStore will log an error and we will ignore this cube.
             this.cubeStore.addCube(cubeData);
         }
-        logger.info(`NetworkPeer: handleCubeResponse: received ${cubeCount} cubes from ${this.ip}:${this.port}`);
+        logger.info(`NetworkPeer: handleCubeResponse: received ${cubeCount} cubes from ${this.toString()}`);
     }
 
     /**
@@ -473,7 +472,7 @@ export class NetworkPeer extends Peer {
         // Prepare message
         const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, NetConstants.PROTOCOL_VERSION);
-        message.writeUInt8(MessageClass.HashRequest, 1);
+        message.writeUInt8(MessageClass.KeyRequest, 1);
         logger.trace(`NetworkPeer: sendHashRequest: sending HashRequest to ${this.toString()}`);
         // Set connection timeout and send message
         this.networkTimeout = setTimeout(() => this.close(), Settings.NETWORK_TIMEOUT);
@@ -497,7 +496,7 @@ export class NetworkPeer extends Peer {
             hash.copy(message, offset);
             offset += NetConstants.HASH_SIZE;
         }
-        logger.trace(`NetworkPeer: sendCubeRequest: sending CubeRequest for ${hashes.length} cubes to ${this.ip}:${this.port}`);
+        logger.trace(`NetworkPeer: sendCubeRequest: sending CubeRequest for ${hashes.length} cubes to ${this.toString()}`);
         // Set connection timeout and send message
         this.networkTimeout = setTimeout(() => this.close(), Settings.NETWORK_TIMEOUT);
         this.txMessage(message);
@@ -511,7 +510,7 @@ export class NetworkPeer extends Peer {
         let offset = 0;
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, offset++);
         message.writeUInt8(MessageClass.NodeRequest, offset++);
-        logger.trace(`NetworkPeer: sendNodeRequest: sending NodeRequest to ${this.ip}:${this.port}`);
+        logger.trace(`NetworkPeer: sendNodeRequest: sending NodeRequest to ${this.toString()}`);
         // Not setting timeout for this message: A peer not participating in
         // node exchange is neither necessarily dead nor invalid.
         this.txMessage(message);
@@ -553,7 +552,7 @@ export class NetworkPeer extends Peer {
             message.write(peer.address.toString(), offset, peer.address.toString().length, 'ascii');
             offset += peer.address.toString().length;
         }
-        logger.trace(`NetworkPeer: handleNodeRequest: sending ${numberToSend} peer addresses to ${this.ip}:${this.port}`);
+        logger.trace(`NetworkPeer: handleNodeRequest: sending ${numberToSend} peer addresses to ${this.toString()}`);
         this.txMessage(message);
     }
 
@@ -570,9 +569,10 @@ export class NetworkPeer extends Peer {
             offset += addressLength;
 
             // register peer
-            const peer: Peer = new Peer(AddressAbstraction.CreateAddress(
-                addressType, peerAddress.toString()));
-            logger.info(`NetworkPeer: Received peer ${peerAddress.toString()} (which we parsed to ${/*peer?.addressString*/undefined}) from ${this.toString()}`);
+            const addressAbstraction = AddressAbstraction.CreateAddress(
+                addressType, peerAddress.toString())
+                logger.info(`NetworkPeer: Received peer ${peerAddress.toString()} (which we parsed to ${addressAbstraction.toString()}) from ${this.toString()}`);
+                const peer: Peer = new Peer(addressAbstraction);
             this.networkManager.getPeerDB().learnPeer(peer);
         }
     }
