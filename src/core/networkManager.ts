@@ -252,7 +252,7 @@ export class NetworkManager extends EventEmitter {
         // Ask for cube keys and node exchange now
         // This is a pure optimisation to enhance startup time; NetworkPeer
         // will periodically ask for the same stuff in a short while.
-        peer.sendHashRequest();
+        peer.sendKeyRequest();
         peer.sendNodeRequest();
 
         // Relay the online event to our subscribers

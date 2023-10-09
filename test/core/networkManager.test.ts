@@ -117,7 +117,7 @@ describe('networkManager', () => {
 
         // sync cubes from peer 1 to peer 2
         expect(manager1.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
-        manager2.outgoingPeers[0].sendHashRequest();
+        manager2.outgoingPeers[0].sendKeyRequest();
         // Verify cubes have been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
             if (cubeStore2.getAllStoredCubeKeys().size == numberOfCubes) {
@@ -131,7 +131,7 @@ describe('networkManager', () => {
 
         // sync cubes from peer 2 to peer 3
         expect(manager3.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
-        manager3.incomingPeers[0].sendHashRequest();
+        manager3.incomingPeers[0].sendKeyRequest();
         // Verify cubes have been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
             if (cubeStore3.getAllStoredCubeKeys().size == numberOfCubes) {
@@ -198,7 +198,7 @@ describe('networkManager', () => {
 
         // sync MUC from peer 1 to peer 2
         expect(manager2.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
-        manager2.incomingPeers[0].sendHashRequest();
+        manager2.incomingPeers[0].sendKeyRequest();
         // Verify MUC has been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
             if (cubeStore2.getCube(mucKey)) {
@@ -227,7 +227,7 @@ describe('networkManager', () => {
         expect(cubeStore.getAllStoredCubeKeys().size).toEqual(1);  // still just one, new MUC version replaces old MUC version
 
         // sync MUC from peer 1 to peer 2, again
-        manager2.incomingPeers[0].sendHashRequest();
+        manager2.incomingPeers[0].sendKeyRequest();
         // Verify MUC has been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
             if (cubeStore2.getCube(mucKey)?.getHashIfAvailable()?.equals(secondMucHash)) {

@@ -265,7 +265,7 @@ export class NetworkPeer extends Peer {
         }
         // If we're a full node, ask for available cubes in regular intervals
         if (!this.lightMode && !this.keyRequestTimer) {
-            this.keyRequestTimer = setInterval(() => this.sendHashRequest(),
+            this.keyRequestTimer = setInterval(() => this.sendKeyRequest(),
                 Settings.HASH_REQUEST_TIME);
         }
     }
@@ -473,14 +473,14 @@ export class NetworkPeer extends Peer {
     }
 
     /**
-      * Send a HashRequest message.
+      * Send a KeyRequest message.
       */
-    sendHashRequest(): void {
+    sendKeyRequest(): void {
         // Prepare message
         const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, NetConstants.PROTOCOL_VERSION);
         message.writeUInt8(MessageClass.KeyRequest, 1);
-        logger.trace(`NetworkPeer ${this.toString()}: sendHashRequest: sending HashRequest}`);
+        logger.trace(`NetworkPeer ${this.toString()}: sending KeyRequest}`);
         // Set connection timeout and send message
         this.setTimeout();
         this.txMessage(message);
