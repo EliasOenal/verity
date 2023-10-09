@@ -50,16 +50,33 @@ export class AddressAbstraction {
     }
 
     get ip(): string {
-        if (this.addr instanceof WebSocketAddress) return this.addr.ip;
-        else return this.addr.nodeAddress().address;
+        try {
+            if (this.addr instanceof WebSocketAddress) return this.addr.ip;
+            else return this.addr.nodeAddress().address;
+        } catch(error) {
+            logger.error("AddressAbstraction.ip: Error getting address: " + error);
+            return undefined;
+        }
     }
 
     get port(): number {
-        if (this.addr instanceof WebSocketAddress) return this.addr.port;
-        else return this.addr.nodeAddress().port;
+        try {
+            if (this.addr instanceof WebSocketAddress) return this.addr.port;
+            else return this.addr.nodeAddress().port;
+        } catch(error) {
+            logger.error("AddressAbstraction.port: Error getting address: " + error);
+            return undefined;
+        }
     }
 
-    toString(): string { return this.addr.toString(); }
+    toString(): string {
+        try {
+            return this.addr.toString();
+        } catch(error) {
+            logger.error("AddressAbstraction.toString(): Error printing address: " + error);
+            return undefined;
+        }
+    }
 
     get type(): SupportedTransports {
         if (this.addr instanceof WebSocketAddress) return SupportedTransports.ws;
@@ -167,12 +184,18 @@ export class Peer {
         for (let i=0; i<this.addresses.length; i++) {
             if (abstracted.equals(this.addresses[i])) {
                 alreadyExists = true;
-                if (makePrimary) this.primaryAddressIndex = i;
+                if (makePrimary) {
+                    logger.trace(`Peer ${this.toString()}: Setting existing address ${this.addresses[i]} primary`);
+                    this.primaryAddressIndex = i;
+                }
             }
         }
         if (!alreadyExists){
             this.addresses.push(abstracted);
-            if (makePrimary) this.primaryAddressIndex = this.addresses.length-1;
+            if (makePrimary) {
+                logger.trace(`Peer ${this.toString()}: Setting newly added address ${abstracted} primary`);
+                this.primaryAddressIndex = this.addresses.length-1;
+            }
         }
         return !alreadyExists;
     }

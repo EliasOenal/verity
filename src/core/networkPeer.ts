@@ -98,11 +98,7 @@ export class NetworkPeer extends Peer {
         // Take note of all other peers I could exchange with this new peer.
         // This is used to ensure we don't exchange the same peers twice.
         this.unsentPeers = this.networkManager.getPeerDB().getPeersVerified();
-        networkManager.getPeerDB().on('peerVerified', (peer: Peer) => {
-            if (!this.equals(peer)) {  // but don't share a peer with itself
-               this.unsentPeers.push(peer);
-            }
-        });
+        networkManager.getPeerDB().on('peerVerified', (peer: Peer) => this.learnExchangeablePeer(peer));
         // TODO FIXME: This includes incoming peers, and for incoming peers we only know their client socket.
         // TODO FIXME: Most universally, clients can't accept incoming connections on client sockets.
         // TODO FIXME: We should include the server port in the hello message and save it.
@@ -112,8 +108,7 @@ export class NetworkPeer extends Peer {
             logger.info(`NetworkPeer ${this.toString()}: Connected`);
             this.sendHello();
         } else {
-            // Set connection timeout
-            this.networkTimeout = setTimeout(() => this.close(), Settings.NETWORK_TIMEOUT);
+            this.setTimeout();
             // On ready, cancel the timeout and send HELLO
             this.conn.on("ready", () => {
                 clearTimeout(this.networkTimeout);
@@ -127,6 +122,8 @@ export class NetworkPeer extends Peer {
     public close(): void {
         logger.trace(`NetworkPeer ${this.toString()}: Closing connection.`);
         // Remove all listeners and timers to avoid memory leaks
+        this.networkManager.getPeerDB().removeListener(
+            'peerVerified', (peer: Peer) => this.learnExchangeablePeer(peer));
         if (this.keyRequestTimer) {
             clearInterval(this.keyRequestTimer);
         }
@@ -475,7 +472,7 @@ export class NetworkPeer extends Peer {
         message.writeUInt8(MessageClass.KeyRequest, 1);
         logger.trace(`NetworkPeer: sendHashRequest: sending HashRequest to ${this.toString()}`);
         // Set connection timeout and send message
-        this.networkTimeout = setTimeout(() => this.close(), Settings.NETWORK_TIMEOUT);
+        this.setTimeout();
         this.txMessage(message);
     }
 
@@ -498,7 +495,7 @@ export class NetworkPeer extends Peer {
         }
         logger.trace(`NetworkPeer: sendCubeRequest: sending CubeRequest for ${hashes.length} cubes to ${this.toString()}`);
         // Set connection timeout and send message
-        this.networkTimeout = setTimeout(() => this.close(), Settings.NETWORK_TIMEOUT);
+        this.setTimeout();
         this.txMessage(message);
     }
 
@@ -570,10 +567,27 @@ export class NetworkPeer extends Peer {
 
             // register peer
             const addressAbstraction = AddressAbstraction.CreateAddress(
-                addressType, peerAddress.toString())
-                logger.info(`NetworkPeer: Received peer ${peerAddress.toString()} (which we parsed to ${addressAbstraction.toString()}) from ${this.toString()}`);
-                const peer: Peer = new Peer(addressAbstraction);
+                addressType, peerAddress.toString());
+            if (!addressAbstraction) {
+                logger.info(`NetworkPeer ${this.toString()}: Received *invalid* peer address ${peerAddress.toString()}`);
+                continue;
+            }
+            logger.info(`NetworkPeer ${this.toString()}: Received peer ${peerAddress.toString()} (which we parsed to ${addressAbstraction.toString()})`);
+            const peer: Peer = new Peer(addressAbstraction);
             this.networkManager.getPeerDB().learnPeer(peer);
         }
+    }
+
+    private learnExchangeablePeer(peer: Peer): void {
+        if (!this.equals(peer)) {  // but don't share a peer with itself
+            this.unsentPeers.push(peer);
+        }
+    }
+
+    private setTimeout(): void {
+        this.networkTimeout = setTimeout(() => {
+                logger.info(`NetworkPeerk ${this.toString()} timed out a request, closing.`);
+                this.close()
+            }, Settings.NETWORK_TIMEOUT);
     }
 }

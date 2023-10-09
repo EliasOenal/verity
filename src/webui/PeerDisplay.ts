@@ -53,8 +53,9 @@ export class PeerDisplay {
 
   drawSinglePeer(peer: NetworkPeer, outgoing: boolean): HTMLLIElement {
     const li = document.createElement("li");
+    li.setAttribute("title", peer.toString());
     li.setAttribute("class", "mb-3 move-fade-in");
-    const peeraddr = document.createTextNode(`${peer.ip}:${peer.port}`);
+    const peeraddr = document.createTextNode(peer.address.toString());
     li.appendChild(peeraddr);
     li.appendChild(document.createElement("br"));
     const peerid = document.createTextNode(`ID ${peer.id?.toString('hex')}`);

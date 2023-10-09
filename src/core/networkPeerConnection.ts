@@ -95,7 +95,7 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
     this.ws.addEventListener("error", (error) => {
       // TODO: We should probably "greylist" peers that closed with an error,
       // i.e. not try to reconnect them for some time.
-      logger.warn(`WebSockerPeerConnection: WebSocket error: ${error.message}`);
+      logger.info(`WebSockerPeerConnection: WebSocket error: ${error.message}`);
       this.close();
     }, { signal: this.socketClosedSignal });
 
@@ -115,7 +115,7 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
     this.ws.addEventListener('close', () => {
       // TODO: We should at some point drop nodes closing on us from our PeerDB,
       // at least if they did that repeatedly and never even sent a valid HELLO.
-      logger.trace(`WebSocketPeerConnection: Peer closed on us`);
+      logger.info(`WebSocketPeerConnection: Peer closed on us`);
       this.close();
     });
 
@@ -247,7 +247,7 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
         }
       );
     }
-    logger.trace("Libp2pPeerConnection: Stream from " + this.conn.remoteAddr + " ended, closing connection.");
+    logger.info("Libp2pPeerConnection: Stream from " + this.conn.remoteAddr + " ended, closing connection.");
     this.close();
   }
 
