@@ -12,11 +12,11 @@ export const Settings = {
     MUC_EXTENSION_SEED_SIZE: 3,
 
     // Network manager related:
-    NETWORK_TIMEOUT: (1 * 1000),  // currently only used while establishing connection
-    ANNOUNCEMENT_INTERVAL: (25 * 60 * 1000),  // 25 minutes in milliseconds
+    NETWORK_TIMEOUT: (10 * 1000),  // currently only used while establishing connection
+    ANNOUNCEMENT_INTERVAL: (25 * 60 * 1000),  // 25 minutes between Torrent tracker announcements
     NEW_PEER_INTERVAL: (5 * 1000),
     RETRY_INTERVAL: (1 * 1000),
-    RECONNECT_INTERVAL: 1000,//(60 * 1000),
+    RECONNECT_INTERVAL: (60 * 1000),
     MAXIMUM_CONNECTIONS: 20, // Maximum number of connections to maintain
 
     // Network peer related:

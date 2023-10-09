@@ -168,6 +168,10 @@ export class Libp2pServer extends NetworkServer {
     this.networkManager.handleIncomingPeer(networkPeer);
   }
 
+  /**
+   * Event handler getting called when our publicly reachable address might have
+   * changed, ensuring our peers get updated on our reachable ("dialable") address.
+   */
   addressChange(): void {
     if (this.dialableAddress) {
       return;
@@ -176,6 +180,8 @@ export class Libp2pServer extends NetworkServer {
       // primary address, so we're done here.
       // TODO generalize, we *should* actually register relay addresses with
       // multiple relays and publish all of them
+      // TODO: Unset this.dialableAddress when the relay node connection closes
+      // TODO: Send this.dialableAddress to any new peer we connect to in the future (currently only sending to existing peers)
     }
     for (const multiaddr of this.node.getMultiaddrs()) {
       const protos: string[] = multiaddr.protoNames();
@@ -187,6 +193,6 @@ export class Libp2pServer extends NetworkServer {
         }
       }
     }
-}
+  }
 
 }

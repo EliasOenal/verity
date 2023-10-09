@@ -107,10 +107,6 @@ export class NetworkPeer extends Peer {
         // TODO FIXME: Most universally, clients can't accept incoming connections on client sockets.
         // TODO FIXME: We should include the server port in the hello message and save it.
 
-        // TODO: We should close the connection if we don't hear from this peer
-        // for some defined time. Currently we just keep talking to a wall and
-        // occupying a connection slot.
-
         // Send HELLO message once connected
         if (this.conn.ready()) {
             logger.info(`NetworkPeer: Connected to ${this.toString()}`);
@@ -176,6 +172,8 @@ export class NetworkPeer extends Peer {
      * @param message The incoming message as a Buffer.
      */
     private handleMessage(message: Buffer): void {
+        // Reset and timeout that might have been set, peer obviously alive
+        clearTimeout(this.networkTimeout);
         // maybe TODO: We currently don't enforce the HELLO message exchange.
         // If we want to do that, we can simple check for this.onlineFlag
         // on handling other messages.
@@ -472,10 +470,13 @@ export class NetworkPeer extends Peer {
       * Send a HashRequest message.
       */
     sendHashRequest(): void {
+        // Prepare message
         const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, NetConstants.PROTOCOL_VERSION);
         message.writeUInt8(MessageClass.HashRequest, 1);
         logger.trace(`NetworkPeer: sendHashRequest: sending HashRequest to ${this.toString()}`);
+        // Set connection timeout and send message
+        this.networkTimeout = setTimeout(() => this.close(), Settings.NETWORK_TIMEOUT);
         this.txMessage(message);
     }
 
@@ -484,6 +485,7 @@ export class NetworkPeer extends Peer {
      * @param hashes The list of cube hashes to request.
      */
     sendCubeRequest(hashes: Buffer[]): void {
+        // Prepare message
         const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE
             + NetConstants.COUNT_SIZE + hashes.length * NetConstants.HASH_SIZE);
         let offset = 0;
@@ -496,6 +498,8 @@ export class NetworkPeer extends Peer {
             offset += NetConstants.HASH_SIZE;
         }
         logger.trace(`NetworkPeer: sendCubeRequest: sending CubeRequest for ${hashes.length} cubes to ${this.ip}:${this.port}`);
+        // Set connection timeout and send message
+        this.networkTimeout = setTimeout(() => this.close(), Settings.NETWORK_TIMEOUT);
         this.txMessage(message);
     }
 
@@ -508,6 +512,8 @@ export class NetworkPeer extends Peer {
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, offset++);
         message.writeUInt8(MessageClass.NodeRequest, offset++);
         logger.trace(`NetworkPeer: sendNodeRequest: sending NodeRequest to ${this.ip}:${this.port}`);
+        // Not setting timeout for this message: A peer not participating in
+        // node exchange is neither necessarily dead nor invalid.
         this.txMessage(message);
     }
 

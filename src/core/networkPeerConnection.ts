@@ -39,7 +39,7 @@ export abstract class NetworkPeerConnection extends EventEmitter {
     if (address.addr instanceof WebSocketAddress) {
         return new WebSocketPeerConnection(address.addr)
     } else if ('getPeerId' in address.addr) {  // "addr instanceof Multiaddr"
-        if (!libp2pServer) throw new AddressError("To create a libp2p connection the libp2p node object must be supplied.");
+        if (!libp2pServer.node) throw new AddressError("To create a libp2p connection the libp2p node object must be supplied and ready.");
         return new Libp2pPeerConnection(libp2pServer, address.addr);
     }
     else {
@@ -155,7 +155,6 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
 export class Libp2pPeerConnection extends NetworkPeerConnection {
   private conn: Connection = undefined;
   private stream: Stream = undefined;
-  private inputStream: PassThrough = new PassThrough();
   private outputStream: PassThrough = new PassThrough();
 
   constructor(
@@ -181,24 +180,34 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
     // }).catch(logger.error);
     pipe(this.outputStream, this.stream.sink);
     this.readStream();
-    // pipe(this.stream.source, this.inputStream); -- this doesn't work although the online howto looked really promising
-    this.inputStream.on("data", data => this.emit("messageReceived", data));  // this will cause NetworkPeer to call handleMessage()
   }
 
+  /**
+   * Event handler for incoming stream data.
+   */
   async readStream() {
-    if (this.stream.status == "open") {
+    // As libp2p streams have no concept of messages, we'll have to splice the individual
+    // Verity node-to-node messages out this pseudo-continuous stream of data.
+    // To enable us to do so, messages have kindly been prefix with their length
+    // by the sender (see send()).
+    // This most certainly is not the way libp2p expects you to do it as it seems
+    // you usually spawn separate streams for each message.
+    // All of the below must look ridonculous to anybody who actually understands libp2p.
+     if (this.stream.status == "open") {
       await pipe(
         this.stream.source,
         async (source) => {
-          // this must look ridonculous to anybody who actually understands libp2p
+          // msgbuf will store received message fragments until we've received
+          // a message in full.
           let msgbuf: Buffer = Buffer.alloc(0);
+          // msgsize will store the next message's size, which has been indicated
+          // as a message prefix by the sender.
+          // 0 indicates there's currently no pending message fragment.
           let msgsize: number = 0;
           for await (const msg of source) {
-            // get message fragment
-            let inbuf = Buffer.from(msg.subarray());
-            // logger.trace("Libp2pPeerConnection: Received raw bytes from " + this.peer.addressString + ": " + inbuf.toString('hex'));
-            // concatenate newly received fragment onto existing unprocessed fragment, if any
-            msgbuf = Buffer.concat([msgbuf, inbuf]);
+            // get message fragment by concatenating it onto any existing unprocess
+            // we might be holding
+            msgbuf = Buffer.concat([msgbuf, msg.subarray()]);
             // logger.trace("Libp2pPeerConnection: After receiving this message, my msgbuf for " + this.peer.addressString + " is now " + msgbuf.toString('hex'));
 
             // parse data
@@ -207,7 +216,7 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
             while (tryToParseLength || tryToParseMessage) {  // I wanted to use goto but there was none available
               if (!msgsize && msgbuf.length >= 4) {  // if this is the start of a new message, read its length
                 msgsize = msgbuf.readUint32BE();
-                msgbuf = msgbuf.subarray(4, inbuf.length);
+                msgbuf = msgbuf.subarray(4, msgbuf.length);
                 // logger.trace("Libp2pPeerConnection: Starting to receive a new message of length " + msgsize + " from " + this.peer.addressString + ", my msgbuf is now " + msgbuf.toString('hex'));
                 tryToParseLength = true;
               } else {
@@ -219,7 +228,7 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
                 const msg: Buffer = msgbuf.subarray(0, msgsize);
                 msgbuf = msgbuf.subarray(msgsize, msgbuf.length);
                 // logger.trace("Libp2pPeerConnection: Fully received a message of length " + msgsize + " from " + this.peer.addressString + ", message is: " + msg.toString('hex') + "; my msgbuf is now: " + msgbuf.toString('hex'));
-                msgsize = 0;  // indicates no pending message fragment
+                msgsize = 0;  // 0 indicates no pending message fragment
                 this.emit("messageReceived", msg);
                 tryToParseMessage = true;
               } else {
@@ -277,8 +286,14 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
     else return (this.stream.status == "open");
   }
 
+  /**
+   * Transmits a Verity node-to-node message to our peer.
+   */
   send(message: Buffer): void {
-    const lenbuf = Buffer.alloc(4);
+    // As libp2p streams have no concept of messages, we prefix them with their
+    // length, allowing the received to re-assemble the original messages from the
+    // stream.
+     const lenbuf = Buffer.alloc(4);
     lenbuf.writeUint32BE(message.length);
     const combined = Buffer.concat([lenbuf, message]);
     this.outputStream.write(combined);

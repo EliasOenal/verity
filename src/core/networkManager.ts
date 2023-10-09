@@ -151,8 +151,8 @@ export class NetworkManager extends EventEmitter {
                     logger.trace("NetworkManager: Connection attempt failed, retrying in " + Settings.RETRY_INTERVAL/1000 + " seconds");
                     // Note this does not actually catch failed connections,
                     // it just catched failed *connect calls*.
-                    // Actual connection failure usually happens much later down the
-                    // line and does not get detected here.
+                    // Actual connection failure usually happens much later down
+                    // the line (async) and does not get detected here.
                     this.connectPeersInterval = setInterval(() =>
                         this.connectPeers(true), Settings.RETRY_INTERVAL);
                 }
@@ -168,6 +168,30 @@ export class NetworkManager extends EventEmitter {
         } else {  // we're done, enough peers connected
             this.isConnectingPeers = false;
         }
+    }
+
+    /*
+     * Connect to a peer
+     * @returns A NetworkPeer object
+     */
+    // TODO this should be private
+    connect(peer: Peer): NetworkPeer {
+        logger.info(`NetworkManager: Connecting to ${peer.toString()}...`);
+        // Create a new NetworkPeer and its associated NetworkPeerConnection
+        // NB: Even though we pass this.libp2pServer here, this also handles
+        // native WebSocket connections (ignoring the param in that case).
+        // maybe TODO: I don't like how badly encapsulated libp2p is here
+        const conn = NetworkPeerConnection.Create(peer.address, this.libp2pServer);
+        const networkPeer = new NetworkPeer(
+            this,
+            peer.addresses,
+            this.cubeStore,
+            this.peerID,
+            this.lightNode,
+            conn);
+        this.outgoingPeers.push(networkPeer);
+        this.emit('newpeer', networkPeer);
+        return networkPeer;
     }
 
     private stopConnectingPeers(): void {
@@ -187,10 +211,6 @@ export class NetworkManager extends EventEmitter {
         }
         this.shutdownPeers();
         this.emit('shutdown');
-    }
-
-    getOnline(): boolean {
-        return this.online;
     }
 
     /** Called by NetworkServer only, should never be called manually. */
@@ -251,28 +271,6 @@ export class NetworkManager extends EventEmitter {
             this.online = false;
         }
         this.connectPeers();  // find a replacement peer
-    }
-
-    /*
-     * Connect to a peer
-     * @returns A NetworkPeer object
-     */
-    // TODO this should be private
-    connect(peer: Peer): NetworkPeer {
-        logger.info(`NetworkManager: Connecting to ${peer.toString()}...`);
-        // Create a new NetworkPeer and its associated NetworkPeerConnection
-        // maybe TODO: I don't like how badly encapsulated libp2p is here
-        const conn = NetworkPeerConnection.Create(peer.address, this.libp2pServer);
-        const networkPeer = new NetworkPeer(
-            this,
-            peer.addresses,
-            this.cubeStore,
-            this.peerID,
-            this.lightNode,
-            conn);
-        this.outgoingPeers.push(networkPeer);
-        this.emit('newpeer', networkPeer);
-        return networkPeer;
     }
 
     /**
