@@ -22,8 +22,8 @@ import * as filters from '@libp2p/websockets/filters'
 import { Multiaddr } from '@multiformats/multiaddr'
 
 export enum SupportedTransports {
-  ws,
-  libp2p,
+  ws = 1,
+  libp2p = 2,
 }
 
 export abstract class NetworkServer extends EventEmitter {
@@ -55,9 +55,15 @@ export class WebSocketServer extends NetworkServer {
 
   start(): void {
       this.server = new WebSocket.Server({ port: this.port });
+      // Note: Setting this as our dialable address is actually wrong, as it
+      // does not include our IP address (it's just ":::port").
+      // We don't know our external IP address, but everybody we exchange peers
+      // with obviously does.
+      // Therefore, addresses starting in ":::" are just handled as a special
+      // case at the receiving node.
       // @ts-ignore This will only ever be called on NodeJS and it's correct for the NodeJS ws library
-      // this.dialableAddress = new WebSocketAddress(this.server.address().address, this.port);  // TODO WRONG
-      logger.trace('WebSocketServer: stated on ' + this.port);
+      this.dialableAddress = new WebSocketAddress(this.server.address().address, this.port);
+      logger.trace('WebSocketServer: stated on ' + this.dialableAddress.toString());
 
       // Handle incoming connections
       this.server.on('connection', ws => this.handleIncomingPeer(ws));

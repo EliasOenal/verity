@@ -259,7 +259,7 @@ describe('networkManager', () => {
 
         // Wait for server to start listening
         await new Promise((resolve) => manager.on('listening', resolve));
-        expect(peerDB.getPeersBlacklisted().length).toEqual(0);
+        expect(peerDB.peersBlacklisted.length).toEqual(0);
 
         // Trigger a connection to itself
         manager.connect(new Peer(new WebSocketAddress('localhost', 6004)));
@@ -270,7 +270,7 @@ describe('networkManager', () => {
                 resolve();
             })
         });
-        expect(peerDB.getPeersBlacklisted().length).toEqual(1);
+        expect(peerDB.peersBlacklisted.length).toEqual(1);
 
         manager.shutdown();
     }, 3000);
@@ -314,8 +314,8 @@ describe('networkManager', () => {
         expect(otherManager.incomingPeers.length).toEqual(1);
         expect(otherManager.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
         expect(otherManager.incomingPeers[0].id?.equals(myManager.peerID));
-        expect(myPeerDB.getPeersVerified().length).toEqual(1);
-        expect(otherPeerDB.getPeersVerified().length).toEqual(0);  // TODO HACKHACK we currently don't mark incoming nodes verified
+        expect(myPeerDB.peersVerified.length).toEqual(1);
+        expect(otherPeerDB.peersVerified.length).toEqual(0);  // TODO HACKHACK we currently don't mark incoming nodes verified
 
 
         // Connect again through different address.
@@ -332,14 +332,14 @@ describe('networkManager', () => {
         myManager.connect(new Peer(new WebSocketAddress('127.0.0.1', 7005)));
         await bothNotedDuplicate;
 
-        expect(myPeerDB.getPeersBlacklisted().length).toEqual(0);  // duplicate is not / no longer blacklisting
-        expect(otherPeerDB.getPeersBlacklisted().length).toEqual(0);  // duplicate is not / no longer blacklisting
+        expect(myPeerDB.peersBlacklisted.length).toEqual(0);  // duplicate is not / no longer blacklisting
+        expect(otherPeerDB.peersBlacklisted.length).toEqual(0);  // duplicate is not / no longer blacklisting
         expect(myManager.outgoingPeers.length).toEqual(1);
         expect(myManager.incomingPeers.length).toEqual(0);
         // expect(otherManager.outgoingPeers.length).toEqual(0);  // at this point, peer exchange of other's own duplicate address might have occurred and other might not yet have realized it's his own address
         expect(otherManager.incomingPeers.length).toEqual(1);
-        expect(myPeerDB.getPeersVerified().length).toEqual(1);
-        expect(otherPeerDB.getPeersVerified().length).toEqual(0);  // TODO HACKHACK we currently don't mark incoming nodes verified
+        expect(myPeerDB.peersVerified.length).toEqual(1);
+        expect(otherPeerDB.peersVerified.length).toEqual(0);  // TODO HACKHACK we currently don't mark incoming nodes verified
 
         // Will not attempt to reconnect to an already blacklisted peer
         //...

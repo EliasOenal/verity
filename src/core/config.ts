@@ -20,7 +20,7 @@ export const Settings = {
     MAXIMUM_CONNECTIONS: 20, // Maximum number of connections to maintain
 
     // Network peer related:
-    HASH_REQUEST_TIME: (10 * 1000),  // asks nodes for new cube keys every 10 seconds
+    KEY_REQUEST_TIME: (10 * 1000),  // asks nodes for new cube keys every 10 seconds
     NODE_REQUEST_TIME: (60 * 1000),  // asks nodes for their known nodes every minute
 
     // local implementation details:

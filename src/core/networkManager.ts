@@ -38,7 +38,7 @@ export class NetworkManager extends EventEmitter {
      * @param port The port to listen on for incoming connections.
      *             If 0, the node will not listen for incoming connections.
      * @param cubeStore The CubeStore to use.
-     * @param peerDB The PeerDB to use.
+     * @param _peerDB The PeerDB to use.
      * @param announce Whether to announce the node to the network.
      * @param lightNode Whether to run the node in light mode.
      *
@@ -47,7 +47,7 @@ export class NetworkManager extends EventEmitter {
      *  */
     constructor(
             private _cubeStore: CubeStore,
-            private peerDB: PeerDB,
+            private _peerDB: PeerDB,
             servers: Map<SupportedTransports, any>,
             private announceToTorrentTrackers: boolean = true,
             private _lightNode: boolean = false) {
@@ -84,7 +84,7 @@ export class NetworkManager extends EventEmitter {
     get cubeStore(): CubeStore { return this._cubeStore; }
     get lightNode(): boolean { return this._lightNode; }
 
-    public getPeerDB() { return this.peerDB; }
+    public get peerDB() { return this._peerDB; }
     public getCubeStore() { return this.cubeStore; }
 
     public start() {
@@ -95,11 +95,11 @@ export class NetworkManager extends EventEmitter {
             });
         }
         if (this.announceToTorrentTrackers) {
-            this.peerDB.startAnnounceTimer();
-            this.peerDB.announce();
+            this._peerDB.startAnnounceTimer();
+            this._peerDB.announce();
         }
         this.connectPeers();
-        this.peerDB.on('newPeer', (newPeer: Peer) => this.connectPeers());
+        this._peerDB.on('newPeer', (newPeer: Peer) => this.connectPeers());
     }
 
     private shutdownPeers() {
@@ -130,7 +130,7 @@ export class NetworkManager extends EventEmitter {
         // and if we're not already in the process of connecting new peers
         if (this.outgoingPeers.length + this.incomingPeers.length <
                 Settings.MAXIMUM_CONNECTIONS) {
-            const connectTo: Peer = this.peerDB.selectPeerToConnect(
+            const connectTo: Peer = this._peerDB.selectPeerToConnect(
                 this.outgoingPeers.concat(this.incomingPeers));  // I'm almost certain this is not efficient.
             logger.trace(`NetworkManager: connectPeers() running, next up is ${connectTo?.toString()}`);
             if (connectTo){
@@ -204,7 +204,7 @@ export class NetworkManager extends EventEmitter {
     public shutdown() {
         logger.trace('NetworkManager: shutdown()');
         this.isShuttingDown = true;
-        this.peerDB.shutdown();
+        this._peerDB.shutdown();
         this.stopConnectingPeers();
         for (const server of this.servers) {
             server.shutdown();
@@ -219,7 +219,7 @@ export class NetworkManager extends EventEmitter {
         // TODO HACKHACK: Until we include some way for incoming peers to indicate
         // their server port (if any), we just don't store them to PeerDB.
         // TODO HACKHACK undone so we can exchange webrtc peers
-        this.peerDB.verifyPeer(peer);
+        this._peerDB.verifyPeer(peer);
     }
 
     /**
@@ -232,16 +232,14 @@ export class NetworkManager extends EventEmitter {
         // Verify this peer is valid (just checking if there is an ID for now)
         if (!peer.id) return;
 
-        // Mark the peer as verified
-        // if (this.outgoingPeers.includes(peer)) {
-            // TODO HACKHACK:
-            // We currently only mark outgoing peers verified to avoid
-            // trying to connect to them or peer-exchanging them.
-            // We should rework peerDB to properly represent "server-capable"
-            // as node attribute.
-        // TODO HACKHACK undone so we can exchange webrtc peers
-            this.peerDB.verifyPeer(peer);
-        // }
+        // Mark the peer as verified.
+        // If this is an outgoing peer, mark it as exchangeable
+        // (exchangeable is a strictly higher status than verified).
+        if (this.outgoingPeers.includes(peer)) {
+            this._peerDB.markPeerExchangeable(peer);
+        } else {
+            this._peerDB.verifyPeer(peer);
+        }
 
         // If this is the first successful connection, emit an 'online' event
         if (!this.online) {
@@ -267,8 +265,10 @@ export class NetworkManager extends EventEmitter {
         this.outgoingPeers = this.outgoingPeers.filter(p => p !== peer);
         logger.trace(`NetworkManager: Connection to peer ${peer.ip}:${peer.port}, ID ${peer.id?.toString('hex')} has been closed. My outgoing peers now are: ${this.outgoingPeers} -- my incoming peers now are: ${this.incomingPeers}`);
         this.emit('peerclosed', peer);
+        // If this was our last connection we are now offline
         if (this.incomingPeers.length === 0 && this.outgoingPeers.length === 0) {
             this.online = false;
+            this.emit('offline');
         }
         this.connectPeers();  // find a replacement peer
     }
@@ -302,7 +302,7 @@ export class NetworkManager extends EventEmitter {
         // disconnect
         peer.close();
         // blacklist
-        this.peerDB.blacklistPeer(peer);
+        this._peerDB.blacklistPeer(peer);
         logger.warn(`NetworkManager: Peer ${peer.ip}:${peer.port} has been blacklisted.`);
         this.emit('blacklist', peer);
     }
@@ -324,7 +324,7 @@ export class NetworkManager extends EventEmitter {
 
     private handleDuplicatePeer(duplicate: NetworkPeer, original: Peer): void {
         duplicate.close();  // disconnect the duplicate
-        this.peerDB.removePeer(duplicate);
+        this._peerDB.removePeer(duplicate);
         original.addAddress(duplicate.address);
         logger.info(`NetworkManager: Closing connection ${duplicate.addressString} as duplicate to ${original.toString()}.`)
         this.emit('duplicatepeer', duplicate);
@@ -372,9 +372,9 @@ export class NetworkManager extends EventEmitter {
         output += `Total Packets: TX: ${totalStats.tx.totalPackets}, RX: ${totalStats.rx.totalPackets}\n`;
         output += `Total Bytes: TX: ${totalStats.tx.totalBytes}, RX: ${totalStats.rx.totalBytes}\n`;
         output += `Connected Peers: ${this.outgoingPeers.length + this.incomingPeers.length}\n`;
-        output += `Verified Peers: ${this.peerDB.getPeersVerified().map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
-        output += `Unverified Peers: ${this.peerDB.getPeersUnverified().map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
-        output += `Blacklisted Peers: ${this.peerDB.getPeersBlacklisted().map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
+        output += `Verified Peers: ${this._peerDB.peersVerified.map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
+        output += `Unverified Peers: ${this._peerDB.peersUnverified.map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
+        output += `Blacklisted Peers: ${this._peerDB.peersBlacklisted.map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
         output += 'Packet Types:\n';
 
         for (const type in totalStats.tx.packetTypes) {
@@ -391,8 +391,7 @@ export class NetworkManager extends EventEmitter {
             output += '\n';
 
             const stats = peer.stats;
-            output += `Peer: ${peer.ip}:${peer.port}\n`;
-            output += `Peer ID: ${peer.id?.toString('hex').toUpperCase()}\n`;
+            output += `Peer: ${peer.toString()}\n`;
             output += `Packets: TX: ${stats.tx.totalPackets}, RX: ${stats.rx.totalPackets}\n`;
             output += `Bytes: TX: ${stats.tx.totalBytes}, RX: ${stats.rx.totalBytes}\n`;
             output += 'Packet Types:\n';

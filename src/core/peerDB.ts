@@ -209,25 +209,35 @@ export class Peer {
 }
 
 // TODO: We should persist known peers locally, at least the verified ones.
+/**
+ * Stores all of our known peers, non-persistantly (for now).
+ * Every peer is either considered unverified, verified, exchangeable or blacklisted
+ * (and will be stored in the appropriate array).
+ * A peer starts out as unverified and gets verified once we have received a
+ * HELLO and learned their ID. It gets promoted to exchangeable if it has a
+ * publicly reachable address and we've successfully connected to it.
+ * Note only verified peers can get promoted to exchangeable; a reachable peer
+ * who never sent us a valid HELLO is still just unverified.
+ */
 export class PeerDB extends EventEmitter {
-    /** A peer is verified if we have received a HELLO and learned their ID */
-    private peersVerified: Peer[];  // these should probably all be Sets
-    private peersUnverified: Peer[];
-    private peersBlacklisted: Peer[];
-    private ourPort: number;
+    private _peersVerified: Peer[] = [];
+    get peersVerified(): Peer[] { return this._peersVerified }
+    private _peersUnverified: Peer[] = [];
+    get peersUnverified(): Peer[] { return this._peersUnverified }
+    private _peersBlacklisted: Peer[] = [];
+    get peersBlacklisted(): Peer[] { return this._peersBlacklisted }
+    private _peersExchangeable: Peer[] = [];
+    get peersExchangeable(): Peer[] { return this._peersExchangeable }
     private announceTimer?: NodeJS.Timeout;
     private static trackerUrls: string[] = ['http://tracker.opentrackr.org:1337/announce',
         'http://tracker.openbittorrent.com:80/announce',
         'http://tracker2.dler.org/announce',
         'http://open.acgtracker.com:1096/announce',];
-    private static infoHash: string = '\x4d\x69\x6e\x69\x73\x74\x72\x79\x20\x6f\x66\x20\x54\x72\x75\x74\x68\x00\x00\x00';
+    private static infoHash: string = '\x4d\x69\x6e\x69\x73\x74\x72\x79\x20\x6f\x66\x20\x54\x72\x75\x74\x68\x00\x00\x00';  // wtf is this? :D
 
-    constructor(ourPort: number = 1984) {
+    constructor(
+            private ourPort: number = 1984) {
         super();
-        this.peersVerified = [];
-        this.peersUnverified = [];
-        this.peersBlacklisted = [];
-        this.ourPort = ourPort;
         this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS + 10);  // one for each peer and a few for ourselves
     }
 
@@ -236,20 +246,11 @@ export class PeerDB extends EventEmitter {
         this.removeAllListeners();
     }
 
-    getPeersVerified(): Peer[] {
-        return this.peersVerified;
-    }
-
-    getPeersUnverified(): Peer[] {
-        return this.peersUnverified;
-    }
-
-    getPeersBlacklisted(): Peer[] {
-        return this.peersBlacklisted;
-    }
-
     isPeerKnown(peer): boolean {
-        const knownPeers = this.peersUnverified.concat(this.peersVerified).concat(this.peersBlacklisted);
+        const knownPeers = this.peersUnverified.concat(
+            this.peersVerified).concat(
+                this.peersBlacklisted).concat(
+                    this.peersExchangeable);
         return knownPeers.some(knownPeer => knownPeer.equals(peer));
     }
 
@@ -266,12 +267,13 @@ export class PeerDB extends EventEmitter {
     // to the network and giving new nodes a chance to join.
     selectPeerToConnect(exclude: Peer[] = []) {
         const now: number = Math.floor(Date.now() / 1000);
-        const eligible: Peer[] = this.peersVerified.concat(this.peersUnverified).
+        const eligible: Peer[] =
+            this.peersVerified.concat(this.peersUnverified).concat(this.peersExchangeable).
             filter((candidate: Peer) =>
                 candidate.lastConnectAttempt <= now - Settings.RECONNECT_INTERVAL / 1000 &&
                 exclude.every((tobeExcluded: Peer) =>
                     !candidate.equals(tobeExcluded)));
-        logger.trace(`PeerDB: Eligible peers are ${eligible}`)
+        // logger.trace(`PeerDB: Eligible peers are ${eligible}`)
         if (eligible.length) {
             const rnd = Math.floor(Math.random() * eligible.length);
             return eligible[rnd];
@@ -282,8 +284,7 @@ export class PeerDB extends EventEmitter {
 
     learnPeer(peer: Peer) {
         // Do nothing if we know this peer already
-        const knownPeers = this.peersUnverified.concat(this.peersVerified).concat(this.peersBlacklisted);
-        if (knownPeers.some(knownPeer => knownPeer.equals(peer))) return;
+        if (this.isPeerKnown(peer)) return;
         // Otherwise, add it to the list of unverified peers and let our listeners know
         this.peersUnverified.push(peer);
         logger.trace(`PeerDB: Learned new peer ${peer.toString()}, emitting newPeer.`)
@@ -298,38 +299,59 @@ export class PeerDB extends EventEmitter {
                 return;
         }
         logger.info('PeerDB: Blacklisting peer ' + peer.toString());
-        this.peersBlacklisted.push(peer);
         // Remove the peer from the verified and unverified lists
-        this.peersVerified = this.peersVerified.filter(verifiedPeer => !peer.equals(verifiedPeer));
-        this.peersUnverified = this.peersUnverified.filter(unverifiedPeer => !peer.equals(unverifiedPeer));
+        this.removePeer(peer);
+        this.peersBlacklisted.push(peer);
     }
 
     verifyPeer(peer: Peer): void {
         // Duplicate?
-        if (this.peersBlacklisted.concat(this.peersVerified).some(
+        if (this.peersBlacklisted.concat(this.peersVerified).concat(this.peersExchangeable).
+            some(
             knownPeer => knownPeer.equals(peer))) {
                 logger.trace(`PeerDB: Not verifying duplicate or blacklisted peer ${peer.toString()}`);
                 return;
         }
-        // Add the peerr to the verified list
+        // Add the peer to the verified list
         this.peersVerified.push(peer);
         // Remove the peers from the unverified list
-        this.peersUnverified = this.peersUnverified.filter(unverifiedPeer => !peer.equals(unverifiedPeer));
+        this.removeUnverifiedPeer(peer);
         logger.info(`PeerDB: setting peer ${peer.toString()} verified.`);
         this.emit('verifiedPeer', peer);
     }
 
+    markPeerExchangeable(peer: Peer): void {
+        // Duplicate?
+        if (this.peersBlacklisted.concat(this.peersExchangeable).
+            some(
+            knownPeer => knownPeer.equals(peer))) {
+                logger.trace(`PeerDB: Not verifying duplicate or blacklisted peer ${peer.toString()}`);
+                return;
+        }
+        // Add the peer to the verified list
+        this.peersExchangeable.push(peer);
+        // Remove the peers from the unverified list
+        this.removeUnverifiedPeer(peer);
+        this.removeVerifiedPeer(peer);
+        logger.info(`PeerDB: setting peer ${peer.toString()} exchangeable.`);
+        this.emit('exchangeablePeer', peer);
+    }
+
     removePeer(peer: Peer): void {
         this.removeUnverifiedPeer(peer);
-        this.removeUnverifiedPeer(peer);
+        this.removeVerifiedPeer(peer);
+        this.removeExchangeablePeer(peer);
     }
     removeUnverifiedPeer(peer: Peer): void {
         // Remove the peer from the unverified list
-        this.peersUnverified = this.peersUnverified.filter(p => !p.equals(peer));
+        this._peersUnverified = this.peersUnverified.filter(p => !p.equals(peer));
     }
     removeVerifiedPeer(peer: Peer): void {
         // Remove the peer from the unverified list
-        this.peersVerified = this.peersVerified.filter(p => !p.equals(peer));
+        this._peersVerified = this.peersVerified.filter(p => !p.equals(peer));
+    }
+    removeExchangeablePeer(peer: Peer): void {
+        this._peersExchangeable = this.peersExchangeable.filter(exchangeablePeer => !peer.equals(exchangeablePeer));
     }
 
     startAnnounceTimer(): void {

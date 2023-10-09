@@ -91,17 +91,12 @@ export class NetworkPeer extends Peer {
         // connection lasts, supplement this with any newly learned cubes.
         // This is used to ensure we don't offer peers the same cube twice.
         this.unsentCubeMeta = cubeStore.getAllStoredCubeMeta();
-        cubeStore.on('cubeAdded', (cube: CubeMeta) => {
-            this.unsentCubeMeta.add(cube);
-        });
+        cubeStore.on('cubeAdded', (cube: CubeMeta) => this.unsentCubeMeta.add(cube));
 
         // Take note of all other peers I could exchange with this new peer.
         // This is used to ensure we don't exchange the same peers twice.
-        this.unsentPeers = this.networkManager.getPeerDB().getPeersVerified();
-        networkManager.getPeerDB().on('peerVerified', (peer: Peer) => this.learnExchangeablePeer(peer));
-        // TODO FIXME: This includes incoming peers, and for incoming peers we only know their client socket.
-        // TODO FIXME: Most universally, clients can't accept incoming connections on client sockets.
-        // TODO FIXME: We should include the server port in the hello message and save it.
+        this.unsentPeers = this.networkManager.peerDB.peersExchangeable;
+        networkManager.peerDB.on('exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
 
         // Send HELLO message once connected
         if (this.conn.ready()) {
@@ -122,8 +117,10 @@ export class NetworkPeer extends Peer {
     public close(): void {
         logger.trace(`NetworkPeer ${this.toString()}: Closing connection.`);
         // Remove all listeners and timers to avoid memory leaks
-        this.networkManager.getPeerDB().removeListener(
+        this.networkManager.peerDB.removeListener(
             'peerVerified', (peer: Peer) => this.learnExchangeablePeer(peer));
+        this.cubeStore.removeListener(
+            'cubeAdded', (cube: CubeMeta) => this.unsentCubeMeta.add(cube));
         if (this.keyRequestTimer) {
             clearInterval(this.keyRequestTimer);
         }
@@ -245,7 +242,7 @@ export class NetworkPeer extends Peer {
                 logger.info(`NetworkPeer ${this.toString()} suddenly changed its ID from ${this.id?.toString('hex')} to ${peerID.toString('hex')}, closing connection.`);
                 this.close();
                 return;
-            } else {  // no unexpedted ID change
+            } else {  // no unexpected ID change, just a spurious HELLO to be ignored
                 logger.trace(`NetworkPeer ${this.toString()}: Received spurious repeat HELLO`);
             }
         } else {  // not a repeat hello
@@ -266,7 +263,7 @@ export class NetworkPeer extends Peer {
         // If we're a full node, ask for available cubes in regular intervals
         if (!this.lightMode && !this.keyRequestTimer) {
             this.keyRequestTimer = setInterval(() => this.sendKeyRequest(),
-                Settings.HASH_REQUEST_TIME);
+                Settings.KEY_REQUEST_TIME);
         }
     }
 
@@ -442,10 +439,23 @@ export class NetworkPeer extends Peer {
         let offset = 0;
         const type: SupportedTransports = messageContent.readUInt8(offset++);
         const length: number = messageContent.readUInt16BE(offset); offset += 2;
-        const addrString: string =
+        let addrString: string =
             messageContent.subarray(offset, messageContent.length).toString('ascii');
+        if (type == SupportedTransports.ws && addrString.substring(0,2) == "::") {
+            // Handle special case: If the remote peer did not indicate it's
+            // IP address (but instead identifies as "::" which is "any" in IPv6
+            // notation), substitute this by the IP address we're currently
+            // using for this peer.
+            // This way we mostly get around the fact that NATed nodes don't
+            // know their own address -- but they might know their port.
+            addrString = this.ip + addrString.substring(2);
+        }
         const address = AddressAbstraction.CreateAddress(type, addrString);
         this.addAddress(address, true);  // learn address and make primary
+
+        // TODO: Verify this address is in fact reachable, e.g. by making a test
+        // connection.
+        this.networkManager.peerDB.markPeerExchangeable(this);  // this might be a lie
     }
 
     // TODO generalize: We should be allowed to have and send multiple server addresses
@@ -584,7 +594,7 @@ export class NetworkPeer extends Peer {
             }
             logger.info(`NetworkPeer ${this.toString()}: Received peer ${peerAddress.toString()} (which we parsed to ${addressAbstraction.toString()})`);
             const peer: Peer = new Peer(addressAbstraction);
-            this.networkManager.getPeerDB().learnPeer(peer);
+            this.networkManager.peerDB.learnPeer(peer);
         }
     }
 

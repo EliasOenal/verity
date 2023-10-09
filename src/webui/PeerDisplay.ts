@@ -15,21 +15,24 @@ export class PeerDisplay {
   }
 
   public redisplayPeers(): void {
+    this.peerlist.innerText = '';
     for (const peer of this.parent.node.networkManager.incomingPeers.concat(
                        this.parent.node.networkManager.outgoingPeers)
     ){
-      this.peerlist.innerText = '';
       this.displayPeer(peer);
     }
   }
 
   public displayPeer(peer: NetworkPeer): void {
     if (!peer.id) return;  // this should never have been called for non-verified peers
+    // Create container and set attributes
     const li = document.createElement("li");
     li.setAttribute("title", peer.toString());
     li.setAttribute("class", "verityPeer mb-3 move-fade-in");
+    // Print peer address
     const peeraddr = document.createTextNode(peer.address.toString());
     li.appendChild(peeraddr);
+    // Print peer ID
     li.appendChild(document.createElement("br"));
     const peerid = document.createTextNode(`ID ${peer.id?.toString('hex')}`);
     li.setAttribute('data-peer-id', peer.id.toString('hex'));

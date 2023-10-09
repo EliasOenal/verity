@@ -290,10 +290,14 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
    * Transmits a Verity node-to-node message to our peer.
    */
   send(message: Buffer): void {
+    if (this.stream.status != "open") {
+      logger.error(`Libp2pPeerConnection to ${this.conn?.remoteAddr?.toString()}: Tried to send() data but stream is not open. This should not happen.`);
+      return;
+    }
     // As libp2p streams have no concept of messages, we prefix them with their
     // length, allowing the received to re-assemble the original messages from the
     // stream.
-     const lenbuf = Buffer.alloc(4);
+    const lenbuf = Buffer.alloc(4);
     lenbuf.writeUint32BE(message.length);
     const combined = Buffer.concat([lenbuf, message]);
     this.outputStream.write(combined);
