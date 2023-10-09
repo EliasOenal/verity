@@ -1,6 +1,6 @@
 import { VerityError } from "./config";
 import { NetworkPeer } from "./networkPeer";
-import { WebSocketAddress } from "./peerDB";
+import { AddressAbstraction, WebSocketAddress } from "./peerDB";
 import { NetworkManager } from "./networkManager";
 
 import { logger } from "./logger";
@@ -27,6 +27,8 @@ export enum SupportedTransports {
 }
 
 export abstract class NetworkServer extends EventEmitter {
+  dialableAddress: AddressAbstraction = undefined;
+
   constructor(
       protected networkManager: NetworkManager,
   ){
@@ -53,7 +55,9 @@ export class WebSocketServer extends NetworkServer {
 
   start(): void {
       this.server = new WebSocket.Server({ port: this.port });
-      logger.trace('NetworkManager: Server has been started on port ' + this.port);
+      // @ts-ignore This will only ever be called on NodeJS and it's correct for the NodeJS ws library
+      // this.dialableAddress = new WebSocketAddress(this.server.address().address, this.port);  // TODO WRONG
+      logger.trace('WebSocketServer: stated on ' + this.port);
 
       // Handle incoming connections
       this.server.on('connection', ws => this.handleIncomingPeer(ws));
@@ -99,7 +103,6 @@ export class Libp2pServer extends NetworkServer {
   private _node: Libp2p;  // libp2p types are much to complicated for my humble brain
   get node() { return this._node }
   private listen: string[];
-  private dialableAddress: Multiaddr = undefined;
 
   constructor(
       networkManager: NetworkManager,
@@ -187,9 +190,9 @@ export class Libp2pServer extends NetworkServer {
       const protos: string[] = multiaddr.protoNames();
        if (protos.includes("p2p") && protos.includes("p2p-circuit") &&
            protos.includes("webrtc")) {
-        this.dialableAddress = multiaddr;
+        this.dialableAddress = new AddressAbstraction(multiaddr);
         for (const peer of this.networkManager.outgoingPeers.concat(this.networkManager.incomingPeers)) {
-          peer.sendMyServerAddress(SupportedTransports.libp2p, multiaddr.toString());
+          peer.sendMyServerAddress();
         }
       }
     }

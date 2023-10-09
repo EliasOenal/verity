@@ -24,7 +24,7 @@ if (isBrowser || isWebWorker) {
  * Class representing a network manager, responsible for handling incoming and outgoing connections.
  */
 export class NetworkManager extends EventEmitter {
-    private servers: NetworkServer[] = [];
+    servers: NetworkServer[] = [];
     outgoingPeers: NetworkPeer[] = []; // The peers for outgoing connections
     incomingPeers: NetworkPeer[] = []; // The peers for incoming connections
     private isConnectingPeers: boolean = false;

@@ -204,7 +204,7 @@ export class Peer {
     get addressString(): string { return this.address.toString(); }
 
     toString() {
-        return `${this.addressString}(ID#${this.id?.toString('hex')})`;
+        return `${this.addressString} (ID#${this.id?.toString('hex')})`;
     }
 }
 

@@ -29,7 +29,7 @@ export class PeerDisplay {
         ...this.parent.node.networkManager.outgoingPeers,
         ...this.parent.node.networkManager.incomingPeers,
     ];
-
+    // TODO: Accomodate different address formats... or even better, just user peer object references directly
     // Create a set of peer identifiers from the current peers in NetworkManager
     const currentPeerSet = new Set(currentPeers.map(peer => `${peer.ip}:${peer.port}:${peer.id}`));
 
