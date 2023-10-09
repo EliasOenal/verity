@@ -20,14 +20,14 @@ interface TrackerResponse {
 export class AddressAbstraction {
     addr: WebSocketAddress | Multiaddr;
 
-    static CreateAddress(type: SupportedTransports, address: string) {
+    static CreateAddress(type: SupportedTransports, address: string): AddressAbstraction {
         if (!address.length) return undefined;
         if (type == SupportedTransports.ws) {
             const [peerIp, peerPort] = address.split(':');
             if (!peerIp || !peerPort) return undefined;  // ignore invalid
-            return new WebSocketAddress(peerIp, parseInt(peerPort));
+            return new AddressAbstraction(new WebSocketAddress(peerIp, parseInt(peerPort)));
         } else if (type == SupportedTransports.libp2p) {
-            return multiaddr(address);
+            return new AddressAbstraction(multiaddr(address));
         }
         else { // invalid
             return undefined;

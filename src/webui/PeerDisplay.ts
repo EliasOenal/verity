@@ -1,66 +1,49 @@
+import { VerityError } from "../core/config";
 import { NetworkPeer } from "../core/networkPeer";
 import { VerityUI } from "./VerityUI";
 
 export class PeerDisplay {
-  parent: VerityUI;
-
-  constructor(parent: VerityUI) {
-    this.parent = parent;
-
-    // redraw peer list on NetworkManager events
-    // this.parent.node.networkManager.on('newpeer', (peer) => this.redisplayPeers());  // a peer is not actually ready and probably not even connected on the "newpeer" event, so let's ignore this
-    this.parent.node.networkManager.on('peerclosed', (peer) => this.redisplayPeers());
-    this.parent.node.networkManager.on('peeronline', (peer) => this.redisplayPeers());
-    // this.parent.node.networkManager.on('blacklist', (peer) => this.redisplayPeers());  // we don't really have to react to this event, at least not in this very crude way
-    // this.parent.node.networkManager.on('online', (peer) => this.redisplayPeers());  // we don't really have to react to this event, at least not in this very crude way
-    // this.parent.node.networkManager.on('shutdown', (peer) => this.redisplayPeers());  // we don't really have to react to this event, at least not in this very crude way
+  constructor(
+      private parent: VerityUI,
+      private peerlist: HTMLElement = document.getElementById("peerlist")
+  ){
+    if (!this.peerlist) throw new VerityError("PeerDisplay: Cannot create a PeerDisplay if there is no peer list");
+    const listheader: HTMLElement = document.getElementById('verityPeerListHeader') as HTMLElement;
+    if (listheader) listheader.setAttribute("title", `My ID is ${this.parent.node.networkManager.peerID.toString('hex')}`);
+    this.parent.node.networkManager.on('peeronline', (peer) => this.displayPeer(peer));
+    this.parent.node.networkManager.on('peerclosed', (peer) => this.undisplayPeer(peer));
   }
 
-  /**
-   * Display all peers.
-   * This will handle all networkManager newpeer events and redraws the peer list
-   */
-  public redisplayPeers() {
-    const peerlist: HTMLElement | null = document.getElementById("peerlist");
-    if (!peerlist) return;
-
-    // Get the current peers from NetworkManager
-    const currentPeers = [
-        ...this.parent.node.networkManager.outgoingPeers,
-        ...this.parent.node.networkManager.incomingPeers,
-    ];
-    // TODO: Accomodate different address formats... or even better, just user peer object references directly
-    // Create a set of peer identifiers from the current peers in NetworkManager
-    const currentPeerSet = new Set(currentPeers.map(peer => `${peer.ip}:${peer.port}:${peer.id}`));
-
-    // Create a set of peer identifiers from the peers currently displayed in the HTML
-    const displayedPeerSet = new Set(Array.from(peerlist.children).map(elem => elem.getAttribute('data-peer-id')));
-
-    // Find peers to add and peers to remove
-    const peersToAdd = currentPeers.filter(peer => !displayedPeerSet.has(`${peer.ip}:${peer.port}:${peer.id}`));
-    const peersToRemove = Array.from(peerlist.children).filter(elem => !currentPeerSet.has(elem.getAttribute('data-peer-id')));
-
-    // Remove peers that are no longer present
-    peersToRemove.forEach(elem => peerlist.removeChild(elem));
-
-    // Add new peers
-    for (const peer of peersToAdd) {
-        const isOutgoing = this.parent.node.networkManager.outgoingPeers.includes(peer);
-        peerlist.appendChild(this.drawSinglePeer(peer, isOutgoing));
+  public redisplayPeers(): void {
+    for (const peer of this.parent.node.networkManager.incomingPeers.concat(
+                       this.parent.node.networkManager.outgoingPeers)
+    ){
+      this.peerlist.innerText = '';
+      this.displayPeer(peer);
     }
-}
+  }
 
-
-  drawSinglePeer(peer: NetworkPeer, outgoing: boolean): HTMLLIElement {
+  public displayPeer(peer: NetworkPeer): void {
+    if (!peer.id) return;  // this should never have been called for non-verified peers
     const li = document.createElement("li");
     li.setAttribute("title", peer.toString());
-    li.setAttribute("class", "mb-3 move-fade-in");
+    li.setAttribute("class", "verityPeer mb-3 move-fade-in");
     const peeraddr = document.createTextNode(peer.address.toString());
     li.appendChild(peeraddr);
     li.appendChild(document.createElement("br"));
     const peerid = document.createTextNode(`ID ${peer.id?.toString('hex')}`);
-    li.setAttribute('data-peer-id', `${peer.ip}:${peer.port}:${peer.id}`);
+    li.setAttribute('data-peer-id', peer.id.toString('hex'));
     li.appendChild(peerid);
-    return li;
+    this.peerlist.appendChild(li);
+  }
+
+  public undisplayPeer(peer: NetworkPeer): void {
+    if (!peer.id) return;  // this should never have been called for non-verified peers
+    for (const peerli of this.peerlist.getElementsByClassName("verityPeer")) {
+      const displayedPeerId: string = peerli.getAttribute('data-peer-id');
+      if (peer.id.toString('hex') == displayedPeerId) {
+        this.peerlist.removeChild(peerli);
+      }
+    }
   }
 }

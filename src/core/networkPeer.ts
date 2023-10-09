@@ -480,7 +480,7 @@ export class NetworkPeer extends Peer {
         const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, NetConstants.PROTOCOL_VERSION);
         message.writeUInt8(MessageClass.KeyRequest, 1);
-        logger.trace(`NetworkPeer ${this.toString()}: sending KeyRequest}`);
+        logger.trace(`NetworkPeer ${this.toString()}: sending KeyRequest`);
         // Set connection timeout and send message
         this.setTimeout();
         this.txMessage(message);
@@ -576,7 +576,7 @@ export class NetworkPeer extends Peer {
             offset += addressLength;
 
             // register peer
-            const addressAbstraction = AddressAbstraction.CreateAddress(
+            const addressAbstraction: AddressAbstraction = AddressAbstraction.CreateAddress(
                 addressType, peerAddress.toString());
             if (!addressAbstraction) {
                 logger.info(`NetworkPeer ${this.toString()}: Received *invalid* peer address ${peerAddress.toString()}`);
@@ -596,7 +596,7 @@ export class NetworkPeer extends Peer {
 
     private setTimeout(): void {
         this.networkTimeout = setTimeout(() => {
-                logger.info(`NetworkPeerk ${this.toString()} timed out a request, closing.`);
+                logger.info(`NetworkPeer ${this.toString()} timed out a request, closing.`);
                 this.close()
             }, Settings.NETWORK_TIMEOUT);
     }
