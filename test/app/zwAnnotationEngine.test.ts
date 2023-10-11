@@ -11,6 +11,8 @@ import sodium, { KeyPair } from 'libsodium-wrappers'
 import { MediaTypes, ZwField, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from "../../src/app/zwFields";
 import { FieldParser } from "../../src/core/fieldParser";
 
+import {jest} from '@jest/globals'
+
 describe('ZwAnnotationEngine', () => {
   let cubeStore: CubeStore;
   let annotationEngine: ZwAnnotationEngine;

@@ -1,17 +1,17 @@
-Error.stackTraceLimit = Infinity;
-
-import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
+Error.stackTraceLimit = Infinity;  // mooooaaaar stacktraces
+import { SupportedTransports } from './core/networkDefinitions';
 
 import { Cube } from './core/cube';
 import { CubeField, CubeRelationship, CubeFields, CubeRelationshipType } from './core/cubeFields';
 import { VerityNode } from "./core/verityNode";
-import { SupportedTransports } from './core/networkServer';
+import { AddressAbstraction } from './core/peerDB';
 
 import { logger } from './core/logger';
 import { vera } from './misc/vera';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer';
+import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 
 let readline: any;
 let cmd;
@@ -85,8 +85,14 @@ class VerityCmdClient {
             short: 't',
             description: "Use Torrent trackers to find peers and announce our presence",
           }),
+          nopersist: cmd.flag({
+            type: cmd.boolean,
+            long: "no-persist",
+            description: "Turn off persistance. All cubes will be gone once you shut down this instance, unless of course they have been transmitted to instances with persistance turned on.",
+            defaultValue: () => false
+          })
         },
-        handler: ({ ws, webrtc, peer, tracker }) => {
+        handler: ({ ws, webrtc, peer, tracker, nopersist }) => {
           if (!ws && !webrtc) {
             logger.warn("Note: You have started this node without any of --websocketport and --webrtcport. This node will not be able to receive any incoming connections.");
           }
@@ -99,11 +105,13 @@ class VerityCmdClient {
           if (peer.length) {
             initialPeers = [];
             for (const onepeer of peer) {
-              initialPeers.push(onepeer);
+              const addr = AddressAbstraction.CreateAddress(onepeer);
+              initialPeers.push(addr);
             }
           }
           if (!ws) tracker = false;  // can't use Torrent trackers w/o native server capability
-          this.node = new VerityNode(false, servers, initialPeers, tracker);
+          if (nopersist) logger.warn("Note: Persistance has been turned off. All cubes will be gone once you shut down this instance, unless of course they have been transmitted to instances with persistance turned on.");
+          this.node = new VerityNode(false, servers, initialPeers, tracker, !nopersist);
           this.node.onlinePromise.then(() => onlinePromiseResolve(undefined));
         },
       });

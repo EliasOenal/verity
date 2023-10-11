@@ -1,9 +1,9 @@
 import { CubeStore } from './cubeStore';
-import { MessageClass, NetConstants } from './networkDefinitions';
+import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { PeerDB, Peer } from './peerDB';
 import { Settings } from './config';
 import { NetworkPeer, NetworkStats } from './networkPeer';
-import { Libp2pServer, NetworkServer, SupportedTransports, WebSocketServer } from './networkServer';
+import { Libp2pServer, NetworkServer, WebSocketServer } from './networkServer';
 import { logger } from './logger';
 import { NetworkPeerConnection } from './networkPeerConnection';
 
@@ -30,7 +30,8 @@ export class NetworkManager extends EventEmitter {
     private isConnectingPeers: boolean = false;
     private isShuttingDown: boolean = false;
     private connectPeersInterval: NodeJS.Timeout = undefined;
-    private online: boolean = false;
+    private _online: boolean = false;
+    get online(): boolean { return this._online }
     public readonly peerID: Buffer;
 
     /**
@@ -89,10 +90,11 @@ export class NetworkManager extends EventEmitter {
 
     public start() {
         for (const server of this.servers) {
-            server.start();
             server.on('listening', () => {
-                this.emit('listening');
+                logger.trace("NetworkManager: Listening");
+                this.emit('listening')
             });
+            server.start();
         }
         if (this.announceToTorrentTrackers) {
             this._peerDB.startAnnounceTimer();
@@ -242,8 +244,8 @@ export class NetworkManager extends EventEmitter {
         }
 
         // If this is the first successful connection, emit an 'online' event
-        if (!this.online) {
-            this.online = true;
+        if (!this._online) {
+            this._online = true;
             this.emit('online');
         }
 
@@ -267,7 +269,7 @@ export class NetworkManager extends EventEmitter {
         this.emit('peerclosed', peer);
         // If this was our last connection we are now offline
         if (this.incomingPeers.length === 0 && this.outgoingPeers.length === 0) {
-            this.online = false;
+            this._online = false;
             this.emit('offline');
         }
         this.connectPeers();  // find a replacement peer

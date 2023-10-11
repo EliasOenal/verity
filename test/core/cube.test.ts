@@ -245,6 +245,7 @@ describe('cube', () => {
 
   it('should correctly generate and validate MUC with specified TLV fields', async () => {
     // Generate a key pair for testing
+    await sodium.ready;
     const keyPair = sodium.crypto_sign_keypair();
     const publicKey: Buffer = Buffer.from(keyPair.publicKey);
     const privateKey: Buffer = Buffer.from(keyPair.privateKey);

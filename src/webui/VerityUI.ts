@@ -1,21 +1,22 @@
+import { SupportedTransports } from 'core/networkDefinitions';
+
 import { VerityNode } from '../core/verityNode';
 import { Cube, CubeKey } from '../core/cube';
 import { logger } from '../core/logger'
-import { WebSocketAddress } from '../core/peerDB';
-import { SupportedTransports } from '../core/networkServer';
 import { FieldParser } from '../core/fieldParser';
 
-import { PostDisplay } from './PostDisplay';
-import { PeerDisplay } from './PeerDisplay';
 import { Identity } from '../app/identity';
 import { zwFieldDefinition } from '../app/zwFields';
 import { SubscriptionRequirement, ZwAnnotationEngine } from '../app/zwAnnotationEngine';
 import { makePost } from '../app/zwCubes';
 
+import { PostDisplay } from './PostDisplay';
+import { PeerDisplay } from './PeerDisplay';
+
 import { isBrowser } from 'browser-or-node';
-import sodium, { KeyPair } from 'libsodium-wrappers'
+import sodium from 'libsodium-wrappers'
 import { Buffer } from 'buffer'
-import { multiaddr } from '@multiformats/multiaddr'
+import { AddressAbstraction } from 'core/peerDB';
 
 export class VerityUI {
   private static _zwFieldParser: FieldParser = undefined;
@@ -197,7 +198,7 @@ async function webmain() {
       // new WebSocketAddress("132.145.174.233", 1984),
       // new WebSocketAddress("158.101.100.95", 1984),
       // multiaddr('/ip4/192.168.0.81/tcp/1985/ws/p2p/12D3KooWSEiJD9ymJtojq4Ahhwi8ZiYz7g6RrBPatiKfdSLZ8AgZ/p2p-circuit/webrtc/p2p/12D3KooWA32oeT3NA3FdSbEGjf85uRe2PjMVW7we1iuinBECvMBf'),
-      multiaddr("/ip4/127.0.0.1/tcp/1985/ws/"),
+      AddressAbstraction.CreateAddress("/ip4/127.0.0.1/tcp/1985/ws/", SupportedTransports.libp2p),
     ];
   const announceToTorrentTrackers = false;
 

@@ -1,14 +1,13 @@
+import { SupportedTransports } from "./networkDefinitions";
 import { CubeStore } from "./cubeStore";
 import { NetworkManager } from "./networkManager";
-import { Peer, PeerDB, WebSocketAddress } from "./peerDB";
+import { AddressAbstraction, Peer, PeerDB, WebSocketAddress } from "./peerDB";
 
 import { logger } from "./logger";
-import { SupportedTransports } from "./networkServer";
-import { WebSocketServer } from "ws";
 import { Multiaddr } from '@multiformats/multiaddr'
 
 export class VerityNode {
-  cubeStore: CubeStore = new CubeStore();
+  cubeStore: CubeStore;
   peerDB: PeerDB;
   networkManager: NetworkManager;
 
@@ -25,9 +24,11 @@ export class VerityNode {
      */
     public readonly lightNode: boolean = false,
     public readonly servers: Map<SupportedTransports, any> = new Map(),
-    private initialPeers: Array<WebSocketAddress | Multiaddr> = [],
+    private initialPeers: Array<AddressAbstraction> = [],
     private announceToTorrentTrackers = false,
+    cubePersistance = true,
   ){
+    this.cubeStore = new CubeStore(cubePersistance);
     // find a suitable port number for tracker announcement
     let port;
     const wsServerSpec = servers.get(SupportedTransports.ws);

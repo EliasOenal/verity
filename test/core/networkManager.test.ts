@@ -1,3 +1,5 @@
+import { SupportedTransports } from '../../src/core/networkDefinitions';
+
 import { NetworkManager } from '../../src/core/networkManager';
 import { NetworkPeer } from '../../src/core/networkPeer';
 import { CubeStore } from '../../src/core/cubeStore';
@@ -8,8 +10,6 @@ import { logger } from '../../src/core/logger';
 
 import WebSocket from 'isomorphic-ws';
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { FieldParser } from '../../src/core/fieldParser';
-import { SupportedTransports } from '../../src/core/networkServer';
 
 describe('networkManager', () => {
     test('should create a WebSocket server on instantiation', () => {
@@ -64,6 +64,37 @@ describe('networkManager', () => {
         manager.shutdown();
     }, 3000);
 
+    test.only('should exchange HELLO messages and report online after connection', async () => {
+        const manager1 = new NetworkManager(
+            new CubeStore(false), new PeerDB(),
+            new Map([[SupportedTransports.ws, 4000]]),
+            false, false);
+        const manager2 = new NetworkManager(
+            new CubeStore(false), new PeerDB(),
+            new Map([[SupportedTransports.ws, 4001]]),
+            false, false);
+
+        const promise1_listening = new Promise<void>(resolve => manager1.on('listening', resolve));
+        const promise2_listening = new Promise<void>(resolve => manager2.on('listening', resolve));
+        const promise1_shutdown = new Promise<void>(resolve => manager1.on('shutdown', resolve));
+        const promise2_shutdown = new Promise<void>(resolve => manager2.on('shutdown', resolve));
+
+        manager1.start();
+        manager2.start();
+        await Promise.all([promise1_listening, promise2_listening]);
+
+        manager2.connect(new Peer(new WebSocketAddress("localhost", 4000)));
+        expect(manager2.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
+        await manager2.outgoingPeers[0].onlinePromise
+        expect(manager1.online).toBeTruthy();
+        expect(manager2.online).toBeTruthy();
+        expect(manager1.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
+
+        manager1.shutdown();
+        manager2.shutdown();
+        await Promise.all([promise1_shutdown, promise2_shutdown]);
+    });
+
     test('sync cubes between three nodes', async () => {
         const reduced_difficulty = 0;
         const numberOfCubes = 10;
@@ -83,12 +114,12 @@ describe('networkManager', () => {
             new Map([[SupportedTransports.ws, 4002]]),
             false, false);
 
-        const promise1_listening = new Promise(resolve => manager1.on('listening', resolve));
-        const promise2_listening = new Promise(resolve => manager2.on('listening', resolve));
-        const promise3_listening = new Promise(resolve => manager3.on('listening', resolve));
-        const promise1_shutdown = new Promise(resolve => manager1.on('shutdown', resolve));
-        const promise2_shutdown = new Promise(resolve => manager2.on('shutdown', resolve));
-        const promise3_shutdown = new Promise(resolve => manager3.on('shutdown', resolve));
+        const promise1_listening = new Promise<void>(resolve => manager1.on('listening', resolve));
+        const promise2_listening = new Promise<void>(resolve => manager2.on('listening', resolve));
+        const promise3_listening = new Promise<void>(resolve => manager3.on('listening', resolve));
+        const promise1_shutdown = new Promise<void>(resolve => manager1.on('shutdown', resolve));
+        const promise2_shutdown = new Promise<void>(resolve => manager2.on('shutdown', resolve));
+        const promise3_shutdown = new Promise<void>(resolve => manager3.on('shutdown', resolve));
 
         // Start all three nodes
         manager1.start();
@@ -101,6 +132,7 @@ describe('networkManager', () => {
         manager2.connect(new Peer(new WebSocketAddress('localhost', 4002)));
         expect(manager2.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
         expect(manager2.outgoingPeers[1]).toBeInstanceOf(NetworkPeer);
+
         await manager2.outgoingPeers[0].onlinePromise
         await manager2.outgoingPeers[1].onlinePromise
 

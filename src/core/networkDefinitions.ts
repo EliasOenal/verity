@@ -31,3 +31,8 @@ export const NetConstants =  {
     PUBLIC_KEY_SIZE: 32,
     SIGNATURE_SIZE: 72,
 }
+
+export enum SupportedTransports {
+    ws = 1,
+    libp2p = 2,
+}

@@ -1,4 +1,4 @@
-import { MessageClass, NetConstants } from './networkDefinitions';
+import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { Settings, VerityError } from './config';
 
 import { CubeStore } from './cubeStore';
@@ -7,16 +7,13 @@ import { WebSocketAddress, Peer, AddressAbstraction } from './peerDB';
 import { NetworkManager } from "./networkManager";
 import { CubeType } from './cubeDefinitions';
 import { cubeContest } from './cubeUtil';
-import { Libp2pPeerConnection, NetworkPeerConnection, WebSocketPeerConnection } from './networkPeerConnection';
+import { NetworkPeerConnection } from './networkPeerConnection';
 
 import { logger } from './logger';
 
 import WebSocket from 'isomorphic-ws';
 import { Buffer } from 'buffer';
 import { Multiaddr } from '@multiformats/multiaddr'
-
-import { IncomingStreamData } from '@libp2p/interface/stream-handler'
-import { SupportedTransports } from './networkServer';
 
 export interface PacketStats {
     count: number,
@@ -121,13 +118,14 @@ export class NetworkPeer extends Peer {
             'peerVerified', (peer: Peer) => this.learnExchangeablePeer(peer));
         this.cubeStore.removeListener(
             'cubeAdded', (cube: CubeMeta) => this.unsentCubeMeta.add(cube));
-        if (this.keyRequestTimer) {
-            clearInterval(this.keyRequestTimer);
-        }
-        if (this.nodeRequestTimer) {
-            clearInterval(this.nodeRequestTimer);
-        }
-        this.conn.close();  // note: this means conn.close() gets called twice when closure originates from the conn, but that's okay
+        if (this.keyRequestTimer) clearInterval(this.keyRequestTimer);
+        if (this.nodeRequestTimer) clearInterval(this.nodeRequestTimer);
+        if (this.networkTimeout) clearTimeout(this.networkTimeout);
+
+        // Close our connection object.
+        // Note: this means conn.close() gets called twice when closure
+        // originates from the conn, but that's okay.
+        this.conn.close();
 
         // If we never got online, "resolve" the promise with undefined.
         // Rejecting it would be the cleaner choice, but then we'd need to catch
@@ -450,7 +448,7 @@ export class NetworkPeer extends Peer {
             // know their own address -- but they might know their port.
             addrString = this.ip + addrString.substring(2);
         }
-        const address = AddressAbstraction.CreateAddress(type, addrString);
+        const address = AddressAbstraction.CreateAddress(addrString, type);
         this.addAddress(address, true);  // learn address and make primary
 
         // TODO: Verify this address is in fact reachable, e.g. by making a test
@@ -587,7 +585,7 @@ export class NetworkPeer extends Peer {
 
             // register peer
             const addressAbstraction: AddressAbstraction = AddressAbstraction.CreateAddress(
-                addressType, peerAddress.toString());
+                peerAddress.toString(), addressType);
             if (!addressAbstraction) {
                 logger.info(`NetworkPeer ${this.toString()}: Received *invalid* peer address ${peerAddress.toString()}`);
                 continue;
@@ -605,9 +603,10 @@ export class NetworkPeer extends Peer {
     }
 
     private setTimeout(): void {
-        this.networkTimeout = setTimeout(() => {
-                logger.info(`NetworkPeer ${this.toString()} timed out a request, closing.`);
-                this.close()
-            }, Settings.NETWORK_TIMEOUT);
+        // Getting strange timeouts, deactivating for now
+        // this.networkTimeout = setTimeout(() => {
+        //         logger.info(`NetworkPeer ${this.toString()} timed out a request, closing.`);
+        //         this.close()
+        //     }, Settings.NETWORK_TIMEOUT);
     }
 }

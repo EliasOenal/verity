@@ -21,11 +21,6 @@ import { Libp2pPeerConnection } from "./networkPeerConnection";
 import * as filters from '@libp2p/websockets/filters'
 import { Multiaddr } from '@multiformats/multiaddr'
 
-export enum SupportedTransports {
-  ws = 1,
-  libp2p = 2,
-}
-
 export abstract class NetworkServer extends EventEmitter {
   dialableAddress: AddressAbstraction = undefined;
 
@@ -69,8 +64,8 @@ export class WebSocketServer extends NetworkServer {
       this.server.on('connection', ws => this.handleIncomingPeer(ws));
 
       this.server.on('listening', () => {
+          logger.debug(`WebSocketServer: Server is listening on ${this.dialableAddress.toString()}.`);
           this.emit('listening');
-          logger.debug(`WebSocketServer: Server is listening on port ${this.port}.`);
       }
       );
   }

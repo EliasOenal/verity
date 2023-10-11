@@ -1,13 +1,13 @@
-import { decode } from 'bencodec';
-import { EventEmitter } from 'events';
+import { SupportedTransports } from './networkDefinitions';
 import { Settings } from './config';
+
+import { EventEmitter } from 'events';
 import { logger } from './logger';
-import { log } from 'console';
 
 import axios from 'axios';
+import { decode } from 'bencodec';
 import { Buffer } from 'buffer';
 import { Multiaddr, multiaddr } from '@multiformats/multiaddr'
-import { SupportedTransports } from './networkServer';
 
 // Maybe TODO: Move tracker handling out of PeerDB, maybe into a new TorrentTrackerClient?
 
@@ -20,7 +20,13 @@ interface TrackerResponse {
 export class AddressAbstraction {
     addr: WebSocketAddress | Multiaddr;
 
-    static CreateAddress(type: SupportedTransports, address: string): AddressAbstraction {
+    static CreateAddress(address: string, type?: SupportedTransports): AddressAbstraction {
+        if (!address.length) return undefined;
+        if (!type) {
+            // guess type
+            if (address[0] == '/') type = SupportedTransports.libp2p;
+            else type = SupportedTransports.ws;
+        }
         if (!address.length) return undefined;
         if (type == SupportedTransports.ws) {
             const [peerIp, peerPort] = address.split(':');

@@ -1,32 +1,22 @@
-import { isNode } from "browser-or-node";
+import { SupportedTransports } from "./networkDefinitions";
 import { VerityError } from "./config";
-import { logger } from "./logger";
-import { NetworkPeer } from "./networkPeer";
+
+import { Libp2pServer } from "./networkServer";
 import { AddressAbstraction, WebSocketAddress } from "./peerDB";
+import { logger } from "./logger";
 
 import EventEmitter from "events";
 import WebSocket from 'isomorphic-ws';
 import { Buffer } from 'buffer';
-
+import { isNode } from "browser-or-node";
 import { IncomingStreamData } from '@libp2p/interface/stream-handler'
 import { Connection, Stream } from '@libp2p/interface/connection'
 import { Multiaddr } from '@multiformats/multiaddr'
 import { pipe } from 'it-pipe'
-import { createLibp2p } from 'libp2p';
-import { Libp2p } from 'libp2p';
-import { webSockets } from '@libp2p/websockets'
-import { webRTC, webRTCDirect } from '@libp2p/webrtc'
-import { noise } from '@chainsafe/libp2p-noise'
-import { circuitRelayTransport, circuitRelayServer } from 'libp2p/circuit-relay'
-import { yamux } from '@chainsafe/libp2p-yamux'
-import * as filters from '@libp2p/websockets/filters'
 import { PassThrough } from 'stream';
-import { identifyService } from 'libp2p/identify'
-import { Libp2pServer, SupportedTransports } from "./networkServer";
 
 export class NetworkError extends VerityError  {}
 export class AddressError extends NetworkError {}
-
 
 /**
  * Represents the actual networking component of a NetworkPeer,
