@@ -121,10 +121,11 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
    * called directly.
    */
   close(): void {
+    logger.trace(`WebSocketPeerConnection: Closing connection`);
+    this.socketClosedController.abort();  // removes all listeners from this.ws
+    this.ws.close();
     this.emit("closed");
     this.removeAllListeners();
-    this.ws.close();
-    this.socketClosedController.abort();  // removes all listeners from this.ws
   }
 
   ready(): boolean {

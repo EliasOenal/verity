@@ -71,8 +71,9 @@ export class NetworkPeer extends Peer {
             address: WebSocketAddress | Multiaddr | AddressAbstraction[],
             private cubeStore: CubeStore,  // The cube storage instance associated with this peer
             private hostNodePeerID: Buffer,
-            private lightMode: boolean = false,
             conn: NetworkPeerConnection | WebSocket = undefined,
+            private lightMode: boolean = false,
+            private peerExchange: boolean = true
         )
     {
         super(address);
@@ -518,6 +519,7 @@ export class NetworkPeer extends Peer {
     }
 
     sendNodeRequest(): void {
+        if (!this.peerExchange) return;  // don't do anything if opted out
         // Determine message length
         const msgLength = NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE;
         // Prepare message

@@ -2,6 +2,7 @@ import { VerityError } from "./config";
 import { NetworkPeer } from "./networkPeer";
 import { AddressAbstraction, WebSocketAddress } from "./peerDB";
 import { NetworkManager } from "./networkManager";
+import { WebSocketPeerConnection, Libp2pPeerConnection } from "./networkPeerConnection";
 
 import { logger } from "./logger";
 
@@ -11,15 +12,13 @@ import { EventEmitter } from 'events';
 import { createLibp2p } from 'libp2p';
 import { Libp2p } from 'libp2p';
 import { webSockets } from '@libp2p/websockets'
-import { webRTC, webRTCDirect } from '@libp2p/webrtc'
+import { webRTC } from '@libp2p/webrtc'
 import { noise } from '@chainsafe/libp2p-noise'
 import { circuitRelayTransport, circuitRelayServer } from 'libp2p/circuit-relay'
 import { yamux } from '@chainsafe/libp2p-yamux'
 import { identifyService } from 'libp2p/identify'
 import { IncomingStreamData } from '@libp2p/interface/stream-handler'
-import { Libp2pPeerConnection } from "./networkPeerConnection";
 import * as filters from '@libp2p/websockets/filters'
-import { Multiaddr } from '@multiformats/multiaddr'
 
 export abstract class NetworkServer extends EventEmitter {
   dialableAddress: AddressAbstraction = undefined;
@@ -37,6 +36,10 @@ export abstract class NetworkServer extends EventEmitter {
   shutdown(): void {
     throw new VerityError("NetworkServer.shutdown() to be implemented by subclass");
   }
+
+  toString(): string {
+    throw new VerityError("NetworkServer.toString() to be implemented by subclass");
+  }
 }
 
 export class WebSocketServer extends NetworkServer {
@@ -46,6 +49,10 @@ export class WebSocketServer extends NetworkServer {
       private port: number = 1984)
   {
     super(networkManager);
+  }
+
+  toString(): string {
+    return "WebSocketServer " + this.dialableAddress;
   }
 
   start(): void {
@@ -61,7 +68,7 @@ export class WebSocketServer extends NetworkServer {
       logger.trace('WebSocketServer: stated on ' + this.dialableAddress.toString());
 
       // Handle incoming connections
-      this.server.on('connection', ws => this.handleIncomingPeer(ws));
+      this.server.on('connection', (ws, request) => this.handleIncomingPeer(ws));
 
       this.server.on('listening', () => {
           logger.debug(`WebSocketServer: Server is listening on ${this.dialableAddress.toString()}.`);
@@ -71,9 +78,10 @@ export class WebSocketServer extends NetworkServer {
   }
 
   shutdown(): void {
+    logger.trace("WebSocketServer: shutdown()");
     this.server.close((err) => {
       if (err) {
-          logger.error(`WebSockerServer: Error while closing server: ${err}`);
+          logger.error(`WebSocketServer: Error while closing server: ${err}`);
       }
     });
   }
@@ -91,8 +99,10 @@ export class WebSocketServer extends NetworkServer {
           (ws as any)._socket.remotePort),
       this.networkManager.cubeStore,
       this.networkManager.peerID,
+      new WebSocketPeerConnection(ws),
       this.networkManager.lightNode,
-      ws);
+      this.networkManager.peerExchange,
+      );
     this.networkManager.handleIncomingPeer(networkPeer);
   }
 }
@@ -126,6 +136,10 @@ export class Libp2pServer extends NetworkServer {
     else {
       this.listen = listen_param;  // correct format already, hopefully
     }
+  }
+
+  toString(): string {
+    return "Libp2pServer " + this._node?.getMultiaddrs()?.toString();
   }
 
   async start() {
@@ -167,8 +181,10 @@ export class Libp2pServer extends NetworkServer {
       incomingStreamData.connection.remoteAddr,
       this.networkManager.cubeStore,
       this.networkManager.peerID,
+      conn,
       this.networkManager.lightNode,
-      conn);
+      this.networkManager.peerExchange
+      );
     this.networkManager.handleIncomingPeer(networkPeer);
   }
 

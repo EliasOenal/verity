@@ -10,7 +10,6 @@ import { NetworkPeerConnection } from './networkPeerConnection';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
-import { Libp2p } from 'libp2p';
 
 import * as cryptolib from 'crypto';
 let crypto;
@@ -28,7 +27,6 @@ export class NetworkManager extends EventEmitter {
     outgoingPeers: NetworkPeer[] = []; // The peers for outgoing connections
     incomingPeers: NetworkPeer[] = []; // The peers for incoming connections
     private isConnectingPeers: boolean = false;
-    private isShuttingDown: boolean = false;
     private connectPeersInterval: NodeJS.Timeout = undefined;
     private _online: boolean = false;
     get online(): boolean { return this._online }
@@ -51,7 +49,9 @@ export class NetworkManager extends EventEmitter {
             private _peerDB: PeerDB,
             servers: Map<SupportedTransports, any>,
             private announceToTorrentTrackers: boolean = true,
-            private _lightNode: boolean = false) {
+            private _lightNode: boolean = false,
+            private _autoConnect: boolean = true,
+            private _peerExchange: boolean = true) {
         super();
 
         // Create all requested servers. You could also call them listeners if you like.
@@ -84,6 +84,8 @@ export class NetworkManager extends EventEmitter {
 
     get cubeStore(): CubeStore { return this._cubeStore; }
     get lightNode(): boolean { return this._lightNode; }
+    get autoConnect(): boolean { return this._autoConnect}
+    get peerExchange(): boolean { return this._peerExchange }
 
     public get peerDB() { return this._peerDB; }
     public getCubeStore() { return this.cubeStore; }
@@ -121,9 +123,10 @@ export class NetworkManager extends EventEmitter {
     * re-calls to self will set existingRun, and nobody else should.
     */
     private connectPeers(existingRun: boolean = false): void {
+        if (!this._autoConnect) return;
         // Don't do anything if we're already in the process of connecting new peers
         // or if we're shutting down.
-        if (this.isShuttingDown || (!existingRun && this.isConnectingPeers)) {
+        if (!existingRun && this.isConnectingPeers) {
             logger.trace("NetworkManager: Somebody called connectPeers(), but this is just not the time.");
             return;
         }
@@ -189,8 +192,9 @@ export class NetworkManager extends EventEmitter {
             peer.addresses,
             this.cubeStore,
             this.peerID,
+            conn,
             this.lightNode,
-            conn);
+            this.peerExchange);
         this.outgoingPeers.push(networkPeer);
         this.emit('newpeer', networkPeer);
         return networkPeer;
@@ -205,13 +209,14 @@ export class NetworkManager extends EventEmitter {
 
     public shutdown() {
         logger.trace('NetworkManager: shutdown()');
-        this.isShuttingDown = true;
+        this._autoConnect = false;
         this._peerDB.shutdown();
         this.stopConnectingPeers();
+        this.shutdownPeers();
         for (const server of this.servers) {
+            logger.trace("NetworkManager: Shutting down server " + server.toString());
             server.shutdown();
         }
-        this.shutdownPeers();
         this.emit('shutdown');
     }
 
