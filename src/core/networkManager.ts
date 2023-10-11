@@ -1,7 +1,7 @@
 import { CubeStore } from './cubeStore';
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { PeerDB, Peer } from './peerDB';
-import { Settings } from './config';
+import { Settings, VerityError } from './config';
 import { NetworkPeer, NetworkStats } from './networkPeer';
 import { Libp2pServer, NetworkServer, WebSocketServer } from './networkServer';
 import { logger } from './logger';
@@ -233,11 +233,15 @@ export class NetworkManager extends EventEmitter {
      * Event handler that will be called once a NetworkPeer is ready for business
      */
     handlePeerOnline(peer: NetworkPeer) {
-        // Does this peer need to be blacklisted?
-        if (this.closePeerIfInvalid(peer)) return;
-
         // Verify this peer is valid (just checking if there is an ID for now)
-        if (!peer.id) return;
+        if (!peer.id) throw new VerityError(`NetworkManager.handlePeerOnline(): Peer ${peer.toString()} cannot be "online" if we don't know its ID. This should never happen.`);
+
+        // Does this peer need to be blacklisted?
+        // Just checking if we're connected to self for now...
+        if (peer.id.equals(this.peerID)) {
+            this.closeAndBlacklistPeer(peer);
+            return true;
+        }
 
         // Mark the peer as verified.
         // If this is an outgoing peer, mark it as exchangeable
@@ -247,6 +251,15 @@ export class NetworkManager extends EventEmitter {
         } else {
             this._peerDB.verifyPeer(peer);
         }
+
+        // Does this peer need to be closed as duplicate?
+        // We're performing this step after verification as "duplicate"
+        // is an ephemeral verdict -- it only applies in the context of our
+        // current set of connected peers.
+        if (this.closePeerIfDuplicate(peer)) return;
+
+        // TODO: If this is a duplicate but outgoing connection, it should still
+        // render this peer exchangeable
 
         // If this is the first successful connection, emit an 'online' event
         if (!this._online) {
@@ -258,7 +271,7 @@ export class NetworkManager extends EventEmitter {
         // This is a pure optimisation to enhance startup time; NetworkPeer
         // will periodically ask for the same stuff in a short while.
         peer.sendKeyRequest();
-        peer.sendNodeRequest();
+        if (this.peerExchange) peer.sendNodeRequest();
 
         // Relay the online event to our subscribers
         this.emit('peeronline', peer);
@@ -278,30 +291,6 @@ export class NetworkManager extends EventEmitter {
             this.emit('offline');
         }
         this.connectPeers();  // find a replacement peer
-    }
-
-    /**
-     * Checks if a peer should be blacklisted or disconnect as duplicate.
-     * We currently blacklist peers:
-     *  1) If we're connected to ourselves (happens really easily due to peer exchange)
-     *  2) Node sending invalid messages
-     *     (this case is handled in NetworkPeer rather than here)
-     * As a third case that is not technically blacklisting:
-     *  3) We note if we somehow connected to two different addresses for the same
-     *     node; in this case, we close the duplicate connection and remember
-     *     the duplicate address.
-     *     (also happens really easily as nodes can, for example, be referred
-     *      to by IP address or domain name)
-     * @returns Whether the peer has been disconnected and/or blacklisted
-     */
-    closePeerIfInvalid(peer: NetworkPeer): boolean {
-        if (peer.id.equals(this.peerID)) {
-            this.closeAndBlacklistPeer(peer);
-            return true;
-        }
-        const duplicate: boolean = this.closePeerIfDuplicate(peer);
-        if (duplicate) return true;
-        return false;
     }
 
     /** Disconnect and blacklist this peer */
@@ -331,9 +320,6 @@ export class NetworkManager extends EventEmitter {
 
     private handleDuplicatePeer(duplicate: NetworkPeer, original: Peer): void {
         duplicate.close();  // disconnect the duplicate
-        // Remove peer from unverified list:
-        // Duplicate peers can never be verified as verification happens at
-        // the same time as duplicate detection, i.e. on receiving a HELLO.
         this._peerDB.removeUnverifiedPeer(duplicate);
         original.addAddress(duplicate.address);
         logger.info(`NetworkManager: Closing connection ${duplicate.addressString} as duplicate to ${original.toString()}.`)
@@ -382,9 +368,9 @@ export class NetworkManager extends EventEmitter {
         output += `Total Packets: TX: ${totalStats.tx.totalPackets}, RX: ${totalStats.rx.totalPackets}\n`;
         output += `Total Bytes: TX: ${totalStats.tx.totalBytes}, RX: ${totalStats.rx.totalBytes}\n`;
         output += `Connected Peers: ${this.outgoingPeers.length + this.incomingPeers.length}\n`;
-        output += `Verified Peers: ${this._peerDB.peersVerified.map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
-        output += `Unverified Peers: ${this._peerDB.peersUnverified.map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
-        output += `Blacklisted Peers: ${this._peerDB.peersBlacklisted.map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
+        output += `Verified Peers: ${Array.from(this._peerDB.peersVerified.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
+        output += `Unverified Peers: ${Array.from(this._peerDB.peersUnverified.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
+        output += `Blacklisted Peers: ${Array.from(this._peerDB.peersBlacklisted.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
         output += 'Packet Types:\n';
 
         for (const type in totalStats.tx.packetTypes) {

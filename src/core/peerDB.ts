@@ -125,7 +125,9 @@ export class WebSocketAddress {
 
 export class Peer {
     /** The 16 byte node ID. We usually only learn this upon successfull HELLO exchange. */
-    id?: Buffer = undefined;
+    protected _id?: Buffer = undefined;
+    get id(): Buffer { return this._id }
+    get idString(): string { return this._id?.toString('hex') }
 
     /**
      * A peer can have multiple addresses, e.g. an IPv4 one, an IPv6 one
@@ -162,7 +164,7 @@ export class Peer {
             id?: Buffer) {
         if (address instanceof Array) this.addresses = address;
         else this.addresses = [new AddressAbstraction(address)];
-        this.id = id;
+        this._id = id;
         this.primaryAddressIndex = 0;
     }
 
@@ -171,7 +173,7 @@ export class Peer {
         const addressEquals: boolean = this.addresses.some(myaddress =>
             other.addresses.some(othersaddress => myaddress.equals(othersaddress)));
         if (addressEquals) return true;
-        else if (this.id && other.id && this.id.equals(other.id)) return true;
+        else if (this._id && other._id && this._id.equals(other._id)) return true;
         else return false;
     }
 
@@ -210,7 +212,7 @@ export class Peer {
     get addressString(): string { return this.address.toString(); }
 
     toString() {
-        return `${this.addressString} (ID#${this.id?.toString('hex')})`;
+        return `${this.addressString} (ID#${this._id?.toString('hex')})`;
     }
 }
 
@@ -226,14 +228,44 @@ export class Peer {
  * who never sent us a valid HELLO is still just unverified.
  */
 export class PeerDB extends EventEmitter {
-    private _peersVerified: Peer[] = [];
-    get peersVerified(): Peer[] { return this._peersVerified }
-    private _peersUnverified: Peer[] = [];
-    get peersUnverified(): Peer[] { return this._peersUnverified }
-    private _peersBlacklisted: Peer[] = [];
-    get peersBlacklisted(): Peer[] { return this._peersBlacklisted }
-    private _peersExchangeable: Peer[] = [];
-    get peersExchangeable(): Peer[] { return this._peersExchangeable }
+    /**
+     * Stores peers we have never successfully connected to and therefore don't
+     * know the ID of.
+     * Uses the peer's address string as key.
+     * TODO: Should be pruned regularly and strictly
+     */
+    private _peersUnverified: Map<string,Peer> = new Map();
+    get peersUnverified(): Map<string,Peer> { return this._peersUnverified }
+
+    /**
+     * Stores peers we have at least once successfully connected to, but don't
+     * know a publicly reachable address of.
+     * Uses the peer's ID hex string as key.
+     * TODO: Should be pruned after a significant number of connection failures,
+     * with the ability of pinning.
+     */
+    private _peersVerified: Map<string,Peer> = new Map();
+    get peersVerified(): Map<string,Peer> { return this._peersVerified }
+
+    /**
+     * Store peers we have successfully connected to and know a publicly
+     * reachable address of.
+     * Uses the peer's ID hex string as key.
+     * TODO: Should be pruned after a significant number of connection failures,
+     * with the ability of pinning.
+     */
+    private _peersExchangeable: Map<string,Peer> = new Map();
+    get peersExchangeable(): Map<string,Peer> { return this._peersExchangeable }
+
+    /**
+     * Stores peers we have deemed unworthy and will not connect to again.
+     * Uses the peer's address string as key, as we might blacklist peers without
+     * actually knowing their ID.
+     * TODO: Blacklist is currently checked on connection attempts.
+     * TODO: Should allow for un-blacklisting after some amount of time.
+     */
+    private _peersBlacklisted: Map<string,Peer> = new Map();
+    get peersBlacklisted(): Map<string,Peer> { return this._peersBlacklisted }
     private announceTimer?: NodeJS.Timeout;
     private static trackerUrls: string[] = ['http://tracker.opentrackr.org:1337/announce',
         'http://tracker.openbittorrent.com:80/announce',
@@ -252,12 +284,17 @@ export class PeerDB extends EventEmitter {
         this.removeAllListeners();
     }
 
-    isPeerKnown(peer): boolean {
-        const knownPeers = this.peersUnverified.concat(
-            this.peersVerified).concat(
-                this.peersBlacklisted).concat(
-                    this.peersExchangeable);
-        return knownPeers.some(knownPeer => knownPeer.equals(peer));
+    isPeerKnown(peer: Peer): boolean {
+        if (peer.id) {
+            if (this.peersVerified.has(peer.idString)) return true;
+            if (this.peersExchangeable.has(peer.idString)) return true;
+            return false;
+        } else {
+            for (const address of peer.addresses) {
+                if (this.peersUnverified.has(address.toString())) return true;
+            }
+        }
+        return false;  // not found
     }
 
     /**
@@ -274,7 +311,7 @@ export class PeerDB extends EventEmitter {
     selectPeerToConnect(exclude: Peer[] = []) {
         const now: number = Math.floor(Date.now() / 1000);
         const eligible: Peer[] =
-            this.peersVerified.concat(this.peersUnverified).concat(this.peersExchangeable).
+            [...this.peersUnverified.values(), ...this.peersVerified.values(), ...this.peersExchangeable.values()].  // this is not efficient
             filter((candidate: Peer) =>
                 candidate.lastConnectAttempt <= now - Settings.RECONNECT_INTERVAL / 1000 &&
                 exclude.every((tobeExcluded: Peer) =>
@@ -292,53 +329,53 @@ export class PeerDB extends EventEmitter {
         // Do nothing if we know this peer already
         if (this.isPeerKnown(peer)) return;
         // Otherwise, add it to the list of unverified peers and let our listeners know
-        this.peersUnverified.push(peer);
+        this.peersUnverified.set(peer.addressString, peer);
         logger.trace(`PeerDB: Learned new peer ${peer.toString()}, emitting newPeer.`)
         this.emit('newPeer', peer)
     }
 
     blacklistPeer(peer: Peer): void {
-        // Duplicate?
-        if (this.peersBlacklisted.some(
-            knownPeer => knownPeer.equals(peer))) {
-                logger.trace(`PeerDB: Peer ${peer.toString()} is already blacklisted`);
-                return;
+        // delete from any lists this peer might be in
+        this.removeUnverifiedPeer(peer);
+        this.removeVerifiedPeer(peer);
+        this.removeExchangeablePeer(peer);
+        // blacklist all of this peer object's addresses
+        for (const address of peer.addresses) {
+            this.peersBlacklisted.set(address.toString(), peer);
+            logger.info('PeerDB: Blacklisting peer ' + peer.toString() + ' using address ' + address.toString());
         }
-        logger.info('PeerDB: Blacklisting peer ' + peer.toString());
-        // Remove the peer from the verified and unverified lists
-        this.removePeer(peer);
-        this.peersBlacklisted.push(peer);
     }
 
     verifyPeer(peer: Peer): void {
-        // Duplicate?
-        if (this.peersBlacklisted.concat(this.peersVerified).concat(this.peersExchangeable).
-            some(
-            knownPeer => knownPeer.equals(peer))) {
-                logger.trace(`PeerDB: Not verifying duplicate or blacklisted peer ${peer.toString()}`);
-                return;
+        // Plausibility check:
+        // If a peer is already exchangeable, which is a higher status than verified,
+        // do nothing.
+        if (this.peersExchangeable.has(peer.idString)) return;
+        // Remove peer from unverified map.
+        // Also, abort if peer is found in blacklist.
+        for (const address of peer.addresses) {
+            const addrString = address.toString();
+            this._peersUnverified.delete(address.toString());
+            if (this.peersBlacklisted.has(addrString)) return;
         }
-        // Add the peer to the verified list
-        this.peersVerified.push(peer);
-        // Remove the peers from the unverified list
-        this.removeUnverifiedPeer(peer);
+        // Okay, setting peer verified
+        this.peersVerified.set(peer.idString, peer);
         logger.info(`PeerDB: setting peer ${peer.toString()} verified.`);
         this.emit('verifiedPeer', peer);
     }
 
     markPeerExchangeable(peer: Peer): void {
-        // Duplicate?
-        if (this.peersBlacklisted.concat(this.peersExchangeable).
-            some(
-            knownPeer => knownPeer.equals(peer))) {
-                logger.trace(`PeerDB: Not verifying duplicate or blacklisted peer ${peer.toString()}`);
-                return;
+        // Remove peer from unverified map.
+        // Also, abort if peer is found in blacklist.
+        for (const address of peer.addresses) {
+            const addrString = address.toString();
+            this._peersUnverified.delete(address.toString());
+            if (this.peersBlacklisted.has(addrString)) return;
         }
-        // Add the peer to the verified list
-        this.peersExchangeable.push(peer);
-        // Remove the peers from the unverified list
-        this.removeUnverifiedPeer(peer);
-        this.removeVerifiedPeer(peer);
+        // Remove from verified list
+        this.peersVerified.delete(peer.idString);
+        // Add to exchangeable list
+        this.peersExchangeable.set(peer.idString, peer);
         logger.info(`PeerDB: setting peer ${peer.toString()} exchangeable.`);
         this.emit('exchangeablePeer', peer);
     }
@@ -349,15 +386,15 @@ export class PeerDB extends EventEmitter {
         this.removeExchangeablePeer(peer);
     }
     removeUnverifiedPeer(peer: Peer): void {
-        // Remove the peer from the unverified list
-        this._peersUnverified = this.peersUnverified.filter(p => !p.equals(peer));
+        for (const address of peer.addresses) {
+            this.peersUnverified.delete(address.toString());
+        }
     }
     removeVerifiedPeer(peer: Peer): void {
-        // Remove the peer from the unverified list
-        this._peersVerified = this.peersVerified.filter(p => !p.equals(peer));
+        this.peersVerified.delete(peer.idString);
     }
     removeExchangeablePeer(peer: Peer): void {
-        this._peersExchangeable = this.peersExchangeable.filter(exchangeablePeer => !peer.equals(exchangeablePeer));
+        this.peersExchangeable.delete(peer.idString);
     }
 
     startAnnounceTimer(): void {

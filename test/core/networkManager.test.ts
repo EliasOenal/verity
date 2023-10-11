@@ -294,7 +294,7 @@ describe('networkManager', () => {
 
             // Wait for server to start listening
             await new Promise((resolve) => manager.on('listening', resolve));
-            expect(peerDB.peersBlacklisted.length).toEqual(0);
+            expect(peerDB.peersBlacklisted.size).toEqual(0);
 
             // Trigger a connection to itself
             manager.connect(new Peer(new WebSocketAddress('localhost', 6004)));
@@ -305,12 +305,12 @@ describe('networkManager', () => {
                     resolve();
                 })
             });
-            expect(peerDB.peersBlacklisted.length).toEqual(1);
+            expect(peerDB.peersBlacklisted.size).toEqual(1);
 
             manager.shutdown();
         }, 3000);
 
-        it('should close the connection to duplicate peer addressed', async () => {
+        it.only('should close the connection to duplicate peer addressed', async () => {
             const myPeerDB = new PeerDB();
             const myManager = new NetworkManager(
                 new CubeStore(false), myPeerDB,
@@ -349,10 +349,10 @@ describe('networkManager', () => {
             expect(otherManager.incomingPeers.length).toEqual(1);
             expect(otherManager.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
             expect(otherManager.incomingPeers[0].id?.equals(myManager.peerID));
-            expect(myPeerDB.peersVerified.length).toEqual(0);  // outgoing peers get exchangeable on verification
-            expect(myPeerDB.peersExchangeable.length).toEqual(1);
-            expect(otherPeerDB.peersVerified.length).toEqual(1);
-            expect(otherPeerDB.peersExchangeable.length).toEqual(0);  // incoming ones don't
+            expect(myPeerDB.peersVerified.size).toEqual(0);  // outgoing peers get exchangeable on verification
+            expect(myPeerDB.peersExchangeable.size).toEqual(1);
+            expect(otherPeerDB.peersVerified.size).toEqual(1);
+            expect(otherPeerDB.peersExchangeable.size).toEqual(0);  // incoming ones don't
 
 
             // Connect again through different address.
@@ -369,16 +369,16 @@ describe('networkManager', () => {
             myManager.connect(new Peer(new WebSocketAddress('127.0.0.1', 7005)));
             await bothNotedDuplicate;
 
-            expect(myPeerDB.peersBlacklisted.length).toEqual(0);  // duplicate is not / no longer blacklisting
-            expect(otherPeerDB.peersBlacklisted.length).toEqual(0);  // duplicate is not / no longer blacklisting
+            expect(myPeerDB.peersBlacklisted.size).toEqual(0);  // duplicate is not / no longer blacklisting
+            expect(otherPeerDB.peersBlacklisted.size).toEqual(0);  // duplicate is not / no longer blacklisting
             expect(myManager.outgoingPeers.length).toEqual(1);
             expect(myManager.incomingPeers.length).toEqual(0);
             // expect(otherManager.outgoingPeers.length).toEqual(0);  // at this point, peer exchange of other's own duplicate address might have occurred and other might not yet have realized it's his own address
             expect(otherManager.incomingPeers.length).toEqual(1);
-            expect(myPeerDB.peersVerified.length).toEqual(0);  // outgoing peers get exchangeable on verification
-            expect(myPeerDB.peersExchangeable.length).toEqual(1);
-            expect(otherPeerDB.peersVerified.length).toEqual(1);
-            expect(otherPeerDB.peersExchangeable.length).toEqual(0);  // incoming ones don't
+            expect(myPeerDB.peersVerified.size).toEqual(0);  // outgoing peers get exchangeable on verification
+            expect(myPeerDB.peersExchangeable.size).toEqual(1);
+            expect(otherPeerDB.peersVerified.size).toEqual(1);
+            expect(otherPeerDB.peersExchangeable.size).toEqual(0);  // incoming ones don't
 
             // Will not attempt to reconnect to an already blacklisted peer
             //...

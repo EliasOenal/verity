@@ -93,7 +93,7 @@ export class NetworkPeer extends Peer {
 
         // Take note of all other peers I could exchange with this new peer.
         // This is used to ensure we don't exchange the same peers twice.
-        this.unsentPeers = this.networkManager.peerDB.peersExchangeable;
+        this.unsentPeers = Array.from(this.networkManager.peerDB.peersExchangeable.values());  // TODO: there's really no reason to convert to array here
         networkManager.peerDB.on('exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
 
         // Send HELLO message once connected
@@ -245,7 +245,7 @@ export class NetworkPeer extends Peer {
                 logger.trace(`NetworkPeer ${this.toString()}: Received spurious repeat HELLO`);
             }
         } else {  // not a repeat hello
-            this.id = peerID;
+            this._id = peerID;
             this._online = true;
             logger.trace(`NetworkPeer ${this.toString()}: received HELLO, peer now considered online`);
             this.networkManager.handlePeerOnline(this);

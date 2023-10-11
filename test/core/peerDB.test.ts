@@ -1,3 +1,4 @@
+import { logger } from '../../src/core/logger';
 import { PeerDB, Peer, WebSocketAddress } from '../../src/core/peerDB';
 
 describe ('PeerDB', () => {
@@ -30,22 +31,32 @@ describe ('PeerDB', () => {
 
     it('correctly blacklists peers', () => {
         const peerDB = new PeerDB();
-        peerDB.verifyPeer(new Peer(new WebSocketAddress("127.0.0.1", 1337)));
-        peerDB.verifyPeer(new Peer(new WebSocketAddress("127.0.0.1", 1338), Buffer.from("bd806506666ea6ae759878ac1463344e", 'hex')));
-        peerDB.learnPeer(new Peer(new WebSocketAddress("127.0.0.1", 1339)));
-        peerDB.learnPeer(new Peer(new WebSocketAddress("127.0.0.1", 1340), Buffer.from("a0cffa47a81fe5cf72e3a9ac1d0f2f16", 'hex')));
-        expect(peerDB.peersVerified.length).toEqual(2);
-        expect(peerDB.peersUnverified.length).toEqual(2);
-        expect(peerDB.peersBlacklisted.length).toEqual(0);
+        peerDB.learnPeer(new Peer(new WebSocketAddress("127.0.0.1", 1337)));
+        peerDB.learnPeer(new Peer(new WebSocketAddress("127.0.0.1", 1338)));
+        peerDB.verifyPeer(new Peer(new WebSocketAddress("127.0.0.1", 1339), Buffer.from("bd806506666ea6ae759878ac1463344e", 'hex')));
+        peerDB.verifyPeer(new Peer(new WebSocketAddress("127.0.0.1", 1340), Buffer.from("a0cffa47a81fe5cf72e3a9ac1d0f2f16", 'hex')));
+        peerDB.markPeerExchangeable(new Peer(new WebSocketAddress("127.0.0.1", 1341), Buffer.from("db03cb899bd15a941ff6d26581e41a12", 'hex')));
+        expect(peerDB.peersUnverified.size).toEqual(2);
+        expect(peerDB.peersVerified.size).toEqual(2);
+        expect(peerDB.peersExchangeable.size).toEqual(1);
+        expect(peerDB.peersBlacklisted.size).toEqual(0);
 
-        peerDB.blacklistPeer(new Peer(new WebSocketAddress("127.0.0.1", 1337)));
-        expect(peerDB.peersVerified.length).toEqual(1);
-        expect(peerDB.peersUnverified.length).toEqual(2);
-        expect(peerDB.peersBlacklisted.length).toEqual(1);
+        peerDB.blacklistPeer(new Peer(new WebSocketAddress("127.0.0.1", 1338)));
+        expect(peerDB.peersUnverified.size).toEqual(1);
+        expect(peerDB.peersVerified.size).toEqual(2);
+        expect(peerDB.peersExchangeable.size).toEqual(1);
+        expect(peerDB.peersBlacklisted.size).toEqual(1);
 
-        peerDB.blacklistPeer(new Peer(new WebSocketAddress("1.1.1.1", 40404), Buffer.from("a0cffa47a81fe5cf72e3a9ac1d0f2f16", 'hex')));
-        expect(peerDB.peersVerified.length).toEqual(1);
-        expect(peerDB.peersUnverified.length).toEqual(1);
-        expect(peerDB.peersBlacklisted.length).toEqual(2);
+        peerDB.blacklistPeer(new Peer(new WebSocketAddress("1.1.1.1", 40404), Buffer.from("bd806506666ea6ae759878ac1463344e", 'hex')));
+        expect(peerDB.peersUnverified.size).toEqual(1);
+        expect(peerDB.peersVerified.size).toEqual(1);
+        expect(peerDB.peersExchangeable.size).toEqual(1);
+        expect(peerDB.peersBlacklisted.size).toEqual(2);
+
+        peerDB.blacklistPeer(new Peer(new WebSocketAddress("2.2.2.2", 33333), Buffer.from("db03cb899bd15a941ff6d26581e41a12", 'hex')));
+        expect(peerDB.peersUnverified.size).toEqual(1);
+        expect(peerDB.peersVerified.size).toEqual(1);
+        expect(peerDB.peersExchangeable.size).toEqual(0);
+        expect(peerDB.peersBlacklisted.size).toEqual(3);
     });
 });
