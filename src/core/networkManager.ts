@@ -226,7 +226,7 @@ export class NetworkManager extends EventEmitter {
         // TODO HACKHACK: Until we include some way for incoming peers to indicate
         // their server port (if any), we just don't store them to PeerDB.
         // TODO HACKHACK undone so we can exchange webrtc peers
-        this._peerDB.verifyPeer(peer);
+        this._peerDB.learnPeer(peer);
     }
 
     /**
@@ -331,7 +331,10 @@ export class NetworkManager extends EventEmitter {
 
     private handleDuplicatePeer(duplicate: NetworkPeer, original: Peer): void {
         duplicate.close();  // disconnect the duplicate
-        this._peerDB.removePeer(duplicate);
+        // Remove peer from unverified list:
+        // Duplicate peers can never be verified as verification happens at
+        // the same time as duplicate detection, i.e. on receiving a HELLO.
+        this._peerDB.removeUnverifiedPeer(duplicate);
         original.addAddress(duplicate.address);
         logger.info(`NetworkManager: Closing connection ${duplicate.addressString} as duplicate to ${original.toString()}.`)
         this.emit('duplicatepeer', duplicate);
