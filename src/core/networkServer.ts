@@ -33,7 +33,7 @@ export abstract class NetworkServer extends EventEmitter {
     throw new VerityError("NetworkServer.start() to be implemented by subclass");
   }
 
-  shutdown(): void {
+  shutdown(): Promise<void> {
     throw new VerityError("NetworkServer.shutdown() to be implemented by subclass");
   }
 
@@ -77,13 +77,17 @@ export class WebSocketServer extends NetworkServer {
       );
   }
 
-  shutdown(): void {
+  shutdown(): Promise<void> {
     logger.trace("WebSocketServer: shutdown()");
+    this.server.removeAllListeners();
+    const closedPromise: Promise<void> =
+      new Promise<void>((resolve) => this.server.once('close', resolve));
     this.server.close((err) => {
       if (err) {
           logger.error(`WebSocketServer: Error while closing server: ${err}`);
       }
     });
+    return closedPromise;
   }
 
     /**
@@ -171,6 +175,10 @@ export class Libp2pServer extends NetworkServer {
       (incomingStreamData: IncomingStreamData) => this.handleIncomingPeer(incomingStreamData));
     logger.info("Libp2pServer: Listening to Libp2p multiaddrs: " + this._node.getMultiaddrs().toString());
     // logger.info("Transports are: " + this.server.components.transportManager.getTransports());
+  }
+
+  shutdown(): Promise<void> {
+    return this.node.stop() as Promise<void>;
   }
 
   private handleIncomingPeer(incomingStreamData: IncomingStreamData): void {

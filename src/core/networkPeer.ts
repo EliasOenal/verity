@@ -62,7 +62,8 @@ export class NetworkPeer extends Peer {
     private unsentCubeMeta: Set<CubeMeta> = undefined;
     private unsentPeers: Peer[] = undefined;  // TODO this should probably be a Set instead
 
-    private conn: NetworkPeerConnection = undefined;
+    private _conn: NetworkPeerConnection = undefined;
+    get conn(): NetworkPeerConnection { return this._conn }
 
     private networkTimeout: NodeJS.Timeout;
 
@@ -78,12 +79,12 @@ export class NetworkPeer extends Peer {
     {
         super(address);
         if (conn instanceof NetworkPeerConnection) {
-            this.conn = conn;
+            this._conn = conn;
         } else {  // WebSocketAddress (or invalid)
-            this.conn = NetworkPeerConnection.Create(this.address);
+            this._conn = NetworkPeerConnection.Create(this.address);
         }
-        this.conn.on("messageReceived", msg => this.handleMessage(msg));
-        this.conn.once("closed", () => this.close());
+        this._conn.on("messageReceived", msg => this.handleMessage(msg));
+        this._conn.once("closed", () => this.close());
 
         // Take note of all cubes I could share with this new peer. While the
         // connection lasts, supplement this with any newly learned cubes.
@@ -97,13 +98,13 @@ export class NetworkPeer extends Peer {
         networkManager.peerDB.on('exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
 
         // Send HELLO message once connected
-        if (this.conn.ready()) {
+        if (this._conn.ready()) {
             logger.info(`NetworkPeer ${this.toString()}: Connected`);
             this.sendHello();
         } else {
             this.setTimeout();
             // On ready, cancel the timeout and send HELLO
-            this.conn.on("ready", () => {
+            this._conn.on("ready", () => {
                 clearTimeout(this.networkTimeout);
                 logger.info(`NetworkPeer ${this.toString()}: Connected`);
                 this.sendHello();
@@ -112,7 +113,7 @@ export class NetworkPeer extends Peer {
         }
     }
 
-    public close(): void {
+    public close(): Promise<void> {
         logger.trace(`NetworkPeer ${this.toString()}: Closing connection.`);
         // Remove all listeners and timers to avoid memory leaks
         this.networkManager.peerDB.removeListener(
@@ -126,7 +127,7 @@ export class NetworkPeer extends Peer {
         // Close our connection object.
         // Note: this means conn.close() gets called twice when closure
         // originates from the conn, but that's okay.
-        this.conn.close();
+        const closedPromise: Promise<void> = this._conn.close();
 
         // If we never got online, "resolve" the promise with undefined.
         // Rejecting it would be the cleaner choice, but then we'd need to catch
@@ -135,6 +136,7 @@ export class NetworkPeer extends Peer {
 
         // Let the network manager know we're closed
         this.networkManager.handlePeerClosed(this);
+        return closedPromise;
     }
 
     private logRxStats(message: Buffer, messageType: MessageClass): void {
@@ -157,7 +159,7 @@ export class NetworkPeer extends Peer {
 
     private txMessage(message: Buffer): void {
         this.logTxStats(message, message.readUInt8(NetConstants.PROTOCOL_VERSION_SIZE));
-        this.conn.send(message);
+        this._conn.send(message);
     }
 
     /**

@@ -37,7 +37,7 @@ export abstract class NetworkPeerConnection extends EventEmitter {
     }
   }
 
-  close(): void {
+  close(): Promise<void> {
     throw new VerityError("NetworkPeerConnection.close() to be implemented by subclass")
   }
   ready(): boolean {
@@ -55,7 +55,8 @@ export abstract class NetworkPeerConnection extends EventEmitter {
 
 export class WebSocketPeerConnection extends NetworkPeerConnection {
   private static WEBSOCKET_HANDSHAKE_TIMEOUT = 2500;
-  private ws: WebSocket;  // The WebSocket connection associated with this peer
+  private _ws: WebSocket;  // The WebSocket connection associated with this peer
+  get ws(): WebSocket { return this._ws }
 
   // these two represent a very cumbersome but cross-platform way to remove
   // listeners from web sockets (which we need to do once a peer connection closes)
@@ -67,7 +68,7 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
     super();
 
     if (conn_param instanceof WebSocket) {
-        this.ws = conn_param;
+        this._ws = conn_param;
     } else {
       // Create a WebSocket connection
       let WsOptions: any;
@@ -77,12 +78,12 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
       } else {
         WsOptions = [];
       }
-      this.ws = new WebSocket(conn_param.toString(true), WsOptions);
+      this._ws = new WebSocket(conn_param.toString(true), WsOptions);
     }
 
     // On WebSocket errors just shut down this peer
     // @ts-ignore When using socketCloseSignal the compiler mismatches the function overload
-    this.ws.addEventListener("error", (error) => {
+    this._ws.addEventListener("error", (error) => {
       // TODO: We should probably "greylist" peers that closed with an error,
       // i.e. not try to reconnect them for some time.
       logger.info(`WebSockerPeerConnection: WebSocket error: ${error.message}`);
@@ -92,7 +93,7 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
     // Handle incoming messages
     let msgData: Buffer;
     // @ts-ignore When using socketCloseSignal the compiler mismatches the function overload
-    this.ws.addEventListener("message", async (event) => {
+    this._ws.addEventListener("message", async (event) => {
       if (isNode) {
         msgData = Buffer.from(event.data as Buffer);
       } else {
@@ -102,14 +103,14 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
       this.emit("messageReceived", msgData);  // NetworkPeer will call handleMessage() on this
     }, { signal: this.socketClosedSignal });
 
-    this.ws.addEventListener('close', () => {
+    this._ws.addEventListener('close', () => {
       // TODO: We should at some point drop nodes closing on us from our PeerDB,
       // at least if they did that repeatedly and never even sent a valid HELLO.
       logger.info(`WebSocketPeerConnection: Peer closed on us`);
       this.close();
     });
 
-    this.ws.addEventListener("open", () =>  {
+    this._ws.addEventListener("open", () =>  {
       this.emit("ready");
     // @ts-ignore I don't know why the compiler complains about this
     }, { signal: this.socketClosedSignal });
@@ -120,26 +121,43 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
    * This will be called by NetworkPeer.close() and should thus never be
    * called directly.
    */
-  close(): void {
+  close(): Promise<void> {
     logger.trace(`WebSocketPeerConnection: Closing connection`);
     this.socketClosedController.abort();  // removes all listeners from this.ws
-    this.ws.close();
+    if (this._ws.readyState < this._ws.CLOSING) {  // only close if not already closing
+      // Return a promise that will be resolved when the socket has closed
+      const closedPromise = new Promise<void>((resolve) =>
+        this._ws.addEventListener('close', (event) => this.closedHandler(event, resolve)));
+      this._ws.close();
+      return closedPromise;
+    } else {  // already closed
+      // Return a resolved promise
+      return new Promise<void>(resolve => resolve());
+    }
+  }
+
+  private closedHandler(event: any, resolve: Function) {
+    this._ws.removeEventListener("close", (event) => this.closedHandler);
+    resolve();
     this.emit("closed");
     this.removeAllListeners();
   }
 
   ready(): boolean {
-    return (this.ws.readyState > 0)
+    return (this._ws.readyState > 0)
   }
 
   send(message: Buffer) {
-    this.ws.send(message);
+    this._ws.send(message);
   }
 
   type(): SupportedTransports {
     return SupportedTransports.ws;
   }
 }
+
+
+
 
 // TODO: We currently create a new Libp2p node object for each connection.
 // That's not how libp2p is supposed to be used.
@@ -260,16 +278,19 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
     }
   }
 
-  close(): void {
+  close(): Promise<void> {
     logger.info("Libp2pPeerConnection: Closing connection to " + this.conn?.remoteAddr.toString());
     this.emit("closed");
     this.removeAllListeners();
+    let streamClosedPromise: Promise<void>
     if (this.stream) {
-      this.stream.close();  // note all of this is async and we're just firing-and-forgetting the request
+      streamClosedPromise = this.stream.close();  // note all of this is async and we're just firing-and-forgetting the request
     }
+    let connClosedPromise: Promise<void>;
     if (this.conn) {
-      this.conn.close();  // TODO: is it really proper in libp2p terms to close the connection and not just the stream? after all, for servers, .handle() dispatches the stream and the conn might be shared
+      connClosedPromise = this.conn.close();  // TODO: is it really proper in libp2p terms to close the connection and not just the stream? after all, for servers, .handle() dispatches the stream and the conn might be shared
     }
+    return Promise.all([streamClosedPromise, connClosedPromise]) as unknown as Promise<void>;
   }
 
   ready(): boolean {

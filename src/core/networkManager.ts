@@ -47,7 +47,7 @@ export class NetworkManager extends EventEmitter {
     constructor(
             private _cubeStore: CubeStore,
             private _peerDB: PeerDB,
-            servers: Map<SupportedTransports, any>,
+            servers: Map<SupportedTransports, any> = new Map(),
             private announceToTorrentTrackers: boolean = true,
             private _lightNode: boolean = false,
             private _autoConnect: boolean = true,
@@ -106,9 +106,11 @@ export class NetworkManager extends EventEmitter {
         this._peerDB.on('newPeer', (newPeer: Peer) => this.connectPeers());
     }
 
-    private shutdownPeers() {
-        this.outgoingPeers.forEach(peer => peer.close());
-        this.incomingPeers.forEach(peer => peer.close());
+    private closePeers(): Promise<void> {
+        const closedPromises: Promise<void>[] = [];
+        this.outgoingPeers.concat(this.incomingPeers).forEach(peer =>
+            closedPromises.push(peer.close()));
+        return Promise.all(closedPromises) as unknown as Promise<void>;
     }
 
     /**
@@ -207,26 +209,27 @@ export class NetworkManager extends EventEmitter {
         }
     }
 
-    public shutdown() {
+    public shutdown(): Promise<void> {
         logger.trace('NetworkManager: shutdown()');
         this._autoConnect = false;
         this._peerDB.shutdown();
         this.stopConnectingPeers();
-        this.shutdownPeers();
+        const closedPromises: Promise<void>[] = [];
+        closedPromises.push(this.closePeers());
         for (const server of this.servers) {
             logger.trace("NetworkManager: Shutting down server " + server.toString());
-            server.shutdown();
+            closedPromises.push(server.shutdown());
         }
-        this.emit('shutdown');
+        const closedPromise: Promise<void> = Promise.all(closedPromises) as unknown as Promise<void>;
+        closedPromise.then(() => this.emit('shutdown'));
+        return closedPromise;
     }
 
     /** Called by NetworkServer only, should never be called manually. */
     handleIncomingPeer(peer: NetworkPeer) {
         this.incomingPeers.push(peer);
-        // TODO HACKHACK: Until we include some way for incoming peers to indicate
-        // their server port (if any), we just don't store them to PeerDB.
-        // TODO HACKHACK undone so we can exchange webrtc peers
         this._peerDB.learnPeer(peer);
+        this.emit("incomingPeer", peer);  // used for tests only
     }
 
     /**

@@ -2,6 +2,7 @@ import { SupportedTransports } from '../../src/core/networkDefinitions';
 
 import { NetworkManager } from '../../src/core/networkManager';
 import { NetworkPeer } from '../../src/core/networkPeer';
+import { WebSocketPeerConnection } from '../../src/core/networkPeerConnection';
 import { CubeStore } from '../../src/core/cubeStore';
 import { Cube, CubeKey } from '../../src/core/cube';
 import { CubeField, CubeFieldType, CubeFields, cubeFieldDefinition } from '../../src/core/cubeFields';
@@ -48,10 +49,9 @@ describe('networkManager', () => {
                 new CubeStore(false), new PeerDB(),
                 new Map([[SupportedTransports.ws, 3003]]),
                 false, false, false, false);  // disable optional features
+            const listeningPromise = new Promise((resolve) => manager.on('listening', resolve));
             manager.start();
-
-            // Wait for server to start listening
-            await new Promise((resolve) => manager?.on('listening', resolve));
+            await listeningPromise;
 
             const server = new WebSocket.Server({ port: 3002 });
 
@@ -64,6 +64,49 @@ describe('networkManager', () => {
             server.close();
             manager.shutdown();
         }, 3000);
+
+        it('correctly opens and closes multiple connections', async () => {
+            // create a server and two clients
+            const listener = new NetworkManager(
+                new CubeStore(false), new PeerDB(),
+                new Map([[SupportedTransports.ws, 4000]]),
+                false, false, false, false);  // disable optional features
+            const client1 = new NetworkManager(
+                new CubeStore(false), new PeerDB(),
+                undefined,  // no listeners
+                false, false, false, false);  // disable optional features
+            const client2 = new NetworkManager(
+                new CubeStore(false), new PeerDB(),
+                undefined,  // no listeners
+                false, false, false, false);  // disable optional features
+            // wait for server to be listening
+            const listenerPromise = new Promise((resolve) => listener.on('listening', resolve));
+                listener.start();
+            await listenerPromise;
+
+            // connect clients to server
+            client1.connect(new Peer(new WebSocketAddress("127.0.0.1", 4000)));
+            client2.connect(new Peer(new WebSocketAddress("127.0.0.1", 4000)));
+            // make sure all are well connected
+            expect(client1.outgoingPeers.length).toEqual(1);
+            expect(client2.outgoingPeers.length).toEqual(1);
+            await client1.outgoingPeers[0].onlinePromise;
+            await client2.outgoingPeers[0].onlinePromise;
+            expect(listener.incomingPeers.length).toEqual(2);
+            await listener.incomingPeers[0].onlinePromise;
+            await listener.incomingPeers[1].onlinePromise;
+
+            // shut the whole thing down
+            const listenerShutdown = new Promise<void>(resolve => listener.on('shutdown', resolve));
+            const client1Shutdown = new Promise<void>(resolve => client1.on('shutdown', resolve));
+            const client2Shutdown = new Promise<void>(resolve => client2.on('shutdown', resolve));
+            client1.shutdown();
+            client2.shutdown();
+            await client1Shutdown;
+            await client2Shutdown;
+            listener.shutdown();
+            await listenerShutdown;
+        });
 
         it('should exchange HELLO messages and report online after connection', async () => {
             const manager1 = new NetworkManager(
@@ -310,11 +353,11 @@ describe('networkManager', () => {
             manager.shutdown();
         }, 3000);
 
-        it.only('should close the connection to duplicate peer addressed', async () => {
+        it('should close the connection to duplicate peer addressed', async () => {
             const myPeerDB = new PeerDB();
             const myManager = new NetworkManager(
                 new CubeStore(false), myPeerDB,
-                new Map([[SupportedTransports.ws, 7004]]),
+                undefined,  // no listener
                 false, false, false, false);  // disable optional features
             myManager.start();
 
@@ -323,13 +366,9 @@ describe('networkManager', () => {
                 new CubeStore(false), otherPeerDB,
                 new Map([[SupportedTransports.ws, 7005]]),
                 false, false, false, false);  // disable optional features
-            otherManager.start();
-
-            // Wait for server to start listening
-            const iListen = new Promise((resolve) => myManager.on('listening', resolve));
             const otherListens = new Promise((resolve) => otherManager.on('listening', resolve));
-            const bothListen = Promise.all([iListen, otherListens]);
-            await bothListen;
+                otherManager.start();
+            await otherListens;
 
             // connect to peer and wait till connected
             // (= wait for the peeronline signal, which is emitted after the
@@ -337,36 +376,48 @@ describe('networkManager', () => {
             const iHaveConnected = new Promise((resolve) => myManager.on('peeronline', resolve));
             const otherHasConnected = new Promise((resolve) => otherManager.on('peeronline', resolve));
             const bothHaveConnected = Promise.all([iHaveConnected, otherHasConnected]);
-            myManager.connect(new Peer(new WebSocketAddress('localhost', 7005)));
+            const myFirstNp: NetworkPeer =
+                myManager.connect(new Peer(new WebSocketAddress('localhost', 7005)));
             await bothHaveConnected;
 
             // ensure connected
             expect(myManager.outgoingPeers.length).toEqual(1);
             expect(myManager.incomingPeers.length).toEqual(0);
             expect(myManager.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
+            expect(myManager.outgoingPeers[0] === myFirstNp).toBeTruthy();
             expect(myManager.outgoingPeers[0].id?.equals(otherManager.peerID));
             expect(otherManager.outgoingPeers.length).toEqual(0);
             expect(otherManager.incomingPeers.length).toEqual(1);
             expect(otherManager.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
-            expect(otherManager.incomingPeers[0].id?.equals(myManager.peerID));
+            const othersFirstNp: NetworkPeer = otherManager.incomingPeers[0];
+            expect(othersFirstNp.id?.equals(myManager.peerID));
             expect(myPeerDB.peersVerified.size).toEqual(0);  // outgoing peers get exchangeable on verification
             expect(myPeerDB.peersExchangeable.size).toEqual(1);
             expect(otherPeerDB.peersVerified.size).toEqual(1);
             expect(otherPeerDB.peersExchangeable.size).toEqual(0);  // incoming ones don't
-
+            expect(myManager.outgoingPeers[0].conn).toBeInstanceOf(WebSocketPeerConnection);
+            expect((myManager.outgoingPeers[0].conn as WebSocketPeerConnection).
+                ws.readyState).toEqual(WebSocket.OPEN);
+            expect(myFirstNp.conn).toBeInstanceOf(WebSocketPeerConnection);
+            expect((myFirstNp.conn as WebSocketPeerConnection).
+                ws.readyState).toEqual(WebSocket.OPEN);
+            expect(othersFirstNp.conn).toBeInstanceOf(WebSocketPeerConnection);
+            expect((othersFirstNp.conn as WebSocketPeerConnection).
+                ws.readyState).toEqual(WebSocket.OPEN);
 
             // Connect again through different address.
             // This will trigger the duplicatepeer signal on both peers.
             // Wait for these signals; if they don't come, this test will fail
             // due to *timeout only*.
-            const iNotedDuplicate = new Promise((resolve) => {
-                myManager.on('duplicatepeer', () => { resolve(undefined); })
-            });
-            const otherNotedDuplicate = new Promise((resolve) => {
-                otherManager.on('duplicatepeer', () => { resolve(undefined); })
-            });
+            const iNotedDuplicate = new Promise((resolve) =>
+                myManager.on('duplicatepeer', resolve));
+            const otherNotedDuplicate = new Promise((resolve) =>
+                otherManager.on('duplicatepeer',  resolve));
             const bothNotedDuplicate = Promise.all([iNotedDuplicate, otherNotedDuplicate]);
-            myManager.connect(new Peer(new WebSocketAddress('127.0.0.1', 7005)));
+            const myDuplicateNp: NetworkPeer =
+                myManager.connect(new Peer(new WebSocketAddress('127.0.0.1', 7005)));
+            let othersDuplicateNp;
+            otherManager.on("incomingPeer", peer => othersDuplicateNp = peer);
             await bothNotedDuplicate;
 
             expect(myPeerDB.peersBlacklisted.size).toEqual(0);  // duplicate is not / no longer blacklisting
@@ -380,12 +431,39 @@ describe('networkManager', () => {
             expect(otherPeerDB.peersVerified.size).toEqual(1);
             expect(otherPeerDB.peersExchangeable.size).toEqual(0);  // incoming ones don't
 
+            // ensure the duplicate connection has been closed,
+            // while the original connection is still open
+            expect((myFirstNp.conn as WebSocketPeerConnection).
+                ws.readyState).toEqual(WebSocket.OPEN);
+            expect((othersFirstNp.conn as WebSocketPeerConnection).
+                ws.readyState).toEqual(WebSocket.OPEN);
+            expect((myDuplicateNp.conn as WebSocketPeerConnection).
+                ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
+            expect((othersDuplicateNp.conn as WebSocketPeerConnection).
+                ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
+
+            // maybe implement further tests:
             // Will not attempt to reconnect to an already blacklisted peer
-            //...
+            // For these tests, peer exchange needs to be enabled on
+            // NetworkManager creation
 
             // Teardown
+            const iShutdown = new Promise(resolve => myManager.on('shutdown', resolve));
+            const otherShutdown = new Promise(resolve => otherManager.on('shutdown', resolve));
             myManager.shutdown();
             otherManager.shutdown();
+            await iShutdown;
+            await otherShutdown;
+
+            // expect all connections to be closed
+            expect((myFirstNp.conn as WebSocketPeerConnection).
+                ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
+            expect((othersFirstNp.conn as WebSocketPeerConnection).
+                ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
+            expect((myDuplicateNp.conn as WebSocketPeerConnection).
+                ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
+            expect((othersDuplicateNp.conn as WebSocketPeerConnection).
+                ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
         }, 10000);
 
         it('should exchange peers and connect them', async () => {
