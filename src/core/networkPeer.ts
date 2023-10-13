@@ -74,7 +74,8 @@ export class NetworkPeer extends Peer {
             private hostNodePeerID: Buffer,
             conn: NetworkPeerConnection | WebSocket = undefined,
             private lightMode: boolean = false,
-            private peerExchange: boolean = true
+            private peerExchange: boolean = true,
+            private networkTimeoutSecs: number = Settings.NETWORK_TIMEOUT
         )
     {
         super(address);
@@ -607,10 +608,11 @@ export class NetworkPeer extends Peer {
     }
 
     private setTimeout(): void {
-        // Getting strange timeouts, deactivating for now
-        // this.networkTimeout = setTimeout(() => {
-        //         logger.info(`NetworkPeer ${this.toString()} timed out a request, closing.`);
-        //         this.close()
-        //     }, Settings.NETWORK_TIMEOUT);
+        if (this.networkTimeoutSecs) {
+            this.networkTimeout = setTimeout(() => {
+                    logger.info(`NetworkPeer ${this.toString()} timed out a request, closing.`);
+                    this.close()
+                }, Settings.NETWORK_TIMEOUT);
+        }
     }
 }

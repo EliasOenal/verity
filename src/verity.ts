@@ -111,13 +111,28 @@ class VerityCmdClient {
           }
           if (!ws) tracker = false;  // can't use Torrent trackers w/o native server capability
           if (nopersist) logger.warn("Note: Persistance has been turned off. All cubes will be gone once you shut down this instance, unless of course they have been transmitted to instances with persistance turned on.");
-          this.node = new VerityNode(false, servers, initialPeers, tracker, !nopersist);
+          this.node = new VerityNode(servers, initialPeers,
+            {
+              announceToTorrentTrackers: tracker,
+              enableCubePersistance: !nopersist,
+              autoConnect: true,
+              lightNode: false,
+              peerExchange: true,
+            });
           this.node.onlinePromise.then(() => onlinePromiseResolve(undefined));
         },
       });
       cmd.run(parse, process.argv.slice(2));
     } else {
-      this.node = new VerityNode(false, new Map(), initialPeers, false);
+      this.node = new VerityNode(
+        new Map(), initialPeers,
+        {
+          announceToTorrentTrackers: false,
+          autoConnect: true,
+          enableCubePersistance: true,
+          lightNode: false,
+          peerExchange: true,
+        });
       this.onlinePromise = this.node.onlinePromise;
     }
   }

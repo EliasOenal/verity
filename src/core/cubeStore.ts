@@ -14,6 +14,11 @@ import { Buffer } from 'buffer';
 // authored by our local user, for example. Indeed, the social media
 // application's Identity implementation relies on having our own posts preserved.
 
+export interface CubeStoreOptions {
+  enableCubePersistance?: boolean,
+  requiredDifficulty?: number,
+}
+
 export class CubeStore extends EventEmitter {
   readyPromise: Promise<any>;
 
@@ -24,17 +29,18 @@ export class CubeStore extends EventEmitter {
 
   public readonly required_difficulty;
 
-  constructor(
-    enable_persistence: boolean = true, required_difficulty = Settings.REQUIRED_DIFFICULTY) {
+  constructor(options: CubeStoreOptions) {
     super();
-    this.required_difficulty = required_difficulty;
+    this.required_difficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
     this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 10);  // one for each peer and a few for ourselves
     this.storage = new Map();
 
     this.readyPromise = new Promise(resolve => this.once('ready', () => {
       resolve(undefined);
     }));
-    if (enable_persistence) {
+
+    const enablePersistence = options?.enableCubePersistance ?? true;
+    if (enablePersistence) {
       this.persistence = new CubePersistence();
 
       this.persistence.on('ready', async () => {

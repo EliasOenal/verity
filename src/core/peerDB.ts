@@ -274,7 +274,11 @@ export class PeerDB extends EventEmitter {
     private static infoHash: string = '\x4d\x69\x6e\x69\x73\x74\x72\x79\x20\x6f\x66\x20\x54\x72\x75\x74\x68\x00\x00\x00';  // wtf is this? :D
 
     constructor(
-            private ourPort: number = 1984) {
+            private ourPort: number = 1984  // param always gets supplied by VerityNode
+            // TODO refactor: Port should be supplied by NetworkManager by querying
+            // one of its WebSocketServers, if any. Currently VerityNode does that instead.
+            // Maybe we should allow announcing multiple servers, i.e. multiple ports, too?
+    ){
         super();
         this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS + 10);  // one for each peer and a few for ourselves
     }

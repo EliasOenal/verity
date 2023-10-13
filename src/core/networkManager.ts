@@ -19,17 +19,29 @@ if (isBrowser || isWebWorker) {
     crypto = cryptolib;
 }
 
+export interface NetworkManagerOptions {
+    announceToTorrentTrackers?: boolean;
+    lightNode?: boolean;
+    autoConnect?: boolean;
+    peerExchange?: boolean;
+}
+
 /**
  * Class representing a network manager, responsible for handling incoming and outgoing connections.
  */
 export class NetworkManager extends EventEmitter {
+    readonly announceToTorrentTrackers?: boolean;
+    private _lightNode?: boolean;
+    private _autoConnect?: boolean;
+    private _peerExchange?: boolean;
+
+
     servers: NetworkServer[] = [];
     outgoingPeers: NetworkPeer[] = []; // The peers for outgoing connections
     incomingPeers: NetworkPeer[] = []; // The peers for incoming connections
     private isConnectingPeers: boolean = false;
     private connectPeersInterval: NodeJS.Timeout = undefined;
     private _online: boolean = false;
-    get online(): boolean { return this._online }
     public readonly peerID: Buffer;
 
     /**
@@ -48,11 +60,14 @@ export class NetworkManager extends EventEmitter {
             private _cubeStore: CubeStore,
             private _peerDB: PeerDB,
             servers: Map<SupportedTransports, any> = new Map(),
-            private announceToTorrentTrackers: boolean = true,
-            private _lightNode: boolean = false,
-            private _autoConnect: boolean = true,
-            private _peerExchange: boolean = true) {
+            options: NetworkManagerOptions = {},
+) {
         super();
+        // set options
+        this.announceToTorrentTrackers = options?.announceToTorrentTrackers ?? true;
+        this._lightNode = options?.lightNode ?? false;
+        this._autoConnect = options?.autoConnect ?? true;
+        this._peerExchange = options?.peerExchange ?? true;
 
         // Create all requested servers. You could also call them listeners if you like.
         // You know, stuff that accepts connections via various protocols.
@@ -72,6 +87,8 @@ export class NetworkManager extends EventEmitter {
         // Set a random peer ID
         this.peerID = Buffer.from(crypto.getRandomValues(new Uint8Array(NetConstants.PEER_ID_SIZE)));
     }
+
+    get online(): boolean { return this._online }
 
     // maybe TODO: I don't like how badly encapsulated libp2p is here
     get libp2pServer(): Libp2pServer {
@@ -220,7 +237,8 @@ export class NetworkManager extends EventEmitter {
             logger.trace("NetworkManager: Shutting down server " + server.toString());
             closedPromises.push(server.shutdown());
         }
-        const closedPromise: Promise<void> = Promise.all(closedPromises) as unknown as Promise<void>;
+        const closedPromise: Promise<void> =
+            Promise.all(closedPromises) as unknown as Promise<void>;
         closedPromise.then(() => this.emit('shutdown'));
         return closedPromise;
     }
@@ -286,7 +304,7 @@ export class NetworkManager extends EventEmitter {
     handlePeerClosed(peer: NetworkPeer) {
         this.incomingPeers = this.incomingPeers.filter(p => p !== peer);
         this.outgoingPeers = this.outgoingPeers.filter(p => p !== peer);
-        logger.trace(`NetworkManager: Connection to peer ${peer.ip}:${peer.port}, ID ${peer.id?.toString('hex')} has been closed. My outgoing peers now are: ${this.outgoingPeers} -- my incoming peers now are: ${this.incomingPeers}`);
+        logger.trace(`NetworkManager: Connection to peer ${peer.toString()} has been closed. My outgoing peers now are: ${this.outgoingPeers} -- my incoming peers now are: ${this.incomingPeers}`);
         this.emit('peerclosed', peer);
         // If this was our last connection we are now offline
         if (this.incomingPeers.length === 0 && this.outgoingPeers.length === 0) {
@@ -302,7 +320,7 @@ export class NetworkManager extends EventEmitter {
         peer.close();
         // blacklist
         this._peerDB.blacklistPeer(peer);
-        logger.warn(`NetworkManager: Peer ${peer.ip}:${peer.port} has been blacklisted.`);
+        logger.warn(`NetworkManager: Peer ${peer.toString()} has been blacklisted.`);
         this.emit('blacklist', peer);
     }
 

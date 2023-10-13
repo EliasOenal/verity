@@ -16,9 +16,15 @@ describe('networkManager', () => {
     describe('WebSockets and general functionality', () => {
         it('should create a WebSocket server on instantiation', () => {
             const manager = new NetworkManager(
-                new CubeStore(false), new PeerDB(),
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new PeerDB(),
                 new Map([[SupportedTransports.ws, 3000]]),
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
             manager.start();
             // @ts-ignore Checking private attributes
             expect(manager.servers[0].server).toBeInstanceOf(WebSocket.Server);
@@ -27,9 +33,15 @@ describe('networkManager', () => {
 
         it('should create a NetworkPeer on incoming connection', done => {
             const manager = new NetworkManager(
-                new CubeStore(false), new PeerDB(),
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new PeerDB(),
                 new Map([[SupportedTransports.ws, 3001]]),
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
             manager.start();
             // @ts-ignore Checking private attributes
             manager.servers[0].server.on('connection', () => {
@@ -46,9 +58,15 @@ describe('networkManager', () => {
 
         it('should create a NetworkPeer on outgoing connection', async () => {
             const manager = new NetworkManager(
-                new CubeStore(false), new PeerDB(),
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new PeerDB(),
                 new Map([[SupportedTransports.ws, 3003]]),
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
             const listeningPromise = new Promise((resolve) => manager.on('listening', resolve));
             manager.start();
             await listeningPromise;
@@ -68,17 +86,35 @@ describe('networkManager', () => {
         it('correctly opens and closes multiple connections', async () => {
             // create a server and two clients
             const listener = new NetworkManager(
-                new CubeStore(false), new PeerDB(),
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new PeerDB(),
                 new Map([[SupportedTransports.ws, 4000]]),
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
             const client1 = new NetworkManager(
-                new CubeStore(false), new PeerDB(),
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new PeerDB(),
                 undefined,  // no listeners
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
             const client2 = new NetworkManager(
-                new CubeStore(false), new PeerDB(),
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new PeerDB(),
                 undefined,  // no listeners
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
             // wait for server to be listening
             const listenerPromise = new Promise((resolve) => listener.on('listening', resolve));
                 listener.start();
@@ -110,13 +146,25 @@ describe('networkManager', () => {
 
         it('should exchange HELLO messages and report online after connection', async () => {
             const manager1 = new NetworkManager(
-                new CubeStore(false), new PeerDB(),
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new PeerDB(),
                 new Map([[SupportedTransports.ws, 4000]]),
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
             const manager2 = new NetworkManager(
-                new CubeStore(false), new PeerDB(),
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new PeerDB(),
                 new Map([[SupportedTransports.ws, 4001]]),
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
 
             const promise1_listening = new Promise<void>(resolve => manager1.on('listening', resolve));
             const promise2_listening = new Promise<void>(resolve => manager2.on('listening', resolve));
@@ -144,21 +192,39 @@ describe('networkManager', () => {
         it('sync cubes between three nodes', async () => {
             const reduced_difficulty = 0;
             const numberOfCubes = 10;
-            const cubeStore = new CubeStore(false, reduced_difficulty);  // no persistence
-            const cubeStore2 = new CubeStore(false, reduced_difficulty);
-            const cubeStore3 = new CubeStore(false, reduced_difficulty);
+            const cubeStore = new CubeStore(
+                {enableCubePersistance: false, requiredDifficulty: 0});
+            const cubeStore2 = new CubeStore(
+                {enableCubePersistance: false, requiredDifficulty: 0});
+            const cubeStore3 = new CubeStore(
+                {enableCubePersistance: false, requiredDifficulty: 0});
             const manager1 = new NetworkManager(
                 cubeStore, new PeerDB(),
                 new Map([[SupportedTransports.ws, 4000]]),
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
             const manager2 = new NetworkManager(
                 cubeStore2, new PeerDB(),
                 new Map([[SupportedTransports.ws, 4001]]),
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
             const manager3 = new NetworkManager(
                 cubeStore3, new PeerDB(),
                 new Map([[SupportedTransports.ws, 4002]]),
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
 
             const promise1_listening = new Promise<void>(resolve => manager1.on('listening', resolve));
             const promise2_listening = new Promise<void>(resolve => manager2.on('listening', resolve));
@@ -231,16 +297,28 @@ describe('networkManager', () => {
             await sodium.ready;
             const keyPair = sodium.crypto_sign_keypair();
 
-            const cubeStore = new CubeStore(false);
-            const cubeStore2 = new CubeStore(false);
+            const cubeStore = new CubeStore(
+                {enableCubePersistance: false, requiredDifficulty: 0});
+            const cubeStore2 = new CubeStore(
+                {enableCubePersistance: false, requiredDifficulty: 0});
             const manager1 = new NetworkManager(
                 cubeStore, new PeerDB(),
                 new Map([[SupportedTransports.ws, 5002]]),
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
             const manager2 = new NetworkManager(
                 cubeStore2, new PeerDB(),
                 new Map([[SupportedTransports.ws, 5001]]),
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
 
             const promise1_listening = new Promise(resolve => manager1.on('listening', resolve));
             const promise2_listening = new Promise(resolve => manager2.on('listening', resolve));
@@ -330,9 +408,15 @@ describe('networkManager', () => {
         it('should blacklist a peer when trying to connect to itself', async () => {
             const peerDB = new PeerDB();
             const manager = new NetworkManager(
-                new CubeStore(false), peerDB,
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                peerDB,
                 new Map([[SupportedTransports.ws, 6004]]),
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
             manager.start();
 
             // Wait for server to start listening
@@ -356,16 +440,28 @@ describe('networkManager', () => {
         it('should close the connection to duplicate peer addressed', async () => {
             const myPeerDB = new PeerDB();
             const myManager = new NetworkManager(
-                new CubeStore(false), myPeerDB,
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                myPeerDB,
                 undefined,  // no listener
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
             myManager.start();
 
             const otherPeerDB = new PeerDB();
             const otherManager = new NetworkManager(
-                new CubeStore(false), otherPeerDB,
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                otherPeerDB,
                 new Map([[SupportedTransports.ws, 7005]]),
-                false, false, false, false);  // disable optional features
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
             const otherListens = new Promise((resolve) => otherManager.on('listening', resolve));
                 otherManager.start();
             await otherListens;
@@ -468,7 +564,6 @@ describe('networkManager', () => {
 
         it('should exchange peers and connect them', async () => {
             // TODO implement
-            // test correct shutdown
         });
         it('should not auto-connect peers if disabled', async () => {
             // TODO implement

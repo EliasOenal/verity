@@ -17,7 +17,10 @@ describe('Identity', () => {
   });
 
   beforeEach(async () => {
-    cubeStore = new CubeStore(false, reduced_difficulty);  // require no hashcash for faster testing
+    cubeStore = new CubeStore({
+      enableCubePersistance: false,
+      requiredDifficulty: 0,  // require no hashcash for faster testing
+    });
   });
 
   describe('MUC storage', () => {

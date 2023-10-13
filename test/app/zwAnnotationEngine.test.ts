@@ -21,7 +21,10 @@ describe('ZwAnnotationEngine', () => {
   describe('basic config', () => {
     beforeEach(async () => {
       await sodium.ready;
-      cubeStore = new CubeStore(false, reduced_difficulty);
+      cubeStore = new CubeStore({
+        enableCubePersistance: false,
+        requiredDifficulty: 0,
+      });
       await cubeStore.readyPromise;
       annotationEngine = new ZwAnnotationEngine(
         cubeStore,

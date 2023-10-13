@@ -1,10 +1,12 @@
 import { SupportedTransports } from "./networkDefinitions";
-import { CubeStore } from "./cubeStore";
-import { NetworkManager } from "./networkManager";
+import { CubeStore, CubeStoreOptions } from "./cubeStore";
+import { NetworkManager, NetworkManagerOptions } from "./networkManager";
 import { AddressAbstraction, Peer, PeerDB, WebSocketAddress } from "./peerDB";
 
 import { logger } from "./logger";
 import { Multiaddr } from '@multiformats/multiaddr'
+
+type VerityOptions = NetworkManagerOptions & CubeStoreOptions;
 
 export class VerityNode {
   cubeStore: CubeStore;
@@ -22,26 +24,24 @@ export class VerityNode {
      * Light clients do not announce and do not accept incoming connections.
      * They also do not request cubes unless they are explicitly requested.
      */
-    public readonly lightNode: boolean = false,
     public readonly servers: Map<SupportedTransports, any> = new Map(),
     private initialPeers: Array<AddressAbstraction> = [],
-    private announceToTorrentTrackers = false,
-    cubePersistance = true,
+    options: VerityOptions
   ){
-    this.cubeStore = new CubeStore(cubePersistance);
+    this.cubeStore = new CubeStore(options);
     // find a suitable port number for tracker announcement
     let port;
     const wsServerSpec = servers.get(SupportedTransports.ws);
     if (wsServerSpec) port = wsServerSpec;
     else port = undefined;
     this.peerDB = new PeerDB(port);
-    if (port === undefined) this.announceToTorrentTrackers = false;
+    if (port === undefined) options.announceToTorrentTrackers = false;
 
     // Start networking and inform clients when this node is fully ready
     this.networkManager = new NetworkManager(
       this.cubeStore, this.peerDB,
       this.servers,
-      announceToTorrentTrackers, lightNode);
+      options);
     this.onlinePromise = new Promise(resolve => this.networkManager.once('online', () => {
       resolve(undefined);
     }));

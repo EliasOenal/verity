@@ -12,7 +12,10 @@ describe('annotationEngine', () => {
   let reduced_difficulty = 0;
 
   beforeEach(() => {
-    cubeStore = new CubeStore(false, reduced_difficulty);
+    cubeStore = new CubeStore({
+      enableCubePersistance: false,
+      requiredDifficulty: 0,
+    });
   }, 3000);
 
   describe('default settings', () => {

@@ -1,5 +1,6 @@
-import { SupportedTransports } from 'core/networkDefinitions';
+import { SupportedTransports } from '../core/networkDefinitions';
 
+import { AddressAbstraction } from '../core/peerDB';
 import { VerityNode } from '../core/verityNode';
 import { Cube, CubeKey } from '../core/cube';
 import { logger } from '../core/logger'
@@ -16,7 +17,6 @@ import { PeerDisplay } from './PeerDisplay';
 import { isBrowser } from 'browser-or-node';
 import sodium from 'libsodium-wrappers'
 import { Buffer } from 'buffer'
-import { AddressAbstraction } from 'core/peerDB';
 
 export class VerityUI {
   private static _zwFieldParser: FieldParser = undefined;
@@ -189,8 +189,6 @@ async function webmain() {
   await sodium.ready;
 
   // default params
-  const lightNode = false;
-  const port = undefined;  // no listening web sockets allowed, need WebRTC :(
   const initialPeers = [
       // new WebSocketAddress("verity.hahn.mt" ,1984),
       // new WebSocketAddress("verity.hahn.mt", 1985),
@@ -200,11 +198,19 @@ async function webmain() {
       // multiaddr('/ip4/192.168.0.81/tcp/1985/ws/p2p/12D3KooWSEiJD9ymJtojq4Ahhwi8ZiYz7g6RrBPatiKfdSLZ8AgZ/p2p-circuit/webrtc/p2p/12D3KooWA32oeT3NA3FdSbEGjf85uRe2PjMVW7we1iuinBECvMBf'),
       AddressAbstraction.CreateAddress("/ip4/127.0.0.1/tcp/1985/ws/", SupportedTransports.libp2p),
     ];
-  const announceToTorrentTrackers = false;
 
   // construct node and UI
   // const node = new VerityNode(lightNode, port, initialPeers, announceToTorrentTrackers);
-  const node = new VerityNode(false, new Map([[SupportedTransports.libp2p, ['/webrtc']]]), initialPeers, false);
+  const node = new VerityNode(
+    new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
+    initialPeers,
+    {
+      announceToTorrentTrackers: false,
+      autoConnect: true,
+      enableCubePersistance: true,
+      lightNode: false,
+      peerExchange: true,
+    });
   await node.cubeStoreReadyPromise;
   logger.info("Cube Store is ready");
   const verityUI = await VerityUI.Construct(node);
