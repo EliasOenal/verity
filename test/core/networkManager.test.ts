@@ -592,12 +592,12 @@ describe('networkManager', () => {
             await server.shutdown();
         }, 3000);
 
-        it.skip('brokers direct WebRTC connections between client', async() => {
+        it.skip('brokers direct WebRTC connections between clients', async() => {
             // TODO IMPLEMENT
         });
 
         // TODO DEBUG
-        it.skip('should keep WebRTC peers connected even if the WS server goes down', async () => {
+        it.skip('keeps WebRTC peers connected even if the WS server goes down', async () => {
             // create two "browser" (= non listening) nodes and a "server" (= WS listening node)
             const options = {
                 announceToTorrentTrackers: false,
@@ -659,57 +659,21 @@ describe('networkManager', () => {
             expect(browser1.incomingPeers.length).toEqual(1);
             await browser1.incomingPeers[0].onlinePromise;
 
+            // wait 5 secs
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            logger.trace("TEST: Waited 5 seconds for peer connection to upgrade to WebRTC")
+
             // Close connections to server and shut it down
-logger.error("CLOSING browser1ServerNp")
             await browser1ServerNp.close();
-logger.error("CLOSING browser1ServerNp")
             await browser2ServerNp.close();
-logger.error("SHUTTING DOWN SERVER");
             await server.shutdown();
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-logger.error("SERVER SHUTDOWN COMPLETE");
-            // Verify both browser lost their server connection but are still
+
+            // Verify both browsers lost their server connection but are still
             // connected to each other.
-            logger.error(browser1.outgoingPeers.length);
-            logger.error(browser1.outgoingPeers[0].toString());
-            logger.error(browser1.outgoingPeers.length);
-            logger.error(browser1.outgoingPeers[0].toString());
-            logger.error(browser1.outgoingPeers.length);
-            logger.error(browser1.outgoingPeers[0].toString());
-            logger.error(browser1.outgoingPeers.length);
-            logger.error(browser1.outgoingPeers[0].toString());
-            logger.error(browser1.outgoingPeers.length);
-            logger.error(browser1.outgoingPeers[0].toString());
-            logger.error(browser1.outgoingPeers.length);
-            logger.error(browser1.outgoingPeers[0].toString());
-            logger.error(browser1.outgoingPeers.length);
-            logger.error(browser1.outgoingPeers[0].toString());
-            logger.error(browser1.outgoingPeers.length);
-            logger.error(browser1.outgoingPeers[0].toString());
-            logger.error(browser1.outgoingPeers.length);
-            logger.error(browser1.outgoingPeers[0].toString());
-            logger.error(browser1.outgoingPeers.length);
-            logger.error(browser1.outgoingPeers[0].toString());
-                                                                                                                                    expect(browser1.outgoingPeers.length).toEqual(0);  // initial server conn lost
+            expect(browser1.outgoingPeers.length).toEqual(0);  // initial server conn lost
             expect(browser1.incomingPeers.length).toEqual(1);  // browser-to-browser conn is incoming at browser1
             expect(browser2.outgoingPeers.length).toEqual(1);  // browser-to-browser conn is outgoing at browser2
-            expect(browser2.incomingPeers.length).toEqual(1);  // never had one
+            expect(browser2.incomingPeers.length).toEqual(0);  // never had one
 
             // Create a Cube and exchange it between browsers
             expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(0);
@@ -721,7 +685,7 @@ logger.error("SERVER SHUTDOWN COMPLETE");
 
             // Expedite cube exchange for faster testing
             browser2.outgoingPeers[0].sendKeyRequest();
-logger.error("PERFORMING CUBE EXCHAnge")
+            logger.trace("TEST: Performing Cube exchange")
             // Wait up to three seconds for cube to sync
             for (let i = 0; i < 30; i++) {
                 if (browser2.cubeStore.getNumberOfStoredCubes() == 1) {
@@ -736,7 +700,7 @@ logger.error("PERFORMING CUBE EXCHAnge")
 
             await browser1.shutdown();
             await browser2.shutdown();
-        });
+        }, 100000);
 
         // TODO write more tests
     });

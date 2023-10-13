@@ -180,6 +180,8 @@ export class Libp2pServer extends NetworkServer {
   }
 
   shutdown(): Promise<void> {
+    // TODO: Something's still fishy here...
+    this.node.unhandle("/verity/1.0.0");
     return this.node.stop() as Promise<void>;
   }
 
