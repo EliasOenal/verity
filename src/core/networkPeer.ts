@@ -1,5 +1,5 @@
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
-import { Settings, VerityError } from './config';
+import { Settings, VerityError } from './settings';
 
 import { CubeStore } from './cubeStore';
 import { CubeInfo, CubeMeta } from './cubeInfo';
@@ -65,7 +65,7 @@ export class NetworkPeer extends Peer {
     private _conn: NetworkPeerConnection = undefined;
     get conn(): NetworkPeerConnection { return this._conn }
 
-    private networkTimeout: NodeJS.Timeout;
+    private networkTimeout: NodeJS.Timeout = undefined;
 
     constructor(
             private networkManager: NetworkManager,
@@ -99,19 +99,12 @@ export class NetworkPeer extends Peer {
         networkManager.peerDB.on('exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
 
         // Send HELLO message once connected
-        if (this._conn.ready()) {
-            logger.info(`NetworkPeer ${this.toString()}: Connected`);
+        this.setTimeout();  // connection timeout
+        this.conn.readyPromise.then(() => {
+            clearTimeout(this.networkTimeout);  // clear connection timeout
+            logger.info(`NetworkPeer ${this.toString()}: Connected, I'll go ahead and say HELLO`);
             this.sendHello();
-        } else {
-            this.setTimeout();
-            // On ready, cancel the timeout and send HELLO
-            this._conn.on("ready", () => {
-                clearTimeout(this.networkTimeout);
-                logger.info(`NetworkPeer ${this.toString()}: Connected`);
-                this.sendHello();
-            });
-
-        }
+        });
     }
 
     public close(): Promise<void> {
@@ -121,9 +114,9 @@ export class NetworkPeer extends Peer {
             'peerVerified', (peer: Peer) => this.learnExchangeablePeer(peer));
         this.cubeStore.removeListener(
             'cubeAdded', (cube: CubeMeta) => this.unsentCubeMeta.add(cube));
-        if (this.keyRequestTimer) clearInterval(this.keyRequestTimer);
-        if (this.nodeRequestTimer) clearInterval(this.nodeRequestTimer);
-        if (this.networkTimeout) clearTimeout(this.networkTimeout);
+        clearInterval(this.keyRequestTimer);
+        clearInterval(this.nodeRequestTimer);
+        clearTimeout(this.networkTimeout);
 
         // Close our connection object.
         // Note: this means conn.close() gets called twice when closure
@@ -132,7 +125,7 @@ export class NetworkPeer extends Peer {
 
         // If we never got online, "resolve" the promise with undefined.
         // Rejecting it would be the cleaner choice, but then we'd need to catch
-        // the rejection every single time and that just adds unnecessary complexity.
+        // the rejection every single time and we really don't care that much.
         this.onlinePromiseResolve(undefined);
 
         // Let the network manager know we're closed
@@ -209,7 +202,7 @@ export class NetworkPeer extends Peer {
                     logger.warn(`NetworkPeer ${this.toString()}: Received message with unknown class: ${messageClass}`);
             }
         } catch (err) {
-            logger.info(`NetworkPeer ${this.toString()}: error while handling message: ${err}`);
+            logger.info(`NetworkPeer ${this.toString()}: error while handling message: ${err}; stack trace: ${err.stack}`);
             // TODO: Maybe be a bit less harsh with the blacklisting on errors.
             // Maybe only blacklist repeat offenders, maybe remove blacklisting
             // after a defined timespan (increasing for repeat offenders)?
@@ -251,7 +244,10 @@ export class NetworkPeer extends Peer {
             this._id = peerID;
             this._online = true;
             logger.trace(`NetworkPeer ${this.toString()}: received HELLO, peer now considered online`);
-            this.networkManager.handlePeerOnline(this);
+
+            // Let the network manager know this peer is now online.
+            // Abort if the network manager gives us a thumbs down on the peer.
+            if (!this.networkManager.handlePeerOnline(this)) return;
             this.onlinePromiseResolve(this);  // let listeners know we learnt the peer's ID
         }
         // Send my publicly reachable address if I have one
@@ -442,7 +438,8 @@ export class NetworkPeer extends Peer {
         const type: SupportedTransports = messageContent.readUInt8(offset++);
         const length: number = messageContent.readUInt16BE(offset); offset += 2;
         let addrString: string =
-            messageContent.subarray(offset, messageContent.length).toString('ascii');
+            messageContent.subarray(offset, offset+length).toString('ascii');
+        offset += length;
         if (type == SupportedTransports.ws && addrString.substring(0,2) == "::") {
             // Handle special case: If the remote peer did not indicate it's
             // IP address (but instead identifies as "::" which is "any" in IPv6

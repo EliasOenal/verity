@@ -1,5 +1,5 @@
-import { SupportedTransports } from './networkDefinitions';
-import { Settings } from './config';
+import { AddressError, SupportedTransports } from './networkDefinitions';
+import { Settings, VerityError } from './settings';
 
 import { EventEmitter } from 'events';
 import { logger } from './logger';
@@ -18,10 +18,11 @@ interface TrackerResponse {
 }
 
 export class AddressAbstraction {
-    addr: WebSocketAddress | Multiaddr;
+    public addr: WebSocketAddress | Multiaddr;
+    public type: SupportedTransports;
 
     static CreateAddress(address: string, type?: SupportedTransports): AddressAbstraction {
-        if (!address.length) return undefined;
+        if (!address?.length) return undefined;
         if (!type) {
             // guess type
             if (address[0] == '/') type = SupportedTransports.libp2p;
@@ -41,10 +42,29 @@ export class AddressAbstraction {
     }
 
     constructor(
-        addr: WebSocketAddress | Multiaddr | AddressAbstraction
+        addr: WebSocketAddress | Multiaddr | AddressAbstraction | string,
+        typeHint?: SupportedTransports
     ) {
-        if (addr instanceof AddressAbstraction) this.addr = addr.addr;
-        else this.addr = addr;
+        if (!addr) {
+            throw new AddressError("AddressAbstraction.constructor: Cannot construct abstraction around falsy address: " + addr);
+        } else if (addr instanceof AddressAbstraction) {
+            this.type = addr.type;
+            this.addr = addr.addr;
+        } else if (typeof addr === 'string' || addr instanceof String) {
+            this.addr = AddressAbstraction.CreateAddress(addr as string, typeHint).addr;
+        } else if (addr instanceof WebSocketAddress) {
+            this.addr = addr;
+            this.type = SupportedTransports.ws;
+        } else if ('getPeerId' in addr) {  // "addr typeof Multiaddr"
+            this.addr = addr;
+            this.type = SupportedTransports.libp2p;
+        } else {
+            throw new AddressError("AddressAbstraction.constructor: Cannot construct abstraction around unknown address type: " + addr);
+        }
+        if (!this.addr) {
+            throw new AddressError(
+                "AddressAbstraction.constructor: Cannot construct abstraction around invalid address " + addr);
+        }
     }
 
     equals(other: AddressAbstraction) {
@@ -82,11 +102,6 @@ export class AddressAbstraction {
             logger.error("AddressAbstraction.toString(): Error printing address: " + error);
             return undefined;
         }
-    }
-
-    get type(): SupportedTransports {
-        if (this.addr instanceof WebSocketAddress) return SupportedTransports.ws;
-        else return SupportedTransports.libp2p;  // not motivated to properly check for multiaddr
     }
 }
 
@@ -160,7 +175,7 @@ export class Peer {
     lastConnectAttempt: number = 0;
 
     constructor(
-            address: WebSocketAddress | Multiaddr | AddressAbstraction | AddressAbstraction[],
+            address: WebSocketAddress | Multiaddr | AddressAbstraction | AddressAbstraction[] | string,
             id?: Buffer) {
         if (address instanceof Array) this.addresses = address;
         else this.addresses = [new AddressAbstraction(address)];

@@ -1,5 +1,5 @@
-import { SupportedTransports } from "./networkDefinitions";
-import { VerityError } from "./config";
+import { AddressError, SupportedTransports } from "./networkDefinitions";
+import { VerityError } from "./settings";
 
 import { Libp2pServer } from "./networkServer";
 import { AddressAbstraction, WebSocketAddress } from "./peerDB";
@@ -15,9 +15,6 @@ import { Multiaddr } from '@multiformats/multiaddr'
 import { pipe } from 'it-pipe'
 import { PassThrough } from 'stream';
 
-export class NetworkError extends VerityError  {}
-export class AddressError extends NetworkError {}
-
 /**
  * Represents the actual networking component of a NetworkPeer,
  * i.e. the part that actually opens and closes network connections;
@@ -25,6 +22,9 @@ export class AddressError extends NetworkError {}
  * @emits "ready" when connection is... you know... ready
  */
 export abstract class NetworkPeerConnection extends EventEmitter {
+  /** Will resolve once this connection has been opened and is ready for business */
+  readyPromise: Promise<void> = new Promise<void>(resolve => this.once('ready', resolve));
+
   static Create(address: AddressAbstraction, libp2pServer?: Libp2pServer) {
     if (address.addr instanceof WebSocketAddress) {
         return new WebSocketPeerConnection(address.addr)
@@ -86,7 +86,7 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
     this._ws.addEventListener("error", (error) => {
       // TODO: We should probably "greylist" peers that closed with an error,
       // i.e. not try to reconnect them for some time.
-      logger.info(`WebSockerPeerConnection: WebSocket error: ${error.message}`);
+      logger.info(`WebSockerPeerConnection to ${this._ws.url}: WebSocket error: ${error.message}`);
       this.close();
     }, { signal: this.socketClosedSignal });
 
@@ -103,17 +103,19 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
       this.emit("messageReceived", msgData);  // NetworkPeer will call handleMessage() on this
     }, { signal: this.socketClosedSignal });
 
+    // @ts-ignore When using socketCloseSignal the compiler mismatches the function overload
     this._ws.addEventListener('close', () => {
       // TODO: We should at some point drop nodes closing on us from our PeerDB,
       // at least if they did that repeatedly and never even sent a valid HELLO.
-      logger.info(`WebSocketPeerConnection: Peer closed on us`);
+      logger.info(`WebSocketPeerConnection to ${this._ws.url}: Peer closed on us`);
       this.close();
-    });
+    }, { once: true, signal: this.socketClosedSignal });
 
-    this._ws.addEventListener("open", () =>  {
+    if (this.ready()) this.emit("ready");
+    else this._ws.addEventListener("open", () =>  {
       this.emit("ready");
-    // @ts-ignore I don't know why the compiler complains about this
-    }, { signal: this.socketClosedSignal });
+    // @ts-ignore I don't know why the compiler complains about the signal
+    }, { once: true, signal: this.socketClosedSignal });
   }
 
   /**
@@ -122,33 +124,39 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
    * called directly.
    */
   close(): Promise<void> {
-    logger.trace(`WebSocketPeerConnection: Closing connection`);
+    logger.trace(`WebSocketPeerConnection to ${this._ws.url}: close() called`);
     this.socketClosedController.abort();  // removes all listeners from this.ws
+
+    // Send the closed signal first (i.e. let the NetworkPeer closed handler run
+    // first) so nobody tries to send any further messages to our closing socket
+    this.emit("closed");
+    this.removeAllListeners();
+
+    // Close the socket, if not already closed or closing
     if (this._ws.readyState < this._ws.CLOSING) {  // only close if not already closing
+      logger.trace(`WebSocketPeerConnection to ${this._ws.url}: close(): Closing socket`);
       // Return a promise that will be resolved when the socket has closed
       const closedPromise = new Promise<void>((resolve) =>
-        this._ws.addEventListener('close', (event) => this.closedHandler(event, resolve)));
+        this._ws.addEventListener('close', () => resolve, { once: true }));
       this._ws.close();
       return closedPromise;
     } else {  // already closed
+      logger.trace(`WebSocketPeerConnection to ${this._ws.url}: close(): Doing nothing, socket status already ${this._ws.readyState}`);
       // Return a resolved promise
       return new Promise<void>(resolve => resolve());
     }
   }
 
-  private closedHandler(event: any, resolve: Function) {
-    this._ws.removeEventListener("close", (event) => this.closedHandler);
-    resolve();
-    this.emit("closed");
-    this.removeAllListeners();
-  }
-
   ready(): boolean {
-    return (this._ws.readyState > 0)
+    return (this._ws.readyState == WebSocket.OPEN)
   }
 
   send(message: Buffer) {
-    this._ws.send(message);
+    if (this.ready()) {
+      this._ws.send(message);
+    } else {
+      logger.error(`WebSocketPeerConnection to ${this._ws.url}: Tried to send data but socket not ready`);
+    }
   }
 
   type(): SupportedTransports {
@@ -280,6 +288,8 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
 
   close(): Promise<void> {
     logger.info("Libp2pPeerConnection: Closing connection to " + this.conn?.remoteAddr.toString());
+    // Send the closed signal first (i.e. let the NetworkPeer closed handler run
+    // first) so nobody tries to send any further messages to our closing stream
     this.emit("closed");
     this.removeAllListeners();
     let streamClosedPromise: Promise<void>
@@ -303,7 +313,8 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
    */
   send(message: Buffer): void {
     if (this.stream.status != "open") {
-      logger.error(`Libp2pPeerConnection to ${this.conn?.remoteAddr?.toString()}: Tried to send() data but stream is not open. This should not happen.`);
+      logger.error(`Libp2pPeerConnection to ${this.conn?.remoteAddr?.toString()}: Tried to send() data but stream is not open. This should not happen! Stream status is ${this.stream.status}. Closing connection.`);
+      this.close();
       return;
     }
     // As libp2p streams have no concept of messages, we prefix them with their

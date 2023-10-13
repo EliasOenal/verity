@@ -6,7 +6,7 @@
  */
 
 import { BaseField } from "../core/baseFields";
-import { Settings } from "../core/config";
+import { Settings } from "../core/settings";
 import { Cube, CubeKey } from "../core/cube";
 import { CubeError, CubeType } from "../core/cubeDefinitions";
 import { CubeField } from "../core/cubeFields";

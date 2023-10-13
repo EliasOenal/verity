@@ -12,7 +12,7 @@ import { Buffer } from 'buffer';
 import { CubeField, CubeFieldType } from '../core/cubeFields';
 import { CubeStore } from '../core/cubeStore';
 import { FieldParser } from '../core/fieldParser';
-import { Settings, VerityError } from '../core/config';
+import { Settings, VerityError } from '../core/settings';
 import { ZwConfig } from './zwConfig';
 import { CubeInfo } from '../core/cubeInfo';
 import { assertZwMuc } from './zwCubes';

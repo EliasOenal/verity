@@ -1,4 +1,4 @@
-import { VerityError } from "./config";
+import { VerityError } from "./settings";
 import { NetworkPeer } from "./networkPeer";
 import { AddressAbstraction, WebSocketAddress } from "./peerDB";
 import { NetworkManager } from "./networkManager";
@@ -29,7 +29,7 @@ export abstract class NetworkServer extends EventEmitter {
     super();
   }
 
-  start(): void {
+  start(): Promise<void> {
     throw new VerityError("NetworkServer.start() to be implemented by subclass");
   }
 
@@ -55,8 +55,14 @@ export class WebSocketServer extends NetworkServer {
     return "WebSocketServer " + this.dialableAddress;
   }
 
-  start(): void {
+  start(): Promise<void> {
       this.server = new WebSocket.Server({ port: this.port });
+      const listeningPromise: Promise<void> =
+        new Promise<void>(resolve => this.server.on('listening', () => {
+        logger.debug(`WebSocketServer: Server is listening on ${this.dialableAddress.toString()}.`);
+        resolve();
+      }));
+
       // Note: Setting this as our dialable address is actually wrong, as it
       // does not include our IP address (it's just ":::port").
       // We don't know our external IP address, but everybody we exchange peers
@@ -64,24 +70,20 @@ export class WebSocketServer extends NetworkServer {
       // Therefore, addresses starting in ":::" are just handled as a special
       // case at the receiving node.
       // @ts-ignore This will only ever be called on NodeJS and it's correct for the NodeJS ws library
-      this.dialableAddress = new WebSocketAddress(this.server.address().address, this.port);
+      this.dialableAddress = new AddressAbstraction(new WebSocketAddress(this.server.address().address, this.port));
       logger.trace('WebSocketServer: stated on ' + this.dialableAddress.toString());
 
       // Handle incoming connections
       this.server.on('connection', (ws, request) => this.handleIncomingPeer(ws));
 
-      this.server.on('listening', () => {
-          logger.debug(`WebSocketServer: Server is listening on ${this.dialableAddress.toString()}.`);
-          this.emit('listening');
-      }
-      );
+      return listeningPromise;
   }
 
   shutdown(): Promise<void> {
     logger.trace("WebSocketServer: shutdown()");
     this.server.removeAllListeners();
     const closedPromise: Promise<void> =
-      new Promise<void>((resolve) => this.server.once('close', resolve));
+      new Promise<void>(resolve => this.server.once('close', resolve));
     this.server.close((err) => {
       if (err) {
           logger.error(`WebSocketServer: Error while closing server: ${err}`);
@@ -146,7 +148,7 @@ export class Libp2pServer extends NetworkServer {
     return "Libp2pServer " + this._node?.getMultiaddrs()?.toString();
   }
 
-  async start() {
+  async start(): Promise<void> {
     // logger.error(this.listen)
     this._node = await createLibp2p({
       addresses: {

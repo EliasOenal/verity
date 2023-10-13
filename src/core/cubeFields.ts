@@ -1,5 +1,5 @@
 import { BaseField, BaseRelationship, BaseFields } from "./baseFields";
-import { Settings } from "./config";
+import { Settings } from "./settings";
 import { FieldNumericalParam, PositionalFields, FieldDefinition } from "./fieldParser";
 import { NetConstants } from "./networkDefinitions";
 

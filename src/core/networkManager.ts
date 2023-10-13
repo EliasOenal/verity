@@ -1,7 +1,7 @@
 import { CubeStore } from './cubeStore';
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { PeerDB, Peer } from './peerDB';
-import { Settings, VerityError } from './config';
+import { Settings, VerityError } from './settings';
 import { NetworkPeer, NetworkStats } from './networkPeer';
 import { Libp2pServer, NetworkServer, WebSocketServer } from './networkServer';
 import { logger } from './logger';
@@ -35,13 +35,36 @@ export class NetworkManager extends EventEmitter {
     private _autoConnect?: boolean;
     private _peerExchange?: boolean;
 
-
+    /**
+     * Stores all of our NetworkServer objects which listen for incoming connections.
+     * You could also call them listeners.
+     * For non-listening nodes, servers will be empty -- except if you use libp2p,
+     * because libp2p is framework-heavy and always requires its node object.
+     */
     servers: NetworkServer[] = [];
-    outgoingPeers: NetworkPeer[] = []; // The peers for outgoing connections
-    incomingPeers: NetworkPeer[] = []; // The peers for incoming connections
+
+    /** List of currently connected peers to which we initiated the connection */
+    outgoingPeers: NetworkPeer[] = []; // maybe TODO: This should probably be a Set
+
+    /** List of current remote-initiated peer connections */
+    incomingPeers: NetworkPeer[] = []; // maybe TODO: This should probably be a Set
+
+    /**
+     * Internal flag indicating that connectPeers() is currently running
+     * and should therefore not be re-run.
+     */
     private isConnectingPeers: boolean = false;
+
+    /** Timer used by connectPeers() to respect connection intervals. */
     private connectPeersInterval: NodeJS.Timeout = undefined;
+
+    /**
+     *  True if we have at least one fully connected peer,
+     *  i.e. from which we received a correct hello.
+     */
     private _online: boolean = false;
+
+    /** Local ephemeral peer ID, generated at random each start */
     public readonly peerID: Buffer;
 
     /**
@@ -107,20 +130,25 @@ export class NetworkManager extends EventEmitter {
     public get peerDB() { return this._peerDB; }
     public getCubeStore() { return this.cubeStore; }
 
-    public start() {
+    public async start(): Promise<void> {
+        const listeningPromises: Promise<void>[] = [];
         for (const server of this.servers) {
-            server.on('listening', () => {
-                logger.trace("NetworkManager: Listening");
-                this.emit('listening')
-            });
-            server.start();
+            listeningPromises.push(server.start());
+            logger.trace("NetworkManager: requested start of server " + server.toString());
         }
+        const allListeningPromise: Promise<void> =
+            Promise.all(listeningPromises) as unknown as Promise<void>;
+        await allListeningPromise;
+
         if (this.announceToTorrentTrackers) {
             this._peerDB.startAnnounceTimer();
             this._peerDB.announce();
         }
-        this.connectPeers();
         this._peerDB.on('newPeer', (newPeer: Peer) => this.connectPeers());
+        this.connectPeers();
+
+        this.emit('listening');
+        logger.trace("NetworkManager: start() completed, all servers listening: " + this.servers.forEach(server => server.toString() + "; "));
     }
 
     private closePeers(): Promise<void> {
@@ -252,8 +280,9 @@ export class NetworkManager extends EventEmitter {
 
     /**
      * Event handler that will be called once a NetworkPeer is ready for business
+     * @returns True if new peer OK, false if new peer to be disconnected
      */
-    handlePeerOnline(peer: NetworkPeer) {
+    handlePeerOnline(peer: NetworkPeer): boolean {
         // Verify this peer is valid (just checking if there is an ID for now)
         if (!peer.id) throw new VerityError(`NetworkManager.handlePeerOnline(): Peer ${peer.toString()} cannot be "online" if we don't know its ID. This should never happen.`);
 
@@ -261,8 +290,13 @@ export class NetworkManager extends EventEmitter {
         // Just checking if we're connected to self for now...
         if (peer.id.equals(this.peerID)) {
             this.closeAndBlacklistPeer(peer);
-            return true;
+            return false;
         }
+
+        // Does this peer need to be closed as duplicate?
+        // (Duplicate detection must happen before verification, as verifying
+        // a duplicate would mean it replaces the original in the verified map.)
+        if (this.closePeerIfDuplicate(peer)) return false;
 
         // Mark the peer as verified.
         // If this is an outgoing peer, mark it as exchangeable
@@ -272,12 +306,6 @@ export class NetworkManager extends EventEmitter {
         } else {
             this._peerDB.verifyPeer(peer);
         }
-
-        // Does this peer need to be closed as duplicate?
-        // We're performing this step after verification as "duplicate"
-        // is an ephemeral verdict -- it only applies in the context of our
-        // current set of connected peers.
-        if (this.closePeerIfDuplicate(peer)) return;
 
         // TODO: If this is a duplicate but outgoing connection, it should still
         // render this peer exchangeable
@@ -296,6 +324,7 @@ export class NetworkManager extends EventEmitter {
 
         // Relay the online event to our subscribers
         this.emit('peeronline', peer);
+        return true;
     }
 
     /**
@@ -340,10 +369,10 @@ export class NetworkManager extends EventEmitter {
     }
 
     private handleDuplicatePeer(duplicate: NetworkPeer, original: Peer): void {
+        logger.info(`NetworkManager: Closing connection ${duplicate.addressString} as duplicate to ${original.toString()}.`)
         duplicate.close();  // disconnect the duplicate
         this._peerDB.removeUnverifiedPeer(duplicate);
         original.addAddress(duplicate.address);
-        logger.info(`NetworkManager: Closing connection ${duplicate.addressString} as duplicate to ${original.toString()}.`)
         this.emit('duplicatepeer', duplicate);
     }
 

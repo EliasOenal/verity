@@ -1,4 +1,4 @@
-import { VerityError } from "../core/config";
+import { VerityError } from "../core/settings";
 import { NetworkPeer } from "../core/networkPeer";
 import { VerityUI } from "./VerityUI";
 

@@ -1,6 +1,6 @@
 import { Cube } from '../cube'
 import { logger } from '../logger'
-import { Settings } from '../config';
+import { Settings } from '../settings';
 import { Worker } from 'worker_threads';
 import path from 'path';
 

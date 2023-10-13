@@ -2,7 +2,7 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node
 import { CubeInfo } from './cubeInfo';
 import { logger } from './logger';
 import { EventEmitter } from 'events';
-import { VerityError } from "./config";
+import { VerityError } from "./settings";
 import { Buffer } from 'buffer';
 import { Level } from 'level';
 

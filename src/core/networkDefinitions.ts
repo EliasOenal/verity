@@ -1,4 +1,5 @@
 // networkDefinitions.ts
+import { VerityError } from "./settings";
 
 export enum MessageClass {
     Hello = 0x00,
@@ -36,3 +37,6 @@ export enum SupportedTransports {
     ws = 1,
     libp2p = 2,
 }
+
+export class NetworkError extends VerityError  {}
+export class AddressError extends NetworkError {}

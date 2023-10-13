@@ -1,4 +1,4 @@
-import { Settings, VerityError } from './config';
+import { Settings, VerityError } from './settings';
 import { Cube, CubeKey } from './cube';
 import { CubeInfo, CubeMeta } from './cubeInfo'
 import { CubePersistence } from "./cubePersistence";

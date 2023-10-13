@@ -2,7 +2,7 @@ import { Cube } from "../core/cube";
 
 import sodium, { KeyPair, crypto_kdf_KEYBYTES } from 'libsodium-wrappers'
 import { CubeFields, CubeField } from "../core/cubeFields";
-import { Settings, VerityError } from "../core/config";
+import { Settings, VerityError } from "../core/settings";
 import { NetConstants } from "../core/networkDefinitions";
 import { logger } from "../core/logger";
 

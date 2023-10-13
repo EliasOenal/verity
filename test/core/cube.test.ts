@@ -1,5 +1,5 @@
 // cube.test.ts
-import { Settings } from '../../src/core/config';
+import { Settings } from '../../src/core/settings';
 import { NetConstants } from '../../src/core/networkDefinitions';
 import { BinaryLengthError, CUBE_HEADER_LENGTH, FieldError, FieldSizeError, InsufficientDifficulty } from '../../src/core/cubeDefinitions';
 import { Cube } from '../../src/core/cube';

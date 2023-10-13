@@ -1,6 +1,6 @@
 // cube.ts
 import { BinaryDataError, BinaryLengthError, CUBE_HEADER_LENGTH, CubeError, CubeSignatureError, CubeType, FieldNotImplemented, FieldSizeError,  SmartCubeError, SmartCubeTypeNotImplemented, UnknownFieldType } from "./cubeDefinitions";
-import { Settings } from './config';
+import { Settings } from './settings';
 import { NetConstants } from './networkDefinitions';
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
