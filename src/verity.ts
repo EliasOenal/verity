@@ -1,4 +1,5 @@
 Error.stackTraceLimit = Infinity;  // mooooaaaar stacktraces
+import { Settings } from './core/settings';
 import { SupportedTransports } from './core/networkDefinitions';
 
 import { Cube } from './core/cube';
@@ -38,14 +39,13 @@ class VerityCmdClient {
       });
     }
 
-    // Use local port and initial peers supplied on the command line,
-    // or these defaults:
-    let initialPeers = [
-        // "verity.hahn.mt:1984",
-        // "verity.hahn.mt:1985",
-        // "verity.hahn.mt:1986",
-        // "132.145.174.233:1984",
-        // "158.101.100.95:1984",
+    // Default initial peers to use if none are supplied as command line options:
+    let initialPeers: AddressAbstraction[] = [
+        new AddressAbstraction("verity.hahn.mt:1984"),
+        // new AddressAbstraction("verity.hahn.mt:1985"),
+        // new AddressAbstraction("verity.hahn.mt:1986"),
+        // new AddressAbstraction("132.145.174.233:1984"),
+        // new AddressAbstraction("158.101.100.95:1984"),
     ];
 
     if (isNode) {
@@ -56,6 +56,9 @@ class VerityCmdClient {
       // parse command line arguments
       const parse = cmd.command({
         name: "verity",
+        description: "Command line verity client, useful primarily as a sever node.\n" +
+                     "Will start with default settings if no options are specified.\n" +
+                     "Will start only with the specified features enabled if any options are specified.\n",
         args: {
           ws: cmd.option({
             type: cmd.number,
@@ -93,24 +96,34 @@ class VerityCmdClient {
           })
         },
         handler: ({ ws, webrtc, peer, tracker, nopersist }) => {
-          if (!ws && !webrtc) {
-            logger.warn("Note: You have started this node without any of --websocketport and --webrtcport. This node will not be able to receive any incoming connections.");
-          }
-          if (!peer.length && !tracker) {
-            logger.warn("Note: You have started this node without any of --peer and --tracker. I will still start up, but make no effort to connect to anybody else. Your exprience might be quite limited.")
-          }
           let servers = new Map();
-          if (ws) servers.set(SupportedTransports.ws, ws);
-          if (webrtc) servers.set(SupportedTransports.libp2p, webrtc);
-          if (peer.length) {
-            initialPeers = [];
-            for (const onepeer of peer) {
-              const addr = AddressAbstraction.CreateAddress(onepeer);
-              initialPeers.push(addr);
+          // use defaults if no options specified
+          if (!ws && !webrtc && !peer.length && !tracker && !nopersist) {
+            logger.info("Note: Will start with default settings as you did not specify any command line options. Use --help for options.")
+            servers.set(SupportedTransports.ws, Settings.DEFAULT_WS_PORT);
+            servers.set(SupportedTransports.libp2p, Settings.DEFAULT_LIBP2P_PORT);
+            // default initial peers already specified above
+            tracker = true;
+            nopersist = false;
+          } else {
+            if (!ws && !webrtc) {
+              logger.warn("Note: You have started this node without any of --websocketport and --webrtcport. This node will not be able to receive any incoming connections.");
             }
+            if (!peer.length && !tracker) {
+              logger.warn("Note: You have started this node without any of --peer and --tracker. I will still start up, but make no effort to connect to anybody else. Your exprience might be quite limited.")
+            }
+            if (ws) servers.set(SupportedTransports.ws, ws);
+            if (webrtc) servers.set(SupportedTransports.libp2p, webrtc);
+            if (peer.length) {
+              initialPeers = [];
+              for (const onepeer of peer) {
+                const addr = new AddressAbstraction(onepeer);
+                initialPeers.push(addr);
+              }
+            }
+            if (!ws) tracker = false;  // can't use Torrent trackers w/o native server capability
+            if (nopersist) logger.warn("Note: Persistance has been turned off. All cubes will be gone once you shut down this instance, unless of course they have been transmitted to instances with persistance turned on.");
           }
-          if (!ws) tracker = false;  // can't use Torrent trackers w/o native server capability
-          if (nopersist) logger.warn("Note: Persistance has been turned off. All cubes will be gone once you shut down this instance, unless of course they have been transmitted to instances with persistance turned on.");
           this.node = new VerityNode(servers, initialPeers,
             {
               announceToTorrentTrackers: tracker,
