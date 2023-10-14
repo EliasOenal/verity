@@ -63,18 +63,18 @@ class VerityCmdClient {
         args: {
           ws: cmd.option({
             type: cmd.number,
-            long: "websocketport",
-            env: "WEBSOCKETPORT",
+            long: "websocket",
+            env: "WEBSOCKET",
             short: "w",
             description: "Listen for native WebSocket connections on specified TCP port",
             defaultValue: () => undefined,
           }),
           webrtc: cmd.option({
             type: cmd.number,
-            long: "webrtcport",
-            env: "WEBRTCPORT",
-            short: "r",
-            description: "Start a libp2p WebRTC listener on specified UDP port, as well as a relay server using the same port number for a corresponding TCP Websocket.",
+            long: "libp2p",
+            env: "LIBP2P",
+            short: "l",
+            description: "Start a libp2p WebSocket listener on specified TCP port, which also makes this node a WebRTC connection broker.",
             defaultValue: () => undefined,
           }),
           peer: cmd.multioption({
@@ -113,8 +113,8 @@ class VerityCmdClient {
             if (!peer.length && !tracker) {
               logger.warn("Note: You have started this node without any of --peer and --tracker. I will still start up, but make no effort to connect to anybody else. Your exprience might be quite limited.")
             }
-            if (ws) servers.set(SupportedTransports.ws, ws);
             if (webrtc) servers.set(SupportedTransports.libp2p, webrtc);
+            if (ws) servers.set(SupportedTransports.ws, ws);
             if (peer.length) {
               initialPeers = [];
               for (const onepeer of peer) {

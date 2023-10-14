@@ -456,6 +456,10 @@ export class NetworkPeer extends Peer {
     }
 
     // TODO generalize: We should be allowed to have and send multiple server addresses
+    // In particular, nodes offering plan WS and Libp2p sockets should always
+    // advertise both of them, as non-libp2p enabled nodes will obviously need
+    // the former and libp2p-enabled nodes must prefer the latter in order to
+    // use libp2p features such as WebRTC brokering.
     sendMyServerAddress() {
         let address: AddressAbstraction = undefined;
         for (const server of this.networkManager.servers) {

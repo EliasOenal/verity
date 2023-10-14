@@ -24,7 +24,6 @@ export class PeerDisplay {
                        this.parent.node.networkManager.outgoingPeers)
     ){
       peersUnaccountedFor.delete(peer.idString);
-      logger.trace("Peers unaccounted for: " + peersUnaccountedFor.keys())
       this.displayPeer(peer);
     }
     for (const idString of peersUnaccountedFor.keys()) {
@@ -38,7 +37,7 @@ export class PeerDisplay {
     let li: HTMLLIElement = this.displayedPeers.get(peer.idString);
     let newli: boolean = false;
     if (!li) {
-      logger.trace("PeerDisplay: Creating new li for peer " + peer.toString());
+      // logger.trace("PeerDisplay: Creating new li for peer " + peer.toString());
       newli = true;
       // Create container and set attributes
       li = document.createElement("li");
@@ -58,7 +57,7 @@ export class PeerDisplay {
 
   redrawPeerData(peer: NetworkPeer, li: HTMLLIElement) {
     if (!peer.id) return;  // this should never have been called for non-verified peers
-    logger.trace("PeerDisplay: (Re-)Displaying peer "+ peer.toString());
+    // logger.trace("PeerDisplay: (Re-)Displaying peer "+ peer.toString());
     try {
       // Print peer address
       const addrLine: HTMLParagraphElement =
@@ -78,7 +77,7 @@ export class PeerDisplay {
   }
 
   public undisplayPeer(idString: string): void {
-    logger.trace("PeerDisplay: Undisplaying peer " + idString);
+    // logger.trace("PeerDisplay: Undisplaying peer " + idString);
     const peerli = this.displayedPeers.get(idString);
     this.peerlist.removeChild(peerli);
     this.displayedPeers.delete(idString);
