@@ -13,6 +13,7 @@ import { createLibp2p } from 'libp2p';
 import { Libp2p } from 'libp2p';
 import { webSockets } from '@libp2p/websockets'
 import { webRTC } from '@libp2p/webrtc'
+import { plaintext } from 'libp2p/insecure'
 import { noise } from '@chainsafe/libp2p-noise'
 import { circuitRelayTransport, circuitRelayServer } from 'libp2p/circuit-relay'
 import { yamux } from '@chainsafe/libp2p-yamux'
@@ -159,7 +160,7 @@ export class Libp2pServer extends NetworkServer {
         webRTC(),
         circuitRelayTransport({ discoverRelays: 5 }),
       ],
-      connectionEncryption: [noise(),],
+      connectionEncryption: [plaintext(),],
       streamMuxers: [yamux()],
       services: {
         identify: identifyService(),  // what does that do? do we even need that?

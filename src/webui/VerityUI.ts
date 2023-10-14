@@ -190,14 +190,14 @@ async function webmain() {
 
   // default params
   const initialPeers = [
-      // new WebSocketAddress("verity.hahn.mt" ,1984),
-      // new WebSocketAddress("verity.hahn.mt", 1985),
-      // new WebSocketAddress("verity.hahn.mt", 1986),
-      // new WebSocketAddress("132.145.174.233", 1984),
-      // new WebSocketAddress("158.101.100.95", 1984),
-      // multiaddr('/ip4/192.168.0.81/tcp/1985/ws/p2p/12D3KooWSEiJD9ymJtojq4Ahhwi8ZiYz7g6RrBPatiKfdSLZ8AgZ/p2p-circuit/webrtc/p2p/12D3KooWA32oeT3NA3FdSbEGjf85uRe2PjMVW7we1iuinBECvMBf'),
-      AddressAbstraction.CreateAddress("/ip4/127.0.0.1/tcp/1985/ws/", SupportedTransports.libp2p),
-    ];
+    new AddressAbstraction("verity.hahn.mt:1984"),
+    new AddressAbstraction("/dnsaddr/verity.hahn.mt/tcp/1985/ws"),
+    // new AddressAbstraction("verity.hahn.mt:1985"),
+    // new AddressAbstraction("verity.hahn.mt:1986"),
+    // new AddressAbstraction("132.145.174.233:1984"),
+    // new AddressAbstraction("158.101.100.95:1984"),
+    new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/ws"),
+  ];
 
   // construct node and UI
   // const node = new VerityNode(lightNode, port, initialPeers, announceToTorrentTrackers);

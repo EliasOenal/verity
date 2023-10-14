@@ -292,15 +292,18 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
     // first) so nobody tries to send any further messages to our closing stream
     this.emit("closed");
     this.removeAllListeners();
-    let streamClosedPromise: Promise<void>
+    let closePromises: Promise<void>[] = [];
     if (this.stream) {
-      streamClosedPromise = this.stream.close();  // note all of this is async and we're just firing-and-forgetting the request
+      closePromises.push(this.stream.close());  // note all of this is async and we're just firing-and-forgetting the request
     }
-    let connClosedPromise: Promise<void>;
     if (this.conn) {
-      connClosedPromise = this.conn.close();  // TODO: is it really proper in libp2p terms to close the connection and not just the stream? after all, for servers, .handle() dispatches the stream and the conn might be shared
+      closePromises.push(this.conn.close());  // TODO: is it really proper in libp2p terms to close the connection and not just the stream? after all, for servers, .handle() dispatches the stream and the conn might be shared
     }
-    return Promise.all([streamClosedPromise, connClosedPromise]) as unknown as Promise<void>;
+    if (closePromises.length) {
+      return Promise.all(closePromises) as unknown as Promise<void>;
+    } else {
+      return new Promise<void>(resolve => resolve());  // Return a resolved promise
+    }
   }
 
   ready(): boolean {
@@ -312,8 +315,8 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
    * Transmits a Verity node-to-node message to our peer.
    */
   send(message: Buffer): void {
-    if (this.stream.status != "open") {
-      logger.error(`Libp2pPeerConnection to ${this.conn?.remoteAddr?.toString()}: Tried to send() data but stream is not open. This should not happen! Stream status is ${this.stream.status}. Closing connection.`);
+    if (this.stream?.status != "open") {
+      logger.error(`Libp2pPeerConnection to ${this.conn?.remoteAddr?.toString()}: Tried to send() data but stream is not open. This should not happen! Stream status is ${this.stream?.status}. Closing connection.`);
       this.close();
       return;
     }

@@ -133,12 +133,20 @@ export class NetworkManager extends EventEmitter {
     public async start(): Promise<void> {
         const listeningPromises: Promise<void>[] = [];
         for (const server of this.servers) {
-            listeningPromises.push(server.start());
-            logger.trace("NetworkManager: requested start of server " + server.toString());
+            try {
+                listeningPromises.push(server.start());
+                logger.trace("NetworkManager: requested start of server " + server.toString());
+            } catch(err) {
+                logger.error("NetworkManager: Error requesting a server start, will continue without it. Error was: " + err.toString());
+            }
         }
-        const allListeningPromise: Promise<void> =
-            Promise.all(listeningPromises) as unknown as Promise<void>;
-        await allListeningPromise;
+        for (const promise of listeningPromises) {
+            try {
+                await promise;
+            } catch(err) {
+                logger.error("NetworkManager: Error waiting for a server start, will continue without it. Error was: " + err.toString());
+            }
+        }
 
         if (this.announceToTorrentTrackers) {
             this._peerDB.startAnnounceTimer();
@@ -341,6 +349,13 @@ export class NetworkManager extends EventEmitter {
             this.emit('offline');
         }
         this.connectPeers();  // find a replacement peer
+    }
+
+    handlePeerUpdated(peer: NetworkPeer) {
+        // TODO: Verify this address is in fact reachable, e.g. by making a test
+        // connection.
+        this.peerDB.markPeerExchangeable(peer);  // this might be a lie
+        this.emit("updatepeer");
     }
 
     /** Disconnect and blacklist this peer */

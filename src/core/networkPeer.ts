@@ -452,9 +452,7 @@ export class NetworkPeer extends Peer {
         const address = AddressAbstraction.CreateAddress(addrString, type);
         this.addAddress(address, true);  // learn address and make primary
 
-        // TODO: Verify this address is in fact reachable, e.g. by making a test
-        // connection.
-        this.networkManager.peerDB.markPeerExchangeable(this);  // this might be a lie
+        this.networkManager.handlePeerUpdated(this);
     }
 
     // TODO generalize: We should be allowed to have and send multiple server addresses

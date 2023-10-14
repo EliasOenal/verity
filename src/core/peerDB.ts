@@ -226,6 +226,16 @@ export class Peer {
     /** Shortcut to get the primary address string */
     get addressString(): string { return this.address.toString(); }
 
+    /** Print a string containing all of my addresses */
+    get allAddressesString(): string {
+        let ret: string = "";
+        for (let i=0; i<this.addresses.length; i++) {
+            ret += this.addresses[i].toString();
+            if (i<this.addresses.length-1) ret += " | ";
+        }
+        return ret;
+    }
+
     toString() {
         return `${this.addressString} (ID#${this._id?.toString('hex')})`;
     }
