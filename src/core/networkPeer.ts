@@ -535,6 +535,8 @@ export class NetworkPeer extends Peer {
         this.txMessage(message);
     }
 
+    // TODO: Don't send private addresses to peer off our private network
+    //       (but do still send them to peers on our private network!)
     private handleNodeRequest(): void {
         // Send MAX_NODE_ADDRESS_COUNT peer addresses
         // ... do we even know that many?

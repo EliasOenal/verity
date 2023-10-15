@@ -160,7 +160,8 @@ export class Libp2pServer extends NetworkServer {
         webRTC(),
         circuitRelayTransport({ discoverRelays: 5 }),
       ],
-      connectionEncryption: [plaintext(),],
+      connectionEncryption: [plaintext()],
+      // connectionEncryption: [noise()],
       streamMuxers: [yamux()],
       services: {
         identify: identifyService(),  // what does that do? do we even need that?

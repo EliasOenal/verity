@@ -41,8 +41,8 @@ class VerityCmdClient {
 
     // Default initial peers to use if none are supplied as command line options:
     let initialPeers: AddressAbstraction[] = [
-        new AddressAbstraction("verity.hahn.mt:1984"),
-        new AddressAbstraction("/dnsaddr/verity.hahn.mt/tcp/1984/ws"),
+        // new AddressAbstraction("verity.hahn.mt:1984"),
+        // new AddressAbstraction("/dnsaddr/verity.hahn.mt/tcp/1984/ws"),
         // new AddressAbstraction("verity.hahn.mt:1985"),
         // new AddressAbstraction("verity.hahn.mt:1986"),
         // new AddressAbstraction("132.145.174.233:1984"),

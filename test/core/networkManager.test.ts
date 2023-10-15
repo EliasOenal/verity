@@ -663,10 +663,22 @@ describe('networkManager', () => {
             await new Promise(resolve => setTimeout(resolve, 5000));
             logger.trace("TEST: Waited 5 seconds for peer connection to upgrade to WebRTC")
 
+            // @ts-ignore Stop auto connecting
+            browser1._autoConnect = false;
+            // @ts-ignore Stop auto connecting
+            browser2._autoConnect = false;
+
             // Close connections to server and shut it down
-            await browser1ServerNp.close();
-            await browser2ServerNp.close();
+            // await browser1ServerNp.close();
+            // await browser2ServerNp.close();
+            const browser1Closed = new Promise(resolve => browser1.on("peerclosed", resolve));
+            const browser2Closed = new Promise(resolve => browser2.on("peerclosed", resolve));
             await server.shutdown();
+            logger.trace("SERVER CLOSED")
+            await browser1Closed;
+            logger.trace("BROWSER1CLOSED")
+            await browser2Closed;
+            logger.trace("BROWSER2CLOSED")
 
             // Verify both browsers lost their server connection but are still
             // connected to each other.
@@ -684,6 +696,9 @@ describe('networkManager', () => {
             browser1.cubeStore.addCube(cube);
 
             // Expedite cube exchange for faster testing
+            // TODO: This currently fails:     sendMessagBinary() called on destroyed channel
+            // This is exactly what we did not want to see.
+            // And strangely enough, it actually works in real world browser tests o.O
             browser2.outgoingPeers[0].sendKeyRequest();
             logger.trace("TEST: Performing Cube exchange")
             // Wait up to three seconds for cube to sync

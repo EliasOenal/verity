@@ -272,7 +272,26 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
     logger.trace("Libp2pPeerConnection: Creating new connection to " + addr.toString());
     try {
       this.conn = await this.server.node.dial(addr);
+      if (this.conn.transient) {
+        logger.trace(`Libp2pPeerConnection to ${addr.toString()}: Connection is transient. Waiting up to 10 seconds for it to upgrade.`);
+        // TODO HACKHACK: This is obviously the most ridiculous hack ever.
+        // Apparently, there once upon a time was a peer:update event you could
+        // listen to, but it doesn not seem to exist anymore.
+        // I don't understand libp2p.
+        for (let i = 0; i < 100; i++) {
+          if (!this.conn.transient) {
+              break;
+          }
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        if (this.conn.transient) {
+          logger.error(`Libp2pPeerConnection to ${addr.toString()}: Connection still transient after 10 seconds. Giving up, closing.`)
+          this.close();
+          return;
+        }
+      }
       this.stream = await this.conn.newStream("/verity/1.0.0");
+      // this.stream = await this.server.node.dialProtocol(addr, "verity/1.0.0");
       if (this.ready()) this.emit("ready");
       else throw new VerityError("Libp2p connection not open and I have no clue why");
       logger.trace("Libp2pPeerConnection: Successfully connected to " + addr.toString() + ". My multiaddrs are " + this.server.node.getMultiaddrs() + " and my peer ID is " + Buffer.from(this.server.node.peerId.publicKey).toString('hex'));

@@ -190,8 +190,8 @@ async function webmain() {
 
   // default params
   const initialPeers = [
-    new AddressAbstraction("verity.hahn.mt:1984"),
-    new AddressAbstraction("/dnsaddr/verity.hahn.mt/tcp/1985/ws"),
+    // new AddressAbstraction("verity.hahn.mt:1984"),
+    // new AddressAbstraction("/dnsaddr/verity.hahn.mt/tcp/1985/ws"),
     // new AddressAbstraction("verity.hahn.mt:1985"),
     // new AddressAbstraction("verity.hahn.mt:1986"),
     // new AddressAbstraction("132.145.174.233:1984"),
