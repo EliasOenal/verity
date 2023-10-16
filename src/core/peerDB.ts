@@ -159,7 +159,7 @@ export class Peer {
      * port. When they do, their server address should be marked as primary.
      * Will not implement this until we switch to WebRTC.
     */
-    private primaryAddressIndex: number = undefined;
+    protected primaryAddressIndex: number = undefined;
     /** Shortcut to get the primary address object */
     get address() { return this.addresses[this.primaryAddressIndex]; }
     /** Shortcut to get the primary IP */
@@ -238,6 +238,19 @@ export class Peer {
 
     toString() {
         return `${this.addressString} (ID#${this._id?.toString('hex')})`;
+    }
+    toLongString() {
+        let ret: string = "";
+        ret += "Peer ID#" + this.idString;
+        if (this.addresses.length) {
+            ret += ", addresses:\n";
+            for (let i=0; i<this.addresses.length; i++) {
+                ret += ` ${i}) ${this.addresses[i].toString()}`;
+                if (i == this.primaryAddressIndex) ret += " (primary)\n";
+                else ret += '\n';
+            }
+        }
+        return ret;
     }
 }
 

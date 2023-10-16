@@ -403,18 +403,18 @@ export class NetworkManager extends EventEmitter {
 
     getNetStatistics(): NetworkStats {
         const totalStats: NetworkStats = {
-            tx: { totalPackets: 0, totalBytes: 0, packetTypes: {} },
-            rx: { totalPackets: 0, totalBytes: 0, packetTypes: {} },
+            tx: { sentMessages: 0, messageBytes: 0, messageTypes: {} },
+            rx: { receivedMessages: 0, messageBytes: 0, messageTypes: {} },
         };
 
         for (const peer of this.outgoingPeers.concat(this.incomingPeers)) {
-            totalStats.tx.totalPackets += peer.stats.tx.totalPackets;
-            totalStats.tx.totalBytes += peer.stats.tx.totalBytes;
-            totalStats.rx.totalPackets += peer.stats.rx.totalPackets;
-            totalStats.rx.totalBytes += peer.stats.rx.totalBytes;
+            totalStats.tx.sentMessages += peer.stats.tx.sentMessages;
+            totalStats.tx.messageBytes += peer.stats.tx.messageBytes;
+            totalStats.rx.receivedMessages += peer.stats.rx.receivedMessages;
+            totalStats.rx.messageBytes += peer.stats.rx.messageBytes;
 
-            this.consolidateStats(totalStats.tx.packetTypes, peer.stats.tx.packetTypes);
-            this.consolidateStats(totalStats.rx.packetTypes, peer.stats.rx.packetTypes);
+            this.consolidateStats(totalStats.tx.messageTypes, peer.stats.tx.messageTypes);
+            this.consolidateStats(totalStats.rx.messageTypes, peer.stats.rx.messageTypes);
         }
 
         return totalStats;
@@ -422,49 +422,60 @@ export class NetworkManager extends EventEmitter {
 
     prettyPrintStats(): string {
         let output = '\Statistics:\n';
-        output += `Local PeerID: ${this.peerID.toString('hex').toUpperCase()}\n`;
+        output += `My (high level) PeerID: ${this.peerID.toString('hex').toUpperCase()}\n`;
+        if (this.servers.length) {
+            output += `My network listeners ("servers"):\n`;
+            for (const server of this.servers) {
+                output += server.toLongString() + "\n";  // indent
+            }
+        } else {
+            output += "I am not listening on the network at all.\n\n";
+        }
 
-        output += `\nLocal Store\n`;
+        output += `Local Store\n`;
         output += `Cubes: ${this.cubeStore.getNumberOfStoredCubes()}\n`;
         output += `Memory: ${this.cubeStore.getNumberOfStoredCubes() * NetConstants.CUBE_SIZE}\n`;
 
         output += `\nNetwork Total\n`;
         const totalStats = this.getNetStatistics();
-        output += `Total Packets: TX: ${totalStats.tx.totalPackets}, RX: ${totalStats.rx.totalPackets}\n`;
-        output += `Total Bytes: TX: ${totalStats.tx.totalBytes}, RX: ${totalStats.rx.totalBytes}\n`;
+        output += `Total Packets: TX: ${totalStats.tx.sentMessages}, RX: ${totalStats.rx.receivedMessages}\n`;
+        output += `Total Bytes: TX: ${totalStats.tx.messageBytes}, RX: ${totalStats.rx.messageBytes}\n`;
         output += `Connected Peers: ${this.outgoingPeers.length + this.incomingPeers.length}\n`;
         output += `Verified Peers: ${Array.from(this._peerDB.peersVerified.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
         output += `Unverified Peers: ${Array.from(this._peerDB.peersUnverified.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
         output += `Blacklisted Peers: ${Array.from(this._peerDB.peersBlacklisted.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
         output += 'Packet Types:\n';
 
-        for (const type in totalStats.tx.packetTypes) {
+        for (const type in totalStats.tx.messageTypes) {
             const typeEnum = type as unknown as MessageClass;
-            output += `TX ${MessageClass[typeEnum]}: ${totalStats.tx.packetTypes[typeEnum]?.count} packets, ${totalStats.tx.packetTypes[typeEnum]?.bytes} bytes\n`;
+            output += `TX ${MessageClass[typeEnum]}: ${totalStats.tx.messageTypes[typeEnum]?.count} packets, ${totalStats.tx.messageTypes[typeEnum]?.bytes} bytes\n`;
         }
 
-        for (const type in totalStats.rx.packetTypes) {
+        for (const type in totalStats.rx.messageTypes) {
             const typeEnum = type as unknown as MessageClass;
-            output += `RX ${MessageClass[typeEnum]}: ${totalStats.rx.packetTypes[typeEnum]?.count} packets, ${totalStats.rx.packetTypes[typeEnum]?.bytes} bytes\n`;
+            output += `RX ${MessageClass[typeEnum]}: ${totalStats.rx.messageTypes[typeEnum]?.count} packets, ${totalStats.rx.messageTypes[typeEnum]?.bytes} bytes\n`;
         }
 
+        if (this.outgoingPeers.length || this.incomingPeers.length) {
+            output += "\nConnected Peers:";
+        }
         for (const peer of this.outgoingPeers.concat(this.incomingPeers)) {
             output += '\n';
 
             const stats = peer.stats;
-            output += `Peer: ${peer.toString()}\n`;
-            output += `Packets: TX: ${stats.tx.totalPackets}, RX: ${stats.rx.totalPackets}\n`;
-            output += `Bytes: TX: ${stats.tx.totalBytes}, RX: ${stats.rx.totalBytes}\n`;
+            output += `${peer.toLongString()}`;
+            output += `Packets: TX: ${stats.tx.sentMessages}, RX: ${stats.rx.receivedMessages}\n`;
+            output += `Bytes: TX: ${stats.tx.messageBytes}, RX: ${stats.rx.messageBytes}\n`;
             output += 'Packet Types:\n';
 
-            for (const type in stats.tx.packetTypes) {
+            for (const type in stats.tx.messageTypes) {
                 const typeEnum = type as unknown as MessageClass;
-                output += `TX ${MessageClass[typeEnum]}: ${stats.tx.packetTypes[typeEnum]?.count} packets, ${stats.tx.packetTypes[typeEnum]?.bytes} bytes\n`;
+                output += `TX ${MessageClass[typeEnum]}: ${stats.tx.messageTypes[typeEnum]?.count} packets, ${stats.tx.messageTypes[typeEnum]?.bytes} bytes\n`;
             }
 
-            for (const type in stats.rx.packetTypes) {
+            for (const type in stats.rx.messageTypes) {
                 const typeEnum = type as unknown as MessageClass;
-                output += `RX ${MessageClass[typeEnum]}: ${stats.rx.packetTypes[typeEnum]?.count} packets, ${stats.rx.packetTypes[typeEnum]?.bytes} bytes\n`;
+                output += `RX ${MessageClass[typeEnum]}: ${stats.rx.messageTypes[typeEnum]?.count} packets, ${stats.rx.messageTypes[typeEnum]?.bytes} bytes\n`;
             }
         }
 

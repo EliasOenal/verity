@@ -22,14 +22,14 @@ export interface PacketStats {
 
 export interface NetworkStats {
     tx: {
-        totalPackets: number,
-        totalBytes: number,
-        packetTypes: { [key in MessageClass]?: PacketStats }
+        sentMessages: number,
+        messageBytes: number,
+        messageTypes: { [key in MessageClass]?: PacketStats }
     },
     rx: {
-        totalPackets: number,
-        totalBytes: number,
-        packetTypes: { [key in MessageClass]?: PacketStats }
+        receivedMessages: number,
+        messageBytes: number,
+        messageTypes: { [key in MessageClass]?: PacketStats }
     }
 }
 
@@ -38,8 +38,8 @@ export interface NetworkStats {
  */
 export class NetworkPeer extends Peer {
     stats: NetworkStats = {
-        tx: { totalPackets: 0, totalBytes: 0, packetTypes: {} },
-        rx: { totalPackets: 0, totalBytes: 0, packetTypes: {} },
+        tx: { sentMessages: 0, messageBytes: 0, messageTypes: {} },
+        rx: { receivedMessages: 0, messageBytes: 0, messageTypes: {} },
     }
     keyRequestTimer?: NodeJS.Timeout = undefined; // Timer for key requests
     nodeRequestTimer?: NodeJS.Timeout = undefined; // Timer for node requests
@@ -134,21 +134,21 @@ export class NetworkPeer extends Peer {
     }
 
     private logRxStats(message: Buffer, messageType: MessageClass): void {
-        this.stats.rx.totalPackets++;
-        this.stats.rx.totalBytes += message.length;
-        const packetTypeStats = this.stats.rx.packetTypes[messageType] || { count: 0, bytes: 0 };
+        this.stats.rx.receivedMessages++;
+        this.stats.rx.messageBytes += message.length;
+        const packetTypeStats = this.stats.rx.messageTypes[messageType] || { count: 0, bytes: 0 };
         packetTypeStats.count++;
         packetTypeStats.bytes += message.length;
-        this.stats.rx.packetTypes[messageType] = packetTypeStats;
+        this.stats.rx.messageTypes[messageType] = packetTypeStats;
     }
 
     private logTxStats(message: Buffer, messageType: MessageClass): void {
-        this.stats.tx.totalPackets++;
-        this.stats.tx.totalBytes += message.length;
-        const packetTypeStats = this.stats.tx.packetTypes[messageType] || { count: 0, bytes: 0 };
+        this.stats.tx.sentMessages++;
+        this.stats.tx.messageBytes += message.length;
+        const packetTypeStats = this.stats.tx.messageTypes[messageType] || { count: 0, bytes: 0 };
         packetTypeStats.count++;
         packetTypeStats.bytes += message.length;
-        this.stats.tx.packetTypes[messageType] = packetTypeStats;
+        this.stats.tx.messageTypes[messageType] = packetTypeStats;
     }
 
     private txMessage(message: Buffer): void {
@@ -533,6 +533,23 @@ export class NetworkPeer extends Peer {
         // Not setting timeout for this message: A peer not participating in
         // node exchange is neither necessarily dead nor invalid.
         this.txMessage(message);
+    }
+
+    toString() {
+        return `${this.conn?.addressString ?? this.addressString} (ID#${this._id?.toString('hex')})`;
+    }
+    toLongString() {
+        let ret: string = "";
+        ret += "NetworkPeer ID#" + this.idString + " connected through " + this.conn?.toString();
+        if (this.addresses.length) {
+            ret += ", addresses:\n";
+            for (let i=0; i<this.addresses.length; i++) {
+                ret += ` ${i}) ${this.addresses[i].toString()}`;
+                if (i == this.primaryAddressIndex) ret += " (primary)\n";
+                else ret += '\n';
+            }
+        }
+        return ret;
     }
 
     // TODO: Don't send private addresses to peer off our private network

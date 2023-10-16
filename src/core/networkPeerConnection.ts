@@ -46,11 +46,15 @@ export abstract class NetworkPeerConnection extends EventEmitter {
   send(message: Buffer): void {
     throw new VerityError("NetworkPeerConnection.send() to be implemented by subclass")
   }
-
   type(): SupportedTransports {
     throw new VerityError("NetworkPeerConnection.type() to be implemented by subclass")
   }
-
+  toString(): string {
+    throw new VerityError("NetworkPeerConnection.toString() to be implemented by subclass")
+  }
+  get addressString(): string  {
+    throw new VerityError("NetworkPeerConnection.toString() to be implemented by subclass")
+  }
 }
 
 export class WebSocketPeerConnection extends NetworkPeerConnection {
@@ -161,6 +165,33 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
 
   type(): SupportedTransports {
     return SupportedTransports.ws;
+  }
+
+  readyStateString(): string {
+    if (!this._ws) return "NO SOCKET";
+    else if (this._ws.readyState == WebSocket.CLOSED) return "CLOSED";
+    else if (this._ws.readyState == WebSocket.CLOSING) return "CLOSING";
+    else if (this._ws.readyState == WebSocket.CONNECTING) return "CONNECTING";
+    else if (this._ws.readyState == WebSocket.OPEN) return "OPEN";
+  }
+
+  toString(): string {
+    let ret: string;
+    if (this._ws.url.length) ret = `WebSocketPeerConnection to ${this._ws.url}`;
+    else ret = "Incoming WebSocketPeerConnection"
+    if (isNode) {  // remote IP and port not available in the browser
+      ret += ` (${(this._ws as any)._socket.remoteAddress}:${(this._ws as any)._socket.remotePort})`;
+    }
+    return ret;
+  }
+  get addressString(): string {
+    let ret: string = "";
+    if ('socket' in this._ws && this._ws.socket) {  // will only work on NodeJS; remote IP and port not available in the browser
+      ret += `${(this._ws as any)._socket.remoteAddress}:${(this._ws as any)._socket.remotePort}) `;
+    }
+    if (this._ws.url.length) ret += `${this._ws.url}`;
+    if (ret.length) return ret;
+    else return undefined;
   }
 }
 
@@ -351,5 +382,12 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
 
   type(): SupportedTransports {
     return SupportedTransports.libp2p;
+  }
+
+  toString(): string {
+    return "Libp2pConnection to " + this.conn?.remoteAddr?.toString();
+  }
+  get addressString(): string {
+    return this.conn?.remoteAddr?.toString();
   }
 }

@@ -42,19 +42,19 @@ class VerityCmdClient {
     // Default initial peers to use if none are supplied as command line options:
     let initialPeers: AddressAbstraction[] = [
         new AddressAbstraction("verity.hahn.mt:1984"),
-        new AddressAbstraction("/dnsaddr/verity.hahn.mt/tcp/1985/wss"),
+        new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss"),
         // new AddressAbstraction("verity.hahn.mt:1985"),
         // new AddressAbstraction("verity.hahn.mt:1986"),
         // new AddressAbstraction("132.145.174.233:1984"),
         // new AddressAbstraction("158.101.100.95:1984"),
     ];
 
-    if (isNode) {
+    if (isNode) {  // we expect this to only ever be run in NodeJS, but just to be safe
       // prepare online promise
       let onlinePromiseResolve: Function;
       this.onlinePromise = new Promise<void>(
         (resolve) => {onlinePromiseResolve = resolve});
-      // parse command line arguments
+      // Define command line arguments
       const parse = cmd.command({
         name: "verity",
         description: "Command line verity client, useful primarily as a sever node.\n" +
@@ -69,12 +69,12 @@ class VerityCmdClient {
             description: "Listen for native WebSocket connections on specified TCP port",
             defaultValue: () => undefined,
           }),
-          webrtc: cmd.option({
-            type: cmd.number,
+          libp2p: cmd.multioption({
+            type: cmd.array(cmd.string),
             long: "libp2p",
             env: "LIBP2P",
             short: "l",
-            description: "Start a libp2p WebSocket listener on specified TCP port, which also makes this node a WebRTC connection broker.",
+            description: "If arguments is a number, start a libp2p WebSocket listener on specified TCP port, which also makes this node a WebRTC connection broker. Alternatively, argument can be a full libp2p multiaddr to listen on. You can provide multiple arguments for multiple listen addresses.",
             defaultValue: () => undefined,
           }),
           peer: cmd.multioption({
@@ -96,10 +96,10 @@ class VerityCmdClient {
             defaultValue: () => false
           })
         },
-        handler: ({ ws, webrtc, peer, tracker, nopersist }) => {
+        handler: ({ ws, webrtc: libp2p, peer, tracker, nopersist }) => {
           let servers = new Map();
           // use defaults if no options specified
-          if (!ws && !webrtc && !peer.length && !tracker && !nopersist) {
+          if (!ws && !libp2p && !peer.length && !tracker && !nopersist) {
             logger.info("Note: Will start with default settings as you did not specify any command line options. Use --help for options.")
             servers.set(SupportedTransports.ws, Settings.DEFAULT_WS_PORT);
             servers.set(SupportedTransports.libp2p, Settings.DEFAULT_LIBP2P_PORT);
@@ -107,13 +107,15 @@ class VerityCmdClient {
             tracker = true;
             nopersist = false;
           } else {
-            if (!ws && !webrtc) {
+            if (!ws && !libp2p) {
               logger.warn("Note: You have started this node without any of --websocketport and --webrtcport. This node will not be able to receive any incoming connections.");
             }
             if (!peer.length && !tracker) {
               logger.warn("Note: You have started this node without any of --peer and --tracker. I will still start up, but make no effort to connect to anybody else. Your exprience might be quite limited.")
             }
-            if (webrtc) servers.set(SupportedTransports.libp2p, webrtc);
+            if (libp2p.length) {
+              servers.set(SupportedTransports.libp2p, libp2p);
+            }
             if (ws) servers.set(SupportedTransports.ws, ws);
             if (peer.length) {
               initialPeers = [];
@@ -137,7 +139,7 @@ class VerityCmdClient {
         },
       });
       cmd.run(parse, process.argv.slice(2));
-    } else {
+    } else {  // if this is not NodeJS, which is really strange indeed
       this.node = new VerityNode(
         new Map(), initialPeers,
         {
@@ -151,6 +153,7 @@ class VerityCmdClient {
     }
   }
 
+  /** Just for manual testing: Handler for the 'm' hotkey */
   public async updateMuc() {
     // write counter to buffer in ascii text
     const counterBuffer: Buffer = Buffer.alloc(8);
@@ -167,6 +170,7 @@ class VerityCmdClient {
     this.node.cubeStore.addCube(muc);
   }
 
+  /** Just for manual testing: Handler for the 'c' hotkey */
   public async makeNewCube(message: string = "Hello Verity", replyto?: string) {
     const cube = new Cube();
     const messagebuffer: Buffer = Buffer.from(message, 'utf8');

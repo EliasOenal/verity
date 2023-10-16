@@ -45,6 +45,10 @@ export abstract class NetworkServer extends EventEmitter {
   toString(): string {
     throw new VerityError("NetworkServer.toString() to be implemented by subclass");
   }
+
+  toLongString(): string {
+    throw new VerityError("NetworkServer.toLongString() to be implemented by subclass");
+  }
 }
 
 export class WebSocketServer extends NetworkServer {
@@ -57,7 +61,16 @@ export class WebSocketServer extends NetworkServer {
   }
 
   toString(): string {
-    return "WebSocketServer " + this.dialableAddress;
+    let ret: string;
+    if (this.dialableAddress) ret = `WebSocketServer ${this.dialableAddress}`
+    else ret = `WebSocketServer ${this.port}`;
+    if (!this.server) {
+      ret += " (not running)";
+    }
+    return ret;
+  }
+  toLongString(): string {
+    return this.toString();
   }
 
   start(): Promise<void> {
@@ -124,34 +137,51 @@ export class WebSocketServer extends NetworkServer {
 export class Libp2pServer extends NetworkServer {
   private _node: Libp2p;  // libp2p types are much to complicated for my humble brain
   get node() { return this._node }
-  private listen: string[];
+  private listen: string[] = [];
 
   constructor(
       networkManager: NetworkManager,
-      private listen_param: string | string[] | number = 1985)
+      private listen_param: string[] | number[] | string | number = 1985)
   {
     super(networkManager);
 
-    // get or construct listen string array
-    if (!isNaN(listen_param as number)) {  // if listen_param is a port number
-      this.listen = [
-        // `/ip4/0.0.0.0/tcp/${listen_param}/wss`,  // for relay... or WebSocket via libp2p
-        `/dns4/verity.hahn.mt/tcp/${listen_param}/wss`,  // for relay... or WebSocket via libp2p
-        // `/ip6/::1/tcp/${listen_param}/ws`,  // configuring IPv6 always throws "Listener not ready"... so no IPv6 I guess
-        `/ip4/0.0.0.0/udp/${listen_param}/webrtc`,
-        // `/ip6/::1/udp/${listen_param}/webrtc`,
-        `/webrtc`
-      ];
-    } else if (!(listen_param instanceof Array)) {
-      this.listen = [listen_param as string];
+    // construct listen string array
+    if (!Array.isArray(listen_param)) listen_param = [listen_param as any];
+    for (const listenSpec of listen_param) {
+      if (!isNaN(listenSpec as number)) {  // if listen_param is a port number
+        this.listen = this.listen.concat([
+          `/ip4/0.0.0.0/tcp/${listen_param}/wss`,  // for relay... or WebSocket via libp2p
+          `/ip6/::1/tcp/${listen_param}/ws`,  // configuring IPv6 always throws "Listener not ready"... so no IPv6 I guess
+          `/ip4/0.0.0.0/udp/${listen_param}/webrtc`,
+          `/ip6/::1/udp/${listen_param}/webrtc`,
+        ]);
+      } else if (!(listen_param instanceof Array)) {
+        this.listen.push(listen_param as string);
+      }
     }
-    else {
-      this.listen = listen_param;  // correct format already, hopefully
-    }
+    if (!this.listen.includes("/webrtc")) this.listen.push("/webrtc");
   }
 
   toString(): string {
     return "Libp2pServer " + this._node?.getMultiaddrs()?.toString();
+  }
+  toLongString(): string {
+    let ret: string = "";
+    if (this._node) {
+      if (this._node.getMultiaddrs().length) {
+        ret += "Libp2pServer having multiaddrs:\n"
+        for (const multiaddr of this._node.getMultiaddrs()) {
+          ret += " - " + multiaddr.toString() + '\n';
+        }
+      } else {
+        ret += "Libp2pServer NOT having any multiaddrs";
+      }
+
+    }
+    else {
+      ret += "Lib2pServer (not running)";
+    }
+    return ret;
   }
 
   async start(): Promise<void> {
