@@ -9,6 +9,10 @@ import { logger } from "./logger";
 import WebSocket from 'isomorphic-ws';
 import { EventEmitter } from 'events';
 
+import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
+import * as ws from 'ws';
+import { readFileSync } from 'fs';
+import { createServer } from 'https';
 import { createLibp2p } from 'libp2p';
 import { Libp2p } from 'libp2p';
 import { webSockets } from '@libp2p/websockets'
@@ -131,7 +135,8 @@ export class Libp2pServer extends NetworkServer {
     // get or construct listen string array
     if (!isNaN(listen_param as number)) {  // if listen_param is a port number
       this.listen = [
-        `/ip4/0.0.0.0/tcp/${listen_param}/ws`,  // for relay... or WebSocket via libp2p
+        // `/ip4/0.0.0.0/tcp/${listen_param}/wss`,  // for relay... or WebSocket via libp2p
+        `/dns4/verity.hahn.mt/tcp/${listen_param}/wss`,  // for relay... or WebSocket via libp2p
         // `/ip6/::1/tcp/${listen_param}/ws`,  // configuring IPv6 always throws "Listener not ready"... so no IPv6 I guess
         `/ip4/0.0.0.0/udp/${listen_param}/webrtc`,
         // `/ip6/::1/udp/${listen_param}/webrtc`,
@@ -151,12 +156,27 @@ export class Libp2pServer extends NetworkServer {
 
   async start(): Promise<void> {
     // logger.error(this.listen)
+    let httpsServer, libp2pWebSocket;
+    if (isNode) {
+      httpsServer = createServer({
+        cert: readFileSync('./cert.pem'),
+        key: readFileSync('./key.pem'),
+      });
+      libp2pWebSocket = webSockets({
+        filter: filters.all,
+        server: httpsServer,
+      });
+    } else {
+      libp2pWebSocket = webSockets({
+        filter: filters.all,
+      });
+    }
     this._node = await createLibp2p({
       addresses: {
         listen: this.listen,
       },
       transports: [
-        webSockets({ filter: filters.all }),
+        libp2pWebSocket,
         webRTC(),
         circuitRelayTransport({ discoverRelays: 5 }),
       ],

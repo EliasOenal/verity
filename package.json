@@ -60,6 +60,7 @@
     "pino-pretty": false,
     "readline": false,
     "crypto": false,
-    "cmd-ts": false
+    "cmd-ts": false,
+    "https": false
   }
 }

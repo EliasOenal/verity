@@ -1,5 +1,9 @@
 # .gitignore
 
+# SSL
+cert.pem
+key.pem
+
 # Verity databases
 cubes.db*
 identity.db*

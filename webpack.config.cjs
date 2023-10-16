@@ -23,7 +23,8 @@ module.exports = {
       // Use can only include required modules. Also install the package.
       // for example: npm install --save-dev assert
       url: require.resolve('url'),
-      fs: require.resolve('fs'),
+      // fs: require.resolve('fs'),
+      fs: false,
       //assert: require.resolve('assert'),
       // crypto: require.resolve('crypto-browserify'),
       crypto: false,  // using native web crypto api
@@ -43,7 +44,7 @@ module.exports = {
   externals: {
     bufferutil: "bufferutil",
     "utf-8-validate": "utf-8-validate",
-    fs: "fs",
+    // fs: "fs",
   },
   output: {
     filename: '[name].js',
