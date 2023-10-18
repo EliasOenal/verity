@@ -1,4 +1,5 @@
 import { AddressError, SupportedTransports } from './networkDefinitions';
+import { fibonacci } from './helpers';
 import { Settings, VerityError } from './settings';
 
 import { EventEmitter } from 'events';
@@ -173,6 +174,11 @@ export class Peer {
      * This is required to honor Settings.RECONNECT_INTERVAL.
      */
     lastConnectAttempt: number = 0;
+    /**
+     * Number of (unsuccessful) connection attempts.
+     * Gets reset to 0 on successful connection.
+     */
+    connectionAttempts: number = 0;
 
     constructor(
             address: WebSocketAddress | Multiaddr | AddressAbstraction | AddressAbstraction[] | string,
@@ -355,7 +361,10 @@ export class PeerDB extends EventEmitter {
         const eligible: Peer[] =
             [...this.peersUnverified.values(), ...this.peersVerified.values(), ...this.peersExchangeable.values()].  // this is not efficient
             filter((candidate: Peer) =>
-                candidate.lastConnectAttempt <= now - Settings.RECONNECT_INTERVAL / 1000 &&
+                candidate.lastConnectAttempt <= now -
+                    fibonacci(Math.max(
+                        candidate.connectionAttempts, Settings.RECONNECT_MAX_FIBONACCI_FACTOR
+                        )) * (Settings.RECONNECT_INTERVAL / 1000) &&
                 exclude.every((tobeExcluded: Peer) =>
                     !candidate.equals(tobeExcluded)));
         // logger.trace(`PeerDB: Eligible peers are ${eligible}`)
@@ -400,7 +409,12 @@ export class PeerDB extends EventEmitter {
             this._peersUnverified.delete(address.toString());
             if (this.peersBlacklisted.has(addrString)) return;
         }
-        // Okay, setting peer verified
+        // Okay, setting peer verified!
+        // Note that this silently replaces the currently stored peer object
+        // of the stored one has the same peer ID as the supplied one.
+        // We actually use this effect as NetworkManager always creates a
+        // new NetworkPeer object on creation. On verification, this newly
+        // created NetworkPeer also becomes our stored Peer object.
         this.peersVerified.set(peer.idString, peer);
         logger.info(`PeerDB: setting peer ${peer.toString()} verified.`);
         this.emit('verifiedPeer', peer);

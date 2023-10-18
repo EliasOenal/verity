@@ -96,7 +96,8 @@ export class NetworkPeer extends Peer {
         // Take note of all other peers I could exchange with this new peer.
         // This is used to ensure we don't exchange the same peers twice.
         this.unsentPeers = Array.from(this.networkManager.peerDB.peersExchangeable.values());  // TODO: there's really no reason to convert to array here
-        networkManager.peerDB.on('exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
+        networkManager.peerDB.on(
+            'exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
 
         // Send HELLO message once connected
         this.setTimeout();  // connection timeout
@@ -111,7 +112,7 @@ export class NetworkPeer extends Peer {
         logger.trace(`NetworkPeer ${this.toString()}: Closing connection.`);
         // Remove all listeners and timers to avoid memory leaks
         this.networkManager.peerDB.removeListener(
-            'peerVerified', (peer: Peer) => this.learnExchangeablePeer(peer));
+            'exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
         this.cubeStore.removeListener(
             'cubeAdded', (cube: CubeMeta) => this.unsentCubeMeta.add(cube));
         clearInterval(this.keyRequestTimer);
@@ -535,8 +536,11 @@ export class NetworkPeer extends Peer {
         this.txMessage(message);
     }
 
+    get addressString(): string {
+        return this.conn?.addressString ?? this.address.toString();
+    }
     toString() {
-        return `${this.conn?.addressString ?? this.addressString} (ID#${this._id?.toString('hex')})`;
+        return `${this.addressString} (ID#${this._id?.toString('hex')})`;
     }
     toLongString() {
         let ret: string = "";

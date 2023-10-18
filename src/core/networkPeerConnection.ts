@@ -177,7 +177,7 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
 
   toString(): string {
     let ret: string;
-    if (this._ws.url.length) ret = `WebSocketPeerConnection to ${this._ws.url}`;
+    if (this._ws?.url?.length) ret = `WebSocketPeerConnection to ${this._ws.url}`;
     else ret = "Incoming WebSocketPeerConnection"
     if (isNode) {  // remote IP and port not available in the browser
       ret += ` (${(this._ws as any)._socket.remoteAddress}:${(this._ws as any)._socket.remotePort})`;
@@ -189,7 +189,7 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
     if ('socket' in this._ws && this._ws.socket) {  // will only work on NodeJS; remote IP and port not available in the browser
       ret += `${(this._ws as any)._socket.remoteAddress}:${(this._ws as any)._socket.remotePort}) `;
     }
-    if (this._ws.url.length) ret += `${this._ws.url}`;
+    if (this._ws?.url?.length) ret += `${this._ws.url}`;
     if (ret.length) return ret;
     else return undefined;
   }
@@ -289,7 +289,7 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
             // connecting to a relay-capable server node, in which case we will
             // now learn our connectable WebRTC address used for browser-to-browser
             // connections.
-            logger.trace("Libp2pPeerConnection: Just wanted to remind you that my multiaddrs still are " + this.server.node?.getMultiaddrs());
+            logger.trace("Libp2pPeerConnection: Just wanted to remind you that I'm listening with " + this.server.toString());
             this.server.addressChange();  // HACKHACK: this is a lie, they might not even have changed
           }
         }

@@ -198,9 +198,10 @@ export class NetworkManager extends EventEmitter {
                 // Return here after a short while to connect further peers
                 // if possible and required.
                 this.isConnectingPeers = true;
+                connectTo.connectionAttempts++;
+                connectTo.lastConnectAttempt = Math.floor(Date.now() / 1000);
                 try {
                     this.connect(connectTo);
-                    connectTo.lastConnectAttempt = Math.floor(Date.now() / 1000);
                     // TODO: We should distinguish between successful and unsuccessful
                     // connection attempts and use a much smaller interval when
                     // unsuccessful. In case of getting spammed with fake nodes,
@@ -250,6 +251,8 @@ export class NetworkManager extends EventEmitter {
             conn,
             this.lightNode,
             this.peerExchange);
+        // note that by copying the peer we're implicitly resetting lastConnectAttempt
+        // and connectionAttempts.
         this.outgoingPeers.push(networkPeer);
         this.emit('newpeer', networkPeer);
         return networkPeer;

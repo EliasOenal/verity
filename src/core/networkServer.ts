@@ -163,7 +163,21 @@ export class Libp2pServer extends NetworkServer {
   }
 
   toString(): string {
-    return "Libp2pServer " + this._node?.getMultiaddrs()?.toString();
+    let ret: string = "";
+    if (this._node) {
+      if (this._node.getMultiaddrs().length) {
+        ret = "Libp2pServer ";
+        for (let i=0; i<this._node.getMultiaddrs().length; i++) {
+          ret += this.node.getMultiaddrs()[i]
+          if (i<this._node.getMultiaddrs().length-1) ret += ', ';
+        }
+      } else {
+        ret += "Libp2pServer NOT having any multiaddrs";
+      }
+    } else {
+      ret += "Lib2pServer (not running)";
+    }
+    return ret;
   }
   toLongString(): string {
     let ret: string = "";
