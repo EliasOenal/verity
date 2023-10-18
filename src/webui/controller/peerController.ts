@@ -1,27 +1,27 @@
-import { VerityError } from "../core/settings";
-import { NetworkPeer } from "../core/networkPeer";
-import { logger } from "../core/logger";
+import { VerityError } from "../../core/settings";
 
-import { VerityUI } from "./VerityUI";
+import { NetworkManager } from "../../core/networkManager";
+import { NetworkPeer } from "../../core/networkPeer";
+import { logger } from "../../core/logger";
 
-export class PeerDisplay {
+export class PeerController {
   private displayedPeers: Map<string, HTMLLIElement> = new Map();
   constructor(
-      private parent: VerityUI,
+      private networkManager: NetworkManager,
       private peerlist: HTMLElement = document.getElementById("peerlist")
   ){
     if (!this.peerlist) throw new VerityError("PeerDisplay: Cannot create a PeerDisplay if there is no peer list");
     const listheader: HTMLElement = document.getElementById('verityPeerListHeader') as HTMLElement;
-    if (listheader) listheader.setAttribute("title", `My ID is ${this.parent.node.networkManager.peerID.toString('hex')}`);
-    this.parent.node.networkManager.on('peeronline', (peer) => this.redisplayPeers());
-    this.parent.node.networkManager.on('updatepeer', (peer) => this.redisplayPeers());
-    this.parent.node.networkManager.on('peerclosed', (peer) => this.redisplayPeers());
+    if (listheader) listheader.setAttribute("title", `My ID is ${this.networkManager.peerID.toString('hex')}`);
+    this.networkManager.on('peeronline', (peer) => this.redisplayPeers());
+    this.networkManager.on('updatepeer', (peer) => this.redisplayPeers());
+    this.networkManager.on('peerclosed', (peer) => this.redisplayPeers());
   }
 
   public redisplayPeers(): void {
     const peersUnaccountedFor: Map<string, HTMLLIElement> = new Map(this.displayedPeers);
-    for (const peer of this.parent.node.networkManager.incomingPeers.concat(
-                       this.parent.node.networkManager.outgoingPeers)
+    for (const peer of this.networkManager.incomingPeers.concat(
+                       this.networkManager.outgoingPeers)
     ){
       peersUnaccountedFor.delete(peer.idString);
       this.displayPeer(peer);

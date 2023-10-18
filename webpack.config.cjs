@@ -5,7 +5,7 @@ const webpack = require('webpack');
 module.exports = {
   target: 'web',
   entry: {
-    verityUI: './src/webui/VerityUI.ts',
+    verityUI: './src/webui/verityUI.ts',
   },
   mode: 'development',
   module: {

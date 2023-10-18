@@ -11,8 +11,8 @@ import { zwFieldDefinition } from '../app/zwFields';
 import { SubscriptionRequirement, ZwAnnotationEngine } from '../app/zwAnnotationEngine';
 import { makePost } from '../app/zwCubes';
 
-import { PostDisplay } from './PostDisplay';
-import { PeerDisplay } from './PeerDisplay';
+import { PostController } from './controller/postController';
+import { PeerController } from './controller/peerController';
 
 import { isBrowser } from 'browser-or-node';
 import sodium from 'libsodium-wrappers'
@@ -45,14 +45,14 @@ export class VerityUI {
   annotationEngine: ZwAnnotationEngine;
   identity: Identity = undefined;
 
-  postDisplay: PostDisplay = undefined;
-  peerDisplay: PeerDisplay = undefined;
+  postDisplay: PostController = undefined;
+  peerDisplay: PeerController = undefined;
 
 
   constructor(node: VerityNode) {
     this.node = node;
 
-    this.peerDisplay = new PeerDisplay(this);
+    this.peerDisplay = new PeerController(this.node.networkManager);
     this.peerDisplay.redisplayPeers();
   }
 
@@ -122,7 +122,7 @@ export class VerityUI {
       [],       // subscriptions don't play a role in this mode
       true,     // auto-learn MUCs to display authorship info if available
       true);    // allow anonymous posts
-    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
+    this.postDisplay = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
   navPostsWithAuthors() {
@@ -134,7 +134,7 @@ export class VerityUI {
       [],       // no subscriptions as they don't play a role in this mode
       true,     // auto-learn MUCs (posts associated with any Identity MUC are okay)
       false);   // do not allow anonymous posts
-    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
+    this.postDisplay = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
   navPostsSubscribedInTree() {
@@ -147,7 +147,7 @@ export class VerityUI {
       this.identity.subscriptionRecommendations,  // subscriptions
       true,      // auto-learn MUCs (to be able to display authors when available)
       false);    // do not allow anonymous posts
-    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
+    this.postDisplay = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
   navPostsSubscribedReplied(wotDepth: number = 0) {
@@ -162,7 +162,7 @@ export class VerityUI {
       this.identity.recursiveWebOfSubscriptions(wotDepth),  // subscriptions
       true,      // auto-learn MUCs (to be able to display authors when available)
       false);    // do not allow anonymous posts
-    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
+    this.postDisplay = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
   navPostsSubscribedStrict() {
@@ -175,7 +175,7 @@ export class VerityUI {
       this.identity.subscriptionRecommendations,  // subscriptions
       false,     // do no auto-learn MUCs (strictly only posts by subscribed will be displayed)
       false);    // do not allow anonymous posts
-    this.postDisplay = new PostDisplay(this.node.cubeStore, this.annotationEngine, this.identity);
+    this.postDisplay = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
   private navbarMarkActive(id: string) {

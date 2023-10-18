@@ -1,21 +1,40 @@
 import { ZwConfig } from "../../app/zwConfig";
 import { logger } from "../../core/logger";
-import { PostData } from "../PostDisplay";
+import { PostData } from "../controller/postController";
 
-export class PostView {
-  private cubelist: HTMLUListElement = (document.getElementById("cubelist") as HTMLUListElement);
+import { VerityView } from "../webUiDefinitions";
+
+export class PostView extends VerityView {
+  private postView: HTMLDivElement;
+  private postList: HTMLUListElement;
+
+  constructor(
+      private htmlTemplate: HTMLTemplateElement = document.getElementById(
+        "verityPostViewTemplate") as HTMLTemplateElement,
+      show: boolean = true
+  ){
+    super();
+    this.postView =
+      this.htmlTemplate.content.cloneNode(true) as HTMLDivElement;
+    this.postList = this.postView.querySelector(".verityPostList") as HTMLUListElement;
+    this.clearAllPosts();
+    if (show) this.show();
+  }
+
+  show() {
+    this.viewArea.replaceChildren(this.postView);
+  }
 
   clearAllPosts() {
-    this.cubelist.innerText='';
+    this.postList.innerText='';
   }
 
   displayPost(data: PostData): void {
     // Get the post template from HTML and clone it
     const container = this.getOrCreateContainer(data);
-    const template: HTMLTemplateElement =
-      document.getElementById("verityPostTemplate") as HTMLTemplateElement;
-    const li: HTMLLIElement =
-      template.content.firstElementChild.cloneNode(true) as HTMLLIElement;
+    const templateLi: HTMLLIElement =
+      this.htmlTemplate.content.querySelector(".verityPost") as HTMLLIElement;
+    const li: HTMLLIElement = templateLi.cloneNode(true) as HTMLLIElement;
     // save the display element to the PostData record
     data.displayElement = li;
     const form: HTMLFormElement =
@@ -116,7 +135,7 @@ export class PostView {
     // Is this a reply?
     if (!data.superior || !data.superior.displayElement) {
       // No, just display it top level.
-      return this.cubelist;
+      return this.postList;
     }
     // Does this post already have a reply list?
     let replylist: HTMLUListElement | null =

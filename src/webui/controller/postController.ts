@@ -1,14 +1,15 @@
-import { Cube, CubeKey } from "../core/cube";
-import { CubeInfo } from "../core/cubeInfo";
-import { CubeStore } from "../core/cubeStore";
+import { Cube, CubeKey } from "../../core/cube";
+import { CubeInfo } from "../../core/cubeInfo";
+import { CubeStore } from "../../core/cubeStore";
 
-import { Identity } from "../app/identity";
-import { ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "../app/zwFields";
-import { ZwAnnotationEngine } from "../app/zwAnnotationEngine";
+import { Identity } from "../../app/identity";
+import { ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "../../app/zwFields";
+import { ZwAnnotationEngine } from "../../app/zwAnnotationEngine";
 
-import { PostView } from "./view/PostView";
+import { VerityController } from "../webUiDefinitions";
+import { PostView } from "../view/postView";
 
-import { logger } from "../core/logger";
+import { logger } from "../../core/logger";
 
 import { Buffer } from 'buffer';
 import multiavatar from '@multiavatar/multiavatar'
@@ -35,7 +36,7 @@ export interface PostData {
 }
 
 /** This is the presenter class for viewing posts */
-export class PostDisplay {
+export class PostController extends VerityController {
   private displayedPosts: Map<string, PostData> = new Map();
   private cubeAuthorRedisplayTimer: NodeJS.Timeout = undefined;  // TODO replace, ugly.
 
@@ -43,8 +44,8 @@ export class PostDisplay {
       private cubeStore: CubeStore,
       private annotationEngine: ZwAnnotationEngine,
       private identity: Identity = undefined,
-      private view: PostView = new PostView()) {
-    this.view = new PostView();
+      private view = new PostView()) {
+    super();
     this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey)); // list cubes
     this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
     this.redisplayPosts();
