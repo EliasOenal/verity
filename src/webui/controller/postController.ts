@@ -37,6 +37,7 @@ export interface PostData {
 
 /** This is the presenter class for viewing posts */
 export class PostController extends VerityController {
+  declare view: PostView;
   private displayedPosts: Map<string, PostData> = new Map();
   private cubeAuthorRedisplayTimer: NodeJS.Timeout = undefined;  // TODO replace, ugly.
 
@@ -44,8 +45,8 @@ export class PostController extends VerityController {
       private cubeStore: CubeStore,
       private annotationEngine: ZwAnnotationEngine,
       private identity: Identity = undefined,
-      private view = new PostView()) {
-    super();
+      view = new PostView()) {
+    super(view);
     this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey)); // list cubes
     this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
     this.redisplayPosts();

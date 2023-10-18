@@ -1,22 +1,27 @@
 import { VerityError } from "../core/settings";
 
 export abstract class VerityController {
+  constructor(
+    public view: VerityView) {
+  }
 }
 
 export abstract class VerityView {
-  protected viewArea: HTMLElement;
+  protected renderedView: HTMLDivElement;
 
   constructor(
-    viewArea = document.getElementById("verityContentArea")
+    protected viewArea: HTMLElement = document.getElementById("verityContentArea")
   ) {
-    this.viewArea = viewArea;
+    if (!this.viewArea) throw new UiError("VerityView: Cannot create a view without a view area");
   }
 
   show() {
-    // to be implemented by subclass
+    this.viewArea.replaceChildren(this.renderedView);
   }
 
   shutdown() {
     // to be implemented by subclass, if needed
   }
 }
+
+class UiError extends VerityError { }

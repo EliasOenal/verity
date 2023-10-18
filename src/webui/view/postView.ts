@@ -5,7 +5,6 @@ import { PostData } from "../controller/postController";
 import { VerityView } from "../webUiDefinitions";
 
 export class PostView extends VerityView {
-  private postView: HTMLDivElement;
   private postList: HTMLUListElement;
 
   constructor(
@@ -14,15 +13,11 @@ export class PostView extends VerityView {
       show: boolean = true
   ){
     super();
-    this.postView =
+    this.renderedView =
       this.htmlTemplate.content.cloneNode(true) as HTMLDivElement;
-    this.postList = this.postView.querySelector(".verityPostList") as HTMLUListElement;
+    this.postList = this.renderedView.querySelector(".verityPostList") as HTMLUListElement;
     this.clearAllPosts();
     if (show) this.show();
-  }
-
-  show() {
-    this.viewArea.replaceChildren(this.postView);
   }
 
   clearAllPosts() {

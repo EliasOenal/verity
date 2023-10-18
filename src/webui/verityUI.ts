@@ -178,6 +178,10 @@ export class VerityUI {
     this.postDisplay = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
+  navPeers() {
+    this.peerDisplay.view.show();
+  }
+
   private navbarMarkActive(id: string) {
     for (const nav of document.getElementsByClassName("nav-item")) {
       if (nav.id == id) nav.classList.add("active");
