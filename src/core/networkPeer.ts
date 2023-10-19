@@ -549,7 +549,7 @@ export class NetworkPeer extends Peer {
             ret += ", addresses:\n";
             for (let i=0; i<this.addresses.length; i++) {
                 ret += ` ${i}) ${this.addresses[i].toString()}`;
-                if (i == this.primaryAddressIndex) ret += " (primary)\n";
+                if (i == this._primaryAddressIndex) ret += " (primary)\n";
                 else ret += '\n';
             }
         }

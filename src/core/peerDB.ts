@@ -160,13 +160,14 @@ export class Peer {
      * port. When they do, their server address should be marked as primary.
      * Will not implement this until we switch to WebRTC.
     */
-    protected primaryAddressIndex: number = undefined;
+    protected _primaryAddressIndex: number = undefined;
+    get primaryAddressIndex(): number { return this._primaryAddressIndex }
     /** Shortcut to get the primary address object */
-    get address() { return this.addresses[this.primaryAddressIndex]; }
+    get address() { return this.addresses[this._primaryAddressIndex]; }
     /** Shortcut to get the primary IP */
-    get ip() { return this.addresses[this.primaryAddressIndex].ip; }
+    get ip() { return this.addresses[this._primaryAddressIndex].ip; }
     /** Shortcut to get the primary port */
-    get port() { return this.addresses[this.primaryAddressIndex].port; }
+    get port() { return this.addresses[this._primaryAddressIndex].port; }
 
     /**
      * Unix timestamp showing when we last tried to initiate a connection to
@@ -186,7 +187,7 @@ export class Peer {
         if (address instanceof Array) this.addresses = address;
         else this.addresses = [new AddressAbstraction(address)];
         this._id = id;
-        this.primaryAddressIndex = 0;
+        this._primaryAddressIndex = 0;
     }
 
     /** Two peers are equal if they either have the same ID or have a common address. */
@@ -215,7 +216,7 @@ export class Peer {
                 alreadyExists = true;
                 if (makePrimary) {
                     logger.trace(`Peer ${this.toString()}: Setting existing address ${this.addresses[i]} primary`);
-                    this.primaryAddressIndex = i;
+                    this._primaryAddressIndex = i;
                 }
             }
         }
@@ -223,7 +224,7 @@ export class Peer {
             this.addresses.push(abstracted);
             if (makePrimary) {
                 logger.trace(`Peer ${this.toString()}: Setting newly added address ${abstracted} primary`);
-                this.primaryAddressIndex = this.addresses.length-1;
+                this._primaryAddressIndex = this.addresses.length-1;
             }
         }
         return !alreadyExists;
@@ -252,7 +253,7 @@ export class Peer {
             ret += ", addresses:\n";
             for (let i=0; i<this.addresses.length; i++) {
                 ret += ` ${i}) ${this.addresses[i].toString()}`;
-                if (i == this.primaryAddressIndex) ret += " (primary)\n";
+                if (i == this._primaryAddressIndex) ret += " (primary)\n";
                 else ret += '\n';
             }
         }

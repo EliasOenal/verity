@@ -38,12 +38,8 @@ export class PeerController extends VerityController {
     if (!peer.id) return;  // this should never have been called for non-verified peers
     // Peer already displayed?
     let li: HTMLLIElement = this.displayedPeers.get(peer.idString);
-    if (!li) {
-      li = this.view.newPeerEntry(peer);
-      this.displayedPeers.set(peer.idString, li);
-    }
-    // Display data, then show this peer container
-    this.view.redrawPeerData(peer, li);
+    li = this.view.displayPeer(peer, li);
+    this.displayedPeers.set(peer.idString, li);
   }
 
   public undisplayPeer(idString: string): void {

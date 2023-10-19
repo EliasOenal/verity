@@ -14,14 +14,14 @@ export class PostView extends VerityView {
   ){
     super();
     this.renderedView =
-      this.htmlTemplate.content.cloneNode(true) as HTMLDivElement;
+      this.htmlTemplate.content.firstElementChild.cloneNode(true) as HTMLElement;
     this.postList = this.renderedView.querySelector(".verityPostList") as HTMLUListElement;
-    this.clearAllPosts();
+    this.clearAll();
     if (show) this.show();
   }
 
-  clearAllPosts() {
-    this.postList.innerText='';
+  clearAll() {
+    this.postList.replaceChildren();
   }
 
   displayPost(data: PostData): void {

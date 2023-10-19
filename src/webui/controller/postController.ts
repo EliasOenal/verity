@@ -75,7 +75,7 @@ export class PostController extends VerityController {
    */
   clearAllPosts(): void {
     this.displayedPosts.clear();
-    this.view.clearAllPosts();
+    this.view.clearAll();
   }
 
   // Show all new cubes that are displayable.
