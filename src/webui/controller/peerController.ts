@@ -20,6 +20,7 @@ export class PeerController extends VerityController {
     this.networkManager.on('peeronline', (peer) => this.redisplayPeers());
     this.networkManager.on('updatepeer', (peer) => this.redisplayPeers());
     this.networkManager.on('peerclosed', (peer) => this.redisplayPeers());
+    this.redisplayPeers();
   }
 
   redisplayPeers(): void {

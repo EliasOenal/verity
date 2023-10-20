@@ -81,7 +81,8 @@ class VerityCmdClient {
             type: cmd.array(cmd.string),
             long: "peer",
             short: 'p',
-            description: "Initially connect to this peer"
+            description: "Initially connect to this peer",
+            defaultValue: () => undefined,
           }),
           tracker: cmd.flag({
             type: cmd.boolean,
@@ -96,38 +97,41 @@ class VerityCmdClient {
             defaultValue: () => false
           })
         },
-        handler: ({ ws, webrtc: libp2p, peer, tracker, nopersist }) => {
+        handler: ({ ws, libp2p, peer, tracker, nopersist }) => {
           let servers = new Map();
-          // use defaults if no options specified
-          if (!ws && !libp2p && !peer.length && !tracker && !nopersist) {
+          let peers: AddressAbstraction[] = [];
+          if (!ws && !libp2p && !peer && !tracker && !nopersist) {
+            // use defaults if no options specified
             logger.info("Note: Will start with default settings as you did not specify any command line options. Use --help for options.")
+            peers = initialPeers;
             servers.set(SupportedTransports.ws, Settings.DEFAULT_WS_PORT);
             servers.set(SupportedTransports.libp2p, Settings.DEFAULT_LIBP2P_PORT);
             // default initial peers already specified above
             tracker = true;
             nopersist = false;
           } else {
+            // Print useful warnings in case of strange config choices
             if (!ws && !libp2p) {
               logger.warn("Note: You have started this node without any of --websocketport and --webrtcport. This node will not be able to receive any incoming connections.");
             }
-            if (!peer.length && !tracker) {
+            if (!peer && !tracker) {
               logger.warn("Note: You have started this node without any of --peer and --tracker. I will still start up, but make no effort to connect to anybody else. Your exprience might be quite limited.")
             }
-            if (libp2p.length) {
+            // Apply config
+            if (libp2p) {
               servers.set(SupportedTransports.libp2p, libp2p);
             }
             if (ws) servers.set(SupportedTransports.ws, ws);
-            if (peer.length) {
-              initialPeers = [];
+            if (peer) {
               for (const onepeer of peer) {
                 const addr = new AddressAbstraction(onepeer);
-                initialPeers.push(addr);
+                peers.push(addr);
               }
             }
             if (!ws) tracker = false;  // can't use Torrent trackers w/o native server capability
             if (nopersist) logger.warn("Note: Persistance has been turned off. All cubes will be gone once you shut down this instance, unless of course they have been transmitted to instances with persistance turned on.");
           }
-          this.node = new VerityNode(servers, initialPeers,
+          this.node = new VerityNode(servers, peers,
             {
               announceToTorrentTrackers: tracker,
               enableCubePersistance: !nopersist,

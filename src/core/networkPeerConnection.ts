@@ -180,14 +180,14 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
     if (this._ws?.url?.length) ret = `WebSocketPeerConnection to ${this._ws.url}`;
     else ret = "Incoming WebSocketPeerConnection"
     if (isNode) {  // remote IP and port not available in the browser
-      ret += ` (${(this._ws as any)._socket.remoteAddress}:${(this._ws as any)._socket.remotePort})`;
+      ret += ` (${(this._ws as any)?._socket?.remoteAddress}:${(this._ws as any)?._socket?.remotePort})`;
     }
     return ret;
   }
   get addressString(): string {
     let ret: string = "";
     if ('socket' in this._ws && this._ws.socket) {  // will only work on NodeJS; remote IP and port not available in the browser
-      ret += `${(this._ws as any)._socket.remoteAddress}:${(this._ws as any)._socket.remotePort}) `;
+      ret += `${(this._ws as any)?._socket?.remoteAddress}:${(this._ws as any)?._socket?.remotePort}) `;
     }
     if (this._ws?.url?.length) ret += `${this._ws.url}`;
     if (ret.length) return ret;
@@ -214,6 +214,7 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
       this.conn = connParam.connection;
       this.stream = connParam.stream;
       if (this.ready()) this.emit("ready");
+      logger.trace(this.toString() + " created on existing conn");
       this.handleStreams();
     } else {  // "conn_param instanceof Multiaddr" -- I really don't want to manually check if this correctly implements Multiaddr
       this.createConn(connParam);
@@ -303,24 +304,24 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
     logger.trace("Libp2pPeerConnection: Creating new connection to " + addr.toString());
     try {
       this.conn = await this.server.node.dial(addr);
-      if (this.conn.transient) {
-        logger.trace(`Libp2pPeerConnection to ${addr.toString()}: Connection is transient. Waiting up to 10 seconds for it to upgrade.`);
-        // TODO HACKHACK: This is obviously the most ridiculous hack ever.
-        // Apparently, there once upon a time was a peer:update event you could
-        // listen to, but it doesn not seem to exist anymore.
-        // I don't understand libp2p.
-        for (let i = 0; i < 100; i++) {
-          if (!this.conn.transient) {
-              break;
-          }
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        if (this.conn.transient) {
-          logger.error(`Libp2pPeerConnection to ${addr.toString()}: Connection still transient after 10 seconds. Giving up, closing.`)
-          this.close();
-          return;
-        }
-      }
+      // if (this.conn.transient) {
+      //   logger.trace(`Libp2pPeerConnection to ${addr.toString()}: Connection is transient. Waiting up to 10 seconds for it to upgrade.`);
+      //   // TODO HACKHACK: This is obviously the most ridiculous hack ever.
+      //   // Apparently, there once upon a time was a peer:update event you could
+      //   // listen to, but it doesn not seem to exist anymore.
+      //   // I don't understand libp2p.
+      //   for (let i = 0; i < 100; i++) {
+      //     if (!this.conn.transient) {
+      //         break;
+      //     }
+      //     await new Promise(resolve => setTimeout(resolve, 100));
+      //   }
+      //   if (this.conn.transient) {
+      //     logger.error(`Libp2pPeerConnection to ${addr.toString()}: Connection still transient after 10 seconds. Giving up, closing.`)
+      //     this.close();
+      //     return;
+      //   }
+      // }
       this.stream = await this.conn.newStream("/verity/1.0.0");
       // this.stream = await this.server.node.dialProtocol(addr, "verity/1.0.0");
       if (this.ready()) this.emit("ready");

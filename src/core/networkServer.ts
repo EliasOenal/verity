@@ -16,7 +16,7 @@ import { createServer } from 'https';
 import { createLibp2p } from 'libp2p';
 import { Libp2p } from 'libp2p';
 import { webSockets } from '@libp2p/websockets'
-import { webRTC } from '@libp2p/webrtc'
+import { webRTC, webRTCDirect } from '@libp2p/webrtc'
 import { plaintext } from 'libp2p/insecure'
 import { noise } from '@chainsafe/libp2p-noise'
 import { circuitRelayTransport, circuitRelayServer } from 'libp2p/circuit-relay'
@@ -151,15 +151,78 @@ export class Libp2pServer extends NetworkServer {
       if (!isNaN(listenSpec as number)) {  // if listen_param is a port number
         this.listen = this.listen.concat([
           `/ip4/0.0.0.0/tcp/${listen_param}/wss`,  // for relay... or WebSocket via libp2p
-          `/ip6/::1/tcp/${listen_param}/ws`,  // configuring IPv6 always throws "Listener not ready"... so no IPv6 I guess
+          // `/ip6/::1/tcp/${listen_param}/ws`,  // configuring IPv6 always throws "Listener not ready"... so no IPv6 I guess
           `/ip4/0.0.0.0/udp/${listen_param}/webrtc`,
-          `/ip6/::1/udp/${listen_param}/webrtc`,
+          // `/ip6/::1/udp/${listen_param}/webrtc`,
         ]);
       } else if (!(listen_param instanceof Array)) {
         this.listen.push(listen_param as string);
       }
     }
     if (!this.listen.includes("/webrtc")) this.listen.push("/webrtc");
+  }
+
+  async start(): Promise<void> {
+    logger.trace("Libp2pServer: Starting up requesting these listeners: " + this.listen);
+    let httpsServer, libp2pWebSocketTransport;
+    if (isNode) {
+      httpsServer = createServer({
+        cert: readFileSync('./cert.pem'),
+        key: readFileSync('./key.pem'),
+      });
+      libp2pWebSocketTransport = webSockets({
+        filter: filters.all,
+        server: httpsServer,
+      });
+    } else {
+      libp2pWebSocketTransport = webSockets({
+        filter: filters.all,
+      });
+    }
+    this._node = await createLibp2p({
+      addresses: {
+        listen: this.listen,
+      },
+      transports: [
+        libp2pWebSocketTransport,
+        webRTC({
+          rtcConfiguration: {
+            iceServers:[{
+              urls: [
+                'stun:stun.l.google.com:19302',
+                'stun:global.stun.twilio.com:3478'
+              ]
+            }]
+          }
+        }),
+        webRTCDirect(),
+        circuitRelayTransport({ discoverRelays: 5 }),
+      ],
+      // connectionEncryption: [plaintext()],
+      connectionEncryption: [noise()],
+      streamMuxers: [yamux()],
+      services: {
+        identify: identifyService(),  // what does that do? do we even need that?
+        relay: circuitRelayServer(),
+      },
+      connectionGater: {
+        denyDialMultiaddr: async() => false,
+      },
+      connectionManager: {
+        minConnections: 0,  // we manage creating new peer connections ourselves
+      }
+    });
+    await this._node.handle(
+      "/verity/1.0.0",
+      (incomingStreamData: IncomingStreamData) => this.handleIncomingPeer(incomingStreamData));
+    logger.info("Libp2pServer: Listening to Libp2p multiaddrs: " + this._node.getMultiaddrs().toString());
+    // logger.info("Transports are: " + this.server.components.transportManager.getTransports());
+  }
+
+  shutdown(): Promise<void> {
+    // TODO: Something's still fishy here...
+    this.node.unhandle("/verity/1.0.0");
+    return this.node.stop() as Promise<void>;
   }
 
   toString(): string {
@@ -196,59 +259,6 @@ export class Libp2pServer extends NetworkServer {
       ret += "Lib2pServer (not running)";
     }
     return ret;
-  }
-
-  async start(): Promise<void> {
-    // logger.error(this.listen)
-    let httpsServer, libp2pWebSocket;
-    if (isNode) {
-      httpsServer = createServer({
-        cert: readFileSync('./cert.pem'),
-        key: readFileSync('./key.pem'),
-      });
-      libp2pWebSocket = webSockets({
-        filter: filters.all,
-        server: httpsServer,
-      });
-    } else {
-      libp2pWebSocket = webSockets({
-        filter: filters.all,
-      });
-    }
-    this._node = await createLibp2p({
-      addresses: {
-        listen: this.listen,
-      },
-      transports: [
-        libp2pWebSocket,
-        webRTC(),
-        circuitRelayTransport({ discoverRelays: 5 }),
-      ],
-      connectionEncryption: [plaintext()],
-      // connectionEncryption: [noise()],
-      streamMuxers: [yamux()],
-      services: {
-        identify: identifyService(),  // what does that do? do we even need that?
-        relay: circuitRelayServer(),
-      },
-      connectionGater: {
-        denyDialMultiaddr: async() => false,
-      },
-      connectionManager: {
-        minConnections: 0,  // we manage creating new peer connections ourselves
-      }
-    });
-    await this._node.handle(
-      "/verity/1.0.0",
-      (incomingStreamData: IncomingStreamData) => this.handleIncomingPeer(incomingStreamData));
-    logger.info("Libp2pServer: Listening to Libp2p multiaddrs: " + this._node.getMultiaddrs().toString());
-    // logger.info("Transports are: " + this.server.components.transportManager.getTransports());
-  }
-
-  shutdown(): Promise<void> {
-    // TODO: Something's still fishy here...
-    this.node.unhandle("/verity/1.0.0");
-    return this.node.stop() as Promise<void>;
   }
 
   private handleIncomingPeer(incomingStreamData: IncomingStreamData): void {

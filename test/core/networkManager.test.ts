@@ -555,10 +555,13 @@ describe('networkManager', () => {
         it.skip('should not exchange peers if disabled', async () => {
             // TODO implement
         });
+        it.skip('should fail gracefully when trying to connect to an invalid address', async () => {
+            // TODO implement
+        });
     });  // WebSockets and general functionality
 
     describe('libp2p connections', () => {
-        it('should correctly open and close connections', async() => {
+        it.only('should correctly open and close connections', async() => {
             const server = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                 new PeerDB(),
@@ -716,6 +719,10 @@ describe('networkManager', () => {
             await browser1.shutdown();
             await browser2.shutdown();
         }, 100000);
+
+        it.skip('should fail gracefully when trying to connect to an invalid address', async () => {
+            // TODO implement
+        });
 
         // TODO write more tests
     });

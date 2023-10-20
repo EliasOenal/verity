@@ -182,7 +182,7 @@ export class NetworkManager extends EventEmitter {
         // Don't do anything if we're already in the process of connecting new peers
         // or if we're shutting down.
         if (!existingRun && this.isConnectingPeers) {
-            logger.trace("NetworkManager: Somebody called connectPeers(), but this is just not the time.");
+            // logger.trace("NetworkManager: Somebody called connectPeers(), but this is just not the time.");
             return;
         }
         clearInterval(this.connectPeersInterval);  // will re-set if necessary
@@ -192,7 +192,7 @@ export class NetworkManager extends EventEmitter {
                 Settings.MAXIMUM_CONNECTIONS) {
             const connectTo: Peer = this._peerDB.selectPeerToConnect(
                 this.outgoingPeers.concat(this.incomingPeers));  // I'm almost certain this is not efficient.
-            logger.trace(`NetworkManager: connectPeers() running, next up is ${connectTo?.toString()}`);
+            // logger.trace(`NetworkManager: connectPeers() running, next up is ${connectTo?.toString()}`);
             if (connectTo){
                 // Suitable peer found, start connecting.
                 // Return here after a short while to connect further peers

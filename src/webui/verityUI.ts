@@ -38,7 +38,7 @@ export class VerityUI {
     await ui.node.cubeStore.readyPromise;
     await ui.initializeIdentity();
     // ui.navPostsWithAuthors();
-    // ui.navPeers();
+    ui.navPeers();
     return ui;
   }
 
@@ -52,9 +52,7 @@ export class VerityUI {
 
   constructor(node: VerityNode) {
     this.node = node;
-
-    this.peerController = new PeerController(this.node.networkManager);
-    this.peerController.redisplayPeers();
+    // this.peerController = new PeerController(this.node.networkManager);
   }
 
   shutdown() {
@@ -180,7 +178,7 @@ export class VerityUI {
   }
 
   navPeers() {
-    this.peerController.view.show();
+    this.peerController = new PeerController(this.node.networkManager);
     this.navbarMarkActive("navPeers");
   }
 
@@ -198,8 +196,8 @@ async function webmain() {
 
   // default params
   const initialPeers = [
-    // new AddressAbstraction("verity.hahn.mt:1984"),
-    // new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss/"),
+    new AddressAbstraction("verity.hahn.mt:1984"),
+    new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss/"),
     // new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/wss"),
     // new AddressAbstraction("verity.hahn.mt:1985"),
     // new AddressAbstraction("verity.hahn.mt:1986"),
