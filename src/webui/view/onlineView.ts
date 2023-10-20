@@ -1,0 +1,31 @@
+import { VerityView } from "../webUiDefinitions";
+
+export class OnlineView extends VerityView {
+  constructor(
+     viewArea: HTMLElement = document.getElementById("verityOnlineStatusArea"),
+     show: boolean = true,
+  ){
+    super(viewArea);
+    if (show) this.show();
+  }
+
+  showOnline(): void {
+    this.showStatus("Online", "greenDot");
+  }
+
+  showOffline(): void {
+    this.showStatus("Offline", "redDot");
+  }
+
+  private showStatus(text: string, dot: string) {
+    const renderedView: HTMLElement = document.createElement('a');
+    renderedView.setAttribute("class", "verityOnlineStatus");
+    renderedView.setAttribute("href", "#");
+    renderedView.setAttribute("onclick", "window.verityUI.navPeers()");
+    const greenDot: HTMLElement = document.createElement('span');
+    greenDot.setAttribute("class", dot);
+    renderedView.appendChild(greenDot);
+    renderedView.appendChild(document.createTextNode(text));
+    this.viewArea.replaceChildren(renderedView);
+  }
+}

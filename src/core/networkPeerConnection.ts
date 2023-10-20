@@ -290,7 +290,7 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
             // connecting to a relay-capable server node, in which case we will
             // now learn our connectable WebRTC address used for browser-to-browser
             // connections.
-            logger.trace("Libp2pPeerConnection: Just wanted to remind you that I'm listening with " + this.server.toString());
+            // logger.trace("Libp2pPeerConnection: Just wanted to remind you that I'm listening with " + this.server.toString());
             this.server.addressChange();  // HACKHACK: this is a lie, they might not even have changed
           }
         }

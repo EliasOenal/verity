@@ -37,12 +37,10 @@ export class VerityUI {
     const ui: VerityUI = new VerityUI(node);
     await ui.node.cubeStore.readyPromise;
     await ui.initializeIdentity();
-    // ui.navPostsWithAuthors();
-    ui.navPeers();
+    ui.navPostsWithAuthors();
     return ui;
   }
 
-  node: VerityNode = undefined;
   annotationEngine: ZwAnnotationEngine;
   identity: Identity = undefined;
 
@@ -50,9 +48,10 @@ export class VerityUI {
   peerController: PeerController = undefined;
 
 
-  constructor(node: VerityNode) {
-    this.node = node;
-    // this.peerController = new PeerController(this.node.networkManager);
+  constructor(
+      readonly node: VerityNode
+    ){
+    this.peerController = new PeerController(this.node.networkManager);
   }
 
   shutdown() {
@@ -178,7 +177,7 @@ export class VerityUI {
   }
 
   navPeers() {
-    this.peerController = new PeerController(this.node.networkManager);
+    this.peerController.view.show();
     this.navbarMarkActive("navPeers");
   }
 

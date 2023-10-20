@@ -1,12 +1,11 @@
-import { VerityError } from "../../core/settings";
-
-import { PeerView } from "../view/peerView"
 import { NetworkManager } from "../../core/networkManager";
 import { NetworkPeer } from "../../core/networkPeer";
 import { AddressAbstraction, Peer } from "../../core/peerDB";
 import { logger } from "../../core/logger";
 
 import { VerityController } from "../webUiDefinitions";
+import { OnlineView } from "../view/onlineView";
+import { PeerView } from "../view/peerView"
 
 export class PeerController extends VerityController {
   declare view: PeerView;
@@ -14,13 +13,19 @@ export class PeerController extends VerityController {
 
   constructor(
       private networkManager: NetworkManager,
-      view = new PeerView()
+      view = new PeerView(),
+      private onlineView = new OnlineView(),
   ){
     super(view);
     this.networkManager.on('peeronline', (peer) => this.redisplayPeers());
     this.networkManager.on('updatepeer', (peer) => this.redisplayPeers());
     this.networkManager.on('peerclosed', (peer) => this.redisplayPeers());
     this.redisplayPeers();
+
+    this.networkManager.on('online', () => this.onlineView.showOnline());
+    this.networkManager.on('offline', () => this.onlineView.showOffline());
+    if (this.networkManager.online) this.onlineView.showOnline();
+    else this.onlineView.showOffline();
   }
 
   redisplayPeers(): void {
