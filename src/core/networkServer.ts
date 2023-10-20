@@ -15,6 +15,7 @@ import { readFileSync } from 'fs';
 import { createServer } from 'https';
 import { createLibp2p } from 'libp2p';
 import { Libp2p } from 'libp2p';
+import { Libp2pNode } from 'libp2p/libp2p'
 import { webSockets } from '@libp2p/websockets'
 import { webRTC, webRTCDirect } from '@libp2p/webrtc'
 import { plaintext } from 'libp2p/insecure'
@@ -135,7 +136,7 @@ export class WebSocketServer extends NetworkServer {
 
 
 export class Libp2pServer extends NetworkServer {
-  private _node: Libp2p;  // libp2p types are much to complicated for my humble brain
+  private _node: Libp2pNode;  // libp2p types are much to complicated for my humble brain
   get node() { return this._node }
   private listen: string[] = [];
 
@@ -155,8 +156,8 @@ export class Libp2pServer extends NetworkServer {
           `/ip4/0.0.0.0/udp/${listen_param}/webrtc`,
           // `/ip6/::1/udp/${listen_param}/webrtc`,
         ]);
-      } else if (!(listen_param instanceof Array)) {
-        this.listen.push(listen_param as string);
+      } else {
+        this.listen.push(listenSpec as string);
       }
     }
     if (!this.listen.includes("/webrtc")) this.listen.push("/webrtc");
@@ -211,7 +212,7 @@ export class Libp2pServer extends NetworkServer {
       connectionManager: {
         minConnections: 0,  // we manage creating new peer connections ourselves
       }
-    });
+    }) as unknown as Libp2pNode;  // it's actually the class the lib creates, believe me
     await this._node.handle(
       "/verity/1.0.0",
       (incomingStreamData: IncomingStreamData) => this.handleIncomingPeer(incomingStreamData));
@@ -289,7 +290,10 @@ export class Libp2pServer extends NetworkServer {
       // TODO generalize, we *should* actually register relay addresses with
       // multiple relays and publish all of them
       // TODO: Unset this.dialableAddress when the relay node connection closes
-      // TODO: Send this.dialableAddress to any new peer we connect to in the future (currently only sending to existing peers)
+      // TODO: This should take observed addresses (i.e. reported by peers)
+      // into account for NAT traversal (this.node.components.addressManager.addObservedAddr())
+      // TODO FIXME: This makes us prefer relayed connections even when a direct
+      // route might be available.
     }
     for (const multiaddr of this.node.getMultiaddrs()) {
       const protos: string[] = multiaddr.protoNames();
