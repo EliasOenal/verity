@@ -24,6 +24,7 @@ export interface NetworkManagerOptions {
     lightNode?: boolean;
     autoConnect?: boolean;
     peerExchange?: boolean;
+    publicAddress?: string;
 }
 
 /**
@@ -97,13 +98,13 @@ export class NetworkManager extends EventEmitter {
         for (const [type, param] of servers.entries()) {
             if (type == SupportedTransports.ws) {
                 if (isNode) {
-                    this.servers.push(new WebSocketServer(this, param));
+                    this.servers.push(new WebSocketServer(this, param, options));
                 } else {
                     logger.error("NetworkManager: WebSocketServers are only supported on NodeJS.");
                 }
             }
             if (type == SupportedTransports.libp2p) {
-                this.servers.push(new Libp2pServer(this, param));
+                this.servers.push(new Libp2pServer(this, param, options));
             }
         }
 

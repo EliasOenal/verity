@@ -40,7 +40,7 @@ class VerityCmdClient {
     }
 
     // Default initial peers to use if none are supplied as command line options:
-    let initialPeers: AddressAbstraction[] = [
+    let defaultInitialPeers: AddressAbstraction[] = [
         new AddressAbstraction("verity.hahn.mt:1984"),
         new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss"),
         // new AddressAbstraction("verity.hahn.mt:1985"),
@@ -95,18 +95,24 @@ class VerityCmdClient {
             long: "no-persist",
             description: "Turn off persistance. All cubes will be gone once you shut down this instance, unless of course they have been transmitted to instances with persistance turned on.",
             defaultValue: () => false
+          }),
+          pubaddr: cmd.option({
+            type: cmd.string,
+            long: "pubaddr",
+            env: "pubaddr",
+            description: "Specify this node's publicly reachable address, useful if behind NAT.",
+            defaultValue: () => undefined,
           })
         },
-        handler: ({ ws, libp2p, peer, tracker, nopersist }) => {
+        handler: ({ ws, libp2p, peer, tracker, nopersist, pubaddr }) => {
           let servers = new Map();
           let peers: AddressAbstraction[] = [];
-          if (!ws && !libp2p && !peer && !tracker && !nopersist) {
+          if (!ws && !libp2p && !peer && !tracker && !nopersist && !pubaddr) {
             // use defaults if no options specified
             logger.info("Note: Will start with default settings as you did not specify any command line options. Use --help for options.")
-            peers = initialPeers;
+            peers = defaultInitialPeers;
             servers.set(SupportedTransports.ws, Settings.DEFAULT_WS_PORT);
             servers.set(SupportedTransports.libp2p, Settings.DEFAULT_LIBP2P_PORT);
-            // default initial peers already specified above
             tracker = true;
             nopersist = false;
           } else {
@@ -138,6 +144,7 @@ class VerityCmdClient {
               autoConnect: true,
               lightNode: false,
               peerExchange: true,
+              publicAddress: pubaddr,
             });
           this.node.onlinePromise.then(() => onlinePromiseResolve(undefined));
         },
@@ -145,7 +152,7 @@ class VerityCmdClient {
       cmd.run(parse, process.argv.slice(2));
     } else {  // if this is not NodeJS, which is really strange indeed
       this.node = new VerityNode(
-        new Map(), initialPeers,
+        new Map(), defaultInitialPeers,
         {
           announceToTorrentTrackers: false,
           autoConnect: true,

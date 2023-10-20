@@ -1,7 +1,7 @@
 import { VerityError } from "./settings";
 import { NetworkPeer } from "./networkPeer";
 import { AddressAbstraction, WebSocketAddress } from "./peerDB";
-import { NetworkManager } from "./networkManager";
+import { NetworkManager, NetworkManagerOptions } from "./networkManager";
 import { WebSocketPeerConnection, Libp2pPeerConnection } from "./networkPeerConnection";
 
 import { logger } from "./logger";
@@ -56,7 +56,8 @@ export class WebSocketServer extends NetworkServer {
   private server: WebSocket.Server = undefined;
   constructor(
       networkManager: NetworkManager,
-      private port: number = 1984)
+      private port: number = 1984,
+      private options: NetworkManagerOptions = {})
   {
     super(networkManager);
   }
@@ -88,8 +89,12 @@ export class WebSocketServer extends NetworkServer {
       // with obviously does.
       // Therefore, addresses starting in ":::" are just handled as a special
       // case at the receiving node.
-      // @ts-ignore This will only ever be called on NodeJS and it's correct for the NodeJS ws library
-      this.dialableAddress = new AddressAbstraction(new WebSocketAddress(this.server.address().address, this.port));
+      if ('publicAddress' in this.options) {
+        this.dialableAddress = new AddressAbstraction(new WebSocketAddress(this.options.publicAddress, this.port));
+      } else {
+        // @ts-ignore This will only ever be called on NodeJS and it's correct for the NodeJS ws library
+        this.dialableAddress = new AddressAbstraction(new WebSocketAddress(this.server.address().address, this.port));
+      }
       logger.trace('WebSocketServer: stated on ' + this.dialableAddress.toString());
 
       // Handle incoming connections
@@ -142,7 +147,8 @@ export class Libp2pServer extends NetworkServer {
 
   constructor(
       networkManager: NetworkManager,
-      private listen_param: string[] | number[] | string | number = 1985)
+      private listen_param: string[] | number[] | string | number = 1985,
+      private options: NetworkManagerOptions = {})
   {
     super(networkManager);
 
@@ -164,7 +170,6 @@ export class Libp2pServer extends NetworkServer {
   }
 
   async start(): Promise<void> {
-    logger.trace("Libp2pServer: Starting up requesting these listeners: " + this.listen);
     let httpsServer, libp2pWebSocketTransport;
     if (isNode) {
       httpsServer = createServer({
@@ -180,10 +185,18 @@ export class Libp2pServer extends NetworkServer {
         filter: filters.all,
       });
     }
+    const addresses = {
+      listen: this.listen,
+    };
+    logger.trace("Libp2pServer: publicAddress " + this.options['publicAddress']);
+    if ('publicAddress' in this.options) {
+      // TODO HACKHACK actually parse the provided address and combine them with the provided listeners
+      addresses['announce'] = [`/dns4/${this.options.publicAddress}/tcp/1985/wss/`];
+    }
+
+    logger.trace("Libp2pServer: Starting up requesting listeners " +  addresses.listen + " and announce " + addresses['announce']);
     this._node = await createLibp2p({
-      addresses: {
-        listen: this.listen,
-      },
+      addresses: addresses,
       transports: [
         libp2pWebSocketTransport,
         webRTC({
