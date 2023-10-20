@@ -3,6 +3,7 @@ import { VerityError } from "../../core/settings";
 import { PeerView } from "../view/peerView"
 import { NetworkManager } from "../../core/networkManager";
 import { NetworkPeer } from "../../core/networkPeer";
+import { AddressAbstraction, Peer } from "../../core/peerDB";
 import { logger } from "../../core/logger";
 
 import { VerityController } from "../webUiDefinitions";
@@ -21,7 +22,7 @@ export class PeerController extends VerityController {
     this.networkManager.on('peerclosed', (peer) => this.redisplayPeers());
   }
 
-  public redisplayPeers(): void {
+  redisplayPeers(): void {
     const peersUnaccountedFor: Map<string, HTMLLIElement> = new Map(this.displayedPeers);
     for (const peer of this.networkManager.incomingPeers.concat(
                        this.networkManager.outgoingPeers)
@@ -34,7 +35,7 @@ export class PeerController extends VerityController {
     }
   }
 
-  public displayPeer(peer: NetworkPeer): void {
+  displayPeer(peer: NetworkPeer): void {
     if (!peer.id) return;  // this should never have been called for non-verified peers
     // Peer already displayed?
     let li: HTMLLIElement = this.displayedPeers.get(peer.idString);
@@ -42,10 +43,24 @@ export class PeerController extends VerityController {
     this.displayedPeers.set(peer.idString, li);
   }
 
-  public undisplayPeer(idString: string): void {
+  undisplayPeer(idString: string): void {
     // logger.trace("PeerDisplay: Undisplaying peer " + idString);
     const peerli = this.displayedPeers.get(idString);
     this.view.undisplayPeer(peerli);
     this.displayedPeers.delete(idString);
+  }
+
+  connectPeer(form: HTMLFormElement) {
+    const input: HTMLInputElement = form.querySelector('.verityNewPeerInput');
+    const addr: AddressAbstraction = AddressAbstraction.CreateAddress(input.value);
+    if (addr) {
+      input.classList.remove("bg-danger");
+      input.value = '';
+      const peer = new Peer(addr);
+      this.networkManager.connect(peer);
+    } else {
+      input.classList.add("bg-danger");
+      return;
+    }
   }
 }

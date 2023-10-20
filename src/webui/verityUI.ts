@@ -198,9 +198,9 @@ async function webmain() {
 
   // default params
   const initialPeers = [
-    new AddressAbstraction("verity.hahn.mt:1984"),
-    new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss/"),
-    new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/wss"),
+    // new AddressAbstraction("verity.hahn.mt:1984"),
+    // new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss/"),
+    // new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/wss"),
     // new AddressAbstraction("verity.hahn.mt:1985"),
     // new AddressAbstraction("verity.hahn.mt:1986"),
     // new AddressAbstraction("132.145.174.233:1984"),
@@ -223,11 +223,11 @@ async function webmain() {
   await node.cubeStoreReadyPromise;
   logger.info("Cube Store is ready");
   const verityUI = await VerityUI.Construct(node);
-  await node.onlinePromise;
-  logger.info("Node is online");
-
   // @ts-ignore TypeScript does not like us creating extra window attributes
   window.verityUI = verityUI;
+
+  await node.onlinePromise;
+  logger.info("Node is online");
 
   // Shut node down cleanly when user exits
   // @ts-ignore TypeScript does not like us creating extra window attributes
