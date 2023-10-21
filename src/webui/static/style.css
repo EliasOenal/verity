@@ -110,17 +110,21 @@ body {
 
 /* Online/offline view */
 .greenDot {
+  position: relative;
+  top: 0.25ex;
   display: inline-block;
-  width: 1rem;
-  height: 1rem;
+  width: 2ex;
+  height: 2ex;
   background: #00FF00;
   border-radius: 50%;
   margin-right: 0.5rem;
 }
 .redDot {
+  position: relative;
+  top: 0.25ex;
   display: inline-block;
-  width: 1rem;
-  height: 1rem;
+  width: 2ex;
+  height: 2ex;
   background: #FF0000;
   border-radius: 50%;
   margin-right: 0.5rem;
