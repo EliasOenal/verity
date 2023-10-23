@@ -1,7 +1,5 @@
 import { Cube, CubeKey } from './cube'
 import { CubeType } from './cubeDefinitions';
-import { CubeRelationship, CubeRelationshipType } from './cubeFields';
-import { logger } from './logger';
 
 /**
  * @interface CubeMeta is a restricted view on CubeInfo containing metadata only.

@@ -1,15 +1,16 @@
+import { Settings, VerityError } from '../settings';
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
-import { Settings, VerityError } from './settings';
 
-import { CubeStore } from './cubeStore';
-import { CubeInfo, CubeMeta } from './cubeInfo';
-import { WebSocketAddress, Peer, AddressAbstraction } from './peerDB';
+import { CubeStore } from '../cube/cubeStore';
+import { CubeInfo, CubeMeta } from '../cube/cubeInfo';
+import { WebSocketAddress, AddressAbstraction } from '../peering/addressing';
+import { Peer } from '../peering/peer';
 import { NetworkManager } from "./networkManager";
-import { CubeType } from './cubeDefinitions';
-import { cubeContest } from './cubeUtil';
+import { CubeType } from '../cube/cubeDefinitions';
+import { cubeContest } from '../cube/cubeUtil';
 import { NetworkPeerConnection } from './networkPeerConnection';
 
-import { logger } from './logger';
+import { logger } from '../logger';
 
 import WebSocket from 'isomorphic-ws';
 import { Buffer } from 'buffer';
@@ -62,7 +63,6 @@ export class NetworkPeer extends Peer {
     private unsentCubeMeta: Set<CubeMeta> = undefined;
     private unsentPeers: Peer[] = undefined;  // TODO this should probably be a Set instead
 
-    private _conn: NetworkPeerConnection = undefined;
     get conn(): NetworkPeerConnection { return this._conn }
 
     private networkTimeout: NodeJS.Timeout = undefined;
@@ -72,18 +72,13 @@ export class NetworkPeer extends Peer {
             address: WebSocketAddress | Multiaddr | AddressAbstraction[],
             private cubeStore: CubeStore,  // The cube storage instance associated with this peer
             private hostNodePeerID: Buffer,
-            conn: NetworkPeerConnection | WebSocket = undefined,
+            private _conn: NetworkPeerConnection,
             private lightMode: boolean = false,
             private peerExchange: boolean = true,
             private networkTimeoutSecs: number = Settings.NETWORK_TIMEOUT
         )
     {
         super(address);
-        if (conn instanceof NetworkPeerConnection) {
-            this._conn = conn;
-        } else {  // WebSocketAddress (or invalid)
-            this._conn = NetworkPeerConnection.Create(this.address);
-        }
         this._conn.on("messageReceived", msg => this.handleMessage(msg));
         this._conn.once("closed", () => this.close());
 
@@ -463,8 +458,9 @@ export class NetworkPeer extends Peer {
     // use libp2p features such as WebRTC brokering.
     sendMyServerAddress() {
         let address: AddressAbstraction = undefined;
-        for (const server of this.networkManager.servers) {
-            if (server.dialableAddress) address = server.dialableAddress;
+        // maybe TODO: only send address of same transport type
+        for (const [transportType, transport] of this.networkManager.transports) {
+            if (transport.dialableAddress) address = transport.dialableAddress;
             break;
         }
         if (!address) return;
@@ -558,6 +554,16 @@ export class NetworkPeer extends Peer {
 
     // TODO: Don't send private addresses to peer off our private network
     //       (but do still send them to peers on our private network!)
+    // TODO: Provide for a "no-reshare" flag on shared addresses.
+    //       This will be useful for libp2p browser nodes: A connected browser
+    //       node is, in theory, able to broker a connection to one of their
+    //       connected browser nodes for us. They can only do this for their
+    //       directly connected nodes though, so re-sharing this kind of address
+    //       is completely useless.
+    //       Having browser nodes broker connections amongst themselves has the
+    //       potential of dramatically reducing connection brokering load on
+    //       server nodes a, again, in theory, they may only be needed to
+    //       bootstrap a single connection for each browser node.
     private handleNodeRequest(): void {
         // Send MAX_NODE_ADDRESS_COUNT peer addresses
         // ... do we even know that many?

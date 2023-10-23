@@ -1,4 +1,4 @@
-import { Cube } from '../cube'
+import { Cube } from '../cube/cube'
 import { logger } from '../logger'
 import { Settings } from '../settings';
 import { Worker } from 'worker_threads';

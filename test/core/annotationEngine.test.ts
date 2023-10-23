@@ -1,8 +1,7 @@
-import { AnnotationEngine, defaultGetFieldsFunc } from '../../src/core/annotationEngine';
-import { Cube } from '../../src/core/cube';
-import { CubeStore as CubeStore } from '../../src/core/cubeStore';
-import { CubeField, CubeFields, CubeRelationship, CubeRelationshipType } from '../../src/core/cubeFields';
-import { logger } from '../../src/core/logger';
+import { AnnotationEngine, defaultGetFieldsFunc } from '../../src/cci/annotationEngine';
+import { Cube } from '../../src/core/cube/cube';
+import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
+import { CubeField, CubeFields, CubeRelationship, CubeRelationshipType } from '../../src/core/cube/cubeFields';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
 

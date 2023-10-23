@@ -1,7 +1,7 @@
 import { Settings } from '../../src/core/settings';
-import { Cube } from '../../src/core/cube';
-import { CubeStore as CubeStore } from '../../src/core/cubeStore';
-import { CubeField, CubeFieldType, CubeFields } from '../../src/core/cubeFields';
+import { Cube } from '../../src/core/cube/cube';
+import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
+import { CubeField, CubeFieldType, CubeFields } from '../../src/core/cube/cubeFields';
 
 import sodium from 'libsodium-wrappers'
 

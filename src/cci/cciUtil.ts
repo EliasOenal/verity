@@ -1,10 +1,10 @@
-import { Cube } from "../core/cube";
+import { Settings, VerityError } from "../core/settings";
+import { NetConstants } from "../core/networking/networkDefinitions";
+
+import { Cube } from "../core/cube/cube";
+import { CubeFields, CubeField } from "../core/cube/cubeFields";
 
 import sodium, { KeyPair, crypto_kdf_KEYBYTES } from 'libsodium-wrappers'
-import { CubeFields, CubeField } from "../core/cubeFields";
-import { Settings, VerityError } from "../core/settings";
-import { NetConstants } from "../core/networkDefinitions";
-import { logger } from "../core/logger";
 
 export function sculptExtensionMuc(
     masterKey: Uint8Array,

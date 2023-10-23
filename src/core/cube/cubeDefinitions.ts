@@ -1,5 +1,4 @@
-import { VerityError } from "./settings";
-import { NetConstants } from "./networkDefinitions";
+import { VerityError } from "../settings";
 
 export const CUBE_HEADER_LENGTH: number = 0;  // Former headers now considered positional fields -- TODO remove this constant
 

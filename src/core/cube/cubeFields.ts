@@ -1,7 +1,7 @@
 import { BaseField, BaseRelationship, BaseFields } from "./baseFields";
-import { Settings } from "./settings";
-import { FieldNumericalParam, PositionalFields, FieldDefinition } from "./fieldParser";
-import { NetConstants } from "./networkDefinitions";
+import { Settings } from "../settings";
+import { FieldNumericalParam, PositionalFields, FieldDefinition } from "../fieldParser";
+import { NetConstants } from "../networking/networkDefinitions";
 
 import { Buffer } from 'buffer';
 

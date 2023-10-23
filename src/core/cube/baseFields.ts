@@ -1,10 +1,10 @@
-import { NetConstants } from './networkDefinitions';
+import { NetConstants } from '../networking/networkDefinitions';
 import { CUBE_HEADER_LENGTH, FieldError, WrongFieldType } from './cubeDefinitions';
 import { CubeKey } from './cube';
-import { logger } from './logger';
+import { logger } from '../logger';
 
 import { Buffer } from 'buffer';
-import { FieldDefinition, FieldParser } from './fieldParser';
+import { FieldDefinition, FieldParser } from '../fieldParser';
 
 /**
  * A field is a data entry in binary TLV data.

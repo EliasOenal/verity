@@ -1,9 +1,11 @@
+import { NetConstants } from "../../src/core/networking/networkDefinitions";
+
 import { FieldDefinition, FieldNumericalParam, FieldParser, PositionalFields } from "../../src/core/fieldParser";
-import { CubeField, CubeFieldType, CubeFields, CubeRelationshipType, CubeRelationship } from "../../src/core/cubeFields";
-import { NetConstants } from "../../src/core/networkDefinitions";
+import { CubeField, CubeFieldType, CubeFields, CubeRelationshipType, CubeRelationship } from "../../src/core/cube/cubeFields";
+import { BaseField } from "../../src/core/cube/baseFields";
+import { BinaryDataError, FieldError } from "../../src/core/cube/cubeDefinitions";
+
 import { ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from '../../src/app/zwFields';
-import { BaseField } from "../../src/core/baseFields";
-import { BinaryDataError, FieldError } from "../../src/core/cubeDefinitions";
 
 describe('fieldParser', () => {
   describe('positional field tests with synthetic field description', () => {

@@ -1,11 +1,11 @@
 Error.stackTraceLimit = Infinity;  // mooooaaaar stacktraces
 import { Settings } from './core/settings';
-import { SupportedTransports } from './core/networkDefinitions';
+import { SupportedTransports } from './core/networking/networkDefinitions';
 
-import { Cube } from './core/cube';
-import { CubeField, CubeRelationship, CubeFields, CubeRelationshipType } from './core/cubeFields';
+import { Cube } from './core/cube/cube';
+import { CubeField, CubeRelationship, CubeFields, CubeRelationshipType } from './core/cube/cubeFields';
 import { VerityNode } from "./core/verityNode";
-import { AddressAbstraction } from './core/peerDB';
+import { AddressAbstraction } from './core/peering/addressing';
 
 import { logger } from './core/logger';
 import { vera } from './misc/vera';

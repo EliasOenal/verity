@@ -1,24 +1,25 @@
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
-import { Cube, CubeKey } from '../core/cube';
+import { Cube, CubeKey } from '../core/cube/cube';
 import { logger } from '../core/logger';
 
 import { Level } from 'level';
-import sodium, { KeyPair } from 'libsodium-wrappers'
-import { BaseField, BaseRelationship } from '../core/baseFields';
+import { BaseField, BaseRelationship } from '../core/cube/baseFields';
 import { ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from './zwFields';
-import { CubeError } from '../core/cubeDefinitions';
+import { CubeError } from '../core/cube/cubeDefinitions';
 
 import { Buffer } from 'buffer';
-import { CubeField, CubeFieldType } from '../core/cubeFields';
-import { CubeStore } from '../core/cubeStore';
+import { CubeField, CubeFieldType } from '../core/cube/cubeFields';
+import { CubeStore } from '../core/cube/cubeStore';
 import { FieldParser } from '../core/fieldParser';
 import { Settings, VerityError } from '../core/settings';
 import { ZwConfig } from './zwConfig';
-import { CubeInfo } from '../core/cubeInfo';
+import { CubeInfo } from '../core/cube/cubeInfo';
 import { assertZwMuc } from './zwCubes';
 
 import * as CciUtil from '../cci/cciUtil'
-import { NetConstants } from '../core/networkDefinitions';
+import { NetConstants } from '../core/networking/networkDefinitions';
+
+import sodium, { KeyPair } from 'libsodium-wrappers'
 
 const IDENTITYDB_VERSION = 1;
 

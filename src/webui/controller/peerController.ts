@@ -1,6 +1,8 @@
-import { NetworkManager } from "../../core/networkManager";
-import { NetworkPeer } from "../../core/networkPeer";
-import { AddressAbstraction, Peer } from "../../core/peerDB";
+import { Settings, VerityError } from '../../core/settings';
+import { NetworkManager } from "../../core/networking/networkManager";
+import { NetworkPeer } from "../../core/networking/networkPeer";
+import { AddressAbstraction } from '../../core/peering/addressing';
+import { Peer } from "../../core/peering/peer";
 import { logger } from "../../core/logger";
 
 import { VerityController } from "../webUiDefinitions";

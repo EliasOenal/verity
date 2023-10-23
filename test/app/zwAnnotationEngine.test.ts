@@ -1,8 +1,7 @@
-import { Cube, CubeKey } from "../../src/core/cube";
-import { CubeField, CubeFields, CubeRelationship, CubeRelationshipType } from "../../src/core/cubeFields";
-import { CubeInfo } from "../../src/core/cubeInfo";
-import { CubeStore } from "../../src/core/cubeStore";
-import { AnnotationEngine } from "../../src/core/annotationEngine";
+import { Cube, CubeKey } from "../../src/core/cube/cube";
+import { CubeField } from "../../src/core/cube/cubeFields";
+import { CubeInfo } from "../../src/core/cube/cubeInfo";
+import { CubeStore } from "../../src/core/cube/cubeStore";
 import { Identity } from "../../src/app/identity";
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zwAnnotationEngine";
 import { makePost } from "../../src/app/zwCubes"

@@ -2,7 +2,7 @@
 import { BinaryDataError, CubeError, CubeSignatureError, CubeType, FingerprintError, SmartCubeTypeNotImplemented } from './cubeDefinitions';
 import { Cube } from './cube';
 import { CubeMeta } from './cubeInfo';
-import { logger } from './logger';
+import { logger } from '../logger';
 
 import { Buffer } from 'buffer';
 import sodium, { KeyPair } from 'libsodium-wrappers'

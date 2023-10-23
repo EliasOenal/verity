@@ -1,8 +1,10 @@
-import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { CubeInfo } from './cubeInfo';
-import { logger } from './logger';
 import { EventEmitter } from 'events';
-import { VerityError } from "./settings";
+import { VerityError } from "../settings";
+
+import { logger } from '../logger';
+
+import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { Buffer } from 'buffer';
 import { Level } from 'level';
 

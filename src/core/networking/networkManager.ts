@@ -1,11 +1,13 @@
-import { CubeStore } from './cubeStore';
+import { Settings, VerityError } from '../settings';
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
-import { PeerDB, Peer } from './peerDB';
-import { Settings, VerityError } from './settings';
+import { NetworkTransport, TransportParamMap } from './networkTransport';
+import { createNetworkPeerConnection, createNetworkTransport } from './networkFactory';
+import { CubeStore } from '../cube/cubeStore';
+import { Peer } from '../peering/peer';
+import { PeerDB } from '../peering/peerDB';
 import { NetworkPeer, NetworkStats } from './networkPeer';
-import { Libp2pServer, NetworkServer, WebSocketServer } from './networkServer';
-import { logger } from './logger';
-import { NetworkPeerConnection } from './networkPeerConnection';
+
+import { logger } from '../logger';
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { EventEmitter } from 'events';
@@ -36,13 +38,8 @@ export class NetworkManager extends EventEmitter {
     private _autoConnect?: boolean;
     private _peerExchange?: boolean;
 
-    /**
-     * Stores all of our NetworkServer objects which listen for incoming connections.
-     * You could also call them listeners.
-     * For non-listening nodes, servers will be empty -- except if you use libp2p,
-     * because libp2p is framework-heavy and always requires its node object.
-     */
-    servers: NetworkServer[] = [];
+    /**  */
+    transports: Map<SupportedTransports, NetworkTransport> = new Map();
 
     /** List of currently connected peers to which we initiated the connection */
     outgoingPeers: NetworkPeer[] = []; // maybe TODO: This should probably be a Set
@@ -83,7 +80,7 @@ export class NetworkManager extends EventEmitter {
     constructor(
             private _cubeStore: CubeStore,
             private _peerDB: PeerDB,
-            servers: Map<SupportedTransports, any> = new Map(),
+            transports: TransportParamMap = new Map(),
             options: NetworkManagerOptions = {},
 ) {
         super();
@@ -93,35 +90,16 @@ export class NetworkManager extends EventEmitter {
         this._autoConnect = options?.autoConnect ?? true;
         this._peerExchange = options?.peerExchange ?? true;
 
-        // Create all requested servers. You could also call them listeners if you like.
-        // You know, stuff that accepts connections via various protocols.
-        for (const [type, param] of servers.entries()) {
-            if (type == SupportedTransports.ws) {
-                if (isNode) {
-                    this.servers.push(new WebSocketServer(this, param, options));
-                } else {
-                    logger.error("NetworkManager: WebSocketServers are only supported on NodeJS.");
-                }
-            }
-            if (type == SupportedTransports.libp2p) {
-                this.servers.push(new Libp2pServer(this, param, options));
-            }
-        }
+        // Create NetworkTransport objects for all requested transport types.
+        this.transports = createNetworkTransport(this, transports, options);
 
         // Set a random peer ID
+        // Maybe TODO: try to use the same peer ID for transports that themselves
+        // require a peer ID, i.e. libp2p
         this.peerID = Buffer.from(crypto.getRandomValues(new Uint8Array(NetConstants.PEER_ID_SIZE)));
     }
 
     get online(): boolean { return this._online }
-
-    // maybe TODO: I don't like how badly encapsulated libp2p is here
-    get libp2pServer(): Libp2pServer {
-        const libp2pServer: Libp2pServer = (this.servers.find(
-            (server) => server instanceof Libp2pServer
-        )) as Libp2pServer;
-        if (libp2pServer) return libp2pServer;
-        else return undefined;
-    }
 
     get cubeStore(): CubeStore { return this._cubeStore; }
     get lightNode(): boolean { return this._lightNode; }
@@ -132,20 +110,20 @@ export class NetworkManager extends EventEmitter {
     public getCubeStore() { return this.cubeStore; }
 
     public async start(): Promise<void> {
-        const listeningPromises: Promise<void>[] = [];
-        for (const server of this.servers) {
+        const transportPromises: Promise<void>[] = [];
+        for (const [type, transport] of this.transports) {
             try {
-                listeningPromises.push(server.start());
-                logger.trace("NetworkManager: requested start of server " + server.toString());
+                transportPromises.push(transport.start());
+                logger.trace("NetworkManager: requested start of transport " + transport.toString());
             } catch(err) {
-                logger.error("NetworkManager: Error requesting a server start, will continue without it. Error was: " + err.toString());
+                logger.error("NetworkManager: Error requesting a transport to start, will continue without it. Error was: " + err.toString());
             }
         }
-        for (const promise of listeningPromises) {
+        for (const promise of transportPromises) {
             try {
                 await promise;
             } catch(err) {
-                logger.error("NetworkManager: Error waiting for a server start, will continue without it. Error was: " + err.toString());
+                logger.error("NetworkManager: Error waiting for a transport to start, will continue without it. Error was: " + err.toString());
             }
         }
 
@@ -157,7 +135,7 @@ export class NetworkManager extends EventEmitter {
         this.connectPeers();
 
         this.emit('listening');
-        logger.trace("NetworkManager: start() completed, all servers listening: " + this.servers.forEach(server => server.toString() + "; "));
+        logger.trace("NetworkManager: start() completed, all servers listening: " + this.transports.forEach(server => server.toString() + "; "));
     }
 
     private closePeers(): Promise<void> {
@@ -243,7 +221,7 @@ export class NetworkManager extends EventEmitter {
         // NB: Even though we pass this.libp2pServer here, this also handles
         // native WebSocket connections (ignoring the param in that case).
         // maybe TODO: I don't like how badly encapsulated libp2p is here
-        const conn = NetworkPeerConnection.Create(peer.address, this.libp2pServer);
+        const conn = createNetworkPeerConnection(peer.address, this.transports);
         const networkPeer = new NetworkPeer(
             this,
             peer.addresses,
@@ -273,9 +251,9 @@ export class NetworkManager extends EventEmitter {
         this.stopConnectingPeers();
         const closedPromises: Promise<void>[] = [];
         closedPromises.push(this.closePeers());
-        for (const server of this.servers) {
-            logger.trace("NetworkManager: Shutting down server " + server.toString());
-            closedPromises.push(server.shutdown());
+        for (const [transportType, transport] of this.transports) {
+            logger.trace("NetworkManager: Shutting down server " + transport.toString());
+            closedPromises.push(transport.shutdown());
         }
         const closedPromise: Promise<void> =
             Promise.all(closedPromises) as unknown as Promise<void>;
@@ -427,9 +405,10 @@ export class NetworkManager extends EventEmitter {
     prettyPrintStats(): string {
         let output = '\Statistics:\n';
         output += `My (high level) PeerID: ${this.peerID.toString('hex').toUpperCase()}\n`;
-        if (this.servers.length) {
+        if (this.transports.size) {
             output += `My network listeners ("servers"):\n`;
-            for (const server of this.servers) {
+            for (const [transportType, transport] of this.transports) {
+                for (const server of transport.servers)
                 output += server.toLongString() + "\n";  // indent
             }
         } else {

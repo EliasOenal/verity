@@ -1,5 +1,5 @@
-import { Cube } from "../../src/core/cube";
-import { CubeField, CubeFields, CubeRelationship, CubeRelationshipType } from "../../src/core/cubeFields";
+import { Cube } from "../../src/core/cube/cube";
+import { CubeField, CubeFields, CubeRelationship, CubeRelationshipType } from "../../src/core/cube/cubeFields";
 
 describe('fields', () => {
   it('correctly sets and retrieves a reply_to relationship field', async () => {

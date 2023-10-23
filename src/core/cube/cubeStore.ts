@@ -1,10 +1,10 @@
-import { Settings, VerityError } from './settings';
+import { Settings, VerityError } from '../settings';
 import { Cube, CubeKey } from './cube';
 import { CubeInfo, CubeMeta } from './cubeInfo'
 import { CubePersistence } from "./cubePersistence";
 import { CubeType, InsufficientDifficulty } from './cubeDefinitions';
 import { cubeContest } from './cubeUtil';
-import { logger } from './logger';
+import { logger } from '../logger';
 
 import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';

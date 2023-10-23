@@ -1,5 +1,7 @@
 import { logger } from '../../src/core/logger';
-import { PeerDB, Peer, WebSocketAddress } from '../../src/core/peerDB';
+import { WebSocketAddress } from '../../src/core/peering/addressing';
+import { Peer } from '../../src/core/peering/peer';
+import { PeerDB } from '../../src/core/peering/peerDB';
 
 describe ('PeerDB', () => {
     it.skip('should get peers from multiple trackers', async () => {

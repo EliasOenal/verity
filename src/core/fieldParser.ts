@@ -1,8 +1,8 @@
-import { BinaryDataError, FieldError } from "./cubeDefinitions";
-import { BaseFields, BaseField } from "./baseFields";
+import { BinaryDataError, FieldError } from "./cube/cubeDefinitions";
+import { BaseFields, BaseField } from "./cube/baseFields";
 import { logger } from "./logger";
-import { NetConstants } from "./networkDefinitions";
-import { cubeFieldDefinition } from "./cubeFields";
+import { NetConstants } from "./networking/networkDefinitions";
+import { cubeFieldDefinition } from "./cube/cubeFields";
 
 import { Buffer } from 'buffer';
 

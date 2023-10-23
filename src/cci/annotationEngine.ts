@@ -1,11 +1,9 @@
-import { CubeStore } from './cubeStore';
-import { CubeInfo, CubeMeta } from './cubeInfo'
-import { Cube, CubeKey } from './cube';
-import { logger } from './logger';
+import { CubeInfo, CubeMeta } from '../core/cube/cubeInfo'
+import { Cube, CubeKey } from '../core/cube/cube';
+import { CubeRelationship } from '../core/cube/cubeFields';
 
 import { EventEmitter } from 'events';
-import { CubeRelationship } from './cubeFields';
-import { BaseFields, BaseRelationship } from './baseFields';
+import { BaseFields, BaseRelationship } from '../core/cube/baseFields';
 
 import { Buffer } from 'buffer';
 

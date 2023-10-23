@@ -1,15 +1,15 @@
 // cube.test.ts
 import { Settings } from '../../src/core/settings';
-import { NetConstants } from '../../src/core/networkDefinitions';
-import { BinaryLengthError, CUBE_HEADER_LENGTH, FieldError, FieldSizeError, InsufficientDifficulty } from '../../src/core/cubeDefinitions';
-import { Cube } from '../../src/core/cube';
+import { NetConstants } from '../../src/core/networking/networkDefinitions';
+import { BinaryLengthError, CUBE_HEADER_LENGTH, FieldError, FieldSizeError, InsufficientDifficulty } from '../../src/core/cube/cubeDefinitions';
+import { Cube } from '../../src/core/cube/cube';
 import { Buffer } from 'buffer';
-import { calculateHash, countTrailingZeroBits } from '../../src/core/cubeUtil';
+import { calculateHash, countTrailingZeroBits } from '../../src/core/cube/cubeUtil';
 import { FieldParser } from '../../src/core/fieldParser';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { CubeField, CubeFieldLength, CubeFieldType, CubeFields } from '../../src/core/cubeFields';
-import { CubeInfo } from '../../src/core/cubeInfo';
+import { CubeField, CubeFieldLength, CubeFieldType, CubeFields } from '../../src/core/cube/cubeFields';
+import { CubeInfo } from '../../src/core/cube/cubeInfo';
 
 const reduced_difficulty = 0;
 

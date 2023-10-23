@@ -1,19 +1,19 @@
 // cube.ts
 import { BinaryDataError, BinaryLengthError, CUBE_HEADER_LENGTH, CubeError, CubeSignatureError, CubeType, FieldNotImplemented, FieldSizeError,  SmartCubeError, SmartCubeTypeNotImplemented, UnknownFieldType } from "./cubeDefinitions";
-import { Settings } from './settings';
-import { NetConstants } from './networkDefinitions';
+import { Settings } from '../settings';
+import { NetConstants } from '../networking/networkDefinitions';
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField, CubeFieldLength, CubeFieldType, CubeFields } from './cubeFields';
-import { FieldParser } from "./fieldParser";
-import { logger } from './logger';
+import { FieldParser } from "../fieldParser";
+import { logger } from '../logger';
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Buffer } from 'buffer';
 
 if (isNode && Settings.HASH_WORKERS) {
-    await import ('./nodespecific/cube-extended');
+    await import ('../nodespecific/cube-extended');
 }
 
 // semantic typedef

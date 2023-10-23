@@ -1,6 +1,6 @@
-import { Cube, CubeKey } from "../../core/cube";
-import { CubeInfo } from "../../core/cubeInfo";
-import { CubeStore } from "../../core/cubeStore";
+import { Cube, CubeKey } from "../../core/cube/cube";
+import { CubeInfo } from "../../core/cube/cubeInfo";
+import { CubeStore } from "../../core/cube/cubeStore";
 
 import { Identity } from "../../app/identity";
 import { ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "../../app/zwFields";

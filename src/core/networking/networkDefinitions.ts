@@ -1,5 +1,5 @@
 // networkDefinitions.ts
-import { VerityError } from "./settings";
+import { VerityError } from "../settings";
 
 export enum MessageClass {
     Hello = 0x00,

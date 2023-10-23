@@ -1,7 +1,9 @@
-import { SupportedTransports } from "./networkDefinitions";
-import { CubeStore, CubeStoreOptions } from "./cubeStore";
-import { NetworkManager, NetworkManagerOptions } from "./networkManager";
-import { AddressAbstraction, Peer, PeerDB, WebSocketAddress } from "./peerDB";
+import { CubeStore, CubeStoreOptions } from "./cube/cubeStore";
+import { SupportedTransports } from "./networking/networkDefinitions";
+import { NetworkManager, NetworkManagerOptions } from "./networking/networkManager";
+import { AddressAbstraction } from "./peering/addressing";
+import { Peer } from "./peering/peer";
+import { PeerDB } from "./peering/peerDB";
 
 import { logger } from "./logger";
 import { Multiaddr } from '@multiformats/multiaddr'

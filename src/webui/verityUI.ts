@@ -1,10 +1,10 @@
-import { SupportedTransports } from '../core/networkDefinitions';
+import { SupportedTransports } from '../core/networking/networkDefinitions';
 
-import { AddressAbstraction } from '../core/peerDB';
-import { VerityNode } from '../core/verityNode';
-import { Cube, CubeKey } from '../core/cube';
-import { logger } from '../core/logger'
 import { FieldParser } from '../core/fieldParser';
+import { logger } from '../core/logger'
+import { VerityNode } from '../core/verityNode';
+import { AddressAbstraction } from '../core/peering/addressing';
+import { Cube, CubeKey } from '../core/cube/cube';
 
 import { Identity } from '../app/identity';
 import { zwFieldDefinition } from '../app/zwFields';

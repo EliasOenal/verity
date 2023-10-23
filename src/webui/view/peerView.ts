@@ -1,4 +1,4 @@
-import { NetworkPeer } from "../../core/networkPeer";
+import { NetworkPeer } from "../../core/networking/networkPeer";
 import { logger } from "../../core/logger";
 
 import { VerityView } from "../webUiDefinitions";
