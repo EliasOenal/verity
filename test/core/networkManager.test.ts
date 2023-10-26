@@ -610,7 +610,7 @@ describe('networkManager', () => {
         });
 
         // TODO DEBUG
-        it.skip('keeps WebRTC peers connected even if the WS server goes down', async () => {
+        it.only('keeps WebRTC peers connected even if the WS server goes down', async () => {
             // create two "browser" (= non listening) nodes and a "server" (= WS listening node)
             const options = {
                 announceToTorrentTrackers: false,
@@ -633,7 +633,7 @@ describe('networkManager', () => {
             const server = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                 new PeerDB(),
-                new Map([[SupportedTransports.libp2p, 17294]]),
+                new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17294/ws']]),
                 options
             );
             await server.start();
@@ -673,8 +673,8 @@ describe('networkManager', () => {
             await browser1.incomingPeers[0].onlinePromise;
 
             // wait 5 secs
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            logger.trace("TEST: Waited 5 seconds for peer connection to upgrade to WebRTC")
+            // await new Promise(resolve => setTimeout(resolve, 5000));
+            // logger.trace("TEST: Waited 5 seconds for peer connection to upgrade to WebRTC")
 
             // @ts-ignore Stop auto connecting
             browser1._autoConnect = false;
@@ -700,6 +700,9 @@ describe('networkManager', () => {
             expect(browser2.outgoingPeers.length).toEqual(1);  // browser-to-browser conn is outgoing at browser2
             expect(browser2.incomingPeers.length).toEqual(0);  // never had one
 
+            logger.trace("TEST: Remaining outgoing connection on browser2: " + browser2.outgoingPeers[0].toLongString());
+            logger.trace("TEST: Remaining incoming connection on browser1: " + browser1.incomingPeers[0].toLongString());
+
             // Create a Cube and exchange it between browsers
             expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(0);
             expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
@@ -712,8 +715,8 @@ describe('networkManager', () => {
             // TODO: This currently fails:     sendMessagBinary() called on destroyed channel
             // This is exactly what we did not want to see.
             // And strangely enough, it actually works in real world browser tests o.O
-            browser2.outgoingPeers[0].sendKeyRequest();
             logger.trace("TEST: Performing Cube exchange")
+            browser2.outgoingPeers[0].sendKeyRequest();
             // Wait up to three seconds for cube to sync
             for (let i = 0; i < 30; i++) {
                 if (browser2.cubeStore.getNumberOfStoredCubes() == 1) {

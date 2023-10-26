@@ -7,15 +7,17 @@ export class PeerView extends VerityView {
   private peerList: HTMLUListElement;
 
   constructor(
-      private htmlTemplate: HTMLTemplateElement = document.getElementById(
+    private myId: string,
+    private htmlTemplate: HTMLTemplateElement = document.getElementById(
         "verityPeerViewTemplate") as HTMLTemplateElement,
-      show: boolean = true
+      show: boolean = false,
   ){
     super();
     this.renderedView =
       this.htmlTemplate.content.firstElementChild.cloneNode(true) as HTMLElement;
     this.peerList = this.renderedView.querySelector(".verityPeerList");
     this.clearAll();
+    this.printMyId();
     if (show) this.show();
   }
 
@@ -42,9 +44,9 @@ export class PeerView extends VerityView {
     return li;
   }
 
-  redrawPeerData(peer: NetworkPeer, peerLi: HTMLLIElement) {
+  redrawPeerData(peer: NetworkPeer, peerLi: HTMLLIElement): void {
     logger.trace("PeerView: (Re-)Displaying peer "+ peer.toString());
-    // try {
+    try {
       // Print peer ID
       const idField: HTMLTableCellElement = peerLi.querySelector('.verityPeerId');
       idField.innerText = peer.idString;
@@ -66,13 +68,18 @@ export class PeerView extends VerityView {
         }
         addrsList.appendChild(addrLi);
       }
-    // } catch(err) {
-    //   logger.error("PeerView: Could not display some peer data, did you mess with my DOM elements?! Error was: " + err);
-    // }
+    } catch(err) {
+      logger.error("PeerView: Could not display some peer data, did you mess with my DOM elements?! Error was: " + err);
+    }
   }
 
-  undisplayPeer(peerli: HTMLLIElement) {
+  undisplayPeer(peerli: HTMLLIElement): void {
     this.peerList.removeChild(peerli);
   }
 
+  printMyId(): void {
+    const container: HTMLElement = this.renderedView.querySelector('.verityMyId');
+    if (!container) logger.error("PeerView: Could not my peer ID, did you mess with my DOM elements?!");
+    container.innerText = this.myId;
+  }
 }

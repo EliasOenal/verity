@@ -15,7 +15,7 @@ export class PeerController extends VerityController {
 
   constructor(
       private networkManager: NetworkManager,
-      view = new PeerView(),
+      view = new PeerView(networkManager.peerID.toString('hex')),
       private onlineView = new OnlineView(),
   ){
     super(view);
