@@ -1,8 +1,7 @@
-import { Cube, CubeKey } from "../../src/core/cube";
-import { CubeField, CubeFields, CubeRelationship, CubeRelationshipType } from "../../src/core/cubeFields";
-import { CubeInfo } from "../../src/core/cubeInfo";
-import { CubeStore } from "../../src/core/cubeStore";
-import { AnnotationEngine } from "../../src/core/annotationEngine";
+import { Cube, CubeKey } from "../../src/core/cube/cube";
+import { CubeField } from "../../src/core/cube/cubeFields";
+import { CubeInfo } from "../../src/core/cube/cubeInfo";
+import { CubeStore } from "../../src/core/cube/cubeStore";
 import { Identity } from "../../src/app/identity";
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zwAnnotationEngine";
 import { makePost } from "../../src/app/zwCubes"
@@ -10,6 +9,8 @@ import { makePost } from "../../src/app/zwCubes"
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { MediaTypes, ZwField, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from "../../src/app/zwFields";
 import { FieldParser } from "../../src/core/fieldParser";
+
+import {jest} from '@jest/globals'
 
 describe('ZwAnnotationEngine', () => {
   let cubeStore: CubeStore;
@@ -19,7 +20,10 @@ describe('ZwAnnotationEngine', () => {
   describe('basic config', () => {
     beforeEach(async () => {
       await sodium.ready;
-      cubeStore = new CubeStore(false, reduced_difficulty);
+      cubeStore = new CubeStore({
+        enableCubePersistance: false,
+        requiredDifficulty: 0,
+      });
       await cubeStore.readyPromise;
       annotationEngine = new ZwAnnotationEngine(
         cubeStore,

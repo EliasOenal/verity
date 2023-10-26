@@ -65,7 +65,7 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
     - 4: `QUOTATION`: This cube's payload refers to an earlier payload which client software shall usually display alongside this cube's payload. Multiple `QUOTATION` relationships are allowed per cube, in which case client software may provide an abridged view.
 
   is a continuation of another post. The field contains the hash of the post it relates to. The type code for this field is `TYPE_RELATES_TO`
-  
+
   > **TODO**: This is to be replaced with the following:<br/>
   TYPE_RELATES_TO (optional, 32 bytes) and TYPE_CONTINUES (optional, 32 bytes)<br/>
   This removes one byte for the relationship class. Each of these two types can at most occur once per cube. (For performance reasons it may make sense to fix the position within the cube as well.) TYPE_RELATES_TO will be indexed by full nodes, which then provide a lookup service to light nodes. This allows displaying replies from users that one has not subscribed yet.
@@ -99,45 +99,49 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
 
   2. **Message Class (1 byte)**: This is an identifier for the type of message. Here's a possible mapping:
   - `0x00`: `Hello`
-  - `0x01`: `HashRequest`
-  - `0x02`: `HashResponse`
+  - `0x01`: `KeyRequest`
+  - `0x02`: `KeyResponse`
   - `0x03`: `CubeRequest`
   - `0x04`: `CubeResponse`
-  - `0x05`: `Unused - to be assigned`
+  - `0x05`: `MyServerAddress`
   - `0x06`: `NodeRequest`
   - `0x07`: `NodeResponse`
 
   Each of these message classes will have different data payloads:
   - `Hello`: **Node Identifier (16 bytes)**: This is a unique NodeID that's randomly generated at startup. Primary purpose is to detect when we connected to ourselves. This may happen if we don't know our external IP. (e.g. NAT) Secondarily this may be used to detect duplicate connections to the same node, which may happen if the node is reachable via multiple IPs.
 
-  - `HashRequest`: This message does not need any further data. The act of repeatedly sending it is sufficient to request all cube hashes iteratively. This message may get extended in the future to allow for more fine-grained control over which hashes to request. (e.g. by date or by MPT subtree)
+  - `KeyRequest`: This message does not need any further data. The act of repeatedly sending it is sufficient to request all cube keys iteratively. This message may get extended in the future to allow for more fine-grained control over which keys to request. (e.g. by date or by MPT subtree)
 
-  - `HashResponse`:
-    - **Hash Count (4 bytes)**: This is an integer indicating the number of hashes being sent.
+  - `HeyResponse`:
+    - **Key Count (4 bytes)**: This is an integer indicating the number of keys being sent.
     - **Cube Details**: Each detail includes:
       - **Cube Type (1 byte)**: The type of the cube (e.g., regular, MUC, IPC).
       - **Challenge Level (1 byte)**: The challenge level the cube adheres to.
       - **Timestamp (5 bytes)**: The timestamp of the cube.
-      - **Hash (32 bytes)**: The hash of the cube.
+      - **Key (32 bytes)**: The key of the cube.
 
   - `CubeRequest`:
-    - **Cube Hash Count (4 bytes)**: This is an integer indicating the number of cube hashes being requested.
-    - **Cube Hashes (32 bytes each)**: This is a series of 32-byte hash values. The number of hashes should match the Cube Hash Count.
+    - **Cube Key Count (4 bytes)**: This is an integer indicating the number of cubes being requested.
+    - **Cube Keys (32 bytes each)**: This is a series of 32-byte Cube key values. The number of keys must match the previously indicated Cube Key Count.
 
   - `CubeResponse`:
     - **Cube Count (4 bytes)**: This is an integer indicating the number of cubes being sent.
     - **Cubes (1024 bytes each)**: This is a series of cubes. Each cube is 1024 bytes as per your cube specification. The number of cubes should match the Cube Count.
 
+  - `MyServerAddress`:
+    - **Node Address type  (1 byte)**: 1=WebRTC, 2=LibP2p
+    - **Node Address length (2 bytes)**
+    - **Node Address string (variable length)**
+
   - `NodeRequest`: This message requests a list of known node addresses from a peer.
     - **Payload**: None
 
   - `NodeResponse`: This message provides a list of known node addresses to a peer.
-
-    - Payload:
-        - **Node Count (4 bytes)**: An integer indicating the number of node addresses being sent.
-        - **Node Entries (variable length)**: A series of node entries. Each entry consists of:
-          - **Node Address Length (2 bytes)**: An integer indicating the length of the node address.
-          - **Node Address (variable length)**: The node address (e.g., WebSocket URL). The length of the address should match the Node Address Length.
+    - **Node Count (4 bytes)**: An integer indicating the number of node addresses being sent.
+    - **Node Entries (variable length)**: A series of node entries. Each entry consists of:
+      - **Node Address type  (1 byte)**: 1=WebRTC, 2=LibP2p
+      - **Node Address Length (2 bytes)**: An integer indicating the length of the node address.
+      - **Node Address string (variable length)**: The node address (e.g., WebSocket URL). The length of the address should match the Node Address Length.
 
 # Encryption
 

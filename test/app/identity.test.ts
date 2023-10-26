@@ -1,12 +1,12 @@
-import { Identity, IdentityPersistance } from '../../src/app/identity'
-import { Cube, CubeKey } from '../../src/core/cube'
-import { NetConstants } from '../../src/core/networkDefinitions';
+import { NetConstants } from '../../src/core/networking/networkDefinitions';
+import { CubeStore } from '../../src/core/cube/cubeStore';
+import { Cube, CubeKey } from '../../src/core/cube/cube'
 
-import sodium from 'libsodium-wrappers'
-import { CubeStore } from '../../src/core/cubeStore';
+import { Identity, IdentityPersistance } from '../../src/app/identity'
 import { makePost } from '../../src/app/zwCubes';
 import { ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from '../../src/app/zwFields';
-import { logger } from '../../src/core/logger';
+
+import sodium from 'libsodium-wrappers'
 
 describe('Identity', () => {
   let cubeStore: CubeStore;
@@ -17,7 +17,10 @@ describe('Identity', () => {
   });
 
   beforeEach(async () => {
-    cubeStore = new CubeStore(false, reduced_difficulty);  // require no hashcash for faster testing
+    cubeStore = new CubeStore({
+      enableCubePersistance: false,
+      requiredDifficulty: 0,  // require no hashcash for faster testing
+    });
   });
 
   describe('MUC storage', () => {

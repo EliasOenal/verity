@@ -2,8 +2,8 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node
 export var logger: any = undefined;
 
 if (isNode) {
-  const pino = require('pino')
-  const pretty = require('pino-pretty')
+  const pino = (await import('pino')).default;
+  const pretty = (await import('pino-pretty')).default;
   const stream = pretty({
     colorize: true,
     colorizeObjects: true,

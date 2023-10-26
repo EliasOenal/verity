@@ -1,6 +1,6 @@
 import { parentPort, workerData } from 'worker_threads';
 import { logger } from '../logger';
-import { calculateHash } from '../cubeUtil';
+import { calculateHash } from '../cube/cubeUtil';
 
 if (parentPort === null || workerData === null) {
     throw new Error('Parent port or worker data is null');
@@ -39,7 +39,7 @@ async function checkHash() {
 
         // Increment the nonce
         nonce++;
-        
+
         // Check if the hash is valid
     } while (countTrailingZeroBits(hash) < workerData.requiredDifficulty)
     parentPort?.postMessage({ hash: hash, binaryData: Buffer.from(binaryData) });

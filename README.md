@@ -14,9 +14,8 @@ npm install
 
 ## Building and Running ##
 ```
-tsc
-cd dist
-node fullNode.js
+npm run build
+npm run start -- -w 1984 -t
 ```
 
 ## Building the Web Node ##
