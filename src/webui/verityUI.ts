@@ -74,43 +74,9 @@ export class VerityUI {
     return this.identity.store();
   }
 
-  async makeNewPost(input: HTMLFormElement) {
-    const replytostring: string = input.getAttribute("data-cubekey");
-    const replyto: CubeKey =
-      replytostring? Buffer.from(replytostring, 'hex') : undefined;
-    const textarea: HTMLTextAreaElement =
-      input.getElementsByTagName("textarea")[0] as HTMLTextAreaElement;
-    const text = textarea.value;
-    if (!text.length) return;  // don't make empty posts
-    // clear the input
-    textarea.value = '';
-    // @ts-ignore Typescript doesn't like us using custom window attributes
-    window.onTextareaInput(textarea);
-    // First create the post, then update the identity, then add the cube.
-    // This way the UI directly displays you as the author.
-    const post = await makePost(text, replyto, this.identity);
-    await this.saveIdentity();
-    this.node.cubeStore.addCube(post);
-  }
 
-  async subscribeUser(subscribeButton: HTMLButtonElement) {
-    const authorkeystring = subscribeButton.getAttribute("data-authorkey");
-    const authorkey = Buffer.from(authorkeystring, 'hex');
-    // subscribing or unsubscribing?
-    if (subscribeButton.classList.contains("active")) {
-      logger.trace("VerityUI: Unsubscribing from " + authorkeystring);
-      this.identity.removeSubscriptionRecommendation(authorkey);
-      subscribeButton.classList.remove("active");
-      await this.identity.store();
-    } else {
-      logger.trace("VerityUI: Subscribing to " + authorkeystring);
-      this.identity.addSubscriptionRecommendation(authorkey);
-      subscribeButton.classList.add("active");
-      await this.identity.store();
-    }
-    this.postController.redisplayAuthor(this.node.cubeStore.getCubeInfo(authorkeystring));
-  }
-
+  // Navigation
+  // maybe TODO: Move this to a new NavController/NavView
   navPostsAll() {
     logger.trace("VerityUI: Displaying all posts including anonymous ones");
     this.navbarMarkActive("navPostsAll");

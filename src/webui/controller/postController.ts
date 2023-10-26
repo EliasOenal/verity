@@ -3,6 +3,7 @@ import { CubeInfo } from "../../core/cube/cubeInfo";
 import { CubeStore } from "../../core/cube/cubeStore";
 
 import { Identity } from "../../app/identity";
+import { makePost } from "../../app/zwCubes";
 import { ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "../../app/zwFields";
 import { ZwAnnotationEngine } from "../../app/zwAnnotationEngine";
 
@@ -52,6 +53,44 @@ export class PostController extends VerityController {
     this.redisplayPosts();
     // this.cubeAuthorRedisplayTimer = setInterval(() => this.redisplayAllCubeAuthors(), 5000);
   }
+
+  async makeNewPost(input: HTMLFormElement) {
+    const replytostring: string = input.getAttribute("data-cubekey");
+    const replyto: CubeKey =
+      replytostring? Buffer.from(replytostring, 'hex') : undefined;
+    const textarea: HTMLTextAreaElement =
+      input.getElementsByTagName("textarea")[0] as HTMLTextAreaElement;
+    const text = textarea.value;
+    if (!text.length) return;  // don't make empty posts
+    // clear the input
+    textarea.value = '';
+    // @ts-ignore Typescript doesn't like us using custom window attributes
+    window.onTextareaInput(textarea);
+    // First create the post, then update the identity, then add the cube.
+    // This way the UI directly displays you as the author.
+    const post = await makePost(text, replyto, this.identity);
+    await this.identity.store();
+    this.cubeStore.addCube(post);
+  }
+
+  async subscribeUser(subscribeButton: HTMLButtonElement) {
+    const authorkeystring = subscribeButton.getAttribute("data-authorkey");
+    const authorkey = Buffer.from(authorkeystring, 'hex');
+    // subscribing or unsubscribing?
+    if (subscribeButton.classList.contains("active")) {
+      logger.trace("VerityUI: Unsubscribing from " + authorkeystring);
+      this.identity.removeSubscriptionRecommendation(authorkey);
+      subscribeButton.classList.remove("active");
+      await this.identity.store();
+    } else {
+      logger.trace("VerityUI: Subscribing to " + authorkeystring);
+      this.identity.addSubscriptionRecommendation(authorkey);
+      subscribeButton.classList.add("active");
+      await this.identity.store();
+    }
+    this.redisplayAuthor(this.cubeStore.getCubeInfo(authorkeystring));
+  }
+
 
   shutdown() {
     clearInterval(this.cubeAuthorRedisplayTimer);
