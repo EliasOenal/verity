@@ -1,5 +1,5 @@
-import { Cube } from "../core/cube/cube";
-import { CubeField, CubeFieldType, CubeFields } from "../core/cube/cubeFields";
+import { Cube } from "../../../src/core/cube/cube";
+import { CubeField, CubeFieldType, CubeFields } from "../../../src/core/cube/cubeFields";
 
 async function prepareBinaryCube() {
   const cube: Cube = new Cube();

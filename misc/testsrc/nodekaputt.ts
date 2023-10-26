@@ -1,4 +1,4 @@
-import { Cube } from './core/cube/cube';
+import { Cube } from '../../src/core/cube/cube';
 
 console.error("test start");
 let port: any;
