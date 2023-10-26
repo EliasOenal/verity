@@ -571,11 +571,11 @@ describe('networkManager', () => {
 
     describe('libp2p connections', () => {
         // Broken while https is hardcoded in Libp2pTransport
-        it.skip('should correctly open and close connections', async() => {
+        it('should correctly open and close connections', async() => {
             const server = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                 new PeerDB(),
-                new Map([[SupportedTransports.libp2p, 17101]]),
+                new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17101/ws']]),
                 {  // disable optional features
                     announceToTorrentTrackers: false,
                     autoConnect: false,

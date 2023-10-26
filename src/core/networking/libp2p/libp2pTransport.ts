@@ -14,7 +14,6 @@ import { circuitRelayTransport, circuitRelayServer } from "libp2p/circuit-relay"
 import { identifyService } from "libp2p/identify";
 import { Libp2pNode } from "libp2p/libp2p";
 import * as filters from '@libp2p/websockets/filters'
-
 import { createServer } from 'https';
 import { readFileSync } from 'fs';
 
@@ -31,6 +30,14 @@ export class Libp2pTransport extends NetworkTransport {
   private listen: string[] = [];
   private _node: Libp2pNode;  // libp2p types are much to complicated for my humble brain
   get node() { return this._node }
+
+  /**
+   * Syntactic sugar to get this transport's TransportServer instance.
+   * Due to libp2p's framework-heavy nature there's no clear-cut separation
+   * between "server" (listening) and "client" (outgoing connection) code,
+   * as both need the full framework (libp2p's Node object) initialized.
+   */
+  get server() { return this._servers[0] }
 
   constructor(
     networkManager: NetworkManager,
@@ -60,22 +67,29 @@ export class Libp2pTransport extends NetworkTransport {
 
   // TODO de-uglify
   async start(): Promise<void> {
-    let httpsServer, libp2pWebSocketTransport;
-    if (isNode) {
-      // TODO HACKHACK: only create HTTPs server if HTTPs listening actually requested
-      httpsServer = createServer({
+    // Create libp2p's webSockets() transport object:
+    // Should we use HTTPs / WSS or plain text?
+    let libp2pWebSocketTransport;
+    if (isNode &&  // no listening allowed on the browser in any case
+        (this.listen.some((listenString) =>  // any listen String calls for HTTPs
+          // Note: this is a really ugly way to parse a Multiaddr, but sadly
+          // the lib does not really expose much API for this.
+          // There's Multiaddr.decapsulateCode() which could be used in
+          // conjuction with getProcotol(), but getProtocol() is not exported.
+          listenString.includes("/wss") || listenString.includes("/tls")))) {
+      const httpsServer = createServer({
         // TODO HACKHACK: do something other than hardcoding a cert file name.
         // Literally anything else.
         cert: readFileSync('./cert.pem'),
         key: readFileSync('./key.pem'),
       });
       libp2pWebSocketTransport = webSockets({
-        filter: filters.all,
+        filter: filters.all,  // allow all kinds of connections for testing, effectively disabling sanitizing - maybe TODO remove this?
         server: httpsServer,
       });
     } else {
       libp2pWebSocketTransport = webSockets({
-        filter: filters.all,
+        filter: filters.all,  // allow all kinds of connections for testing, effectively disabling sanitizing - maybe TODO remove this?
       });
     }
     const addresses = {
@@ -87,6 +101,7 @@ export class Libp2pTransport extends NetworkTransport {
       addresses['announce'] = [`/dns4/${this.options.publicAddress}/tcp/1985/wss/`];
     }
 
+    // Now that we preconfigured all the components, fire up the Libp2pNode object:
     logger.trace("Libp2pServer: Starting up requesting listeners " +  addresses.listen + " and announce " + addresses['announce']);
     this._node = await createLibp2p({
       addresses: addresses,
@@ -105,7 +120,7 @@ export class Libp2pTransport extends NetworkTransport {
           }
         }),
         webRTCDirect(),
-        circuitRelayTransport({ discoverRelays: 5 }),
+        circuitRelayTransport({ discoverRelays: 5 }),  // TODO: server nodes should not really reserve relay slots on other nodes
       ],
       // connectionEncryption: [plaintext()],
       connectionEncryption: [noise()],
@@ -121,7 +136,7 @@ export class Libp2pTransport extends NetworkTransport {
         minConnections: 0,  // we manage creating new peer connections ourselves
       }
     }) as unknown as Libp2pNode;  // it's actually the class the lib creates, believe me
-    await this._servers[0].start();
+    await this.server.start();
   }
 
   async shutdown(): Promise<void> {
