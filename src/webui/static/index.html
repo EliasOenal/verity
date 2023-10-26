@@ -123,7 +123,7 @@
     <div class="verityPostView">
       <div class="verityNewPostDiv mt-3 mt-sm-5 mb-3">
         <form id="verityNewPostForm" class="form-floating row" action="javascript:void(0);"
-          onsubmit="window.verityUI.makeNewPost(this);">
+          onsubmit="window.verityUI.postController.makeNewPost(this);">
           <textarea id="verityNewPostInput" class="form-control verityPostInput"
                     maxlength="600" rows="2" placeholder="Make new post"
                     oninput="window.onTextareaInput(this)" required></textarea>
@@ -150,7 +150,7 @@
                 <button type="button"
                         class="btn btn-outline-primary veritySubscribeButton"
                         data-authorkey="<muckey>"
-                        onclick="window.verityUI.subscribeUser(this)">
+                        onclick="window.verityUI.postController.subscribeUser(this)">
                   Subscribe
                 </button>
                 <br />
@@ -162,7 +162,7 @@
             <p class="verityPostContent" title="Cube Key <cubekey>">Text</p>
             <div class="verityReplyDiv">
               <form action="javascript:void(0);"
-                    onsubmit="window.verityUI.makeNewPost(this);"
+                    onsubmit="window.verityUI.postController.makeNewPost(this);"
                     class="verityReplyForm input-group">
                 <textarea maxlength="600" class="form-control verityPostInput"
                           rows="1" type="text" required
