@@ -5,7 +5,7 @@ const webpack = require('webpack');
 module.exports = {
   target: 'web',
   entry: {
-    verityUI: './src/webui/VerityUI.ts'
+    verityUI: './src/webui/verityUI.ts',
   },
   mode: 'development',
   module: {
@@ -23,7 +23,8 @@ module.exports = {
       // Use can only include required modules. Also install the package.
       // for example: npm install --save-dev assert
       url: require.resolve('url'),
-      fs: require.resolve('fs'),
+      // fs: require.resolve('fs'),
+      fs: false,
       //assert: require.resolve('assert'),
       // crypto: require.resolve('crypto-browserify'),
       crypto: false,  // using native web crypto api
@@ -31,7 +32,7 @@ module.exports = {
       //https: require.resolve('https-browserify'),
       //os: require.resolve('os-browserify/browser'),
       buffer: require.resolve('buffer'),
-      //stream: require.resolve('stream-browserify'),
+      stream: require.resolve('stream-browserify'),
       // "util": require.resolve("util/"),
       // "path": require.resolve("path-browserify"),
       // "tty": require.resolve("tty-browserify"),
@@ -43,7 +44,7 @@ module.exports = {
   externals: {
     bufferutil: "bufferutil",
     "utf-8-validate": "utf-8-validate",
-    fs: "fs",
+    // fs: "fs",
   },
   output: {
     filename: '[name].js',
@@ -63,10 +64,10 @@ module.exports = {
       ]
     }),
    new webpack.ProvidePlugin({
-	// Make a global `process` variable that points to the `process` package,
-	// because the `util` package expects there to be a global variable named `process`.
-	// Thanks to https://stackoverflow.com/a/65018686/14239942
-	//process: 'process/browser',
+	   // Make a global `process` variable that points to the `process` package,
+	   // because the `util` package expects there to be a global variable named `process`.
+	   // Thanks to https://stackoverflow.com/a/65018686/14239942
+	   process: 'process/browser',
    }),
    new webpack.IgnorePlugin({
     resourceRegExp: /nodespecific/,
@@ -75,6 +76,6 @@ module.exports = {
   devServer: {
     static: path.join(__dirname, "distweb"),
     compress: true,
-    port: 4000,
+    port: 11984,
   },
 };

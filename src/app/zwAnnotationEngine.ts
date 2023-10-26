@@ -1,13 +1,13 @@
-import { Cube, CubeKey } from "../core/cube";
-import { CubeMeta, CubeInfo } from "../core/cubeInfo";
-import { CubeStore } from "../core/cubeStore";
+import { CubeType } from "../core/cube/cubeDefinitions";
+import { Cube, CubeKey } from "../core/cube/cube";
+import { CubeMeta, CubeInfo } from "../core/cube/cubeInfo";
+import { CubeStore } from "../core/cube/cubeStore";
 import { logger } from "../core/logger";
-import { AnnotationEngine } from "../core/annotationEngine";
+import { AnnotationEngine } from "../cci/annotationEngine";
 import { Identity } from "./identity";
 import { MediaTypes, ZwFieldLengths, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipLimits, ZwRelationshipType } from "./zwFields";
 
 import { Buffer } from 'buffer';
-import { CubeType } from "../core/cubeDefinitions";
 
 // TODO: Split post selection and associated criteria out of here, moving it to
 // a new class ContentSelector. Instead of purely binary criteria, assign them

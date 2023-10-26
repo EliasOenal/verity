@@ -1,9 +1,9 @@
-import { BaseField,  BaseFields, BaseRelationship } from "../core/baseFields";
-import { Cube } from "../core/cube";
-import { CubeField, CubeFieldType } from "../core/cubeFields";
+import { BaseField,  BaseFields, BaseRelationship } from "../core/cube/baseFields";
+import { Cube } from "../core/cube/cube";
+import { CubeField, CubeFieldType } from "../core/cube/cubeFields";
 import { FieldDefinition, FieldNumericalParam, FieldParser } from "../core/fieldParser";
 import { logger } from "../core/logger";
-import { NetConstants } from "../core/networkDefinitions";
+import { NetConstants } from "../core/networking/networkDefinitions";
 
 import { Buffer } from 'buffer'
 

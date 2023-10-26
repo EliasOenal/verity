@@ -1,7 +1,20 @@
+/*
+ * Globals
+ */
+
+:root {
+  /* This should automatically be applies from the Bootstrap CSS, but for some reason it isn't */
+  --bs-navbar-toggler-icon-bg:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%2833, 37, 41, 0.75%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
 body {
   min-width: 20em;
 }
 
+
+/**
+ * Animation stuff
+ */
 * {
   transition: 0.35s ease, color 0.05s ease, background-color 0.2s ease;
   /* border: 1px solid red; /* Debug overflow */
@@ -31,6 +44,112 @@ body {
   }
 }
 
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0em);
+  }
+  50% {
+    transform: translateY(0.75em);
+  }
+}
+
+@keyframes barrelRoll {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/*
+ * Root style, logo etc
+ */
+.dark-mode-toggle {
+  font-size: 1.5em;
+}
+
+.vera-anim {
+  animation: float 2s ease-in-out infinite;
+  animation-play-state: paused;
+  transition: animation-play-state 1s ease-in-out;
+}
+
+.vera-anim:hover {
+  animation-play-state: running;
+}
+
+.vera-roll {
+  animation: barrelRoll 1s ease-in-out forwards;
+}
+
+
+
+/*
+ * Navigation
+ */
+#leftnavCollapseToggler {
+  display: block;
+  position: relative;
+  font-size: 150%;
+  bottom: 3em;
+  margin-bottom: -3em;
+  background-repeat: no-repeat;
+  z-index: 2;
+}
+
+#leftnav {
+  display: sticky;
+  top: 0;
+}
+
+.nav-item.active {
+  font-weight: bold;
+}
+
+/* Online/offline view */
+.greenDot {
+  position: relative;
+  top: 0.25ex;
+  display: inline-block;
+  width: 2ex;
+  height: 2ex;
+  background: #00FF00;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+.redDot {
+  position: relative;
+  top: 0.25ex;
+  display: inline-block;
+  width: 2ex;
+  height: 2ex;
+  background: #FF0000;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+.verityOnlineStatus {
+  color: black;
+  text-decoration: none;
+}
+
+/*
+ * General styles for main view area
+ */
+.content-wrapper {
+  padding: 0.5em;
+}
+
+
+/*
+ * Post view
+ */
+ul.verityPostList {
+  list-style-type: none;
+  padding-left: 0;
+}
+
 ul.replyposts {
   list-style-type: none;
 }
@@ -55,57 +174,10 @@ img#veralogo {
   z-index: 1;
 }
 
-.content-wrapper {
-  padding: 0.5em;
-}
-
-#cubelist {
-  overflow-wrap: anywhere;
-}
-
-@keyframes float {
-
-  0%,
-  100% {
-    transform: translateY(0em);
-  }
-
-  50% {
-    transform: translateY(0.75em);
-  }
-}
-
-.vera-anim {
-  animation: float 2s ease-in-out infinite;
-  animation-play-state: paused;
-  transition: animation-play-state 1s ease-in-out;
-}
-
-.vera-anim:hover {
-  animation-play-state: running;
-}
-
-@keyframes barrelRoll {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(-360deg);
-  }
-}
-
-.vera-roll {
-  animation: barrelRoll 1s ease-in-out forwards;
-}
-
-.dark-mode-toggle {
-  font-size: 1.5em;
-}
-
-/* Out post input text areas auto-resize using JS, so no overflow and no
-manual resizing please. */
 textarea.verityPostInput {
+  /* Our post input text areas auto-resize using JS, so no overflow and no
+     manual resizing please. */
+  height: 0px;
   overflow-y: hidden;
   resize: none;
 }
@@ -116,34 +188,21 @@ li.verityPost {
 }
 
 .verityPostCharCountBarContainer {
+  transition: none;
+  width: 100%;
   /* Will be overriden on user input */
   display: none;
 }
 .verityPostRemainingChars {
+  transition: none;
   flex-grow: 1;
   flex-direction: row-reverse;
   color: white;
   font-weight: bold;
   padding-right: 1em;
 }
-
-.nav-item.active {
-  font-weight: bold;
-}
-
-#leftnavCollapseToggler {
-  display: block;
-  position: relative;
-  font-size: 150%;
-  bottom: 3em;
-  margin-bottom: -3em;
-  background-repeat: no-repeat;
-  z-index: 2;
-}
-
-#leftnav {
-  display: sticky;
-  top: 0;
+.verityPostCharCountBar {
+  transition: none;
 }
 
 .veritySubscribeButton {
@@ -155,7 +214,19 @@ li.verityPost {
   padding-right: 0.3em;
 }
 
-:root {
-  /* This should automatically be applies from the Bootstrap CSS, but for some reason it isn't */
-  --bs-navbar-toggler-icon-bg:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%2833, 37, 41, 0.75%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+/*
+ * Peer view
+ */
+ul.verityPeerList {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+li.verityPeer {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.verityPeerData {
+  overflow-wrap: anywhere;
 }

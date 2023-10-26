@@ -5,11 +5,11 @@
  * They just follow a standardized field structure.
  */
 
-import { BaseField } from "../core/baseFields";
-import { Settings } from "../core/config";
-import { Cube, CubeKey } from "../core/cube";
-import { CubeError, CubeType } from "../core/cubeDefinitions";
-import { CubeField } from "../core/cubeFields";
+import { BaseField } from "../core/cube/baseFields";
+import { Settings } from "../core/settings";
+import { Cube, CubeKey } from "../core/cube/cube";
+import { CubeError, CubeType } from "../core/cube/cubeDefinitions";
+import { CubeField } from "../core/cube/cubeFields";
 import { FieldParser } from "../core/fieldParser";
 import { Identity } from "./identity";
 import { MediaTypes, ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from "./zwFields";

@@ -9,7 +9,9 @@
   <script src="bootstrap.bundle.min.js"></script>
   <script src="frontend.js" defer></script>
   <script src="verityUI.js" defer></script>
-  <script> // This script tag prevents a flash of unstyled content (FOUC) on page load and should not be moved.
+  <script>
+    // This script tag prevents a flash of unstyled content (FOUC) on page load
+    // and should not be moved.
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       document.documentElement.setAttribute('data-bs-theme', 'dark');
     }
@@ -20,7 +22,8 @@
 <body>
   <div class="content-wrapper">
     <div class="position-absolute top-0 end-0 m-0">
-      <button class="btn btn-link dark-mode-toggle fade-in" onclick="toggleDarkMode()" type="button">
+      <button class="btn btn-link dark-mode-toggle fade-in"
+              onclick="toggleDarkMode()" type="button">
         <span id="theme-icon">
           <!-- The icon will be set here by the updateIcon function -->
         </span>
@@ -30,122 +33,205 @@
       <div class="row" id="globalrow">
         <div class="col-sm-3" id="leftnav navbar bg-dark navbar-dark">
           <div class="row my-3">
-            <img src="vera.svg" class="img-fluid py-3 vera-anim vera-spin" id="veralogo" alt=""
-              onclick="veraRoll()" />
+            <img src="vera.svg" class="img-fluid py-3 vera-anim vera-spin"
+                 id="veralogo" alt="" onclick="veraRoll()" />
           </div>
 
-          <!-- leftnavCollapsible (navigation, identity and peers) default collapsed on mobile view -->
-          <button id="leftnavCollapseToggler" class="navbar-toggler d-sm-none navbar-toggler-icon"
-                  type="button" data-bs-toggle="collapse" data-bs-target="#leftnavCollapsible">
+          <!-- leftnavCollapsible (navigation, identity and peers)
+               default collapsed on mobile view
+          -->
+          <button id="leftnavCollapseToggler"
+                  class="navbar-toggler d-sm-none navbar-toggler-icon"
+                  type="button" data-bs-toggle="collapse"
+                  data-bs-target="#leftnavCollapsible">
           </button>
           <div id="leftnavCollapsible" class="collapse navbar-collapse d-sm-block">
             <ul id="toplevelnav" class="navbar-nav my-5">
               <li class="nav-item" id="navPostsAll">
-                <a href="#" class="nav-link" onclick="window.verityUI.navPostsAll()">All posts</a>
+                <a href="#" class="nav-link"
+                  onclick="window.verityUI.navPostsAll()">
+                    All posts
+                </a>
               </li>
               <li class="nav-item" id="navPostsWithAuthors">
-                <a href="#" class="nav-link" onclick="window.verityUI.navPostsWithAuthors()">No anonymous posts</a>
+                <a href="#" class="nav-link"
+                  onclick="window.verityUI.navPostsWithAuthors()">
+                    No anonymous posts
+                </a>
               </li>
               <li class="nav-item" id="navPostsSubscribedInTree">
-                <a href="#" class="nav-link" onclick="window.verityUI.navPostsSubscribedInTree()">Subscribed (anywhere in thread)</a>
+                <a href="#" class="nav-link"
+                  onclick="window.verityUI.navPostsSubscribedInTree()">
+                    Subscribed (anywhere in thread)
+                </a>
               </li>
               <li class="nav-item" id="navPostsSubscribedReplied">
-                <a href="#" class="nav-link" onclick="window.verityUI.navPostsSubscribedReplied()">Subscribed (+preceding)</a>
+                <a href="#" class="nav-link"
+                  onclick="window.verityUI.navPostsSubscribedReplied()">
+                    Subscribed (+preceding)
+                </a>
               </li>
               <li class="nav-item" id="navPostsSubscribedStrict">
-                <a href="#" class="nav-link" onclick="window.verityUI.navPostsSubscribedStrict()">Subscribed (strict)</a>
+                <a href="#" class="nav-link"
+                  onclick="window.verityUI.navPostsSubscribedStrict()">
+                    Subscribed (strict)
+                </a>
               </li>
               <li class="nav-item" id="navPostsSubscribedReplied1">
-                <a href="#" class="nav-link" onclick="window.verityUI.navPostsSubscribedReplied(1)">Subscribed (+preceding+WOT1)</a>
+                <a href="#" class="nav-link"
+                  onclick="window.verityUI.navPostsSubscribedReplied(1)">
+                    Subscribed (+preceding+WOT1)
+                </a>
               </li>
               <li class="nav-item" id="navPostsSubscribedReplied3">
-                <a href="#" class="nav-link" onclick="window.verityUI.navPostsSubscribedReplied(3)">Subscribed (+preceding+WOT3)</a>
+                <a href="#" class="nav-link"
+                  onclick="window.verityUI.navPostsSubscribedReplied(3)">
+                    Subscribed (+preceding+WOT3)
+                </a>
               </li>
             </ul>
 
-            <div class="row" id="identityrow">
+            <div class="row my-4" id="identityrow">
               <h5>My Identity</h5>
               <form class="input-group" id="idform" action="javascript:void(0);"
                 onsubmit="window.verityUI.saveIdentity();">
-                <input class="form-control form-control-sm" type="text" id="idname" placeholder="Choose your user name"
-                  required>
+                <input class="form-control form-control-sm" type="text"
+                       id="idname" placeholder="Choose your user name" required />
                 <button class="btn btn-sm btn-primary" type="submit">Save</button>
               </form>
             </div> <!-- identityrow-->
 
-            <div class="row my-3 mb-0" id="peerrow">
-              <h5 class="my-1">Peers</h5>
-              <ul id="peerlist" class="list-unstyled text-truncate mb-0">
-              </ul>
-            </div> <!-- peerrow -->
+            <div class="row my-4" id="verityOnlineStatusArea">
+              <a class="verityOnlineStatus" href="#" onclick="window.verityUI.navPeers()">
+                <span class="redDot"></span>Offline
+              </a>
+            </div>
           </div> <!-- leftnavCollapsible -->
         </div> <!-- leftnav -->
 
-        <div class="col-sm-8 container-fluid maincontent">
-          <div class="verityNewPostDiv mt-3 mt-sm-5 mb-3">
-            <form id="verityNewPostForm" class="form-floating row" action="javascript:void(0);"
-              onsubmit="window.verityUI.makeNewPost(this);">
-              <textarea id="verityNewPostInput" class="form-control verityPostInput"
-                        maxlength="600" rows="2" placeholder="Make new post"
-                        oninput="window.onTextareaInput(this)" required></textarea>
-              <label class="form-label" for="verityNewPostInput">Make new post</label>
-              <button class="btn btn-primary" type="submit" id="newcube">Post</button>
-            </form>
-            <div class="progress bg-danger verityPostCharCountBarContainer" role="progressbar">
-              <div class="progress-bar bg-success verityPostCharCountBar" style="width: 100%"></div>
-              <div class="verityPostRemainingChars" style="display: none;">600</div>
-            </div>
-          </div>
-
-          <div class="row" id="postsrow">
-            <ul id="cubelist" class="list-unstyled">
-
-
-            </ul>
-          </div> <!-- postsrow -->
-
-
-        </div> <!-- maincontent -->
+        <div class="col-sm-8 container-fluid" id="verityContentArea">
+        </div> <!-- verityContentArea -->
       </div>
     </div>
   </div>
 
-  <template id="verityPostTemplate">
-    <li class="verityPost move-fade-in"
-        data-cubekey="<cubekey>" data-timestamp="1695048919">
-      <div class="verityPostHeader">
-        <img class="verityPostProfilePic" src="" />
-        <p>
-          <b class="verityCubeAuthor" title="MUC key <muckey>" id="<cubekey>-author">
-            User name
-          </b>
-          <button type="button" class="btn btn-outline-primary veritySubscribeButton"
-                  data-authorkey="<muckey>"
-                  onclick="window.verityUI.subscribeUser(this)">
-            Subscribe
-          </button>
-          <br />
-          <small class="verityPostDate">Friday, September 15, 2023 6:22:12 PM</small>
-        </p>
-      </div>
-      <p class="verityPostContent" title="Cube Key <cubekey>">Text</p>
-      <div class="verityReplyDiv">
-        <form action="javascript:void(0);"
-              onsubmit="window.verityUI.makeNewPost(this);"
-              class="verityReplyForm input-group">
-          <textarea maxlength="600" class="form-control verityPostInput" rows="1"
-                    placeholder="Reply" id="verityReplyInput-<cubekey>" type="text"
-                    required="" style="height: 0px;"
-                    oninput="window.onTextareaInput(this)"></textarea>
-          <button type="submit" class="btn btn-primary verityPostButton" id="replybutton-<cubkey>">Post</button>
+
+  <!-- END OF FRAMEWORK-->
+  <!-- Next up are templates -->
+  <!-- These will be cloned as needed by the various Views -->
+  <template id="verityPostViewTemplate">
+    <div class="verityPostView">
+      <div class="verityNewPostDiv mt-3 mt-sm-5 mb-3">
+        <form id="verityNewPostForm" class="form-floating row" action="javascript:void(0);"
+          onsubmit="window.verityUI.makeNewPost(this);">
+          <textarea id="verityNewPostInput" class="form-control verityPostInput"
+                    maxlength="600" rows="2" placeholder="Make new post"
+                    oninput="window.onTextareaInput(this)" required></textarea>
+          <label class="form-label" for="verityNewPostInput">Make new post</label>
+          <button class="btn btn-primary" type="submit" id="newcube">Post</button>
         </form>
         <div class="progress bg-danger verityPostCharCountBarContainer" role="progressbar">
-          <div class="progress-bar bg-success verityPostCharCountBar" style="width: 100%"></div>
+          <div class="progress-bar bg-success verityPostCharCountBar" style="width: 100%">
+          </div>
           <div class="verityPostRemainingChars" style="display: none;">600</div>
         </div>
       </div>
-    </li>
-  </template>
+
+      <div class="row" id="verityPostsRow">
+        <ul class="verityPostList list-unstyled">
+          <li class="verityPost move-fade-in"
+          data-cubekey="<cubekey>" data-timestamp="1695048919">
+            <div class="verityPostHeader">
+              <img class="verityPostProfilePic" src="" />
+              <p>
+                <b class="verityCubeAuthor" title="MUC key <muckey>" id="<cubekey>-author">
+                  User name
+                </b>
+                <button type="button"
+                        class="btn btn-outline-primary veritySubscribeButton"
+                        data-authorkey="<muckey>"
+                        onclick="window.verityUI.subscribeUser(this)">
+                  Subscribe
+                </button>
+                <br />
+                <small class="verityPostDate">
+                  Friday, September 15, 2023 6:22:12 PM
+                </small>
+              </p>
+            </div>
+            <p class="verityPostContent" title="Cube Key <cubekey>">Text</p>
+            <div class="verityReplyDiv">
+              <form action="javascript:void(0);"
+                    onsubmit="window.verityUI.makeNewPost(this);"
+                    class="verityReplyForm input-group">
+                <textarea maxlength="600" class="form-control verityPostInput"
+                          rows="1" type="text" required
+                          placeholder="Reply" id="verityReplyInput-<cubekey>"
+                          oninput="window.onTextareaInput(this)"></textarea>
+                <button type="submit" class="btn btn-primary verityPostButton"
+                        id="replybutton-<cubekey>">
+                  Post
+                </button>
+              </form>
+              <div class="progress bg-danger verityPostCharCountBarContainer"
+                   role="progressbar">
+                <div class="progress-bar bg-success verityPostCharCountBar"></div>
+                <div class="verityPostRemainingChars" style="display: none;">600</div>
+              </div>
+            </div> <!-- verityReplyDiv-->
+        </li>
+        </ul>
+      </div> <!-- verityPostsRow -->
+    </div> <!-- verityPostView -->
+  </template> <!-- verityPostViewTemplate -->
+
+  <template id="verityPeerViewTemplate">
+    <div class="verityPeerView">
+      <h5 class="mt-3 mt-sm-5 mb-3">Peers</h5>
+      <div class="verityNewPeerDiv">
+        <form class="verityNewPeerForm input-group"
+              action="javascript:void(0);"
+              onsubmit="window.verityUI.peerController.connectPeer(this);">
+          <div class="form-floating">
+            <input id="verityNewPeerInput" class="form-control verityNewPeerInput"
+                   maxlength="600" placeholder="New peer address" required />
+            <label class="form-label" for="verityNewPeerInput">New peer address</label>
+          </div>
+          <button class="btn btn-primary verityNewPeerButton" type="submit">
+            Connect
+          </button>
+        </form>
+      </div>
+
+      <ul class="verityPeerList">
+        <li class="verityPeer card move-fade-in">
+          <table class="table card-body verityPeerTable">
+            <tr class="verityPeerDataRow">
+              <th class="verityPeerDataHeader">ID</th>
+              <td class="verityPeerData verityPeerId">
+                e66c51d5130992aac3be542a5df17996
+              </td>
+            </tr>
+            <tr class="verityPeerDataRow">
+              <th class="verityPeerDataHeader">Connected through</th>
+              <td class="verityPeerData verityPeerConn">
+                ws://verity.hahn.mt:1984/
+              </td>
+            </tr>
+            <tr class="verityPeerDataRow">
+              <th class="verityPeerDataHeader">Known addresses</th>
+              <td class="verityPeerData verityPeerAddresses">
+                <ol class="verityPeerAddressList">
+                  <li value="0">ws://demonstration.address <b>(primary)</b></li>
+                  <li value="1">/dns4/demonstration.address/tcp/1985/wss/ </li>
+                </ol>
+              </td>
+            </tr>
+          </table>
+        </li>
+      </ul>
+    </div>
+  </template> <!-- verityPostViewTemplate -->
 
 </body> <!-- globalrow, container and body -->
 
