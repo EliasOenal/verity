@@ -127,7 +127,7 @@ export class Libp2pTransport extends NetworkTransport {
       streamMuxers: [yamux()],
       services: {
         identify: identifyService(),  // finds out stuff like our own observed address and protocols supported by remote node
-        relay: circuitRelayServer(),
+        relay: circuitRelayServer(),  // note browser nodes also offer relay services to their connected peers! TODO: we should make active use of that in peer exchange
       },
       connectionGater: {
         denyDialMultiaddr: async() => false,
