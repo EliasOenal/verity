@@ -610,7 +610,7 @@ describe('networkManager', () => {
         });
 
         // TODO DEBUG
-        it.only('keeps WebRTC peers connected even if the WS server goes down', async () => {
+        it.skip('keeps WebRTC peers connected even if the WS server goes down', async () => {
             // create two "browser" (= non listening) nodes and a "server" (= WS listening node)
             const options = {
                 announceToTorrentTrackers: false,

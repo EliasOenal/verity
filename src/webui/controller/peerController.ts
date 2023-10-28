@@ -89,11 +89,12 @@ export class PeerController extends VerityController {
     this.displayPeer(peer);  // redisplay
   }
 
-  disconnectPeer(button: HTMLButtonElement) {
+  disconnectPeer(button: HTMLButtonElement, reconnect: boolean = false): void {
     const peerIdString = button.getAttribute("data-peerid");
     const peer: NetworkPeer = this.peerDB.getPeer(peerIdString) as NetworkPeer;
     try {  // peers currently connected are guaranteed to be NetworkPeers, but just in case...
       peer.close();
+      if (reconnect) this.networkManager.connect(peer);
     } catch(error) {
       logger.error(`PeerController.disconnectPeer(): Error disconnecting peer ${peerIdString}: ${error}`);
     }
