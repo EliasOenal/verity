@@ -213,7 +213,12 @@ export class NetworkPeer extends Peer {
         const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.PEER_ID_SIZE);
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, 0);
         message.writeUInt8(MessageClass.Hello, 1);
-        this.hostNodePeerID.copy(message, NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
+        this.hostNodePeerID.copy(
+            message,  // target
+            NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE,  // target offset
+            0,  // source offset
+            NetConstants.PEER_ID_SIZE,  // source length
+        );
         this.txMessage(message);
     }
 
@@ -604,6 +609,12 @@ export class NetworkPeer extends Peer {
         this.txMessage(message);
     }
 
+    // TODO: don't exchange stale nodes... maybe only exchange nodes that we've
+    // successfully connected in the last hour or so
+    // TODO: ask our transports for exchangeable nodes -- for libp2p, browser nodes
+    // can and should act as connection brokers for their directly connected peers;
+    // this kind of private brokering however never yields any kind of publicly
+    // reachable peer address
     private handleNodeResponse(message: Buffer): void {
         let offset = 0;
         const peerCount: number = message.readUIntBE(offset, NetConstants.COUNT_SIZE);

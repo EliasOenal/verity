@@ -168,10 +168,6 @@ export class PeerDB extends EventEmitter {
     }
 
     verifyPeer(peer: Peer): void {
-        // Plausibility check:
-        // If a peer is already exchangeable, which is a higher status than verified,
-        // do nothing.
-        if (this.peersExchangeable.has(peer.idString)) return;
         // Remove peer from unverified map.
         // Also, abort if peer is found in blacklist.
         for (const address of peer.addresses) {
@@ -179,6 +175,10 @@ export class PeerDB extends EventEmitter {
             this._peersUnverified.delete(address.toString());
             if (this.peersBlacklisted.has(addrString)) return;
         }
+        // If a peer is already exchangeable, which is a higher status than verified,
+        // call markPeerExchangeable instead (this is to ensure we replace any
+        // stale Peer objects with fresh ones).
+        if (this.peersExchangeable.has(peer.idString)) return this.markPeerExchangeable(peer);
         // Okay, setting peer verified!
         // Note that this silently replaces the currently stored peer object
         // of the stored one has the same peer ID as the supplied one.

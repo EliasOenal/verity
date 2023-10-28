@@ -1,4 +1,4 @@
-import { VerityError } from "../../settings";
+import { Settings, VerityError } from "../../settings";
 import { Libp2pServer } from "./libp2pServer";
 import { NetworkTransport } from "../networkTransport";
 import { NetworkManager, NetworkManagerOptions } from "../networkManager";
@@ -24,11 +24,11 @@ import { isNode } from "browser-or-node";
 // Stop server nodes from reserving relay spots
 // Use observed addresses after evaluating them through some sort of heuristic peer trust
 
-
 // TODO: try to move more server/listener specific stuff into Libp2pServer
 export class Libp2pTransport extends NetworkTransport {
   private listen: string[] = [];
   private _node: Libp2pNode;  // libp2p types are much to complicated for my humble brain
+  public circuitRelayTransport: any = undefined;  // class CircuitRelayTransport not exported by lib
   get node() { return this._node }
 
   /**
@@ -65,17 +65,14 @@ export class Libp2pTransport extends NetworkTransport {
     if (!this.listen.includes("/webrtc")) this.listen.push("/webrtc");
   }
 
-  // TODO de-uglify
   async start(): Promise<void> {
-    // Create libp2p's webSockets() transport object:
-    // Should we use HTTPs / WSS or plain text?
-    let libp2pWebSocketTransport;
+    // Pre-create libp2p components:
+    let transports = [];
+    // webSockets() transport object: Should we use HTTPs / WSS or plain text?
     if (isNode &&  // no listening allowed on the browser in any case
         (this.listen.some((listenString) =>  // any listen String calls for HTTPs
-          // Note: this is a really ugly way to parse a Multiaddr, but sadly
-          // the lib does not really expose much API for this.
-          // There's Multiaddr.decapsulateCode() which could be used in
-          // conjuction with getProcotol(), but getProtocol() is not exported.
+          // Note: this is a really ugly way to parse a Multiaddr, but as libp2p wants
+          // a multiaddr *string* rather than a multiaddr object, this is easiest way
           listenString.includes("/wss") || listenString.includes("/tls")))) {
       const httpsServer = createServer({
         // TODO HACKHACK: do something other than hardcoding a cert file name.
@@ -83,20 +80,38 @@ export class Libp2pTransport extends NetworkTransport {
         cert: readFileSync('./cert.pem'),
         key: readFileSync('./key.pem'),
       });
-      libp2pWebSocketTransport = webSockets({
+      transports.push(webSockets({
         filter: filters.all,  // allow all kinds of connections for testing, effectively disabling sanitizing - maybe TODO remove this?
         server: httpsServer,
-      });
+      }));
     } else {
-      libp2pWebSocketTransport = webSockets({
+      transports.push(webSockets({
         filter: filters.all,  // allow all kinds of connections for testing, effectively disabling sanitizing - maybe TODO remove this?
-      });
+      }));
     }
+    // webRTC
+    transports.push(webRTC({
+      rtcConfiguration: {
+        iceServers:[{
+          // TODO get rid of third-party STUN servers
+          // Why do we even use those on brokered connections?!
+          urls: [
+            'stun:stun.l.google.com:19302',
+            'stun:global.stun.twilio.com:3478'
+          ]
+        }]
+      }
+    }));
+    // relaying
+    if (this.options.useRelaying) {
+      transports.push(circuitRelayTransport());
+    }
+    // addressing (listen and possibly announce, which are basically public address override)
     const addresses = {
       listen: this.listen,
     };
     logger.trace("Libp2pServer: publicAddress " + this.options['publicAddress']);
-    if ('publicAddress' in this.options) {
+    if (this.options?.publicAddress) {
       // TODO HACKHACK actually parse the provided address and combine them with the provided listeners
       addresses['announce'] = [`/dns4/${this.options.publicAddress}/tcp/1985/wss/`];
     }
@@ -105,38 +120,34 @@ export class Libp2pTransport extends NetworkTransport {
     logger.trace("Libp2pServer: Starting up requesting listeners " +  addresses.listen + " and announce " + addresses['announce']);
     this._node = await createLibp2p({
       addresses: addresses,
-      transports: [
-        libp2pWebSocketTransport,
-        webRTC({
-          rtcConfiguration: {
-            iceServers:[{
-              // TODO get rid of third-party STUN servers
-              // Why do we even use those on brokered connections?!
-              urls: [
-                'stun:stun.l.google.com:19302',
-                'stun:global.stun.twilio.com:3478'
-              ]
-            }]
-          }
-        }),
-        webRTCDirect(),
-        circuitRelayTransport({ discoverRelays: 5 }),  // TODO: server nodes should not really reserve relay slots on other nodes
-      ],
-      // connectionEncryption: [plaintext()],
+      transports: transports,
       connectionEncryption: [noise()],
       streamMuxers: [yamux()],
       services: {
         identify: identifyService(),  // finds out stuff like our own observed address and protocols supported by remote node
-        relay: circuitRelayServer(),  // note browser nodes also offer relay services to their connected peers! TODO: we should make active use of that in peer exchange
+        relay: circuitRelayServer({
+          reservations: {
+            maxReservations: Settings.MAXIMUM_CONNECTIONS*100,  // maybe a bit much?
+          }
+        }),  // note browser nodes also offer relay services to their connected peers! TODO: we should make active use of that in peer exchange
       },
       connectionGater: {
+        // allow all kinds of connections, especially loopback ones (for testing)
+        // maybe TODO remove this later?
+        denyDialPeer: async () => false,
         denyDialMultiaddr: async() => false,
+        filterMultiaddrForPeer: async() => true,
       },
       connectionManager: {
         minConnections: 0,  // we manage creating new peer connections ourselves
       }
     }) as unknown as Libp2pNode;  // it's actually the class the lib creates, believe me
     await this.server.start();
+    if (this.options.useRelaying) {
+      this.circuitRelayTransport = this.node.components.transportManager.
+        getTransports().find( (transport) => 'reservationStore' in transport);
+        // ugly... I'd do instanceof, but CircuitRelayTransport is not exported
+    }
   }
 
   async shutdown(): Promise<void> {

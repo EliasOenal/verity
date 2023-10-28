@@ -182,6 +182,7 @@ async function webmain() {
       enableCubePersistance: true,
       lightNode: false,
       peerExchange: true,
+      useRelaying: true,
     });
   await node.cubeStoreReadyPromise;
   logger.info("Cube Store is ready");

@@ -23,10 +23,11 @@ if (isBrowser || isWebWorker) {
 
 export interface NetworkManagerOptions {
     announceToTorrentTrackers?: boolean;
-    lightNode?: boolean;
+    lightNode?: boolean;  // TODO: move this once we have a scheduler
     autoConnect?: boolean;
     peerExchange?: boolean;
-    publicAddress?: string;
+    publicAddress?: string;  // TODO: move this to new TransportOptions
+    useRelaying?: boolean;  // TODO: move this to new TransportOptions
 }
 
 /**
@@ -35,7 +36,7 @@ export interface NetworkManagerOptions {
 export class NetworkManager extends EventEmitter {
     readonly announceToTorrentTrackers?: boolean;
     private _lightNode?: boolean;
-    private _autoConnect?: boolean;
+    public autoConnect: boolean;
     private _peerExchange?: boolean;
 
     /**  */
@@ -87,7 +88,7 @@ export class NetworkManager extends EventEmitter {
         // set options
         this.announceToTorrentTrackers = options?.announceToTorrentTrackers ?? true;
         this._lightNode = options?.lightNode ?? false;
-        this._autoConnect = options?.autoConnect ?? true;
+        this.autoConnect = options?.autoConnect ?? true;
         this._peerExchange = options?.peerExchange ?? true;
 
         // Create NetworkTransport objects for all requested transport types.
@@ -103,7 +104,6 @@ export class NetworkManager extends EventEmitter {
 
     get cubeStore(): CubeStore { return this._cubeStore; }
     get lightNode(): boolean { return this._lightNode; }
-    get autoConnect(): boolean { return this._autoConnect}
     get peerExchange(): boolean { return this._peerExchange }
 
     public get peerDB() { return this._peerDB; }
@@ -156,8 +156,8 @@ export class NetworkManager extends EventEmitter {
     * To distinguish its continuous run from further external calls, automatic
     * re-calls to self will set existingRun, and nobody else should.
     */
-    private connectPeers(existingRun: boolean = false): void {
-        if (!this._autoConnect) return;
+    connectPeers(existingRun: boolean = false): void {
+        if (!this.autoConnect) return;
         // Don't do anything if we're already in the process of connecting new peers
         // or if we're shutting down.
         if (!existingRun && this.isConnectingPeers) {
@@ -246,7 +246,7 @@ export class NetworkManager extends EventEmitter {
 
     public shutdown(): Promise<void> {
         logger.trace('NetworkManager: shutdown()');
-        this._autoConnect = false;
+        this.autoConnect = false;
         this._peerDB.shutdown();
         this.stopConnectingPeers();
         const closedPromises: Promise<void>[] = [];
@@ -291,6 +291,8 @@ export class NetworkManager extends EventEmitter {
         // Mark the peer as verified.
         // If this is an outgoing peer, mark it as exchangeable
         // (exchangeable is a strictly higher status than verified).
+        // TODO BUGBUG: Using this code, a new incoming NetworkPeer object
+        // does not replace a stale outgoing NetworkPeer object in PeerDB
         if (this.outgoingPeers.includes(peer)) {
             this._peerDB.markPeerExchangeable(peer);
         } else {
