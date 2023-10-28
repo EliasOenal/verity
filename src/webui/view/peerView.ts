@@ -40,17 +40,18 @@ export class PeerView extends VerityView {
   newPeerEntry(peer: Peer): HTMLLIElement {
     const templateLi: HTMLLIElement = this.htmlTemplate.content.querySelector(".verityPeer");
     const li: HTMLLIElement = templateLi.cloneNode(true) as HTMLLIElement;
-    this.peerList.appendChild(li);
     return li;
   }
 
   redrawPeerData(peer: Peer, peerLi: HTMLLIElement): void {
     logger.trace("PeerView: (Re-)Displaying peer "+ peer.toString());
     try {
-      // Print peer ID
+      // Print & set peer ID on all relevant elements
       const idField: HTMLTableCellElement = peerLi.querySelector('.verityPeerId');
       idField.innerText = peer.idString;
       peerLi.setAttribute("id", "verityPeer-" + peer.idString);
+      const disconnectButton = peerLi.querySelector('.verityPeerDisconnectButton');
+      disconnectButton.setAttribute("data-peerid", peer.idString);
       // Print connected address
       const connField: HTMLTableCellElement = peerLi.querySelector('.verityPeerConn');
       connField.innerText = peer.addressString;
