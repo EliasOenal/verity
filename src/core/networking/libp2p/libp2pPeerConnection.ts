@@ -117,26 +117,25 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
     logger.trace("Libp2pPeerConnection: Creating new connection to " + addr.toString());
     try {
       this.conn = await this.transport.node.dial(addr);
-      // if (this.conn.transient) {
-      //   logger.trace(`Libp2pPeerConnection to ${addr.toString()}: Connection is transient. Waiting up to 10 seconds for it to upgrade.`);
-      //   // TODO HACKHACK: This is obviously the most ridiculous hack ever.
-      //   // Apparently, there once upon a time was a peer:update event you could
-      //   // listen to, but it doesn not seem to exist anymore.
-      //   // I don't understand libp2p.
-      //   for (let i = 0; i < 100; i++) {
-      //     if (!this.conn.transient) {
-      //         break;
-      //     }
-      //     await new Promise(resolve => setTimeout(resolve, 100));
-      //   }
-      //   if (this.conn.transient) {
-      //     logger.error(`Libp2pPeerConnection to ${addr.toString()}: Connection still transient after 10 seconds. Giving up, closing.`)
-      //     this.close();
-      //     return;
-      //   }
-      // }
+      if (this.conn.transient) {
+        logger.trace(`Libp2pPeerConnection to ${addr.toString()}: Connection is transient. Waiting up to 10 seconds for it to upgrade.`);
+        // TODO HACKHACK: This is obviously the most ridiculous hack ever.
+        // Apparently, there once upon a time was a peer:update event you could
+        // listen to, but it doesn not seem to exist anymore.
+        // I don't understand libp2p.
+        for (let i = 0; i < 100; i++) {
+          if (!this.conn.transient) {
+              break;
+          }
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        if (this.conn.transient) {
+          logger.error(`Libp2pPeerConnection to ${addr.toString()}: Connection still transient after 10 seconds. Giving up, closing.`)
+          this.close();
+          return;
+        }
+      }
       this.stream = await this.conn.newStream("/verity/1.0.0");
-      // this.stream = await this.server.node.dialProtocol(addr, "verity/1.0.0");
       if (this.ready()) this.emit("ready");
       else throw new VerityError("Libp2p connection not open and I have no clue why");
       logger.trace("Libp2pPeerConnection: Successfully connected to " + addr.toString() + ". My multiaddrs are " + this.transport.node.getMultiaddrs() + " and my peer ID is " + Buffer.from(this.transport.node.peerId.publicKey).toString('hex'));
@@ -144,7 +143,6 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
     } catch (error) {
       // TODO FIXME: This currently happens when we try to dial a libp2p connection before
       // our libp2p node object has been initialized, and we always do that on startup.
-      // TODO FIXME: If this happens, NetworkPeer.close() is not called, as apparently it's not listening on our close event yet.
       logger.info("Libp2pPeerConnection: Connection to " + addr.toString() + " failed or closed or something: " + error);
       this.close();
     }
@@ -152,17 +150,25 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
 
   close(): Promise<void> {
     logger.info("Libp2pPeerConnection: Closing connection to " + this.conn?.remoteAddr.toString());
-    // Send the closed signal first (i.e. let the NetworkPeer closed handler run
+    // Send the "closed" signal first (i.e. let the NetworkPeer closed handler run
     // first) so nobody tries to send any further messages to our closing stream
     this.emit("closed");
     this.removeAllListeners();
     let closePromises: Promise<void>[] = [];
     if (this.stream) {
-      closePromises.push(this.stream.close());  // note all of this is async and we're just firing-and-forgetting the request
+      try {
+        closePromises.push(this.stream.close());
+      } catch(error) {
+        logger.error(`Libp2pPeerConnection to ${this.conn?.remoteAddr?.toString()} in close(): Error closing libp2p stream. This should not happen. Error was: ${error}`);
+      }
     }
-    if (this.conn) {
-      closePromises.push(this.conn.close());  // TODO: is it really proper in libp2p terms to close the connection and not just the stream? after all, for servers, .handle() dispatches the stream and the conn might be shared
-    }
+    // We're no longer closing the conn for now as other libp2p services might be
+    // running over it, e.g. circuit relaying.
+    // On top of that, our streams are a bit flimsy and often close for no apparent reason.
+    // We probably should really stop keeping streams open in the first place.
+    // if (this.conn) {
+    //   closePromises.push(this.conn.close());  // TODO: is it really proper in libp2p terms to close the connection and not just the stream? after all, for servers, .handle() dispatches the stream and the conn might be shared
+    // }
     if (closePromises.length) {
       return Promise.all(closePromises) as unknown as Promise<void>;
     } else {
@@ -190,7 +196,11 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
     const lenbuf = Buffer.alloc(4);
     lenbuf.writeUint32BE(message.length);
     const combined = Buffer.concat([lenbuf, message]);
-    this.outputStream.write(combined);
+    try {
+      this.outputStream.write(combined);
+    } catch(error) {
+      logger.error(`Libp2pPeerConnection to ${this.conn?.remoteAddr?.toString()} in send(): Error writing to stream. Error was: ${error}`);
+    }
     // logger.info("Libp2pPeerConnection: Sending message of length " + message.length + " to " + this.peer.addressString + ", raw bytes: " + combined.toString('hex'));
   }
 
