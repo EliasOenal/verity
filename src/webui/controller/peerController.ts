@@ -99,4 +99,13 @@ export class PeerController extends VerityController {
       logger.error(`PeerController.disconnectPeer(): Error disconnecting peer ${peerIdString}: ${error}`);
     }
   }
+
+  toggleAutoConnect(sw: HTMLInputElement): void {
+    if (sw.checked) {
+      this.networkManager.autoConnect = true;
+      this.networkManager.connectPeers();
+    } else {
+      this.networkManager.autoConnect = false;
+    }
+  }
 }

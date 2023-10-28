@@ -1,4 +1,5 @@
 import { Peer } from "../../core/peering/peer";
+import { NetworkPeer } from "../../core/networking/networkPeer";
 import { logger } from "../../core/logger";
 
 import { VerityView } from "../webUiDefinitions";
@@ -56,7 +57,11 @@ export class PeerView extends VerityView {
       reconnectButton.setAttribute("data-peerid", peer.idString);
       // Print connected address
       const connField: HTMLTableCellElement = peerLi.querySelector('.verityPeerConn');
-      connField.innerText = peer.addressString;
+      if (peer instanceof NetworkPeer) {
+        connField.innerText = peer.conn.addressString;
+      } else {
+        connField.innerText = "(not connected)"
+      }
       // Print all known addresses
       const addrsList: HTMLTableCellElement = peerLi.querySelector('.verityPeerAddressList');
       addrsList.replaceChildren();

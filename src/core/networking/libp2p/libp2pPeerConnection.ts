@@ -35,11 +35,13 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
   }
 
   handleStreams() {
-    // pipe(this.outputStream, this.stream, async (source) => {
-    //   for await (const message of source) {
-    //     this.inputStream.write(Buffer.from(message.subarray()));
-    //   }
-    // }).catch(logger.error);
+    // HACKHACK reserve relay slot -- this doesn't really belong here but w/e
+    if (this.transport.circuitRelayTransport) {
+    this.transport.circuitRelayTransport.reservationStore.addRelay(
+        this.conn.remotePeer, "configured");
+    }
+
+    // read continuous Verity stream
     pipe(this.outputStream, this.stream.sink);
     this.readStream();
   }
@@ -162,13 +164,15 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
         logger.error(`Libp2pPeerConnection to ${this.conn?.remoteAddr?.toString()} in close(): Error closing libp2p stream. This should not happen. Error was: ${error}`);
       }
     }
-    // We're no longer closing the conn for now as other libp2p services might be
-    // running over it, e.g. circuit relaying.
-    // On top of that, our streams are a bit flimsy and often close for no apparent reason.
+    // Kind of a strange decision to fully close the conn as they're usually
+    // auto-managed in libp2p.
+    // Furthermore, our streams are a bit flimsy and often close for no apparent reason.
     // We probably should really stop keeping streams open in the first place.
-    // if (this.conn) {
-    //   closePromises.push(this.conn.close());  // TODO: is it really proper in libp2p terms to close the connection and not just the stream? after all, for servers, .handle() dispatches the stream and the conn might be shared
-    // }
+    if (this.conn) {
+      closePromises.push(this.transport.node.hangUp(this.conn.remotePeer));
+      // this is redundant:
+      closePromises.push(this.conn.close());
+    }
     if (closePromises.length) {
       return Promise.all(closePromises) as unknown as Promise<void>;
     } else {

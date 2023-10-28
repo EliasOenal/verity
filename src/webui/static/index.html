@@ -195,6 +195,13 @@
       <p class="verityMyIdParagraph">My peer ID:
         <span class="verityMyId">01234567890ABCDEF</span>
       </p>
+      <p class="form-check form-switch">
+        <input class="verityAutoConnectSwitch form-check-input"
+               type="checkbox" role="switch"
+               onclick="window.verityUI.peerController.toggleAutoConnect(this)"
+               checked />
+        Auto-connect peers
+      </p>
       <div class="verityNewPeerDiv">
         <form class="verityNewPeerForm input-group"
               action="javascript:void(0);"
