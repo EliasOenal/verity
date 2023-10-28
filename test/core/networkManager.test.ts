@@ -1,6 +1,6 @@
 import { SupportedTransports } from '../../src/core/networking/networkDefinitions';
 
-import { NetworkManager } from '../../src/core/networking/networkManager';
+import { NetworkManager, NetworkManagerOptions } from '../../src/core/networking/networkManager';
 import { NetworkPeer } from '../../src/core/networking/networkPeer';
 import { WebSocketTransport } from '../../src/core/networking/webSocket/webSocketTransport';
 import { WebSocketServer } from '../../src/core/networking/webSocket/webSocketServer';
@@ -570,7 +570,6 @@ describe('networkManager', () => {
     });  // WebSockets and general functionality
 
     describe('libp2p connections', () => {
-        // Broken while https is hardcoded in Libp2pTransport
         it('should correctly open and close connections', async() => {
             const server = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
@@ -610,31 +609,41 @@ describe('networkManager', () => {
         });
 
         // TODO DEBUG
+        // I really don't understand why this test fails, but understanding it
+        // could be the key to undestanding libp2p
         it.skip('keeps WebRTC peers connected even if the WS server goes down', async () => {
             // create two "browser" (= non listening) nodes and a "server" (= WS listening node)
-            const options = {
+            const serverOptions: NetworkManagerOptions = {
                 announceToTorrentTrackers: false,
                 autoConnect: true,
                 lightNode: false,
                 peerExchange: true,
+                useRelaying: false,
+            };
+            const browserOptions: NetworkManagerOptions = {
+                announceToTorrentTrackers: false,
+                autoConnect: true,
+                lightNode: false,
+                peerExchange: true,
+                useRelaying: true,
             };
             const browser1 = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                 new PeerDB(),
                 new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
-                options
+                browserOptions
             );
             const browser2 = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                 new PeerDB(),
                 new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
-                options
+                browserOptions
             );
             const server = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                 new PeerDB(),
                 new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17294/ws']]),
-                options
+                serverOptions
             );
             await server.start();
 
@@ -672,18 +681,12 @@ describe('networkManager', () => {
             expect(browser1.incomingPeers.length).toEqual(1);
             await browser1.incomingPeers[0].onlinePromise;
 
-            // wait 5 secs
-            // await new Promise(resolve => setTimeout(resolve, 5000));
-            // logger.trace("TEST: Waited 5 seconds for peer connection to upgrade to WebRTC")
+            browser1.autoConnect = false;
+            browser2.autoConnect = false;
 
-            // @ts-ignore Stop auto connecting
-            browser1._autoConnect = false;
-            // @ts-ignore Stop auto connecting
-            browser2._autoConnect = false;
+            await new Promise(resolve => setTimeout(resolve, 5000));
 
-            // Close connections to server and shut it down
-            // await browser1ServerNp.close();
-            // await browser2ServerNp.close();
+            // Shut down server
             const browser1Closed = new Promise(resolve => browser1.on("peerclosed", resolve));
             const browser2Closed = new Promise(resolve => browser2.on("peerclosed", resolve));
             await server.shutdown();
