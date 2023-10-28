@@ -52,6 +52,8 @@ export class PeerView extends VerityView {
       peerLi.setAttribute("id", "verityPeer-" + peer.idString);
       const disconnectButton = peerLi.querySelector('.verityPeerDisconnectButton');
       disconnectButton.setAttribute("data-peerid", peer.idString);
+      const reconnectButton = peerLi.querySelector('.verityPeerReconnectButton');
+      reconnectButton.setAttribute("data-peerid", peer.idString);
       // Print connected address
       const connField: HTMLTableCellElement = peerLi.querySelector('.verityPeerConn');
       connField.innerText = peer.addressString;
