@@ -182,7 +182,7 @@ export class Libp2pTransport extends NetworkTransport {
            protos.includes("webrtc")) {
         this.dialableAddress = new AddressAbstraction(multiaddr);
         for (const peer of this._networkManager.outgoingPeers.concat(this._networkManager.incomingPeers)) {
-          peer.sendMyServerAddress();
+          if (peer.online) peer.sendMyServerAddress();
         }
       }
     }

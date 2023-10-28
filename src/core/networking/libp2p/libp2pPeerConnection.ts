@@ -37,7 +37,7 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
   handleStreams() {
     // HACKHACK reserve relay slot -- this doesn't really belong here but w/e
     if (this.transport.circuitRelayTransport) {
-    this.transport.circuitRelayTransport.reservationStore.addRelay(
+      this.transport.circuitRelayTransport.reservationStore.addRelay(
         this.conn.remotePeer, "configured");
     }
 
