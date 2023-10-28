@@ -1,8 +1,7 @@
-import { Settings, VerityError } from '../../core/settings';
 import { NetworkManager } from "../../core/networking/networkManager";
-import { NetworkPeer } from "../../core/networking/networkPeer";
 import { AddressAbstraction } from '../../core/peering/addressing';
 import { Peer } from "../../core/peering/peer";
+import { PeerDB } from '../../core/peering/peerDB';
 import { logger } from "../../core/logger";
 
 import { VerityController } from "../webUiDefinitions";
@@ -15,6 +14,7 @@ export class PeerController extends VerityController {
 
   constructor(
       private networkManager: NetworkManager,
+      private peerDB: PeerDB,
       view = new PeerView(networkManager.peerID.toString('hex')),
       private onlineView = new OnlineView(),
   ){
@@ -43,7 +43,7 @@ export class PeerController extends VerityController {
     }
   }
 
-  displayPeer(peer: NetworkPeer): void {
+  displayPeer(peer: Peer): void {
     if (!peer.id) return;  // this should never have been called for non-verified peers
     // Peer already displayed?
     let li: HTMLLIElement = this.displayedPeers.get(peer.idString);
@@ -70,5 +70,21 @@ export class PeerController extends VerityController {
       input.classList.add("bg-danger");
       return;
     }
+  }
+
+  makeAddressPrimary(button: HTMLButtonElement) {
+    const peerIdString = button.getAttribute("data-peerid");
+    const peer: Peer = this.peerDB.getPeer(peerIdString);
+    if (!peer) {
+      logger.error(`PeerController.makeAddressPrimary(): Tried to set primary address for peer ${peerIdString}, but I can't find them.`);
+      return;
+    }
+    const index: number = parseInt(button.getAttribute("data-addrindex"));
+    if (isNaN(index)) {
+      logger.error(`PeerController.makeAddressPrimary(): Tried to set primary address for peer ${peerIdString}, but did not receive a valid address index.`)
+      return;
+    }
+    peer.primaryAddressIndex = index;
+    this.displayPeer(peer);  // redisplay
   }
 }

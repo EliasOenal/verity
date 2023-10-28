@@ -51,7 +51,7 @@ export class VerityUI {
   constructor(
       readonly node: VerityNode
     ){
-    this.peerController = new PeerController(this.node.networkManager);
+    this.peerController = new PeerController(this.node.networkManager, this.node.peerDB);
   }
 
   shutdown() {

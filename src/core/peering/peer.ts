@@ -31,6 +31,7 @@ export class Peer {
   */
   protected _primaryAddressIndex: number = undefined;
   get primaryAddressIndex(): number { return this._primaryAddressIndex }
+  set primaryAddressIndex(val) { this._primaryAddressIndex = val }
   /** Shortcut to get the primary address object */
   get address() { return this.addresses[this._primaryAddressIndex]; }
   /** Shortcut to get the primary IP */
