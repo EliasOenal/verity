@@ -1,3 +1,4 @@
+import { NetworkPeer } from "../../core/networking/networkPeer";
 import { NetworkManager } from "../../core/networking/networkManager";
 import { AddressAbstraction } from '../../core/peering/addressing';
 import { Peer } from "../../core/peering/peer";
@@ -86,5 +87,15 @@ export class PeerController extends VerityController {
     }
     peer.primaryAddressIndex = index;
     this.displayPeer(peer);  // redisplay
+  }
+
+  disconnectPeer(button: HTMLButtonElement) {
+    const peerIdString = button.getAttribute("data-peerid");
+    const peer: NetworkPeer = this.peerDB.getPeer(peerIdString) as NetworkPeer;
+    try {  // peers currently connected are guaranteed to be NetworkPeers, but just in case...
+      peer.close();
+    } catch(error) {
+      logger.error(`PeerController.disconnectPeer(): Error disconnecting peer ${peerIdString}: ${error}`);
+    }
   }
 }
