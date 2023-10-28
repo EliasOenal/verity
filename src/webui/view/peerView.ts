@@ -1,4 +1,4 @@
-import { NetworkPeer } from "../../core/networking/networkPeer";
+import { Peer } from "../../core/peering/peer";
 import { logger } from "../../core/logger";
 
 import { VerityView } from "../webUiDefinitions";
@@ -25,7 +25,7 @@ export class PeerView extends VerityView {
     this.peerList.replaceChildren();
   }
 
-  displayPeer(peer: NetworkPeer, li?: HTMLLIElement): HTMLLIElement {
+  displayPeer(peer: Peer, li?: HTMLLIElement): HTMLLIElement {
     let newli: boolean = false;
     if (!li) {
       newli = true;
@@ -37,14 +37,14 @@ export class PeerView extends VerityView {
     return li;
   }
 
-  newPeerEntry(peer: NetworkPeer): HTMLLIElement {
+  newPeerEntry(peer: Peer): HTMLLIElement {
     const templateLi: HTMLLIElement = this.htmlTemplate.content.querySelector(".verityPeer");
     const li: HTMLLIElement = templateLi.cloneNode(true) as HTMLLIElement;
     this.peerList.appendChild(li);
     return li;
   }
 
-  redrawPeerData(peer: NetworkPeer, peerLi: HTMLLIElement): void {
+  redrawPeerData(peer: Peer, peerLi: HTMLLIElement): void {
     logger.trace("PeerView: (Re-)Displaying peer "+ peer.toString());
     try {
       // Print peer ID
@@ -61,11 +61,18 @@ export class PeerView extends VerityView {
         const addrLi = document.createElement('li');
         addrLi.value = i;
         addrLi.appendChild(document.createTextNode(peer.addresses[i].toString() + " "));
-        if (peer.primaryAddressIndex == i) {
-          const bold = document.createElement('b');
-          bold.innerText = "(primary)";
-          addrLi.appendChild(bold);
-        }
+        // Show primary address marker/button
+        addrLi.appendChild(document.createElement("br"));
+        const primaryButton: HTMLButtonElement = document.createElement('button');
+        primaryButton.setAttribute("type", "button");
+        primaryButton.setAttribute("data-peerid", peer.idString);
+        primaryButton.setAttribute("data-addrindex", i.toString());
+        primaryButton.setAttribute("class", "veritySmallButton btn btn-outline-primary");
+        if (peer.primaryAddressIndex == i) primaryButton.classList.add("active");
+        primaryButton.setAttribute("onclick", "window.verityUI.peerController.makeAddressPrimary(this)");
+        primaryButton.innerText = "Primary";
+        addrLi.appendChild(primaryButton);
+        // All done
         addrsList.appendChild(addrLi);
       }
     } catch(err) {

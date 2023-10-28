@@ -104,6 +104,17 @@ export class PeerDB extends EventEmitter {
         return false;  // not found
     }
 
+    getPeer(id: Buffer | string): Peer {
+        if (id instanceof Buffer) id = id.toString('hex');
+        let ret: Peer = undefined;
+        ret = this.peersExchangeable.get(id);
+        if (ret) return ret;
+        ret = this.peersVerified.get(id);
+        if (ret) return ret;
+        ret = this.peersUnverified.get(id);
+        return ret;
+    }
+
     /**
      * Returns a random verified or unverified peer.
      * If exclude is specified, no peer equal to one of the exclude list will

@@ -143,6 +143,18 @@ body {
 
 
 /*
+ * Shared stuff
+ */
+.veritySmallButton {
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 65%;
+  padding-left: 0.3em;
+  padding-right: 0.3em;
+}
+
+
+/*
  * Post view
  */
 ul.verityPostList {
