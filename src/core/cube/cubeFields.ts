@@ -113,7 +113,7 @@ export class CubeFields extends BaseFields {
         // are at the correct position
         // Note implementation detail: Creating header fields in reverse order
         // as we're inserting them at the beginning of the array with unshift
-        if (this.getFirstField(CubeFieldType.DATE) === undefined) {
+        if (this.getFirst(CubeFieldType.DATE) === undefined) {
           const cubeDate: Buffer = Buffer.alloc(CubeFieldLength[CubeFieldType.DATE]);
           cubeDate.writeUIntBE(
             Math.floor(Date.now() / 1000), 0, CubeFieldLength[CubeFieldType.DATE]);
@@ -121,7 +121,7 @@ export class CubeFields extends BaseFields {
             CubeFieldType.DATE, CubeFieldLength[CubeFieldType.DATE], cubeDate
           ));
         }
-        if (this.getFirstField(CubeFieldType.VERSION) === undefined) {
+        if (this.getFirst(CubeFieldType.VERSION) === undefined) {
           const cubeVersion: Buffer = Buffer.alloc(
             CubeFieldLength[CubeFieldType.VERSION]);
           // TODO document, move the literal 4 to config

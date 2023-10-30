@@ -6,9 +6,10 @@ import { WebSocketTransport } from '../../src/core/networking/webSocket/webSocke
 import { WebSocketServer } from '../../src/core/networking/webSocket/webSocketServer';
 import { WebSocketPeerConnection } from '../../src/core/networking/webSocket/webSocketPeerConnection';
 
-import { CubeStore } from '../../src/core/cube/cubeStore';
-import { Cube, CubeKey } from '../../src/core/cube/cube';
+import { CubeKey } from '../../src/core/cube/cubeDefinitions';
+import { Cube } from '../../src/core/cube/cube';
 import { CubeField, CubeFieldType, CubeFields } from '../../src/core/cube/cubeFields';
+import { CubeStore } from '../../src/core/cube/cubeStore';
 
 import { WebSocketAddress } from '../../src/core/peering/addressing';
 import { Peer } from '../../src/core/peering/peer';
@@ -355,8 +356,8 @@ describe('networkManager', () => {
             expect(cubeStore2.getAllStoredCubeKeys().size).toEqual(1);
             expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
             expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(firstMucHash)).toBeTruthy();
-            receivedFields = cubeStore2.getCube(mucKey)?.getFields()!;
-            expect(receivedFields?.getFirstField(CubeFieldType.PAYLOAD).value.toString()).toEqual("My first MUC version");
+            receivedFields = cubeStore2.getCube(mucKey)?.fields!;
+            expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("My first MUC version");
 
             // update MUC at peer 1
             await new Promise(resolve => setTimeout(resolve, 1000));  // wait one second as we don't have better time resolution
@@ -384,8 +385,8 @@ describe('networkManager', () => {
             expect(cubeStore2.getAllStoredCubeKeys().size).toEqual(1);
             expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
             expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(secondMucHash)).toBeTruthy();
-            receivedFields = cubeStore2.getCube(mucKey)?.getFields()!;
-            expect(receivedFields?.getFirstField(CubeFieldType.PAYLOAD).value.toString()).toEqual("My second MUC version");
+            receivedFields = cubeStore2.getCube(mucKey)?.fields!;
+            expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("My second MUC version");
 
             // teardown
             const promise1_shutdown = manager1.shutdown();
@@ -729,7 +730,7 @@ describe('networkManager', () => {
             }
             const recovered: Cube = browser2.cubeStore.getCube(cubeKey);
             expect(recovered).toBeInstanceOf(Cube);
-            expect(recovered.getFields().getFirstField(CubeFieldType.PAYLOAD).value).
+            expect(recovered.fields.getFirst(CubeFieldType.PAYLOAD).value).
                 toEqual("Hic cubus directe ad collegam meum iturus est");
 
             await browser1.shutdown();

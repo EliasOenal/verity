@@ -1,5 +1,5 @@
-import { CubeType } from "../core/cube/cubeDefinitions";
-import { Cube, CubeKey } from "../core/cube/cube";
+import { CubeKey, CubeType } from "../core/cube/cubeDefinitions";
+import { Cube } from "../core/cube/cube";
 import { CubeMeta, CubeInfo } from "../core/cube/cubeInfo";
 import { CubeStore } from "../core/cube/cubeStore";
 import { logger } from "../core/logger";
@@ -71,11 +71,11 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     if (!fields) return false;
 
     // does this have a ZwPayload field and does it contain something??
-    const payload = fields.getFirstField(ZwFieldType.PAYLOAD);
+    const payload = fields.getFirst(ZwFieldType.PAYLOAD);
     if (!payload || !payload.length) return false;
 
     // does it have the correct media type?
-    const typefield = fields.getFirstField(ZwFieldType.MEDIA_TYPE);
+    const typefield = fields.getFirst(ZwFieldType.MEDIA_TYPE);
     if (!typefield) return;
     if (mediaType && mediaType != typefield.value.readUIntBE(0, ZwFieldLengths[ZwFieldType.MEDIA_TYPE])) {
       return false;
@@ -312,7 +312,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
 
   private validateMuc(mucInfo: CubeInfo): boolean {
     // is this even a MUC?
-    if (mucInfo.cubeType != CubeType.CUBE_TYPE_MUC) return false;
+    if (mucInfo.cubeType != CubeType.MUC) return false;
 
     // Check if this is an Identity MUC by trying to create an Identity object
     // for it.
@@ -333,7 +333,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    */
   private learnAuthorsPosts(mucInfo: CubeInfo): void {
     // Is this even a MUC? Otherwise, it's definitely not a valid Identity.
-    if (mucInfo.cubeType != CubeType.CUBE_TYPE_MUC) return;
+    if (mucInfo.cubeType != CubeType.MUC) return;
     // are we even interested in this author?
     const muckeystring: string = mucInfo.key.toString('hex');
     if (!this.identityMucs.has(muckeystring)) return;
@@ -360,7 +360,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     if (alreadyTraversed.has(muckeystring)) return;  // prevent endless recursion
     // If we either don't have this cube or know it already, do nothing...
     // except if it's a MUC, then it could have changed
-    if (postInfo?.cubeType != CubeType.CUBE_TYPE_MUC && this.authorsCubes.has(muckeystring)) {
+    if (postInfo?.cubeType != CubeType.MUC && this.authorsCubes.has(muckeystring)) {
       return;
     }
     // Otherwise, process all MYPOST references.

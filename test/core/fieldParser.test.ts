@@ -184,13 +184,13 @@ describe('fieldParser', () => {
       const restored: CubeFields = new CubeFields(restoredarray);
 
       // compare
-      expect(restored.getFieldCount()).toEqual(5);  // three explicit plus two auto-generated VERSION and DATE fields
-      expect(restored.getFieldsByType(CubeFieldType.PAYLOAD).length).toEqual(2);
-      expect(restored.getFieldsByType(CubeFieldType.RELATES_TO).length).toEqual(1);
+      expect(restored.count()).toEqual(5);  // three explicit plus two auto-generated VERSION and DATE fields
+      expect(restored.get(CubeFieldType.PAYLOAD).length).toEqual(2);
+      expect(restored.get(CubeFieldType.RELATES_TO).length).toEqual(1);
       expect(
-        restored.getFirstField(CubeFieldType.PAYLOAD).value.toString('utf-8')).
+        restored.getFirst(CubeFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Mein kleiner grüner Kaktus");
-      const restoredrel = CubeRelationship.fromField(restored.getFirstField(CubeFieldType.RELATES_TO));
+      const restoredrel = CubeRelationship.fromField(restored.getFirst(CubeFieldType.RELATES_TO));
       expect(restoredrel.type).toEqual(CubeRelationshipType.CONTINUED_IN);
       expect(restoredrel.remoteKey[0]).toEqual(0xDA);
     });
@@ -221,13 +221,13 @@ describe('fieldParser', () => {
       const restored: ZwFields = new ZwFields(restoredarray);
 
       // compare
-      expect(restored.getFieldCount()).toEqual(3);
-      expect(restored.getFieldsByType(ZwFieldType.PAYLOAD).length).toEqual(2);
-      expect(restored.getFieldsByType(ZwFieldType.RELATES_TO).length).toEqual(1);
+      expect(restored.count()).toEqual(3);
+      expect(restored.get(ZwFieldType.PAYLOAD).length).toEqual(2);
+      expect(restored.get(ZwFieldType.RELATES_TO).length).toEqual(1);
       expect(
-        restored.getFirstField(ZwFieldType.PAYLOAD).value.toString('utf-8')).
+        restored.getFirst(ZwFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Mein kleiner grüner Kaktus");
-      const restoredrel = ZwRelationship.fromField(restored.getFirstField(ZwFieldType.RELATES_TO));
+      const restoredrel = ZwRelationship.fromField(restored.getFirst(ZwFieldType.RELATES_TO));
       expect(restoredrel.type).toEqual(ZwRelationshipType.MYPOST);
       expect(restoredrel.remoteKey[0]).toEqual(0xDA);
     });

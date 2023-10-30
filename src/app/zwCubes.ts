@@ -7,8 +7,8 @@
 
 import { BaseField } from "../core/cube/baseFields";
 import { Settings } from "../core/settings";
-import { Cube, CubeKey } from "../core/cube/cube";
-import { CubeError, CubeType } from "../core/cube/cubeDefinitions";
+import { Cube } from "../core/cube/cube";
+import { CubeError, CubeKey, CubeType } from "../core/cube/cubeDefinitions";
 import { CubeField } from "../core/cube/cubeFields";
 import { FieldParser } from "../core/fieldParser";
 import { Identity } from "./identity";
@@ -74,7 +74,7 @@ export function assertZwCube(cube: Cube): ZwFields {
 }
 
 export function assertZwMuc(cube: Cube): ZwFields {
-  if (cube.cubeType != CubeType.CUBE_TYPE_MUC) {
+  if (cube.cubeType != CubeType.MUC) {
     throw new CubeError("Supplied Cube is not a ZW Muc, as it's not a MUC at all.");
   }
   else return assertZwCube(cube);

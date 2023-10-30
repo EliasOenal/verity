@@ -342,9 +342,9 @@ export class NetworkPeer extends Peer {
                 cubeType: cubeType
             }
 
-            if (cubeType === CubeType.CUBE_TYPE_REGULAR) {
+            if (cubeType === CubeType.DUMB) {
                 regularCubeMeta.push(incomingCubeMeta);
-            } else if (cubeType === CubeType.CUBE_TYPE_MUC) {
+            } else if (cubeType === CubeType.MUC) {
                 mucMeta.push(incomingCubeMeta);
             } else {
                 logger.info(`NetworkPeer ${this.toString()}: in handleKeyResponse I saw a CubeType of ${cubeType}. I don't know what that is.`)

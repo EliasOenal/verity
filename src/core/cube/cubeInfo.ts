@@ -1,5 +1,5 @@
-import { Cube, CubeKey } from './cube'
-import { CubeType } from './cubeDefinitions';
+import { Cube } from './cube'
+import { CubeType, CubeKey } from './cubeDefinitions';
 
 /**
  * @interface CubeMeta is a restricted view on CubeInfo containing metadata only.

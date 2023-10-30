@@ -15,7 +15,7 @@ describe('fields', () => {
         CubeRelationshipType.REPLY_TO, (await root.getKey())))
     ]));
 
-    const retrievedRel: CubeRelationship = leaf.getFields().getFirstRelationship();
+    const retrievedRel: CubeRelationship = leaf.fields.getFirstRelationship();
     expect(retrievedRel.type).toEqual(CubeRelationshipType.REPLY_TO);
     expect(retrievedRel.remoteKey.toString('hex')).toEqual((await root.getKey()).toString('hex'));
   }, 3000);

@@ -1,6 +1,5 @@
 import { NetConstants } from '../networking/networkDefinitions';
-import { CUBE_HEADER_LENGTH, FieldError, WrongFieldType } from './cubeDefinitions';
-import { CubeKey } from './cube';
+import { CubeKey, FieldError, WrongFieldType } from './cubeDefinitions';
 import { logger } from '../logger';
 
 import { Buffer } from 'buffer';
@@ -124,6 +123,7 @@ export abstract class BaseRelationship {
 export class BaseFields {  // cannot make abstract, FieldParser creates temporary BaseField objects
     fieldDefinition: FieldDefinition = undefined;
     private data: Array<BaseField> = undefined;
+    get all() { return this.data }
 
     constructor(
             data: Array<BaseField> | BaseField | undefined,
@@ -136,15 +136,15 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         else this.data = [];
     }
 
-    equals(other: BaseFields, compareLocation: boolean = false) {
-        if (this.getFieldCount() != other.getFieldCount()) return false;
-        for (let i=0; i<this.getFieldCount(); i++) {
-            if (!this.all()[i].equals(other.all()[i], compareLocation)) return false;
+    equals(other: BaseFields, compareLocation: boolean = false): boolean {
+        if (this.count() != other.count()) return false;
+        for (let i=0; i<this.count(); i++) {
+            if (!this.all[i].equals(other.all[i], compareLocation)) return false;
         }
         return true;
     }
 
-    getByteLength() {
+    getByteLength(): number {
         let length = 0;
         for (const field of this.data) {
             length += FieldParser.getFieldHeaderLength(field.type, this.fieldDefinition);
@@ -153,47 +153,49 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         return length;
     }
 
-    getFieldCount() {
+    count(): number {
         return this.data.length;
     }
 
-    public all(): Array<BaseField> {
-        return this.data;
-    }
-
     /**
-    * Gets all fields of a specified type
+    * Gets all fields of a specified type, or all fields
     * @param type Which type of field to get
     * @return An array of Field objects, which may be empty.
     */
-    public getFieldsByType(type: number): Array<BaseField> {  // in top-level fields, type must be one of FieldType as defined in cubeDefinitions.ts
-        const ret = [];
-        for (const field of this.data) {
-            if (field.type == type) ret.push(field);
+    public get(type: number = undefined): Array<BaseField> {  // in top-level fields, type must be one of FieldType as defined in cubeDefinitions.ts
+        if (type) {
+            const ret = [];
+            for (const field of this.data) {
+                if (field.type == type) ret.push(field);
+            }
+            return ret;
         }
-        return ret;
+        else return this.data;
     }
 
-    public getFirstField(type: Number): BaseField {
+    /** Gets the first field of a specified type */
+    public getFirst(type: Number): BaseField {
         for (const field of this.data) {
             if (field.type == type) return field;
         }
         return undefined;  // none found
     }
 
-    public appendField(field: BaseField) {
+    public appendField(field: BaseField): void {
         this.data.push(field);
     }
 
-    public insertFieldInFront(field: BaseField) {
+    public insertFieldInFront(field: BaseField): void {
         this.data.unshift(field);
     }
 
-    /// @ method Inserts a new field before the *first* existing field of the
-    ///          specified type, or at the very end if no such field exists.
-    ///          (This is used, in particular, by Cube.setFields() to determine
-    ///          if any auto-padding needs to be inserted before a signature.)
-    public insertFieldBefore(type: number, field: BaseField) {  // in top-level fields, type must be one of FieldType as defined in cubeDefinitions.ts
+    /**
+     * Inserts a new field before the *first* existing field of the
+     * specified type, or at the very end if no such field exists.
+     * (This is used, in particular, by Cube.setFields() to determine
+     * if any auto-padding needs to be inserted before a signature.)
+     */
+    public insertFieldBefore(type: number, field: BaseField): void {  // in top-level fields, type must be one of FieldType as defined in cubeDefinitions.ts
         for (let i = 0; i < this.data.length; i++) {
             if (this.data[i].type == type) {
                 this.data.splice(i, 0, field)
@@ -210,7 +212,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
     * @return An array of Relationship objects, which may be empty.
     */
     public getRelationships(type?: number): Array<BaseRelationship> {
-        const relationshipfields = this.getFieldsByType(
+        const relationshipfields = this.get(
             this.fieldDefinition.fieldNames['RELATES_TO'] as number);
             // "as number" required as enums are two-way lookup tables
         const ret = [];

@@ -37,9 +37,9 @@ export function cubeLifetime(x: number, d1: number = 7, d2: number = 28, c1: num
 
 export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMeta {
     switch (localCube.cubeType) {
-        case CubeType.CUBE_TYPE_REGULAR:
+        case CubeType.DUMB:
             throw new CubeError("cubeUtil: Regular cubes cannot be contested.");
-        case CubeType.CUBE_TYPE_MUC:
+        case CubeType.MUC:
             // For MUCs the most recently minted cube wins. If they tie, the local
             // cube wins. We expect the owner of the MUC not to cause collisions.
             // If you do anyway - you brought it upon yourself.
@@ -47,7 +47,7 @@ export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMe
                 return localCube;
             else
                 return incomingCube;
-        case CubeType.CUBE_TYPE_IPC:
+        case CubeType.PIC:
             // Calculate the expiration date of each cube
             const expirationLocalCube = localCube.date + (cubeLifetime(localCube.challengeLevel) * 24 * 3600);
             const expirationIncomingCube = incomingCube.date + (cubeLifetime(incomingCube.challengeLevel) * 24 * 3600);
@@ -119,19 +119,19 @@ export function verifySignature(publicKeyValue: Buffer, signatureValue: Buffer, 
 
 export function parseSmartCube(type: number): number {
     switch (type & 0x03) {
-        case CubeType.CUBE_TYPE_MUC:
-            return CubeType.CUBE_TYPE_MUC;
+        case CubeType.MUC:
+            return CubeType.MUC;
         default:
             logger.error('Cube: Smart cube type not implemented ' + type);
             throw new SmartCubeTypeNotImplemented('Cube: Smart cube type not implemented ' + type);
     }
 }
 
+
 export async function printCubeInfo(cube: Cube) {
-    console.log("Version: " + cube.getVersion());
     console.log("Date: " + cube.getDate());
     console.log("Fields: ");
-    for (const field of cube.getFields().all()) {
+    for (const field of cube.fields.all) {
         console.log("    Type: " + field.type);
         console.log("    Length: " + field.length);
         //console.log("    Value: " + field.value.toString('hex'));
