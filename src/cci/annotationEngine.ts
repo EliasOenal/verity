@@ -1,5 +1,6 @@
-import { CubeInfo, CubeMeta } from '../core/cube/cubeInfo'
-import { Cube, CubeKey } from '../core/cube/cube';
+import { CubeKey } from '../core/cube/cubeDefinitions';
+import { CubeInfo } from '../core/cube/cubeInfo'
+import { Cube } from '../core/cube/cube';
 import { CubeRelationship } from '../core/cube/cubeFields';
 
 import { EventEmitter } from 'events';
@@ -7,9 +8,10 @@ import { BaseFields, BaseRelationship } from '../core/cube/baseFields';
 
 import { Buffer } from 'buffer';
 
+
 type RelationshipClassConstructor = new (type: number, remoteKey: CubeKey) => BaseRelationship;
 export function defaultGetFieldsFunc(cube: Cube): BaseFields {
-  return cube.getFields();
+  return cube.fields;
 }
 
 export class AnnotationEngine extends EventEmitter {
@@ -32,7 +34,7 @@ export class AnnotationEngine extends EventEmitter {
    * any application-defined sub-fields, as long as they are similar enough.
    * getFieldsFunc refers to a function which returns the fields this AnnotationEngine
    * is supposed to work on. By default, for top-level Cube fields, it is just an
-   * alias to cube.getFields().
+   * alias to cube.fields.
    */
       public readonly cubeStore,
       public readonly getFields: (cube: Cube) => BaseFields = defaultGetFieldsFunc,

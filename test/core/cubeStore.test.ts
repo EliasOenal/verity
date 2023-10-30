@@ -170,7 +170,7 @@ describe('cubeStore', () => {
 
       const restoredmuc = cubeStore.getCube(muckey);
       expect(restoredmuc).toBeDefined();
-      const restoredpayload = restoredmuc?.getFields().getFirstField(CubeFieldType.PAYLOAD);
+      const restoredpayload = restoredmuc?.fields.getFirst(CubeFieldType.PAYLOAD);
       expect(restoredpayload).toBeDefined();
       expect(restoredpayload?.value.toString('utf8')).toEqual("Hi, I'm a MUC!");
     });

@@ -38,7 +38,7 @@ describe('cube', () => {
 
     expect(() => cubeBuffer.length === 1024).toBeTruthy();
     const cube = new Cube(cubeBuffer, reduced_difficulty);
-    const fields = cube.getFields().all();
+    const fields = cube.fields.all;
     fields.forEach(field => {
       expect(field.length).toBeLessThanOrEqual(1024);
       expect(field.length).toBeGreaterThanOrEqual(0);
@@ -59,10 +59,9 @@ describe('cube', () => {
 
   it('should create a new cube with default values when no binary data is provided', () => {
     const cube = new Cube(undefined, reduced_difficulty);
-    expect(cube.getFields().all()[0].type).toEqual(CubeFieldType.VERSION);
-    expect(cube.getFields().all()[1].type).toEqual(CubeFieldType.DATE);
-    expect(cube.getVersion()).toEqual(0);
-    expect(cube.getFields().all()[2].length).toEqual(1016);
+    expect(cube.fields.all[0].type).toEqual(CubeFieldType.VERSION);
+    expect(cube.fields.all[1].type).toEqual(CubeFieldType.DATE);
+    expect(cube.fields.all[2].length).toEqual(1016);
   }, 3000);
 
   // Can this be removed?
@@ -91,7 +90,7 @@ describe('cube', () => {
     const fields = new CubeFields([
       new CubeField(CubeFieldType.PAYLOAD, 100, Buffer.alloc(100))]);
     cube.setFields(fields);
-    expect(cube.getFields()).toEqual(fields);
+    expect(cube.fields).toEqual(fields);
   }, 3000);
 
   it('should write fields to binary data correctly', async () => {
@@ -129,8 +128,8 @@ describe('cube', () => {
     const cube = new Cube(undefined, reduced_difficulty);
     cube.setFields(new CubeFields(
       [new CubeField(CubeFieldType.PAYLOAD, 128, Buffer.alloc(128))]));
-    expect(cube.getFields().getFieldCount()).toEqual(4);
-    expect(cube.getFields().all()[3].type).toEqual(CubeFieldType.PADDING_NONCE);
+    expect(cube.fields.count()).toEqual(4);
+    expect(cube.fields.all[3].type).toEqual(CubeFieldType.PADDING_NONCE);
     expect((await cube.getBinaryData()).length).toEqual(NetConstants.CUBE_SIZE);
   }, 3000);
 
@@ -165,9 +164,9 @@ describe('cube', () => {
       toEqual(NetConstants.CUBE_SIZE);
     cube.setFields(cubefields);
     expect(paddingLength).toBeGreaterThanOrEqual(Settings.HASHCASH_SIZE);
-    expect(cube.getFields().getFieldCount()).toEqual(4);
-    expect(cube.getFields().all()[2].length).toEqual(payloadLength);
-    expect(cube.getFields().all()[3].length).toEqual(paddingLength);
+    expect(cube.fields.count()).toEqual(4);
+    expect(cube.fields.all[2].length).toEqual(payloadLength);
+    expect(cube.fields.all[3].length).toEqual(paddingLength);
   }, 3000);
 
   it('should enforce there is enough space left for hashcash in manually padded cubes', () => {
@@ -366,9 +365,7 @@ describe('cube', () => {
     const parsedMuc = new Cube(binMuc, reduced_difficulty);
     expect(parsedMuc).toBeDefined();
     expect(await parsedMuc.getKey()).toEqual(key);
-    const parsedPayloads = parsedMuc.getFields().getFieldsByType(
-      CubeFieldType.PAYLOAD);
-    expect(parsedPayloads.length).toEqual(1);
-    expect(parsedPayloads[0].value.toString()).toEqual("just testing, nothing to see here");
+    const parsedPayload = parsedMuc.fields.getFirst(CubeFieldType.PAYLOAD);
+    expect(parsedPayload.value.toString()).toEqual("just testing, nothing to see here");
   }, 5000);
 });

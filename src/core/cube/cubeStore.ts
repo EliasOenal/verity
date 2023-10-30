@@ -1,8 +1,8 @@
 import { Settings, VerityError } from '../settings';
-import { Cube, CubeKey } from './cube';
+import { Cube } from './cube';
 import { CubeInfo, CubeMeta } from './cubeInfo'
 import { CubePersistence } from "./cubePersistence";
-import { CubeType, InsufficientDifficulty } from './cubeDefinitions';
+import { CubeType, CubeKey, InsufficientDifficulty } from './cubeDefinitions';
 import { cubeContest } from './cubeUtil';
 import { logger } from '../logger';
 
@@ -77,7 +77,7 @@ export class CubeStore extends EventEmitter {
       // Sometimes we get the same cube twice (e.g. due to network latency).
       // In that case, do nothing -- no need to invalidate the hash or to
       // emit an event.
-      if (this.hasCube(cubeInfo.key) && cubeInfo.cubeType == CubeType.CUBE_TYPE_REGULAR) {
+      if (this.hasCube(cubeInfo.key) && cubeInfo.cubeType == CubeType.DUMB) {
         logger.warn('CubeStorage: duplicate - cube already exists');
         return cube;
       }
@@ -88,7 +88,7 @@ export class CubeStore extends EventEmitter {
 
       // If this is a MUC, check if we already have a MUC with this key.
       // Replace it with the incoming MUC if it's newer than the one we have.
-      if (cubeInfo.cubeType == CubeType.CUBE_TYPE_MUC) {
+      if (cubeInfo.cubeType == CubeType.MUC) {
         if (this.hasCube(cubeInfo.key)) {
           const storedCube: CubeInfo = this.getCubeInfo(cubeInfo.key);
           const winningCube: CubeMeta = cubeContest(storedCube, cubeInfo);

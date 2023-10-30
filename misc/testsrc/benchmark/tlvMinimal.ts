@@ -12,7 +12,7 @@ async function prepareBinaryCube() {
 function runTlvTest(bin: Buffer, rounds: number = 1e5) {
   for (let i=0; i<rounds; i++) {
     const restored: Cube = new Cube(bin);
-    if (restored.getFields().getFieldCount() != 3) throw new Error("?!?!?!?!");
+    if (restored.fields.count() != 3) throw new Error("?!?!?!?!");
   }
 }
 

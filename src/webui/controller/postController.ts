@@ -1,4 +1,4 @@
-import { Cube, CubeKey } from "../../core/cube/cube";
+import { CubeKey } from "../../core/cube/cubeDefinitions";
 import { CubeInfo } from "../../core/cube/cubeInfo";
 import { CubeStore } from "../../core/cube/cubeStore";
 
@@ -130,7 +130,7 @@ export class PostController extends VerityController {
     data.binarykey = binarykey;
     data.keystring = binarykey.toString('hex');
     data.timestamp = cube.getDate();
-    data.text = fields.getFirstField(ZwFieldType.PAYLOAD).value.toString();
+    data.text = fields.getFirst(ZwFieldType.PAYLOAD).value.toString();
     this.findAuthor(data);  // this sets data.author and data.authorkey
 
     // is this post already displayed?

@@ -117,13 +117,13 @@ export class ZwField extends BaseField {
 export class ZwFields extends BaseFields {
   static get(cube: Cube): ZwFields {
     // ZwFields live in the Cube's (first/only) PAYLOAD field.
-    const zwData: CubeField = cube?.getFields().getFirstField(CubeFieldType.PAYLOAD);
+    const zwData: CubeField = cube?.fields.getFirst(CubeFieldType.PAYLOAD);
     if (!zwData) {
       // logger.info("ZwFields: Cannot get ZwFields from this Cube, there's no top-level PAYLOAD cube field.")
       return undefined;
     }
     // Decompile payload into ZwFields
-    let zwFields = undefined;
+    let zwFields: ZwFields = undefined;
     try {
       zwFields = new ZwFields(new FieldParser(zwFieldDefinition).decompileFields(zwData.value));
     } catch (err) { /* handled below */ }
@@ -135,7 +135,7 @@ export class ZwFields extends BaseFields {
     // an APPLICATION ZwField containing "ZW". That's 24 bits of of known data,
     // meaning we will only falsely identiy a Cube as Zw-compliant every 16 billion
     // times.
-    const AppField = zwFields.getFirstField(ZwFieldType.APPLICATION);
+    const AppField = zwFields.getFirst(ZwFieldType.APPLICATION);
     if (!AppField || AppField.value.toString('utf-8') != "ZW") {
       // logger.info("ZwFields: Cannot get ZwFields from this Cube, there's no 'APPLICATION ZW' field so this is probably garbage.")
       return undefined;

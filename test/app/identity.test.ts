@@ -1,6 +1,7 @@
 import { NetConstants } from '../../src/core/networking/networkDefinitions';
+import { CubeKey } from '../../src/core/cube/cubeDefinitions';
 import { CubeStore } from '../../src/core/cube/cubeStore';
-import { Cube, CubeKey } from '../../src/core/cube/cube'
+import { Cube } from '../../src/core/cube/cube'
 
 import { Identity, IdentityPersistance } from '../../src/app/identity'
 import { makePost } from '../../src/app/zwCubes';
@@ -50,7 +51,7 @@ describe('Identity', () => {
       const postkey = (await cubeStore.addCube(await makePost("I got important stuff to say", undefined, original, reduced_difficulty))).getKeyIfAvailable();
       expect(postkey).toBeInstanceOf(Buffer);
       expect(original.posts.length).toEqual(1);
-      expect(ZwFields.get(cubeStore.getCube(original.posts[0]) as Cube).getFirstField(ZwFieldType.PAYLOAD).value.toString('utf-8')).
+      expect(ZwFields.get(cubeStore.getCube(original.posts[0]) as Cube).getFirst(ZwFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("I got important stuff to say");
 
       // compile ID into MUC
@@ -78,7 +79,7 @@ describe('Identity', () => {
       expect(restored.profilepic[0]).toEqual(0xDA);
       expect(restored.keyBackupCube[0]).toEqual(0x13);
       expect(restored.posts.length).toEqual(1);
-      expect(ZwFields.get(cubeStore.getCube(restored.posts[0]) as Cube).getFirstField(ZwFieldType.PAYLOAD).value.toString('utf-8')).
+      expect(ZwFields.get(cubeStore.getCube(restored.posts[0]) as Cube).getFirst(ZwFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("I got important stuff to say");
     }, 10000);
 
@@ -111,7 +112,7 @@ describe('Identity', () => {
       expect(restored.profilepic[0]).toEqual(0xDA);
       expect(restored.keyBackupCube[0]).toEqual(0x13);
       expect(restored.posts.length).toEqual(1);
-      expect(ZwFields.get(cubeStore.getCube(restored.posts[0]) as Cube).getFirstField(ZwFieldType.PAYLOAD).value.toString('utf-8')).
+      expect(ZwFields.get(cubeStore.getCube(restored.posts[0]) as Cube).getFirst(ZwFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("I got important stuff to say");
     }, 10000);
 
@@ -175,7 +176,7 @@ describe('Identity', () => {
       let newerPost: Cube = cubeStore.getCube(restored.posts[0])!;
       for (let i=0; i<TESTPOSTCOUNT; i++) {
         const restoredPost = cubeStore.getCube(restored.posts[i])!;
-        const postText: string = ZwFields.get(restoredPost!).getFirstField(ZwFieldType.PAYLOAD).value.toString('utf-8');
+        const postText: string = ZwFields.get(restoredPost!).getFirst(ZwFieldType.PAYLOAD).value.toString('utf-8');
         expect(postText).toEqual("I got " + (TESTPOSTCOUNT-i).toString() + " important things to say");
         expect(restoredPost!.getDate()).toBeLessThanOrEqual(newerPost!.getDate());
         newerPost = restoredPost;
@@ -283,7 +284,7 @@ describe('Identity', () => {
         // First subscription recommendation index contains for subscription recommendation?
         const firstIndexFields = ZwFields.get(firstIndexCube);
         expect(firstIndexFields).toBeInstanceOf(ZwFields);
-        expect(firstIndexFields.all().length).toBeGreaterThan(1);
+        expect(firstIndexFields.count()).toBeGreaterThan(1);
         expect(firstIndexFields.getFirstRelationship(
           ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION).remoteKey.equals(
             subject.subscriptionRecommendations[0])).toBeTruthy();

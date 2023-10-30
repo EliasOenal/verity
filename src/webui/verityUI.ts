@@ -4,7 +4,7 @@ import { FieldParser } from '../core/fieldParser';
 import { logger } from '../core/logger'
 import { VerityNode } from '../core/verityNode';
 import { AddressAbstraction } from '../core/peering/addressing';
-import { Cube, CubeKey } from '../core/cube/cube';
+import { Cube } from '../core/cube/cube';
 
 import { Identity } from '../app/identity';
 import { zwFieldDefinition } from '../app/zwFields';
@@ -16,8 +16,8 @@ import { PeerController } from './controller/peerController';
 
 import { isBrowser } from 'browser-or-node';
 import sodium from 'libsodium-wrappers'
-import { Buffer } from 'buffer'
 
+// TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
 
 export class VerityUI {

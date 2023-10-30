@@ -1,11 +1,11 @@
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
-import { Cube, CubeKey } from '../core/cube/cube';
+import { Cube } from '../core/cube/cube';
 import { logger } from '../core/logger';
 
 import { Level } from 'level';
 import { BaseField, BaseRelationship } from '../core/cube/baseFields';
 import { ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from './zwFields';
-import { CubeError } from '../core/cube/cubeDefinitions';
+import { CubeError, CubeKey } from '../core/cube/cubeDefinitions';
 
 import { Buffer } from 'buffer';
 import { CubeField, CubeFieldType } from '../core/cube/cubeFields';
@@ -408,7 +408,7 @@ export class Identity {
     const zwFields = assertZwMuc(muc);
 
     // read name (mandatory)
-    const nameField: BaseField = zwFields.getFirstField(ZwFieldType.USERNAME);
+    const nameField: BaseField = zwFields.getFirst(ZwFieldType.USERNAME);
     if (nameField) this.name = nameField.value.toString('utf-8');
     if (!this.name) {
       throw new CubeError("Identity: Supplied MUC lacks user name");
