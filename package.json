@@ -36,7 +36,7 @@
     "@libp2p/webrtc": "^3.2.11",
     "@libp2p/websockets": "^7.0.13",
     "@multiavatar/multiavatar": "^1.0.7",
-    "@types/libsodium-wrappers": "^0.7.12",
+    "@types/libsodium-wrappers": "^0.7.13",
     "bencodec": "^3.0.1",
     "browser-or-node": "^2.1.1",
     "cmd-ts": "^0.13.0",
