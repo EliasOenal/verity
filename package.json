@@ -34,7 +34,7 @@
     "@chainsafe/libp2p-yamux": "^5.0.0",
     "@libp2p/mplex": "^9.0.12",
     "@libp2p/webrtc": "^3.2.11",
-    "@libp2p/websockets": "^7.0.13",
+    "@libp2p/websockets": "^8.0.6",
     "@multiavatar/multiavatar": "^1.0.7",
     "@types/libsodium-wrappers": "^0.7.13",
     "bencodec": "^3.0.1",
