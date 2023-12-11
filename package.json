@@ -40,7 +40,7 @@
     "bencodec": "^3.0.1",
     "browser-or-node": "^2.1.1",
     "cmd-ts": "^0.13.0",
-    "eslint": "^8.50.0",
+    "eslint": "^8.55.0",
     "events": "^3.3.0",
     "isomorphic-ws": "^5.0.0",
     "it-pipe": "^3.0.1",
