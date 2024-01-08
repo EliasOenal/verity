@@ -30,7 +30,7 @@
     "webpack-dev-server": "^4.15.1"
   },
   "dependencies": {
-    "@chainsafe/libp2p-noise": "^13.0.2",
+    "@chainsafe/libp2p-noise": "^14.1.0",
     "@chainsafe/libp2p-yamux": "^5.0.0",
     "@libp2p/mplex": "^10.0.10",
     "@libp2p/webrtc": "^3.2.11",
