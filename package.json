@@ -14,7 +14,7 @@
   "author": "Elias Oenal, Victor Hahn",
   "license": "",
   "devDependencies": {
-    "@types/jest": "^29.5.8",
+    "@types/jest": "^29.5.11",
     "@types/ws": "^8.5.10",
     "axios": "^1.6.5",
     "copy-webpack-plugin": "^11.0.0",
