@@ -110,13 +110,13 @@ export class Cube {
     // cube key, which involves the hashcash proof of work and therefore can
     // take a little while.
     public async getCubeInfo(): Promise<CubeInfo> {
-        return new CubeInfo(
-            await this.getKey(),
-            await this.getBinaryData(),
-            this.cubeType,
-            this.getDate(),
-            CubeUtil.countTrailingZeroBits(this.hash),
-        );
+        return new CubeInfo({
+            key: await this.getKey(),
+            binaryCube: await this.getBinaryData(),
+            cubeType: this.cubeType,
+            date: this.getDate(),
+            challengeLevel: CubeUtil.countTrailingZeroBits(this.hash),
+        });
     }
 
     // TODO can this be removed?

@@ -12,6 +12,15 @@ export interface CubeMeta {
   challengeLevel: number;
 }
 
+// maybe TODO: consolidate this with CubeMeta
+export interface CubeInfoParams {
+  key: CubeKey;
+  binaryCube?: Buffer;
+  cubeType?: number;
+  date?: number;
+  challengeLevel?: number
+}
+
 /**
  * @classdesc CubeInfo describes a cube as seen by our local node.
  * While a cube is always a cube, our view of it changes over time.
@@ -45,6 +54,8 @@ export class CubeInfo {
   //              justified creating a CubeInfo object for it.
   key: CubeKey;
 
+  get keystring() { return this.key.toString('hex'); }
+
   // @member binaryCube: The binary representation of this cube.
   binaryCube: Buffer = undefined;
   cubeType: CubeType = undefined;
@@ -61,14 +72,15 @@ export class CubeInfo {
   //                      for as long as the garbage collector keeps it alive
   private objectCache: WeakRef<Cube> = undefined;
 
-  constructor(
-    key: CubeKey, binaryCube?: Buffer, cubeType?: number,
-    date?: number, challengeLevel?: number) {
-    this.key = key;
-    this.binaryCube = binaryCube;
-    this.cubeType = cubeType;
-    this.date = date;
-    this.challengeLevel = challengeLevel;
+  // NOTE, maybe TODO: If binaryCube is specified, this CubeInfo could contain
+  // contradictory information as we currently don't validate the details
+  // provided against the information contained in the actual (binary) Cube.
+  constructor(params: CubeInfoParams) {
+    this.key = params.key;
+    this.binaryCube = params.binaryCube;
+    this.cubeType = params.cubeType;
+    this.date = params.date;
+    this.challengeLevel = params.challengeLevel;
   }
 
   /**
@@ -76,7 +88,7 @@ export class CubeInfo {
    * If the cube is currently in dormant state, this instantiates the Cube object
    * for you.
    * We use an object cache (WeakRef) to prevent unnecessary re-instantiations of
-   * Cube objects, so there's no need to cache them by the caller.
+   * Cube objects, so there's no need for the caller to cache them.
    */
   getCube(): Cube | undefined {
     // Keep returning the same Cube object until it gets garbage collected

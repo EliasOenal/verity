@@ -323,8 +323,8 @@ export class NetworkPeer extends Peer {
     private handleKeyResponse(data: Buffer): void {
         const keyCount = data.readUInt32BE(0);
         logger.trace(`NetworkPeer ${this.toString()}: handleKeyResponse: received ${keyCount} keys`);
-        const regularCubeMeta: CubeMeta[] = [];
-        const mucMeta = [];
+        const regularCubeInfo: CubeInfo[] = [];
+        const mucInfo: CubeInfo[] = [];
 
         let offset = NetConstants.COUNT_SIZE;
         for (let i = 0; i < keyCount; i++) {
@@ -335,24 +335,24 @@ export class NetworkPeer extends Peer {
             offset += NetConstants.TIMESTAMP_SIZE;
             const hash = data.slice(offset, offset + NetConstants.CUBE_KEY_SIZE);
             offset += NetConstants.CUBE_KEY_SIZE;
-            const incomingCubeMeta: CubeMeta = {
+            const incomingCubeInfo = new CubeInfo({
                 key: hash,
                 date: timestamp,
                 challengeLevel: challengeLevel,
                 cubeType: cubeType
-            }
+            });
 
             if (cubeType === CubeType.DUMB) {
-                regularCubeMeta.push(incomingCubeMeta);
+                regularCubeInfo.push(incomingCubeInfo);
             } else if (cubeType === CubeType.MUC) {
-                mucMeta.push(incomingCubeMeta);
+                mucInfo.push(incomingCubeInfo);
             } else {
                 logger.info(`NetworkPeer ${this.toString()}: in handleKeyResponse I saw a CubeType of ${cubeType}. I don't know what that is.`)
             }
         }
         // For each regular key not in cube storage, request the cube
-        const missingKeys: Buffer[] = regularCubeMeta.filter(detail => !this.cubeStore.hasCube(detail.key)).map(detail => detail.key);
-        for (const muc of mucMeta) {
+        const missingKeys: Buffer[] = regularCubeInfo.filter(detail => !this.cubeStore.hasCube(detail.key)).map(detail => detail.key);
+        for (const muc of mucInfo) {
             // Request any MUC not in cube storage
             if (!this.cubeStore.hasCube(muc.key)) {
                 missingKeys.push(muc.key);
@@ -365,7 +365,7 @@ export class NetworkPeer extends Peer {
                         missingKeys.push(muc.key);
                     }
                 } catch(error) {
-                    logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Error handling incoming MUC ${muc.key}: ${error}`);
+                    logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Error handling incoming MUC ${muc.keystring}: ${error}`);
                 }
             }
         }
