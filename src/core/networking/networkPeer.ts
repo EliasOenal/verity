@@ -15,6 +15,7 @@ import { logger } from '../logger';
 import WebSocket from 'isomorphic-ws';
 import { Buffer } from 'buffer';
 import { Multiaddr } from '@multiformats/multiaddr'
+import { unixtime } from '../helpers';
 
 export interface PacketStats {
     count: number,
@@ -157,7 +158,10 @@ export class NetworkPeer extends Peer {
      * @param message The incoming message as a Buffer.
      */
     private handleMessage(message: Buffer): void {
-        // Reset and timeout that might have been set, peer obviously alive
+        // Mark peer alive
+        // maybe TODO: maybe we should only mark a peer alive *after* we tried
+        // parsing their message?
+        this.lastSuccessfulConnection = unixtime();
         clearTimeout(this.networkTimeout);
         // maybe TODO: We currently don't enforce the HELLO message exchange.
         // If we want to do that, we can simple check for this.onlineFlag
@@ -199,7 +203,8 @@ export class NetworkPeer extends Peer {
             }
         } catch (err) {
             logger.info(`NetworkPeer ${this.toString()}: error while handling message: ${err}; stack trace: ${err.stack}`);
-            // TODO: Maybe be a bit less harsh with the blacklisting on errors.
+            // Disabled blacklisting for now.
+            // Maybe we should be a bit less harsh with the blacklisting on errors.
             // Maybe only blacklist repeat offenders, maybe remove blacklisting
             // after a defined timespan (increasing for repeat offenders)?
             // Blacklist entries based on IP/Port are especially sensitive
@@ -567,8 +572,9 @@ export class NetworkPeer extends Peer {
     //       is completely useless.
     //       Having browser nodes broker connections amongst themselves has the
     //       potential of dramatically reducing connection brokering load on
-    //       server nodes a, again, in theory, they may only be needed to
+    //       server nodes as they may -- again, in theory -- only need to
     //       bootstrap a single connection for each browser node.
+    // TODO: Prefer exchanging known good nodes rather than long-dead garbage.
     private handleNodeRequest(): void {
         // Send MAX_NODE_ADDRESS_COUNT peer addresses
         // ... do we even know that many?

@@ -1,5 +1,6 @@
 // cube.test.ts
 import { Settings } from '../../src/core/settings';
+import { unixtime } from '../../src/core/helpers';
 import { NetConstants } from '../../src/core/networking/networkDefinitions';
 import { BinaryLengthError, CUBE_HEADER_LENGTH, FieldError, FieldSizeError, InsufficientDifficulty } from '../../src/core/cube/cubeDefinitions';
 import { Cube } from '../../src/core/cube/cube';
@@ -80,7 +81,7 @@ describe('cube', () => {
 
   it('should set and get the date correctly', () => {
     const cube = new Cube();
-    const date = Math.floor(Date.now() / 1000);
+    const date = unixtime();
     cube.setDate(date);
     expect(cube.getDate()).toEqual(date);
   }, 3000);

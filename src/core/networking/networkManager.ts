@@ -1,4 +1,5 @@
 import { Settings, VerityError } from '../settings';
+import { unixtime } from '../helpers';
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { NetworkTransport, TransportParamMap } from './networkTransport';
 import { createNetworkPeerConnection, createNetworkTransport } from './networkFactory';
@@ -178,7 +179,7 @@ export class NetworkManager extends EventEmitter {
                 // if possible and required.
                 this.isConnectingPeers = true;
                 connectTo.connectionAttempts++;
-                connectTo.lastConnectAttempt = Math.floor(Date.now() / 1000);
+                connectTo.lastConnectAttempt = unixtime();
                 try {
                     this.connect(connectTo);
                     // TODO: We should distinguish between successful and unsuccessful

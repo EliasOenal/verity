@@ -1,5 +1,8 @@
-import { BaseField, BaseRelationship, BaseFields } from "./baseFields";
+import { unixtime } from "../helpers";
 import { Settings } from "../settings";
+
+import { BaseField, BaseRelationship, BaseFields } from "./baseFields";
+
 import { FieldNumericalParam, PositionalFields, FieldDefinition } from "../fieldParser";
 import { NetConstants } from "../networking/networkDefinitions";
 
@@ -115,8 +118,7 @@ export class CubeFields extends BaseFields {
         // as we're inserting them at the beginning of the array with unshift
         if (this.getFirst(CubeFieldType.DATE) === undefined) {
           const cubeDate: Buffer = Buffer.alloc(CubeFieldLength[CubeFieldType.DATE]);
-          cubeDate.writeUIntBE(
-            Math.floor(Date.now() / 1000), 0, CubeFieldLength[CubeFieldType.DATE]);
+          cubeDate.writeUIntBE(unixtime(), 0, CubeFieldLength[CubeFieldType.DATE]);
           this.insertFieldInFront(new CubeField(
             CubeFieldType.DATE, CubeFieldLength[CubeFieldType.DATE], cubeDate
           ));

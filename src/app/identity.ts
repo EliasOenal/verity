@@ -1,4 +1,4 @@
-import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
+import { unixtime } from '../core/helpers';
 import { Cube } from '../core/cube/cube';
 import { logger } from '../core/logger';
 
@@ -7,6 +7,7 @@ import { BaseField, BaseRelationship } from '../core/cube/baseFields';
 import { ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from './zwFields';
 import { CubeError, CubeKey } from '../core/cube/cubeDefinitions';
 
+import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
 import { Buffer } from 'buffer';
 import { CubeField, CubeFieldType } from '../core/cube/cubeFields';
 import { CubeStore } from '../core/cube/cubeStore';
@@ -273,7 +274,7 @@ export class Identity {
 
     // If the last MUC rebuild was too short a while ago, wait a little.
     const earliestAllowed: number = this.muc.getDate() + this.minMucRebuildDelay;
-    if (Math.floor(Date.now() / 1000) < earliestAllowed) {
+    if (unixtime() < earliestAllowed) {
       const waitFor = earliestAllowed - (Math.floor(Date.now() / 1000));
       await new Promise(resolve => setTimeout(resolve, waitFor*1000));
     }
