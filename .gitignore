@@ -12,6 +12,9 @@ testidentity.db*
 # Test artifacts
 coverage/
 
+# Logs
+debuglogs/
+
 # Private scripts
 deployweb.sh
 
@@ -69,4 +72,5 @@ logo/
 *.swn
 *.bak
 *.py,cover
+*.code-workspace
 
