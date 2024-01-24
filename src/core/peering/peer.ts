@@ -2,6 +2,7 @@ import { AddressAbstraction, WebSocketAddress } from "./addressing";
 import { logger } from "../logger";
 
 import { Multiaddr } from '@multiformats/multiaddr'
+import { unixtime } from "../helpers";
 
 /**
  * Basic representation of a peer without session and networking information.
@@ -55,7 +56,21 @@ export class Peer {
    * Gets reset to 0 on successful connection.
   */
   connectionAttempts: number = 0;
-
+  /**
+   * @member An arbitrary metric describing how alive and trustworthy this peer
+   * appears. Here's how we're currently scoring this:
+   * POSITIVES:
+   * +1 for each message received
+   * +n for each cube received and accepted with n being the Cube's difficulty
+   * NEGATIVES:
+   * -100 for each invalid message
+   * -0.1 for each second since lastSuccessfulConnection (this is only temporarily
+   * applied on trust evaluation)
+   * Future considerations:
+   * Maybe introduce a "referral system" so a node can fractionally benefit from
+   * any reputation awarded to peers that we learnt from this node.
+  */
+  private trustScore: number = 0;
 
   constructor(
           address: WebSocketAddress | Multiaddr | AddressAbstraction | AddressAbstraction[] | string,
@@ -134,5 +149,23 @@ export class Peer {
           }
       }
       return ret;
+  }
+
+  getTrust() {
+    return this.trustScore
+           - (unixtime() - this.lastSuccessfulConnection)*0.1;
+  }
+  scoreMessage() {
+    this.trustScore += 1;
+  }
+  scoreInvalidMessage() {
+    this.trustScore -= 100;
+  }
+  scoreReceivedCube(difficulty: number) {
+    this.trustScore += difficulty;
+  }
+  isUntrustworthy() {
+    if (this.trustScore < -1000) return true;
+    else return false;
   }
 }

@@ -116,7 +116,7 @@ export class CubeStore extends EventEmitter {
         logger.error("CubeStore: While adding Cube " + cubeInfo.key.toString('hex') + "a cubeAdded subscriber experienced an error: " + error.message);
       }
 
-      // All done finally, just return the key in case anyone cares.
+      // All done finally, just return the cube in case anyone cares.
       return cube;
     } catch (e) {
       if (e instanceof VerityError) {

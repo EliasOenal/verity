@@ -162,6 +162,7 @@ export class NetworkPeer extends Peer {
         // maybe TODO: maybe we should only mark a peer alive *after* we tried
         // parsing their message?
         this.lastSuccessfulConnection = unixtime();
+        this.scoreMessage();
         clearTimeout(this.networkTimeout);
         // maybe TODO: We currently don't enforce the HELLO message exchange.
         // If we want to do that, we can simple check for this.onlineFlag
@@ -202,14 +203,14 @@ export class NetworkPeer extends Peer {
                     logger.warn(`NetworkPeer ${this.toString()}: Received message with unknown class: ${messageClass}`);
             }
         } catch (err) {
+            this.scoreInvalidMessage();
             logger.info(`NetworkPeer ${this.toString()}: error while handling message: ${err}; stack trace: ${err.stack}`);
-            // Disabled blacklisting for now.
-            // Maybe we should be a bit less harsh with the blacklisting on errors.
-            // Maybe only blacklist repeat offenders, maybe remove blacklisting
+            // blacklist repeat offenders based on local trust score
+            if (this.isUntrustworthy) this.networkManager.closeAndBlacklistPeer(this);
+            // Maybe we should remove blacklisting
             // after a defined timespan (increasing for repeat offenders)?
             // Blacklist entries based on IP/Port are especially sensitive
             // as the address could be reused by another node in a NAT environment.
-            // this.networkManager.closeAndBlacklistPeer(this);
         }
     }
 
@@ -429,7 +430,13 @@ export class NetworkPeer extends Peer {
 
             // Add the cube to the CubeStorage
             // If this fails, CubeStore will log an error and we will ignore this cube.
-            this.cubeStore.addCube(cubeData);
+            // Grant this peer local reputation if cube is accepted.
+            // TODO BUGBUG: This currently grants reputation score for duplicates,
+            // which is absolutely contrary to what we want :'D
+            this.cubeStore.addCube(cubeData)
+                .then((value) => {
+                    if(value) { this.scoreReceivedCube(value.getDifficulty()); }
+                });
         }
         logger.info(`NetworkPeer ${this.toString()}: handleCubeResponse: received ${cubeCount} cubes`);
     }
@@ -576,24 +583,23 @@ export class NetworkPeer extends Peer {
     //       bootstrap a single connection for each browser node.
     // TODO: Prefer exchanging known good nodes rather than long-dead garbage.
     private handleNodeRequest(): void {
-        // Send MAX_NODE_ADDRESS_COUNT peer addresses
-        // ... do we even know that many?
-        let numberToSend: number;
-        if (this.unsentPeers.length >= NetConstants.MAX_NODE_ADDRESS_COUNT) {
-            numberToSend = NetConstants.MAX_NODE_ADDRESS_COUNT;
-        } else {
-            numberToSend = this.unsentPeers.length;
-        }
-        // Select random peers in random order
+        // Select random peers in random order, up to MAX_NODE_ADDRESS_COUNT of them.
         const chosenPeers: Array<Peer> = [];
-        for (let i = 0; i < numberToSend; i++) {
+        while(chosenPeers.length < NetConstants.MAX_NODE_ADDRESS_COUNT &&
+              this.unsentPeers.length > 0) {
             const rnd = Math.floor(Math.random() * this.unsentPeers.length);
-            chosenPeers.push(this.unsentPeers[rnd]);
+            // Only exchange peers with passable local trust score
+            if (this.unsentPeers[rnd].getTrust() > -100 ) {
+                chosenPeers.push(this.unsentPeers[rnd]);
+                logger.trace(`NetworkPeer ${this.toString()} will receive peer ${this.unsentPeers[rnd]} with trust score ${this.unsentPeers[rnd].getTrust()} from us.`)
+            } else {
+                logger.trace(`NetworkPeer ${this.toString()} will not be shared peer ${this.unsentPeers[rnd]} due to insufficient score ${this.unsentPeers[rnd].getTrust()}`)
+            }
             this.unsentPeers.slice(rnd, 1);
         }
         // Determine message length
         let msgLength = NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.COUNT_SIZE;
-        for (let i = 0; i < numberToSend; i++) {
+        for (let i = 0; i < chosenPeers.length; i++) {
             msgLength += 1;  // for the address type field
             msgLength += 2;  // for the node address length field
             msgLength += chosenPeers[i].address.toString().length;
@@ -603,7 +609,7 @@ export class NetworkPeer extends Peer {
         let offset = 0;
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, offset++);
         message.writeUInt8(MessageClass.NodeResponse, offset++);
-        message.writeUIntBE(numberToSend, offset, NetConstants.COUNT_SIZE); offset += NetConstants.COUNT_SIZE;
+        message.writeUIntBE(chosenPeers.length, offset, NetConstants.COUNT_SIZE); offset += NetConstants.COUNT_SIZE;
         for (const peer of chosenPeers) {
             message.writeUInt8(peer.address.type, offset++);
             message.writeUInt16BE(peer.address.toString().length, offset);
@@ -611,7 +617,7 @@ export class NetworkPeer extends Peer {
             message.write(peer.address.toString(), offset, peer.address.toString().length, 'ascii');
             offset += peer.address.toString().length;
         }
-        logger.trace(`NetworkPeer ${this.toString()}: handleNodeRequest: sending them ${numberToSend} peer addresses`);
+        logger.trace(`NetworkPeer ${this.toString()}: handleNodeRequest: sending them ${chosenPeers.length} peer addresses`);
         this.txMessage(message);
     }
 
