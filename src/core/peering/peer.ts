@@ -40,16 +40,22 @@ export class Peer {
   get port() { return this.addresses[this._primaryAddressIndex].port; }
 
   /**
-   * Unix timestamp showing when we last tried to initiate a connection to
-   * this peer.
+   * @member Unix timestamp showing when we last *tried* to initiate
+   * a connection to this peer.
    * This is required to honor Settings.RECONNECT_INTERVAL.
    */
   lastConnectAttempt: number = 0;
   /**
-   * Number of (unsuccessful) connection attempts.
+   * @member Unix timestamp showing the last *successful* connection to this peer.
+   * Gets set to current time on each sucessfully received message.
+  */
+  lastSuccessfulConnection: number = 0;
+  /**
+   * @member Number of (unsuccessful) connection attempts.
    * Gets reset to 0 on successful connection.
-   */
+  */
   connectionAttempts: number = 0;
+
 
   constructor(
           address: WebSocketAddress | Multiaddr | AddressAbstraction | AddressAbstraction[] | string,

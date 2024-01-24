@@ -1,5 +1,5 @@
 import { AddressError, SupportedTransports } from '../networking/networkDefinitions';
-import { fibonacci } from '../helpers';
+import { fibonacci, unixtime } from '../helpers';
 import { Settings, VerityError } from '../settings';
 
 import { WebSocketAddress } from './addressing';
@@ -126,8 +126,22 @@ export class PeerDB extends EventEmitter {
     // known good MAXIMUM_CONNECTIONS/2 nodes and always use them first.
     // This seems like a pretty good tradeoff between having stable connection
     // to the network and giving new nodes a chance to join.
+    // TODO: Currently, peers can easily spam us with so many dead addresses
+    // that we'll never find a life one to connect to.
+    // To counter that, for each peer store who we learned it from (the source).
+    // For all sources, keep a reputation value that increases for each connectable
+    // peer and decreases for each dead peer received. When selecting a new peer
+    // for a connection attempt, prefer reputable sources.
+    // To prevent Sybil nodes into tricking us to to only connect to more and more
+    // Sybils, have the source reputation value depend on something hard to fake,
+    // e.g. total Cube difficulty received. This is effectively a proof-of-work
+    // barrier as a Sybil node will need to invest network bandwidth to transmit
+    // valid cubes and will additionally need to invest CPU power to sculpt new
+    // valid Cubes when they run out of existing ones.
+    // Has the added benefit of incentivising Sybils to actually exchange valid
+    // cubes :D
     selectPeerToConnect(exclude: Peer[] = []) {
-        const now: number = Math.floor(Date.now() / 1000);
+        const now: number = unixtime();
         const eligible: Peer[] =
             [...this.peersUnverified.values(), ...this.peersVerified.values(), ...this.peersExchangeable.values()].  // this is not efficient
             filter((candidate: Peer) =>
@@ -160,7 +174,7 @@ export class PeerDB extends EventEmitter {
         this.removeUnverifiedPeer(peer);
         this.removeVerifiedPeer(peer);
         this.removeExchangeablePeer(peer);
-        // blacklist all of this peer object's addresses
+        // blacklist all of this peer's addresses
         for (const address of peer.addresses) {
             this.peersBlacklisted.set(address.toString(), peer);
             logger.info('PeerDB: Blacklisting peer ' + peer.toString() + ' using address ' + address.toString());
@@ -169,10 +183,10 @@ export class PeerDB extends EventEmitter {
 
     verifyPeer(peer: Peer): void {
         // Remove peer from unverified map.
-        // Also, abort if peer is found in blacklist.
         for (const address of peer.addresses) {
             const addrString = address.toString();
             this._peersUnverified.delete(address.toString());
+            // Abort if peer is found in blacklist.
             if (this.peersBlacklisted.has(addrString)) return;
         }
         // If a peer is already exchangeable, which is a higher status than verified,
