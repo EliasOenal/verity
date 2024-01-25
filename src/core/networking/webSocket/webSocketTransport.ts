@@ -31,4 +31,11 @@ export class WebSocketTransport extends NetworkTransport {
       // WebSockets are straightforward :)
     }
   }
+
+  toString(): string {
+    return "Transport around " + this._servers[0].toString();
+  }
+  toLongString(): string {
+    return "Transport around " + this._servers[0].toLongString();
+  }
 }

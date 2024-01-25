@@ -38,6 +38,7 @@ export interface NetworkStats {
 /**
  * Class representing a network peer, responsible for handling incoming and outgoing messages.
  */
+// TODO: This should arguably encapsulate Peer instead of inheriting from it
 export class NetworkPeer extends Peer {
     stats: NetworkStats = {
         tx: { sentMessages: 0, messageBytes: 0, messageTypes: {} },
@@ -106,6 +107,7 @@ export class NetworkPeer extends Peer {
 
     public close(): Promise<void> {
         logger.trace(`NetworkPeer ${this.toString()}: Closing connection.`);
+        this._online = false;
         // Remove all listeners and timers to avoid memory leaks
         this.networkManager.peerDB.removeListener(
             'exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
@@ -595,7 +597,7 @@ export class NetworkPeer extends Peer {
             } else {
                 logger.trace(`NetworkPeer ${this.toString()} will not be shared peer ${this.unsentPeers[rnd]} due to insufficient score ${this.unsentPeers[rnd].getTrust()}`)
             }
-            this.unsentPeers.slice(rnd, 1);
+            this.unsentPeers.splice(rnd, 1);
         }
         // Determine message length
         let msgLength = NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.COUNT_SIZE;

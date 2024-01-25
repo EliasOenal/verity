@@ -41,7 +41,7 @@ export class Libp2pServer extends TransportServer {
       this.transport.networkManager,
       incomingStreamData.connection.remoteAddr,
       this.transport.networkManager.cubeStore,
-      this.transport.networkManager.peerID,
+      this.transport.networkManager.id,
       conn,
       this.transport.networkManager.lightNode,
       this.transport.networkManager.peerExchange

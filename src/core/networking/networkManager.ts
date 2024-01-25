@@ -65,7 +65,9 @@ export class NetworkManager extends EventEmitter {
     private _online: boolean = false;
 
     /** Local ephemeral peer ID, generated at random each start */
-    public readonly peerID: Buffer;
+    protected _id?: Buffer = undefined;
+    get id(): Buffer { return this._id }
+    get idString(): string { return this._id?.toString('hex') }
 
     /**
      * Create a new NetworkManager.
@@ -98,7 +100,7 @@ export class NetworkManager extends EventEmitter {
         // Set a random peer ID
         // Maybe TODO: try to use the same peer ID for transports that themselves
         // require a peer ID, i.e. libp2p
-        this.peerID = Buffer.from(crypto.getRandomValues(new Uint8Array(NetConstants.PEER_ID_SIZE)));
+        this._id = Buffer.from(crypto.getRandomValues(new Uint8Array(NetConstants.PEER_ID_SIZE)));
     }
 
     get online(): boolean { return this._online }
@@ -212,27 +214,27 @@ export class NetworkManager extends EventEmitter {
     }
 
     /*
-     * Connect to a peer
+     * Manually connect to a specific peer.
+     * This should not normally be called manually in regular operation.
+     * We usually auto-connect peers thorugh connectPeers() instead.
      * @returns A NetworkPeer object
      */
-    // TODO this should be private
     connect(peer: Peer): NetworkPeer {
         logger.info(`NetworkManager: Connecting to ${peer.toString()}...`);
         // Create a new NetworkPeer and its associated NetworkPeerConnection
-        // NB: Even though we pass this.libp2pServer here, this also handles
-        // native WebSocket connections (ignoring the param in that case).
-        // maybe TODO: I don't like how badly encapsulated libp2p is here
         const conn = createNetworkPeerConnection(peer.address, this.transports);
         const networkPeer = new NetworkPeer(
             this,
             peer.addresses,
             this.cubeStore,
-            this.peerID,
+            this.id,
             conn,
             this.lightNode,
             this.peerExchange);
-        // note that by copying the peer we're implicitly resetting lastConnectAttempt
-        // and connectionAttempts.
+        networkPeer.lastConnectAttempt = peer.lastConnectAttempt;
+        networkPeer.lastSuccessfulConnection = peer.lastSuccessfulConnection;
+        networkPeer.connectionAttempts = peer.connectionAttempts;
+        networkPeer.trustScore = peer.trustScore;
         this.outgoingPeers.push(networkPeer);
         this.emit('newpeer', networkPeer);
         return networkPeer;
@@ -279,7 +281,7 @@ export class NetworkManager extends EventEmitter {
 
         // Does this peer need to be blacklisted?
         // Just checking if we're connected to self for now...
-        if (peer.id.equals(this.peerID)) {
+        if (peer.id.equals(this.id)) {
             this.closeAndBlacklistPeer(peer);
             return false;
         }
@@ -407,7 +409,7 @@ export class NetworkManager extends EventEmitter {
 
     prettyPrintStats(): string {
         let output = '\Statistics:\n';
-        output += `My (high level) PeerID: ${this.peerID.toString('hex').toUpperCase()}\n`;
+        output += `My (high level) PeerID: ${this.id.toString('hex').toUpperCase()}\n`;
         if (this.transports.size) {
             output += `My network listeners ("servers"):\n`;
             for (const [transportType, transport] of this.transports) {

@@ -92,7 +92,7 @@ export class WebSocketServer extends TransportServer {
           WebSocketAddress.convertIPv6toIPv4((ws as any)._socket.remoteAddress),
           (ws as any)._socket.remotePort),
       this.transport.networkManager.cubeStore,
-      this.transport.networkManager.peerID,
+      this.transport.networkManager.id,
       new WebSocketPeerConnection(ws),
       this.transport.networkManager.lightNode,
       this.transport.networkManager.peerExchange,
