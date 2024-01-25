@@ -29,12 +29,23 @@ export interface NetworkManagerOptions {
     peerExchange?: boolean;
     publicAddress?: string;  // TODO: move this to new TransportOptions
     useRelaying?: boolean;  // TODO: move this to new TransportOptions
+    newPeerInterval?: number;
+    connectRetryInterval?: number,
+    reconnectInterval?: number,
+    maximumConnections?: number,
 }
 
 /**
  * Class representing a network manager, responsible for handling incoming and outgoing connections.
  */
 export class NetworkManager extends EventEmitter {
+    // overridable values from Settings
+    newPeerInterval: number;
+    connectRetryInterval: number;
+    reconnectInterval: number;
+    maximumConnections: number;
+
+    // instance behaviour
     readonly announceToTorrentTrackers?: boolean;
     private _lightNode?: boolean;
     public autoConnect: boolean;
@@ -88,7 +99,13 @@ export class NetworkManager extends EventEmitter {
             options: NetworkManagerOptions = {},
 ) {
         super();
-        // set options
+        // set overridable options
+        this.newPeerInterval = options?.newPeerInterval ?? Settings.NEW_PEER_INTERVAL;
+        this.connectRetryInterval = options?.connectRetryInterval ?? Settings.CONNECT_RETRY_INTERVAL;
+        this.reconnectInterval = options?.reconnectInterval ?? Settings.RECONNECT_INTERVAL;
+        this.maximumConnections = options?.maximumConnections ?? Settings.MAXIMUM_CONNECTIONS;
+
+        // set instance behavior
         this.announceToTorrentTrackers = options?.announceToTorrentTrackers ?? true;
         this._lightNode = options?.lightNode ?? false;
         this.autoConnect = options?.autoConnect ?? true;
@@ -154,7 +171,7 @@ export class NetworkManager extends EventEmitter {
     * You never need to call this manually. It will automatically be called when
     * a peer disconnects and when we learn new peers.
     * @param existingRun Be nice and never set this! connectPeers() will re-call
-    * itself observing Settings.NEW_PEER_INTERVAL. These re-calls to self represent
+    * itself observing newPeerInterval. These re-calls to self represent
     * a contiguous run, during which this.isConnectingPeers will be set.
     * To distinguish its continuous run from further external calls, automatic
     * re-calls to self will set existingRun, and nobody else should.
@@ -171,7 +188,7 @@ export class NetworkManager extends EventEmitter {
         // Only connect a new peer if we're not over the maximum,
         // and if we're not already in the process of connecting new peers
         if (this.outgoingPeers.length + this.incomingPeers.length <
-                Settings.MAXIMUM_CONNECTIONS) {
+                this.maximumConnections) {
             const connectTo: Peer = this._peerDB.selectPeerToConnect(
                 this.outgoingPeers.concat(this.incomingPeers));  // I'm almost certain this is not efficient.
             // logger.trace(`NetworkManager: connectPeers() running, next up is ${connectTo?.toString()}`);
@@ -189,23 +206,23 @@ export class NetworkManager extends EventEmitter {
                     // unsuccessful. In case of getting spammed with fake nodes,
                     // this currently takes forever till we even try a legit one.
                     this.connectPeersInterval = setInterval(() =>
-                        this.autoConnectPeers(true), Settings.NEW_PEER_INTERVAL);
+                        this.autoConnectPeers(true), this.newPeerInterval);
                 } catch (error) {
-                    logger.trace("NetworkManager: Connection attempt failed, retrying in " + Settings.RETRY_INTERVAL/1000 + " seconds");
+                    logger.trace("NetworkManager: Connection attempt failed, retrying in " + this.connectRetryInterval/1000 + " seconds");
                     // Note this does not actually catch failed connections,
                     // it just catched failed *connect calls*.
                     // Actual connection failure usually happens much later down
                     // the line (async) and does not get detected here.
                     this.connectPeersInterval = setInterval(() =>
-                        this.autoConnectPeers(true), Settings.RETRY_INTERVAL);
+                        this.autoConnectPeers(true), this.connectRetryInterval);
                 }
             } else {  // no suitable peers found, so stop trying
                 // TODO HACKHACK:
-                // We currently re-call this method every Settings.RECONNECT_INTERVAL
+                // We currently re-call this method every reconnectInterval
                 // as we won't otherwise notice when a reconnect interval has passed.
                 // This is not really elegant but it's what we currently do.
                 this.connectPeersInterval = setInterval(() =>
-                    this.autoConnectPeers(), Settings.RECONNECT_INTERVAL);
+                    this.autoConnectPeers(), this.reconnectInterval);
                 this.isConnectingPeers = false;
             }
         } else {  // we're done, enough peers connected
