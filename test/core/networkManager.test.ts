@@ -636,12 +636,6 @@ describe('networkManager', () => {
                 manager3.shutdown()
             ]);
         }, 20000);
-        it.skip('should not auto-connect peers if disabled', async () => {
-            // TODO implement
-        });
-        it.skip('should not exchange peers if disabled', async () => {
-            // TODO implement
-        });
         it.skip('should strongly prefer auto-connecting to peers with good reputation score', async () => {
             // TODO implement
         });
