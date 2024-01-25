@@ -16,8 +16,8 @@ export const Settings = {
     DEFAULT_LIBP2P_PORT: 1985,  // this is actually also WebSocket, but libp2p's flavour
     NETWORK_TIMEOUT: 0,  // Getting strange timeouts, deactivating for now , original: (10 * 1000),  // currently only used while establishing connection
     ANNOUNCEMENT_INTERVAL: (25 * 60 * 1000),  // 25 minutes between Torrent tracker announcements
-    NEW_PEER_INTERVAL: (1 * 1000),
-    RETRY_INTERVAL: (1 * 1000),  // Initially retry a failed peer connection after 1 sec
+    NEW_PEER_INTERVAL: (1 * 1000),  // autoconnect a new peer every second
+    CONNECT_RETRY_INTERVAL: (1 * 1000),  // Initially retry a failed peer connection after 1 sec
     RECONNECT_INTERVAL: (10 * 1000),  // Initially reconnect a peer after 10sec
     RECONNECT_MAX_FIBONACCI_FACTOR: 8, // 20, // increase RETRY and RECONNECT intervals on each failure according to a Fibonacci factor, but no more than 20 times (i.e. a maximum of 6765 times the initial interval)
     MAXIMUM_CONNECTIONS: 20, // Maximum number of connections to maintain
