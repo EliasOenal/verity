@@ -70,7 +70,7 @@ export class Peer {
    * Maybe introduce a "referral system" so a node can fractionally benefit from
    * any reputation awarded to peers that we learnt from this node.
   */
-  private trustScore: number = 0;
+  trustScore: number = 0;
 
   constructor(
           address: WebSocketAddress | Multiaddr | AddressAbstraction | AddressAbstraction[] | string,

@@ -155,7 +155,7 @@ describe('networkManager', () => {
             const manager1 = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                 new PeerDB(),
-                new Map([[SupportedTransports.ws, 4000]]),
+                new Map([[SupportedTransports.ws, 4010]]),
                 {  // disable optional features
                     announceToTorrentTrackers: false,
                     autoConnect: false,
@@ -165,7 +165,7 @@ describe('networkManager', () => {
             const manager2 = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                 new PeerDB(),
-                new Map([[SupportedTransports.ws, 4001]]),
+                new Map([[SupportedTransports.ws, 4011]]),
                 {  // disable optional features
                     announceToTorrentTrackers: false,
                     autoConnect: false,
@@ -177,7 +177,7 @@ describe('networkManager', () => {
             const promise2_listening = manager2.start();
             await Promise.all([promise1_listening, promise2_listening]);
 
-            manager2.connect(new Peer(new WebSocketAddress("localhost", 4000)));
+            manager2.connect(new Peer(new WebSocketAddress("localhost", 4010)));
             expect(manager2.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
             await manager2.outgoingPeers[0].onlinePromise
             await manager1.incomingPeers[0].onlinePromise;
@@ -201,7 +201,7 @@ describe('networkManager', () => {
                 {enableCubePersistance: false, requiredDifficulty: 0});
             const manager1 = new NetworkManager(
                 cubeStore, new PeerDB(),
-                new Map([[SupportedTransports.ws, 4000]]),
+                new Map([[SupportedTransports.ws, 4020]]),
                 {  // disable optional features
                     announceToTorrentTrackers: false,
                     autoConnect: false,
@@ -210,7 +210,7 @@ describe('networkManager', () => {
                 });
             const manager2 = new NetworkManager(
                 cubeStore2, new PeerDB(),
-                new Map([[SupportedTransports.ws, 4001]]),
+                new Map([[SupportedTransports.ws, 4021]]),
                 {  // disable optional features
                     announceToTorrentTrackers: false,
                     autoConnect: false,
@@ -219,7 +219,7 @@ describe('networkManager', () => {
                 });
             const manager3 = new NetworkManager(
                 cubeStore3, new PeerDB(),
-                new Map([[SupportedTransports.ws, 4002]]),
+                new Map([[SupportedTransports.ws, 4022]]),
                 {  // disable optional features
                     announceToTorrentTrackers: false,
                     autoConnect: false,
@@ -234,8 +234,8 @@ describe('networkManager', () => {
             await Promise.all([promise1_listening, promise2_listening, promise3_listening]);
 
             // Connect peer 2 to both peer 1 and peer 3
-            manager2.connect(new Peer(new WebSocketAddress("localhost", 4000)));
-            manager2.connect(new Peer(new WebSocketAddress('localhost', 4002)));
+            manager2.connect(new Peer(new WebSocketAddress("localhost", 4020)));
+            manager2.connect(new Peer(new WebSocketAddress('localhost', 4022)));
             expect(manager2.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
             expect(manager2.outgoingPeers[1]).toBeInstanceOf(NetworkPeer);
 
@@ -460,19 +460,18 @@ describe('networkManager', () => {
             const myFirstNp: NetworkPeer =
                 myManager.connect(new Peer(new WebSocketAddress('localhost', 7005)));
             await bothHaveConnected;
-            logger.error("await bothHaveConnected;")
 
             // ensure connected
             expect(myManager.outgoingPeers.length).toEqual(1);
             expect(myManager.incomingPeers.length).toEqual(0);
             expect(myManager.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
             expect(myManager.outgoingPeers[0] === myFirstNp).toBeTruthy();
-            expect(myManager.outgoingPeers[0].id?.equals(otherManager.peerID));
+            expect(myManager.outgoingPeers[0].id?.equals(otherManager.id));
             expect(otherManager.outgoingPeers.length).toEqual(0);
             expect(otherManager.incomingPeers.length).toEqual(1);
             expect(otherManager.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
             const othersFirstNp: NetworkPeer = otherManager.incomingPeers[0];
-            expect(othersFirstNp.id?.equals(myManager.peerID));
+            expect(othersFirstNp.id?.equals(myManager.id));
             expect(myPeerDB.peersVerified.size).toEqual(0);  // outgoing peers get exchangeable on verification
             expect(myPeerDB.peersExchangeable.size).toEqual(1);
             expect(otherPeerDB.peersVerified.size).toEqual(1);
@@ -556,13 +555,100 @@ describe('networkManager', () => {
                 ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
         }, 500000);
 
-        it.skip('should exchange peers and connect them', async () => {
-            // TODO implement
-        });
+        it.only('should exchange peers and connect them', async () => {
+            const manager1 = new NetworkManager(
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new PeerDB(),
+                new Map([[SupportedTransports.ws, 7011]]),
+                {  // select feature set for this test
+                    announceToTorrentTrackers: false,
+                    autoConnect: true,
+                    lightNode: false,
+                    peerExchange: true,
+                });
+            const manager2 = new NetworkManager(
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new PeerDB(),
+                new Map([[SupportedTransports.ws, 7012]]),
+                {  // select feature set for this test
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
+            const manager3 = new NetworkManager(
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new PeerDB(),
+                new Map([[SupportedTransports.ws, 7013]]),
+                {  // select feature set for this test
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
+            await Promise.all([manager1.start(), manager2.start(), manager3.start()]);
+
+            // connect node 1 to node 2
+            const peer1 =
+                manager1.connect(new Peer(new WebSocketAddress('localhost', 7012)));
+            await Promise.all([
+                peer1.onlinePromise,
+                new Promise((resolve) => manager2.on('peeronline', resolve))
+            ]);
+            expect(peer1.online).toBeTruthy();
+            expect(manager1.online).toBeTruthy();
+            expect(manager2.online).toBeTruthy();
+            expect(manager1.outgoingPeers[0]).toBe(peer1);
+            expect(manager2.incomingPeers[0].idString).toEqual(manager1.idString);
+
+            // connect node 2 to node 3
+            const peer2 =
+                manager2.connect(new Peer(new WebSocketAddress('localhost', 7013)));
+            await Promise.all([
+                peer2.onlinePromise,
+                new Promise((resolve) => manager3.on('peeronline', resolve))
+            ]);
+            expect(peer2.online).toBeTruthy();
+            expect(manager3.online).toBeTruthy();
+            expect(manager2.outgoingPeers[0]).toBe(peer2);
+            expect(manager3.incomingPeers[0].idString).toEqual(manager2.idString);
+
+            // Automatically, peer exchanges will occur between nodes 2 and 3
+            // as well as between nodes 1 and 2. We don't know what happens first.
+            // In any case, node 1 and 3 will autoconnect -- we don't know who
+            // will initiate the connection, though.
+            await Promise.all([
+                new Promise((resolve) => manager3.on('peeronline', resolve)),
+                new Promise((resolve) => manager1.on('peeronline', resolve))
+            ]);
+            // expect node 1 to have some sort of connection to node 3
+            expect([...manager1.outgoingPeers, ...manager1.incomingPeers].some(
+                (peer) => peer.idString == manager3.idString)
+            );
+            // expect node 3 to have some sort of connection to node 1
+            expect([...manager3.outgoingPeers, ...manager3.incomingPeers].some(
+                (peer) => peer.idString == manager1.idString)
+            );
+
+            await Promise.all([
+                manager1.shutdown(),
+                manager2.shutdown(),
+                manager3.shutdown()
+            ]);
+        }, 20000);
         it.skip('should not auto-connect peers if disabled', async () => {
             // TODO implement
         });
         it.skip('should not exchange peers if disabled', async () => {
+            // TODO implement
+        });
+        it.skip('should strongly prefer auto-connecting to peers with good reputation score', async () => {
+            // TODO implement
+        });
+        it.skip('should auto-connect low reputation peers when no others are available', async () => {
+            // TODO implement
+        });
+        it.skip('should give low reputation peers a chance to auto-connect once in a while', async () => {
             // TODO implement
         });
         it.skip('should fail gracefully when trying to connect to an invalid address', async () => {
