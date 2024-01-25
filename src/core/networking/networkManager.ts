@@ -134,8 +134,8 @@ export class NetworkManager extends EventEmitter {
             this._peerDB.startAnnounceTimer();
             this._peerDB.announce();
         }
-        this._peerDB.on('newPeer', (newPeer: Peer) => this.connectPeers());
-        this.connectPeers();
+        this._peerDB.on('newPeer', (newPeer: Peer) => this.autoConnectPeers());
+        this.autoConnectPeers();
 
         this.emit('listening');
         logger.trace("NetworkManager: start() completed, all servers listening: " + this.transports.forEach(server => server.toString() + "; "));
@@ -159,7 +159,7 @@ export class NetworkManager extends EventEmitter {
     * To distinguish its continuous run from further external calls, automatic
     * re-calls to self will set existingRun, and nobody else should.
     */
-    connectPeers(existingRun: boolean = false): void {
+    autoConnectPeers(existingRun: boolean = false): void {
         if (!this.autoConnect) return;
         // Don't do anything if we're already in the process of connecting new peers
         // or if we're shutting down.
@@ -189,7 +189,7 @@ export class NetworkManager extends EventEmitter {
                     // unsuccessful. In case of getting spammed with fake nodes,
                     // this currently takes forever till we even try a legit one.
                     this.connectPeersInterval = setInterval(() =>
-                        this.connectPeers(true), Settings.NEW_PEER_INTERVAL);
+                        this.autoConnectPeers(true), Settings.NEW_PEER_INTERVAL);
                 } catch (error) {
                     logger.trace("NetworkManager: Connection attempt failed, retrying in " + Settings.RETRY_INTERVAL/1000 + " seconds");
                     // Note this does not actually catch failed connections,
@@ -197,7 +197,7 @@ export class NetworkManager extends EventEmitter {
                     // Actual connection failure usually happens much later down
                     // the line (async) and does not get detected here.
                     this.connectPeersInterval = setInterval(() =>
-                        this.connectPeers(true), Settings.RETRY_INTERVAL);
+                        this.autoConnectPeers(true), Settings.RETRY_INTERVAL);
                 }
             } else {  // no suitable peers found, so stop trying
                 // TODO HACKHACK:
@@ -205,7 +205,7 @@ export class NetworkManager extends EventEmitter {
                 // as we won't otherwise notice when a reconnect interval has passed.
                 // This is not really elegant but it's what we currently do.
                 this.connectPeersInterval = setInterval(() =>
-                    this.connectPeers(), Settings.RECONNECT_INTERVAL);
+                    this.autoConnectPeers(), Settings.RECONNECT_INTERVAL);
                 this.isConnectingPeers = false;
             }
         } else {  // we're done, enough peers connected
@@ -335,7 +335,7 @@ export class NetworkManager extends EventEmitter {
             this._online = false;
             this.emit('offline');
         }
-        this.connectPeers();  // find a replacement peer
+        this.autoConnectPeers();  // find a replacement peer
     }
 
     handlePeerUpdated(peer: NetworkPeer) {

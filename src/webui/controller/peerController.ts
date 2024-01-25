@@ -103,7 +103,7 @@ export class PeerController extends VerityController {
   toggleAutoConnect(sw: HTMLInputElement): void {
     if (sw.checked) {
       this.networkManager.autoConnect = true;
-      this.networkManager.connectPeers();
+      this.networkManager.autoConnectPeers();
     } else {
       this.networkManager.autoConnect = false;
     }
