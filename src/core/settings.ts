@@ -22,6 +22,10 @@ export const Settings = {
     RECONNECT_MAX_FIBONACCI_FACTOR: 8, // 20, // increase RETRY and RECONNECT intervals on each failure according to a Fibonacci factor, but no more than 20 times (i.e. a maximum of 6765 times the initial interval)
     MAXIMUM_CONNECTIONS: 20, // Maximum number of connections to maintain
 
+    // Peer related:
+    TRUST_SCORE_THRESHOLD: -100,  // peers with a score below this are considered bad peers
+    BAD_PEER_REHABILITATION_CHANCE: 0.1,  // chance of trying to connect to a peer with bad local trust score
+
     // Network peer related:
     KEY_REQUEST_TIME: (10 * 1000),  // asks nodes for new cube keys every 10 seconds
     NODE_REQUEST_TIME: (10 * 1000),  // asks nodes for their known nodes every minute

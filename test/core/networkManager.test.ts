@@ -18,6 +18,7 @@ import { logger } from '../../src/core/logger';
 
 import WebSocket from 'isomorphic-ws';
 import sodium, { KeyPair } from 'libsodium-wrappers'
+import { Settings } from '../../src/core/settings';
 
 describe('networkManager', () => {
     describe('WebSockets and general functionality', () => {
@@ -555,7 +556,7 @@ describe('networkManager', () => {
                 ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
         }, 500000);
 
-        it.only('should exchange peers and connect them', async () => {
+        it('should exchange peers and connect them', async () => {
             const manager1 = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                 new PeerDB(),
@@ -572,9 +573,9 @@ describe('networkManager', () => {
                 new Map([[SupportedTransports.ws, 7012]]),
                 {  // select feature set for this test
                     announceToTorrentTrackers: false,
-                    autoConnect: false,
+                    autoConnect: true,
                     lightNode: false,
-                    peerExchange: false,
+                    peerExchange: true,
                 });
             const manager3 = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
@@ -582,9 +583,9 @@ describe('networkManager', () => {
                 new Map([[SupportedTransports.ws, 7013]]),
                 {  // select feature set for this test
                     announceToTorrentTrackers: false,
-                    autoConnect: false,
+                    autoConnect: true,
                     lightNode: false,
-                    peerExchange: false,
+                    peerExchange: true,
                 });
             await Promise.all([manager1.start(), manager2.start(), manager3.start()]);
 
@@ -636,15 +637,192 @@ describe('networkManager', () => {
                 manager3.shutdown()
             ]);
         }, 20000);
-        it.skip('should strongly prefer auto-connecting to peers with good reputation score', async () => {
-            // TODO implement
+
+        // This test runs NetworkManager but actually tests a PeerDB feature
+        it('should strongly prefer auto-connecting to peers with good reputation score while still giving low reputation ones a shot once in a while', async () => {
+            const goodPeers: NetworkManager[] = [];
+            const goodPeerIds: string[] = [];
+            const badPeers: NetworkManager[] = [];
+            const badPeerIds: string[] = [];
+            const peerDB = new PeerDB({
+                badPeerRehabilitationChance: 0.1,
+            });
+            const maximumConnections = 100;
+
+            // create as many good peers as there are connection slots
+            const peerStartPromises: Promise<void>[] = [];
+            for (let i = 0; i < maximumConnections; i++) {
+                const node = new NetworkManager(
+                    new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                    new PeerDB(),
+                    new Map([[SupportedTransports.ws, 8000+i]]),
+                    {  // select feature set for this test
+                        announceToTorrentTrackers: false,
+                        autoConnect: false,
+                        lightNode: false,
+                        peerExchange: false,
+                    }
+                );
+                goodPeers.push(node);
+                goodPeerIds.push(node.idString);
+                const peerObj = new Peer(new WebSocketAddress("127.0.0.1", 8000+i));
+                peerObj.trustScore = 1000;  // very good peer indeed
+                peerDB.learnPeer(peerObj);
+                peerStartPromises.push(node.start());
+            }
+            // create twice as many bad peers
+            for (let i = 0; i < maximumConnections * 2; i++) {
+                const node = new NetworkManager(
+                    new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                    new PeerDB(),
+                    new Map([[SupportedTransports.ws, 9000+i]]),
+                    {  // select feature set for this test
+                        announceToTorrentTrackers: false,
+                        autoConnect: false,
+                        lightNode: false,
+                        peerExchange: false,
+                    }
+                );
+                badPeers.push(node);
+                badPeerIds.push(node.idString);
+                const peerObj = new Peer(new WebSocketAddress("127.0.0.1", 9000+i));
+                peerObj.trustScore = -1000;  // very bad peer indeed
+                peerDB.learnPeer(peerObj);
+                peerStartPromises.push(node.start());
+            }
+            await Promise.all(peerStartPromises);
+
+            const protagonist = new NetworkManager(
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                peerDB,
+                new Map([[SupportedTransports.ws, 7999]]),
+                {  // select feature set for this test
+                    announceToTorrentTrackers: false,
+                    autoConnect: true,
+                    lightNode: false,
+                    peerExchange: false,
+                    newPeerInterval: 1,  // rush through auto-connections every single millisecond
+                    connectRetryInterval: 1,  // virtually no reconnect backoff
+                    reconnectInterval: 1, // virtually no reconnect limit
+                    maximumConnections: maximumConnections,
+                }
+            );
+            await protagonist.start();
+            // Wait up to 10 seconds for autoconnect to complete
+            for (let i = 0; i < 100; i++) {
+                // autoconnect is only complete once all peers have the "online"
+                // flag, i.e. once their HELLO is received and thus their peer
+                // ID is known
+                let allonline: boolean = true;
+                if (protagonist.outgoingPeers.length >= maximumConnections) {
+                    for (const peer of protagonist.outgoingPeers) {
+                        if (!peer.online) allonline = false;
+                    }
+                    if (allonline) break;
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            expect(protagonist.outgoingPeers.length).toBeGreaterThanOrEqual(maximumConnections);
+
+            // count number of good and bad peers selected
+            let goodCount: number = 0, badCount: number = 0;
+            for (let i = 0; i < maximumConnections; i++) {
+                if (goodPeerIds.includes(protagonist.outgoingPeers[i].idString)) goodCount++;
+                if (badPeerIds.includes(protagonist.outgoingPeers[i].idString)) badCount++;
+            }
+            expect(goodCount + badCount).toEqual(maximumConnections);  // I sure would hope so
+
+            // expect protagonist to have selected at least 70% good peers
+            expect(goodCount).toBeGreaterThanOrEqual(maximumConnections * 0.7);
+            // expect protagonist to have given a chance to at least one bad peer
+            expect(badCount).toBeGreaterThanOrEqual(1);
+
+            // shut everything down
+            const shutdownPromises: Promise<void>[] = [];
+            shutdownPromises.push(protagonist.shutdown());
+            for (const peer of [...goodPeers, ...badPeers]) {
+                shutdownPromises.push(peer.shutdown());
+            }
+            await Promise.all(shutdownPromises);
         });
-        it.skip('should auto-connect low reputation peers when no others are available', async () => {
-            // TODO implement
+
+        it('should auto-connect low reputation peers when no others are available', async () => {
+            const badPeers: NetworkManager[] = [];
+            let badPeerIds: string[] = [];
+            const peerDB = new PeerDB();
+            const maximumConnections = 5;
+
+            // create bad peers only
+            const peerStartPromises: Promise<void>[] = [];
+            for (let i = 0; i < maximumConnections; i++) {
+                const node = new NetworkManager(
+                    new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                    new PeerDB(),
+                    new Map([[SupportedTransports.ws, 10000+i]]),
+                    {  // select feature set for this test
+                        announceToTorrentTrackers: false,
+                        autoConnect: false,
+                        lightNode: false,
+                        peerExchange: false,
+                    }
+                );
+                badPeers.push(node);
+                badPeerIds.push(node.idString);
+                const peerObj = new Peer(new WebSocketAddress("127.0.0.1", 10000+i));
+                peerObj.trustScore = -1000;  // very bad peer indeed
+                peerDB.learnPeer(peerObj);
+                peerStartPromises.push(node.start());
+            }
+            await Promise.all(peerStartPromises);
+
+            const protagonist = new NetworkManager(
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                peerDB,
+                new Map([[SupportedTransports.ws, 11000]]),
+                {  // select feature set for this test
+                    announceToTorrentTrackers: false,
+                    autoConnect: true,
+                    lightNode: false,
+                    peerExchange: false,
+                    newPeerInterval: 1,  // rush through auto-connections every single millisecond
+                    connectRetryInterval: 1,  // virtually no reconnect backoff
+                    reconnectInterval: 1, // virtually no reconnect limit
+                    maximumConnections: maximumConnections,
+                }
+            );
+            await protagonist.start();
+            // Wait up to 10 seconds for autoconnect to complete
+            for (let i = 0; i < 100; i++) {
+                // autoconnect is only complete once all peers have the "online"
+                // flag, i.e. once their HELLO is received and thus their peer
+                // ID is known
+                let allonline: boolean = true;
+                if (protagonist.outgoingPeers.length >= maximumConnections) {
+                    for (const peer of protagonist.outgoingPeers) {
+                        if (!peer.online) allonline = false;
+                    }
+                    if (allonline) break;
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            expect(protagonist.outgoingPeers.length).toBeGreaterThanOrEqual(maximumConnections);
+
+            // just double check these are our peers
+            for (let i = 0; i < maximumConnections; i++) {
+                // remove each actual connection from the candidate list...
+                badPeerIds = badPeerIds.filter(id => id != protagonist.outgoingPeers[i].idString);
+            }
+            expect(badPeerIds.length).toEqual(0);  // ... which should leave the list empty
+
+            // shut everything down
+            const shutdownPromises: Promise<void>[] = [];
+            shutdownPromises.push(protagonist.shutdown());
+            for (const peer of badPeers) {
+                shutdownPromises.push(peer.shutdown());
+            }
+            await Promise.all(shutdownPromises);
         });
-        it.skip('should give low reputation peers a chance to auto-connect once in a while', async () => {
-            // TODO implement
-        });
+
         it.skip('should fail gracefully when trying to connect to an invalid address', async () => {
             // TODO implement
         });

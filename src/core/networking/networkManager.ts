@@ -190,7 +190,7 @@ export class NetworkManager extends EventEmitter {
         if (this.outgoingPeers.length + this.incomingPeers.length <
                 this.maximumConnections) {
             const connectTo: Peer = this._peerDB.selectPeerToConnect(
-                this.outgoingPeers.concat(this.incomingPeers));  // I'm almost certain this is not efficient.
+                this.outgoingPeers.concat(this.incomingPeers));  // this is not efficient -- severity: low (run only while connecting new peers and max once per second)
             // logger.trace(`NetworkManager: connectPeers() running, next up is ${connectTo?.toString()}`);
             if (connectTo){
                 // Suitable peer found, start connecting.
@@ -240,6 +240,11 @@ export class NetworkManager extends EventEmitter {
         logger.info(`NetworkManager: Connecting to ${peer.toString()}...`);
         // Create a new NetworkPeer and its associated NetworkPeerConnection
         const conn = createNetworkPeerConnection(peer.address, this.transports);
+
+        // TODO HACKHACK: Cloning the object here to promote it from Peer to
+        // NetworkPeer. Also doing this if it already is a NetworkPeer.
+        // This is ugly. NetworkPeer should encapsulate Peer rather than
+        // inheriting from it.
         const networkPeer = new NetworkPeer(
             this,
             peer.addresses,
@@ -252,6 +257,7 @@ export class NetworkManager extends EventEmitter {
         networkPeer.lastSuccessfulConnection = peer.lastSuccessfulConnection;
         networkPeer.connectionAttempts = peer.connectionAttempts;
         networkPeer.trustScore = peer.trustScore;
+
         this.outgoingPeers.push(networkPeer);
         this.emit('newpeer', networkPeer);
         return networkPeer;
