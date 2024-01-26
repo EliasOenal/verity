@@ -13,6 +13,7 @@ import { EventEmitter } from 'events';
 
 export interface PeerDbOptions {
     ourPort?: number,
+    maxListeners?: number,
     badPeerRehabilitationChance?: number,
 }
 
@@ -94,6 +95,7 @@ export class PeerDB extends EventEmitter {
         options: PeerDbOptions = {},
     ){
         super();
+        this.setMaxListeners(options?.maxListeners ?? Settings.MAXIMUM_CONNECTIONS*1000);
         // set options
         this.ourPort = options?.ourPort ?? 1984;
         this.badPeerRehabilitationChance = options?.badPeerRehabilitationChance ?? Settings.BAD_PEER_REHABILITATION_CHANCE;
