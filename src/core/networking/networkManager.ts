@@ -155,7 +155,7 @@ export class NetworkManager extends EventEmitter {
         this.autoConnectPeers();
 
         this.emit('listening');
-        logger.trace("NetworkManager: start() completed, all servers listening: " + this.transports.forEach(server => server.toString() + "; "));
+        logger.trace("NetworkManager: start() completed, all transports up: " + Array.from(this.transports.values()).map(transport => transport.toString() + "; "));
     }
 
     private closePeers(): Promise<void> {
