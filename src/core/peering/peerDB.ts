@@ -11,8 +11,12 @@ import { decode } from 'bencodec';
 import { Buffer } from 'buffer';
 import { EventEmitter } from 'events';
 
-// Maybe TODO: Move tracker handling out of PeerDB, maybe into a new TorrentTrackerClient?
+export interface PeerDbOptions {
+    ourPort?: number,
+    badPeerRehabilitationChance?: number,
+}
 
+// Maybe TODO: Move tracker handling out of PeerDB, maybe into a new TorrentTrackerClient?
 interface TrackerResponse {
     interval: number;
     peers: Buffer;
@@ -76,13 +80,24 @@ export class PeerDB extends EventEmitter {
         'http://open.acgtracker.com:1096/announce',];
     private static infoHash: string = '\x4d\x69\x6e\x69\x73\x74\x72\x79\x20\x6f\x66\x20\x54\x72\x75\x74\x68\x00\x00\x00';  // wtf is this? :D
 
+    private ourPort: number;  // param always gets supplied by VerityNode
+    // TODO refactor: Port should be supplied by NetworkManager by querying
+    // one of its WebSocketServers, if any. Currently VerityNode does that instead.
+    // Maybe we should allow announcing multiple servers, i.e. multiple ports, too?
+
+    /** @member When selecting a peer to connect to, this is the chance a peer
+     *  with bad local trust score does NOT get skipped over
+     */
+    private badPeerRehabilitationChance;
+
     constructor(
-            private ourPort: number = 1984  // param always gets supplied by VerityNode
-            // TODO refactor: Port should be supplied by NetworkManager by querying
-            // one of its WebSocketServers, if any. Currently VerityNode does that instead.
-            // Maybe we should allow announcing multiple servers, i.e. multiple ports, too?
+        options: PeerDbOptions = {},
     ){
         super();
+        // set options
+        this.ourPort = options?.ourPort ?? 1984;
+        this.badPeerRehabilitationChance = options?.badPeerRehabilitationChance ?? Settings.BAD_PEER_REHABILITATION_CHANCE;
+
         this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS + 10);  // one for each peer and a few for ourselves
     }
 
@@ -141,6 +156,7 @@ export class PeerDB extends EventEmitter {
     // Has the added benefit of incentivising Sybils to actually exchange valid
     // cubes :D
     selectPeerToConnect(exclude: Peer[] = []) {
+        // first, find out which peers are even eligible to auto-connect to
         const now: number = unixtime();
         const eligible: Peer[] =
             [...this.peersUnverified.values(), ...this.peersVerified.values(), ...this.peersExchangeable.values()].  // this is not efficient
@@ -151,10 +167,24 @@ export class PeerDB extends EventEmitter {
                         )) * (Settings.RECONNECT_INTERVAL / 1000) &&
                 exclude.every((tobeExcluded: Peer) =>
                     !candidate.equals(tobeExcluded)));
+        // now, split them by their reputation
+        const goodPeers: Peer[] = [], badPeers: Peer[] = [];
+        for (const peer of eligible) {
+            if (peer.trustScore < Settings.TRUST_SCORE_THRESHOLD) badPeers.push(peer);
+            else goodPeers.push(peer);
+        }
         // logger.trace(`PeerDB: Eligible peers are ${eligible}`)
-        if (eligible.length) {
-            const rnd = Math.floor(Math.random() * eligible.length);
-            return eligible[rnd];
+        // shall we select a good peer or give a bad peer the chance to rehabilitate?
+        let peerList: Peer[];
+        if (badPeers.length > 0) {  // are there even any bad peers?
+            const goodOrBad: number = Math.random();
+            if (goodOrBad < this.badPeerRehabilitationChance) peerList = badPeers;
+            else peerList = goodPeers;
+        } else peerList = goodPeers;
+        // now select a random peer
+        if (peerList.length) {
+            const rnd = Math.floor(Math.random() * peerList.length);
+            return peerList[rnd];
         } else {
             return undefined;  // no eligible peers available
         }
