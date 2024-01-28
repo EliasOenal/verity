@@ -23,7 +23,7 @@ export const Settings = {
     MAXIMUM_CONNECTIONS: 20, // Maximum number of connections to maintain
 
     // Peer related:
-    TRUST_SCORE_THRESHOLD: -100,  // peers with a score below this are considered bad peers
+    TRUST_SCORE_THRESHOLD: -1000,  // peers with a score below this are considered bad peers
     BAD_PEER_REHABILITATION_CHANCE: 0.1,  // chance of trying to connect to a peer with bad local trust score
 
     // Network peer related:

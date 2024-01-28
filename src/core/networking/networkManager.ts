@@ -191,7 +191,7 @@ export class NetworkManager extends EventEmitter {
                 this.maximumConnections) {
             const connectTo: Peer = this._peerDB.selectPeerToConnect(
                 this.outgoingPeers.concat(this.incomingPeers));  // this is not efficient -- severity: low (run only while connecting new peers and max once per second)
-            // logger.trace(`NetworkManager: connectPeers() running, next up is ${connectTo?.toString()}`);
+            // logger.trace(`NetworkManager: autoConnectPeers() running, next up is ${connectTo?.toString()}`);
             if (connectTo){
                 // Suitable peer found, start connecting.
                 // Return here after a short while to connect further peers
@@ -256,7 +256,7 @@ export class NetworkManager extends EventEmitter {
         networkPeer.lastConnectAttempt = peer.lastConnectAttempt;
         networkPeer.lastSuccessfulConnection = peer.lastSuccessfulConnection;
         networkPeer.connectionAttempts = peer.connectionAttempts;
-        networkPeer.trustScore = peer.trustScore;
+        networkPeer._trustScore = peer._trustScore;
 
         this.outgoingPeers.push(networkPeer);
         this.emit('newpeer', networkPeer);

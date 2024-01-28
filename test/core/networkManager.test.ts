@@ -732,7 +732,7 @@ describe('networkManager', () => {
                 badPeers.push(node);
                 badPeerIds.push(node.idString);
                 const peerObj = new Peer(new WebSocketAddress("127.0.0.1", 9000+i));
-                peerObj.trustScore = -1000;  // very bad peer indeed
+                peerObj.trustScore = -10000;  // very bad peer indeed
                 peerDB.learnPeer(peerObj);
                 peerStartPromises.push(node.start());
             }
@@ -815,7 +815,7 @@ describe('networkManager', () => {
                 badPeers.push(node);
                 badPeerIds.push(node.idString);
                 const peerObj = new Peer(new WebSocketAddress("127.0.0.1", 10000+i));
-                peerObj.trustScore = -1000;  // very bad peer indeed
+                peerObj.trustScore = -10000;  // very bad peer indeed
                 peerDB.learnPeer(peerObj);
                 peerStartPromises.push(node.start());
             }
