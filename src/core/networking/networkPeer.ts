@@ -460,14 +460,16 @@ export class NetworkPeer extends Peer {
             // IP address (but instead identifies as "::" which is "any" in IPv6
             // notation), substitute this by the IP address we're currently
             // using for this peer.
-            // This way we mostly get around the fact that NATed nodes don't
-            // know their own address -- but they might know their port.
-            logger.trace(`NetworkPeer ${this.toString()} sent us their wildcard address ${addrString} which we replaced with ${this.ip + addrString.substring(2)}`);
-            addrString = this.ip + addrString.substring(2);
+            // It's a bad solution implemented in ugly code.
+            // But we mostly get around the fact that NATed nodes don't
+            // know their own address but might know their port.
+            this.addAddress(
+                new WebSocketAddress(this.ip, Number.parseInt(addrString.substring(3))),
+                true);  // learn address and make primary
+        } else {
+            const address = AddressAbstraction.CreateAddress(addrString, type);
+            this.addAddress(address, true);  // learn address and make primary
         }
-        const address = AddressAbstraction.CreateAddress(addrString, type);
-        this.addAddress(address, true);  // learn address and make primary
-
         this.networkManager.handlePeerUpdated(this);
     }
 

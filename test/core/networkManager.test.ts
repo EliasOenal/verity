@@ -130,7 +130,7 @@ describe('networkManager', () => {
             // ipv6peer will emit updatepeer when this message is received.
             // The peer should correctly associate this with the IPv6 loopback
             // address (::1).
-            await new Promise<void>(resolve => ipv6peer.on('shutdown', resolve));
+            await new Promise<void>(resolve => ipv6peer.on('updatepeer', resolve));
             expect(ipv6peer.incomingPeers[0].address.ip).toEqual("::1");
             expect(ipv6peer.incomingPeers[0].address.port).toEqual(3010);
 
