@@ -181,28 +181,55 @@ export class NetworkPeer extends Peer {
                     this.handleHello(messageContent);
                     break;
                 case MessageClass.KeyRequest:
-                    this.handleKeyRequest();
-                    break;
+                    try {  // non-essential feature (for us at least... for them it's rather essential, but we don't care :D)
+                        this.handleKeyRequest();
+                        break;
+                    } catch (err) {  // we'll mostly ignore errors with this
+                        logger.warn(`NetworkPeer ${this.toString()}: Ignoring a NodeRequest because an error occurred processing it: ${err}`);
+                        break;
+                    }
                 case MessageClass.KeyResponse:
                     this.handleKeyResponse(messageContent);
                     break;
                 case MessageClass.CubeRequest:
-                    this.handleCubeRequest(messageContent);
-                    break;
+                    try {  // non-essential feature
+                        this.handleCubeRequest(messageContent);
+                        break;
+                    } catch (err) {  // we'll mostly ignore errors with this
+                        logger.warn(`NetworkPeer ${this.toString()}: Ignoring a CubeRequest because an error occurred processing it: ${err}`);
+                        break;
+                    }
                 case MessageClass.CubeResponse:
                     this.handleCubeResponse(messageContent);
                     break;
                 case MessageClass.MyServerAddress:
-                    this.handleServerAddress(messageContent);
-                    break;
+                    try {  // non-essential feature
+                        this.handleServerAddress(messageContent);
+                        break;
+                    } catch (err) {  // we'll mostly ignore errors with this
+                        logger.warn(`NetworkPeer ${this.toString()}: Ignoring a MyServerAddress message because an error occurred processing it: ${err}`);
+                        break;
+                    }
                 case MessageClass.NodeRequest:
-                    this.handleNodeRequest();
-                    break;
+                    try {  // non-essential feature
+                        this.handleNodeRequest();
+                        break;
+                    } catch (err) {  // we'll mostly ignore errors with this
+                        logger.warn(`NetworkPeer ${this.toString()}: Ignoring a NodeRequest because an error occurred processing it: ${err}`);
+                        break;
+                    }
                 case MessageClass.NodeResponse:
-                    this.handleNodeResponse(messageContent);
-                    break;
+                    try {  // non-essential feature
+                        this.handleNodeResponse(messageContent);
+                        break;
+                    } catch (err) {  // we'll mostly ignore errors with this
+                        logger.warn(`NetworkPeer ${this.toString()}: Ignoring a NodeResponse because an error occurred processing it: ${err}`);
+                        // TODO: This should make this peer ineligible for peer exchange, at least for a while
+                        break;
+                    }
                 default:
-                    logger.warn(`NetworkPeer ${this.toString()}: Received message with unknown class: ${messageClass}`);
+                    logger.warn(`NetworkPeer ${this.toString()}: Ignoring message with unknown class: ${messageClass}`);
+                    break;
             }
         } catch (err) {
             this.scoreInvalidMessage();
@@ -589,12 +616,13 @@ export class NetworkPeer extends Peer {
     // TODO: Prefer exchanging known good nodes rather than long-dead garbage.
     private handleNodeRequest(): void {
         // Select random peers in random order, up to MAX_NODE_ADDRESS_COUNT of them.
+        // TODO move selection process to PeerDB where it belongs
         const chosenPeers: Array<Peer> = [];
         while(chosenPeers.length < NetConstants.MAX_NODE_ADDRESS_COUNT &&
               this.unsentPeers.length > 0) {
             const rnd = Math.floor(Math.random() * this.unsentPeers.length);
             // Only exchange peers with passable local trust score
-            if (this.unsentPeers[rnd].getTrust() > -100 ) {
+            if (this.unsentPeers[rnd].getTrust() > Settings.TRUST_SCORE_THRESHOLD ) {
                 chosenPeers.push(this.unsentPeers[rnd]);
                 logger.trace(`NetworkPeer ${this.toString()} will receive peer ${this.unsentPeers[rnd]} with trust score ${this.unsentPeers[rnd].getTrust()} from us.`)
             } else {
