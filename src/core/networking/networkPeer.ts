@@ -462,6 +462,7 @@ export class NetworkPeer extends Peer {
             // using for this peer.
             // This way we mostly get around the fact that NATed nodes don't
             // know their own address -- but they might know their port.
+            logger.trace(`NetworkPeer ${this.toString()} sent us their wildcard address ${addrString} which we replace with ${this.ip + addrString.substring(2)}`);
             addrString = this.ip + addrString.substring(2);
         }
         const address = AddressAbstraction.CreateAddress(addrString, type);
