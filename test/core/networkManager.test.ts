@@ -92,6 +92,41 @@ describe('networkManager', () => {
             manager.shutdown();
         }, 3000);
 
+        it('works with IPv6', async () => {
+            const protagonist = new NetworkManager(
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new PeerDB(),
+                new Map([[SupportedTransports.ws, 3010]]),
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
+            const ipv6node = new NetworkManager(
+                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new PeerDB(),
+                new Map([[SupportedTransports.ws, 3011]]),
+                {  // disable optional features
+                    announceToTorrentTrackers: false,
+                    autoConnect: false,
+                    lightNode: false,
+                    peerExchange: false,
+                });
+            await Promise.all([protagonist.start(), ipv6node.start()]);
+            const peerObj = protagonist.connect(
+                new Peer(new WebSocketAddress("[::1]", 3011))
+            );
+            expect(protagonist.online).toBeFalsy();
+            expect(peerObj.online).toBeFalsy();
+
+            await peerObj.onlinePromise;
+            expect(protagonist.online).toBeTruthy();
+            expect(peerObj.online).toBeTruthy();
+
+            await Promise.all([protagonist.shutdown(), ipv6node.shutdown()]);
+        });
+
         it('correctly opens and closes multiple connections', async () => {
             // create a server and two clients
             const listener = new NetworkManager(
