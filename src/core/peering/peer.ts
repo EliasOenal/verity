@@ -1,3 +1,4 @@
+import { Settings } from "../settings";
 import { AddressAbstraction, WebSocketAddress } from "./addressing";
 import { logger } from "../logger";
 
@@ -45,7 +46,7 @@ export class Peer {
    * a connection to this peer.
    * This is required to honor Settings.RECONNECT_INTERVAL.
    */
-  lastConnectAttempt: number = 0;
+  lastConnectAttempt: number = 0;   // this must be 0 and not undefined as otherwise comparisons will fail unexpectedly
   /**
    * @member Unix timestamp showing the last *successful* connection to this peer.
    * Gets set to current time on each sucessfully received message.
@@ -70,7 +71,8 @@ export class Peer {
    * Maybe introduce a "referral system" so a node can fractionally benefit from
    * any reputation awarded to peers that we learnt from this node.
   */
-  trustScore: number = 0;
+  _trustScore: number = 0;  // getter and setter below
+  // HACKHACK: This should be private, but it's currently necessary to read the raw value when NetworkManager clones peer objects
 
   constructor(
           address: WebSocketAddress | Multiaddr | AddressAbstraction | AddressAbstraction[] | string,
@@ -151,21 +153,25 @@ export class Peer {
       return ret;
   }
 
-  getTrust() {
-    return this.trustScore
-           - (unixtime() - this.lastSuccessfulConnection)*0.1;
+  get trustScore() {
+    let ret = this._trustScore;  // base trust score
+    // peer loses one trust for every second since we last heard something from
+    // them (which obviously only works if this peer has ever been connected before)
+    if (this.lastConnectAttempt) ret -= (unixtime() - this.lastSuccessfulConnection)*0.1;
+    // logger.trace(`Peer ${this.toString()} has calculated trust score ${ret}`);
+    return ret;
+  }
+  set trustScore(val: number) { this._trustScore = val };  // HACKHACK this should not be necessary -- we need it due to my bad design choice of peer object cloning in NetworkManager
+  get isTrusted() {
+    return (this.trustScore >= Settings.TRUST_SCORE_THRESHOLD);
   }
   scoreMessage() {
-    this.trustScore += 1;
+    this._trustScore += 1;
   }
   scoreInvalidMessage() {
-    this.trustScore -= 100;
+    this._trustScore -= 100;
   }
   scoreReceivedCube(difficulty: number) {
-    this.trustScore += difficulty;
-  }
-  isUntrustworthy() {
-    if (this.trustScore < -1000) return true;
-    else return false;
+    this._trustScore += difficulty;
   }
 }

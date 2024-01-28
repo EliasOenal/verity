@@ -172,7 +172,7 @@ export class PeerDB extends EventEmitter {
         // now, split them by their reputation
         const goodPeers: Peer[] = [], badPeers: Peer[] = [];
         for (const peer of eligible) {
-            if (peer.trustScore < Settings.TRUST_SCORE_THRESHOLD) badPeers.push(peer);
+            if (!peer.isTrusted) badPeers.push(peer);
             else goodPeers.push(peer);
         }
         // logger.trace(`PeerDB: Eligible peers are ${eligible}`)

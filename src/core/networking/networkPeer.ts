@@ -235,7 +235,7 @@ export class NetworkPeer extends Peer {
             this.scoreInvalidMessage();
             logger.info(`NetworkPeer ${this.toString()}: error while handling message: ${err}; stack trace: ${err.stack}`);
             // blacklist repeat offenders based on local trust score
-            if (this.isUntrustworthy) this.networkManager.closeAndBlacklistPeer(this);
+            if (!this.isTrusted) this.networkManager.closeAndBlacklistPeer(this);
             // Maybe we should remove blacklisting
             // after a defined timespan (increasing for repeat offenders)?
             // Blacklist entries based on IP/Port are especially sensitive
@@ -622,11 +622,11 @@ export class NetworkPeer extends Peer {
               this.unsentPeers.length > 0) {
             const rnd = Math.floor(Math.random() * this.unsentPeers.length);
             // Only exchange peers with passable local trust score
-            if (this.unsentPeers[rnd].getTrust() > Settings.TRUST_SCORE_THRESHOLD ) {
+            if (this.unsentPeers[rnd].isTrusted ) {
                 chosenPeers.push(this.unsentPeers[rnd]);
-                logger.trace(`NetworkPeer ${this.toString()} will receive peer ${this.unsentPeers[rnd]} with trust score ${this.unsentPeers[rnd].getTrust()} from us.`)
+                logger.trace(`NetworkPeer ${this.toString()} will receive peer ${this.unsentPeers[rnd]} with trust score ${this.unsentPeers[rnd].trustScore} from us.`)
             } else {
-                logger.trace(`NetworkPeer ${this.toString()} will not be shared peer ${this.unsentPeers[rnd]} due to insufficient score ${this.unsentPeers[rnd].getTrust()}`)
+                logger.trace(`NetworkPeer ${this.toString()} will not be shared peer ${this.unsentPeers[rnd]} due to insufficient score ${this.unsentPeers[rnd].trustScore}`)
             }
             this.unsentPeers.splice(rnd, 1);
         }
