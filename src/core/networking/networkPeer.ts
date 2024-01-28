@@ -456,13 +456,13 @@ export class NetworkPeer extends Peer {
             messageContent.subarray(offset, offset+length).toString('ascii');
         offset += length;
         if (type == SupportedTransports.ws && addrString.substring(0,2) == "::") {
-            // Handle special case: If the remote peer did not indicate it's
+            // HACKHACK Handle special case: If the remote peer did not indicate it's
             // IP address (but instead identifies as "::" which is "any" in IPv6
             // notation), substitute this by the IP address we're currently
             // using for this peer.
             // This way we mostly get around the fact that NATed nodes don't
             // know their own address -- but they might know their port.
-            logger.trace(`NetworkPeer ${this.toString()} sent us their wildcard address ${addrString} which we replace with ${this.ip + addrString.substring(2)}`);
+            logger.trace(`NetworkPeer ${this.toString()} sent us their wildcard address ${addrString} which we replaced with ${this.ip + addrString.substring(2)}`);
             addrString = this.ip + addrString.substring(2);
         }
         const address = AddressAbstraction.CreateAddress(addrString, type);

@@ -93,6 +93,7 @@ describe('networkManager', () => {
         }, 3000);
 
         it('works with IPv6', async () => {
+            // create two nodes and connect them via IPv6 loopback (::1)
             const protagonist = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                 new PeerDB(),
@@ -103,7 +104,7 @@ describe('networkManager', () => {
                     lightNode: false,
                     peerExchange: false,
                 });
-            const ipv6node = new NetworkManager(
+            const ipv6peer = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                 new PeerDB(),
                 new Map([[SupportedTransports.ws, 3011]]),
@@ -113,18 +114,28 @@ describe('networkManager', () => {
                     lightNode: false,
                     peerExchange: false,
                 });
-            await Promise.all([protagonist.start(), ipv6node.start()]);
+            await Promise.all([protagonist.start(), ipv6peer.start()]);
             const peerObj = protagonist.connect(
                 new Peer(new WebSocketAddress("[::1]", 3011))
             );
+            // node still offline now as connect is obviously async
             expect(protagonist.online).toBeFalsy();
             expect(peerObj.online).toBeFalsy();
 
-            await peerObj.onlinePromise;
+            await peerObj.onlinePromise;  // now them should be online!
             expect(protagonist.online).toBeTruthy();
             expect(peerObj.online).toBeTruthy();
 
-            await Promise.all([protagonist.shutdown(), ipv6node.shutdown()]);
+            // After connect, protagonist should tell its peer it's server port.
+            // ipv6peer will emit updatepeer when this message is received.
+            // The peer should correctly associate this with the IPv6 loopback
+            // address (::1).
+            await new Promise<void>(resolve => ipv6peer.on('shutdown', resolve));
+            expect(ipv6peer.incomingPeers[0].address.ip).toEqual("::1");
+            expect(ipv6peer.incomingPeers[0].address.port).toEqual(3010);
+
+            // shutdown
+            await Promise.all([protagonist.shutdown(), ipv6peer.shutdown()]);
         });
 
         it('correctly opens and closes multiple connections', async () => {
