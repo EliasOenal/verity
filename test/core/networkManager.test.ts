@@ -701,7 +701,7 @@ describe('networkManager', () => {
                 const node = new NetworkManager(
                     new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                     new PeerDB(),
-                    new Map([[SupportedTransports.ws, 8000+i]]),
+                    new Map([[SupportedTransports.ws, 28000+i]]),
                     {  // select feature set for this test
                         announceToTorrentTrackers: false,
                         autoConnect: false,
@@ -711,7 +711,7 @@ describe('networkManager', () => {
                 );
                 goodPeers.push(node);
                 goodPeerIds.push(node.idString);
-                const peerObj = new Peer(new WebSocketAddress("127.0.0.1", 8000+i));
+                const peerObj = new Peer(new WebSocketAddress("127.0.0.1", 28000+i));
                 peerObj.trustScore = 1000;  // very good peer indeed
                 peerDB.learnPeer(peerObj);
                 peerStartPromises.push(node.start());
