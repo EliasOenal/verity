@@ -1,13 +1,14 @@
-import { VerityError } from "../settings";
+import { Settings, VerityError } from "../settings";
 
 import { Buffer } from 'buffer'
 
 export const CUBE_HEADER_LENGTH: number = 0;  // Former headers now considered positional fields -- TODO remove this constant
 
 export enum CubeType {
-  DUMB = 0xFF,
-  MUC = 0,
-  PIC = 1,
+  DUMB = (Settings.CUBE_VERSION << 4) + (0 << 2),
+  PIC = (Settings.CUBE_VERSION << 4) + (1 << 2),  // not fully implemented yet
+  MUC = (Settings.CUBE_VERSION << 4) + (2 << 2),
+  // PMUC = (Settings.CUBE_VERISION << 4) + (3 << 2), not implemented yet
 }
 
 // semantic typedef

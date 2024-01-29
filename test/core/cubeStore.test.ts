@@ -113,13 +113,13 @@ describe('cubeStore', () => {
       const fields = new CubeFields([
         new CubeField(CubeFieldType.SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
         new CubeField(CubeFieldType.PUBLIC_KEY, 32, publicKey),
-        new CubeField(CubeFieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
+        new CubeField(CubeFieldType.NONCE, 909, Buffer.alloc(909)),
         new CubeField(CubeFieldType.SIGNATURE, 72, Buffer.alloc(72))
       ]);
 
       // Create first MUC with specified TLV fields
       const muc = new Cube();
-      muc.setCryptoKeys(publicKey, privateKey);
+      muc.privateKey(publicKey, privateKey);
       muc.setFields(fields);
       muc.setDate(1695340000);
       const key = await muc.getKey();
@@ -134,7 +134,7 @@ describe('cubeStore', () => {
 
       // Create second MUC with specified TLV fields
       const muc2 = new Cube();
-      muc2.setCryptoKeys(publicKey, privateKey);
+      muc2.privateKey(publicKey, privateKey);
       muc2.setFields(fields);
       // Make sure date is ever so slightly newer
       muc2.setDate(1695340001);

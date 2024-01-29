@@ -117,17 +117,6 @@ export function verifySignature(publicKeyValue: Buffer, signatureValue: Buffer, 
     }
 }
 
-export function parseSmartCube(type: number): number {
-    switch (type & 0x03) {
-        case CubeType.MUC:
-            return CubeType.MUC;
-        default:
-            logger.error('Cube: Smart cube type not implemented ' + type);
-            throw new SmartCubeTypeNotImplemented('Cube: Smart cube type not implemented ' + type);
-    }
-}
-
-
 export async function printCubeInfo(cube: Cube) {
     console.log("Date: " + cube.getDate());
     console.log("Fields: ");

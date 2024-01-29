@@ -2,7 +2,6 @@ import { BinaryDataError, FieldError } from "./cube/cubeDefinitions";
 import { BaseFields, BaseField } from "./cube/baseFields";
 import { logger } from "./logger";
 import { NetConstants } from "./networking/networkDefinitions";
-import { cubeFieldDefinition } from "./cube/cubeFields";
 
 import { Buffer } from 'buffer';
 
@@ -15,26 +14,13 @@ export interface FieldDefinition {
     fieldLengths: FieldNumericalParam;  // maps field IDs to field lenghths, e.g. FIELD_LENGTHS defined in field.ts
     positionalFront: FieldNumericalParam;
     positionalBack: FieldNumericalParam;
-    fieldObjectClass: any,     // the Field class you'd like to use, e.g. TopLevelField for... you know... top-level fields. Using type any as it turns out to be much to complex to declare a type of "class".
+    fieldObjectClass: any,     // the Field class you'd like to use, e.g. CubeField for core-only processing. Using type any as it turns out to be much to complex to declare a type of "class".
+    fieldsObjectClass: any,    // the Fields class you'd like to use, e.g. CubeFields for core-only-processing. Using type any as it turns out to be much to complex to declare a type of "class".
     firstFieldOffset: number;
 }
 
 export class FieldParser {
-
   // TODO: add support for flag-type fields
-
-  private static _toplevel = undefined;
-
-  /**
-   * @returns The (singleton) FieldParser for top-level fields.
-   * Applications will need to create their own FieldParser(s) for any TLV
-   * sub-fields they might want to use.
-   */
-  static get toplevel(): FieldParser {
-    if (!FieldParser._toplevel) FieldParser._toplevel = new FieldParser(
-      cubeFieldDefinition);
-    return FieldParser._toplevel;
-  }
 
   static validateFieldDefinition(fieldDef: FieldDefinition) {
     // Ensure all field class IDs fit into NetConstants.MESSAGE_CLASS_SIZE,
@@ -45,7 +31,7 @@ export class FieldParser {
     return true;
   }
 
-  constructor(private fieldDef: FieldDefinition) {
+  constructor(readonly fieldDef: FieldDefinition) {
     FieldParser.validateFieldDefinition(fieldDef);
   }
 
@@ -71,13 +57,13 @@ export class FieldParser {
    *          this.fieldDef.fieldType.
    * @throws A (subclass of) FieldError when not parseable
    */
-  decompileFields(binaryData: Buffer): Array<BaseField> {
+  decompileFields(binaryData: Buffer): BaseFields {
     if (binaryData === undefined)
       throw new BinaryDataError("Binary data not initialized");
     const fields: BaseField[] = [];
     const {backPositionals, dataLength} = this.decompileBackPositionalFields(binaryData);
 
-    // Respect initial offset. For top-level headers, this leaves room for the date field
+    // Respect initial offset (currently unused)
     let byteIndex = this.fieldDef.firstFieldOffset;
     // Keeps track of the running order. Needed to handle positional fields.
     let fieldIndex = 0;
@@ -89,7 +75,9 @@ export class FieldParser {
       ({field, byteIndex} = this.decompileField(binaryData, byteIndex, fieldIndex))
       fields.push(field);
     }
-    return fields.concat(backPositionals);
+    const fieldArray: BaseField[] = fields.concat(backPositionals);
+    const fieldsObj: BaseFields = new this.fieldDef.fieldsObjectClass(fieldArray, this.fieldDef);
+    return fieldsObj;
 }
 
   /**
