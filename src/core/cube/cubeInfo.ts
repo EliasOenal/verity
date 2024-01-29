@@ -1,5 +1,6 @@
 import { Cube } from './cube'
 import { CubeType, CubeKey } from './cubeDefinitions';
+import { FieldParserTable, coreFieldParsers } from './cubeFields';
 
 /**
  * @interface CubeMeta is a restricted view on CubeInfo containing metadata only.
@@ -75,7 +76,9 @@ export class CubeInfo {
   // NOTE, maybe TODO: If binaryCube is specified, this CubeInfo could contain
   // contradictory information as we currently don't validate the details
   // provided against the information contained in the actual (binary) Cube.
-  constructor(params: CubeInfoParams) {
+  constructor(
+      params: CubeInfoParams,
+      readonly fieldParserTable: FieldParserTable = coreFieldParsers) {
     this.key = params.key;
     this.binaryCube = params.binaryCube;
     this.cubeType = params.cubeType;
@@ -101,7 +104,7 @@ export class CubeInfo {
     }
 
     // Nope, no Cube object cached. Create a new one and remember it.
-    const cube = new Cube(this.binaryCube);
+    const cube = new Cube(this.binaryCube, this.fieldParserTable);
     this.objectCache = new WeakRef(cube);
     return cube;
   }

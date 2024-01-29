@@ -27,17 +27,7 @@ export class BaseField {
      */
     start: number = undefined;
 
-    static Payload(buf: Buffer | string, fieldDefinition: FieldDefinition) {
-        if (typeof buf === 'string' || buf instanceof String)  {
-            buf = Buffer.from(buf, 'utf-8');
-        }
-        return new fieldDefinition.fieldObjectClass(
-            fieldDefinition.fieldNames["PAYLOAD"], buf.length, buf);
-    }
-
-    // Note: We've moved most relationships to the application level
-    // (i.e. inside the payload field) and may want to drop the top-level
-    // RELATES_TO altogether
+    // TODO: move to CCI
     /** @return A Field or Field-subclass object, as defined by param fieldType.
      * By default, a TopLevelField.
      */
@@ -94,6 +84,7 @@ export class BaseField {
  * creates their own, compatible `RELATES_TO` field type and also call it `RELATES TO`.
  * (tl;dr: If you deviate too much from top-level cube fields, it's your fault if it breaks.)
  */
+// TODO move to CCI
 export abstract class BaseRelationship {
     type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Application may or may not chose to re-use this relationship system on the application layer, and if they do so they may or may not chose to keep their relationship types compatible with ours.
     remoteKey: CubeKey;
@@ -211,6 +202,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
     * @param [type] If specified, only get relationships of the specified type.
     * @return An array of Relationship objects, which may be empty.
     */
+   // TODO move to CCI
     public getRelationships(type?: number): Array<BaseRelationship> {
         const relationshipfields = this.get(
             this.fieldDefinition.fieldNames['RELATES_TO'] as number);
@@ -223,6 +215,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         }
         return ret;
     }
+    // TODO move to CCI
     public getFirstRelationship(type?: number): BaseRelationship {
         const rels: Array<BaseRelationship> = this.getRelationships(type);
         if (rels.length) return rels[0];

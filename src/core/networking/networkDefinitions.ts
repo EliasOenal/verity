@@ -20,7 +20,6 @@ export const NetConstants =  {
     CUBE_SIZE: 1024,
     HASH_SIZE: 32,      // TODO: HASH_SIZE may still be used instead of
     CUBE_KEY_SIZE: 32,  // CUBE_KEY_SIZE at some points
-    PROTOCOL_VERSION_SIZE: 1,
     MESSAGE_CLASS_SIZE: 1,  // note: it's actually 6 bits, with 2 bits borrowed to FIELD_LENGTH
     FIELD_LENGTH_SIZE: 1,   // note: it's actually 10 bits, with 2 bits borrowed from MESSAGE_CLASS
     RELATIONSHIP_TYPE_SIZE: 1,
@@ -30,7 +29,7 @@ export const NetConstants =  {
     CUBE_TYPE_SIZE: 1,
     CHALLENGE_LEVEL_SIZE: 1,
     PUBLIC_KEY_SIZE: 32,
-    SIGNATURE_SIZE: 72,
+    SIGNATURE_SIZE: 64,  // Caveat! This is the size of the raw signature, the signature *field* is 72 bytes as it additionally contains the pubkey fingerprint
 }
 
 export enum SupportedTransports {
