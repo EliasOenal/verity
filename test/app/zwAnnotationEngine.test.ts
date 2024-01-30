@@ -62,7 +62,7 @@ describe('ZwAnnotationEngine', () => {
         ));
         const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(zwFields);
         const referrer: Cube = new Cube(undefined, reduced_difficulty);
-        referrer.setFields(CubeField.Payload(zwData));
+        referrer.setFields(CubeField.PayloadField(zwData));
         referrer.getBinaryData();  // finalize Cube & compile fields
         await cubeStore.addCube(referrer);
 
@@ -174,7 +174,7 @@ describe('ZwAnnotationEngine', () => {
         const muc: Cube = Cube.MUC(
           Buffer.from(keys.publicKey),
           Buffer.from(keys.privateKey),
-          CubeField.Payload("hoc non est identitatis"),
+          CubeField.PayloadField("hoc non est identitatis"),
           reduced_difficulty
         );
         await cubeStore.addCube(muc);
@@ -273,7 +273,7 @@ describe('ZwAnnotationEngine', () => {
         await new Promise(resolve => setTimeout(resolve, 250));
         // learn a new unrelated MUC
         const unrelatedKeys: KeyPair = sodium.crypto_sign_keypair();
-        await cubeStore.addCube(Cube.MUC(Buffer.from(unrelatedKeys.publicKey), Buffer.from(unrelatedKeys.privateKey), CubeField.Payload("I am some other application's MUC"), reduced_difficulty));
+        await cubeStore.addCube(Cube.MUC(Buffer.from(unrelatedKeys.publicKey), Buffer.from(unrelatedKeys.privateKey), CubeField.PayloadField("I am some other application's MUC"), reduced_difficulty));
         await new Promise(resolve => setTimeout(resolve, 250));
 
         {  // check 2

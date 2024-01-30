@@ -8,6 +8,7 @@ import { NetConstants, NetworkError } from "../networking/networkDefinitions";
 
 import { Buffer } from 'buffer';
 import { CubeType, FieldError } from "./cubeDefinitions";
+import { logger } from "../logger";
 
 /**
  * Core field definitions.
@@ -31,7 +32,9 @@ export enum CubeFieldType {
   SIGNATURE = 2005,
   NONCE = 2006,
 
-  PAYLOAD = 4,  // for testing only
+  PAYLOAD = 1 << 2,  // 4 -- core payload field mainly for testing, architecturally this belongs to the CCI layer
+  PADDING = 2 << 2,  // 8
+  PADDING_SINGLEBYTE = 3 << 2,
 
   // TODO move to CCI
   /**
@@ -53,9 +56,11 @@ export const CubeFieldLength: FieldNumericalParam = {
   // PMUC_UPDATE_COUNT not implemented yet
   [CubeFieldType.PUBLIC_KEY]: NetConstants.PUBLIC_KEY_SIZE,
   [CubeFieldType.DATE]: NetConstants.TIMESTAMP_SIZE,
-  [CubeFieldType.SIGNATURE]: NetConstants.SIGNATURE_SIZE,
-  [CubeFieldType.NONCE]: 4,
-  [CubeFieldType.PAYLOAD]: undefined,  // for testing only
+  [CubeFieldType.SIGNATURE]: NetConstants.SIGNATURE_SIZE + NetConstants.FINGERPRINT_SIZE,
+  [CubeFieldType.NONCE]: Settings.NONCE_SIZE,
+  [CubeFieldType.PAYLOAD]: undefined,
+  [CubeFieldType.PADDING]: undefined,
+  [CubeFieldType.PADDING_SINGLEBYTE]: 1,
   [CubeFieldType.SUBKEY_SEED]: undefined,  // TODO move to CCI
 };
 
@@ -104,7 +109,31 @@ export class CubeField extends BaseField {
       random_bytes[i] = Math.floor(Math.random() * 256);
     }
     return new CubeField(
-      CubeFieldType.NONCE, Settings.NONCE_SIZE, Buffer.from(random_bytes));
+      CubeFieldType.NONCE,
+      CubeFieldLength[CubeFieldType.NONCE],
+      Buffer.from(random_bytes));
+  }
+
+  /**
+   * Will return a PADDING field if requested length is > 1 or the special
+   * PADDING_SINGLEBYTE field for the length==1 edge case.
+  */
+  static PaddingField(length: number): CubeField {
+    let field: CubeField;
+    if (length > 1) {
+      const random_bytes = new Uint8Array(length-2);
+      for (let i = 0; i < length-2; i++) {
+        random_bytes[i] = Math.floor(Math.random() * 256);
+      }
+      field = new CubeField(
+        CubeFieldType.PADDING, length-2,
+        Buffer.from(random_bytes));
+    } else {
+      field = new CubeField(
+        CubeFieldType.PADDING_SINGLEBYTE, 1,
+        Buffer.alloc(1, Math.floor(Math.random()*256)));
+    }
+    return field;
   }
 
   static PublicKeyField(publicKey: Buffer): CubeField {
@@ -117,12 +146,12 @@ export class CubeField extends BaseField {
   static SignatureField(): CubeField {
     return new CubeField(
       CubeFieldType.SIGNATURE,
-      NetConstants.SIGNATURE_SIZE,
-      Buffer.alloc(NetConstants.SIGNATURE_SIZE));
+      CubeFieldLength[CubeFieldType.SIGNATURE],
+      Buffer.alloc(CubeFieldLength[CubeFieldType.SIGNATURE]));
   }
 
   // Actual payloads should use CCI fields, this is mainly for testing
-  static Payload(buf: Buffer | string) {
+  static PayloadField(buf: Buffer | string) {
     if (typeof buf === 'string' || buf instanceof String)  {
         buf = Buffer.from(buf, 'utf-8');
     }
@@ -165,7 +194,7 @@ export class CubeFields extends BaseFields {
       throw new FieldError("CubeFields.DumbFields(): Cannot auto-create mandatory fields as NONCE field already exists");
     }
     fields.appendField(CubeField.NonceField());
-
+    // logger.trace("CubeFields.DumbFields() creates this field set for a dumb Cube: " + fields.toLongString());
     return fields;
   }
 
@@ -190,7 +219,7 @@ export class CubeFields extends BaseFields {
     if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.TYPE) !== undefined) {
       throw new FieldError("CubeFields.MucFields(): Cannot auto-create mandatory fields as TYPE field already exists");
     }
-    fields.insertFieldInFront(CubeField.TypeField(CubeType.DUMB));
+    fields.insertFieldInFront(CubeField.TypeField(CubeType.MUC));
 
     // Create PUBLIC_KEY field
     if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.PUBLIC_KEY) !== undefined) {
@@ -240,7 +269,7 @@ export const mucFieldDefinition: FieldDefinition = {
   positionalFront: mucPositionalFront,
   positionalBack: mucPositionalBack,
   fieldObjectClass: CubeField,
-  fieldsObjectClass: CubeField,
+  fieldsObjectClass: CubeFields,
   firstFieldOffset: 0,
 }
 
@@ -256,6 +285,7 @@ cubeDefinition[CubeType.MUC] = mucFieldDefinition;
  * CCI provides an optional interface for this.
  */
 export const coreDumbParser: FieldParser = new FieldParser(dumbFieldDefinition);
+coreDumbParser.decompileTlv = false;  // core-only nodes ignore TLV
 
 /**
  * The (singleton) FieldParser for standard, "dumb" cubes, supporting
@@ -265,6 +295,7 @@ export const coreDumbParser: FieldParser = new FieldParser(dumbFieldDefinition);
  * CCI provides an optional interface for this.
  */
 export const coreMucParser: FieldParser = new FieldParser(mucFieldDefinition);
+coreMucParser.decompileTlv = false;  // core-only nodes ignore TLV
 
 export interface FieldParserTable {
   [n: number]: FieldParser;
@@ -273,3 +304,10 @@ export interface FieldParserTable {
 export const coreFieldParsers: FieldParserTable = {} // lookup table
 coreFieldParsers[CubeType.DUMB] = coreDumbParser;
 coreFieldParsers[CubeType.MUC] = coreMucParser;
+
+// a set of TLV-enabled parsers for testing
+export const coreTlvDumbParser: FieldParser = new FieldParser(dumbFieldDefinition);
+export const coreTlvMucParser: FieldParser = new FieldParser(mucFieldDefinition);
+export const coreTlvFieldParsers: FieldParserTable = {}
+coreTlvFieldParsers[CubeType.DUMB] = coreTlvDumbParser;
+coreTlvFieldParsers[CubeType.MUC] = coreTlvMucParser;

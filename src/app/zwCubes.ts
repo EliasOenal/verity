@@ -54,7 +54,7 @@ export async function makePost(
 
   const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(zwFields);
   const cube: Cube = new Cube(undefined, required_difficulty);
-  cube.setFields(CubeField.Payload(zwData));
+  cube.setFields(CubeField.PayloadField(zwData));
   cube.getBinaryData();  // finalize Cube & compile fields
 
   if (id) {

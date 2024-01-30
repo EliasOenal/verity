@@ -382,7 +382,7 @@ describe('networkManager', () => {
             muc = Cube.MUC(
                 Buffer.from(keyPair.publicKey),
                 Buffer.from(keyPair.privateKey),
-                CubeField.Payload(counterBuffer)
+                CubeField.PayloadField(counterBuffer)
             );
             mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
             const firstMucHash = await muc.getHash();
@@ -412,7 +412,7 @@ describe('networkManager', () => {
             muc = Cube.MUC(
                 Buffer.from(keyPair.publicKey),
                 Buffer.from(keyPair.privateKey),
-                CubeField.Payload(counterBuffer)
+                CubeField.PayloadField(counterBuffer)
             );
             mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
             const secondMucHash = await muc.getHash();
@@ -1015,7 +1015,7 @@ describe('networkManager', () => {
             expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(0);
             expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
             const cube: Cube = new Cube(undefined, 0);  // no hashcash for faster testing
-            cube.setFields(CubeField.Payload("Hic cubus directe ad collegam meum iturus est"));
+            cube.setFields(CubeField.PayloadField("Hic cubus directe ad collegam meum iturus est"));
             const cubeKey: Buffer = await cube.getKey();
             browser1.cubeStore.addCube(cube);
 
