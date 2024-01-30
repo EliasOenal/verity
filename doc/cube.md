@@ -44,6 +44,12 @@ could emulate them as separate field definition schemes.
 Implemented and interpreted as a single one byte field defining which field
 definition scheme we need to use.
 
+#### Padding
+Two padding fields, one of variable size and one of fixed size 0 are implemented
+at the core layer rather than CCI. This is so the core is able to sculpt valid
+cubes which we use for testing. Server-only nodes will ignore these fields and
+will not do any sculpting, except when we implement commission sculpting.
+
 #### Nonce field size
 The nonce field size reserved in the current implementation is 4 bytes.
 
@@ -64,3 +70,7 @@ size. Dumb cubes will stay invalid forever (except in the unlikely case that
 difficulty decreases again before they drop out of the network). Smart cubes can
 get their challenge updated by eligible nodes unless the new difficulty happens
 to exceed the reserved nonce space.
+
+#### Payload
+Core contains a TLV Payload field for testing. The CCI layer may adopt or
+replace this pre-defined field.

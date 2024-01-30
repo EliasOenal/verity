@@ -56,7 +56,7 @@ describe('annotationEngine', () => {
       const muc1 = Cube.MUC(Buffer.from(muckeys1.publicKey), Buffer.from(muckeys1.privateKey));
       const muc2 = Cube.MUC(Buffer.from(muckeys2.publicKey), Buffer.from(muckeys2.privateKey));
       const continuedin = new Cube(undefined, reduced_difficulty);
-      continuedin.setFields(CubeField.Payload("I still got much to say"));
+      continuedin.setFields(CubeField.PayloadField("I still got much to say"));
 
       // And now the offender themselves:
       const nonconformingCube = new Cube(undefined, reduced_difficulty);

@@ -208,10 +208,10 @@ describe('fieldParser', () => {
       // define a few fields
       fields.appendField(CubeField.TypeField(CubeType.DUMB));
       fields.appendField(
-        CubeField.Payload("Mein kleiner grüner Kaktus")
+        CubeField.PayloadField("Mein kleiner grüner Kaktus")
       );
       fields.appendField(
-        CubeField.Payload("steht draußen am Balkon")
+        CubeField.PayloadField("steht draußen am Balkon")
       );
       fields.appendField(CubeField.DateField());
       fields.appendField(CubeField.NonceField());

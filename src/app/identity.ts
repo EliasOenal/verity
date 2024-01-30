@@ -67,8 +67,8 @@ const IDENTITYDB_VERSION = 1;
  *       We usually don't actually put SUBSCRIPTION_RECOMMENDATIONs directly
  *       into the MUC. We could, but we won't.
  *       Even for moderately active users they wouldn't fit.
- *       Instead, we create an IPC (or regular cube until IPCs are implemented),
- *       put the SUBSCRIPTION_RECOMMENDATIONs into the IPC and link the IPC here.
+ *       Instead, we create a PIC (or regular cube until PICs are implemented),
+ *       put the SUBSCRIPTION_RECOMMENDATIONs into the PIC and link the PIC here.
  *       Makes much more sense, doesn't it?
  * We don't require fields to be in any specific order above the core lib requirements.
  *
@@ -327,7 +327,7 @@ export class Identity {
 
     const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(zwFields);
     const newMuc: Cube = Cube.MUC(this._muc.publicKey, this._muc.privateKey,
-      CubeField.Payload(zwData), required_difficulty);
+      CubeField.PayloadField(zwData), required_difficulty);
     await newMuc.getBinaryData();  // compile MUC
     this._muc = newMuc;
 
@@ -387,7 +387,7 @@ export class Identity {
         // cheaper to just keep an open slot on the first extension MUC.
         const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(
           fieldSets[i]);
-        const payload = CubeField.Payload(zwData);
+        const payload = CubeField.PayloadField(zwData);
 
         const indexCube: Cube = CciUtil.sculptExtensionMuc(
           this.masterKey, payload, i, "Subscription recommendation indices");

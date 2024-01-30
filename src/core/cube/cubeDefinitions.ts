@@ -2,8 +2,6 @@ import { Settings, VerityError } from "../settings";
 
 import { Buffer } from 'buffer'
 
-export const CUBE_HEADER_LENGTH: number = 0;  // Former headers now considered positional fields -- TODO remove this constant
-
 export enum CubeType {
   DUMB = (Settings.CUBE_VERSION << 4) + (0 << 2),
   PIC = (Settings.CUBE_VERSION << 4) + (1 << 2),  // not fully implemented yet
@@ -25,7 +23,7 @@ export class InsufficientDifficulty extends CubeError { }
 export class InvalidCubeKey extends CubeError { }
 
 export class FieldError extends CubeError { }
-export class FieldSizeError extends CubeError { }
+export class FieldSizeError extends FieldError { }
 export class UnknownFieldType extends FieldError { }
 export class FieldNotImplemented extends FieldError { }
 export class CubeRelationshipError extends FieldError { }

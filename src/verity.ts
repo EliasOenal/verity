@@ -176,7 +176,7 @@ class VerityCmdClient {
     const muc = Cube.MUC(
       Buffer.from(this.keyPair.publicKey),
       Buffer.from(this.keyPair.privateKey),
-      CubeField.Payload(messageBuffer)
+      CubeField.PayloadField(messageBuffer)
     );
     this.node.cubeStore.addCube(muc);
   }
@@ -185,7 +185,7 @@ class VerityCmdClient {
   public async makeNewCube(message: string = "Hello Verity", replyto?: string) {
     const cube = new Cube();
     const messagebuffer: Buffer = Buffer.from(message, 'utf8');
-    const cubefields: CubeFields = new CubeFields(CubeField.Payload(messagebuffer));
+    const cubefields: CubeFields = new CubeFields(CubeField.PayloadField(messagebuffer));
 
     if (replyto) {
       cubefields.appendField(CubeField.RelatesTo(

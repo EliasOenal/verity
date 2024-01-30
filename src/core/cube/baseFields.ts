@@ -14,7 +14,7 @@ import { FieldDefinition, FieldParser } from '../fieldParser';
  */
 export class BaseField {
     type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Applications may or may not chose to keep their application-level fields compatible with our top-level numbering.
-    length: number;  // TODO remove -- length of field value not including header, which is completely unnecessary as it's always equal to value.length
+    length: number;  // Length of this field WITHOUT header -- TODO remove: length of field value not including header always equal to value.length
     value: Buffer;
 
     /**
@@ -69,9 +69,13 @@ export class BaseField {
      * Is this a finalized field, i.e. is it's start index within the compiled
      * binary data known yet?
      */
-    public isFinalized() {
+    isFinalized() {
         if (this.start !== undefined) return true;
         else return false;
+    }
+
+    toString(valEnc: BufferEncoding = 'hex'): string {
+        return `Field type ${this.type}, value ${this.value.toString(valEnc)}`
     }
 }
 
@@ -127,6 +131,20 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         else this.data = [];
     }
 
+    toString() {
+        return `${this.data.length} fields`;
+    }
+    fieldsToLongString(): string {
+        let ret = "";
+        for (const field of this.data) ret = ret + field.toString() + '\n';
+        return ret;
+    }
+    toLongString() {
+        let ret: string = this.toString() + '\n';
+        ret += this.fieldsToLongString();
+        return ret;
+    }
+
     equals(other: BaseFields, compareLocation: boolean = false): boolean {
         if (this.count() != other.count()) return false;
         for (let i=0; i<this.count(); i++) {
@@ -135,6 +153,9 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         return true;
     }
 
+    /** @returns The binary size this fieldset will be once compiled,
+     * i.e. including any TLV field headers.
+     */
     getByteLength(): number {
         let length = 0;
         for (const field of this.data) {
@@ -178,6 +199,38 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
 
     public insertFieldInFront(field: BaseField): void {
         this.data.unshift(field);
+    }
+
+    /**
+     *  Will insert your field after all front positional fields as defined by
+     *  this.fieldDefinition.
+     *  Will insert at the very front if there are no front positionals.
+     */
+    public insertFieldAfterFrontPositionals(field: BaseField): void {
+        for (let i = 0; i < this.data.length; i++) {
+            if (!Object.values(this.fieldDefinition.positionalFront).includes(this.data[i].type)) {
+                this.data.splice(i, 0, field);
+                return;
+            }
+        }
+        // apparently, our field set is either empty or consists entirely of front positionals
+        this.insertFieldInFront(field);
+    }
+
+    /**
+     *  Will insert your field before all back positional fields as defined by
+     *  this.fieldDefinition.
+     *  Will insert at the very back if there are no back positionals.
+     */
+    public insertFieldBeforeBackPositionals(field: BaseField): void {
+        for (let i = this.data.length - 1; i >= 0; i--) {
+            if (!Object.values(this.fieldDefinition.positionalBack).includes(this.data[i].type)) {
+                this.data.splice(i+1, 0, field);
+                return;
+            }
+        }
+        // apparently, our field set is either empty or consists entirely of back positionals
+        this.appendField(field);
     }
 
     /**

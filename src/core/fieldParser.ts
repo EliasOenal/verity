@@ -103,8 +103,9 @@ export class FieldParser {
     return FieldParser.getFieldHeaderLength(fieldType, this.fieldDef);
   }
   static getFieldHeaderLength(fieldType: number, fieldDef: FieldDefinition): number {
-    // It's two bytes for "regular" fields including length informatione,
-    // but just one byte for fields with implicitly known length.
+    // It's two bytes for "regular" TLV fields including length information,
+    // just one byte for TLV fields with implicitly known length,
+    // and zero for positional fields as they have no header.
     if (Object.values(fieldDef.positionalFront).includes(fieldType) ||
         Object.values(fieldDef.positionalBack).includes(fieldType)) {
       return 0;

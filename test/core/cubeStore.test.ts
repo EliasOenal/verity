@@ -159,7 +159,7 @@ describe('cubeStore', () => {
       const publicKey: Buffer = Buffer.from(keyPair.publicKey);
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-      const muc = Cube.MUC(publicKey, privateKey, CubeField.Payload("Hi, I'm a MUC!"));
+      const muc = Cube.MUC(publicKey, privateKey, CubeField.PayloadField("Hi, I'm a MUC!"));
       const muckey = await muc.getKey();
       expect(muckey).toEqual(publicKey);
 
