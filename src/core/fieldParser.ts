@@ -31,6 +31,9 @@ export class FieldParser {
     return true;
   }
 
+  /** If set to false we will ignore TLV and only decompile positional fields */
+  decompileTlv: boolean = true;
+
   constructor(readonly fieldDef: FieldDefinition) {
     FieldParser.validateFieldDefinition(fieldDef);
   }
@@ -72,8 +75,10 @@ export class FieldParser {
     while (byteIndex < dataLength) {
       fieldIndex++;  // first field has number one
       let field: BaseField;
-      ({field, byteIndex} = this.decompileField(binaryData, byteIndex, fieldIndex))
-      fields.push(field);
+      const decompiled = this.decompileField(binaryData, byteIndex, fieldIndex);
+      if (decompiled === undefined) break;  // undefined signals that we're done decompiling
+      fields.push(decompiled.field);
+      byteIndex = decompiled.byteIndex;
     }
     const fieldArray: BaseField[] = fields.concat(backPositionals);
     const fieldsObj: BaseFields = new this.fieldDef.fieldsObjectClass(fieldArray, this.fieldDef);
@@ -110,17 +115,33 @@ export class FieldParser {
     }
   }
 
+  /** Decompiles a single field
+   * @param binaryData The binary data to decompile from, obviously
+   * @param byteIndex Where to start reading in binaryData
+   * (note we could just slice the Buffer instead and that would arguably have
+   * been the better design choice, but it's not what we did)
+   * @param fieldIndex The running number of the field to be decompiled.
+   * (This is needed to decompile front positional fields.)
+   * @returns An object consisting of a BaseField object and the new byteIndex
+   */
   private decompileField(binaryData: Buffer, byteIndex: number, fieldIndex: number): {field: BaseField, byteIndex: number } {
     const fieldStartsAtByte = byteIndex;
     let type: number, length: number;
-    type = this.frontPositionalFieldType(fieldIndex);  // positional field?
+    // Is this a positional field?
+    type = this.frontPositionalFieldType(fieldIndex);
     if (type !== undefined) length = this.fieldDef.fieldLengths[type];
+    // If it's not positional, it must be TLV. Are we supposed to decompile TLV?
+    else if (!this.decompileTlv) { return undefined }
+    // Yes? Okay, decompile TLV field.
     else ({type, length, byteIndex} = this.readTLVHeader(binaryData, byteIndex));
 
-    if (byteIndex + length <= binaryData.length) {  // Check if enough data for value field
+    // Check if our remaining binary buffer is long enough data for this kind of field
+    if (byteIndex + length <= binaryData.length) {
+      // Looks good, decompiling this field
       const value = binaryData.subarray(byteIndex, byteIndex + length);
-      byteIndex += length;
       const field: BaseField = new this.fieldDef.fieldObjectClass(type, length, value, fieldStartsAtByte);
+      // Field decompiled, now advance the binary data index
+      byteIndex += length;
       return { field, byteIndex }
     } else {
       throw new BinaryDataError("Data ended unexpectedly while reading value of field");

@@ -9,11 +9,11 @@ describe('fieldParser', () => {
   describe('positional field tests with synthetic field description', () => {
     // any similarities with CubeFieldTypes, living or dead, are purely coincidental
     enum TestFieldType {
-      NONCE = 0x00 << 2,
-      PAYLOAD = 0x01 << 2,
-      SIGNATURE = 0x06 << 2,
-      VERSION = 0x101,
-      DATE = 0x102,
+      NONCE = 0,
+      PAYLOAD = 4,
+      SIGNATURE = 24,
+      VERSION = 257,
+      DATE = 258,
     }
     const TestFieldLength: FieldNumericalParam = {
       [TestFieldType.NONCE]: 4,
@@ -42,7 +42,7 @@ describe('fieldParser', () => {
     let fieldParser: FieldParser;
     let version: BaseField, date: BaseField, sig: BaseField, nonce: BaseField, payload: BaseField;
 
-    beforeAll(() => {
+    beforeEach(() => {
       // prepare the field parser
       fieldParser = new FieldParser(testFieldDefinition);
 
@@ -157,26 +157,46 @@ describe('fieldParser', () => {
       expect(() => fieldParser.decompileFields(corrupt)).toThrow(BinaryDataError);
     });
 
-    it('throws on invalid TLV field by default', () => {
+    it('throws on decompiling invalid TLV field by default', () => {
       const fields: BaseField[] = [];
       fields.push(version);
       fields.push(date);
       fields.push(new BaseField(42, 10, Buffer.alloc(10, 0)));  // note there is no TLV field 42
       fields.push(sig);
       fields.push(nonce);
+      // Note: in the current implementation, it's not a problem to compile
+      // an invalid field. We just won't be able to decompile this.
+      // If the implementation ever changes or if we add a sanity check
+      // on compilation (which we maybe should), amend this test.
       const binaryData = fieldParser.compileFields(fields);
-      expect(binaryData.length).toEqual(15);
-
-      const restored: BaseFields = fieldParser.decompileFields(binaryData);
-      expect(restored.all.length).toEqual(4);
-      expect(restored.all[0].equals(fields[0])).toBeTruthy();
-      expect(restored.all[1].equals(fields[1])).toBeTruthy();
-      expect(restored.all[2].equals(fields[2])).toBeTruthy();
-      expect(restored.all[3].equals(fields[3])).toBeTruthy(
+      expect(() => fieldParser.decompileFields(binaryData)).toThrow(FieldError);
     });
 
     it('does not throw on invalid TLV field if TLV field parsing is disabled', () => {
+      fieldParser.decompileTlv = false;
+      const binaryData = Buffer.from([
+        // Cube version (0) and type (basic "dumb" Cube, 0) (1 byte)
+        0b00000000,
+        // Date (5 bytes)
+        0x00, 0x00, 0x00, 0x00, 0x00,
 
+        // Invalid TLV field
+        0xFA,       // no such field ID exists
+        0x0A,       // Length: 10 bytes
+        0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x77, 0x6F, 0x72, // Value: "Hello, wor"
+
+        // Any padding (all zeros for instance) so we end up at 1024 bytes total
+        ...Array.from({ length: 997 }, () => 0x00),
+
+        0x01, 0x02, 0x03, 0x04, 0x05,  // 5 bytes "signature"
+        0x00, 0x00, 0x37, 0x4D, // Nonce
+      ])
+      const restored: BaseFields = fieldParser.decompileFields(binaryData);
+      expect(restored.all.length).toEqual(4);
+      expect(restored.all[0].value.equals(Buffer.from([0]))).toBeTruthy();
+      expect(restored.all[1].value.equals(Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00]))).toBeTruthy();
+      expect(restored.all[2].value.equals(Buffer.from([0x01, 0x02, 0x03, 0x04, 0x05]))).toBeTruthy();
+      expect(restored.all[3].value.equals(Buffer.from([0x00, 0x00, 0x37, 0x4D]))).toBeTruthy();
     });
   });
 
