@@ -33,7 +33,7 @@ describe('cube', () => {
       ...Array.from({ length: 1002 }, () => 0x00),
 
       0x00, 0x00, 0x37, 0x4D, // Nonce passing challenge requirement
-    ])
+    ]);
     expect(() => cubeBuffer.length === 1024).toBeTruthy();
     const cube = new Cube(cubeBuffer, coreFieldParsers, reduced_difficulty);
     const fields = cube.fields.all;
