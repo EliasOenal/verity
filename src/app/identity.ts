@@ -327,7 +327,7 @@ export class Identity {
 
     const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(zwFields);
     const newMuc: Cube = Cube.MUC(this._muc.publicKey, this._muc.privateKey,
-      CubeField.PayloadField(zwData), required_difficulty);
+      CubeField.PayloadField(zwData), undefined, required_difficulty);
     await newMuc.getBinaryData();  // compile MUC
     this._muc = newMuc;
 
@@ -580,8 +580,8 @@ export class IdentityPersistance {
           logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkey + " is not present");
           continue;
         }
+        muc.privateKey = Buffer.from(privkey, 'hex');
         const id = new Identity(cubeStore, muc, this);
-        muc.privateKey(Buffer.from(pubkey, 'hex'), Buffer.from(privkey, 'hex'), true);
         identities.push(id);
         // } catch (error) {
         //   logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);

@@ -8,7 +8,7 @@ import { WebSocketPeerConnection } from '../../src/core/networking/webSocket/web
 
 import { CubeKey } from '../../src/core/cube/cubeDefinitions';
 import { Cube } from '../../src/core/cube/cube';
-import { CubeField, CubeFieldType, CubeFields } from '../../src/core/cube/cubeFields';
+import { CubeField, CubeFieldType, CubeFields, coreFieldParsers, coreTlvFieldParsers } from '../../src/core/cube/cubeFields';
 import { CubeStore } from '../../src/core/cube/cubeStore';
 
 import { WebSocketAddress } from '../../src/core/peering/addressing';
@@ -291,10 +291,9 @@ describe('networkManager', () => {
 
             // Create new cubes at peer 1
             for (let i = 0; i < numberOfCubes; i++) {
-                const cube = new Cube(undefined, reduced_difficulty);
+                const cube = Cube.Dumb(undefined, coreFieldParsers, reduced_difficulty);
                 const buffer: Buffer = Buffer.alloc(1);
                 buffer.writeInt8(i);
-                cube.setFields(new CubeField(CubeFieldType.PAYLOAD, 1, buffer));
                 await cubeStore.addCube(cube);
             }
 
@@ -378,7 +377,7 @@ describe('networkManager', () => {
             let receivedFields: CubeFields;
 
             // Create MUC at peer 1
-            counterBuffer = Buffer.from("My first MUC version");
+            counterBuffer = Buffer.from("Prima versio cubi usoris mutabilis mei.");
             muc = Cube.MUC(
                 Buffer.from(keyPair.publicKey),
                 Buffer.from(keyPair.privateKey),
@@ -403,12 +402,12 @@ describe('networkManager', () => {
             expect(cubeStore2.getAllStoredCubeKeys().size).toEqual(1);
             expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
             expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(firstMucHash)).toBeTruthy();
-            receivedFields = cubeStore2.getCube(mucKey)?.fields!;
-            expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("My first MUC version");
+            receivedFields = cubeStore2.getCube(mucKey, coreTlvFieldParsers)?.fields!;
+            expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("Prima versio cubi usoris mutabilis mei.");
 
             // update MUC at peer 1
             await new Promise(resolve => setTimeout(resolve, 1000));  // wait one second as we don't have better time resolution
-            counterBuffer = Buffer.from("My second MUC version");
+            counterBuffer = Buffer.from("Secunda versio cubi usoris mutabilis mei.");
             muc = Cube.MUC(
                 Buffer.from(keyPair.publicKey),
                 Buffer.from(keyPair.privateKey),
@@ -432,8 +431,8 @@ describe('networkManager', () => {
             expect(cubeStore2.getAllStoredCubeKeys().size).toEqual(1);
             expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
             expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(secondMucHash)).toBeTruthy();
-            receivedFields = cubeStore2.getCube(mucKey)?.fields!;
-            expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("My second MUC version");
+            receivedFields = cubeStore2.getCube(mucKey, coreTlvFieldParsers)?.fields!;
+            expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("Secunda versio cubi usoris mutabilis mei.");
 
             // teardown
             const promise1_shutdown = manager1.shutdown();
@@ -721,7 +720,7 @@ describe('networkManager', () => {
                 const node = new NetworkManager(
                     new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                     new PeerDB(),
-                    new Map([[SupportedTransports.ws, 9000+i]]),
+                    new Map([[SupportedTransports.ws, 29000+i]]),
                     {  // select feature set for this test
                         announceToTorrentTrackers: false,
                         autoConnect: false,
@@ -731,7 +730,7 @@ describe('networkManager', () => {
                 );
                 badPeers.push(node);
                 badPeerIds.push(node.idString);
-                const peerObj = new Peer(new WebSocketAddress("127.0.0.1", 9000+i));
+                const peerObj = new Peer(new WebSocketAddress("127.0.0.1", 29000+i));
                 peerObj.trustScore = -10000;  // very bad peer indeed
                 peerDB.learnPeer(peerObj);
                 peerStartPromises.push(node.start());
@@ -1014,7 +1013,7 @@ describe('networkManager', () => {
             // Create a Cube and exchange it between browsers
             expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(0);
             expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
-            const cube: Cube = new Cube(undefined, 0);  // no hashcash for faster testing
+            const cube: Cube = Cube.Dumb(undefined, coreFieldParsers, 0);  // no hashcash for faster testing
             cube.setFields(CubeField.PayloadField("Hic cubus directe ad collegam meum iturus est"));
             const cubeKey: Buffer = await cube.getKey();
             browser1.cubeStore.addCube(cube);
