@@ -8,6 +8,7 @@ import { logger } from '../logger';
 
 import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
+import { FieldParserTable, coreFieldParsers } from './cubeFields';
 
 // Note: Once we implement pruning, we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes
@@ -17,6 +18,18 @@ import { Buffer } from 'buffer';
 export interface CubeStoreOptions {
   enableCubePersistance?: boolean,
   requiredDifficulty?: number,
+
+  /**
+   * Choose the default parser to be used for binary cubes store in this
+   * CubeStore. By default, we will use the coreFieldParsers, which only
+   * parse the core or "boilerplate" fields and ignore any payload.
+   * This default setting is really only useful for "server-only" nodes who
+   * do nothing but store and forward Cubes.
+   * For nodes actually doing stuff, chose the parser table matching your Cube
+   * format. If you're using CCI, and we strongly recommend you do, choose
+   * cciFieldParsers.
+   */
+  fieldParserTable?: FieldParserTable,
 }
 
 export class CubeStore extends EventEmitter {
@@ -27,11 +40,13 @@ export class CubeStore extends EventEmitter {
   // Refers to the persistant cube storage database, if available and enabled
   private persistence: CubePersistence = undefined;
 
-  public readonly required_difficulty;
+  readonly fieldParserTable: FieldParserTable;
+  readonly required_difficulty;
 
   constructor(options: CubeStoreOptions) {
     super();
     this.required_difficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
+    this.fieldParserTable = options?.fieldParserTable ?? coreFieldParsers;
     this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 10);  // one for each peer and a few for ourselves
     this.storage = new Map();
 
@@ -52,9 +67,25 @@ export class CubeStore extends EventEmitter {
   }
 
   // TODO: implement importing CubeInfo directly
-  async addCube(cube_input: Buffer): Promise<Cube>;
+  /**
+   * Add a binary Cube to storage.
+   * @param fieldParserTable defines how this binary Cubes should be parsed.
+   * Will use this store's default if not specified, which in turn will use the
+   * core-only parsers if you didn't specify anything else on construction.
+   */
+  async addCube(
+    cube_input: Buffer,
+    fieldParserTable?: FieldParserTable): Promise<Cube>;
+  /**
+   * Add a Cube object to storage.
+   * (Note you cannot specify a FieldParserTable in this variant as the Cube
+   * object is already parsed and should hopefully know how this happened.)
+   */
   async addCube(cube_input: Cube): Promise<Cube>;
-  async addCube(cube_input: Cube | Buffer): Promise<Cube> {
+  async addCube(
+      cube_input: Cube | Buffer,
+      fieldParserTable = this.fieldParserTable
+  ): Promise<Cube> {
     try {
       // Cube objects are ephemeral as storing binary data is more efficient.
       // Create cube object if we don't have one yet.
@@ -63,15 +94,13 @@ export class CubeStore extends EventEmitter {
       if (cube_input instanceof Cube) {
         cube = cube_input;
         binaryCube = await cube_input.getBinaryData();
-      }
-      else if (cube_input instanceof Buffer) { // cube_input instanceof Buffer
+      } else if (cube_input instanceof Buffer) { // cube_input instanceof Buffer
         binaryCube = cube_input;
-        cube = new Cube(binaryCube);
+        cube = new Cube(binaryCube, fieldParserTable);
       } else {  // should never be even possible to happen, and yet, there was this one time when it did
         // @ts-ignore If we end up here, we're well outside any kind of sanity TypeScript can possibly be expected to understand.
         throw new TypeError("CubeStore: invalid type supplied to addCube: " + cube_input.constructor.name);
       }
-
       const cubeInfo: CubeInfo = await cube.getCubeInfo();
 
       // Sometimes we get the same cube twice (e.g. due to network latency).
@@ -81,11 +110,9 @@ export class CubeStore extends EventEmitter {
         logger.warn('CubeStorage: duplicate - cube already exists');
         return cube;
       }
-
       if (cube.getDifficulty() < this.required_difficulty) {
         throw new InsufficientDifficulty("CubeStore: Cube does not meet difficulty requirements");
       }
-
       // If this is a MUC, check if we already have a MUC with this key.
       // Replace it with the incoming MUC if it's newer than the one we have.
       if (cubeInfo.cubeType == CubeType.MUC) {
@@ -102,18 +129,18 @@ export class CubeStore extends EventEmitter {
       }
 
       // Store the cube
-      this.storage.set(cubeInfo.key.toString('hex'), cubeInfo);
+      this.storage.set(cubeInfo.keystring, cubeInfo);
       // save cube to disk (if available and enabled)
       if (this.persistence) {
-        this.persistence.storeRawCube(cubeInfo.key.toString('hex'), cubeInfo.binaryCube);
+        this.persistence.storeRawCube(cubeInfo.keystring, cubeInfo.binaryCube);
       }
 
       // inform our application(s) about the new cube
       try {
-        // logger.trace(`CubeStore: Added cube ${cubeInfo.key.toString('hex')}, emitting cubeAdded`)
+        // logger.trace(`CubeStore: Added cube ${cubeInfo.keystring}, emitting cubeAdded`)
         this.emit('cubeAdded', cubeInfo);
       } catch(error) {
-        logger.error("CubeStore: While adding Cube " + cubeInfo.key.toString('hex') + "a cubeAdded subscriber experienced an error: " + error.message);
+        logger.error("CubeStore: While adding Cube " + cubeInfo.keystring + "a cubeAdded subscriber experienced an error: " + error.message);
       }
 
       // All done finally, just return the cube in case anyone cares.
@@ -146,9 +173,20 @@ export class CubeStore extends EventEmitter {
     if (cubeInfo) return cubeInfo.binaryCube;
     else return undefined;
   }
-  getCube(key: CubeKey | string): Cube | undefined {
+  /**
+   * Get a Cube from storage. If the cube is currently dormant, it will
+   * automatically get reinstantiated for you.
+   * @param key Pass the key of the cube you want in either binary or string form
+   * @param fieldParserTable If the requested Cube is domant it will need to be
+   *        re-parsed. The CubeInfo is supposed to know which parser to use,
+   *        but you can override it here if you want.
+   */
+  getCube(
+      key: CubeKey | string,
+      fieldParserTable: FieldParserTable = undefined
+    ): Cube | undefined {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
-    if (cubeInfo) return cubeInfo.getCube();
+    if (cubeInfo) return cubeInfo.getCube(fieldParserTable);
     else return undefined;
   }
 

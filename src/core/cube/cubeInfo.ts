@@ -19,7 +19,19 @@ export interface CubeInfoParams {
   binaryCube?: Buffer;
   cubeType?: number;
   date?: number;
-  challengeLevel?: number
+  challengeLevel?: number;
+
+  /**
+   * Choose the default parser to be used for the cube represented by this
+   * CubeInfo. By default, we will use the coreFieldParsers, which only
+   * parse the core or "boilerplate" fields and ignore any payload.
+   * This default setting is really only useful for "server-only" nodes who
+   * do nothing but store and forward Cubes.
+   * For nodes actually doing stuff, chose the parser table matching your Cube
+   * format. If you're using CCI, and we strongly recommend you do, choose
+   * cciFieldParsers.
+   */
+  fieldParserTable?: FieldParserTable,
 }
 
 /**
@@ -69,6 +81,8 @@ export class CubeInfo {
    */
   applicationNotes: object = {}
 
+  readonly fieldParserTable: FieldParserTable;
+
   // @member objectCache: Will remember the last instantiated Cube object
   //                      for as long as the garbage collector keeps it alive
   private objectCache: WeakRef<Cube> = undefined;
@@ -77,13 +91,13 @@ export class CubeInfo {
   // contradictory information as we currently don't validate the details
   // provided against the information contained in the actual (binary) Cube.
   constructor(
-      params: CubeInfoParams,
-      readonly fieldParserTable: FieldParserTable = coreFieldParsers) {
+      params: CubeInfoParams) {
     this.key = params.key;
     this.binaryCube = params.binaryCube;
     this.cubeType = params.cubeType;
     this.date = params.date;
     this.challengeLevel = params.challengeLevel;
+    this.fieldParserTable = params?.fieldParserTable ?? coreFieldParsers;
   }
 
   /**
@@ -93,9 +107,10 @@ export class CubeInfo {
    * We use an object cache (WeakRef) to prevent unnecessary re-instantiations of
    * Cube objects, so there's no need for the caller to cache them.
    */
-  getCube(): Cube | undefined {
-    // Keep returning the same Cube object until it gets garbage collected
-    if (this.objectCache) {
+  getCube(fieldParserTable: FieldParserTable = this.fieldParserTable): Cube | undefined {
+    // Keep returning the same Cube object until it gets garbage collected.
+    // Can only used cached object when using default parser.
+    if (this.objectCache && fieldParserTable == this.fieldParserTable) {
       const cachedCube: Cube = this.objectCache.deref();
       if (cachedCube) {
         // logger.trace("cubeInfo: Yay! Saving us one instantiation");
@@ -104,8 +119,9 @@ export class CubeInfo {
     }
 
     // Nope, no Cube object cached. Create a new one and remember it.
-    const cube = new Cube(this.binaryCube, this.fieldParserTable);
-    this.objectCache = new WeakRef(cube);
+    const cube = new Cube(this.binaryCube, fieldParserTable);
+    // Can only cache object when using default parser.
+    if (fieldParserTable == this.fieldParserTable) this.objectCache = new WeakRef(cube);
     return cube;
   }
 

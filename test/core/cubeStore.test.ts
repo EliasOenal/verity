@@ -1,33 +1,16 @@
 import { Settings } from '../../src/core/settings';
 import { Cube } from '../../src/core/cube/cube';
 import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
-import { CubeField, CubeFieldType, CubeFields } from '../../src/core/cube/cubeFields';
+import { CubeField, CubeFieldType, CubeFields, coreFieldParsers, coreTlvDumbParser, coreTlvFieldParsers } from '../../src/core/cube/cubeFields';
 
 import sodium from 'libsodium-wrappers'
+import { logger } from '../../src/core/logger';
+import { validBinaryCube } from './cube.test';
+import { CubeType } from '../../src/core/cube/cubeDefinitions';
 
 describe('cubeStore', () => {
   let cubeStore: CubeStore;
   const reduced_difficulty = 0;
-  const validBinaryCube = Buffer.from([
-    // Protocol Version and Reserved Bits (1 byte)
-    0b00000000,
-
-    // Date (5 bytes)
-    0x00, 0x00, 0x00, 0x00, 0x00,
-
-    // Payload TLV field
-    0x04, // Type: Payload
-    0x0A,       // Length: 10 bytes little endian
-    0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x77, 0x6F, 0x72, // Value: "Hello, wor"
-
-    // Padding TLV field (remaining bytes to fill 1024)
-    0x00 | 0b11, // Type: Padding
-    0xEC,       // Length: 1004 bytes
-    0x00, 0x00, 0x37, 0x4D, // Nonce passing challenge requirement
-    // Padding data (up to index 1023) - For demonstration, all zeros
-    ...Array.from({ length: 1000 }, () => 0x00),
-  ])
-
 
   describe('tests at full difficulty', () => {
     // If these tests actually calculate hashcash, let's keep them to an absolute
@@ -37,6 +20,19 @@ describe('cubeStore', () => {
         enableCubePersistance: false,
         requiredDifficulty: Settings.REQUIRED_DIFFICULTY,
       });
+    });
+    it('should add a freshly sculpted cube at full difficulty', async () => {
+      expect(cubeStore.getNumberOfStoredCubes()).toEqual(0);
+      const cube = Cube.Dumb(CubeField.PayloadField(
+        "Ego sum cubus recens sculputus."));
+      const key = await cube.getKey();
+      await cubeStore.addCube(cube);
+      expect(cubeStore.getNumberOfStoredCubes()).toEqual(1);
+
+      const restored = cubeStore.getCube(key, coreTlvFieldParsers);  // parse payload too
+      expect(restored).toBeInstanceOf(Cube);
+      expect(restored.fields.getFirst(CubeFieldType.PAYLOAD).
+        value.toString('ascii')).toEqual("Ego sum cubus recens sculputus.");
     });
 
     it('should add a cube from binary data', async () => {
@@ -59,6 +55,7 @@ describe('cubeStore', () => {
 
     it('should not add cubes with insufficient difficulty', async () => {
       const binaryData = Buffer.alloc(1024);
+      binaryData[0] = CubeType.DUMB;  // manually set Cube type
       // Manually set a field in the binary data for testing
       binaryData[6] = CubeFieldType.PAYLOAD; // Type
       binaryData.writeUInt8(100, 7); // Length
@@ -70,6 +67,9 @@ describe('cubeStore', () => {
 
 
   describe('tests without hashcash', () => {
+    // These tests run at a reduced challenge difficulty setting of zero to
+    // make sure our tests don't spend forever calculating hashcash.
+    // So should all other Cube-sculpting tests in other units.
     beforeEach(() => {
       cubeStore = new CubeStore({
         enableCubePersistance: false,
@@ -78,14 +78,14 @@ describe('cubeStore', () => {
     });
 
     it('should add 20 cubes to the storage and get them back', async () => {
+      // create 20 cubes and wait till they are stored
       const promises: Array<Promise<Cube>> = [];
       for (let i = 0; i < 20; i++) {
-        const cube = new Cube(undefined, reduced_difficulty);
-        cube.setDate(i);
-        // @ts-ignore cube could be Promise<undefined> instead of Promise<Buffer> but I don't care
+        const cube = Cube.Dumb(CubeField.PayloadField(
+            "Sum cubus inutilis qui in tua taberna residebo et spatium tuum absumam."),
+          coreFieldParsers, reduced_difficulty);
         promises.push(cubeStore.addCube(cube));
       }
-
       const cubes = await Promise.all(promises);
 
       cubes.forEach((cube, i) => {
@@ -109,18 +109,10 @@ describe('cubeStore', () => {
       const publicKey: Buffer = Buffer.from(keyPair.publicKey);
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-      // Define required MUC fields
-      const fields = new CubeFields([
-        new CubeField(CubeFieldType.SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-        new CubeField(CubeFieldType.PUBLIC_KEY, 32, publicKey),
-        new CubeField(CubeFieldType.NONCE, 909, Buffer.alloc(909)),
-        new CubeField(CubeFieldType.SIGNATURE, 72, Buffer.alloc(72))
-      ]);
-
-      // Create first MUC with specified TLV fields
-      const muc = new Cube();
-      muc.privateKey(publicKey, privateKey);
-      muc.setFields(fields);
+      // Create original MUC
+      const muc = Cube.MUC(publicKey, privateKey, CubeField.PayloadField(
+        "Sum cubus usoris mutabilis, rite signatus a domino meo."),
+        coreFieldParsers, reduced_difficulty);
       muc.setDate(1695340000);
       const key = await muc.getKey();
       const info = await muc.getCubeInfo();
@@ -132,10 +124,10 @@ describe('cubeStore', () => {
       expect(cubeStore.getCube(key).getDate()).toEqual(1695340000);
       expect(cubeStore.getCubeInfo(key).date).toEqual(1695340000);
 
-      // Create second MUC with specified TLV fields
-      const muc2 = new Cube();
-      muc2.privateKey(publicKey, privateKey);
-      muc2.setFields(fields);
+      // Create updated MUC
+      const muc2 = Cube.MUC(publicKey, privateKey, CubeField.PayloadField(
+        "Actualizatus sum a domino meo, sed clavis mea semper eadem erit."),
+        coreFieldParsers, reduced_difficulty);
       // Make sure date is ever so slightly newer
       muc2.setDate(1695340001);
       const key2 = await muc2.getKey();
@@ -159,7 +151,8 @@ describe('cubeStore', () => {
       const publicKey: Buffer = Buffer.from(keyPair.publicKey);
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-      const muc = Cube.MUC(publicKey, privateKey, CubeField.PayloadField("Hi, I'm a MUC!"));
+      const muc = Cube.MUC(publicKey, privateKey, CubeField.PayloadField(
+        "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum."));
       const muckey = await muc.getKey();
       expect(muckey).toEqual(publicKey);
 
@@ -168,11 +161,12 @@ describe('cubeStore', () => {
       const cubeadded = await cubeStore.addCube(binarymuc);
       expect(cubeadded.getKeyIfAvailable()).toEqual(muckey);
 
-      const restoredmuc = cubeStore.getCube(muckey);
+      const restoredmuc = cubeStore.getCube(muckey, coreTlvFieldParsers);  // restore payload too
       expect(restoredmuc).toBeDefined();
       const restoredpayload = restoredmuc?.fields.getFirst(CubeFieldType.PAYLOAD);
       expect(restoredpayload).toBeDefined();
-      expect(restoredpayload?.value.toString('utf8')).toEqual("Hi, I'm a MUC!");
+      expect(restoredpayload?.value.toString('utf8')).toEqual(
+        "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum.");
     });
   });
 });

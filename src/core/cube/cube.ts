@@ -97,7 +97,7 @@ export class Cube {
     constructor(
             param1: Buffer | CubeType,
             readonly fieldParserTable: FieldParserTable = coreFieldParsers,
-            private readonly required_difficulty = Settings.REQUIRED_DIFFICULTY)
+            readonly required_difficulty = Settings.REQUIRED_DIFFICULTY)
     {
         if (param1 instanceof Buffer) {
             // existing cube, usually received from the network
@@ -142,27 +142,18 @@ export class Cube {
     // It will create a CubeInfo object for our new cube once we found the
     // cube key, which involves the hashcash proof of work and therefore can
     // take a little while.
-    public async getCubeInfo(): Promise<CubeInfo> {
+    public async getCubeInfo(
+            fieldParserTable: FieldParserTable = this.fieldParserTable
+    ): Promise<CubeInfo> {
         return new CubeInfo({
             key: await this.getKey(),
             binaryCube: await this.getBinaryData(),
             cubeType: this.cubeType,
             date: this.getDate(),
             challengeLevel: CubeUtil.countTrailingZeroBits(this.hash),
+            fieldParserTable: fieldParserTable,
         });
     }
-
-    // TODO can this be removed?
-    // Current implementation doesn't work anyway as version is now stored in
-    // the first positional field
-    // public setVersion(version: number): void {
-    //     this.cubeManipulated();
-    //     if (version !== 0) {
-    //         logger.error('Only version 0 is supported');
-    //         throw new CubeError("Only version 0 is supported");
-    //     }
-    // }
-
 
     // maybe TODO: get rid of this? This just returns a field, why the special treatment?
     public getDate(): number {
@@ -237,6 +228,21 @@ export class Cube {
         return this.binaryData;
     }
 
+    /**
+     * Automatically add Padding to reach full Cube length.
+     * You don't need to call that manually, we will do that for you whenever
+     * you request binary data.
+     */
+    public padUp(): boolean {
+        // pad up to 1024 bytes if necessary
+        const len = this.fields.getByteLength();
+        if (len < (NetConstants.CUBE_SIZE)) {
+            this.fields.insertFieldBeforeBackPositionals(
+                CubeField.PaddingField(NetConstants.CUBE_SIZE - len));
+            this.cubeManipulated();
+            return true;
+        } else return false;
+    }
 
     /// @method Any change to a cube invalidates it and basically returns it to
     /// "new cube in the making" state. Binary data, hash and potentially cube key
@@ -253,12 +259,7 @@ export class Cube {
     // This does NOT calculate a hash, but all public methods calling it will
     // take care of that.
     private async setBinaryData(): Promise<void> {
-        // pad up to 1024 bytes if necessary
-        const len = this.fields.getByteLength();
-        if (len < (NetConstants.CUBE_SIZE)) {
-            this.fields.insertFieldBeforeBackPositionals(
-                CubeField.PaddingField(NetConstants.CUBE_SIZE - len));
-        }
+        this.padUp();
         // compile it
         this.binaryData = this.fieldParser.compileFields(this._fields);
         if (this.binaryData.length != NetConstants.CUBE_SIZE) {
