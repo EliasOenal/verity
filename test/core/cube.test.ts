@@ -2,7 +2,7 @@
 import { Settings } from '../../src/core/settings';
 import { unixtime } from '../../src/core/helpers';
 import { NetConstants } from '../../src/core/networking/networkDefinitions';
-import { BinaryLengthError, CubeType, FieldError, FieldSizeError, InsufficientDifficulty } from '../../src/core/cube/cubeDefinitions';
+import { BinaryLengthError, CubeSignatureError, CubeType, FieldError, FieldSizeError, InsufficientDifficulty } from '../../src/core/cube/cubeDefinitions';
 import { Cube } from '../../src/core/cube/cube';
 import { Buffer } from 'buffer';
 import { calculateHash, countTrailingZeroBits } from '../../src/core/cube/cubeUtil';
@@ -192,7 +192,7 @@ describe('cube', () => {
     expect(info).toBeInstanceOf(CubeInfo);
   }, 5000);
 
-  it.only('should correctly sign a MUC', async() => {
+  it('should correctly sign a MUC', async() => {
     // Generate a key pair for testing
     await sodium.ready;
     const keyPair = sodium.crypto_sign_keypair();
@@ -201,28 +201,33 @@ describe('cube', () => {
 
     const muc = Cube.MUC(
       publicKey, privateKey,
-      CubeField.PayloadField("Ego sum MUC secure signatus."));
+      CubeField.PayloadField(
+        "Ego sum cubus usoris mutabilis, semper secure signatus."));
     const binaryData = await muc.getBinaryData();  // final fully signed binary
 
-    // Manually create a signature for verification.
-    // First, extract the portion of binaryData to be signed:
-    // start up to and including fingerprint inside the signature field
-    const dataToSign = binaryData.subarray(0, 956);  // 956 = 1024 - 4 (nonce) - 64 (signature proper)
-    const verificationSig = Buffer.from(sodium.crypto_sign_detached(dataToSign, privateKey));
-
-    // ensure signature exposed through the Cube object's signature field is correct
-    const cubeSigBuffer: Buffer = muc.fields.getFirst(CubeFieldType.SIGNATURE).value;
-    const cubeSigVal: Buffer = cubeSigBuffer.subarray(8, cubeSigBuffer.length);
-    expect(cubeSigVal.equals(verificationSig)).toBeTruthy();
-
-    // ensure signature is also correct in the final binary data blob
+    // ensure signature exposed through the Cube object's signature field matches
+    // the actualy one in the binary data
+    const sigField = muc.fields.getFirst(CubeFieldType.SIGNATURE);
     const sigFromBinary: Buffer = binaryData.subarray(956, 1020);
-    expect(sigFromBinary.equals(verificationSig)).toBeTruthy();
-  });
+    expect(sigField.value.equals(sigFromBinary)).toBeTruthy();
 
-  it('should reject a binary MUC with invalid signature', async() => {
-    // TODO implement
-  })
+    // verify public key has correctly been transferred to field and binary data
+    const pubkeyField = muc.fields.getFirst(CubeFieldType.PUBLIC_KEY);
+    expect(pubkeyField.value.equals(
+      publicKey)).toBeTruthy();
+    expect(binaryData.subarray(
+      pubkeyField.start,
+      pubkeyField.start + CubeFieldLength[CubeFieldType.PUBLIC_KEY]).
+      equals(publicKey)).toBeTruthy();
+
+    // verify signature is correct
+    const dataToSign = binaryData.subarray(0, 956);  // 956 = 1024 - 4 (nonce) - 64 (signature proper)
+    expect(
+      sodium.crypto_sign_verify_detached(sigField.value, dataToSign, publicKey))
+      .toBeTruthy();
+    // try to re-instantiate
+    const parsedMuc = new Cube(binaryData);
+  });
 
   // This test fails using Settings.HASH_WORKERS=true and I don't understand why :(
   it('should correctly parse MUC from binary', async () => {
@@ -234,7 +239,7 @@ describe('cube', () => {
 
     // Create a new MUC with a random payload
     const muc = Cube.MUC(publicKey, privateKey, CubeField.PayloadField(
-        "Ego sum MUC, peculiare informatiuncula quae a domino meo corrigi potest."),
+        "Ego sum cubus usoris mutabilis, peculiare informatiuncula quae a domino meo corrigi potest."),
       coreFieldParsers, reduced_difficulty);
     const key = await muc.getKey();
     expect(key).toBeInstanceOf(Buffer);
@@ -270,8 +275,29 @@ describe('cube', () => {
     expect(fullyParsedMuc.fields.getFirst(CubeFieldType.DATE).value.equals(
       muc.fields.getFirst(CubeFieldType.DATE).value)).toBeTruthy();
     expect(fullyParsedMuc.fields.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual(
-      "Ego sum MUC, peculiare informatiuncula quae a domino meo corrigi potest.");
+      "Ego sum cubus usoris mutabilis, peculiare informatiuncula quae a domino meo corrigi potest.");
   }, 5000000);
+
+  it('should reject a binary MUC with invalid signature', async() => {
+    // Generate a key pair for testing
+    await sodium.ready;
+    const keyPair = sodium.crypto_sign_keypair();
+    const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+    const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+
+    // Sculpt MUC
+    const muc = Cube.MUC(
+      publicKey, privateKey,
+      CubeField.PayloadField(
+        "Ego sum cubus usoris mutabilis qui male tactus est."));
+    const binaryData = await muc.getBinaryData();  // final fully signed binary
+
+    // Manipulate binary data
+    binaryData[4] = 42;  // not the right answer after all
+
+    // Attempt to restore MUC
+    expect(() => new Cube(binaryData)).toThrow(CubeSignatureError);
+  })
 
   it("should present a MUC's key even if it's hash is not yet known", async () => {
     await sodium.ready;

@@ -28,8 +28,7 @@ export const NetConstants =  {
     CUBE_TYPE_SIZE: 1,
     CHALLENGE_LEVEL_SIZE: 1,
     PUBLIC_KEY_SIZE: 32,
-    FINGERPRINT_SIZE: 8,
-    SIGNATURE_SIZE: 64,  // Caveat! This is the size of the raw signature, the signature *field* is 72 bytes as it additionally contains the pubkey fingerprint
+    SIGNATURE_SIZE: 64,
 }
 
 export enum SupportedTransports {

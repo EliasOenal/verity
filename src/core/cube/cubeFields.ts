@@ -56,7 +56,7 @@ export const CubeFieldLength: FieldNumericalParam = {
   // PMUC_UPDATE_COUNT not implemented yet
   [CubeFieldType.PUBLIC_KEY]: NetConstants.PUBLIC_KEY_SIZE,
   [CubeFieldType.DATE]: NetConstants.TIMESTAMP_SIZE,
-  [CubeFieldType.SIGNATURE]: NetConstants.SIGNATURE_SIZE + NetConstants.FINGERPRINT_SIZE,
+  [CubeFieldType.SIGNATURE]: NetConstants.SIGNATURE_SIZE,
   [CubeFieldType.NONCE]: Settings.NONCE_SIZE,
   [CubeFieldType.PAYLOAD]: undefined,
   [CubeFieldType.PADDING]: undefined,

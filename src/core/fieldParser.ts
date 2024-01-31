@@ -160,7 +160,7 @@ export class FieldParser {
         const fieldStartsAtByte = dataLength-fieldLength;
         const value = binaryData.subarray(fieldStartsAtByte, dataLength);
         const field: BaseField = new this.fieldDef.fieldObjectClass(
-          type, fieldLength, value, dataLength-fieldLength-1);
+          type, fieldLength, value, fieldStartsAtByte);
         backPositionals.unshift(field);
       } else {
         throw new BinaryDataError("Data too short, cannot contain all back positional fields specified.");
