@@ -15,28 +15,32 @@ import { BaseField, BaseFields } from '../../src/core/cube/baseFields';
 
 const reduced_difficulty = 0;
 
+export const validBinaryCube =  Buffer.from([
+  // Cube version (1) (half byte), Cube type (basic "dumb" Cube, 0) (half byte)
+  0x10,
+
+  // Payload TLV field
+  0x04,  // payload field type is 4 (1 byte)
+  0x14,  // payload length is 20 chars (1 byte)
+  0x43, 0x75, 0x62, 0x75, 0x73, 0x20, // "Cubus "
+  0x64, 0x65, 0x6d, 0x6f, 0x6e, 0x73, 0x74, 0x72,
+  0x61, 0x74, 0x69, 0x76, 0x75, 0x73, // "demonstrativus"
+
+  // Padding: padding is TLV field type 2 (6 bits), padding length is 990 (10 bits)
+  0b00001011, 0b11011110,
+  // 990 bytes of padding, all zeros for this example
+  ...Array.from({ length: 990 }, () => 0x00),
+
+  // Date (5 bytes)
+  0x00, 0x65, 0xba, 0x8e, 0x38,
+  0x00, 0x00, 0x00, 0xed  // Nonce passing challenge requirement
+]);
+
 describe('cube', () => {
   // This test parses a bit weirdly, the zero fill after the nonce decodes into additional TLV fields of length 0
   it('should construct a cube object from binary data.', () => {
-    const cubeBuffer = Buffer.from([
-      // Cube version (0) and type (basic "dumb" Cube, 0) (1 byte)
-      0b00000000,
-
-      // Payload TLV field
-      CubeFieldType.PAYLOAD, // Type: Payload
-      0x0A,       // Length: 10 bytes little endian
-      0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x77, 0x6F, 0x72, // Value: "Hello, wor"
-
-      // Date (5 bytes)
-      0x00, 0x00, 0x00, 0x00, 0x00,
-
-      // Any padding (all zeros for instance) so we end up at 1024 bytes total
-      ...Array.from({ length: 1002 }, () => 0x00),
-
-      0x00, 0x00, 0x37, 0x4D, // Nonce passing challenge requirement
-    ]);
-    expect(() => cubeBuffer.length === 1024).toBeTruthy();
-    const cube = new Cube(cubeBuffer, coreFieldParsers, reduced_difficulty);
+    expect(() => validBinaryCube.length === 1024).toBeTruthy();
+    const cube = new Cube(validBinaryCube);
     const fields = cube.fields.all;
     fields.forEach(field => {
       expect(field.length).toBeLessThanOrEqual(1024);
@@ -49,22 +53,13 @@ describe('cube', () => {
 
     expect(fields[2].type).toEqual(CubeFieldType.NONCE);
     expect(fields[2].length).toEqual(4);
-    expect(fields[2].value).toEqual(Buffer.from([0x00, 0x00, 0x37, 0x4D]));
+    expect(fields[2].value).toEqual(Buffer.from([0x00, 0x00, 0x00, 0xed]));
   }, 3000);
 
   it('construct a Cube object with no fields by default', () => {
-    const cube = new Cube(CubeType.DUMB, coreFieldParsers, reduced_difficulty);
+    const cube = new Cube(CubeType.DUMB);
     expect(cube.fields.all.length).toEqual(0);
   }, 3000);
-
-  // Can this be removed?
-  // As the Cube version is now stored in the cube's first (positional)
-  // field, setting it is equivalent to setting a field.
-  // it.skip('should set and get the version correctly', () => {
-  //   const cube = new Cube();
-  //   cube.setVersion(0);
-  //   expect(cube.getVersion()).toEqual(0);
-  // }, 3000);
 
   it('should throw an error when binary data is not the correct length', () => {
     expect(() => new Cube(Buffer.alloc(512))).toThrow(BinaryLengthError);  // too short
