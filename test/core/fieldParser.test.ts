@@ -1,6 +1,6 @@
 import { NetConstants } from "../../src/core/networking/networkDefinitions";
 import { FieldDefinition, FieldNumericalParam, FieldParser, PositionalFields } from "../../src/core/fieldParser";
-import { CubeField, CubeFieldType, CubeFields, coreDumbParser, dumbFieldDefinition } from "../../src/core/cube/cubeFields";
+import { CubeField, CubeFieldType, CubeFields, coreDumbParser, coreTlvDumbParser, dumbFieldDefinition } from "../../src/core/cube/cubeFields";
 import { BaseField, BaseFields } from "../../src/core/cube/baseFields";
 import { BinaryDataError, CubeType, FieldError } from "../../src/core/cube/cubeDefinitions";
 
@@ -81,10 +81,14 @@ describe('fieldParser', () => {
 
       const restored: BaseFields = fieldParser.decompileFields(binaryData);
       expect(restored.all.length).toEqual(4);
-      expect(restored.all[0].equals(fields[0])).toBeTruthy();
-      expect(restored.all[1].equals(fields[1])).toBeTruthy();
-      expect(restored.all[2].equals(fields[2])).toBeTruthy();
-      expect(restored.all[3].equals(fields[3])).toBeTruthy();
+      expect(restored.all[0].value.equals(fields[0].value)).toBeTruthy();
+      expect(restored.all[0].start).toEqual(fields[0].start);
+      expect(restored.all[1].value.equals(fields[1].value)).toBeTruthy();
+      expect(restored.all[1].start).toEqual(fields[1].start);
+      expect(restored.all[2].value.equals(fields[2].value)).toBeTruthy();
+      expect(restored.all[2].start).toEqual(fields[2].start);
+      expect(restored.all[3].value.equals(fields[3].value)).toBeTruthy();
+      expect(restored.all[3].start).toEqual(fields[3].start);
     });
 
     it('correctly parses valid binary data including optional, non-positional fields', () => {
@@ -99,11 +103,11 @@ describe('fieldParser', () => {
 
       const restored: BaseFields = fieldParser.decompileFields(binaryData);
       expect(restored.all.length).toEqual(5);
-      expect(restored.all[0].equals(fields[0])).toBeTruthy();
-      expect(restored.all[1].equals(fields[1])).toBeTruthy();
-      expect(restored.all[2].equals(fields[2])).toBeTruthy();
-      expect(restored.all[3].equals(fields[3])).toBeTruthy();
-      expect(restored.all[4].equals(fields[4])).toBeTruthy();
+      expect(restored.all[0].equals(fields[0], true)).toBeTruthy();
+      expect(restored.all[1].equals(fields[1], true)).toBeTruthy();
+      expect(restored.all[2].equals(fields[2], true)).toBeTruthy();
+      expect(restored.all[3].equals(fields[3], true)).toBeTruthy();
+      expect(restored.all[4].equals(fields[4], true)).toBeTruthy();
     });
 
     it('throws on compilation if front positional fields are in wrong order', () => {
@@ -202,7 +206,7 @@ describe('fieldParser', () => {
 
   describe('core cube field', () => {
     it('should correctly compile and decompile core fields', () => {
-      const fieldParser: FieldParser = coreDumbParser;
+      const fieldParser: FieldParser = coreTlvDumbParser;
       const fields = new CubeFields(undefined, dumbFieldDefinition);
 
       // define a few fields

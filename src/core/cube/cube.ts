@@ -84,7 +84,12 @@ export class Cube {
         binaryData: Buffer,
         fieldParserTable?: FieldParserTable,
         required_difficulty?: number);
-    /** Sculpt a new Cube */
+    /**
+     * Sculpt a new bare Cube, starting out without any fields.
+     * This is only useful if for some reason you need full control even over
+     * mandatory boilerplate fields. Consider using Cube.Dumb or Cube.MUC
+     * instead, which will sculpt a fully valid dumb Cube or MUC, respectively.
+     **/
     constructor(
         cubeType: CubeType,
         fieldParserTable?: FieldParserTable,
@@ -256,13 +261,17 @@ export class Cube {
         }
         // compile it
         this.binaryData = this.fieldParser.compileFields(this._fields);
-        this.writeFingerprint();  // If this is a MUC, set the key fingerprint
         if (this.binaryData.length != NetConstants.CUBE_SIZE) {
             throw new BinaryDataError("Cube: Something went horribly wrong, I just wrote a cube of invalid size " + this.binaryData.length);
         }
         await this.generateCubeHash();  // if this is a MUC, this also signs it
 
-        // TODO: re-set our field to share the same memory as our binary data
+        // re-set our fields so they share the same memory as our binary data
+        for (const field of this.fields.all) {
+            const offset =
+                field.start + this.fieldParser.getFieldHeaderLength(field.type);
+            field.value = this.binaryData.subarray(offset, offset + field.length);
+        }
     }
 
     private validateCube(): void {
@@ -272,31 +281,19 @@ export class Cube {
         if (this.cubeType === CubeType.MUC) {
             if (publicKey && signature) {
                 if (this.binaryData) {
-                    // Extract the public key, signature values and provided fingerprint
-                    const publicKeyValue = publicKey.value;
-                    const providedFingerprint = signature.value.slice(0, 8); // First 8 bytes of signature field
-                    const signatureValue = signature.value.slice(8); // Remaining bytes are the actual signature
-
-                    // Verify the fingerprint
-                    CubeUtil.verifyFingerprint(publicKeyValue, providedFingerprint);
-
-                    // Create the data to be verified.
-                    // It includes all bytes of the cube from the start up to and including
-                    // the type byte of the signature field and the fingerprint.
-                    // From start of cube up to the signature itself
-                    const dataToVerify = this.binaryData.slice(0,
-                        signature.start +
-                        this.fieldParser.getFieldHeaderLength(
-                            CubeFieldType.SIGNATURE) +
-                        NetConstants.FINGERPRINT_SIZE);
+                    // Slice out data to be verified
+                    // (start of Cube until just before the signature field)
+                    const dataToVerify = this.binaryData.subarray(
+                        0, signature.start);
 
                     // Verify the signature
-                    CubeUtil.verifySignature(publicKeyValue, signatureValue, dataToVerify);
+                    if (!sodium.crypto_sign_verify_detached(
+                        signature.value, dataToVerify, publicKey.value)) {
+                            logger.error('Cube: Invalid signature');
+                            throw new CubeSignatureError('Cube: Invalid signature');
+                    }
                 }
             } else {
-                // Note: This is a bit strange as it can throw an error when the
-                // key pair is actually defined (as in this.publicKey returns a valid key)
-                // but the user forgot to copy it into a CubeField.
                 logger.error('Cube: Public key or signature is undefined for MUC');
                 throw new CubeSignatureError('Cube: Public key or signature is undefined for MUC');
             }
@@ -327,75 +324,37 @@ export class Cube {
         // logger.info("cube: Using hash " + this.hash.toString('hex') + "as cubeKey");
     }
 
-    private writeFingerprint(): void {
-        const signature: CubeField =
-        this._fields.getFirst(CubeFieldType.SIGNATURE);
+    private signBinaryData(): void {
+        const signature: CubeField = this.fields.getFirst(CubeFieldType.SIGNATURE);
         if (Settings.RUNTIME_ASSERTIONS) {
             if (!this.binaryData) {
-                throw new BinaryDataError("Cube: writeFingerprint() called with undefined binary data");
+                throw new BinaryDataError("Cube: signBinaryData() called with undefined binary data");
             }
-            if (!signature) return;  // no signature field = no fingerprint
-            if (!this.publicKey) {
-                throw new CubeError("Cube: writeFingerprint() called without a public key");
+            if (!signature) return;  // no signature field = no signature
+            if (!this.publicKey || !this.privateKey) {
+                throw new CubeError("Cube: signBinaryData() called without a complete public/private key pair");
             }
             if (!signature.start) {
                 // this matches both when start is undefined and when it's zero,
                 // and in this case this is a good thing :)
-                throw new BinaryDataError("Cube: writeFingerprint() called with unfinalized fields");
+                throw new BinaryDataError("Cube: signBinaryData() called with unfinalized fields");
             }
-            const sigExpectedStart = NetConstants.CUBE_SIZE -
-                CubeFieldLength[CubeFieldType.NONCE] -  // no header lengths as these are positionals
-                CubeFieldLength[CubeFieldType.SIGNATURE];
-            if (signature.start != sigExpectedStart) {
-                throw new Error(`Signature start index is ${signature.start} but must be the second-to-last field at ${sigExpectedStart}`);
+            if (this.binaryData === undefined) {
+                throw new BinaryDataError("Binary data not initialized");
             }
         }
 
-        // Compute the fingerprint of the public key (first 8 bytes of its hash)
-        const fingerprint = CubeUtil.calculateHash(this.publicKey).slice(0, 8);
-
-        // Write the fingerprint to binaryData
-        this.binaryData.set(fingerprint, signature.start +
-            this.fieldParser.getFieldHeaderLength(CubeFieldType.SIGNATURE));
-    }
-
-    private signBinaryData(): void {
-        if (!this.binaryData) {
-            throw new BinaryDataError("Cube: signBinaryData() called with undefined binary data");
-        }
-        const signature: CubeField =
-            this._fields.getFirst(CubeFieldType.SIGNATURE);
-        if (!signature) return;  // no signature field = no signature
-        if (!this.publicKey || !this.privateKey) {
-            throw new CubeError("Cube: signBinaryData() called without a complete public/private key pair");
-        }
-        if (!signature.start) {
-            // this matches both when start is undefined and when it's zero,
-            // and in this case this is a good thing :)
-            throw new BinaryDataError("Cube: writeFingerprint() called with unfinalized fields");
-        }
-
-        if (this.binaryData === undefined) {
-            throw new BinaryDataError("Binary data not initialized");
-        }
-
-        // Extract the portion of binaryData to be signed:
-        // start to the type byte of the signature field + fingerprint
-        const dataToSign = this.binaryData.slice(0,
-            signature.start +
-            this.fieldParser.getFieldHeaderLength(CubeFieldType.SIGNATURE) +
-            NetConstants.FINGERPRINT_SIZE);  // +8 for fingerprint
-
+        // Slice out data to be signed:
+        // Start of cube till just before the signature field
+        const dataToSign = this.binaryData.subarray(0, signature.start);
         // Generate the signature
-        const signatureBinary = sodium.crypto_sign_detached(
-            dataToSign, this.privateKey);
-
-        // Write the signature back to binaryData
-        // this.binaryData.set(signatureBinary,
-        //     signature.start +
-        //     this.fieldParser.getFieldHeaderLength(CubeFieldType.SIGNATURE)+
-        //     NetConstants.FINGERPRINT_SIZE);  // after fingerprint
-        signature.value.set(signatureBinary, NetConstants.FINGERPRINT_SIZE);
+        // Note: As an exception, we need to work directly on a binary data
+        // offset as this method usually gets called right after binary data
+        // compilation. In this very instance, signature.value does temporarily
+        // not point to a region of memory within binary data.
+        this.binaryData.set(
+            sodium.crypto_sign_detached(dataToSign, this.privateKey),
+            signature.start);
     }
 
     /**

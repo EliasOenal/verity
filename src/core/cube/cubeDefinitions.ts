@@ -33,7 +33,6 @@ export class BinaryDataError extends CubeError { }
 export class BinaryLengthError extends BinaryDataError { }
 
 export class SmartCubeError extends CubeError { }
-export class FingerprintError extends SmartCubeError { }
 export class CubeSignatureError extends SmartCubeError { }
 
 export class SmartCubeTypeNotImplemented extends SmartCubeError { }
