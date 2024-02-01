@@ -11,10 +11,11 @@ import { Cube } from "../core/cube/cube";
 import { CubeError, CubeKey, CubeType } from "../core/cube/cubeDefinitions";
 import { CubeField } from "../core/cube/cubeFields";
 import { FieldParser } from "../core/fieldParser";
-import { Identity } from "./identity";
-import { MediaTypes, ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from "./zwFields";
+import { Identity } from "../cci/identity";
+import { MediaTypes, cciField, cciFieldType, cciFields, cciRelationship, cciRelationshipType, cciDumbFieldDefinition, cciFieldParsers } from "../cci/cciFields";
 
 import { Buffer } from 'buffer';
+import { cciCube } from "../cci/cciCube";
 
 /**
  * Creates a new Cube containing a correctly formed text post.
@@ -24,14 +25,14 @@ export async function makePost(
     text: string,
     replyto?: CubeKey,
     id?: Identity,
-    required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<Cube> {
-  const zwFields: ZwFields = new ZwFields(ZwField.Application());
-  zwFields.appendField(ZwField.MediaType(MediaTypes.TEXT));
-  zwFields.appendField(ZwField.Payload(text));
+    required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<cciCube> {
+  const zwFields: cciFields = new cciFields(cciField.Application(("ZW")), cciDumbFieldDefinition);
+  zwFields.appendField(cciField.MediaType(MediaTypes.TEXT));
+  zwFields.appendField(cciField.Payload(text));
 
   if (replyto) {
-    zwFields.appendField(ZwField.RelatesTo(
-      new ZwRelationship(ZwRelationshipType.REPLY_TO, replyto)
+    zwFields.appendField(cciField.RelatesTo(
+      new cciRelationship(cciRelationshipType.REPLY_TO, replyto)
     ));
   }
 
@@ -46,15 +47,13 @@ export async function makePost(
     // TODO: move this logic to Identity (or vice-versa) as Identity does
     // exactly the same stuff when generating a MUC
     for (let i = 0; i < id.posts.length && i < 10; i++) {
-      zwFields.appendField(ZwField.RelatesTo(
-        new ZwRelationship(ZwRelationshipType.MYPOST, Buffer.from(id.posts[i], 'hex'))
+      zwFields.appendField(cciField.RelatesTo(
+        new cciRelationship(cciRelationshipType.MYPOST, Buffer.from(id.posts[i], 'hex'))
       ));
     }
   }
 
-  const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(zwFields);
-  const cube: Cube = new Cube(undefined, required_difficulty);
-  cube.setFields(CubeField.PayloadField(zwData));
+  const cube: cciCube = cciCube.Dumb(zwFields, cciFieldParsers, required_difficulty);
   cube.getBinaryData();  // finalize Cube & compile fields
 
   if (id) {
@@ -64,16 +63,22 @@ export async function makePost(
   return cube;
 }
 
-// TODO remove, unnecessary
-export function assertZwCube(cube: Cube): ZwFields {
-  const zwFields: ZwFields = ZwFields.get(cube);
-  if (!zwFields) {
-    throw new CubeError("Supplied cube is not a ZW cube, lacks ZW fields");
+export function assertZwCube(cube: Cube): cciFields {
+  const fields: cciFields = cube.fields as cciFields;
+  if (!(fields instanceof cciFields)) {
+    throw new CubeError("Supplied cube was not instantiated with cciFields");
   }
-  return zwFields;
+  const applicationField = fields.getFirst(cciFieldType.APPLICATION);
+  if (!applicationField) {
+    throw new CubeError("Supplied cube does not have an application field");
+  }
+  if (applicationField.value.toString() != "ZW") {
+    throw new CubeError("Supplied cube does not have the ZW application string");
+  }
+  return fields;
 }
 
-export function assertZwMuc(cube: Cube): ZwFields {
+export function assertZwMuc(cube: Cube): cciFields {
   if (cube.cubeType != CubeType.MUC) {
     throw new CubeError("Supplied Cube is not a ZW Muc, as it's not a MUC at all.");
   }

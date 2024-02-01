@@ -27,27 +27,6 @@ export class BaseField {
      */
     start: number = undefined;
 
-    // TODO: move to CCI
-    /** @return A Field or Field-subclass object, as defined by param fieldType.
-     * By default, a TopLevelField.
-     */
-    static RelatesTo(rel: BaseRelationship, fieldDefinition: FieldDefinition) {
-        const value: Buffer = Buffer.alloc(
-            NetConstants.RELATIONSHIP_TYPE_SIZE +
-            NetConstants.CUBE_KEY_SIZE);
-        value.writeIntBE(rel.type, 0, NetConstants.RELATIONSHIP_TYPE_SIZE);
-        rel.remoteKey.copy(
-            value,  // target buffer
-            NetConstants.RELATIONSHIP_TYPE_SIZE,  // target start position
-            0,  // source start
-            NetConstants.CUBE_KEY_SIZE  // source end
-        );
-        return new fieldDefinition.fieldObjectClass(
-            fieldDefinition.fieldNames['RELATES_TO'],
-            fieldDefinition.fieldLengths[fieldDefinition.fieldNames['RELATES_TO']],
-            value);
-    }
-
     constructor(type: number, length: number, value: Buffer, start?: number) {
         if (length === undefined) {
             throw new FieldError("Field length must be defined");
@@ -76,40 +55,6 @@ export class BaseField {
 
     toString(valEnc: BufferEncoding = 'hex'): string {
         return `Field type ${this.type}, value ${this.value.toString(valEnc)}`
-    }
-}
-
-
-/**
- * Base class for relationships (usually between Cubes) on different levels
- * of Verity. In the core lib, we subclass this as CubeRelationship (see cubeFields.ts).
- * Applications may or may not subclass and reuse this for application-layer fields.
- * If they wish to do so, they must either re-use top-level field definitions or
- * creates their own, compatible `RELATES_TO` field type and also call it `RELATES TO`.
- * (tl;dr: If you deviate too much from top-level cube fields, it's your fault if it breaks.)
- */
-// TODO move to CCI
-export abstract class BaseRelationship {
-    type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Application may or may not chose to re-use this relationship system on the application layer, and if they do so they may or may not chose to keep their relationship types compatible with ours.
-    remoteKey: CubeKey;
-
-    constructor(type: number = undefined, remoteKey: CubeKey = undefined) {
-        this.type = type;
-        this.remoteKey = remoteKey;
-    }
-
-    static fromField(field: BaseField, fieldDefinition: FieldDefinition): BaseRelationship {
-        const relationship = new fieldDefinition.fieldObjectClass.relationshipType();
-        if (field.type != fieldDefinition.fieldNames['RELATES_TO']) {
-            throw (new WrongFieldType(
-                "Can only construct relationship object from RELATES_TO field, " +
-                "got " + field.type + "."));
-        }
-        relationship.type = field.value.readIntBE(0, NetConstants.RELATIONSHIP_TYPE_SIZE);
-        relationship.remoteKey = field.value.subarray(
-            NetConstants.RELATIONSHIP_TYPE_SIZE,
-            NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE);
-        return relationship;
     }
 }
 
@@ -223,9 +168,10 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
      *  Will insert at the very back if there are no back positionals.
      */
     public insertFieldBeforeBackPositionals(field: BaseField): void {
-        for (let i = this.data.length - 1; i >= 0; i--) {
-            if (!Object.values(this.fieldDefinition.positionalBack).includes(this.data[i].type)) {
-                this.data.splice(i+1, 0, field);
+        for (let i = 1; i <= this.data.length; i++) {
+            const iType = this.data[this.data.length-i].type;
+            if (!Object.values(this.fieldDefinition.positionalBack).includes(iType)) {
+                this.data.splice(this.data.length-i+1, 0, field);
                 return;
             }
         }
@@ -248,30 +194,5 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         }
         // no such field
         this.appendField(field);
-    }
-
-    /**
-    * Gets the relationships this cube has to other cubes, if any.
-    * @param [type] If specified, only get relationships of the specified type.
-    * @return An array of Relationship objects, which may be empty.
-    */
-   // TODO move to CCI
-    public getRelationships(type?: number): Array<BaseRelationship> {
-        const relationshipfields = this.get(
-            this.fieldDefinition.fieldNames['RELATES_TO'] as number);
-            // "as number" required as enums are two-way lookup tables
-        const ret = [];
-        for (const relationshipfield of relationshipfields) {
-            const relationship: BaseRelationship =
-                BaseRelationship.fromField(relationshipfield, this.fieldDefinition);
-            if (!type || relationship.type == type) ret.push(relationship);
-        }
-        return ret;
-    }
-    // TODO move to CCI
-    public getFirstRelationship(type?: number): BaseRelationship {
-        const rels: Array<BaseRelationship> = this.getRelationships(type);
-        if (rels.length) return rels[0];
-        else return undefined;
     }
 }

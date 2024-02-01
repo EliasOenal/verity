@@ -3,11 +3,13 @@ import { Cube } from "../core/cube/cube";
 import { CubeMeta, CubeInfo } from "../core/cube/cubeInfo";
 import { CubeStore } from "../core/cube/cubeStore";
 import { logger } from "../core/logger";
-import { AnnotationEngine } from "../cci/annotationEngine";
-import { Identity } from "./identity";
-import { MediaTypes, ZwFieldLengths, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipLimits, ZwRelationshipType } from "./zwFields";
+import { AnnotationEngine, defaultGetFieldsFunc } from "../cci/annotationEngine";
+import { Identity } from "../cci/identity";
+import { MediaTypes, cciFieldLength, cciFieldType, cciFields, cciRelationship, cciRelationshipLimits, cciRelationshipType } from "../cci/cciFields";
 
 import { Buffer } from 'buffer';
+import { assertZwCube, assertZwMuc } from "./zwCubes";
+import { cciCube } from "../cci/cciCube";
 
 // TODO: Split post selection and associated criteria out of here, moving it to
 // a new class ContentSelector. Instead of purely binary criteria, assign them
@@ -32,9 +34,9 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       subscribedMucs: CubeKey[] = undefined,
       private autoLearnMucs: boolean = true,
       private allowAnonymous: boolean = false,
-      limitRelationshipTypes: Map<number, number> = ZwRelationshipLimits,
+      limitRelationshipTypes: Map<number, number> = cciRelationshipLimits,
     ) {
-    super(cubeStore, ZwFields.get, ZwRelationship, limitRelationshipTypes);
+    super(cubeStore, defaultGetFieldsFunc, cciRelationship, limitRelationshipTypes);
     if (subscribedMucs) {
       for (const key of subscribedMucs) this.trustMuc(key);
     }
@@ -67,17 +69,17 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo) as CubeInfo;
 
     // is this even a valid ZwCube?
-    const fields: ZwFields = this.getFields(cubeInfo.getCube());
-    if (!fields) return false;
+    if (!assertZwCube) return false;
+    const fields: cciFields = this.getFields(cubeInfo.getCube()) as cciFields;
 
     // does this have a ZwPayload field and does it contain something??
-    const payload = fields.getFirst(ZwFieldType.PAYLOAD);
+    const payload = fields.getFirst(cciFieldType.PAYLOAD);
     if (!payload || !payload.length) return false;
 
     // does it have the correct media type?
-    const typefield = fields.getFirst(ZwFieldType.MEDIA_TYPE);
+    const typefield = fields.getFirst(cciFieldType.MEDIA_TYPE);
     if (!typefield) return;
-    if (mediaType && mediaType != typefield.value.readUIntBE(0, ZwFieldLengths[ZwFieldType.MEDIA_TYPE])) {
+    if (mediaType && mediaType != typefield.value.readUIntBE(0, cciFieldLength[cciFieldType.MEDIA_TYPE])) {
       return false;
     }
 
@@ -103,8 +105,8 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     // are we a reply?
     // if we are, we can only be displayed if we have the original post,
     // and the original post is displayable too
-    const reply_to: ZwRelationship =
-      fields.getFirstRelationship(ZwRelationshipType.REPLY_TO);
+    const reply_to: cciRelationship =
+      fields.getFirstRelationship(cciRelationshipType.REPLY_TO);
     if (reply_to) {
       // logger.trace("annotationEngine: Checking for displayability of a reply")
       const basePost: CubeInfo = this.cubeStore.getCubeInfo(reply_to.remoteKey);
@@ -138,14 +140,17 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     alreadyTraversed.push(key.toString('hex'));
 
     // check down the tree to find posts a subscribed author has replied to
-    let toCheck: ZwRelationship[];
+    let toCheck: cciRelationship[];
     toCheck =
-      this.getReverseRelationships(key, ZwRelationshipType.REPLY_TO);
+      this.getReverseRelationships(key, cciRelationshipType.REPLY_TO);
     // if specified authorship requirements are lax enough, also check
     // up the tree to find replies to a subscribed author's posts
     if (this.subscriptionRequirement <= SubscriptionRequirement.subscribedInTree) {
-      const replies: ZwRelationship[] = ZwFields.get(this.cubeStore.getCube(key))?.
-        getRelationships(ZwRelationshipType.REPLY_TO);
+      const cube: Cube = this.cubeStore.getCube(key);
+      if (!assertZwCube(cube)) return false;
+      const fields: cciFields = cube.fields as cciFields;
+      const replies: cciRelationship[] = fields.
+        getRelationships(cciRelationshipType.REPLY_TO);
       if (replies) toCheck = toCheck.concat(replies);
     }
     for (const other of toCheck) {
@@ -161,12 +166,12 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    * by this engine.
    */
   cubeAuthor(key: CubeKey): Identity {
-    const parentrel = this.getFirstReverseRelationship(key, ZwRelationshipType.MYPOST);
+    const parentrel = this.getFirstReverseRelationship(key, cciRelationshipType.MYPOST);
     // logger.trace(`ZwAnnotationEngine: Looking for the author of ${key.toString('hex')} whose parent is ${parentrel?.remoteKey?.toString('hex')}`);
     if (!parentrel) return undefined;
     const parentkey = parentrel.remoteKey;
     if (this.identityMucs.has(parentkey.toString('hex'))) {
-      const idmuc = this.cubeStore.getCube(parentkey);
+      const idmuc = this.cubeStore.getCube(parentkey) as cciCube;  // TODO cciCube or document why not necessary
       if (!idmuc) return undefined;
       let id: Identity = undefined;
       try {
@@ -195,7 +200,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   cubeAuthorWithoutAnnotations(key: CubeKey): Identity {
     // check all MUCs
     for (const mucInfo of this.identityMucs.values()) {
-      const muc = mucInfo.getCube();
+      const muc = mucInfo.getCube() as cciCube;  // TODO subclass CubeInfo
       // logger.trace("ZwAnnotationEngine: Searching for author of cube " + key.toString('hex') + " in MUC " + muc.getKeyIfAvailable()?.toString('hex'));
       if (!muc) {
         logger.error("ZwAnnotationEngine: A MUC we remembered has gone missing.");
@@ -212,10 +217,10 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   }
 
   /** This is the recursive part of cubeAuthor() */
-  private cubeAuthorWithoutAnnotationsRecursion(key: CubeKey, mucOrMucExtension: Cube, rootmuc: Cube): Identity {
-    const zwFields = ZwFields.get(mucOrMucExtension);
-    if (!zwFields) return undefined;  // not a valid MUC or MUC extension cube
-    const postrels: Array<ZwRelationship> = zwFields.getRelationships(ZwRelationshipType.MYPOST);
+  private cubeAuthorWithoutAnnotationsRecursion(key: CubeKey, mucOrMucExtension: Cube, rootmuc: cciCube): Identity {
+    if (!assertZwCube(mucOrMucExtension)) return undefined;
+    const fields: cciFields = mucOrMucExtension.fields as cciFields;
+    const postrels: Array<cciRelationship> = fields.getRelationships(cciRelationshipType.MYPOST);
     if (!postrels) return undefined;  // not a valid MUC or MUC extension cube
 
     // logger.trace("ZwAnnotationEngine: Searching for author of cube " + key.toString('hex') + " in subcube " + mucOrMucExtension.getKeyIfAvailable()?.toString('hex') + " extending MUC " + rootmuc.getKeyIfAvailable()?.toString('hex'));
@@ -263,9 +268,9 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     if (this.isCubeDisplayable(cubeInfo, mediaType)) {
       // In a base-reply relationship, I as a base can only make my reply
       // displayable if I am displayable myself.
-      const replies: Array<ZwRelationship> = this.getReverseRelationships(
+      const replies: Array<cciRelationship> = this.getReverseRelationships(
         cubeInfo.key,
-        ZwRelationshipType.REPLY_TO);
+        cciRelationshipType.REPLY_TO);
       for (const reply of replies) {
         if (this.emitIfCubeDisplayable(reply.remoteKey, mediaType)) {  // will emit a cubeDisplayable event for reply.remoteKey if so
           ret = true;
@@ -319,7 +324,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     // I'm not sure if that's efficient.
     let id: Identity;
     try {
-      id = new Identity(this.cubeStore, mucInfo.getCube());
+      id = new Identity(this.cubeStore, mucInfo.getCube() as cciCube);  // TODO: subclass CubeInfo
     } catch (error) { return false; }
     return true;  // all checks passed
   }
@@ -367,9 +372,10 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     // Mark this cube as already traversed to prevent endless recursion in case of
     // maliciously crafted circular references.
     alreadyTraversed.add(muckeystring);
-    const fields: ZwFields = this.getFields(postInfo.getCube());
-    if (!fields) return;
-    const postRefs: ZwRelationship[] = fields.getRelationships(ZwRelationshipType.MYPOST);
+    const cube: Cube = postInfo.getCube();
+    if (!assertZwCube(cube)) return;
+    const fields: cciFields = this.getFields(postInfo.getCube()) as cciFields;
+    const postRefs: cciRelationship[] = fields.getRelationships(cciRelationshipType.MYPOST);
     for (const postRef of postRefs) {
       const postkeystring: string = postRef.remoteKey.toString('hex');
       // If we don't know the referred post already, learn it and

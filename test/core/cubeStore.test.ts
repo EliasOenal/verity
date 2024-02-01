@@ -23,7 +23,7 @@ describe('cubeStore', () => {
     });
     it('should add a freshly sculpted cube at full difficulty', async () => {
       expect(cubeStore.getNumberOfStoredCubes()).toEqual(0);
-      const cube = Cube.Dumb(CubeField.PayloadField(
+      const cube = Cube.Dumb(CubeField.Payload(
         "Ego sum cubus recens sculputus."));
       const key = await cube.getKey();
       await cubeStore.addCube(cube);
@@ -81,9 +81,9 @@ describe('cubeStore', () => {
       // create 20 cubes and wait till they are stored
       const promises: Array<Promise<Cube>> = [];
       for (let i = 0; i < 20; i++) {
-        const cube = Cube.Dumb(CubeField.PayloadField(
+        const cube = Cube.Dumb(CubeField.Payload(
             "Sum cubus inutilis qui in tua taberna residebo et spatium tuum absumam."),
-          coreFieldParsers, reduced_difficulty);
+          coreFieldParsers, Cube, reduced_difficulty);
         promises.push(cubeStore.addCube(cube));
       }
       const cubes = await Promise.all(promises);
@@ -110,9 +110,9 @@ describe('cubeStore', () => {
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
       // Create original MUC
-      const muc = Cube.MUC(publicKey, privateKey, CubeField.PayloadField(
-        "Sum cubus usoris mutabilis, rite signatus a domino meo."),
-        coreFieldParsers, reduced_difficulty);
+      const muc = Cube.MUC(publicKey, privateKey, CubeField.Payload(
+        "Sum cubus usoris mutabilis, signatus a domino meo."),
+        coreFieldParsers, Cube, reduced_difficulty);
       muc.setDate(1695340000);
       const key = await muc.getKey();
       const info = await muc.getCubeInfo();
@@ -125,9 +125,9 @@ describe('cubeStore', () => {
       expect(cubeStore.getCubeInfo(key).date).toEqual(1695340000);
 
       // Create updated MUC
-      const muc2 = Cube.MUC(publicKey, privateKey, CubeField.PayloadField(
-        "Actualizatus sum a domino meo, sed clavis mea semper eadem erit."),
-        coreFieldParsers, reduced_difficulty);
+      const muc2 = Cube.MUC(publicKey, privateKey, CubeField.Payload(
+        "Actualizatus sum a domino meo, sed clavis mea semper eadem est."),
+        coreFieldParsers, Cube, reduced_difficulty);
       // Make sure date is ever so slightly newer
       muc2.setDate(1695340001);
       const key2 = await muc2.getKey();
@@ -151,7 +151,7 @@ describe('cubeStore', () => {
       const publicKey: Buffer = Buffer.from(keyPair.publicKey);
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-      const muc = Cube.MUC(publicKey, privateKey, CubeField.PayloadField(
+      const muc = Cube.MUC(publicKey, privateKey, CubeField.Payload(
         "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum."));
       const muckey = await muc.getKey();
       expect(muckey).toEqual(publicKey);

@@ -1,7 +1,7 @@
 import { unixtime } from "../helpers";
 import { Settings } from "../settings";
 
-import { BaseField, BaseRelationship, BaseFields } from "./baseFields";
+import { BaseField, BaseFields } from "./baseFields";
 
 import { FieldNumericalParam, PositionalFields, FieldDefinition, FieldParser } from "../fieldParser";
 import { NetConstants, NetworkError } from "../networking/networkDefinitions";
@@ -22,9 +22,6 @@ export enum CubeFieldType {
   // types of cubes will use and omit different fields.
   // Assigned ID is for local purposes only as these are positionals, not TLV.
   TYPE = 1001,
-
-  // CCI/payload fields inserted here
-
   // NOTIFY = 2001, not implemented yet
   // PMUC_UPDATE_COUNT = 2002, not implemented yet
   PUBLIC_KEY = 2003,
@@ -32,11 +29,12 @@ export enum CubeFieldType {
   SIGNATURE = 2005,
   NONCE = 2006,
 
-  PAYLOAD = 1 << 2,  // 4 -- core payload field mainly for testing, architecturally this belongs to the CCI layer
-  PADDING = 2 << 2,  // 8
-  PADDING_SINGLEBYTE = 3 << 2,
+  // HACKHACK: CCI field types currently included here as Typescript lacks
+  // a proper way to extend enums.
 
-  // TODO move to CCI
+  APPLICATION = 0x01 << 2,
+  CONTINUED_IN = 0x02 << 2,
+
   /**
   * Seed used to derive a new key pair for an extension MUC.
   * Note that this should not actually be public information as it's only needed
@@ -47,7 +45,17 @@ export enum CubeFieldType {
   * We're pretty confident this does not actually expose any cryptographically
   * sensitive information, but we maybe should encrypt it.
   */
-  SUBKEY_SEED = 0x09 << 2,
+  SUBKEY_SEED = 0x03 << 2,
+
+  MEDIA_TYPE = 0x04 << 2,
+
+  PADDING = 0x0A << 2,
+  PADDING_SINGLEBYTE = 0x0B << 2,
+
+  RELATES_TO = 0x11 << 2,
+  USERNAME = 0x12 << 2,
+
+  PAYLOAD = 0x0F << 2,
 }
 
 export const CubeFieldLength: FieldNumericalParam = {
@@ -58,10 +66,16 @@ export const CubeFieldLength: FieldNumericalParam = {
   [CubeFieldType.DATE]: NetConstants.TIMESTAMP_SIZE,
   [CubeFieldType.SIGNATURE]: NetConstants.SIGNATURE_SIZE,
   [CubeFieldType.NONCE]: Settings.NONCE_SIZE,
+  [CubeFieldType.CONTINUED_IN]: 1 /* field type length */ + NetConstants.CUBE_KEY_SIZE,
+  [CubeFieldType.SUBKEY_SEED]: undefined,
   [CubeFieldType.PAYLOAD]: undefined,
   [CubeFieldType.PADDING]: undefined,
   [CubeFieldType.PADDING_SINGLEBYTE]: 1,
-  [CubeFieldType.SUBKEY_SEED]: undefined,  // TODO move to CCI
+  [CubeFieldType.APPLICATION]: 2,
+  [CubeFieldType.MEDIA_TYPE]: 1,
+  [CubeFieldType.RELATES_TO]: NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE,
+  [CubeFieldType.USERNAME]: undefined,
+
 };
 
 /**
@@ -73,15 +87,15 @@ export const CubeFieldLength: FieldNumericalParam = {
  * Note: In the current implementation, positional fields MUST have a defined length.
  * Note: Numbering starts at 1 (not 0).
  */
-const dumbPositionalFront: PositionalFields = {
+export const dumbPositionalFront: PositionalFields = {
   1: CubeFieldType.TYPE,
 };
-const dumbPositionalBack: PositionalFields = {
+export const dumbPositionalBack: PositionalFields = {
   1: CubeFieldType.NONCE,
   2: CubeFieldType.DATE,
 }
-const mucPositionalFront: PositionalFields = dumbPositionalFront;  // no difference before payload
-const mucPositionalBack: PositionalFields = {
+export const mucPositionalFront: PositionalFields = dumbPositionalFront;  // no difference before payload
+export const mucPositionalBack: PositionalFields = {
   1: CubeFieldType.NONCE,
   2: CubeFieldType.SIGNATURE,
   3: CubeFieldType.DATE,
@@ -89,21 +103,21 @@ const mucPositionalBack: PositionalFields = {
 }
 
 export class CubeField extends BaseField {
-  static TypeField(cubeType: CubeType): CubeField {
+  static Type(cubeType: CubeType): CubeField {
     const typeFieldBuf: Buffer = Buffer.alloc(CubeFieldLength[CubeFieldType.TYPE]);
     typeFieldBuf.writeUIntBE(cubeType, 0, CubeFieldLength[CubeFieldType.TYPE]);
     return new CubeField(
       CubeFieldType.TYPE, CubeFieldLength[CubeFieldType.TYPE], typeFieldBuf);
   }
 
-  static DateField(cubeDate: number = unixtime()): CubeField {
+  static Date(cubeDate: number = unixtime()): CubeField {
     const dateFieldBuf: Buffer = Buffer.alloc(CubeFieldLength[CubeFieldType.DATE]);
     dateFieldBuf.writeUIntBE(cubeDate, 0, CubeFieldLength[CubeFieldType.DATE]);
     return new CubeField(
       CubeFieldType.DATE, CubeFieldLength[CubeFieldType.DATE], dateFieldBuf);
   }
 
-  static NonceField(): CubeField {
+  static Nonce(): CubeField {
     const random_bytes = new Uint8Array(Settings.NONCE_SIZE);
     for (let i = 0; i < Settings.NONCE_SIZE; i++) {
       random_bytes[i] = Math.floor(Math.random() * 256);
@@ -118,7 +132,9 @@ export class CubeField extends BaseField {
    * Will return a PADDING field if requested length is > 1 or the special
    * PADDING_SINGLEBYTE field for the length==1 edge case.
   */
-  static PaddingField(length: number): CubeField {
+  // Architecturally, this belongs to cciField but it's defined here for
+  // practical considerations
+  static Padding(length: number): CubeField {
     let field: CubeField;
     if (length > 1) {
       const random_bytes = new Uint8Array(length-2);
@@ -136,32 +152,27 @@ export class CubeField extends BaseField {
     return field;
   }
 
-  static PublicKeyField(publicKey: Buffer): CubeField {
+  static PublicKey(publicKey: Buffer): CubeField {
     return new CubeField(
       CubeFieldType.PUBLIC_KEY,
       NetConstants.PUBLIC_KEY_SIZE,
       publicKey as Buffer);
   }
 
-  static SignatureField(): CubeField {
+  static Signature(): CubeField {
     return new CubeField(
       CubeFieldType.SIGNATURE,
       CubeFieldLength[CubeFieldType.SIGNATURE],
       Buffer.alloc(CubeFieldLength[CubeFieldType.SIGNATURE]));
   }
 
-  // Actual payloads should use CCI fields, this is mainly for testing
-  static PayloadField(buf: Buffer | string) {
+  // Architecturally, this belongs to cciField but it's defined here for
+  // practical considerations
+  static Payload(buf: Buffer | string) {
     if (typeof buf === 'string' || buf instanceof String)  {
         buf = Buffer.from(buf, 'utf-8');
     }
     return new CubeField(CubeFieldType.PAYLOAD, buf.length, buf);
-  }
-
-  // TODO move to CCI
-  static SubkeySeed(buf: Buffer | Uint8Array): CubeField {
-    if (!(buf instanceof Buffer)) buf = Buffer.from(buf);
-    return new CubeField(CubeFieldType.SUBKEY_SEED, buf.length, buf as Buffer);
   }
 }
 
@@ -172,28 +183,31 @@ export class CubeFields extends BaseFields {
    * You can also go a step further and just use Cube.Dumb() for even more
    * convenience, which will then in turn call us.
    **/
-  static DumbFields(data: CubeFields | CubeField[] | CubeField = []): CubeFields {
+  static Dumb(
+      data: CubeFields | CubeField[] | CubeField = [],
+      fieldDefinition: FieldDefinition = coreDumbFieldDefinition
+  ): CubeFields {
     if (data instanceof CubeField) data = [data];
     if (data instanceof CubeFields) data = data.all;
-    const fields = new CubeFields(data, dumbFieldDefinition);
+    const fields = new fieldDefinition.fieldsObjectClass(data, fieldDefinition);
 
     // Create TYPE (type, version, feature bits) field
     if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.TYPE) !== undefined) {
       throw new FieldError("CubeFields.DumbFields(): Cannot auto-create mandatory fields as TYPE field already exists");
     }
-    fields.insertFieldInFront(CubeField.TypeField(CubeType.DUMB));
+    fields.insertFieldInFront(fieldDefinition.fieldObjectClass.Type(CubeType.DUMB));
 
     // Create DATE field
     if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.DATE) !== undefined) {
       throw new FieldError("CubeFields.DumbFields(): Cannot auto-create mandatory fields as DATE field already exists");
     }
-    fields.appendField(CubeField.DateField());
+    fields.appendField(fieldDefinition.fieldObjectClass.Date());
 
     // Create randomized NONCE field
     if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.NONCE) !== undefined) {
       throw new FieldError("CubeFields.DumbFields(): Cannot auto-create mandatory fields as NONCE field already exists");
     }
-    fields.appendField(CubeField.NonceField());
+    fields.appendField(fieldDefinition.fieldObjectClass.Nonce());
     // logger.trace("CubeFields.DumbFields() creates this field set for a dumb Cube: " + fields.toLongString());
     return fields;
   }
@@ -204,46 +218,47 @@ export class CubeFields extends BaseFields {
    * You can also go a step further and just use Cube.Dumb() for even more
    * convenience, which will then in turn call us.
    **/
-  static MucFields(
+  static Muc(
       publicKey: Buffer | Uint8Array,
       data: CubeFields | CubeField[] | CubeField = [],
+      fieldDefinition: FieldDefinition = coreMucFieldDefinition
   ): CubeFields {
     // input normalization
     if (data instanceof CubeField) data = [data];
     if (data instanceof CubeFields) data = data.all;
     if (!(publicKey instanceof Buffer)) publicKey = Buffer.from(publicKey);
 
-    const fields = new CubeFields(data, mucFieldDefinition);
+    const fields = new fieldDefinition.fieldsObjectClass(data, fieldDefinition);
 
     // Create TYPE (type, version, feature bits) field
     if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.TYPE) !== undefined) {
       throw new FieldError("CubeFields.MucFields(): Cannot auto-create mandatory fields as TYPE field already exists");
     }
-    fields.insertFieldInFront(CubeField.TypeField(CubeType.MUC));
+    fields.insertFieldInFront(fieldDefinition.fieldObjectClass.Type(CubeType.MUC));
 
     // Create PUBLIC_KEY field
     if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.PUBLIC_KEY) !== undefined) {
       throw new FieldError("CubeFields.MucFields(): Cannot auto-create mandatory fields as PUBLIC_KEY field them already exists");
     }
-    fields.appendField(CubeField.PublicKeyField(publicKey as Buffer));
+    fields.appendField(fieldDefinition.fieldObjectClass.PublicKey(publicKey as Buffer));
 
     // Create DATE field
     if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.DATE) !== undefined) {
       throw new FieldError("CubeFields.MucFields(): Cannot auto-create mandatory fields as DATE field them already exists");
     }
-    fields.appendField(CubeField.DateField());
+    fields.appendField(fieldDefinition.fieldObjectClass.Date());
 
     // Create SIGNATURE field
     if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.SIGNATURE) !== undefined) {
       throw new FieldError("CubeFields.MucFields(): Cannot auto-create mandatory fields as SIGNATURE field already exists");
     }
-    fields.appendField(CubeField.SignatureField());
+    fields.appendField(fieldDefinition.fieldObjectClass.Signature());
 
     // Create randomized NONCE field
     if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.NONCE) !== undefined) {
       throw new FieldError("CubeFields.MucFields(): Cannot auto-create mandatory fields as NONCE field already exists");
     }
-    fields.appendField(CubeField.NonceField());
+    fields.appendField(fieldDefinition.fieldObjectClass.Nonce());
 
     return fields;
   }
@@ -254,7 +269,7 @@ export class CubeFields extends BaseFields {
 // random whether it works or not and you can random undefined values in code
 // coming from some files (but not others).
 // Javascript is crazy.
-export const dumbFieldDefinition: FieldDefinition = {
+export const coreDumbFieldDefinition: FieldDefinition = {
   fieldNames: CubeFieldType,
   fieldLengths: CubeFieldLength,
   positionalFront: dumbPositionalFront,
@@ -263,7 +278,7 @@ export const dumbFieldDefinition: FieldDefinition = {
   fieldsObjectClass: CubeFields,
   firstFieldOffset: 0,
 }
-export const mucFieldDefinition: FieldDefinition = {
+export const coreMucFieldDefinition: FieldDefinition = {
   fieldNames: CubeFieldType,
   fieldLengths: CubeFieldLength,
   positionalFront: mucPositionalFront,
@@ -274,8 +289,8 @@ export const mucFieldDefinition: FieldDefinition = {
 }
 
 export const cubeDefinition = {};  // lookup table
-cubeDefinition[CubeType.DUMB] = dumbFieldDefinition;
-cubeDefinition[CubeType.MUC] = mucFieldDefinition;
+cubeDefinition[CubeType.DUMB] = coreDumbFieldDefinition;
+cubeDefinition[CubeType.MUC] = coreMucFieldDefinition;
 
 /**
  * The (singleton) FieldParser for standard, "dumb" cubes, supporting
@@ -284,7 +299,7 @@ cubeDefinition[CubeType.MUC] = mucFieldDefinition;
  * custom/payload fields they might want to use.
  * CCI provides an optional interface for this.
  */
-export const coreDumbParser: FieldParser = new FieldParser(dumbFieldDefinition);
+export const coreDumbParser: FieldParser = new FieldParser(coreDumbFieldDefinition);
 coreDumbParser.decompileTlv = false;  // core-only nodes ignore TLV
 
 /**
@@ -294,7 +309,7 @@ coreDumbParser.decompileTlv = false;  // core-only nodes ignore TLV
  * custom/payload fields they might want to use.
  * CCI provides an optional interface for this.
  */
-export const coreMucParser: FieldParser = new FieldParser(mucFieldDefinition);
+export const coreMucParser: FieldParser = new FieldParser(coreMucFieldDefinition);
 coreMucParser.decompileTlv = false;  // core-only nodes ignore TLV
 
 export interface FieldParserTable {
@@ -306,8 +321,8 @@ coreFieldParsers[CubeType.DUMB] = coreDumbParser;
 coreFieldParsers[CubeType.MUC] = coreMucParser;
 
 // a set of TLV-enabled parsers for testing
-export const coreTlvDumbParser: FieldParser = new FieldParser(dumbFieldDefinition);
-export const coreTlvMucParser: FieldParser = new FieldParser(mucFieldDefinition);
+export const coreTlvDumbParser: FieldParser = new FieldParser(coreDumbFieldDefinition);
+export const coreTlvMucParser: FieldParser = new FieldParser(coreMucFieldDefinition);
 export const coreTlvFieldParsers: FieldParserTable = {}
 coreTlvFieldParsers[CubeType.DUMB] = coreTlvDumbParser;
 coreTlvFieldParsers[CubeType.MUC] = coreTlvMucParser;

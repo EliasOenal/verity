@@ -1,6 +1,6 @@
 import { NetConstants } from "../../src/core/networking/networkDefinitions";
 import { FieldDefinition, FieldNumericalParam, FieldParser, PositionalFields } from "../../src/core/fieldParser";
-import { CubeField, CubeFieldType, CubeFields, coreDumbParser, coreTlvDumbParser, dumbFieldDefinition } from "../../src/core/cube/cubeFields";
+import { CubeField, CubeFieldType, CubeFields, coreDumbParser, coreTlvDumbParser, coreDumbFieldDefinition } from "../../src/core/cube/cubeFields";
 import { BaseField, BaseFields } from "../../src/core/cube/baseFields";
 import { BinaryDataError, CubeType, FieldError } from "../../src/core/cube/cubeDefinitions";
 
@@ -207,18 +207,18 @@ describe('fieldParser', () => {
   describe('core cube field', () => {
     it('should correctly compile and decompile core fields', () => {
       const fieldParser: FieldParser = coreTlvDumbParser;
-      const fields = new CubeFields(undefined, dumbFieldDefinition);
+      const fields = new CubeFields(undefined, coreDumbFieldDefinition);
 
       // define a few fields
-      fields.appendField(CubeField.TypeField(CubeType.DUMB));
+      fields.appendField(CubeField.Type(CubeType.DUMB));
       fields.appendField(
-        CubeField.PayloadField("Mein kleiner grüner Kaktus")
+        CubeField.Payload("Mein kleiner grüner Kaktus")
       );
       fields.appendField(
-        CubeField.PayloadField("steht draußen am Balkon")
+        CubeField.Payload("steht draußen am Balkon")
       );
-      fields.appendField(CubeField.DateField());
-      fields.appendField(CubeField.NonceField());
+      fields.appendField(CubeField.Date());
+      fields.appendField(CubeField.Nonce());
 
       // compile and decompile
       const compiled: Buffer = fieldParser.compileFields(fields);

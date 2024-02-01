@@ -9,12 +9,13 @@ import { calculateHash, countTrailingZeroBits } from '../../src/core/cube/cubeUt
 import { FieldParser } from '../../src/core/fieldParser';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { CubeField, CubeFieldLength, CubeFieldType, CubeFields, coreDumbParser, coreFieldParsers, coreTlvFieldParsers, dumbFieldDefinition, mucFieldDefinition } from '../../src/core/cube/cubeFields';
+import { CubeField, CubeFieldLength, CubeFieldType, CubeFields, coreDumbParser, coreFieldParsers, coreTlvFieldParsers, coreDumbFieldDefinition, coreMucFieldDefinition } from '../../src/core/cube/cubeFields';
 import { CubeInfo } from '../../src/core/cube/cubeInfo';
 import { BaseField, BaseFields } from '../../src/core/cube/baseFields';
 
 const reduced_difficulty = 0;
 
+// TODO: Update payload field ID. Make tests actually check payload.
 export const validBinaryCube =  Buffer.from([
   // Cube version (1) (half byte), Cube type (basic "dumb" Cube, 0) (half byte)
   0x10,
@@ -69,11 +70,11 @@ describe('cube', () => {
   it('should set and get fields correctly', () => {
     const cube = new Cube(CubeType.DUMB);
     const fields = new CubeFields([
-      CubeField.TypeField(CubeType.DUMB),
-      CubeField.PayloadField("Ero celeber Cubus cum compilatus fuero."),
-      CubeField.DateField(),
-      CubeField.NonceField(),
-    ], dumbFieldDefinition);
+      CubeField.Type(CubeType.DUMB),
+      CubeField.Payload("Ero celeber Cubus cum compilatus fuero."),
+      CubeField.Date(),
+      CubeField.Nonce(),
+    ], coreDumbFieldDefinition);
     cube.setFields(fields);
     expect(cube.fields).toEqual(fields);
     expect(cube.fields.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual(
@@ -81,7 +82,7 @@ describe('cube', () => {
   }, 3000);
 
   it('provides a convience method to sculpt a new fully valid dumb cube', () => {
-    const cube = Cube.Dumb(CubeField.PayloadField("hello Cube"));
+    const cube = Cube.Dumb(CubeField.Payload("hello Cube"));
     expect(cube.fields.all[0].type).toEqual(CubeFieldType.TYPE);
     expect(cube.fields.all[1].type).toEqual(CubeFieldType.PAYLOAD);
     expect(cube.fields.all[2].type).toEqual(CubeFieldType.DATE);
@@ -97,13 +98,13 @@ describe('cube', () => {
 
   it('should write fields to binary data correctly even after manipulating them', async () => {
     const cube = Cube.Dumb(
-      CubeField.PayloadField(
-        Buffer.alloc(500, " ")), coreFieldParsers, reduced_difficulty);
+      CubeField.Payload(
+        Buffer.alloc(500, " ")), coreFieldParsers, Cube, reduced_difficulty);
     cube.fields.getFirst(CubeFieldType.PAYLOAD).value.write(
       'Ego sum determinavit tarde quid dicere Cubus.', 'ascii');
     const binaryData = await cube.getBinaryData();
     expect(binaryData[0]).toEqual(CubeType.DUMB);
-    const parser = new FieldParser(dumbFieldDefinition);  // decompileTlv is true
+    const parser = new FieldParser(coreDumbFieldDefinition);  // decompileTlv is true
     const recontructed: BaseFields = parser.decompileFields(binaryData);
     const reconstructed_payload: BaseField = recontructed.getFirst(CubeFieldType.PAYLOAD);
     const reconstructed_string = reconstructed_payload.value.toString('ascii').trim();
@@ -112,7 +113,7 @@ describe('cube', () => {
   }, 3000);
 
   it('should calculate the hash correctly', async () => {
-    const cube = Cube.Dumb(undefined, coreFieldParsers, reduced_difficulty);
+    const cube = Cube.Dumb(undefined, coreFieldParsers, Cube, reduced_difficulty);
     const key = await cube.getKey();
     expect(key).toBeDefined();
     expect(key.length).toEqual(NetConstants.HASH_SIZE); // SHA-3-256 hash length is 32 bytes
@@ -121,11 +122,11 @@ describe('cube', () => {
   it('should throw an error when there is not enough space for a field value', () => {
     const cube = new Cube(CubeType.DUMB);
     const fields = new CubeFields([
-      CubeField.TypeField(CubeType.DUMB),
+      CubeField.Type(CubeType.DUMB),
       new CubeField(CubeFieldType.PAYLOAD, 8020, Buffer.alloc(8020)),
-      CubeField.DateField(),
-      CubeField.NonceField()
-    ], dumbFieldDefinition); // Too long for the binary data
+      CubeField.Date(),
+      CubeField.Nonce()
+    ], coreDumbFieldDefinition); // Too long for the binary data
     expect(() => cube.setFields(fields)).toThrow(FieldSizeError);
   }, 3000);
 
@@ -137,14 +138,14 @@ describe('cube', () => {
     // 5 bytes DATE
     // 4 bytes NONCE
     const payloadLength = 1012;
-    const cube = Cube.Dumb(CubeField.PayloadField("a".repeat(payloadLength)),
-      coreFieldParsers, reduced_difficulty);
+    const cube = Cube.Dumb(CubeField.Payload("a".repeat(payloadLength)),
+      coreFieldParsers, Cube, reduced_difficulty);
     const binaryData = await cube.getBinaryData();
     expect(binaryData.length).toEqual(1024);
   }, 3000);
 
   it('should create a new cube that meets the challenge requirements', async () => {
-    const cube = Cube.Dumb(CubeField.PayloadField('Hello world, this is a payload for a cube!'));
+    const cube = Cube.Dumb(CubeField.Payload('Hello world, this is a payload for a cube!'));
     const key: Buffer = await cube.getKey();
     expect(key[key.length - 1]).toEqual(0);
   }, 5000);
@@ -173,10 +174,10 @@ describe('cube', () => {
     const fields = new CubeFields([
       new CubeField(CubeFieldType.TYPE, NetConstants.CUBE_TYPE_SIZE, Buffer.alloc(NetConstants.CUBE_TYPE_SIZE)),
       new CubeField(CubeFieldType.PUBLIC_KEY, NetConstants.PUBLIC_KEY_SIZE, publicKey),
-      CubeField.DateField(),
+      CubeField.Date(),
       new CubeField(CubeFieldType.SIGNATURE, 72, Buffer.alloc(72)),
       new CubeField(CubeFieldType.NONCE, Settings.NONCE_SIZE, Buffer.alloc(Settings.NONCE_SIZE)),
-    ], mucFieldDefinition);
+    ], coreMucFieldDefinition);
 
     muc.setFields(fields);
     const key = await muc.getKey();
@@ -196,7 +197,7 @@ describe('cube', () => {
 
     const muc = Cube.MUC(
       publicKey, privateKey,
-      CubeField.PayloadField(
+      CubeField.Payload(
         "Ego sum cubus usoris mutabilis, semper secure signatus."));
     const binaryData = await muc.getBinaryData();  // final fully signed binary
 
@@ -233,9 +234,9 @@ describe('cube', () => {
     const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
     // Create a new MUC with a random payload
-    const muc = Cube.MUC(publicKey, privateKey, CubeField.PayloadField(
+    const muc = Cube.MUC(publicKey, privateKey, CubeField.Payload(
         "Ego sum cubus usoris mutabilis, peculiare informatiuncula quae a domino meo corrigi potest."),
-      coreFieldParsers, reduced_difficulty);
+      coreFieldParsers, Cube, reduced_difficulty);
     const key = await muc.getKey();
     expect(key).toBeInstanceOf(Buffer);
 
@@ -283,7 +284,7 @@ describe('cube', () => {
     // Sculpt MUC
     const muc = Cube.MUC(
       publicKey, privateKey,
-      CubeField.PayloadField(
+      CubeField.Payload(
         "Ego sum cubus usoris mutabilis qui male tactus est."));
     const binaryData = await muc.getBinaryData();  // final fully signed binary
 
@@ -301,9 +302,9 @@ describe('cube', () => {
     const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
     const muc: Cube = Cube.MUC(
-      publicKey, privateKey, CubeField.PayloadField(
+      publicKey, privateKey, CubeField.Payload(
         "Signum meum nondum certum est, sed clavis mea semper eadem erit."),
-      coreFieldParsers, reduced_difficulty);
+      coreFieldParsers, Cube, reduced_difficulty);
     expect(muc.getKeyIfAvailable().equals(publicKey)).toBeTruthy();
     expect((await muc.getKey()).equals(publicKey)).toBeTruthy();
   })
@@ -315,9 +316,9 @@ describe('cube', () => {
     const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
     const muc: Cube = Cube.MUC(
-      publicKey, privateKey, CubeField.PayloadField(
+      publicKey, privateKey, CubeField.Payload(
         "Gratiose tibi dabo signum meum etiamsi non intersit tibi de mea data binaria."),
-      coreFieldParsers, reduced_difficulty);
+      coreFieldParsers, Cube, reduced_difficulty);
 
     const hash: Buffer = await muc.getHash();
     const key: Buffer = await muc.getKey();
