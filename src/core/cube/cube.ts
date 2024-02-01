@@ -17,22 +17,7 @@ if (isNode && Settings.HASH_WORKERS) {
 }
 
 export class Cube {
-    readonly _cubeType: CubeType;
-    get cubeType(): CubeType { return this._cubeType }
-
-    readonly fieldParser: FieldParser;
-
-    private _fields: CubeFields;
-    public get fields(): CubeFields { return this._fields; }
-
-    private binaryData: Buffer = undefined;
-
-    private hash: Buffer = undefined;
-
-    private _privateKey: Buffer = undefined;
-    get privateKey() { return this._privateKey; }
-    public set privateKey (privateKey: Buffer) { this._privateKey = privateKey; }
-    get publicKey() { return this.fields.getFirst(CubeFieldType.PUBLIC_KEY)?.value; }
+    class = Cube;  // javascript introspection sucks
 
     /**
      * Creates a new standard or "dumb" cube.
@@ -43,11 +28,11 @@ export class Cube {
     static Dumb(
             data: CubeFields | CubeField[] | CubeField = [],
             parsers: FieldParserTable = coreFieldParsers,
+            cubeClass: any = Cube,  // type: class
             required_difficulty = Settings.REQUIRED_DIFFICULTY): Cube {
-        if (data instanceof CubeField) data = [data];
-        if (data instanceof CubeFields) data = data.all;
-        const cube: Cube = new Cube(CubeType.DUMB, parsers, required_difficulty);
-        cube.setFields(CubeFields.DumbFields(data));
+        data = CubeFields.Dumb(data, parsers[CubeType.DUMB].fieldDef);
+        const cube: Cube = new cubeClass(CubeType.DUMB, parsers, required_difficulty);
+        cube.setFields(data);
         return cube;
     }
 
@@ -61,12 +46,14 @@ export class Cube {
                privateKey: Buffer | Uint8Array,
                data: CubeFields | CubeField[] | CubeField = [],
                parsers: FieldParserTable = coreFieldParsers,
+               cubeClass: any = Cube,  // type: class
                required_difficulty = Settings.REQUIRED_DIFFICULTY): Cube {
         if (!(publicKey instanceof Buffer)) publicKey = Buffer.from(publicKey);
         if (!(privateKey instanceof Buffer)) privateKey = Buffer.from(privateKey);
-        const cube: Cube = new Cube(CubeType.MUC, parsers, required_difficulty);
+        data = CubeFields.Muc(publicKey, data, parsers[CubeType.MUC].fieldDef);
+        const cube: Cube = new cubeClass(CubeType.MUC, parsers, required_difficulty);
         cube.privateKey = privateKey as Buffer;
-        cube.setFields(CubeFields.MucFields(publicKey, data));
+        cube.setFields(data);
         return cube;
     }
 
@@ -79,10 +66,32 @@ export class Cube {
         return undefined;
     }
 
+    static Type(binaryCube: Buffer): CubeType {
+        if (!(binaryCube instanceof Buffer)) return undefined;
+        return binaryCube.readIntBE(0, NetConstants.CUBE_TYPE_SIZE);
+    }
+
+    readonly _cubeType: CubeType;
+    get cubeType(): CubeType { return this._cubeType }
+
+    readonly fieldParser: FieldParser;
+
+    protected _fields: CubeFields;
+    public get fields(): CubeFields { return this._fields; }
+
+    private binaryData: Buffer = undefined;
+
+    private hash: Buffer = undefined;
+
+    private _privateKey: Buffer = undefined;
+    get privateKey() { return this._privateKey; }
+    public set privateKey (privateKey: Buffer) { this._privateKey = privateKey; }
+    get publicKey() { return this.fields.getFirst(CubeFieldType.PUBLIC_KEY)?.value; }
+
     /** Instatiate a Cube object based on an existing, binary cube */
     constructor(
         binaryData: Buffer,
-        fieldParserTable?: FieldParserTable,
+        parsers?: FieldParserTable,
         required_difficulty?: number);
     /**
      * Sculpt a new bare Cube, starting out without any fields.
@@ -92,11 +101,11 @@ export class Cube {
      **/
     constructor(
         cubeType: CubeType,
-        fieldParserTable?: FieldParserTable,
+        parsers?: FieldParserTable,
         required_difficulty?: number);
     constructor(
             param1: Buffer | CubeType,
-            readonly fieldParserTable: FieldParserTable = coreFieldParsers,
+            readonly parsers: FieldParserTable = coreFieldParsers,
             readonly required_difficulty = Settings.REQUIRED_DIFFICULTY)
     {
         if (param1 instanceof Buffer) {
@@ -107,12 +116,12 @@ export class Cube {
                 throw new BinaryLengthError(`Cannot construct Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
             }
             this.binaryData = binaryData;
-            this._cubeType = binaryData.readIntBE(0, NetConstants.CUBE_TYPE_SIZE);
+            this._cubeType = Cube.Type(binaryData);
             if (!(this._cubeType in CubeType)) {
                 logger.info(`Cube: Cannot construct cube object of unknown type ${this._cubeType}`);
                 throw new CubeError(`Cannot construct cube object of unknown type ${this._cubeType}`)
             }
-            this.fieldParser = fieldParserTable[this._cubeType];
+            this.fieldParser = parsers[this._cubeType];
             this._fields = this.fieldParser.decompileFields(this.binaryData);
             if (!this._fields) throw new BinaryDataError("Could not decompile binary Cube");
             this.hash = CubeUtil.calculateHash(binaryData);
@@ -120,7 +129,7 @@ export class Cube {
         } else {
             // sculpt new Cube
             this._cubeType = param1;
-            this.fieldParser = fieldParserTable[this._cubeType];
+            this.fieldParser = parsers[this._cubeType];
             this._fields = new CubeFields([], this.fieldParser.fieldDef);
         }
     }
@@ -143,15 +152,15 @@ export class Cube {
     // cube key, which involves the hashcash proof of work and therefore can
     // take a little while.
     public async getCubeInfo(
-            fieldParserTable: FieldParserTable = this.fieldParserTable
+            parsers: FieldParserTable = this.parsers
     ): Promise<CubeInfo> {
+        await this.getBinaryData();  // cube must be compiled to create a CubeInfo
         return new CubeInfo({
             key: await this.getKey(),
-            binaryCube: await this.getBinaryData(),
-            cubeType: this.cubeType,
+            cube: this,
             date: this.getDate(),
             challengeLevel: CubeUtil.countTrailingZeroBits(this.hash),
-            fieldParserTable: fieldParserTable,
+            parsers: parsers,
         });
     }
 
@@ -227,6 +236,9 @@ export class Cube {
         if (!this.binaryData || !this.hash) await this.setBinaryData();
         return this.binaryData;
     }
+    public getBinaryDataIfAvailable(): Buffer {
+        return this.binaryData;
+    }
 
     /**
      * Automatically add Padding to reach full Cube length.
@@ -238,7 +250,7 @@ export class Cube {
         const len = this.fields.getByteLength();
         if (len < (NetConstants.CUBE_SIZE)) {
             this.fields.insertFieldBeforeBackPositionals(
-                CubeField.PaddingField(NetConstants.CUBE_SIZE - len));
+                CubeField.Padding(NetConstants.CUBE_SIZE - len));
             this.cubeManipulated();
             return true;
         } else return false;

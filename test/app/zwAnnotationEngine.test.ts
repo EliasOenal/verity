@@ -3,12 +3,12 @@ import { Cube } from "../../src/core/cube/cube";
 import { CubeField } from "../../src/core/cube/cubeFields";
 import { CubeInfo } from "../../src/core/cube/cubeInfo";
 import { CubeStore } from "../../src/core/cube/cubeStore";
-import { Identity } from "../../src/app/identity";
+import { Identity } from "../../src/cci/identity";
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zwAnnotationEngine";
 import { makePost } from "../../src/app/zwCubes"
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
-import { MediaTypes, ZwField, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from "../../src/app/zwFields";
+import { MediaTypes, cciField, cciFields, cciRelationship, cciRelationshipType, cciFieldDefinition } from "../../src/cci/cciFields";
 import { FieldParser } from "../../src/core/fieldParser";
 
 import {jest} from '@jest/globals'
@@ -42,7 +42,7 @@ describe('ZwAnnotationEngine', () => {
 
         const reverserels = annotationEngine.getReverseRelationships(await referee.getKey());
         expect(reverserels.length).toEqual(1);
-        expect(reverserels[0].type).toEqual(ZwRelationshipType.REPLY_TO);
+        expect(reverserels[0].type).toEqual(cciRelationshipType.REPLY_TO);
         expect(reverserels[0].remoteKey.toString('hex')).toEqual((await referrer.getKey()).toString('hex'));
       });
 
@@ -51,18 +51,18 @@ describe('ZwAnnotationEngine', () => {
         const spurious_referee: Cube = await makePost("Huh? I got nothing to do with this", undefined, undefined, reduced_difficulty)
 
         // referrer can't be build with makePost because it's deliberately invalid
-        const zwFields: ZwFields = new ZwFields(ZwField.Application());
-        zwFields.appendField(ZwField.MediaType(MediaTypes.TEXT));
-        zwFields.appendField(ZwField.Payload("I will reply to everybody at one and NO ONE CAN STOP ME AHAHAHAHAHAHAHAHAHAHAHA!!!!!!!!1111"));
-        zwFields.appendField(ZwField.RelatesTo(
-          new ZwRelationship(ZwRelationshipType.REPLY_TO, await referee.getKey())
+        const zwFields: cciFields = new cciFields(cciField.Application());
+        zwFields.appendField(cciField.MediaType(MediaTypes.TEXT));
+        zwFields.appendField(cciField.Payload("I will reply to everybody at one and NO ONE CAN STOP ME AHAHAHAHAHAHAHAHAHAHAHA!!!!!!!!1111"));
+        zwFields.appendField(cciField.RelatesTo(
+          new cciRelationship(cciRelationshipType.REPLY_TO, await referee.getKey())
         ));
-        zwFields.appendField(ZwField.RelatesTo(
-          new ZwRelationship(ZwRelationshipType.REPLY_TO, await spurious_referee.getKey())
+        zwFields.appendField(cciField.RelatesTo(
+          new cciRelationship(cciRelationshipType.REPLY_TO, await spurious_referee.getKey())
         ));
-        const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(zwFields);
+        const zwData: Buffer = new FieldParser(cciFieldDefinition).compileFields(zwFields);
         const referrer: Cube = new Cube(undefined, reduced_difficulty);
-        referrer.setFields(CubeField.PayloadField(zwData));
+        referrer.setFields(CubeField.Payload(zwData));
         referrer.getBinaryData();  // finalize Cube & compile fields
         await cubeStore.addCube(referrer);
 
@@ -70,7 +70,7 @@ describe('ZwAnnotationEngine', () => {
         // expect reverse relationship referrer ← referee to be annotated as the
         // first REPLY_TO will be honored
         expect(reverserels.length).toEqual(1);
-        expect(reverserels[0].type).toEqual(ZwRelationshipType.REPLY_TO);
+        expect(reverserels[0].type).toEqual(cciRelationshipType.REPLY_TO);
         expect(reverserels[0].remoteKey.toString('hex')).toEqual((await referrer.getKey()).toString('hex'));
 
         // expect spurious referee not to be annotated as a spurious REPLY_TO
@@ -174,7 +174,7 @@ describe('ZwAnnotationEngine', () => {
         const muc: Cube = Cube.MUC(
           Buffer.from(keys.publicKey),
           Buffer.from(keys.privateKey),
-          CubeField.PayloadField("hoc non est identitatis"),
+          CubeField.Payload("hoc non est identitatis"),
           reduced_difficulty
         );
         await cubeStore.addCube(muc);
@@ -233,10 +233,10 @@ describe('ZwAnnotationEngine', () => {
 
         // make sure the new post is referenced directly in the MUC
         let mucRelToPost: any = undefined;
-        for (const rel of ZwFields.get(id.muc).getRelationships(ZwRelationshipType.MYPOST)) {
+        for (const rel of cciFields.get(id.muc).getRelationships(cciRelationshipType.MYPOST)) {
           if (rel.remoteKey.equals(postKey)) mucRelToPost = rel;
         }
-        expect(mucRelToPost).toBeInstanceOf(ZwRelationship);
+        expect(mucRelToPost).toBeInstanceOf(cciRelationship);
 
         // Wait for the annotationEngine to take note of the MUC change.
         // This is event driven, so it may take a short while.
@@ -273,7 +273,7 @@ describe('ZwAnnotationEngine', () => {
         await new Promise(resolve => setTimeout(resolve, 250));
         // learn a new unrelated MUC
         const unrelatedKeys: KeyPair = sodium.crypto_sign_keypair();
-        await cubeStore.addCube(Cube.MUC(Buffer.from(unrelatedKeys.publicKey), Buffer.from(unrelatedKeys.privateKey), CubeField.PayloadField("I am some other application's MUC"), reduced_difficulty));
+        await cubeStore.addCube(Cube.MUC(Buffer.from(unrelatedKeys.publicKey), Buffer.from(unrelatedKeys.privateKey), CubeField.Payload("I am some other application's MUC"), reduced_difficulty));
         await new Promise(resolve => setTimeout(resolve, 250));
 
         {  // check 2

@@ -3,24 +3,20 @@ import { Cube } from '../core/cube/cube';
 import { logger } from '../core/logger';
 
 import { Level } from 'level';
-import { BaseField, BaseRelationship } from '../core/cube/baseFields';
-import { ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from './zwFields';
-import { CubeError, CubeKey } from '../core/cube/cubeDefinitions';
+import { cciField, cciFieldParsers, cciFieldType, cciFields, cciMucFieldDefinition, cciRelationship, cciRelationshipType } from './cciFields';
+import { CubeError, CubeKey, CubeType } from '../core/cube/cubeDefinitions';
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
 import { Buffer } from 'buffer';
-import { CubeField, CubeFieldType } from '../core/cube/cubeFields';
 import { CubeStore } from '../core/cube/cubeStore';
-import { FieldParser } from '../core/fieldParser';
 import { Settings, VerityError } from '../core/settings';
-import { ZwConfig } from './zwConfig';
+import { ZwConfig } from '../app/zwConfig';
 import { CubeInfo } from '../core/cube/cubeInfo';
-import { assertZwMuc } from './zwCubes';
 
-import * as CciUtil from '../cci/cciUtil'
 import { NetConstants } from '../core/networking/networkDefinitions';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
+import { cciCube } from './cciCube';
 
 const IDENTITYDB_VERSION = 1;
 
@@ -100,7 +96,7 @@ export class Identity {
    */
   persistance: IdentityPersistance;
 
-  private cubeStore;
+  private cubeStore: CubeStore;
 
   // private readonly masterKey = undefined;
   get masterKey(): Buffer {
@@ -118,13 +114,13 @@ export class Identity {
     return this._subscriptionRecommendations
   };
 
-  private _subscriptionRecommendationIndices: Array<Cube> = [];
-  get subscriptionRecommendationIndices(): Array<Cube> {
+  private _subscriptionRecommendationIndices: Array<cciCube> = [];
+  get subscriptionRecommendationIndices(): Array<cciCube> {
     return this._subscriptionRecommendationIndices;
   }
 
   /** @member The MUC in which this Identity information is stored and published */
-  private _muc: Cube = undefined;
+  private _muc: cciCube = undefined;
 
   /** @member Points to first cube in the profile picture continuation chain */
   profilepic: CubeKey = undefined;
@@ -139,14 +135,16 @@ export class Identity {
    * remember their request in this promise. Any subsequent Identity changes
    * will then be handles in a single rebuild.
    */
-  private makeMucPromise: Promise<Cube> = undefined;
+  private makeMucPromise: Promise<cciCube> = undefined;
 
   constructor(
       cubeStore: CubeStore,
-      muc: Cube = undefined,
+      muc: cciCube = undefined,
       persistance: IdentityPersistance = undefined,
       createByDefault = true,
-      private minMucRebuildDelay = ZwConfig.MIN_MUC_REBUILD_DELAY) {
+      private minMucRebuildDelay = ZwConfig.MIN_MUC_REBUILD_DELAY,
+      required_difficulty = Settings.REQUIRED_DIFFICULTY,
+  ){
     this.cubeStore = cubeStore;
     this.persistance = persistance;
     if (muc) this.parseMuc(muc);
@@ -156,8 +154,10 @@ export class Identity {
       // as a base for deriving keys which probably does not follow best practices.
       // Will implement this together with other breaking changes as it breaks all existing MUCs.
       let keys: KeyPair = sodium.crypto_sign_keypair();
-      muc = Cube.MUC(Buffer.from(keys.publicKey), Buffer.from(keys.privateKey));
-      this._muc = muc;
+      this._muc = cciCube.MUC(
+        Buffer.from(keys.publicKey), Buffer.from(keys.privateKey),
+        [], cciFieldParsers, required_difficulty);
+      if (!(this._muc instanceof cciCube)) throw new CubeError("Identity: Newly created CCI Cube is not CCI o.O");
     }
     else {
       throw new CubeError("Identity: Cannot restore Identity without valid MUC.")
@@ -179,19 +179,22 @@ export class Identity {
   */
   get key(): CubeKey { return Buffer.from(this._muc.publicKey); }
 
-  get muc(): Cube { return this._muc; }
+  get muc(): cciCube { return this._muc; }
 
   /**
    * Save this Identity locally by storing it in the local database
    * and publish it by inserting it into the CubeStore.
    * (You could also provide a private cubeStore instead, but why should you?)
    */
-  async store(required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<Cube> {
+  async store(
+      applicationString: string = undefined,
+      required_difficulty = Settings.REQUIRED_DIFFICULTY,
+  ):Promise<cciCube>{
     if (!this.privateKey || !this.masterKey) {
       throw new VerityError("Identity: Cannot store an Identity whose private key I don't have");
     }
     logger.trace("Identity: Storing identity " + this.name);
-    const muc = await this.makeMUC(required_difficulty);
+    const muc = await this.makeMUC(applicationString, required_difficulty);
     for (const extensionMuc of this.subscriptionRecommendationIndices) {
       await this.cubeStore.addCube(extensionMuc);
     }
@@ -234,7 +237,7 @@ export class Identity {
     let recursiveSubs: CubeKey[] = this.subscriptionRecommendations;
     if (curDepth < maxDepth) {
       for (const sub of this._subscriptionRecommendations) {
-        const muc: Cube = this.cubeStore.getCube(sub);
+        const muc: cciCube = this.cubeStore.getCube(sub) as cciCube;  // TODO assert cciCube or document why check not necessary
         if (!muc) continue;
         let id: Identity;
         try {
@@ -256,7 +259,10 @@ export class Identity {
   * changes have been performed to avoid spamming multiple MUC versions
   * (and having to compute hashcash for all of them).
   */
-  async makeMUC(required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<Cube> {
+  async makeMUC(
+      applicationString: string = undefined,
+      required_difficulty = Settings.REQUIRED_DIFFICULTY,
+  ): Promise<cciCube> {
     // Make sure we don't rebuild our MUC too often. This is to limit spam,
     // reduce local hash cash load and to prevent rapid subsequent changes to
     // be lost due to our one second minimum time resolution.
@@ -291,43 +297,44 @@ export class Identity {
     // 1 byte rerelation ship type, 740/34 = 21.76).
     // Hope I didn't miss anything or it will throw my mistake in your face :)
 
-    // Write boilerplate "ZW" application header.
-    // We still won't tell you what that stands for.
-    const zwFields: ZwFields = new ZwFields(ZwField.Application());
+    const fields: cciField[] = [];
+    // Include application header if requested
+    if (applicationString) {
+      fields.push(cciField.Application(applicationString));
+    }
 
     // Write username
     if (!this.name) throw new CubeError("Identity: Cannot create a MUC for this Identity, name field is mandatory.");
-    zwFields.appendField(ZwField.Username(this.name));
+    fields.push(cciField.Username(this.name));
 
     // Write profile picture reference
-    if (this.profilepic) zwFields.appendField(ZwField.RelatesTo(
-      new ZwRelationship(ZwRelationshipType.PROFILEPIC, this.profilepic)
+    if (this.profilepic) fields.push(cciField.RelatesTo(
+      new cciRelationship(cciRelationshipType.PROFILEPIC, this.profilepic)
     ));
 
     // Write key backup cube reference (not actually implemented yet)
-    if (this.keyBackupCube) zwFields.appendField(ZwField.RelatesTo(
-      new ZwRelationship(ZwRelationshipType.KEY_BACKUP_CUBE, this.keyBackupCube)
+    if (this.keyBackupCube) fields.push(cciField.RelatesTo(
+      new cciRelationship(cciRelationshipType.KEY_BACKUP_CUBE, this.keyBackupCube)
     ));
     // Write my post references
     // TODO: use fibonacci spacing for post references instead of linear,
     // but only if there are actually enough posts to justify it
     for (let i = 0; i < this.posts.length && i < 22; i++) {
-      zwFields.appendField(ZwField.RelatesTo(
-        new ZwRelationship(ZwRelationshipType.MYPOST, Buffer.from(this.posts[i], 'hex'))
+      fields.push(cciField.RelatesTo(
+        new cciRelationship(cciRelationshipType.MYPOST, Buffer.from(this.posts[i], 'hex'))
       ));
     }
     // write subscription recommendations
     this.writeSubscriptionRecommendations(required_difficulty);
     if (this.subscriptionRecommendationIndices.length) {
-      zwFields.appendField(ZwField.RelatesTo(
-        new ZwRelationship(ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
+      fields.push(cciField.RelatesTo(
+        new cciRelationship(cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
           this.subscriptionRecommendationIndices[0].getKeyIfAvailable())));
           // note: key is always available as this is a MUC
     }
 
-    const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(zwFields);
-    const newMuc: Cube = Cube.MUC(this._muc.publicKey, this._muc.privateKey,
-      CubeField.PayloadField(zwData), undefined, required_difficulty);
+    const newMuc: cciCube = cciCube.MUC(this._muc.publicKey, this._muc.privateKey,
+      fields, cciFieldParsers, required_difficulty);
     await newMuc.getBinaryData();  // compile MUC
     this._muc = newMuc;
 
@@ -337,9 +344,12 @@ export class Identity {
   }
 
   private writeSubscriptionRecommendations(
-      required_difficulty = Settings.REQUIRED_DIFFICULTY): void {
+      required_difficulty = Settings.REQUIRED_DIFFICULTY,
+      applicationString: string = undefined,
+  ): void {
     // TODO: properly calculate available space
     // For now, let's just eyeball it:
+    // TODO UPDATE CALCULATION
     // After mandatory boilerplate, there's 904 bytes left in a MUC.
     // We use up 3 of those for APPLICATION (3), and let's calculate with
     // 12 bytes subkey (10 byte = 80 bits subkey + 2 byte header).
@@ -352,12 +362,15 @@ export class Identity {
 
     // Prepare index field sets, one for each index cube.
     // The cubes themselves will be sculpted in the next step.
-    const fieldSets: ZwFields[] = [];
-    let fields: ZwFields = new ZwFields(ZwField.Application());
+    const fieldSets: cciFields[] = [];
+    let fields: cciFields = new cciFields([], cciMucFieldDefinition);
+    if (applicationString) {
+      fields.appendField(cciField.Application(applicationString));
+    }
     for (let i=0; i<this.subscriptionRecommendations.length; i++) {
       // write rel
-      fields.appendField(ZwField.RelatesTo(new ZwRelationship(
-        ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+      fields.appendField(cciField.RelatesTo(new cciRelationship(
+        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
         this.subscriptionRecommendations[i]
       )));
 
@@ -365,34 +378,34 @@ export class Identity {
       if (i % relsPerCube == relsPerCube - 1 ||
           i == this._subscriptionRecommendations.length - 1) {
         fieldSets.push(fields);
-        fields = new ZwFields(ZwField.Application());
+        fields = new cciFields([], cciMucFieldDefinition);
+        if (applicationString) {
+          fields.appendField(cciField.Application(applicationString));
+        }
       }
     }
     // Now sculpt the index cubes using the field sets generated before,
     // in reverse order so we can link them together
     for (let i=fieldSets.length - 1; i>=0; i--) {
+      fields = fieldSets[i];
       // chain the index cubes together:
       if (i < fieldSets.length - 1 ) {  // last one has no successor, obviously
-        fieldSets[i].appendField(ZwField.RelatesTo(new ZwRelationship(
-          ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
-            this.subscriptionRecommendationIndices[i+1].getKeyIfAvailable())));
+        fields.appendField(cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
+            this.subscriptionRecommendationIndices[i+1].
+              getKeyIfAvailable())));  // it's a MUC, the key is always available
       }
       // do we actually need to rewrite this index cube?
       if (!this.subscriptionRecommendationIndices[i] ||
-          !fieldSets[i].equals(ZwFields.get(this.subscriptionRecommendationIndices[i]))) {
+          !fields.equals(this.subscriptionRecommendationIndices[i].fields)) {
         // TODO: Further minimize unnecessary extension MUC update.
         // For example, if a user having let's say 10000 subscriptions ever
         // unsubscribes one of the first ones, this would currently lead to a very
         // expensive reinsert of ALL extension MUCs. In this case, it would be much
         // cheaper to just keep an open slot on the first extension MUC.
-        const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(
-          fieldSets[i]);
-        const payload = CubeField.PayloadField(zwData);
-
-        const indexCube: Cube = CciUtil.sculptExtensionMuc(
-          this.masterKey, payload, i, "Subscription recommendation indices");
-        this.subscriptionRecommendationIndices[i] =
-          indexCube;  // it's a MUC, the key is always available
+        const indexCube: cciCube = cciCube.ExtensionMuc(
+          this.masterKey, fields, i, "Subscription recommendation indices");
+        this.subscriptionRecommendationIndices[i] = indexCube;
       }
       // Note: Once calling store(), we will still try to reinsert non-changed
       // extension MUCs -- CubeStore will however discard them as they're unchanged.
@@ -405,11 +418,21 @@ export class Identity {
   /**
    * Sets this Identity based on a MUC; should only be used on construction.
    */
-  private parseMuc(muc: Cube): void {
-    const zwFields = assertZwMuc(muc);
+  private parseMuc(muc: cciCube): void {
+    if (Settings.RUNTIME_ASSERTIONS) {
+      // disabled for now: Identity doesn't *really* require a cciCube object
+      // and our codebase currently does not cleanly distinguish required
+      // Cube classes yet
+      // if (!(muc instanceof cciCube)) {
+      //   throw new CubeError("Identity: Supplied Cube is not as CCI Cube");
+      // }
+      if (muc.cubeType != CubeType.MUC) {
+        throw new CubeError("Identity: Supplied Cube is not a MUC");
+      }
+    }
 
     // read name (mandatory)
-    const nameField: BaseField = zwFields.getFirst(ZwFieldType.USERNAME);
+    const nameField: cciField = muc.fields.getFirst(cciFieldType.USERNAME);
     if (nameField) this.name = nameField.value.toString('utf-8');
     if (!this.name) {
       throw new CubeError("Identity: Supplied MUC lacks user name");
@@ -417,13 +440,13 @@ export class Identity {
 
     // read cube references, these being:
     // - profile picture reference
-    const profilePictureRel: ZwRelationship = zwFields.getFirstRelationship(
-      ZwRelationshipType.PROFILEPIC);
+    const profilePictureRel: cciRelationship = muc.fields.getFirstRelationship(
+      cciRelationshipType.PROFILEPIC);
     if (profilePictureRel) this.profilepic = profilePictureRel.remoteKey;
 
     // - key backup cube reference
-    const keyBackupCubeRel: ZwRelationship = zwFields.getFirstRelationship(
-      ZwRelationshipType.KEY_BACKUP_CUBE);
+    const keyBackupCubeRel: cciRelationship = muc.fields.getFirstRelationship(
+      cciRelationshipType.KEY_BACKUP_CUBE);
     if (keyBackupCubeRel) this.keyBackupCube = keyBackupCubeRel.remoteKey;
 
     // - recursively fetch my-post references
@@ -444,17 +467,18 @@ export class Identity {
     else alreadyTraversedCubes.push(thisCubesKeyString);
 
     // parse this index cube
-    const zwFields: ZwFields = ZwFields.get(mucOrMucExtension);
-    if (!zwFields) return;
+    if (!(mucOrMucExtension.fields instanceof cciFields)) return;  // no CCI, no rels
+    const fields: cciFields = mucOrMucExtension.fields as cciFields;
+    if (!fields) return;
     // save the subscriptions recommendations provided:
-    const subs = zwFields.getRelationships(
-      ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION);
+    const subs = fields.getRelationships(
+      cciRelationshipType.SUBSCRIPTION_RECOMMENDATION);
     for (const sub of subs) {
       this.addSubscriptionRecommendation(sub.remoteKey);
     }
     // recurse through further index cubes, if any:
-    const furtherIndices = zwFields.getRelationships(
-      ZwRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX);
+    const furtherIndices = fields.getRelationships(
+      cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX);
     for (const furtherIndex of furtherIndices) {
       const furtherCube: Cube = this.cubeStore.getCube(furtherIndex.remoteKey);
       if (furtherCube) {
@@ -478,11 +502,12 @@ export class Identity {
     if (thisCubesKeyString === undefined || alreadyTraversedCubes.includes(thisCubesKeyString)) return;
     else alreadyTraversedCubes.push(thisCubesKeyString);
 
-    const zwFields: ZwFields = ZwFields.get(mucOrMucExtension);
-    if (!zwFields) return;
+    if (!(mucOrMucExtension.fields instanceof cciFields)) return;  // no CCI, no rels
+    const fields: cciFields = mucOrMucExtension.fields as cciFields;
+    if (!fields) return;
 
-    const myPostRels: ZwRelationship[] = zwFields.getRelationships(
-      ZwRelationshipType.MYPOST);
+    const myPostRels: cciRelationship[] = fields.getRelationships(
+      cciRelationshipType.MYPOST);
     for (const postrel of myPostRels) {
       const postInfo: CubeInfo = this.cubeStore.getCubeInfo(postrel.remoteKey);
       if (!postInfo) continue;  // skip posts we don't actually have
@@ -575,7 +600,7 @@ export class IdentityPersistance {
     const identities: Array<Identity> = [];
     for await (const [pubkey, privkey] of this.db.iterator() ) {
       // try {
-        const muc = cubeStore.getCube(Buffer.from(pubkey, 'hex'));
+        const muc = cubeStore.getCube(Buffer.from(pubkey, 'hex')) as cciCube;  // TODO: either assert cciCube or document why assertion not required
         if (muc === undefined) {
           logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkey + " is not present");
           continue;

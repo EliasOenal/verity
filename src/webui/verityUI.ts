@@ -6,8 +6,8 @@ import { VerityNode } from '../core/verityNode';
 import { AddressAbstraction } from '../core/peering/addressing';
 import { Cube } from '../core/cube/cube';
 
-import { Identity } from '../app/identity';
-import { zwFieldDefinition } from '../app/zwFields';
+import { Identity } from '../cci/identity';
+import { cciFieldDefinition } from '../cci/cciFields';
 import { SubscriptionRequirement, ZwAnnotationEngine } from '../app/zwAnnotationEngine';
 import { makePost } from '../app/zwCubes';
 
@@ -24,7 +24,7 @@ export class VerityUI {
   private static _zwFieldParser: FieldParser = undefined;
   static get zwFieldParser(): FieldParser {
     if (!VerityUI._zwFieldParser) {
-      VerityUI._zwFieldParser = new FieldParser(zwFieldDefinition);
+      VerityUI._zwFieldParser = new FieldParser(cciFieldDefinition);
     }
     return VerityUI._zwFieldParser;
   }

@@ -2,9 +2,9 @@ import { CubeKey } from "../../core/cube/cubeDefinitions";
 import { CubeInfo } from "../../core/cube/cubeInfo";
 import { CubeStore } from "../../core/cube/cubeStore";
 
-import { Identity } from "../../app/identity";
+import { Identity } from "../../cci/identity";
 import { makePost } from "../../app/zwCubes";
-import { ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "../../app/zwFields";
+import { cciFieldType, cciFields, cciRelationship, cciRelationshipType } from "../../cci/cciFields";
 import { ZwAnnotationEngine } from "../../app/zwAnnotationEngine";
 
 import { VerityController } from "../webUiDefinitions";
@@ -123,21 +123,21 @@ export class PostController extends VerityController {
     // logger.trace(`PostDisplay: Attempting to display post ${binarykey.toString('hex')}`)
     // get Cube
     const cube = this.cubeStore.getCube(binarykey);
-    const fields: ZwFields = ZwFields.get(cube);
+    const fields: cciFields = cciFields.get(cube);
 
     // gather PostData
     const data: PostData = {};
     data.binarykey = binarykey;
     data.keystring = binarykey.toString('hex');
     data.timestamp = cube.getDate();
-    data.text = fields.getFirst(ZwFieldType.PAYLOAD).value.toString();
+    data.text = fields.getFirst(cciFieldType.PAYLOAD).value.toString();
     this.findAuthor(data);  // this sets data.author and data.authorkey
 
     // is this post already displayed?
     if (this.displayedPosts.has(data.keystring)) return;
 
     // is this a reply?
-    const reply: ZwRelationship = fields.getFirstRelationship(ZwRelationshipType.REPLY_TO);
+    const reply: cciRelationship = fields.getFirstRelationship(cciRelationshipType.REPLY_TO);
     if (reply !== undefined) {  // yes
       const superiorPostKey: CubeKey = reply.remoteKey;
       data.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));

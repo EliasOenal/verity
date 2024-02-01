@@ -35,7 +35,7 @@ describe('fields', () => {
     firstFieldOffset: 0,
   }
   let fieldParser: FieldParser;
-  let version: BaseField, date: BaseField, sig: BaseField, nonce: BaseField, payload: BaseField;
+  let version: BaseField, date: BaseField, sig: BaseField, nonce: BaseField, payload: BaseField, payload2: BaseField;
 
   beforeEach(() => {
     // prepare the field parser
@@ -63,6 +63,9 @@ describe('fields', () => {
 
     const payloaddata = Buffer.alloc(137); payloaddata.fill(42);
     payload = new BaseField(TestFieldType.PAYLOAD, 137, payloaddata);
+
+    const payloaddata2 = Buffer.alloc(137); payloaddata2.fill(84);
+    payload2 = new BaseField(TestFieldType.PAYLOAD, 137, payloaddata2);
   });
 
   it('can insert fields between positionals', () => {
@@ -82,8 +85,19 @@ describe('fields', () => {
     expect(fields.all[0].type).toEqual(TestFieldType.VERSION);
     expect(fields.all[1].type).toEqual(TestFieldType.DATE);
     expect(fields.all[2].type).toEqual(TestFieldType.PAYLOAD);
+    expect(fields.all[2].value[0]).toEqual(42);
     expect(fields.all[3].type).toEqual(TestFieldType.SIGNATURE);
     expect(fields.all[4].type).toEqual(TestFieldType.NONCE);
+    fields.insertFieldBeforeBackPositionals(payload2);
+    expect(fields.all.length).toEqual(6);
+    expect(fields.all[0].type).toEqual(TestFieldType.VERSION);
+    expect(fields.all[1].type).toEqual(TestFieldType.DATE);
+    expect(fields.all[2].type).toEqual(TestFieldType.PAYLOAD);
+    expect(fields.all[2].value[0]).toEqual(42);
+    expect(fields.all[3].type).toEqual(TestFieldType.PAYLOAD);
+    expect(fields.all[3].value[0]).toEqual(84);
+    expect(fields.all[4].type).toEqual(TestFieldType.SIGNATURE);
+    expect(fields.all[5].type).toEqual(TestFieldType.NONCE);
   });
 
   it('can insert fields after front positionals even on empty field set', () => {

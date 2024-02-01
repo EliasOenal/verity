@@ -99,8 +99,6 @@ export class PeerDB extends EventEmitter {
         // set options
         this.ourPort = options?.ourPort ?? 1984;
         this.badPeerRehabilitationChance = options?.badPeerRehabilitationChance ?? Settings.BAD_PEER_REHABILITATION_CHANCE;
-
-        this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS + 10);  // one for each peer and a few for ourselves
     }
 
     public shutdown(): void {

@@ -29,7 +29,7 @@ export interface CubeStoreOptions {
    * format. If you're using CCI, and we strongly recommend you do, choose
    * cciFieldParsers.
    */
-  fieldParserTable?: FieldParserTable,
+  parsers?: FieldParserTable,
 }
 
 export class CubeStore extends EventEmitter {
@@ -40,13 +40,13 @@ export class CubeStore extends EventEmitter {
   // Refers to the persistant cube storage database, if available and enabled
   private persistence: CubePersistence = undefined;
 
-  readonly fieldParserTable: FieldParserTable;
+  readonly parsers: FieldParserTable;
   readonly required_difficulty;
 
   constructor(options: CubeStoreOptions) {
     super();
     this.required_difficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
-    this.fieldParserTable = options?.fieldParserTable ?? coreFieldParsers;
+    this.parsers = options?.parsers ?? coreFieldParsers;
     this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 10);  // one for each peer and a few for ourselves
     this.storage = new Map();
 
@@ -69,13 +69,13 @@ export class CubeStore extends EventEmitter {
   // TODO: implement importing CubeInfo directly
   /**
    * Add a binary Cube to storage.
-   * @param fieldParserTable defines how this binary Cubes should be parsed.
+   * @param parsers defines how this binary Cubes should be parsed.
    * Will use this store's default if not specified, which in turn will use the
    * core-only parsers if you didn't specify anything else on construction.
    */
   async addCube(
     cube_input: Buffer,
-    fieldParserTable?: FieldParserTable): Promise<Cube>;
+    parsers?: FieldParserTable): Promise<Cube>;
   /**
    * Add a Cube object to storage.
    * (Note you cannot specify a FieldParserTable in this variant as the Cube
@@ -84,7 +84,7 @@ export class CubeStore extends EventEmitter {
   async addCube(cube_input: Cube): Promise<Cube>;
   async addCube(
       cube_input: Cube | Buffer,
-      fieldParserTable = this.fieldParserTable
+      parsers = this.parsers
   ): Promise<Cube> {
     try {
       // Cube objects are ephemeral as storing binary data is more efficient.
@@ -96,7 +96,7 @@ export class CubeStore extends EventEmitter {
         binaryCube = await cube_input.getBinaryData();
       } else if (cube_input instanceof Buffer) { // cube_input instanceof Buffer
         binaryCube = cube_input;
-        cube = new Cube(binaryCube, fieldParserTable);
+        cube = new Cube(binaryCube, parsers);
       } else {  // should never be even possible to happen, and yet, there was this one time when it did
         // @ts-ignore If we end up here, we're well outside any kind of sanity TypeScript can possibly be expected to understand.
         throw new TypeError("CubeStore: invalid type supplied to addCube: " + cube_input.constructor.name);
@@ -129,10 +129,10 @@ export class CubeStore extends EventEmitter {
       }
 
       // Store the cube
-      this.storage.set(cubeInfo.keystring, cubeInfo);
+      this.storage.set(cubeInfo.keyString, cubeInfo);
       // save cube to disk (if available and enabled)
       if (this.persistence) {
-        this.persistence.storeRawCube(cubeInfo.keystring, cubeInfo.binaryCube);
+        this.persistence.storeRawCube(cubeInfo.keyString, cubeInfo.binaryCube);
       }
 
       // inform our application(s) about the new cube
@@ -140,7 +140,7 @@ export class CubeStore extends EventEmitter {
         // logger.trace(`CubeStore: Added cube ${cubeInfo.keystring}, emitting cubeAdded`)
         this.emit('cubeAdded', cubeInfo);
       } catch(error) {
-        logger.error("CubeStore: While adding Cube " + cubeInfo.keystring + "a cubeAdded subscriber experienced an error: " + error.message);
+        logger.error("CubeStore: While adding Cube " + cubeInfo.keyString + "a cubeAdded subscriber experienced an error: " + error.message);
       }
 
       // All done finally, just return the cube in case anyone cares.
@@ -177,16 +177,16 @@ export class CubeStore extends EventEmitter {
    * Get a Cube from storage. If the cube is currently dormant, it will
    * automatically get reinstantiated for you.
    * @param key Pass the key of the cube you want in either binary or string form
-   * @param fieldParserTable If the requested Cube is domant it will need to be
+   * @param parsers If the requested Cube is domant it will need to be
    *        re-parsed. The CubeInfo is supposed to know which parser to use,
    *        but you can override it here if you want.
    */
   getCube(
       key: CubeKey | string,
-      fieldParserTable: FieldParserTable = undefined
+      parsers: FieldParserTable = undefined
     ): Cube | undefined {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
-    if (cubeInfo) return cubeInfo.getCube(fieldParserTable);
+    if (cubeInfo) return cubeInfo.getCube(parsers);
     else return undefined;
   }
 

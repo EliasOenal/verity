@@ -368,10 +368,10 @@ export class NetworkPeer extends Peer {
             // Read timestamp as a 5-byte number
             const timestamp = data.readUIntBE(offset, NetConstants.TIMESTAMP_SIZE);
             offset += NetConstants.TIMESTAMP_SIZE;
-            const hash = data.slice(offset, offset + NetConstants.CUBE_KEY_SIZE);
+            const key = data.slice(offset, offset + NetConstants.CUBE_KEY_SIZE);
             offset += NetConstants.CUBE_KEY_SIZE;
             const incomingCubeInfo = new CubeInfo({
-                key: hash,
+                key: key,
                 date: timestamp,
                 challengeLevel: challengeLevel,
                 cubeType: cubeType
@@ -400,7 +400,7 @@ export class NetworkPeer extends Peer {
                         missingKeys.push(muc.key);
                     }
                 } catch(error) {
-                    logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Error handling incoming MUC ${muc.keystring}: ${error}`);
+                    logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Error handling incoming MUC ${muc.keyString}: ${error}`);
                 }
             }
         }

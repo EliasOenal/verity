@@ -21,6 +21,8 @@ import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Settings } from '../../src/core/settings';
 
 describe('networkManager', () => {
+    const reduced_difficulty = 0;
+
     describe('WebSockets and general functionality', () => {
         it('creates and cleanly shuts down a WebSocket server', async() => {
             const manager: NetworkManager = new NetworkManager(
@@ -291,7 +293,7 @@ describe('networkManager', () => {
 
             // Create new cubes at peer 1
             for (let i = 0; i < numberOfCubes; i++) {
-                const cube = Cube.Dumb(undefined, coreFieldParsers, reduced_difficulty);
+                const cube = Cube.Dumb(undefined, coreFieldParsers, Cube, reduced_difficulty);
                 const buffer: Buffer = Buffer.alloc(1);
                 buffer.writeInt8(i);
                 await cubeStore.addCube(cube);
@@ -381,7 +383,8 @@ describe('networkManager', () => {
             muc = Cube.MUC(
                 Buffer.from(keyPair.publicKey),
                 Buffer.from(keyPair.privateKey),
-                CubeField.PayloadField(counterBuffer)
+                CubeField.Payload(counterBuffer),
+                coreTlvFieldParsers, Cube, reduced_difficulty
             );
             mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
             const firstMucHash = await muc.getHash();
@@ -411,8 +414,8 @@ describe('networkManager', () => {
             muc = Cube.MUC(
                 Buffer.from(keyPair.publicKey),
                 Buffer.from(keyPair.privateKey),
-                CubeField.PayloadField(counterBuffer)
-            );
+                CubeField.Payload(counterBuffer),
+                coreTlvFieldParsers, Cube, reduced_difficulty);
             mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
             const secondMucHash = await muc.getHash();
             expect(cubeStore.getAllStoredCubeKeys().size).toEqual(1);  // still just one, new MUC version replaces old MUC version
@@ -1013,8 +1016,8 @@ describe('networkManager', () => {
             // Create a Cube and exchange it between browsers
             expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(0);
             expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
-            const cube: Cube = Cube.Dumb(undefined, coreFieldParsers, 0);  // no hashcash for faster testing
-            cube.setFields(CubeField.PayloadField("Hic cubus directe ad collegam meum iturus est"));
+            const cube: Cube = Cube.Dumb(undefined, coreFieldParsers, Cube, reduced_difficulty);  // no hashcash for faster testing
+            cube.setFields(CubeField.Payload("Hic cubus directe ad collegam meum iturus est"));
             const cubeKey: Buffer = await cube.getKey();
             browser1.cubeStore.addCube(cube);
 
