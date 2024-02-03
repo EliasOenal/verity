@@ -7,9 +7,7 @@ import { AddressAbstraction } from '../core/peering/addressing';
 import { Cube } from '../core/cube/cube';
 
 import { Identity } from '../cci/identity';
-import { cciFieldDefinition } from '../cci/cciFields';
 import { SubscriptionRequirement, ZwAnnotationEngine } from '../app/zwAnnotationEngine';
-import { makePost } from '../app/zwCubes';
 
 import { PostController } from './controller/postController';
 import { PeerController } from './controller/peerController';
@@ -21,14 +19,6 @@ import sodium from 'libsodium-wrappers'
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
 
 export class VerityUI {
-  private static _zwFieldParser: FieldParser = undefined;
-  static get zwFieldParser(): FieldParser {
-    if (!VerityUI._zwFieldParser) {
-      VerityUI._zwFieldParser = new FieldParser(cciFieldDefinition);
-    }
-    return VerityUI._zwFieldParser;
-  }
-
   /**
    * Workaround to those damn omnipresent async constructs.
    * Always create your VerityUI this way or it won't have an Identity 🤷
@@ -161,14 +151,14 @@ async function webmain() {
 
   // default params
   const initialPeers = [
-    new AddressAbstraction("verity.hahn.mt:1984"),
-    new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss/"),
+    // new AddressAbstraction("verity.hahn.mt:1984"),
+    // new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss/"),
     // new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/wss"),
     // new AddressAbstraction("verity.hahn.mt:1985"),
     // new AddressAbstraction("verity.hahn.mt:1986"),
     // new AddressAbstraction("132.145.174.233:1984"),
     // new AddressAbstraction("158.101.100.95:1984"),
-    // new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/ws"),
+    new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/ws"),
   ];
 
   // construct node and UI

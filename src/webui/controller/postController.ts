@@ -4,7 +4,7 @@ import { CubeStore } from "../../core/cube/cubeStore";
 
 import { Identity } from "../../cci/identity";
 import { makePost } from "../../app/zwCubes";
-import { cciFieldType, cciFields, cciRelationship, cciRelationshipType } from "../../cci/cciFields";
+import { cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipType } from "../../cci/cciFields";
 import { ZwAnnotationEngine } from "../../app/zwAnnotationEngine";
 
 import { VerityController } from "../webUiDefinitions";
@@ -14,6 +14,7 @@ import { logger } from "../../core/logger";
 
 import { Buffer } from 'buffer';
 import multiavatar from '@multiavatar/multiavatar'
+import { cciCube } from "../../cci/cciCube";
 
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
@@ -122,8 +123,9 @@ export class PostController extends VerityController {
   displayPost(binarykey: CubeKey): void {
     // logger.trace(`PostDisplay: Attempting to display post ${binarykey.toString('hex')}`)
     // get Cube
-    const cube = this.cubeStore.getCube(binarykey);
-    const fields: cciFields = cciFields.get(cube);
+    const cube: cciCube = this.cubeStore.getCube(
+      binarykey, cciFieldParsers, cciCube) as cciCube;
+    const fields: cciFields = cube.fields;
 
     // gather PostData
     const data: PostData = {};
@@ -171,7 +173,10 @@ export class PostController extends VerityController {
     // maybe TODO: Recreating the whole Identity is unnecessary.
     // Identity should split out the post list retrieval code into a static method.
     try {
-      id = new Identity(this.cubeStore, mucInfo.getCube(), undefined, false);
+      id = new Identity(
+        this.cubeStore,
+        mucInfo.getCube(cciFieldParsers, cciCube) as cciCube,
+        undefined, false);
     } catch(error) { return; }
     for (const post of id.posts) {
       const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(post);
