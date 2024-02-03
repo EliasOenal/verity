@@ -183,10 +183,11 @@ export class CubeStore extends EventEmitter {
    */
   getCube(
       key: CubeKey | string,
-      parsers: FieldParserTable = undefined
+      parsers: FieldParserTable = undefined,
+      cubeClass = Cube,
     ): Cube | undefined {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
-    if (cubeInfo) return cubeInfo.getCube(parsers);
+    if (cubeInfo) return cubeInfo.getCube(parsers, cubeClass);
     else return undefined;
   }
 

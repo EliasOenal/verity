@@ -163,7 +163,10 @@ export class CubeInfo {
    * We use an object cache (WeakRef) to prevent unnecessary re-instantiations of
    * Cube objects, so there's no need for the caller to cache them.
    */
-  getCube(parsers: FieldParserTable = this.parsers): Cube | undefined {
+  getCube(
+      parsers: FieldParserTable = this.parsers,
+      cubeClass = this.cubeClass,
+  ): Cube | undefined {
     // Keep returning the same Cube object until it gets garbage collected.
     // Can only used cached object when using default parser.
     if (this.objectCache && parsers == this.parsers) {
