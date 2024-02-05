@@ -70,7 +70,7 @@ export class PostController extends VerityController {
     // First create the post, then update the identity, then add the cube.
     // This way the UI directly displays you as the author.
     const post = await makePost(text, replyto, this.identity);
-    await this.identity.store();
+    await this.identity.store("ZW");  // TODO: move this to constructor
     this.cubeStore.addCube(post);
   }
 
@@ -82,12 +82,12 @@ export class PostController extends VerityController {
       logger.trace("VerityUI: Unsubscribing from " + authorkeystring);
       this.identity.removeSubscriptionRecommendation(authorkey);
       subscribeButton.classList.remove("active");
-      await this.identity.store();
+      await this.identity.store("ZW");
     } else {
       logger.trace("VerityUI: Subscribing to " + authorkeystring);
       this.identity.addSubscriptionRecommendation(authorkey);
       subscribeButton.classList.add("active");
-      await this.identity.store();
+      await this.identity.store("ZW");
     }
     this.redisplayAuthor(this.cubeStore.getCubeInfo(authorkeystring));
   }

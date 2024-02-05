@@ -61,7 +61,7 @@ export class VerityUI {
     const username = (document.getElementById("idname") as HTMLInputElement).value;
     if (username.length) this.identity.name = username;
     else this.identity.name = "New user";
-    return this.identity.store();
+    return this.identity.store("ZW");
   }
 
 
