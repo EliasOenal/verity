@@ -123,7 +123,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         if (type) {
             const ret = [];
             for (const field of this.data) {
-                if (field.type == type) ret.push(field);
+                if (field.type === type) ret.push(field);
             }
             return ret;
         }
@@ -133,7 +133,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
     /** Gets the first field of a specified type */
     public getFirst(type: Number): BaseField {
         for (const field of this.data) {
-            if (field.type == type) return field;
+            if (field.type === type) return field;
         }
         return undefined;  // none found
     }

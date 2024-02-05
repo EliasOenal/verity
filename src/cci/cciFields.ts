@@ -93,10 +93,9 @@ export class cciField extends CubeField {
   }
 
   static Application(applicationString: string): cciField {
-    if (applicationString.length != cciConstants.APPLICATION_ID_LENGTH) {
-    } else {
-      return new cciField(cciFieldType.APPLICATION, 2, Buffer.from(applicationString));
-    }
+    const applicationBuf = Buffer.from(applicationString, 'utf-8');
+    return new cciField(
+      cciFieldType.APPLICATION, applicationBuf.length, applicationBuf);
   }
 
   static RelatesTo(rel: cciRelationship) {

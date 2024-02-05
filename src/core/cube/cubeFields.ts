@@ -31,11 +31,10 @@ export enum CubeFieldType {
 
   // HACKHACK: CCI field types currently included here as Typescript lacks
   // a proper way to extend enums.
-  PADDING_SINGLEBYTE = 0x00 << 2,
-  PAYLOAD = 0x10 << 2,
+  PADDING_SINGLEBYTE = 0x00 << 2,  // 0
 
-  APPLICATION = 0x01 << 2,
-  CONTINUED_IN = 0x02 << 2,
+  APPLICATION = 0x01 << 2,  // 4
+  CONTINUED_IN = 0x02 << 2,  // 8
 
   /**
   * Seed used to derive a new key pair for an extension MUC.
@@ -47,13 +46,14 @@ export enum CubeFieldType {
   * We're pretty confident this does not actually expose any cryptographically
   * sensitive information, but we maybe should encrypt it.
   */
-  SUBKEY_SEED = 0x03 << 2,
+  SUBKEY_SEED = 0x03 << 2,  // 12
 
-  MEDIA_TYPE = 0x15 << 2,
+  PAYLOAD = 0x10 << 2,  // 64
 
-  RELATES_TO = 0x13 << 2,
-  USERNAME = 0x14 << 2,
-  PADDING = 0x1F << 2,
+  RELATES_TO = 0x13 << 2,  // 76
+  USERNAME = 0x14 << 2,  // 80
+  MEDIA_TYPE = 0x15 << 2,  // 84
+  PADDING = 0x1F << 2,  // 124
 }
 
 export const CubeFieldLength: FieldNumericalParam = {
@@ -69,7 +69,7 @@ export const CubeFieldLength: FieldNumericalParam = {
   [CubeFieldType.PAYLOAD]: undefined,
   [CubeFieldType.PADDING]: undefined,
   [CubeFieldType.PADDING_SINGLEBYTE]: 1,
-  [CubeFieldType.APPLICATION]: 2,
+  [CubeFieldType.APPLICATION]: undefined,
   [CubeFieldType.MEDIA_TYPE]: 1,
   [CubeFieldType.RELATES_TO]: NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE,
   [CubeFieldType.USERNAME]: undefined,
@@ -191,19 +191,19 @@ export class CubeFields extends BaseFields {
 
     // Create TYPE (type, version, feature bits) field
     if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.TYPE) !== undefined) {
-      throw new FieldError("CubeFields.DumbFields(): Cannot auto-create mandatory fields as TYPE field already exists");
+      throw new FieldError("CubeFields.Dumb(): Cannot auto-create mandatory fields as TYPE field already exists");
     }
     fields.insertFieldInFront(fieldDefinition.fieldObjectClass.Type(CubeType.DUMB));
 
     // Create DATE field
     if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.DATE) !== undefined) {
-      throw new FieldError("CubeFields.DumbFields(): Cannot auto-create mandatory fields as DATE field already exists");
+      throw new FieldError("CubeFields.Dumb(): Cannot auto-create mandatory fields as DATE field already exists");
     }
     fields.appendField(fieldDefinition.fieldObjectClass.Date());
 
     // Create randomized NONCE field
     if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.NONCE) !== undefined) {
-      throw new FieldError("CubeFields.DumbFields(): Cannot auto-create mandatory fields as NONCE field already exists");
+      throw new FieldError("CubeFields.Dumb(): Cannot auto-create mandatory fields as NONCE field already exists");
     }
     fields.appendField(fieldDefinition.fieldObjectClass.Nonce());
     // logger.trace("CubeFields.DumbFields() creates this field set for a dumb Cube: " + fields.toLongString());

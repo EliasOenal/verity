@@ -16,7 +16,7 @@ export interface CubeMeta {
   challengeLevel: number;
 }
 
-export interface CubeInfoParams {
+export interface CubeInfoOptions {
   /**
    * Required and used only for incomplete and dormant Cubes.
    * For active Cubes, key is always inferred from the Cube itself.
@@ -33,20 +33,6 @@ export interface CubeInfoParams {
    */
   cubeType?: CubeType;
 
-  /**
-   * The implementation class the represented Cube is of, for example
-   * plain old Cube, cciCube, or an application specific variant.
-   * The class is only relevant locally -- all Cubes are just Cubes while in
-   * transit over the network. Note that this is NOT the Cube's type
-   * (e.g. Dumb, MUC, PIC, ...).
-   * This param is only used for incomplete and dormant Cubes.
-   * For active Cubes (= provided as Cube objects), the class is always inferred
-   * from the Cube object itself.
-   * If the class is neither provided nor can be inferred, we will just default
-   * to plain old Cube, which is probably too generic.
-   */
-  cubeClass?: typeof Cube;
-
   date?: number;
   challengeLevel?: number;
 
@@ -61,6 +47,20 @@ export interface CubeInfoParams {
    * cciFieldParsers.
    */
   parsers?: FieldParserTable,
+
+  /**
+   * The implementation class the represented Cube is of, for example
+   * plain old Cube, cciCube, or an application specific variant.
+   * The class is only relevant locally -- all Cubes are just Cubes while in
+   * transit over the network. Note that this is NOT the Cube's type
+   * (e.g. Dumb, MUC, PIC, ...).
+   * This param is only used for incomplete and dormant Cubes.
+   * For active Cubes (= provided as Cube objects), the class is always inferred
+   * from the Cube object itself.
+   * If the class is neither provided nor can be inferred, we will just default
+   * to plain old Cube, which is probably too generic.
+   */
+  cubeClass?: typeof Cube;
 }
 
 /**
@@ -124,38 +124,37 @@ export class CubeInfo {
   // NOTE, maybe TODO: If binaryCube is specified, this CubeInfo could contain
   // contradictory information as we currently don't validate the details
   // provided against the information contained in the actual (binary) Cube.
-  constructor(
-      params: CubeInfoParams) {
-    this.date = params.date;
-    this.challengeLevel = params.challengeLevel;
-    this.parsers = params?.parsers ?? coreFieldParsers;
+  constructor(options: CubeInfoOptions) {
+    this.date = options.date;
+    this.challengeLevel = options.challengeLevel;
+    this.parsers = options?.parsers ?? coreFieldParsers;
 
-    if (params.cube instanceof Cube) {
+    if (options.cube instanceof Cube) {
       // active Cube
-      this.binaryCube = params.cube.getBinaryDataIfAvailable();
+      this.binaryCube = options.cube.getBinaryDataIfAvailable();
       if(!this.binaryCube) {
         throw new CubeError("CubeInfo can only be constructed for compiled Cubes, call and await Cube's getBinaryData() first");
       }
-      this.key = params.cube.getKeyIfAvailable();
+      this.key = options.cube.getKeyIfAvailable();
       if(!this.key) {
         throw new CubeError("CubeInfo can only be constructed for Cubes which know their key, call and await Cube's getKey() first");
       }
-      this.objectCache = new WeakRef(params.cube);
-      this.cubeClass = params.cube.class;
-    } else if (params.cube instanceof Buffer) {
+      this.objectCache = new WeakRef(options.cube);
+      this.cubeClass = options.cube.class;
+    } else if (options.cube instanceof Buffer) {
       // dormant Cube
-      this.binaryCube = params.cube;
-      this.key = params.key;
+      this.binaryCube = options.cube;
+      this.key = options.key;
       if(!this.key) {
         throw new CubeError("CubeInfo on dormant Cubes can only be contructed if you supply the Cube key.");
       }
-      this.cubeClass = params.cubeClass ?? Cube;
+      this.cubeClass = options.cubeClass ?? Cube;
     } else {
       // incomplete Cube
       this.binaryCube = undefined;
-      this.cubeClass = params.cubeClass ?? Cube;
-      this._cubeType = params.cubeType;
-      this.key = params.key;
+      this.cubeClass = options.cubeClass ?? Cube;
+      this._cubeType = options.cubeType;
+      this.key = options.key;
     }
   }
 
@@ -171,8 +170,10 @@ export class CubeInfo {
       cubeClass = this.cubeClass,
   ): Cube | undefined {
     // Keep returning the same Cube object until it gets garbage collected.
-    // Can only used cached object when using default parser.
-    if (this.objectCache && parsers == this.parsers) {
+    // Can only used cached object when using default parser and Cube class.
+    if (this.objectCache &&  // is there anything cached?
+        parsers === this.parsers &&  // don't use cache unless default parsing
+        cubeClass === this.cubeClass) {  // don't use cache unless default Cube class
       const cachedCube: Cube = this.objectCache.deref();
       if (cachedCube) {
         // logger.trace("cubeInfo: Yay! Saving us one instantiation");
@@ -182,9 +183,11 @@ export class CubeInfo {
 
     // Nope, no Cube object cached. Create a new one and remember it.
     try {
-      const cube = new this.cubeClass(this.binaryCube, parsers);
-      // Can only cache object when using default parser.
-      if (parsers == this.parsers) this.objectCache = new WeakRef(cube);
+      const cube = new cubeClass(this.binaryCube, parsers);
+      // Can only cache object when using default parser and Cube class.
+      if (parsers === this.parsers && cubeClass === this.cubeClass) {
+        this.objectCache = new WeakRef(cube);
+      }
       return cube;
     } catch (err) {
       logger.warn(
