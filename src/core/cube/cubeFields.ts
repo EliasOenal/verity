@@ -31,6 +31,8 @@ export enum CubeFieldType {
 
   // HACKHACK: CCI field types currently included here as Typescript lacks
   // a proper way to extend enums.
+  PADDING_SINGLEBYTE = 0x00 << 2,
+  PAYLOAD = 0x10 << 2,
 
   APPLICATION = 0x01 << 2,
   CONTINUED_IN = 0x02 << 2,
@@ -47,15 +49,11 @@ export enum CubeFieldType {
   */
   SUBKEY_SEED = 0x03 << 2,
 
-  MEDIA_TYPE = 0x04 << 2,
+  MEDIA_TYPE = 0x15 << 2,
 
-  PADDING = 0x0A << 2,
-  PADDING_SINGLEBYTE = 0x0B << 2,
-
-  RELATES_TO = 0x11 << 2,
-  USERNAME = 0x12 << 2,
-
-  PAYLOAD = 0x0F << 2,
+  RELATES_TO = 0x13 << 2,
+  USERNAME = 0x14 << 2,
+  PADDING = 0x1F << 2,
 }
 
 export const CubeFieldLength: FieldNumericalParam = {

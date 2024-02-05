@@ -35,8 +35,6 @@ Proposed repartition of type space:
 Standardized fields are defined to establish a universal foundation for payloads, ensuring a consistent and straightforward interpretation across different applications.
 
 #### Common content-descriptive fields
-| 0x00        | Padding (variable)     | var | Variable length padding field, to be ignored                                        |
-| 0x3F        | Padding (single Byte)  |   1 | Variable length padding field, to be ignored                                        |
 | 0x10        | Payload                | var | Denotes the "main" or most relevant data, the raison d'être for this Cube.          |
 
 | Type (Hex)  | Field Name             | Len | Description                                                                         |
@@ -46,6 +44,7 @@ Standardized fields are defined to establish a universal foundation for payloads
 | 0x14        | User name              | var |
 | 0x15        | Media type (short)     |   1 | Type of content in this Cube's Payload field. This short field contains a single byte code denoting commonly used media types and should be preferred whenever applicable. |
 | 0x1C01      | Media type (long )     | var | The MIME type of the file, a standardized indication of the file format to be used for types not included in our short codes. |
+| 0x1F        | Padding (variable)     | var | Applications chosing to encapsulate any padding into a TLV field should use this ID. |
 
 ### CCI media type short codes
 tbd
