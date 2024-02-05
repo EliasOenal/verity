@@ -72,7 +72,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     const fields: cciFields = this.getFields(cubeInfo.getCube(cciFieldParsers, cciCube)) as cciFields;  // TODO de-uglify
 
     // does this have a ZwPayload field and does it contain something??
-    const payload = fields.getFirst(cciFieldType.PAYLOAD);
+    const payload = fields?.getFirst(cciFieldType.PAYLOAD);
     if (!payload || !payload.length) return false;
 
     // does it have the correct media type?
@@ -145,7 +145,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     // if specified authorship requirements are lax enough, also check
     // up the tree to find replies to a subscribed author's posts
     if (this.subscriptionRequirement <= SubscriptionRequirement.subscribedInTree) {
-      const cube: Cube = this.cubeStore.getCube(key);
+      const cube: Cube = this.cubeStore.getCube(key, cciFieldParsers, cciCube);
       if (!assertZwCube(cube)) return false;
       const fields: cciFields = cube.fields as cciFields;
       const replies: cciRelationship[] = fields.
@@ -170,7 +170,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     if (!parentrel) return undefined;
     const parentkey = parentrel.remoteKey;
     if (this.identityMucs.has(parentkey.toString('hex'))) {
-      const idmuc = this.cubeStore.getCube(parentkey) as cciCube;  // TODO cciCube or document why not necessary
+      const idmuc = this.cubeStore.getCube(parentkey, cciFieldParsers, cciCube) as cciCube;  // TODO cciCube or document why not necessary
       if (!idmuc) return undefined;
       let id: Identity = undefined;
       try {
@@ -199,7 +199,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   cubeAuthorWithoutAnnotations(key: CubeKey): Identity {
     // check all MUCs
     for (const mucInfo of this.identityMucs.values()) {
-      const muc = mucInfo.getCube() as cciCube;  // TODO subclass CubeInfo
+      const muc = mucInfo.getCube(cciFieldParsers, cciCube) as cciCube;  // TODO our CubeInfos should already know what kind of Cube they represent
       // logger.trace("ZwAnnotationEngine: Searching for author of cube " + key.toString('hex') + " in MUC " + muc.getKeyIfAvailable()?.toString('hex'));
       if (!muc) {
         logger.error("ZwAnnotationEngine: A MUC we remembered has gone missing.");
@@ -233,7 +233,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
         }
         if (id) return id;
       } else {  // maybe this other post contains the authorship information we seek?
-        const subpost = this.cubeStore.getCube(postrel.remoteKey);
+        const subpost = this.cubeStore.getCube(postrel.remoteKey, cciFieldParsers, cciCube);
         const potentialResult: Identity = this.cubeAuthorWithoutAnnotationsRecursion(key, subpost, rootmuc);
         if (potentialResult) return potentialResult;
       }
@@ -325,7 +325,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     // I'm not sure if that's efficient.
     let id: Identity;
     try {
-      id = new Identity(this.cubeStore, mucInfo.getCube() as cciCube);  // TODO: subclass CubeInfo
+      id = new Identity(this.cubeStore, mucInfo.getCube(cciFieldParsers, cciCube) as cciCube);  // TODO: subclass CubeInfo
     } catch (error) { return false; }
     return true;  // all checks passed
   }
@@ -373,9 +373,9 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     // Mark this cube as already traversed to prevent endless recursion in case of
     // maliciously crafted circular references.
     alreadyTraversed.add(muckeystring);
-    const cube: Cube = postInfo.getCube();
+    const cube: Cube = postInfo.getCube(cciFieldParsers, cciCube);
     if (!assertZwCube(cube)) return;
-    const fields: cciFields = this.getFields(postInfo.getCube()) as cciFields;
+    const fields: cciFields = this.getFields(postInfo.getCube(cciFieldParsers, cciCube)) as cciFields;
     const postRefs: cciRelationship[] = fields.getRelationships(cciRelationshipType.MYPOST);
     for (const postRef of postRefs) {
       const postkeystring: string = postRef.remoteKey.toString('hex');

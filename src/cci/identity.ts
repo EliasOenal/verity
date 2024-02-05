@@ -255,7 +255,7 @@ export class Identity {
     let recursiveSubs: CubeKey[] = this.subscriptionRecommendations;
     if (curDepth < maxDepth) {
       for (const sub of this._subscriptionRecommendations) {
-        const muc: cciCube = this.cubeStore.getCube(sub) as cciCube;  // TODO assert cciCube or document why check not necessary
+        const muc: cciCube = this.cubeStore.getCube(sub, cciFieldParsers, cciCube) as cciCube;  // TODO our CubeInfos should learn which kind of Cube they represent much earlier in the process
         if (!muc) continue;
         let id: Identity;
         try {
@@ -498,7 +498,7 @@ export class Identity {
     const furtherIndices = fields.getRelationships(
       cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX);
     for (const furtherIndex of furtherIndices) {
-      const furtherCube: Cube = this.cubeStore.getCube(furtherIndex.remoteKey);
+      const furtherCube: Cube = this.cubeStore.getCube(furtherIndex.remoteKey, cciFieldParsers, cciCube);
       if (furtherCube) {
         this.recursiveParseSubscriptionRecommendations(furtherCube, alreadyTraversedCubes);
       }
@@ -545,7 +545,7 @@ export class Identity {
         }
         if (!inserted) this.posts.push(postrel.remoteKey.toString('hex'));
       }
-      this.recursiveParsePostReferences(this.cubeStore.getCube(postrel.remoteKey), alreadyTraversedCubes);
+      this.recursiveParsePostReferences(this.cubeStore.getCube(postrel.remoteKey, cciFieldParsers, cciCube), alreadyTraversedCubes);
     }
   }
 }
@@ -625,7 +625,7 @@ export class IdentityPersistance {
     const identities: Array<Identity> = [];
     for await (const [pubkey, privkey] of this.db.iterator() ) {
       try {
-        const muc = cubeStore.getCube(Buffer.from(pubkey, 'hex')) as cciCube;  // TODO: either assert cciCube or document why assertion not required
+        const muc = cubeStore.getCube(Buffer.from(pubkey, 'hex'), cciFieldParsers, cciCube) as cciCube;  // TODO: either assert cciCube or document why assertion not required
         if (muc === undefined) {
           logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkey + " is not present");
           continue;

@@ -1,3 +1,4 @@
+import { logger } from '../logger';
 import { Cube } from './cube'
 import { CubeType, CubeKey, CubeError } from './cubeDefinitions';
 import { FieldParserTable, coreFieldParsers } from './cubeFields';
@@ -180,10 +181,16 @@ export class CubeInfo {
     }
 
     // Nope, no Cube object cached. Create a new one and remember it.
-    const cube = new this.cubeClass(this.binaryCube, parsers);
-    // Can only cache object when using default parser.
-    if (parsers == this.parsers) this.objectCache = new WeakRef(cube);
-    return cube;
+    try {
+      const cube = new this.cubeClass(this.binaryCube, parsers);
+      // Can only cache object when using default parser.
+      if (parsers == this.parsers) this.objectCache = new WeakRef(cube);
+      return cube;
+    } catch (err) {
+      logger.warn(
+        "CubeInfo.getCube: Could not instantiate Cube: " + err.toString());
+      return undefined;
+    }
   }
 
 }

@@ -6,13 +6,14 @@ import { EventEmitter } from 'events';
 import { BaseFields } from '../core/cube/baseFields';
 
 import { Buffer } from 'buffer';
-import { cciFields, cciRelationship } from './cciFields';
+import { cciFieldParsers, cciFields, cciRelationship } from './cciFields';
 import { CubeStore } from '../core/cube/cubeStore';
+import { cciCube } from './cciCube';
 
 
 type RelationshipClassConstructor = new (type: number, remoteKey: CubeKey) => cciRelationship;
 export function defaultGetFieldsFunc(cube: Cube): BaseFields {
-  return cube.fields;
+  return cube?.fields;
 }
 
 export class AnnotationEngine extends EventEmitter {
@@ -60,7 +61,7 @@ export class AnnotationEngine extends EventEmitter {
 
   autoAnnotate(cubeInfo: CubeInfo): void {
     // logger.trace(`AnnotationEngine: Auto-annotating cube ${cubeInfo.key.toString('hex')}`);
-    const cube: Cube = cubeInfo.getCube();
+    const cube: Cube = cubeInfo.getCube(cciFieldParsers, cciCube);  // TODO: CCI CubeInfos should learn what kind of Cube they represent much earlier in the process
 
     // does this Cube even have a valid field structure?
     const fields: cciFields = this.getFields(cube) as cciFields;

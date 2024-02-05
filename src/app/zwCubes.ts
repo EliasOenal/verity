@@ -16,6 +16,7 @@ import { MediaTypes, cciField, cciFieldType, cciFields, cciRelationship, cciRela
 
 import { Buffer } from 'buffer';
 import { cciCube } from "../cci/cciCube";
+import { logger } from "../core/logger";
 
 /**
  * Creates a new Cube containing a correctly formed text post.
@@ -63,24 +64,26 @@ export async function makePost(
   return cube;
 }
 
-export function assertZwCube(cube: Cube): cciFields {
-  const fields: cciFields = cube.fields as cciFields;
+export function assertZwCube(cube: Cube): boolean {
+  const fields: cciFields = cube?.fields as cciFields;
   if (!(fields instanceof cciFields)) {
-    throw new CubeError("Supplied cube was not instantiated with cciFields");
+    logger.trace("assertZwCube: Supplied object is not a Cube, does not contain CCI fields or was not re-instantiated in a way that exposes CCI fields");
+    return false;
   }
   const applicationField = fields.getFirst(cciFieldType.APPLICATION);
   if (!applicationField) {
-    throw new CubeError("Supplied cube does not have an application field");
+    logger.trace("assertZwCube: Supplied cube does not have an application field");
+    return false;
   }
   if (applicationField.value.toString() != "ZW") {
-    throw new CubeError("Supplied cube does not have the ZW application string");
+    logger.trace("assertZwCube: Supplied cube does not have the ZW application string");
   }
-  return fields;
+  return true;
 }
 
-export function assertZwMuc(cube: Cube): cciFields {
-  if (cube.cubeType != CubeType.MUC) {
-    throw new CubeError("Supplied Cube is not a ZW Muc, as it's not a MUC at all.");
+export function assertZwMuc(cube: Cube): boolean {
+  if (cube?.cubeType != CubeType.MUC) {
+    logger.trace("asserZwMuc: Supplied Cube is not a ZW Muc, as it's not a MUC at all.");
   }
   else return assertZwCube(cube);
 }
