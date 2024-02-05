@@ -30,6 +30,18 @@ export interface CubeStoreOptions {
    * cciFieldParsers.
    */
   parsers?: FieldParserTable,
+
+  /**
+   * The default implementation class this CubeStore will use when
+   * re-instantiating a binary ("dormant") Cube. This could be plain old Cube,
+   * cciCube, or an application specific variant.
+   * Defaults to Cube, the Verity core implementation. Application will usually
+   * want to change this; for CCI-compliant applications, cciCube will be the
+   * right choice.
+   * Note that this options will not affect "active" Cubes, i.e. Cubes locally
+   * supplied as Cube or Cube-subclass objects.
+   */
+  cubeClass?: typeof Cube;
 }
 
 export class CubeStore extends EventEmitter {
@@ -41,12 +53,14 @@ export class CubeStore extends EventEmitter {
   private persistence: CubePersistence = undefined;
 
   readonly parsers: FieldParserTable;
+  readonly cubeClass: typeof Cube;
   readonly required_difficulty;
 
   constructor(options: CubeStoreOptions) {
     super();
     this.required_difficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
     this.parsers = options?.parsers ?? coreFieldParsers;
+    this.cubeClass = options?.cubeClass ?? Cube;
     this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 10);  // one for each peer and a few for ourselves
     this.storage = new Map();
 
@@ -96,7 +110,7 @@ export class CubeStore extends EventEmitter {
         binaryCube = await cube_input.getBinaryData();
       } else if (cube_input instanceof Buffer) { // cube_input instanceof Buffer
         binaryCube = cube_input;
-        cube = new Cube(binaryCube, parsers);
+        cube = new this.cubeClass(binaryCube, parsers);
       } else {  // should never be even possible to happen, and yet, there was this one time when it did
         // @ts-ignore If we end up here, we're well outside any kind of sanity TypeScript can possibly be expected to understand.
         throw new TypeError("CubeStore: invalid type supplied to addCube: " + cube_input.constructor.name);
@@ -183,8 +197,8 @@ export class CubeStore extends EventEmitter {
    */
   getCube(
       key: CubeKey | string,
-      parsers: FieldParserTable = undefined,
-      cubeClass = Cube,
+      parsers: FieldParserTable = undefined,  // undefined = will use CubeInfo's default
+      cubeClass = undefined,  // undefined = will use CubeInfo's default
     ): Cube | undefined {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
     if (cubeInfo) return cubeInfo.getCube(parsers, cubeClass);

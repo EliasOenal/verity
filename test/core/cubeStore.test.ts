@@ -1,12 +1,14 @@
 import { Settings } from '../../src/core/settings';
 import { Cube } from '../../src/core/cube/cube';
 import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
-import { CubeField, CubeFieldType, CubeFields, coreFieldParsers, coreTlvDumbParser, coreTlvFieldParsers } from '../../src/core/cube/cubeFields';
+import { CubeField, CubeFieldType, coreFieldParsers, coreTlvFieldParsers } from '../../src/core/cube/cubeFields';
 
 import sodium from 'libsodium-wrappers'
 import { logger } from '../../src/core/logger';
 import { validBinaryCube } from './cube.test';
 import { CubeType } from '../../src/core/cube/cubeDefinitions';
+import { MediaTypes, cciField, cciFieldParsers, cciFieldType, cciFields } from '../../src/cci/cciFields';
+import { cciCube } from '../../src/cci/cciCube';
 
 describe('cubeStore', () => {
   let cubeStore: CubeStore;
@@ -73,7 +75,7 @@ describe('cubeStore', () => {
     beforeEach(() => {
       cubeStore = new CubeStore({
         enableCubePersistance: false,
-        requiredDifficulty: 0,  // require no hashcash for faster testing
+        requiredDifficulty: reduced_difficulty,
       });
     });
 
@@ -168,5 +170,53 @@ describe('cubeStore', () => {
       expect(restoredpayload?.value.toString('utf8')).toEqual(
         "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum.");
     });
+
+    it('should not parse TLV fields by default', async() => {
+      const spammyCube = Cube.Dumb(  // Cube with 300 TLV fields
+        Array.from({ length: 300 }, () => CubeField.Payload("!")));
+      const spammyBinary: Buffer = await spammyCube.getBinaryData();
+      const spamKey: Buffer = await spammyCube.getKey();
+      expect(spammyCube.fields.all.length).toBeGreaterThan(300);  // lots of spam
+      await cubeStore.addCube(spammyBinary);
+
+      const restored: Cube = cubeStore.getCube(spamKey);
+      expect(restored.fields.all.length).toEqual(3);  // spam ignored
+    });
+  });
+
+  describe('tests involving CCI layer', () => {
+
+    it("respects the user's Cube parsing settings", async() => {
+      const cciCubeStore: CubeStore = new CubeStore({
+        enableCubePersistance: false,
+        requiredDifficulty: reduced_difficulty,
+        parsers: cciFieldParsers,
+        cubeClass: cciCube,
+      });
+      const cube: cciCube = cciCube.Dumb([
+        cciField.Application("Applicatio probandi"),
+        cciField.MediaType(MediaTypes.TEXT),
+        cciField.Username("Usor probandi"),
+        cciField.Payload("In hac applicatio probationis, usor probandi creat contentum probandi, ut programma probatorium confirmet omnem testium datam conservatam esse."),
+      ], cciFieldParsers, reduced_difficulty);
+      const binaryCube: Buffer = await cube.getBinaryData();
+      const key: Buffer = await cube.getKey();
+      const added = await cciCubeStore.addCube(binaryCube);
+      expect(added).toBeTruthy();
+
+      const restored: cciCube = cciCubeStore.getCube(key) as cciCube;
+      expect(restored).toBeTruthy();
+      expect(restored).toBeInstanceOf(cciCube);
+      expect(restored.fields).toBeInstanceOf(cciFields);
+      expect(restored.fields.getFirst(cciFieldType.APPLICATION).value.toString())
+        .toEqual("Applicatio probandi");
+      expect(restored.fields.getFirst(cciFieldType.MEDIA_TYPE).value.length).toEqual(1);
+      expect(restored.fields.getFirst(cciFieldType.MEDIA_TYPE).value[0]).toEqual(
+        MediaTypes.TEXT);
+      expect(restored.fields.getFirst(cciFieldType.USERNAME).value.toString())
+        .toEqual("Usor probandi");
+      expect(restored.fields.getFirst(cciFieldType.PAYLOAD).value.toString()).toEqual(
+        "In hac applicatio probationis, usor probandi creat contentum probandi, ut programma probatorium confirmet omnem testium datam conservatam esse.");
+    })
   });
 });
