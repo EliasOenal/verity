@@ -121,7 +121,7 @@ export class CubeStore extends EventEmitter {
           const winningCube: CubeMeta = cubeContest(storedCube, cubeInfo);
           if (winningCube === storedCube) {
             logger.info('CubeStorage: Keeping stored MUC over incoming MUC');
-            return storedCube.getCube();
+            return storedCube.getCube();  // TODO: it's completely unnecessary to instantiate the potentially dormant Cube here -- maybe change the addCube() signature once again and not return a Cube object after all?
           } else {
             logger.info('CubeStorage: Replacing stored MUC with incoming MUC');
           }
