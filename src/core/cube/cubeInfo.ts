@@ -2,6 +2,8 @@ import { Cube } from './cube'
 import { CubeType, CubeKey, CubeError } from './cubeDefinitions';
 import { FieldParserTable, coreFieldParsers } from './cubeFields';
 
+import { Buffer } from 'buffer';
+
 /**
  * @interface CubeMeta is a restricted view on CubeInfo containing metadata only.
  *            Basically, it's the CubeInfo without the actual Cube :)

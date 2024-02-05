@@ -5,7 +5,7 @@ import { CubeStore } from "../core/cube/cubeStore";
 import { logger } from "../core/logger";
 import { AnnotationEngine, defaultGetFieldsFunc } from "../cci/annotationEngine";
 import { Identity } from "../cci/identity";
-import { MediaTypes, cciFieldLength, cciFieldType, cciFields, cciRelationship, cciRelationshipLimits, cciRelationshipType } from "../cci/cciFields";
+import { MediaTypes, cciFieldLength, cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipLimits, cciRelationshipType } from "../cci/cciFields";
 
 import { assertZwCube, assertZwMuc } from "./zwCubes";
 import { cciCube } from "../cci/cciCube";
@@ -69,7 +69,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
 
     // is this even a valid ZwCube?
     if (!assertZwCube) return false;
-    const fields: cciFields = this.getFields(cubeInfo.getCube()) as cciFields;
+    const fields: cciFields = this.getFields(cubeInfo.getCube(cciFieldParsers, cciCube)) as cciFields;  // TODO de-uglify
 
     // does this have a ZwPayload field and does it contain something??
     const payload = fields.getFirst(cciFieldType.PAYLOAD);
@@ -77,7 +77,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
 
     // does it have the correct media type?
     const typefield = fields.getFirst(cciFieldType.MEDIA_TYPE);
-    if (!typefield) return;
+    if (!typefield) return false;
     if (mediaType && mediaType != typefield.value.readUIntBE(0, cciFieldLength[cciFieldType.MEDIA_TYPE])) {
       return false;
     }

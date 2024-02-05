@@ -4,12 +4,12 @@ import { logger } from '../core/logger';
 
 import { Level } from 'level';
 import { cciField, cciFieldParsers, cciFieldType, cciFields, cciMucFieldDefinition, cciRelationship, cciRelationshipType } from './cciFields';
-import { CubeError, CubeKey, CubeType } from '../core/cube/cubeDefinitions';
+import { CubeError, CubeKey, CubeType, FieldError } from '../core/cube/cubeDefinitions';
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
 import { Buffer } from 'buffer';
 import { CubeStore } from '../core/cube/cubeStore';
-import { Settings, VerityError } from '../core/settings';
+import { ApiMisuseError, Settings, VerityError } from '../core/settings';
 import { ZwConfig } from '../app/zwConfig';
 import { CubeInfo } from '../core/cube/cubeInfo';
 
@@ -137,6 +137,24 @@ export class Identity {
    */
   private makeMucPromise: Promise<cciCube> = undefined;
 
+  /**
+   * Depending on whether you provide a MUC, this will either create a brand
+   * new Identity or load one from the supplied MUC.
+   * Usage note: Consider using Identity.retrieve() instead which automatically
+   * handles loading existing Identities from local storage.
+   * @param [muc] A valid Identity MUC
+   * @param [persistance] If you want to locally store this Identity to disk,
+   *        please construct an IdentityPersistance object and supply it here
+   * @param [createByDefault] If true, which is the default, this will generate
+   *        a new Identity if no MUC was supplied.
+   * @param [minMucRebuildDelay] Set this to override the system-defined minimum
+   *        time between Identity MUC updates.
+   * @param [required_difficulty] Set this to override tbe system-defined
+   *        minimum Cube challenge difficulty. For example, you may want to set
+   *        this to 0 for testing.
+   * @throws FieldError when supplied MUC is unparsable or ApiMisuseError in
+   *         in case of conflicting params.
+   **/
   constructor(
       cubeStore: CubeStore,
       muc: cciCube = undefined,
@@ -157,10 +175,10 @@ export class Identity {
       this._muc = cciCube.MUC(
         Buffer.from(keys.publicKey), Buffer.from(keys.privateKey),
         [], cciFieldParsers, required_difficulty);
-      if (!(this._muc instanceof cciCube)) throw new CubeError("Identity: Newly created CCI Cube is not CCI o.O");
+      if (!(this._muc instanceof cciCube)) throw new CubeError("Identity: Newly created CCI Cube is not CCI o.O");  // should never happen, TODO remove once CCI object handling is more stable
     }
     else {
-      throw new CubeError("Identity: Cannot restore Identity without valid MUC.")
+      throw new ApiMisuseError("Identity: Cannot restore Identity without valid MUC.")
     }
   }
 
@@ -435,7 +453,7 @@ export class Identity {
     const nameField: cciField = muc.fields.getFirst(cciFieldType.USERNAME);
     if (nameField) this.name = nameField.value.toString('utf-8');
     if (!this.name) {
-      throw new CubeError("Identity: Supplied MUC lacks user name");
+      throw new FieldError("Identity: Supplied MUC lacks user name");
     }
 
     // read cube references, these being:
@@ -592,14 +610,21 @@ export class IdentityPersistance {
     );
   }
 
-  async retrieve(cubeStore: CubeStore): Promise<Array<Identity>> {
+  /**
+   * @returns A list of all locally stored Identites. Note that for this two
+   * work, two conditions must be satisfied: The Identities's keys must be
+   * present in the local Identity DB and the corresponding Identity MUCs must
+   * be present in the local Cube store.
+   * This method will *not* retrieve missing MUCs from the network.
+   */
+  async retrieve(cubeStore: CubeStore): Promise<Identity[]> {
     if (this.db.status != 'open') {
       logger.error("IdentityPersistance: Could not retrieve identity, DB not open");
       return undefined;
     }
     const identities: Array<Identity> = [];
     for await (const [pubkey, privkey] of this.db.iterator() ) {
-      // try {
+      try {
         const muc = cubeStore.getCube(Buffer.from(pubkey, 'hex')) as cciCube;  // TODO: either assert cciCube or document why assertion not required
         if (muc === undefined) {
           logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkey + " is not present");
@@ -608,9 +633,9 @@ export class IdentityPersistance {
         muc.privateKey = Buffer.from(privkey, 'hex');
         const id = new Identity(cubeStore, muc, this);
         identities.push(id);
-        // } catch (error) {
-        //   logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
-        // }
+      } catch (error) {
+        logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
+      }
     }
     return identities;
   }

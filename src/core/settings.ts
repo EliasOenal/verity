@@ -40,3 +40,4 @@ export const Settings = {
 }
 
 export class VerityError extends Error {}
+export class ApiMisuseError extends VerityError { }

@@ -8,7 +8,7 @@ import { Buffer } from 'buffer'
 import { Settings } from "../core/settings";
 import { BaseField, BaseFields } from "../core/cube/baseFields";
 import { CubeKey, CubeType, WrongFieldType } from "../core/cube/cubeDefinitions";
-import { cciConstants } from "./cciConstants";
+import { cciConstants } from "./cciDefinitions";
 
 // HACKHACK: For proper layering, this file should define CCI field IDs and
 // associated length data. These should extend the base CubeFieldTypes.

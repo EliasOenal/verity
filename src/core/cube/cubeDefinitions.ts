@@ -23,6 +23,8 @@ export class InsufficientDifficulty extends CubeError { }
 export class InvalidCubeKey extends CubeError { }
 
 export class FieldError extends CubeError { }
+export class MissingFieldError extends FieldError { }
+export class FieldContentError extends FieldError { }
 export class FieldSizeError extends FieldError { }
 export class UnknownFieldType extends FieldError { }
 export class FieldNotImplemented extends FieldError { }
