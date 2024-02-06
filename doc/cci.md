@@ -16,7 +16,7 @@ CCI delineates a specific range of type numbers for standardized fields and rese
 
 | Type (Hex)  | Length | Field Name             | Description |
 |-------------|--------|------------------------|-------------------------------------------------------------------------------------|
-| 0x00        |      0 | Non-CCI Indicator      | Can only be the first field. Indicates that CCI is not used. For any other position 0x00 indicates end of fields. |
+| 0x00        |      0 | Non-CCI Indicator      | Can only be the first field. Indicates that CCI is not used. For any other position 0x00 indicates end of CCI fields, the parser may stop. |
 | 0x01        |    var | Application Identifier | Unique identifier for the application.                                              |
 | 0x02        |     32 | Next Cube Reference    | 32-byte key of the target cube.                                                     |
 | 0x03        |    var | MUC/PMUC KDF hint/id   | Clients may store a value aiding in the re-calculation of the MUC/PMUC private key from a master key. (e.g. key derivation using BIP-44 or libsodium's crypto_kdf.) |
