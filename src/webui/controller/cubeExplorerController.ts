@@ -20,15 +20,22 @@ export class CubeExplorerController extends VerityController {
    * @param [search] If defined, only show Cubes whose hex-represented key
    * includes this string.
    */
-  // TODO limit max cubes shown
+  // TODO cube search
   // TODO support non CCI cubes (including invalid / partial CCI cubes)
   redisplay(search: string = undefined) {
     this.view.clearAll();
+    let displayed = 0, unparsable = 0;
     for (const key of this.cubeStore.getAllKeystrings()) {
       if (search && !key.includes(search)) continue;  // skip non-matching
       const cube: cciCube = this.cubeStore.getCube(key, cciFieldParsers, cciCube) as cciCube;
-      if (!cube) continue;  // TODO error handling
+      if (!cube) {
+        unparsable++;
+        continue;  // TODO error handling
+      }
+      displayed++;
       this.view.displayCube(key, cube);
+      if (displayed > this.maxCubes) break;
     }
+    this.view.displayStats(this.cubeStore.getNumberOfStoredCubes(), displayed, unparsable);
   }
 }

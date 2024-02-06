@@ -257,6 +257,7 @@ table.veritySchematicCube {
 .verityCubeSummary {
   overflow: hidden;
   text-overflow: ellipsis;
+  text-wrap: nowrap;
 }
 .veritySchematicFieldDetails td {
   overflow: hidden;
