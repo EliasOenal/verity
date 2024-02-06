@@ -87,7 +87,7 @@ export class NetworkPeer extends Peer {
         // Take note of all cubes I could share with this new peer. While the
         // connection lasts, supplement this with any newly learned cubes.
         // This is used to ensure we don't offer peers the same cube twice.
-        this.unsentCubeMeta = cubeStore.getAllStoredCubeMeta();
+        this.unsentCubeMeta = cubeStore.getAllCubeMeta();
         cubeStore.on('cubeAdded', (cube: CubeMeta) => this.unsentCubeMeta.add(cube));
 
         // Take note of all other peers I could exchange with this new peer.

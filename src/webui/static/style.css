@@ -242,3 +242,19 @@ li.verityPeer {
 .verityPeerData {
   overflow-wrap: anywhere;
 }
+
+
+/*
+ * Cube explorer
+ */
+ul.verityCubeList {
+  list-style-type: none;
+  padding-left: 0;
+}
+table.veritySchematicCube {
+  border: none;
+}
+.verityCubeSummary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

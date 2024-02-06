@@ -209,7 +209,7 @@ export class CubeStore extends EventEmitter {
    * Converts all cube keys to actual CubeKeys (i.e. binary buffers).
    * If you're fine with strings, just call this.storage.keys instead, much cheaper.
    */
-  getAllStoredCubeKeys(): Set<CubeKey> {
+  getAllKeys(): Set<CubeKey> {
     const ret: Set<CubeKey> = new Set();
     for (const [key, cubeInfo] of this.storage) {
       ret.add(cubeInfo.key);
@@ -217,8 +217,12 @@ export class CubeStore extends EventEmitter {
     return ret;
   }
 
+  getAllKeystrings(): IterableIterator<string> {
+    return this.storage.keys();
+  }
+
   // TODO: we can probably get rid of this method now
-  getAllStoredCubeMeta(): Set<CubeMeta> {
+  getAllCubeMeta(): Set<CubeMeta> {
     const ret: Set<CubeMeta> = new Set();
     for (const [key, cubeInfo] of this.storage) {
       ret.add(cubeInfo);

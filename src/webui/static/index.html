@@ -89,6 +89,12 @@
                     Subscribed (+preceding+WOT3)
                 </a>
               </li>
+              <li class="nav-item" id="navCubeExplorer">
+                <a href="#" class="nav-link"
+                  onclick="window.verityUI.navCubeExplorer()">
+                    Cube Explorer
+                </a>
+              </li>
             </ul>
 
             <div class="row my-4" id="identityrow">
@@ -111,9 +117,9 @@
 
         <div class="col-sm-8 container-fluid" id="verityContentArea">
         </div> <!-- verityContentArea -->
-      </div>
-    </div>
-  </div>
+      </div> <!-- globalrow -->
+    </div> <!-- container-fluid -->
+  </div> <!-- content-wrapper -->
 
 
 
@@ -269,8 +275,46 @@
         </li>
       </ul>
     </div>
-  </template> <!-- verityPostViewTemplate -->
+  </template> <!-- verityPeerViewTemplate -->
 
-</body> <!-- globalrow, container and body -->
+
+
+  <template id="verityCubeExplorerTemplate">
+    <div class="verityCubeExplorer">
+      <h2 class="mt-3 mt-sm-5 mb-3">Cube explorer</h2>
+
+      <ul class="verityCubeList accordion" id="verityExploredCubes">
+        <li class="verityCube accordion-item"
+            data-cubekey="44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000">
+          <h5 class="accordion-header">
+            <button class="accordion-button verityCubeToggleControl verityCubeSummary collapsed"
+                    type="button" data-bs-toggle="collapse" aria-expanded="false"
+                    data-bs-target="#verityExploredCube-44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000"
+                    aria-controls="verityExploredCube-44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000">
+              44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000
+            </button>
+          </h5>
+          <div id="verityExploredCube-44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000"
+               class="accordion-collapse collapse verityExploredCube"
+               data-bs-parent="#verityExploredCubes">
+            <div class="accordion-body">
+              <!-- Schematic Cube view-->
+              <table class="veritySchematicCube">
+                <tr class="veritySchematicFields">
+                  <td class="veritySchematicField verityCoreField">Version</td>
+                  <td class="veritySchematicField verityCoreField">Payload</td>
+                  <td class="veritySchematicField verityCoreField">Date</td>
+                  <td class="veritySchematicField verityCoreField">Nonce</td>
+                </tr>
+              </table>  <!-- End schematic Cube view-->
+            </div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </template> <!-- verityCubeExplorerTemplate -->
+
+
+</body>
 
 </html>

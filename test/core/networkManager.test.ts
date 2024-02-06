@@ -299,19 +299,19 @@ describe('networkManager', () => {
                 await cubeStore.addCube(cube);
             }
 
-            expect(cubeStore.getAllStoredCubeKeys().size).toEqual(numberOfCubes);
+            expect(cubeStore.getAllKeys().size).toEqual(numberOfCubes);
 
             // sync cubes from peer 1 to peer 2
             expect(manager1.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
             manager2.outgoingPeers[0].sendKeyRequest();
             // Verify cubes have been synced. Wait up to three seconds for that to happen.
             for (let i = 0; i < 30; i++) {
-                if (cubeStore2.getAllStoredCubeKeys().size == numberOfCubes) {
+                if (cubeStore2.getAllKeys().size == numberOfCubes) {
                     break;
                 }
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
-            for (const hash of cubeStore.getAllStoredCubeKeys()) {
+            for (const hash of cubeStore.getAllKeys()) {
                 expect(cubeStore2.getCube(hash)).toBeInstanceOf(Cube);
             }
 
@@ -320,12 +320,12 @@ describe('networkManager', () => {
             manager3.incomingPeers[0].sendKeyRequest();
             // Verify cubes have been synced. Wait up to three seconds for that to happen.
             for (let i = 0; i < 30; i++) {
-                if (cubeStore3.getAllStoredCubeKeys().size == numberOfCubes) {
+                if (cubeStore3.getAllKeys().size == numberOfCubes) {
                     break;
                 }
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
-            for (const hash of cubeStore2.getAllStoredCubeKeys()) {
+            for (const hash of cubeStore2.getAllKeys()) {
                 expect(cubeStore3.getCube(hash)).toBeInstanceOf(Cube);
             }
 
@@ -388,7 +388,7 @@ describe('networkManager', () => {
             );
             mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
             const firstMucHash = await muc.getHash();
-            expect(cubeStore.getAllStoredCubeKeys().size).toEqual(1);
+            expect(cubeStore.getAllKeys().size).toEqual(1);
 
             // sync MUC from peer 1 to peer 2
             expect(manager2.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
@@ -402,7 +402,7 @@ describe('networkManager', () => {
             }
 
             // check MUC has been received correctly at peer 2
-            expect(cubeStore2.getAllStoredCubeKeys().size).toEqual(1);
+            expect(cubeStore2.getAllKeys().size).toEqual(1);
             expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
             expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(firstMucHash)).toBeTruthy();
             receivedFields = cubeStore2.getCube(mucKey, coreTlvFieldParsers)?.fields!;
@@ -418,7 +418,7 @@ describe('networkManager', () => {
                 coreTlvFieldParsers, Cube, reduced_difficulty);
             mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
             const secondMucHash = await muc.getHash();
-            expect(cubeStore.getAllStoredCubeKeys().size).toEqual(1);  // still just one, new MUC version replaces old MUC version
+            expect(cubeStore.getAllKeys().size).toEqual(1);  // still just one, new MUC version replaces old MUC version
 
             // sync MUC from peer 1 to peer 2, again
             manager2.incomingPeers[0].sendKeyRequest();
@@ -431,7 +431,7 @@ describe('networkManager', () => {
             }
 
             // check MUC has been updated correctly at peer 2
-            expect(cubeStore2.getAllStoredCubeKeys().size).toEqual(1);
+            expect(cubeStore2.getAllKeys().size).toEqual(1);
             expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
             expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(secondMucHash)).toBeTruthy();
             receivedFields = cubeStore2.getCube(mucKey, coreTlvFieldParsers)?.fields!;

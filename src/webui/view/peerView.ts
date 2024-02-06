@@ -8,14 +8,12 @@ export class PeerView extends VerityView {
   private peerList: HTMLUListElement;
 
   constructor(
-    private myId: string,
-    private htmlTemplate: HTMLTemplateElement = document.getElementById(
+      private myId: string,
+      htmlTemplate: HTMLTemplateElement = document.getElementById(
         "verityPeerViewTemplate") as HTMLTemplateElement,
       show: boolean = false,
   ){
-    super();
-    this.renderedView =
-      this.htmlTemplate.content.firstElementChild.cloneNode(true) as HTMLElement;
+    super(htmlTemplate);
     this.peerList = this.renderedView.querySelector(".verityPeerList");
     this.clearAll();
     this.printMyId();
@@ -30,17 +28,11 @@ export class PeerView extends VerityView {
     let newli: boolean = false;
     if (!li) {
       newli = true;
-      li = this.newPeerEntry(peer);
+      li = this.newEntry(".verityPeer") as HTMLLIElement;
     }
     // Display data, then show this peer container
     this.redrawPeerData(peer, li);
     if (newli) this.peerList.appendChild(li);
-    return li;
-  }
-
-  newPeerEntry(peer: Peer): HTMLLIElement {
-    const templateLi: HTMLLIElement = this.htmlTemplate.content.querySelector(".verityPeer");
-    const li: HTMLLIElement = templateLi.cloneNode(true) as HTMLLIElement;
     return li;
   }
 
