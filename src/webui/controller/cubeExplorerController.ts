@@ -1,3 +1,5 @@
+import { cciCube } from "../../cci/cciCube";
+import { cciFieldParsers } from "../../cci/cciFields";
 import { Cube } from "../../core/cube/cube";
 import { CubeStore } from "../../core/cube/cubeStore";
 import { CubeExplorerView } from "../view/cubeExplorerView";
@@ -19,11 +21,12 @@ export class CubeExplorerController extends VerityController {
    * includes this string.
    */
   // TODO limit max cubes shown
+  // TODO support non CCI cubes (including invalid / partial CCI cubes)
   redisplay(search: string = undefined) {
     this.view.clearAll();
     for (const key of this.cubeStore.getAllKeystrings()) {
       if (search && !key.includes(search)) continue;  // skip non-matching
-      const cube: Cube = this.cubeStore.getCube(key);
+      const cube: cciCube = this.cubeStore.getCube(key, cciFieldParsers, cciCube) as cciCube;
       if (!cube) continue;  // TODO error handling
       this.view.displayCube(key, cube);
     }

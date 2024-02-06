@@ -25,7 +25,7 @@ export class PostView extends VerityView {
   displayPost(data: PostData): void {
     // Get the post template from HTML and clone it
     const container = this.getOrCreateContainer(data);
-    const li: HTMLLIElement = this.newEntry(".verityPost") as HTMLLIElement;
+    const li: HTMLLIElement = this.newFromTemplate(".verityPost") as HTMLLIElement;
     // save the display element to the PostData record
     data.displayElement = li;
     const form: HTMLFormElement =

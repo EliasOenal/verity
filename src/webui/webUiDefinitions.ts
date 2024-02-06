@@ -35,7 +35,7 @@ export abstract class VerityView {
     this.unshow();
   }
 
-  newEntry(templateQuery: string): HTMLElement {
+  newFromTemplate(templateQuery: string): HTMLElement {
     const templateEntry: HTMLElement =
       this.htmlTemplate.content.querySelector(templateQuery);
     const entry: HTMLElement = templateEntry.cloneNode(true) as HTMLElement;
