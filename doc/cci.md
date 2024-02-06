@@ -14,13 +14,14 @@ CCI delineates a specific range of type numbers for standardized fields and rese
 
 ### Common Cube Interface (CCI) Field Specifications
 
-| Type (Hex)  | Field Name             | Description |
-|-------------|------------------------|-------------------------------------------------------------------------------------|
-| 0x00        | Non-CCI Indicator      | Can only be the first field. Indicates that CCI is not used.                        |
-| 0x01        | Application Identifier | Unique identifier for the application.                                              |
-| 0x02        | Next Cube Reference    | 32-byte key of the target cube.                                                     |
-| 0x03 - 0x0F | Reserved               | Reserved for future standard fields that might be defined as the CCI evolves.       |
-| 0x10 - 0x3F | Custom Fields          | Defined by individual applications to store application-specific data and metadata. |
+| Type (Hex)  | Length | Field Name             | Description |
+|-------------|--------|------------------------|-------------------------------------------------------------------------------------|
+| 0x00        |      0 | Non-CCI Indicator      | Can only be the first field. Indicates that CCI is not used. For any other position 0x00 indicates end of fields. |
+| 0x01        |    var | Application Identifier | Unique identifier for the application.                                              |
+| 0x02        |     32 | Next Cube Reference    | 32-byte key of the target cube.                                                     |
+| 0x03        |    var | MUC/PMUC KDF hint/id   | Clients may store a value aiding in the re-calculation of the MUC/PMUC private key from a master key. (e.g. key derivation using BIP-44 or libsodium's crypto_kdf.) |
+| 0x04 - 0x0F |    TBD | Reserved               | Reserved for future standard fields that might be defined as the CCI evolves.       |
+| 0x10 - 0x3F |    var | Custom Fields          | Defined by individual applications to store application-specific data and metadata. |
 
 **Next Cube Reference**: Contains the 32-byte key of the target cube. Facilitates the assembly of content spanning multiple cubes by concatenating the field prior to this field with the first field of the same type in the referenced cube. This may be chained multiple times for content of arbitrary length.
 
