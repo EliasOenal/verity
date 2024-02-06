@@ -28,7 +28,7 @@ export class PeerView extends VerityView {
     let newli: boolean = false;
     if (!li) {
       newli = true;
-      li = this.newEntry(".verityPeer") as HTMLLIElement;
+      li = this.newFromTemplate(".verityPeer") as HTMLLIElement;
     }
     // Display data, then show this peer container
     this.redrawPeerData(peer, li);

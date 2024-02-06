@@ -258,3 +258,9 @@ table.veritySchematicCube {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.veritySchematicFieldDetails td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-wrap: wrap;
+  word-break: break-all;
+}
