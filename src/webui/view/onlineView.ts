@@ -5,7 +5,7 @@ export class OnlineView extends VerityView {
      viewArea: HTMLElement = document.getElementById("verityOnlineStatusArea"),
      show: boolean = true,
   ){
-    super(viewArea);
+    super(undefined, viewArea);
     if (show) this.show();
   }
 

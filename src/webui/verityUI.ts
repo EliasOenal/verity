@@ -14,6 +14,7 @@ import { PeerController } from './controller/peerController';
 
 import { isBrowser } from 'browser-or-node';
 import sodium from 'libsodium-wrappers'
+import { CubeExplorerController } from './controller/cubeExplorerController';
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
@@ -36,12 +37,14 @@ export class VerityUI {
 
   postController: PostController = undefined;
   peerController: PeerController = undefined;
+  cubeExplorerController: CubeExplorerController = undefined;
 
 
   constructor(
       readonly node: VerityNode
     ){
     this.peerController = new PeerController(this.node.networkManager, this.node.peerDB);
+    this.cubeExplorerController = new CubeExplorerController(this.node.cubeStore);
   }
 
   shutdown() {
@@ -67,7 +70,7 @@ export class VerityUI {
 
   // Navigation
   // maybe TODO: Move this to a new NavController/NavView
-  navPostsAll() {
+  navPostsAll(): void {
     logger.trace("VerityUI: Displaying all posts including anonymous ones");
     this.navbarMarkActive("navPostsAll");
     this.annotationEngine = new ZwAnnotationEngine(
@@ -79,7 +82,7 @@ export class VerityUI {
     this.postController = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
-  navPostsWithAuthors() {
+  navPostsWithAuthors(): void {
     logger.trace("VerityUI: Displaying posts associated with a MUC");
     this.navbarMarkActive("navPostsWithAuthors");
     this.annotationEngine = new ZwAnnotationEngine(
@@ -91,7 +94,7 @@ export class VerityUI {
     this.postController = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
-  navPostsSubscribedInTree() {
+  navPostsSubscribedInTree(): void {
     if (!this.identity) return;
     logger.trace("VerityUI: Displaying posts from trees with subscribed author activity");
     this.navbarMarkActive("navPostsSubscribedInTree");
@@ -104,7 +107,7 @@ export class VerityUI {
     this.postController = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
-  navPostsSubscribedReplied(wotDepth: number = 0) {
+  navPostsSubscribedReplied(wotDepth: number = 0): void {
     if (!this.identity) return;
     logger.trace("VerityUI: Displaying posts from subscribed authors and their preceding posts");
     let navName: string = "navPostsSubscribedReplied";
@@ -119,7 +122,7 @@ export class VerityUI {
     this.postController = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
   }
 
-  navPostsSubscribedStrict() {
+  navPostsSubscribedStrict(): void {
     if (!this.identity) return;
     logger.trace("VerityUI: Displaying posts from subscribed authors strictly");
     this.navbarMarkActive("navPostsSubscribedStrict");
@@ -135,6 +138,12 @@ export class VerityUI {
   navPeers() {
     this.peerController.view.show();
     this.navbarMarkActive("navPeers");
+  }
+
+  navCubeExplorer(): void {
+    this.navbarMarkActive("navCubeExplorer");
+    this.cubeExplorerController.redisplay();
+    this.cubeExplorerController.view.show();
   }
 
   private navbarMarkActive(id: string) {
