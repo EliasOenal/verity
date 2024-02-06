@@ -112,7 +112,7 @@ Cubes are the elemental units of Verity. Every feature of the network is constru
 
   - `KeyRequest`: This message does not need any further data. The act of repeatedly sending it is sufficient to request all cube keys iteratively. This message may get extended in the future to allow for more fine-grained control over which keys to request. (e.g. by date or by MPT subtree)
 
-  - `HeyResponse`:
+  - `KeyResponse`:
     - **Key Count (4 bytes)**: This is an integer indicating the number of keys being sent.
     - **Cube Details**: Each detail includes:
       - **Cube Type (1 byte)**: The type of the cube (e.g., regular, MUC, IPC).
