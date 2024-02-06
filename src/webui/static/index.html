@@ -282,6 +282,20 @@
   <template id="verityCubeExplorerTemplate">
     <div class="verityCubeExplorer">
       <h2 class="mt-3 mt-sm-5 mb-3">CCI Cube explorer</h2>
+      <table class="table verityCubeStats">
+        <tr>
+          <th>Total Cubes stored</th>
+          <td class="verityCubeStoreStatTotalCubes">31337</td>
+        </tr>
+        <tr>
+          <th>Cubes displayed</th>
+          <td class="verityCubeStoreStatCubesDisplayed">1337</td>
+        </tr>
+        <tr>
+          <th>Unparsable / non-CCI Cubes skipped</th>
+          <td class="verityCubeStoreStatCubesUnparsable">over 9000</td>
+        </tr>
+      </table>
 
       <ul class="verityCubeList accordion" id="verityExploredCubes">
         <li class="verityCube accordion-item"
@@ -298,6 +312,24 @@
                class="accordion-collapse collapse verityExploredCube"
                data-bs-parent="#verityExploredCubes">
             <div class="accordion-body">
+              <table class="table verityCubeInfo">
+                <tr>
+                  <th>Cube type</th>
+                  <td class="verityCubeType">Dumb</td>
+                </tr>
+                <tr>
+                  <th>Hash</th>
+                  <td class="verityCubeHash">44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000</td>
+                </tr>
+                <tr>
+                  <th>Date</th>
+                  <td class="verityCubeDate">Tuesday, February 6, 2024 1:01:04 PM</td>
+                </tr>
+                <tr>
+                  <th>Difficulty</th>
+                  <td class="verityCubeDifficulty">42</td>
+                </tr>
+              </table>
               <!-- Schematic Cube view-->
               <ul class="veritySchematicFields nav nav-pills mb-3"
                 id="pills-tab-44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000" role="tablist">
