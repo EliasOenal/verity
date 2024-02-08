@@ -3,14 +3,35 @@ import { Cube } from '../../src/core/cube/cube';
 import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
 import { CubeField, CubeFieldType, coreFieldParsers, coreTlvFieldParsers } from '../../src/core/cube/cubeFields';
 
-import sodium from 'libsodium-wrappers'
+import sodium from 'libsodium-wrappers-sumo'
 import { logger } from '../../src/core/logger';
-import { validBinaryCube } from './cube.test';
 import { CubeType } from '../../src/core/cube/cubeDefinitions';
 import { MediaTypes, cciField, cciFieldParsers, cciFieldType, cciFields } from '../../src/cci/cciFields';
 import { cciCube } from '../../src/cci/cciCube';
 
 describe('cubeStore', () => {
+  // TODO: Update payload field ID. Make tests actually check payload.
+  const validBinaryCube =  Buffer.from([
+    // Cube version (1) (half byte), Cube type (basic "dumb" Cube, 0) (half byte)
+    0x10,
+
+    // Payload TLV field
+    0x04,  // payload field type is 4 (1 byte)
+    0x14,  // payload length is 20 chars (1 byte)
+    0x43, 0x75, 0x62, 0x75, 0x73, 0x20, // "Cubus "
+    0x64, 0x65, 0x6d, 0x6f, 0x6e, 0x73, 0x74, 0x72,
+    0x61, 0x74, 0x69, 0x76, 0x75, 0x73, // "demonstrativus"
+
+    // Padding: padding is TLV field type 2 (6 bits), padding length is 990 (10 bits)
+    0b00001011, 0b11011110,
+    // 990 bytes of padding, all zeros for this example
+    ...Array.from({ length: 990 }, () => 0x00),
+
+    // Date (5 bytes)
+    0x00, 0x65, 0xba, 0x8e, 0x38,
+    0x00, 0x00, 0x00, 0xed  // Nonce passing challenge requirement
+  ]);
+
   let cubeStore: CubeStore;
   const reduced_difficulty = 0;
 

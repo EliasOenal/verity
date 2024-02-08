@@ -176,7 +176,7 @@ export class PostController extends VerityController {
       id = new Identity(
         this.cubeStore,
         mucInfo.getCube(cciFieldParsers, cciCube) as cciCube,
-        undefined, false);
+        {parsers: cciFieldParsers});
     } catch(error) { return; }
     for (const post of id.posts) {
       const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(post);

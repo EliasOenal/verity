@@ -2,7 +2,7 @@ import { AnnotationEngine, defaultGetFieldsFunc } from '../../src/cci/annotation
 import { Cube } from '../../src/core/cube/cube';
 import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
 
-import sodium, { KeyPair } from 'libsodium-wrappers'
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { cciField, cciFieldParsers, cciRelationship, cciRelationshipType } from '../../src/cci/cciFields';
 import { cciCube } from '../../src/cci/cciCube';
 

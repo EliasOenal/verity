@@ -3,20 +3,23 @@ import { CubeKey } from '../../src/core/cube/cubeDefinitions';
 import { CubeStore } from '../../src/core/cube/cubeStore';
 import { Cube } from '../../src/core/cube/cube'
 
-import { Identity, IdentityPersistance } from '../../src/cci/identity'
+import { Identity, IdentityOptions, IdentityPersistance } from '../../src/cci/identity'
 import { makePost } from '../../src/app/zwCubes';
 import { cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipType } from '../../src/cci/cciFields';
 
-import sodium from 'libsodium-wrappers'
+import sodium from 'libsodium-wrappers-sumo'
 import { cciCube } from '../../src/cci/cciCube';
-import { ZwConfig } from '../../src/app/zwConfig';
 
 // maybe TODO: Some tests here use "ZW" stuff from the microblogging app
 // which breaks the current layering.
 
 describe('Identity', () => {
+  const reducedDifficulty = 0;  // no hash cash for testing
+  const idTestOptions: IdentityOptions = {
+    minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
+    requiredDifficulty: reducedDifficulty,
+  }
   let cubeStore: CubeStore;
-  const reduced_difficulty = 0;
 
   beforeAll(async () => {
     await sodium.ready;
@@ -30,10 +33,11 @@ describe('Identity', () => {
   });
 
   describe('MUC storage', () => {
-    it('should store and retrieve a minimal Identity to and from a MUC object', async() => {
-      const original: Identity = new Identity(cubeStore, undefined, undefined, true, 1, reduced_difficulty);  // reduced minimum MUC rebuild time for faster tests
+    it('should create an Identity, then store and retrieve it to and from a MUC object', async() => {
+      const original: Identity = Identity.Create(
+        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       original.name = "Probator Identitatum";
-      const muc = await original.makeMUC(undefined, reduced_difficulty);
+      const muc = await original.makeMUC(undefined, reducedDifficulty);
       expect(muc).toBeInstanceOf(cciCube);
       const mucadded = await cubeStore.addCube(muc);
       expect(mucadded.getKeyIfAvailable()).toEqual(original.publicKey);
@@ -46,7 +50,8 @@ describe('Identity', () => {
     }, 10000);
 
     it('should store and retrieve an Identity to and from a MUC object', async () => {
-      const original: Identity = new Identity(cubeStore, undefined, undefined, true, 1, reduced_difficulty);  // reduced minimum MUC rebuild time for faster tests
+      const original: Identity = Identity.Create(
+        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
 
       // populate ID
       original.name = "Probator Identitatum";
@@ -54,7 +59,7 @@ describe('Identity', () => {
       original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
 
       const post = await makePost("Habeo res importantes dicere",
-        undefined, original, reduced_difficulty);
+        undefined, original, reducedDifficulty);
       const postkey = await post.getKey();
       await cubeStore.addCube(post);
       expect(postkey).toBeInstanceOf(Buffer);
@@ -63,7 +68,7 @@ describe('Identity', () => {
         toEqual("Habeo res importantes dicere");
 
       // compile ID into MUC
-      const muc: cciCube = await original.makeMUC(undefined, reduced_difficulty);
+      const muc: cciCube = await original.makeMUC(undefined, reducedDifficulty);
       expect(muc).toBeInstanceOf(cciCube);
 
       // double check everything's in there
@@ -93,16 +98,17 @@ describe('Identity', () => {
     }, 10000);
 
     it('should store and retrieve an Identity to and from a binary MUC', async () => {
-      const original: Identity = new Identity(cubeStore, undefined, undefined, true, 1, reduced_difficulty);  // reduced minimum MUC rebuild time for faster tests
+      const original: Identity = Identity.Create(
+        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
 
       // populate ID
       original.name = "Probator Identitatum";
       original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
       original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
-      await cubeStore.addCube(await makePost("Habeo res importantes dicere", undefined, original, reduced_difficulty));
+      await cubeStore.addCube(await makePost("Habeo res importantes dicere", undefined, original, reducedDifficulty));
 
       // compile ID into binary MUC
-      const muc = await original.makeMUC(undefined, reduced_difficulty);
+      const muc = await original.makeMUC(undefined, reducedDifficulty);
       expect(muc).toBeInstanceOf(cciCube);
       const muckey = await muc.getKey();
       expect(muckey).toBeInstanceOf(Buffer);
@@ -126,9 +132,10 @@ describe('Identity', () => {
     }, 10000);
 
     it('correctly handles subsequent changes', async () => {
-      const id = new Identity(cubeStore, undefined, undefined, true, 1, reduced_difficulty);  // reduce min time between MUCs to one second for this test
+      const id: Identity = Identity.Create(
+        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       id.name = "Probator Identitatum";
-      const firstMuc: cciCube = await id.store(undefined, reduced_difficulty);
+      const firstMuc: cciCube = await id.store(undefined, reducedDifficulty);
       const firstMucHash: Buffer = firstMuc.getHashIfAvailable();
       expect(firstMuc).toBeInstanceOf(cciCube);
       expect(firstMucHash).toBeInstanceOf(Buffer);
@@ -138,7 +145,7 @@ describe('Identity', () => {
 
       id.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
       id.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
-      const secondMuc: cciCube = await id.store(undefined, reduced_difficulty)
+      const secondMuc: cciCube = await id.store(undefined, reducedDifficulty)
       const secondMucHash: Buffer = secondMuc.getHashIfAvailable();
       expect(secondMuc).toBeInstanceOf(cciCube);
       expect(secondMucHash).toBeInstanceOf(Buffer);
@@ -148,7 +155,7 @@ describe('Identity', () => {
       expect(id.keyBackupCube).toBeInstanceOf(Buffer);
 
       id.name = "Probator Identitatum Repetitus";
-      const thirdMuc: cciCube = await id.store(undefined, reduced_difficulty)
+      const thirdMuc: cciCube = await id.store(undefined, reducedDifficulty)
       const thirdMucHash: Buffer = thirdMuc.getHashIfAvailable();
       expect(thirdMuc).toBeInstanceOf(cciCube);
       expect(thirdMucHash).toBeInstanceOf(Buffer);
@@ -161,12 +168,13 @@ describe('Identity', () => {
 
     it('restores its post list recursively and sorted by creation time descending', async () => {
       const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
-      const original: Identity = new Identity(cubeStore, undefined, undefined, true, 1, reduced_difficulty);  // reduced minimum MUC rebuild time for faster tests
+      const original: Identity = Identity.Create(
+        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       original.name = "Probator memoriae tabellae";
       const idkey = original.publicKey;
 
       for (let i=0; i<TESTPOSTCOUNT; i++) {
-        const post: cciCube = await makePost("I got " + (i+1).toString() + " important things to say", undefined, original, reduced_difficulty);
+        const post: cciCube = await makePost("I got " + (i+1).toString() + " important things to say", undefined, original, reducedDifficulty);
         // manually save post to ID rather then through makePost because we will
         // manipulate the date below, and that changes the key
         original.forgetMyPost(await post.getKey());
@@ -176,7 +184,7 @@ describe('Identity', () => {
       }
       expect(original.posts.length).toEqual(TESTPOSTCOUNT);
 
-      await original.store(undefined, reduced_difficulty)
+      await original.store(undefined, reducedDifficulty)
       const muc: cciCube = original.muc;
       await cubeStore.addCube(muc);
 
@@ -193,7 +201,9 @@ describe('Identity', () => {
     }, 10000);
 
     it('combines makeMUC requests spaced less than 5 seconds apart', async () => {
-      const id: Identity = new Identity(cubeStore, undefined, undefined, true, ZwConfig.MIN_MUC_REBUILD_DELAY, reduced_difficulty);
+      const id: Identity = Identity.Create(
+        cubeStore, "usor probationis", "clavis probationis",
+        {minMucRebuildDelay: 5, requiredDifficulty: reducedDifficulty});
       // Creating a new Identity does build a MUC, although it will never be compiler
       // nor added to the CubeStore.
       // The five second minimum delay till regeneration still applies.
@@ -204,10 +214,10 @@ describe('Identity', () => {
       // store() now requests generation of a new, second MUC.
       // This will not happen, though, as the first MUC is less than five seconds old.
       // Instead, the operation will be rescheduled five seconds from now.
-      id.store(undefined, reduced_difficulty);  // note there's no "await"
+      id.store(undefined, reducedDifficulty);  // note there's no "await"
 
       id.name = "Probator Minimae Distantiae Temporis";
-      const thirdMuc: cciCube = await id.store(undefined, reduced_difficulty);  // with await this time
+      const thirdMuc: cciCube = await id.store(undefined, reducedDifficulty);  // with await this time
       expect(thirdMuc).toEqual(id.muc);
       expect(thirdMuc.getHashIfAvailable()).toEqual(id.muc.getHashIfAvailable());
       const thirdMucDate = thirdMuc.getDate();
@@ -226,7 +236,8 @@ describe('Identity', () => {
 
     describe('subscription recommendations', ()  => {
       it('correctly identifies authors as subscribed or not subscribed', async () => {
-        const subject: Identity = new Identity(cubeStore, undefined, undefined, true, ZwConfig.MIN_MUC_REBUILD_DELAY, reduced_difficulty);
+        const subject: Identity = Identity.Create(
+          cubeStore, "subscriptor", "clavis mea", idTestOptions);
         subject.name = "Subscriptor novarum interessantiarum";
 
         // Create 10 subscribed and 10 non-subscribed authors
@@ -235,19 +246,21 @@ describe('Identity', () => {
         const nonsubscribed: CubeKey[] = [];
 
         for (let i=0; i<TESTSUBCOUNT; i++) {
-          const other = new Identity(cubeStore, undefined, undefined, true, ZwConfig.MIN_MUC_REBUILD_DELAY, reduced_difficulty);
+          const other: Identity = Identity.Create(
+            cubeStore, "figurarius"+i, "clavis"+i, idTestOptions);
           other.name = "Figurarius subscriptus numerus " + i;
           other.muc.setDate(0);  // skip waiting period for the test
-          other.store(undefined, reduced_difficulty);
+          other.store(undefined, reducedDifficulty);
           subscribed.push(other.key);
           subject.addSubscriptionRecommendation(other.key);
           expect(subject.subscriptionRecommendations[i].equals(other.key)).toBeTruthy();
         }
         for (let i=0; i<TESTSUBCOUNT; i++) {
-          const other = new Identity(cubeStore, undefined, undefined, true, ZwConfig.MIN_MUC_REBUILD_DELAY, reduced_difficulty);
-          other.name = "Figurarius subscriptus numerus " + i;
+          const other: Identity = Identity.Create(
+            cubeStore, "non implicatus "+i, "secretum"+i, idTestOptions);
+          other.name = "Persona non implicata " + i;
           other.muc.setDate(0);  // skip waiting period for the test
-          other.store(undefined, reduced_difficulty);
+          other.store(undefined, reducedDifficulty);
           nonsubscribed.push(other.key);
         }
 
@@ -258,21 +271,24 @@ describe('Identity', () => {
         }
       });
 
+      // TODO reduce this test's load, probably caused by lots of key derivations
       it('correctly saves and restores recommended subscriptions to and from extension MUCs', async () => {
         // Create a subject and subscribe 100 other authors
         const TESTSUBCOUNT = 100;
-        const subject: Identity = new Identity(cubeStore, undefined, undefined, true, ZwConfig.MIN_MUC_REBUILD_DELAY, reduced_difficulty);
+        const subject: Identity = Identity.Create(
+          cubeStore, "subscriptor", "clavis mea", idTestOptions);
         subject.name = "Subscriptor novarum interessantiarum";
         for (let i=0; i<TESTSUBCOUNT; i++) {
-          const other = new Identity(cubeStore, undefined, undefined, true, ZwConfig.MIN_MUC_REBUILD_DELAY, reduced_difficulty);
+          const other: Identity = Identity.Create(
+            cubeStore, "figurarius"+i, "clavis"+i, idTestOptions);
           other.name = "Figurarius " + i + "-tus";
           other.muc.setDate(0);  // skip waiting period for the test
-          other.store(undefined, reduced_difficulty);
+          other.store(undefined, reducedDifficulty);
           subject.addSubscriptionRecommendation(other.key);
           expect(subject.subscriptionRecommendations[i].equals(other.key)).toBeTruthy();
         }
         subject.muc.setDate(0);  // hack, just for the test let's not wait 5s for the MUC update
-        const muc: cciCube = await subject.store(undefined, reduced_difficulty);
+        const muc: cciCube = await subject.store(undefined, reducedDifficulty);
 
         // Master MUC stored in CubeStore?
         const recovered_muc: cciCube = cubeStore.getCube(subject.key) as cciCube;
@@ -320,18 +336,20 @@ describe('Identity', () => {
       it('preserves extension MUC keys and does not update unchanged MUCs when adding subscriptions', async () => {
         // Create a subject. First subscribe 40 authors, then add one more.
         const TESTSUBCOUNT = 40;
-        const subject: Identity = new Identity(cubeStore, undefined, undefined, true, ZwConfig.MIN_MUC_REBUILD_DELAY, reduced_difficulty);
+        const subject: Identity = Identity.Create(
+          cubeStore, "subscriptor", "clavis mea", idTestOptions);
         subject.name = "Subscriptor consuentus novarum interessantiarum";
         for (let i=0; i<TESTSUBCOUNT; i++) {
-          const other = new Identity(cubeStore, undefined, undefined, true, ZwConfig.MIN_MUC_REBUILD_DELAY, reduced_difficulty);
+          const other: Identity = Identity.Create(
+            cubeStore, "figurarius"+i, "clavis"+i, idTestOptions);
           other.name = "Figurarius " + i + "-tus";
           other.muc.setDate(0);  // skip waiting period for the test
-          other.store(undefined, reduced_difficulty);
+          other.store(undefined, reducedDifficulty);
           subject.addSubscriptionRecommendation(other.key);
           expect(subject.subscriptionRecommendations[i].equals(other.key)).toBeTruthy();
         }
         subject.muc.setDate(0);  // hack, just for the test let's not wait 5s for the MUC update
-        const muc: cciCube = await subject.store(undefined, reduced_difficulty);
+        const muc: cciCube = await subject.store(undefined, reducedDifficulty);
 
         // Good, 40 added. Now let's have a look at the extension MUCs.
         const firstExtensionMuc: cciCube = subject.subscriptionRecommendationIndices[0];
@@ -347,10 +365,11 @@ describe('Identity', () => {
         expect(secondExtensionMucHash).toBeInstanceOf(Buffer);
 
         // Now add one more subscription
-        const plusone: Identity = new Identity(cubeStore, undefined, undefined, true, ZwConfig.MIN_MUC_REBUILD_DELAY, reduced_difficulty);
+        const plusone: Identity = Identity.Create(
+          cubeStore, "adiectus", "secretum", idTestOptions);
         plusone.name = "Figurarius adiectus"
         plusone.muc.setDate(0);  // accelerate test
-        plusone.store(undefined, reduced_difficulty);
+        plusone.store(undefined, reducedDifficulty);
         subject.addSubscriptionRecommendation(plusone.key);
         subject.muc.setDate(0);  // accelarate test
         await subject.store();
@@ -379,6 +398,7 @@ describe('Identity', () => {
 
   describe('local persistant storage', () => {
     let persistance: IdentityPersistance;
+    let idTestOptions: IdentityOptions;
 
     beforeEach(async () => {
       // Open the DB and make sure it's empty
@@ -387,6 +407,11 @@ describe('Identity', () => {
       const ids: Array<Identity> = await persistance.retrieve(cubeStore);
       expect(ids).toBeDefined();
       expect(ids.length).toEqual(0);
+      idTestOptions = {
+        minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
+        requiredDifficulty: reducedDifficulty,
+        persistance: persistance,
+      }
     });
 
     afterEach(async () => {
@@ -406,11 +431,12 @@ describe('Identity', () => {
 
       let idkey: CubeKey | undefined = undefined;
       {  // phase 1: create new identity and store it
-        const id: Identity = new Identity(cubeStore, undefined, persistance, true, 1, reduced_difficulty);  // reduced minimum MUC rebuild time for faster tests
+        const id: Identity = Identity.Create(
+          cubeStore, "usor probationis", "clavis probationis", idTestOptions);
         idkey = id.key;
         expect(id.name).toBeUndefined();
         id.name = "Probator Identitatum";
-        const storePromise: Promise<Cube> = id.store(undefined, reduced_difficulty);
+        const storePromise: Promise<Cube> = id.store(undefined, reducedDifficulty);
         expect(storePromise).toBeInstanceOf(Promise<Cube>);
         await storePromise;
       }
@@ -423,7 +449,7 @@ describe('Identity', () => {
         expect(restoredId.name).toEqual("Probator Identitatum");
         expect(restoredId.key).toEqual(idkey);
       }
-    }, 10000);
+    }, 10000000);
   });  // local persistant storage tests
 
 });

@@ -9,7 +9,7 @@ import { FieldParser } from "../fieldParser";
 import { logger } from '../logger';
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
-import sodium, { KeyPair } from 'libsodium-wrappers'
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 
 if (isNode && Settings.HASH_WORKERS) {

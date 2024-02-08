@@ -54,7 +54,7 @@ export class CubeStore extends EventEmitter {
 
   readonly parsers: FieldParserTable;
   readonly cubeClass: typeof Cube;
-  readonly required_difficulty;
+  readonly required_difficulty: number;
 
   constructor(options: CubeStoreOptions) {
     super();

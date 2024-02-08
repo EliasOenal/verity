@@ -1,3 +1,5 @@
+/** !!! This module may only be used after awaiting sodium.ready !!! */
+
 import { unixtime } from '../core/helpers';
 import { Cube } from '../core/cube/cube';
 import { logger } from '../core/logger';
@@ -15,17 +17,27 @@ import { CubeInfo } from '../core/cube/cubeInfo';
 
 import { NetConstants } from '../core/networking/networkDefinitions';
 
-import sodium, { KeyPair } from 'libsodium-wrappers'
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { cciCube } from './cciCube';
+import { FieldParserTable } from '../core/cube/cubeFields';
 
 const IDENTITYDB_VERSION = 1;
+const IDMUC_CONTEXT_STRING = "CCI Identity";
+const IDMUC_MASTERINDEX = 0;
+
+export interface IdentityOptions {
+  persistance?: IdentityPersistance,
+  minMucRebuildDelay?: number,
+  requiredDifficulty?: number,
+  parsers?: FieldParserTable,
+}
 
 // TODO: Split out the MUC management code.
-// Much of it (like writing multi-cube long indexes of cube keys and deriving
-// extension MUC keys from a master key) are not even Identity specific and should
-// be moved to the CCI layer as common building blocks.
+// Much of it (like writing multi-cube long indexes of cube keys) are not even
+// Identity specific and should be exposed as common CCI building blocks.
 
 /**
+ * !!! May only be used after awaiting sodium.ready !!!
  * @classdesc An identity describes who a user is.
  * - We could also just call this a "user" or a "profile" maybe.
  * - Identities can be "local" (representing a user of this node) or "remote"
@@ -45,46 +57,91 @@ const IDENTITYDB_VERSION = 1;
  * fields.
  *   - USER_NAME (mandatory, only once): Self-explanatory. UTF-8, maximum 60 bytes.
  *       Note this might be less than 60 chars.
- *   - RELATES_TO/USER_PROFILEPIC (only once): Links to the first cube of a continuation chain containing
+ *   - RELATES_TO/USER_PROFILEPIC (only once): (TODO rework)
+ *       Links to the first cube of a continuation chain containing
  *       this user's profile picture in JPEG format. Maximum size of three
  *       cubes, i.e. just below 3kB.
  *   - RELATES_TO/MYPOST: Links to a post made by this user.
  *       (These posts itself will contain more RELATES_TO/MYPOST fields, building
  *       a kind of linked list of a user's posts.)
- *   - RELATES_TO/SUBSCRIPTION_RECOMMENDATION: Links to another user's MUC which this user
- *       recommends. (A "recommendation" is a publically visible subscription.)
+ *   - RELATES_TO/SUBSCRIPTION_RECOMMENDATION: Links to another user's MUC which
+ *       this user recommends.
+ *       (A "recommendation" is a publically visible subscription.)
  *       This is used to build a multi-level web-of-trust. Users can (and are
  *       expected to) only view posts made by their subscribed creators, their
  *       recommended creators, and potentially beyond depending on user settings.
- *       This is to mitigate spam which will be unavoidable due to the uncensorable
- *       nature of Verity. It also segments our users in distinct filter bubbles which has
- *       proven to be one of the most successful features of all social media.
+ *       This is to mitigate spam which will be unavoidable due to the
+ *       uncensorable nature of Verity.
+ *       It also segments our users into distinct filter bubbles which has
+ *       proven to be one of the most successful features of all social media :)
  *   - RELATES_TO/SUBSCRIPTION_RECOMMENDATION_INDEX: I kinda sorta lied to you.
  *       We usually don't actually put SUBSCRIPTION_RECOMMENDATIONs directly
- *       into the MUC. We could, but we won't.
+ *       into the master Identity MUC. We could, but we won't.
  *       Even for moderately active users they wouldn't fit.
- *       Instead, we create a PIC (or regular cube until PICs are implemented),
- *       put the SUBSCRIPTION_RECOMMENDATIONs into the PIC and link the PIC here.
+ *       Instead, we create an "extension MUC", which is just another MUC
+ *       derived from our key, put the SUBSCRIPTION_RECOMMENDATIONs into the
+ *       extension MUC and link the extension MUC here.
  *       Makes much more sense, doesn't it?
- * We don't require fields to be in any specific order above the core lib requirements.
+ * We don't require fields to be in any particular order above the core lib
+ * requirements.
  *
  * TODO: Specify maximums to make sure all of that nicely fits into a single MUC.
  */
 export class Identity {
-  /// @static This gets you an identity!
-  ///         It either retrieves all Identity objects stored in persistant storage,
-  ///         or creates a new one if there is none.
-  static async retrieve(cubeStore: CubeStore, dbname: string = "identity"): Promise<Identity> {
+  /** Tries to load an existing Identity from CubeStore */
+  // TODO: Once we have a cube exchange scheduler, schedule the purported
+  // Identity MUC for retrieval if we don't have it (this will be necessary for
+  // light nodes)
+  static Load(
+      cubeStore: CubeStore,
+      username: string,
+      password: string,
+      options?: IdentityOptions,
+  ): Identity | undefined {
+    const keyPair: KeyPair =
+      Identity.DeriveKeypair(Identity.DeriveMasterKey(username, password));
+    const idMuc: cciCube = cubeStore.getCube(
+      Buffer.from(keyPair.publicKey), cciFieldParsers, cciCube) as cciCube;
+    if (idMuc === undefined) return undefined;
+    else return new Identity(cubeStore, idMuc, options);
+  }
+
+  /** Creates a new Identity for a given username and password combination. */
+  static Create(
+    cubeStore: CubeStore,
+    username: string,
+    password: string,
+    options?: IdentityOptions,
+  ): Identity {
+    const masterKey: Uint8Array = Identity.DeriveMasterKey(username, password);
+    return new Identity(cubeStore, masterKey, options);
+  }
+
+  static DeriveKeypair(masterKey: Uint8Array): KeyPair {
+    const derivedSeed = sodium.crypto_kdf_derive_from_key(
+      sodium.crypto_sign_SEEDBYTES, IDMUC_MASTERINDEX, IDMUC_CONTEXT_STRING,
+      masterKey, "uint8array");
+    const keyPair: KeyPair = sodium.crypto_sign_seed_keypair(
+      derivedSeed, "uint8array");
+    return keyPair;
+  }
+
+  static DeriveMasterKey(username: string, password: string): Uint8Array {
+    return sodium.crypto_pwhash(
+      sodium.crypto_sign_SEEDBYTES,
+      password,
+      sodium.crypto_hash(username, "uint8array").subarray(0, sodium.crypto_pwhash_SALTBYTES),
+      sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE,
+      sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE,
+      sodium.crypto_pwhash_ALG_ARGON2ID13,
+      "uint8array");
+  }
+
+  /// @static Retrieves all Identity objects stored in persistant storage.
+  static async retrieve(cubeStore: CubeStore, dbname: string = "identity"): Promise<Identity[]> {
     const persistance: IdentityPersistance = await IdentityPersistance.create(dbname);
     const ids: Array<Identity> = await persistance.retrieve(cubeStore);
-    let id: Identity = undefined;
-    if (ids && ids.length) {
-      id = ids[0];
-    }
-    else {
-      id = new Identity(cubeStore, undefined, persistance);
-    }
-    return id;
+    return ids;
   }
 
   /** @member This Identity's display name */
@@ -96,9 +153,17 @@ export class Identity {
    */
   persistance: IdentityPersistance;
 
+  /**
+   * Identity requires CubeStore for loading and parsing Identity extension
+   * Cubes as well as storing locally owned Identities.
+   **/
   private cubeStore: CubeStore;
 
-  // private readonly masterKey = undefined;
+  private minMucRebuildDelay: number;
+  private requiredDifficulty: number;
+  readonly parsers: FieldParserTable;
+
+  private readonly _masterKey = undefined;
   get masterKey(): Buffer {
     return this.privateKey?.subarray(0, 32);  // TODO change this as discussed below
   }
@@ -138,15 +203,19 @@ export class Identity {
   private makeMucPromise: Promise<cciCube> = undefined;
 
   /**
-   * Depending on whether you provide a MUC, this will either create a brand
-   * new Identity or load one from the supplied MUC.
+   * Depending on whether you provide a key pair or an existing Identity MUC,
+   * this will either create a brand new Identity or parse an existing one
+   * from the supplied MUC.
    * Usage note: Consider using Identity.retrieve() instead which automatically
    * handles loading existing Identities from local storage.
-   * @param [muc] A valid Identity MUC
+   * @param [mucOrMasterkey] Either a cryptographic key pair to create a new
+   *        Identity with or a valid existing Identity MUC.
+   *        Exisiting Identities can be loaded this way even if you don't have
+   *        the private key; however, they can obviously not be store()d.
    * @param [persistance] If you want to locally store this Identity to disk,
-   *        please construct an IdentityPersistance object and supply it here
-   * @param [createByDefault] If true, which is the default, this will generate
-   *        a new Identity if no MUC was supplied.
+   *        please construct an IdentityPersistance object and supply it here.
+   *        Does only make sense for local Identities, i.e. one for which you
+   *        have the private key.
    * @param [minMucRebuildDelay] Set this to override the system-defined minimum
    *        time between Identity MUC updates.
    * @param [required_difficulty] Set this to override tbe system-defined
@@ -154,31 +223,29 @@ export class Identity {
    *        this to 0 for testing.
    * @throws FieldError when supplied MUC is unparsable or ApiMisuseError in
    *         in case of conflicting params.
+   * !!! Identity may only be constructed after awaiting sodium.ready !!!
    **/
   constructor(
       cubeStore: CubeStore,
-      muc: cciCube = undefined,
-      persistance: IdentityPersistance = undefined,
-      createByDefault = true,
-      private minMucRebuildDelay = ZwConfig.MIN_MUC_REBUILD_DELAY,
-      required_difficulty = Settings.REQUIRED_DIFFICULTY,
+      mucOrMasterkey: cciCube | Uint8Array,
+      options?: IdentityOptions,
   ){
     this.cubeStore = cubeStore;
-    this.persistance = persistance;
-    if (muc) this.parseMuc(muc);
-    else if (createByDefault) {  // create new Identity
-      // TODO BREAKING: Create Identity MUC key pair by deriving our master key.
-      // We are currently using the same key as Identity MUC private key and
-      // as a base for deriving keys which probably does not follow best practices.
-      // Will implement this together with other breaking changes as it breaks all existing MUCs.
-      let keys: KeyPair = sodium.crypto_sign_keypair();
-      this._muc = cciCube.MUC(
-        Buffer.from(keys.publicKey), Buffer.from(keys.privateKey),
-        [], cciFieldParsers, required_difficulty);
-      if (!(this._muc instanceof cciCube)) throw new CubeError("Identity: Newly created CCI Cube is not CCI o.O");  // should never happen, TODO remove once CCI object handling is more stable
-    }
-    else {
-      throw new ApiMisuseError("Identity: Cannot restore Identity without valid MUC.")
+    // set options
+    this.minMucRebuildDelay = options?.minMucRebuildDelay ?? ZwConfig.MIN_MUC_REBUILD_DELAY;
+    this.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY,
+    this.parsers = options?.parsers ?? cciFieldParsers;
+    this.persistance = options?.persistance ?? undefined;
+
+    // are we loading or creating an Identity?
+    if (mucOrMasterkey instanceof Cube) {  // checking for the more generic Cube instead of cciCube as this is the more correct branch compared to handling this as a KeyPair (also Cube subclass handling is not completely clean yet throughout our codebase)
+      this.parseMuc(mucOrMasterkey);
+    } else {  // create new Identity
+      this._muc = cciCube.ExtensionMuc(
+        mucOrMasterkey,
+        [],  // TODO: allow to set fields like username directly on construction
+        IDMUC_MASTERINDEX, IDMUC_CONTEXT_STRING,
+      );
     }
   }
 
@@ -259,7 +326,7 @@ export class Identity {
         if (!muc) continue;
         let id: Identity;
         try {
-          id = new Identity(this.cubeStore, muc, undefined, false);
+          id = new Identity(this.cubeStore, muc);
         } catch(err) { continue; }
         if (!id) continue;
         recursiveSubs = recursiveSubs.concat(
@@ -606,7 +673,7 @@ export class IdentityPersistance {
     }
     return this.db.put(
       id.key.toString('hex'),
-      id.privateKey.toString('hex')
+      id.masterKey.toString('hex')
     );
   }
 
@@ -623,15 +690,17 @@ export class IdentityPersistance {
       return undefined;
     }
     const identities: Array<Identity> = [];
-    for await (const [pubkey, privkey] of this.db.iterator() ) {
+    for await (const [pubkey, masterkey] of this.db.iterator() ) {
       try {
+        const privkey: Buffer = Buffer.from(
+          Identity.DeriveKeypair(Buffer.from(masterkey, 'hex')).publicKey);
         const muc = cubeStore.getCube(Buffer.from(pubkey, 'hex'), cciFieldParsers, cciCube) as cciCube;  // TODO: either assert cciCube or document why assertion not required
         if (muc === undefined) {
           logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkey + " is not present");
           continue;
         }
-        muc.privateKey = Buffer.from(privkey, 'hex');
-        const id = new Identity(cubeStore, muc, this);
+        muc.privateKey = privkey;
+        const id = new Identity(cubeStore, muc, {persistance: this});
         identities.push(id);
       } catch (error) {
         logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);

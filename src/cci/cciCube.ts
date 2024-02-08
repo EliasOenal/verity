@@ -3,7 +3,7 @@ import { cciFields, cciField, cciFieldParsers } from "./cciFields";
 
 import { Cube } from "../core/cube/cube";
 
-import sodium, { KeyPair, crypto_kdf_KEYBYTES } from 'libsodium-wrappers'
+import sodium, { KeyPair, crypto_kdf_KEYBYTES } from 'libsodium-wrappers-sumo'
 import { FieldParserTable } from "../core/cube/cubeFields";
 import { CubeType, FieldError } from "../core/cube/cubeDefinitions";
 
@@ -28,14 +28,18 @@ export class cciCube extends Cube {
   }
 
   // TODO write unit test
+  /** !!! May only be called after awaiting sodium.ready !!! */
   static ExtensionMuc(
     masterKey: Uint8Array,
-    fields: cciFields,
+    fields: cciFields | cciField[],
     subkeyIndex: number = undefined, context: string = undefined,
     writeSubkeyIndexToCube: boolean = false,
     parsers: FieldParserTable = cciFieldParsers,
     required_difficulty = Settings.REQUIRED_DIFFICULTY
   ): cciCube {
+  if (!(fields instanceof cciFields)) {
+    fields = new cciFields(cciFields as any, parsers[CubeType.MUC].fieldDef);
+  }
   if (subkeyIndex === undefined) {
     const max: number = Math.pow(2, (Settings.MUC_EXTENSION_SEED_SIZE*8)) - 1;
     subkeyIndex = Math.floor(  // TODO: Use a proper cryptographic function instead

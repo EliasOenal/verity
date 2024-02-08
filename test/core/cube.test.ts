@@ -8,36 +8,36 @@ import { Buffer } from 'buffer';
 import { calculateHash, countTrailingZeroBits } from '../../src/core/cube/cubeUtil';
 import { FieldParser } from '../../src/core/fieldParser';
 
-import sodium, { KeyPair } from 'libsodium-wrappers'
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { CubeField, CubeFieldLength, CubeFieldType, CubeFields, coreDumbParser, coreFieldParsers, coreTlvFieldParsers, coreDumbFieldDefinition, coreMucFieldDefinition } from '../../src/core/cube/cubeFields';
 import { CubeInfo } from '../../src/core/cube/cubeInfo';
 import { BaseField, BaseFields } from '../../src/core/cube/baseFields';
 
-const reduced_difficulty = 0;
-
-// TODO: Update payload field ID. Make tests actually check payload.
-export const validBinaryCube =  Buffer.from([
-  // Cube version (1) (half byte), Cube type (basic "dumb" Cube, 0) (half byte)
-  0x10,
-
-  // Payload TLV field
-  0x04,  // payload field type is 4 (1 byte)
-  0x14,  // payload length is 20 chars (1 byte)
-  0x43, 0x75, 0x62, 0x75, 0x73, 0x20, // "Cubus "
-  0x64, 0x65, 0x6d, 0x6f, 0x6e, 0x73, 0x74, 0x72,
-  0x61, 0x74, 0x69, 0x76, 0x75, 0x73, // "demonstrativus"
-
-  // Padding: padding is TLV field type 2 (6 bits), padding length is 990 (10 bits)
-  0b00001011, 0b11011110,
-  // 990 bytes of padding, all zeros for this example
-  ...Array.from({ length: 990 }, () => 0x00),
-
-  // Date (5 bytes)
-  0x00, 0x65, 0xba, 0x8e, 0x38,
-  0x00, 0x00, 0x00, 0xed  // Nonce passing challenge requirement
-]);
-
 describe('cube', () => {
+  const reducedDifficulty = 0;
+
+  // TODO: Update payload field ID. Make tests actually check payload.
+  const validBinaryCube =  Buffer.from([
+    // Cube version (1) (half byte), Cube type (basic "dumb" Cube, 0) (half byte)
+    0x10,
+
+    // Payload TLV field
+    0x04,  // payload field type is 4 (1 byte)
+    0x14,  // payload length is 20 chars (1 byte)
+    0x43, 0x75, 0x62, 0x75, 0x73, 0x20, // "Cubus "
+    0x64, 0x65, 0x6d, 0x6f, 0x6e, 0x73, 0x74, 0x72,
+    0x61, 0x74, 0x69, 0x76, 0x75, 0x73, // "demonstrativus"
+
+    // Padding: padding is TLV field type 2 (6 bits), padding length is 990 (10 bits)
+    0b00001011, 0b11011110,
+    // 990 bytes of padding, all zeros for this example
+    ...Array.from({ length: 990 }, () => 0x00),
+
+    // Date (5 bytes)
+    0x00, 0x65, 0xba, 0x8e, 0x38,
+    0x00, 0x00, 0x00, 0xed  // Nonce passing challenge requirement
+  ]);
+
   // This test parses a bit weirdly, the zero fill after the nonce decodes into additional TLV fields of length 0
   it('should construct a cube object from binary data.', () => {
     expect(() => validBinaryCube.length === 1024).toBeTruthy();
@@ -99,7 +99,7 @@ describe('cube', () => {
   it('should write fields to binary data correctly even after manipulating them', async () => {
     const cube = Cube.Dumb(
       CubeField.Payload(
-        Buffer.alloc(500, " ")), coreFieldParsers, Cube, reduced_difficulty);
+        Buffer.alloc(500, " ")), coreFieldParsers, Cube, reducedDifficulty);
     cube.fields.getFirst(CubeFieldType.PAYLOAD).value.write(
       'Ego sum determinavit tarde quid dicere Cubus.', 'ascii');
     const binaryData = await cube.getBinaryData();
@@ -113,7 +113,7 @@ describe('cube', () => {
   }, 3000);
 
   it('should calculate the hash correctly', async () => {
-    const cube = Cube.Dumb(undefined, coreFieldParsers, Cube, reduced_difficulty);
+    const cube = Cube.Dumb(undefined, coreFieldParsers, Cube, reducedDifficulty);
     const key = await cube.getKey();
     expect(key).toBeDefined();
     expect(key.length).toEqual(NetConstants.HASH_SIZE); // SHA-3-256 hash length is 32 bytes
@@ -139,7 +139,7 @@ describe('cube', () => {
     // 4 bytes NONCE
     const payloadLength = 1012;
     const cube = Cube.Dumb(CubeField.Payload("a".repeat(payloadLength)),
-      coreFieldParsers, Cube, reduced_difficulty);
+      coreFieldParsers, Cube, reducedDifficulty);
     const binaryData = await cube.getBinaryData();
     expect(binaryData.length).toEqual(1024);
   }, 3000);
@@ -168,7 +168,7 @@ describe('cube', () => {
     const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
     // Create a new MUC with specified TLV fields
-    const muc = new Cube(CubeType.MUC, coreFieldParsers, reduced_difficulty);
+    const muc = new Cube(CubeType.MUC, coreFieldParsers, reducedDifficulty);
     muc.privateKey = privateKey;
 
     const fields = new CubeFields([
@@ -236,7 +236,7 @@ describe('cube', () => {
     // Create a new MUC with a random payload
     const muc = Cube.MUC(publicKey, privateKey, CubeField.Payload(
         "Ego sum cubus usoris mutabilis, peculiare informatiuncula quae a domino meo corrigi potest."),
-      coreFieldParsers, Cube, reduced_difficulty);
+      coreFieldParsers, Cube, reducedDifficulty);
     const key = await muc.getKey();
     expect(key).toBeInstanceOf(Buffer);
 
@@ -304,7 +304,7 @@ describe('cube', () => {
     const muc: Cube = Cube.MUC(
       publicKey, privateKey, CubeField.Payload(
         "Signum meum nondum certum est, sed clavis mea semper eadem erit."),
-      coreFieldParsers, Cube, reduced_difficulty);
+      coreFieldParsers, Cube, reducedDifficulty);
     expect(muc.getKeyIfAvailable().equals(publicKey)).toBeTruthy();
     expect((await muc.getKey()).equals(publicKey)).toBeTruthy();
   })
@@ -318,7 +318,7 @@ describe('cube', () => {
     const muc: Cube = Cube.MUC(
       publicKey, privateKey, CubeField.Payload(
         "Gratiose tibi dabo signum meum etiamsi non intersit tibi de mea data binaria."),
-      coreFieldParsers, Cube, reduced_difficulty);
+      coreFieldParsers, Cube, reducedDifficulty);
 
     const hash: Buffer = await muc.getHash();
     const key: Buffer = await muc.getKey();

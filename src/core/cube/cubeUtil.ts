@@ -5,7 +5,7 @@ import { CubeMeta } from './cubeInfo';
 import { logger } from '../logger';
 
 import { Buffer } from 'buffer';
-import sodium, { KeyPair } from 'libsodium-wrappers'
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 
 import pkg from 'js-sha3';  // strange standards compliant syntax for importing
 const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
