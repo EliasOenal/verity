@@ -13,7 +13,7 @@ import { PostController } from './controller/postController';
 import { PeerController } from './controller/peerController';
 
 import { isBrowser } from 'browser-or-node';
-import sodium from 'libsodium-wrappers'
+import sodium from 'libsodium-wrappers-sumo'
 import { CubeExplorerController } from './controller/cubeExplorerController';
 
 // TODO remove

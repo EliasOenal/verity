@@ -174,7 +174,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       if (!idmuc) return undefined;
       let id: Identity = undefined;
       try {
-        id = new Identity(this.cubeStore, idmuc, undefined, false);
+        id = new Identity(this.cubeStore, idmuc, {parsers: cciFieldParsers});
       } catch(error) {
         // logger.info("ZwAnnotationEngine: While searching for author of " + key.toString('hex') + " I failed to create an Identity out of MUC " + rootmuc.getKeyIfAvailable()?.toString('hex') + " even though there's a MYPOST chain through " + mucOrMucExtension.getKeyIfAvailable()?.toString('hex'));
       }

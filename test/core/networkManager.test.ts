@@ -17,7 +17,7 @@ import { PeerDB } from '../../src/core/peering/peerDB';
 import { logger } from '../../src/core/logger';
 
 import WebSocket from 'isomorphic-ws';
-import sodium, { KeyPair } from 'libsodium-wrappers'
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { Settings } from '../../src/core/settings';
 
 describe('networkManager', () => {

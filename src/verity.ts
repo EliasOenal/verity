@@ -10,7 +10,7 @@ import { AddressAbstraction } from './core/peering/addressing';
 import { logger } from './core/logger';
 import { vera } from './misc/vera';
 
-import sodium, { KeyPair } from 'libsodium-wrappers'
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 
