@@ -75,8 +75,9 @@ export function assertZwCube(cube: Cube): boolean {
     logger.trace("assertZwCube: Supplied cube does not have an application field");
     return false;
   }
-  if (applicationField.value.toString() != "ZW") {
-    logger.trace("assertZwCube: Supplied cube does not have the ZW application string");
+  if (applicationField.value.toString() != "ZW" ||
+      applicationField.value.toString() != "ZW/ID") {
+    logger.trace("assertZwCube: Supplied cube does not have a ZW application string");
   }
   return true;
 }

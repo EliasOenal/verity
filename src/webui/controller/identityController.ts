@@ -1,5 +1,6 @@
 import { Identity, IdentityPersistance } from "../../cci/identity";
 import { CubeStore } from "../../core/cube/cubeStore";
+import { EditIdentityView } from "../view/editIdentityView";
 import { LoginFormView } from "../view/loginFormView";
 import { LoginStatusView } from "../view/loginStatusView";
 import { VerityView } from "../view/verityView";
@@ -51,7 +52,7 @@ export class IdentityController extends VerityController {
       identity = Identity.Create(
         this.cubeStore, username, password, {persistance: this.persistence});
       identity.name = username;  // TODO separate username and display name
-      identity.store();
+      identity.store("ID/ZW");
     }
     this._identity = identity;
     this.showLoginStatus();
@@ -70,6 +71,16 @@ export class IdentityController extends VerityController {
   }
 
   showEditIdentity() {
+    this.mainAreaView = new EditIdentityView(this.identity);
+    this.mainAreaView.show();
+  }
 
+  performEditIdentity(form: HTMLFormElement) {
+    const displayname: string = ((form.querySelector(
+      ".verityDisplayNameInput")) as HTMLInputElement).value;
+    this._identity.name = displayname;
+    this._identity.store("ID/ZW");
+    this.showLoginStatus();
+    this.mainAreaView.shutdown();
   }
 }

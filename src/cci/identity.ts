@@ -696,7 +696,7 @@ export class IdentityPersistance {
     for await (const [pubkey, masterkey] of this.db.iterator() ) {
       try {
         const privkey: Buffer = Buffer.from(
-          Identity.DeriveKeypair(Buffer.from(masterkey, 'hex')).publicKey);
+          Identity.DeriveKeypair(Buffer.from(masterkey, 'hex')).privateKey);
         const muc = cubeStore.getCube(Buffer.from(pubkey, 'hex'), cciFieldParsers, cciCube) as cciCube;  // TODO: either assert cciCube or document why assertion not required
         if (muc === undefined) {
           logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkey + " is not present");
