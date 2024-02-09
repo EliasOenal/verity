@@ -1,6 +1,5 @@
 import { SupportedTransports } from '../core/networking/networkDefinitions';
 
-import { FieldParser } from '../core/fieldParser';
 import { logger } from '../core/logger'
 import { VerityNode } from '../core/verityNode';
 import { AddressAbstraction } from '../core/peering/addressing';
@@ -11,10 +10,11 @@ import { SubscriptionRequirement, ZwAnnotationEngine } from '../app/zwAnnotation
 
 import { PostController } from './controller/postController';
 import { PeerController } from './controller/peerController';
+import { CubeExplorerController } from './controller/cubeExplorerController';
+import { IdentityController } from './controller/identityController';
 
 import { isBrowser } from 'browser-or-node';
 import sodium from 'libsodium-wrappers-sumo'
-import { CubeExplorerController } from './controller/cubeExplorerController';
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
@@ -33,11 +33,12 @@ export class VerityUI {
   }
 
   annotationEngine: ZwAnnotationEngine;
-  identity: Identity = undefined;
+  get identity(): Identity { return this.identityController.identity; }
 
   postController: PostController = undefined;
-  peerController: PeerController = undefined;
-  cubeExplorerController: CubeExplorerController = undefined;
+  peerController: PeerController;
+  identityController: IdentityController;
+  cubeExplorerController: CubeExplorerController;
 
 
   constructor(
@@ -53,20 +54,12 @@ export class VerityUI {
   }
 
   async initializeIdentity(): Promise<void> {
-    this.identity = await Identity.retrieve(this.node.cubeStore);
-    if (this.identity.name) {
-      (document.getElementById("idname") as HTMLInputElement).
-        value = this.identity.name;
-    }
+    const idlist: Identity[] = await Identity.retrieve(this.node.cubeStore);
+    let identity: Identity = undefined;
+    if (idlist?.length) identity = idlist[0];
+    this.identityController = new IdentityController(this.node.cubeStore, identity);
+    this.identityController.showLoginStatus();
   }
-
-  async saveIdentity(): Promise<Cube> {
-    const username = (document.getElementById("idname") as HTMLInputElement).value;
-    if (username.length) this.identity.name = username;
-    else this.identity.name = "New user";
-    return this.identity.store("ZW");
-  }
-
 
   // Navigation
   // maybe TODO: Move this to a new NavController/NavView
@@ -136,7 +129,7 @@ export class VerityUI {
   }
 
   navPeers() {
-    this.peerController.view.show();
+    this.peerController.peerView.show();
     this.navbarMarkActive("navPeers");
   }
 

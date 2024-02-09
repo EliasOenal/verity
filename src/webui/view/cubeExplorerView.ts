@@ -1,6 +1,6 @@
 import { Cube } from "../../core/cube/cube";
 import { CubeType } from "../../core/cube/cubeDefinitions";
-import { VerityView } from "../webUiDefinitions";
+import { VerityView } from "./verityView";
 
 const cubeEmoji: Map<CubeType, string> = new Map([
   [CubeType.DUMB, String.fromCodePoint(0x1F9CA)],  // 🧊

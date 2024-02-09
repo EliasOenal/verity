@@ -103,7 +103,9 @@ export class Identity {
     const idMuc: cciCube = cubeStore.getCube(
       Buffer.from(keyPair.publicKey), cciFieldParsers, cciCube) as cciCube;
     if (idMuc === undefined) return undefined;
-    else return new Identity(cubeStore, idMuc, options);
+    idMuc.privateKey = Buffer.from(keyPair.privateKey);
+    const identity = new Identity(cubeStore, idMuc, options);
+    return identity;
   }
 
   /** Creates a new Identity for a given username and password combination. */
@@ -263,6 +265,7 @@ export class Identity {
    * about the semantics :-P )
   */
   get key(): CubeKey { return Buffer.from(this._muc.publicKey); }
+  get keyString(): string { return this._muc.publicKey.toString('hex') }
 
   get muc(): cciCube { return this._muc; }
 

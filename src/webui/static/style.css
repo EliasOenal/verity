@@ -84,7 +84,10 @@ body {
   animation: barrelRoll 1s ease-in-out forwards;
 }
 
-
+.verityLoadingPlaceholder {
+  background-color: #cccccc;
+  color: #cccccc;
+}
 
 /*
  * Navigation
@@ -108,7 +111,23 @@ body {
   font-weight: bold;
 }
 
-/* Online/offline view */
+/* Identity row */
+div.verityMyProfilePicArea {
+  padding-right: 0;
+  height: 6ex;
+}
+img.verityMyProfilePic {
+  height: 100%;
+}
+div.verityMyIdentityInfoArea {
+  padding-left: 0;
+  min-width: 8em;
+}
+div.verityMyIdentityInfoArea a {
+  font-size: 80%;
+}
+
+/* Online/offline row */
 .greenDot {
   position: relative;
   top: 0.25ex;

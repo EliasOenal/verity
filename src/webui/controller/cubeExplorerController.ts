@@ -3,17 +3,16 @@ import { cciFieldParsers } from "../../cci/cciFields";
 import { Cube } from "../../core/cube/cube";
 import { CubeStore } from "../../core/cube/cubeStore";
 import { CubeExplorerView } from "../view/cubeExplorerView";
-import { VerityController } from "../webUiDefinitions";
+import { VerityController } from "./verityController";
 
 export class CubeExplorerController extends VerityController {
-  declare view: CubeExplorerView;
 
   constructor(
       readonly cubeStore: CubeStore,
       readonly maxCubes: number = 1000,
-      view = new CubeExplorerView(),
+      public view: CubeExplorerView = new CubeExplorerView(),
   ){
-    super(view);
+    super();
   }
 
   /**
