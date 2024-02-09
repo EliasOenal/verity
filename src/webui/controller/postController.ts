@@ -12,7 +12,6 @@ import { PostView } from "../view/postView";
 import { logger } from "../../core/logger";
 
 import { Buffer } from 'buffer';
-import multiavatar from '@multiavatar/multiavatar'
 import { cciCube } from "../../cci/cciCube";
 import { VerityController } from "./verityController";
 
@@ -200,6 +199,7 @@ export class PostController extends VerityController {
       // TODO: display if this authorship information is authenticated,
       // i.e. if it comes from a MUC we trust
       data.author = authorObject.name;
+      data.profilepic = authorObject.profilePic;
 
       // is this author subscribed?
       if (this.identity) {
@@ -209,16 +209,10 @@ export class PostController extends VerityController {
       }
     } else {
       data.author = "Unknown user";
+      data.profilepic = "unknownuser.svg";
     }
     if (data.author.length > 60) {
       data.author = data.author.slice(0, 57) + "...";
     }
-
-    // Get profile image if the use has one, otherwise generate an avatar
-    // for them based on their MUC key. Use the post key if there's no MUC.
-    // TODO: real profile pictures not implemented yet
-    if (data.authorkey) data.profilepic = multiavatar(data.authorkey);
-    else data.profilepic = multiavatar(data.keystring);
-    data.profilepic = "data:image/svg+xml;base64," + btoa(data.profilepic);
   }
 }

@@ -21,6 +21,8 @@ import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { cciCube } from './cciCube';
 import { FieldParserTable } from '../core/cube/cubeFields';
 
+import multiavatar from '@multiavatar/multiavatar'
+
 const IDENTITYDB_VERSION = 1;
 const IDMUC_CONTEXT_STRING = "CCI Identity";
 const IDMUC_MASTERINDEX = 0;
@@ -170,7 +172,6 @@ export class Identity {
     return this.privateKey?.subarray(0, 32);  // TODO change this as discussed below
   }
 
-
   /**
    * Subscription recommendations are publically visible subscriptions of other
    * authors. They are also currently the only available type of subscriptions.
@@ -268,6 +269,19 @@ export class Identity {
   get keyString(): string { return this._muc.publicKey.toString('hex') }
 
   get muc(): cciCube { return this._muc; }
+
+  /**
+   * Returns this account's profile picture encoded as a string that can be
+   * used as a HTML image's src attribute.
+   * If this user has not set a custom profile picture, it generates randomly
+   * (i.e. based on the user's public key).
+   */
+  // TODO implement custom avatars
+  get profilePic(): string {
+    const profilepic = multiavatar(this.publicKey.toString('hex'))
+    const marshalled = "data:image/svg+xml;base64," + btoa(profilepic);
+    return marshalled;
+  }
 
   /**
    * Save this Identity locally by storing it in the local database
