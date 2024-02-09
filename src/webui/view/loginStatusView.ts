@@ -11,9 +11,13 @@ export class LoginStatusView extends VerityView {
   }
 
   showNotLoggedIn(): void {
-    // select the non logged in version of the template
+    // reset info area to not logged in
     const infoArea = this.renderedView.querySelector(".verityMyIdentityInfoArea");
     infoArea.replaceChildren(this.newFromTemplate(".verityNotLoggedIn"));
+    // remove profile pic
+    const profilePicElem:  HTMLImageElement = (this.renderedView.querySelector(
+      ".verityMyProfilePic")) as HTMLImageElement;
+    profilePicElem.src = "unknownuser.svg";
     this.show();
   }
 
@@ -25,7 +29,10 @@ export class LoginStatusView extends VerityView {
       infoDiv.querySelector(".verityMyIdentityDisplayname") as HTMLElement;
     usernameElem.innerText = identity.name;
     usernameElem.setAttribute("title", "MUC key " + identity.keyString);
-    // TODO show profile pic
+    // show profile pic
+    const profilePicElem:  HTMLImageElement = (this.renderedView.querySelector(
+      ".verityMyProfilePic")) as HTMLImageElement;
+    profilePicElem.src = identity.profilePic;
     infoArea.replaceChildren(infoDiv);
     this.show();
   }
