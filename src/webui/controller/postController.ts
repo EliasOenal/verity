@@ -7,7 +7,6 @@ import { makePost } from "../../app/zwCubes";
 import { cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipType } from "../../cci/cciFields";
 import { ZwAnnotationEngine } from "../../app/zwAnnotationEngine";
 
-import { VerityController } from "../webUiDefinitions";
 import { PostView } from "../view/postView";
 
 import { logger } from "../../core/logger";
@@ -15,6 +14,7 @@ import { logger } from "../../core/logger";
 import { Buffer } from 'buffer';
 import multiavatar from '@multiavatar/multiavatar'
 import { cciCube } from "../../cci/cciCube";
+import { VerityController } from "./verityController";
 
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
@@ -39,7 +39,6 @@ export interface PostData {
 
 /** This is the presenter class for viewing posts */
 export class PostController extends VerityController {
-  declare view: PostView;
   private displayedPosts: Map<string, PostData> = new Map();
   private cubeAuthorRedisplayTimer: NodeJS.Timeout = undefined;  // TODO replace, ugly.
 
@@ -47,8 +46,8 @@ export class PostController extends VerityController {
       private cubeStore: CubeStore,
       private annotationEngine: ZwAnnotationEngine,
       private identity: Identity = undefined,
-      view = new PostView()) {
-    super(view);
+      public view: PostView = new PostView()) {
+    super();
     this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey)); // list cubes
     this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
     this.redisplayPosts();

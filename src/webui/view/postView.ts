@@ -1,8 +1,7 @@
 import { ZwConfig } from "../../app/zwConfig";
 import { logger } from "../../core/logger";
 import { PostData } from "../controller/postController";
-
-import { VerityView } from "../webUiDefinitions";
+import { VerityView } from "./verityView";
 
 export class PostView extends VerityView {
   private postList: HTMLUListElement;

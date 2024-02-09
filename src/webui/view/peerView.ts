@@ -1,8 +1,7 @@
 import { Peer } from "../../core/peering/peer";
 import { NetworkPeer } from "../../core/networking/networkPeer";
 import { logger } from "../../core/logger";
-
-import { VerityView } from "../webUiDefinitions";
+import { VerityView } from "./verityView";
 
 export class PeerView extends VerityView {
   private peerList: HTMLUListElement;
