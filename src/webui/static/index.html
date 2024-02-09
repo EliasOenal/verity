@@ -277,6 +277,28 @@
       </p>
     </div>
   </template>
+
+  <template id="verityEditIdentityTemplate">
+    <div class="verityEditIdentityView">
+      <h2 class="mt-3 mt-sm-5 mb-3">That's me</h2>
+      <form action="javascript:void(0);"
+            onsubmit="window.verityUI.identityController.performEditIdentity(this);">
+      <div class="input-group my-2">
+        <span class="input-group-text" id="verityEditIdentityDisplayNameDesc">
+          Display name
+        </span>
+        <input class="form-control form-control-sm verityDisplayNameInput"
+               type="text" id="verityEditDisplayName" aria-label="Display name"
+               aria-describedby="verityEditIdentityDisplayNameDesc"
+               required />
+      </div>
+      <button class="btn btn-sm btn-primary my-2" type="submit">Save</button>
+    </form>
+      <p class="verityLoginErrorMessage">
+        <!-- loginFormView will place an error message here when applicable -->
+      </p>
+    </div>
+  </template>
   <!-- End of Identity related templates-->
 
 
