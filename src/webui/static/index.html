@@ -292,11 +292,17 @@
                aria-describedby="verityEditIdentityDisplayNameDesc"
                required />
       </div>
-      <button class="btn btn-primary my-2" type="submit">Save</button>
+      <div class="verityEditIdentityAvatarArea">
+        <img src="unknownuser.svg" alt=""
+             class="verityEditIdentityAvatar" />
+        <input type="hidden" class="verityEditIdentityAvatarSeed" />
+        <button class="btn btn-primary mx-3" type="button"
+                onclick="window.verityUI.identityController.randomMultiavatar()">
+          Get me a different avatar
+        </button>
+      </div>
+      <button class="btn btn-primary my-5 mx-3" type="submit">Save</button>
     </form>
-      <p class="verityLoginErrorMessage">
-        <!-- loginFormView will place an error message here when applicable -->
-      </p>
     </div>
   </template>
   <!-- End of Identity related templates-->

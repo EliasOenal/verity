@@ -14,4 +14,14 @@ export class EditIdentityView extends VerityView {
     displayNameInput.value = identity.name;
   }
 
+  displayAvatar(seed: string, src: string) {
+    const imgElem: HTMLImageElement = this.renderedView.querySelector(
+      "img.verityEditIdentityAvatar");
+    if (!imgElem) return;
+    const seedElem: HTMLInputElement = this.renderedView.querySelector(
+      ".verityEditIdentityAvatarSeed");
+    if (!seedElem) return;
+    imgElem.src = src;
+    seedElem.value = seed;
+  }
 }

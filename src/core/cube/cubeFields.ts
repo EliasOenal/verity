@@ -53,6 +53,7 @@ export enum CubeFieldType {
   RELATES_TO = 0x13 << 2,  // 76
   USERNAME = 0x14 << 2,  // 80
   MEDIA_TYPE = 0x15 << 2,  // 84
+  AVATAR = 0x16 << 2,
   PADDING = 0x1F << 2,  // 124
 }
 
@@ -68,12 +69,12 @@ export const CubeFieldLength: FieldNumericalParam = {
   [CubeFieldType.SUBKEY_SEED]: undefined,
   [CubeFieldType.PAYLOAD]: undefined,
   [CubeFieldType.PADDING]: undefined,
+  [CubeFieldType.AVATAR]: undefined,
   [CubeFieldType.PADDING_SINGLEBYTE]: 1,
   [CubeFieldType.APPLICATION]: undefined,
   [CubeFieldType.MEDIA_TYPE]: 1,
   [CubeFieldType.RELATES_TO]: NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE,
   [CubeFieldType.USERNAME]: undefined,
-
 };
 
 /**

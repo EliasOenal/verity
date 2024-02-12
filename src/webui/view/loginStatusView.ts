@@ -32,7 +32,7 @@ export class LoginStatusView extends VerityView {
     // show profile pic
     const profilePicElem:  HTMLImageElement = (this.renderedView.querySelector(
       ".verityMyProfilePic")) as HTMLImageElement;
-    profilePicElem.src = identity.profilePic;
+    profilePicElem.src = identity.avatar;
     infoArea.replaceChildren(infoDiv);
     this.show();
   }
