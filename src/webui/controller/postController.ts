@@ -199,7 +199,7 @@ export class PostController extends VerityController {
       // TODO: display if this authorship information is authenticated,
       // i.e. if it comes from a MUC we trust
       data.author = authorObject.name;
-      data.profilepic = authorObject.profilePic;
+      data.profilepic = authorObject.avatar;
 
       // is this author subscribed?
       if (this.identity) {

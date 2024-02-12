@@ -1,10 +1,13 @@
-import { Identity, IdentityPersistance } from "../../cci/identity";
+import multiavatar from "@multiavatar/multiavatar";
+import { AvatarScheme, AvatarSeedLength, Identity, IdentityPersistance } from "../../cci/identity";
 import { CubeStore } from "../../core/cube/cubeStore";
 import { EditIdentityView } from "../view/editIdentityView";
 import { LoginFormView } from "../view/loginFormView";
 import { LoginStatusView } from "../view/loginStatusView";
 import { VerityView } from "../view/verityView";
 import { VerityController } from "./verityController";
+
+import { Buffer } from 'buffer';
 
 export class IdentityController extends VerityController {
   loginStatusView: LoginStatusView = new LoginStatusView();
@@ -72,15 +75,38 @@ export class IdentityController extends VerityController {
 
   showEditIdentity() {
     this.mainAreaView = new EditIdentityView(this.identity);
+    let avatarSeed: string = undefined;
+    if (this._identity.avatarSeed) avatarSeed =
+      this._identity.avatarSeed.seed.toString('hex');
+    (this.mainAreaView as EditIdentityView).displayAvatar(avatarSeed, this.identity.avatar);
     this.mainAreaView.show();
   }
 
   performEditIdentity(form: HTMLFormElement) {
+    // TODO input validation
     const displayname: string = ((form.querySelector(
       ".verityDisplayNameInput")) as HTMLInputElement).value;
     this._identity.name = displayname;
+    const avatarSeed: string = ((form.querySelector(
+      ".verityEditIdentityAvatarSeed")) as HTMLInputElement).value;
+    if (avatarSeed) this._identity.avatarSeed = {
+      scheme: AvatarScheme.MULTIAVATAR,
+      seed: Buffer.from(avatarSeed, 'hex'),
+    }
     this._identity.store("ID/ZW");
     this.showLoginStatus();
     this.mainAreaView.shutdown();
+  }
+
+  randomMultiavatar() {
+    // This method only makes sense within the edit identity form
+    if (!(this.mainAreaView instanceof EditIdentityView)) return;
+    const randomSeed = Buffer.alloc(AvatarSeedLength[AvatarScheme.MULTIAVATAR]);
+    for (let i=0; i<randomSeed.length; i++) {
+      randomSeed[i] = Math.floor(Math.random()*255);
+    }
+    const avatar: string = multiavatar(randomSeed.toString('hex'));
+    const marshalled = "data:image/svg+xml;base64," + btoa(avatar);
+    this.mainAreaView.displayAvatar(randomSeed.toString('hex'), marshalled);
   }
 }
