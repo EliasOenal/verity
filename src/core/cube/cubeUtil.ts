@@ -40,13 +40,14 @@ export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMe
         case CubeType.DUMB:
             throw new CubeError("cubeUtil: Regular cubes cannot be contested.");
         case CubeType.MUC:
-            // For MUCs the most recently minted cube wins. If they tie, the local
+            // For MUCs the most recently sculpted cube wins. If they tie, the local
             // cube wins. We expect the owner of the MUC not to cause collisions.
             // If you do anyway - you brought it upon yourself.
             if (localCube.date >= incomingCube.date)
                 return localCube;
             else
                 return incomingCube;
+            break;
         case CubeType.PIC:
             // Calculate the expiration date of each cube
             const expirationLocalCube = localCube.date + (cubeLifetime(localCube.challengeLevel) * 24 * 3600);
@@ -61,6 +62,7 @@ export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMe
                 logger.trace(`cubeUtil: Two Cubes with the key ${localCube.key.toString('hex')} have the same expiration date, local wins.`);
                 return localCube;
             }
+            break;
         default:
             throw new CubeError("cubeUtil: Unknown cube type.");
     }

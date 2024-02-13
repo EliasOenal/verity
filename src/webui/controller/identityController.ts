@@ -89,7 +89,7 @@ export class IdentityController extends VerityController {
     this._identity.name = displayname;
     const avatarSeed: string = ((form.querySelector(
       ".verityEditIdentityAvatarSeed")) as HTMLInputElement).value;
-    if (avatarSeed) this._identity.avatarSeed = {
+    if (avatarSeed?.length) this._identity.avatarSeed = {
       scheme: AvatarScheme.MULTIAVATAR,
       seed: Buffer.from(avatarSeed, 'hex'),
     }

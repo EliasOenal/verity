@@ -30,11 +30,6 @@ export const Settings = {
     KEY_REQUEST_TIME: (10 * 1000),  // asks nodes for new cube keys every 10 seconds
     NODE_REQUEST_TIME: (10 * 1000),  // asks nodes for their known nodes every minute
 
-    // local implementation details:
-    // Whether or not to use the threaded hash cash implementation on NodeJS.
-    // This is currently broken. NodeJS will just silently DIE when you activate it o.O
-    HASH_WORKERS: false,
-
     // Debugging related:
     RUNTIME_ASSERTIONS: true,
 }

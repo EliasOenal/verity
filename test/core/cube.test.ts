@@ -175,7 +175,7 @@ describe('cube', () => {
       new CubeField(CubeFieldType.TYPE, NetConstants.CUBE_TYPE_SIZE, Buffer.alloc(NetConstants.CUBE_TYPE_SIZE)),
       new CubeField(CubeFieldType.PUBLIC_KEY, NetConstants.PUBLIC_KEY_SIZE, publicKey),
       CubeField.Date(),
-      new CubeField(CubeFieldType.SIGNATURE, 72, Buffer.alloc(72)),
+      new CubeField(CubeFieldType.SIGNATURE, NetConstants.SIGNATURE_SIZE, Buffer.alloc(NetConstants.SIGNATURE_SIZE)),
       new CubeField(CubeFieldType.NONCE, Settings.NONCE_SIZE, Buffer.alloc(Settings.NONCE_SIZE)),
     ], coreMucFieldDefinition);
 
@@ -186,6 +186,8 @@ describe('cube', () => {
     expect(binaryData.length).toEqual(NetConstants.CUBE_SIZE);
     expect(key.equals(publicKey)).toBeTruthy();
     expect(info).toBeInstanceOf(CubeInfo);
+    // @ts-ignore using a private method for testing only
+    expect(() => muc.validateCube()).not.toThrow();
   }, 5000);
 
   it('should correctly sign a MUC', async() => {
@@ -200,6 +202,7 @@ describe('cube', () => {
       CubeField.Payload(
         "Ego sum cubus usoris mutabilis, semper secure signatus."));
     const binaryData = await muc.getBinaryData();  // final fully signed binary
+    const mucKey: Buffer = await muc.getKey();
 
     // ensure signature exposed through the Cube object's signature field matches
     // the actualy one in the binary data
@@ -216,13 +219,18 @@ describe('cube', () => {
       pubkeyField.start + CubeFieldLength[CubeFieldType.PUBLIC_KEY]).
       equals(publicKey)).toBeTruthy();
 
-    // verify signature is correct
+    // verify signature is correct, manually...
     const dataToSign = binaryData.subarray(0, 956);  // 956 = 1024 - 4 (nonce) - 64 (signature proper)
     expect(
       sodium.crypto_sign_verify_detached(sigField.value, dataToSign, publicKey))
       .toBeTruthy();
+    // @ts-ignore ...and automatically (using private method here)
+    expect(() => muc.validateCube()).not.toThrow();
     // try to re-instantiate
+
     const parsedMuc = new Cube(binaryData);
+    expect(parsedMuc).toBeInstanceOf(Cube);
+    expect(parsedMuc.getKeyIfAvailable().equals(mucKey)).toBeTruthy();
   });
 
   // This test fails using Settings.HASH_WORKERS=true and I don't understand why :(

@@ -245,6 +245,40 @@ describe('Identity', () => {
       expect(mucTimeDistance).toBeGreaterThanOrEqual(5);
       expect(mucTimeDistance).toBeLessThanOrEqual(10);
     }, 20000);
+
+    it.only('still works even if I update my Identity really really often', async() => {
+      const idTestOptions = {
+        persistance: undefined,
+        minMucRebuildDelay: 0,
+        parsers: cciFieldParsers,
+        requiredDifficulty: 1,
+      }
+      const id: Identity = Identity.Create(
+        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
+      for (let i = 0; i < 100; i++) {
+        // saving stuff
+        id.name = "Probator condendi repetitionis " + i;
+        id.avatarSeed =  {
+          scheme: AvatarScheme.MULTIAVATAR,
+          seed: Buffer.from("00000000" + i.toString(16).padStart(2, "0"), 'hex'),
+        }
+        const muc: cciCube = await id.makeMUC();
+        muc.setDate(i);
+        await muc.getBinaryData();
+        const key = await muc.getKey();
+        // @ts-ignore testing private method
+        expect(() => muc.validateCube()).not.toThrow();
+        await cubeStore.addCube(muc);
+
+        // reading it back
+        const restoredMuc = cubeStore.getCube(key, cciFieldParsers, cciCube) as cciCube;
+        expect(restoredMuc).toBeInstanceOf(Cube);
+        const restored: Identity = new Identity(cubeStore, restoredMuc, idTestOptions);
+        expect(restored.name).toEqual("Probator condendi repetitionis " + i);
+        const restoredSeed = restored.avatarSeed.seed.toString('hex');
+        expect(parseInt(restoredSeed, 16)).toEqual(i);
+      }
+    }, 200000);
   });
 
   describe('subscription recommendations', ()  => {
