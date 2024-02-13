@@ -13,7 +13,7 @@ export function fibonacci(n: number) {
  * Returns the current time if no args given.
  * Converts any time given in unix milliseconds to full seconds.
  */
-export function unixtime(millis?: number): number {
+export function unixtime(millis: number = undefined): number {
   if (millis === undefined) millis = Date.now();
   return Math.floor(millis / 1000);
 }

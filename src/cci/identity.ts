@@ -436,7 +436,7 @@ export class Identity {
     // Write avatar string
     if (this.avatarSeed) {
       const length = AvatarSeedLength[this.avatarSeed.scheme] + 1;  // 1: scheme field
-      const val: Buffer = Buffer.alloc(length);
+      const val: Buffer = Buffer.alloc(length, 0);
       val.writeUInt8(this.avatarSeed.scheme);
       val.set(this.avatarSeed.seed, 1);
       fields.push(new cciField(cciFieldType.AVATAR, length, val));

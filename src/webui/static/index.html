@@ -295,7 +295,7 @@
       <div class="verityEditIdentityAvatarArea">
         <img src="unknownuser.svg" alt=""
              class="verityEditIdentityAvatar" />
-        <input type="hidden" class="verityEditIdentityAvatarSeed" />
+        <input type="hidden" class="verityEditIdentityAvatarSeed" value="" />
         <button class="btn btn-primary mx-3" type="button"
                 onclick="window.verityUI.identityController.randomMultiavatar()">
           Get me a different avatar
@@ -468,8 +468,12 @@
                     <td class="veritySchematicFieldType">VERSION</td>
                   </tr>
                   <tr>
+                    <th>Start index</th>
+                    <td class="veritySchematicFieldStart">1337</td>
+                  </tr>
+                  <tr>
                     <th>Content length</th>
-                    <td class="veritySchematicFieldLength">42</td>
+                    <td class="veritySchematicFieldLength">31337</td>
                   </tr>
                   <tr>
                     <th>Content (hex)</th>
@@ -477,7 +481,7 @@
                   </tr>
                   <tr>
                     <th>Content (utf-8)</th>
-                    <td class="veritySchematicFieldUtf8">Campus intra cubum est</td>
+                    <td class="veritySchematicFieldUtf8">Campus intra cubum</td>
                   </tr>
                 </table>
               </div>

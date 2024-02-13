@@ -12,9 +12,6 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 
-if (isNode && Settings.HASH_WORKERS) {
-    await import ('../nodespecific/cube-extended');
-}
 
 export class Cube {
     class = Cube;  // javascript introspection sucks
@@ -274,16 +271,20 @@ export class Cube {
         this.padUp();
         // compile it
         this.binaryData = this.fieldParser.compileFields(this._fields);
-        if (this.binaryData.length != NetConstants.CUBE_SIZE) {
+        if (Settings.RUNTIME_ASSERTIONS && this.binaryData.length != NetConstants.CUBE_SIZE) {
             throw new BinaryDataError("Cube: Something went horribly wrong, I just wrote a cube of invalid size " + this.binaryData.length);
         }
-        await this.generateCubeHash();  // if this is a MUC, this also signs it
-
-        // re-set our fields so they share the same memory as our binary data
+        // re-set our fields so they share the same memory as our binary data again
         for (const field of this.fields.all) {
             const offset =
                 field.start + this.fieldParser.getFieldHeaderLength(field.type);
             field.value = this.binaryData.subarray(offset, offset + field.length);
+        }
+        // Hash the cube -- if it'a smart one, this also signs it
+        await this.generateCubeHash();
+
+        if (Settings.RUNTIME_ASSERTIONS) {
+            this.validateCube();
         }
     }
 
@@ -313,37 +314,36 @@ export class Cube {
         }
     }
 
-    // @member Calculates the cube hash, including the hashcash challenge
-    // It makes no sense to call this method more than once on any particular
-    // cube object (except maybe to heat your home).
-    // Cube's getter method will make sure to call generateCubeHash() whenever
-    // appropriate (i.e. when the hash is required but has not yet been calculated).
+    /**
+     * Calculates the cube hash, including the hashcash challenge.
+     * If this is a MUC, it also signs it.
+     * It makes no sense to call this method more than once on any particular
+     * cube object (except maybe to heat your home).
+     * Cube's getter method will make sure to call generateCubeHash() whenever
+     * appropriate (i.e. when the hash is required but has not yet been calculated).
+     */
     private async generateCubeHash(): Promise<void> {
         if (this.binaryData === undefined) {
             logger.warn("Cube: generateCubeHash called on undefined binary data -- it's not a problem, but it's not supposed to happen either");
             this.setBinaryData();
         }
-
-        const paddingField = this._fields.getFirst(CubeFieldType.NONCE);
-        if (!paddingField) {
-            logger.error('Cube: generateCubeHash() called, but no PADDING_NONCE field found');
-            throw new CubeError("generateCubeHash() called, but no PADDING_NONCE field found");
+        const nonceField = this._fields.getFirst(CubeFieldType.NONCE);
+        if (!nonceField) {
+            logger.error('Cube: generateCubeHash() called, but no NONCE field found');
+            throw new CubeError("generateCubeHash() called, but no NONCE field found");
         }
-        const indexNonce = paddingField.start +
-            this.fieldParser.getFieldHeaderLength(CubeFieldType.NONCE);
-
-        // Calculate hashcash
-        this.hash = await this.findValidHash(indexNonce);
+        // Calculate hashcash. If this is a MUC, this will also sign it.
+        this.hash = await this.findValidHash(nonceField);
         // logger.info("cube: Using hash " + this.hash.toString('hex') + "as cubeKey");
     }
 
     private signBinaryData(): void {
         const signature: CubeField = this.fields.getFirst(CubeFieldType.SIGNATURE);
+        if (!signature) return;  // no signature field, no signature
         if (Settings.RUNTIME_ASSERTIONS) {
             if (!this.binaryData) {
                 throw new BinaryDataError("Cube: signBinaryData() called with undefined binary data");
             }
-            if (!signature) return;  // no signature field = no signature
             if (!this.publicKey || !this.privateKey) {
                 throw new CubeError("Cube: signBinaryData() called without a complete public/private key pair");
             }
@@ -352,22 +352,12 @@ export class Cube {
                 // and in this case this is a good thing :)
                 throw new BinaryDataError("Cube: signBinaryData() called with unfinalized fields");
             }
-            if (this.binaryData === undefined) {
-                throw new BinaryDataError("Binary data not initialized");
-            }
         }
-
         // Slice out data to be signed:
         // Start of cube till just before the signature field
         const dataToSign = this.binaryData.subarray(0, signature.start);
-        // Generate the signature
-        // Note: As an exception, we need to work directly on a binary data
-        // offset as this method usually gets called right after binary data
-        // compilation. In this very instance, signature.value does temporarily
-        // not point to a region of memory within binary data.
-        this.binaryData.set(
-            sodium.crypto_sign_detached(dataToSign, this.privateKey),
-            signature.start);
+        signature.value.set(  // Generate the signature
+            sodium.crypto_sign_detached(dataToSign, this.privateKey));
     }
 
     /**
@@ -379,7 +369,7 @@ export class Cube {
      * For MUCs, it also signs the cube, populating its SIGNATURE field.
      */
     // Non-worker version kept for browser portability
-    findValidHash(nonceStartIndex: number): Promise<Buffer> {
+    findValidHash(nonceField: CubeField): Promise<Buffer> {
         return new Promise((resolve) => {
             let nonce: number = 0;
             let hash: Buffer;
@@ -390,14 +380,14 @@ export class Cube {
                 // Check 1000 hashes before yielding control back to the event loop
                 for (let i = 0; i < 1000; i++) {
                     // Write the nonce to binaryData
-                    this.binaryData.writeUIntBE(nonce, nonceStartIndex, Settings.NONCE_SIZE);
+                    nonceField.value.writeUIntBE(nonce, 0, Settings.NONCE_SIZE);
                     // If this is a MUC and signatureStartIndex is provided, sign the updated data
                     this.signBinaryData();
                     // Calculate the hash
                     hash = CubeUtil.calculateHash(this.binaryData);
                     // Check if the hash is valid
                     if (CubeUtil.countTrailingZeroBits(hash) >= this.required_difficulty) {
-                        // logger.trace("Cube: Found valid hash with nonce " + nonce);
+                        logger.trace("Cube: Found valid hash with nonce " + nonce);
                         resolve(hash);
                         return;  // This is important! It stops the for loop and the function if a valid hash is found
                     }
@@ -413,8 +403,9 @@ export class Cube {
     }
 
     getDifficulty(): number {
-        if (this.binaryData === undefined) this.setBinaryData();
-        if (this.hash === undefined) this.generateCubeHash();
+        if (this.binaryData === undefined || this.hash === undefined) {
+            this.setBinaryData();
+        }
         return CubeUtil.countTrailingZeroBits(this.hash);
     }
 

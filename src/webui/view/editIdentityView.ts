@@ -22,6 +22,7 @@ export class EditIdentityView extends VerityView {
       ".verityEditIdentityAvatarSeed");
     if (!seedElem) return;
     imgElem.src = src;
-    seedElem.value = seed;
+    if (seed) seedElem.value = seed;
+    else seedElem.value = "";
   }
 }

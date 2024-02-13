@@ -90,6 +90,8 @@ export class CubeExplorerView extends VerityView {
       detailsTable.setAttribute("aria-labelledby", `pills-tab-${key}-${i}`);
       (detailsTable.querySelector(".veritySchematicFieldType") as HTMLElement)
         .innerText = (fieldName ?? field.type.toString()) + ` (code ${(field.type >> 2).toString()} / 0x${(field.type >> 2).toString(16)})`;  // TODO omit code for positionals
+      (detailsTable.querySelector(".veritySchematicFieldStart") as HTMLElement)
+        .innerText = field.start.toString();
       (detailsTable.querySelector(".veritySchematicFieldLength") as HTMLElement)
         .innerText = field.length.toString();
       // TODO: parse known field contents instead of just dumping their value
