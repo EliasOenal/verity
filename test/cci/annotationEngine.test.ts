@@ -3,8 +3,8 @@ import { Cube } from '../../src/core/cube/cube';
 import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
 
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
-import { cciField, cciFieldParsers, cciRelationship, cciRelationshipType } from '../../src/cci/cciFields';
-import { cciCube } from '../../src/cci/cciCube';
+import { cciField, cciFieldParsers, cciRelationship, cciRelationshipType } from '../../src/cci/cube/cciFields';
+import { cciCube } from '../../src/cci/cube/cciCube';
 
 describe('annotationEngine', () => {
   let cubeStore: CubeStore;

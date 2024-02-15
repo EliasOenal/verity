@@ -6,9 +6,9 @@ import { EventEmitter } from 'events';
 import { BaseFields } from '../core/cube/baseFields';
 
 import { Buffer } from 'buffer';
-import { cciFieldParsers, cciFields, cciRelationship } from './cciFields';
+import { cciFieldParsers, cciFields, cciRelationship } from './cube/cciFields';
 import { CubeStore } from '../core/cube/cubeStore';
-import { cciCube } from './cciCube';
+import { cciCube } from './cube/cciCube';
 
 
 type RelationshipClassConstructor = new (type: number, remoteKey: CubeKey) => cciRelationship;

@@ -4,11 +4,11 @@ import { CubeInfo } from "../core/cube/cubeInfo";
 import { CubeStore } from "../core/cube/cubeStore";
 import { logger } from "../core/logger";
 import { AnnotationEngine, defaultGetFieldsFunc } from "../cci/annotationEngine";
-import { Identity } from "../cci/identity";
-import { MediaTypes, cciFieldLength, cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipLimits, cciRelationshipType } from "../cci/cciFields";
+import { Identity } from "../cci/identity/identity";
+import { MediaTypes, cciFieldLength, cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipLimits, cciRelationshipType } from "../cci/cube/cciFields";
 
 import { assertZwCube, assertZwMuc } from "./zwCubes";
-import { cciCube } from "../cci/cciCube";
+import { cciCube } from "../cci/cube/cciCube";
 
 // TODO: Split post selection and associated criteria out of here, moving it to
 // a new class ContentSelector. Instead of purely binary criteria, assign them

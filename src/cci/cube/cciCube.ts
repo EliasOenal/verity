@@ -1,11 +1,11 @@
-import { Settings, VerityError } from "../core/settings";
+import { Settings, VerityError } from "../../core/settings";
 import { cciFields, cciField, cciFieldParsers } from "./cciFields";
 
-import { Cube } from "../core/cube/cube";
+import { Cube } from "../../core/cube/cube";
 
 import sodium, { KeyPair, crypto_kdf_KEYBYTES } from 'libsodium-wrappers-sumo'
-import { FieldParserTable } from "../core/cube/cubeFields";
-import { CubeType, FieldError } from "../core/cube/cubeDefinitions";
+import { FieldParserTable } from "../../core/cube/cubeFields";
+import { CubeType, FieldError } from "../../core/cube/cubeDefinitions";
 
 export class cciCube extends Cube {
   class = cciCube;  // javascript introspection sucks

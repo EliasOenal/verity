@@ -3,12 +3,14 @@ import { CubeKey } from '../../src/core/cube/cubeDefinitions';
 import { CubeStore } from '../../src/core/cube/cubeStore';
 import { Cube } from '../../src/core/cube/cube'
 
-import { AvatarScheme, Identity, IdentityOptions, IdentityPersistance } from '../../src/cci/identity'
+import { AvatarScheme, Identity, IdentityOptions } from '../../src/cci/identity/identity'
 import { makePost } from '../../src/app/zwCubes';
-import { cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipType } from '../../src/cci/cciFields';
+import { cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipType } from '../../src/cci/cube/cciFields';
+
+import { cciCube } from '../../src/cci/cube/cciCube';
+import { IdentityPersistance } from '../../src/cci/identity/identityPersistance';
 
 import sodium from 'libsodium-wrappers-sumo'
-import { cciCube } from '../../src/cci/cciCube';
 
 // maybe TODO: Some tests here use "ZW" stuff from the microblogging app
 // which breaks the current layering.
@@ -246,7 +248,7 @@ describe('Identity', () => {
       expect(mucTimeDistance).toBeLessThanOrEqual(10);
     }, 20000);
 
-    it.only('still works even if I update my Identity really really often', async() => {
+    it('still works even if I update my Identity really really often', async() => {
       const idTestOptions = {
         persistance: undefined,
         minMucRebuildDelay: 0,

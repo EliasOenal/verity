@@ -1,29 +1,27 @@
 /** !!! This module may only be used after awaiting sodium.ready !!! */
+import { IdentityPersistance } from './identityPersistance';
 
-import { unixtime } from '../core/helpers';
-import { Cube } from '../core/cube/cube';
-import { logger } from '../core/logger';
-import { FieldNumericalParam } from '../core/fieldParser';
+import { unixtime } from '../../core/helpers';
+import { Cube } from '../../core/cube/cube';
+import { logger } from '../../core/logger';
+import { FieldNumericalParam } from '../../core/fieldParser';
 
-import { cciField, cciFieldParsers, cciFieldType, cciFields, cciMucFieldDefinition, cciRelationship, cciRelationshipType } from './cciFields';
-import { cciCube } from './cciCube';
+import { cciField, cciFieldParsers, cciFieldType, cciFields, cciMucFieldDefinition, cciRelationship, cciRelationshipType } from '../cube/cciFields';
+import { cciCube } from '../cube/cciCube';
 
-import { ApiMisuseError, Settings, VerityError } from '../core/settings';
-import { FieldParserTable } from '../core/cube/cubeFields';
-import { CubeStore } from '../core/cube/cubeStore';
-import { CubeInfo } from '../core/cube/cubeInfo';
-import { CubeError, CubeKey, CubeType, FieldError } from '../core/cube/cubeDefinitions';
-import { NetConstants } from '../core/networking/networkDefinitions';
+import { Settings, VerityError } from '../../core/settings';
+import { FieldParserTable } from '../../core/cube/cubeFields';
+import { CubeStore } from '../../core/cube/cubeStore';
+import { CubeInfo } from '../../core/cube/cubeInfo';
+import { CubeError, CubeKey, CubeType, FieldError } from '../../core/cube/cubeDefinitions';
+import { NetConstants } from '../../core/networking/networkDefinitions';
 
-import { ZwConfig } from '../app/zwConfig';  // TODO remove dependency from CCI to app
+import { ZwConfig } from '../../app/zwConfig';  // TODO remove dependency from CCI to app
 
-import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
 import { Buffer } from 'buffer';
-import { Level } from 'level';
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import multiavatar from '@multiavatar/multiavatar'
 
-const IDENTITYDB_VERSION = 1;
 const IDMUC_CONTEXT_STRING = "CCI Identity";
 const IDMUC_MASTERINDEX = 0;
 
@@ -677,115 +675,5 @@ export class Identity {
       }
       this.recursiveParsePostReferences(this.cubeStore.getCube(postrel.remoteKey, cciFieldParsers, cciCube), alreadyTraversedCubes);
     }
-  }
-}
-
-
-
-
-/**
- * @classdesc
- * Helper class.
- * IdentityPersistance objects represent a database connection used for
- * storing and retrieving identities.
- * You will not need to deal with this class, Identity will do that for you :)
- */
-export class IdentityPersistance {
-  private dbname: string;
-  private db: Level<string, string>;  // key => JSON-serialized Identity object
-
-  /// @static Use this static method to create IdentityPersistance objects
-  /// rather than constructing them yourself.
-  /// It's a convenient workaround to abstract from the hazzle that database
-  /// operations are async but constructor's aren't allowed to be.
-  /// I don't like Javascript.
-  static async create(dbname: string = "identity"): Promise<IdentityPersistance> {
-    const obj = new IdentityPersistance(dbname);
-    await obj.open()
-    return obj;
-  }
-
-  constructor(dbname: string = "identity") {
-    if (isBrowser || isWebWorker) this.dbname = dbname;
-    else this.dbname = "./" + dbname + ".db";
-    this.db = new Level<string, string>(
-      this.dbname,
-      {
-        keyEncoding: 'utf8',
-        valueEncoding: 'utf8',
-        version: IDENTITYDB_VERSION
-      });
-  }
-
-  /** @method Pseudo-private helper method only used right after construction. */
-  async open(): Promise<void> {
-    try {
-      await this.db.open();
-      logger.trace("IdentityPersistance: Opened DB, status now " + this.db.status);
-    } catch (error) {
-      logger.error("IdentityPersistance: Could not open DB: " + error);
-    }
-  }
-
-  // TODO: Ensure this does not get called more than once a second, otherwise
-  // the updated cube will lose the CubeContest and not actually be stored
-  store(id: Identity): Promise<void> {
-    if (this.db.status != 'open') {
-      logger.error("IdentityPersistance: Could not store identity, DB not open");
-      return undefined;
-    }
-    return this.db.put(
-      id.key.toString('hex'),
-      id.masterKey.toString('hex')
-    );
-  }
-
-  /**
-   * @returns A list of all locally stored Identites. Note that for this two
-   * work, two conditions must be satisfied: The Identities's keys must be
-   * present in the local Identity DB and the corresponding Identity MUCs must
-   * be present in the local Cube store.
-   * This method will *not* retrieve missing MUCs from the network.
-   */
-  async retrieve(cubeStore: CubeStore): Promise<Identity[]> {
-    if (this.db.status != 'open') {
-      logger.error("IdentityPersistance: Could not retrieve identity, DB not open");
-      return undefined;
-    }
-    const identities: Array<Identity> = [];
-    for await (const [pubkey, masterkey] of this.db.iterator() ) {
-      try {
-        const privkey: Buffer = Buffer.from(
-          Identity.DeriveKeypair(Buffer.from(masterkey, 'hex')).privateKey);
-        const muc = cubeStore.getCube(Buffer.from(pubkey, 'hex'), cciFieldParsers, cciCube) as cciCube;  // TODO: either assert cciCube or document why assertion not required
-        if (muc === undefined) {
-          logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkey + " is not present");
-          continue;
-        }
-        muc.privateKey = privkey;
-        const id = new Identity(cubeStore, muc, {persistance: this});
-        identities.push(id);
-      } catch (error) {
-        logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
-      }
-    }
-    return identities;
-  }
-
-  /** Deletes an Identity. Only used for unit testing by now. */
-  delete(idkey: CubeKey) {
-    this.db.del(idkey.toString('hex'));
-  }
-
-  /** Should only really be used by unit tests */
-  async deleteAll() {
-    for await (const key of this.db.keys() ) {
-      this.db.del(key);
-    }
-  }
-
-  /** Closes the DB, which invalidates the object. Should only really be used by unit tests. */
-  async close() {
-    await this.db.close();
   }
 }

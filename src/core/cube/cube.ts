@@ -387,7 +387,7 @@ export class Cube {
                     hash = CubeUtil.calculateHash(this.binaryData);
                     // Check if the hash is valid
                     if (CubeUtil.countTrailingZeroBits(hash) >= this.required_difficulty) {
-                        logger.trace("Cube: Found valid hash with nonce " + nonce);
+                        // logger.trace("Cube: Found valid hash with nonce " + nonce);
                         resolve(hash);
                         return;  // This is important! It stops the for loop and the function if a valid hash is found
                     }

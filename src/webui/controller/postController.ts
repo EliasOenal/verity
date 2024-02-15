@@ -2,9 +2,9 @@ import { CubeKey } from "../../core/cube/cubeDefinitions";
 import { CubeInfo } from "../../core/cube/cubeInfo";
 import { CubeStore } from "../../core/cube/cubeStore";
 
-import { Identity } from "../../cci/identity";
+import { Identity } from "../../cci/identity/identity";
 import { makePost } from "../../app/zwCubes";
-import { cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipType } from "../../cci/cciFields";
+import { cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipType } from "../../cci/cube/cciFields";
 import { ZwAnnotationEngine } from "../../app/zwAnnotationEngine";
 
 import { PostView } from "../view/postView";
@@ -12,7 +12,7 @@ import { PostView } from "../view/postView";
 import { logger } from "../../core/logger";
 
 import { Buffer } from 'buffer';
-import { cciCube } from "../../cci/cciCube";
+import { cciCube } from "../../cci/cube/cciCube";
 import { VerityController } from "./verityController";
 
 // TODO refactor: just put the damn CubeInfo in here

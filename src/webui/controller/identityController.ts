@@ -1,6 +1,8 @@
-import multiavatar from "@multiavatar/multiavatar";
-import { AvatarScheme, AvatarSeedLength, Identity, IdentityPersistance } from "../../cci/identity";
 import { CubeStore } from "../../core/cube/cubeStore";
+
+import { AvatarScheme, AvatarSeedLength, Identity } from "../../cci/identity/identity";
+import { IdentityPersistance } from "../../cci/identity/identityPersistance";
+
 import { EditIdentityView } from "../view/editIdentityView";
 import { LoginFormView } from "../view/loginFormView";
 import { LoginStatusView } from "../view/loginStatusView";
@@ -8,6 +10,7 @@ import { VerityView } from "../view/verityView";
 import { VerityController } from "./verityController";
 
 import { Buffer } from 'buffer';
+import multiavatar from "@multiavatar/multiavatar";
 
 export class IdentityController extends VerityController {
   loginStatusView: LoginStatusView = new LoginStatusView();

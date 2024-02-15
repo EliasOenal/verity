@@ -5,7 +5,7 @@ import { VerityNode } from '../core/verityNode';
 import { AddressAbstraction } from '../core/peering/addressing';
 import { Cube } from '../core/cube/cube';
 
-import { Identity } from '../cci/identity';
+import { Identity } from '../cci/identity/identity';
 import { SubscriptionRequirement, ZwAnnotationEngine } from '../app/zwAnnotationEngine';
 
 import { PostController } from './controller/postController';

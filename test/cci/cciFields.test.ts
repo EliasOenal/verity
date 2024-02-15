@@ -1,4 +1,4 @@
-import { cciDumbFieldDefinition, cciField, cciFields, cciRelationship, cciRelationshipType } from "../../src/cci/cciFields";
+import { cciDumbFieldDefinition, cciField, cciFields, cciRelationship, cciRelationshipType } from "../../src/cci/cube/cciFields";
 import { CubeType, WrongFieldType } from "../../src/core/cube/cubeDefinitions";
 import { NetConstants } from "../../src/core/networking/networkDefinitions";
 

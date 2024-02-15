@@ -6,8 +6,8 @@ import { CubeField, CubeFieldType, coreFieldParsers, coreTlvFieldParsers } from 
 import sodium from 'libsodium-wrappers-sumo'
 import { logger } from '../../src/core/logger';
 import { CubeType } from '../../src/core/cube/cubeDefinitions';
-import { MediaTypes, cciField, cciFieldParsers, cciFieldType, cciFields } from '../../src/cci/cciFields';
-import { cciCube } from '../../src/cci/cciCube';
+import { MediaTypes, cciField, cciFieldParsers, cciFieldType, cciFields } from '../../src/cci/cube/cciFields';
+import { cciCube } from '../../src/cci/cube/cciCube';
 
 describe('cubeStore', () => {
   // TODO: Update payload field ID. Make tests actually check payload.

@@ -3,16 +3,16 @@ import { Cube } from "../../src/core/cube/cube";
 import { CubeField } from "../../src/core/cube/cubeFields";
 import { CubeInfo } from "../../src/core/cube/cubeInfo";
 import { CubeStore } from "../../src/core/cube/cubeStore";
-import { Identity, IdentityOptions } from "../../src/cci/identity";
+import { Identity, IdentityOptions } from "../../src/cci/identity/identity";
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zwAnnotationEngine";
 import { makePost } from "../../src/app/zwCubes"
 
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
-import { MediaTypes, cciField, cciFieldParsers, cciFields, cciRelationship, cciRelationshipType } from "../../src/cci/cciFields";
+import { MediaTypes, cciField, cciFieldParsers, cciFields, cciRelationship, cciRelationshipType } from "../../src/cci/cube/cciFields";
 import { FieldParser } from "../../src/core/fieldParser";
 
 import {jest} from '@jest/globals'
-import { cciCube } from "../../src/cci/cciCube";
+import { cciCube } from "../../src/cci/cube/cciCube";
 
 
 describe('ZwAnnotationEngine', () => {

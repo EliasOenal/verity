@@ -1,5 +1,5 @@
-import { cciCube } from "../../cci/cciCube";
-import { cciFieldParsers } from "../../cci/cciFields";
+import { cciCube } from "../../cci/cube/cciCube";
+import { cciFieldParsers } from "../../cci/cube/cciFields";
 import { Cube } from "../../core/cube/cube";
 import { CubeStore } from "../../core/cube/cubeStore";
 import { CubeExplorerView } from "../view/cubeExplorerView";
