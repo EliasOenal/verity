@@ -11,11 +11,11 @@ import { Cube } from "../core/cube/cube";
 import { CubeError, CubeKey, CubeType } from "../core/cube/cubeDefinitions";
 import { CubeField } from "../core/cube/cubeFields";
 import { FieldParser } from "../core/fieldParser";
-import { Identity } from "../cci/identity";
-import { MediaTypes, cciField, cciFieldType, cciFields, cciRelationship, cciRelationshipType, cciDumbFieldDefinition, cciFieldParsers } from "../cci/cciFields";
+import { Identity } from "../cci/identity/identity";
+import { MediaTypes, cciField, cciFieldType, cciFields, cciRelationship, cciRelationshipType, cciDumbFieldDefinition, cciFieldParsers } from "../cci/cube/cciFields";
 
 import { Buffer } from 'buffer';
-import { cciCube } from "../cci/cciCube";
+import { cciCube } from "../cci/cube/cciCube";
 import { logger } from "../core/logger";
 
 /**

@@ -1,4 +1,4 @@
-import { Identity } from "../../cci/identity";
+import { Identity } from "../../cci/identity/identity";
 import { VerityView } from "./verityView";
 
 export class EditIdentityView extends VerityView {
