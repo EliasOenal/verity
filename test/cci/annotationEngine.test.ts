@@ -9,7 +9,7 @@ import { cciCube } from '../../src/cci/cube/cciCube';
 describe('annotationEngine', () => {
   let cubeStore: CubeStore;
   let annotationEngine: AnnotationEngine;
-  let reduced_difficulty = 0;
+  const reducedDifficulty = 0;
 
   beforeEach(() => {
     cubeStore = new CubeStore({
@@ -24,11 +24,11 @@ describe('annotationEngine', () => {
     }, 3000);
 
     it('correctly creates a reverse relationship', async () => {
-      const referee = cciCube.Dumb([], cciFieldParsers, reduced_difficulty);
+      const referee = cciCube.Dumb([], cciFieldParsers, reducedDifficulty);
       const referrer = cciCube.Dumb(
         cciField.RelatesTo(new cciRelationship(
           cciRelationshipType.CONTINUED_IN, await referee.getKey())),
-        cciFieldParsers, reduced_difficulty);
+        cciFieldParsers, reducedDifficulty);
       await cubeStore.addCube(referrer);
 
       const reverserels = annotationEngine.getReverseRelationships(await referee.getKey());
@@ -56,7 +56,7 @@ describe('annotationEngine', () => {
       const muc1 = Cube.MUC(Buffer.from(muckeys1.publicKey), Buffer.from(muckeys1.privateKey));
       const muc2 = Cube.MUC(Buffer.from(muckeys2.publicKey), Buffer.from(muckeys2.privateKey));
       const continuedin = cciCube.Dumb(cciField.Payload("Multum habeo dicere"),
-        cciFieldParsers, reduced_difficulty);
+        cciFieldParsers, reducedDifficulty);
 
       // And now the offender themselves:
       const nonconformingCube = cciCube.Dumb([
@@ -66,7 +66,7 @@ describe('annotationEngine', () => {
             cciRelationshipType.MENTION, await muc2.getKey())),
           cciField.RelatesTo(new cciRelationship(
             cciRelationshipType.CONTINUED_IN, await continuedin.getKey()))
-        ], cciFieldParsers, reduced_difficulty);
+        ], cciFieldParsers, reducedDifficulty);
       await cubeStore.addCube(nonconformingCube);
 
       // As requested, only the first MENTION is annotated and nothing else
