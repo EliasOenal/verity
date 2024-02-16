@@ -7,12 +7,11 @@ import { Identity, IdentityOptions } from "../../src/cci/identity/identity";
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zwAnnotationEngine";
 import { makePost } from "../../src/app/zwCubes"
 
-import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { MediaTypes, cciField, cciFieldParsers, cciFields, cciRelationship, cciRelationshipType } from "../../src/cci/cube/cciFields";
-import { FieldParser } from "../../src/core/fieldParser";
 
-import {jest} from '@jest/globals'
+import { jest } from '@jest/globals'
 import { cciCube } from "../../src/cci/cube/cciCube";
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 
 
 describe('ZwAnnotationEngine', () => {

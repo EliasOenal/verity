@@ -1,16 +1,17 @@
-import { NetConstants } from '../../src/core/networking/networkDefinitions';
-import { CubeKey } from '../../src/core/cube/cubeDefinitions';
-import { CubeStore } from '../../src/core/cube/cubeStore';
-import { Cube } from '../../src/core/cube/cube'
+import { NetConstants } from '../../../src/core/networking/networkDefinitions';
+import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
+import { CubeStore } from '../../../src/core/cube/cubeStore';
+import { Cube } from '../../../src/core/cube/cube'
 
-import { AvatarScheme, Identity, IdentityOptions } from '../../src/cci/identity/identity'
-import { makePost } from '../../src/app/zwCubes';
-import { cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipType } from '../../src/cci/cube/cciFields';
+import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
+import { makePost } from '../../../src/app/zwCubes';
+import { cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipType } from '../../../src/cci/cube/cciFields';
 
-import { cciCube } from '../../src/cci/cube/cciCube';
-import { IdentityPersistance } from '../../src/cci/identity/identityPersistance';
+import { cciCube } from '../../../src/cci/cube/cciCube';
+import { IdentityPersistance } from '../../../src/cci/identity/identityPersistance';
 
 import sodium from 'libsodium-wrappers-sumo'
+import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
 
 // maybe TODO: Some tests here use "ZW" stuff from the microblogging app
 // which breaks the current layering.
@@ -59,10 +60,8 @@ describe('Identity', () => {
       original.name = "Probator Identitatum";
       original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
       original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
-      original.avatarSeed = {
-        scheme: AvatarScheme.MULTIAVATAR,
-        seed: Buffer.from("0102030405", 'hex'),
-      }
+      original.avatar = new Avatar(
+        Buffer.from("0102030405", 'hex'), AvatarScheme.MULTIAVATAR);
 
       const post = await makePost("Habeo res importantes dicere",
         undefined, original, reducedDifficulty);
@@ -96,8 +95,8 @@ describe('Identity', () => {
       expect(restored).toBeInstanceOf(Identity);
       expect(restored.name).toEqual("Probator Identitatum");
       expect(restored.profilepic[0]).toEqual(0xDA);
-      expect(restored.avatarSeed.scheme).toEqual(AvatarScheme.MULTIAVATAR);
-      expect(restored.avatarSeed.seed.toString('hex')).toEqual("0102030405");
+      expect(restored.avatar.scheme).toEqual(AvatarScheme.MULTIAVATAR);
+      expect(restored.avatar.seedString).toEqual("0102030405");
       expect(restored.keyBackupCube[0]).toEqual(0x13);
       expect(restored.posts.length).toEqual(1);
       expect((cubeStore.getCube(restored.posts[0]) as Cube).fields.getFirst(
@@ -112,10 +111,7 @@ describe('Identity', () => {
       // populate ID
       original.name = "Probator Identitatum";
       original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
-      original.avatarSeed = {
-        scheme: AvatarScheme.MULTIAVATAR,
-        seed: Buffer.from("0102030405", 'hex'),
-      }
+      original.avatar = new Avatar("0102030405", AvatarScheme.MULTIAVATAR);
       original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
       await cubeStore.addCube(await makePost("Habeo res importantes dicere", undefined, original, reducedDifficulty));
 
@@ -137,8 +133,8 @@ describe('Identity', () => {
       expect(restored).toBeInstanceOf(Identity);
       expect(restored.name).toEqual("Probator Identitatum");
       expect(restored.profilepic[0]).toEqual(0xDA);
-      expect(restored.avatarSeed.scheme).toEqual(AvatarScheme.MULTIAVATAR);
-      expect(restored.avatarSeed.seed.toString('hex')).toEqual("0102030405");
+      expect(restored.avatar.scheme).toEqual(AvatarScheme.MULTIAVATAR);
+      expect(restored.avatar.seedString).toEqual("0102030405");
       expect(restored.keyBackupCube[0]).toEqual(0x13);
       expect(restored.posts.length).toEqual(1);
       expect((cubeStore.getCube(restored.posts[0]) as Cube).fields.getFirst(cciFieldType.PAYLOAD).value.toString('utf-8')).
@@ -260,10 +256,8 @@ describe('Identity', () => {
       for (let i = 0; i < 100; i++) {
         // saving stuff
         id.name = "Probator condendi repetitionis " + i;
-        id.avatarSeed =  {
-          scheme: AvatarScheme.MULTIAVATAR,
-          seed: Buffer.from("00000000" + i.toString(16).padStart(2, "0"), 'hex'),
-        }
+        id.avatar = new Avatar(
+          "00000000" + i.toString(16).padStart(2, "0"), AvatarScheme.MULTIAVATAR);
         const muc: cciCube = await id.makeMUC();
         muc.setDate(i);
         await muc.getBinaryData();
@@ -277,10 +271,16 @@ describe('Identity', () => {
         expect(restoredMuc).toBeInstanceOf(Cube);
         const restored: Identity = new Identity(cubeStore, restoredMuc, idTestOptions);
         expect(restored.name).toEqual("Probator condendi repetitionis " + i);
-        const restoredSeed = restored.avatarSeed.seed.toString('hex');
-        expect(parseInt(restoredSeed, 16)).toEqual(i);
+        expect(parseInt(restored.avatar.seedString, 16)).toEqual(i);
       }
     }, 200000);
+
+    it('does not store a default avatar to MUC', async() => {
+      const id: Identity = Identity.Create(
+        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
+      const muc = await id.store();
+      expect(muc.fields.getFirst(cciFieldType.AVATAR)).toBeUndefined();
+    })
   });
 
   describe('subscription recommendations', ()  => {
@@ -484,10 +484,7 @@ describe('Identity', () => {
         idkey = id.key;
         expect(id.name).toBeUndefined();
         id.name = "Probator Identitatum";
-        id.avatarSeed = {
-          scheme: AvatarScheme.MULTIAVATAR,
-          seed: Buffer.from("0102030405", 'hex'),
-        }
+        id.avatar = new Avatar("0102030405", AvatarScheme.MULTIAVATAR);
 
         const storePromise: Promise<Cube> = id.store(undefined, reducedDifficulty);
         expect(storePromise).toBeInstanceOf(Promise<Cube>);
@@ -501,8 +498,8 @@ describe('Identity', () => {
         const restoredId: Identity = restoredIds[0];
         expect(restoredId.name).toEqual("Probator Identitatum");
         expect(restoredId.key).toEqual(idkey);
-        expect(restoredId.avatarSeed.scheme).toEqual(AvatarScheme.MULTIAVATAR);
-        expect(restoredId.avatarSeed.seed.toString('hex')).toEqual("0102030405");
+        expect(restoredId.avatar.scheme).toEqual(AvatarScheme.MULTIAVATAR);
+        expect(restoredId.avatar.seedString).toEqual("0102030405");
       }
     }, 10000000);
   });  // local persistant storage tests

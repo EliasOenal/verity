@@ -1,6 +1,6 @@
-import { cciDumbFieldDefinition, cciField, cciFields, cciRelationship, cciRelationshipType } from "../../src/cci/cube/cciFields";
-import { CubeType, WrongFieldType } from "../../src/core/cube/cubeDefinitions";
-import { NetConstants } from "../../src/core/networking/networkDefinitions";
+import { cciDumbFieldDefinition, cciField, cciFields, cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciFields";
+import { CubeType, WrongFieldType } from "../../../src/core/cube/cubeDefinitions";
+import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 describe('cciFields and related classes', () => {
   describe('cciFields (field list wrapper class)', () => {

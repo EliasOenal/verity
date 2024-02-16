@@ -4,7 +4,6 @@ import { IdentityPersistance } from './identityPersistance';
 import { unixtime } from '../../core/helpers';
 import { Cube } from '../../core/cube/cube';
 import { logger } from '../../core/logger';
-import { FieldNumericalParam } from '../../core/fieldParser';
 
 import { cciField, cciFieldParsers, cciFieldType, cciFields, cciMucFieldDefinition, cciRelationship, cciRelationshipType } from '../cube/cciFields';
 import { cciCube } from '../cube/cciCube';
@@ -20,7 +19,7 @@ import { ZwConfig } from '../../app/zwConfig';  // TODO remove dependency from C
 
 import { Buffer } from 'buffer';
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
-import multiavatar from '@multiavatar/multiavatar'
+import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
 
 const IDMUC_CONTEXT_STRING = "CCI Identity";
 const IDMUC_MASTERINDEX = 0;
@@ -30,21 +29,6 @@ export interface IdentityOptions {
   minMucRebuildDelay?: number,
   requiredDifficulty?: number,
   parsers?: FieldParserTable,
-}
-
-// TODO: move the avatar stuff somewhere else and provide proper high-level
-// field handling for it
-export enum AvatarScheme {
-  MULTIAVATAR = 1,
-}
-
-export const AvatarSeedLength: FieldNumericalParam = {
-  [AvatarScheme.MULTIAVATAR]: 5,
-}
-
-export interface AvatarSeed {
-  scheme: AvatarScheme,
-  seed: Buffer,
 }
 
 // TODO: Split out the MUC management code.
@@ -164,7 +148,14 @@ export class Identity {
   /** @member This Identity's display name */
   name: string = undefined;
 
-  avatarSeed: AvatarSeed = undefined;
+  /**
+   * This Identity's auto-generated, guaranteed safe-to-show avatar picture.
+   * Avatars are an alternative to actual, fully-custom profile pictures
+   * which are always available and always guaranteed safe-to-show.
+   * Usage note: Calling this.avatar.render() yields a valid image which
+   * can directly be used as an img's src.
+   */
+  avatar: Avatar = undefined;
 
   /**
    * If this Identity object knows an IdentityPersistant object
@@ -265,14 +256,16 @@ export class Identity {
         IDMUC_MASTERINDEX, IDMUC_CONTEXT_STRING,
       );
     }
+    // create default avatar based on pubkey if none was set yet
+    if (this.avatar === undefined) this.avatar = this.defaultAvatar();
   }
 
   get privateKey(): Buffer { return this._muc.privateKey; }
   get publicKey(): Buffer { return this._muc.publicKey; }
-  // there is no setter for keys:
-  // setting new keys is equivalent with creating a new identity
-  // (yes, you can reset the keys by going directly to the MUC,
-  // just be nice and don't)
+  // Note that there is no setter for keys:
+  // Setting new keys is equivalent to creating a new Identity
+  // (yes, I know you can reset the keys by going directly to the MUC,
+  // just be nice and don't do it)
 
   /**
    * @member Get this Identity's key, which equals its MUC's cube key,
@@ -286,39 +279,19 @@ export class Identity {
   get muc(): cciCube { return this._muc; }
 
   /**
-   * Returns this account's auto-generated, guaranteed safe-to-show avatar
-   * picture, encoded as a string that can be used as a HTML image's
-   * src attribute.
-   * Avatars are an alternative to actual, fully-custom profile pictures
-   * which are always available and always guaranteed safe-to-show.
-   */
-  // TODO: offer additional avatar generation libs in addition to multiavatar
-  get avatar(): string {
-    let avatar: string;
-    if (this.avatarSeed && this.avatarSeed.scheme == AvatarScheme.MULTIAVATAR) {
-      avatar = multiavatar(this.avatarSeed.seed.toString('hex'));
-    }
-    else {
-      avatar = multiavatar(this.publicKey.toString('hex'));
-    }
-    const marshalled = "data:image/svg+xml;base64," + btoa(avatar);
-    return marshalled;
-  }
-
-  /**
    * Save this Identity locally by storing it in the local database
    * and publish it by inserting it into the CubeStore.
    * (You could also provide a private cubeStore instead, but why should you?)
    */
   async store(
-      applicationString: string = undefined,
-      required_difficulty = this.requiredDifficulty,
+      applicationString: string = "ID",
+      requiredDifficulty = this.requiredDifficulty,
   ):Promise<cciCube>{
     if (!this.privateKey || !this.masterKey) {
       throw new VerityError("Identity: Cannot store an Identity whose private key I don't have");
     }
     logger.trace("Identity: Storing identity " + this.name);
-    const muc = await this.makeMUC(applicationString, required_difficulty);
+    const muc = await this.makeMUC(applicationString, requiredDifficulty);
     for (const extensionMuc of this.subscriptionRecommendationIndices) {
       await this.cubeStore.addCube(extensionMuc);
     }
@@ -428,16 +401,15 @@ export class Identity {
     }
 
     // Write username
-    if (!this.name) throw new CubeError("Identity: Cannot create a MUC for this Identity, name field is mandatory.");
-    fields.push(cciField.Username(this.name));
+    if (this.name) {
+      fields.push(cciField.Username(this.name));
+    }
 
     // Write avatar string
-    if (this.avatarSeed) {
-      const length = AvatarSeedLength[this.avatarSeed.scheme] + 1;  // 1: scheme field
-      const val: Buffer = Buffer.alloc(length, 0);
-      val.writeUInt8(this.avatarSeed.scheme);
-      val.set(this.avatarSeed.seed, 1);
-      fields.push(new cciField(cciFieldType.AVATAR, length, val));
+    if (this.avatar &&
+        this.avatar.scheme != AvatarScheme.UNKNOWN &&
+        !(this.avatar.equals(this.defaultAvatar()))) {
+      fields.push(this.avatar.toField());
     }
 
     // Write profile picture reference
@@ -476,8 +448,17 @@ export class Identity {
     return newMuc;
   }
 
+  /**
+   * Returns this Identity's default Avatar, i.e. the one used as long as
+   * the user didn't choose one. It's based on this Identity's public key.
+   */
+  defaultAvatar(): Avatar {
+    const def = new Avatar(this.publicKey, DEFAULT_AVATARSCHEME);
+    return def;
+  }
+
   private writeSubscriptionRecommendations(
-      required_difficulty = this.requiredDifficulty,
+      requiredDifficulty = this.requiredDifficulty,
       applicationString: string = undefined,
   ): void {
     // TODO: properly calculate available space
@@ -538,7 +519,7 @@ export class Identity {
         // cheaper to just keep an open slot on the first extension MUC.
         const indexCube: cciCube = cciCube.ExtensionMuc(
           this.masterKey, fields, i, "Subscription recommendation indices",
-          false, cciFieldParsers, this.requiredDifficulty);
+          false, cciFieldParsers, requiredDifficulty);
         this.subscriptionRecommendationIndices[i] = indexCube;
       }
       // Note: Once calling store(), we will still try to reinsert non-changed
@@ -576,13 +557,7 @@ export class Identity {
     // - avatar seed
     const avatarSeedField: cciField = muc.fields.getFirst(cciFieldType.AVATAR);
     if (avatarSeedField) {
-      const avatarScheme: AvatarScheme = avatarSeedField.value.readUint8();
-      if (avatarScheme in AvatarScheme) {  // valid avatar scheme?
-        this.avatarSeed = {
-          scheme: avatarScheme,
-          seed: avatarSeedField.value.subarray(1, 1+AvatarSeedLength[avatarScheme]),
-        }
-      }
+      this.avatar = new Avatar(avatarSeedField);
     }
 
     // - profile picture reference
@@ -604,6 +579,7 @@ export class Identity {
     this._muc = muc;
   }
 
+  // TODO: check and limit recursion
   recursiveParseSubscriptionRecommendations(mucOrMucExtension: Cube, alreadyTraversedCubes: string[] = []) {
     // do we even have this cube?
     if (!mucOrMucExtension) return;
@@ -640,6 +616,7 @@ export class Identity {
    * posts (can't fit them all in the MUC, cube space is fixed, remember?).
    * This is the recursive part of that.
    */
+  // TODO: check and limit recursion
   private recursiveParsePostReferences(mucOrMucExtension: Cube, alreadyTraversedCubes: string[]): void {
     // do we even have this cube?
     if (!mucOrMucExtension) return;

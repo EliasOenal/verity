@@ -1,6 +1,6 @@
 import { CubeStore } from "../../core/cube/cubeStore";
 
-import { AvatarScheme, AvatarSeedLength, Identity } from "../../cci/identity/identity";
+import { Identity } from "../../cci/identity/identity";
 import { IdentityPersistance } from "../../cci/identity/identityPersistance";
 
 import { EditIdentityView } from "../view/editIdentityView";
@@ -11,6 +11,7 @@ import { VerityController } from "./verityController";
 
 import { Buffer } from 'buffer';
 import multiavatar from "@multiavatar/multiavatar";
+import { Avatar, AvatarScheme, AvatarSeedLength } from "../../cci/identity/avatar";
 
 export class IdentityController extends VerityController {
   loginStatusView: LoginStatusView = new LoginStatusView();
@@ -78,10 +79,8 @@ export class IdentityController extends VerityController {
 
   showEditIdentity() {
     this.mainAreaView = new EditIdentityView(this.identity);
-    let avatarSeed: string = undefined;
-    if (this._identity.avatarSeed) avatarSeed =
-      this._identity.avatarSeed.seed.toString('hex');
-    (this.mainAreaView as EditIdentityView).displayAvatar(avatarSeed, this.identity.avatar);
+    (this.mainAreaView as EditIdentityView).displayAvatar(
+      this._identity.avatar?.seedString, this.identity.avatar.render());
     this.mainAreaView.show();
   }
 
@@ -92,9 +91,8 @@ export class IdentityController extends VerityController {
     this._identity.name = displayname;
     const avatarSeed: string = ((form.querySelector(
       ".verityEditIdentityAvatarSeed")) as HTMLInputElement).value;
-    if (avatarSeed?.length) this._identity.avatarSeed = {
-      scheme: AvatarScheme.MULTIAVATAR,
-      seed: Buffer.from(avatarSeed, 'hex'),
+    if (avatarSeed?.length) {
+      this._identity.avatar = new Avatar(avatarSeed, AvatarScheme.MULTIAVATAR);
     }
     this._identity.store("ID/ZW");
     this.showLoginStatus();
@@ -104,12 +102,7 @@ export class IdentityController extends VerityController {
   randomMultiavatar() {
     // This method only makes sense within the edit identity form
     if (!(this.mainAreaView instanceof EditIdentityView)) return;
-    const randomSeed = Buffer.alloc(AvatarSeedLength[AvatarScheme.MULTIAVATAR]);
-    for (let i=0; i<randomSeed.length; i++) {
-      randomSeed[i] = Math.floor(Math.random()*255);
-    }
-    const avatar: string = multiavatar(randomSeed.toString('hex'));
-    const marshalled = "data:image/svg+xml;base64," + btoa(avatar);
-    this.mainAreaView.displayAvatar(randomSeed.toString('hex'), marshalled);
+    const randomAvatar = new Avatar(true);
+    this.mainAreaView.displayAvatar(randomAvatar.seedString, randomAvatar.render());
   }
 }
