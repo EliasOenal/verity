@@ -9,6 +9,8 @@ import { CubeStore } from '../../core/cube/cubeStore';
 import { cciCube } from '../cube/cciCube';
 import { cciFieldParsers } from '../cube/cciFields';
 
+import { Buffer } from 'buffer';
+
 const IDENTITYDB_VERSION = 1;
 
 /**

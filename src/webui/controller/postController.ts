@@ -14,6 +14,7 @@ import { logger } from "../../core/logger";
 import { Buffer } from 'buffer';
 import { cciCube } from "../../cci/cube/cciCube";
 import { VerityController } from "./verityController";
+import { UNKNOWNAVATAR } from "../../cci/identity/avatar";
 
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
@@ -199,7 +200,7 @@ export class PostController extends VerityController {
       // TODO: display if this authorship information is authenticated,
       // i.e. if it comes from a MUC we trust
       data.author = authorObject.name;
-      data.profilepic = authorObject.avatar;
+      data.profilepic = authorObject.avatar.render();
 
       // is this author subscribed?
       if (this.identity) {
@@ -209,7 +210,7 @@ export class PostController extends VerityController {
       }
     } else {
       data.author = "Unknown user";
-      data.profilepic = "unknownuser.svg";
+      data.profilepic = UNKNOWNAVATAR;
     }
     if (data.author.length > 60) {
       data.author = data.author.slice(0, 57) + "...";
