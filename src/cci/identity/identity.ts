@@ -114,11 +114,11 @@ export class Identity {
     password: string,
     options?: IdentityOptions,
   ): Identity {
-    const masterKey: Uint8Array = Identity.DeriveMasterKey(username, password);
+    const masterKey: Buffer = Identity.DeriveMasterKey(username, password);
     return new Identity(cubeStore, masterKey, options);
   }
 
-  static DeriveKeypair(masterKey: Uint8Array): KeyPair {
+  static DeriveKeypair(masterKey: Buffer): KeyPair {
     const derivedSeed = sodium.crypto_kdf_derive_from_key(
       sodium.crypto_sign_SEEDBYTES, IDMUC_MASTERINDEX, IDMUC_CONTEXT_STRING,
       masterKey, "uint8array");
@@ -127,15 +127,15 @@ export class Identity {
     return keyPair;
   }
 
-  static DeriveMasterKey(username: string, password: string): Uint8Array {
-    return sodium.crypto_pwhash(
+  static DeriveMasterKey(username: string, password: string): Buffer {
+    return Buffer.from(sodium.crypto_pwhash(
       sodium.crypto_sign_SEEDBYTES,
       password,
       sodium.crypto_hash(username, "uint8array").subarray(0, sodium.crypto_pwhash_SALTBYTES),
       sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE,
       sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE,
       sodium.crypto_pwhash_ALG_ARGON2ID13,
-      "uint8array");
+      "uint8array"));
   }
 
   /// @static Retrieves all Identity objects stored in persistant storage.
@@ -173,9 +173,9 @@ export class Identity {
   private requiredDifficulty: number;
   readonly parsers: FieldParserTable;
 
-  private readonly _masterKey = undefined;
+  private _masterKey: Buffer = undefined;
   get masterKey(): Buffer {
-    return this.privateKey?.subarray(0, 32);  // TODO change this as discussed below
+    return this._masterKey;  // TODO change this as discussed below
   }
 
   /**
@@ -236,7 +236,7 @@ export class Identity {
    **/
   constructor(
       cubeStore: CubeStore,
-      mucOrMasterkey: cciCube | Uint8Array,
+      mucOrMasterkey: cciCube | Buffer,
       options?: IdentityOptions,
   ){
     this.cubeStore = cubeStore;
@@ -250,6 +250,7 @@ export class Identity {
     if (mucOrMasterkey instanceof Cube) {  // checking for the more generic Cube instead of cciCube as this is the more correct branch compared to handling this as a KeyPair (also Cube subclass handling is not completely clean yet throughout our codebase)
       this.parseMuc(mucOrMasterkey);
     } else {  // create new Identity
+      this._masterKey = mucOrMasterkey;
       this._muc = cciCube.ExtensionMuc(
         mucOrMasterkey,
         [],  // TODO: allow to set fields like username directly on construction
@@ -258,6 +259,19 @@ export class Identity {
     }
     // create default avatar based on pubkey if none was set yet
     if (this.avatar === undefined) this.avatar = this.defaultAvatar();
+  }
+
+  /**
+   * Suppose you learn an existing Identity's secrets... somehow...
+   * Use this method to supply them then :)
+   * No validation will be down whatsoever.
+   * (This is used after restoring a locally owned Identity from persistant
+   * storage and it's a bit ugly, but it will do for now.)
+   */
+  // maybe TODO: allow this to be supplied directly on construction
+  supplySecrets(masterKey: Buffer, privKey: Buffer) {
+    this._masterKey = masterKey;
+    this._muc.privateKey = privKey;
   }
 
   get privateKey(): Buffer { return this._muc.privateKey; }
@@ -288,7 +302,7 @@ export class Identity {
       requiredDifficulty = this.requiredDifficulty,
   ):Promise<cciCube>{
     if (!this.privateKey || !this.masterKey) {
-      throw new VerityError("Identity: Cannot store an Identity whose private key I don't have");
+      throw new VerityError("Identity: Cannot store an Identity whose private and master key I don't have");
     }
     logger.trace("Identity: Storing identity " + this.name);
     const muc = await this.makeMUC(applicationString, requiredDifficulty);

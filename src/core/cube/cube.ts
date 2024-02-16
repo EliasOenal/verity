@@ -301,7 +301,7 @@ export class Cube {
                         0, signature.start);
 
                     // Verify the signature
-                    if (!sodium.crypto_sign_verify_detached(
+                    if (!this.verifySignature(
                         signature.value, dataToVerify, publicKey.value)) {
                             logger.error('Cube: Invalid signature');
                             throw new CubeSignatureError('Cube: Invalid signature');
@@ -312,6 +312,9 @@ export class Cube {
                 throw new CubeSignatureError('Cube: Public key or signature is undefined for MUC');
             }
         }
+    }
+    private verifySignature(sig: Buffer, data: Buffer, pubkey:Buffer): boolean {
+        return sodium.crypto_sign_verify_detached(sig, data, pubkey);
     }
 
     /**
@@ -357,7 +360,10 @@ export class Cube {
         // Start of cube till just before the signature field
         const dataToSign = this.binaryData.subarray(0, signature.start);
         signature.value.set(  // Generate the signature
-            sodium.crypto_sign_detached(dataToSign, this.privateKey));
+            this.generateSignature(dataToSign, this.privateKey));
+    }
+    private generateSignature(data: Buffer, privkey: Buffer): Uint8Array {
+        return sodium.crypto_sign_detached(data, privkey);
     }
 
     /**
