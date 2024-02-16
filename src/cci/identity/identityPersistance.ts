@@ -84,21 +84,23 @@ export class IdentityPersistance {
       return undefined;
     }
     const identities: Array<Identity> = [];
-    for await (const [pubkey, masterkey] of this.db.iterator()) {
-      try {
+    for await (const [pubkeyString, masterkeyString] of this.db.iterator()) {
+      // try {
+        const masterKey = Buffer.from(masterkeyString, 'hex');
         const privkey: Buffer = Buffer.from(
-          Identity.DeriveKeypair(Buffer.from(masterkey, 'hex')).privateKey);
-        const muc = cubeStore.getCube(Buffer.from(pubkey, 'hex'), cciFieldParsers, cciCube) as cciCube;  // TODO: either assert cciCube or document why assertion not required
+          Identity.DeriveKeypair(masterKey).privateKey);
+        const muc = cubeStore.getCube(Buffer.from(pubkeyString, 'hex'), cciFieldParsers, cciCube) as cciCube;  // TODO: either assert cciCube or document why assertion not required
         if (muc === undefined) {
-          logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkey + " is not present");
+          logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkeyString + " is not present");
           continue;
         }
         muc.privateKey = privkey;
         const id = new Identity(cubeStore, muc, { persistance: this });
+        id.supplySecrets(masterKey, privkey);
         identities.push(id);
-      } catch (error) {
-        logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
-      }
+      // } catch (error) {
+      //   logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
+      // }
     }
     return identities;
   }
