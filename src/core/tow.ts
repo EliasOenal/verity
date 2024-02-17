@@ -54,6 +54,7 @@
  */
 
 import * as crypto from "crypto";
+import { Buffer } from "buffer";
 
 export interface Node {
   getType(): string;
