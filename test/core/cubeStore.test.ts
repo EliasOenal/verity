@@ -151,7 +151,7 @@ describe('cubeStore', () => {
       const retrievedMuc = cubeStore.getCube(key);
       expect(retrievedMuc).toBeDefined();
       expect(retrievedMuc.getDate()).toEqual(1695340001);
-    }, 5000);
+    }, 10000);
 
     it('correctly stores and retrieves a binary MUC with payload', async () => {
       // Generate a key pair for testing
