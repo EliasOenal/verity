@@ -8,6 +8,7 @@ import sodium from 'libsodium-wrappers'
 describe('cubeStore', () => {
   let cubeStore: CubeStore;
   const reduced_difficulty = 0;
+  Settings.CUBE_RETENTION_POLICY = false;
   const validBinaryCube = Buffer.from([
     // Protocol Version and Reserved Bits (1 byte)
     0b00000000,

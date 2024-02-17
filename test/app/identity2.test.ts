@@ -2,6 +2,7 @@ import { NetConstants } from "../../src/core/networking/networkDefinitions";
 import { CubeKey } from "../../src/core/cube/cubeDefinitions";
 import { CubeStore } from "../../src/core/cube/cubeStore";
 import { Cube } from "../../src/core/cube/cube";
+import { Settings } from '../../src/core/settings';
 
 import { Identity, IdentityPersistance } from "../../src/app/identity";
 import { makePost } from "../../src/app/zwCubes";
@@ -19,6 +20,7 @@ describe("Identity2", () => {
   const reduced_difficulty = 0;
 
   beforeAll(async () => {
+    Settings.CUBE_RETENTION_POLICY = false;
     await sodium.ready;
   });
 

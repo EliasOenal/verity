@@ -2,6 +2,7 @@ import { AnnotationEngine, defaultGetFieldsFunc } from '../../src/cci/annotation
 import { Cube } from '../../src/core/cube/cube';
 import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
 import { CubeField, CubeFields, CubeRelationship, CubeRelationshipType } from '../../src/core/cube/cubeFields';
+import { Settings } from '../../src/core/settings';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
 
@@ -9,6 +10,7 @@ describe('annotationEngine', () => {
   let cubeStore: CubeStore;
   let annotationEngine: AnnotationEngine;
   let reduced_difficulty = 0;
+  Settings.CUBE_RETENTION_POLICY = false;
 
   beforeEach(() => {
     cubeStore = new CubeStore({

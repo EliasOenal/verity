@@ -9,6 +9,7 @@ import { NetworkManager } from "./networkManager";
 import { CubeType } from '../cube/cubeDefinitions';
 import { cubeContest } from '../cube/cubeUtil';
 import { NetworkPeerConnection } from './networkPeerConnection';
+import { getCurrentEpoch, shouldRetainCube } from '../cube/cubeUtil';
 
 import { logger } from '../logger';
 
@@ -376,6 +377,12 @@ export class NetworkPeer extends Peer {
                 challengeLevel: challengeLevel,
                 cubeType: cubeType
             });
+
+            const currentEpoch = getCurrentEpoch(); // Get the current epoch
+            if(!shouldRetainCube(incomingCubeInfo.keystring ,incomingCubeInfo.date, incomingCubeInfo.challengeLevel, currentEpoch)) {
+                logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Was offered cube hash outside of retention policy, ignoring.`);
+                continue;
+            }
 
             if (cubeType === CubeType.BASIC) {
                 regularCubeInfo.push(incomingCubeInfo);

@@ -1,4 +1,4 @@
-![](img/vera_300px_nobg.png)
+![](../img/vera_300px_nobg.png)
 
 # Verity
 This project aims to create a decentralized and censorship-resistant social networking platform akin to Twitter, Threads or Reddit. It leverages unique cube structures, each containing 1kB of data, which are then synchronized across participating nodes. To ensure data integrity and authenticity, posts are signed with user-specific cryptographic keys and utilize a hashcash challenge to mitigate spam. The platform supports 1:1 and 1:n encrypted messaging, protecting user privacy by minimizing metadata leakage and allowing secure, private communication between users. By offering a high degree of privacy, security, and resistance to censorship, this project offers a compelling alternative to traditional, centralized social networks.
@@ -201,7 +201,7 @@ This comprehensive system allows for secure, efficient, and flexible communicati
 
 ## Design
 ### Logo
-![](img/vera_150px_nobg.png)
+![](../img/vera_150px_nobg.png)
 
 The dove Vera (short for Veracity) is the logo of Verity. The dove not only signifies peace, harmony, and purity, but also symbolizes the free spirit of a decentralized network that cannot be caged or controlled, much like the dove itself.
 ### Names
@@ -272,6 +272,10 @@ In the Verity network, the lifetime of cubes can be extended by increasing the h
 ### Epochs ###
 
 The cube lifetime is measured in epochs, where each epoch represents 5400 Unix seconds (90 minutes), resulting in 16 epochs per day. This aligns with the nibbles in the branches of the Merkle Patricia Trie (MPT), resulting in one new branch node per day.
+
+### Cube Retention ###
+
+Cubes are to be retained while the local system epoch is within the span between the cube's sculpting epoch and the retention limit. The retention limit is calculated by adding the cube's lifetime to the cube's sculpting epoch. If the local system epoch is outside this span, the cube is to be dropped.
 
 ### Function Definition
 

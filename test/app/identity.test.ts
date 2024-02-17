@@ -5,6 +5,7 @@ import { Cube } from "../../src/core/cube/cube";
 
 import { Identity, IdentityPersistance } from "../../src/app/identity";
 import { makePost } from "../../src/app/zwCubes";
+import { Settings } from '../../src/core/settings';
 import {
   ZwFieldType,
   ZwFields,
@@ -19,6 +20,7 @@ describe("Identity", () => {
   const reduced_difficulty = 0;
 
   beforeAll(async () => {
+    Settings.CUBE_RETENTION_POLICY = false;
     await sodium.ready;
   });
 
