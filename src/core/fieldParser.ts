@@ -110,7 +110,7 @@ export class FieldParser {
         Object.values(fieldDef.positionalBack).includes(fieldType)) {
       return 0;
     } else {
-      return (fieldDef.fieldLengths[fieldType] == undefined) ?
+      return (fieldDef.fieldLengths[fieldType] === undefined) ?
         NetConstants.MESSAGE_CLASS_SIZE + NetConstants.FIELD_LENGTH_SIZE :
         NetConstants.MESSAGE_CLASS_SIZE;
     }

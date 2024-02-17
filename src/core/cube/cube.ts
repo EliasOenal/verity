@@ -8,7 +8,6 @@ import { CubeField, CubeFieldLength, CubeFieldType, CubeFields, FieldParserTable
 import { FieldParser } from "../fieldParser";
 import { logger } from '../logger';
 
-import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 
@@ -245,9 +244,13 @@ export class Cube {
     public padUp(): boolean {
         // pad up to 1024 bytes if necessary
         const len = this.fields.getByteLength();
-        if (len < (NetConstants.CUBE_SIZE)) {
-            this.fields.insertFieldBeforeBackPositionals(
-                CubeField.Padding(NetConstants.CUBE_SIZE - len));
+        if (len < (NetConstants.CUBE_SIZE)) {  // any padding required?
+            // start with a 0x00 single byte padding field to indicate end of CCI data
+            this.fields.insertFieldBeforeBackPositionals(CubeField.Padding(1));
+            // now add further padding as required
+            const paddingRequired = NetConstants.CUBE_SIZE - len - 1;
+            if (paddingRequired) this.fields.insertFieldBeforeBackPositionals(
+                CubeField.Padding(paddingRequired));
             this.cubeManipulated();
             return true;
         } else return false;
@@ -281,6 +284,7 @@ export class Cube {
             field.value = this.binaryData.subarray(offset, offset + field.length);
         }
         // Hash the cube -- if it'a smart one, this also signs it
+        // TODO: Since Cube 1.0 we should sign first and hashcash later
         await this.generateCubeHash();
 
         if (Settings.RUNTIME_ASSERTIONS) {
