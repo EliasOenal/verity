@@ -4,6 +4,7 @@ import { CubeInfo, CubeMeta } from './cubeInfo'
 import { CubePersistence } from "./cubePersistence";
 import { CubeType, CubeKey, InsufficientDifficulty } from './cubeDefinitions';
 import { cubeContest } from './cubeUtil';
+import { TreeOfWisdom } from '../tow';
 import { logger } from '../logger';
 
 import { EventEmitter } from 'events';
@@ -26,6 +27,8 @@ export class CubeStore extends EventEmitter {
 
   // Refers to the persistant cube storage database, if available and enabled
   private persistence: CubePersistence = undefined;
+  // The Tree of Wisdom maps cube keys to their hashes.
+  private treeOfWisdom: TreeOfWisdom = undefined;
 
   public readonly required_difficulty;
 
@@ -34,6 +37,7 @@ export class CubeStore extends EventEmitter {
     this.required_difficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
     this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 10);  // one for each peer and a few for ourselves
     this.storage = new Map();
+    this.treeOfWisdom = new TreeOfWisdom();
 
     this.readyPromise = new Promise(resolve => this.once('ready', () => {
       resolve(undefined);
@@ -78,7 +82,7 @@ export class CubeStore extends EventEmitter {
       // In that case, do nothing -- no need to invalidate the hash or to
       // emit an event.
       if (this.hasCube(cubeInfo.key) && cubeInfo.cubeType == CubeType.BASIC) {
-        logger.warn('CubeStorage: duplicate - cube already exists');
+        logger.warn('CubeStorage: duplicate - basic cube already exists');
         return cube;
       }
 
@@ -106,6 +110,15 @@ export class CubeStore extends EventEmitter {
       // save cube to disk (if available and enabled)
       if (this.persistence) {
         this.persistence.storeRawCube(cubeInfo.key.toString('hex'), cubeInfo.binaryCube);
+      }
+      // add cube to the Tree of Wisdom if enabled
+      if (Settings.TREE_OF_WISDOM) {
+        let hash: Buffer = await cube.getHash();
+        // Truncate hash to 20 bytes, the reasoning is:
+        // Our hashes are hardened with a strong hashcash, making attacks much harder.
+        // Attacking this (birthday paradox) has a complexity of 2^80, which is not feasible.
+        hash = hash.subarray(0, 20);
+        this.treeOfWisdom.set(cubeInfo.key.toString('hex'), hash);
       }
 
       // inform our application(s) about the new cube

@@ -40,15 +40,15 @@ export class CubePersistence extends EventEmitter {
   }
 
   storeRawCube(key: string, rawcube: Buffer): Promise<void> {
-    // TODO: This is an asynchroneous storage operation, because just about
-    // every damn thing in this language is asynchroneous.
+    // TODO: This is an asynchronous storage operation, because just about
+    // every damn thing in this language is asynchronous.
     // Handle the result event some time, maybe... or don't, whatever.
     if (this.db.status != 'open') return;
     // logger.trace("cubePersistent: Storing cube " + key);
     return this.db.put(key, rawcube);
   }
 
-  // Creates an asynchroneous request for all raw cubes.
+  // Creates an asynchronous request for all raw cubes.
   requestRawCubes(options = {}): Promise<Array<Buffer>> {
     if (this.db.status != 'open') return;
     return this.db.values(options).all();
