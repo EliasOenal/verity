@@ -122,8 +122,11 @@ img#veralogo {
 
 /* Identity row */
 div.verityMyProfilePicArea {
-  padding-right: 0;
   height: 6ex;
+  float: left;
+  padding: 0;
+  margin: 0;
+  margin-right: 0.2em;
 }
 img.verityMyProfilePic {
   height: 100%;
