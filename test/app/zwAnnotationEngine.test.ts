@@ -6,6 +6,7 @@ import { CubeStore } from "../../src/core/cube/cubeStore";
 import { Identity } from "../../src/app/identity";
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zwAnnotationEngine";
 import { makePost } from "../../src/app/zwCubes"
+import { Settings } from '../../src/core/settings';
 
 import sodium, { KeyPair } from 'libsodium-wrappers'
 import { MediaTypes, ZwField, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from "../../src/app/zwFields";
@@ -17,6 +18,7 @@ describe('ZwAnnotationEngine', () => {
   let cubeStore: CubeStore;
   let annotationEngine: ZwAnnotationEngine;
   let reduced_difficulty = 0;
+  Settings.CUBE_RETENTION_POLICY = false;
 
   describe('basic config', () => {
     beforeEach(async () => {

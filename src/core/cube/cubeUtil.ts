@@ -8,7 +8,12 @@ import { Buffer } from 'buffer';
 import sodium, { KeyPair } from 'libsodium-wrappers'
 
 import pkg from 'js-sha3';  // strange standards compliant syntax for importing
+import { Settings } from '../settings';
 const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
+
+export const UNIX_SECONDS_PER_EPOCH = 5400;
+export const UNIX_MS_PER_EPOCH = 5400000;
+export const EPOCHS_PER_DAY = 16;
 
 /*
  * Calculate the lifetime of a cube based on the hashcash challenge level x.
@@ -21,18 +26,17 @@ const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
  *   c2 (int): Upper bound for the hashcash challenge level
  *
  * Returns:
- *  float: Cube lifetime
+ *  float: Cube lifetime in epochs (5400 Unix Seconds per epoch, 16 epochs per day)
  */
-export function cubeLifetime(x: number, d1: number = 7, d2: number = 28, c1: number = 12, c2: number = 20): number {
-    // Calculate the base-2 logarithms
-    const log2_c1 = Math.log2(c1);
-    const log2_c2 = Math.log2(c2);
-    const log2_x = Math.log2(x);
+export function cubeLifetime(x: number, e1: number = 0, e2: number = 960, c1: number = 10, c2: number = 80): number {
+    // Linear function parameters
+    const slope = (e2 - e1) / (c2 - c1);
+    const intercept = e1 - (slope * c1);
 
-    // Calculate the number of days the cube lives
-    const days = ((d1 - d2) * log2_x / (log2_c1 - log2_c2)) + ((d1 * log2_c2 - d2 * log2_c1) / (log2_c2 - log2_c1));
+    // Calculate the cube lifetime using the linear equation
+    const lifetime = (slope * x) + intercept;
 
-    return days;
+    return Math.floor(lifetime);
 }
 
 export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMeta {
@@ -49,8 +53,8 @@ export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMe
                 return incomingCube;
         case CubeType.PIC:
             // Calculate the expiration date of each cube
-            const expirationLocalCube = localCube.date + (cubeLifetime(localCube.challengeLevel) * 24 * 3600);
-            const expirationIncomingCube = incomingCube.date + (cubeLifetime(incomingCube.challengeLevel) * 24 * 3600);
+            const expirationLocalCube = localCube.date + (cubeLifetime(localCube.challengeLevel) * UNIX_SECONDS_PER_EPOCH);
+            const expirationIncomingCube = incomingCube.date + (cubeLifetime(incomingCube.challengeLevel) * UNIX_SECONDS_PER_EPOCH);
 
             // Resolve the conflict based on expiration dates
             if (expirationLocalCube > expirationIncomingCube) {
@@ -137,4 +141,43 @@ export async function printCubeInfo(cube: Cube) {
         //console.log("    Value: " + field.value.toString('hex'));
     }
     console.log("Key: " + (await cube.getKey()).toString('hex'));
+}
+
+/**
+* Calculates and returns the current epoch.
+* An epoch is defined as a fixed time period for this application's context, 
+* with each epoch lasting 5400 seconds (90 minutes).
+* 
+* @returns {number} The current epoch.
+*/
+export function getCurrentEpoch(): number {
+   return Math.floor(Date.now() / UNIX_MS_PER_EPOCH);
+}
+
+// Unix time to epoch
+export function unixTimeToEpoch(unixTime: number): number {
+    return Math.floor(unixTime / UNIX_SECONDS_PER_EPOCH);
+}
+
+/**
+ * Determines if a cube should be retained based on its sculpting date and hashcash challenge level.
+ * 
+ * @param cubeDate The sculpting date of the cube (in epochs).
+ * @param challengeLevel The hashcash challenge level of the cube.
+ * @param currentEpoch The current epoch for comparison.
+ * @returns {boolean} True if the cube should be retained, false if it should be pruned.
+ */
+export function shouldRetainCube(key: String, cubeDate: number, challengeLevel: number, currentEpoch: number): boolean {
+    // Disable cube retention policy
+    if(Settings.CUBE_RETENTION_POLICY === false) return true;
+
+    // Implement further check, we want to retain all cubes sculpted by the user
+    // and all cubes sculpted by the user's trusted/subscribed peers
+
+    const cubeLifetimeInEpochs = cubeLifetime(challengeLevel);
+    const cubeDateInEpochs = Math.floor(cubeDate / UNIX_SECONDS_PER_EPOCH);
+    const expirationEpoch = cubeDateInEpochs + cubeLifetimeInEpochs;
+
+    // Cube should be retained if it hasn't expired and its sculpting date isn't set in the future
+    return expirationEpoch >= currentEpoch && cubeDateInEpochs <= currentEpoch;
 }

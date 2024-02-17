@@ -1,11 +1,13 @@
+// cubeStore.ts
 import { Settings, VerityError } from '../settings';
 import { Cube } from './cube';
 import { CubeInfo, CubeMeta } from './cubeInfo'
 import { CubePersistence } from "./cubePersistence";
 import { CubeType, CubeKey, InsufficientDifficulty } from './cubeDefinitions';
-import { cubeContest } from './cubeUtil';
+import { UNIX_MS_PER_EPOCH, cubeContest, shouldRetainCube, getCurrentEpoch } from './cubeUtil';
 import { TreeOfWisdom } from '../tow';
 import { logger } from '../logger';
+import { cubeLifetime } from './cubeUtil';
 
 import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
@@ -50,6 +52,7 @@ export class CubeStore extends EventEmitter {
       this.persistence.on('ready', async () => {
         logger.trace("cubeStore: received ready event from cubePersistence");
         await this.syncPersistentStorage();
+        this.pruneCubes();
         this.emit("ready");
       });
     } else this.emit("ready");
@@ -77,6 +80,13 @@ export class CubeStore extends EventEmitter {
       }
 
       const cubeInfo: CubeInfo = await cube.getCubeInfo();
+
+      // Check if cube is valid for current epoch
+      let res: boolean = shouldRetainCube(cubeInfo.keystring, cubeInfo.date, cubeInfo.challengeLevel, getCurrentEpoch());
+      if (!res) {
+        logger.error(`CubeStore: Cube is not valid for current epoch, discarding.`);
+        return undefined;
+      }
 
       // Sometimes we get the same cube twice (e.g. due to network latency).
       // In that case, do nothing -- no need to invalidate the hash or to
@@ -201,4 +211,34 @@ export class CubeStore extends EventEmitter {
     this.persistence.storeCubes(this.storage);
   }
 
+  pruneCubes(): void {
+    const currentEpoch = getCurrentEpoch();
+    const cubeKeys = Array.from(this.storage.keys());
+    let index = 0;
+
+    const checkAndPruneCubes = async () => {
+      const batchSize = 50;
+      for (let i = 0; i < batchSize && index < cubeKeys.length; i++, index++) {
+        const key = cubeKeys[index];
+        const cubeInfo = this.storage.get(key);
+        if (!cubeInfo) continue;
+
+        if (!shouldRetainCube(cubeInfo.keystring, cubeInfo.date, cubeInfo.challengeLevel, currentEpoch)) {
+          this.storage.delete(key);
+          if (this.persistence) {
+            await this.persistence.deleteRawCube(key);
+          }
+          logger.info(`Pruned cube with key: ${key}`);
+        }
+      }
+
+      if (index < cubeKeys.length) {
+        setTimeout(checkAndPruneCubes, 0);
+      } else {
+        logger.info(`Completed pruning process.`);
+      }
+    };
+
+    checkAndPruneCubes();
+  }
 }

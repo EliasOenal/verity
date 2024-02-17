@@ -21,6 +21,8 @@ import sodium, { KeyPair } from 'libsodium-wrappers'
 import { Settings } from '../../src/core/settings';
 
 describe('networkManager', () => {
+    Settings.CUBE_RETENTION_POLICY = false;
+
     describe('WebSockets and general functionality', () => {
         it('creates and cleanly shuts down a WebSocket server', async() => {
             const manager: NetworkManager = new NetworkManager(

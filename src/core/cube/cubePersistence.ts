@@ -1,3 +1,4 @@
+// cubePersistence.ts
 import { CubeInfo } from './cubeInfo';
 import { EventEmitter } from 'events';
 import { VerityError } from "../settings";
@@ -9,6 +10,7 @@ import { Buffer } from 'buffer';
 import { Level } from 'level';
 
 const CUBEDB_VERSION = 3;
+// TODO: If we find random data in the database that doesn't parse as a cube, we should delete it.
 
 // Will emit a ready event once available
 export class CubePersistence extends EventEmitter {
@@ -52,6 +54,25 @@ export class CubePersistence extends EventEmitter {
   requestRawCubes(options = {}): Promise<Array<Buffer>> {
     if (this.db.status != 'open') return;
     return this.db.values(options).all();
+  }
+
+/**
+   * Deletes a cube from persistent storage based on its key.
+   * @param {string} key The key of the cube to be deleted.
+   * @returns {Promise<void>} A promise that resolves when the cube is deleted, or rejects with an error.
+   */
+  async deleteRawCube(key: string): Promise<void> {
+    if (this.db.status !== 'open') {
+      logger.error("cubePersistence: Attempt to delete cube in a closed DB");
+      throw new PersistenceError("DB is not open");
+    }
+
+    try {
+      await this.db.del(key);
+      logger.info(`cubePersistence: Successfully deleted cube with key ${key}`);
+    } catch (error) {
+      logger.error(`cubePersistence: Failed to delete cube with key ${key}: ${error}`);
+    }
   }
 }
 
