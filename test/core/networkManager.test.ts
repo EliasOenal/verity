@@ -603,6 +603,7 @@ describe('networkManager', () => {
         }, 500000);
 
         it('should exchange peers and connect them', async () => {
+            Settings.NODE_REQUEST_TIME = 1337; // Don't wait 10 seconds for the peer exchange
             const manager1 = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                 new PeerDB(),
