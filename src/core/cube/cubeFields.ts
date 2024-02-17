@@ -137,7 +137,7 @@ export class CubeField extends BaseField {
     let field: CubeField;
     if (length > 1) {
       const random_bytes = new Uint8Array(length-2);
-      for (let i = 0; i < length-2; i++) {
+      for (let i = 0; i < length - 2; i++) {  // maybe TODO: 2 is the header length of a variable size field and we should usually get this value from the field parser rather than littering literals throughout the code
         random_bytes[i] = Math.floor(Math.random() * 256);
       }
       field = new CubeField(
@@ -145,8 +145,8 @@ export class CubeField extends BaseField {
         Buffer.from(random_bytes));
     } else {
       field = new CubeField(
-        CubeFieldType.PADDING_SINGLEBYTE, 1,
-        Buffer.alloc(1, Math.floor(Math.random()*256)));
+        CubeFieldType.PADDING_SINGLEBYTE, 0,
+        Buffer.alloc(0));
     }
     return field;
   }
