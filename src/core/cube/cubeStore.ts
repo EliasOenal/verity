@@ -77,7 +77,7 @@ export class CubeStore extends EventEmitter {
       // Sometimes we get the same cube twice (e.g. due to network latency).
       // In that case, do nothing -- no need to invalidate the hash or to
       // emit an event.
-      if (this.hasCube(cubeInfo.key) && cubeInfo.cubeType == CubeType.DUMB) {
+      if (this.hasCube(cubeInfo.key) && cubeInfo.cubeType == CubeType.BASIC) {
         logger.warn('CubeStorage: duplicate - cube already exists');
         return cube;
       }

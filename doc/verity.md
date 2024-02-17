@@ -269,29 +269,33 @@ In the event of a conflict where different versions of the same IPC exist within
 
 In the Verity network, the lifetime of cubes can be extended by increasing the hashcash challenge level. The function that determines the cube lifetime, given the hashcash challenge level, is designed to provide a balance between computational investment and the extension of cube lifetime.
 
+### Epochs ###
+
+The cube lifetime is measured in epochs, where each epoch represents 5400 Unix seconds (90 minutes), resulting in 16 epochs per day. This aligns with the nibbles in the branches of the Merkle Patricia Trie (MPT), resulting in one new branch node per day.
+
 ### Function Definition
 
 The function that determines the cube lifetime is given by:
 
-$$f(x) = \frac{{d_{1} - d_{2}}}{{\log_2(c_{1}) - \log_2(c_{2})}} \cdot \log_2(x) + \frac{{d_{1} \cdot \log_2(c_{2}) - d_{2} \cdot \log_2(c_{1})}}{{\log_2(c_{2}) - \log_2(c_{1})}}$$
+$$ f(x) = \left( \frac{e_2 - e_1}{c_2 - c_1} \right) x + \left( e_1 - \left( \frac{e_2 - e_1}{c_2 - c_1} \right) c_1 \right) $$
 
 where:
 
 - $x$ is the hashcash challenge level,
-- $d_{1}$ and $d_{2}$ are the lower and upper bounds for the cube lifetime, respectively, and
+- $e_{1}$ and $e_{2}$ are the lower and upper bounds for the cube lifetime, respectively, and
 - $c_{1}$ and $c_{2}$ are the lower and upper bounds for the hashcash challenge level, respectively.
 
 ### Plot ###
-![](img/lifetime_plot.png)
+![](../img/lifetime_plot.png)
 
 ### Function Properties
 
 The cube lifetime function has several key properties that make it well-suited for its role in the Verity network:
 
-1. **Growth Rate**: The function exhibits sub-linear growth. This means that as the hashcash challenge level increases, the cube lifetime also increases, but at a decreasing rate. This property ensures that while investing more computational resources can extend the cube lifetime, there are diminishing returns for each additional bit in the hashcash challenge level.
+1. **Growth Rate**: The linear function establishes a direct proportion between the hashcash challenge level and the cube lifetime. This means that for every increase in the challenge level by one bit, there is a constant increase in the cube lifetime. However, due to the exponential nature of the hashcash algorithm, where each additional bit in the challenge level doubles the complexity of the computation required, this linear correlation between epochs and challenge bits results in an exponential growth in computational effort. Consequently, while the cube lifetime increases linearly, the actual computational work required to achieve this increase grows exponentially, reflecting the intrinsic complexity of the hashcash challenge.
 
-2. **Monotonicity**: The function is strictly increasing for $x > 0$ if $d_{1} < d_{2}$ and $c_{1} < c_{2}$. This means that a higher hashcash challenge level will always result in a longer cube lifetime.
+2. **Monotonicity**: The function is strictly increasing for $x > 0$ if $e_{1} < e_{2}$ and $c_{1} < c_{2}$. This means that a higher hashcash challenge level will always result in a longer cube lifetime.
 
 3. **Continuity and Differentiability**: The function is continuous for $x > 0$ and differentiable for $x > 0$, which means it has no breaks, jumps, or sharp turns for $x > 0$. This ensures that small changes in the hashcash challenge level lead to small changes in the cube lifetime.
 
-4. **Bounds**: The function correctly maps a hashcash challenge level of $c_{1}$ bits to a cube lifetime of $d_{1}$ days, and a challenge level of $c_{2}$ bits to a cube lifetime of $d_{2}$ days. This allows the network to control the minimum and maximum cube lifetimes.
+4. **Bounds**: The function correctly maps a hashcash challenge level of $c_{1}$ bits to a cube lifetime of $e_{1}$ epochs, and a challenge level of $c_{2}$ bits to a cube lifetime of $e_{2}$ epochs. This allows the network to control the minimum and maximum cube lifetimes.

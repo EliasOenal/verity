@@ -377,7 +377,7 @@ export class NetworkPeer extends Peer {
                 cubeType: cubeType
             });
 
-            if (cubeType === CubeType.DUMB) {
+            if (cubeType === CubeType.BASIC) {
                 regularCubeInfo.push(incomingCubeInfo);
             } else if (cubeType === CubeType.MUC) {
                 mucInfo.push(incomingCubeInfo);

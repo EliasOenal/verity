@@ -1,4 +1,5 @@
 # Verity Binary Cube Store Specification
+**DRAFT - NOT YET IMPLEMENTED**
 
 ## Header Structure
 The file header is 1024 bytes long and consists of the following fields, with examples provided for each:
