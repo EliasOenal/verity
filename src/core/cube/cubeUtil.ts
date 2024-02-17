@@ -37,7 +37,7 @@ export function cubeLifetime(x: number, d1: number = 7, d2: number = 28, c1: num
 
 export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMeta {
     switch (localCube.cubeType) {
-        case CubeType.DUMB:
+        case CubeType.BASIC:
             throw new CubeError("cubeUtil: Regular cubes cannot be contested.");
         case CubeType.MUC:
             // For MUCs the most recently minted cube wins. If they tie, the local

@@ -31,7 +31,7 @@ export class Cube {
 
     get cubeType(): CubeType {
         const smartField = this.fields.getFirst(CubeFieldType.SMART_CUBE);
-        if (!smartField) return CubeType.DUMB;
+        if (!smartField) return CubeType.BASIC;
         else return CubeUtil.parseSmartCube(smartField.type);
     }
 
@@ -210,7 +210,7 @@ export class Cube {
     public async getKey(): Promise<CubeKey> {
         if (this.cubeType == CubeType.MUC) {
             return this.publicKey;
-        } else if (this.cubeType === CubeType.DUMB) {
+        } else if (this.cubeType === CubeType.BASIC) {
             return await this.getHash();
         } else {
             throw new CubeError("CubeType " + this.cubeType + " not implemented");
@@ -220,7 +220,7 @@ export class Cube {
     public getKeyIfAvailable(): CubeKey {
         if (this.cubeType == CubeType.MUC) {
             return this.publicKey;
-        } else if (this.cubeType === CubeType.DUMB) {
+        } else if (this.cubeType === CubeType.BASIC) {
             return this.getHashIfAvailable();
         } else {
             throw new CubeError("CubeType " + this.cubeType + " not implemented");

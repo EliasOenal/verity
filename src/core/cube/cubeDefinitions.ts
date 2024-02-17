@@ -5,7 +5,7 @@ import { Buffer } from 'buffer'
 export const CUBE_HEADER_LENGTH: number = 0;  // Former headers now considered positional fields -- TODO remove this constant
 
 export enum CubeType {
-  DUMB = 0xFF,
+  BASIC = 0xFF,
   MUC = 0,
   PIC = 1,
 }
