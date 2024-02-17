@@ -28,7 +28,7 @@ export const Settings = {
 
     // Network peer related:
     KEY_REQUEST_TIME: (10 * 1000),  // asks nodes for new cube keys every 10 seconds
-    NODE_REQUEST_TIME: (10 * 1000),  // asks nodes for their known nodes every minute
+    NODE_REQUEST_TIME: (10 * 1000),  // asks nodes for their known nodes every 10 seconds
 
     // local implementation details:
     // Whether or not to use the threaded hash cash implementation on NodeJS.
