@@ -4,6 +4,7 @@ export const Settings = {
     CUBE_VERISION: 0,         // Cubes sculpted locally will have this version
     REQUIRED_DIFFICULTY: 12,  // hash cash must have this many zero bits at the end
     HASHCASH_SIZE: 4,  // reverse at least 4 bytes as scratch space for hash cash, giving us 2^32 attempts which is more than enough
+    TREE_OF_WISDOM: true, // enable Tree of Wisdom structure for efficient cube syncing
 
     /**
      * Seed bytes used to derive a MUC extension key from a user's master key.
