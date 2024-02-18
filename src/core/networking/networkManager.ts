@@ -302,10 +302,10 @@ export class NetworkManager extends EventEmitter {
         // Verify this peer is valid (just checking if there is an ID for now)
         if (!peer.id) throw new VerityError(`NetworkManager.handlePeerOnline(): Peer ${peer.toString()} cannot be "online" if we don't know its ID. This should never happen.`);
 
-        // Does this peer need to be blacklisted?
+        // Does this peer need to be blocklisted?
         // Just checking if we're connected to self for now...
         if (peer.id.equals(this.id)) {
-            this.closeAndBlacklistPeer(peer);
+            this.closeAndBlocklistPeer(peer);
             return false;
         }
 
@@ -368,14 +368,14 @@ export class NetworkManager extends EventEmitter {
         this.emit("updatepeer");
     }
 
-    /** Disconnect and blacklist this peer */
-    closeAndBlacklistPeer(peer: NetworkPeer): void {
+    /** Disconnect and blocklist this peer */
+    closeAndBlocklistPeer(peer: NetworkPeer): void {
         // disconnect
         peer.close();
-        // blacklist
-        this._peerDB.blacklistPeer(peer);
-        logger.warn(`NetworkManager: Peer ${peer.toString()} has been blacklisted.`);
-        this.emit('blacklist', peer);
+        // blocklist
+        this._peerDB.blocklistPeer(peer);
+        logger.warn(`NetworkManager: Peer ${peer.toString()} has been blocklisted.`);
+        this.emit('blocklist', peer);
     }
 
     /**
@@ -383,7 +383,7 @@ export class NetworkManager extends EventEmitter {
      */
     private closePeerIfDuplicate(peer: NetworkPeer): boolean {
         for (const other of [...this.outgoingPeers, ...this.incomingPeers]) {  // is this efficient or does it copy the array? I don't know, I just watched a YouTube tutorial.
-            if (other !== peer) {  // this is required so we don't blacklist this very same connection
+            if (other !== peer) {  // this is required so we don't blocklist this very same connection
                 if (other.id && other.id.equals(peer.id)) {
                     this.handleDuplicatePeer(peer, other);
                     return true;
@@ -454,7 +454,7 @@ export class NetworkManager extends EventEmitter {
         output += `Connected Peers: ${this.outgoingPeers.length + this.incomingPeers.length}\n`;
         output += `Verified Peers: ${Array.from(this._peerDB.peersVerified.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
         output += `Unverified Peers: ${Array.from(this._peerDB.peersUnverified.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
-        output += `Blacklisted Peers: ${Array.from(this._peerDB.peersBlacklisted.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
+        output += `Blocklisted Peers: ${Array.from(this._peerDB.peersBlocklisted.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
         output += 'Packet Types:\n';
 
         for (const type in totalStats.tx.messageTypes) {

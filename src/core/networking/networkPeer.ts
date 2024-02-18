@@ -235,11 +235,11 @@ export class NetworkPeer extends Peer {
         } catch (err) {
             this.scoreInvalidMessage();
             logger.info(`NetworkPeer ${this.toString()}: error while handling message: ${err}; stack trace: ${err.stack}`);
-            // blacklist repeat offenders based on local trust score
-            if (!this.isTrusted) this.networkManager.closeAndBlacklistPeer(this);
-            // Maybe we should remove blacklisting
+            // Blocklist repeat offenders based on local trust score
+            if (!this.isTrusted) this.networkManager.closeAndBlocklistPeer(this);
+            // Maybe we should remove blocklisting
             // after a defined timespan (increasing for repeat offenders)?
-            // Blacklist entries based on IP/Port are especially sensitive
+            // Blocklist entries based on IP/Port are especially sensitive
             // as the address could be reused by another node in a NAT environment.
         }
     }
