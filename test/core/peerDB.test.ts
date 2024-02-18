@@ -31,7 +31,7 @@ describe ('PeerDB', () => {
         expect(result).toEqual([new Peer(new WebSocketAddress('192.168.0.1', 8080))]);
     }, 3000);
 
-    it('correctly blacklists peers', () => {
+    it('correctly blocklist peers', () => {
         const peerDB = new PeerDB();
         peerDB.learnPeer(new Peer(new WebSocketAddress("127.0.0.1", 1337)));
         peerDB.learnPeer(new Peer(new WebSocketAddress("127.0.0.1", 1338)));
@@ -41,24 +41,24 @@ describe ('PeerDB', () => {
         expect(peerDB.peersUnverified.size).toEqual(2);
         expect(peerDB.peersVerified.size).toEqual(2);
         expect(peerDB.peersExchangeable.size).toEqual(1);
-        expect(peerDB.peersBlacklisted.size).toEqual(0);
+        expect(peerDB.peersBlocklisted.size).toEqual(0);
 
-        peerDB.blacklistPeer(new Peer(new WebSocketAddress("127.0.0.1", 1338)));
+        peerDB.blocklistPeer(new Peer(new WebSocketAddress("127.0.0.1", 1338)));
         expect(peerDB.peersUnverified.size).toEqual(1);
         expect(peerDB.peersVerified.size).toEqual(2);
         expect(peerDB.peersExchangeable.size).toEqual(1);
-        expect(peerDB.peersBlacklisted.size).toEqual(1);
+        expect(peerDB.peersBlocklisted.size).toEqual(1);
 
-        peerDB.blacklistPeer(new Peer(new WebSocketAddress("1.1.1.1", 40404), Buffer.from("bd806506666ea6ae759878ac1463344e", 'hex')));
+        peerDB.blocklistPeer(new Peer(new WebSocketAddress("1.1.1.1", 40404), Buffer.from("bd806506666ea6ae759878ac1463344e", 'hex')));
         expect(peerDB.peersUnverified.size).toEqual(1);
         expect(peerDB.peersVerified.size).toEqual(1);
         expect(peerDB.peersExchangeable.size).toEqual(1);
-        expect(peerDB.peersBlacklisted.size).toEqual(2);
+        expect(peerDB.peersBlocklisted.size).toEqual(2);
 
-        peerDB.blacklistPeer(new Peer(new WebSocketAddress("2.2.2.2", 33333), Buffer.from("db03cb899bd15a941ff6d26581e41a12", 'hex')));
+        peerDB.blocklistPeer(new Peer(new WebSocketAddress("2.2.2.2", 33333), Buffer.from("db03cb899bd15a941ff6d26581e41a12", 'hex')));
         expect(peerDB.peersUnverified.size).toEqual(1);
         expect(peerDB.peersVerified.size).toEqual(1);
         expect(peerDB.peersExchangeable.size).toEqual(0);
-        expect(peerDB.peersBlacklisted.size).toEqual(3);
+        expect(peerDB.peersBlocklisted.size).toEqual(3);
     });
 });

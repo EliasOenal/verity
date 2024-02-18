@@ -27,7 +27,7 @@ interface TrackerResponse {
 // TODO: We should persist known peers locally, at least the verified ones.
 /**
  * Stores all of our known peers, non-persistantly (for now).
- * Every peer is either considered unverified, verified, exchangeable or blacklisted
+ * Every peer is either considered unverified, verified, exchangeable or blocklisted
  * (and will be stored in the appropriate array).
  * A peer starts out as unverified and gets verified once we have received a
  * HELLO and learned their ID. It gets promoted to exchangeable if it has a
@@ -67,13 +67,13 @@ export class PeerDB extends EventEmitter {
 
     /**
      * Stores peers we have deemed unworthy and will not connect to again.
-     * Uses the peer's address string as key, as we might blacklist peers without
+     * Uses the peer's address string as key, as we might blocklist peers without
      * actually knowing their ID.
-     * TODO: Blacklist is currently checked on connection attempts.
-     * TODO: Should allow for un-blacklisting after some amount of time.
+     * TODO: Blocklist is currently checked on connection attempts.
+     * TODO: Should allow for un-blocklisting after some amount of time.
      */
-    private _peersBlacklisted: Map<string,Peer> = new Map();
-    get peersBlacklisted(): Map<string,Peer> { return this._peersBlacklisted }
+    private _peersBlocklisted: Map<string,Peer> = new Map();
+    get peersBlocklisted(): Map<string,Peer> { return this._peersBlocklisted }
     private announceTimer?: NodeJS.Timeout;
     private static trackerUrls: string[] = ['http://tracker.opentrackr.org:1337/announce',
         'http://tracker.openbittorrent.com:80/announce',
@@ -201,15 +201,15 @@ export class PeerDB extends EventEmitter {
         this.emit('newPeer', peer)
     }
 
-    blacklistPeer(peer: Peer): void {
+    blocklistPeer(peer: Peer): void {
         // delete from any lists this peer might be in
         this.removeUnverifiedPeer(peer);
         this.removeVerifiedPeer(peer);
         this.removeExchangeablePeer(peer);
-        // blacklist all of this peer's addresses
+        // blocklist all of this peer's addresses
         for (const address of peer.addresses) {
-            this.peersBlacklisted.set(address.toString(), peer);
-            logger.info('PeerDB: Blacklisting peer ' + peer.toString() + ' using address ' + address.toString());
+            this.peersBlocklisted.set(address.toString(), peer);
+            logger.info('PeerDB: Blocklisting peer ' + peer.toString() + ' using address ' + address.toString());
         }
     }
 
@@ -218,8 +218,8 @@ export class PeerDB extends EventEmitter {
         for (const address of peer.addresses) {
             const addrString = address.toString();
             this._peersUnverified.delete(address.toString());
-            // Abort if peer is found in blacklist.
-            if (this.peersBlacklisted.has(addrString)) return;
+            // Abort if peer is found in blocklist.
+            if (this.peersBlocklisted.has(addrString)) return;
         }
         // If a peer is already exchangeable, which is a higher status than verified,
         // call markPeerExchangeable instead (this is to ensure we replace any
@@ -238,11 +238,11 @@ export class PeerDB extends EventEmitter {
 
     markPeerExchangeable(peer: Peer): void {
         // Remove peer from unverified map.
-        // Also, abort if peer is found in blacklist.
+        // Also, abort if peer is found in blocklist.
         for (const address of peer.addresses) {
             const addrString = address.toString();
             this._peersUnverified.delete(address.toString());
-            if (this.peersBlacklisted.has(addrString)) return;
+            if (this.peersBlocklisted.has(addrString)) return;
         }
         // Remove from verified list
         this.peersVerified.delete(peer.idString);

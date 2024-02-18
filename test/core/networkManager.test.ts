@@ -443,7 +443,7 @@ describe('networkManager', () => {
             await Promise.all([promise1_shutdown, promise2_shutdown]);
         }, 10000);
 
-        it('should blacklist a peer when trying to connect to itself', async () => {
+        it('should blocklist a peer when trying to connect to itself', async () => {
             const peerDB = new PeerDB();
             const manager = new NetworkManager(
                 new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
@@ -457,18 +457,18 @@ describe('networkManager', () => {
                 });
             await manager.start();
 
-            expect(peerDB.peersBlacklisted.size).toEqual(0);
+            expect(peerDB.peersBlocklisted.size).toEqual(0);
 
             // Trigger a connection to itself
             manager.connect(new Peer(new WebSocketAddress('localhost', 6004)));
 
-            // Wait for the 'blacklist' event to be triggered
+            // Wait for the 'blocklist' event to be triggered
             await new Promise<void>((resolve, reject) => {
-                manager.on('blacklist', (bannedPeer: Peer) => {
+                manager.on('blocklist', (bannedPeer: Peer) => {
                     resolve();
                 })
             });
-            expect(peerDB.peersBlacklisted.size).toEqual(1);
+            expect(peerDB.peersBlocklisted.size).toEqual(1);
 
             manager.shutdown();
         }, 3000);
@@ -554,8 +554,8 @@ describe('networkManager', () => {
             await otherNotedDuplicate;
             logger.error("otherNotedDuplicate")
 
-            expect(myPeerDB.peersBlacklisted.size).toEqual(0);  // duplicate is not / no longer blacklisting
-            expect(otherPeerDB.peersBlacklisted.size).toEqual(0);  // duplicate is not / no longer blacklisting
+            expect(myPeerDB.peersBlocklisted.size).toEqual(0);  // duplicate is not / no longer blocklisting
+            expect(otherPeerDB.peersBlocklisted.size).toEqual(0);  // duplicate is not / no longer blocklisting
             expect(myManager.outgoingPeers.length).toEqual(1);
             expect(myManager.incomingPeers.length).toEqual(0);
             // expect(otherManager.outgoingPeers.length).toEqual(0);  // at this point, peer exchange of other's own duplicate address might have occurred and other might not yet have realized it's his own address
@@ -577,7 +577,7 @@ describe('networkManager', () => {
                 ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
 
             // maybe implement further tests:
-            // Will not attempt to reconnect to an already blacklisted peer
+            // Will not attempt to reconnect to an already blocklisted peer
             // For these tests, peer exchange needs to be enabled on
             // NetworkManager creation
 
