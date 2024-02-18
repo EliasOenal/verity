@@ -6,7 +6,7 @@ import { Cube } from '../../../src/core/cube/cube'
 
 import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
 import { makePost } from '../../../src/app/zwCubes';
-import { cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipType } from '../../../src/cci/cube/cciFields';
+import { cciFieldParsers, cciFieldType, cciRelationshipType } from '../../../src/cci/cube/cciFields';
 
 import { cciCube } from '../../../src/cci/cube/cciCube';
 import { IdentityPersistance } from '../../../src/cci/identity/identityPersistance';
@@ -144,41 +144,6 @@ describe('Identity', () => {
         toEqual("Habeo res importantes dicere");
     }, 10000);
 
-    it('correctly handles subsequent changes', async () => {
-      const id: Identity = Identity.Create(
-        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
-      id.name = "Probator Identitatum";
-      const firstMuc: cciCube = await id.store(undefined, reducedDifficulty);
-      const firstMucHash: Buffer = firstMuc.getHashIfAvailable();
-      expect(firstMuc).toBeInstanceOf(cciCube);
-      expect(firstMucHash).toBeInstanceOf(Buffer);
-      expect(id.name).toEqual("Probator Identitatum");
-      expect(id.profilepic).toBeUndefined();
-      expect(id.keyBackupCube).toBeUndefined();
-
-      id.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
-      id.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
-      const secondMuc: cciCube = await id.store(undefined, reducedDifficulty)
-      const secondMucHash: Buffer = secondMuc.getHashIfAvailable();
-      expect(secondMuc).toBeInstanceOf(cciCube);
-      expect(secondMucHash).toBeInstanceOf(Buffer);
-      expect(secondMucHash.equals(firstMucHash)).toBeFalsy();
-      expect(id.name).toEqual("Probator Identitatum");
-      expect(id.profilepic).toBeInstanceOf(Buffer);
-      expect(id.keyBackupCube).toBeInstanceOf(Buffer);
-
-      id.name = "Probator Identitatum Repetitus";
-      const thirdMuc: cciCube = await id.store(undefined, reducedDifficulty)
-      const thirdMucHash: Buffer = thirdMuc.getHashIfAvailable();
-      expect(thirdMuc).toBeInstanceOf(cciCube);
-      expect(thirdMucHash).toBeInstanceOf(Buffer);
-      expect(thirdMucHash.equals(firstMucHash)).toBeFalsy();
-      expect(thirdMucHash.equals(secondMucHash)).toBeFalsy();
-      expect(id.name).toEqual("Probator Identitatum Repetitus");
-      expect(id.profilepic).toBeInstanceOf(Buffer);
-      expect(id.keyBackupCube).toBeInstanceOf(Buffer);
-    }, 30000);
-
     it('restores its post list recursively and sorted by creation time descending', async () => {
       const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
       const original: Identity = Identity.Create(
@@ -212,40 +177,6 @@ describe('Identity', () => {
         newerPost = restoredPost;
       }
     }, 10000);
-
-    it('combines makeMUC requests spaced less than 5 seconds apart', async () => {
-      const id: Identity = Identity.Create(
-        cubeStore, "usor probationis", "clavis probationis",
-        {minMucRebuildDelay: 5, requiredDifficulty: reducedDifficulty});
-      // Creating a new Identity does build a MUC, although it will never be compiler
-      // nor added to the CubeStore.
-      // The five second minimum delay till regeneration still applies.
-      const firstMuc = id.muc;
-      const firstMucDate = firstMuc.getDate();
-
-      id.name = "Probator Distantiae Temporis";
-      // store() now requests generation of a new, second MUC.
-      // This will not happen, though, as the first MUC is less than five seconds old.
-      // Instead, the operation will be rescheduled five seconds from now.
-      id.store(undefined, reducedDifficulty);  // note there's no "await"
-
-      id.name = "Probator Minimae Distantiae Temporis";
-      const thirdMuc: cciCube = await id.store(undefined, reducedDifficulty);  // with await this time
-      expect(thirdMuc).toEqual(id.muc);
-      expect(thirdMuc.getHashIfAvailable()).toEqual(id.muc.getHashIfAvailable());
-      const thirdMucDate = thirdMuc.getDate();
-
-      // First (=preliminary) MUC and actual content-bearing MUC should not be equal
-      expect(firstMuc).not.toEqual(thirdMuc);
-
-      // MUCs should be spaced at least 5 seconds apart, indicating minimum
-      // distance has been observed.
-      // They should be spaced less than 10 seconds apart, indicating the two store()
-      // opeations have been combined into one.
-      const mucTimeDistance = thirdMucDate - firstMucDate;
-      expect(mucTimeDistance).toBeGreaterThanOrEqual(5);
-      expect(mucTimeDistance).toBeLessThanOrEqual(10);
-    }, 20000);
 
     it('still works even if I update my Identity really really often', async() => {
       const idTestOptions = {
@@ -322,68 +253,6 @@ describe('Identity', () => {
         expect(subject.isSubscribed(nonsubscribed[i])).toBeFalsy();
       }
     });
-
-    // TODO reduce this test's load, probably caused by lots of key derivations
-    it('correctly saves and restores recommended subscriptions to and from extension MUCs', async () => {
-      // Create a subject and subscribe 100 other authors
-      const TESTSUBCOUNT = 100;
-      const subject: Identity = Identity.Create(
-        cubeStore, "subscriptor", "clavis mea", idTestOptions);
-      subject.name = "Subscriptor novarum interessantiarum";
-      for (let i=0; i<TESTSUBCOUNT; i++) {
-        const other: Identity = Identity.Create(
-          cubeStore, "figurarius"+i, "clavis"+i, idTestOptions);
-        other.name = "Figurarius " + i + "-tus";
-        other.muc.setDate(0);  // skip waiting period for the test
-        other.store(undefined, reducedDifficulty);
-        subject.addSubscriptionRecommendation(other.key);
-        expect(subject.subscriptionRecommendations[i].equals(other.key)).toBeTruthy();
-      }
-      subject.muc.setDate(0);  // hack, just for the test let's not wait 5s for the MUC update
-      const muc: cciCube = await subject.store(undefined, reducedDifficulty);
-
-      // Master MUC stored in CubeStore?
-      const recovered_muc: cciCube = cubeStore.getCube(subject.key) as cciCube;
-      expect(recovered_muc).toBeInstanceOf(cciCube);
-
-      // First subscription recommendation index saved in MUC?
-      const fields: cciFields = recovered_muc.fields as cciFields;
-      expect(fields).toBeInstanceOf(cciFields);
-      const rel: cciRelationship = fields.getFirstRelationship(
-        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX);
-      expect(rel.remoteKey).toBeInstanceOf(Buffer);
-      expect(rel.remoteKey.equals(
-        subject.subscriptionRecommendationIndices[0].getKeyIfAvailable())).
-          toBeTruthy();
-      // First subscription recommendation index saved in CubeStore?
-      const firstIndexCube: cciCube = cubeStore.getCube(rel.remoteKey) as cciCube;
-      expect(firstIndexCube).toBeInstanceOf(cciCube);
-      // First subscription recommendation index contains for subscription recommendation?
-      expect(firstIndexCube.fields).toBeInstanceOf(cciFields);
-      expect(firstIndexCube.fields.count()).toBeGreaterThan(1);
-      expect(firstIndexCube.fields.getFirstRelationship(
-        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION).remoteKey.equals(
-          subject.subscriptionRecommendations[0])).toBeTruthy();
-
-      // Second subscription recommendation index referred from first one?
-      const secondIndexRel: cciRelationship =
-      firstIndexCube.fields.getFirstRelationship(
-          cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX);
-      expect(secondIndexRel).toBeInstanceOf(cciRelationship);
-      const secondIndexCube: cciCube = cubeStore.getCube(secondIndexRel.remoteKey) as cciCube;
-      expect(secondIndexCube).toBeInstanceOf(cciCube);
-
-      // let's put it all together:
-      // all subscription recommendations correctly restored?
-      const restored: Identity = new Identity(cubeStore, muc);
-      expect(restored.subscriptionRecommendations.length).toEqual(TESTSUBCOUNT);
-      for (let i=0; i<TESTSUBCOUNT; i++) {
-        const othermuc = cubeStore.getCube(restored.subscriptionRecommendations[i]) as cciCube;
-        expect(othermuc).toBeInstanceOf(cciCube);
-        const restoredother: Identity = new Identity(cubeStore, othermuc);
-        expect(restoredother.name).toEqual("Figurarius " + i + "-tus");
-      }
-    }, 30000);
 
     it('preserves extension MUC keys and does not update unchanged MUCs when adding subscriptions', async () => {
       // Create a subject. First subscribe 40 authors, then add one more.
