@@ -1,0 +1,124 @@
+import { Identity } from './identity';
+
+import { CubeKey } from '../../core/cube/cubeDefinitions';
+import { logger } from '../../core/logger';
+
+import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
+import { Level } from 'level';
+import { CubeStore } from '../../core/cube/cubeStore';
+import { cciCube } from '../cube/cciCube';
+import { cciFieldParsers } from '../cube/cciFields';
+
+import { Buffer } from 'buffer';
+
+const IDENTITYDB_VERSION = 1;
+
+/**
+ * This class is designed to be used in conjunction with Identity and represents
+ * it's local persistance layer. To use persistant Identities, pre-construct an
+ * IdentityPersistance object and feed it to your Identity objects on
+ * construction.
+ * An IdentityPersistance object encapsulates a database connection used for
+ * storing and retrieving identities.
+ */
+export class IdentityPersistance {
+  private dbname: string;
+  private db: Level<string, string>;  // key => JSON-serialized Identity object
+
+  /// @static Use this static method to create IdentityPersistance objects
+  /// rather than constructing them yourself.
+  /// It's a convenient workaround to abstract from the hazzle that database
+  /// operations are async but constructor's aren't allowed to be.
+  /// I don't like Javascript.
+  static async create(dbname: string = "identity"): Promise<IdentityPersistance> {
+    const obj = new IdentityPersistance(dbname);
+    await obj.open()
+    return obj;
+  }
+
+  constructor(dbname: string = "identity") {
+    if (isBrowser || isWebWorker) this.dbname = dbname;
+    else this.dbname = "./" + dbname + ".db";
+    this.db = new Level<string, string>(
+      this.dbname,
+      {
+        keyEncoding: 'utf8',
+        valueEncoding: 'utf8',
+        version: IDENTITYDB_VERSION
+      });
+  }
+
+  /** @method Pseudo-private helper method only used right after construction. */
+  async open(): Promise<void> {
+    try {
+      await this.db.open();
+      logger.trace("IdentityPersistance: Opened DB, status now " + this.db.status);
+    } catch (error) {
+      logger.error("IdentityPersistance: Could not open DB: " + error);
+    }
+  }
+
+  // TODO: Ensure this does not get called more than once a second, otherwise
+  // the updated cube will lose the CubeContest and not actually be stored
+  store(id: Identity): Promise<void> {
+    if (this.db.status != 'open') {
+      logger.error("IdentityPersistance: Could not store identity, DB not open");
+      return undefined;
+    }
+    return this.db.put(
+      id.key.toString('hex'),
+      id.masterKey.toString('hex')
+    );
+  }
+
+  /**
+   * @returns A list of all locally stored Identites. Note that for this two
+   * work, two conditions must be satisfied: The Identities's keys must be
+   * present in the local Identity DB and the corresponding Identity MUCs must
+   * be present in the local Cube store.
+   * This method will *not* retrieve missing MUCs from the network.
+   */
+  async retrieve(cubeStore: CubeStore): Promise<Identity[]> {
+    if (this.db.status != 'open') {
+      logger.error("IdentityPersistance: Could not retrieve identity, DB not open");
+      return undefined;
+    }
+    const identities: Array<Identity> = [];
+    for await (const [pubkeyString, masterkeyString] of this.db.iterator()) {
+      // try {
+        const masterKey = Buffer.from(masterkeyString, 'hex');
+        const privkey: Buffer = Buffer.from(
+          Identity.DeriveKeypair(masterKey).privateKey);
+        const muc = cubeStore.getCube(Buffer.from(pubkeyString, 'hex'), cciFieldParsers, cciCube) as cciCube;  // TODO: either assert cciCube or document why assertion not required
+        if (muc === undefined) {
+          logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkeyString + " is not present");
+          continue;
+        }
+        muc.privateKey = privkey;
+        const id = new Identity(cubeStore, muc, { persistance: this });
+        id.supplySecrets(masterKey, privkey);
+        identities.push(id);
+      // } catch (error) {
+      //   logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
+      // }
+    }
+    return identities;
+  }
+
+  /** Deletes an Identity. Only used for unit testing by now. */
+  delete(idkey: CubeKey) {
+    this.db.del(idkey.toString('hex'));
+  }
+
+  /** Should only really be used by unit tests */
+  async deleteAll() {
+    for await (const key of this.db.keys()) {
+      this.db.del(key);
+    }
+  }
+
+  /** Closes the DB, which invalidates the object. Should only really be used by unit tests. */
+  async close() {
+    await this.db.close();
+  }
+}

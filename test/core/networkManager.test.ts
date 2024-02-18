@@ -8,7 +8,7 @@ import { WebSocketPeerConnection } from '../../src/core/networking/webSocket/web
 
 import { CubeKey } from '../../src/core/cube/cubeDefinitions';
 import { Cube } from '../../src/core/cube/cube';
-import { CubeField, CubeFieldType, CubeFields } from '../../src/core/cube/cubeFields';
+import { CubeField, CubeFieldType, CubeFields, coreFieldParsers, coreTlvFieldParsers } from '../../src/core/cube/cubeFields';
 import { CubeStore } from '../../src/core/cube/cubeStore';
 
 import { WebSocketAddress } from '../../src/core/peering/addressing';
@@ -17,11 +17,12 @@ import { PeerDB } from '../../src/core/peering/peerDB';
 import { logger } from '../../src/core/logger';
 
 import WebSocket from 'isomorphic-ws';
-import sodium, { KeyPair } from 'libsodium-wrappers'
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { Settings } from '../../src/core/settings';
 
 describe('networkManager', () => {
     Settings.CUBE_RETENTION_POLICY = false;
+    const reducedDifficulty = 0;
 
     describe('WebSockets and general functionality', () => {
         it('creates and cleanly shuts down a WebSocket server', async() => {
@@ -240,7 +241,6 @@ describe('networkManager', () => {
         });
 
         it('sync cubes between three nodes', async () => {
-            const reduced_difficulty = 0;
             const numberOfCubes = 10;
             const cubeStore = new CubeStore(
                 {enableCubePersistance: false, requiredDifficulty: 0});
@@ -293,26 +293,25 @@ describe('networkManager', () => {
 
             // Create new cubes at peer 1
             for (let i = 0; i < numberOfCubes; i++) {
-                const cube = new Cube(undefined, reduced_difficulty);
+                const cube = Cube.Frozen(undefined, coreFieldParsers, Cube, reducedDifficulty);
                 const buffer: Buffer = Buffer.alloc(1);
                 buffer.writeInt8(i);
-                cube.setFields(new CubeField(CubeFieldType.PAYLOAD, 1, buffer));
                 await cubeStore.addCube(cube);
             }
 
-            expect(cubeStore.getAllStoredCubeKeys().size).toEqual(numberOfCubes);
+            expect(cubeStore.getAllKeys().size).toEqual(numberOfCubes);
 
             // sync cubes from peer 1 to peer 2
             expect(manager1.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
             manager2.outgoingPeers[0].sendKeyRequest();
             // Verify cubes have been synced. Wait up to three seconds for that to happen.
             for (let i = 0; i < 30; i++) {
-                if (cubeStore2.getAllStoredCubeKeys().size == numberOfCubes) {
+                if (cubeStore2.getAllKeys().size == numberOfCubes) {
                     break;
                 }
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
-            for (const hash of cubeStore.getAllStoredCubeKeys()) {
+            for (const hash of cubeStore.getAllKeys()) {
                 expect(cubeStore2.getCube(hash)).toBeInstanceOf(Cube);
             }
 
@@ -321,12 +320,12 @@ describe('networkManager', () => {
             manager3.incomingPeers[0].sendKeyRequest();
             // Verify cubes have been synced. Wait up to three seconds for that to happen.
             for (let i = 0; i < 30; i++) {
-                if (cubeStore3.getAllStoredCubeKeys().size == numberOfCubes) {
+                if (cubeStore3.getAllKeys().size == numberOfCubes) {
                     break;
                 }
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
-            for (const hash of cubeStore2.getAllStoredCubeKeys()) {
+            for (const hash of cubeStore2.getAllKeys()) {
                 expect(cubeStore3.getCube(hash)).toBeInstanceOf(Cube);
             }
 
@@ -380,15 +379,16 @@ describe('networkManager', () => {
             let receivedFields: CubeFields;
 
             // Create MUC at peer 1
-            counterBuffer = Buffer.from("My first MUC version");
+            counterBuffer = Buffer.from("Prima versio cubi usoris mutabilis mei.");
             muc = Cube.MUC(
                 Buffer.from(keyPair.publicKey),
                 Buffer.from(keyPair.privateKey),
-                CubeField.Payload(counterBuffer)
+                CubeField.Payload(counterBuffer),
+                coreTlvFieldParsers, Cube, reducedDifficulty
             );
             mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
             const firstMucHash = await muc.getHash();
-            expect(cubeStore.getAllStoredCubeKeys().size).toEqual(1);
+            expect(cubeStore.getAllKeys().size).toEqual(1);
 
             // sync MUC from peer 1 to peer 2
             expect(manager2.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
@@ -402,23 +402,23 @@ describe('networkManager', () => {
             }
 
             // check MUC has been received correctly at peer 2
-            expect(cubeStore2.getAllStoredCubeKeys().size).toEqual(1);
+            expect(cubeStore2.getAllKeys().size).toEqual(1);
             expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
             expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(firstMucHash)).toBeTruthy();
-            receivedFields = cubeStore2.getCube(mucKey)?.fields!;
-            expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("My first MUC version");
+            receivedFields = cubeStore2.getCube(mucKey, coreTlvFieldParsers)?.fields!;
+            expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("Prima versio cubi usoris mutabilis mei.");
 
             // update MUC at peer 1
             await new Promise(resolve => setTimeout(resolve, 1000));  // wait one second as we don't have better time resolution
-            counterBuffer = Buffer.from("My second MUC version");
+            counterBuffer = Buffer.from("Secunda versio cubi usoris mutabilis mei.");
             muc = Cube.MUC(
                 Buffer.from(keyPair.publicKey),
                 Buffer.from(keyPair.privateKey),
-                CubeField.Payload(counterBuffer)
-            );
+                CubeField.Payload(counterBuffer),
+                coreTlvFieldParsers, Cube, reducedDifficulty);
             mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
             const secondMucHash = await muc.getHash();
-            expect(cubeStore.getAllStoredCubeKeys().size).toEqual(1);  // still just one, new MUC version replaces old MUC version
+            expect(cubeStore.getAllKeys().size).toEqual(1);  // still just one, new MUC version replaces old MUC version
 
             // sync MUC from peer 1 to peer 2, again
             manager2.incomingPeers[0].sendKeyRequest();
@@ -431,11 +431,11 @@ describe('networkManager', () => {
             }
 
             // check MUC has been updated correctly at peer 2
-            expect(cubeStore2.getAllStoredCubeKeys().size).toEqual(1);
+            expect(cubeStore2.getAllKeys().size).toEqual(1);
             expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
             expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(secondMucHash)).toBeTruthy();
-            receivedFields = cubeStore2.getCube(mucKey)?.fields!;
-            expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("My second MUC version");
+            receivedFields = cubeStore2.getCube(mucKey, coreTlvFieldParsers)?.fields!;
+            expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("Secunda versio cubi usoris mutabilis mei.");
 
             // teardown
             const promise1_shutdown = manager1.shutdown();
@@ -724,7 +724,7 @@ describe('networkManager', () => {
                 const node = new NetworkManager(
                     new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
                     new PeerDB(),
-                    new Map([[SupportedTransports.ws, 9000+i]]),
+                    new Map([[SupportedTransports.ws, 29000+i]]),
                     {  // select feature set for this test
                         announceToTorrentTrackers: false,
                         autoConnect: false,
@@ -734,7 +734,7 @@ describe('networkManager', () => {
                 );
                 badPeers.push(node);
                 badPeerIds.push(node.idString);
-                const peerObj = new Peer(new WebSocketAddress("127.0.0.1", 9000+i));
+                const peerObj = new Peer(new WebSocketAddress("127.0.0.1", 29000+i));
                 peerObj.trustScore = -10000;  // very bad peer indeed
                 peerDB.learnPeer(peerObj);
                 peerStartPromises.push(node.start());
@@ -1017,7 +1017,7 @@ describe('networkManager', () => {
             // Create a Cube and exchange it between browsers
             expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(0);
             expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
-            const cube: Cube = new Cube(undefined, 0);  // no hashcash for faster testing
+            const cube: Cube = Cube.Frozen(undefined, coreFieldParsers, Cube, reducedDifficulty);  // no hashcash for faster testing
             cube.setFields(CubeField.Payload("Hic cubus directe ad collegam meum iturus est"));
             const cubeKey: Buffer = await cube.getKey();
             browser1.cubeStore.addCube(cube);

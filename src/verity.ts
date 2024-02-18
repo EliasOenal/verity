@@ -3,14 +3,14 @@ import { Settings } from './core/settings';
 import { SupportedTransports } from './core/networking/networkDefinitions';
 
 import { Cube } from './core/cube/cube';
-import { CubeField, CubeRelationship, CubeFields, CubeRelationshipType } from './core/cube/cubeFields';
+import { CubeField, CubeFields } from './core/cube/cubeFields';
 import { VerityNode } from "./core/verityNode";
 import { AddressAbstraction } from './core/peering/addressing';
 
 import { logger } from './core/logger';
 import { vera } from './misc/vera';
 
-import sodium, { KeyPair } from 'libsodium-wrappers'
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 
@@ -182,18 +182,8 @@ class VerityCmdClient {
   }
 
   /** Just for manual testing: Handler for the 'c' hotkey */
-  public async makeNewCube(message: string = "Hello Verity", replyto?: string) {
-    const cube = new Cube();
-    const messagebuffer: Buffer = Buffer.from(message, 'utf8');
-    const cubefields: CubeFields = new CubeFields(CubeField.Payload(messagebuffer));
-
-    if (replyto) {
-      cubefields.appendField(CubeField.RelatesTo(
-        new CubeRelationship(CubeRelationshipType.REPLY_TO, Buffer.from(
-          replyto, 'hex'))));
-    }
-
-    cube.setFields(cubefields);
+  public async makeNewCube(message: string = "Hello Verity") {
+    const cube = Cube.Frozen(CubeField.Payload(message));
     this.node.cubeStore.addCube(cube);
   }
 }

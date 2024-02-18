@@ -1,11 +1,11 @@
 // cubeUtil.ts
-import { BinaryDataError, CubeError, CubeSignatureError, CubeType, FingerprintError, SmartCubeTypeNotImplemented } from './cubeDefinitions';
+import { BinaryDataError, CubeError, CubeSignatureError, CubeType, SmartCubeTypeNotImplemented } from './cubeDefinitions';
 import { Cube } from './cube';
 import { CubeMeta } from './cubeInfo';
 import { logger } from '../logger';
 
 import { Buffer } from 'buffer';
-import sodium, { KeyPair } from 'libsodium-wrappers'
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 
 import pkg from 'js-sha3';  // strange standards compliant syntax for importing
 import { Settings } from '../settings';
@@ -41,16 +41,17 @@ export function cubeLifetime(x: number, e1: number = 0, e2: number = 960, c1: nu
 
 export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMeta {
     switch (localCube.cubeType) {
-        case CubeType.BASIC:
+        case CubeType.FROZEN:
             throw new CubeError("cubeUtil: Regular cubes cannot be contested.");
         case CubeType.MUC:
-            // For MUCs the most recently minted cube wins. If they tie, the local
+            // For MUCs the most recently sculpted cube wins. If they tie, the local
             // cube wins. We expect the owner of the MUC not to cause collisions.
             // If you do anyway - you brought it upon yourself.
             if (localCube.date >= incomingCube.date)
                 return localCube;
             else
                 return incomingCube;
+            break;
         case CubeType.PIC:
             // Calculate the expiration date of each cube
             const expirationLocalCube = localCube.date + (cubeLifetime(localCube.challengeLevel) * UNIX_SECONDS_PER_EPOCH);
@@ -65,6 +66,7 @@ export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMe
                 logger.trace(`cubeUtil: Two Cubes with the key ${localCube.key.toString('hex')} have the same expiration date, local wins.`);
                 return localCube;
             }
+            break;
         default:
             throw new CubeError("cubeUtil: Unknown cube type.");
     }
@@ -97,41 +99,6 @@ export function countTrailingZeroBits(buffer: Buffer): number {
     return count;
 }
 
-// Verify fingerprint. This applies to smart cubes only.
-export function verifyFingerprint(publicKeyValue: Buffer, providedFingerprint: Buffer): void {
-    const calculatedFingerprint = calculateHash(publicKeyValue).slice(0, 8);  // First 8 bytes of signature field
-
-    if (!calculatedFingerprint.equals(providedFingerprint)) {
-        logger.error('Cube: Fingerprint does not match');
-        throw new FingerprintError('Cube: Fingerprint does not match');
-    }
-}
-
-// Verify signature. This applies to smart cubes only.
-export function verifySignature(publicKeyValue: Buffer, signatureValue: Buffer, dataToVerify: Buffer): void {
-    const data = new Uint8Array(dataToVerify);
-    const signature = new Uint8Array(signatureValue);
-    const publicKey = new Uint8Array(publicKeyValue);
-
-    const isSignatureValid = sodium.crypto_sign_verify_detached(signature, data, publicKey);
-
-    if (!isSignatureValid) {
-        logger.error('Cube: Invalid signature');
-        throw new CubeSignatureError('Cube: Invalid signature');
-    }
-}
-
-export function parseSmartCube(type: number): number {
-    switch (type & 0x03) {
-        case CubeType.MUC:
-            return CubeType.MUC;
-        default:
-            logger.error('Cube: Smart cube type not implemented ' + type);
-            throw new SmartCubeTypeNotImplemented('Cube: Smart cube type not implemented ' + type);
-    }
-}
-
-
 export async function printCubeInfo(cube: Cube) {
     console.log("Date: " + cube.getDate());
     console.log("Fields: ");
@@ -145,9 +112,9 @@ export async function printCubeInfo(cube: Cube) {
 
 /**
 * Calculates and returns the current epoch.
-* An epoch is defined as a fixed time period for this application's context, 
+* An epoch is defined as a fixed time period for this application's context,
 * with each epoch lasting 5400 seconds (90 minutes).
-* 
+*
 * @returns {number} The current epoch.
 */
 export function getCurrentEpoch(): number {
@@ -161,7 +128,7 @@ export function unixTimeToEpoch(unixTime: number): number {
 
 /**
  * Determines if a cube should be retained based on its sculpting date and hashcash challenge level.
- * 
+ *
  * @param cubeDate The sculpting date of the cube (in epochs).
  * @param challengeLevel The hashcash challenge level of the cube.
  * @param currentEpoch The current epoch for comparison.

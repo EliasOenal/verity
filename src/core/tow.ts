@@ -685,7 +685,7 @@ export class TreeOfWisdom {
           child = new LeafNode(key.substring(1), child as Buffer);
         }
         child = this.insertRecursive(
-          child,
+          child as Node,
           key.substring(1),
           value,
           path + nibble.toString(16).toUpperCase()
@@ -911,7 +911,7 @@ export class TreeOfWisdom {
         return branchNode.getValue();
       } else {
         const nibble = this.parseSingleNibble(key[0]);
-        const child = branchNode.getChild(nibble);
+        const child: Node = branchNode.getChild(nibble) as Node;
         if (!child) {
           return null;
         }
@@ -1262,7 +1262,7 @@ export class TreeOfWisdom {
             } else {
               // Recursively print node children (LeafNode, ExtensionNode, BranchNode)
               this.printNode(
-                child,
+                child as Node,
                 prefix + (isTail ? "    " : "│   "),
                 false, // Adjusted to ensure proper tree structure visualization
                 fullKey

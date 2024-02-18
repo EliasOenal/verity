@@ -1,11 +1,11 @@
-import { VerityView } from "../webUiDefinitions";
+import { VerityView } from "./verityView";
 
 export class OnlineView extends VerityView {
   constructor(
      viewArea: HTMLElement = document.getElementById("verityOnlineStatusArea"),
      show: boolean = true,
   ){
-    super(viewArea);
+    super(undefined, viewArea);
     if (show) this.show();
   }
 

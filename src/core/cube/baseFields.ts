@@ -14,7 +14,7 @@ import { FieldDefinition, FieldParser } from '../fieldParser';
  */
 export class BaseField {
     type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Applications may or may not chose to keep their application-level fields compatible with our top-level numbering.
-    length: number;  // TODO remove -- length of field value not including header, which is completely unnecessary as it's always equal to value.length
+    length: number;  // Length of this field WITHOUT header -- TODO remove: length of field value not including header always equal to value.length
     value: Buffer;
 
     /**
@@ -26,37 +26,6 @@ export class BaseField {
      * can check whether a field is full by calling isFull().
      */
     start: number = undefined;
-
-    static Payload(buf: Buffer | string, fieldDefinition: FieldDefinition) {
-        if (typeof buf === 'string' || buf instanceof String)  {
-            buf = Buffer.from(buf, 'utf-8');
-        }
-        return new fieldDefinition.fieldObjectClass(
-            fieldDefinition.fieldNames["PAYLOAD"], buf.length, buf);
-    }
-
-    // Note: We've moved most relationships to the application level
-    // (i.e. inside the payload field) and may want to drop the top-level
-    // RELATES_TO altogether
-    /** @return A Field or Field-subclass object, as defined by param fieldType.
-     * By default, a TopLevelField.
-     */
-    static RelatesTo(rel: BaseRelationship, fieldDefinition: FieldDefinition) {
-        const value: Buffer = Buffer.alloc(
-            NetConstants.RELATIONSHIP_TYPE_SIZE +
-            NetConstants.CUBE_KEY_SIZE);
-        value.writeIntBE(rel.type, 0, NetConstants.RELATIONSHIP_TYPE_SIZE);
-        rel.remoteKey.copy(
-            value,  // target buffer
-            NetConstants.RELATIONSHIP_TYPE_SIZE,  // target start position
-            0,  // source start
-            NetConstants.CUBE_KEY_SIZE  // source end
-        );
-        return new fieldDefinition.fieldObjectClass(
-            fieldDefinition.fieldNames['RELATES_TO'],
-            fieldDefinition.fieldLengths[fieldDefinition.fieldNames['RELATES_TO']],
-            value);
-    }
 
     constructor(type: number, length: number, value: Buffer, start?: number) {
         if (length === undefined) {
@@ -79,42 +48,13 @@ export class BaseField {
      * Is this a finalized field, i.e. is it's start index within the compiled
      * binary data known yet?
      */
-    public isFinalized() {
+    isFinalized() {
         if (this.start !== undefined) return true;
         else return false;
     }
-}
 
-
-/**
- * Base class for relationships (usually between Cubes) on different levels
- * of Verity. In the core lib, we subclass this as CubeRelationship (see cubeFields.ts).
- * Applications may or may not subclass and reuse this for application-layer fields.
- * If they wish to do so, they must either re-use top-level field definitions or
- * creates their own, compatible `RELATES_TO` field type and also call it `RELATES TO`.
- * (tl;dr: If you deviate too much from top-level cube fields, it's your fault if it breaks.)
- */
-export abstract class BaseRelationship {
-    type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Application may or may not chose to re-use this relationship system on the application layer, and if they do so they may or may not chose to keep their relationship types compatible with ours.
-    remoteKey: CubeKey;
-
-    constructor(type: number = undefined, remoteKey: CubeKey = undefined) {
-        this.type = type;
-        this.remoteKey = remoteKey;
-    }
-
-    static fromField(field: BaseField, fieldDefinition: FieldDefinition): BaseRelationship {
-        const relationship = new fieldDefinition.fieldObjectClass.relationshipType();
-        if (field.type != fieldDefinition.fieldNames['RELATES_TO']) {
-            throw (new WrongFieldType(
-                "Can only construct relationship object from RELATES_TO field, " +
-                "got " + field.type + "."));
-        }
-        relationship.type = field.value.readIntBE(0, NetConstants.RELATIONSHIP_TYPE_SIZE);
-        relationship.remoteKey = field.value.subarray(
-            NetConstants.RELATIONSHIP_TYPE_SIZE,
-            NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE);
-        return relationship;
+    toString(valEnc: BufferEncoding = 'hex'): string {
+        return `Field type ${this.type}, value ${this.value.toString(valEnc)}`
     }
 }
 
@@ -136,6 +76,20 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         else this.data = [];
     }
 
+    toString() {
+        return `${this.data.length} fields`;
+    }
+    fieldsToLongString(): string {
+        let ret = "";
+        for (const field of this.data) ret = ret + field.toString() + '\n';
+        return ret;
+    }
+    toLongString() {
+        let ret: string = this.toString() + '\n';
+        ret += this.fieldsToLongString();
+        return ret;
+    }
+
     equals(other: BaseFields, compareLocation: boolean = false): boolean {
         if (this.count() != other.count()) return false;
         for (let i=0; i<this.count(); i++) {
@@ -144,6 +98,9 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         return true;
     }
 
+    /** @returns The binary size this fieldset will be once compiled,
+     * i.e. including any TLV field headers.
+     */
     getByteLength(): number {
         let length = 0;
         for (const field of this.data) {
@@ -166,7 +123,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         if (type) {
             const ret = [];
             for (const field of this.data) {
-                if (field.type == type) ret.push(field);
+                if (field.type === type) ret.push(field);
             }
             return ret;
         }
@@ -176,7 +133,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
     /** Gets the first field of a specified type */
     public getFirst(type: Number): BaseField {
         for (const field of this.data) {
-            if (field.type == type) return field;
+            if (field.type === type) return field;
         }
         return undefined;  // none found
     }
@@ -187,6 +144,39 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
 
     public insertFieldInFront(field: BaseField): void {
         this.data.unshift(field);
+    }
+
+    /**
+     *  Will insert your field after all front positional fields as defined by
+     *  this.fieldDefinition.
+     *  Will insert at the very front if there are no front positionals.
+     */
+    public insertFieldAfterFrontPositionals(field: BaseField): void {
+        for (let i = 0; i < this.data.length; i++) {
+            if (!Object.values(this.fieldDefinition.positionalFront).includes(this.data[i].type)) {
+                this.data.splice(i, 0, field);
+                return;
+            }
+        }
+        // apparently, our field set is either empty or consists entirely of front positionals
+        this.insertFieldInFront(field);
+    }
+
+    /**
+     *  Will insert your field before all back positional fields as defined by
+     *  this.fieldDefinition.
+     *  Will insert at the very back if there are no back positionals.
+     */
+    public insertFieldBeforeBackPositionals(field: BaseField): void {
+        for (let i = 1; i <= this.data.length; i++) {
+            const iType = this.data[this.data.length-i].type;
+            if (!Object.values(this.fieldDefinition.positionalBack).includes(iType)) {
+                this.data.splice(this.data.length-i+1, 0, field);
+                return;
+            }
+        }
+        // apparently, our field set is either empty or consists entirely of back positionals
+        this.appendField(field);
     }
 
     /**
@@ -204,28 +194,5 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         }
         // no such field
         this.appendField(field);
-    }
-
-    /**
-    * Gets the relationships this cube has to other cubes, if any.
-    * @param [type] If specified, only get relationships of the specified type.
-    * @return An array of Relationship objects, which may be empty.
-    */
-    public getRelationships(type?: number): Array<BaseRelationship> {
-        const relationshipfields = this.get(
-            this.fieldDefinition.fieldNames['RELATES_TO'] as number);
-            // "as number" required as enums are two-way lookup tables
-        const ret = [];
-        for (const relationshipfield of relationshipfields) {
-            const relationship: BaseRelationship =
-                BaseRelationship.fromField(relationshipfield, this.fieldDefinition);
-            if (!type || relationship.type == type) ret.push(relationship);
-        }
-        return ret;
-    }
-    public getFirstRelationship(type?: number): BaseRelationship {
-        const rels: Array<BaseRelationship> = this.getRelationships(type);
-        if (rels.length) return rels[0];
-        else return undefined;
     }
 }

@@ -9,7 +9,7 @@ import { isNode } from "browser-or-node";
 export class WebSocketTransport extends NetworkTransport {
   constructor(
       networkManager: NetworkManager,
-      params: any,
+      params: any,  // TODO fix or document any type
       options: NetworkManagerOptions = {}
 ) {
     super(networkManager);

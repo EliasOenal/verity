@@ -1,20 +1,17 @@
 import { ZwConfig } from "../../app/zwConfig";
 import { logger } from "../../core/logger";
 import { PostData } from "../controller/postController";
-
-import { VerityView } from "../webUiDefinitions";
+import { VerityView } from "./verityView";
 
 export class PostView extends VerityView {
   private postList: HTMLUListElement;
 
   constructor(
-      private htmlTemplate: HTMLTemplateElement = document.getElementById(
+      htmlTemplate: HTMLTemplateElement = document.getElementById(
         "verityPostViewTemplate") as HTMLTemplateElement,
       show: boolean = true
   ){
-    super();
-    this.renderedView =
-      this.htmlTemplate.content.firstElementChild.cloneNode(true) as HTMLElement;
+    super(htmlTemplate);
     this.postList = this.renderedView.querySelector(".verityPostList") as HTMLUListElement;
     this.clearAll();
     if (show) this.show();
@@ -27,9 +24,7 @@ export class PostView extends VerityView {
   displayPost(data: PostData): void {
     // Get the post template from HTML and clone it
     const container = this.getOrCreateContainer(data);
-    const templateLi: HTMLLIElement =
-      this.htmlTemplate.content.querySelector(".verityPost") as HTMLLIElement;
-    const li: HTMLLIElement = templateLi.cloneNode(true) as HTMLLIElement;
+    const li: HTMLLIElement = this.newFromTemplate(".verityPost") as HTMLLIElement;
     // save the display element to the PostData record
     data.displayElement = li;
     const form: HTMLFormElement =

@@ -1,13 +1,12 @@
-import { VerityError } from "../settings";
+import { Settings, VerityError } from "../settings";
 
 import { Buffer } from 'buffer'
 
-export const CUBE_HEADER_LENGTH: number = 0;  // Former headers now considered positional fields -- TODO remove this constant
-
 export enum CubeType {
-  BASIC = 0xFF,
-  MUC = 0,
-  PIC = 1,
+  FROZEN = (Settings.CUBE_VERSION << 4) + (0 << 2),
+  PIC = (Settings.CUBE_VERSION << 4) + (1 << 2),  // not fully implemented yet
+  MUC = (Settings.CUBE_VERSION << 4) + (2 << 2),
+  // PMUC = (Settings.CUBE_VERISION << 4) + (3 << 2), not implemented yet
 }
 
 // semantic typedef
@@ -24,7 +23,9 @@ export class InsufficientDifficulty extends CubeError { }
 export class InvalidCubeKey extends CubeError { }
 
 export class FieldError extends CubeError { }
-export class FieldSizeError extends CubeError { }
+export class MissingFieldError extends FieldError { }
+export class FieldContentError extends FieldError { }
+export class FieldSizeError extends FieldError { }
 export class UnknownFieldType extends FieldError { }
 export class FieldNotImplemented extends FieldError { }
 export class CubeRelationshipError extends FieldError { }
@@ -34,7 +35,6 @@ export class BinaryDataError extends CubeError { }
 export class BinaryLengthError extends BinaryDataError { }
 
 export class SmartCubeError extends CubeError { }
-export class FingerprintError extends SmartCubeError { }
 export class CubeSignatureError extends SmartCubeError { }
 
 export class SmartCubeTypeNotImplemented extends SmartCubeError { }

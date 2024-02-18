@@ -2,371 +2,402 @@
 import { Settings } from '../../src/core/settings';
 import { unixtime } from '../../src/core/helpers';
 import { NetConstants } from '../../src/core/networking/networkDefinitions';
-import { BinaryLengthError, CUBE_HEADER_LENGTH, FieldError, FieldSizeError, InsufficientDifficulty } from '../../src/core/cube/cubeDefinitions';
+import { BinaryLengthError, CubeSignatureError, CubeType, FieldError, FieldSizeError, InsufficientDifficulty } from '../../src/core/cube/cubeDefinitions';
 import { Cube } from '../../src/core/cube/cube';
 import { Buffer } from 'buffer';
 import { calculateHash, countTrailingZeroBits } from '../../src/core/cube/cubeUtil';
 import { FieldParser } from '../../src/core/fieldParser';
 
-import sodium, { KeyPair } from 'libsodium-wrappers'
-import { CubeField, CubeFieldLength, CubeFieldType, CubeFields } from '../../src/core/cube/cubeFields';
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
+import { CubeField, CubeFieldLength, CubeFieldType, CubeFields, coreFrozenParser, coreFieldParsers, coreTlvFieldParsers, coreFrozenFieldDefinition, coreMucFieldDefinition } from '../../src/core/cube/cubeFields';
 import { CubeInfo } from '../../src/core/cube/cubeInfo';
+import { BaseField, BaseFields } from '../../src/core/cube/baseFields';
 
-const reduced_difficulty = 0;
+// TODO: Add more tests. This is one of our most crucial core classes and it's
+// nowhere near fully covered.
 
 describe('cube', () => {
-  // This test parses a bit weirdly, the zero fill after the nonce decodes into additional TLV fields of length 0
-  it('should construct a cube object from binary data.', () => {
-    const cubeBuffer = Buffer.from([
-      // Protocol Version and Reserved Bits (1 byte)
-      0b00000000,
+  const reducedDifficulty = 0;
 
-      // Date (5 bytes)
-      0x00, 0x00, 0x00, 0x00, 0x00,
+  // TODO: Update payload field ID. Make tests actually check payload.
+  const validBinaryCube =  Buffer.from([
+    // Cube version (1) (half byte), Cube type (basic "frozen" Cube, 0) (half byte)
+    0x10,
 
-      // Payload TLV field
-      CubeFieldType.PAYLOAD, // Type: Payload
-      0x0A,       // Length: 10 bytes little endian
-      0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x77, 0x6F, 0x72, // Value: "Hello, wor"
+    // Payload TLV field
+    0x04,  // payload field type is 4 (1 byte)
+    0x14,  // payload length is 20 chars (1 byte)
+    0x43, 0x75, 0x62, 0x75, 0x73, 0x20, // "Cubus "
+    0x64, 0x65, 0x6d, 0x6f, 0x6e, 0x73, 0x74, 0x72,
+    0x61, 0x74, 0x69, 0x76, 0x75, 0x73, // "demonstrativus"
 
-      // Padding TLV field (remaining bytes to fill 1024)
-      CubeFieldType.PADDING_NONCE | 0b11, // Type: Padding
-      0xEC,       // Length: 1000 bytes
-      0x00, 0x00, 0x37, 0x4D, // Nonce passing challenge requirement
-      // Padding data (up to index 1023) - For demonstration, all zeros
-      ...Array.from({ length: 1000 }, () => 0x00),
-    ])
+    // Padding: padding is TLV field type 2 (6 bits), padding length is 990 (10 bits)
+    0b00001011, 0b11011110,
+    // 990 bytes of padding, all zeros for this example
+    ...Array.from({ length: 990 }, () => 0x00),
 
-    expect(() => cubeBuffer.length === 1024).toBeTruthy();
-    const cube = new Cube(cubeBuffer, reduced_difficulty);
-    const fields = cube.fields.all;
-    fields.forEach(field => {
-      expect(field.length).toBeLessThanOrEqual(1024);
-      expect(field.length).toBeGreaterThanOrEqual(0);
+    // Date (5 bytes)
+    0x00, 0x65, 0xba, 0x8e, 0x38,
+    0x00, 0x00, 0x00, 0xed  // Nonce passing challenge requirement
+  ]);
+
+  describe('construction', () => {
+    // This test parses a bit weirdly, the zero fill after the nonce decodes into additional TLV fields of length 0
+    it('should construct a cube object from binary data.', () => {
+      expect(() => validBinaryCube.length === 1024).toBeTruthy();
+      const cube = new Cube(validBinaryCube);
+      const fields = cube.fields.all;
+      fields.forEach(field => {
+        expect(field.length).toBeLessThanOrEqual(1024);
+        expect(field.length).toBeGreaterThanOrEqual(0);
+      }, 3000);
+
+      expect(fields[0].type).toEqual(CubeFieldType.TYPE);
+
+      expect(fields[1].type).toEqual(CubeFieldType.DATE);
+
+      expect(fields[2].type).toEqual(CubeFieldType.NONCE);
+      expect(fields[2].length).toEqual(4);
+      expect(fields[2].value).toEqual(Buffer.from([0x00, 0x00, 0x00, 0xed]));
     }, 3000);
 
-    expect(fields[0].type).toEqual(CubeFieldType.VERSION);
-    expect(fields[1].type).toEqual(CubeFieldType.DATE);
+    it('construct a Cube object with no fields by default', () => {
+      const cube = new Cube(CubeType.FROZEN);
+      expect(cube.fields.all.length).toEqual(0);
+    }, 3000);
 
-    expect(fields[2].type).toEqual(CubeFieldType.PAYLOAD);
-    expect(fields[2].length).toEqual(10);
-    expect(fields[2].value).toEqual(Buffer.from('Hello, wor', 'ascii'));
+    it('should throw an error when binary data is not the correct length', () => {
+      expect(() => new Cube(Buffer.alloc(512))).toThrow(BinaryLengthError);  // too short
+      expect(() => new Cube(Buffer.alloc(578232))).toThrow(BinaryLengthError);  // too long
+    }, 3000);
 
-    expect(fields[3].type).toEqual(CubeFieldType.PADDING_NONCE);
-    expect(fields[3].length).toEqual(1004);
-    expect(fields[3].value).toEqual(Buffer.from([0x00, 0x00, 0x37, 0x4D,
-      ...Array.from({ length: 1000 }, () => 0x00)]));
-  }, 3000);
+    // TODO: this test is overly broad, as demonstrated by the fact that it did
+    // not break when switching from Cube0.2 to Cube1.0
+    it('should accept maximum size cubes', async () => {
+      // Maximum size Cube consisting of:
+      // 1 byte Version/TYPE
+      // 2 byte PAYLOAD type+length
+      // ... bytes PAYLOAD value
+      // 5 bytes DATE
+      // 4 bytes NONCE
+      const payloadLength = 1012;
+      const cube = Cube.Frozen(CubeField.Payload("a".repeat(payloadLength)),
+        coreFieldParsers, Cube, reducedDifficulty);
+      const binaryData = await cube.getBinaryData();
+      expect(binaryData.length).toEqual(1024);
+    }, 3000);
+  });  // construction
 
-  it('should create a new cube with default values when no binary data is provided', () => {
-    const cube = new Cube(undefined, reduced_difficulty);
-    expect(cube.fields.all[0].type).toEqual(CubeFieldType.VERSION);
-    expect(cube.fields.all[1].type).toEqual(CubeFieldType.DATE);
-    expect(cube.fields.all[2].length).toEqual(1016);
-  }, 3000);
 
-  // Can this be removed?
-  // As the Cube version is now stored in the cube's first (positional)
-  // field, setting it is equivalent to setting a field.
-  // it.skip('should set and get the version correctly', () => {
-  //   const cube = new Cube();
-  //   cube.setVersion(0);
-  //   expect(cube.getVersion()).toEqual(0);
-  // }, 3000);
+  describe('setters and getters', () => {
+    it('should set and get fields correctly', () => {
+      const cube = new Cube(CubeType.FROZEN);
+      const fields = new CubeFields([
+        CubeField.Type(CubeType.FROZEN),
+        CubeField.Payload("Ero celeber Cubus cum compilatus fuero."),
+        CubeField.Date(),
+        CubeField.Nonce(),
+      ], coreFrozenFieldDefinition);
+      cube.setFields(fields);
+      expect(cube.fields).toEqual(fields);
+      expect(cube.fields.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual(
+        "Ero celeber Cubus cum compilatus fuero.");
+    }, 3000);
 
-  it('should throw an error when binary data is not 1024 bytes', () => {
-    const binaryData = Buffer.alloc(512); // 512 bytes, not 1024
-    expect(() => new Cube(binaryData)).toThrow(BinaryLengthError);
-  }, 3000);
+    it('should throw an error when there is not enough space for a field value', () => {
+      const cube = new Cube(CubeType.FROZEN);
+      const fields = new CubeFields([
+        CubeField.Type(CubeType.FROZEN),
+        new CubeField(CubeFieldType.PAYLOAD, 8020, Buffer.alloc(8020)),
+        CubeField.Date(),
+        CubeField.Nonce()
+      ], coreFrozenFieldDefinition); // Too long for the binary data
+      expect(() => cube.setFields(fields)).toThrow(FieldSizeError);
+    }, 3000);
 
-  it('should set and get the date correctly', () => {
-    const cube = new Cube();
-    const date = unixtime();
-    cube.setDate(date);
-    expect(cube.getDate()).toEqual(date);
-  }, 3000);
+    it('should set and get the date correctly', () => {
+      const cube = Cube.Frozen();
+      const date = unixtime();
+      cube.setDate(date);
+      expect(cube.getDate()).toEqual(date);
+    }, 3000);
+  });  // setters and getters
 
-  it('should set and get fields correctly', () => {
-    const cube = new Cube();
-    const fields = new CubeFields([
-      new CubeField(CubeFieldType.PAYLOAD, 100, Buffer.alloc(100))]);
-    cube.setFields(fields);
-    expect(cube.fields).toEqual(fields);
-  }, 3000);
 
-  it('should write fields to binary data correctly', async () => {
-    const cube = new Cube(undefined, reduced_difficulty);
-    const fields = new CubeFields([
-      new CubeField(CubeFieldType.PAYLOAD, 100, Buffer.alloc(100))]);
-    cube.setFields(fields);
-    const binaryData = await cube.getBinaryData();
-    // The type and length should be written to the binary data at index 6 and 7
-    expect(binaryData[6] & 0xFC).toEqual(CubeFieldType.PAYLOAD);
-    expect(binaryData.readUInt8(7)).toEqual(100);
-  }, 3000);
+  describe('static methods', () => {
+    it('provides a convience method to sculpt a new fully valid frozen cube', () => {
+      const cube = Cube.Frozen(CubeField.Payload("hello Cube"));
+      expect(cube.fields.all[0].type).toEqual(CubeFieldType.TYPE);
+      expect(cube.fields.all[1].type).toEqual(CubeFieldType.PAYLOAD);
+      expect(cube.fields.all[2].type).toEqual(CubeFieldType.DATE);
+      expect(cube.fields.all[3].type).toEqual(CubeFieldType.NONCE);
+    }, 3000);
+  });  // static methods
 
-  it('should calculate the hash correctly', async () => {
-    const cube = new Cube(undefined, reduced_difficulty);
-    const key = await cube.getKey();
-    expect(key).toBeDefined();
-    expect(key.length).toEqual(32); // SHA-3-256 hash length is 32 bytes
-  }, 4000);
 
-  it('should throw an error when there is not enough space for a field value', () => {
-    const cube = new Cube();
-    const fields = new CubeFields([
-      new CubeField(CubeFieldType.PAYLOAD, 8020, Buffer.alloc(8020))]); // Too long for the binary data
-    expect(() => cube.setFields(fields)).toThrow(FieldSizeError);
-  }, 3000);
+  describe('compilation', () => {
+    it('should write fields to binary data correctly even after manipulating them', async () => {
+      const cube = Cube.Frozen(
+        CubeField.Payload(
+          Buffer.alloc(500, " ")), coreFieldParsers, Cube, reducedDifficulty);
+      cube.fields.getFirst(CubeFieldType.PAYLOAD).value.write(
+        'Ego sum determinavit tarde quid dicere Cubus.', 'ascii');
+      const binaryData = await cube.getBinaryData();
+      expect(binaryData[0]).toEqual(CubeType.FROZEN);
+      const parser = new FieldParser(coreFrozenFieldDefinition);  // decompileTlv is true
+      const recontructed: BaseFields = parser.decompileFields(binaryData);
+      const reconstructed_payload: BaseField = recontructed.getFirst(CubeFieldType.PAYLOAD);
+      const reconstructed_string = reconstructed_payload.value.toString('ascii').trim();
+      expect(reconstructed_string).toEqual(
+        'Ego sum determinavit tarde quid dicere Cubus.');
+    }, 3000);
+  });
 
-  it('should throw an error on invalid TLV type', () => {
-    const binaryData = Buffer.alloc(1024);
-    binaryData[6] = 0xFF; // Invalid type
-    expect(() => new Cube(binaryData)).toThrow(FieldError);
-  }, 3000);
 
-  it('should automatically add extra padding when cube is too small', async () => {
-    const cube = new Cube(undefined, reduced_difficulty);
-    cube.setFields(new CubeFields(
-      [new CubeField(CubeFieldType.PAYLOAD, 128, Buffer.alloc(128))]));
-    expect(cube.fields.count()).toEqual(4);
-    expect(cube.fields.all[3].type).toEqual(CubeFieldType.PADDING_NONCE);
-    expect((await cube.getBinaryData()).length).toEqual(NetConstants.CUBE_SIZE);
-  }, 3000);
+  describe('hashing', () => {
+    it('should calculate the hash correctly', async () => {
+      const cube = Cube.Frozen(undefined, coreFieldParsers, Cube, reducedDifficulty);
+      const key = await cube.getKey();
+      expect(key).toBeDefined();
+      expect(key.length).toEqual(NetConstants.HASH_SIZE); // SHA-3-256 hash length is 32 bytes
+    }, 4000);
 
-  it('should accept maximum size cubes', () => {
-    const cube = new Cube();
-    const payloadLength = 500;
-    const paddingLength = NetConstants.CUBE_SIZE -
-      CubeFieldLength[CubeFieldType.VERSION] -
-      CubeFieldLength[CubeFieldType.DATE] -
-      FieldParser.toplevel.getFieldHeaderLength(CubeFieldType.PADDING_NONCE) -
-      FieldParser.toplevel.getFieldHeaderLength(CubeFieldType.PAYLOAD) -
-      payloadLength;
-    const cubefields: CubeFields = new CubeFields([
-      new CubeField(
-        CubeFieldType.PAYLOAD,
-        payloadLength,
-        Buffer.alloc(payloadLength),
-      ),
-      new CubeField(
-        CubeFieldType.PADDING_NONCE,
-        paddingLength,
-        Buffer.alloc(paddingLength),
-      )
-    ]);
-    expect(
-        CubeFieldLength[CubeFieldType.VERSION] +
-        CubeFieldLength[CubeFieldType.DATE] +
-        FieldParser.toplevel.getFieldHeaderLength(CubeFieldType.PAYLOAD) +
-        payloadLength +
-        FieldParser.toplevel.getFieldHeaderLength(CubeFieldType.PADDING_NONCE) +
-        paddingLength).
-      toEqual(NetConstants.CUBE_SIZE);
-    cube.setFields(cubefields);
-    expect(paddingLength).toBeGreaterThanOrEqual(Settings.HASHCASH_SIZE);
-    expect(cube.fields.count()).toEqual(4);
-    expect(cube.fields.all[2].length).toEqual(payloadLength);
-    expect(cube.fields.all[3].length).toEqual(paddingLength);
-  }, 3000);
+    it('should count the zero bits', () => {
+      expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000000", "hex"))).toEqual(256);
+      expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000001", "hex"))).toEqual(0);
+      expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000002", "hex"))).toEqual(1);
+      expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000004", "hex"))).toEqual(2);
+      expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000008", "hex"))).toEqual(3);
+      expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000010", "hex"))).toEqual(4);
+      expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000020", "hex"))).toEqual(5);
+    }, 3000);
 
-  it('should enforce there is enough space left for hashcash in manually padded cubes', () => {
-    const cube = new Cube();
-    const payloadLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH -
-      FieldParser.toplevel.getFieldHeaderLength(CubeFieldType.PAYLOAD) -
-      FieldParser.toplevel.getFieldHeaderLength(CubeFieldType.PADDING_NONCE) - 2;
-    const cubefields: CubeFields = new CubeFields([
-      new CubeField(
-        CubeFieldType.PAYLOAD,
-        payloadLength,
-        Buffer.alloc(payloadLength),
-      ),
-      new CubeField(
-        CubeFieldType.PADDING_NONCE,
-        2,
-        Buffer.alloc(2),
-      )
-    ]);
-    expect(() => cube.setFields(cubefields)).toThrow(FieldSizeError);
-  }, 3000);
+    it('should create a new cube that meets the challenge requirements', async () => {
+      const cube = Cube.Frozen(CubeField.Payload('Hello world, this is a payload for a cube!'));
+      const key: Buffer = await cube.getKey();
+      expect(key[key.length - 1]).toEqual(0);  // == min 8 bits difficulty
+    }, 5000);
+  });
 
-  it('should enforce there is enough space left for hashcash in automatically padded cubes', () => {
-    const cube = new Cube();
-    const payloadLength = NetConstants.CUBE_SIZE - CUBE_HEADER_LENGTH - FieldParser.toplevel.getFieldHeaderLength(CubeFieldType.PAYLOAD) - 2;
-    const cubefields: CubeFields = new CubeFields(new CubeField(
-        CubeFieldType.PAYLOAD,
-        payloadLength,
-        Buffer.alloc(payloadLength)
-      ));
-    expect(() => cube.setFields(cubefields)).toThrow(FieldSizeError);
-  }, 3000);
+  describe('basic MUC handling', () => {
+    it('should correctly generate and validate MUC with manually specified fields', async () => {
+      // Generate a key pair for testing
+      await sodium.ready;
+      const keyPair = sodium.crypto_sign_keypair();
+      const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+      const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-  it('should reject fringe cubes too small to be valid but too large to add padding', () => {
-    // construct a fringe cube that will end up exactly 1023 bytes long -- one byte too short, but minimum padding size is 2
-    const cube = new Cube();
-    const padding_length = 20;
-    const payloadLength = NetConstants.CUBE_SIZE -
-      CubeFieldLength[CubeFieldType.VERSION] -
-      CubeFieldLength[CubeFieldType.DATE] -
-      FieldParser.toplevel.getFieldHeaderLength(CubeFieldType.PAYLOAD) -
-      FieldParser.toplevel.getFieldHeaderLength(CubeFieldType.PADDING_NONCE) -
-      padding_length - 1;
-    const cubefields: CubeFields = new CubeFields([
-      new CubeField(
-        CubeFieldType.PAYLOAD,
-        payloadLength,
-        Buffer.alloc(payloadLength),
-      ),
-      new CubeField(
-        CubeFieldType.PADDING_NONCE,
-        padding_length,
-        Buffer.alloc(padding_length),
-      )]);
-    expect(() => cube.setFields(cubefields)).toThrow(new FieldSizeError(`Cube: Cube is too small to be valid as is but too large to add extra padding.`));
-  }, 3000);
+      // Create a new MUC with specified TLV fields
+      const muc = new Cube(CubeType.MUC, coreFieldParsers, reducedDifficulty);
+      muc.privateKey = privateKey;
 
-  it('should create a new cube that meets the challenge requirements', async () => {
-    const cube: Cube = new Cube();
-    const payload: Buffer = Buffer.from('Hello world, this is a payload for a cube!', 'ascii');
-    cube.setFields(new CubeField(CubeFieldType.PAYLOAD, payload.length, payload));
-    const key: Buffer = await cube.getKey();
-    expect(key[key.length - 1]).toEqual(0);
-  }, 5000);
+      const fields = new CubeFields([
+        new CubeField(CubeFieldType.TYPE, NetConstants.CUBE_TYPE_SIZE, Buffer.alloc(NetConstants.CUBE_TYPE_SIZE)),
+        new CubeField(CubeFieldType.PUBLIC_KEY, NetConstants.PUBLIC_KEY_SIZE, publicKey),
+        CubeField.Date(),
+        new CubeField(CubeFieldType.SIGNATURE, NetConstants.SIGNATURE_SIZE, Buffer.alloc(NetConstants.SIGNATURE_SIZE)),
+        new CubeField(CubeFieldType.NONCE, Settings.NONCE_SIZE, Buffer.alloc(Settings.NONCE_SIZE)),
+      ], coreMucFieldDefinition);
 
-  it('should count the zero bits', () => {
-    expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000000", "hex"))).toEqual(256);
-    expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000001", "hex"))).toEqual(0);
-    expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000002", "hex"))).toEqual(1);
-    expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000004", "hex"))).toEqual(2);
-    expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000008", "hex"))).toEqual(3);
-    expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000010", "hex"))).toEqual(4);
-    expect(countTrailingZeroBits(Buffer.from("00000000000000000000000000000000000000000000000000000000000020", "hex"))).toEqual(5);
-  }, 3000);
+      muc.setFields(fields);
+      const key = await muc.getKey();
+      const info = await muc.getCubeInfo();
+      const binaryData = await muc.getBinaryData();
+      expect(binaryData.length).toEqual(NetConstants.CUBE_SIZE);
+      expect(key.equals(publicKey)).toBeTruthy();
+      expect(info).toBeInstanceOf(CubeInfo);
+      // @ts-ignore using a private method for testing only
+      expect(() => muc.validateCube()).not.toThrow();
+    }, 5000);
 
-  it('should correctly generate and validate MUC with specified TLV fields', async () => {
-    // Generate a key pair for testing
-    await sodium.ready;
-    const keyPair = sodium.crypto_sign_keypair();
-    const publicKey: Buffer = Buffer.from(keyPair.publicKey);
-    const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+    it('should correctly sign a MUC', async() => {
+      // Generate a key pair for testing
+      await sodium.ready;
+      const keyPair = sodium.crypto_sign_keypair();
+      const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+      const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-    // Create a new MUC with specified TLV fields
-    const muc = new Cube(undefined, reduced_difficulty);
-    muc.setCryptoKeys(publicKey, privateKey);
+      const muc = Cube.MUC(
+        publicKey, privateKey,
+        CubeField.Payload(
+          "Ego sum cubus usoris mutabilis, semper secure signatus."));
+      const binaryData = await muc.getBinaryData();  // final fully signed binary
+      const mucKey: Buffer = await muc.getKey();
 
-    const fields = new CubeFields([
-      new CubeField(CubeFieldType.SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-      new CubeField(CubeFieldType.PUBLIC_KEY, 32, publicKey),
-      new CubeField(CubeFieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
-      new CubeField(CubeFieldType.SIGNATURE, 72, Buffer.alloc(72))
-    ]);
+      // ensure signature exposed through the Cube object's signature field matches
+      // the actualy one in the binary data
+      const sigField = muc.fields.getFirst(CubeFieldType.SIGNATURE);
+      const sigFromBinary: Buffer = binaryData.subarray(956, 1020);
+      expect(sigField.value.equals(sigFromBinary)).toBeTruthy();
 
-    muc.setFields(fields);
-    const key = await muc.getKey();
-    const info = await muc.getCubeInfo();
-    expect(key.equals(publicKey)).toBeTruthy();
-    expect(info).toBeInstanceOf(CubeInfo);
-  }, 5000);
+      // verify public key has correctly been transferred to field and binary data
+      const pubkeyField = muc.fields.getFirst(CubeFieldType.PUBLIC_KEY);
+      expect(pubkeyField.value.equals(
+        publicKey)).toBeTruthy();
+      expect(binaryData.subarray(
+        pubkeyField.start,
+        pubkeyField.start + CubeFieldLength[CubeFieldType.PUBLIC_KEY]).
+        equals(publicKey)).toBeTruthy();
 
-  // This test fails using Settings.HASH_WORKERS=true and I don't understand why :(
-  it('should correctly parse and validate MUC from binary', async () => {
-    // Generate a key pair for testing
-    await sodium.ready;
-    const keyPair = sodium.crypto_sign_keypair();
-    const publicKey: Buffer = Buffer.from(keyPair.publicKey);
-    const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+      // verify signature is correct, manually...
+      const dataToSign = binaryData.subarray(0, 956);  // 956 = 1024 - 4 (nonce) - 64 (signature proper)
+      expect(
+        sodium.crypto_sign_verify_detached(sigField.value, dataToSign, publicKey))
+        .toBeTruthy();
+      // @ts-ignore ...and automatically (using private method here)
+      expect(() => muc.validateCube()).not.toThrow();
+      // try to re-instantiate
 
-    // Create a new MUC with specified TLV fields
-    const muc = new Cube(undefined, reduced_difficulty);
-    muc.setCryptoKeys(publicKey, privateKey);
+      const parsedMuc = new Cube(binaryData);
+      expect(parsedMuc).toBeInstanceOf(Cube);
+      expect(parsedMuc.getKeyIfAvailable().equals(mucKey)).toBeTruthy();
+    });
 
-    const fields = new CubeFields([
-      new CubeField(CubeFieldType.SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-      new CubeField(CubeFieldType.PUBLIC_KEY, 32, publicKey),
-      new CubeField(CubeFieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
-      new CubeField(CubeFieldType.SIGNATURE, 72, Buffer.alloc(72)),
-    ]);
+    // This test fails using Settings.HASH_WORKERS=true and I don't understand why :(
+    it('should correctly parse MUC from binary', async () => {
+      // Generate a key pair for testing
+      await sodium.ready;
+      const keyPair = sodium.crypto_sign_keypair();
+      const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+      const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-    muc.setFields(fields);
-    const key = await muc.getKey();
-    expect(key).toBeDefined();
+      // Create a new MUC with a random payload
+      const muc = Cube.MUC(publicKey, privateKey, CubeField.Payload(
+          "Ego sum cubus usoris mutabilis, peculiare informatiuncula quae a domino meo corrigi potest."),
+        coreFieldParsers, Cube, reducedDifficulty);
+      const key = await muc.getKey();
+      expect(key).toBeInstanceOf(Buffer);
 
-    const binMuc: Buffer = await muc.getBinaryData();
+      const binMuc: Buffer = await muc.getBinaryData();
+      expect(binMuc).toBeInstanceOf(Buffer);
 
-    // Parse the MUC from binary
-    const parsedMuc = new Cube(binMuc);
-    expect(parsedMuc).toBeDefined();
-  }, 5000000);
+      // Do a core-only parsing from binary which will ignore TLV fields
+      const coreParsedMuc = new Cube(binMuc);
+      expect(coreParsedMuc).toBeInstanceOf(Cube);
+      expect(coreParsedMuc.fields.all.length).toEqual(5);
+      expect(coreParsedMuc.fields.all[0].type).toEqual(CubeFieldType.TYPE);
+      expect(coreParsedMuc.fields.all[1].type).toEqual(CubeFieldType.PUBLIC_KEY);
+      expect(coreParsedMuc.fields.all[2].type).toEqual(CubeFieldType.DATE);
+      expect(coreParsedMuc.fields.all[3].type).toEqual(CubeFieldType.SIGNATURE);
+      expect(coreParsedMuc.fields.all[4].type).toEqual(CubeFieldType.NONCE);
+      expect(coreParsedMuc.publicKey.equals(publicKey)).toBeTruthy();
+      expect(coreParsedMuc.fields.getFirst(CubeFieldType.DATE).value.equals(
+        muc.fields.getFirst(CubeFieldType.DATE).value)).toBeTruthy();
 
-  it('should present a valid hash for a MUC when hash is requested before binary data', async () => {
-    await sodium.ready;
-    const keyPair = sodium.crypto_sign_keypair();
-    const publicKey: Buffer = Buffer.from(keyPair.publicKey);
-    const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+      // Do a full parsing from binary including TLV
+      const fullyParsedMuc = new Cube(binMuc, coreTlvFieldParsers);
+      const backPos = fullyParsedMuc.fields.all.length;
+      expect(fullyParsedMuc).toBeInstanceOf(Cube);
+      expect(fullyParsedMuc.fields.all.length).toBeGreaterThanOrEqual(7);
+      expect(fullyParsedMuc.fields.all[0].type).toEqual(CubeFieldType.TYPE);
+      expect(fullyParsedMuc.fields.all[1].type).toEqual(CubeFieldType.PAYLOAD);
+      expect(fullyParsedMuc.fields.all[2].type).toEqual(CubeFieldType.PADDING_SINGLEBYTE);
+      expect(fullyParsedMuc.fields.all[backPos-4].type).toEqual(CubeFieldType.PUBLIC_KEY);
+      expect(fullyParsedMuc.fields.all[backPos-3].type).toEqual(CubeFieldType.DATE);
+      expect(fullyParsedMuc.fields.all[backPos-2].type).toEqual(CubeFieldType.SIGNATURE);
+      expect(fullyParsedMuc.fields.all[backPos-1].type).toEqual(CubeFieldType.NONCE);
+      expect(fullyParsedMuc.publicKey.equals(publicKey)).toBeTruthy();
+      expect(fullyParsedMuc.fields.getFirst(CubeFieldType.DATE).value.equals(
+        muc.fields.getFirst(CubeFieldType.DATE).value)).toBeTruthy();
+      expect(fullyParsedMuc.fields.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual(
+        "Ego sum cubus usoris mutabilis, peculiare informatiuncula quae a domino meo corrigi potest.");
+    }, 5000000);
 
-    const muc: Cube = new Cube(undefined, reduced_difficulty);
-    muc.setCryptoKeys(publicKey, privateKey);
-    const fields = new CubeFields([
-      new CubeField(CubeFieldType.SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-      new CubeField(CubeFieldType.PUBLIC_KEY, 32, publicKey),
-      new CubeField(CubeFieldType.PADDING_NONCE, 909, Buffer.alloc(909)),
-      new CubeField(CubeFieldType.SIGNATURE, 72, Buffer.alloc(72))
-    ]);
-    muc.setFields(fields);
+    it('should reject a binary MUC with invalid signature', async() => {
+      // Generate a key pair for testing
+      await sodium.ready;
+      const keyPair = sodium.crypto_sign_keypair();
+      const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+      const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-    const hash: Buffer = await muc.getHash();
-    const key: Buffer = await muc.getKey();
-    const binaryCube = await muc.getBinaryData();
+      // Sculpt MUC
+      const muc = Cube.MUC(
+        publicKey, privateKey,
+        CubeField.Payload(
+          "Ego sum cubus usoris mutabilis qui male tactus est."));
+      const binaryData = await muc.getBinaryData();  // final fully signed binary
 
-    expect(key).toEqual(publicKey);
-    expect(hash).toEqual(calculateHash(binaryCube));
-  }, 5000);
+      // Manipulate binary data
+      binaryData[4] = 42;  // not the right answer after all
 
-  it('should present a valid hash for a MUC even if we ask for binary data first and dont explicitly create a padding field', async () => {
-    await sodium.ready;
-    const keyPair = sodium.crypto_sign_keypair();
-    const publicKey: Buffer = Buffer.from(keyPair.publicKey);
-    const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+      // Attempt to restore MUC
+      expect(() => new Cube(binaryData)).toThrow(CubeSignatureError);
+    })
 
-    const muc = new Cube(undefined, reduced_difficulty);
-    muc.setCryptoKeys(publicKey, privateKey);
-    const fields = new CubeFields([
-      new CubeField(CubeFieldType.SMART_CUBE | 0b00, 0, Buffer.alloc(0)),
-      new CubeField(CubeFieldType.PUBLIC_KEY, 32, publicKey),
-      new CubeField(CubeFieldType.PAYLOAD, 9, Buffer.from("Hello MUC", 'utf8')),
-      new CubeField(CubeFieldType.SIGNATURE, 72, Buffer.alloc(72))
-    ]);
+    it("should present a MUC's key even if it's hash is not yet known", async () => {
+      await sodium.ready;
+      const keyPair = sodium.crypto_sign_keypair();
+      const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+      const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-  muc.setFields(fields);
+      const muc: Cube = Cube.MUC(
+        publicKey, privateKey, CubeField.Payload(
+          "Signum meum nondum certum est, sed clavis mea semper eadem erit."),
+        coreFieldParsers, Cube, reducedDifficulty);
+      expect(muc.getKeyIfAvailable().equals(publicKey)).toBeTruthy();
+      expect((await muc.getKey()).equals(publicKey)).toBeTruthy();
+    })
 
-  const binaryCube = await muc.getBinaryData();
-  const key = await muc.getKey();
-  const hash = await muc.getHash();
+    it('should present a valid hash for a MUC when hash is requested before binary data', async () => {
+      await sodium.ready;
+      const keyPair = sodium.crypto_sign_keypair();
+      const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+      const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-  expect(key).toEqual(publicKey);
-  expect(hash).toEqual(calculateHash(binaryCube));
-  }, 5000);
+      const muc: Cube = Cube.MUC(
+        publicKey, privateKey, CubeField.Payload(
+          "Gratiose tibi dabo signum meum etiamsi non intersit tibi de mea data binaria."),
+        coreFieldParsers, Cube, reducedDifficulty);
 
-  it('should generate a valid MUC using Cube.MUC', async () => {
-    await sodium.ready;
-    const keyPair = sodium.crypto_sign_keypair();
+      const hash: Buffer = await muc.getHash();
+      const key: Buffer = await muc.getKey();
+      const binaryCube = await muc.getBinaryData();
 
-    const muc: Cube = Cube.MUC(
-      Buffer.from(keyPair.publicKey),
-      Buffer.from(keyPair.privateKey),
-      CubeField.Payload("just testing, nothing to see here"),
-      reduced_difficulty
-    );
-    const key = await muc.getKey();
-    expect(key).toBeDefined();
+      expect(key).toEqual(publicKey);
+      expect(hash).toEqual(calculateHash(binaryCube));
+    }, 5000);
+  });
 
-    const binMuc: Buffer = await muc.getBinaryData();
+  describe('method padUp()', () => {
+    it('Should not add padding if not required', async() => {
+      // Create a Cube with fields whose total length is equal to the cube size
+      const cube = Cube.Frozen(CubeField.Payload("His cubus plenus est"));
+      const freeSpace = NetConstants.CUBE_SIZE - cube.fields.getByteLength();
+      const plHl = cube.fieldParser.getFieldHeaderLength(CubeFieldType.PAYLOAD);
+      cube.fields.insertFieldBeforeBackPositionals(CubeField.Payload(
+        Buffer.alloc(freeSpace - plHl)));  // cube now all filled up
+      expect(cube.fields.getByteLength()).toEqual(NetConstants.CUBE_SIZE);
 
-    // Parse the MUC from binary
-    const parsedMuc = new Cube(binMuc, reduced_difficulty);
-    expect(parsedMuc).toBeDefined();
-    expect(await parsedMuc.getKey()).toEqual(key);
-    const parsedPayload = parsedMuc.fields.getFirst(CubeFieldType.PAYLOAD);
-    expect(parsedPayload.value.toString()).toEqual("just testing, nothing to see here");
-  }, 5000);
+      const fieldCountBeforePadding = cube.fields.all.length;
+      const paddingAdded: boolean = cube.padUp();
+      const fieldCountAfterPadding = cube.fields.all.length;
+
+      expect(paddingAdded).toBe(false);
+      expect(fieldCountAfterPadding).toEqual(fieldCountBeforePadding);
+      expect(cube.fields.getByteLength()).toEqual(NetConstants.CUBE_SIZE);
+    });
+
+    it('Should add padding starting with 0x00 if required', async() => {
+      // Create a Cube with fields whose total length is equal to the cube size
+      const payload = CubeField.Payload(
+        "Hic cubus nimis parvus, ideo supplendus est.");
+      const cube = Cube.Frozen(payload);
+
+      const fieldCountBeforePadding = cube.fields.all.length;
+      const paddingAdded = cube.padUp();
+      const fieldCountAfterPadding = cube.fields.all.length;
+
+      expect(paddingAdded).toBe(true);
+      expect(fieldCountAfterPadding).toBeGreaterThan(fieldCountBeforePadding);
+      expect(cube.fields.getByteLength()).toEqual(NetConstants.CUBE_SIZE);
+
+      // now get binary data and ensure padding starts with 0x00
+      const binaryCube: Buffer = await cube.getBinaryData();
+      const expectEndMarkerAt =
+        payload.start +
+        cube.fieldParser.getFieldHeaderLength(CubeFieldType.PAYLOAD) +
+        payload.length;
+      expect(binaryCube[expectEndMarkerAt]).toEqual(0x00);
+    });
+  });  // describe padUp()
 });

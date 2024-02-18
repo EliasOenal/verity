@@ -431,10 +431,10 @@ export class NetworkManager extends EventEmitter {
     }
 
     prettyPrintStats(): string {
-        let output = '\Statistics:\n';
+        let output = '\nStatistics:\n';
         output += `My (high level) PeerID: ${this.id.toString('hex').toUpperCase()}\n`;
         if (this.transports.size) {
-            output += `My network listeners ("servers"):\n`;
+            output += `\nMy network listeners ("servers"):\n`;
             for (const [transportType, transport] of this.transports) {
                 for (const server of transport.servers)
                 output += server.toLongString() + "\n";  // indent
@@ -443,7 +443,7 @@ export class NetworkManager extends EventEmitter {
             output += "I am not listening on the network at all.\n\n";
         }
 
-        output += `Local Store\n`;
+        output += `\nLocal Store\n`;
         output += `Cubes: ${this.cubeStore.getNumberOfStoredCubes()}\n`;
         output += `Memory: ${this.cubeStore.getNumberOfStoredCubes() * NetConstants.CUBE_SIZE}\n`;
 

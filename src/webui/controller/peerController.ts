@@ -5,21 +5,23 @@ import { Peer } from "../../core/peering/peer";
 import { PeerDB } from '../../core/peering/peerDB';
 import { logger } from "../../core/logger";
 
-import { VerityController } from "../webUiDefinitions";
 import { OnlineView } from "../view/onlineView";
 import { PeerView } from "../view/peerView"
+import { VerityController } from "./verityController";
 
 export class PeerController extends VerityController {
-  declare view: PeerView;
   displayedPeers: Map<string, HTMLLIElement> = new Map();
 
   constructor(
       private networkManager: NetworkManager,
       private peerDB: PeerDB,
-      view = new PeerView(networkManager.id.toString('hex')),
+      public peerView = new PeerView(networkManager.id.toString('hex')),
       private onlineView = new OnlineView(),
   ){
-    super(view);
+    super();
+    // maybo TODO: PeerController should do all this stuff only when asked to.
+    // The constructor is not meant to fire up optional features -- and the
+    // peer detail view is not just optional but probably rarely used.
     this.networkManager.on('peeronline', (peer) => this.redisplayPeers());
     this.networkManager.on('updatepeer', (peer) => this.redisplayPeers());
     this.networkManager.on('peerclosed', (peer) => this.redisplayPeers());
@@ -48,14 +50,14 @@ export class PeerController extends VerityController {
     if (!peer.id) return;  // this should never have been called for non-verified peers
     // Peer already displayed?
     let li: HTMLLIElement = this.displayedPeers.get(peer.idString);
-    li = this.view.displayPeer(peer, li);
+    li = this.peerView.displayPeer(peer, li);
     this.displayedPeers.set(peer.idString, li);
   }
 
   undisplayPeer(idString: string): void {
     // logger.trace("PeerDisplay: Undisplaying peer " + idString);
     const peerli = this.displayedPeers.get(idString);
-    this.view.undisplayPeer(peerli);
+    this.peerView.undisplayPeer(peerli);
     this.displayedPeers.delete(idString);
   }
 

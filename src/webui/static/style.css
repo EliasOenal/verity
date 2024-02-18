@@ -3,7 +3,7 @@
  */
 
 :root {
-  /* This should automatically be applies from the Bootstrap CSS, but for some reason it isn't */
+  /* This should automatically be applied from the Bootstrap CSS, but for some reason it isn't */
   --bs-navbar-toggler-icon-bg:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%2833, 37, 41, 0.75%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
 }
 
@@ -70,6 +70,15 @@ body {
   font-size: 1.5em;
 }
 
+img#veralogo {
+  width: 100%;
+  aspect-ratio: 1/1;
+  max-width: 15em;
+  display: block;
+  margin: 0 auto;
+  z-index: 1;
+}
+
 .vera-anim {
   animation: float 2s ease-in-out infinite;
   animation-play-state: paused;
@@ -84,7 +93,10 @@ body {
   animation: barrelRoll 1s ease-in-out forwards;
 }
 
-
+.verityLoadingPlaceholder {
+  background-color: #cccccc;
+  color: #cccccc;
+}
 
 /*
  * Navigation
@@ -108,7 +120,26 @@ body {
   font-weight: bold;
 }
 
-/* Online/offline view */
+/* Identity row */
+div.verityMyProfilePicArea {
+  height: 6ex;
+  float: left;
+  padding: 0;
+  margin: 0;
+  margin-right: 0.2em;
+}
+img.verityMyProfilePic {
+  height: 100%;
+}
+div.verityMyIdentityInfoArea {
+  padding-left: 0;
+  min-width: 8em;
+}
+div.verityMyIdentityInfoArea a {
+  font-size: 80%;
+}
+
+/* Online/offline row */
 .greenDot {
   position: relative;
   top: 0.25ex;
@@ -177,15 +208,6 @@ img.verityPostProfilePic {
   margin-bottom: 1em;
 }
 
-img#veralogo {
-  width: 100%;
-  aspect-ratio: 1/1;
-  max-width: 15em;
-  display: block;
-  margin: 0 auto;
-  z-index: 1;
-}
-
 textarea.verityPostInput {
   /* Our post input text areas auto-resize using JS, so no overflow and no
      manual resizing please. */
@@ -241,4 +263,34 @@ li.verityPeer {
 
 .verityPeerData {
   overflow-wrap: anywhere;
+}
+
+
+/*
+ * Cube explorer
+ */
+ul.verityCubeList {
+  list-style-type: none;
+  padding-left: 0;
+}
+table.veritySchematicCube {
+  border: none;
+}
+.verityCubeSummary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-wrap: nowrap;
+}
+.veritySchematicFieldDetails td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-wrap: wrap;
+  word-break: break-all;
+}
+
+
+
+/* Identity edit form */
+img.verityEditIdentityAvatar {
+  height: 12ex;
 }
