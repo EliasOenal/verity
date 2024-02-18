@@ -33,7 +33,7 @@
     "@chainsafe/libp2p-noise": "^13.0.2",
     "@chainsafe/libp2p-yamux": "^5.0.4",
     "@libp2p/mplex": "^10.0.10",
-    "@libp2p/webrtc": "^3.2.11",
+    "@libp2p/webrtc": "^4.0.19",
     "@libp2p/websockets": "^8.0.15",
     "@multiavatar/multiavatar": "^1.0.7",
     "@types/libsodium-wrappers": "^0.7.13",
