@@ -6,8 +6,8 @@ import { NetworkPeerConnection } from "../networkPeerConnection";
 
 import { logger } from "../../logger";
 
-import { IncomingStreamData } from '@libp2p/interface/stream-handler'
-import { Connection, Stream } from '@libp2p/interface/connection'
+import { IncomingStreamData } from '@libp2p/interface/src/stream-handler'
+import { Connection, Stream } from '@libp2p/interface/src/connection'
 import { Multiaddr } from '@multiformats/multiaddr'
 import { pipe } from 'it-pipe'
 import { PassThrough } from 'stream';
@@ -118,7 +118,7 @@ export class Libp2pPeerConnection extends NetworkPeerConnection {
   async createConn(addr: Multiaddr) {
     logger.trace("Libp2pPeerConnection: Creating new connection to " + addr.toString());
     try {
-      this.conn = await this.transport.node.dial(addr);
+      this.conn = await this.transport.node.dial(addr) as Connection;  // typecast due to conflicting type definitions withn libp2p lib, TODO remove once they fix it
       if (this.conn.transient) {
         logger.trace(`Libp2pPeerConnection to ${addr.toString()}: Connection is transient. Waiting up to 10 seconds for it to upgrade.`);
         // TODO HACKHACK: This is obviously the most ridiculous hack ever.

@@ -3,22 +3,27 @@ import { Cube } from "../../src/core/cube/cube";
 import { CubeField } from "../../src/core/cube/cubeFields";
 import { CubeInfo } from "../../src/core/cube/cubeInfo";
 import { CubeStore } from "../../src/core/cube/cubeStore";
-import { Identity } from "../../src/app/identity";
+import { Identity, IdentityOptions } from "../../src/cci/identity/identity";
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zwAnnotationEngine";
 import { makePost } from "../../src/app/zwCubes"
 import { Settings } from '../../src/core/settings';
 
-import sodium, { KeyPair } from 'libsodium-wrappers'
-import { MediaTypes, ZwField, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from "../../src/app/zwFields";
-import { FieldParser } from "../../src/core/fieldParser";
+import { MediaTypes, cciField, cciFieldParsers, cciFields, cciRelationship, cciRelationshipType } from "../../src/cci/cube/cciFields";
 
-import {jest} from '@jest/globals'
+import { jest } from '@jest/globals'
+import { cciCube } from "../../src/cci/cube/cciCube";
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
+
 
 describe('ZwAnnotationEngine', () => {
   let cubeStore: CubeStore;
   let annotationEngine: ZwAnnotationEngine;
-  let reduced_difficulty = 0;
   Settings.CUBE_RETENTION_POLICY = false;
+  const reducedDifficulty = 0;
+  const idTestOptions: IdentityOptions = {
+    minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
+    requiredDifficulty: reducedDifficulty,
+  }
 
   describe('basic config', () => {
     beforeEach(async () => {
@@ -38,33 +43,30 @@ describe('ZwAnnotationEngine', () => {
 
     describe('reverse relationships', () => {
       it('correctly creates a reverse relationship', async () => {
-        const referee: Cube = await makePost("I am the base post", undefined, undefined, reduced_difficulty);
-        const referrer = await makePost("I am a reply", await referee.getKey(), undefined, reduced_difficulty);
+        const referee: Cube = await makePost("I am the base post", undefined, undefined, reducedDifficulty);
+        const referrer = await makePost("I am a reply", await referee.getKey(), undefined, reducedDifficulty);
         await cubeStore.addCube(referrer);
 
         const reverserels = annotationEngine.getReverseRelationships(await referee.getKey());
         expect(reverserels.length).toEqual(1);
-        expect(reverserels[0].type).toEqual(ZwRelationshipType.REPLY_TO);
+        expect(reverserels[0].type).toEqual(cciRelationshipType.REPLY_TO);
         expect(reverserels[0].remoteKey.toString('hex')).toEqual((await referrer.getKey()).toString('hex'));
       });
 
       it('will not honor more than one REPLY_TO', async () => {
-        const referee: Cube = await makePost("I am the base post", undefined, undefined, reduced_difficulty);
-        const spurious_referee: Cube = await makePost("Huh? I got nothing to do with this", undefined, undefined, reduced_difficulty)
+        const referee: Cube = await makePost("I am the base post", undefined, undefined, reducedDifficulty);
+        const spurious_referee: Cube = await makePost("Huh? I got nothing to do with this", undefined, undefined, reducedDifficulty)
 
-        // referrer can't be build with makePost because it's deliberately invalid
-        const zwFields: ZwFields = new ZwFields(ZwField.Application());
-        zwFields.appendField(ZwField.MediaType(MediaTypes.TEXT));
-        zwFields.appendField(ZwField.Payload("I will reply to everybody at one and NO ONE CAN STOP ME AHAHAHAHAHAHAHAHAHAHAHA!!!!!!!!1111"));
-        zwFields.appendField(ZwField.RelatesTo(
-          new ZwRelationship(ZwRelationshipType.REPLY_TO, await referee.getKey())
-        ));
-        zwFields.appendField(ZwField.RelatesTo(
-          new ZwRelationship(ZwRelationshipType.REPLY_TO, await spurious_referee.getKey())
-        ));
-        const zwData: Buffer = new FieldParser(zwFieldDefinition).compileFields(zwFields);
-        const referrer: Cube = new Cube(undefined, reduced_difficulty);
-        referrer.setFields(CubeField.Payload(zwData));
+        // referrer can't be built with makePost because it's deliberately invalid
+
+        const referrer: cciCube = cciCube.Frozen([
+            cciField.Application("ZW"),
+            cciField.MediaType(MediaTypes.TEXT),
+            cciField.Payload("I will reply to everybody at one and NO ONE CAN STOP ME AHAHAHAHAHAHAHAHAHAHAHA!!!!!!!!1111"),
+            cciField.RelatesTo(
+              new cciRelationship(cciRelationshipType.REPLY_TO, await referee.getKey())),
+          ],
+          cciFieldParsers, reducedDifficulty);
         referrer.getBinaryData();  // finalize Cube & compile fields
         await cubeStore.addCube(referrer);
 
@@ -72,7 +74,7 @@ describe('ZwAnnotationEngine', () => {
         // expect reverse relationship referrer ← referee to be annotated as the
         // first REPLY_TO will be honored
         expect(reverserels.length).toEqual(1);
-        expect(reverserels[0].type).toEqual(ZwRelationshipType.REPLY_TO);
+        expect(reverserels[0].type).toEqual(cciRelationshipType.REPLY_TO);
         expect(reverserels[0].remoteKey.toString('hex')).toEqual((await referrer.getKey()).toString('hex'));
 
         // expect spurious referee not to be annotated as a spurious REPLY_TO
@@ -84,7 +86,7 @@ describe('ZwAnnotationEngine', () => {
 
     describe('basic displayability', () => {
       it('should mark a single root cube as displayable', async () => {
-        const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reduced_difficulty);
+        const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reducedDifficulty);
 
         const callback = jest.fn();
         annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
@@ -97,8 +99,8 @@ describe('ZwAnnotationEngine', () => {
       }, 5000);
 
       it('should mark a cube and a reply received in sync as displayable', async () => {
-        const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reduced_difficulty);
-        const leaf: Cube = await makePost("steht draußen am Balkon", await root.getKey(), undefined, reduced_difficulty);
+        const root: Cube = await makePost("Ich bin ein Huhn, bok bok!", undefined, undefined, reducedDifficulty);
+        const leaf: Cube = await makePost("Hab viel zu tun, bok bok!", await root.getKey(), undefined, reducedDifficulty);
 
         const callback = jest.fn();
         annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
@@ -113,8 +115,8 @@ describe('ZwAnnotationEngine', () => {
       }, 5000);
 
       it('should not mark replies as displayable when the original post is unavailable', async () => {
-        const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reduced_difficulty);
-        const leaf: Cube = await makePost("steht draußen am Balkon", await root.getKey(), undefined, reduced_difficulty);
+        const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reducedDifficulty);
+        const leaf: Cube = await makePost("steht draußen am Balkon", await root.getKey(), undefined, reducedDifficulty);
 
         const callback = jest.fn();
         annotationEngine.on('cubeDisplayable', (hash) => callback(hash));
@@ -124,9 +126,9 @@ describe('ZwAnnotationEngine', () => {
       }, 5000);
 
       it('should mark replies as displayable only once all preceding posts has been received', async () => {
-        const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reduced_difficulty);
-        const intermediate: Cube = await makePost("steht draußen am Balkon", await root.getKey(), undefined, reduced_difficulty);
-        const leaf: Cube = await makePost("hollari, hollari, hollaroooo", await intermediate.getKey(), undefined, reduced_difficulty);
+        const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reducedDifficulty);
+        const intermediate: Cube = await makePost("steht draußen am Balkon", await root.getKey(), undefined, reducedDifficulty);
+        const leaf: Cube = await makePost("hollari, hollari, hollaroooo", await intermediate.getKey(), undefined, reducedDifficulty);
 
         const callback = jest.fn();
         annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
@@ -160,13 +162,13 @@ describe('ZwAnnotationEngine', () => {
 
     describe('cube ownership', () => {
       it('should remember Identity MUCs', async () => {
-        const id: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduced minimum MUC rebuild time for faster tests
+        const id = Identity.Create(cubeStore, "usor probationis", "clavis probationis", idTestOptions);
         id.name = "Probator Annotationem";
-        await id.store(reduced_difficulty);
+        await id.store(undefined, reducedDifficulty);
 
         expect(annotationEngine.identityMucs.size).toEqual(1);
         const restored: Identity = new Identity(cubeStore,
-          annotationEngine.identityMucs.get(id.publicKey.toString('hex'))?.getCube());
+          annotationEngine.identityMucs.get(id.publicKey.toString('hex'))?.getCube(cciFieldParsers, cciCube) as cciCube);
         expect(restored).toBeInstanceOf(Identity);
         expect(restored.name).toEqual("Probator Annotationem");
       });
@@ -177,20 +179,20 @@ describe('ZwAnnotationEngine', () => {
           Buffer.from(keys.publicKey),
           Buffer.from(keys.privateKey),
           CubeField.Payload("hoc non est identitatis"),
-          reduced_difficulty
+          cciFieldParsers, cciCube, reducedDifficulty
         );
         await cubeStore.addCube(muc);
         expect(annotationEngine.identityMucs.size).toEqual(0);
       });
 
       it('should identify the author of a post directly referred to from a MUC', async () => {
-        const id: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduced minimum MUC rebuild time for faster tests
+        const id = Identity.Create(cubeStore, "usor probationis", "clavis probationis", idTestOptions);
         id.name = "Probator Attributionis Auctoris";
-        const post: Cube = await makePost("I got important stuff to say", undefined, id, reduced_difficulty);
+        const post: Cube = await makePost("Habeo res importantes dicere", undefined, id, reducedDifficulty);
         await cubeStore.addCube(post);
         const postKey = await post.getKey();
         expect(postKey).toBeDefined;
-        await id.store(reduced_difficulty);
+        await id.store(undefined, reducedDifficulty);
 
         const restoredAuthor: Identity = annotationEngine.cubeAuthor(postKey);
         expect(restoredAuthor).toBeInstanceOf(Identity);
@@ -200,13 +202,13 @@ describe('ZwAnnotationEngine', () => {
 
       // This test is a bit lengthy and convoluted as I was chasing a Heisenbug
       // involving the MUC's key suddenly becoming undefined.
-      // SKIPPED due to execution time (min time between MUC updates)
+      // It's a pretty thorough test, though, so let's keep it.
       it('should identify the author multiple times while other stuff takes place', async () => {
         // create and store identity
-        const id: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduce min time between MUCs to one second for this test
+        const id = Identity.Create(cubeStore, "usor probationis", "clavis probationis", idTestOptions);
         id.name = "Probator Attributionis Auctoris";
         expect(id.muc).toBeInstanceOf(Cube);
-        const preliminaryMuc: Cube = await id.store(reduced_difficulty);
+        const preliminaryMuc: Cube = await id.store(undefined, reducedDifficulty);
         expect(preliminaryMuc).toEqual(id.muc);
         expect(id.muc).toBeInstanceOf(Cube);
         const idKey = id.muc.getKeyIfAvailable();
@@ -216,9 +218,11 @@ describe('ZwAnnotationEngine', () => {
         expect(preliminaryIdHash.equals(await cubeStore.getCube(idKey)?.getHash()!)).toBeTruthy();
 
         // add post and re-store Identity
-        const postKey: CubeKey = (await cubeStore.addCube(await makePost("I got important stuff to say", undefined, id, reduced_difficulty))).getKeyIfAvailable();
+        const postKey: CubeKey = (await cubeStore.addCube(await makePost(
+            "I got important stuff to say", undefined, id, reducedDifficulty)
+          )).getKeyIfAvailable();
         expect(postKey).toBeInstanceOf(Buffer);
-        const firstMuc: Cube = await id.store(reduced_difficulty);
+        const firstMuc: Cube = await id.store(undefined, reducedDifficulty);
 
         // re-storing the Identity changes it's hash but keeps it's key
         expect(id.muc).toBeInstanceOf(Cube);
@@ -235,10 +239,10 @@ describe('ZwAnnotationEngine', () => {
 
         // make sure the new post is referenced directly in the MUC
         let mucRelToPost: any = undefined;
-        for (const rel of ZwFields.get(id.muc).getRelationships(ZwRelationshipType.MYPOST)) {
+        for (const rel of id.muc.fields.getRelationships(cciRelationshipType.MYPOST)) {
           if (rel.remoteKey.equals(postKey)) mucRelToPost = rel;
         }
-        expect(mucRelToPost).toBeInstanceOf(ZwRelationship);
+        expect(mucRelToPost).toBeInstanceOf(cciRelationship);
 
         // Wait for the annotationEngine to take note of the MUC change.
         // This is event driven, so it may take a short while.
@@ -271,11 +275,14 @@ describe('ZwAnnotationEngine', () => {
         // do some other unrelated stuff...
         await new Promise(resolve => setTimeout(resolve, 250));
         // learn a new unrelated post
-        await cubeStore.addCube(await makePost("Lalelu", undefined, undefined, reduced_difficulty));
+        await cubeStore.addCube(await makePost("Lalelu", undefined, undefined, reducedDifficulty));
         await new Promise(resolve => setTimeout(resolve, 250));
         // learn a new unrelated MUC
         const unrelatedKeys: KeyPair = sodium.crypto_sign_keypair();
-        await cubeStore.addCube(Cube.MUC(Buffer.from(unrelatedKeys.publicKey), Buffer.from(unrelatedKeys.privateKey), CubeField.Payload("I am some other application's MUC"), reduced_difficulty));
+        await cubeStore.addCube(Cube.MUC(Buffer.from(unrelatedKeys.publicKey),
+          Buffer.from(unrelatedKeys.privateKey),
+          CubeField.Payload("I am some other application's MUC"),
+          cciFieldParsers, cciCube, reducedDifficulty));
         await new Promise(resolve => setTimeout(resolve, 250));
 
         {  // check 2
@@ -293,8 +300,8 @@ describe('ZwAnnotationEngine', () => {
         // do some marginally related stuff...
         await new Promise(resolve => setTimeout(resolve, 250));
         // our user makes a new post
-        await cubeStore.addCube(await makePost("verba mea magna sunt", undefined, id, reduced_difficulty));
-        await id.store(reduced_difficulty);
+        await cubeStore.addCube(await makePost("verba mea magna sunt", undefined, id, reducedDifficulty));
+        await id.store(undefined, reducedDifficulty);
         const idHashAfterOneNewPost = id.muc.getHashIfAvailable();
         await new Promise(resolve => setTimeout(resolve, 250));
 
@@ -319,7 +326,7 @@ describe('ZwAnnotationEngine', () => {
         await new Promise(resolve => setTimeout(resolve, 250));
         // our user changes it's name
         id.name = "Probator Attributionis Auctoris et Persona Gravissima in Generali";
-        await id.store(reduced_difficulty);
+        await id.store(undefined, reducedDifficulty);
         await new Promise(resolve => setTimeout(resolve, 250));
         const idHashAfterNameChange = id.muc.getHashIfAvailable();
 
@@ -338,13 +345,13 @@ describe('ZwAnnotationEngine', () => {
       }, 30000);
 
       it('should identify the author of a post after the key was converted to a string', async () => {
-        const id: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduced minimum MUC rebuild time for faster tests
+        const id = Identity.Create(cubeStore, "usor probationis", "clavis probationis", idTestOptions);
         id.name = "Probator Attributionis Auctoris";
-        const post: Cube = await makePost("I got important stuff to say", undefined, id, reduced_difficulty);
+        const post: Cube = await makePost("I got important stuff to say", undefined, id, reducedDifficulty);
         await cubeStore.addCube(post);
         const postKey = (await post.getKey()).toString('hex');
         expect(postKey).toBeDefined;
-        await id.store(reduced_difficulty);
+        await id.store(undefined, reducedDifficulty);
 
         const restoredAuthor: Identity = annotationEngine.cubeAuthor(Buffer.from(postKey, 'hex'));
         expect(restoredAuthor).toBeInstanceOf(Identity);
@@ -354,16 +361,16 @@ describe('ZwAnnotationEngine', () => {
 
       it('should identify the author of a post indirectly referred to through other posts', async () => {
         const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
-        const id: Identity = new Identity(cubeStore, undefined, undefined, true, 1);  // reduced minimum MUC rebuild time for faster tests
+        const id = Identity.Create(cubeStore, "usor probationis", "clavis probationis", idTestOptions);
         id.name = "Probator Attributionis Auctoris";
         const posts: CubeKey[] = [];
 
         for (let i=0; i<TESTPOSTCOUNT; i++) {
-          const post: Cube = await makePost("I got important stuff to say", undefined, id, reduced_difficulty);
+          const post: Cube = await makePost("I got important stuff to say", undefined, id, reducedDifficulty);
           posts.push(await post.getKey());
           await cubeStore.addCube(post);
         }
-        await id.store(reduced_difficulty);
+        await id.store(undefined, reducedDifficulty);
 
         for (let i=0; i<TESTPOSTCOUNT; i++) {
           expect(annotationEngine.cubeAuthor(posts[i]).name).

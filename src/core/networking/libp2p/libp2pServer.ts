@@ -4,7 +4,7 @@ import { TransportServer } from "../transportServer";
 import { Libp2pPeerConnection } from "./libp2pPeerConnection";
 import { logger } from "../../logger";
 
-import { IncomingStreamData } from '@libp2p/interface/stream-handler'
+import { IncomingStreamData } from '@libp2p/interface/src/stream-handler'
 
 export class Libp2pServer extends TransportServer {
   private listen: string[] = [];

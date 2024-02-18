@@ -2,18 +2,19 @@ import { CubeKey } from "../../core/cube/cubeDefinitions";
 import { CubeInfo } from "../../core/cube/cubeInfo";
 import { CubeStore } from "../../core/cube/cubeStore";
 
-import { Identity } from "../../app/identity";
+import { Identity } from "../../cci/identity/identity";
 import { makePost } from "../../app/zwCubes";
-import { ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType } from "../../app/zwFields";
+import { cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipType } from "../../cci/cube/cciFields";
 import { ZwAnnotationEngine } from "../../app/zwAnnotationEngine";
 
-import { VerityController } from "../webUiDefinitions";
 import { PostView } from "../view/postView";
 
 import { logger } from "../../core/logger";
 
 import { Buffer } from 'buffer';
-import multiavatar from '@multiavatar/multiavatar'
+import { cciCube } from "../../cci/cube/cciCube";
+import { VerityController } from "./verityController";
+import { UNKNOWNAVATAR } from "../../cci/identity/avatar";
 
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
@@ -38,7 +39,6 @@ export interface PostData {
 
 /** This is the presenter class for viewing posts */
 export class PostController extends VerityController {
-  declare view: PostView;
   private displayedPosts: Map<string, PostData> = new Map();
   private cubeAuthorRedisplayTimer: NodeJS.Timeout = undefined;  // TODO replace, ugly.
 
@@ -46,8 +46,8 @@ export class PostController extends VerityController {
       private cubeStore: CubeStore,
       private annotationEngine: ZwAnnotationEngine,
       private identity: Identity = undefined,
-      view = new PostView()) {
-    super(view);
+      public view: PostView = new PostView()) {
+    super();
     this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey)); // list cubes
     this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
     this.redisplayPosts();
@@ -69,7 +69,7 @@ export class PostController extends VerityController {
     // First create the post, then update the identity, then add the cube.
     // This way the UI directly displays you as the author.
     const post = await makePost(text, replyto, this.identity);
-    await this.identity.store();
+    await this.identity.store("ID/ZW");  // TODO: move this to constructor
     this.cubeStore.addCube(post);
   }
 
@@ -81,12 +81,12 @@ export class PostController extends VerityController {
       logger.trace("VerityUI: Unsubscribing from " + authorkeystring);
       this.identity.removeSubscriptionRecommendation(authorkey);
       subscribeButton.classList.remove("active");
-      await this.identity.store();
+      await this.identity.store("ID/ZW");
     } else {
       logger.trace("VerityUI: Subscribing to " + authorkeystring);
       this.identity.addSubscriptionRecommendation(authorkey);
       subscribeButton.classList.add("active");
-      await this.identity.store();
+      await this.identity.store("ID/ZW");
     }
     this.redisplayAuthor(this.cubeStore.getCubeInfo(authorkeystring));
   }
@@ -122,22 +122,23 @@ export class PostController extends VerityController {
   displayPost(binarykey: CubeKey): void {
     // logger.trace(`PostDisplay: Attempting to display post ${binarykey.toString('hex')}`)
     // get Cube
-    const cube = this.cubeStore.getCube(binarykey);
-    const fields: ZwFields = ZwFields.get(cube);
+    const cube: cciCube = this.cubeStore.getCube(
+      binarykey, cciFieldParsers, cciCube) as cciCube;
+    const fields: cciFields = cube.fields;
 
     // gather PostData
     const data: PostData = {};
     data.binarykey = binarykey;
     data.keystring = binarykey.toString('hex');
     data.timestamp = cube.getDate();
-    data.text = fields.getFirst(ZwFieldType.PAYLOAD).value.toString();
+    data.text = fields.getFirst(cciFieldType.PAYLOAD).value.toString();
     this.findAuthor(data);  // this sets data.author and data.authorkey
 
     // is this post already displayed?
     if (this.displayedPosts.has(data.keystring)) return;
 
     // is this a reply?
-    const reply: ZwRelationship = fields.getFirstRelationship(ZwRelationshipType.REPLY_TO);
+    const reply: cciRelationship = fields.getFirstRelationship(cciRelationshipType.REPLY_TO);
     if (reply !== undefined) {  // yes
       const superiorPostKey: CubeKey = reply.remoteKey;
       data.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));
@@ -171,7 +172,10 @@ export class PostController extends VerityController {
     // maybe TODO: Recreating the whole Identity is unnecessary.
     // Identity should split out the post list retrieval code into a static method.
     try {
-      id = new Identity(this.cubeStore, mucInfo.getCube(), undefined, false);
+      id = new Identity(
+        this.cubeStore,
+        mucInfo.getCube(cciFieldParsers, cciCube) as cciCube,
+        {parsers: cciFieldParsers});
     } catch(error) { return; }
     for (const post of id.posts) {
       const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(post);
@@ -196,6 +200,7 @@ export class PostController extends VerityController {
       // TODO: display if this authorship information is authenticated,
       // i.e. if it comes from a MUC we trust
       data.author = authorObject.name;
+      data.profilepic = authorObject.avatar.render();
 
       // is this author subscribed?
       if (this.identity) {
@@ -205,16 +210,10 @@ export class PostController extends VerityController {
       }
     } else {
       data.author = "Unknown user";
+      data.profilepic = UNKNOWNAVATAR;
     }
     if (data.author.length > 60) {
       data.author = data.author.slice(0, 57) + "...";
     }
-
-    // Get profile image if the use has one, otherwise generate an avatar
-    // for them based on their MUC key. Use the post key if there's no MUC.
-    // TODO: real profile pictures not implemented yet
-    if (data.authorkey) data.profilepic = multiavatar(data.authorkey);
-    else data.profilepic = multiavatar(data.keystring);
-    data.profilepic = "data:image/svg+xml;base64," + btoa(data.profilepic);
   }
 }

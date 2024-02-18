@@ -88,7 +88,7 @@ export class NetworkPeer extends Peer {
         // Take note of all cubes I could share with this new peer. While the
         // connection lasts, supplement this with any newly learned cubes.
         // This is used to ensure we don't offer peers the same cube twice.
-        this.unsentCubeMeta = cubeStore.getAllStoredCubeMeta();
+        this.unsentCubeMeta = cubeStore.getAllCubeMeta();
         cubeStore.on('cubeAdded', (cube: CubeMeta) => this.unsentCubeMeta.add(cube));
 
         // Take note of all other peers I could exchange with this new peer.
@@ -152,7 +152,7 @@ export class NetworkPeer extends Peer {
     }
 
     private txMessage(message: Buffer): void {
-        this.logTxStats(message, message.readUInt8(NetConstants.PROTOCOL_VERSION_SIZE));
+        this.logTxStats(message, message.readUInt8(NetConstants.CUBE_TYPE_SIZE));
         this._conn.send(message);
     }
 
@@ -171,8 +171,8 @@ export class NetworkPeer extends Peer {
         // If we want to do that, we can simple check for this.onlineFlag
         // on handling other messages.
         try {
-            const messageClass = message.readUInt8(NetConstants.PROTOCOL_VERSION_SIZE);
-            const messageContent = message.subarray(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
+            const messageClass = message.readUInt8(NetConstants.CUBE_TYPE_SIZE);
+            const messageContent = message.subarray(NetConstants.CUBE_TYPE_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
             // logger.trace(`NetworkPeer ${this.toString()}: handleMessage() messageClass: ${MessageClass[messageClass]}`);
             this.logRxStats(message, messageClass);
 
@@ -246,12 +246,12 @@ export class NetworkPeer extends Peer {
 
     private sendHello(): void {
         logger.trace(`NetworkPeer ${this.toString()}: Sending HELLO`);
-        const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.PEER_ID_SIZE);
+        const message = Buffer.alloc(NetConstants.CUBE_TYPE_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.PEER_ID_SIZE);
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, 0);
         message.writeUInt8(MessageClass.Hello, 1);
         this.hostNodePeerID.copy(
             message,  // target
-            NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE,  // target offset
+            NetConstants.CUBE_TYPE_SIZE + NetConstants.MESSAGE_CLASS_SIZE,  // target offset
             0,  // source offset
             NetConstants.PEER_ID_SIZE,  // source length
         );
@@ -324,7 +324,7 @@ export class NetworkPeer extends Peer {
 
         const CUBE_META_WIRE_SIZE = NetConstants.CUBE_KEY_SIZE + NetConstants.TIMESTAMP_SIZE
             + NetConstants.CHALLENGE_LEVEL_SIZE + NetConstants.CUBE_TYPE_SIZE;
-        const reply = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE
+        const reply = Buffer.alloc(NetConstants.CUBE_TYPE_SIZE
             + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.COUNT_SIZE
             + cubes.length * CUBE_META_WIRE_SIZE);
         let offset = 0;
@@ -369,22 +369,22 @@ export class NetworkPeer extends Peer {
             // Read timestamp as a 5-byte number
             const timestamp = data.readUIntBE(offset, NetConstants.TIMESTAMP_SIZE);
             offset += NetConstants.TIMESTAMP_SIZE;
-            const hash = data.slice(offset, offset + NetConstants.CUBE_KEY_SIZE);
+            const key = data.slice(offset, offset + NetConstants.CUBE_KEY_SIZE);
             offset += NetConstants.CUBE_KEY_SIZE;
             const incomingCubeInfo = new CubeInfo({
-                key: hash,
+                key: key,
                 date: timestamp,
                 challengeLevel: challengeLevel,
                 cubeType: cubeType
             });
 
             const currentEpoch = getCurrentEpoch(); // Get the current epoch
-            if(!shouldRetainCube(incomingCubeInfo.keystring ,incomingCubeInfo.date, incomingCubeInfo.challengeLevel, currentEpoch)) {
+            if(!shouldRetainCube(incomingCubeInfo.keyString ,incomingCubeInfo.date, incomingCubeInfo.challengeLevel, currentEpoch)) {
                 logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Was offered cube hash outside of retention policy, ignoring.`);
                 continue;
             }
 
-            if (cubeType === CubeType.BASIC) {
+            if (cubeType === CubeType.FROZEN) {
                 regularCubeInfo.push(incomingCubeInfo);
             } else if (cubeType === CubeType.MUC) {
                 mucInfo.push(incomingCubeInfo);
@@ -407,7 +407,7 @@ export class NetworkPeer extends Peer {
                         missingKeys.push(muc.key);
                     }
                 } catch(error) {
-                    logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Error handling incoming MUC ${muc.keystring}: ${error}`);
+                    logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Error handling incoming MUC ${muc.keyString}: ${error}`);
                 }
             }
         }
@@ -436,7 +436,7 @@ export class NetworkPeer extends Peer {
         const cubes: CubeInfo[] = requestedCubeHashes.map(
             key => this.cubeStore.getCubeInfo(key));
 
-        const reply = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE
+        const reply = Buffer.alloc(NetConstants.CUBE_TYPE_SIZE + NetConstants.MESSAGE_CLASS_SIZE
             + NetConstants.COUNT_SIZE + cubes.length * NetConstants.CUBE_SIZE);
         let offset = 0;
 
@@ -522,7 +522,7 @@ export class NetworkPeer extends Peer {
         if (!address) return;
         const addressString: string = address.toString();
         const message = Buffer.alloc(
-            NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE +
+            NetConstants.CUBE_TYPE_SIZE + NetConstants.MESSAGE_CLASS_SIZE +
             1 + // type -- todo parametrize
             2 + // address length -- todo parametrize
             addressString.length);
@@ -541,7 +541,7 @@ export class NetworkPeer extends Peer {
       */
     sendKeyRequest(): void {
         // Prepare message
-        const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
+        const message = Buffer.alloc(NetConstants.CUBE_TYPE_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, NetConstants.PROTOCOL_VERSION);
         message.writeUInt8(MessageClass.KeyRequest, 1);
         logger.trace(`NetworkPeer ${this.toString()}: sending KeyRequest`);
@@ -556,7 +556,7 @@ export class NetworkPeer extends Peer {
      */
     sendCubeRequest(hashes: Buffer[]): void {
         // Prepare message
-        const message = Buffer.alloc(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE
+        const message = Buffer.alloc(NetConstants.CUBE_TYPE_SIZE + NetConstants.MESSAGE_CLASS_SIZE
             + NetConstants.COUNT_SIZE + hashes.length * NetConstants.HASH_SIZE);
         let offset = 0;
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, offset++);
@@ -576,7 +576,7 @@ export class NetworkPeer extends Peer {
     sendNodeRequest(): void {
         if (!this.peerExchange) return;  // don't do anything if opted out
         // Determine message length
-        const msgLength = NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE;
+        const msgLength = NetConstants.CUBE_TYPE_SIZE + NetConstants.MESSAGE_CLASS_SIZE;
         // Prepare message
         const message = Buffer.alloc(msgLength);
         let offset = 0;
@@ -638,7 +638,7 @@ export class NetworkPeer extends Peer {
             this.unsentPeers.splice(rnd, 1);
         }
         // Determine message length
-        let msgLength = NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.COUNT_SIZE;
+        let msgLength = NetConstants.CUBE_TYPE_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.COUNT_SIZE;
         for (let i = 0; i < chosenPeers.length; i++) {
             msgLength += 1;  // for the address type field
             msgLength += 2;  // for the node address length field

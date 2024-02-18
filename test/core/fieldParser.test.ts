@@ -1,21 +1,19 @@
 import { NetConstants } from "../../src/core/networking/networkDefinitions";
-
 import { FieldDefinition, FieldNumericalParam, FieldParser, PositionalFields } from "../../src/core/fieldParser";
-import { CubeField, CubeFieldType, CubeFields, CubeRelationshipType, CubeRelationship } from "../../src/core/cube/cubeFields";
-import { BaseField } from "../../src/core/cube/baseFields";
-import { BinaryDataError, FieldError } from "../../src/core/cube/cubeDefinitions";
+import { CubeField, CubeFieldType, CubeFields, coreFrozenParser, coreTlvFrozenParser, coreFrozenFieldDefinition } from "../../src/core/cube/cubeFields";
+import { BaseField, BaseFields } from "../../src/core/cube/baseFields";
+import { BinaryDataError, CubeType, FieldError } from "../../src/core/cube/cubeDefinitions";
 
-import { ZwField, ZwFieldType, ZwFields, ZwRelationship, ZwRelationshipType, zwFieldDefinition } from '../../src/app/zwFields';
 
 describe('fieldParser', () => {
   describe('positional field tests with synthetic field description', () => {
     // any similarities with CubeFieldTypes, living or dead, are purely coincidental
     enum TestFieldType {
-      NONCE = 0x00 << 2,
-      PAYLOAD = 0x01 << 2,
-      SIGNATURE = 0x06 << 2,
-      VERSION = 0x101,
-      DATE = 0x102,
+      NONCE = 0,
+      PAYLOAD = 4,
+      SIGNATURE = 24,
+      VERSION = 257,
+      DATE = 258,
     }
     const TestFieldLength: FieldNumericalParam = {
       [TestFieldType.NONCE]: 4,
@@ -38,12 +36,13 @@ describe('fieldParser', () => {
       positionalFront: TestPositionalFront,
       positionalBack: TestPositionalBack,
       fieldObjectClass: BaseField,
+      fieldsObjectClass: BaseFields,
       firstFieldOffset: 0,
     }
     let fieldParser: FieldParser;
     let version: BaseField, date: BaseField, sig: BaseField, nonce: BaseField, payload: BaseField;
 
-    beforeAll(() => {
+    beforeEach(() => {
       // prepare the field parser
       fieldParser = new FieldParser(testFieldDefinition);
 
@@ -80,12 +79,16 @@ describe('fieldParser', () => {
       const binaryData = fieldParser.compileFields(fields);
       expect(binaryData.length).toEqual(15);
 
-      const restored: BaseField[] = fieldParser.decompileFields(binaryData);
-      expect(restored.length).toEqual(4);
-      expect(restored[0].equals(fields[0])).toBeTruthy();
-      expect(restored[1].equals(fields[1])).toBeTruthy();
-      expect(restored[2].equals(fields[2])).toBeTruthy();
-      expect(restored[3].equals(fields[3])).toBeTruthy();
+      const restored: BaseFields = fieldParser.decompileFields(binaryData);
+      expect(restored.all.length).toEqual(4);
+      expect(restored.all[0].value.equals(fields[0].value)).toBeTruthy();
+      expect(restored.all[0].start).toEqual(fields[0].start);
+      expect(restored.all[1].value.equals(fields[1].value)).toBeTruthy();
+      expect(restored.all[1].start).toEqual(fields[1].start);
+      expect(restored.all[2].value.equals(fields[2].value)).toBeTruthy();
+      expect(restored.all[2].start).toEqual(fields[2].start);
+      expect(restored.all[3].value.equals(fields[3].value)).toBeTruthy();
+      expect(restored.all[3].start).toEqual(fields[3].start);
     });
 
     it('correctly parses valid binary data including optional, non-positional fields', () => {
@@ -98,13 +101,13 @@ describe('fieldParser', () => {
       const binaryData = fieldParser.compileFields(fields);
       expect(binaryData.length).toEqual(154);  // 15 + 137 + 2 for payload header
 
-      const restored: BaseField[] = fieldParser.decompileFields(binaryData);
-      expect(restored.length).toEqual(5);
-      expect(restored[0].equals(fields[0])).toBeTruthy();
-      expect(restored[1].equals(fields[1])).toBeTruthy();
-      expect(restored[2].equals(fields[2])).toBeTruthy();
-      expect(restored[3].equals(fields[3])).toBeTruthy();
-      expect(restored[4].equals(fields[4])).toBeTruthy();
+      const restored: BaseFields = fieldParser.decompileFields(binaryData);
+      expect(restored.all.length).toEqual(5);
+      expect(restored.all[0].equals(fields[0], true)).toBeTruthy();
+      expect(restored.all[1].equals(fields[1], true)).toBeTruthy();
+      expect(restored.all[2].equals(fields[2], true)).toBeTruthy();
+      expect(restored.all[3].equals(fields[3], true)).toBeTruthy();
+      expect(restored.all[4].equals(fields[4], true)).toBeTruthy();
     });
 
     it('throws on compilation if front positional fields are in wrong order', () => {
@@ -157,79 +160,117 @@ describe('fieldParser', () => {
       const corrupt = Buffer.alloc(8);
       expect(() => fieldParser.decompileFields(corrupt)).toThrow(BinaryDataError);
     });
+
+    it('throws on decompiling invalid TLV field by default', () => {
+      const fields: BaseField[] = [];
+      fields.push(version);
+      fields.push(date);
+      fields.push(new BaseField(42, 10, Buffer.alloc(10, 0)));  // note there is no TLV field 42
+      fields.push(sig);
+      fields.push(nonce);
+      // Note: in the current implementation, it's not a problem to compile
+      // an invalid field. We just won't be able to decompile this.
+      // If the implementation ever changes or if we add a sanity check
+      // on compilation (which we maybe should), amend this test.
+      const binaryData = fieldParser.compileFields(fields);
+      expect(() => fieldParser.decompileFields(binaryData)).toThrow(FieldError);
+    });
+
+    it('does not throw on invalid TLV field if TLV field parsing is disabled', () => {
+      fieldParser.decompileTlv = false;
+      const binaryData = Buffer.from([
+        // Cube version (0) and type (basic "frozen" Cube, 0) (1 byte)
+        0b00000000,
+        // Date (5 bytes)
+        0x00, 0x00, 0x00, 0x00, 0x00,
+
+        // Invalid TLV field
+        0xFA,       // no such field ID exists
+        0x0A,       // Length: 10 bytes
+        0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x77, 0x6F, 0x72, // Value: "Hello, wor"
+
+        // Any padding (all zeros for instance) so we end up at 1024 bytes total
+        ...Array.from({ length: 997 }, () => 0x00),
+
+        0x01, 0x02, 0x03, 0x04, 0x05,  // 5 bytes "signature"
+        0x00, 0x00, 0x37, 0x4D, // Nonce
+      ])
+      const restored: BaseFields = fieldParser.decompileFields(binaryData);
+      expect(restored.all.length).toEqual(4);
+      expect(restored.all[0].value.equals(Buffer.from([0]))).toBeTruthy();
+      expect(restored.all[1].value.equals(Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00]))).toBeTruthy();
+      expect(restored.all[2].value.equals(Buffer.from([0x01, 0x02, 0x03, 0x04, 0x05]))).toBeTruthy();
+      expect(restored.all[3].value.equals(Buffer.from([0x00, 0x00, 0x37, 0x4D]))).toBeTruthy();
+    });
   });
 
-  describe('standard cube field description', () => {
-    it('should correctly compile and decompile top level fields', () => {
-      const fieldParser: FieldParser = FieldParser.toplevel;
-      const fields = new CubeFields();
+  describe('core cube field', () => {
+    it('should correctly compile and decompile core fields', () => {
+      const fieldParser: FieldParser = coreTlvFrozenParser;
+      const fields = new CubeFields(undefined, coreFrozenFieldDefinition);
 
       // define a few fields
+      fields.appendField(CubeField.Type(CubeType.FROZEN));
       fields.appendField(
         CubeField.Payload("Mein kleiner grüner Kaktus")
       );
       fields.appendField(
-        CubeField.RelatesTo(
-          new CubeRelationship(CubeRelationshipType.CONTINUED_IN,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA))
-        )
-      );
-      fields.appendField(
         CubeField.Payload("steht draußen am Balkon")
       );
+      fields.appendField(CubeField.Date());
+      fields.appendField(CubeField.Nonce());
 
       // compile and decompile
       const compiled: Buffer = fieldParser.compileFields(fields);
-      const restoredarray: Array<CubeField> = fieldParser.decompileFields(compiled);
-      const restored: CubeFields = new CubeFields(restoredarray);
+      const restored: CubeFields = fieldParser.decompileFields(compiled);
 
       // compare
-      expect(restored.count()).toEqual(5);  // three explicit plus two auto-generated VERSION and DATE fields
+      expect(restored.count()).toEqual(5);
       expect(restored.get(CubeFieldType.PAYLOAD).length).toEqual(2);
-      expect(restored.get(CubeFieldType.RELATES_TO).length).toEqual(1);
       expect(
-        restored.getFirst(CubeFieldType.PAYLOAD).value.toString('utf-8')).
+        restored.get(CubeFieldType.PAYLOAD)[0].value.toString('utf-8')).
         toEqual("Mein kleiner grüner Kaktus");
-      const restoredrel = CubeRelationship.fromField(restored.getFirst(CubeFieldType.RELATES_TO));
-      expect(restoredrel.type).toEqual(CubeRelationshipType.CONTINUED_IN);
-      expect(restoredrel.remoteKey[0]).toEqual(0xDA);
+      expect(
+        restored.get(CubeFieldType.PAYLOAD)[1].value.toString('utf-8')).
+        toEqual("steht draußen am Balkon");
     });
   });
 
-  describe('deprecated', () => {
-    it('should correctly compile and decompile ZW fields', () => {
-      const fieldParser: FieldParser = new FieldParser(zwFieldDefinition);
-      const fields = new ZwFields();
+  describe('CCI fields', () => {
+    // TODO: rewrite for CCI
+    // it('should correctly compile and decompile ZW fields', () => {
+    //   const fieldParser: FieldParser = new FieldParser(zwFieldDefinition);
+    //   const fields = new ZwFields();
 
-      // define a few fields
-      fields.appendField(
-        ZwField.Payload("Mein kleiner grüner Kaktus")
-      );
-      fields.appendField(
-        ZwField.RelatesTo(
-          new CubeRelationship(ZwRelationshipType.MYPOST,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA))
-        )
-      );
-      fields.appendField(
-        ZwField.Payload("steht draußen am Balkon")
-      );
+    //   // define a few fields
+    //   fields.appendField(
+    //     ZwField.Payload("Mein kleiner grüner Kaktus")
+    //   );
+    //   fields.appendField(
+    //     ZwField.RelatesTo(
+    //       new CubeRelationship(ZwRelationshipType.MYPOST,
+    //       Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA))
+    //     )
+    //   );
+    //   fields.appendField(
+    //     ZwField.Payload("steht draußen am Balkon")
+    //   );
 
-      // compile and decompile
-      const compiled: Buffer = fieldParser.compileFields(fields);
-      const restoredarray: Array<ZwField> = fieldParser.decompileFields(compiled);
-      const restored: ZwFields = new ZwFields(restoredarray);
+    //   // compile and decompile
+    //   const compiled: Buffer = fieldParser.compileFields(fields);
+    //   const restoredarray: Array<ZwField> = fieldParser.decompileFields(compiled);
+    //   const restored: ZwFields = new ZwFields(restoredarray);
 
-      // compare
-      expect(restored.count()).toEqual(3);
-      expect(restored.get(ZwFieldType.PAYLOAD).length).toEqual(2);
-      expect(restored.get(ZwFieldType.RELATES_TO).length).toEqual(1);
-      expect(
-        restored.getFirst(ZwFieldType.PAYLOAD).value.toString('utf-8')).
-        toEqual("Mein kleiner grüner Kaktus");
-      const restoredrel = ZwRelationship.fromField(restored.getFirst(ZwFieldType.RELATES_TO));
-      expect(restoredrel.type).toEqual(ZwRelationshipType.MYPOST);
-      expect(restoredrel.remoteKey[0]).toEqual(0xDA);
-    });
+    //   // compare
+    //   expect(restored.count()).toEqual(3);
+    //   expect(restored.get(ZwFieldType.PAYLOAD).length).toEqual(2);
+    //   expect(restored.get(ZwFieldType.RELATES_TO).length).toEqual(1);
+    //   expect(
+    //     restored.getFirst(ZwFieldType.PAYLOAD).value.toString('utf-8')).
+    //     toEqual("Mein kleiner grüner Kaktus");
+    //   const restoredrel = ZwRelationship.fromField(restored.getFirst(ZwFieldType.RELATES_TO));
+    //   expect(restoredrel.type).toEqual(ZwRelationshipType.MYPOST);
+    //   expect(restoredrel.remoteKey[0]).toEqual(0xDA);
+    // });
   });
 });

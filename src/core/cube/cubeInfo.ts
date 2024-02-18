@@ -1,5 +1,9 @@
+import { logger } from '../logger';
 import { Cube } from './cube'
-import { CubeType, CubeKey } from './cubeDefinitions';
+import { CubeType, CubeKey, CubeError } from './cubeDefinitions';
+import { FieldParserTable, coreFieldParsers } from './cubeFields';
+
+import { Buffer } from 'buffer';
 
 /**
  * @interface CubeMeta is a restricted view on CubeInfo containing metadata only.
@@ -7,18 +11,56 @@ import { CubeType, CubeKey } from './cubeDefinitions';
 */
 export interface CubeMeta {
   key: CubeKey;
-  cubeType: number;
+  cubeType: CubeType;
   date: number;
   challengeLevel: number;
 }
 
-// maybe TODO: consolidate this with CubeMeta
-export interface CubeInfoParams {
+export interface CubeInfoOptions {
+  /**
+   * Required and used only for incomplete and dormant Cubes.
+   * For active Cubes, key is always inferred from the Cube itself.
+   */
   key: CubeKey;
-  binaryCube?: Buffer;
-  cubeType?: number;
+
+  /** The Cube this CubeInfo represents, either in binary form or as an instance */
+  cube?: Buffer | Cube;
+
+  /**
+   * The type of Cube (e.g. Frozen, MUC, IPC, ...)
+   * Thus param is only used for incomplete Cubes. For complete Cubes, type is
+   * always inferred from the Cube itself.
+   */
+  cubeType?: CubeType;
+
   date?: number;
-  challengeLevel?: number
+  challengeLevel?: number;
+
+  /**
+   * Choose the default parser to be used for the cube represented by this
+   * CubeInfo. By default, we will use the coreFieldParsers, which only
+   * parse the core or "boilerplate" fields and ignore any payload.
+   * This default setting is really only useful for "server-only" nodes who
+   * do nothing but store and forward Cubes.
+   * For nodes actually doing stuff, chose the parser table matching your Cube
+   * format. If you're using CCI, and we strongly recommend you do, choose
+   * cciFieldParsers.
+   */
+  parsers?: FieldParserTable,
+
+  /**
+   * The implementation class the represented Cube is of, for example
+   * plain old Cube, cciCube, or an application specific variant.
+   * The class is only relevant locally -- all Cubes are just Cubes while in
+   * transit over the network. Note that this is NOT the Cube's type
+   * (e.g. Frozen, MUC, IPC, ...).
+   * This param is only used for incomplete and dormant Cubes.
+   * For active Cubes (= provided as Cube objects), the class is always inferred
+   * from the Cube object itself.
+   * If the class is neither provided nor can be inferred, we will just default
+   * to plain old Cube, which is probably too generic.
+   */
+  cubeClass?: typeof Cube;
 }
 
 /**
@@ -35,13 +77,14 @@ export interface CubeInfoParams {
  *               in active use on our node at any time is usually small and keeping
  *               a Cube object is much more memory intense than just keeping the
  *               binary blob.
+ * - incomplete: Signifies we have heard of this cube and know its key (e.g.
+ *               because it was offered to us during Cube exchange, or maybe
+ *               because it was referenced in another Cube's RELATES_TO field),
+ *               but we have not received the actual cube yet.
+ *               Incomplete Cubes are not tracked by CubeStore.
  *
- * There's a third state that's not actually relevant in the context of CubeInfo
- * or in fact anywhere in the core library, but it still exists and is tracked by
- * AnnotationEngine:
- * - incomplete: It means we have heard of this cube and know its key (e.g. because
- *               it was referenced in a RELATES_TO field) but we have not received
- *               the actual cube yet. There is no CubeInfo for incomplete cubes.
+ * We also call a cube `complete` if we actually have its data, i.e. if it is
+ * either in the active or dormant state.
  *
  * CubeInfo keeps track of cubes and their local states, provides useful
  * information even in the dormant state, and allows us to activate
@@ -53,12 +96,16 @@ export class CubeInfo {
   //              gives us a perception of this cube and (apparently)
   //              justified creating a CubeInfo object for it.
   key: CubeKey;
-
-  get keystring() { return this.key.toString('hex'); }
+  get keyString() { return this.key.toString('hex'); }
 
   // @member binaryCube: The binary representation of this cube.
+  // TODO: encapsulate writes to binaryCube -- supplying the Cube after the fact should come with consistency checks
   binaryCube: Buffer = undefined;
-  cubeType: CubeType = undefined;
+
+  private _cubeType: CubeType = undefined;
+  get cubeType(): CubeType { return Cube.Type(this.binaryCube) ?? this._cubeType }
+
+  cubeClass: typeof Cube = Cube;  // type class
   date: number = undefined;
   challengeLevel: number = undefined;
 
@@ -68,6 +115,8 @@ export class CubeInfo {
    */
   applicationNotes: object = {}
 
+  readonly parsers: FieldParserTable;
+
   // @member objectCache: Will remember the last instantiated Cube object
   //                      for as long as the garbage collector keeps it alive
   private objectCache: WeakRef<Cube> = undefined;
@@ -75,12 +124,38 @@ export class CubeInfo {
   // NOTE, maybe TODO: If binaryCube is specified, this CubeInfo could contain
   // contradictory information as we currently don't validate the details
   // provided against the information contained in the actual (binary) Cube.
-  constructor(params: CubeInfoParams) {
-    this.key = params.key;
-    this.binaryCube = params.binaryCube;
-    this.cubeType = params.cubeType;
-    this.date = params.date;
-    this.challengeLevel = params.challengeLevel;
+  constructor(options: CubeInfoOptions) {
+    this.date = options.date;
+    this.challengeLevel = options.challengeLevel;
+    this.parsers = options?.parsers ?? coreFieldParsers;
+
+    if (options.cube instanceof Cube) {
+      // active Cube
+      this.binaryCube = options.cube.getBinaryDataIfAvailable();
+      if(!this.binaryCube) {
+        throw new CubeError("CubeInfo can only be constructed for compiled Cubes, call and await Cube's getBinaryData() first");
+      }
+      this.key = options.cube.getKeyIfAvailable();
+      if(!this.key) {
+        throw new CubeError("CubeInfo can only be constructed for Cubes which know their key, call and await Cube's getKey() first");
+      }
+      this.objectCache = new WeakRef(options.cube);
+      this.cubeClass = options.cube.class;
+    } else if (options.cube instanceof Buffer) {
+      // dormant Cube
+      this.binaryCube = options.cube;
+      this.key = options.key;
+      if(!this.key) {
+        throw new CubeError("CubeInfo on dormant Cubes can only be contructed if you supply the Cube key.");
+      }
+      this.cubeClass = options.cubeClass ?? Cube;
+    } else {
+      // incomplete Cube
+      this.binaryCube = undefined;
+      this.cubeClass = options.cubeClass ?? Cube;
+      this._cubeType = options.cubeType;
+      this.key = options.key;
+    }
   }
 
   /**
@@ -90,9 +165,15 @@ export class CubeInfo {
    * We use an object cache (WeakRef) to prevent unnecessary re-instantiations of
    * Cube objects, so there's no need for the caller to cache them.
    */
-  getCube(): Cube | undefined {
-    // Keep returning the same Cube object until it gets garbage collected
-    if (this.objectCache) {
+  getCube(
+      parsers: FieldParserTable = this.parsers,
+      cubeClass = this.cubeClass,
+  ): Cube | undefined {
+    // Keep returning the same Cube object until it gets garbage collected.
+    // Can only used cached object when using default parser and Cube class.
+    if (this.objectCache &&  // is there anything cached?
+        parsers === this.parsers &&  // don't use cache unless default parsing
+        cubeClass === this.cubeClass) {  // don't use cache unless default Cube class
       const cachedCube: Cube = this.objectCache.deref();
       if (cachedCube) {
         // logger.trace("cubeInfo: Yay! Saving us one instantiation");
@@ -101,9 +182,18 @@ export class CubeInfo {
     }
 
     // Nope, no Cube object cached. Create a new one and remember it.
-    const cube = new Cube(this.binaryCube);
-    this.objectCache = new WeakRef(cube);
-    return cube;
+    try {
+      const cube = new cubeClass(this.binaryCube, parsers);
+      // Can only cache object when using default parser and Cube class.
+      if (parsers === this.parsers && cubeClass === this.cubeClass) {
+        this.objectCache = new WeakRef(cube);
+      }
+      return cube;
+    } catch (err) {
+      logger.warn(
+        "CubeInfo.getCube: Could not instantiate Cube: " + err.toString());
+      return undefined;
+    }
   }
 
 }

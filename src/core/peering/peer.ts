@@ -68,7 +68,13 @@ export class Peer {
    * -0.1 for each second since lastSuccessfulConnection (this is only temporarily
    * applied on trust evaluation)
    * Future considerations:
-   * Maybe introduce a "referral system" so a node can fractionally benefit from
+   * - Deduct trust score for unsuccessful connection attempts. This helps nodes
+   *   coming back after going offline, as all of their peers will have bad
+   *   reputation for long period of inactivity. By reducing score after
+   *   unsuccessful connection attempts, peers still available will be able
+   *   to rehabilitate while peers offline themselves will have their score drop
+   *   faster.
+   * - Maybe introduce a "referral system" so a node can fractionally benefit from
    * any reputation awarded to peers that we learnt from this node.
   */
   _trustScore: number = 0;  // getter and setter below

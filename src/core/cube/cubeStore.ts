@@ -11,6 +11,7 @@ import { cubeLifetime } from './cubeUtil';
 
 import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
+import { FieldParserTable, coreFieldParsers } from './cubeFields';
 
 // Note: Once we implement pruning, we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes
@@ -20,6 +21,30 @@ import { Buffer } from 'buffer';
 export interface CubeStoreOptions {
   enableCubePersistance?: boolean,
   requiredDifficulty?: number,
+
+  /**
+   * Choose the default parser to be used for binary cubes store in this
+   * CubeStore. By default, we will use the coreFieldParsers, which only
+   * parse the core or "boilerplate" fields and ignore any payload.
+   * This default setting is really only useful for "server-only" nodes who
+   * do nothing but store and forward Cubes.
+   * For nodes actually doing stuff, chose the parser table matching your Cube
+   * format. If you're using CCI, and we strongly recommend you do, choose
+   * cciFieldParsers.
+   */
+  parsers?: FieldParserTable,
+
+  /**
+   * The default implementation class this CubeStore will use when
+   * re-instantiating a binary ("dormant") Cube. This could be plain old Cube,
+   * cciCube, or an application specific variant.
+   * Defaults to Cube, the Verity core implementation. Application will usually
+   * want to change this; for CCI-compliant applications, cciCube will be the
+   * right choice.
+   * Note that this options will not affect "active" Cubes, i.e. Cubes locally
+   * supplied as Cube or Cube-subclass objects.
+   */
+  cubeClass?: typeof Cube;
 }
 
 export class CubeStore extends EventEmitter {
@@ -32,11 +57,15 @@ export class CubeStore extends EventEmitter {
   // The Tree of Wisdom maps cube keys to their hashes.
   private treeOfWisdom: TreeOfWisdom = undefined;
 
-  public readonly required_difficulty;
+  readonly parsers: FieldParserTable;
+  readonly cubeClass: typeof Cube;
+  readonly required_difficulty: number;
 
   constructor(options: CubeStoreOptions) {
     super();
     this.required_difficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
+    this.parsers = options?.parsers ?? coreFieldParsers;
+    this.cubeClass = options?.cubeClass ?? Cube;
     this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 10);  // one for each peer and a few for ourselves
     this.storage = new Map();
     this.treeOfWisdom = new TreeOfWisdom();
@@ -59,9 +88,25 @@ export class CubeStore extends EventEmitter {
   }
 
   // TODO: implement importing CubeInfo directly
-  async addCube(cube_input: Buffer): Promise<Cube>;
+  /**
+   * Add a binary Cube to storage.
+   * @param parsers defines how this binary Cubes should be parsed.
+   * Will use this store's default if not specified, which in turn will use the
+   * core-only parsers if you didn't specify anything else on construction.
+   */
+  async addCube(
+    cube_input: Buffer,
+    parsers?: FieldParserTable): Promise<Cube>;
+  /**
+   * Add a Cube object to storage.
+   * (Note you cannot specify a FieldParserTable in this variant as the Cube
+   * object is already parsed and should hopefully know how this happened.)
+   */
   async addCube(cube_input: Cube): Promise<Cube>;
-  async addCube(cube_input: Cube | Buffer): Promise<Cube> {
+  async addCube(
+      cube_input: Cube | Buffer,
+      parsers = this.parsers,
+  ): Promise<Cube> {
     try {
       // Cube objects are ephemeral as storing binary data is more efficient.
       // Create cube object if we don't have one yet.
@@ -70,19 +115,17 @@ export class CubeStore extends EventEmitter {
       if (cube_input instanceof Cube) {
         cube = cube_input;
         binaryCube = await cube_input.getBinaryData();
-      }
-      else if (cube_input instanceof Buffer) { // cube_input instanceof Buffer
+      } else if (cube_input instanceof Buffer) { // cube_input instanceof Buffer
         binaryCube = cube_input;
-        cube = new Cube(binaryCube);
+        cube = new this.cubeClass(binaryCube, parsers);
       } else {  // should never be even possible to happen, and yet, there was this one time when it did
         // @ts-ignore If we end up here, we're well outside any kind of sanity TypeScript can possibly be expected to understand.
         throw new TypeError("CubeStore: invalid type supplied to addCube: " + cube_input.constructor.name);
       }
-
       const cubeInfo: CubeInfo = await cube.getCubeInfo();
 
       // Check if cube is valid for current epoch
-      let res: boolean = shouldRetainCube(cubeInfo.keystring, cubeInfo.date, cubeInfo.challengeLevel, getCurrentEpoch());
+      let res: boolean = shouldRetainCube(cubeInfo.keyString, cubeInfo.date, cubeInfo.challengeLevel, getCurrentEpoch());
       if (!res) {
         logger.error(`CubeStore: Cube is not valid for current epoch, discarding.`);
         return undefined;
@@ -91,15 +134,13 @@ export class CubeStore extends EventEmitter {
       // Sometimes we get the same cube twice (e.g. due to network latency).
       // In that case, do nothing -- no need to invalidate the hash or to
       // emit an event.
-      if (this.hasCube(cubeInfo.key) && cubeInfo.cubeType == CubeType.BASIC) {
-        logger.warn('CubeStorage: duplicate - basic cube already exists');
+      if (this.hasCube(cubeInfo.key) && cubeInfo.cubeType == CubeType.FROZEN) {
+        logger.warn('CubeStorage: duplicate - frozen cube already exists');
         return cube;
       }
-
       if (cube.getDifficulty() < this.required_difficulty) {
         throw new InsufficientDifficulty("CubeStore: Cube does not meet difficulty requirements");
       }
-
       // If this is a MUC, check if we already have a MUC with this key.
       // Replace it with the incoming MUC if it's newer than the one we have.
       if (cubeInfo.cubeType == CubeType.MUC) {
@@ -108,7 +149,7 @@ export class CubeStore extends EventEmitter {
           const winningCube: CubeMeta = cubeContest(storedCube, cubeInfo);
           if (winningCube === storedCube) {
             logger.info('CubeStorage: Keeping stored MUC over incoming MUC');
-            return storedCube.getCube();
+            return storedCube.getCube();  // TODO: it's completely unnecessary to instantiate the potentially dormant Cube here -- maybe change the addCube() signature once again and not return a Cube object after all?
           } else {
             logger.info('CubeStorage: Replacing stored MUC with incoming MUC');
           }
@@ -116,10 +157,10 @@ export class CubeStore extends EventEmitter {
       }
 
       // Store the cube
-      this.storage.set(cubeInfo.key.toString('hex'), cubeInfo);
+      this.storage.set(cubeInfo.keyString, cubeInfo);
       // save cube to disk (if available and enabled)
       if (this.persistence) {
-        this.persistence.storeRawCube(cubeInfo.key.toString('hex'), cubeInfo.binaryCube);
+        this.persistence.storeRawCube(cubeInfo.keyString, cubeInfo.binaryCube);
       }
       // add cube to the Tree of Wisdom if enabled
       if (Settings.TREE_OF_WISDOM) {
@@ -133,10 +174,10 @@ export class CubeStore extends EventEmitter {
 
       // inform our application(s) about the new cube
       try {
-        // logger.trace(`CubeStore: Added cube ${cubeInfo.key.toString('hex')}, emitting cubeAdded`)
+        // logger.trace(`CubeStore: Added cube ${cubeInfo.keystring}, emitting cubeAdded`)
         this.emit('cubeAdded', cubeInfo);
       } catch(error) {
-        logger.error("CubeStore: While adding Cube " + cubeInfo.key.toString('hex') + "a cubeAdded subscriber experienced an error: " + error.message);
+        logger.error("CubeStore: While adding Cube " + cubeInfo.keyString + "a cubeAdded subscriber experienced an error: " + error.message);
       }
 
       // All done finally, just return the cube in case anyone cares.
@@ -169,9 +210,21 @@ export class CubeStore extends EventEmitter {
     if (cubeInfo) return cubeInfo.binaryCube;
     else return undefined;
   }
-  getCube(key: CubeKey | string): Cube | undefined {
+  /**
+   * Get a Cube from storage. If the cube is currently dormant, it will
+   * automatically get reinstantiated for you.
+   * @param key Pass the key of the cube you want in either binary or string form
+   * @param parsers If the requested Cube is domant it will need to be
+   *        re-parsed. The CubeInfo is supposed to know which parser to use,
+   *        but you can override it here if you want.
+   */
+  getCube(
+      key: CubeKey | string,
+      parsers: FieldParserTable = undefined,  // undefined = will use CubeInfo's default
+      cubeClass = undefined,  // undefined = will use CubeInfo's default
+    ): Cube | undefined {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
-    if (cubeInfo) return cubeInfo.getCube();
+    if (cubeInfo) return cubeInfo.getCube(parsers, cubeClass);
     else return undefined;
   }
 
@@ -179,7 +232,7 @@ export class CubeStore extends EventEmitter {
    * Converts all cube keys to actual CubeKeys (i.e. binary buffers).
    * If you're fine with strings, just call this.storage.keys instead, much cheaper.
    */
-  getAllStoredCubeKeys(): Set<CubeKey> {
+  getAllKeys(): Set<CubeKey> {
     const ret: Set<CubeKey> = new Set();
     for (const [key, cubeInfo] of this.storage) {
       ret.add(cubeInfo.key);
@@ -187,8 +240,12 @@ export class CubeStore extends EventEmitter {
     return ret;
   }
 
+  getAllKeystrings(): IterableIterator<string> {
+    return this.storage.keys();
+  }
+
   // TODO: we can probably get rid of this method now
-  getAllStoredCubeMeta(): Set<CubeMeta> {
+  getAllCubeMeta(): Set<CubeMeta> {
     const ret: Set<CubeMeta> = new Set();
     for (const [key, cubeInfo] of this.storage) {
       ret.add(cubeInfo);
@@ -223,7 +280,7 @@ export class CubeStore extends EventEmitter {
         const cubeInfo = this.storage.get(key);
         if (!cubeInfo) continue;
 
-        if (!shouldRetainCube(cubeInfo.keystring, cubeInfo.date, cubeInfo.challengeLevel, currentEpoch)) {
+        if (!shouldRetainCube(cubeInfo.keyString, cubeInfo.date, cubeInfo.challengeLevel, currentEpoch)) {
           this.storage.delete(key);
           if (this.persistence) {
             await this.persistence.deleteRawCube(key);

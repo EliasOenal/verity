@@ -2,7 +2,6 @@ import { BinaryDataError, FieldError } from "./cube/cubeDefinitions";
 import { BaseFields, BaseField } from "./cube/baseFields";
 import { logger } from "./logger";
 import { NetConstants } from "./networking/networkDefinitions";
-import { cubeFieldDefinition } from "./cube/cubeFields";
 
 import { Buffer } from 'buffer';
 
@@ -15,26 +14,13 @@ export interface FieldDefinition {
     fieldLengths: FieldNumericalParam;  // maps field IDs to field lenghths, e.g. FIELD_LENGTHS defined in field.ts
     positionalFront: FieldNumericalParam;
     positionalBack: FieldNumericalParam;
-    fieldObjectClass: any,     // the Field class you'd like to use, e.g. TopLevelField for... you know... top-level fields. Using type any as it turns out to be much to complex to declare a type of "class".
+    fieldObjectClass: any,     // the Field class you'd like to use, e.g. CubeField for core-only processing. Using type any as it turns out to be much to complex to declare a type of "class".
+    fieldsObjectClass: any,    // the Fields class you'd like to use, e.g. CubeFields for core-only-processing. Using type any as it turns out to be much to complex to declare a type of "class".
     firstFieldOffset: number;
 }
 
 export class FieldParser {
-
   // TODO: add support for flag-type fields
-
-  private static _toplevel = undefined;
-
-  /**
-   * @returns The (singleton) FieldParser for top-level fields.
-   * Applications will need to create their own FieldParser(s) for any TLV
-   * sub-fields they might want to use.
-   */
-  static get toplevel(): FieldParser {
-    if (!FieldParser._toplevel) FieldParser._toplevel = new FieldParser(
-      cubeFieldDefinition);
-    return FieldParser._toplevel;
-  }
 
   static validateFieldDefinition(fieldDef: FieldDefinition) {
     // Ensure all field class IDs fit into NetConstants.MESSAGE_CLASS_SIZE,
@@ -45,7 +31,10 @@ export class FieldParser {
     return true;
   }
 
-  constructor(private fieldDef: FieldDefinition) {
+  /** If set to false we will ignore TLV and only decompile positional fields */
+  decompileTlv: boolean = true;
+
+  constructor(readonly fieldDef: FieldDefinition) {
     FieldParser.validateFieldDefinition(fieldDef);
   }
 
@@ -71,13 +60,13 @@ export class FieldParser {
    *          this.fieldDef.fieldType.
    * @throws A (subclass of) FieldError when not parseable
    */
-  decompileFields(binaryData: Buffer): Array<BaseField> {
+  decompileFields(binaryData: Buffer): BaseFields {
     if (binaryData === undefined)
       throw new BinaryDataError("Binary data not initialized");
     const fields: BaseField[] = [];
     const {backPositionals, dataLength} = this.decompileBackPositionalFields(binaryData);
 
-    // Respect initial offset. For top-level headers, this leaves room for the date field
+    // Respect initial offset (currently unused)
     let byteIndex = this.fieldDef.firstFieldOffset;
     // Keeps track of the running order. Needed to handle positional fields.
     let fieldIndex = 0;
@@ -86,10 +75,14 @@ export class FieldParser {
     while (byteIndex < dataLength) {
       fieldIndex++;  // first field has number one
       let field: BaseField;
-      ({field, byteIndex} = this.decompileField(binaryData, byteIndex, fieldIndex))
-      fields.push(field);
+      const decompiled = this.decompileField(binaryData, byteIndex, fieldIndex);
+      if (decompiled === undefined) break;  // undefined signals that we're done decompiling
+      fields.push(decompiled.field);
+      byteIndex = decompiled.byteIndex;
     }
-    return fields.concat(backPositionals);
+    const fieldArray: BaseField[] = fields.concat(backPositionals);
+    const fieldsObj: BaseFields = new this.fieldDef.fieldsObjectClass(fieldArray, this.fieldDef);
+    return fieldsObj;
 }
 
   /**
@@ -110,29 +103,46 @@ export class FieldParser {
     return FieldParser.getFieldHeaderLength(fieldType, this.fieldDef);
   }
   static getFieldHeaderLength(fieldType: number, fieldDef: FieldDefinition): number {
-    // It's two bytes for "regular" fields including length informatione,
-    // but just one byte for fields with implicitly known length.
+    // It's two bytes for "regular" TLV fields including length information,
+    // just one byte for TLV fields with implicitly known length,
+    // and zero for positional fields as they have no header.
     if (Object.values(fieldDef.positionalFront).includes(fieldType) ||
         Object.values(fieldDef.positionalBack).includes(fieldType)) {
       return 0;
     } else {
-      return (fieldDef.fieldLengths[fieldType] == undefined) ?
+      return (fieldDef.fieldLengths[fieldType] === undefined) ?
         NetConstants.MESSAGE_CLASS_SIZE + NetConstants.FIELD_LENGTH_SIZE :
         NetConstants.MESSAGE_CLASS_SIZE;
     }
   }
 
+  /** Decompiles a single field
+   * @param binaryData The binary data to decompile from, obviously
+   * @param byteIndex Where to start reading in binaryData
+   * (note we could just slice the Buffer instead and that would arguably have
+   * been the better design choice, but it's not what we did)
+   * @param fieldIndex The running number of the field to be decompiled.
+   * (This is needed to decompile front positional fields.)
+   * @returns An object consisting of a BaseField object and the new byteIndex
+   */
   private decompileField(binaryData: Buffer, byteIndex: number, fieldIndex: number): {field: BaseField, byteIndex: number } {
     const fieldStartsAtByte = byteIndex;
     let type: number, length: number;
-    type = this.frontPositionalFieldType(fieldIndex);  // positional field?
+    // Is this a positional field?
+    type = this.frontPositionalFieldType(fieldIndex);
     if (type !== undefined) length = this.fieldDef.fieldLengths[type];
+    // If it's not positional, it must be TLV. Are we supposed to decompile TLV?
+    else if (!this.decompileTlv) { return undefined }
+    // Yes? Okay, decompile TLV field.
     else ({type, length, byteIndex} = this.readTLVHeader(binaryData, byteIndex));
 
-    if (byteIndex + length <= binaryData.length) {  // Check if enough data for value field
+    // Check if our remaining binary buffer is long enough data for this kind of field
+    if (byteIndex + length <= binaryData.length) {
+      // Looks good, decompiling this field
       const value = binaryData.subarray(byteIndex, byteIndex + length);
-      byteIndex += length;
       const field: BaseField = new this.fieldDef.fieldObjectClass(type, length, value, fieldStartsAtByte);
+      // Field decompiled, now advance the binary data index
+      byteIndex += length;
       return { field, byteIndex }
     } else {
       throw new BinaryDataError("Data ended unexpectedly while reading value of field");
@@ -150,7 +160,7 @@ export class FieldParser {
         const fieldStartsAtByte = dataLength-fieldLength;
         const value = binaryData.subarray(fieldStartsAtByte, dataLength);
         const field: BaseField = new this.fieldDef.fieldObjectClass(
-          type, fieldLength, value, dataLength-fieldLength-1);
+          type, fieldLength, value, fieldStartsAtByte);
         backPositionals.unshift(field);
       } else {
         throw new BinaryDataError("Data too short, cannot contain all back positional fields specified.");

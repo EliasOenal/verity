@@ -1,17 +1,19 @@
 import { CubeKey } from '../core/cube/cubeDefinitions';
 import { CubeInfo } from '../core/cube/cubeInfo'
 import { Cube } from '../core/cube/cube';
-import { CubeRelationship } from '../core/cube/cubeFields';
 
 import { EventEmitter } from 'events';
-import { BaseFields, BaseRelationship } from '../core/cube/baseFields';
+import { BaseFields } from '../core/cube/baseFields';
 
 import { Buffer } from 'buffer';
+import { cciFieldParsers, cciFields, cciRelationship } from './cube/cciFields';
+import { CubeStore } from '../core/cube/cubeStore';
+import { cciCube } from './cube/cciCube';
 
 
-type RelationshipClassConstructor = new (type: number, remoteKey: CubeKey) => BaseRelationship;
+type RelationshipClassConstructor = new (type: number, remoteKey: CubeKey) => cciRelationship;
 export function defaultGetFieldsFunc(cube: Cube): BaseFields {
-  return cube.fields;
+  return cube?.fields;
 }
 
 export class AnnotationEngine extends EventEmitter {
@@ -26,7 +28,7 @@ export class AnnotationEngine extends EventEmitter {
    * reverseRelations stores a List of reverse relationships (that's the map's value)
    * for every Cube we know (the map's key is the stringified Cube key).
    */
-  reverseRelationships: Map<string, Array<BaseRelationship>> = new Map();  // using string representation of CubeKey as maps don't work well with Buffers
+  reverseRelationships: Map<string, Array<cciRelationship>> = new Map();  // using string representation of CubeKey as maps don't work well with Buffers
 
   constructor(
   /**
@@ -36,9 +38,9 @@ export class AnnotationEngine extends EventEmitter {
    * is supposed to work on. By default, for top-level Cube fields, it is just an
    * alias to cube.fields.
    */
-      public readonly cubeStore,
+      public readonly cubeStore: CubeStore,
       public readonly getFields: (cube: Cube) => BaseFields = defaultGetFieldsFunc,
-      public readonly relationshipClass: RelationshipClassConstructor = CubeRelationship,
+      public readonly relationshipClass: RelationshipClassConstructor = cciRelationship,
 
       /**
    * A map mapping a numeric RelationshipType to the maximum number of Relationships
@@ -59,11 +61,11 @@ export class AnnotationEngine extends EventEmitter {
 
   autoAnnotate(cubeInfo: CubeInfo): void {
     // logger.trace(`AnnotationEngine: Auto-annotating cube ${cubeInfo.key.toString('hex')}`);
-    const cube: Cube = cubeInfo.getCube();
+    const cube: Cube = cubeInfo.getCube(cciFieldParsers, cciCube);  // TODO: CCI CubeInfos should learn what kind of Cube they represent much earlier in the process
 
     // does this Cube even have a valid field structure?
-    const fields: BaseFields = this.getFields(cube);
-    if (!fields) return;
+    const fields: cciFields = this.getFields(cube) as cciFields;
+    if (!(fields instanceof cciFields)) return;  // no CCI, no rels, no annotations
 
     // Keep track of how many relationships of each type this cube has
     const relsPerType: Map<number, number> = new Map();
@@ -96,7 +98,7 @@ export class AnnotationEngine extends EventEmitter {
 
       // Now add a reverse relationship for the remote Cube, but only if
       // that's actually something we didn't know before:
-      const alreadyKnown: Array<BaseRelationship> =
+      const alreadyKnown: Array<cciRelationship> =
         this.getReverseRelationships(remoteCubeRels, relationship.type, cubeInfo.key);
       if (alreadyKnown.length === 0) {
         remoteCubeRels.push(
@@ -115,9 +117,9 @@ export class AnnotationEngine extends EventEmitter {
    * @returns An array of reversed relationship objects.
    */
   getReverseRelationships(
-      cubeKey: CubeKey | string | Array<BaseRelationship>,
+      cubeKey: CubeKey | string | Array<cciRelationship>,
       type?: number,  // e.g. one of CubeRelationshipType
-      remoteKey?: CubeKey): Array<BaseRelationship> {
+      remoteKey?: CubeKey): Array<cciRelationship> {
     let reverseRelationshipArray;
     if (cubeKey instanceof Array) {
       reverseRelationshipArray = cubeKey;
@@ -140,9 +142,9 @@ export class AnnotationEngine extends EventEmitter {
   }
 
   getFirstReverseRelationship(
-    cubeKey: CubeKey | string | Array<BaseRelationship>,
+    cubeKey: CubeKey | string | Array<cciRelationship>,
     type?: number,  // e.g. one of CubeRelationshipType
-    remoteKey?: CubeKey): BaseRelationship {
+    remoteKey?: CubeKey): cciRelationship {
       // note this is not efficient, but the list of reverse relationships will be small
       const rels = this.getReverseRelationships(cubeKey, type, remoteKey);
       if (rels.length) return rels[0];

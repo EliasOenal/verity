@@ -57,6 +57,7 @@ module.exports = {
         { from: './src/webui/static/style.css' },
         { from: './src/webui/static/frontend.js' },  // alternatively, we could write that in Typescript and make it a second bundle
 	      { from: './img/vera.svg' },
+        { from: './img/unknownuser.svg' },
         { from: './img/bootstrap.bundle.min.js' },
         { from: './img/bootstrap.min.css' },
         { from: './img/bootstrap-icons.min.css' },

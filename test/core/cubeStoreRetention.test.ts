@@ -13,7 +13,7 @@ describe('CubeStore Retention Policy', () => {
     });
 
     test('should reject a cube with a past date', async () => {
-        const pastCube = new Cube();
+        const pastCube = Cube.Frozen();
         pastCube.setDate(Math.floor(Date.now() / 1000) - (365 * 24 * 60 * 60)); // 1 year ago
 
         let result = await cubeStore.addCube(pastCube);
@@ -21,7 +21,7 @@ describe('CubeStore Retention Policy', () => {
     });
 
     test('should reject a cube with a future date', async () => {
-        const futureCube = new Cube();
+        const futureCube = Cube.Frozen();
         futureCube.setDate(Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60)); // 1 year in the future
 
         let result = await cubeStore.addCube(futureCube);
@@ -29,7 +29,7 @@ describe('CubeStore Retention Policy', () => {
     });
 
     test('should accept a current cube', async () => {
-        const currentCube = new Cube();
+        const currentCube = Cube.Frozen();
         currentCube.setDate(Math.floor(Date.now() / 1000)); // current time
 
         await cubeStore.addCube(currentCube);
