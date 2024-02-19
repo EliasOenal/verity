@@ -21,13 +21,17 @@ import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { Settings } from '../../src/core/settings';
 
 describe('networkManager', () => {
-    Settings.CUBE_RETENTION_POLICY = false;
     const reducedDifficulty = 0;
+    const testCubeStoreParams = {
+        enableCubePersistance: false,
+        enableCubeRetentionPolicy: false,
+        requiredDifficulty: 0
+    }
 
     describe('WebSockets and general functionality', () => {
         it('creates and cleanly shuts down a WebSocket server', async() => {
             const manager: NetworkManager = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.ws, 3000]]),
                 {  // disable optional features
@@ -47,7 +51,7 @@ describe('networkManager', () => {
 
         it('should create a NetworkPeer on incoming connection', done => {
             const manager = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.ws, 3001]]),
                 {  // disable optional features
@@ -72,7 +76,7 @@ describe('networkManager', () => {
 
         it('should create a NetworkPeer on outgoing connection', async () => {
             const manager = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.ws, 3003]]),
                 {  // disable optional features
@@ -98,7 +102,7 @@ describe('networkManager', () => {
         it('works with IPv6', async () => {
             // create two nodes and connect them via IPv6 loopback (::1)
             const protagonist = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.ws, 3010]]),
                 {  // disable optional features
@@ -108,7 +112,7 @@ describe('networkManager', () => {
                     peerExchange: false,
                 });
             const ipv6peer = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.ws, 3011]]),
                 {  // disable optional features
@@ -144,7 +148,7 @@ describe('networkManager', () => {
         it('correctly opens and closes multiple connections', async () => {
             // create a server and two clients
             const listener = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.ws, 4000]]),
                 {  // disable optional features
@@ -154,7 +158,7 @@ describe('networkManager', () => {
                     peerExchange: false,
                 });
             const client1 = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 undefined,  // no listeners
                 {  // disable optional features
@@ -164,7 +168,7 @@ describe('networkManager', () => {
                     peerExchange: false,
                 });
             const client2 = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 undefined,  // no listeners
                 {  // disable optional features
@@ -203,7 +207,7 @@ describe('networkManager', () => {
 
         it('should exchange HELLO messages and report online after connection', async () => {
             const manager1 = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.ws, 4010]]),
                 {  // disable optional features
@@ -213,7 +217,7 @@ describe('networkManager', () => {
                     peerExchange: false,
                 });
             const manager2 = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.ws, 4011]]),
                 {  // disable optional features
@@ -242,12 +246,9 @@ describe('networkManager', () => {
 
         it('sync cubes between three nodes', async () => {
             const numberOfCubes = 10;
-            const cubeStore = new CubeStore(
-                {enableCubePersistance: false, requiredDifficulty: 0});
-            const cubeStore2 = new CubeStore(
-                {enableCubePersistance: false, requiredDifficulty: 0});
-            const cubeStore3 = new CubeStore(
-                {enableCubePersistance: false, requiredDifficulty: 0});
+            const cubeStore = new CubeStore(testCubeStoreParams);
+            const cubeStore2 = new CubeStore(testCubeStoreParams);
+            const cubeStore3 = new CubeStore(testCubeStoreParams);
             const manager1 = new NetworkManager(
                 cubeStore, new PeerDB(),
                 new Map([[SupportedTransports.ws, 4020]]),
@@ -339,10 +340,8 @@ describe('networkManager', () => {
             await sodium.ready;
             const keyPair = sodium.crypto_sign_keypair();
 
-            const cubeStore = new CubeStore(
-                {enableCubePersistance: false, requiredDifficulty: 0});
-            const cubeStore2 = new CubeStore(
-                {enableCubePersistance: false, requiredDifficulty: 0});
+            const cubeStore = new CubeStore(testCubeStoreParams);
+            const cubeStore2 = new CubeStore(testCubeStoreParams);
             const manager1 = new NetworkManager(
                 cubeStore, new PeerDB(),
                 new Map([[SupportedTransports.ws, 5002]]),
@@ -446,7 +445,7 @@ describe('networkManager', () => {
         it('should blocklist a peer when trying to connect to itself', async () => {
             const peerDB = new PeerDB();
             const manager = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 peerDB,
                 new Map([[SupportedTransports.ws, 6004]]),
                 {  // disable optional features
@@ -476,7 +475,7 @@ describe('networkManager', () => {
         it('should close the duplicate connections to same peer on different address', async () => {
             const myPeerDB = new PeerDB();
             const myManager = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 myPeerDB,
                 undefined,  // no listener
                 {  // disable optional features
@@ -489,7 +488,7 @@ describe('networkManager', () => {
 
             const otherPeerDB = new PeerDB();
             const otherManager = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 otherPeerDB,
                 new Map([[SupportedTransports.ws, 7005]]),
                 {  // disable optional features
@@ -607,7 +606,7 @@ describe('networkManager', () => {
         it('should exchange peers and connect them', async () => {
             Settings.NODE_REQUEST_TIME = 1337; // Don't wait 10 seconds for the peer exchange
             const manager1 = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.ws, 7011]]),
                 {  // select feature set for this test
@@ -617,7 +616,7 @@ describe('networkManager', () => {
                     peerExchange: true,
                 });
             const manager2 = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.ws, 7012]]),
                 {  // select feature set for this test
@@ -627,7 +626,7 @@ describe('networkManager', () => {
                     peerExchange: true,
                 });
             const manager3 = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.ws, 7013]]),
                 {  // select feature set for this test
@@ -702,7 +701,7 @@ describe('networkManager', () => {
             const peerStartPromises: Promise<void>[] = [];
             for (let i = 0; i < maximumConnections; i++) {
                 const node = new NetworkManager(
-                    new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                    new CubeStore(testCubeStoreParams),
                     new PeerDB(),
                     new Map([[SupportedTransports.ws, 28000+i]]),
                     {  // select feature set for this test
@@ -722,7 +721,7 @@ describe('networkManager', () => {
             // create twice as many bad peers
             for (let i = 0; i < maximumConnections * 2; i++) {
                 const node = new NetworkManager(
-                    new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                    new CubeStore(testCubeStoreParams),
                     new PeerDB(),
                     new Map([[SupportedTransports.ws, 29000+i]]),
                     {  // select feature set for this test
@@ -742,7 +741,7 @@ describe('networkManager', () => {
             await Promise.all(peerStartPromises);
 
             const protagonist = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 peerDB,
                 new Map([[SupportedTransports.ws, 7999]]),
                 {  // select feature set for this test
@@ -805,7 +804,7 @@ describe('networkManager', () => {
             const peerStartPromises: Promise<void>[] = [];
             for (let i = 0; i < maximumConnections; i++) {
                 const node = new NetworkManager(
-                    new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                    new CubeStore(testCubeStoreParams),
                     new PeerDB(),
                     new Map([[SupportedTransports.ws, 10000+i]]),
                     {  // select feature set for this test
@@ -825,7 +824,7 @@ describe('networkManager', () => {
             await Promise.all(peerStartPromises);
 
             const protagonist = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 peerDB,
                 new Map([[SupportedTransports.ws, 11000]]),
                 {  // select feature set for this test
@@ -880,7 +879,7 @@ describe('networkManager', () => {
     describe('libp2p connections', () => {
         it('should correctly open and close connections', async() => {
             const server = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17101/ws']]),
                 {  // disable optional features
@@ -891,7 +890,7 @@ describe('networkManager', () => {
                 });
             await server.start();
             const client = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.libp2p, '/webrtc']]),
                 {  // disable optional features
@@ -936,19 +935,19 @@ describe('networkManager', () => {
                 useRelaying: true,
             };
             const browser1 = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
                 browserOptions
             );
             const browser2 = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
                 browserOptions
             );
             const server = new NetworkManager(
-                new CubeStore({enableCubePersistance: false, requiredDifficulty: 0}),
+                new CubeStore(testCubeStoreParams),
                 new PeerDB(),
                 new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17294/ws']]),
                 serverOptions

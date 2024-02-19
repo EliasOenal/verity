@@ -11,13 +11,13 @@ import { Settings } from '../../src/core/settings';
 describe('annotationEngine', () => {
   let cubeStore: CubeStore;
   let annotationEngine: AnnotationEngine;
-  Settings.CUBE_RETENTION_POLICY = false;
   const reducedDifficulty = 0;
 
   beforeEach(() => {
     cubeStore = new CubeStore({
       enableCubePersistance: false,
       requiredDifficulty: 0,
+      enableCubeRetentionPolicy: false,
     });
   }, 3000);
 

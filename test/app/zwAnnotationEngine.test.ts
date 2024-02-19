@@ -18,7 +18,6 @@ import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 describe('ZwAnnotationEngine', () => {
   let cubeStore: CubeStore;
   let annotationEngine: ZwAnnotationEngine;
-  Settings.CUBE_RETENTION_POLICY = false;
   const reducedDifficulty = 0;
   const idTestOptions: IdentityOptions = {
     minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
@@ -31,6 +30,7 @@ describe('ZwAnnotationEngine', () => {
       cubeStore = new CubeStore({
         enableCubePersistance: false,
         requiredDifficulty: 0,
+        enableCubeRetentionPolicy: false,
       });
       await cubeStore.readyPromise;
       annotationEngine = new ZwAnnotationEngine(
