@@ -378,8 +378,11 @@ export class NetworkPeer extends Peer {
                 cubeType: cubeType
             });
 
+            // if retention policy is enabled, ensure the offered Cube has
+            // not yet reached its recycling date
             const currentEpoch = getCurrentEpoch(); // Get the current epoch
-            if(!shouldRetainCube(incomingCubeInfo.keyString ,incomingCubeInfo.date, incomingCubeInfo.challengeLevel, currentEpoch)) {
+            if(this.cubeStore.enableCubeRetentionPolicy &&
+               !shouldRetainCube(incomingCubeInfo.keyString, incomingCubeInfo.date, incomingCubeInfo.challengeLevel, currentEpoch)) {
                 logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Was offered cube hash outside of retention policy, ignoring.`);
                 continue;
             }

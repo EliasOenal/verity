@@ -10,8 +10,6 @@ import { MediaTypes, cciField, cciFieldParsers, cciFieldType, cciFields } from '
 import { cciCube } from '../../src/cci/cube/cciCube';
 
 describe('cubeStore', () => {
-  Settings.CUBE_RETENTION_POLICY = false;
-
   // TODO: Update payload field ID. Make tests actually check payload.
   const validBinaryCube =  Buffer.from([
     // Cube version (1) (half byte), Cube type (basic "frozen" Cube, 0) (half byte)
@@ -43,6 +41,7 @@ describe('cubeStore', () => {
       cubeStore = new CubeStore({
         enableCubePersistance: false,
         requiredDifficulty: Settings.REQUIRED_DIFFICULTY,
+        enableCubeRetentionPolicy: false,
       });
     });
     it('should add a freshly sculpted cube at full difficulty', async () => {
@@ -98,6 +97,7 @@ describe('cubeStore', () => {
       cubeStore = new CubeStore({
         enableCubePersistance: false,
         requiredDifficulty: reducedDifficulty,
+        enableCubeRetentionPolicy: false,
       });
     });
 
@@ -212,6 +212,7 @@ describe('cubeStore', () => {
       const cciCubeStore: CubeStore = new CubeStore({
         enableCubePersistance: false,
         requiredDifficulty: reducedDifficulty,
+        enableCubeRetentionPolicy: false,
         parsers: cciFieldParsers,
         cubeClass: cciCube,
       });
@@ -241,4 +242,7 @@ describe('cubeStore', () => {
         "In hac applicatio probationis, usor probandi creat contentum probandi, ut programma probatorium confirmet omnem testium datam conservatam esse.");
     })
   });
+
+  // TODO: add tests for retention policy
+
 });

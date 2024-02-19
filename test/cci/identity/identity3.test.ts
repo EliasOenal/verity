@@ -5,8 +5,6 @@ import { cciCube } from '../../../src/cci/cube/cciCube';
 import { Settings } from '../../../src/core/settings';
 import sodium from "libsodium-wrappers-sumo";
 
-Settings.CUBE_RETENTION_POLICY = false;
-
 describe('Identity3', () => {
   const reducedDifficulty = 0;  // no hash cash for testing
   const idTestOptions: IdentityOptions = {
@@ -23,6 +21,7 @@ describe('Identity3', () => {
     cubeStore = new CubeStore({
       enableCubePersistance: false,
       requiredDifficulty: 0,  // require no hashcash for faster testing
+      enableCubeRetentionPolicy: false,  // TODO: we should make these tests pass with retention policy enabled
     });
   });
 

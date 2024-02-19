@@ -135,9 +135,6 @@ export function unixTimeToEpoch(unixTime: number): number {
  * @returns {boolean} True if the cube should be retained, false if it should be pruned.
  */
 export function shouldRetainCube(key: String, cubeDate: number, challengeLevel: number, currentEpoch: number): boolean {
-    // Disable cube retention policy
-    if(Settings.CUBE_RETENTION_POLICY === false) return true;
-
     // Implement further check, we want to retain all cubes sculpted by the user
     // and all cubes sculpted by the user's trusted/subscribed peers
 

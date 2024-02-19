@@ -17,8 +17,6 @@ import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
 // maybe TODO: Some tests here use "ZW" stuff from the microblogging app
 // which breaks the current layering.
 
-Settings.CUBE_RETENTION_POLICY = false;
-
 describe('Identity', () => {
   const reducedDifficulty = 0;  // no hash cash for testing
   const idTestOptions: IdentityOptions = {
@@ -35,6 +33,7 @@ describe('Identity', () => {
     cubeStore = new CubeStore({
       enableCubePersistance: false,
       requiredDifficulty: 0,  // require no hashcash for faster testing
+      enableCubeRetentionPolicy: false,  // TODO: we should make these tests pass with retention policy enabled
     });
   });
 

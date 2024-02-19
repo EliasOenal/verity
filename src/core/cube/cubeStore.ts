@@ -4,22 +4,45 @@ import { Cube } from './cube';
 import { CubeInfo, CubeMeta } from './cubeInfo'
 import { CubePersistence } from "./cubePersistence";
 import { CubeType, CubeKey, InsufficientDifficulty } from './cubeDefinitions';
-import { UNIX_MS_PER_EPOCH, cubeContest, shouldRetainCube, getCurrentEpoch } from './cubeUtil';
+import { cubeContest, shouldRetainCube, getCurrentEpoch } from './cubeUtil';
 import { TreeOfWisdom } from '../tow';
 import { logger } from '../logger';
-import { cubeLifetime } from './cubeUtil';
 
 import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
 import { FieldParserTable, coreFieldParsers } from './cubeFields';
 
-// Note: Once we implement pruning, we need to be able to pin certain cubes
+// TODO: we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes
 // authored by our local user, for example. Indeed, the social media
 // application's Identity implementation relies on having our own posts preserved.
 
 export interface CubeStoreOptions {
+  /**
+   * Save cubes to local storage.
+   * Default: Settings.CUBE_PERSISTANCE
+   **/
   enableCubePersistance?: boolean,
+
+  /**
+   * If enabled, do not accept or keep old cubes past their scheduled
+   * recycling date. (Pruning not fully implemented yet.)
+   * Default: Settings.CUBE_RETENTION_POLICY
+   */
+  enableCubeRetentionPolicy?: boolean,
+
+  /**
+   * When enabled, uses a Merckle-Patricia-Trie for efficient full node
+   * synchronisation. Do not enable for light nodes.
+   * Default: Settings.TREE_OF_WISDOM
+   */
+  enableTreeOfWisdom?: boolean,
+
+  /**
+   * Minimum hash cash level required to accept a Cube. Used for spam prevention.
+   * Set to 0 to disable entirely (not recommended for prod use).
+   * Default: Settings.REQUIRED_DIFFICULTY
+   */
   requiredDifficulty?: number,
 
   /**
@@ -41,7 +64,7 @@ export interface CubeStoreOptions {
    * Defaults to Cube, the Verity core implementation. Application will usually
    * want to change this; for CCI-compliant applications, cciCube will be the
    * right choice.
-   * Note that this options will not affect "active" Cubes, i.e. Cubes locally
+   * Note that this option will not affect "active" Cubes, i.e. Cubes locally
    * supplied as Cube or Cube-subclass objects.
    */
   cubeClass?: typeof Cube;
@@ -56,6 +79,7 @@ export class CubeStore extends EventEmitter {
   private persistence: CubePersistence = undefined;
   // The Tree of Wisdom maps cube keys to their hashes.
   private treeOfWisdom: TreeOfWisdom = undefined;
+  readonly enableCubeRetentionPolicy: boolean;
 
   readonly parsers: FieldParserTable;
   readonly cubeClass: typeof Cube;
@@ -65,16 +89,21 @@ export class CubeStore extends EventEmitter {
     super();
     this.required_difficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
     this.parsers = options?.parsers ?? coreFieldParsers;
+    this.enableCubeRetentionPolicy = options?.enableCubeRetentionPolicy ?? Settings.CUBE_RETENTION_POLICY;
     this.cubeClass = options?.cubeClass ?? Cube;
-    this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 10);  // one for each peer and a few for ourselves
+
     this.storage = new Map();
-    this.treeOfWisdom = new TreeOfWisdom();
+    if (options?.enableTreeOfWisdom ?? Settings.TREE_OF_WISDOM) {
+      this.treeOfWisdom = new TreeOfWisdom();
+    }
+
+    this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 10);  // one for each peer and a few for ourselves
 
     this.readyPromise = new Promise(resolve => this.once('ready', () => {
       resolve(undefined);
     }));
 
-    const enablePersistence = options?.enableCubePersistance ?? true;
+    const enablePersistence = options?.enableCubePersistance ?? Settings.CUBE_PERSISTANCE;
     if (enablePersistence) {
       this.persistence = new CubePersistence();
 
@@ -124,11 +153,14 @@ export class CubeStore extends EventEmitter {
       }
       const cubeInfo: CubeInfo = await cube.getCubeInfo();
 
-      // Check if cube is valid for current epoch
-      let res: boolean = shouldRetainCube(cubeInfo.keyString, cubeInfo.date, cubeInfo.challengeLevel, getCurrentEpoch());
-      if (!res) {
-        logger.error(`CubeStore: Cube is not valid for current epoch, discarding.`);
-        return undefined;
+      if (this.enableCubeRetentionPolicy) { // cube valid for current epoch?
+        let res: boolean = shouldRetainCube(
+          cubeInfo.keyString, cubeInfo.date,
+          cubeInfo.challengeLevel, getCurrentEpoch());
+        if (!res) {
+          logger.error(`CubeStore: Cube is not valid for current epoch, discarding.`);
+          return undefined;
+        }
       }
 
       // Sometimes we get the same cube twice (e.g. due to network latency).
@@ -156,14 +188,14 @@ export class CubeStore extends EventEmitter {
         }
       }
 
-      // Store the cube
+      // Store the cube to RAM -- TODO: does not scale, obviously
       this.storage.set(cubeInfo.keyString, cubeInfo);
       // save cube to disk (if available and enabled)
       if (this.persistence) {
         this.persistence.storeRawCube(cubeInfo.keyString, cubeInfo.binaryCube);
       }
       // add cube to the Tree of Wisdom if enabled
-      if (Settings.TREE_OF_WISDOM) {
+      if (this.treeOfWisdom) {
         let hash: Buffer = await cube.getHash();
         // Truncate hash to 20 bytes, the reasoning is:
         // Our hashes are hardened with a strong hashcash, making attacks much harder.
@@ -269,10 +301,13 @@ export class CubeStore extends EventEmitter {
   }
 
   pruneCubes(): void {
+    if (!this.enableCubeRetentionPolicy) return;  // feature disabled?
     const currentEpoch = getCurrentEpoch();
     const cubeKeys = Array.from(this.storage.keys());
     let index = 0;
 
+    // pruning will be performed in batches to prevent main thread lags --
+    // prepare batch function
     const checkAndPruneCubes = async () => {
       const batchSize = 50;
       for (let i = 0; i < batchSize && index < cubeKeys.length; i++, index++) {
@@ -296,6 +331,6 @@ export class CubeStore extends EventEmitter {
       }
     };
 
-    checkAndPruneCubes();
+    checkAndPruneCubes();  // start pruning
   }
 }
