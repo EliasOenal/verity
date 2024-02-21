@@ -1,12 +1,12 @@
-import { WebSocketPeerConnection } from "./webSocketPeerConnection";
+import { WebSocketConnection } from "./webSocketConnection";
 
-import { NetworkManagerOptions } from "../networkManager";
+import { NetworkManagerOptions } from "../../networkManager";
 import { NetworkTransport } from "../networkTransport";
-import { NetworkPeer } from "../networkPeer";
+import { NetworkPeer } from "../../networkPeer";
 import { TransportServer } from "../transportServer";
 
-import { AddressAbstraction, WebSocketAddress } from "../../peering/addressing";
-import { logger } from "../../logger";
+import { AddressAbstraction, WebSocketAddress } from "../../../peering/addressing";
+import { logger } from "../../../logger";
 
 import WebSocket, { AddressInfo } from 'isomorphic-ws';
 
@@ -85,18 +85,8 @@ export class WebSocketServer extends TransportServer {
      * As such, it should never be called manually.
      */
   private handleIncomingPeer(ws: WebSocket) {
-    logger.debug(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort}`);
-    const networkPeer = new NetworkPeer(
-      this.transport.networkManager,
-      new WebSocketAddress(
-          WebSocketAddress.convertIPv6toIPv4((ws as any)._socket.remoteAddress),
-          (ws as any)._socket.remotePort),
-      this.transport.networkManager.cubeStore,
-      this.transport.networkManager.id,
-      new WebSocketPeerConnection(ws),
-      this.transport.networkManager.lightNode,
-      this.transport.networkManager.peerExchange,
-      );
-    this.transport.networkManager.handleIncomingPeer(networkPeer);
+    logger.trace(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort}`);
+    const conn = new WebSocketConnection(ws);
+    this.emit("incomingConnection", conn);
   }
 }

@@ -1,14 +1,9 @@
-import { VerityError } from "../settings";
-import { AddressError, SupportedTransports } from "./networkDefinitions";
-
-import { TransportMap } from "./networkTransport";
-import { Libp2pTransport } from "./libp2p/libp2pTransport";
-import { Libp2pPeerConnection } from "./libp2p/libp2pPeerConnection";
-import { WebSocketPeerConnection } from "./webSocket/webSocketPeerConnection";
-import { AddressAbstraction, WebSocketAddress } from "../peering/addressing";
+import { VerityError } from "../../settings";
+import { AddressError, SupportedTransports } from "../networkDefinitions";
 
 import EventEmitter from "events";
 import { Buffer } from 'buffer';
+import { AddressAbstraction } from "../../peering/addressing";
 
 /**
  * Represents the actual networking component of a NetworkPeer,
@@ -16,7 +11,13 @@ import { Buffer } from 'buffer';
  * sends and received messages.
  * @emits "ready" when connection is... you know... ready
  */
-export abstract class NetworkPeerConnection extends EventEmitter {
+export abstract class TransportConnection extends EventEmitter {
+  constructor(
+      readonly address: AddressAbstraction,
+  ){
+    super();
+  }
+
   /** Will resolve once this connection has been opened and is ready for business */
   readyPromise: Promise<void> = new Promise<void>(resolve => this.once('ready', resolve));
 
@@ -36,6 +37,6 @@ export abstract class NetworkPeerConnection extends EventEmitter {
     throw new VerityError("NetworkPeerConnection.toString() to be implemented by subclass")
   }
   get addressString(): string  {
-    throw new VerityError("NetworkPeerConnection.toString() to be implemented by subclass")
+    return this.address.toString();
   }
 }

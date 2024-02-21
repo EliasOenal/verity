@@ -1,12 +1,12 @@
-import { VerityError } from "../settings";
-
-import { EventEmitter } from 'events';
+import { VerityError } from "../../settings";
 import { NetworkTransport } from "./networkTransport";
 
-declare class AddressAbstraction {}
+import { EventEmitter } from 'events';
 
+/**
+ * @emits "incomingConnection": TransportConnection
+ **/
 export abstract class TransportServer extends EventEmitter {
-
   constructor(
       protected transport: NetworkTransport,
   ){

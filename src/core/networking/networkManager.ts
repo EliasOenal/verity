@@ -1,8 +1,8 @@
 import { Settings, VerityError } from '../settings';
 import { unixtime } from '../helpers';
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
-import { NetworkTransport, TransportParamMap } from './networkTransport';
-import { createNetworkPeerConnection, createNetworkTransport } from './networkFactory';
+import { NetworkTransport, TransportParamMap } from './transport/networkTransport';
+import { createNetworkPeerConnection, createNetworkTransport } from './transport/transportFactory';
 import { CubeStore } from '../cube/cubeStore';
 import { Peer } from '../peering/peer';
 import { PeerDB } from '../peering/peerDB';
@@ -15,6 +15,8 @@ import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
 
 import * as cryptolib from 'crypto';
+import { TransportConnection } from './transport/transportConnection';
+import { AddressAbstraction } from '../peering/addressing';
 let crypto;
 if (isBrowser || isWebWorker) {
     crypto = window.crypto;
@@ -33,6 +35,7 @@ export interface NetworkManagerOptions {
     connectRetryInterval?: number,
     reconnectInterval?: number,
     maximumConnections?: number,
+    acceptIncomingConnections?: boolean,
 }
 
 /**
@@ -50,6 +53,9 @@ export class NetworkManager extends EventEmitter {
     private _lightNode?: boolean;
     public autoConnect: boolean;
     private _peerExchange?: boolean;
+
+    // toggle-able flags
+    public acceptIncomingConnections: boolean;
 
     /**  */
     transports: Map<SupportedTransports, NetworkTransport> = new Map();
@@ -104,6 +110,7 @@ export class NetworkManager extends EventEmitter {
         this.connectRetryInterval = options?.connectRetryInterval ?? Settings.CONNECT_RETRY_INTERVAL;
         this.reconnectInterval = options?.reconnectInterval ?? Settings.RECONNECT_INTERVAL;
         this.maximumConnections = options?.maximumConnections ?? Settings.MAXIMUM_CONNECTIONS;
+        this.acceptIncomingConnections = options?.acceptIncomingConnections ?? true;
 
         // set instance behavior
         this.announceToTorrentTrackers = options?.announceToTorrentTrackers ?? true;
@@ -112,7 +119,7 @@ export class NetworkManager extends EventEmitter {
         this._peerExchange = options?.peerExchange ?? true;
 
         // Create NetworkTransport objects for all requested transport types.
-        this.transports = createNetworkTransport(this, transports, options);
+        this.transports = createNetworkTransport(transports, options);
 
         // Set a random peer ID
         // Maybe TODO: try to use the same peer ID for transports that themselves
@@ -132,11 +139,21 @@ export class NetworkManager extends EventEmitter {
     public async start(): Promise<void> {
         const transportPromises: Promise<void>[] = [];
         for (const [type, transport] of this.transports) {
-            try {
+            try {  // start transports
                 transportPromises.push(transport.start());
                 logger.trace("NetworkManager: requested start of transport " + transport.toString());
             } catch(err) {
                 logger.error("NetworkManager: Error requesting a transport to start, will continue without it. Error was: " + err.toString());
+            }
+            transport.on("serverAddress",
+                (addr: AddressAbstraction) => this.learnServerAddress(addr));
+            for (const server of transport.servers) {
+                try {  // subscribe to incoming connections
+                    server.on("incomingConnection",
+                    (conn: TransportConnection) => this.handleIncomingPeer(conn));
+                } catch(err) {
+                    logger.error("NetworkManager: Error subscribing to incoming connections. Error was: " + err.toString());
+                }
             }
         }
         for (const promise of transportPromises) {
@@ -247,12 +264,14 @@ export class NetworkManager extends EventEmitter {
         // inheriting from it.
         const networkPeer = new NetworkPeer(
             this,
-            peer.addresses,
-            this.cubeStore,
-            this.id,
             conn,
-            this.lightNode,
-            this.peerExchange);
+            this.cubeStore,
+            {
+                extraAddresses: peer.addresses,
+                lightMode: this.lightNode,
+                peerExchange: this.peerExchange,
+            }
+            );
         networkPeer.lastConnectAttempt = peer.lastConnectAttempt;
         networkPeer.lastSuccessfulConnection = peer.lastSuccessfulConnection;
         networkPeer.connectionAttempts = peer.connectionAttempts;
@@ -272,15 +291,29 @@ export class NetworkManager extends EventEmitter {
 
     public shutdown(): Promise<void> {
         logger.trace('NetworkManager: shutdown()');
-        this.autoConnect = false;
-        this._peerDB.shutdown();
+        // stop auto-connection
         this.stopConnectingPeers();
+        this.autoConnect = false;
+        // shut down components
+        this._peerDB.removeListener('newPeer',
+            (newPeer: Peer) => this.autoConnectPeers());
+        this._peerDB.shutdown();
         const closedPromises: Promise<void>[] = [];
-        closedPromises.push(this.closePeers());
+        closedPromises.push(this.closePeers());  // shut down peers
+        // shut down transports
         for (const [transportType, transport] of this.transports) {
+            // remove listeners first
+            transport.removeListener("serverAddress",
+            (addr: AddressAbstraction) => this.learnServerAddress(addr));
+            for (const server of transport.servers) {
+                server.removeListener("incomingConnection",
+                    (conn: TransportConnection) => this.handleIncomingPeer(conn));
+            }
+            // then shut down transport
             logger.trace("NetworkManager: Shutting down server " + transport.toString());
             closedPromises.push(transport.shutdown());
         }
+        // promise a complete shutdown when all components have shut down
         const closedPromise: Promise<void> =
             Promise.all(closedPromises) as unknown as Promise<void>;
         closedPromise.then(() => this.emit('shutdown'));
@@ -288,10 +321,26 @@ export class NetworkManager extends EventEmitter {
     }
 
     /** Called by NetworkServer only, should never be called manually. */
-    handleIncomingPeer(peer: NetworkPeer) {
-        this.incomingPeers.push(peer);
-        this._peerDB.learnPeer(peer);
-        this.emit("incomingPeer", peer);  // used for tests only
+    handleIncomingPeer(conn: TransportConnection) {
+        const networkPeer = new NetworkPeer(
+            this,
+            conn,
+            this.cubeStore,
+            {
+                lightMode: this.lightNode,
+                peerExchange: this.peerExchange,
+            }
+        );
+        this.incomingPeers.push(networkPeer);
+        this._peerDB.learnPeer(networkPeer);
+        this.emit("incomingPeer", networkPeer);  // used for tests only
+    }
+
+    learnServerAddress(addr: AddressAbstraction): void {
+        // TODO: this is very crude and should be handled more selectively
+        for (const peer of this.outgoingPeers.concat(this.incomingPeers)) {
+            if (peer.online) peer.sendMyServerAddress();
+          }
     }
 
     /**

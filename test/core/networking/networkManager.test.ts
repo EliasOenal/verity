@@ -1,24 +1,24 @@
-import { SupportedTransports } from '../../src/core/networking/networkDefinitions';
+import { SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 
-import { NetworkManager, NetworkManagerOptions } from '../../src/core/networking/networkManager';
-import { NetworkPeer } from '../../src/core/networking/networkPeer';
-import { WebSocketTransport } from '../../src/core/networking/webSocket/webSocketTransport';
-import { WebSocketServer } from '../../src/core/networking/webSocket/webSocketServer';
-import { WebSocketPeerConnection } from '../../src/core/networking/webSocket/webSocketPeerConnection';
+import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
+import { NetworkPeer } from '../../../src/core/networking/networkPeer';
+import { WebSocketTransport } from '../../../src/core/networking/transport/webSocket/webSocketTransport';
+import { WebSocketServer } from '../../../src/core/networking/transport/webSocket/webSocketServer';
+import { WebSocketConnection } from '../../../src/core/networking/transport/webSocket/webSocketConnection';
 
-import { CubeKey } from '../../src/core/cube/cubeDefinitions';
-import { Cube } from '../../src/core/cube/cube';
-import { CubeField, CubeFieldType, CubeFields, coreFieldParsers, coreTlvFieldParsers } from '../../src/core/cube/cubeFields';
-import { CubeStore } from '../../src/core/cube/cubeStore';
+import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
+import { Cube } from '../../../src/core/cube/cube';
+import { CubeField, CubeFieldType, CubeFields, coreFieldParsers, coreTlvFieldParsers } from '../../../src/core/cube/cubeFields';
+import { CubeStore } from '../../../src/core/cube/cubeStore';
 
-import { WebSocketAddress } from '../../src/core/peering/addressing';
-import { Peer } from '../../src/core/peering/peer';
-import { PeerDB } from '../../src/core/peering/peerDB';
-import { logger } from '../../src/core/logger';
+import { WebSocketAddress } from '../../../src/core/peering/addressing';
+import { Peer } from '../../../src/core/peering/peer';
+import { PeerDB } from '../../../src/core/peering/peerDB';
+import { logger } from '../../../src/core/logger';
 
 import WebSocket from 'isomorphic-ws';
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
-import { Settings } from '../../src/core/settings';
+import { Settings } from '../../../src/core/settings';
 
 describe('networkManager', () => {
     const reducedDifficulty = 0;
@@ -524,14 +524,14 @@ describe('networkManager', () => {
             expect(myPeerDB.peersExchangeable.size).toEqual(1);
             expect(otherPeerDB.peersVerified.size).toEqual(1);
             expect(otherPeerDB.peersExchangeable.size).toEqual(0);  // incoming ones don't
-            expect(myManager.outgoingPeers[0].conn).toBeInstanceOf(WebSocketPeerConnection);
-            expect((myManager.outgoingPeers[0].conn as WebSocketPeerConnection).
+            expect(myManager.outgoingPeers[0].conn).toBeInstanceOf(WebSocketConnection);
+            expect((myManager.outgoingPeers[0].conn as WebSocketConnection).
                 ws.readyState).toEqual(WebSocket.OPEN);
-            expect(myFirstNp.conn).toBeInstanceOf(WebSocketPeerConnection);
-            expect((myFirstNp.conn as WebSocketPeerConnection).
+            expect(myFirstNp.conn).toBeInstanceOf(WebSocketConnection);
+            expect((myFirstNp.conn as WebSocketConnection).
                 ws.readyState).toEqual(WebSocket.OPEN);
-            expect(othersFirstNp.conn).toBeInstanceOf(WebSocketPeerConnection);
-            expect((othersFirstNp.conn as WebSocketPeerConnection).
+            expect(othersFirstNp.conn).toBeInstanceOf(WebSocketConnection);
+            expect((othersFirstNp.conn as WebSocketConnection).
                 ws.readyState).toEqual(WebSocket.OPEN);
 
             // Connect again through different address.
@@ -566,13 +566,13 @@ describe('networkManager', () => {
 
             // ensure the duplicate connection has been closed,
             // while the original connection is still open
-            expect((myFirstNp.conn as WebSocketPeerConnection).
+            expect((myFirstNp.conn as WebSocketConnection).
                 ws.readyState).toEqual(WebSocket.OPEN);
-            expect((othersFirstNp.conn as WebSocketPeerConnection).
+            expect((othersFirstNp.conn as WebSocketConnection).
                 ws.readyState).toEqual(WebSocket.OPEN);
-            expect((myDuplicateNp.conn as WebSocketPeerConnection).
+            expect((myDuplicateNp.conn as WebSocketConnection).
                 ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
-            expect((othersDuplicateNp.conn as WebSocketPeerConnection).
+            expect((othersDuplicateNp.conn as WebSocketConnection).
                 ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
 
             // maybe implement further tests:
@@ -593,13 +593,13 @@ describe('networkManager', () => {
             expect(myManager.incomingPeers.length).toEqual(0);
             expect(otherManager.outgoingPeers.length).toEqual(0);
             expect(otherManager.incomingPeers.length).toEqual(0);
-            expect((myFirstNp.conn as WebSocketPeerConnection).
+            expect((myFirstNp.conn as WebSocketConnection).
                 ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
-            expect((othersFirstNp.conn as WebSocketPeerConnection).
+            expect((othersFirstNp.conn as WebSocketConnection).
                 ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
-            expect((myDuplicateNp.conn as WebSocketPeerConnection).
+            expect((myDuplicateNp.conn as WebSocketConnection).
                 ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
-            expect((othersDuplicateNp.conn as WebSocketPeerConnection).
+            expect((othersDuplicateNp.conn as WebSocketConnection).
                 ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
         }, 500000);
 
@@ -874,10 +874,14 @@ describe('networkManager', () => {
         it.skip('should fail gracefully when trying to connect to an invalid address', async () => {
             // TODO implement
         });
+
+        it.skip('only accepts incoming connections when enabled', async() => {
+            // TODO implement
+        })
     });  // WebSockets and general functionality
 
     describe('libp2p connections', () => {
-        it('should correctly open and close connections', async() => {
+        it('should open connection', async() => {
             const server = new NetworkManager(
                 new CubeStore(testCubeStoreParams),
                 new PeerDB(),
@@ -910,6 +914,14 @@ describe('networkManager', () => {
             await client.shutdown();
             await server.shutdown();
         }, 3000);
+
+        it.skip('should exchange messages and cubes', async() => {
+            // TODO IMPLEMENT
+        })
+
+        it.skip('should exchange peers and auto-connect them', async() => {
+            // TODO IMPLEMENT
+        })
 
         it.skip('brokers direct WebRTC connections between clients', async() => {
             // TODO IMPLEMENT
