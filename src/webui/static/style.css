@@ -77,6 +77,10 @@ img#veralogo {
   display: block;
   margin: 0 auto;
   z-index: 1;
+  transition: all 1s ease;
+  position: relative;
+  left: 0;
+  top: 0;
 }
 
 .vera-anim {
