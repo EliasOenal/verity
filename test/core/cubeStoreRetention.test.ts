@@ -9,6 +9,7 @@ describe('CubeStore Retention Policy', () => {
         cubeStore = new CubeStore({
             enableCubePersistance: false,
             requiredDifficulty: Settings.REQUIRED_DIFFICULTY,
+            enableCubeRetentionPolicy: true,
         });
     });
 
