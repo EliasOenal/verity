@@ -1,11 +1,8 @@
-import { SupportedTransports } from "./networkDefinitions";
+import { SupportedTransports } from "../networkDefinitions";
 import { TransportServer } from "./transportServer";
-import { logger } from "../logger";
+import { AddressAbstraction } from "../../peering/addressing";
 
-import { NetworkManager, NetworkManagerOptions } from "./networkManager";
-import { WebSocketTransport } from "./webSocket/webSocketTransport";
-import { Libp2pTransport } from "./libp2p/libp2pTransport";
-import { AddressAbstraction } from "core/peering/addressing";
+import EventEmitter from "events";
 
 export type TransportMap = Map<SupportedTransports, NetworkTransport>;
 export type TransportParamMap = Map<SupportedTransports, any>;
@@ -21,7 +18,7 @@ export type TransportParamMap = Map<SupportedTransports, any>;
  * For most forms of transport which do not (e.g. WebSocketTransport), their
  * NetworkTransport subclass object will be more or less empty.
  */
-export abstract class NetworkTransport {
+export abstract class NetworkTransport extends EventEmitter{
   /**
    * Stores all of this transport's TransportServer subclass objects
    * which listen for incoming connections. You could also call them listeners.
@@ -32,11 +29,9 @@ export abstract class NetworkTransport {
 
   dialableAddress: AddressAbstraction = undefined;
 
-  constructor(
-    protected _networkManager: NetworkManager
-  ){}
-
-  get networkManager() { return this._networkManager }
+  constructor() {
+    super();
+  }
 
   /**
    * start() must always be called and awaited before using a transport.

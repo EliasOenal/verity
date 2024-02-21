@@ -8,7 +8,7 @@ import { Peer } from '../peering/peer';
 import { NetworkManager } from "./networkManager";
 import { CubeType } from '../cube/cubeDefinitions';
 import { cubeContest } from '../cube/cubeUtil';
-import { NetworkPeerConnection } from './networkPeerConnection';
+import { TransportConnection } from './transport/transportConnection';
 import { getCurrentEpoch, shouldRetainCube } from '../cube/cubeUtil';
 
 import { logger } from '../logger';
@@ -34,6 +34,13 @@ export interface NetworkStats {
         messageBytes: number,
         messageTypes: { [key in MessageClass]?: PacketStats }
     }
+}
+
+export interface NetworkPeerOptions {
+    extraAddresses?: AddressAbstraction[],
+    lightMode?: boolean,
+    peerExchange?: boolean,
+    networkTimeoutSecs?: number,
 }
 
 /**
@@ -66,22 +73,31 @@ export class NetworkPeer extends Peer {
     private unsentCubeMeta: Set<CubeMeta> = undefined;
     private unsentPeers: Peer[] = undefined;  // TODO this should probably be a Set instead
 
-    get conn(): NetworkPeerConnection { return this._conn }
+    get conn(): TransportConnection { return this._conn }
 
     private networkTimeout: NodeJS.Timeout = undefined;
+    private lightMode: boolean = false;
+    private peerExchange: boolean = true;
+    private networkTimeoutSecs: number = Settings.NETWORK_TIMEOUT;
 
     constructor(
             private networkManager: NetworkManager,
-            address: WebSocketAddress | Multiaddr | AddressAbstraction[],
-            private cubeStore: CubeStore,  // The cube storage instance associated with this peer
-            private hostNodePeerID: Buffer,
-            private _conn: NetworkPeerConnection,
-            private lightMode: boolean = false,
-            private peerExchange: boolean = true,
-            private networkTimeoutSecs: number = Settings.NETWORK_TIMEOUT
+            private _conn: TransportConnection,
+            private cubeStore: CubeStore,
+            options: NetworkPeerOptions,
         )
     {
-        super(address);
+        super(_conn.address);
+        // set opts
+        this.lightMode = options?.lightMode ?? false;
+        this.peerExchange = options?.peerExchange ?? true;
+        this.networkTimeoutSecs = options?.networkTimeoutSecs ?? Settings.NETWORK_TIMEOUT;
+        if (options.extraAddresses) {
+            this.addresses = options.extraAddresses;
+            this.addAddress(_conn.address);
+        }
+
+        // set events
         this._conn.on("messageReceived", msg => this.handleMessage(msg));
         this._conn.once("closed", () => this.close());
 
@@ -249,7 +265,7 @@ export class NetworkPeer extends Peer {
         const message = Buffer.alloc(NetConstants.CUBE_TYPE_SIZE + NetConstants.MESSAGE_CLASS_SIZE + NetConstants.PEER_ID_SIZE);
         message.writeUInt8(NetConstants.PROTOCOL_VERSION, 0);
         message.writeUInt8(MessageClass.Hello, 1);
-        this.hostNodePeerID.copy(
+        this.networkManager.id.copy(
             message,  // target
             NetConstants.CUBE_TYPE_SIZE + NetConstants.MESSAGE_CLASS_SIZE,  // target offset
             0,  // source offset

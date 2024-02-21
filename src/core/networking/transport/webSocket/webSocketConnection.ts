@@ -1,13 +1,13 @@
-import { WebSocketAddress } from "../../peering/addressing";
-import { SupportedTransports } from "../networkDefinitions";
-import { NetworkPeerConnection } from "../networkPeerConnection";
-import { logger } from "../../logger";
+import { AddressAbstraction, WebSocketAddress } from "../../../peering/addressing";
+import { SupportedTransports } from "../../networkDefinitions";
+import { TransportConnection } from "../transportConnection";
+import { logger } from "../../../logger";
 
 import { isNode } from "browser-or-node";
 import WebSocket from 'isomorphic-ws';
 import { Buffer } from 'buffer';
 
-export class WebSocketPeerConnection extends NetworkPeerConnection {
+export class WebSocketConnection extends TransportConnection {
   private static WEBSOCKET_HANDSHAKE_TIMEOUT = 2500;
   private _ws: WebSocket;  // The WebSocket connection associated with this peer
   get ws(): WebSocket { return this._ws }
@@ -19,7 +19,13 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
 
   constructor(
       conn_param: WebSocketAddress | WebSocket) {
-    super();
+    super(
+      conn_param instanceof WebSocketAddress ?  // address or socket provided?
+        new AddressAbstraction(conn_param) :
+        new AddressAbstraction(new WebSocketAddress(
+          (conn_param as any)?._socket?.remoteAddress,  // ip
+          (conn_param as any)?._socket?.remotePort))    // port
+    );
 
     if (conn_param instanceof WebSocket) {
         this._ws = conn_param;
@@ -28,7 +34,7 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
       let WsOptions: any;
       // set a handshake timeout on NodeJS, not possible in the browser
       if (isNode) {
-        WsOptions = { handshakeTimeout: WebSocketPeerConnection.WEBSOCKET_HANDSHAKE_TIMEOUT };
+        WsOptions = { handshakeTimeout: WebSocketConnection.WEBSOCKET_HANDSHAKE_TIMEOUT };
       } else {
         WsOptions = [];
       }
@@ -91,7 +97,7 @@ export class WebSocketPeerConnection extends NetworkPeerConnection {
       logger.trace(`WebSocketPeerConnection to ${this._ws.url}: close(): Closing socket`);
       // Return a promise that will be resolved when the socket has closed
       const closedPromise = new Promise<void>((resolve) =>
-        this._ws.addEventListener('close', () => resolve, { once: true }));
+        this._ws.addEventListener('close', () => resolve(), { once: true }));
       this._ws.close();
       return closedPromise;
     } else {  // already closed

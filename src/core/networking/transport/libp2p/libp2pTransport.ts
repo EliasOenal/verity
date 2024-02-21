@@ -1,17 +1,17 @@
-import { Settings, VerityError } from "../../settings";
+import { Settings, VerityError } from "../../../settings";
 import { Libp2pServer } from "./libp2pServer";
 import { NetworkTransport } from "../networkTransport";
-import { NetworkManager, NetworkManagerOptions } from "../networkManager";
-import { AddressAbstraction } from "../../peering/addressing";
-import { logger } from "../../logger";
+import { NetworkManager, NetworkManagerOptions } from "../../networkManager";
+import { AddressAbstraction } from "../../../peering/addressing";
+import { logger } from "../../../logger";
 
 import { noise } from "@chainsafe/libp2p-noise";
 import { yamux } from "@chainsafe/libp2p-yamux";
 import { webRTC, webRTCDirect } from "@libp2p/webrtc";
 import { webSockets } from "@libp2p/websockets";
 import { createLibp2p } from "libp2p";
-import { circuitRelayTransport, circuitRelayServer } from "libp2p/circuit-relay";
-import { identifyService } from "libp2p/identify";
+import { circuitRelayTransport, circuitRelayServer } from "@libp2p/circuit-relay-v2";
+import { identify } from "@libp2p/identify";
 import { Libp2pNode } from "libp2p/libp2p";
 import * as filters from '@libp2p/websockets/filters'
 import { createServer } from 'https';
@@ -40,11 +40,10 @@ export class Libp2pTransport extends NetworkTransport {
   get server() { return this._servers[0] }
 
   constructor(
-    networkManager: NetworkManager,
     private listen_param: string[] | number[] | string | number = 1985,
     private options: NetworkManagerOptions = {})
   {
-    super(networkManager);
+    super();
     this._servers = [new Libp2pServer(this)];
     // construct listen string array
     if (!Array.isArray(listen_param)) listen_param = [listen_param as any];
@@ -124,7 +123,7 @@ export class Libp2pTransport extends NetworkTransport {
       connectionEncryption: [noise()],
       streamMuxers: [yamux()],
       services: {
-        identify: identifyService(),  // finds out stuff like our own observed address and protocols supported by remote node
+        identify: identify(),  // finds out stuff like our own observed address and protocols supported by remote node
         relay: circuitRelayServer({
           reservations: {
             maxReservations: Settings.MAXIMUM_CONNECTIONS*100,  // maybe a bit much?
@@ -151,6 +150,7 @@ export class Libp2pTransport extends NetworkTransport {
   }
 
   async shutdown(): Promise<void> {
+    await this.server.shutdown();
     await super.shutdown();
     return this.node.stop() as Promise<void>;
   }
@@ -181,9 +181,7 @@ export class Libp2pTransport extends NetworkTransport {
        if (protos.includes("p2p") && protos.includes("p2p-circuit") &&
            protos.includes("webrtc")) {
         this.dialableAddress = new AddressAbstraction(multiaddr);
-        for (const peer of this._networkManager.outgoingPeers.concat(this._networkManager.incomingPeers)) {
-          if (peer.online) peer.sendMyServerAddress();
-        }
+        this.emit("serverAddress", this.dialableAddress);
       }
     }
   }

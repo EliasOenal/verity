@@ -1,5 +1,5 @@
-import { VerityError } from "../../settings";
-import { NetworkManager, NetworkManagerOptions } from "../networkManager";
+import { VerityError } from "../../../settings";
+import { NetworkManager, NetworkManagerOptions } from "../../networkManager";
 import { NetworkTransport } from "../networkTransport";
 import { WebSocketServer } from "./webSocketServer";
 import { logger } from "core/logger";
@@ -8,11 +8,10 @@ import { isNode } from "browser-or-node";
 
 export class WebSocketTransport extends NetworkTransport {
   constructor(
-      networkManager: NetworkManager,
-      params: any,  // TODO fix or document any type
+      params?: any,  // TODO fix or document any type
       options: NetworkManagerOptions = {}
 ) {
-    super(networkManager);
+    super();
     if (params) {  // server mode requested
       if (isNode) {
           if (!Array.isArray(params)) params = [params];
