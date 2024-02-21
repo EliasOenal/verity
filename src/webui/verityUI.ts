@@ -147,8 +147,35 @@ export class VerityUI {
   }
 }
 
+/**
+ * Initiate startup animation:
+ * Shows Vera centered on the screen doing some light animation
+ */
+function veraStartupAnim(): void {
+  const vera: HTMLImageElement = document.getElementById("veralogo") as HTMLImageElement;
+  // move vera to center of screen
+  vera.setAttribute("style", `left: ${window.visualViewport.width/2 - vera.width/2}px; top: ${window.visualViewport.height/2 - vera.height}px`)
+  // make vera roll after she's centered
+  setTimeout(() => {
+    vera.classList.add('vera-roll');
+  }, 1000);
+  setTimeout(() => {
+    vera.classList.remove('vera-roll');
+  }, 2000);
+}
+
+/**
+ * Terminate startup animation:
+ * Move Vera back into her nest
+ */
+function veraStartupComplete(): void {
+  const vera: HTMLImageElement = document.getElementById("veralogo") as HTMLImageElement;
+  vera.removeAttribute("style");
+}
+
 async function webmain() {
   logger.info('Starting web node');
+  veraStartupAnim();
   await sodium.ready;
 
   // default params
@@ -179,6 +206,7 @@ async function webmain() {
   await node.cubeStoreReadyPromise;
   logger.info("Cube Store is ready");
   const verityUI = await VerityUI.Construct(node);
+  veraStartupComplete();
   // @ts-ignore TypeScript does not like us creating extra window attributes
   window.verityUI = verityUI;
 
