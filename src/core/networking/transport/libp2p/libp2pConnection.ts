@@ -166,7 +166,7 @@ export class Libp2pConnection extends TransportConnection {
     } catch(error) {
       logger.error(`${this.toString()} in send(): Error writing to stream. Error was: ${error}`);
     }
-    logger.trace("Libp2pPeerConnection: Sending message of length " + message.length + " to " + this.addressString + ", raw bytes: " + message.toString('hex'));
+    // logger.trace("Libp2pPeerConnection: Sending message of length " + message.length + " to " + this.addressString + ", raw bytes: " + message.toString('hex'));
   }
 
   type(): SupportedTransports {

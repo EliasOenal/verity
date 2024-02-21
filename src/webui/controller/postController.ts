@@ -69,7 +69,7 @@ export class PostController extends VerityController {
     // First create the post, then update the identity, then add the cube.
     // This way the UI directly displays you as the author.
     const post = await makePost(text, replyto, this.identity);
-    await this.identity.store("ID/ZW");  // TODO: move this to constructor
+    if (this.identity) await this.identity.store("ID/ZW");  // TODO: move this to constructor
     this.cubeStore.addCube(post);
   }
 
