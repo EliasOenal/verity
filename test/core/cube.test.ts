@@ -81,8 +81,9 @@ describe('cube', () => {
       // 5 bytes DATE
       // 4 bytes NONCE
       const payloadLength = 1012;
-      const cube = Cube.Frozen(CubeField.Payload("a".repeat(payloadLength)),
-        coreFieldParsers, Cube, reducedDifficulty);
+      const cube = Cube.Frozen({
+        fields: CubeField.Payload("a".repeat(payloadLength)),
+        requiredDifficulty: reducedDifficulty});
       const binaryData = await cube.getBinaryData();
       expect(binaryData.length).toEqual(1024);
     }, 3000);
@@ -126,7 +127,7 @@ describe('cube', () => {
 
   describe('static methods', () => {
     it('provides a convience method to sculpt a new fully valid frozen cube', () => {
-      const cube = Cube.Frozen(CubeField.Payload("hello Cube"));
+      const cube = Cube.Frozen({fields: CubeField.Payload("hello Cube")});
       expect(cube.fields.all[0].type).toEqual(CubeFieldType.TYPE);
       expect(cube.fields.all[1].type).toEqual(CubeFieldType.PAYLOAD);
       expect(cube.fields.all[2].type).toEqual(CubeFieldType.DATE);
@@ -137,9 +138,9 @@ describe('cube', () => {
 
   describe('compilation', () => {
     it('should write fields to binary data correctly even after manipulating them', async () => {
-      const cube = Cube.Frozen(
-        CubeField.Payload(
-          Buffer.alloc(500, " ")), coreFieldParsers, Cube, reducedDifficulty);
+      const cube = Cube.Frozen({
+        fields: CubeField.Payload(Buffer.alloc(500, " ")),
+        requiredDifficulty: reducedDifficulty});
       cube.fields.getFirst(CubeFieldType.PAYLOAD).value.write(
         'Ego sum determinavit tarde quid dicere Cubus.', 'ascii');
       const binaryData = await cube.getBinaryData();
@@ -156,7 +157,7 @@ describe('cube', () => {
 
   describe('hashing', () => {
     it('should calculate the hash correctly', async () => {
-      const cube = Cube.Frozen(undefined, coreFieldParsers, Cube, reducedDifficulty);
+      const cube = Cube.Frozen({requiredDifficulty: reducedDifficulty});
       const key = await cube.getKey();
       expect(key).toBeDefined();
       expect(key.length).toEqual(NetConstants.HASH_SIZE); // SHA-3-256 hash length is 32 bytes
@@ -173,7 +174,9 @@ describe('cube', () => {
     }, 3000);
 
     it('should create a new cube that meets the challenge requirements', async () => {
-      const cube = Cube.Frozen(CubeField.Payload('Hello world, this is a payload for a cube!'));
+      const cube = Cube.Frozen({
+        fields: CubeField.Payload('Hello world, this is a payload for a cube!')
+      });
       const key: Buffer = await cube.getKey();
       expect(key[key.length - 1]).toEqual(0);  // == min 8 bits difficulty
     }, 5000);
@@ -188,7 +191,7 @@ describe('cube', () => {
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
       // Create a new MUC with specified TLV fields
-      const muc = new Cube(CubeType.MUC, coreFieldParsers, reducedDifficulty);
+      const muc = new Cube(CubeType.MUC, {requiredDifficulty: reducedDifficulty});
       muc.privateKey = privateKey;
 
       const fields = new CubeFields([
@@ -218,9 +221,11 @@ describe('cube', () => {
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
       const muc = Cube.MUC(
-        publicKey, privateKey,
-        CubeField.Payload(
-          "Ego sum cubus usoris mutabilis, semper secure signatus."));
+        publicKey, privateKey, {
+          fields: CubeField.Payload(
+            "Ego sum cubus usoris mutabilis, semper secure signatus."),
+          requiredDifficulty: reducedDifficulty
+      });
       const binaryData = await muc.getBinaryData();  // final fully signed binary
       const mucKey: Buffer = await muc.getKey();
 
@@ -262,9 +267,11 @@ describe('cube', () => {
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
       // Create a new MUC with a random payload
-      const muc = Cube.MUC(publicKey, privateKey, CubeField.Payload(
+      const muc = Cube.MUC(publicKey, privateKey, {
+        fields: CubeField.Payload(
           "Ego sum cubus usoris mutabilis, peculiare informatiuncula quae a domino meo corrigi potest."),
-        coreFieldParsers, Cube, reducedDifficulty);
+        requiredDifficulty: reducedDifficulty
+      });
       const key = await muc.getKey();
       expect(key).toBeInstanceOf(Buffer);
 
@@ -285,7 +292,7 @@ describe('cube', () => {
         muc.fields.getFirst(CubeFieldType.DATE).value)).toBeTruthy();
 
       // Do a full parsing from binary including TLV
-      const fullyParsedMuc = new Cube(binMuc, coreTlvFieldParsers);
+      const fullyParsedMuc = new Cube(binMuc, {parsers: coreTlvFieldParsers});
       const backPos = fullyParsedMuc.fields.all.length;
       expect(fullyParsedMuc).toBeInstanceOf(Cube);
       expect(fullyParsedMuc.fields.all.length).toBeGreaterThanOrEqual(7);
@@ -312,9 +319,11 @@ describe('cube', () => {
 
       // Sculpt MUC
       const muc = Cube.MUC(
-        publicKey, privateKey,
-        CubeField.Payload(
-          "Ego sum cubus usoris mutabilis qui male tactus est."));
+        publicKey, privateKey, {
+          fields: CubeField.Payload(
+            "Ego sum cubus usoris mutabilis qui male tactus est."),
+          requiredDifficulty: reducedDifficulty
+      });
       const binaryData = await muc.getBinaryData();  // final fully signed binary
 
       // Manipulate binary data
@@ -331,9 +340,11 @@ describe('cube', () => {
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
       const muc: Cube = Cube.MUC(
-        publicKey, privateKey, CubeField.Payload(
-          "Signum meum nondum certum est, sed clavis mea semper eadem erit."),
-        coreFieldParsers, Cube, reducedDifficulty);
+        publicKey, privateKey, {
+          fields: CubeField.Payload(
+            "Signum meum nondum certum est, sed clavis mea semper eadem erit."),
+          requiredDifficulty: reducedDifficulty
+      });
       expect(muc.getKeyIfAvailable().equals(publicKey)).toBeTruthy();
       expect((await muc.getKey()).equals(publicKey)).toBeTruthy();
     })
@@ -345,9 +356,11 @@ describe('cube', () => {
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
       const muc: Cube = Cube.MUC(
-        publicKey, privateKey, CubeField.Payload(
-          "Gratiose tibi dabo signum meum etiamsi non intersit tibi de mea data binaria."),
-        coreFieldParsers, Cube, reducedDifficulty);
+        publicKey, privateKey, {
+          fields: CubeField.Payload(
+            "Gratiose tibi dabo signum meum etiamsi non intersit tibi de mea data binaria."),
+          requiredDifficulty: reducedDifficulty
+      });
 
       const hash: Buffer = await muc.getHash();
       const key: Buffer = await muc.getKey();
@@ -361,7 +374,7 @@ describe('cube', () => {
   describe('method padUp()', () => {
     it('Should not add padding if not required', async() => {
       // Create a Cube with fields whose total length is equal to the cube size
-      const cube = Cube.Frozen(CubeField.Payload("His cubus plenus est"));
+      const cube = Cube.Frozen({fields: CubeField.Payload("His cubus plenus est")});
       const freeSpace = NetConstants.CUBE_SIZE - cube.fields.getByteLength();
       const plHl = cube.fieldParser.getFieldHeaderLength(CubeFieldType.PAYLOAD);
       cube.fields.insertFieldBeforeBackPositionals(CubeField.Payload(
@@ -381,7 +394,7 @@ describe('cube', () => {
       // Create a Cube with fields whose total length is equal to the cube size
       const payload = CubeField.Payload(
         "Hic cubus nimis parvus, ideo supplendus est.");
-      const cube = Cube.Frozen(payload);
+      const cube = Cube.Frozen({fields: payload});
 
       const fieldCountBeforePadding = cube.fields.all.length;
       const paddingAdded = cube.padUp();

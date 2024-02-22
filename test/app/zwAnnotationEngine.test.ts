@@ -59,14 +59,15 @@ describe('ZwAnnotationEngine', () => {
 
         // referrer can't be built with makePost because it's deliberately invalid
 
-        const referrer: cciCube = cciCube.Frozen([
+        const referrer: cciCube = cciCube.Frozen({
+          fields: [
             cciField.Application("ZW"),
             cciField.MediaType(MediaTypes.TEXT),
             cciField.Payload("I will reply to everybody at one and NO ONE CAN STOP ME AHAHAHAHAHAHAHAHAHAHAHA!!!!!!!!1111"),
             cciField.RelatesTo(
               new cciRelationship(cciRelationshipType.REPLY_TO, await referee.getKey())),
           ],
-          cciFieldParsers, reducedDifficulty);
+          parsers: cciFieldParsers, requiredDifficulty: reducedDifficulty});
         referrer.getBinaryData();  // finalize Cube & compile fields
         await cubeStore.addCube(referrer);
 
@@ -178,9 +179,10 @@ describe('ZwAnnotationEngine', () => {
         const muc: Cube = Cube.MUC(
           Buffer.from(keys.publicKey),
           Buffer.from(keys.privateKey),
-          CubeField.Payload("hoc non est identitatis"),
-          cciFieldParsers, cciCube, reducedDifficulty
-        );
+          {
+            fields: CubeField.Payload("hoc non est identitatis"),
+            parsers: cciFieldParsers, cubeClass: cciCube, requiredDifficulty: reducedDifficulty
+          });
         await cubeStore.addCube(muc);
         expect(annotationEngine.identityMucs.size).toEqual(0);
       });
@@ -279,10 +281,14 @@ describe('ZwAnnotationEngine', () => {
         await new Promise(resolve => setTimeout(resolve, 250));
         // learn a new unrelated MUC
         const unrelatedKeys: KeyPair = sodium.crypto_sign_keypair();
-        await cubeStore.addCube(Cube.MUC(Buffer.from(unrelatedKeys.publicKey),
+        await cubeStore.addCube(Cube.MUC(
+          Buffer.from(unrelatedKeys.publicKey),
           Buffer.from(unrelatedKeys.privateKey),
-          CubeField.Payload("I am some other application's MUC"),
-          cciFieldParsers, cciCube, reducedDifficulty));
+          {
+            fields: CubeField.Payload("I am some other application's MUC"),
+            parsers: cciFieldParsers, cubeClass: cciCube,
+            requiredDifficulty: reducedDifficulty
+          }));
         await new Promise(resolve => setTimeout(resolve, 250));
 
         {  // check 2

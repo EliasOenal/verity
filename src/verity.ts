@@ -176,14 +176,14 @@ class VerityCmdClient {
     const muc = Cube.MUC(
       Buffer.from(this.keyPair.publicKey),
       Buffer.from(this.keyPair.privateKey),
-      CubeField.Payload(messageBuffer)
+      {fields: CubeField.Payload(messageBuffer)}
     );
     this.node.cubeStore.addCube(muc);
   }
 
   /** Just for manual testing: Handler for the 'c' hotkey */
   public async makeNewCube(message: string = "Hello Verity") {
-    const cube = Cube.Frozen(CubeField.Payload(message));
+    const cube = Cube.Frozen({fields: CubeField.Payload(message)});
     this.node.cubeStore.addCube(cube);
   }
 }

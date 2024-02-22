@@ -1,4 +1,4 @@
-import { cciFrozenFieldDefinition, cciField, cciFields, cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciFields";
+import { cciFrozenFieldDefinition, cciField, cciFields, cciRelationship, cciRelationshipType, cciFieldParsers } from "../../../src/cci/cube/cciFields";
 import { CubeType, WrongFieldType } from "../../../src/core/cube/cubeDefinitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
@@ -6,6 +6,15 @@ describe('cciFields and related classes', () => {
   describe('cciFields (field list wrapper class)', () => {
   })
   describe('cciRelationship', () => {
+    it('create a CCI fields object from its predefined field definition', () => {
+      const parserTable = cciFieldParsers;
+      const cciFrozenParser = parserTable[CubeType.FROZEN];
+      const fieldDef = cciFrozenParser.fieldDef;
+      const fieldsClass = fieldDef.fieldsObjectClass;
+      const fields = new fieldsClass(undefined, fieldDef);
+      expect(fields instanceof cciFields).toBeTruthy();
+    });
+
     it('marshalls and demarshalls relationsships to and from fields', () => {
       const fields = new cciFields([
         cciField.Type(CubeType.FROZEN),
@@ -34,6 +43,7 @@ describe('cciFields and related classes', () => {
       ],
       cciFrozenFieldDefinition);
 
+      expect(fields instanceof cciFields).toBeTruthy();
       expect(fields.getRelationships().length).toEqual(6);
       expect(fields.getRelationships()[0]).toBeInstanceOf(cciRelationship);
 

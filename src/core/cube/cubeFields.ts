@@ -183,12 +183,13 @@ export class CubeFields extends BaseFields {
    * convenience, which will then in turn call us.
    **/
   static Frozen(
-      data: CubeFields | CubeField[] | CubeField = [],
+      data: CubeFields | CubeField[] | CubeField = undefined,
       fieldDefinition: FieldDefinition = coreFrozenFieldDefinition
   ): CubeFields {
     if (data instanceof CubeField) data = [data];
     if (data instanceof CubeFields) data = data.all;
-    const fields = new fieldDefinition.fieldsObjectClass(data, fieldDefinition);
+    const fieldsClass = fieldDefinition.fieldsObjectClass;
+    const fields = new fieldsClass(data, fieldDefinition);
 
     // Create TYPE (type, version, feature bits) field
     if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.TYPE) !== undefined) {
@@ -219,7 +220,7 @@ export class CubeFields extends BaseFields {
    **/
   static Muc(
       publicKey: Buffer | Uint8Array,
-      data: CubeFields | CubeField[] | CubeField = [],
+      data: CubeFields | CubeField[] | CubeField = undefined,
       fieldDefinition: FieldDefinition = coreMucFieldDefinition
   ): CubeFields {
     // input normalization

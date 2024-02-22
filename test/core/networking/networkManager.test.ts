@@ -294,7 +294,7 @@ describe('networkManager', () => {
 
             // Create new cubes at peer 1
             for (let i = 0; i < numberOfCubes; i++) {
-                const cube = Cube.Frozen(undefined, coreFieldParsers, Cube, reducedDifficulty);
+                const cube = Cube.Frozen({requiredDifficulty: reducedDifficulty});
                 const buffer: Buffer = Buffer.alloc(1);
                 buffer.writeInt8(i);
                 await cubeStore.addCube(cube);
@@ -382,8 +382,7 @@ describe('networkManager', () => {
             muc = Cube.MUC(
                 Buffer.from(keyPair.publicKey),
                 Buffer.from(keyPair.privateKey),
-                CubeField.Payload(counterBuffer),
-                coreTlvFieldParsers, Cube, reducedDifficulty
+                { fields: CubeField.Payload(counterBuffer), requiredDifficulty: reducedDifficulty}
             );
             mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
             const firstMucHash = await muc.getHash();
@@ -413,8 +412,7 @@ describe('networkManager', () => {
             muc = Cube.MUC(
                 Buffer.from(keyPair.publicKey),
                 Buffer.from(keyPair.privateKey),
-                CubeField.Payload(counterBuffer),
-                coreTlvFieldParsers, Cube, reducedDifficulty);
+                {fields: CubeField.Payload(counterBuffer), requiredDifficulty: reducedDifficulty});
             mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
             const secondMucHash = await muc.getHash();
             expect(cubeStore.getAllKeys().size).toEqual(1);  // still just one, new MUC version replaces old MUC version
@@ -1028,7 +1026,7 @@ describe('networkManager', () => {
             // Create a Cube and exchange it between browsers
             expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(0);
             expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
-            const cube: Cube = Cube.Frozen(undefined, coreFieldParsers, Cube, reducedDifficulty);  // no hashcash for faster testing
+            const cube: Cube = Cube.Frozen({requiredDifficulty: reducedDifficulty});  // no hashcash for faster testing
             cube.setFields(CubeField.Payload("Hic cubus directe ad collegam meum iturus est"));
             const cubeKey: Buffer = await cube.getKey();
             browser1.cubeStore.addCube(cube);

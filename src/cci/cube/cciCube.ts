@@ -1,7 +1,7 @@
 import { Settings, VerityError } from "../../core/settings";
 import { cciFields, cciField, cciFieldParsers } from "./cciFields";
 
-import { Cube } from "../../core/cube/cube";
+import { Cube, CubeOptions } from "../../core/cube/cube";
 
 import sodium, { KeyPair, crypto_kdf_KEYBYTES } from 'libsodium-wrappers-sumo'
 import { FieldParserTable } from "../../core/cube/cubeFields";
@@ -12,19 +12,20 @@ export class cciCube extends Cube {
 
   // TODO: evaluate what makes a Cube a CCI Cube and put appropriate assertions in place,
   // e.g. fields must be cciFields
-  static Frozen(
-      data: cciFields | cciField[] | cciField = [],
-      parsers: FieldParserTable = cciFieldParsers,
-      required_difficulty = Settings.REQUIRED_DIFFICULTY): cciCube {
-    return super.Frozen(data, parsers, cciCube, required_difficulty) as cciCube;
+  static Frozen(options?: CubeOptions): cciCube {
+    if (options === undefined) options = {};
+    options.cubeClass = options?.cubeClass ?? cciCube;
+    options.parsers = options?.parsers ?? cciFieldParsers;
+    return super.Frozen(options) as cciCube;
   }
   static MUC(
       publicKey: Buffer | Uint8Array,
       privateKey: Buffer | Uint8Array,
-      data: cciFields | cciField[] | cciField = [],
-      parsers: FieldParserTable = cciFieldParsers,
-      required_difficulty = Settings.REQUIRED_DIFFICULTY): cciCube {
-    return super.MUC(publicKey, privateKey, data, parsers, cciCube, required_difficulty) as cciCube;
+      options?: CubeOptions): cciCube {
+    if (options === undefined) options = {};
+    options.cubeClass = options?.cubeClass ?? cciCube;
+    options.parsers = options?.parsers ?? cciFieldParsers;
+    return super.MUC(publicKey, privateKey, options) as cciCube;
   }
 
   // TODO write unit test
@@ -37,35 +38,50 @@ export class cciCube extends Cube {
     parsers: FieldParserTable = cciFieldParsers,
     required_difficulty = Settings.REQUIRED_DIFFICULTY
   ): cciCube {
-  if (!(fields instanceof cciFields)) {
-    fields = new cciFields(cciFields as any, parsers[CubeType.MUC].fieldDef);
-  }
-  if (subkeyIndex === undefined) {
-    const max: number = Math.pow(2, (Settings.MUC_EXTENSION_SEED_SIZE*8)) - 1;
-    subkeyIndex = Math.floor(  // TODO: Use a proper cryptographic function instead
-      Math.random() * max);
-  }
-  if (context === undefined) context = "MUC extension key";
-  const derivedSeed = sodium.crypto_kdf_derive_from_key(
-    sodium.crypto_sign_SEEDBYTES, subkeyIndex, context,
-    masterKey, "uint8array");
-  const keyPair: KeyPair = sodium.crypto_sign_seed_keypair(
-    derivedSeed, "uint8array");
+    if (!(fields instanceof cciFields)) {
+      fields = new cciFields(cciFields as any, parsers[CubeType.MUC].fieldDef);
+    }
+    if (subkeyIndex === undefined) {
+      const max: number = Math.pow(2, (Settings.MUC_EXTENSION_SEED_SIZE*8)) - 1;
+      subkeyIndex = Math.floor(  // TODO: Use a proper cryptographic function instead
+        Math.random() * max);
+    }
+    if (context === undefined) context = "MUC extension key";
+    const derivedSeed = sodium.crypto_kdf_derive_from_key(
+      sodium.crypto_sign_SEEDBYTES, subkeyIndex, context,
+      masterKey, "uint8array");
+    const keyPair: KeyPair = sodium.crypto_sign_seed_keypair(
+      derivedSeed, "uint8array");
 
-  if (writeSubkeyIndexToCube) {
-    // Write subkey to cube
-    // Note: While this information is probably not harmful, it's only ever useful
-    // to its owner. Maybe we should encrypt it.
-    const nonceBuf = Buffer.alloc(Settings.MUC_EXTENSION_SEED_SIZE);
-    nonceBuf.writeUintBE(subkeyIndex, 0, Settings.MUC_EXTENSION_SEED_SIZE);
-    fields.appendField(cciField.SubkeySeed(Buffer.from(nonceBuf)));
+    if (writeSubkeyIndexToCube) {
+      // Write subkey to cube
+      // Note: While this information is probably not harmful, it's only ever useful
+      // to its owner. Maybe we should encrypt it.
+      const nonceBuf = Buffer.alloc(Settings.MUC_EXTENSION_SEED_SIZE);
+      nonceBuf.writeUintBE(subkeyIndex, 0, Settings.MUC_EXTENSION_SEED_SIZE);
+      fields.appendField(cciField.SubkeySeed(Buffer.from(nonceBuf)));
+    }
+
+    // Create and return extension MUC
+    const extensionMuc: cciCube = cciCube.MUC(
+      keyPair.publicKey, keyPair.privateKey, {
+        fields: fields,
+        parsers: parsers,
+        requiredDifficulty: required_difficulty
+    });
+    return extensionMuc;
   }
 
-  // Create and return extension MUC
-  const extensionMuc: cciCube = cciCube.MUC(
-    keyPair.publicKey, keyPair.privateKey, fields, parsers, required_difficulty);
-  return extensionMuc;
+  constructor(
+          param1: Buffer | CubeType,
+          options?: CubeOptions)
+  {
+    if (options === undefined) options = {};
+    options.parsers = options.parsers ?? cciFieldParsers;
+    // @ts-ignore tsc is stupid
+    super(param1, options)
   }
+
 
   public get fields(): cciFields {
     if (Settings.RUNTIME_ASSERTIONS && !(this._fields instanceof cciFields)) {

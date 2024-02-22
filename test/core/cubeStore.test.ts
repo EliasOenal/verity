@@ -46,8 +46,8 @@ describe('cubeStore', () => {
     });
     it('should add a freshly sculpted cube at full difficulty', async () => {
       expect(cubeStore.getNumberOfStoredCubes()).toEqual(0);
-      const cube = Cube.Frozen(CubeField.Payload(
-        "Ego sum cubus recens sculputus."));
+      const cube = Cube.Frozen({fields: CubeField.Payload(
+        "Ego sum cubus recens sculputus.")});
       const key = await cube.getKey();
       await cubeStore.addCube(cube);
       expect(cubeStore.getNumberOfStoredCubes()).toEqual(1);
@@ -105,9 +105,11 @@ describe('cubeStore', () => {
       // create 20 cubes and wait till they are stored
       const promises: Array<Promise<Cube>> = [];
       for (let i = 0; i < 20; i++) {
-        const cube = Cube.Frozen(CubeField.Payload(
+        const cube = Cube.Frozen({
+          fields: CubeField.Payload(
             "Sum cubus inutilis qui in tua taberna residebo et spatium tuum absumam."),
-          coreFieldParsers, Cube, reducedDifficulty);
+          requiredDifficulty: reducedDifficulty
+        });
         promises.push(cubeStore.addCube(cube));
       }
       const cubes = await Promise.all(promises);
@@ -134,9 +136,11 @@ describe('cubeStore', () => {
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
       // Create original MUC
-      const muc = Cube.MUC(publicKey, privateKey, CubeField.Payload(
-        "Sum cubus usoris mutabilis, signatus a domino meo."),
-        coreFieldParsers, Cube, reducedDifficulty);
+      const muc = Cube.MUC(publicKey, privateKey, {
+          fields: CubeField.Payload(
+            "Sum cubus usoris mutabilis, signatus a domino meo."),
+          requiredDifficulty: reducedDifficulty
+      });
       muc.setDate(1695340000);
       const key = await muc.getKey();
       const info = await muc.getCubeInfo();
@@ -149,9 +153,11 @@ describe('cubeStore', () => {
       expect(cubeStore.getCubeInfo(key).date).toEqual(1695340000);
 
       // Create updated MUC
-      const muc2 = Cube.MUC(publicKey, privateKey, CubeField.Payload(
-        "Actualizatus sum a domino meo, sed clavis mea semper eadem est."),
-        coreFieldParsers, Cube, reducedDifficulty);
+      const muc2 = Cube.MUC(publicKey, privateKey, {
+        fields: CubeField.Payload(
+          "Actualizatus sum a domino meo, sed clavis mea semper eadem est."),
+        requiredDifficulty: reducedDifficulty
+      });
       // Make sure date is ever so slightly newer
       muc2.setDate(1695340001);
       const key2 = await muc2.getKey();
@@ -175,8 +181,11 @@ describe('cubeStore', () => {
       const publicKey: Buffer = Buffer.from(keyPair.publicKey);
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-      const muc = Cube.MUC(publicKey, privateKey, CubeField.Payload(
-        "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum."));
+      const muc = Cube.MUC(publicKey, privateKey, {
+        fields: CubeField.Payload(
+          "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum."),
+        requiredDifficulty: reducedDifficulty
+      });
       const muckey = await muc.getKey();
       expect(muckey).toEqual(publicKey);
 
@@ -194,8 +203,10 @@ describe('cubeStore', () => {
     });
 
     it('should not parse TLV fields by default', async() => {
-      const spammyCube = Cube.Frozen(  // Cube with 300 TLV fields
-        Array.from({ length: 300 }, () => CubeField.Payload("!")));
+      const spammyCube = Cube.Frozen({  // Cube with 300 TLV fields
+        fields: Array.from({ length: 300 }, () => CubeField.Payload("!")),
+        requiredDifficulty: reducedDifficulty
+      });
       const spammyBinary: Buffer = await spammyCube.getBinaryData();
       const spamKey: Buffer = await spammyCube.getKey();
       expect(spammyCube.fields.all.length).toBeGreaterThan(300);  // lots of spam
@@ -207,7 +218,6 @@ describe('cubeStore', () => {
   });
 
   describe('tests involving CCI layer', () => {
-
     it("respects the user's Cube parsing settings", async() => {
       const cciCubeStore: CubeStore = new CubeStore({
         enableCubePersistance: false,
@@ -216,12 +226,12 @@ describe('cubeStore', () => {
         parsers: cciFieldParsers,
         cubeClass: cciCube,
       });
-      const cube: cciCube = cciCube.Frozen([
+      const cube: cciCube = cciCube.Frozen({fields: [
         cciField.Application("Applicatio probandi"),
         cciField.MediaType(MediaTypes.TEXT),
         cciField.Username("Usor probandi"),
         cciField.Payload("In hac applicatio probationis, usor probandi creat contentum probandi, ut programma probatorium confirmet omnem testium datam conservatam esse."),
-      ], cciFieldParsers, reducedDifficulty);
+      ], requiredDifficulty: reducedDifficulty });
       const binaryCube: Buffer = await cube.getBinaryData();
       const key: Buffer = await cube.getKey();
       const added = await cciCubeStore.addCube(binaryCube);

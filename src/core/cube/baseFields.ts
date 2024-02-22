@@ -4,6 +4,7 @@ import { logger } from '../logger';
 
 import { Buffer } from 'buffer';
 import { FieldDefinition, FieldParser } from '../fieldParser';
+import { ApiMisuseError } from '../settings';
 
 /**
  * A field is a data entry in binary TLV data.
@@ -66,14 +67,18 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
     get all() { return this.data }
 
     constructor(
-            data: Array<BaseField> | BaseField | undefined,
-            fieldDefinition: FieldDefinition) {
-        this.fieldDefinition = fieldDefinition;
-        if (data) {
-            if (data instanceof Array) this.data = data;
-            else this.data = [data];
+            data: BaseFields | Array<BaseField> | BaseField | undefined,
+            fieldDefinition?: FieldDefinition) {
+        if (data instanceof BaseFields) {  // copy constructor
+            this.data = data.data;
+            this.fieldDefinition = data.fieldDefinition ?? fieldDefinition;
+        } else {
+            if (fieldDefinition === undefined) throw new ApiMisuseError("BaseFields constructor: Cannot create Fields object without a field definition");
+            this.fieldDefinition = fieldDefinition;
+            if (data instanceof BaseField) this.data = [data];
+            else if (data instanceof Array) this.data = data;
+            else this.data = [];
         }
-        else this.data = [];
     }
 
     toString() {

@@ -27,11 +27,12 @@ describe('annotationEngine', () => {
     }, 3000);
 
     it('correctly creates a reverse relationship', async () => {
-      const referee = cciCube.Frozen([], cciFieldParsers, reducedDifficulty);
-      const referrer = cciCube.Frozen(
-        cciField.RelatesTo(new cciRelationship(
+      const referee = cciCube.Frozen({requiredDifficulty: reducedDifficulty});
+      const referrer = cciCube.Frozen({
+        fields: cciField.RelatesTo(new cciRelationship(
           cciRelationshipType.CONTINUED_IN, await referee.getKey())),
-        cciFieldParsers, reducedDifficulty);
+        requiredDifficulty: reducedDifficulty
+      });
       await cubeStore.addCube(referrer);
 
       const reverserels = annotationEngine.getReverseRelationships(await referee.getKey());
@@ -58,18 +59,23 @@ describe('annotationEngine', () => {
       const muckeys2: KeyPair = sodium.crypto_sign_keypair();
       const muc1 = Cube.MUC(Buffer.from(muckeys1.publicKey), Buffer.from(muckeys1.privateKey));
       const muc2 = Cube.MUC(Buffer.from(muckeys2.publicKey), Buffer.from(muckeys2.privateKey));
-      const continuedin = cciCube.Frozen(cciField.Payload("Multum habeo dicere"),
-        cciFieldParsers, reducedDifficulty);
+      const continuedin = cciCube.Frozen({
+        fields: cciField.Payload("Multum habeo dicere"),
+        requiredDifficulty: reducedDifficulty
+      });
 
       // And now the offender themselves:
-      const nonconformingCube = cciCube.Frozen([
+      const nonconformingCube = cciCube.Frozen({
+        fields: [
           cciField.RelatesTo(new cciRelationship(
             cciRelationshipType.MENTION, await muc1.getKey())),
           cciField.RelatesTo(new cciRelationship(
             cciRelationshipType.MENTION, await muc2.getKey())),
           cciField.RelatesTo(new cciRelationship(
             cciRelationshipType.CONTINUED_IN, await continuedin.getKey()))
-        ], cciFieldParsers, reducedDifficulty);
+        ],
+        requiredDifficulty: reducedDifficulty
+      });
       await cubeStore.addCube(nonconformingCube);
 
       // As requested, only the first MENTION is annotated and nothing else
