@@ -115,9 +115,10 @@ img#veralogo {
   z-index: 2;
 }
 
-#leftnav {
+#verityLeftnav {
   display: sticky;
   top: 0;
+  max-width: 15em;  /* prevent overly wide navbar on large displays */
 }
 
 .nav-item.active {
