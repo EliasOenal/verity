@@ -26,7 +26,7 @@ export async function makePost(
     text: string,
     replyto?: CubeKey,
     id?: Identity,
-    required_difficulty = Settings.REQUIRED_DIFFICULTY): Promise<cciCube> {
+    requiredDifficulty = Settings.REQUIRED_DIFFICULTY): Promise<cciCube> {
   const zwFields: cciFields = new cciFields(cciField.Application(("ZW")), cciFrozenFieldDefinition);
   zwFields.appendField(cciField.MediaType(MediaTypes.TEXT));
   zwFields.appendField(cciField.Payload(text));
@@ -54,7 +54,10 @@ export async function makePost(
     }
   }
 
-  const cube: cciCube = cciCube.Frozen(zwFields, cciFieldParsers, required_difficulty);
+  const cube: cciCube = cciCube.Frozen({
+    fields: zwFields,
+    parsers: cciFieldParsers,
+    requiredDifficulty: requiredDifficulty});
   cube.getBinaryData();  // finalize Cube & compile fields
 
   if (id) {

@@ -4,13 +4,19 @@ import { Settings } from '../settings';
 import { NetConstants } from '../networking/networkDefinitions';
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
-import { CubeField, CubeFieldLength, CubeFieldType, CubeFields, FieldParserTable, coreFieldParsers } from './cubeFields';
+import { CubeField, CubeFieldLength, CubeFieldType, CubeFields, FieldParserTable, coreFieldParsers, coreFrozenFieldDefinition } from './cubeFields';
 import { FieldParser } from "../fieldParser";
 import { logger } from '../logger';
 
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 
+export interface CubeOptions {
+    fields?: CubeFields | CubeField[] | CubeField,
+    parsers?: FieldParserTable,
+    cubeClass?: any,  // type: class
+    requiredDifficulty?: number,
+}
 
 export class Cube {
     class = Cube;  // javascript introspection sucks
@@ -21,14 +27,17 @@ export class Cube {
      * with all required boilerplate (i.e. we will create the TYPE, DATE and
      * NONCE fields for you).
      */
-    static Frozen(
-            data: CubeFields | CubeField[] | CubeField = [],
-            parsers: FieldParserTable = coreFieldParsers,
-            cubeClass: any = Cube,  // type: class
-            required_difficulty = Settings.REQUIRED_DIFFICULTY): Cube {
-        data = CubeFields.Frozen(data, parsers[CubeType.FROZEN].fieldDef);
-        const cube: Cube = new cubeClass(CubeType.FROZEN, parsers, required_difficulty);
-        cube.setFields(data);
+    static Frozen(options?: CubeOptions): Cube {
+        // set options
+        if (options === undefined) options = {};
+        options.parsers = options?.parsers ?? coreFieldParsers;
+        options.cubeClass = options?.cubeClass ?? Cube;
+        options.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
+        // prepare fields
+        options.fields = CubeFields.Frozen(
+            options?.fields,  // include the user's custom fields, obviously
+            options.parsers[CubeType.FROZEN].fieldDef);
+        const cube: Cube = new options.cubeClass(CubeType.FROZEN, options);
         return cube;
     }
 
@@ -40,24 +49,32 @@ export class Cube {
      */
     static MUC(publicKey: Buffer | Uint8Array,
                privateKey: Buffer | Uint8Array,
-               data: CubeFields | CubeField[] | CubeField = [],
-               parsers: FieldParserTable = coreFieldParsers,
-               cubeClass: any = Cube,  // type: class
-               required_difficulty = Settings.REQUIRED_DIFFICULTY): Cube {
+               options?: CubeOptions,
+    ): Cube {
+        // set options
+        if (options === undefined) options = {};
+        options.parsers = options?.parsers ?? coreFieldParsers;
+        options.cubeClass = options?.cubeClass ?? Cube;
+        options.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
+        // upgrade keys to Buffer if required
         if (!(publicKey instanceof Buffer)) publicKey = Buffer.from(publicKey);
         if (!(privateKey instanceof Buffer)) privateKey = Buffer.from(privateKey);
-        data = CubeFields.Muc(publicKey, data, parsers[CubeType.MUC].fieldDef);
-        const cube: Cube = new cubeClass(CubeType.MUC, parsers, required_difficulty);
+        // create field set, then create cube
+        options.fields = CubeFields.Muc(
+            publicKey,
+            options?.fields,  // include the user's custom fields, obviously
+            options.parsers[CubeType.MUC].fieldDef);
+        const cube: Cube = new options.cubeClass(CubeType.MUC, options);
+        // supply private key
         cube.privateKey = privateKey as Buffer;
-        cube.setFields(data);
         return cube;
     }
 
     /**
-     * Create an Immutable Persistant Cube, which is a type of smart cube used
+     * Create a Persistant Immutable Cube, which is a type of smart cube used
      * for data to be made available long-term.
      */
-    static PIC(required_difficulty = Settings.REQUIRED_DIFFICULTY): Cube {
+    static PIC(options: CubeOptions): Cube {
         // TODO implement
         return undefined;
     }
@@ -70,7 +87,10 @@ export class Cube {
     readonly _cubeType: CubeType;
     get cubeType(): CubeType { return this._cubeType }
 
+    readonly parsers: FieldParserTable;
     readonly fieldParser: FieldParser;
+
+    readonly requiredDifficulty: number;
 
     protected _fields: CubeFields;
     public get fields(): CubeFields { return this._fields; }
@@ -87,8 +107,7 @@ export class Cube {
     /** Instatiate a Cube object based on an existing, binary cube */
     constructor(
         binaryData: Buffer,
-        parsers?: FieldParserTable,
-        required_difficulty?: number);
+        options?: CubeOptions);
     /**
      * Sculpt a new bare Cube, starting out without any fields.
      * This is only useful if for some reason you need full control even over
@@ -97,13 +116,14 @@ export class Cube {
      **/
     constructor(
         cubeType: CubeType,
-        parsers?: FieldParserTable,
-        required_difficulty?: number);
+        options?: CubeOptions);
     constructor(
             param1: Buffer | CubeType,
-            readonly parsers: FieldParserTable = coreFieldParsers,
-            readonly required_difficulty = Settings.REQUIRED_DIFFICULTY)
+            options?: CubeOptions)
     {
+        // set options
+        this.parsers = options?.parsers ?? coreFieldParsers;
+        this.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
         if (param1 instanceof Buffer) {
             // existing cube, usually received from the network
             const binaryData = param1;
@@ -117,7 +137,7 @@ export class Cube {
                 logger.info(`Cube: Cannot construct cube object of unknown type ${this._cubeType}`);
                 throw new CubeError(`Cannot construct cube object of unknown type ${this._cubeType}`)
             }
-            this.fieldParser = parsers[this._cubeType];
+            this.fieldParser = this.parsers[this._cubeType];
             this._fields = this.fieldParser.decompileFields(this.binaryData);
             if (!this._fields) throw new BinaryDataError("Could not decompile binary Cube");
             this.hash = CubeUtil.calculateHash(binaryData);
@@ -125,8 +145,16 @@ export class Cube {
         } else {
             // sculpt new Cube
             this._cubeType = param1;
-            this.fieldParser = parsers[this._cubeType];
-            this._fields = new CubeFields([], this.fieldParser.fieldDef);
+            this.fieldParser = this.parsers[this._cubeType];
+            if (options?.fields) {  // do we have a field set already?
+                if (!(options.fields instanceof CubeFields)) {
+                    options.fields =
+                        new this.fieldParser.fieldDef.fieldsObjectClass(
+                            options.fields);  // upgrade to CubeFields if needed
+                }
+                this.setFields(options.fields as CubeFields);  // set fields
+            }  // no fields yet? let's just start out with an empty set then
+            else this._fields = new CubeFields([], this.fieldParser.fieldDef);
         }
     }
 
@@ -396,7 +424,7 @@ export class Cube {
                     // Calculate the hash
                     hash = CubeUtil.calculateHash(this.binaryData);
                     // Check if the hash is valid
-                    if (CubeUtil.countTrailingZeroBits(hash) >= this.required_difficulty) {
+                    if (CubeUtil.countTrailingZeroBits(hash) >= this.requiredDifficulty) {
                         // logger.trace("Cube: Found valid hash with nonce " + nonce);
                         resolve(hash);
                         return;  // This is important! It stops the for loop and the function if a valid hash is found

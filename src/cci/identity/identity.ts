@@ -372,7 +372,7 @@ export class Identity {
   */
   async makeMUC(
       applicationString: string = undefined,
-      required_difficulty = this.requiredDifficulty,
+      requiredDifficulty = this.requiredDifficulty,
   ): Promise<cciCube> {
     // Make sure we don't rebuild our MUC too often. This is to limit spam,
     // reduce local hash cash load and to prevent rapid subsequent changes to
@@ -444,7 +444,7 @@ export class Identity {
       ));
     }
     // write subscription recommendations
-    this.writeSubscriptionRecommendations(required_difficulty);
+    this.writeSubscriptionRecommendations(requiredDifficulty);
     if (this.subscriptionRecommendationIndices.length) {
       fields.push(cciField.RelatesTo(
         new cciRelationship(cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
@@ -452,8 +452,11 @@ export class Identity {
           // note: key is always available as this is a MUC
     }
 
-    const newMuc: cciCube = cciCube.MUC(this._muc.publicKey, this._muc.privateKey,
-      fields, cciFieldParsers, required_difficulty);
+    const newMuc: cciCube = cciCube.MUC(this._muc.publicKey, this._muc.privateKey, {
+      fields: fields,
+      parsers: cciFieldParsers,
+      requiredDifficulty: requiredDifficulty
+    });
     await newMuc.getBinaryData();  // compile MUC
     this._muc = newMuc;
 

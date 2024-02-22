@@ -183,7 +183,7 @@ export class CubeInfo {
 
     // Nope, no Cube object cached. Create a new one and remember it.
     try {
-      const cube = new cubeClass(this.binaryCube, parsers);
+      const cube = new cubeClass(this.binaryCube, {parsers: parsers});
       // Can only cache object when using default parser and Cube class.
       if (parsers === this.parsers && cubeClass === this.cubeClass) {
         this.objectCache = new WeakRef(cube);

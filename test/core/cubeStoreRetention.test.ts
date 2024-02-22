@@ -4,6 +4,7 @@ import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
 
 describe('CubeStore Retention Policy', () => {
     let cubeStore;
+    const reducedDifficulty = 0;
 
     beforeEach(() => {
         cubeStore = new CubeStore({
@@ -13,24 +14,27 @@ describe('CubeStore Retention Policy', () => {
         });
     });
 
-    test('should reject a cube with a past date', async () => {
-        const pastCube = Cube.Frozen();
+    it('should reject a cube with a past date', async () => {
+        const pastCube = Cube.Frozen({requiredDifficulty: reducedDifficulty});
         pastCube.setDate(Math.floor(Date.now() / 1000) - (365 * 24 * 60 * 60)); // 1 year ago
 
         let result = await cubeStore.addCube(pastCube);
         expect(result).toBeUndefined();
     });
 
-    test('should reject a cube with a future date', async () => {
-        const futureCube = Cube.Frozen();
+    it('should reject a cube with a future date', async () => {
+        const futureCube = Cube.Frozen({requiredDifficulty: reducedDifficulty});
         futureCube.setDate(Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60)); // 1 year in the future
 
         let result = await cubeStore.addCube(futureCube);
         expect(result).toBeUndefined();
     });
 
-    test('should accept a current cube', async () => {
-        const currentCube = Cube.Frozen();
+    it('should accept a current cube', async () => {
+        // TODO reduce challenge level for tests -- currently running on full
+        // due to lifetime becoming negative on level challenge levels
+        // https://github.com/EliasOenal/verity/issues/134
+        const currentCube = Cube.Frozen({requiredDifficulty: Settings.REQUIRED_DIFFICULTY});
         currentCube.setDate(Math.floor(Date.now() / 1000)); // current time
 
         await cubeStore.addCube(currentCube);
