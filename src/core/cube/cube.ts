@@ -311,10 +311,8 @@ export class Cube {
                 field.start + this.fieldParser.getFieldHeaderLength(field.type);
             field.value = this.binaryData.subarray(offset, offset + field.length);
         }
-        // Hash the cube -- if it'a smart one, this also signs it
-        // TODO: Since Cube 1.0 we should sign first and hashcash later
+        this.signBinaryData();  // sign this Cube if applicable
         await this.generateCubeHash();
-
         if (Settings.RUNTIME_ASSERTIONS) {
             this.validateCube();
         }
@@ -372,6 +370,11 @@ export class Cube {
         // logger.info("cube: Using hash " + this.hash.toString('hex') + "as cubeKey");
     }
 
+    /**
+     * Signs this Cube if it has a SIGNATURE field.
+     * Can safely be called for non-smart cubes, in which case it will simply
+     * do nothing due to the lack of a SIGNATURE field.
+     */
     private signBinaryData(): void {
         const signature: CubeField = this.fields.getFirst(CubeFieldType.SIGNATURE);
         if (!signature) return;  // no signature field, no signature
@@ -419,8 +422,6 @@ export class Cube {
                 for (let i = 0; i < 1000; i++) {
                     // Write the nonce to binaryData
                     nonceField.value.writeUIntBE(nonce, 0, Settings.NONCE_SIZE);
-                    // If this is a MUC and signatureStartIndex is provided, sign the updated data
-                    this.signBinaryData();
                     // Calculate the hash
                     hash = CubeUtil.calculateHash(this.binaryData);
                     // Check if the hash is valid
