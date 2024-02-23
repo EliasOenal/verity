@@ -9,9 +9,7 @@ import { LoginStatusView } from "../view/loginStatusView";
 import { VerityView } from "../view/verityView";
 import { VerityController } from "./verityController";
 
-import { Buffer } from 'buffer';
-import multiavatar from "@multiavatar/multiavatar";
-import { Avatar, AvatarScheme, AvatarSeedLength } from "../../cci/identity/avatar";
+import { Avatar, AvatarScheme } from "../../cci/identity/avatar";
 
 export class IdentityController extends VerityController {
   loginStatusView: LoginStatusView = new LoginStatusView();
