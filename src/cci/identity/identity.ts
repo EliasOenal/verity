@@ -29,6 +29,20 @@ export interface IdentityOptions {
   minMucRebuildDelay?: number,
   requiredDifficulty?: number,
   parsers?: FieldParserTable,
+
+  /**
+   * Adjust how much CPU power it will take to restore an Identity from
+   * username/password. You should never change this except for tests as any
+   * change will invalidate all existing passwords.
+   **/
+  argonCpuHardness?: number,
+
+  /**
+   * Adjust how much RAM it will take to restore an Identity from
+   * username/password. You should never change this except for tests as any
+   * change will invalidate all existing passwords.
+   **/
+  argonMemoryHardness?: number,
 }
 
 // TODO: Split out the MUC management code.
@@ -97,13 +111,14 @@ export class Identity {
       password: string,
       options?: IdentityOptions,
   ): Identity | undefined {
-    const keyPair: KeyPair =
-      Identity.DeriveKeypair(Identity.DeriveMasterKey(username, password));
+    const masterKey: Buffer = Identity.DeriveMasterKey(username, password,
+      options?.argonCpuHardness, options?.argonMemoryHardness);
+    const keyPair: KeyPair = Identity.DeriveKeypair(masterKey);
     const idMuc: cciCube = cubeStore.getCube(
       Buffer.from(keyPair.publicKey), cciFieldParsers, cciCube) as cciCube;
     if (idMuc === undefined) return undefined;
-    idMuc.privateKey = Buffer.from(keyPair.privateKey);
     const identity = new Identity(cubeStore, idMuc, options);
+    identity.supplySecrets(masterKey, Buffer.from(keyPair.privateKey));
     return identity;
   }
 
@@ -114,7 +129,9 @@ export class Identity {
     password: string,
     options?: IdentityOptions,
   ): Identity {
-    const masterKey: Buffer = Identity.DeriveMasterKey(username, password);
+    const masterKey: Buffer = Identity.DeriveMasterKey(
+      username, password,
+      options?.argonCpuHardness, options?.argonMemoryHardness);
     return new Identity(cubeStore, masterKey, options);
   }
 
@@ -127,13 +144,18 @@ export class Identity {
     return keyPair;
   }
 
-  static DeriveMasterKey(username: string, password: string): Buffer {
+  static DeriveMasterKey(
+      username: string,
+      password: string,
+      argonCpuHardness = sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE,
+      argonMemoryHardness = sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE,
+    ): Buffer {
     return Buffer.from(sodium.crypto_pwhash(
       sodium.crypto_sign_SEEDBYTES,
       password,
       sodium.crypto_hash(username, "uint8array").subarray(0, sodium.crypto_pwhash_SALTBYTES),
-      sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE,
-      sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE,
+      argonCpuHardness,
+      argonMemoryHardness,
       sodium.crypto_pwhash_ALG_ARGON2ID13,
       "uint8array"));
   }

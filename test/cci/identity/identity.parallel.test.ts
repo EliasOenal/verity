@@ -10,6 +10,8 @@ describe("Identity2", () => {
   const idTestOptions: IdentityOptions = {
     minMucRebuildDelay: 1, // allow updating Identity MUCs every second
     requiredDifficulty: reducedDifficulty,
+    argonCpuHardness: 1,  // == crypto_pwhash_OPSLIMIT_MIN (sodium not ready)
+    argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
   };
   let cubeStore: CubeStore;
 
@@ -25,6 +27,10 @@ describe("Identity2", () => {
   });
 
   describe("MUC storage basics", () => {
+    // This test has been moved to this parallel test file becaust it makes
+    // three consecutive MUC changes, which must each be spaced at least one
+    // second apart as our minimal time resolution is one full second.
+    // Threfore, it by definition takes at least three seconds.
     it("correctly handles subsequent changes", async () => {
       const id: Identity = Identity.Create(
         cubeStore,
@@ -66,6 +72,9 @@ describe("Identity2", () => {
   });
 
   describe("MUC storage", () => {
+    // This test has been moved to this parallel test file because it uses the
+    // actual default minimum MUC spacing of 5 seconds, and therefore by
+    // definition takes at least 5 seconds.
     it("combines makeMUC requests spaced less than 5 seconds apart", async () => {
       const id: Identity = Identity.Create(
         cubeStore,

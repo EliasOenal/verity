@@ -20,6 +20,7 @@ import { logger } from "../core/logger";
 
 /**
  * Creates a new Cube containing a correctly formed text post.
+ * Don't forget to add it to your cubeStore!
  * Don't forget to call Identity.store() on your Identity object afterwards!
  */
 export async function makePost(
