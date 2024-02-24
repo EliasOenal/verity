@@ -27,7 +27,7 @@ interface TrackerResponse {
 // TODO: We should persist known peers locally, at least the verified ones.
 /**
  * Stores all of our known peers, non-persistantly (for now).
- * Every peer is either considered unverified, verified, exchangeable or blocklisted
+ * Every peer is either considered unverified, verified, exchangeable or blocked
  * (and will be stored in the appropriate array).
  * A peer starts out as unverified and gets verified once we have received a
  * HELLO and learned their ID. It gets promoted to exchangeable if it has a
@@ -72,8 +72,8 @@ export class PeerDB extends EventEmitter {
      * TODO: Blocklist is currently checked on connection attempts.
      * TODO: Should allow for un-blocklisting after some amount of time.
      */
-    private _peersBlocklisted: Map<string,Peer> = new Map();
-    get peersBlocklisted(): Map<string,Peer> { return this._peersBlocklisted }
+    private _peersBlocked: Map<string,Peer> = new Map();
+    get peersBlocked(): Map<string,Peer> { return this._peersBlocked }
     private announceTimer?: NodeJS.Timeout;
     private static trackerUrls: string[] = ['http://tracker.opentrackr.org:1337/announce',
         'http://tracker.openbittorrent.com:80/announce',
@@ -206,7 +206,7 @@ export class PeerDB extends EventEmitter {
         this.removeExchangeablePeer(peer);
         // blocklist all of this peer's addresses
         for (const address of peer.addresses) {
-            this.peersBlocklisted.set(address.toString(), peer);
+            this.peersBlocked.set(address.toString(), peer);
             logger.info('PeerDB: Blocklisting peer ' + peer.toString() + ' using address ' + address.toString());
         }
     }
@@ -217,7 +217,7 @@ export class PeerDB extends EventEmitter {
             const addrString = address.toString();
             this._peersUnverified.delete(address.toString());
             // Abort if peer is found in blocklist.
-            if (this.peersBlocklisted.has(addrString)) return;
+            if (this.peersBlocked.has(addrString)) return;
         }
         // If a peer is already exchangeable, which is a higher status than verified,
         // call markPeerExchangeable instead (this is to ensure we replace any
@@ -240,7 +240,7 @@ export class PeerDB extends EventEmitter {
         for (const address of peer.addresses) {
             const addrString = address.toString();
             this._peersUnverified.delete(address.toString());
-            if (this.peersBlocklisted.has(addrString)) return;
+            if (this.peersBlocked.has(addrString)) return;
         }
         // Remove from verified list
         this.peersVerified.delete(peer.idString);
