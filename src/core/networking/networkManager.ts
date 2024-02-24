@@ -351,10 +351,10 @@ export class NetworkManager extends EventEmitter {
         // Verify this peer is valid (just checking if there is an ID for now)
         if (!peer.id) throw new VerityError(`NetworkManager.handlePeerOnline(): Peer ${peer.toString()} cannot be "online" if we don't know its ID. This should never happen.`);
 
-        // Does this peer need to be blocklisted?
+        // Does this peer need to be blocked?
         // Just checking if we're connected to self for now...
         if (peer.id.equals(this.id)) {
-            this.closeAndBlocklistPeer(peer);
+            this.closeAndBlockPeer(peer);
             return false;
         }
 
@@ -418,12 +418,12 @@ export class NetworkManager extends EventEmitter {
     }
 
     /** Disconnect and blocklist this peer */
-    closeAndBlocklistPeer(peer: NetworkPeer): void {
+    closeAndBlockPeer(peer: NetworkPeer): void {
         // disconnect
         peer.close();
         // blocklist
         this._peerDB.blocklistPeer(peer);
-        logger.warn(`NetworkManager: Peer ${peer.toString()} has been blocklisted.`);
+        logger.warn(`NetworkManager: Peer ${peer.toString()} has been blocked.`);
         this.emit('blocklist', peer);
     }
 
@@ -503,7 +503,7 @@ export class NetworkManager extends EventEmitter {
         output += `Connected Peers: ${this.outgoingPeers.length + this.incomingPeers.length}\n`;
         output += `Verified Peers: ${Array.from(this._peerDB.peersVerified.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
         output += `Unverified Peers: ${Array.from(this._peerDB.peersUnverified.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
-        output += `Blocklisted Peers: ${Array.from(this._peerDB.peersBlocklisted.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
+        output += `Blocked Peers: ${Array.from(this._peerDB.peersBlocked.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
         output += 'Packet Types:\n';
 
         for (const type in totalStats.tx.messageTypes) {

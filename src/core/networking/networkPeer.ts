@@ -252,7 +252,7 @@ export class NetworkPeer extends Peer {
             this.scoreInvalidMessage();
             logger.info(`NetworkPeer ${this.toString()}: error while handling message: ${err}; stack trace: ${err.stack}`);
             // Blocklist repeat offenders based on local trust score
-            if (!this.isTrusted) this.networkManager.closeAndBlocklistPeer(this);
+            if (!this.isTrusted) this.networkManager.closeAndBlockPeer(this);
             // Maybe we should remove blocklisting
             // after a defined timespan (increasing for repeat offenders)?
             // Blocklist entries based on IP/Port are especially sensitive
@@ -527,7 +527,7 @@ export class NetworkPeer extends Peer {
     }
 
     // TODO generalize: We should be allowed to have and send multiple server addresses
-    // In particular, nodes offering plan WS and Libp2p sockets should always
+    // In particular, nodes offering both plain WS and Libp2p sockets should always
     // advertise both of them, as non-libp2p enabled nodes will obviously need
     // the former and libp2p-enabled nodes must prefer the latter in order to
     // use libp2p features such as WebRTC brokering.
