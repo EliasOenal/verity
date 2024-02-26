@@ -15,6 +15,10 @@ import { multiaddr } from '@multiformats/multiaddr'
 import sodium from 'libsodium-wrappers-sumo'
 import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
 import { Settings } from '../../../src/core/settings';
+import { Libp2pConnection } from '../../../src/core/networking/transport/libp2p/libp2pConnection';
+import { Libp2pTransport } from '../../../src/core/networking/transport/libp2p/libp2pTransport';
+import { AddressAbstraction } from '../../../src/core/peering/addressing';
+import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 
 // Note: Most general functionality concerning NetworkManager, NetworkPeer
 // etc is described within the WebSocket tests while the libp2p tests are more
@@ -468,14 +472,234 @@ describe('networkManager - libp2p connections', () => {
   }, 20000);
 
 
-  it.skip('brokers direct WebRTC connections between clients', async() => {
-    // TODO IMPLEMENT
-  });
+  it.skip('brokers WebRTC connections between clients', async() => {
+    const networkManagerOptions: NetworkManagerOptions = {
+      announceToTorrentTrackers: false,
+      autoConnect: false,
+      lightNode: false,
+      peerExchange: false,
+      useRelaying: true,
+    }
+
+    // Create two "browser" (= non listening) nodes and a "server" (= WS listening node)
+    // All connections are initiated manually in this test, peer exchange is
+    // disabled.
+    const browser1 = new NetworkManager(
+      new CubeStore(testCubeStoreParams),
+      new PeerDB(),
+      new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
+      networkManagerOptions
+    );
+    const browser2 = new NetworkManager(
+      new CubeStore(testCubeStoreParams),
+      new PeerDB(),
+      new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
+      networkManagerOptions
+    );
+    const server = new NetworkManager(
+      new CubeStore(testCubeStoreParams),
+      new PeerDB(),
+      new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17290/ws']]),
+      networkManagerOptions
+    );
+    await server.start();
+    await browser1.start();
+    await browser2.start();
+
+    // assert we have libp2p transport
+    expect(server.transports.size).toEqual(1);
+    const serverlibp2pTransport: Libp2pTransport = server.transports.get(
+      SupportedTransports.libp2p) as Libp2pTransport;
+    expect(serverlibp2pTransport).toBeInstanceOf(Libp2pTransport);
+    expect(browser1.transports.size).toEqual(1);
+    const b1libp2pTransport: Libp2pTransport = browser1.transports.get(
+      SupportedTransports.libp2p) as Libp2pTransport;
+    expect(b1libp2pTransport).toBeInstanceOf(Libp2pTransport);
+    expect(browser2.transports.size).toEqual(1);
+    const b2libp2pTransport: Libp2pTransport = browser2.transports.get(
+      SupportedTransports.libp2p) as Libp2pTransport;
+    expect(b2libp2pTransport).toBeInstanceOf(Libp2pTransport);
+
+    // assert there are no connections yet and auto-connect is off
+    expect(server.outgoingPeers.length).toEqual(0);
+    expect(browser1.outgoingPeers.length).toEqual(0);
+    expect(browser2.outgoingPeers.length).toEqual(0);
+    expect(server.incomingPeers.length).toEqual(0);
+    expect(browser1.incomingPeers.length).toEqual(0);
+    expect(browser2.incomingPeers.length).toEqual(0);
+    expect(browser1.autoConnect).toBeFalsy();
+    expect(browser2.autoConnect).toBeFalsy();
+
+    // connect both browsers to the server;
+    // double-check server also considers itself connected to both browsers
+    const b1ToServerNp = browser1.connect(new Peer(multiaddr('/ip4/127.0.0.1/tcp/17290/ws')));
+    expect(browser1.outgoingPeers.length).toEqual(1);
+    await b1ToServerNp.onlinePromise;
+    expect(server.incomingPeers.length).toEqual(1);
+    const serverToB1Np = server.incomingPeers[0];
+    await serverToB1Np.onlinePromise;
+    expect(server.outgoingPeers.length).toEqual(0);
+    expect(browser1.outgoingPeers.length).toEqual(1);
+    expect(browser2.outgoingPeers.length).toEqual(0);
+    expect(server.incomingPeers.length).toEqual(1);
+    expect(browser1.incomingPeers.length).toEqual(0);
+    expect(browser2.incomingPeers.length).toEqual(0);
+
+    const b2ToServerNp = browser2.connect(new Peer(multiaddr('/ip4/127.0.0.1/tcp/17290/ws')));
+    expect(browser2.outgoingPeers.length).toEqual(1);
+    await b2ToServerNp.onlinePromise;
+    expect(server.incomingPeers.length).toEqual(2);
+    const serverToB2Np = server.incomingPeers[1];
+    await serverToB2Np.onlinePromise;
+    expect(server.outgoingPeers.length).toEqual(0);
+    expect(browser1.outgoingPeers.length).toEqual(1);
+    expect(browser2.outgoingPeers.length).toEqual(1);
+    expect(server.incomingPeers.length).toEqual(2);
+    expect(browser1.incomingPeers.length).toEqual(0);
+    expect(browser2.incomingPeers.length).toEqual(0);
+
+    // server conns should never be transient
+    expect((b1ToServerNp.conn as Libp2pConnection).conn.transient).toBeFalsy();
+    expect((b2ToServerNp.conn as Libp2pConnection).conn.transient).toBeFalsy();
+    expect((serverToB1Np.conn as Libp2pConnection).conn.transient).toBeFalsy();
+    expect((serverToB2Np.conn as Libp2pConnection).conn.transient).toBeFalsy();
+
+    // double check that all are connected as expected by comparing their IDs
+    // (Verity random IDs that is, not libp2p IDs)
+    expect(b1ToServerNp.idString).toEqual(server.idString);
+    expect(b2ToServerNp.idString).toEqual(server.idString);
+    expect(serverToB1Np.idString).toEqual(browser1.idString);
+    expect(serverToB2Np.idString).toEqual(browser2.idString);
+
+    // thanks to the browser's libp2p circuitRelayServer, both browsers should
+    // now have a dialable address via server, i.e. including the server's
+    // libp2p ID
+    await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
+    b1libp2pTransport.addressChange();  // HACKHACK: poll for dialable address due to
+    b2libp2pTransport.addressChange();  // lack of sensible event handler
+    expect(b1libp2pTransport.dialableAddress).toBeInstanceOf(AddressAbstraction);
+    expect(b2libp2pTransport.dialableAddress).toBeInstanceOf(AddressAbstraction);
+    const serverLibp2pId = serverlibp2pTransport.node.peerId.toString();
+    expect(b1libp2pTransport.dialableAddress.toString().includes(serverLibp2pId)).toBeTruthy();
+    expect(b2libp2pTransport.dialableAddress.toString().includes(serverLibp2pId)).toBeTruthy();
+
+    // connect browser1 to browser2
+    const b1ToB2Np = browser1.connect(new Peer(b2libp2pTransport.dialableAddress));
+    await b1ToB2Np.onlinePromise;
+
+    // expect connected
+    expect(server.outgoingPeers.length).toEqual(0);
+    expect(browser1.outgoingPeers.length).toEqual(2);
+    expect(browser2.outgoingPeers.length).toEqual(1);
+    expect(server.incomingPeers.length).toEqual(2);
+    expect(browser1.incomingPeers.length).toEqual(0);
+    expect(browser2.incomingPeers.length).toEqual(1);
+
+    // wait for HELLO exchange to have completed both ways
+    const b2ToB1Np = browser2.incomingPeers[0];
+    await b2ToB1Np.onlinePromise;
+
+    // double check browser 1 and 2 are connected as expected by comparing their
+    // IDs (Verity random IDs again, not libp2p IDs)
+    expect(b1ToB2Np.idString).toEqual(browser2.idString);
+    expect(b2ToB1Np.idString).toEqual(browser1.idString);
+
+    // share a Cube between the browsers
+    {  // browser1 to browser2
+      const cubeSent: Cube = Cube.Frozen({
+        fields: CubeField.Payload("Hic cubus directe ad collegam meum iturus est"),
+        requiredDifficulty: reducedDifficulty  // no hashcash for faster testing
+      });
+      await browser1.cubeStore.addCube(cubeSent);
+      // anticipate arrival of Cube at browser 2
+      expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
+      let cubeReceived: Cube = undefined;
+      const cubeReceivedPromise = new Promise<void>(
+        (resolve) => browser2.cubeStore.once('cubeAdded', (cubeInfo: CubeInfo) => {
+          cubeReceived = cubeInfo.getCube(coreTlvFieldParsers);
+          resolve();
+      }));
+      // Send the Cube --
+      // hack: gratuitous cube shares not cleanly implemented yet, so let's
+      // just pretent browser2 somehow learned about this cube and requests it
+      b2ToB1Np.sendCubeRequest([await cubeSent.getKey()]);
+      await cubeReceivedPromise;
+      expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+      expect(cubeReceived).toBeInstanceOf(Cube);
+      expect(cubeReceived.fields.getFirst(CubeFieldType.PAYLOAD).
+        value.toString('utf8')).toEqual(
+          "Hic cubus directe ad collegam meum iturus est");
+    }
+
+    // Shut down the server
+    await b1ToServerNp.close();
+    await b2ToServerNp.close();
+    await serverToB1Np.close();
+    await serverToB2Np.close();
+    await server.shutdown();
+    expect(serverlibp2pTransport.node.status).toEqual("stopped");
+    await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
+    expect(browser1.outgoingPeers.length).toEqual(1);
+    expect(browser2.outgoingPeers.length).toEqual(0);
+    expect(browser1.incomingPeers.length).toEqual(0);
+    expect(browser2.incomingPeers.length).toEqual(1);
+    expect(b1libp2pTransport.node.status).toEqual("started");
+    expect(b2libp2pTransport.node.status).toEqual("started");
+    expect((b1ToB2Np.conn as Libp2pConnection).conn.status).toEqual("open");
+    expect((b2ToB1Np.conn as Libp2pConnection).conn.status).toEqual("open");
+    expect((b1ToB2Np.conn as Libp2pConnection).rawStream.status).toEqual("open");
+    expect((b2ToB1Np.conn as Libp2pConnection).rawStream.status).toEqual("open");
+
+    // Now with the server guaranteed to no longer be present, share another Cube
+    // between the browsers
+    {  // browser2 to browser1
+      const cubeSent: Cube = Cube.Frozen({
+        fields: CubeField.Payload("Gratias collega, cubus tuus aestimatur."),
+        requiredDifficulty: reducedDifficulty  // no hashcash for faster testing
+      });
+      await browser2.cubeStore.addCube(cubeSent);
+      expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+      expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(2);
+
+      // anticipate arrival of Cube at browser 1
+      let cubeReceived: Cube = undefined;
+      const cubeReceivedPromise = new Promise<void>(
+        (resolve) => browser1.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => {
+          cubeReceived = cubeInfo.getCube();
+          resolve();
+      }));
+      // Send the Cube --
+      // hack: gratuitous cube shares not cleanly implemented yet, so let's
+      // just pretent browser1 somehow learned about this cube and requests it
+      b1ToB2Np.sendCubeRequest([await cubeSent.getKey()]);
+
+      // FAIL: this never happens
+      await cubeReceivedPromise;
+      // Instead, the WebRTC connection gets closed.
+      // Even though using the debugger it absolutely looked like a genuine,
+      // direct WebRTC connection using a genuine, native WebRTC stream
+
+      expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(2);
+      expect(cubeReceived).toBeInstanceOf(Cube);
+      expect(cubeReceived.fields.getFirst(CubeFieldType.PAYLOAD).
+        value.toString('hex')).toEqual(
+          "Gratias collega, cubus tuus aestimatur.");
+    }
+
+    await browser1.shutdown();
+    await browser2.shutdown();
+    await server.shutdown();
+    expect(b1libp2pTransport.node.status).toEqual("stopped");
+    expect(b2libp2pTransport.node.status).toEqual("stopped");
+    expect(serverlibp2pTransport.node.status).toEqual("stopped");
+  }, 300000);
+
+
 
   // TODO DEBUG
   // I really don't understand why this test fails, but understanding it
   // could be the key to undestanding libp2p
-  it.skip('keeps WebRTC peers connected even if the WS server goes down', async () => {
+  it.skip('auto-connects WebRTC peers and keeps them connected even if the WS server goes down', async () => {
     // create two "browser" (= non listening) nodes and a "server" (= WS listening node)
     const serverOptions: NetworkManagerOptions = {
       announceToTorrentTrackers: false,
@@ -545,10 +769,18 @@ describe('networkManager - libp2p connections', () => {
     expect(browser1.incomingPeers.length).toEqual(1);
     await browser1.incomingPeers[0].onlinePromise;
 
+    // browser-to-browser connections should have been upgrade to non-transient,
+    // i.e. a direct, non-tunnelled connection
+    const libp2pConnAtBrowser1 =
+      (browser1.incomingPeers[1].conn as Libp2pConnection).conn;
+    const libp2pConnAtBrowser2 =
+      (browser2.outgoingPeers[1].conn as Libp2pConnection).conn;
+    expect(libp2pConnAtBrowser2.transient).toBeFalsy();
+    expect(libp2pConnAtBrowser1.transient).toBeFalsy();
+
+    // that's all the connections we want, disable auto-connect
     browser1.autoConnect = false;
     browser2.autoConnect = false;
-
-    await new Promise(resolve => setTimeout(resolve, 5000));
 
     // Shut down server
     const browser1Closed = new Promise(resolve => browser1.on("peerclosed", resolve));
@@ -573,8 +805,10 @@ describe('networkManager - libp2p connections', () => {
     // Create a Cube and exchange it between browsers
     expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(0);
     expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
-    const cube: Cube = Cube.Frozen({requiredDifficulty: reducedDifficulty});  // no hashcash for faster testing
-    cube.setFields(CubeField.Payload("Hic cubus directe ad collegam meum iturus est"));
+    const cube: Cube = Cube.Frozen({
+      fields: CubeField.Payload("Hic cubus directe ad collegam meum iturus est"),
+      requiredDifficulty: reducedDifficulty  // no hashcash for faster testing
+    });
     const cubeKey: Buffer = await cube.getKey();
     browser1.cubeStore.addCube(cube);
 

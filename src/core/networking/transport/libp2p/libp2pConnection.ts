@@ -17,9 +17,9 @@ import { Uint8ArrayList } from 'uint8arraylist'
 import { AddressAbstraction } from "../../../peering/addressing";
 
 export class Libp2pConnection extends TransportConnection {
-  private conn: Connection = undefined;
-  private stream: LengthPrefixedStream;
-  private rawStream: Stream;
+  conn: Connection = undefined;
+  stream: LengthPrefixedStream;
+  rawStream: Stream;
 
   constructor(
       connParam: IncomingStreamData | Multiaddr,
@@ -161,12 +161,11 @@ export class Libp2pConnection extends TransportConnection {
       this.close();
       return;
     }
-    try {
-      this.stream.write(message);
-    } catch(error) {
-      logger.error(`${this.toString()} in send(): Error writing to stream. Error was: ${error}`);
-    }
-    // logger.trace("Libp2pPeerConnection: Sending message of length " + message.length + " to " + this.addressString + ", raw bytes: " + message.toString('hex'));
+      this.stream.write(message).
+        catch(error => {
+          logger.error(`${this.toString()} in send(): Error writing to stream. Error was: ${error}`);
+          this.close();
+      });
   }
 
   type(): SupportedTransports {
