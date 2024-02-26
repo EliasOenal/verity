@@ -93,7 +93,9 @@ export class Libp2pTransport extends NetworkTransport {
       rtcConfiguration: {
         iceServers:[{
           // TODO get rid of third-party STUN servers
-          // Why do we even use those on brokered connections?!
+          // STUN is unfortunately needed in libp2p, apparently as they need to
+          // rely on a standard/trusted protocol exposed through browser APIs.
+          // Implement a STUN service on our full nodes maybe?
           urls: [
             'stun:stun.l.google.com:19302',
             'stun:global.stun.twilio.com:3478'
