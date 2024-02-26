@@ -128,14 +128,14 @@ export class Cube {
             // existing cube, usually received from the network
             const binaryData = param1;
             if (binaryData.length !== NetConstants.CUBE_SIZE) {
-                logger.info(`Cube: Cannot construct Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
-                throw new BinaryLengthError(`Cannot construct Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
+                logger.warn(`Cube: Cannot sculpt Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
+                throw new BinaryLengthError(`Cannot sculpt Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
             }
             this.binaryData = binaryData;
             this._cubeType = Cube.Type(binaryData);
             if (!(this._cubeType in CubeType)) {
-                logger.info(`Cube: Cannot construct cube object of unknown type ${this._cubeType}`);
-                throw new CubeError(`Cannot construct cube object of unknown type ${this._cubeType}`)
+                logger.warn(`Cube: Cannot sculpt cube object of unknown type ${this._cubeType}`);
+                throw new CubeError(`Cannot sculpt cube object of unknown type ${this._cubeType}`)
             }
             this.fieldParser = this.parsers[this._cubeType];
             this._fields = this.fieldParser.decompileFields(this.binaryData);
@@ -267,7 +267,7 @@ export class Cube {
     /**
      * Automatically add Padding to reach full Cube length.
      * You don't need to call that manually, we will do that for you whenever
-     * you request binary data.
+     * you request binary data. It can however safely be called multiple times.
      */
     public padUp(): boolean {
         // pad up to 1024 bytes if necessary
@@ -293,11 +293,11 @@ export class Cube {
         this.hash = undefined;
     }
 
-    // TODO: This should be refactored to use FieldParser.compileFields().
-    // Currently it opts out of certain compile steps and calls
-    // FieldParser.updateTLVBinaryData() directly, which should really be private.
-    // This does NOT calculate a hash, but all public methods calling it will
-    // take care of that.
+    /**
+     * Compiles this Cube into a binary Buffer to be stored or transmitted
+     * over the wire. This will also (re-)calculate this cube's hash challenge.
+     * If required, it will also add padding and/or sign the Cube.
+     **/
     private async setBinaryData(): Promise<void> {
         this.padUp();
         // compile it
