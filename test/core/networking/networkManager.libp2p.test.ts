@@ -83,23 +83,35 @@ describe('networkManager - libp2p connections', () => {
         peerExchange: false,
     });
     await client.start();
-    const peerObj = client.connect(new Peer('/ip4/127.0.0.1/tcp/17102/ws'));
+    const clientToServer: NetworkPeer =
+      client.connect(new Peer('/ip4/127.0.0.1/tcp/17102/ws'));
 
     // node still offline now as connect is obviously async
     expect(server.online).toBeFalsy();
     expect(client.online).toBeFalsy();
-    expect(peerObj.online).toBeFalsy();
+    expect(clientToServer.online).toBeFalsy();
+
+    // anticipate incoming connection on server
+    let serverToClient: NetworkPeer;
+    const serverToClientPromise = new Promise<void>(
+      (resolve) => server.once('incomingPeer', (np: NetworkPeer) => {
+        serverToClient = np;
+        resolve();
+    }));
 
     // wait for connection to establish and HELLOs to be exchanged
-    await peerObj.onlinePromise;
+    await clientToServer.onlinePromise;
+    await serverToClientPromise;
+    expect(serverToClient).toBeInstanceOf(NetworkPeer);
+    await serverToClient.onlinePromise;
 
     // now they should be online!
-    expect(peerObj.online).toBeTruthy();
-    expect(server.online).toBeTruthy();
+    expect(clientToServer.online).toBeTruthy();
     expect(client.online).toBeTruthy();
+    expect(server.online).toBeTruthy();
     expect(client.outgoingPeers.length).toEqual(1);
     expect(client.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
-    expect(client.outgoingPeers[0]).toBe(peerObj);
+    expect(client.outgoingPeers[0]).toBe(clientToServer);
     expect(server.incomingPeers.length).toEqual(1);
     expect(server.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
 
