@@ -2,6 +2,7 @@ import { Peer } from "../../core/peering/peer";
 import { NetworkPeer } from "../../core/networking/networkPeer";
 import { logger } from "../../core/logger";
 import { VerityView } from "./verityView";
+import { unixtime } from "../../core/helpers";
 
 export class PeerView extends VerityView {
   private peerList: HTMLUListElement;
@@ -23,7 +24,7 @@ export class PeerView extends VerityView {
     this.peerList.replaceChildren();
   }
 
-  displayPeer(peer: Peer, li?: HTMLLIElement): HTMLLIElement {
+  displayPeer(peer: NetworkPeer, li?: HTMLLIElement): HTMLLIElement {
     let newli: boolean = false;
     if (!li) {
       newli = true;
@@ -35,7 +36,7 @@ export class PeerView extends VerityView {
     return li;
   }
 
-  redrawPeerData(peer: Peer, peerLi: HTMLLIElement): void {
+  redrawPeerData(peer: NetworkPeer, peerLi: HTMLLIElement): void {
     logger.trace("PeerView: (Re-)Displaying peer "+ peer.toString());
     try {
       // Print & set peer ID on all relevant elements
@@ -53,8 +54,19 @@ export class PeerView extends VerityView {
       } else {
         connField.innerText = "(not connected)"
       }
+      // Print connection status
+      const statusField: HTMLTableCellElement =
+        peerLi.querySelector('.verityPeerTransmissionStatus');
+      if (peer.conn.errorCount === 0) {
+        statusField.innerText = "OK";
+      } else {
+        statusField.innerText = `${peer.conn.errorCount} errors over ${
+            unixtime() - peer.conn.lastSuccessfulTransmission
+          } seconds`;
+      }
       // Print all known addresses
-      const addrsList: HTMLTableCellElement = peerLi.querySelector('.verityPeerAddressList');
+      const addrsList: HTMLTableCellElement =
+        peerLi.querySelector('.verityPeerAddressList');
       addrsList.replaceChildren();
       for (let i=0; i<peer.addresses.length; i++) {
         const addrLi = document.createElement('li');

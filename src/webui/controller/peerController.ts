@@ -46,12 +46,13 @@ export class PeerController extends VerityController {
     }
   }
 
-  displayPeer(peer: Peer): void {
+  displayPeer(peer: NetworkPeer): void {
     if (!peer.id) return;  // this should never have been called for non-verified peers
     // Peer already displayed?
     let li: HTMLLIElement = this.displayedPeers.get(peer.idString);
     li = this.peerView.displayPeer(peer, li);
     this.displayedPeers.set(peer.idString, li);
+    peer.conn.once("transmissionLogged", () => this.displayPeer(peer));
   }
 
   undisplayPeer(idString: string): void {
@@ -79,7 +80,7 @@ export class PeerController extends VerityController {
     const peerIdString = button.getAttribute("data-peerid");
     const peer: Peer = this.peerDB.getPeer(peerIdString);
     if (!peer) {
-      logger.error(`PeerController.makeAddressPrimary(): Tried to set primary address for peer ${peerIdString}, but I can't find them.`);
+      logger.warn(`PeerController.makeAddressPrimary(): Tried to set primary address for peer ${peerIdString}, but I can't find them.`);
       return;
     }
     const index: number = parseInt(button.getAttribute("data-addrindex"));
@@ -88,7 +89,8 @@ export class PeerController extends VerityController {
       return;
     }
     peer.primaryAddressIndex = index;
-    this.displayPeer(peer);  // redisplay
+    if (peer instanceof NetworkPeer) this.displayPeer(peer);  // redisplay
+    else this.undisplayPeer(peer.idString);  // apparently no longer connected
   }
 
   disconnectPeer(button: HTMLButtonElement, reconnect: boolean = false): void {

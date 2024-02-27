@@ -85,13 +85,8 @@ export class WebSocketConnection extends TransportConnection {
    * called directly.
    */
   close(): Promise<void> {
-    logger.trace(`${this.toString()}: close() called`);
     this.socketClosedController.abort();  // removes all listeners from this.ws
-
-    // Send the closed signal first (i.e. let the NetworkPeer closed handler run
-    // first) so nobody tries to send any further messages to our closing socket
-    this.emit("closed");
-    this.removeAllListeners();
+    super.close();
 
     // Close the socket, if not already closed or closing
     if (this._ws.readyState < this._ws.CLOSING) {  // only close if not already closing
