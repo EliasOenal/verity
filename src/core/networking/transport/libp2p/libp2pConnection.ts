@@ -1,5 +1,5 @@
 import { VerityError } from "../../../settings";
-import { SupportedTransports } from "../../networkDefinitions";
+import { NetworkError, SupportedTransports } from "../../networkDefinitions";
 
 import { Libp2pTransport } from "./libp2pTransport";
 import { TransportConnection } from "../transportConnection";
@@ -32,15 +32,68 @@ export class Libp2pConnection extends TransportConnection {
     );
 
     if ('stream' in connParam && 'connection' in connParam) { // "instanceof IncomingStreamData"
-      this.conn = connParam.connection;
-      this.rawStream = connParam.stream;
-      this.stream = lpStream(this.rawStream);
-      if (this.ready()) this.emit("ready");
-      logger.trace(this.toString() + " created on existing conn");
-      this.handleStreams();
+      this.acceptConn(connParam);
     } else {  // "conn_param instanceof Multiaddr" -- I really don't want to manually check if this correctly implements Multiaddr
       this.createConn(connParam);
     }
+  }
+
+  async createConn(addr: Multiaddr) {
+    logger.trace("Libp2pPeerConnection: Creating new connection to " + addr.toString());
+    try {
+      this.conn = await this.transport.node.dial(addr);
+      if (!(await this.isConnReady())) return this.close();
+      this.rawStream = await this.conn.newStream("/verity/1.0.0");
+      this.stream = lpStream(this.rawStream);
+      if (this.ready()) this.emit("ready");
+      else throw new NetworkError("Libp2p connection not open and I have no clue why");
+      logger.trace("Libp2pPeerConnection: Successfully connected to " + addr.toString() + ". My multiaddrs are " + this.transport.node.getMultiaddrs() + " and my peer ID is " + Buffer.from(this.transport.node.peerId.publicKey).toString('hex'));
+      this.handleStreams();
+    } catch (error) {
+      // TODO FIXME: This currently happens when we try to dial a libp2p connection before
+      // our libp2p node object has been initialized, and we always do that on startup.
+      logger.info("Libp2pPeerConnection: Connection to " + addr.toString() + " failed or closed or something: " + error);
+      this.close();
+    }
+  }
+
+  async acceptConn(incoming: IncomingStreamData) {
+    this.conn = incoming.connection;
+    if (!(await this.isConnReady())) return this.close();
+    this.rawStream = incoming.stream;
+    this.stream = lpStream(this.rawStream);
+    if (this.ready()) this.emit("ready");
+    else throw new NetworkError("Libp2p connection not open and I have no clue why");
+    logger.trace(this.toString() + " created on existing or incoming conn");
+    this.handleStreams();
+  }
+
+  private async isConnReady(): Promise<boolean> {
+    if (this.conn.status !== 'open') {
+      logger.warn(`${this.toString()}: Underlying conn is not open, closing. This should never happen.`);
+      this.close();
+      return false;
+    }
+    if (this.conn.transient) {
+      logger.trace(`${this.toString()}: Connection is transient. Waiting up to 10 seconds for it to upgrade.`);
+      // TODO HACKHACK: This is obviously the most ridiculous hack ever.
+      // Apparently, there once upon a time was a peer:update event you could
+      // listen to, but it doesn not seem to exist anymore.
+      // I don't understand libp2p.
+      for (let i = 0; i < 100; i++) {
+        if (!this.conn.transient) {
+            break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      if (this.conn.transient) {
+        logger.info(`${this.toString()}: Connection still transient after 10 seconds. Giving up, closing.`)
+        this.close();
+        return false;
+      }
+    }
+    if (this.conn.status === 'open' && this.conn.transient === false) return true;
+    else return false;
   }
 
   async handleStreams() {
@@ -80,42 +133,6 @@ export class Libp2pConnection extends TransportConnection {
     }
   }
 
-  async createConn(addr: Multiaddr) {
-    logger.trace("Libp2pPeerConnection: Creating new connection to " + addr.toString());
-    try {
-      this.conn = await this.transport.node.dial(addr);
-      if (this.conn.transient) {
-        logger.trace(`Libp2pPeerConnection to ${addr.toString()}: Connection is transient. Waiting up to 10 seconds for it to upgrade.`);
-        // TODO HACKHACK: This is obviously the most ridiculous hack ever.
-        // Apparently, there once upon a time was a peer:update event you could
-        // listen to, but it doesn not seem to exist anymore.
-        // I don't understand libp2p.
-        for (let i = 0; i < 100; i++) {
-          if (!this.conn.transient) {
-              break;
-          }
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        if (this.conn.transient) {
-          logger.error(`Libp2pPeerConnection to ${addr.toString()}: Connection still transient after 10 seconds. Giving up, closing.`)
-          this.close();
-          return;
-        }
-      }
-      this.rawStream = await this.conn.newStream("/verity/1.0.0");
-      this.stream = lpStream(this.rawStream);
-      if (this.ready()) this.emit("ready");
-      else throw new VerityError("Libp2p connection not open and I have no clue why");
-      logger.trace("Libp2pPeerConnection: Successfully connected to " + addr.toString() + ". My multiaddrs are " + this.transport.node.getMultiaddrs() + " and my peer ID is " + Buffer.from(this.transport.node.peerId.publicKey).toString('hex'));
-      this.handleStreams();
-    } catch (error) {
-      // TODO FIXME: This currently happens when we try to dial a libp2p connection before
-      // our libp2p node object has been initialized, and we always do that on startup.
-      logger.info("Libp2pPeerConnection: Connection to " + addr.toString() + " failed or closed or something: " + error);
-      this.close();
-    }
-  }
-
   close(): Promise<void> {
     logger.info("Libp2pPeerConnection: Closing connection to " + this.addressString);
     // Send the "closed" signal first (i.e. let the NetworkPeer closed handler run
@@ -127,18 +144,22 @@ export class Libp2pConnection extends TransportConnection {
       try {
         closePromises.push(this.rawStream.close());
       } catch(error) {
-        logger.error(`${this.toString()} in close(): Error closing libp2p stream. This should not happen. Error was: ${error}`);
+        logger.info(`${this.toString()} in close(): Error closing libp2p stream. This should not happen. Error was: ${error}`);
       }
     }
-    // Kind of a strange decision to fully close the conn as they're usually
-    // auto-managed in libp2p.
-    // Furthermore, our streams are a bit flimsy and often close for no apparent reason.
-    // We probably should really stop keeping streams open in the first place.
-    if (this.conn) {
-      closePromises.push(this.transport.node.hangUp(this.conn.remotePeer));
-      // this is redundant:
-      closePromises.push(this.conn.close());
-    }
+    // We can't just close the conn: Connections are usually auto-managed in
+    // libp2p and, in particular, are also auto-reused: Closing this
+    // libp2-level connection may inadvertantly kill off another of our
+    // Verity-level connections as it may use the same libp2p conn.
+    // In particular, this happens when we deem one of our connections duplicate
+    // but libp2p considers the one we deemed duplicate the "original".
+    // TODO: We still need some way to check that conns are effectively
+    // closed at some point.
+    // if (this.conn) {
+    //   closePromises.push(this.transport.node.hangUp(this.conn.remotePeer));
+    //   // this is redundant:
+    //   closePromises.push(this.conn.close());
+    // }
     if (closePromises.length) {
       return Promise.all(closePromises) as unknown as Promise<void>;
     } else {
@@ -157,13 +178,13 @@ export class Libp2pConnection extends TransportConnection {
    */
   send(message: Buffer): void {
     if (this.rawStream?.status != "open") {
-      logger.error(`${this.toString()}: Tried to send() data but stream is not open. This should not happen! Stream status is ${this.rawStream?.status}. Closing connection.`);
+      logger.warn(`${this.toString()}: Tried to send() data but stream is not open. This should not happen! Stream status is ${this.rawStream?.status}. Closing connection.`);
       this.close();
       return;
     }
       this.stream.write(message).
         catch(error => {
-          logger.error(`${this.toString()} in send(): Error writing to stream. Error was: ${error}`);
+          logger.info(`${this.toString()} in send(): Error writing to stream. Error was: ${error}`);
           this.close();
       });
   }
@@ -174,5 +195,10 @@ export class Libp2pConnection extends TransportConnection {
 
   toString(): string {
     return "Libp2pConnection to " + this.addressString;
+  }
+
+  get address(): AddressAbstraction {
+    if (this.conn?.remoteAddr) return new AddressAbstraction(this.conn.remoteAddr);
+    else return super.address;
   }
 }

@@ -85,7 +85,7 @@ export class IdentityPersistance {
     }
     const identities: Array<Identity> = [];
     for await (const [pubkeyString, masterkeyString] of this.db.iterator()) {
-      // try {
+      try {
         const masterKey = Buffer.from(masterkeyString, 'hex');
         const privkey: Buffer = Buffer.from(
           Identity.DeriveKeypair(masterKey).privateKey);
@@ -98,9 +98,9 @@ export class IdentityPersistance {
         const id = new Identity(cubeStore, muc, { persistance: this });
         id.supplySecrets(masterKey, privkey);
         identities.push(id);
-      // } catch (error) {
-      //   logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
-      // }
+      } catch (error) {
+        logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
+      }
     }
     return identities;
   }

@@ -13,7 +13,7 @@ import { AddressAbstraction } from "../../peering/addressing";
  */
 export abstract class TransportConnection extends EventEmitter {
   constructor(
-      readonly address: AddressAbstraction,
+      private _address: AddressAbstraction,
   ){
     super();
   }
@@ -36,7 +36,11 @@ export abstract class TransportConnection extends EventEmitter {
   toString(): string {
     throw new VerityError("NetworkPeerConnection.toString() to be implemented by subclass")
   }
+  get address(): AddressAbstraction { return this._address }
   get addressString(): string  {
     return this.address.toString();
   }
+
+  // To be overridden by subclass
+  get open(): boolean { return false; }
 }

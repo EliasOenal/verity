@@ -1,5 +1,5 @@
 import { Settings, VerityError } from '../settings';
-import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
+import { MessageClass, NetConstants, NetworkError, SupportedTransports } from './networkDefinitions';
 
 import { CubeStore } from '../cube/cubeStore';
 import { CubeInfo, CubeMeta } from '../cube/cubeInfo';

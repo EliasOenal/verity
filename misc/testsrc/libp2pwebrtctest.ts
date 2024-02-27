@@ -1,3 +1,62 @@
+/*
+https://github.com/libp2p/js-libp2p/issues/2425
+WebRTC transport apparently broken in the NodeJS environment
+
+- **Version**:
+```
+$ npm ls | grep libp2p
+├── @chainsafe/libp2p-noise@15.0.0
+├── @chainsafe/libp2p-yamux@6.0.2
+├── @libp2p/circuit-relay-v2@1.0.15
+├── @libp2p/identify@1.0.14
+├── @libp2p/mplex@10.0.15
+├── @libp2p/webrtc@4.0.19
+├── @libp2p/websockets@8.0.15
+├── libp2p@1.2.3
+```
+
+- **Platform**:
+```
+$ uname -a
+Linux schnippi 5.15.0-97-generic #107~20.04.1-Ubuntu SMP Fri Feb 9 14:20:11 UTC 2024 x86_64 x86_64 x86_64 GNU/Linux
+```
+
+- **Subsystem**:
+WebRTC / circuit-relay-transport
+
+#### Severity:
+Medium
+
+#### Description:
+The WebRTC transport does not seem to function correctly within the NodeJS environment. While it is obviously intended for the browser environment and not NodeJS, that means that in a usual setup any jest tests for a web project will misbehave in very strange ways:
+
+- WebRTC connections do not actually seem to be independent WebRTC connections but rather keep relying on the brokering circuit-relay-server, even though their transient flag is false. Once the server goes away, the "WebRTC" connection fails.
+
+- Once we initiate any WebRTC connection, the nodes do not shut down cleanly anymore, i.e. NodeJS does not terminate.
+
+#### Steps to reproduce the error:
+Here's a minimal test case:
+1) In a TypeScript file to be run e.g. with `npx tsx`, we create three libp2p nodes, a "server" (i.e. a node listening on a dialable address) and two "browser" nodes (i.e. not listening on any dialable address but simply on '/webrtc').
+
+2) We then proceed to connect both "browsers" to the "server" and reserve circuit-relay-transport slots for the browsers at the server.
+
+3) After that, we initiate a WebRTC connection between the two browsers. Through this connection, we send a message directly from browser1 to browser2.
+
+4) We then shut down the server and send another message from browser1 to browser2.
+
+5) Finally, we shut down the browser nodes to end the test.
+
+Expected behavior:
+1) Both messages sent through the WebRTC connection from browser1 to browser2 should arrive.
+2) NodeJS should terminate at the end of the test.
+
+Actual behaviour:
+1) While the message sent from browser1 to browser2 while the server is still running arrives, the one send after the server was shut down does not.
+2) NodeJS does not terminate even after all three nodes have been shut down.
+
+Test code:
+*/
+
 import { noise } from "@chainsafe/libp2p-noise";
 import { yamux } from "@chainsafe/libp2p-yamux";
 import { webRTC, webRTCDirect } from "@libp2p/webrtc";
