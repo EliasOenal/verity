@@ -46,7 +46,7 @@ export class WebSocketConnection extends TransportConnection {
     this._ws.addEventListener("error", (error) => {
       // TODO: We should probably "greylist" peers that closed with an error,
       // i.e. not try to reconnect them for some time.
-      logger.info(`WebSockerPeerConnection to ${this._ws.url}: WebSocket error: ${error.message}`);
+      logger.info(`${this.toString()}: WebSocket error: ${error.message}`);
       this.close();
     }, { signal: this.socketClosedSignal });
 
@@ -67,7 +67,7 @@ export class WebSocketConnection extends TransportConnection {
     this._ws.addEventListener('close', () => {
       // TODO: We should at some point drop nodes closing on us from our PeerDB,
       // at least if they did that repeatedly and never even sent a valid HELLO.
-      logger.info(`WebSocketPeerConnection to ${this._ws.url}: Peer closed on us`);
+      logger.info(`${this.toString()}: Peer closed on us`);
       this.close();
     }, { once: true, signal: this.socketClosedSignal });
 
@@ -84,7 +84,7 @@ export class WebSocketConnection extends TransportConnection {
    * called directly.
    */
   close(): Promise<void> {
-    logger.trace(`WebSocketPeerConnection to ${this._ws.url}: close() called`);
+    logger.trace(`${this.toString()}: close() called`);
     this.socketClosedController.abort();  // removes all listeners from this.ws
 
     // Send the closed signal first (i.e. let the NetworkPeer closed handler run
@@ -94,14 +94,14 @@ export class WebSocketConnection extends TransportConnection {
 
     // Close the socket, if not already closed or closing
     if (this._ws.readyState < this._ws.CLOSING) {  // only close if not already closing
-      logger.trace(`WebSocketPeerConnection to ${this._ws.url}: close(): Closing socket`);
+      logger.trace(`${this.toString()}: close(): Closing socket`);
       // Return a promise that will be resolved when the socket has closed
       const closedPromise = new Promise<void>((resolve) =>
         this._ws.addEventListener('close', () => resolve(), { once: true }));
       this._ws.close();
       return closedPromise;
     } else {  // already closed
-      logger.trace(`WebSocketPeerConnection to ${this._ws.url}: close(): Doing nothing, socket status already ${this._ws.readyState}`);
+      logger.trace(`${this.toString()}: close(): Doing nothing, socket status already ${this._ws.readyState}`);
       // Return a resolved promise
       return new Promise<void>(resolve => resolve());
     }
@@ -115,7 +115,7 @@ export class WebSocketConnection extends TransportConnection {
     if (this.ready()) {
       this._ws.send(message);
     } else {
-      logger.error(`WebSocketPeerConnection to ${this._ws.url}: Tried to send data but socket not ready`);
+      logger.warn(`WebSocketPeerConnection to ${this._ws.url}: Tried to send data but socket not ready`);
     }
   }
 
@@ -123,30 +123,23 @@ export class WebSocketConnection extends TransportConnection {
     return SupportedTransports.ws;
   }
 
-  readyStateString(): string {
-    if (!this._ws) return "NO SOCKET";
-    else if (this._ws.readyState == WebSocket.CLOSED) return "CLOSED";
-    else if (this._ws.readyState == WebSocket.CLOSING) return "CLOSING";
-    else if (this._ws.readyState == WebSocket.CONNECTING) return "CONNECTING";
-    else if (this._ws.readyState == WebSocket.OPEN) return "OPEN";
+  get open(): boolean {
+    if (this._ws.readyState === WebSocket.OPEN) return true;
+    else return false;
   }
 
   toString(): string {
-    let ret: string;
-    if (this._ws?.url?.length) ret = `WebSocketPeerConnection to ${this._ws.url}`;
-    else ret = "Incoming WebSocketPeerConnection"
-    if (isNode) {  // remote IP and port not available in the browser
-      ret += ` (${(this._ws as any)?._socket?.remoteAddress}:${(this._ws as any)?._socket?.remotePort})`;
+    return `WebSocketConnection to ${this.addressString}`;
+  }
+  get address(): AddressAbstraction {
+    if ('socket' in this._ws && this._ws.socket) {  // will only work on NodeJS; remote IP and port not available in the browser
+      return new AddressAbstraction(new WebSocketAddress((this._ws as any)?._socket?.remoteAddress, (this._ws as any)?._socket?.remotePort));
     }
-    return ret;
+    else return super.address;
+
   }
   get addressString(): string {
-    let ret: string = "";
-    if ('socket' in this._ws && this._ws.socket) {  // will only work on NodeJS; remote IP and port not available in the browser
-      ret += `${(this._ws as any)?._socket?.remoteAddress}:${(this._ws as any)?._socket?.remotePort}) `;
-    }
-    if (this._ws?.url?.length) ret += `${this._ws.url}`;
-    if (ret.length) return ret;
-    else return undefined;
+    if (this._ws?.url?.length) return this._ws.url;
+    else return super.addressString;
   }
 }

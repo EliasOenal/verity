@@ -472,7 +472,11 @@ describe('networkManager - libp2p connections', () => {
   }, 20000);
 
 
-  it.skip('brokers WebRTC connections between clients', async() => {
+  // This test currently FAILs either due to my fundamental misunderstanding
+  // of libp2p, or because libp2p's WebRTC transport is just broken in NodeJS.
+  // Raised https://github.com/libp2p/js-libp2p/issues/2425 to find out which
+  // it is.
+  it.skip('brokers WebRTC connections between clients and keeps them open even after the WS server offline', async() => {
     const networkManagerOptions: NetworkManagerOptions = {
       announceToTorrentTrackers: false,
       autoConnect: false,

@@ -352,7 +352,7 @@ export class Identity {
     if (remoteIdentity instanceof Buffer && remoteIdentity.length == NetConstants.CUBE_KEY_SIZE) {
       this._subscriptionRecommendations.push(remoteIdentity);
     } else {
-      logger.error("Identity: Ignoring subscription request to something that does not at all look like a CubeKey");
+      logger.warn("Identity: Ignoring subscription request to something that does not at all look like a CubeKey");
     }
   }
 

@@ -10,7 +10,8 @@ describe('libp2p transport', () => {
     const transport = new Libp2pTransport('/ip4/0.0.0.0/tcp/11985/ws');
     await transport.start();
     const server = transport.server;
-    // NOTE: Must manually create server object for libp2p. TODO: Make API more intuitive.
+    // NOTE: Must not manually create server object for libp2p.
+    // TODO: Make API more intuitive.
 
     // expect a server-side connection to be spawned by the server upon connection
     let serverConn: Libp2pConnection = undefined;
