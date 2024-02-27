@@ -185,7 +185,10 @@ export class Libp2pConnection extends TransportConnection {
       this.stream.write(message).
         catch(error => {
           logger.info(`${this.toString()} in send(): Error writing to stream. Error was: ${error}`);
-          this.close();
+          // this.close();
+          // HACKHACK: libp2p's dumb streams sometimes just fail to send something.
+          // We'll just not close on error for now, which means we accept that
+          // messages might just silently not send.
       });
   }
 
