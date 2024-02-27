@@ -178,7 +178,7 @@ export class Libp2pTransport extends NetworkTransport {
       // TODO FIXME: This makes us prefer relayed connections even when a direct
       // route might be available.
     }
-    for (const multiaddr of this.node.getMultiaddrs()) {
+    for (const multiaddr of this.node.getMultiaddrs()) {  // TODO rename multiaddr, it conflicts with the multiaddr() creation method (actually not strictly in conflict due to scoping but still confusing)
       const protos: string[] = multiaddr.protoNames();
        if (protos.includes("p2p") && protos.includes("p2p-circuit") &&
            protos.includes("webrtc")) {
