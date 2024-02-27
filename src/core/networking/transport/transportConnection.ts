@@ -21,8 +21,10 @@ export interface TransportConnectionOptions {
 export abstract class TransportConnection extends EventEmitter {
   readonly disconnectErrorCount: number = undefined;
   readonly disconnectErrorTime: number = undefined;
-  private lastSuccessfulTransmission: number = unixtime();
-  private errorCount: number = 0;
+  private _lastSuccessfulTransmission: number = unixtime();
+  get lastSuccessfulTransmission(): number { return this._lastSuccessfulTransmission }
+  private _errorCount: number = 0;
+  get errorCount(): number { return this._errorCount }
 
   constructor(
       private _address: AddressAbstraction,
@@ -37,9 +39,18 @@ export abstract class TransportConnection extends EventEmitter {
   /** Will resolve once this connection has been opened and is ready for business */
   readyPromise: Promise<void> = new Promise<void>(resolve => this.once('ready', resolve));
 
+  // Should be overridded by subclass and then optionally called as super.close()
   close(): Promise<void> {
-    throw new VerityError("NetworkPeerConnection.close() to be implemented by subclass")
+    // It would usually be wise for our subclases to call this before closing
+    // the actual connection. This way, we send the closed signal first
+    // (i.e. let the NetworkPeer closed handler run first)
+    // so nobody tries to send any further messages to our closing socket
+    logger.trace(`${this.toString()}: closing`);
+    this.emit("closed");
+    this.removeAllListeners();
+    return new Promise<void>(resolve => resolve());
   }
+
   ready(): boolean {
     throw new VerityError("NetworkPeerConnection.ready() to be implemented by subclass")
   }
@@ -54,17 +65,20 @@ export abstract class TransportConnection extends EventEmitter {
   }
 
   protected transmissionSuccessful() {
-    this.lastSuccessfulTransmission = unixtime();
-    this.errorCount = 0;
+    this._lastSuccessfulTransmission = unixtime();
+    this._errorCount = 0;
+    this.emit("transmissionLogged");
   }
 
   protected transmissionError() {
-    this.errorCount++;
+    this._errorCount++;
     // is it time to give up and close this connection?
-    if (this.errorCount >= this.disconnectErrorCount &&
-        this.lastSuccessfulTransmission < unixtime() - this.disconnectErrorTime) {
-      logger.info(`${this.toString()}: Got ${this.errorCount} errors over ${unixtime() - this.lastSuccessfulTransmission} seconds, closing.`)
+    if (this._errorCount >= this.disconnectErrorCount &&
+        this._lastSuccessfulTransmission < unixtime() - this.disconnectErrorTime) {
+      logger.info(`${this.toString()}: Got ${this._errorCount} errors over ${unixtime() - this._lastSuccessfulTransmission} seconds, closing.`)
       this.close();
+    } else {
+      this.emit("transmissionLogged");
     }
   }
 

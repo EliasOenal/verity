@@ -134,11 +134,7 @@ export class Libp2pConnection extends TransportConnection {
   }
 
   async close(): Promise<void> {
-    logger.info("Libp2pPeerConnection: Closing connection to " + this.addressString);
-    // Send the "closed" signal first (i.e. let the NetworkPeer closed handler run
-    // first) so nobody tries to send any further messages to our closing stream
-    this.emit("closed");
-    this.removeAllListeners();
+    super.close();
     if (this.rawStream) {
       try {
         await this.rawStream.close();
