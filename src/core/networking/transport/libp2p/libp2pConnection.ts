@@ -1,20 +1,19 @@
-import { VerityError } from "../../../settings";
 import { NetworkError, SupportedTransports } from "../../networkDefinitions";
 
 import { Libp2pTransport } from "./libp2pTransport";
 import { TransportConnection } from "../transportConnection";
 
+import { AddressAbstraction } from "../../../peering/addressing";
 import { logger } from "../../../logger";
 
 import { Connection, Stream } from '@libp2p/interface/src/connection'
+import type { IncomingStreamData } from '@libp2p/interface/src/stream-handler'
 import { Multiaddr } from '@multiformats/multiaddr'
-import { pipe } from 'it-pipe'
+
+import { Uint8ArrayList } from 'uint8arraylist'
 import { Buffer } from 'buffer';
 import { lpStream, LengthPrefixedStream } from 'it-length-prefixed-stream'
 
-import type { IncomingStreamData } from '@libp2p/interface/src/stream-handler'
-import { Uint8ArrayList } from 'uint8arraylist'
-import { AddressAbstraction } from "../../../peering/addressing";
 
 export class Libp2pConnection extends TransportConnection {
   conn: Connection = undefined;
@@ -115,6 +114,7 @@ export class Libp2pConnection extends TransportConnection {
           msg.subarray()  // Note: Here, subarray() re-assembles a message which
                           // may have been received in many fragments.
         );
+        this.transmissionSuccessful();  // take note that conn is still up
         this.emit("messageReceived", msgBuf);
 
         // HACKHACK: Abuse this method as event handler and check if we learned
@@ -128,42 +128,41 @@ export class Libp2pConnection extends TransportConnection {
       logger.trace(`${this.toString()}: Got non-truthy val while reading input stream, closing. Val was: ${msg}`);
       this.close();
     } catch (error) {
-      logger.trace(`${this.toString()}: Caught error while reading input stream, closing. Error was: ${error}`);
-      this.close();
+      logger.trace(`${this.toString()}: Caught error while reading input stream. Error was: ${error}`);
+      this.transmissionError();
     }
   }
 
-  close(): Promise<void> {
+  async close(): Promise<void> {
     logger.info("Libp2pPeerConnection: Closing connection to " + this.addressString);
     // Send the "closed" signal first (i.e. let the NetworkPeer closed handler run
     // first) so nobody tries to send any further messages to our closing stream
     this.emit("closed");
     this.removeAllListeners();
-    let closePromises: Promise<void>[] = [];
     if (this.rawStream) {
       try {
-        closePromises.push(this.rawStream.close());
+        await this.rawStream.close();
       } catch(error) {
         logger.info(`${this.toString()} in close(): Error closing libp2p stream. This should not happen. Error was: ${error}`);
       }
     }
-    // We can't just close the conn: Connections are usually auto-managed in
-    // libp2p and, in particular, are also auto-reused: Closing this
+    // Does this conn have another Verity stream? This can happen because
+    // connections in libp2p are at least partially auto-managed, and,
+    // in particular, are also auto-reused: Closing this
     // libp2-level connection may inadvertantly kill off another of our
     // Verity-level connections as it may use the same libp2p conn.
     // In particular, this happens when we deem one of our connections duplicate
     // but libp2p considers the one we deemed duplicate the "original".
-    // TODO: We still need some way to check that conns are effectively
-    // closed at some point.
-    // if (this.conn) {
-    //   closePromises.push(this.transport.node.hangUp(this.conn.remotePeer));
-    //   // this is redundant:
-    //   closePromises.push(this.conn.close());
-    // }
-    if (closePromises.length) {
-      return Promise.all(closePromises) as unknown as Promise<void>;
-    } else {
-      return new Promise<void>(resolve => resolve());  // Return a resolved promise
+    if (this.conn && this.conn.status === 'open') {
+      let connStillInUse = false;
+      for (const stream of this.conn.streams) {
+        if (stream.protocol == "/verity/1.0.0") {
+          logger.info(`${this.toString()} is closing but will leave underlying libp2p conn open as it has another Verity stream`);
+          connStillInUse = true;
+          break;
+        }
+      }
+      if (!connStillInUse) await this.conn.close();
     }
   }
 
@@ -182,14 +181,12 @@ export class Libp2pConnection extends TransportConnection {
       this.close();
       return;
     }
-      this.stream.write(message).
-        catch(error => {
-          logger.info(`${this.toString()} in send(): Error writing to stream. Error was: ${error}`);
-          // this.close();
-          // HACKHACK: libp2p's dumb streams sometimes just fail to send something.
-          // We'll just not close on error for now, which means we accept that
-          // messages might just silently not send.
-      });
+    this.stream.write(message).then(
+      () => this.transmissionSuccessful()).catch(
+      error => {
+        logger.info(`${this.toString()} in send(): Error writing to stream. Error was: ${error}`);
+        this.transmissionError();
+    });
   }
 
   type(): SupportedTransports {

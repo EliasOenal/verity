@@ -60,6 +60,7 @@ export class WebSocketConnection extends TransportConnection {
         const blob: Blob = event.data as unknown as Blob;
         msgData = Buffer.from(await blob.arrayBuffer());
       }
+      this.transmissionSuccessful();
       this.emit("messageReceived", msgData);  // NetworkPeer will call handleMessage() on this
     }, { signal: this.socketClosedSignal });
 
@@ -114,8 +115,11 @@ export class WebSocketConnection extends TransportConnection {
   send(message: Buffer) {
     if (this.ready()) {
       this._ws.send(message);
+      if (this.ready()) this.transmissionSuccessful();
+      else this.transmissionError();
     } else {
       logger.warn(`WebSocketPeerConnection to ${this._ws.url}: Tried to send data but socket not ready`);
+      this.transmissionError();
     }
   }
 

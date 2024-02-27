@@ -1,9 +1,16 @@
-import { VerityError } from "../../settings";
+import { Settings, VerityError } from "../../settings";
 import { AddressError, SupportedTransports } from "../networkDefinitions";
 
 import EventEmitter from "events";
 import { Buffer } from 'buffer';
 import { AddressAbstraction } from "../../peering/addressing";
+import { unixtime } from "../../helpers";
+import { logger } from "../../logger";
+
+export interface TransportConnectionOptions {
+  disconnectErrorCount?: number,
+  disconnectErrorTime?: number,
+};
 
 /**
  * Represents the actual networking component of a NetworkPeer,
@@ -12,10 +19,19 @@ import { AddressAbstraction } from "../../peering/addressing";
  * @emits "ready" when connection is... you know... ready
  */
 export abstract class TransportConnection extends EventEmitter {
+  readonly disconnectErrorCount: number = undefined;
+  readonly disconnectErrorTime: number = undefined;
+  private lastSuccessfulTransmission: number = unixtime();
+  private errorCount: number = 0;
+
   constructor(
       private _address: AddressAbstraction,
+      options?: TransportConnectionOptions,
   ){
     super();
+    // set options
+    this.disconnectErrorCount = options?.disconnectErrorCount ?? Settings.DISCONNECT_ERROR_COUNT;
+    this.disconnectErrorTime = options?.disconnectErrorTime ?? Settings.DISCONNECT_ERROR_TIME;
   }
 
   /** Will resolve once this connection has been opened and is ready for business */
@@ -36,6 +52,22 @@ export abstract class TransportConnection extends EventEmitter {
   toString(): string {
     throw new VerityError("NetworkPeerConnection.toString() to be implemented by subclass")
   }
+
+  protected transmissionSuccessful() {
+    this.lastSuccessfulTransmission = unixtime();
+    this.errorCount = 0;
+  }
+
+  protected transmissionError() {
+    this.errorCount++;
+    // is it time to give up and close this connection?
+    if (this.errorCount >= this.disconnectErrorCount &&
+        this.lastSuccessfulTransmission < unixtime() - this.disconnectErrorTime) {
+      logger.info(`${this.toString()}: Got ${this.errorCount} errors over ${unixtime() - this.lastSuccessfulTransmission} seconds, closing.`)
+      this.close();
+    }
+  }
+
   get address(): AddressAbstraction { return this._address }
   get addressString(): string  {
     return this.address.toString();
