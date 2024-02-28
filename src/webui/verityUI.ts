@@ -15,6 +15,7 @@ import { IdentityController } from './controller/identityController';
 
 import { isBrowser } from 'browser-or-node';
 import sodium from 'libsodium-wrappers-sumo'
+import { VerityController } from './controller/verityController';
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
@@ -39,6 +40,8 @@ export class VerityUI {
   peerController: PeerController;
   identityController: IdentityController;
   cubeExplorerController: CubeExplorerController;
+
+  currentController: VerityController;
 
 
   constructor(
@@ -129,6 +132,7 @@ export class VerityUI {
   }
 
   navPeers() {
+    this.currentController = this.peerController;
     this.peerController.peerView.show();
     this.navbarMarkActive("navPeers");
   }

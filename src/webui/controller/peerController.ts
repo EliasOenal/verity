@@ -9,8 +9,16 @@ import { OnlineView } from "../view/onlineView";
 import { PeerView } from "../view/peerView"
 import { VerityController } from "./verityController";
 
+export const enum ShallDisplay {
+  Connected = 1,
+  Exchangeable = 2,
+  Verified = 3,
+  Unverified = 4,
+};
+
 export class PeerController extends VerityController {
   displayedPeers: Map<string, HTMLLIElement> = new Map();
+  shallDisplay: ShallDisplay = ShallDisplay.Connected;
 
   constructor(
       private networkManager: NetworkManager,
@@ -25,6 +33,10 @@ export class PeerController extends VerityController {
     this.networkManager.on('peeronline', (peer) => this.redisplayPeers());
     this.networkManager.on('updatepeer', (peer) => this.redisplayPeers());
     this.networkManager.on('peerclosed', (peer) => this.redisplayPeers());
+    this.peerDB.on('newPeer', (peer) => this.redisplayPeers());
+    this.peerDB.on('verifiedPeer', (peer) => this.redisplayPeers());
+    this.peerDB.on('exchangeablePeer', (peer) => this.redisplayPeers());
+    this.peerDB.on('removePeer', (peer) => this.redisplayPeers());
     this.redisplayPeers();
 
     this.networkManager.on('online', () => this.onlineView.showOnline());
@@ -33,11 +45,15 @@ export class PeerController extends VerityController {
     else this.onlineView.showOffline();
   }
 
+  changeDisplayTo(shallDisplay: ShallDisplay): void {
+    this.shallDisplay = shallDisplay;
+    this.peerView.markNavActive(shallDisplay);
+    this.redisplayPeers();
+  }
+
   redisplayPeers(): void {
     const peersUnaccountedFor: Map<string, HTMLLIElement> = new Map(this.displayedPeers);
-    for (const peer of this.networkManager.incomingPeers.concat(
-                       this.networkManager.outgoingPeers)
-    ){
+    for (const peer of this.shallDisplayPeers()) {
       peersUnaccountedFor.delete(peer.idString);
       this.displayPeer(peer);
     }
@@ -46,13 +62,20 @@ export class PeerController extends VerityController {
     }
   }
 
-  displayPeer(peer: NetworkPeer): void {
+  displayPeer(peer: Peer): void {
+    // TODO change once we refactor NetworkPeer into encapsulating Peer rather
+    // than inheriting from it
+    let networkPeer: NetworkPeer = undefined;
+    if (peer instanceof NetworkPeer) networkPeer = peer;
+
     if (!peer.id) return;  // this should never have been called for non-verified peers
     // Peer already displayed?
     let li: HTMLLIElement = this.displayedPeers.get(peer.idString);
     li = this.peerView.displayPeer(peer, li);
     this.displayedPeers.set(peer.idString, li);
-    peer.conn.once("transmissionLogged", () => this.displayPeer(peer));
+    if (networkPeer) {
+      networkPeer.conn.once("transmissionLogged", () => this.displayPeer(peer));
+    }
   }
 
   undisplayPeer(idString: string): void {
@@ -110,6 +133,35 @@ export class PeerController extends VerityController {
       this.networkManager.autoConnectPeers();
     } else {
       this.networkManager.autoConnect = false;
+    }
+  }
+
+  shutdown(): Promise<void> {
+    this.networkManager.removeListener('peeronline', (peer) => this.redisplayPeers());
+    this.networkManager.removeListener('updatepeer', (peer) => this.redisplayPeers());
+    this.networkManager.removeListener('peerclosed', (peer) => this.redisplayPeers());
+    this.peerDB.removeListener('newPeer', (peer) => this.redisplayPeers());
+    this.peerDB.removeListener('verifiedPeer', (peer) => this.redisplayPeers());
+    this.peerDB.removeListener('exchangeablePeer', (peer) => this.redisplayPeers());
+    this.peerDB.removeListener('removePeer', (peer) => this.redisplayPeers());
+    this.networkManager.removeListener('online', () => this.onlineView.showOnline());
+    this.networkManager.removeListener('offline', () => this.onlineView.showOffline());
+    // Return a resolved promise
+    return new Promise<void>(resolve => resolve());
+  }
+
+  private shallDisplayPeers(): Peer[] {
+    if (this.shallDisplay === ShallDisplay.Connected) {
+      return this.networkManager.incomingPeers.concat(
+        this.networkManager.outgoingPeers);
+    } else if (this.shallDisplay === ShallDisplay.Exchangeable) {
+      return Array.from(this.peerDB.peersExchangeable.values());
+    } else if (this.shallDisplay === ShallDisplay.Verified) {
+      return Array.from(this.peerDB.peersVerified.values());
+    } else if (this.shallDisplay === ShallDisplay.Unverified) {
+      return Array.from(this.peerDB.peersUnverified.values());
+    } else {
+      return [];
     }
   }
 }
