@@ -3,7 +3,7 @@ import { UiError } from "../webUiDefinitions";
 // TODO: make template handling more clearly optional
 /** Abstract base class for our views */
 export abstract class VerityView {
-  protected renderedView: HTMLElement;
+  renderedView: HTMLElement;
 
   constructor(
     protected htmlTemplate: HTMLTemplateElement,
