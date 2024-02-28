@@ -262,11 +262,12 @@
       <div class="form-floating my-2">
         <input class="form-control form-control-sm verityUsernameInput"
               type="text" id="verityLoginUsername"
-              placeholder="Username" required />
+              placeholder="Username" autocomplete="username" name="id" required />
         <label for="verityLoginUsername">Username</label>
       </div>
       <div class="form-floating my-2">
-        <input class="form-control form-control-sm verityPasswordInput" type="password"
+        <input class="form-control form-control-sm verityPasswordInput"
+               type="password" autocomplete="current-password"
                id="verityLoginPassword" placeholder="Password" required />
         <label for="verityLoginPassword">Password</label>
       </div>

@@ -59,6 +59,20 @@ export class IdentityController extends VerityController {
       identity.name = username;  // TODO separate username and display name
       identity.store("ID/ZW");
     }
+    // @ts-ignore Typescript does not know the PasswordCredential DOM API
+    // TODO: This just doesn't work in Chrome.
+    // And Firefox is smart enough to offer autocomplete without it anyway.
+    if (window.PasswordCredential) {
+    // @ts-ignore Typescript does not know the PasswordCredential DOM API
+      const passwordCredential = new PasswordCredential({
+        // iconURL: "vera.svg",  -- need full URL
+        id: username,
+        name: identity.name,
+        password: password,
+        origin: window?.location?.origin,
+      });
+      window?.navigator?.credentials?.store(passwordCredential);
+    }
     this._identity = identity;
     this.showLoginStatus();
     this.mainAreaView?.shutdown();
