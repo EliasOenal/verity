@@ -6,6 +6,10 @@ const cubeEmoji: Map<CubeType, string> = new Map([
   [CubeType.FROZEN, String.fromCodePoint(0x1F9CA)],  // 🧊
   [CubeType.MUC, String.fromCodePoint(0x1F504)],  // 🔄
 ]);
+const cubeTypeString: Map<CubeType, string> = new Map([
+  [CubeType.FROZEN, "Frozen (basic) Cube"],
+  [CubeType.MUC, "Mutable User Cube"],
+]);
 
 export class CubeExplorerView extends VerityView {
   private cubeList: HTMLUListElement;
@@ -23,20 +27,26 @@ export class CubeExplorerView extends VerityView {
     this.cubeList.replaceChildren();
   }
 
-  displayStats(total: number, displayed: number, unparsable: number){
+  displayStats(total: number, displayed: number, unparsable: number, filtered: number){
     (this.renderedView.querySelector(".verityCubeStoreStatTotalCubes") as HTMLElement)
       .innerText = total.toString();
     (this.renderedView.querySelector(".verityCubeStoreStatCubesDisplayed") as HTMLElement)
       .innerText = displayed.toString();
     (this.renderedView.querySelector(".verityCubeStoreStatCubesUnparsable") as HTMLElement)
       .innerText = unparsable.toString();
+    (this.renderedView.querySelector(".verityCubeStoreStatCubesFiltered") as HTMLElement)
+      .innerText = filtered.toString();
   }
 
   displayCube(key: string, cube: Cube, li?: HTMLLIElement) {
     let emoji: string = "", type: string = "", typeWithEmoji: string = "";
-    if (cubeEmoji.get(cube.cubeType)) emoji = cubeEmoji.get(cube.cubeType);
-    if (CubeType[cube.cubeType]) type = CubeType[cube.cubeType];
-    else type = cube.cubeType.toString();
+    // select cube emoji
+    if (cubeEmoji.get(cube.cubeType)) emoji = cubeEmoji.get(cube.cubeType) + '\xa0';  // emoji + nbsp
+    // select cube name string
+    if (cubeTypeString.has(cube.cubeType)) type = cubeTypeString.get(cube.cubeType);
+    else if (CubeType[cube.cubeType]) type = CubeType[cube.cubeType];  // fallback in case cubeTypeString is incomplete
+    else type = cube.cubeType.toString();  // fallback in case of unknown Cube type -- should never happen
+    // combine emoji with name
     typeWithEmoji = emoji + type;
 
     // prepare containers and set HTML element attributes
@@ -106,6 +116,11 @@ export class CubeExplorerView extends VerityView {
 
     // all done, append Cube to list
     this.cubeList.appendChild(li);
+  }
+
+  showBelowCubes(message: string) {
+    (this.renderedView.querySelector('.verityMessageBottom') as HTMLElement)
+      .innerText = message;
   }
 
 }

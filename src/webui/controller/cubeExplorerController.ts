@@ -19,13 +19,21 @@ export class CubeExplorerController extends VerityController {
    * @param [search] If defined, only show Cubes whose hex-represented key
    * includes this string.
    */
-  // TODO cube search
+  // TODO refined cube search (e.g. by date, fields present or even field content)
+  // TODO pagination (we currently just abort after maxCubes and print a warning)
+  // TODO sorting (e.g. by date)
   // TODO support non CCI cubes (including invalid / partial CCI cubes)
-  redisplay(search: string = undefined) {
+  redisplay() {
+    const search: string = (this.view.renderedView.querySelector(
+      ".verityCubeKeyFilter") as HTMLInputElement)?.value;
+
     this.view.clearAll();
-    let displayed = 0, unparsable = 0;
+    let displayed = 0, unparsable = 0, filtered = 0;
     for (const key of this.cubeStore.getAllKeystrings()) {
-      if (search && !key.includes(search)) continue;  // skip non-matching
+      if (search && !key.includes(search)) {
+        filtered++;
+        continue;  // skip non-matching
+      }
       const cube: cciCube = this.cubeStore.getCube(key, cciFieldParsers, cciCube) as cciCube;
       if (!cube) {
         unparsable++;
@@ -33,8 +41,12 @@ export class CubeExplorerController extends VerityController {
       }
       displayed++;
       this.view.displayCube(key, cube);
-      if (displayed > this.maxCubes) break;
+      if (displayed >= this.maxCubes) {
+        this.view.showBelowCubes(`Maximum of ${displayed} Cubes displayed, rest omittted. Consider narrower filter.`);
+        break;
+      }
     }
-    this.view.displayStats(this.cubeStore.getNumberOfStoredCubes(), displayed, unparsable);
+    this.view.displayStats(
+      this.cubeStore.getNumberOfStoredCubes(), displayed, unparsable, filtered);
   }
 }
