@@ -3,6 +3,7 @@ import { NetworkPeer } from "../../core/networking/networkPeer";
 import { logger } from "../../core/logger";
 import { VerityView } from "./verityView";
 import { unixtime } from "../../core/helpers";
+import { ShallDisplay } from "../controller/peerController";
 
 export class PeerView extends VerityView {
   private peerList: HTMLUListElement;
@@ -24,7 +25,7 @@ export class PeerView extends VerityView {
     this.peerList.replaceChildren();
   }
 
-  displayPeer(peer: NetworkPeer, li?: HTMLLIElement): HTMLLIElement {
+  displayPeer(peer: Peer, li?: HTMLLIElement): HTMLLIElement {
     let newli: boolean = false;
     if (!li) {
       newli = true;
@@ -36,7 +37,12 @@ export class PeerView extends VerityView {
     return li;
   }
 
-  redrawPeerData(peer: NetworkPeer, peerLi: HTMLLIElement): void {
+  redrawPeerData(peer: Peer, peerLi: HTMLLIElement): void {
+    // TODO change once we refactor NetworkPeer into encapsulating Peer rather
+    // than inheriting from it
+    let networkPeer: NetworkPeer = undefined;
+    if (peer instanceof NetworkPeer && peer.conn?.ready()) networkPeer = peer;
+
     logger.trace("PeerView: (Re-)Displaying peer "+ peer.toString());
     try {
       // Print & set peer ID on all relevant elements
@@ -49,20 +55,24 @@ export class PeerView extends VerityView {
       reconnectButton.setAttribute("data-peerid", peer.idString);
       // Print connected address
       const connField: HTMLTableCellElement = peerLi.querySelector('.verityPeerConn');
-      if (peer instanceof NetworkPeer) {
-        connField.innerText = peer.conn.addressString;
+      if (networkPeer) {
+        connField.innerText = networkPeer.conn.addressString;
       } else {
-        connField.innerText = "(not connected)"
+        connField.innerText = "not connected"
       }
       // Print connection status
       const statusField: HTMLTableCellElement =
         peerLi.querySelector('.verityPeerTransmissionStatus');
-      if (peer.conn.errorCount === 0) {
-        statusField.innerText = "OK";
+      if (networkPeer) {
+        if (networkPeer.conn.errorCount === 0) {
+          statusField.innerText = "OK";
+        } else {
+          statusField.innerText = `${networkPeer.conn.errorCount} errors over ${
+              unixtime() - networkPeer.conn.lastSuccessfulTransmission
+            } seconds`;
+        }
       } else {
-        statusField.innerText = `${peer.conn.errorCount} errors over ${
-            unixtime() - peer.conn.lastSuccessfulTransmission
-          } seconds`;
+        statusField.innerText = 'not connected';
       }
       // Print all known addresses
       const addrsList: HTMLTableCellElement =
@@ -99,5 +109,14 @@ export class PeerView extends VerityView {
     const container: HTMLElement = this.renderedView.querySelector('.verityMyId');
     if (!container) logger.error("PeerView: Could not my peer ID, did you mess with my DOM elements?!");
     container.innerText = this.myId;
+  }
+
+  markNavActive(shallDisplay: ShallDisplay): void {
+    for (const item of this.renderedView.querySelectorAll('.verityPeerTypeNavLink')) {
+      const sda: ShallDisplay = parseInt(
+        item.getAttribute("data-verityShallDisplay"));
+      if (sda === shallDisplay) item.classList.add("active");
+      else item.classList.remove("active");
+    }
   }
 }

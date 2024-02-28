@@ -259,12 +259,15 @@ export class PeerDB extends EventEmitter {
         for (const address of peer.addresses) {
             this.peersUnverified.delete(address.toString());
         }
+        this.emit("removePeer", peer);
     }
     removeVerifiedPeer(peer: Peer): void {
         this.peersVerified.delete(peer.idString);
+        this.emit("removePeer", peer);
     }
     removeExchangeablePeer(peer: Peer): void {
         this.peersExchangeable.delete(peer.idString);
+        this.emit("removePeer", peer);
     }
 
     startAnnounceTimer(): void {

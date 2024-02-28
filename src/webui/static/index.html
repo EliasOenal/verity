@@ -105,7 +105,7 @@
                 </div>
                 <div class="verityMyIdentityInfoArea">
                   <div class="verityNotLoggedIn">
-                    <b class="verityLoadingPlaceholder">Identity loading...</b><br />
+                    <b class="verityLoadingPlaceholder">Loading...</b><br />
                     <a class="verityLoadingPlaceholder" href="#" onclick="window.verityUI.identityController.showLoginForm()">
                       Please wait
                     </a>
@@ -338,6 +338,37 @@
         </form>
       </div>
 
+      <ul class="nav nav-tabs verityPeerTypeNav">
+        <li class="nav-item verityPeerTypeNavItem">
+          <a class="nav-link verityPeerTypeNavLink active" href="#"
+             data-verityShallDisplay="1"
+             onclick="window.verityUI.currentController.changeDisplayTo(1)">
+            Connected
+          </a>
+        </li>
+        <li class="nav-item verityPeerTypeNavItem">
+          <a class="nav-link verityPeerTypeNavLink" href="#"
+            data-verityShallDisplay="2"
+             onclick="window.verityUI.currentController.changeDisplayTo(2)">
+            Exchangeable
+          </a>
+        </li>
+        <li class="nav-item verityPeerTypeNavItem">
+          <a class="nav-link verityPeerTypeNavLink" href="#"
+            data-verityShallDisplay="3"
+             onclick="window.verityUI.currentController.changeDisplayTo(3)">
+            Verified
+          </a>
+        </li>
+        <li class="nav-item verityPeerTypeNavItem">
+          <a class="nav-link verityPeerTypeNavLink" href="#"
+            data-verityShallDisplay="4"
+             onclick="window.verityUI.currentController.changeDisplayTo(4)">
+            Unverified
+          </a>
+        </li>
+      </ul>
+
       <ul class="verityPeerList">
         <li class="verityPeer card move-fade-in">
           <table class="table card-body verityPeerTable">
@@ -466,8 +497,8 @@
                 </tr>
               </table>
               <!-- Schematic Cube view-->
-              <ul class="veritySchematicFields nav nav-pills mb-3"
-                id="pills-tab-44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000" role="tablist">
+              <ul class="veritySchematicFields nav nav-pills mb-3" role="tablist"
+                  id="pills-tab-44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000">
                 <li class="nav-item" role="presentation">
                   <button class="nav-link border border-primary rounded me-1 mb-1 veritySchematicField"
                           type="button"

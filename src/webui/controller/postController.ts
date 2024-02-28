@@ -92,8 +92,10 @@ export class PostController extends VerityController {
   }
 
 
-  shutdown() {
+  shutdown(): Promise<void> {
     clearInterval(this.cubeAuthorRedisplayTimer);
+    // Return a resolved promise
+    return new Promise<void>(resolve => resolve());
   }
 
   redisplayPosts() {
