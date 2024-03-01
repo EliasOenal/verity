@@ -63,6 +63,27 @@ body {
   }
 }
 
+.pulsateBlue {
+	border-radius: 50%;
+	box-shadow: 0 0 0 0 rgba(52, 172, 224, 1);
+	animation: pulsateBlueKeyframes 2s infinite;
+}
+
+@keyframes pulsateBlueKeyframes{
+	0% {
+		box-shadow: 0 0 0 0 rgba(52, 172, 224, 0.7);
+	}
+
+	70% {
+		box-shadow: 0 0 0 2rem rgba(52, 172, 224, 0);
+	}
+
+	100% {
+		box-shadow: 0 0 0 0 rgba(52, 172, 224, 0);
+	}
+}
+
+
 /*
  * Root style, logo etc
  */
@@ -70,23 +91,31 @@ body {
   font-size: 1.5em;
 }
 
-img#veralogo {
-  width: 100%;
+#veraNest {
+  max-width: 12em;
+  padding: 0;
   aspect-ratio: 1/1;
-  max-width: 15em;
-  display: block;
-  margin: 0 auto;
   z-index: 1;
-  transition: all 1s ease;
   position: relative;
   left: 0;
   top: 0;
+  transition: transform 1s ease-in-out;
+}
+img#veralogo {
+  width: 100%;
+  aspect-ratio: 1/1;
+  display: block;
+  z-index: 1;
 }
 
 .vera-anim {
   animation: float 2s ease-in-out infinite;
   animation-play-state: paused;
   transition: animation-play-state 1s ease-in-out;
+}
+
+.veraAnimRunning {
+  animation-play-state: running;
 }
 
 .vera-anim:hover {

@@ -151,35 +151,75 @@ export class VerityUI {
   }
 }
 
-/**
- * Initiate startup animation:
- * Shows Vera centered on the screen doing some light animation
- */
-function veraStartupAnim(): void {
-  const vera: HTMLImageElement = document.getElementById("veralogo") as HTMLImageElement;
-  // move vera to center of screen
-  vera.setAttribute("style", `left: ${window.visualViewport.width/2 - vera.width/2}px; top: ${window.visualViewport.height/2 - vera.height}px`)
-  // make vera roll after she's centered
-  setTimeout(() => {
-    vera.classList.add('vera-roll');
-  }, 1000);
-  setTimeout(() => {
-    vera.classList.remove('vera-roll');
-  }, 2000);
-}
 
-/**
- * Terminate startup animation:
- * Move Vera back into her nest
- */
-function veraStartupComplete(): void {
-  const vera: HTMLImageElement = document.getElementById("veralogo") as HTMLImageElement;
-  vera.removeAttribute("style");
+class VeraStartupAnim {
+  private currentTimer: any = undefined;  // type differs between NodeJS and browser
+  private veraNest: HTMLElement;
+  private veraImg: HTMLImageElement;
+
+  /**
+   * Initiate startup animation:
+   * Shows Vera centered on the screen doing some light animation
+   */
+  start(): void {
+    this.veraNest = document.getElementById("veraNest") as HTMLImageElement;
+    this.veraImg = document.getElementById("veralogo") as HTMLImageElement;
+    // move vera to centera of screen
+    this.veraNest.setAttribute("style", `transform: translate(${
+        window.visualViewport.width/2 - this.veraImg.width/2
+      }px, ${
+        window.visualViewport.height/2 - this.veraImg.height
+      }px);`);
+
+    // start Vera animation after one second
+    this.currentTimer = setTimeout(() => this.animRadiate(), 1000);
+  }
+
+  animRadiate(): void {
+    // if Vera is rolling, make her stop
+    this.veraImg.classList.remove('vera-roll');
+
+    // make vera radiate
+    this.veraNest.classList.add("pulsateBlue");
+    // make vera move up and down
+    this.veraImg.classList.add("veraAnimRunning");
+
+    // after three pulses, switch to roll
+    this.currentTimer = setTimeout(() => this.animRoll(), 6000);
+  }
+
+  animRoll(): void {
+    // if Vera is radiating and/or moving up and down, make her stop
+    this.veraNest.classList.remove("pulsateBlue");
+    this.veraImg.classList.remove("veraAnimRunning");
+
+    // make her roll
+    this.veraImg.classList.add('vera-roll');
+
+    // after one roll, make her pulse again
+    this.currentTimer = setTimeout(() => this.animRadiate(), 1000);
+  }
+
+  /**
+   * Terminate startup animation:
+   * Move Vera back into her nest
+   */
+  stop(): void {
+    // stop timer
+    clearInterval(this.currentTimer);
+    // clear all animations
+    this.veraImg.classList.remove('vera-roll');
+    this.veraNest.classList.remove("pulsateBlue");
+    this.veraImg.classList.remove("veraAnimRunning");
+    // move Vera back into her spot
+    this.veraNest.removeAttribute("style");
+  }
 }
 
 async function webmain() {
   logger.info('Starting web node');
-  veraStartupAnim();
+  const veraStartupAnim =  new VeraStartupAnim();
+  veraStartupAnim.start();
   await sodium.ready;
 
   // default params
@@ -210,9 +250,10 @@ async function webmain() {
   await node.cubeStoreReadyPromise;
   logger.info("Cube Store is ready");
   const verityUI = await VerityUI.Construct(node);
-  veraStartupComplete();
+  // veraStartupComplete();
   // @ts-ignore TypeScript does not like us creating extra window attributes
   window.verityUI = verityUI;
+  veraStartupAnim.stop();
 
   await node.onlinePromise;
   logger.info("Node is online");
