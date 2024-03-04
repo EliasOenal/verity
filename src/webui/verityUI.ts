@@ -25,11 +25,31 @@ export class VerityUI {
    * Workaround to those damn omnipresent async constructs.
    * Always create your VerityUI this way or it won't have an Identity 🤷
    */
-  static async Construct(node: VerityNode): Promise<VerityUI> {
+  static async Construct(initialPeers: AddressAbstraction[]): Promise<VerityUI> {
+    logger.info('Starting web node');
+    const veraStartupAnim =  new VeraAnimationController();
+    veraStartupAnim.start();
+    await sodium.ready;
+
+    const node = new VerityNode(
+      new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
+      initialPeers,
+      {
+        announceToTorrentTrackers: false,
+        autoConnect: true,
+        enableCubePersistance: true,
+        lightNode: false,
+        peerExchange: true,
+        useRelaying: true,
+      });
+    await node.cubeStoreReadyPromise;
+    logger.info("Cube Store is ready");
+
     const ui: VerityUI = new VerityUI(node);
     await ui.node.cubeStore.readyPromise;
     await ui.initializeIdentity();
     ui.navPostsWithAuthors();
+    veraStartupAnim.stop();
     return ui;
   }
 
@@ -45,7 +65,8 @@ export class VerityUI {
 
 
   constructor(
-      readonly node: VerityNode
+      readonly node: VerityNode,
+      readonly veraAnimationController: VeraAnimationController = new VeraAnimationController(),
     ){
     this.peerController = new PeerController(this.node.networkManager, this.node.peerDB);
     this.cubeExplorerController = new CubeExplorerController(this.node.cubeStore);
@@ -152,7 +173,7 @@ export class VerityUI {
 }
 
 
-class VeraStartupAnim {
+class VeraAnimationController {
   private currentTimer: any = undefined;  // type differs between NodeJS and browser
   private veraNest: HTMLElement;
   private veraImg: HTMLImageElement;
@@ -217,12 +238,6 @@ class VeraStartupAnim {
 }
 
 async function webmain() {
-  logger.info('Starting web node');
-  const veraStartupAnim =  new VeraStartupAnim();
-  veraStartupAnim.start();
-  await sodium.ready;
-
-  // default params
   const initialPeers = [
     new AddressAbstraction("verity.hahn.mt:1984"),
     new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss/"),
@@ -233,30 +248,9 @@ async function webmain() {
     // new AddressAbstraction("158.101.100.95:1984"),
     // new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/ws"),
   ];
-
-  // construct node and UI
-  // const node = new VerityNode(lightNode, port, initialPeers, announceToTorrentTrackers);
-  const node = new VerityNode(
-    new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
-    initialPeers,
-    {
-      announceToTorrentTrackers: false,
-      autoConnect: true,
-      enableCubePersistance: true,
-      lightNode: false,
-      peerExchange: true,
-      useRelaying: true,
-    });
-  await node.cubeStoreReadyPromise;
-  logger.info("Cube Store is ready");
-  const verityUI = await VerityUI.Construct(node);
-  // veraStartupComplete();
+  const verityUI = await VerityUI.Construct(initialPeers);
   // @ts-ignore TypeScript does not like us creating extra window attributes
   window.verityUI = verityUI;
-  veraStartupAnim.stop();
-
-  await node.onlinePromise;
-  logger.info("Node is online");
 
   // Shut node down cleanly when user exits
   // @ts-ignore TypeScript does not like us creating extra window attributes
