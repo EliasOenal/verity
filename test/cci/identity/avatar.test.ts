@@ -30,7 +30,7 @@ describe('Avatar class', () => {
     });
 
     it('Should create an avatar from a cciField', () => {
-      const field = new cciField(cciFieldType.AVATAR, 7, Buffer.from('01aabbcc', 'hex'));
+      const field = new cciField(cciFieldType.AVATAR, Buffer.from('01aabbcc', 'hex'));
       const avatar = new Avatar(field);
       expect(avatar.scheme).toBe(AvatarScheme.MULTIAVATAR);
       expect(avatar.seed.toString('hex')).toEqual('aabbcc');
@@ -43,7 +43,7 @@ describe('Avatar class', () => {
     });
 
     it('Should throw ApiMisuseError when trying to create an avatar from a non-avatar cciField', () => {
-      const field = new cciField(cciFieldType.PAYLOAD, 3, Buffer.from('abc', 'ascii'));
+      const field = new cciField(cciFieldType.PAYLOAD, Buffer.from('abc', 'ascii'));
       expect(() => new Avatar(field)).toThrow(ApiMisuseError);
     });
   });
@@ -112,13 +112,13 @@ describe('Avatar class', () => {
 
   describe('FromField method', () => {
     it('Should throw ApiMisuseError when trying to reconstruct from non-avatar field', () => {
-      const field = new cciField(cciFieldType.PAYLOAD, 3, Buffer.from('abc'));
+      const field = new cciField(cciFieldType.PAYLOAD, Buffer.from('abc'));
       const avatar = new Avatar();
       expect(() => avatar.fromField(field)).toThrow(ApiMisuseError);
     });
 
     it('Should reconstruct avatar from valid avatar cciField', () => {
-      const field = new cciField(cciFieldType.AVATAR, 7, Buffer.from('01aabbcc', 'hex'));
+      const field = new cciField(cciFieldType.AVATAR, Buffer.from('01aabbcc', 'hex'));
       const avatar = new Avatar();
       avatar.fromField(field);
       expect(avatar.scheme).toBe(AvatarScheme.MULTIAVATAR);

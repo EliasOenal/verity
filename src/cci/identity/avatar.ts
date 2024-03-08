@@ -143,6 +143,6 @@ export class Avatar {
     const val: Buffer = Buffer.alloc(length, 0);
     val.writeUInt8(this.scheme);
     val.set(this._seed, 1);
-    return new cciField(cciFieldType.AVATAR, length, val);
+    return new cciField(cciFieldType.AVATAR, val);
   }
 }

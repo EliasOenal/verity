@@ -1,5 +1,5 @@
 import { unixtime } from "../helpers";
-import { Settings } from "../settings";
+import { ApiMisuseError, Settings } from "../settings";
 
 import { BaseField, BaseFields } from "./baseFields";
 
@@ -106,14 +106,14 @@ export class CubeField extends BaseField {
     const typeFieldBuf: Buffer = Buffer.alloc(CubeFieldLength[CubeFieldType.TYPE]);
     typeFieldBuf.writeUIntBE(cubeType, 0, CubeFieldLength[CubeFieldType.TYPE]);
     return new CubeField(
-      CubeFieldType.TYPE, CubeFieldLength[CubeFieldType.TYPE], typeFieldBuf);
+      CubeFieldType.TYPE, typeFieldBuf);
   }
 
   static Date(cubeDate: number = unixtime()): CubeField {
     const dateFieldBuf: Buffer = Buffer.alloc(CubeFieldLength[CubeFieldType.DATE]);
     dateFieldBuf.writeUIntBE(cubeDate, 0, CubeFieldLength[CubeFieldType.DATE]);
     return new CubeField(
-      CubeFieldType.DATE, CubeFieldLength[CubeFieldType.DATE], dateFieldBuf);
+      CubeFieldType.DATE, dateFieldBuf);
   }
 
   static Nonce(): CubeField {
@@ -123,7 +123,6 @@ export class CubeField extends BaseField {
     }
     return new CubeField(
       CubeFieldType.NONCE,
-      CubeFieldLength[CubeFieldType.NONCE],
       Buffer.from(random_bytes));
   }
 
@@ -141,11 +140,11 @@ export class CubeField extends BaseField {
         random_bytes[i] = Math.floor(Math.random() * 256);
       }
       field = new CubeField(
-        CubeFieldType.PADDING, length-2,
+        CubeFieldType.PADDING,
         Buffer.from(random_bytes));
     } else {
       field = new CubeField(
-        CubeFieldType.PADDING_SINGLEBYTE, 0,
+        CubeFieldType.PADDING_SINGLEBYTE,
         Buffer.alloc(0));
     }
     return field;
@@ -154,14 +153,12 @@ export class CubeField extends BaseField {
   static PublicKey(publicKey: Buffer): CubeField {
     return new CubeField(
       CubeFieldType.PUBLIC_KEY,
-      NetConstants.PUBLIC_KEY_SIZE,
       publicKey as Buffer);
   }
 
   static Signature(): CubeField {
     return new CubeField(
       CubeFieldType.SIGNATURE,
-      CubeFieldLength[CubeFieldType.SIGNATURE],
       Buffer.alloc(CubeFieldLength[CubeFieldType.SIGNATURE]));
   }
 
@@ -171,7 +168,15 @@ export class CubeField extends BaseField {
     if (typeof buf === 'string' || buf instanceof String)  {
         buf = Buffer.from(buf, 'utf-8');
     }
-    return new CubeField(CubeFieldType.PAYLOAD, buf.length, buf);
+    return new CubeField(CubeFieldType.PAYLOAD, buf);
+  }
+
+  constructor(type: number, value: Buffer, start?: number) {
+    if (Settings.RUNTIME_ASSERTIONS && CubeFieldLength[type] !== undefined &&
+        value.length !== CubeFieldLength[type]) {
+      throw new FieldError(`Cannot construct CubeField of type ${type} with length ${value.length}, spec prescribes length of ${CubeFieldLength[type]}`);
+    }
+    super(type, value, start);
   }
 }
 

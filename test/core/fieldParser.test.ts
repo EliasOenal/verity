@@ -49,25 +49,25 @@ describe('fieldParser', () => {
       // prepare some fields
       const versiondata = Buffer.alloc(1); versiondata.writeUint8(42);
       version = new BaseField(
-        TestFieldType.VERSION, TestFieldLength[TestFieldType.VERSION], versiondata);
+        TestFieldType.VERSION, versiondata);
 
       const datedata = Buffer.alloc(5); datedata.writeUIntBE(1696000000, 0, 5);
       date = new BaseField(
-        TestFieldType.DATE, TestFieldLength[TestFieldType.DATE], datedata
+        TestFieldType.DATE, datedata
       );
 
       const sigdata = Buffer.alloc(5); sigdata.writeUIntBE(3392000000, 0, 5);  // I think double the time makes for a good signature
       sig = new BaseField(
-        TestFieldType.SIGNATURE, TestFieldLength[TestFieldType.SIGNATURE], sigdata
+        TestFieldType.SIGNATURE, sigdata
       );
 
       const noncedata = Buffer.alloc(4); noncedata.writeUIntBE(848000000, 0, 4);  // I think half the time makes for a good nonce
       nonce = new BaseField(
-        TestFieldType.NONCE, TestFieldLength[TestFieldType.NONCE], noncedata
+        TestFieldType.NONCE, noncedata
       );
 
       const payloaddata = Buffer.alloc(137); payloaddata.fill(42);
-      payload = new BaseField(TestFieldType.PAYLOAD, 137, payloaddata);
+      payload = new BaseField(TestFieldType.PAYLOAD, payloaddata);
     });
 
     it('correctly parses valid binary data consisting only of positional fields', () => {
@@ -165,7 +165,7 @@ describe('fieldParser', () => {
       const fields: BaseField[] = [];
       fields.push(version);
       fields.push(date);
-      fields.push(new BaseField(42, 10, Buffer.alloc(10, 0)));  // note there is no TLV field 42
+      fields.push(new BaseField(42, Buffer.alloc(10, 0)));  // note there is no TLV field 42
       fields.push(sig);
       fields.push(nonce);
       // Note: in the current implementation, it's not a problem to compile

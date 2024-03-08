@@ -7,7 +7,7 @@ import { NetConstants } from "../../core/networking/networkDefinitions";
 import { Buffer } from 'buffer'
 import { Settings } from "../../core/settings";
 import { BaseField, BaseFields } from "../../core/cube/baseFields";
-import { CubeKey, CubeType, WrongFieldType } from "../../core/cube/cubeDefinitions";
+import { CubeKey, CubeType, FieldError, WrongFieldType } from "../../core/cube/cubeDefinitions";
 import { cciConstants } from "../cciDefinitions";
 
 // HACKHACK: For proper layering, this file should define CCI field IDs and
@@ -89,13 +89,13 @@ export class cciField extends CubeField {
 
   static SubkeySeed(buf: Buffer | Uint8Array): CubeField {
     if (!(buf instanceof Buffer)) buf = Buffer.from(buf);
-    return new CubeField(CubeFieldType.SUBKEY_SEED, buf.length, buf as Buffer);
+    return new CubeField(CubeFieldType.SUBKEY_SEED, buf as Buffer);
   }
 
   static Application(applicationString: string): cciField {
     const applicationBuf = Buffer.from(applicationString, 'utf-8');
     return new cciField(
-      cciFieldType.APPLICATION, applicationBuf.length, applicationBuf);
+      cciFieldType.APPLICATION, applicationBuf);
   }
 
   static RelatesTo(rel: cciRelationship) {
@@ -110,7 +110,7 @@ export class cciField extends CubeField {
         NetConstants.CUBE_KEY_SIZE  // source end
     );
     return new cciField(
-      cciFieldType.RELATES_TO, cciFieldLength[cciFieldType.RELATES_TO], value);
+      cciFieldType.RELATES_TO, value);
 }
 
 
@@ -119,12 +119,23 @@ export class cciField extends CubeField {
   }
 
   static MediaType(type: MediaTypes) {
-    return new cciField(cciFieldType.MEDIA_TYPE, 1, Buffer.alloc(1).fill(type));
+    return new cciField(cciFieldType.MEDIA_TYPE, Buffer.alloc(1).fill(type));
   }
 
   static Username(name: string): cciField {
     const buf = Buffer.from(name, 'utf-8');
-    return new cciField(cciFieldType.USERNAME, buf.length, buf);
+    return new cciField(cciFieldType.USERNAME, buf);
+  }
+
+  constructor(type: number, value: Buffer, start?: number) {
+    // Note: cciFieldLength is currently just an alias for CubeFieldLength,
+    // making this check completely redundant. However, we will want to properly
+    // separate them at some point, and then it won't be.
+    if (Settings.RUNTIME_ASSERTIONS && cciFieldLength[type] !== undefined &&
+        value.length !== cciFieldLength[type]) {
+      throw new FieldError(`Cannot construct cciField of type ${type} with length ${value.length}, spec prescribes length of ${cciFieldLength[type]}`);
+    }
+    super(type, value, start);
   }
 }
 
