@@ -21,32 +21,32 @@
 
 <body>
   <div class="content-wrapper">
-    <div class="position-absolute top-0 end-0 m-0">
-      <button class="btn btn-link dark-mode-toggle fade-in"
-              onclick="toggleDarkMode()" type="button">
-        <span id="theme-icon">
-          <!-- The icon will be set here by the updateIcon function -->
-        </span>
-      </button>
-    </div>
     <div class="container-fluid">
       <div class="row" id="globalrow">
+        <!-- Hamburger menu (top left) -- only visible on small screens -->
+        <button id="leftnavCollapseToggler"
+                class="navbar-toggler d-sm-none navbar-toggler-icon"
+                type="button" data-bs-toggle="collapse"
+                data-bs-target="#leftnavCollapsible">
+        </button>
+        <!-- Light/dark theme switch (top right) -- always visible -->
+        <button class="btn btn-link dark-mode-toggle fade-in"
+                id="verityThemeSwitch" onclick="toggleDarkMode()" type="button">
+          <span id="theme-icon">
+            <!-- The icon will be set here by the updateIcon function -->
+          </span>
+        </button>
+
+        <!-- Main navigation column including Vera logo -->
         <div class="col-sm-3" id="verityLeftnav">
-          <div class="row my-3">
-            <div id="veraNest">
-              <img src="vera.svg" class="img-fluid vera-anim vera-spin veraLogo"
-                id="veralogo" alt="" onclick="veraRoll()" />
-            </div>
+          <div id="veraNest">
+            <img src="vera.svg" class="img-fluid vera-anim vera-spin veraLogo"
+              id="veralogo" alt="" onclick="veraRoll()" />
           </div>
 
           <!-- leftnavCollapsible (navigation, identity and peers)
                default collapsed on mobile view
           -->
-          <button id="leftnavCollapseToggler"
-                  class="navbar-toggler d-sm-none navbar-toggler-icon"
-                  type="button" data-bs-toggle="collapse"
-                  data-bs-target="#leftnavCollapsible">
-          </button>
           <div id="leftnavCollapsible" class="collapse navbar-collapse d-sm-block">
             <ul id="toplevelnav" class="navbar-nav my-5">
               <li class="nav-item" id="navPostsAll">

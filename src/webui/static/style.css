@@ -100,6 +100,7 @@ body {
   left: 0;
   top: 0;
   transition: transform 1s ease-in-out;
+  margin: auto;
 }
 img#veralogo {
   width: 100%;
@@ -134,20 +135,39 @@ img#veralogo {
 /*
  * Navigation
  */
+#verityThemeSwitch {
+  width: auto;
+  position: absolute;
+  right: 0;
+  z-index: 2;
+  padding: 0;
+  margin: 0.5em;
+}
+
 #leftnavCollapseToggler {
   display: block;
-  position: relative;
+  position: absolute;
+  left: 0;
   font-size: 150%;
-  bottom: 3em;
-  margin-bottom: -3em;
   background-repeat: no-repeat;
   z-index: 2;
+  padding: 0;
+  margin: 0.5em;
 }
 
 #verityLeftnav {
-  display: sticky;
-  top: 0;
-  max-width: 15em;  /* prevent overly wide navbar on large displays */
+}
+@media (max-width: 575px) { /* HACKHACK: this replicates Bootstrap's breakpoint -- TODO reference it properly instead */
+  #verityLeftnav {
+    margin: 0 auto 0 auto;  /* center on mobile */
+    width: auto;            /* full width on mobile */
+  }
+}
+@media (min-width: 576px) { /* HACKHACK: this replicates Bootstrap's breakpoint -- TODO reference it properly instead */
+  #verityLeftnav {
+    margin: 0;
+    max-width: max-content;
+  }
 }
 
 .nav-item.active {

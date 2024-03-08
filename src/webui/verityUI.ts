@@ -184,11 +184,12 @@ class VeraAnimationController {
   start(): void {
     this.veraNest = document.getElementById("veraNest") as HTMLImageElement;
     this.veraImg = document.getElementById("veralogo") as HTMLImageElement;
+    const natRect: DOMRect = this.veraNest.getBoundingClientRect();
     // move vera to centera of screen
     this.veraNest.setAttribute("style", `transform: translate(${
-        window.visualViewport.width/2 - this.veraImg.width/2
+        window.visualViewport.width/2 - natRect.x - natRect.width/2
       }px, ${
-        window.visualViewport.height/2 - this.veraImg.height
+        window.visualViewport.height/2 - natRect.y - natRect.height
       }px);`);
 
     // start Vera animation after one second
