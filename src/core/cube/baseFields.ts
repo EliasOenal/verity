@@ -15,8 +15,8 @@ import { ApiMisuseError } from '../settings';
  */
 export class BaseField {
     type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Applications may or may not chose to keep their application-level fields compatible with our top-level numbering.
-    length: number;  // Length of this field WITHOUT header -- TODO remove: length of field value not including header always equal to value.length
     value: Buffer;
+    get length(): number { return this.value?.length; }
 
     /**
      * Start of field as offset from beginning of cube (binaryData).
@@ -28,12 +28,8 @@ export class BaseField {
      */
     start: number = undefined;
 
-    constructor(type: number, length: number, value: Buffer, start?: number) {
-        if (length === undefined) {
-            throw new FieldError("Field length must be defined");
-        }
+    constructor(type: number, value: Buffer, start?: number) {
         this.type = type;
-        this.length = length;
         this.value = value;
         this.start = start;
     }
@@ -110,7 +106,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         let length = 0;
         for (const field of this.data) {
             length += FieldParser.getFieldHeaderLength(field.type, this.fieldDefinition);
-            length += field.length;
+            length += field.value.length;
         }
         return length;
     }

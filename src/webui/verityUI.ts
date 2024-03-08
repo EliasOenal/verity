@@ -3,11 +3,11 @@ import { SupportedTransports } from '../core/networking/networkDefinitions';
 import { logger } from '../core/logger'
 import { VerityNode } from '../core/verityNode';
 import { AddressAbstraction } from '../core/peering/addressing';
-import { Cube } from '../core/cube/cube';
 
 import { Identity } from '../cci/identity/identity';
 import { SubscriptionRequirement, ZwAnnotationEngine } from '../app/zwAnnotationEngine';
 
+import { VerityController } from './controller/verityController';
 import { PostController } from './controller/postController';
 import { PeerController } from './controller/peerController';
 import { CubeExplorerController } from './controller/cubeExplorerController';
@@ -15,7 +15,6 @@ import { IdentityController } from './controller/identityController';
 
 import { isBrowser } from 'browser-or-node';
 import sodium from 'libsodium-wrappers-sumo'
-import { VerityController } from './controller/verityController';
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.

@@ -140,7 +140,7 @@ export class FieldParser {
     if (byteIndex + length <= binaryData.length) {
       // Looks good, decompiling this field
       const value = binaryData.subarray(byteIndex, byteIndex + length);
-      const field: BaseField = new this.fieldDef.fieldObjectClass(type, length, value, fieldStartsAtByte);
+      const field: BaseField = new this.fieldDef.fieldObjectClass(type, value, fieldStartsAtByte);
       // Field decompiled, now advance the binary data index
       byteIndex += length;
       return { field, byteIndex }
@@ -160,7 +160,7 @@ export class FieldParser {
         const fieldStartsAtByte = dataLength-fieldLength;
         const value = binaryData.subarray(fieldStartsAtByte, dataLength);
         const field: BaseField = new this.fieldDef.fieldObjectClass(
-          type, fieldLength, value, fieldStartsAtByte);
+          type, value, fieldStartsAtByte);
         backPositionals.unshift(field);
       } else {
         throw new BinaryDataError("Data too short, cannot contain all back positional fields specified.");

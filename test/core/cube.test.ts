@@ -109,7 +109,7 @@ describe('cube', () => {
       const cube = new Cube(CubeType.FROZEN);
       const fields = new CubeFields([
         CubeField.Type(CubeType.FROZEN),
-        new CubeField(CubeFieldType.PAYLOAD, 8020, Buffer.alloc(8020)),
+        new CubeField(CubeFieldType.PAYLOAD, Buffer.alloc(8020)),
         CubeField.Date(),
         CubeField.Nonce()
       ], coreFrozenFieldDefinition); // Too long for the binary data
@@ -195,11 +195,11 @@ describe('cube', () => {
       muc.privateKey = privateKey;
 
       const fields = new CubeFields([
-        new CubeField(CubeFieldType.TYPE, NetConstants.CUBE_TYPE_SIZE, Buffer.alloc(NetConstants.CUBE_TYPE_SIZE)),
-        new CubeField(CubeFieldType.PUBLIC_KEY, NetConstants.PUBLIC_KEY_SIZE, publicKey),
+        new CubeField(CubeFieldType.TYPE, Buffer.alloc(NetConstants.CUBE_TYPE_SIZE)),
+        new CubeField(CubeFieldType.PUBLIC_KEY, publicKey),
         CubeField.Date(),
-        new CubeField(CubeFieldType.SIGNATURE, NetConstants.SIGNATURE_SIZE, Buffer.alloc(NetConstants.SIGNATURE_SIZE)),
-        new CubeField(CubeFieldType.NONCE, Settings.NONCE_SIZE, Buffer.alloc(Settings.NONCE_SIZE)),
+        new CubeField(CubeFieldType.SIGNATURE, Buffer.alloc(NetConstants.SIGNATURE_SIZE)),
+        new CubeField(CubeFieldType.NONCE, Buffer.alloc(Settings.NONCE_SIZE)),
       ], coreMucFieldDefinition);
 
       muc.setFields(fields);
