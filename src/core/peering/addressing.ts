@@ -16,9 +16,7 @@ export class AddressAbstraction {
       }
       if (!address.length) return undefined;
       if (type == SupportedTransports.ws) {
-          const [peerIp, peerPort] = address.split(':');
-          if (!peerIp || !peerPort) return undefined;  // ignore invalid
-          return new AddressAbstraction(new WebSocketAddress(peerIp, parseInt(peerPort)));
+          return new AddressAbstraction(new WebSocketAddress(address));
       } else if (type == SupportedTransports.libp2p) {
           return new AddressAbstraction(multiaddr(address));
       }
@@ -37,7 +35,10 @@ export class AddressAbstraction {
           this.type = addr.type;
           this.addr = addr.addr;
       } else if (typeof addr === 'string' || addr instanceof String) {
-          this.addr = AddressAbstraction.CreateAddress(addr as string, typeHint).addr;
+          const tmpAddr: AddressAbstraction = AddressAbstraction.CreateAddress(
+            addr as string, typeHint);
+          this.addr = tmpAddr.addr;
+          this.type = tmpAddr.type;
       } else if (addr instanceof WebSocketAddress) {
           this.addr = addr;
           this.type = SupportedTransports.ws;
@@ -63,7 +64,7 @@ export class AddressAbstraction {
 
   get ip(): string {
       try {
-          if (this.addr instanceof WebSocketAddress) return this.addr.ip;
+          if (this.addr instanceof WebSocketAddress) return this.addr.address;
           else return this.addr.nodeAddress().address;
       } catch(error) {
           logger.error("AddressAbstraction.ip: Error getting address: " + error);
@@ -107,19 +108,37 @@ export class WebSocketAddress {
       return ip;
   }
 
+  public address: string;  // could be IPv4, IPv6 or even a DNS name
+  public port: number;
+
+  constructor(address: string, port: number);
+  constructor(url: string);
+
   constructor(
-      public ip: string,  // could be IPv4, IPv6 or even a DNS name
-      public port: number
-  ) {}
+      address: string,  // could be IPv4, IPv6 or even a DNS name
+      port?: number
+  ){
+    if (port === undefined) {  // address is url
+      // HACKHACK: handle special case: ":::<port>" denotes any address
+      if (address.startsWith(":::")) address = "ws://" + "0.0.0.0:" + address.substring(3);
+      else if (!(address.includes('//'))) address = "ws://" + address;
+      const url = new URL(address);
+      this.address = url.hostname;
+      this.port = Number.parseInt(url.port);
+    } else {  // separate address and port provided
+        this.address = address;
+        this.port = port;
+    }
+  }
 
   equals(other: WebSocketAddress): boolean {
-      return (this.ip === other.ip && this.port === other.port);
+      return (this.address === other.address && this.port === other.port);
   }
 
   toString(wsPrefix: boolean = false): string {
       let str = "";
       if (wsPrefix) str += "ws://";
-      str += this.ip + ":" + this.port;
+      str += this.address + ":" + this.port;
       return str;
   }
 }

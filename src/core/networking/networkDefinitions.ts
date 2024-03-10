@@ -8,14 +8,15 @@ export enum MessageClass {
     CubeRequest = 0x03,
     CubeResponse = 0x04,
     MyServerAddress = 0x05,
-    NodeRequest = 0x06,
-    NodeResponse = 0x07,
+    PeerRequest = 0x06,
+    PeerResponse = 0x07,
 }
 
 export const NetConstants =  {
+    PROTOCOL_VERSION_SIZE: 1,
     PROTOCOL_VERSION: 0x00,
     PEER_ID_SIZE: 16,
-    MAX_CUBE_HASH_COUNT: 1000,
+    MAX_CUBES_PER_MESSAGE: 1000,
     MAX_NODE_ADDRESS_COUNT: 1000,
     CUBE_SIZE: 1024,
     HASH_SIZE: 32,      // TODO: HASH_SIZE may still be used instead of

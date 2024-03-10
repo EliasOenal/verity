@@ -305,7 +305,6 @@ describe('networkManager - WebSocket connections', () => {
             buffer.writeInt8(i);
             await cubeStore.addCube(cube);
         }
-
         expect(cubeStore.getAllKeys().size).toEqual(numberOfCubes);
 
         // sync cubes from peer 1 to peer 2
@@ -318,6 +317,7 @@ describe('networkManager - WebSocket connections', () => {
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
+        expect(cubeStore2.getAllKeys().size).toEqual(numberOfCubes);
         for (const hash of cubeStore.getAllKeys()) {
             expect(cubeStore2.getCube(hash)).toBeInstanceOf(Cube);
         }
