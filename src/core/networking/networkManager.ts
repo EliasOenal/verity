@@ -387,7 +387,7 @@ export class NetworkManager extends EventEmitter {
         // This is a pure optimisation to enhance startup time; NetworkPeer
         // will periodically ask for the same stuff in a short while.
         peer.sendKeyRequest();
-        if (this.peerExchange) peer.sendNodeRequest();
+        if (this.peerExchange) peer.sendPeerRequest();
 
         // Relay the online event to our subscribers
         this.emit('peeronline', peer);
