@@ -173,7 +173,7 @@ export class VerityUI {
 
 
 class VeraAnimationController {
-  private currentTimer: any = undefined;  // type differs between NodeJS and browser
+  private currentTimer: NodeJS.Timeout = undefined;  // it's actually not a NodeJS.Timeout in the browser environment, but we're developing on NodeJS so that's fine
   private veraNest: HTMLElement;
   private veraImg: HTMLImageElement;
 

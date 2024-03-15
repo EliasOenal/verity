@@ -17,6 +17,7 @@ import { Buffer } from 'buffer';
 import * as cryptolib from 'crypto';
 import { TransportConnection } from './transport/transportConnection';
 import { AddressAbstraction } from '../peering/addressing';
+import { RequestScheduler } from './requestScheduler';
 let crypto;
 if (isBrowser || isWebWorker) {
     crypto = window.crypto;
@@ -26,7 +27,12 @@ if (isBrowser || isWebWorker) {
 
 export interface NetworkManagerOptions {
     announceToTorrentTrackers?: boolean;
-    lightNode?: boolean;  // TODO: move this once we have a scheduler
+
+    /**
+     * If true, we will never send any key or cube requests to this NetworkPeer
+     * unless explicitly asked to.
+     **/
+    lightNode?: boolean;
     autoConnect?: boolean;
     peerExchange?: boolean;
     publicAddress?: string;  // TODO: move this to new TransportOptions
@@ -57,14 +63,22 @@ export class NetworkManager extends EventEmitter {
     // toggle-able flags
     public acceptIncomingConnections: boolean;
 
-    /**  */
+    // Components
     transports: Map<SupportedTransports, NetworkTransport> = new Map();
+    scheduler: RequestScheduler;
 
     /** List of currently connected peers to which we initiated the connection */
     outgoingPeers: NetworkPeer[] = []; // maybe TODO: This should probably be a Set
 
     /** List of current remote-initiated peer connections */
     incomingPeers: NetworkPeer[] = []; // maybe TODO: This should probably be a Set
+
+    get connectedPeers(): NetworkPeer[] {
+        return this.outgoingPeers.concat(this.incomingPeers);
+    }
+    get connectedPeerCount(): number {
+        return this.outgoingPeers.length + this.incomingPeers.length;
+    }
 
     /**
      * Internal flag indicating that connectPeers() is currently running
@@ -93,7 +107,6 @@ export class NetworkManager extends EventEmitter {
      * @param cubeStore The CubeStore to use.
      * @param _peerDB The PeerDB to use.
      * @param announce Whether to announce the node to the network.
-     * @param lightNode Whether to run the node in light mode.
      *
      * @remarks
      * The callbacks are called with the peer and the error as arguments.
@@ -114,9 +127,12 @@ export class NetworkManager extends EventEmitter {
 
         // set instance behavior
         this.announceToTorrentTrackers = options?.announceToTorrentTrackers ?? true;
-        this._lightNode = options?.lightNode ?? false;
+        this._lightNode = options?.lightNode ?? true;
         this.autoConnect = options?.autoConnect ?? true;
         this._peerExchange = options?.peerExchange ?? true;
+
+        // Create components
+        this.scheduler = new RequestScheduler(this, {lightNode: this.lightNode});
 
         // Create NetworkTransport objects for all requested transport types.
         this.transports = createNetworkTransport(transports, options);
@@ -268,7 +284,8 @@ export class NetworkManager extends EventEmitter {
             this.cubeStore,
             {
                 extraAddresses: peer.addresses,
-                lightMode: this.lightNode,
+                lightNode: this.lightNode,
+                autoRequest: false,  // using scheduler
                 peerExchange: this.peerExchange,
             }
             );
@@ -295,6 +312,7 @@ export class NetworkManager extends EventEmitter {
         this.stopConnectingPeers();
         this.autoConnect = false;
         // shut down components
+        this.scheduler.shutdown();
         this._peerDB.removeListener('newPeer',
             (newPeer: Peer) => this.autoConnectPeers());
         this._peerDB.shutdown();
@@ -327,7 +345,8 @@ export class NetworkManager extends EventEmitter {
             conn,
             this.cubeStore,
             {
-                lightMode: this.lightNode,
+                lightNode: this.lightNode,
+                autoRequest: false,  // using scheduler
                 peerExchange: this.peerExchange,
             }
         );
@@ -383,10 +402,13 @@ export class NetworkManager extends EventEmitter {
             this.emit('online');
         }
 
-        // Ask for cube keys and node exchange now
+        // Let out scheduler know -- if it's not already running requests, tell
+        // it to do so now.
+        this.scheduler.scheduleNextRequest(0);
+
+        // Ask peer for node exchange now
         // This is a pure optimisation to enhance startup time; NetworkPeer
-        // will periodically ask for the same stuff in a short while.
-        peer.sendKeyRequest();
+        // will periodically ask for it in a short while.
         if (this.peerExchange) peer.sendPeerRequest();
 
         // Relay the online event to our subscribers
