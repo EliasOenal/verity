@@ -1,6 +1,6 @@
 import { SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 
-import { NetworkManager } from '../../../src/core/networking/networkManager';
+import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
 import { NetworkPeer } from '../../../src/core/networking/networkPeer';
 import { WebSocketTransport } from '../../../src/core/networking/transport/webSocket/webSocketTransport';
 import { WebSocketServer } from '../../../src/core/networking/transport/webSocket/webSocketServer';
@@ -24,6 +24,21 @@ import { Settings } from '../../../src/core/settings';
 // etc is described within the WebSocket tests while the libp2p tests are more
 // focused on asserting the libp2p framework integrates into Verity as expected.
 
+// TODO: add light mode tests
+
+const fullNodeMinimalFeatures: NetworkManagerOptions = {  // disable optional features
+    announceToTorrentTrackers: false,
+    autoConnect: false,
+    lightNode: false,
+    peerExchange: false,
+};
+const lightNodeMinimalFeatures: NetworkManagerOptions = {  // disable optional features
+    announceToTorrentTrackers: false,
+    autoConnect: false,
+    lightNode: true,
+    peerExchange: false,
+};
+
 describe('networkManager - WebSocket connections', () => {
     const reducedDifficulty = 0;
     const testCubeStoreParams = {
@@ -37,12 +52,7 @@ describe('networkManager - WebSocket connections', () => {
             new CubeStore(testCubeStoreParams),
             new PeerDB(),
             new Map([[SupportedTransports.ws, 3000]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         expect(manager.transports.size).toEqual(1);
         expect(manager.transports.get(SupportedTransports.ws)).
             toBeInstanceOf(WebSocketTransport);
@@ -57,12 +67,7 @@ describe('networkManager - WebSocket connections', () => {
             new CubeStore(testCubeStoreParams),
             new PeerDB(),
             new Map([[SupportedTransports.ws, 3001]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         manager.start();
         // @ts-ignore Checking private attributes
         (manager.transports.get(SupportedTransports.ws).servers[0] as WebSocketServer).server.on('connection', () => {
@@ -82,12 +87,7 @@ describe('networkManager - WebSocket connections', () => {
             new CubeStore(testCubeStoreParams),
             new PeerDB(),
             new Map([[SupportedTransports.ws, 3003]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         await manager.start();
 
         const server = new WebSocket.Server({ port: 3002 });
@@ -109,32 +109,17 @@ describe('networkManager - WebSocket connections', () => {
             new CubeStore(testCubeStoreParams),
             new PeerDB(),
             new Map([[SupportedTransports.ws, 4000]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         const client1 = new NetworkManager(
             new CubeStore(testCubeStoreParams),
             new PeerDB(),
             undefined,  // no listeners
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         const client2 = new NetworkManager(
             new CubeStore(testCubeStoreParams),
             new PeerDB(),
             undefined,  // no listeners
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         // wait for server to be listening
         await listener.start();
 
@@ -169,22 +154,12 @@ describe('networkManager - WebSocket connections', () => {
             new CubeStore(testCubeStoreParams),
             new PeerDB(),
             new Map([[SupportedTransports.ws, 4010]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         const manager2 = new NetworkManager(
             new CubeStore(testCubeStoreParams),
             new PeerDB(),
             new Map([[SupportedTransports.ws, 4011]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
 
         const promise1_listening = manager1.start();
         const promise2_listening = manager2.start();
@@ -209,22 +184,12 @@ describe('networkManager - WebSocket connections', () => {
             new CubeStore(testCubeStoreParams),
             new PeerDB(),
             new Map([[SupportedTransports.ws, 3010]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         const ipv6peer = new NetworkManager(
             new CubeStore(testCubeStoreParams),
             new PeerDB(),
             new Map([[SupportedTransports.ws, 3011]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         await Promise.all([protagonist.start(), ipv6peer.start()]);
         const peerObj = protagonist.connect(
             new Peer(new WebSocketAddress("[::1]", 3011))
@@ -249,6 +214,111 @@ describe('networkManager - WebSocket connections', () => {
         await Promise.all([protagonist.shutdown(), ipv6peer.shutdown()]);
     });
 
+    it('auto-exchanges Cubes after connection when operating as full node', async() => {
+        const node1 = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            new Map([[SupportedTransports.ws, 3021]]),
+            fullNodeMinimalFeatures)
+        const node2 = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            new Map([[SupportedTransports.ws, 3022]]),
+            fullNodeMinimalFeatures);
+        await Promise.all([node1.start(), node2.start()]);
+        const cube = Cube.Frozen(
+            {fields: CubeField.Payload("Hic cubus automatice transferetur")})
+        const key = await cube.getKey();
+        await node1.cubeStore.addCube(cube);
+
+        expect(node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+        expect(node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
+
+        await node1.connect(new Peer("127.0.0.1:3022"));
+        // Wait up to three seconds for Cube exchange to happen
+        for (let i = 0; i < 30; i++) {
+            if (node2.cubeStore.getNumberOfStoredCubes() >= 2) {
+                break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        const received = node2.cubeStore.getCube(key, coreTlvFieldParsers);
+        expect(received).toBeInstanceOf(Cube);
+        expect(received.fields.getFirst(CubeFieldType.PAYLOAD)?.value?.toString('utf-8')).
+            toEqual("Hic cubus automatice transferetur");
+
+        await Promise.all([node1.shutdown(), node2.shutdown()]);
+    });
+
+    it('exchanges Cubes on request when operating as light node', async() => {
+        const node1 = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            new Map([[SupportedTransports.ws, 3021]]),
+            lightNodeMinimalFeatures)
+        const node2 = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            new Map([[SupportedTransports.ws, 3022]]),
+            lightNodeMinimalFeatures);
+        await Promise.all([node1.start(), node2.start()]);
+        const cube = Cube.Frozen(
+            {fields: CubeField.Payload("Hic cubus per rogatum transferetur")})
+        const key = await cube.getKey();
+        await node1.cubeStore.addCube(cube);
+
+        expect(node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+        expect(node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
+
+        const node2to1 = await node2.connect(new Peer("127.0.0.1:3021"));
+        await node2to1.onlinePromise;
+        // Request Cube
+        node2to1.sendCubeRequest([key]);
+        // Wait up to three seconds for Cube exchange to happen
+        for (let i = 0; i < 30; i++) {
+            if (node2.cubeStore.getNumberOfStoredCubes() >= 2) {
+                break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        const received = node2.cubeStore.getCube(key, coreTlvFieldParsers);
+        expect(received).toBeInstanceOf(Cube);
+        expect(received.fields.getFirst(CubeFieldType.PAYLOAD)?.value?.toString('utf-8')).
+            toEqual("Hic cubus per rogatum transferetur");
+
+        await Promise.all([node1.shutdown(), node2.shutdown()]);
+    });
+
+    it('does not exchange unrequested Cubes when operating as light node', async() => {
+        const node1 = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            new Map([[SupportedTransports.ws, 3021]]),
+            lightNodeMinimalFeatures)
+        const node2 = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            new Map([[SupportedTransports.ws, 3022]]),
+            lightNodeMinimalFeatures);
+        await Promise.all([node1.start(), node2.start()]);
+        const cube = Cube.Frozen(
+            {fields: CubeField.Payload("Hic cubus per rogatum transferetur")})
+        const key = await cube.getKey();
+        await node1.cubeStore.addCube(cube);
+
+        expect(node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+        expect(node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
+
+        const node2to1 = await node2.connect(new Peer("127.0.0.1:3021"));
+        await node2to1.onlinePromise;
+
+        // wait a little...
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        // light node: no request, no Cube
+        expect(node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
+
+        await Promise.all([node1.shutdown(), node2.shutdown()]);
+    });
 
     it('syncs cubes between three nodes', async () => {
         const numberOfCubes = 10;
@@ -258,30 +328,15 @@ describe('networkManager - WebSocket connections', () => {
         const manager1 = new NetworkManager(
             cubeStore, new PeerDB(),
             new Map([[SupportedTransports.ws, 4020]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         const manager2 = new NetworkManager(
             cubeStore2, new PeerDB(),
             new Map([[SupportedTransports.ws, 4021]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         const manager3 = new NetworkManager(
             cubeStore3, new PeerDB(),
             new Map([[SupportedTransports.ws, 4022]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
 
         // Start all three nodes
         const promise1_listening = manager1.start();
@@ -351,21 +406,11 @@ describe('networkManager - WebSocket connections', () => {
         const manager1 = new NetworkManager(
             cubeStore, new PeerDB(),
             new Map([[SupportedTransports.ws, 5002]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         const manager2 = new NetworkManager(
             cubeStore2, new PeerDB(),
             new Map([[SupportedTransports.ws, 5001]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
 
         // Start both nodes
         const promise1_listening = manager1.start();
@@ -452,12 +497,7 @@ describe('networkManager - WebSocket connections', () => {
             new CubeStore(testCubeStoreParams),
             peerDB,
             new Map([[SupportedTransports.ws, 6004]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         await manager.start();
 
         expect(peerDB.peersBlocked.size).toEqual(0);
@@ -482,12 +522,7 @@ describe('networkManager - WebSocket connections', () => {
             new CubeStore(testCubeStoreParams),
             myPeerDB,
             undefined,  // no listener
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         myManager.start();
 
         const otherPeerDB = new PeerDB();
@@ -495,12 +530,7 @@ describe('networkManager - WebSocket connections', () => {
             new CubeStore(testCubeStoreParams),
             otherPeerDB,
             new Map([[SupportedTransports.ws, 7005]]),
-            {  // disable optional features
-                announceToTorrentTrackers: false,
-                autoConnect: false,
-                lightNode: false,
-                peerExchange: false,
-            });
+            fullNodeMinimalFeatures);
         await otherManager.start();
 
         // connect to peer and wait till connected

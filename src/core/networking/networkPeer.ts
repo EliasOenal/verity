@@ -37,7 +37,8 @@ export interface NetworkStats {
 
 export interface NetworkPeerOptions {
     extraAddresses?: AddressAbstraction[],
-    lightMode?: boolean,
+    lightNode?: boolean,
+    autoRequest: boolean,
     peerExchange?: boolean,
     networkTimeoutSecs?: number,
 }
@@ -75,7 +76,8 @@ export class NetworkPeer extends Peer {
     get conn(): TransportConnection { return this._conn }
 
     private networkTimeout: NodeJS.Timeout = undefined;
-    private lightMode: boolean = false;
+    private lightNode: boolean;
+    private autoRequest: boolean;
     private peerExchange: boolean = true;
     private networkTimeoutSecs: number = Settings.NETWORK_TIMEOUT;
 
@@ -88,7 +90,8 @@ export class NetworkPeer extends Peer {
     {
         super(_conn.address);
         // set opts
-        this.lightMode = options?.lightMode ?? false;
+        this.lightNode = options?.lightNode ?? true;
+        this.autoRequest = options?.autoRequest ?? false;
         this.peerExchange = options?.peerExchange ?? true;
         this.networkTimeoutSecs = options?.networkTimeoutSecs ?? Settings.NETWORK_TIMEOUT;
         if (options.extraAddresses) {
@@ -331,8 +334,9 @@ export class NetworkPeer extends Peer {
             this.peerRequestTimer = setInterval(() =>
                 this.sendPeerRequest(), Settings.NODE_REQUEST_TIME);
         }
-        // If we're a full node, ask for available cubes in regular intervals
-        if (!this.lightMode && !this.keyRequestTimer) {
+        // If we're scheduling our own requests and are not a light node,
+        // ask for available cubes in regular intervals
+        if (this.autoRequest && !this.lightNode && !this.keyRequestTimer) {
             this.keyRequestTimer = setInterval(() => this.sendKeyRequest(),
                 Settings.KEY_REQUEST_TIME);
         }
@@ -364,10 +368,17 @@ export class NetworkPeer extends Peer {
     }
 
     /**
-     * Handle a HashResponse message.
+     * Handle a KeyResponse message and request all offered Cubes that we don't
+     * have.
+     * Does nothing for light nodes as, obviously, light nodes don't just
+     * blindly request all Cubes.
      * @param data The HashResponse data.
      */
     private handleKeyResponse(msg: KeyResponseMessage): void {
+        if (this.lightNode) {
+            logger.info(`${this.toString()}: handleKeyResponse() called but light mode enabled, doing nothing.`)
+            return;
+        }
         const cubeInfos: Generator<CubeInfo> = msg.cubeInfos();
         const regularCubeInfo: CubeInfo[] = [];
         const mucInfo: CubeInfo[] = [];
@@ -503,6 +514,7 @@ export class NetworkPeer extends Peer {
       * Send a KeyRequest message.
       */
     sendKeyRequest(): void {
+        logger.trace(`NetworkPeer ${this.toString()}: sending KeyRequest`);
         const msg: KeyRequestMessage = new KeyRequestMessage();
         this.setTimeout();  // expect a timely reply to this request
         this.sendMessage(msg);
