@@ -1,7 +1,5 @@
 import { Settings, VerityError } from "../settings";
 
-import { Buffer } from 'buffer'
-
 export enum CubeType {
   FROZEN = (Settings.CUBE_VERSION << 4) + (0 << 2),
   PIC = (Settings.CUBE_VERSION << 4) + (1 << 2),  // not fully implemented yet

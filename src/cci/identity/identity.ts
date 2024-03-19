@@ -1,12 +1,14 @@
 /** !!! This module may only be used after awaiting sodium.ready !!! */
 import { IdentityPersistance } from './identityPersistance';
+import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
 
 import { unixtime } from '../../core/helpers';
 import { Cube } from '../../core/cube/cube';
 import { logger } from '../../core/logger';
 
 import { cciField, cciFieldParsers, cciFieldType, cciFields, cciMucFieldDefinition, cciRelationship, cciRelationshipType } from '../cube/cciFields';
-import { cciCube } from '../cube/cciCube';
+import { cciCube, cciFamily } from '../cube/cciCube';
+import { ensureCci } from '../cube/cciCubeUtil';
 
 import { Settings, VerityError } from '../../core/settings';
 import { FieldParserTable } from '../../core/cube/cubeFields';
@@ -19,7 +21,6 @@ import { ZwConfig } from '../../app/zwConfig';  // TODO remove dependency from C
 
 import { Buffer } from 'buffer';
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
-import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
 
 const IDMUC_CONTEXT_STRING = "CCI Identity";
 const IDMUC_MASTERINDEX = 0;
@@ -114,8 +115,8 @@ export class Identity {
     const masterKey: Buffer = Identity.DeriveMasterKey(username, password,
       options?.argonCpuHardness, options?.argonMemoryHardness);
     const keyPair: KeyPair = Identity.DeriveKeypair(masterKey);
-    const idMuc: cciCube = cubeStore.getCube(
-      Buffer.from(keyPair.publicKey), cciFieldParsers, cciCube) as cciCube;
+    const idMuc: cciCube = ensureCci(cubeStore.getCube(
+      Buffer.from(keyPair.publicKey), cciFamily));
     if (idMuc === undefined) return undefined;
     const identity = new Identity(cubeStore, idMuc, options);
     identity.supplySecrets(masterKey, Buffer.from(keyPair.privateKey));
@@ -370,7 +371,7 @@ export class Identity {
     let recursiveSubs: CubeKey[] = this.subscriptionRecommendations;
     if (curDepth < maxDepth) {
       for (const sub of this._subscriptionRecommendations) {
-        const muc: cciCube = this.cubeStore.getCube(sub, cciFieldParsers, cciCube) as cciCube;  // TODO our CubeInfos should learn which kind of Cube they represent much earlier in the process
+        const muc: cciCube = ensureCci(this.cubeStore.getCube(sub, cciFamily));
         if (!muc) continue;
         let id: Identity;
         try {
@@ -476,7 +477,7 @@ export class Identity {
 
     const newMuc: cciCube = cciCube.MUC(this._muc.publicKey, this._muc.privateKey, {
       fields: fields,
-      parsers: cciFieldParsers,
+      family: cciFamily,
       requiredDifficulty: requiredDifficulty
     });
     await newMuc.getBinaryData();  // compile MUC
@@ -558,7 +559,7 @@ export class Identity {
         // cheaper to just keep an open slot on the first extension MUC.
         const indexCube: cciCube = cciCube.ExtensionMuc(
           this.masterKey, fields, i, "Subscription recommendation indices",
-          false, cciFieldParsers, requiredDifficulty);
+          false, cciFamily, requiredDifficulty);
         this.subscriptionRecommendationIndices[i] = indexCube;
       }
       // Note: Once calling store(), we will still try to reinsert non-changed
@@ -641,7 +642,7 @@ export class Identity {
     const furtherIndices = fields.getRelationships(
       cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX);
     for (const furtherIndex of furtherIndices) {
-      const furtherCube: Cube = this.cubeStore.getCube(furtherIndex.remoteKey, cciFieldParsers, cciCube);
+      const furtherCube: Cube = this.cubeStore.getCube(furtherIndex.remoteKey, cciFamily);
       if (furtherCube) {
         this.recursiveParseSubscriptionRecommendations(furtherCube, alreadyTraversedCubes);
       }
@@ -689,7 +690,7 @@ export class Identity {
         }
         if (!inserted) this.posts.push(postrel.remoteKey.toString('hex'));
       }
-      this.recursiveParsePostReferences(this.cubeStore.getCube(postrel.remoteKey, cciFieldParsers, cciCube), alreadyTraversedCubes);
+      this.recursiveParsePostReferences(this.cubeStore.getCube(postrel.remoteKey, cciFamily), alreadyTraversedCubes);
     }
   }
 }

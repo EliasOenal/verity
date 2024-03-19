@@ -1,7 +1,7 @@
 import { logger } from '../logger';
-import { Cube } from './cube'
+import { Cube, coreCubeFamily } from './cube'
 import { CubeType, CubeKey, CubeError } from './cubeDefinitions';
-import { FieldParserTable, coreFieldParsers } from './cubeFields';
+import { CubeFamilyDefinition } from './cubeFamily';
 
 import { Buffer } from 'buffer';
 
@@ -36,6 +36,7 @@ export interface CubeInfoOptions {
   date?: number;
   challengeLevel?: number;
 
+  // TODO update comment to adequately reflect new type CubeFamilyDefinition
   /**
    * Choose the default parser to be used for the cube represented by this
    * CubeInfo. By default, we will use the coreFieldParsers, which only
@@ -46,7 +47,7 @@ export interface CubeInfoOptions {
    * format. If you're using CCI, and we strongly recommend you do, choose
    * cciFieldParsers.
    */
-  parsers?: FieldParserTable,
+  family?: CubeFamilyDefinition,
 
   /**
    * The implementation class the represented Cube is of, for example
@@ -115,7 +116,7 @@ export class CubeInfo {
    */
   applicationNotes: object = {}
 
-  readonly parsers: FieldParserTable;
+  readonly family: CubeFamilyDefinition;
 
   // @member objectCache: Will remember the last instantiated Cube object
   //                      for as long as the garbage collector keeps it alive
@@ -127,7 +128,7 @@ export class CubeInfo {
   constructor(options: CubeInfoOptions) {
     this.date = options.date;
     this.challengeLevel = options.challengeLevel;
-    this.parsers = options?.parsers ?? coreFieldParsers;
+    this.family = options?.family ?? coreCubeFamily;
 
     if (options.cube instanceof Cube) {
       // active Cube
@@ -166,14 +167,12 @@ export class CubeInfo {
    * Cube objects, so there's no need for the caller to cache them.
    */
   getCube(
-      parsers: FieldParserTable = this.parsers,
-      cubeClass = this.cubeClass,
+      family: CubeFamilyDefinition = this.family,
   ): Cube | undefined {
     // Keep returning the same Cube object until it gets garbage collected.
     // Can only used cached object when using default parser and Cube class.
     if (this.objectCache &&  // is there anything cached?
-        parsers === this.parsers &&  // don't use cache unless default parsing
-        cubeClass === this.cubeClass) {  // don't use cache unless default Cube class
+        family === this.family) {  // don't use cache unless default parsing
       const cachedCube: Cube = this.objectCache.deref();
       if (cachedCube) {
         // logger.trace("cubeInfo: Yay! Saving us one instantiation");
@@ -183,9 +182,9 @@ export class CubeInfo {
 
     // Nope, no Cube object cached. Create a new one and remember it.
     try {
-      const cube = new cubeClass(this.binaryCube, {parsers: parsers});
-      // Can only cache object when using default parser and Cube class.
-      if (parsers === this.parsers && cubeClass === this.cubeClass) {
+      const cube = new family.cubeClass(this.binaryCube, {family: family});
+      // Can only cache object when using default Cube family
+      if (family === this.family) {
         this.objectCache = new WeakRef(cube);
       }
       return cube;

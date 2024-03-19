@@ -10,13 +10,13 @@ export type FieldNumericalParam = { [key: number]: number | undefined };
 export type PositionalFields = { [key: number]: number };
 
 export interface FieldDefinition {
-    fieldNames: EnumType;
-    fieldLengths: FieldNumericalParam;  // maps field IDs to field lenghths, e.g. FIELD_LENGTHS defined in field.ts
-    positionalFront: FieldNumericalParam;
-    positionalBack: FieldNumericalParam;
-    fieldObjectClass: any,     // the Field class you'd like to use, e.g. CubeField for core-only processing. Using type any as it turns out to be much to complex to declare a type of "class".
-    fieldsObjectClass: any,    // the Fields class you'd like to use, e.g. CubeFields for core-only-processing. Using type any as it turns out to be much to complex to declare a type of "class".
-    firstFieldOffset: number;
+  fieldNames: EnumType;
+  fieldLengths: FieldNumericalParam;  // maps field IDs to field lenghths, e.g. FIELD_LENGTHS defined in field.ts
+  fieldObjectClass: any,     // the Field class you'd like to use, e.g. CubeField for core-only processing. Using type any as it turns out to be much to complex to declare a type of "class".
+  fieldsObjectClass: any,    // the Fields class you'd like to use, e.g. CubeFields for core-only-processing. Using type any as it turns out to be much to complex to declare a type of "class".
+  positionalFront: FieldNumericalParam;
+  positionalBack: FieldNumericalParam;
+  firstFieldOffset: number;
 }
 
 export class FieldParser {

@@ -1,5 +1,4 @@
-import { cciCube } from "../../cci/cube/cciCube";
-import { cciFieldParsers } from "../../cci/cube/cciFields";
+import { cciFamily } from "../../cci/cube/cciCube";
 import { Cube } from "../../core/cube/cube";
 import { CubeStore } from "../../core/cube/cubeStore";
 import { CubeExplorerView } from "../view/cubeExplorerView";
@@ -34,7 +33,7 @@ export class CubeExplorerController extends VerityController {
         filtered++;
         continue;  // skip non-matching
       }
-      const cube: cciCube = this.cubeStore.getCube(key, cciFieldParsers, cciCube) as cciCube;
+      const cube: Cube = this.cubeStore.getCube(key, cciFamily);  // try to parse as CCI, but probably okay if it's not
       if (!cube) {
         unparsable++;
         continue;  // TODO error handling

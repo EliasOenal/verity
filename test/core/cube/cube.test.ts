@@ -1,17 +1,17 @@
 // cube.test.ts
-import { Settings } from '../../src/core/settings';
-import { unixtime } from '../../src/core/helpers';
-import { NetConstants } from '../../src/core/networking/networkDefinitions';
-import { BinaryLengthError, CubeSignatureError, CubeType, FieldError, FieldSizeError, InsufficientDifficulty } from '../../src/core/cube/cubeDefinitions';
-import { Cube } from '../../src/core/cube/cube';
+import { Settings } from '../../../src/core/settings';
+import { unixtime } from '../../../src/core/helpers';
+import { NetConstants } from '../../../src/core/networking/networkDefinitions';
+import { BinaryLengthError, CubeSignatureError, CubeType, FieldError, FieldSizeError, InsufficientDifficulty } from '../../../src/core/cube/cubeDefinitions';
+import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
 import { Buffer } from 'buffer';
-import { calculateHash, countTrailingZeroBits } from '../../src/core/cube/cubeUtil';
-import { FieldParser } from '../../src/core/fieldParser';
+import { calculateHash, countTrailingZeroBits } from '../../../src/core/cube/cubeUtil';
+import { FieldParser } from '../../../src/core/fieldParser';
+import { CubeField, CubeFieldLength, CubeFieldType, CubeFields, coreFrozenFieldDefinition, coreMucFieldDefinition } from '../../../src/core/cube/cubeFields';
+import { CubeInfo } from '../../../src/core/cube/cubeInfo';
+import { BaseField, BaseFields } from '../../../src/core/cube/baseFields';
 
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
-import { CubeField, CubeFieldLength, CubeFieldType, CubeFields, coreFrozenParser, coreFieldParsers, coreTlvFieldParsers, coreFrozenFieldDefinition, coreMucFieldDefinition } from '../../src/core/cube/cubeFields';
-import { CubeInfo } from '../../src/core/cube/cubeInfo';
-import { BaseField, BaseFields } from '../../src/core/cube/baseFields';
 
 // TODO: Add more tests. This is one of our most crucial core classes and it's
 // nowhere near fully covered.
@@ -292,7 +292,7 @@ describe('cube', () => {
         muc.fields.getFirst(CubeFieldType.DATE).value)).toBeTruthy();
 
       // Do a full parsing from binary including TLV
-      const fullyParsedMuc = new Cube(binMuc, {parsers: coreTlvFieldParsers});
+      const fullyParsedMuc = new Cube(binMuc, {family: coreTlvCubeFamily});
       const backPos = fullyParsedMuc.fields.all.length;
       expect(fullyParsedMuc).toBeInstanceOf(Cube);
       expect(fullyParsedMuc.fields.all.length).toBeGreaterThanOrEqual(7);

@@ -1,14 +1,12 @@
-import { Cube } from "../../core/cube/cube";
+import { Settings } from "../../core/settings";
 import { CubeField, CubeFieldLength, CubeFieldType, CubeFields, FieldParserTable, frozenPositionalBack, frozenPositionalFront, mucPositionalBack, mucPositionalFront } from "../../core/cube/cubeFields";
-import { FieldDefinition, FieldNumericalParam, FieldParser } from "../../core/fieldParser";
-import { logger } from "../../core/logger";
+import { FieldDefinition, FieldParser } from "../../core/fieldParser";
 import { NetConstants } from "../../core/networking/networkDefinitions";
+import { CubeKey, CubeType, FieldError, WrongFieldType } from "../../core/cube/cubeDefinitions";
+import { cciCube } from "./cciCube";
+import { CubeFamilyDefinition } from "../../core/cube/cubeFamily";
 
 import { Buffer } from 'buffer'
-import { Settings } from "../../core/settings";
-import { BaseField, BaseFields } from "../../core/cube/baseFields";
-import { CubeKey, CubeType, FieldError, WrongFieldType } from "../../core/cube/cubeDefinitions";
-import { cciConstants } from "../cciDefinitions";
 
 // HACKHACK: For proper layering, this file should define CCI field IDs and
 // associated length data. These should extend the base CubeFieldTypes.
@@ -213,6 +211,7 @@ export const cciMucFieldDefinition: FieldDefinition = {
 export const cciFrozenParser: FieldParser = new FieldParser(cciFrozenFieldDefinition);
 export const cciMucParser: FieldParser = new FieldParser(cciMucFieldDefinition);
 
-export const cciFieldParsers: FieldParserTable = {} // lookup table
-cciFieldParsers[CubeType.FROZEN] = cciFrozenParser;
-cciFieldParsers[CubeType.MUC] = cciMucParser;
+export const cciFieldParsers: FieldParserTable = {
+  [CubeType.FROZEN]: cciFrozenParser,
+  [CubeType.MUC]: cciMucParser,
+}

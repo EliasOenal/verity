@@ -1,11 +1,11 @@
 import { Settings, VerityError } from "../../core/settings";
 import { cciFields, cciField, cciFieldParsers } from "./cciFields";
+import { CubeType, FieldError } from "../../core/cube/cubeDefinitions";
+import { CubeFamilyDefinition } from "../../core/cube/cubeFamily";
 
 import { Cube, CubeOptions } from "../../core/cube/cube";
 
 import sodium, { KeyPair, crypto_kdf_KEYBYTES } from 'libsodium-wrappers-sumo'
-import { FieldParserTable } from "../../core/cube/cubeFields";
-import { CubeType, FieldError } from "../../core/cube/cubeDefinitions";
 
 export class cciCube extends Cube {
   class = cciCube;  // javascript introspection sucks
@@ -15,7 +15,7 @@ export class cciCube extends Cube {
   static Frozen(options?: CubeOptions): cciCube {
     if (options === undefined) options = {};
     options.cubeClass = options?.cubeClass ?? cciCube;
-    options.parsers = options?.parsers ?? cciFieldParsers;
+    options.family = options?.family ?? cciFamily;
     return super.Frozen(options) as cciCube;
   }
   static MUC(
@@ -24,7 +24,7 @@ export class cciCube extends Cube {
       options?: CubeOptions): cciCube {
     if (options === undefined) options = {};
     options.cubeClass = options?.cubeClass ?? cciCube;
-    options.parsers = options?.parsers ?? cciFieldParsers;
+    options.family = options?.family ?? cciFamily;
     return super.MUC(publicKey, privateKey, options) as cciCube;
   }
 
@@ -35,11 +35,11 @@ export class cciCube extends Cube {
     fields: cciFields | cciField[],
     subkeyIndex: number = undefined, context: string = undefined,
     writeSubkeyIndexToCube: boolean = false,
-    parsers: FieldParserTable = cciFieldParsers,
+    family: CubeFamilyDefinition = cciFamily,
     required_difficulty = Settings.REQUIRED_DIFFICULTY
   ): cciCube {
     if (!(fields instanceof cciFields)) {
-      fields = new cciFields(cciFields as any, parsers[CubeType.MUC].fieldDef);
+      fields = new cciFields(cciFields as any, family.parsers[CubeType.MUC].fieldDef);
     }
     if (subkeyIndex === undefined) {
       const max: number = Math.pow(2, (Settings.MUC_EXTENSION_SEED_SIZE*8)) - 1;
@@ -66,7 +66,7 @@ export class cciCube extends Cube {
     const extensionMuc: cciCube = cciCube.MUC(
       keyPair.publicKey, keyPair.privateKey, {
         fields: fields,
-        parsers: parsers,
+        family: family,
         requiredDifficulty: required_difficulty
     });
     return extensionMuc;
@@ -77,18 +77,29 @@ export class cciCube extends Cube {
           options?: CubeOptions)
   {
     if (options === undefined) options = {};
-    options.parsers = options.parsers ?? cciFieldParsers;
+    options.family = options.family ?? cciFamily;
     // @ts-ignore tsc is stupid
     super(param1, options)
   }
 
 
   public get fields(): cciFields {
-    if (Settings.RUNTIME_ASSERTIONS && !(this._fields instanceof cciFields)) {
+    if (Settings.RUNTIME_ASSERTIONS && !(this.assertCci())) {
         throw new FieldError("This CCI Cube does not have CCI fields but " + this._fields.constructor.name);
     }
     return this._fields as cciFields;
   }
 
+  assertCci(): boolean {
+    if (this._fields instanceof cciFields) return true;
+    else return false;
+  }
 }
 
+// Note: Never move the family definition to another file as it must be
+// executed strictly after the cciCube implementation. You may get uncaught
+// ReferenceErrors otherwise.
+export const cciFamily: CubeFamilyDefinition = {
+  cubeClass: cciCube,
+  parsers: cciFieldParsers,
+}

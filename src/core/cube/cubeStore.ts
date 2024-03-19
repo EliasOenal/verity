@@ -1,16 +1,16 @@
 // cubeStore.ts
 import { Settings, VerityError } from '../settings';
-import { Cube } from './cube';
+import { Cube, coreCubeFamily } from './cube';
 import { CubeInfo, CubeMeta } from './cubeInfo'
 import { CubePersistence } from "./cubePersistence";
 import { CubeType, CubeKey, InsufficientDifficulty } from './cubeDefinitions';
+import { CubeFamilyDefinition } from './cubeFamily';
 import { cubeContest, shouldRetainCube, getCurrentEpoch } from './cubeUtil';
 import { TreeOfWisdom } from '../tow';
 import { logger } from '../logger';
 
 import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
-import { FieldParserTable, coreFieldParsers } from './cubeFields';
 
 // TODO: we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes
@@ -45,6 +45,7 @@ export interface CubeStoreOptions {
    */
   requiredDifficulty?: number,
 
+  // TODO update comment to reflect type change from FieldParserTable to CubeFamilyDefinition
   /**
    * Choose the default parser to be used for binary cubes store in this
    * CubeStore. By default, we will use the coreFieldParsers, which only
@@ -55,7 +56,7 @@ export interface CubeStoreOptions {
    * format. If you're using CCI, and we strongly recommend you do, choose
    * cciFieldParsers.
    */
-  parsers?: FieldParserTable,
+  family?: CubeFamilyDefinition,
 
   /**
    * The default implementation class this CubeStore will use when
@@ -81,14 +82,14 @@ export class CubeStore extends EventEmitter {
   private treeOfWisdom: TreeOfWisdom = undefined;
   readonly enableCubeRetentionPolicy: boolean;
 
-  readonly parsers: FieldParserTable;
+  readonly family: CubeFamilyDefinition;
   readonly cubeClass: typeof Cube;
   readonly required_difficulty: number;
 
   constructor(options: CubeStoreOptions) {
     super();
     this.required_difficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
-    this.parsers = options?.parsers ?? coreFieldParsers;
+    this.family = options?.family ?? coreCubeFamily;
     this.enableCubeRetentionPolicy = options?.enableCubeRetentionPolicy ?? Settings.CUBE_RETENTION_POLICY;
     this.cubeClass = options?.cubeClass ?? Cube;
 
@@ -125,7 +126,7 @@ export class CubeStore extends EventEmitter {
    */
   async addCube(
     cube_input: Buffer,
-    parsers?: FieldParserTable): Promise<Cube>;
+    family?: CubeFamilyDefinition): Promise<Cube>;
   /**
    * Add a Cube object to storage.
    * (Note you cannot specify a FieldParserTable in this variant as the Cube
@@ -134,7 +135,7 @@ export class CubeStore extends EventEmitter {
   async addCube(cube_input: Cube): Promise<Cube>;
   async addCube(
       cube_input: Cube | Buffer,
-      parsers = this.parsers,
+      family: CubeFamilyDefinition = this.family,
   ): Promise<Cube> {
     try {
       // Cube objects are ephemeral as storing binary data is more efficient.
@@ -146,7 +147,7 @@ export class CubeStore extends EventEmitter {
         binaryCube = await cube_input.getBinaryData();
       } else if (cube_input instanceof Buffer) { // cube_input instanceof Buffer
         binaryCube = cube_input;
-        cube = new this.cubeClass(binaryCube, parsers);
+        cube = new this.cubeClass(binaryCube, family);
       } else {  // should never be even possible to happen, and yet, there was this one time when it did
         // @ts-ignore If we end up here, we're well outside any kind of sanity TypeScript can possibly be expected to understand.
         throw new TypeError("CubeStore: invalid type supplied to addCube: " + cube_input.constructor.name);
@@ -252,11 +253,10 @@ export class CubeStore extends EventEmitter {
    */
   getCube(
       key: CubeKey | string,
-      parsers: FieldParserTable = undefined,  // undefined = will use CubeInfo's default
-      cubeClass = undefined,  // undefined = will use CubeInfo's default
+      family: CubeFamilyDefinition = undefined,  // undefined = will use CubeInfo's default
     ): Cube | undefined {
     const cubeInfo: CubeInfo = this.getCubeInfo(key);
-    if (cubeInfo) return cubeInfo.getCube(parsers, cubeClass);
+    if (cubeInfo) return cubeInfo.getCube(family);
     else return undefined;
   }
 

@@ -1,10 +1,11 @@
 // cube.ts
-import { BinaryDataError, BinaryLengthError, CubeError, CubeKey, CubeSignatureError, CubeType, FieldError, FieldNotImplemented, FieldSizeError,  SmartCubeError, SmartCubeTypeNotImplemented, UnknownFieldType } from "./cubeDefinitions";
+import { BinaryDataError, BinaryLengthError, CubeError, CubeKey, CubeSignatureError, CubeType, FieldError, FieldSizeError } from "./cubeDefinitions";
 import { Settings } from '../settings';
 import { NetConstants } from '../networking/networkDefinitions';
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
-import { CubeField, CubeFieldLength, CubeFieldType, CubeFields, FieldParserTable, coreFieldParsers, coreFrozenFieldDefinition } from './cubeFields';
+import { CubeField, CubeFieldType, CubeFields, coreFieldParsers, coreTlvFieldParsers } from './cubeFields';
+import { CubeFamilyDefinition } from "./cubeFamily";
 import { FieldParser } from "../fieldParser";
 import { logger } from '../logger';
 
@@ -13,8 +14,8 @@ import { Buffer } from 'buffer';
 
 export interface CubeOptions {
     fields?: CubeFields | CubeField[] | CubeField,
-    parsers?: FieldParserTable,
-    cubeClass?: any,  // type: class
+    family?: CubeFamilyDefinition,
+    cubeClass?: typeof Cube,
     requiredDifficulty?: number,
 }
 
@@ -30,13 +31,13 @@ export class Cube {
     static Frozen(options?: CubeOptions): Cube {
         // set options
         if (options === undefined) options = {};
-        options.parsers = options?.parsers ?? coreFieldParsers;
+        options.family = options?.family ?? coreCubeFamily;
         options.cubeClass = options?.cubeClass ?? Cube;
         options.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
         // prepare fields
         options.fields = CubeFields.Frozen(
             options?.fields,  // include the user's custom fields, obviously
-            options.parsers[CubeType.FROZEN].fieldDef);
+            options.family.parsers[CubeType.FROZEN].fieldDef);
         const cube: Cube = new options.cubeClass(CubeType.FROZEN, options);
         return cube;
     }
@@ -53,7 +54,7 @@ export class Cube {
     ): Cube {
         // set options
         if (options === undefined) options = {};
-        options.parsers = options?.parsers ?? coreFieldParsers;
+        options.family = options?.family ?? coreCubeFamily;
         options.cubeClass = options?.cubeClass ?? Cube;
         options.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
         // upgrade keys to Buffer if required
@@ -63,7 +64,7 @@ export class Cube {
         options.fields = CubeFields.Muc(
             publicKey,
             options?.fields,  // include the user's custom fields, obviously
-            options.parsers[CubeType.MUC].fieldDef);
+            options.family.parsers[CubeType.MUC].fieldDef);
         const cube: Cube = new options.cubeClass(CubeType.MUC, options);
         // supply private key
         cube.privateKey = privateKey as Buffer;
@@ -87,7 +88,7 @@ export class Cube {
     readonly _cubeType: CubeType;
     get cubeType(): CubeType { return this._cubeType }
 
-    readonly parsers: FieldParserTable;
+    readonly family: CubeFamilyDefinition;
     readonly fieldParser: FieldParser;
 
     readonly requiredDifficulty: number;
@@ -122,7 +123,7 @@ export class Cube {
             options?: CubeOptions)
     {
         // set options
-        this.parsers = options?.parsers ?? coreFieldParsers;
+        this.family = options?.family ?? coreCubeFamily;
         this.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
         if (param1 instanceof Buffer) {
             // existing cube, usually received from the network
@@ -137,7 +138,7 @@ export class Cube {
                 logger.warn(`Cube: Cannot sculpt cube object of unknown type ${this._cubeType}`);
                 throw new CubeError(`Cannot sculpt cube object of unknown type ${this._cubeType}`)
             }
-            this.fieldParser = this.parsers[this._cubeType];
+            this.fieldParser = this.family.parsers[this._cubeType];
             this._fields = this.fieldParser.decompileFields(this.binaryData);
             if (!this._fields) throw new BinaryDataError("Could not decompile binary Cube");
             this.hash = CubeUtil.calculateHash(binaryData);
@@ -145,7 +146,7 @@ export class Cube {
         } else {
             // sculpt new Cube
             this._cubeType = param1;
-            this.fieldParser = this.parsers[this._cubeType];
+            this.fieldParser = this.family.parsers[this._cubeType];
             if (options?.fields) {  // do we have a field set already?
                 if (!(options.fields instanceof CubeFields)) {
                     options.fields =
@@ -176,7 +177,7 @@ export class Cube {
     // cube key, which involves the hashcash proof of work and therefore can
     // take a little while.
     public async getCubeInfo(
-            parsers: FieldParserTable = this.parsers
+            family: CubeFamilyDefinition = this.family
     ): Promise<CubeInfo> {
         await this.getBinaryData();  // cube must be compiled to create a CubeInfo
         return new CubeInfo({
@@ -184,7 +185,7 @@ export class Cube {
             cube: this,
             date: this.getDate(),
             challengeLevel: CubeUtil.countTrailingZeroBits(this.hash),
-            parsers: parsers,
+            family: family,
         });
     }
 
@@ -448,4 +449,17 @@ export class Cube {
         return CubeUtil.countTrailingZeroBits(this.hash);
     }
 
+}
+
+// Note: Never move the family definitions to another file as they must be
+// executed strictly after the Cube implementation. You may get uncaught
+// ReferenceErrors otherwise.
+export const coreCubeFamily: CubeFamilyDefinition = {
+    cubeClass: Cube,
+    parsers: coreFieldParsers,
+}
+
+export const coreTlvCubeFamily: CubeFamilyDefinition = {  // for testing only
+    cubeClass: Cube,
+    parsers: coreTlvFieldParsers,
 }

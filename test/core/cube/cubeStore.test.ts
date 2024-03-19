@@ -1,13 +1,12 @@
-import { Settings } from '../../src/core/settings';
-import { Cube } from '../../src/core/cube/cube';
-import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
-import { CubeField, CubeFieldType, coreFieldParsers, coreTlvFieldParsers } from '../../src/core/cube/cubeFields';
+import { Settings } from '../../../src/core/settings';
+import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
+import { CubeStore as CubeStore } from '../../../src/core/cube/cubeStore';
+import { CubeField, CubeFieldType } from '../../../src/core/cube/cubeFields';
+import { CubeType } from '../../../src/core/cube/cubeDefinitions';
+import { MediaTypes, cciField, cciFieldParsers, cciFieldType, cciFields } from '../../../src/cci/cube/cciFields';
+import { cciCube } from '../../../src/cci/cube/cciCube';
 
 import sodium from 'libsodium-wrappers-sumo'
-import { logger } from '../../src/core/logger';
-import { CubeType } from '../../src/core/cube/cubeDefinitions';
-import { MediaTypes, cciField, cciFieldParsers, cciFieldType, cciFields } from '../../src/cci/cube/cciFields';
-import { cciCube } from '../../src/cci/cube/cciCube';
 
 describe('cubeStore', () => {
   // TODO: Update payload field ID. Make tests actually check payload.
@@ -52,7 +51,7 @@ describe('cubeStore', () => {
       await cubeStore.addCube(cube);
       expect(cubeStore.getNumberOfStoredCubes()).toEqual(1);
 
-      const restored = cubeStore.getCube(key, coreTlvFieldParsers);  // parse payload too
+      const restored = cubeStore.getCube(key, coreTlvCubeFamily);  // parse payload too
       expect(restored).toBeInstanceOf(Cube);
       expect(restored.fields.getFirst(CubeFieldType.PAYLOAD).
         value.toString('ascii')).toEqual("Ego sum cubus recens sculputus.");
@@ -194,7 +193,7 @@ describe('cubeStore', () => {
       const cubeadded = await cubeStore.addCube(binarymuc);
       expect(cubeadded.getKeyIfAvailable()).toEqual(muckey);
 
-      const restoredmuc = cubeStore.getCube(muckey, coreTlvFieldParsers);  // restore payload too
+      const restoredmuc = cubeStore.getCube(muckey, coreTlvCubeFamily);  // restore payload too
       expect(restoredmuc).toBeDefined();
       const restoredpayload = restoredmuc?.fields.getFirst(CubeFieldType.PAYLOAD);
       expect(restoredpayload).toBeDefined();
@@ -223,7 +222,7 @@ describe('cubeStore', () => {
         enableCubePersistance: false,
         requiredDifficulty: reducedDifficulty,
         enableCubeRetentionPolicy: false,
-        parsers: cciFieldParsers,
+        family: coreTlvCubeFamily,
         cubeClass: cciCube,
       });
       const cube: cciCube = cciCube.Frozen({fields: [

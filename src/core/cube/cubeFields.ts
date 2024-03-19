@@ -1,14 +1,17 @@
+import { Settings } from "../settings";
 import { unixtime } from "../helpers";
-import { ApiMisuseError, Settings } from "../settings";
 
 import { BaseField, BaseFields } from "./baseFields";
 
 import { FieldNumericalParam, PositionalFields, FieldDefinition, FieldParser } from "../fieldParser";
-import { NetConstants, NetworkError } from "../networking/networkDefinitions";
+import { NetConstants } from "../networking/networkDefinitions";
+
+import { CubeType, FieldError } from "./cubeDefinitions";
+import type { Cube } from "./cube";
+
+import { logger } from "../logger";
 
 import { Buffer } from 'buffer';
-import { CubeType, FieldError } from "./cubeDefinitions";
-import { logger } from "../logger";
 
 /**
  * Core field definitions.
@@ -271,7 +274,7 @@ export class CubeFields extends BaseFields {
 
 // NOTE: Never move this to another file. This only works if it is defined
 // strictly after CubeField. If you move it somewhere else, it's basically
-// random whether it works or not and you can random undefined values in code
+// random whether it works or you get random undefined values in code
 // coming from some files (but not others).
 // Javascript is crazy.
 export const coreFrozenFieldDefinition: FieldDefinition = {
@@ -293,10 +296,6 @@ export const coreMucFieldDefinition: FieldDefinition = {
   firstFieldOffset: 0,
 }
 
-export const cubeDefinition = {};  // lookup table
-cubeDefinition[CubeType.FROZEN] = coreFrozenFieldDefinition;
-cubeDefinition[CubeType.MUC] = coreMucFieldDefinition;
-
 /**
  * The (singleton) FieldParser for standard, "frozen" cubes, supporting
  * core fields only.
@@ -317,17 +316,36 @@ coreFrozenParser.decompileTlv = false;  // core-only nodes ignore TLV
 export const coreMucParser: FieldParser = new FieldParser(coreMucFieldDefinition);
 coreMucParser.decompileTlv = false;  // core-only nodes ignore TLV
 
-export interface FieldParserTable {
+export interface FieldParserTable {  // this implements a lookup table
   [n: number]: FieldParser;
 }
 
-export const coreFieldParsers: FieldParserTable = {} // lookup table
-coreFieldParsers[CubeType.FROZEN] = coreFrozenParser;
-coreFieldParsers[CubeType.MUC] = coreMucParser;
+export const coreFieldParsers: FieldParserTable = {
+  [CubeType.FROZEN]: coreFrozenParser,
+  [CubeType.MUC]: coreMucParser,
+}
 
-// a set of TLV-enabled parsers for testing
+// a set of TLV-enabled parsers -- for testing only, please use CCI instead
 export const coreTlvFrozenParser: FieldParser = new FieldParser(coreFrozenFieldDefinition);
 export const coreTlvMucParser: FieldParser = new FieldParser(coreMucFieldDefinition);
-export const coreTlvFieldParsers: FieldParserTable = {}
-coreTlvFieldParsers[CubeType.FROZEN] = coreTlvFrozenParser;
-coreTlvFieldParsers[CubeType.MUC] = coreTlvMucParser;
+export const coreTlvFieldParsers: FieldParserTable = {
+  [CubeType.FROZEN]: coreTlvFrozenParser,
+  [CubeType.MUC]: coreTlvMucParser,
+}
+
+/**
+ * A CubeFamily describes our local interpretation of a Cube, based on the way
+ * how we parse it. Contrary to a CubeType, which is a real thing and exists
+ * while a Cube is in transit through the network, CubeFamily is an implementation
+ * detail; you could argue that it's not real.
+ * There are currently two main CubeFamily definitions, coreCubeFamily and
+ * cciFamily. cciFamily describes Cubes parsed according to CCI rules and is,
+ * obviously, relevant to CCI-compliant application.
+ * coreCubeFamily describes Cubes for which we do not parse any TLV fields;
+ * this is only relevant to server-only nodes which only store and forward
+ * Cubes but are not interested at all in their payload.
+ **/
+export interface CubeFamilyDefinition {
+  cubeClass: typeof Cube,
+  parsers: FieldParserTable,
+}
