@@ -1,14 +1,14 @@
 import { Identity } from './identity';
 
 import { CubeKey } from '../../core/cube/cubeDefinitions';
+import { CubeStore } from '../../core/cube/cubeStore';
+import { ensureCci } from '../cube/cciCubeUtil';
+import { cciFamily } from '../cube/cciCube';
+
 import { logger } from '../../core/logger';
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
 import { Level } from 'level';
-import { CubeStore } from '../../core/cube/cubeStore';
-import { cciCube } from '../cube/cciCube';
-import { cciFieldParsers } from '../cube/cciFields';
-
 import { Buffer } from 'buffer';
 
 const IDENTITYDB_VERSION = 1;
@@ -89,7 +89,8 @@ export class IdentityPersistance {
         const masterKey = Buffer.from(masterkeyString, 'hex');
         const privkey: Buffer = Buffer.from(
           Identity.DeriveKeypair(masterKey).privateKey);
-        const muc = cubeStore.getCube(Buffer.from(pubkeyString, 'hex'), cciFieldParsers, cciCube) as cciCube;  // TODO: either assert cciCube or document why assertion not required
+        const muc = ensureCci(
+          cubeStore.getCube(Buffer.from(pubkeyString, 'hex'), cciFamily));
         if (muc === undefined) {
           logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkeyString + " is not present");
           continue;

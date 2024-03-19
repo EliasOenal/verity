@@ -1,4 +1,3 @@
-import { Settings } from '../../../src/core/settings';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
@@ -8,12 +7,11 @@ import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
 import { makePost } from '../../../src/app/zwCubes';
 import { cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipType } from '../../../src/cci/cube/cciFields';
 
-import { cciCube } from '../../../src/cci/cube/cciCube';
+import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
 import { IdentityPersistance } from '../../../src/cci/identity/identityPersistance';
 
 import sodium from 'libsodium-wrappers-sumo'
 import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
-import { logger } from '../../../src/core/logger';
 
 // maybe TODO: Some tests here use "ZW" stuff from the microblogging app
 // which breaks the current layering.
@@ -135,7 +133,7 @@ describe('Identity', () => {
       expect(mucadded.getKeyIfAvailable()).toEqual(original.publicKey);
 
       // restore Identity from stored MUC
-      const restoredmuc: Cube = cubeStore.getCube(await muc.getKey(), cciFieldParsers) as Cube;  // TODO deuglify
+      const restoredmuc: Cube = cubeStore.getCube(await muc.getKey(), cciFamily);
       expect(restoredmuc).toBeInstanceOf(Cube);
       const restored = new Identity(cubeStore, restoredmuc as cciCube);
       expect(restored).toBeInstanceOf(Identity);
@@ -206,7 +204,7 @@ describe('Identity', () => {
         await cubeStore.addCube(muc);
 
         // reading it back
-        const restoredMuc = cubeStore.getCube(key, cciFieldParsers, cciCube) as cciCube;
+        const restoredMuc = cubeStore.getCube(key, cciFamily) as cciCube;
         expect(restoredMuc).toBeInstanceOf(Cube);
         const restored: Identity = new Identity(cubeStore, restoredMuc, idTestOptions);
         expect(restored.name).toEqual("Probator condendi repetitionis " + i);

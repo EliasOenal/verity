@@ -1,10 +1,16 @@
-import { SupportedTransports } from '../../../src/core/networking/networkDefinitions';
+import { Settings } from '../../../src/core/settings';
 
+import { SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
 import { NetworkPeer } from '../../../src/core/networking/networkPeer';
+import { Libp2pConnection } from '../../../src/core/networking/transport/libp2p/libp2pConnection';
+import { Libp2pTransport } from '../../../src/core/networking/transport/libp2p/libp2pTransport';
+import { AddressAbstraction } from '../../../src/core/peering/addressing';
 
-import { Cube } from '../../../src/core/cube/cube';
-import { CubeField, CubeFieldType, CubeFields, coreFieldParsers, coreTlvFieldParsers } from '../../../src/core/cube/cubeFields';
+import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
+import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
+import { CubeInfo } from '../../../src/core/cube/cubeInfo';
+import { CubeField, CubeFieldType, CubeFields } from '../../../src/core/cube/cubeFields';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { Peer } from '../../../src/core/peering/peer';
@@ -13,12 +19,6 @@ import { logger } from '../../../src/core/logger';
 
 import { multiaddr } from '@multiformats/multiaddr'
 import sodium from 'libsodium-wrappers-sumo'
-import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
-import { Settings } from '../../../src/core/settings';
-import { Libp2pConnection } from '../../../src/core/networking/transport/libp2p/libp2pConnection';
-import { Libp2pTransport } from '../../../src/core/networking/transport/libp2p/libp2pTransport';
-import { AddressAbstraction } from '../../../src/core/peering/addressing';
-import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 
 // Note: Most general functionality concerning NetworkManager, NetworkPeer
 // etc is described within the WebSocket tests while the libp2p tests are more
@@ -322,7 +322,7 @@ describe('networkManager - libp2p connections', () => {
     expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
     expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(
       firstMucHash)).toBeTruthy();
-    receivedFields = cubeStore2.getCube(mucKey, coreTlvFieldParsers)?.fields!;
+    receivedFields = cubeStore2.getCube(mucKey, coreTlvCubeFamily)?.fields!;
     expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual(
       "Prima versio cubi usoris mutabilis mei.");
 
@@ -351,7 +351,7 @@ describe('networkManager - libp2p connections', () => {
     expect(cubeStore2.getAllKeys().size).toEqual(1);
     expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
     expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(secondMucHash)).toBeTruthy();
-    receivedFields = cubeStore2.getCube(mucKey, coreTlvFieldParsers)?.fields!;
+    receivedFields = cubeStore2.getCube(mucKey, coreTlvCubeFamily)?.fields!;
     expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual(
       "Secunda versio cubi usoris mutabilis mei.");
 
@@ -627,7 +627,7 @@ describe('networkManager - libp2p connections', () => {
       let cubeReceived: Cube = undefined;
       const cubeReceivedPromise = new Promise<void>(
         (resolve) => browser2.cubeStore.once('cubeAdded', (cubeInfo: CubeInfo) => {
-          cubeReceived = cubeInfo.getCube(coreTlvFieldParsers);
+          cubeReceived = cubeInfo.getCube(coreTlvCubeFamily);
           resolve();
       }));
       // Send the Cube --

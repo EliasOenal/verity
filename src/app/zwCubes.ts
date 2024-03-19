@@ -5,18 +5,16 @@
  * They just follow a standardized field structure.
  */
 
-import { BaseField } from "../core/cube/baseFields";
 import { Settings } from "../core/settings";
 import { Cube } from "../core/cube/cube";
-import { CubeError, CubeKey, CubeType } from "../core/cube/cubeDefinitions";
-import { CubeField } from "../core/cube/cubeFields";
-import { FieldParser } from "../core/fieldParser";
+import { CubeKey, CubeType } from "../core/cube/cubeDefinitions";
 import { Identity } from "../cci/identity/identity";
-import { MediaTypes, cciField, cciFieldType, cciFields, cciRelationship, cciRelationshipType, cciFrozenFieldDefinition, cciFieldParsers } from "../cci/cube/cciFields";
+import { MediaTypes, cciField, cciFieldType, cciFields, cciRelationship, cciRelationshipType, cciFrozenFieldDefinition } from "../cci/cube/cciFields";
 
 import { Buffer } from 'buffer';
-import { cciCube } from "../cci/cube/cciCube";
+import { cciCube, cciFamily } from "../cci/cube/cciCube";
 import { logger } from "../core/logger";
+import { isCci } from "../cci/cube/cciCubeUtil";
 
 /**
  * Creates a new Cube containing a correctly formed text post.
@@ -57,7 +55,7 @@ export async function makePost(
 
   const cube: cciCube = cciCube.Frozen({
     fields: zwFields,
-    parsers: cciFieldParsers,
+    family: cciFamily,
     requiredDifficulty: requiredDifficulty});
   cube.getBinaryData();  // finalize Cube & compile fields
 
@@ -69,9 +67,12 @@ export async function makePost(
 }
 
 export function assertZwCube(cube: Cube): boolean {
+  if (!(isCci(cube))) {
+    logger.trace("assertZwCube: Supplied object is not a CCI Cube");
+    return false;
+  }
   const fields: cciFields = cube?.fields as cciFields;
   if (!(fields instanceof cciFields)) {
-    logger.trace("assertZwCube: Supplied object is not a Cube, does not contain CCI fields or was not re-instantiated in a way that exposes CCI fields");
     return false;
   }
   const applicationField = fields.getFirst(cciFieldType.APPLICATION);

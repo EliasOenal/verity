@@ -6,12 +6,11 @@ import { CubeStore } from "../../src/core/cube/cubeStore";
 import { Identity, IdentityOptions } from "../../src/cci/identity/identity";
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zwAnnotationEngine";
 import { makePost } from "../../src/app/zwCubes"
-import { Settings } from '../../src/core/settings';
 
-import { MediaTypes, cciField, cciFieldParsers, cciFields, cciRelationship, cciRelationshipType } from "../../src/cci/cube/cciFields";
+import { MediaTypes, cciField, cciRelationship, cciRelationshipType } from "../../src/cci/cube/cciFields";
 
 import { jest } from '@jest/globals'
-import { cciCube } from "../../src/cci/cube/cciCube";
+import { cciCube, cciFamily } from "../../src/cci/cube/cciCube";
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 
 
@@ -67,7 +66,7 @@ describe('ZwAnnotationEngine', () => {
             cciField.RelatesTo(
               new cciRelationship(cciRelationshipType.REPLY_TO, await referee.getKey())),
           ],
-          parsers: cciFieldParsers, requiredDifficulty: reducedDifficulty});
+          family: cciFamily, requiredDifficulty: reducedDifficulty});
         referrer.getBinaryData();  // finalize Cube & compile fields
         await cubeStore.addCube(referrer);
 
@@ -169,7 +168,7 @@ describe('ZwAnnotationEngine', () => {
 
         expect(annotationEngine.identityMucs.size).toEqual(1);
         const restored: Identity = new Identity(cubeStore,
-          annotationEngine.identityMucs.get(id.publicKey.toString('hex'))?.getCube(cciFieldParsers, cciCube) as cciCube);
+          annotationEngine.identityMucs.get(id.publicKey.toString('hex'))?.getCube(cciFamily) as cciCube);
         expect(restored).toBeInstanceOf(Identity);
         expect(restored.name).toEqual("Probator Annotationem");
       });
@@ -181,7 +180,7 @@ describe('ZwAnnotationEngine', () => {
           Buffer.from(keys.privateKey),
           {
             fields: CubeField.Payload("hoc non est identitatis"),
-            parsers: cciFieldParsers, cubeClass: cciCube, requiredDifficulty: reducedDifficulty
+            family: cciFamily, requiredDifficulty: reducedDifficulty
           });
         await cubeStore.addCube(muc);
         expect(annotationEngine.identityMucs.size).toEqual(0);
@@ -286,7 +285,7 @@ describe('ZwAnnotationEngine', () => {
           Buffer.from(unrelatedKeys.privateKey),
           {
             fields: CubeField.Payload("I am some other application's MUC"),
-            parsers: cciFieldParsers, cubeClass: cciCube,
+            family: cciFamily,
             requiredDifficulty: reducedDifficulty
           }));
         await new Promise(resolve => setTimeout(resolve, 250));

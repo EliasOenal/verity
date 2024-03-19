@@ -1,6 +1,6 @@
-import { Settings } from '../../src/core/settings';
-import { Cube } from '../../src/core/cube/cube';
-import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
+import { Settings } from '../../../src/core/settings';
+import { Cube } from '../../../src/core/cube/cube';
+import { CubeStore as CubeStore } from '../../../src/core/cube/cubeStore';
 
 describe('CubeStore Retention Policy', () => {
     let cubeStore;

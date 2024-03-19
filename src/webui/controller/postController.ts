@@ -3,18 +3,20 @@ import { CubeInfo } from "../../core/cube/cubeInfo";
 import { CubeStore } from "../../core/cube/cubeStore";
 
 import { Identity } from "../../cci/identity/identity";
-import { makePost } from "../../app/zwCubes";
+import { UNKNOWNAVATAR } from "../../cci/identity/avatar";
 import { cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipType } from "../../cci/cube/cciFields";
+import { cciCube, cciFamily } from "../../cci/cube/cciCube";
+import { ensureCci } from "../../cci/cube/cciCubeUtil";
+
+import { makePost } from "../../app/zwCubes";
 import { ZwAnnotationEngine } from "../../app/zwAnnotationEngine";
 
 import { PostView } from "../view/postView";
+import { VerityController } from "./verityController";
 
 import { logger } from "../../core/logger";
 
 import { Buffer } from 'buffer';
-import { cciCube } from "../../cci/cube/cciCube";
-import { VerityController } from "./verityController";
-import { UNKNOWNAVATAR } from "../../cci/identity/avatar";
 
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
@@ -124,8 +126,8 @@ export class PostController extends VerityController {
   displayPost(binarykey: CubeKey): void {
     // logger.trace(`PostDisplay: Attempting to display post ${binarykey.toString('hex')}`)
     // get Cube
-    const cube: cciCube = this.cubeStore.getCube(
-      binarykey, cciFieldParsers, cciCube) as cciCube;
+    const cube: cciCube = ensureCci(this.cubeStore.getCube(binarykey, cciFamily));
+    if (cube === undefined) return;
     const fields: cciFields = cube.fields;
 
     // gather PostData
@@ -170,13 +172,18 @@ export class PostController extends VerityController {
 
   /** Redisplays authorship information for all of one author's posts */
   redisplayAuthor(mucInfo: CubeInfo) {
+    const muc = ensureCci(mucInfo.getCube(cciFamily));
+    if (muc === undefined) {
+      logger.trace(`PostController.redisplayAuthor: Cannot get author for post ${mucInfo.keyString} as it does not appear to be a CCI cube`);
+      return;  // not CCI or garbage
+    }
     let id: Identity;
     // maybe TODO: Recreating the whole Identity is unnecessary.
     // Identity should split out the post list retrieval code into a static method.
     try {
       id = new Identity(
         this.cubeStore,
-        mucInfo.getCube(cciFieldParsers, cciCube) as cciCube,
+        muc,
         {parsers: cciFieldParsers});
     } catch(error) { return; }
     for (const post of id.posts) {

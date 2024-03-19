@@ -1,3 +1,4 @@
+import { Settings } from '../../../src/core/settings';
 import { SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 
 import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
@@ -7,8 +8,8 @@ import { WebSocketServer } from '../../../src/core/networking/transport/webSocke
 import { WebSocketConnection } from '../../../src/core/networking/transport/webSocket/webSocketConnection';
 
 import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
-import { Cube } from '../../../src/core/cube/cube';
-import { CubeField, CubeFieldType, CubeFields, coreTlvFieldParsers } from '../../../src/core/cube/cubeFields';
+import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
+import { CubeField, CubeFieldType, CubeFields } from '../../../src/core/cube/cubeFields';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { WebSocketAddress } from '../../../src/core/peering/addressing';
@@ -18,7 +19,6 @@ import { logger } from '../../../src/core/logger';
 
 import WebSocket from 'isomorphic-ws';
 import sodium from 'libsodium-wrappers-sumo'
-import { Settings } from '../../../src/core/settings';
 
 // Note: Most general functionality concerning NetworkManager, NetworkPeer
 // etc is described within the WebSocket tests while the libp2p tests are more
@@ -242,7 +242,7 @@ describe('networkManager - WebSocket connections', () => {
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
-        const received = node2.cubeStore.getCube(key, coreTlvFieldParsers);
+        const received = node2.cubeStore.getCube(key, coreTlvCubeFamily);
         expect(received).toBeInstanceOf(Cube);
         expect(received.fields.getFirst(CubeFieldType.PAYLOAD)?.value?.toString('utf-8')).
             toEqual("Hic cubus automatice transferetur");
@@ -281,7 +281,7 @@ describe('networkManager - WebSocket connections', () => {
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
-        const received = node2.cubeStore.getCube(key, coreTlvFieldParsers);
+        const received = node2.cubeStore.getCube(key, coreTlvCubeFamily);
         expect(received).toBeInstanceOf(Cube);
         expect(received.fields.getFirst(CubeFieldType.PAYLOAD)?.value?.toString('utf-8')).
             toEqual("Hic cubus per rogatum transferetur");
@@ -454,7 +454,7 @@ describe('networkManager - WebSocket connections', () => {
         expect(cubeStore2.getAllKeys().size).toEqual(1);
         expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
         expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(firstMucHash)).toBeTruthy();
-        receivedFields = cubeStore2.getCube(mucKey, coreTlvFieldParsers)?.fields!;
+        receivedFields = cubeStore2.getCube(mucKey, coreTlvCubeFamily)?.fields!;
         expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("Prima versio cubi usoris mutabilis mei.");
 
         // update MUC at peer 1
@@ -482,7 +482,7 @@ describe('networkManager - WebSocket connections', () => {
         expect(cubeStore2.getAllKeys().size).toEqual(1);
         expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
         expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(secondMucHash)).toBeTruthy();
-        receivedFields = cubeStore2.getCube(mucKey, coreTlvFieldParsers)?.fields!;
+        receivedFields = cubeStore2.getCube(mucKey, coreTlvCubeFamily)?.fields!;
         expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("Secunda versio cubi usoris mutabilis mei.");
 
         // teardown
