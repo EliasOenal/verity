@@ -68,16 +68,19 @@ export class NetworkManager extends EventEmitter {
     scheduler: RequestScheduler;
 
     /** List of currently connected peers to which we initiated the connection */
-    outgoingPeers: NetworkPeer[] = []; // maybe TODO: This should probably be a Set
+    outgoingPeers: NetworkPeer[] = [];
 
     /** List of current remote-initiated peer connections */
-    incomingPeers: NetworkPeer[] = []; // maybe TODO: This should probably be a Set
+    incomingPeers: NetworkPeer[] = [];
 
-    get connectedPeers(): NetworkPeer[] {
-        return this.outgoingPeers.concat(this.incomingPeers);
+    get onlinePeers(): NetworkPeer[] {
+        return this.outgoingPeers.concat(this.incomingPeers).filter(
+            peer => peer.online);
+        // note: this is not efficient as it creates two copies:
+        // first in concat, then in filter
     }
-    get connectedPeerCount(): number {
-        return this.outgoingPeers.length + this.incomingPeers.length;
+    get onlinePeerCount(): number {
+        return this.onlinePeers.length;  // note: this is not efficient
     }
 
     /**

@@ -43,7 +43,7 @@ export class PeerView extends VerityView {
     let networkPeer: NetworkPeer = undefined;
     if (peer instanceof NetworkPeer && peer.conn?.ready()) networkPeer = peer;
 
-    logger.trace("PeerView: (Re-)Displaying peer "+ peer.toString());
+    // logger.trace("PeerView: (Re-)Displaying peer "+ peer.toString());
     try {
       // Print & set peer ID on all relevant elements
       const idField: HTMLTableCellElement = peerLi.querySelector('.verityPeerId');
