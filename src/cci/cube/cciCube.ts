@@ -1,6 +1,6 @@
 import { Settings, VerityError } from "../../core/settings";
 import { cciFields, cciField, cciFieldParsers } from "./cciFields";
-import { CubeType, FieldError } from "../../core/cube/cubeDefinitions";
+import { CubeError, CubeType, FieldError } from "../../core/cube/cubeDefinitions";
 import { CubeFamilyDefinition } from "../../core/cube/cubeFamily";
 
 import { Cube, CubeOptions } from "../../core/cube/cube";
@@ -10,12 +10,14 @@ import sodium, { KeyPair, crypto_kdf_KEYBYTES } from 'libsodium-wrappers-sumo'
 export class cciCube extends Cube {
   class = cciCube;  // javascript introspection sucks
 
-  // TODO: evaluate what makes a Cube a CCI Cube and put appropriate assertions in place,
-  // e.g. fields must be cciFields
   static Frozen(options?: CubeOptions): cciCube {
     if (options === undefined) options = {};
     options.family = options?.family ?? cciFamily;
-    return super.Frozen(options) as cciCube;
+    const cube: cciCube = super.Frozen(options) as cciCube;
+    if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci()) {
+      throw new CubeError("cciCube.Frozen: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
+    }
+    return cube;
   }
   static MUC(
       publicKey: Buffer | Uint8Array,
@@ -23,7 +25,11 @@ export class cciCube extends Cube {
       options?: CubeOptions): cciCube {
     if (options === undefined) options = {};
     options.family = options?.family ?? cciFamily;
-    return super.MUC(publicKey, privateKey, options) as cciCube;
+    const cube: cciCube = super.MUC(publicKey, privateKey, options) as cciCube;
+    if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci()) {
+      throw new CubeError("cciCube.MUC: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
+    }
+    return cube;
   }
 
   // TODO write unit test
@@ -76,7 +82,6 @@ export class cciCube extends Cube {
   {
     if (options === undefined) options = {};
     options.family = options.family ?? cciFamily;
-    // @ts-ignore tsc is stupid
     super(param1, options)
   }
 
