@@ -115,6 +115,9 @@ export class Cube {
     constructor(
         cubeType: CubeType,
         options?: CubeOptions);
+    // Repeat implementation as declaration as calls must strictly match a
+    // declaration, not the implementation (which is stupid)
+    constructor(param1: Buffer | CubeType, option?: CubeOptions);
     constructor(
             param1: Buffer | CubeType,
             options?: CubeOptions)
