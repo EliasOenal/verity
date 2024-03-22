@@ -159,7 +159,7 @@ export class NetworkManager extends EventEmitter {
                 transportPromises.push(transport.start());
                 logger.trace("NetworkManager: requested start of transport " + transport.toString());
             } catch(err) {
-                logger.error("NetworkManager: Error requesting a transport to start, will continue without it. Error was: " + err.toString());
+                logger.error("NetworkManager: Error requesting a transport to start, will continue without it: " + err?.toString() ?? err);
             }
             transport.on("serverAddress",
                 (addr: AddressAbstraction) => this.learnServerAddress(addr));
@@ -168,7 +168,7 @@ export class NetworkManager extends EventEmitter {
                     server.on("incomingConnection",
                     (conn: TransportConnection) => this.handleIncomingPeer(conn));
                 } catch(err) {
-                    logger.error("NetworkManager: Error subscribing to incoming connections. Error was: " + err.toString());
+                    logger.error("NetworkManager: Error subscribing to incoming connections: " + err.toString());
                 }
             }
         }
@@ -176,7 +176,7 @@ export class NetworkManager extends EventEmitter {
             try {
                 await promise;
             } catch(err) {
-                logger.error("NetworkManager: Error waiting for a transport to start, will continue without it. Error was: " + err.toString());
+                logger.error("NetworkManager: Error waiting for a transport to start, will continue without it: " + err?.toString() ?? err);
             }
         }
 

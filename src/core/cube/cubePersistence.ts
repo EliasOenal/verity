@@ -77,4 +77,4 @@ export class CubePersistence extends EventEmitter {
 }
 
 // Exception classes
-class PersistenceError extends VerityError { }
+class PersistenceError extends VerityError { name = "PersistenceError" }

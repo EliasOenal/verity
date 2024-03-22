@@ -1,5 +1,7 @@
 import { Settings, VerityError } from "../settings";
 
+import { Buffer } from 'buffer';
+
 export enum CubeType {
   FROZEN = (Settings.CUBE_VERSION << 4) + (0 << 2),
   PIC = (Settings.CUBE_VERSION << 4) + (1 << 2),  // not fully implemented yet
@@ -15,24 +17,23 @@ export enum CubeType {
 export class CubeKey extends Buffer {}
 
 // Error definitions
-export class CubeError extends VerityError { }
-export class CubeApiUsageError extends CubeError { }
-export class InsufficientDifficulty extends CubeError { }
-export class InvalidCubeKey extends CubeError { }
+export class CubeError extends VerityError { name = "CubeError" }
+export class CubeApiUsageError extends CubeError { name = "CubeApiUsageError" }
+export class InsufficientDifficulty extends CubeError { name = "InsufficientDifficulty" }
+export class InvalidCubeKey extends CubeError { name = "InvalidCubeKey" }
 
-export class FieldError extends CubeError { }
-export class MissingFieldError extends FieldError { }
-export class FieldContentError extends FieldError { }
-export class FieldSizeError extends FieldError { }
-export class UnknownFieldType extends FieldError { }
-export class FieldNotImplemented extends FieldError { }
-export class CubeRelationshipError extends FieldError { }
-export class WrongFieldType extends FieldError { }
+export class FieldError extends CubeError { name = "FieldError" }
+export class MissingFieldError extends FieldError { name = "MissingFieldError" }
+export class FieldContentError extends FieldError { name = "FieldContentError" }
+export class FieldSizeError extends FieldError { name = "FieldSizeError" }
+export class UnknownFieldType extends FieldError { name = "UnknownFieldType" }
+export class FieldNotImplemented extends FieldError { name = "FieldNotImplemented" }
+export class CubeRelationshipError extends FieldError { name = "CubeRelationshipError" }
+export class WrongFieldType extends FieldError { name = "WrongFieldType" }
 
-export class BinaryDataError extends CubeError { }
-export class BinaryLengthError extends BinaryDataError { }
+export class BinaryDataError extends CubeError { name = "BinaryDataError" }
+export class BinaryLengthError extends BinaryDataError { name = "BinaryLengthError" }
+export class SmartCubeError extends CubeError { name = "SmartCubeError" }
 
-export class SmartCubeError extends CubeError { }
-export class CubeSignatureError extends SmartCubeError { }
-
-export class SmartCubeTypeNotImplemented extends SmartCubeError { }
+export class CubeSignatureError extends SmartCubeError { name = "CubeSignatureError" }
+export class SmartCubeTypeNotImplemented extends SmartCubeError { name = "SmartCubeTypeNotImplemented" }
