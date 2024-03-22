@@ -4,7 +4,7 @@ import { CubeStore as CubeStore } from '../../../src/core/cube/cubeStore';
 import { CubeField, CubeFieldType } from '../../../src/core/cube/cubeFields';
 import { CubeType } from '../../../src/core/cube/cubeDefinitions';
 import { MediaTypes, cciField, cciFieldParsers, cciFieldType, cciFields } from '../../../src/cci/cube/cciFields';
-import { cciCube } from '../../../src/cci/cube/cciCube';
+import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
 
 import sodium from 'libsodium-wrappers-sumo'
 
@@ -222,8 +222,7 @@ describe('cubeStore', () => {
         enableCubePersistance: false,
         requiredDifficulty: reducedDifficulty,
         enableCubeRetentionPolicy: false,
-        family: coreTlvCubeFamily,
-        cubeClass: cciCube,
+        family: cciFamily,
       });
       const cube: cciCube = cciCube.Frozen({fields: [
         cciField.Application("Applicatio probandi"),
