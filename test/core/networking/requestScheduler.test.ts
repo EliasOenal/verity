@@ -26,9 +26,9 @@ class mockNetworkPeer {
 
 class mockNetworkManager {
   cubeStore = new mockCubeStore();
-  connectedPeers: Array<any> = [];
+  onlinePeers: Array<any> = [];
   maximumConnections = 10;
-  get connectedPeerCount() { return this.connectedPeers.length }
+  get onlinePeerCount() { return this.onlinePeers.length }
 };
 
 
@@ -75,31 +75,31 @@ describe('RequestScheduler', () => {
 
   it('should schedule CubeRequests in light mode', async () => {
     scheduler.lightNode = true;
-    (scheduler.networkManager as unknown as mockNetworkManager).connectedPeers =
+    (scheduler.networkManager as unknown as mockNetworkManager).onlinePeers =
       [ new mockNetworkPeer() ];
     scheduler.requestCube(testKey);
     await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
-    expect((scheduler.networkManager.connectedPeers[0] as unknown as mockNetworkPeer).
+    expect((scheduler.networkManager.onlinePeers[0] as unknown as mockNetworkPeer).
       called).toEqual("sendCubeRequest");
   });
 
   it('should schedule KeyRequests in full mode', async () => {
     scheduler.lightNode = false;
-    (scheduler.networkManager as unknown as mockNetworkManager).connectedPeers =
+    (scheduler.networkManager as unknown as mockNetworkManager).onlinePeers =
       [ new mockNetworkPeer() ];
     scheduler.requestCube(testKey);
     await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
-    expect((scheduler.networkManager.connectedPeers[0] as unknown as mockNetworkPeer).
+    expect((scheduler.networkManager.onlinePeers[0] as unknown as mockNetworkPeer).
       called).toEqual("sendKeyRequest");
   });
 
   it('should correctly calculate the request scale factor', () => {
-    (scheduler.networkManager as unknown as mockNetworkManager).connectedPeers =
+    (scheduler.networkManager as unknown as mockNetworkManager).onlinePeers =
     [1];  // no scaling
     // @ts-ignore testing private method
     expect(scheduler.calcRequestScaleFactor()).toBe(1);
 
-    (scheduler.networkManager as unknown as mockNetworkManager).connectedPeers =
+    (scheduler.networkManager as unknown as mockNetworkManager).onlinePeers =
     [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];  // full scaling
     // @ts-ignore testing private method
     expect(scheduler.calcRequestScaleFactor()).toBe(0.25);

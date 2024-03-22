@@ -153,7 +153,7 @@ export class RequestScheduler {
   }
 
   private calcRequestScaleFactor(): number {
-    const conn = this.networkManager.connectedPeerCount;
+    const conn = this.networkManager.onlinePeerCount;
     const max = this.networkManager.maximumConnections;
     const notConn = (max-1)-(conn-1);
 
@@ -173,7 +173,7 @@ export class RequestScheduler {
     }
     // select a peer to send request to
     const peerSelected: NetworkPeer =
-      this.requestStrategy.select(this.networkManager.connectedPeers);
+      this.requestStrategy.select(this.networkManager.onlinePeers);
     if (peerSelected !== undefined) {
       if (this.lightNode) {
         // request all Cubes that we're looking for, up the the maximum allowed

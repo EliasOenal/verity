@@ -14,7 +14,7 @@ export class cciCube extends Cube {
     if (options === undefined) options = {};
     options.family = options?.family ?? cciFamily;
     const cube: cciCube = super.Frozen(options) as cciCube;
-    if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci()) {
+    if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {
       throw new CubeError("cciCube.Frozen: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
     }
     return cube;
@@ -26,7 +26,7 @@ export class cciCube extends Cube {
     if (options === undefined) options = {};
     options.family = options?.family ?? cciFamily;
     const cube: cciCube = super.MUC(publicKey, privateKey, options) as cciCube;
-    if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci()) {
+    if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {
       throw new CubeError("cciCube.MUC: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
     }
     return cube;
