@@ -127,8 +127,8 @@ export class Libp2pConnection extends TransportConnection {
       }  // this loop should never end until we destruct the stream
       logger.trace(`${this.toString()}: Got non-truthy val while reading input stream, closing. Val was: ${msg}`);
       this.close();
-    } catch (error) {
-      logger.trace(`${this.toString()}: Caught error while reading input stream. Error was: ${error}`);
+    } catch (err) {
+      logger.trace(`${this.toString()}: Caught error while reading input stream: ${err?.toString() ?? err}`);
       this.transmissionError();
     }
   }
@@ -138,8 +138,8 @@ export class Libp2pConnection extends TransportConnection {
     if (this.rawStream) {
       try {
         await this.rawStream.close();
-      } catch(error) {
-        logger.info(`${this.toString()} in close(): Error closing libp2p stream. This should not happen. Error was: ${error}`);
+      } catch(err) {
+        logger.info(`${this.toString()} in close(): Error closing libp2p stream. This should not happen. Error was: ${err?.toString() ?? err}`);
       }
     }
     // Does this conn have another Verity stream? This can happen because
@@ -179,8 +179,8 @@ export class Libp2pConnection extends TransportConnection {
     }
     this.stream.write(message).then(
       () => this.transmissionSuccessful()).catch(
-      error => {
-        logger.info(`${this.toString()} in send(): Error writing to stream. Error was: ${error}`);
+      err => {
+        logger.info(`${this.toString()} in send(): Error writing to stream: ${err?.toString() ?? err}`);
         this.transmissionError();
     });
   }

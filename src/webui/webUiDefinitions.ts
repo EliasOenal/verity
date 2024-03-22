@@ -1,3 +1,3 @@
 import { VerityError } from "../core/settings";
 
-export class UiError extends VerityError { }
+export class UiError extends VerityError { name = "UiError" }

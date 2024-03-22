@@ -4,6 +4,7 @@ import { logger } from '../core/logger'
 import { VerityNode } from '../core/verityNode';
 import { AddressAbstraction } from '../core/peering/addressing';
 
+import { cciFamily } from '../cci/cube/cciCube';
 import { Identity } from '../cci/identity/identity';
 import { SubscriptionRequirement, ZwAnnotationEngine } from '../app/zwAnnotationEngine';
 
@@ -40,6 +41,7 @@ export class VerityUI {
         lightNode: false,
         peerExchange: true,
         useRelaying: true,
+        family: cciFamily,
       });
     await node.cubeStoreReadyPromise;
     logger.info("Cube Store is ready");

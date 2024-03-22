@@ -83,7 +83,6 @@ export class CubeStore extends EventEmitter {
   readonly enableCubeRetentionPolicy: boolean;
 
   readonly family: CubeFamilyDefinition;
-  readonly cubeClass: typeof Cube;
   readonly required_difficulty: number;
 
   constructor(options: CubeStoreOptions) {
@@ -91,7 +90,6 @@ export class CubeStore extends EventEmitter {
     this.required_difficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
     this.family = options?.family ?? coreCubeFamily;
     this.enableCubeRetentionPolicy = options?.enableCubeRetentionPolicy ?? Settings.CUBE_RETENTION_POLICY;
-    this.cubeClass = options?.cubeClass ?? Cube;
 
     this.storage = new Map();
     if (options?.enableTreeOfWisdom ?? Settings.TREE_OF_WISDOM) {
@@ -147,7 +145,12 @@ export class CubeStore extends EventEmitter {
         binaryCube = await cube_input.getBinaryData();
       } else if (cube_input instanceof Buffer) { // cube_input instanceof Buffer
         binaryCube = cube_input;
-        cube = new this.cubeClass(binaryCube, family);
+        try {
+          cube = new family.cubeClass(binaryCube, family);
+        } catch(err) {
+          logger.info(`CubeStore.addCube: Skipping a binary Cube as I could not reconstruct it, at least not using this CubeFamily setting: ${err?.toString() ?? err}`);
+          return undefined;
+        }
       } else {  // should never be even possible to happen, and yet, there was this one time when it did
         // @ts-ignore If we end up here, we're well outside any kind of sanity TypeScript can possibly be expected to understand.
         throw new TypeError("CubeStore: invalid type supplied to addCube: " + cube_input.constructor.name);
@@ -168,7 +171,7 @@ export class CubeStore extends EventEmitter {
       // In that case, do nothing -- no need to invalidate the hash or to
       // emit an event.
       if (this.hasCube(cubeInfo.key) && cubeInfo.cubeType == CubeType.FROZEN) {
-        logger.warn('CubeStorage: duplicate - frozen cube already exists');
+        logger.debug('CubeStorage: duplicate - frozen cube already exists');
         return cube;
       }
       if (cube.getDifficulty() < this.required_difficulty) {
@@ -181,10 +184,10 @@ export class CubeStore extends EventEmitter {
           const storedCube: CubeInfo = this.getCubeInfo(cubeInfo.key);
           const winningCube: CubeMeta = cubeContest(storedCube, cubeInfo);
           if (winningCube === storedCube) {
-            logger.info('CubeStorage: Keeping stored MUC over incoming MUC');
+            logger.trace('CubeStorage: Keeping stored MUC over incoming MUC');
             return storedCube.getCube();  // TODO: it's completely unnecessary to instantiate the potentially dormant Cube here -- maybe change the addCube() signature once again and not return a Cube object after all?
           } else {
-            logger.info('CubeStorage: Replacing stored MUC with incoming MUC');
+            logger.trace('CubeStorage: Replacing stored MUC with incoming MUC');
           }
         }
       }
@@ -209,18 +212,14 @@ export class CubeStore extends EventEmitter {
       try {
         // logger.trace(`CubeStore: Added cube ${cubeInfo.keystring}, emitting cubeAdded`)
         this.emit('cubeAdded', cubeInfo);
-      } catch(error) {
-        logger.error("CubeStore: While adding Cube " + cubeInfo.keyString + "a cubeAdded subscriber experienced an error: " + error.message);
+      } catch(err) {
+        logger.error(`CubeStore: While adding Cube ${cubeInfo.keyString} a cubeAdded subscriber experienced an error: ${err?.toString() ?? err}`);
       }
 
       // All done finally, just return the cube in case anyone cares.
       return cube;
-    } catch (e) {
-      if (e instanceof VerityError) {
-        logger.error('CubeStore: Error adding cube:' + e.message);
-      } else {
-        throw e;
-      }
+    } catch (err) {
+      logger.error(`CubeStore: Error adding cube: ${err?.toString() ?? err}`);
       return undefined;
     }
   }

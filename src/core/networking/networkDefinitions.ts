@@ -37,5 +37,5 @@ export enum SupportedTransports {
     libp2p = 2,
 }
 
-export class NetworkError extends VerityError  {}
-export class AddressError extends NetworkError {}
+export class NetworkError extends VerityError { name = "NetworkError" }
+export class AddressError extends NetworkError { name = "AddressError" }

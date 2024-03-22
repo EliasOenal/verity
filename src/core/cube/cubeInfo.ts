@@ -106,17 +106,15 @@ export class CubeInfo {
   private _cubeType: CubeType = undefined;
   get cubeType(): CubeType { return Cube.Type(this.binaryCube) ?? this._cubeType }
 
-  cubeClass: typeof Cube = Cube;  // type class
   date: number = undefined;
   challengeLevel: number = undefined;
+  readonly family: CubeFamilyDefinition;
 
   /**
    * Application code may store any notes they may have on a Cube here.
    * This is currently unused.
    */
   applicationNotes: object = {}
-
-  readonly family: CubeFamilyDefinition;
 
   // @member objectCache: Will remember the last instantiated Cube object
   //                      for as long as the garbage collector keeps it alive
@@ -128,7 +126,6 @@ export class CubeInfo {
   constructor(options: CubeInfoOptions) {
     this.date = options.date;
     this.challengeLevel = options.challengeLevel;
-    this.family = options?.family ?? coreCubeFamily;
 
     if (options.cube instanceof Cube) {
       // active Cube
@@ -141,7 +138,7 @@ export class CubeInfo {
         throw new CubeError("CubeInfo can only be constructed for Cubes which know their key, call and await Cube's getKey() first");
       }
       this.objectCache = new WeakRef(options.cube);
-      this.cubeClass = options.cube.class;
+      this.family = options.cube.family;
     } else if (options.cube instanceof Buffer) {
       // dormant Cube
       this.binaryCube = options.cube;
@@ -149,11 +146,11 @@ export class CubeInfo {
       if(!this.key) {
         throw new CubeError("CubeInfo on dormant Cubes can only be contructed if you supply the Cube key.");
       }
-      this.cubeClass = options.cubeClass ?? Cube;
+      this.family = options?.family ?? coreCubeFamily;
     } else {
       // incomplete Cube
       this.binaryCube = undefined;
-      this.cubeClass = options.cubeClass ?? Cube;
+      this.family = options.family ?? coreCubeFamily;
       this._cubeType = options.cubeType;
       this.key = options.key;
     }
@@ -171,12 +168,15 @@ export class CubeInfo {
   ): Cube | undefined {
     // Keep returning the same Cube object until it gets garbage collected.
     // Can only used cached object when using default parser and Cube class.
-    if (this.objectCache &&  // is there anything cached?
-        family === this.family) {  // don't use cache unless default parsing
-      const cachedCube: Cube = this.objectCache.deref();
-      if (cachedCube) {
-        // logger.trace("cubeInfo: Yay! Saving us one instantiation");
-        return this.objectCache.deref();
+    if (this.objectCache) {  // is there anything cached?
+      if (family === this.family) {  // don't use cache unless default parsing
+        const cachedCube: Cube = this.objectCache.deref();
+        if (cachedCube) {
+          // logger.trace("cubeInfo: Yay! Saving us one instantiation");
+          return this.objectCache.deref();
+        }
+      } else {
+        logger.trace(`${this.toString()}: Re-instantiating Cube instead of using cached instance due to diverging CubeFamily setting`);
       }
     }
 
@@ -189,10 +189,11 @@ export class CubeInfo {
       }
       return cube;
     } catch (err) {
-      logger.warn(
-        "CubeInfo.getCube: Could not instantiate Cube: " + err.toString());
+      logger.warn(`${this.toString()}: Could not instantiate Cube: ${err?.toString() ?? err}`);
       return undefined;
     }
   }
+
+  toString(): string { return `CubeInfo for ${this.keyString}` }
 
 }

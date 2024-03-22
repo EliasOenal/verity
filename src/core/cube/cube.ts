@@ -129,13 +129,13 @@ export class Cube {
             // existing cube, usually received from the network
             const binaryData = param1;
             if (binaryData.length !== NetConstants.CUBE_SIZE) {
-                logger.warn(`Cube: Cannot sculpt Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
+                logger.info(`Cube: Cannot sculpt Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
                 throw new BinaryLengthError(`Cannot sculpt Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
             }
             this.binaryData = binaryData;
             this._cubeType = Cube.Type(binaryData);
             if (!(this._cubeType in CubeType)) {
-                logger.warn(`Cube: Cannot sculpt cube object of unknown type ${this._cubeType}`);
+                logger.info(`Cube: Cannot sculpt cube object of unknown type ${this._cubeType}`);
                 throw new CubeError(`Cannot sculpt cube object of unknown type ${this._cubeType}`)
             }
             this.fieldParser = this.family.parsers[this._cubeType];

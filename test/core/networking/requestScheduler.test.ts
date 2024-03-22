@@ -1,7 +1,7 @@
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { NetworkManager } from "../../../src/core/networking/networkManager";
-import { RequestScheduler, RequestedCube } from "../../../src/core/networking/requestScheduler";
+import { RequestScheduler } from "../../../src/core/networking/requestScheduler";
 import { Settings } from "../../../src/core/settings";
 import type { Cube } from "../../../src/core/cube/cube";
 
@@ -30,6 +30,7 @@ class mockNetworkManager {
   maximumConnections = 10;
   get connectedPeerCount() { return this.connectedPeers.length }
 };
+
 
 describe('RequestScheduler', () => {
   let scheduler: RequestScheduler;
@@ -102,6 +103,14 @@ describe('RequestScheduler', () => {
     [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];  // full scaling
     // @ts-ignore testing private method
     expect(scheduler.calcRequestScaleFactor()).toBe(0.25);
+  });
+
+  it.skip('should request a Cube from another node if first request fails', async() => {
+    // (must keep track of nodes already requested from I guess)
+  });
+
+  it.skip('should never request a Cube from two nodes at once, not even as a full node', async() => {
+    // (this implies KeyResponses must be fed through the Scheduler)
   });
 
 });

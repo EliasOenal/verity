@@ -46,5 +46,5 @@ export const Settings = {
     RUNTIME_ASSERTIONS: true,
 }
 
-export class VerityError extends Error {}
-export class ApiMisuseError extends VerityError { }
+export class VerityError extends Error { name = "CubeError" }
+export class ApiMisuseError extends VerityError { name = "VerityError" }
