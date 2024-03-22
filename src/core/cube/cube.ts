@@ -15,7 +15,6 @@ import { Buffer } from 'buffer';
 export interface CubeOptions {
     fields?: CubeFields | CubeField[] | CubeField,
     family?: CubeFamilyDefinition,
-    cubeClass?: typeof Cube,
     requiredDifficulty?: number,
 }
 
@@ -32,13 +31,12 @@ export class Cube {
         // set options
         if (options === undefined) options = {};
         options.family = options?.family ?? coreCubeFamily;
-        options.cubeClass = options?.cubeClass ?? Cube;
         options.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
         // prepare fields
         options.fields = CubeFields.Frozen(
             options?.fields,  // include the user's custom fields, obviously
             options.family.parsers[CubeType.FROZEN].fieldDef);
-        const cube: Cube = new options.cubeClass(CubeType.FROZEN, options);
+        const cube: Cube = new options.family.cubeClass(CubeType.FROZEN, options);
         return cube;
     }
 
@@ -55,7 +53,6 @@ export class Cube {
         // set options
         if (options === undefined) options = {};
         options.family = options?.family ?? coreCubeFamily;
-        options.cubeClass = options?.cubeClass ?? Cube;
         options.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
         // upgrade keys to Buffer if required
         if (!(publicKey instanceof Buffer)) publicKey = Buffer.from(publicKey);
@@ -65,7 +62,7 @@ export class Cube {
             publicKey,
             options?.fields,  // include the user's custom fields, obviously
             options.family.parsers[CubeType.MUC].fieldDef);
-        const cube: Cube = new options.cubeClass(CubeType.MUC, options);
+        const cube: Cube = new options.family.cubeClass(CubeType.MUC, options);
         // supply private key
         cube.privateKey = privateKey as Buffer;
         return cube;

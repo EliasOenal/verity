@@ -146,7 +146,7 @@ export class CubeStore extends EventEmitter {
       } else if (cube_input instanceof Buffer) { // cube_input instanceof Buffer
         binaryCube = cube_input;
         try {
-          cube = new family.cubeClass(binaryCube, family);
+          cube = new family.cubeClass(binaryCube, {family: family});
         } catch(err) {
           logger.info(`CubeStore.addCube: Skipping a binary Cube as I could not reconstruct it, at least not using this CubeFamily setting: ${err?.toString() ?? err}`);
           return undefined;

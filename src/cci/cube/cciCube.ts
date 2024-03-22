@@ -14,7 +14,6 @@ export class cciCube extends Cube {
   // e.g. fields must be cciFields
   static Frozen(options?: CubeOptions): cciCube {
     if (options === undefined) options = {};
-    options.cubeClass = options?.cubeClass ?? cciCube;
     options.family = options?.family ?? cciFamily;
     return super.Frozen(options) as cciCube;
   }
@@ -23,7 +22,6 @@ export class cciCube extends Cube {
       privateKey: Buffer | Uint8Array,
       options?: CubeOptions): cciCube {
     if (options === undefined) options = {};
-    options.cubeClass = options?.cubeClass ?? cciCube;
     options.family = options?.family ?? cciFamily;
     return super.MUC(publicKey, privateKey, options) as cciCube;
   }
