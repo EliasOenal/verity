@@ -369,7 +369,7 @@ describe('Identity', () => {
       expect(firstIndexCube).toBeInstanceOf(cciCube);
       // First subscription recommendation index contains for subscription recommendation?
       expect(firstIndexCube.fields).toBeInstanceOf(cciFields);
-      expect(firstIndexCube.fields.count()).toBeGreaterThan(1);
+      expect(firstIndexCube.fields.length).toBeGreaterThan(1);
       expect(
         firstIndexCube.fields
           .getFirstRelationship(cciRelationshipType.SUBSCRIPTION_RECOMMENDATION)

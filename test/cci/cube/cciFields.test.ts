@@ -1,9 +1,24 @@
+import { cciCube } from "../../../src/cci/cube/cciCube";
 import { cciFrozenFieldDefinition, cciField, cciFields, cciRelationship, cciRelationshipType, cciFieldParsers } from "../../../src/cci/cube/cciFields";
 import { CubeType, WrongFieldType } from "../../../src/core/cube/cubeDefinitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 describe('cciFields and related classes', () => {
   describe('cciFields (field list wrapper class)', () => {
+    it('correctly sets and retrieves a reply_to relationship field', async () => {
+      const root: cciCube = cciCube.Frozen(
+        {fields: cciField.Payload(Buffer.alloc(200))});
+      const leaf: cciCube = cciCube.Frozen({fields: [
+        cciField.Payload(Buffer.alloc(200)),
+        cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.REPLY_TO, (await root.getKey())))
+      ]});
+
+      const retrievedRel: cciRelationship = leaf.fields.getFirstRelationship();
+      expect(retrievedRel.type).toEqual(cciRelationshipType.REPLY_TO);
+      expect(retrievedRel.remoteKey.toString('hex')).toEqual(
+        (await root.getKey()).toString('hex'));
+    }, 3000);
   })
   describe('cciRelationship', () => {
     it('create a CCI fields object from its predefined field definition', () => {
