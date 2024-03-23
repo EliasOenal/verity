@@ -1,5 +1,5 @@
 // cubeStore.ts
-import { Settings, VerityError } from '../settings';
+import { ApiMisuseError, Settings, VerityError } from '../settings';
 import { Cube, coreCubeFamily } from './cube';
 import { CubeInfo, CubeMeta } from './cubeInfo'
 import { CubePersistence } from "./cubePersistence";
@@ -148,12 +148,12 @@ export class CubeStore extends EventEmitter {
         try {
           cube = new family.cubeClass(binaryCube, {family: family});
         } catch(err) {
-          logger.info(`CubeStore.addCube: Skipping a binary Cube as I could not reconstruct it, at least not using this CubeFamily setting: ${err?.toString() ?? err}`);
+          logger.info(`CubeStore.addCube: Skipping a dormant (binary) Cube as I could not reactivate it, at least not using this CubeFamily setting: ${err?.toString() ?? err}`);
           return undefined;
         }
       } else {  // should never be even possible to happen, and yet, there was this one time when it did
         // @ts-ignore If we end up here, we're well outside any kind of sanity TypeScript can possibly be expected to understand.
-        throw new TypeError("CubeStore: invalid type supplied to addCube: " + cube_input.constructor.name);
+        throw new ApiMisuseError("CubeStore: invalid type supplied to addCube: " + cube_input.constructor.name);
       }
       const cubeInfo: CubeInfo = await cube.getCubeInfo();
 
