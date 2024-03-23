@@ -82,7 +82,7 @@ export class CubeExplorerView extends VerityView {
       li.querySelector(".veritySchematicFieldDetailsContainer");
     fieldDetailsConstainer.replaceChildren();
     // populate fields
-    for (let i=0; i<cube.fields.all.length; i++) {
+    for (let i=0; i<cube.fields.length; i++) {
       // schematic header
       const field = cube.fields.all[i];
       const fieldName: string = cube.fieldParser.fieldDef.fieldNames[field.type] as string;

@@ -92,8 +92,8 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
     }
 
     equals(other: BaseFields, compareLocation: boolean = false): boolean {
-        if (this.count() != other.count()) return false;
-        for (let i=0; i<this.count(); i++) {
+        if (this.length != other.length) return false;
+        for (let i=0; i<this.length; i++) {
             if (!this.all[i].equals(other.all[i], compareLocation)) return false;
         }
         return true;
@@ -111,7 +111,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         return length;
     }
 
-    count(): number {
+    get length(): number {
         return this.data.length;
     }
 
@@ -145,6 +145,23 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
 
     public insertFieldInFront(field: BaseField): void {
         this.data.unshift(field);
+    }
+
+    public removeField(index: number): void;
+    public removeField(field: BaseField): void;
+    public removeField(param: number | BaseField): void {
+        let index = undefined;
+        // if not called by index, find index
+        if (param instanceof BaseField) {
+            for (let i=0; i<this.data.length; i++) {
+                if (this.data[i] === param) index = i;
+            }
+        } else {
+            index = param;
+        }
+        if(!(typeof index === 'number')) return;
+        // remove field
+        this.data.splice(index, 1);
     }
 
     /**
@@ -194,6 +211,36 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
             }
         }
         // no such field
+        this.appendField(field);
+    }
+
+    /**
+     * Ensures there is a field of the specified type at the very front of this
+     * field list. If a field of such type already exists, it is moved to the
+     * front. Otherwise, the supplied defaultField will be inserted at the front.
+     */
+    public ensureFieldInFront(type: number, defaultField: BaseField): void {
+        let field = this.getFirst(type);
+        if (field === undefined) {
+          field = defaultField;
+        } else {
+          this.removeField(field);
+        }
+        this.insertFieldInFront(field);
+    }
+
+    /**
+     * Ensures there is a field of the specified type at the very back of this
+     * field list. If a field of such type already exists, it is moved to the
+     * back. Otherwise, the supplied defaultField will be inserted at the back.
+     */
+    public ensureFieldInBack(type: number, defaultField: BaseField): void {
+        let field = this.getFirst(type);
+        if (field === undefined) {
+          field = defaultField;
+        } else {
+          this.removeField(field);
+        }
         this.appendField(field);
     }
 }

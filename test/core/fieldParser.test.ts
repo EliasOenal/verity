@@ -225,7 +225,7 @@ describe('fieldParser', () => {
       const restored: CubeFields = fieldParser.decompileFields(compiled);
 
       // compare
-      expect(restored.count()).toEqual(5);
+      expect(restored.length).toEqual(5);
       expect(restored.get(CubeFieldType.PAYLOAD).length).toEqual(2);
       expect(
         restored.get(CubeFieldType.PAYLOAD)[0].value.toString('utf-8')).

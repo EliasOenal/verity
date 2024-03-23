@@ -196,26 +196,16 @@ export class CubeFields extends BaseFields {
   ): CubeFields {
     if (data instanceof CubeField) data = [data];
     if (data instanceof CubeFields) data = data.all;
-    const fieldsClass = fieldDefinition.fieldsObjectClass;
-    const fields = new fieldsClass(data, fieldDefinition);
+    const fields: CubeFields =
+      new fieldDefinition.fieldsObjectClass(data, fieldDefinition);
 
-    // Create TYPE (type, version, feature bits) field
-    if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.TYPE) !== undefined) {
-      throw new FieldError("CubeFields.Frozen(): Cannot auto-create mandatory fields as TYPE field already exists");
-    }
-    fields.insertFieldInFront(fieldDefinition.fieldObjectClass.Type(CubeType.FROZEN));
+    fields.ensureFieldInFront(CubeFieldType.TYPE,
+      fieldDefinition.fieldObjectClass.Type(CubeType.FROZEN));
+    fields.ensureFieldInBack(CubeFieldType.DATE,
+      fieldDefinition.fieldObjectClass.Date());
+    fields.ensureFieldInBack(CubeFieldType.NONCE,
+      fieldDefinition.fieldObjectClass.Nonce());
 
-    // Create DATE field
-    if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.DATE) !== undefined) {
-      throw new FieldError("CubeFields.Frozen(): Cannot auto-create mandatory fields as DATE field already exists");
-    }
-    fields.appendField(fieldDefinition.fieldObjectClass.Date());
-
-    // Create randomized NONCE field
-    if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.NONCE) !== undefined) {
-      throw new FieldError("CubeFields.Frozen(): Cannot auto-create mandatory fields as NONCE field already exists");
-    }
-    fields.appendField(fieldDefinition.fieldObjectClass.Nonce());
     // logger.trace("CubeFields.Frozen() creates this field set for a frozen Cube: " + fields.toLongString());
     return fields;
   }
@@ -223,7 +213,7 @@ export class CubeFields extends BaseFields {
   /**
    * Helper function to create a valid MUC field set for you.
    * Just supply your payload fields and we'll take care of the rest.
-   * You can also go a step further and just use Cube.Frozen() for even more
+   * You can also go a step further and just use Cube.MUC() for even more
    * convenience, which will then in turn call us.
    **/
   static Muc(
@@ -235,39 +225,21 @@ export class CubeFields extends BaseFields {
     if (data instanceof CubeField) data = [data];
     if (data instanceof CubeFields) data = data.all;
     if (!(publicKey instanceof Buffer)) publicKey = Buffer.from(publicKey);
+    const fields: CubeFields =
+      new fieldDefinition.fieldsObjectClass(data, fieldDefinition);
 
-    const fields = new fieldDefinition.fieldsObjectClass(data, fieldDefinition);
+    fields.ensureFieldInFront(CubeFieldType.TYPE,
+      fieldDefinition.fieldObjectClass.Type(CubeType.MUC));
+    fields.ensureFieldInBack(CubeFieldType.PUBLIC_KEY,
+      fieldDefinition.fieldObjectClass.PublicKey(publicKey));
+    fields.ensureFieldInBack(CubeFieldType.DATE,
+      fieldDefinition.fieldObjectClass.Date());
+    fields.ensureFieldInBack(CubeFieldType.SIGNATURE,
+      fieldDefinition.fieldObjectClass.Signature());
+    fields.ensureFieldInBack(CubeFieldType.NONCE,
+      fieldDefinition.fieldObjectClass.Nonce());
 
-    // Create TYPE (type, version, feature bits) field
-    if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.TYPE) !== undefined) {
-      throw new FieldError("CubeFields.MucFields(): Cannot auto-create mandatory fields as TYPE field already exists");
-    }
-    fields.insertFieldInFront(fieldDefinition.fieldObjectClass.Type(CubeType.MUC));
-
-    // Create PUBLIC_KEY field
-    if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.PUBLIC_KEY) !== undefined) {
-      throw new FieldError("CubeFields.MucFields(): Cannot auto-create mandatory fields as PUBLIC_KEY field them already exists");
-    }
-    fields.appendField(fieldDefinition.fieldObjectClass.PublicKey(publicKey as Buffer));
-
-    // Create DATE field
-    if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.DATE) !== undefined) {
-      throw new FieldError("CubeFields.MucFields(): Cannot auto-create mandatory fields as DATE field them already exists");
-    }
-    fields.appendField(fieldDefinition.fieldObjectClass.Date());
-
-    // Create SIGNATURE field
-    if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.SIGNATURE) !== undefined) {
-      throw new FieldError("CubeFields.MucFields(): Cannot auto-create mandatory fields as SIGNATURE field already exists");
-    }
-    fields.appendField(fieldDefinition.fieldObjectClass.Signature());
-
-    // Create randomized NONCE field
-    if (Settings.RUNTIME_ASSERTIONS && fields.getFirst(CubeFieldType.NONCE) !== undefined) {
-      throw new FieldError("CubeFields.MucFields(): Cannot auto-create mandatory fields as NONCE field already exists");
-    }
-    fields.appendField(fieldDefinition.fieldObjectClass.Nonce());
-
+    // logger.trace("CubeFields.Muc() creates this field set for a MUC: " + fields.toLongString());
     return fields;
   }
 }
