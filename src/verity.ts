@@ -3,7 +3,7 @@ import { Settings } from './core/settings';
 import { SupportedTransports } from './core/networking/networkDefinitions';
 
 import { Cube } from './core/cube/cube';
-import { CubeField, CubeFields } from './core/cube/cubeFields';
+import { CubeField } from './core/cube/cubeField';
 import { VerityNode } from "./core/verityNode";
 import { AddressAbstraction } from './core/peering/addressing';
 

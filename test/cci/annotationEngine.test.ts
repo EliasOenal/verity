@@ -1,12 +1,12 @@
 import { Cube } from '../../src/core/cube/cube';
 import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
 
-import { cciField, cciFieldParsers, cciRelationship, cciRelationshipType } from '../../src/cci/cube/cciFields';
+import { cciField } from '../../src/cci/cube/cciField';
+import { cciRelationship, cciRelationshipType } from '../../src/cci/cube/cciRelationship';
 import { cciCube } from '../../src/cci/cube/cciCube';
 import { AnnotationEngine, defaultGetFieldsFunc } from '../../src/cci/annotationEngine';
 
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
-import { Settings } from '../../src/core/settings';
 
 describe('annotationEngine', () => {
   let cubeStore: CubeStore;

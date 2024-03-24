@@ -1,4 +1,4 @@
-import { cciField, cciFieldType } from "../../../src/cci/cube/cciFields";
+import { cciField, cciFieldType } from "../../../src/cci/cube/cciField";
 import { Avatar, AvatarScheme, AvatarSeedLength, UNKNOWNAVATAR } from "../../../src/cci/identity/avatar";
 import { ApiMisuseError } from "../../../src/core/settings";
 

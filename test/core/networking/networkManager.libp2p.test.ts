@@ -10,7 +10,8 @@ import { AddressAbstraction } from '../../../src/core/peering/addressing';
 import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
 import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
-import { CubeField, CubeFieldType, CubeFields } from '../../../src/core/cube/cubeFields';
+import { CubeField, CubeFieldType } from '../../../src/core/cube/cubeField';
+import { CubeFields } from '../../../src/core/cube/cubeFields';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { Peer } from '../../../src/core/peering/peer';

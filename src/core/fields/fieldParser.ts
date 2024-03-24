@@ -1,7 +1,8 @@
-import { BinaryDataError, FieldError } from "./cube/cubeDefinitions";
-import { BaseFields, BaseField } from "./cube/baseFields";
-import { logger } from "./logger";
-import { NetConstants } from "./networking/networkDefinitions";
+import { BinaryDataError, FieldError } from "../cube/cubeDefinitions";
+import { BaseField } from "./baseField";
+import { BaseFields } from "./baseFields";
+import { logger } from "../logger";
+import { NetConstants } from "../networking/networkDefinitions";
 
 import { Buffer } from 'buffer';
 
@@ -20,8 +21,6 @@ export interface FieldDefinition {
 }
 
 export class FieldParser {
-  // TODO: add support for flag-type fields
-
   static validateFieldDefinition(fieldDef: FieldDefinition) {
     // Ensure all field class IDs fit into NetConstants.MESSAGE_CLASS_SIZE,
     // except those of positional fields (as those are local-only and will never

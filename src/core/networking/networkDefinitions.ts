@@ -22,6 +22,7 @@ export const NetConstants =  {
     HASH_SIZE: 32,      // TODO: HASH_SIZE may still be used instead of
     CUBE_KEY_SIZE: 32,  // CUBE_KEY_SIZE at some points
     MESSAGE_CLASS_SIZE: 1,  // note: it's actually 6 bits, with 2 bits borrowed to FIELD_LENGTH
+    FIELD_TYPE_SIZE: 1,
     FIELD_LENGTH_SIZE: 1,   // note: it's actually 10 bits, with 2 bits borrowed from MESSAGE_CLASS
     RELATIONSHIP_TYPE_SIZE: 1,
     COUNT_SIZE: 4,

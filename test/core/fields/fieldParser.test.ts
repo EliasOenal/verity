@@ -1,9 +1,11 @@
-import { NetConstants } from "../../src/core/networking/networkDefinitions";
-import { FieldDefinition, FieldNumericalParam, FieldParser, PositionalFields } from "../../src/core/fieldParser";
-import { CubeField, CubeFieldType, CubeFields, coreFrozenParser, coreTlvFrozenParser, coreFrozenFieldDefinition } from "../../src/core/cube/cubeFields";
-import { BaseField, BaseFields } from "../../src/core/cube/baseFields";
-import { BinaryDataError, CubeType, FieldError } from "../../src/core/cube/cubeDefinitions";
+import { FieldDefinition, FieldNumericalParam, FieldParser, PositionalFields } from "../../../src/core/fields/fieldParser";
 
+import { BaseField } from "../../../src/core/fields/baseField";
+import { BaseFields } from "../../../src/core/fields/baseFields";
+
+import { BinaryDataError, CubeType, FieldError } from "../../../src/core/cube/cubeDefinitions";
+import { CubeField, CubeFieldType } from "../../../src/core/cube/cubeField";
+import { CubeFields, coreTlvFrozenParser, coreFrozenFieldDefinition } from "../../../src/core/cube/cubeFields";
 
 describe('fieldParser', () => {
   describe('positional field tests with synthetic field description', () => {
@@ -222,7 +224,7 @@ describe('fieldParser', () => {
 
       // compile and decompile
       const compiled: Buffer = fieldParser.compileFields(fields);
-      const restored: CubeFields = fieldParser.decompileFields(compiled);
+      const restored: CubeFields = fieldParser.decompileFields(compiled) as CubeFields;
 
       // compare
       expect(restored.length).toEqual(5);

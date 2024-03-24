@@ -9,7 +9,8 @@ import { WebSocketConnection } from '../../../src/core/networking/transport/webS
 
 import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
 import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
-import { CubeField, CubeFieldType, CubeFields } from '../../../src/core/cube/cubeFields';
+import { CubeField, CubeFieldType } from '../../../src/core/cube/cubeField';
+import { CubeFields } from '../../../src/core/cube/cubeFields';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { WebSocketAddress } from '../../../src/core/peering/addressing';

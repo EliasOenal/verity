@@ -6,7 +6,7 @@ import { NetworkMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, Cu
 import { AddressAbstraction } from "../../../src/core/peering/addressing";
 import { Peer } from "../../../src/core/peering/peer";
 import { VerityError } from "../../../src/core/settings";
-import { CubeField } from "../../../src/core/cube/cubeFields";
+import { CubeField } from "../../../src/core/cube/cubeField";
 
 describe('NetworkMessage', () => {
   it('should create instances of derived message types', () => {

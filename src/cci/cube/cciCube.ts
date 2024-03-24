@@ -1,5 +1,6 @@
 import { Settings, VerityError } from "../../core/settings";
-import { cciFields, cciField, cciFieldParsers } from "./cciFields";
+import { cciField } from "./cciField";
+import { cciFields, cciFieldParsers } from "./cciFields";
 import { CubeError, CubeType, FieldError } from "../../core/cube/cubeDefinitions";
 import { CubeFamilyDefinition } from "../../core/cube/cubeFamily";
 
