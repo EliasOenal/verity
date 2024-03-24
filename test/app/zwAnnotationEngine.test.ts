@@ -1,16 +1,18 @@
 import { CubeKey } from "../../src/core/cube/cubeDefinitions";
 import { Cube } from "../../src/core/cube/cube";
-import { CubeField } from "../../src/core/cube/cubeFields";
+import { CubeField } from "../../src/core/cube/cubeField";
 import { CubeInfo } from "../../src/core/cube/cubeInfo";
 import { CubeStore } from "../../src/core/cube/cubeStore";
+
+import { cciCube, cciFamily } from "../../src/cci/cube/cciCube";
+import { MediaTypes, cciField} from "../../src/cci/cube/cciField";
+import { cciRelationshipType, cciRelationship } from "../../src/cci/cube/cciRelationship";
 import { Identity, IdentityOptions } from "../../src/cci/identity/identity";
+
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zwAnnotationEngine";
 import { makePost } from "../../src/app/zwCubes"
 
-import { MediaTypes, cciField, cciRelationship, cciRelationshipType } from "../../src/cci/cube/cciFields";
-
 import { jest } from '@jest/globals'
-import { cciCube, cciFamily } from "../../src/cci/cube/cciCube";
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 
 

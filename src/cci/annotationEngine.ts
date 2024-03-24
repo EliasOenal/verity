@@ -3,11 +3,12 @@ import { CubeInfo } from '../core/cube/cubeInfo'
 import { CubeStore } from '../core/cube/cubeStore';
 import { Cube } from '../core/cube/cube';
 
-import { cciFields, cciRelationship } from './cube/cciFields';
+import { cciFields } from './cube/cciFields';
 import { cciFamily } from './cube/cciCube';
+import { cciRelationship } from './cube/cciRelationship';
 
 import { EventEmitter } from 'events';
-import { BaseFields } from '../core/cube/baseFields';
+import { BaseFields } from '../core/fields/baseFields';
 
 
 import { Buffer } from 'buffer';

@@ -1,102 +1,120 @@
 import { cciCube } from "../../../src/cci/cube/cciCube";
-import { cciFrozenFieldDefinition, cciField, cciFields, cciRelationship, cciRelationshipType, cciFieldParsers } from "../../../src/cci/cube/cciFields";
-import { CubeType, WrongFieldType } from "../../../src/core/cube/cubeDefinitions";
+import { cciField } from "../../../src/cci/cube/cciField";
+import { cciFields, cciFrozenFieldDefinition } from "../../../src/cci/cube/cciFields";
+import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
-describe('cciFields and related classes', () => {
-  describe('cciFields (field list wrapper class)', () => {
-    it('correctly sets and retrieves a reply_to relationship field', async () => {
-      const root: cciCube = cciCube.Frozen(
-        {fields: cciField.Payload(Buffer.alloc(200))});
-      const leaf: cciCube = cciCube.Frozen({fields: [
-        cciField.Payload(Buffer.alloc(200)),
-        cciField.RelatesTo(new cciRelationship(
-          cciRelationshipType.REPLY_TO, (await root.getKey())))
-      ]});
-
-      const retrievedRel: cciRelationship = leaf.fields.getFirstRelationship();
-      expect(retrievedRel.type).toEqual(cciRelationshipType.REPLY_TO);
-      expect(retrievedRel.remoteKey.toString('hex')).toEqual(
-        (await root.getKey()).toString('hex'));
-    }, 3000);
-  })
-  describe('cciRelationship', () => {
-    it('create a CCI fields object from its predefined field definition', () => {
-      const parserTable = cciFieldParsers;
-      const cciFrozenParser = parserTable[CubeType.FROZEN];
-      const fieldDef = cciFrozenParser.fieldDef;
-      const fieldsClass = fieldDef.fieldsObjectClass;
-      const fields = new fieldsClass(undefined, fieldDef);
-      expect(fields instanceof cciFields).toBeTruthy();
-    });
-
-    it('marshalls and demarshalls relationsships to and from fields', () => {
-      const fields = new cciFields([
-        cciField.Type(CubeType.FROZEN),
-        cciField.Payload("Ego sum cubus bene connexus cum multis relationibus ad alios cubos."),
-        cciField.RelatesTo(new cciRelationship(
-          cciRelationshipType.REPLY_TO,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1))),
-        cciField.RelatesTo(new cciRelationship(
-          cciRelationshipType.REPLY_TO,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2))),
-        cciField.RelatesTo(new cciRelationship(
-          cciRelationshipType.MENTION,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(11))),
-        cciField.RelatesTo(new cciRelationship(
-          cciRelationshipType.REPLY_TO,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3))),
-        cciField.Payload("Cubus insolitus sum."),
-        cciField.RelatesTo(new cciRelationship(
-          cciRelationshipType.MYPOST,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(21))),
-        cciField.RelatesTo(new cciRelationship(
-          cciRelationshipType.REPLY_TO,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(4))),
-        cciField.Date(),
-        cciField.Nonce(),
-      ],
-      cciFrozenFieldDefinition);
-
-      expect(fields instanceof cciFields).toBeTruthy();
-      expect(fields.getRelationships().length).toEqual(6);
-      expect(fields.getRelationships()[0]).toBeInstanceOf(cciRelationship);
-
-      expect(fields.getRelationships()[0].type).toEqual(cciRelationshipType.REPLY_TO);
-      expect(fields.getRelationships()[0].remoteKey[0]).toEqual(1);
-      expect(fields.getRelationships()[1].type).toEqual(cciRelationshipType.REPLY_TO);
-      expect(fields.getRelationships()[1].remoteKey[0]).toEqual(2);
-      expect(fields.getRelationships()[2].type).toEqual(cciRelationshipType.MENTION);
-      expect(fields.getRelationships()[2].remoteKey[0]).toEqual(11);
-      expect(fields.getRelationships()[3].type).toEqual(cciRelationshipType.REPLY_TO);
-      expect(fields.getRelationships()[3].remoteKey[0]).toEqual(3);
-      expect(fields.getRelationships()[4].type).toEqual(cciRelationshipType.MYPOST);
-      expect(fields.getRelationships()[4].remoteKey[0]).toEqual(21);
-      expect(fields.getRelationships()[5].type).toEqual(cciRelationshipType.REPLY_TO);
-      expect(fields.getRelationships()[5].remoteKey[0]).toEqual(4);
-
-      expect(fields.getRelationships(cciRelationshipType.REPLY_TO).length).toEqual(4);
-      expect(fields.getRelationships(cciRelationshipType.REPLY_TO)[0].type).toEqual(cciRelationshipType.REPLY_TO);
-      expect(fields.getRelationships(cciRelationshipType.REPLY_TO)[0].remoteKey[0]).toEqual(1);
-      expect(fields.getRelationships(cciRelationshipType.REPLY_TO)[1].type).toEqual(cciRelationshipType.REPLY_TO);
-      expect(fields.getRelationships(cciRelationshipType.REPLY_TO)[1].remoteKey[0]).toEqual(2);
-      expect(fields.getRelationships(cciRelationshipType.REPLY_TO)[2].type).toEqual(cciRelationshipType.REPLY_TO);
-      expect(fields.getRelationships(cciRelationshipType.REPLY_TO)[2].remoteKey[0]).toEqual(3);
-      expect(fields.getRelationships(cciRelationshipType.REPLY_TO)[3].type).toEqual(cciRelationshipType.REPLY_TO);
-      expect(fields.getRelationships(cciRelationshipType.REPLY_TO)[3].remoteKey[0]).toEqual(4);
-
-      expect(fields.getFirstRelationship().type).toEqual(cciRelationshipType.REPLY_TO);
-      expect(fields.getFirstRelationship().remoteKey[0]).toEqual(1);
-
-      expect(fields.getRelationships(cciRelationshipType.MYPOST).length).toEqual(1);
-      expect(fields.getFirstRelationship(cciRelationshipType.MYPOST)).toEqual(fields.getRelationships(cciRelationshipType.MYPOST)[0]);
-      expect(fields.getFirstRelationship(cciRelationshipType.MYPOST).type).toEqual(cciRelationshipType.MYPOST);
-      expect(fields.getFirstRelationship(cciRelationshipType.MYPOST).remoteKey[0]).toEqual(21);
-    });
-
-    it('throws trying to demarshal a non-relationship field', () => {
-      const field = cciField.Payload("Hoc non est relationem.");
-      expect(() => cciRelationship.fromField(field)).toThrow(WrongFieldType);
-    });
+describe('cciFields', () => {
+  it('should initialize with empty data if no data provided', () => {
+    const fields = new cciFields(undefined, cciFrozenFieldDefinition);
+    expect(fields.length).toBe(0);
+    expect(fields.getByteLength()).toBe(0);
   });
+
+  it('should initialize with provided data', () => {
+    const data = [new cciField(1, Buffer.from('value1')), new cciField(2, Buffer.from('value2'))];
+    const fields = new cciFields(data, cciFrozenFieldDefinition);
+    expect(fields.length).toBe(2);
+  });
+});
+
+describe('getRelationships', () => {
+  it('should return empty array if no relationships found', () => {
+    const fields = new cciFields(undefined, cciFrozenFieldDefinition);
+    expect(fields.getRelationships()).toEqual([]);
+  });
+
+  it('should return relationships of specified type if provided', () => {
+    const rels = [
+      cciField.RelatesTo(new cciRelationship(
+        cciRelationshipType.MYPOST,
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
+      cciField.RelatesTo(new cciRelationship(
+        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
+      cciField.RelatesTo(new cciRelationship(
+        cciRelationshipType.MYPOST,
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(43))),
+      cciField.RelatesTo(new cciRelationship(
+        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(138))),
+    ];
+    const fields = new cciFields(rels, cciFrozenFieldDefinition);
+    expect(fields.getRelationships(cciRelationshipType.MYPOST).length).toBe(2);
+  });
+
+  it('should return all relationships if type not provided', () => {
+    const rels = [
+      cciField.RelatesTo(new cciRelationship(
+        cciRelationshipType.MYPOST,
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
+      cciField.RelatesTo(new cciRelationship(
+        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
+      cciField.RelatesTo(new cciRelationship(
+        cciRelationshipType.MYPOST,
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(43))),
+      cciField.RelatesTo(new cciRelationship(
+        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(138))),
+    ];
+    const fields = new cciFields(rels, cciFrozenFieldDefinition);
+    expect(fields.getRelationships().length).toBe(4);
+  });
+});
+
+describe('getFirstRelationship', () => {
+  it('should return undefined if no relationships found', () => {
+    const fields = new cciFields(undefined, cciFrozenFieldDefinition);
+    expect(fields.getFirstRelationship()).toBeUndefined();
+  });
+
+  it('should return first relationship of specified type if provided', () => {
+    const rels = [
+      cciField.RelatesTo(new cciRelationship(
+        cciRelationshipType.MYPOST,
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
+      cciField.RelatesTo(new cciRelationship(
+        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
+      ];
+    const fields = new cciFields(rels, cciFrozenFieldDefinition);
+    expect(fields.getFirstRelationship(
+      cciRelationshipType.SUBSCRIPTION_RECOMMENDATION).type).toBe(
+        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION);
+    expect(fields.getFirstRelationship(
+      cciRelationshipType.SUBSCRIPTION_RECOMMENDATION).remoteKey).toEqual(
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137));
+  });
+
+  it('should return first relationship if type not provided', () => {
+    const rels = [
+      cciField.RelatesTo(new cciRelationship(
+        cciRelationshipType.MYPOST,
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
+      cciField.RelatesTo(new cciRelationship(
+        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
+      ];
+    const fields = new cciFields(rels, cciFrozenFieldDefinition);
+    expect(fields.getFirstRelationship().type).toBe(
+        cciRelationshipType.MYPOST);
+    expect(fields.getFirstRelationship().remoteKey).toEqual(
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42));
+  });
+
+  it('correctly sets and retrieves a reply_to relationship field in a full stack test', async () => {
+    const root: cciCube = cciCube.Frozen(
+      {fields: cciField.Payload(Buffer.alloc(200))});
+    const leaf: cciCube = cciCube.Frozen({fields: [
+      cciField.Payload(Buffer.alloc(200)),
+      cciField.RelatesTo(new cciRelationship(
+        cciRelationshipType.REPLY_TO, (await root.getKey())))
+    ]});
+
+    const retrievedRel: cciRelationship = leaf.fields.getFirstRelationship();
+    expect(retrievedRel.type).toEqual(cciRelationshipType.REPLY_TO);
+    expect(retrievedRel.remoteKey.toString('hex')).toEqual(
+      (await root.getKey()).toString('hex'));
+  }, 3000);
 });

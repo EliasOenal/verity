@@ -1,17 +1,21 @@
 // cube.test.ts
 import { Settings } from '../../../src/core/settings';
-import { unixtime } from '../../../src/core/helpers';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
+
+import { unixtime } from '../../../src/core/helpers';
+import { BaseField } from '../../../src/core/fields/baseField';
+import { BaseFields } from '../../../src/core/fields/baseFields';
+import { FieldParser } from '../../../src/core/fields/fieldParser';
+
 import { BinaryLengthError, CubeSignatureError, CubeType, FieldError, FieldSizeError, InsufficientDifficulty } from '../../../src/core/cube/cubeDefinitions';
 import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
-import { Buffer } from 'buffer';
 import { calculateHash, countTrailingZeroBits } from '../../../src/core/cube/cubeUtil';
-import { FieldParser } from '../../../src/core/fieldParser';
-import { CubeField, CubeFieldLength, CubeFieldType, CubeFields, coreFrozenFieldDefinition, coreMucFieldDefinition } from '../../../src/core/cube/cubeFields';
+import { CubeFieldType, CubeField, CubeFieldLength } from '../../../src/core/cube/cubeField';
+import { CubeFields, coreFrozenFieldDefinition, coreMucFieldDefinition } from '../../../src/core/cube/cubeFields';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
-import { BaseField, BaseFields } from '../../../src/core/cube/baseFields';
 
-import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
+import { Buffer } from 'buffer';
+import sodium from 'libsodium-wrappers-sumo'
 
 // TODO: Add more tests. This is one of our most crucial core classes and it's
 // nowhere near fully covered.

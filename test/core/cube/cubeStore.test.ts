@@ -1,10 +1,13 @@
 import { Settings } from '../../../src/core/settings';
+
+import { CubeType } from '../../../src/core/cube/cubeDefinitions';
 import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
 import { CubeStore as CubeStore } from '../../../src/core/cube/cubeStore';
-import { CubeField, CubeFieldType } from '../../../src/core/cube/cubeFields';
-import { CubeType } from '../../../src/core/cube/cubeDefinitions';
-import { MediaTypes, cciField, cciFieldParsers, cciFieldType, cciFields } from '../../../src/cci/cube/cciFields';
+import { CubeField, CubeFieldType } from '../../../src/core/cube/cubeField';
+
+import { MediaTypes, cciField, cciFieldType } from '../../../src/cci/cube/cciField';
 import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
+import { cciFields } from '../../../src/cci/cube/cciFields';
 
 import sodium from 'libsodium-wrappers-sumo'
 
@@ -216,7 +219,7 @@ describe('cubeStore', () => {
     });
   });
 
-  describe('tests involving CCI layer', () => {
+  describe('tests involving CCI layer', () => {  // TODO move somewhere under CCI
     it("respects the user's Cube parsing settings", async() => {
       const cciCubeStore: CubeStore = new CubeStore({
         enableCubePersistance: false,

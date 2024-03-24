@@ -6,7 +6,9 @@ import { unixtime } from '../../core/helpers';
 import { Cube } from '../../core/cube/cube';
 import { logger } from '../../core/logger';
 
-import { cciField, cciFieldParsers, cciFieldType, cciFields, cciMucFieldDefinition, cciRelationship, cciRelationshipType } from '../cube/cciFields';
+import { cciField, cciFieldType } from '../cube/cciField';
+import { cciFieldParsers, cciFields, cciMucFieldDefinition } from '../cube/cciFields';
+import { cciRelationship, cciRelationshipType } from '../cube/cciRelationship';
 import { cciCube, cciFamily } from '../cube/cciCube';
 import { ensureCci } from '../cube/cciCubeUtil';
 
@@ -222,7 +224,10 @@ export class Identity {
   /** @member Points to first cube in the profile picture continuation chain */
   profilepic: CubeKey = undefined;
 
-  /** @member The key of the cube containing our private key encrypted with our password */
+  /**
+   * @member The key of the cube containing our private key encrypted with our password.
+   * Not actually implemented yet.
+   **/
   keyBackupCube: CubeKey = undefined;
 
   /** List of own posts, sorted by date descending */
@@ -431,55 +436,62 @@ export class Identity {
     // 1 byte rerelation ship type, 740/34 = 21.76).
     // Hope I didn't miss anything or it will throw my mistake in your face :)
 
-    const fields: cciField[] = [];
+    const newMuc: cciCube = cciCube.MUC(
+      this._muc.publicKey, this._muc.privateKey, {
+        family: cciFamily,
+        requiredDifficulty: requiredDifficulty
+    });
     // Include application header if requested
     if (applicationString) {
-      fields.push(cciField.Application(applicationString));
+      newMuc.fields.insertFieldBeforeBackPositionals(
+        cciField.Application(applicationString));
     }
 
     // Write username
     if (this.name) {
-      fields.push(cciField.Username(this.name));
+      newMuc.fields.insertFieldBeforeBackPositionals(cciField.Username(this.name));
     }
 
     // Write avatar string
     if (this.avatar &&
         this.avatar.scheme != AvatarScheme.UNKNOWN &&
         !(this.avatar.equals(this.defaultAvatar()))) {
-      fields.push(this.avatar.toField());
+          newMuc.fields.insertFieldBeforeBackPositionals(this.avatar.toField());
     }
 
     // Write profile picture reference
-    if (this.profilepic) fields.push(cciField.RelatesTo(
-      new cciRelationship(cciRelationshipType.PROFILEPIC, this.profilepic)
-    ));
-
-    // Write key backup cube reference (not actually implemented yet)
-    if (this.keyBackupCube) fields.push(cciField.RelatesTo(
-      new cciRelationship(cciRelationshipType.KEY_BACKUP_CUBE, this.keyBackupCube)
-    ));
-    // Write my post references
-    // TODO: use fibonacci spacing for post references instead of linear,
-    // but only if there are actually enough posts to justify it
-    for (let i = 0; i < this.posts.length && i < 22; i++) {
-      fields.push(cciField.RelatesTo(
-        new cciRelationship(cciRelationshipType.MYPOST, Buffer.from(this.posts[i], 'hex'))
+    if (this.profilepic) {
+      newMuc.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+        new cciRelationship(cciRelationshipType.PROFILEPIC, this.profilepic)
       ));
     }
-    // write subscription recommendations
+
+    // Write key backup cube reference (not actually implemented yet)
+    if (this.keyBackupCube) {
+      newMuc.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+        new cciRelationship(cciRelationshipType.KEY_BACKUP_CUBE, this.keyBackupCube)
+      ));
+    }
+
+    // Write subscription recommendations
+    // (these will be in there own sub-MUCs and we'll reference the first one
+    // of those here)
     this.writeSubscriptionRecommendations(requiredDifficulty);
-    if (this.subscriptionRecommendationIndices.length) {
-      fields.push(cciField.RelatesTo(
+    if (this.subscriptionRecommendationIndices.length) {  // any subs at all?
+      newMuc.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
         new cciRelationship(cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
           this.subscriptionRecommendationIndices[0].getKeyIfAvailable())));
           // note: key is always available as this is a MUC
     }
 
-    const newMuc: cciCube = cciCube.MUC(this._muc.publicKey, this._muc.privateKey, {
-      fields: fields,
-      family: cciFamily,
-      requiredDifficulty: requiredDifficulty
-    });
+    // Write my post references, as many as will fit into the MUC.
+    // Note: We currently just include our newest post here, and then include
+    // reference to older posts within our new posts themselves.
+    // We might need to change that again as it basically precludes us from ever
+    // de-referencing ("deleting") as post.
+    newMuc.fields.insertTillFull(cciField.FromRelationships(
+      cciRelationship.fromKeys(cciRelationshipType.MYPOST, this.posts)));
+
     await newMuc.getBinaryData();  // compile MUC
     this._muc = newMuc;
 

@@ -1,12 +1,16 @@
 // cube.ts
-import { BinaryDataError, BinaryLengthError, CubeError, CubeKey, CubeSignatureError, CubeType, FieldError, FieldSizeError } from "./cubeDefinitions";
 import { Settings } from '../settings';
 import { NetConstants } from '../networking/networkDefinitions';
+
+import { BinaryDataError, BinaryLengthError, CubeError, CubeKey, CubeSignatureError, CubeType, FieldError, FieldSizeError } from "./cubeDefinitions";
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
-import { CubeField, CubeFieldType, CubeFields, coreFieldParsers, coreTlvFieldParsers } from './cubeFields';
+import { CubeField, CubeFieldType } from "./cubeField";
+import { CubeFields, coreFieldParsers, coreTlvFieldParsers } from './cubeFields';
 import { CubeFamilyDefinition } from "./cubeFamily";
-import { FieldParser } from "../fieldParser";
+
+import { FieldParser } from "../fields/fieldParser";
+
 import { logger } from '../logger';
 
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
@@ -91,7 +95,12 @@ export class Cube {
     readonly requiredDifficulty: number;
 
     protected _fields: CubeFields;
-    public get fields(): CubeFields { return this._fields; }
+    public get fields(): CubeFields {
+        // TODO: This is very dangerous as obviously accessing the raw fields
+        // could manipulate the Cube. Maybe make CubeFields an
+        // EventEmitter and mark the Cube manipulated on change events?
+        return this._fields;
+    }
 
     private binaryData: Buffer = undefined;
 
@@ -139,7 +148,7 @@ export class Cube {
                 throw new CubeError(`Cannot reactivate dormant (binary) Cube of unknown type ${this._cubeType}`)
             }
             this.fieldParser = this.family.parsers[this._cubeType];
-            this._fields = this.fieldParser.decompileFields(this.binaryData);
+            this._fields = this.fieldParser.decompileFields(this.binaryData) as CubeFields;
             if (!this._fields) {
                 logger.info(`Cube: Could not decompile dormant (binary) Cube`);
                 throw new BinaryDataError("Could not decompile dormant (binary) Cube");
@@ -252,7 +261,7 @@ export class Cube {
     }
 
     public async getHash(): Promise<Buffer> {
-        if (!this.binaryData || !this.hash) await this.setBinaryData();
+        if (!this.binaryData || !this.hash) await this.compile();
         return this.hash;
     }
 
@@ -261,7 +270,7 @@ export class Cube {
     }
 
     public async getBinaryData(): Promise<Buffer> {
-        if (!this.binaryData || !this.hash) await this.setBinaryData();
+        if (!this.binaryData || !this.hash) await this.compile();
         return this.binaryData;
     }
     public getBinaryDataIfAvailable(): Buffer {
@@ -292,7 +301,13 @@ export class Cube {
     /// "new cube in the making" state. Binary data, hash and potentially cube key
     /// are now invalid. Delete them; out getter methods will make sure to
     /// recreate them when needed.
-    private cubeManipulated() {
+    /**
+     * Needs to be called after any changes to Cube data that require
+     * the Cube to be recompiled. Will be called automatically for our own
+     * Setter methods, but if e.g. you manipulate the fields on your own then
+     * this is up to you.
+     */
+    public cubeManipulated() {
         this.binaryData = undefined;
         this.hash = undefined;
     }
@@ -301,8 +316,10 @@ export class Cube {
      * Compiles this Cube into a binary Buffer to be stored or transmitted
      * over the wire. This will also (re-)calculate this cube's hash challenge.
      * If required, it will also add padding and/or sign the Cube.
+     * Can either be called explicitly or will be called automatically when
+     * you try top getBinaryData() or getHash().
      **/
-    private async setBinaryData(): Promise<void> {
+    public async compile(): Promise<void> {
         this.padUp();
         // compile it
         this.binaryData = this.fieldParser.compileFields(this._fields);
@@ -362,7 +379,7 @@ export class Cube {
     private async generateCubeHash(): Promise<void> {
         if (this.binaryData === undefined) {
             logger.warn("Cube: generateCubeHash called on undefined binary data -- it's not a problem, but it's not supposed to happen either");
-            this.setBinaryData();
+            this.compile();
         }
         const nonceField = this._fields.getFirst(CubeFieldType.NONCE);
         if (!nonceField) {
@@ -447,7 +464,7 @@ export class Cube {
 
     getDifficulty(): number {
         if (this.binaryData === undefined || this.hash === undefined) {
-            this.setBinaryData();
+            this.compile();
         }
         return CubeUtil.countTrailingZeroBits(this.hash);
     }

@@ -5,13 +5,15 @@ import { Cube } from '../../../src/core/cube/cube'
 
 import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
 import { makePost } from '../../../src/app/zwCubes';
-import { cciFieldParsers, cciFieldType, cciFields, cciRelationship, cciRelationshipType } from '../../../src/cci/cube/cciFields';
+import { cciFieldParsers, cciFields } from '../../../src/cci/cube/cciFields';
 
+import { cciFieldType } from '../../../src/cci/cube/cciField';
+import { cciRelationshipType, cciRelationship } from '../../../src/cci/cube/cciRelationship';
 import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
+import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
 import { IdentityPersistance } from '../../../src/cci/identity/identityPersistance';
 
 import sodium from 'libsodium-wrappers-sumo'
-import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
 
 // maybe TODO: Some tests here use "ZW" stuff from the microblogging app
 // which breaks the current layering.

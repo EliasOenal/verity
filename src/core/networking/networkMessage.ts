@@ -1,4 +1,4 @@
-import { BaseField } from "../cube/baseFields";
+import { BaseField } from "../fields/baseField";
 import { CubeError, CubeKey } from "../cube/cubeDefinitions";
 import { CubeInfo, CubeMeta } from "../cube/cubeInfo";
 import { logger } from "../logger";

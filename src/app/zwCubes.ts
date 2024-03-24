@@ -6,15 +6,20 @@
  */
 
 import { Settings } from "../core/settings";
+
 import { Cube } from "../core/cube/cube";
 import { CubeKey, CubeType } from "../core/cube/cubeDefinitions";
+
+import { cciField, MediaTypes, cciFieldType } from "../cci/cube/cciField";
+import { cciFields, cciFrozenFieldDefinition } from "../cci/cube/cciFields";
+import { cciRelationship, cciRelationshipType } from "../cci/cube/cciRelationship";
+import { cciCube, cciFamily } from "../cci/cube/cciCube";
 import { Identity } from "../cci/identity/identity";
-import { MediaTypes, cciField, cciFieldType, cciFields, cciRelationship, cciRelationshipType, cciFrozenFieldDefinition } from "../cci/cube/cciFields";
+import { isCci } from "../cci/cube/cciCubeUtil";
 
 import { Buffer } from 'buffer';
-import { cciCube, cciFamily } from "../cci/cube/cciCube";
+
 import { logger } from "../core/logger";
-import { isCci } from "../cci/cube/cciCubeUtil";
 
 /**
  * Creates a new Cube containing a correctly formed text post.
