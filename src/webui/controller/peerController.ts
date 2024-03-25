@@ -23,7 +23,7 @@ export class PeerController extends VerityController {
   constructor(
       private networkManager: NetworkManager,
       private peerDB: PeerDB,
-      public peerView = new PeerView(networkManager.id.toString('hex')),
+      public contentAreaView = new PeerView(networkManager.id.toString('hex')),
       private onlineView = new OnlineView(),
   ){
     super();
@@ -47,7 +47,7 @@ export class PeerController extends VerityController {
 
   changeDisplayTo(shallDisplay: ShallDisplay): void {
     this.shallDisplay = shallDisplay;
-    this.peerView.markNavActive(shallDisplay);
+    this.contentAreaView.markNavActive(shallDisplay);
     this.redisplayPeers();
   }
 
@@ -71,7 +71,7 @@ export class PeerController extends VerityController {
     if (!peer.id) return;  // this should never have been called for non-verified peers
     // Peer already displayed?
     let li: HTMLLIElement = this.displayedPeers.get(peer.idString);
-    li = this.peerView.displayPeer(peer, li);
+    li = this.contentAreaView.displayPeer(peer, li);
     this.displayedPeers.set(peer.idString, li);
 
     if (networkPeer) {
@@ -83,7 +83,7 @@ export class PeerController extends VerityController {
   undisplayPeer(idString: string): void {
     // logger.trace("PeerDisplay: Undisplaying peer " + idString);
     const peerli = this.displayedPeers.get(idString);
-    this.peerView.undisplayPeer(peerli);
+    this.contentAreaView.undisplayPeer(peerli);
     this.displayedPeers.delete(idString);
   }
 
@@ -148,8 +148,7 @@ export class PeerController extends VerityController {
     this.peerDB.removeListener('removePeer', (peer) => this.redisplayPeers());
     this.networkManager.removeListener('online', () => this.onlineView.showOnline());
     this.networkManager.removeListener('offline', () => this.onlineView.showOffline());
-    // Return a resolved promise
-    return new Promise<void>(resolve => resolve());
+    return super.shutdown();
   }
 
   private shallDisplayPeers(): Peer[] {

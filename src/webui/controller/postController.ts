@@ -50,7 +50,7 @@ export class PostController extends VerityController {
       private cubeStore: CubeStore,
       private annotationEngine: ZwAnnotationEngine,
       private identity: Identity = undefined,
-      public view: PostView = new PostView()) {
+      public contentAreaView: PostView = new PostView()) {
     super();
     this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey)); // list cubes
     this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
@@ -98,8 +98,7 @@ export class PostController extends VerityController {
 
   shutdown(): Promise<void> {
     clearInterval(this.cubeAuthorRedisplayTimer);
-    // Return a resolved promise
-    return new Promise<void>(resolve => resolve());
+    return super.shutdown();
   }
 
   redisplayPosts() {
@@ -120,7 +119,7 @@ export class PostController extends VerityController {
    */
   clearAllPosts(): void {
     this.displayedPosts.clear();
-    this.view.clearAll();
+    this.contentAreaView.clearAll();
   }
 
   // Show all new cubes that are displayable.
@@ -159,7 +158,7 @@ export class PostController extends VerityController {
       }
     }
 
-    this.view.displayPost(data);  // have the view display the post
+    this.contentAreaView.displayPost(data);  // have the view display the post
     this.displayedPosts.set(data.keystring, data);  // remember the displayed post
   }
 
@@ -169,7 +168,7 @@ export class PostController extends VerityController {
     const postData: PostData = this.displayedPosts.get(key);
     if (!postData) return;
     this.findAuthor(postData);  // this (re-)sets data.author and data.authorkey
-    this.view.redisplayCubeAuthor(postData);
+    this.contentAreaView.redisplayCubeAuthor(postData);
   }
 
   /** Redisplays authorship information for all of one author's posts */
@@ -200,7 +199,7 @@ export class PostController extends VerityController {
     logger.trace("CubeDisplay: Redisplaying all cube authors");
     for (const data of this.displayedPosts.values()) {
       this.findAuthor(data);  // this (re-)sets data.author and data.authorkey
-      this.view.redisplayCubeAuthor(data);
+      this.contentAreaView.redisplayCubeAuthor(data);
     }
   }
 

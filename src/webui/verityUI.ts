@@ -60,17 +60,30 @@ export class VerityUI {
   postController: PostController = undefined;
   peerController: PeerController;
   identityController: IdentityController;
-  cubeExplorerController: CubeExplorerController;
 
-  currentController: VerityController;
+  /**
+   * The controller currently owning verityContentArea.
+   * This is always to top controller on the controllerStack; and we will
+   * conveniently display a back button to close it and return control to the
+   * one below :)
+   **/
+  get currentController(): VerityController {
+    if (this.controllerStack.length === 0) return undefined;
+    else return this.controllerStack[this.controllerStack.length-1];
+  }
 
+  /**
+   * The stack of active controllers for verityContentArea.
+   * The top one always has control and can conveniently be retrieved by
+   * accessing currentController instead.
+   **/
+  controllerStack: VerityController[] = [];
 
   constructor(
       readonly node: VerityNode,
       readonly veraAnimationController: VeraAnimationController = new VeraAnimationController(),
     ){
     this.peerController = new PeerController(this.node.networkManager, this.node.peerDB);
-    this.cubeExplorerController = new CubeExplorerController(this.node.cubeStore);
   }
 
   shutdown() {
@@ -86,9 +99,39 @@ export class VerityUI {
     this.identityController.showLoginStatus();
   }
 
+  newController(controller: VerityController) {
+    this.controllerStack.push(controller);
+    this.displayOrHideBackButton();
+  }
+
+  closeCurrentController() {
+    if (this.currentController !== undefined) {
+      this.currentController.close();
+      this.controllerStack.pop();
+      this.displayOrHideBackButton();
+      if (this.currentController !== undefined) {
+        this.currentController.contentAreaView.show();
+      }
+    }
+  }
+
+  closeAllControllers() {
+    while(this.currentController !== undefined) {
+      this.closeCurrentController();
+    }
+  }
+
+  private displayOrHideBackButton() {
+    // HACKHACK: UI code should be encapsulated somewhere, e.g. in a View...
+    const backArea = document.getElementById("verityBackArea");
+    if (this.controllerStack.length > 1) backArea.setAttribute("style", "display: block");
+    else backArea.setAttribute("style", "display: none");
+  }
+
   // Navigation
   // maybe TODO: Move this to a new NavController/NavView
   navPostsAll(): void {
+    this.closeAllControllers();
     logger.trace("VerityUI: Displaying all posts including anonymous ones");
     this.navbarMarkActive("navPostsAll");
     this.annotationEngine = new ZwAnnotationEngine(
@@ -98,9 +141,11 @@ export class VerityUI {
       true,     // auto-learn MUCs to display authorship info if available
       true);    // allow anonymous posts
     this.postController = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
+    this.newController(this.postController);
   }
 
   navPostsWithAuthors(): void {
+    this.closeAllControllers();
     logger.trace("VerityUI: Displaying posts associated with a MUC");
     this.navbarMarkActive("navPostsWithAuthors");
     this.annotationEngine = new ZwAnnotationEngine(
@@ -110,10 +155,12 @@ export class VerityUI {
       true,     // auto-learn MUCs (posts associated with any Identity MUC are okay)
       false);   // do not allow anonymous posts
     this.postController = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
+    this.newController(this.postController);
   }
 
   navPostsSubscribedInTree(): void {
     if (!this.identity) return;
+    this.closeAllControllers();
     logger.trace("VerityUI: Displaying posts from trees with subscribed author activity");
     this.navbarMarkActive("navPostsSubscribedInTree");
     this.annotationEngine = new ZwAnnotationEngine(
@@ -123,10 +170,12 @@ export class VerityUI {
       true,      // auto-learn MUCs (to be able to display authors when available)
       false);    // do not allow anonymous posts
     this.postController = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
+    this.newController(this.postController);
   }
 
   navPostsSubscribedReplied(wotDepth: number = 0): void {
     if (!this.identity) return;
+    this.closeAllControllers();
     logger.trace("VerityUI: Displaying posts from subscribed authors and their preceding posts");
     let navName: string = "navPostsSubscribedReplied";
     if (wotDepth) navName += wotDepth;
@@ -138,10 +187,12 @@ export class VerityUI {
       true,      // auto-learn MUCs (to be able to display authors when available)
       false);    // do not allow anonymous posts
     this.postController = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
+    this.newController(this.postController);
   }
 
   navPostsSubscribedStrict(): void {
     if (!this.identity) return;
+    this.closeAllControllers();
     logger.trace("VerityUI: Displaying posts from subscribed authors strictly");
     this.navbarMarkActive("navPostsSubscribedStrict");
     this.annotationEngine = new ZwAnnotationEngine(
@@ -151,18 +202,21 @@ export class VerityUI {
       false,     // do no auto-learn MUCs (strictly only posts by subscribed will be displayed)
       false);    // do not allow anonymous posts
     this.postController = new PostController(this.node.cubeStore, this.annotationEngine, this.identity);
+    this.newController(this.postController);
   }
 
   navPeers() {
-    this.currentController = this.peerController;
-    this.peerController.peerView.show();
+    this.controllerStack.push(this.peerController);
+    this.peerController.contentAreaView.show();
     this.navbarMarkActive("navPeers");
   }
 
   navCubeExplorer(): void {
     this.navbarMarkActive("navCubeExplorer");
-    this.cubeExplorerController.redisplay();
-    this.cubeExplorerController.view.show();
+    const controller = new CubeExplorerController(this.node.cubeStore);
+    this.newController(controller);
+    controller.redisplay();
+    controller.contentAreaView.show();
   }
 
   private navbarMarkActive(id: string) {

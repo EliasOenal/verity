@@ -125,8 +125,13 @@
           </div> <!-- leftnavCollapsible -->
         </div> <!-- leftnav -->
 
-        <div class="col-sm-8 container-fluid" id="verityContentArea">
-        </div> <!-- verityContentArea -->
+        <div class="col-sm-8 container-fluid" id="verityContentCol">
+          <div id="verityBackArea" class="mt-3 mt-sm-5 me-2" style="display: none"> <!-- will be shown as necessary by JS -->
+            <a href="#" id="verityBackButton" class="bi bi-arrow-left"
+               onclick="window.verityUI.closeCurrentController()"></a>
+          </div>
+          <div id="verityContentArea"></div>
+        </div> <!-- verityContentCol -->
       </div> <!-- globalrow -->
     </div> <!-- container-fluid -->
   </div> <!-- content-wrapper -->

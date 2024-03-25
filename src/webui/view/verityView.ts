@@ -1,4 +1,5 @@
 import { UiError } from "../webUiDefinitions";
+import { logger } from "../../core/logger";
 
 // TODO: make template handling more clearly optional
 /** Abstract base class for our views */
@@ -32,9 +33,12 @@ export abstract class VerityView {
    * Afterwards, calling show() should get the user right back to where they
    * left off.
    **/
-
   unshow() {
-    this.viewArea.removeChild(this.renderedView);
+    try {
+      this.viewArea.removeChild(this.renderedView);
+    } catch (err) {
+      logger.debug("VerityView.unshow: Error unshowing: " + err?.toString() ?? err);
+    }
   }
 
   /**
