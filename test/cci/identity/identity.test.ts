@@ -4,7 +4,7 @@ import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { Cube } from '../../../src/core/cube/cube'
 
 import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
-import { makePost } from '../../../src/app/zwCubes';
+import { makePost } from '../../../src/app/zwUtil';
 import { cciFieldParsers, cciFields } from '../../../src/cci/cube/cciFields';
 
 import { cciFieldType } from '../../../src/cci/cube/cciField';

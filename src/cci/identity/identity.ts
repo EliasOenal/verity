@@ -424,18 +424,6 @@ export class Identity {
       await new Promise(resolve => setTimeout(resolve, waitFor*1000));
     }
 
-    // TODO: calculate lengths dynamically so we can always cram as much useful
-    // information into the MUC as possible.
-    // For now, let's just eyeball it... :D
-    // After mandatory boilerplate, there's 904 bytes left in a MUC.
-    // We use up 163 of those for APPLICATION (3), a potentially maximum length
-    // USERNAME (62), and the cube references for PROFILEPIC,
-    // KEY_BACKUP_CUBE and SUBSCRIPTION_RECOMMENDATION_INDEX (33 each including header).
-    // That leaves 740 bytes. With that we can always safely include 21 posts
-    // in MYPOST fields (34 bytes each [32 bytes key, 1 byte header,
-    // 1 byte rerelation ship type, 740/34 = 21.76).
-    // Hope I didn't miss anything or it will throw my mistake in your face :)
-
     const newMuc: cciCube = cciCube.MUC(
       this._muc.publicKey, this._muc.privateKey, {
         family: cciFamily,

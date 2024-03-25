@@ -11,7 +11,7 @@ import { cciRelationshipLimits, cciRelationship, cciRelationshipType } from "../
 import { cciCube, cciFamily } from "../cci/cube/cciCube";
 import { ensureCci } from "../cci/cube/cciCubeUtil";
 
-import { assertZwCube } from "./zwCubes";
+import { assertZwCube } from "./zwUtil";
 
 import { logger } from "../core/logger";
 
