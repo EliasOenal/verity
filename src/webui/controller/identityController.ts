@@ -15,8 +15,6 @@ export class IdentityController extends VerityController {
   loginStatusView: LoginStatusView = new LoginStatusView();
   persistence: IdentityPersistance = new IdentityPersistance("identity");
 
-  private mainAreaView: VerityView = undefined;
-
   private _identity: Identity;
   get identity(): Identity { return this._identity}
   set identity(identity: Identity) {
@@ -39,8 +37,8 @@ export class IdentityController extends VerityController {
   }
 
   showLoginForm() {
-    this.mainAreaView = new LoginFormView();
-    this.mainAreaView.show();
+    this.contentAreaView = new LoginFormView();
+    this.contentAreaView.show();
   }
 
   performLogin(form: HTMLFormElement) {
@@ -75,7 +73,7 @@ export class IdentityController extends VerityController {
     }
     this._identity = identity;
     this.showLoginStatus();
-    this.mainAreaView?.shutdown();
+    this.contentAreaView?.shutdown();
   }
 
   logOut() {
@@ -90,10 +88,10 @@ export class IdentityController extends VerityController {
   }
 
   showEditIdentity() {
-    this.mainAreaView = new EditIdentityView(this.identity);
-    (this.mainAreaView as EditIdentityView).displayAvatar(
+    this.contentAreaView = new EditIdentityView(this.identity);
+    (this.contentAreaView as EditIdentityView).displayAvatar(
       this._identity.avatar?.seedString, this.identity.avatar.render());
-    this.mainAreaView.show();
+    this.contentAreaView.show();
   }
 
   performEditIdentity(form: HTMLFormElement) {
@@ -108,13 +106,13 @@ export class IdentityController extends VerityController {
     }
     this._identity.store("ID/ZW");
     this.showLoginStatus();
-    this.mainAreaView.shutdown();
+    this.contentAreaView.shutdown();
   }
 
   randomMultiavatar() {
     // This method only makes sense within the edit identity form
-    if (!(this.mainAreaView instanceof EditIdentityView)) return;
+    if (!(this.contentAreaView instanceof EditIdentityView)) return;
     const randomAvatar = new Avatar(true);
-    this.mainAreaView.displayAvatar(randomAvatar.seedString, randomAvatar.render());
+    this.contentAreaView.displayAvatar(randomAvatar.seedString, randomAvatar.render());
   }
 }

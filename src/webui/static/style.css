@@ -236,6 +236,10 @@ div.verityMyIdentityInfoArea a {
   padding: 0.5em;
 }
 
+#verityBackArea {
+  font-size: 2rem;
+  float: left;
+}
 
 /*
  * Shared stuff
