@@ -31,6 +31,7 @@ export abstract class NetworkTransport extends EventEmitter{
 
   constructor() {
     super();
+    this.setMaxListeners(100);
   }
 
   /**

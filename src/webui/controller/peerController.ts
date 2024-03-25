@@ -73,7 +73,9 @@ export class PeerController extends VerityController {
     let li: HTMLLIElement = this.displayedPeers.get(peer.idString);
     li = this.peerView.displayPeer(peer, li);
     this.displayedPeers.set(peer.idString, li);
+
     if (networkPeer) {
+      // TODO: limit redisplaying to once per second
       networkPeer.conn.once("transmissionLogged", () => this.displayPeer(peer));
     }
   }
