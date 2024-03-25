@@ -10,7 +10,7 @@ import { cciRelationshipType, cciRelationship } from "../../src/cci/cube/cciRela
 import { Identity, IdentityOptions } from "../../src/cci/identity/identity";
 
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zwAnnotationEngine";
-import { makePost } from "../../src/app/zwCubes"
+import { makePost } from "../../src/app/zwUtil"
 
 import { jest } from '@jest/globals'
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
