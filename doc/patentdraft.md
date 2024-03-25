@@ -3,6 +3,7 @@
 | Problem | Solution |
 | ------- | -------- |
 | Servers, no matter whether fully centralized or federated, can fail, cost money to buy and operate, are prominent attack targets, can have their network access curtailed either at the server end or by inclusion in client-side blocklists, and can be shut down or ordered to shut down by third parties | Fully decentralized information storage and exchange |
+| Information can be corrupted in transit | Intergrity ensured by hashes. Information units referenced by keys which are either based on hashes or signatures and guaranteed to change when corruption or manipulation occurs. |
 | Identity information stored on a server can be stolen and manipulated | Fully decentralized identities based on public key cryptography |
 | Identity information stored on the client device cannot easily be used on a different device | Storing private identity information on the decentralized network in a cryptographically secure way |
 | p2p networks are hard to join & use | Fully automatic bootstrap and node exchange only requiring knowledge of a single other node |
@@ -33,8 +34,9 @@ The above description is given by way of example, and not limitation.  Given the
 
 
 ## What is claimed is:
-1. something,
-2. something else,
-3. something more detailled,
-4. and then something more
+1. A fully decentralized system for information storage and exchange in which information is organized in fixed or variable size blocks of data referenced by a key, guaranteeing that any such block of data referenced by a specific key cannot be corrupted or manipulated; further guaranteeing that each such block of data will eventually reach every node in the system it is shared with, even if network connections required to reach such node are lossy, instable, temporarily unavailable and/or corrupt data in transit.
+2. something more detailled,
+3. something even more detailled,
+4. something ridiculously detailled and no longer reusable at all,
+5. and then something else
 
