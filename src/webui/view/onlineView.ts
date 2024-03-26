@@ -21,7 +21,7 @@ export class OnlineView extends VerityView {
     const renderedView: HTMLElement = document.createElement('a');
     renderedView.setAttribute("class", "verityOnlineStatus");
     renderedView.setAttribute("href", "#");
-    renderedView.setAttribute("onclick", "window.verityUI.navPeers()");
+    renderedView.setAttribute("onclick", "window.verityUI.nav.navPeers()");
     const greenDot: HTMLElement = document.createElement('span');
     greenDot.setAttribute("class", dot);
     renderedView.appendChild(greenDot);
