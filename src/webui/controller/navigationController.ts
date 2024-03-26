@@ -165,6 +165,16 @@ export class NavigationController extends VerityController {
     controller.contentAreaView.show();
   }
 
+  navLogin(): void {
+    this.newController(this.ui.identityController);
+    this.ui.identityController.showLoginForm();
+  }
+
+  navEditIdentity(): void {
+    this.newController(this.ui.identityController);
+    this.ui.identityController.showEditIdentity();
+  }
+
   private navbarMarkActive(id: string) {
     for (const nav of document.getElementsByClassName("nav-item")) {
       if (nav.id == id) nav.classList.add("active");
