@@ -51,49 +51,49 @@
             <ul id="toplevelnav" class="navbar-nav my-5">
               <li class="nav-item" id="navPostsAll">
                 <a href="#" class="nav-link"
-                  onclick="window.verityUI.navPostsAll()">
+                  onclick="window.verityUI.nav.navPostsAll()">
                     All posts
                 </a>
               </li>
               <li class="nav-item" id="navPostsWithAuthors">
                 <a href="#" class="nav-link"
-                  onclick="window.verityUI.navPostsWithAuthors()">
+                  onclick="window.verityUI.nav.navPostsWithAuthors()">
                     No anonymous posts
                 </a>
               </li>
               <li class="nav-item" id="navPostsSubscribedInTree">
                 <a href="#" class="nav-link"
-                  onclick="window.verityUI.navPostsSubscribedInTree()">
+                  onclick="window.verityUI.nav.navPostsSubscribedInTree()">
                     Subscribed (anywhere in thread)
                 </a>
               </li>
               <li class="nav-item" id="navPostsSubscribedReplied">
                 <a href="#" class="nav-link"
-                  onclick="window.verityUI.navPostsSubscribedReplied()">
+                  onclick="window.verityUI.nav.navPostsSubscribedReplied()">
                     Subscribed (+preceding)
                 </a>
               </li>
               <li class="nav-item" id="navPostsSubscribedStrict">
                 <a href="#" class="nav-link"
-                  onclick="window.verityUI.navPostsSubscribedStrict()">
+                  onclick="window.verityUI.nav.navPostsSubscribedStrict()">
                     Subscribed (strict)
                 </a>
               </li>
               <li class="nav-item" id="navPostsSubscribedReplied1">
                 <a href="#" class="nav-link"
-                  onclick="window.verityUI.navPostsSubscribedReplied(1)">
+                  onclick="window.verityUI.nav.navPostsSubscribedReplied(1)">
                     Subscribed (+preceding+WOT1)
                 </a>
               </li>
               <li class="nav-item" id="navPostsSubscribedReplied3">
                 <a href="#" class="nav-link"
-                  onclick="window.verityUI.navPostsSubscribedReplied(3)">
+                  onclick="window.verityUI.nav.navPostsSubscribedReplied(3)">
                     Subscribed (+preceding+WOT3)
                 </a>
               </li>
               <li class="nav-item" id="navCubeExplorer">
                 <a href="#" class="nav-link"
-                  onclick="window.verityUI.navCubeExplorer()">
+                  onclick="window.verityUI.nav.navCubeExplorer()">
                     Cube Explorer
                 </a>
               </li>
@@ -118,7 +118,7 @@
             </div> <!-- identityrow-->
 
             <div class="row my-4" id="verityOnlineStatusArea">
-              <a class="verityOnlineStatus" href="#" onclick="window.verityUI.navPeers()">
+              <a class="verityOnlineStatus" href="#" onclick="window.verityUI.nav.navPeers()">
                 <span class="redDot"></span>Offline
               </a>
             </div>
@@ -128,7 +128,7 @@
         <div class="col-sm-8 container-fluid" id="verityContentCol">
           <div id="verityBackArea" class="mt-3 mt-sm-5 me-2" style="display: none"> <!-- will be shown as necessary by JS -->
             <a href="#" id="verityBackButton" class="bi bi-arrow-left"
-               onclick="window.verityUI.closeCurrentController()"></a>
+               onclick="window.verityUI.nav.closeCurrentController()"></a>
           </div>
           <div id="verityContentArea"></div>
         </div> <!-- verityContentCol -->
