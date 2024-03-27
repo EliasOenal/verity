@@ -14,6 +14,7 @@ import { VeraAnimationController } from './controller/veraAnimationController';
 
 import { isBrowser } from 'browser-or-node';
 import sodium from 'libsodium-wrappers-sumo'
+import { VerityController } from './controller/verityController';
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
@@ -57,6 +58,8 @@ export class VerityUI {
   nav: NavigationController = new NavigationController(this);
   peerController: PeerController;
   identityController: IdentityController;
+
+  get currentController(): VerityController { return this.nav.currentController }
 
   constructor(
       readonly node: VerityNode,
