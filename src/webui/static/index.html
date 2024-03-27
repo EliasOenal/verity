@@ -3,6 +3,7 @@
 <head>
   <title>Verity</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   <link rel="icon" type="image/png" href="vera.svg">
   <link href="bootstrap.min.css" rel="stylesheet">
   <link href="bootstrap-icons.min.css" rel="stylesheet">
@@ -146,7 +147,7 @@
     <div class="verityPostView">
       <div class="verityNewPostDiv mt-3 mt-sm-5 mb-3">
         <form id="verityNewPostForm" class="form-floating row" action="javascript:void(0);"
-          onsubmit="window.verityUI.postController.makeNewPost(this);">
+          onsubmit="window.verityUI.currentController.makeNewPost(this);">
           <textarea id="verityNewPostInput" class="form-control verityPostInput"
                     maxlength="600" rows="2" placeholder="Make new post"
                     oninput="window.onTextareaInput(this)" required></textarea>
@@ -173,7 +174,7 @@
                 <button type="button"
                         class="btn btn-outline-primary veritySubscribeButton"
                         data-authorkey="<muckey>"
-                        onclick="window.verityUI.postController.subscribeUser(this)">
+                        onclick="window.verityUI.currentController.subscribeUser(this)">
                   Subscribe
                 </button>
                 <br />
@@ -185,7 +186,7 @@
             <p class="verityPostContent" title="Cube Key <cubekey>">Text</p>
             <div class="verityReplyDiv">
               <form action="javascript:void(0);"
-                    onsubmit="window.verityUI.postController.makeNewPost(this);"
+                    onsubmit="window.verityUI.currentController.makeNewPost(this);"
                     class="verityReplyForm input-group">
                 <textarea maxlength="600" class="form-control verityPostInput"
                           rows="1" type="text" required
