@@ -17,3 +17,23 @@ export function unixtime(millis: number = undefined): number {
   if (millis === undefined) millis = Date.now();
   return Math.floor(millis / 1000);
 }
+
+/**
+ * Heuristically checks if this string is printable
+ */
+export function isPrintable(str: string): boolean {
+  if (str.length < 1) return false; // avoid division by zero later on
+  let printable = 0, nonPrintable = 0;
+  for (let i=0; i<str.length; i++) {
+    const codepoint = str.charCodeAt(i);
+    if (codepoint < 0x20 || codepoint > 0x7E) {  // non-ASCII?
+      // This is very western-centric.
+      // Dekar may need to censor it to avoid getting cancelled in California.
+      nonPrintable++;
+    } else {
+      printable++;
+    }
+  }
+  if (printable / str.length > 0.9) return true;  // 90% ASCII sounds about printable
+  else return false;
+}
