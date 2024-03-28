@@ -2,6 +2,7 @@ import { MediaTypes, cciField, cciFieldType } from "../../cci/cube/cciField";
 import { cciFields } from "../../cci/cube/cciFields";
 import { Cube } from "../../core/cube/cube";
 import { CubeType } from "../../core/cube/cubeDefinitions";
+import { CubeField } from "../../core/cube/cubeField";
 import { isPrintable } from "../../core/helpers";
 import { VerityView } from "./verityView";
 
@@ -13,6 +14,13 @@ const cubeTypeString: Map<CubeType, string> = new Map([
   [CubeType.FROZEN, "Frozen (basic) Cube"],
   [CubeType.MUC, "Mutable User Cube"],
 ]);
+
+enum EncodingIndex {
+  // always make sure these match the select option order in index.html
+  utf8 = 0,
+  utf16 = 1,
+  hex = 2,
+}
 
 export class CubeExplorerView extends VerityView {
   private cubeList: HTMLUListElement;
@@ -26,11 +34,11 @@ export class CubeExplorerView extends VerityView {
     this.clearAll();
   }
 
-  clearAll() {
+  clearAll(): void {
     this.cubeList.replaceChildren();
   }
 
-  displayStats(total: number, displayed: number, unparsable: number, filtered: number){
+  displayStats(total: number, displayed: number, unparsable: number, filtered: number): void {
     (this.renderedView.querySelector(".verityCubeStoreStatTotalCubes") as HTMLElement)
       .innerText = total.toString();
     (this.renderedView.querySelector(".verityCubeStoreStatCubesDisplayed") as HTMLElement)
@@ -41,7 +49,7 @@ export class CubeExplorerView extends VerityView {
       .innerText = filtered.toString();
   }
 
-  displayCube(key: string, cube: Cube, li?: HTMLLIElement) {
+  displayCube(key: string, cube: Cube, li?: HTMLLIElement): void {
     // prepare data
     let emoji: string = "", type: string = "", typeWithEmoji: string = "";
     // select cube emoji
@@ -100,6 +108,7 @@ export class CubeExplorerView extends VerityView {
       // field details
       const detailsTable: HTMLTableElement =
         this.newFromTemplate(".veritySchematicFieldDetails") as HTMLTableElement;
+      detailsTable.setAttribute("data-fieldindex", i.toString());
       detailsTable.setAttribute("id", `pills-${key}-${i}`);
       detailsTable.setAttribute("aria-labelledby", `pills-tab-${key}-${i}`);
       (detailsTable.querySelector(".veritySchematicFieldType") as HTMLElement)
@@ -110,13 +119,7 @@ export class CubeExplorerView extends VerityView {
         .innerText = field.length.toString();
       // TODO: parse known field contents instead of just dumping their value
       // find best encoding for content -- TODO: when decoding PAYLOAD, should respect MEDIA_TYPE field if any
-      let content: string;
-      if (isPrintable(field.value.toString("utf8"))) content = field.value.toString('utf8');
-      else if (isPrintable(field.value.toString("utf16le"))) content = field.value.toString('utf16le');
-      else content = field.value.toString('hex');
-
-      (detailsTable.querySelector(".veritySchematicFieldContent") as HTMLElement)
-        .innerText = content;
+      this.setDecodedFieldContent(field, this.findBestEncoding(field.value), detailsTable);
       fieldDetailsConstainer.appendChild(detailsTable);
     }
 
@@ -124,9 +127,30 @@ export class CubeExplorerView extends VerityView {
     this.cubeList.appendChild(li);
   }
 
-  showBelowCubes(message: string) {
+  findBestEncoding(val: Buffer): EncodingIndex {
+    if (isPrintable(val.toString("utf8"))) {
+      return EncodingIndex.utf8;
+    } else if (isPrintable(val.toString("utf16le"))) {
+      return EncodingIndex.utf16;
+    } else {
+       return EncodingIndex.hex;
+    }
+
+  }
+
+  setDecodedFieldContent(field: CubeField, encodingIndex: EncodingIndex, detailsTable: HTMLTableElement): void {
+    let content: string;
+    if (encodingIndex == EncodingIndex.utf8) content = field.value.toString("utf8");
+    else if (encodingIndex == EncodingIndex.utf16) content = field.value.toString("utf16le");
+    else content = field.value.toString("hex");
+    (detailsTable.querySelector(".veritySchematicFieldContent") as HTMLElement)
+      .innerText = content;
+    (detailsTable.querySelector(".verityContentEncodingSwitch") as HTMLSelectElement)
+      .selectedIndex = encodingIndex;
+  }
+
+  showBelowCubes(message: string): void {
     (this.renderedView.querySelector('.verityMessageBottom') as HTMLElement)
       .innerText = message;
   }
-
 }
