@@ -27,7 +27,7 @@ export interface PostData {
   timestamp?: number;
   author?: string;
   authorkey?: string
-  authorsubscribed?: boolean;
+  authorsubscribed?: boolean | "self" | "none";
   text?: string;
   profilepic?: string;  // SVG or base64 representation of a raster image
 
@@ -215,8 +215,10 @@ export class PostController extends VerityController {
       // is this author subscribed?
       if (this.identity) {
         data.authorsubscribed = this.identity.isSubscribed(authorObject.key);
+        // or is this even my own post?
+        if (authorObject.key.equals(this.identity.publicKey)) data.authorsubscribed = "self";
       } else {
-        data.authorsubscribed = false;  // no Identity, no subscriptions
+        data.authorsubscribed = "none";  // no Identity, no subscriptions
       }
     } else {
       data.author = "Unknown user";

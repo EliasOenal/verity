@@ -108,10 +108,17 @@ export class PostView extends VerityView {
 
     const subscribeButton: HTMLButtonElement =
     data.displayElement.getElementsByClassName("veritySubscribeButton")[0] as HTMLButtonElement;
-    if (data.authorkey) {
+    if (data.authorkey && data.authorsubscribed !== "none") {
       subscribeButton.setAttribute("data-authorkey", data.authorkey);
-      if (data.authorsubscribed) subscribeButton.classList.add("active");
-      else subscribeButton.classList.remove("active");
+      if (data.authorsubscribed === "self") {  // own post
+        subscribeButton.innerText = "You"
+        subscribeButton.classList.add("active");
+        subscribeButton.removeAttribute("onclick");
+      }
+      else {
+        if (data.authorsubscribed) subscribeButton.classList.add("active");
+        else subscribeButton.classList.remove("active");
+      }
     } else {
       subscribeButton.setAttribute("style", "display: none");
     }
