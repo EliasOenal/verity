@@ -1,6 +1,9 @@
 import { cciFamily } from "../../cci/cube/cciCube";
-import { Cube } from "../../core/cube/cube";
-import { CubeStore } from "../../core/cube/cubeStore";
+import type { Cube } from "../../core/cube/cube";
+import type { CubeField } from "../../core/cube/cubeField";
+import type { CubeStore } from "../../core/cube/cubeStore";
+import { logger } from "../../core/logger";
+import { getElementAboveByClassName } from "../helpers";
 import { CubeExplorerView } from "../view/cubeExplorerView";
 import { VerityController } from "./verityController";
 
@@ -47,5 +50,30 @@ export class CubeExplorerController extends VerityController {
     }
     this.contentAreaView.displayStats(
       this.cubeStore.getNumberOfStoredCubes(), displayed, unparsable, filtered);
+  }
+
+  changeEncoding(select: HTMLSelectElement) {
+    const cubeLi: HTMLLIElement =
+      getElementAboveByClassName(select, "verityCube") as HTMLLIElement;
+    const cubeKeyString = cubeLi.getAttribute("data-cubekey");
+    const detailsTable: HTMLTableElement = getElementAboveByClassName(select, "veritySchematicFieldDetails") as HTMLTableElement;
+    const fieldIndex: number = Number.parseInt(detailsTable?.getAttribute?.("data-fieldindex"));
+    if (!cubeLi || !detailsTable || !cubeKeyString || isNaN(fieldIndex)) {
+      logger.warn("CubeExplorerController.changeEncoding(): Could not find my elems and attrs, did you mess with my DOM elements?!");
+      return;
+    }
+    const cube = this.cubeStore.getCube(cubeKeyString, cciFamily);
+    if (!cube) {
+      logger.warn("CubeExplorerController.changeEncoding(): could not find Cube " + cubeKeyString);
+      return;
+    }
+    let field: CubeField = undefined;
+    try { field = cube.fields.all[fieldIndex]; } catch(err) {}
+    if (!field) {
+      logger.warn(`CubeExplorerController.changeEncoding(): could not find field no ${fieldIndex} in Cube ${cubeKeyString}`);
+      return;
+
+    }
+    this.contentAreaView.setDecodedFieldContent(field, select.selectedIndex, detailsTable);
   }
 }
