@@ -1,5 +1,8 @@
+import { MediaTypes, cciField, cciFieldType } from "../../cci/cube/cciField";
+import { cciFields } from "../../cci/cube/cciFields";
 import { Cube } from "../../core/cube/cube";
 import { CubeType } from "../../core/cube/cubeDefinitions";
+import { isPrintable } from "../../core/helpers";
 import { VerityView } from "./verityView";
 
 const cubeEmoji: Map<CubeType, string> = new Map([
@@ -39,6 +42,7 @@ export class CubeExplorerView extends VerityView {
   }
 
   displayCube(key: string, cube: Cube, li?: HTMLLIElement) {
+    // prepare data
     let emoji: string = "", type: string = "", typeWithEmoji: string = "";
     // select cube emoji
     if (cubeEmoji.get(cube.cubeType)) emoji = cubeEmoji.get(cube.cubeType) + '\xa0';  // emoji + nbsp
@@ -105,12 +109,14 @@ export class CubeExplorerView extends VerityView {
       (detailsTable.querySelector(".veritySchematicFieldLength") as HTMLElement)
         .innerText = field.length.toString();
       // TODO: parse known field contents instead of just dumping their value
-      // TODO: instead of showing utf8 and hex, guess best representation
-      //       and provide a switch to change presentation
-      (detailsTable.querySelector(".veritySchematicFieldHex") as HTMLElement)
-        .innerText = field.value.toString('hex');
-      (detailsTable.querySelector(".veritySchematicFieldUtf8") as HTMLElement)
-        .innerText = field.value.toString('utf-8');
+      // find best encoding for content -- TODO: when decoding PAYLOAD, should respect MEDIA_TYPE field if any
+      let content: string;
+      if (isPrintable(field.value.toString("utf8"))) content = field.value.toString('utf8');
+      else if (isPrintable(field.value.toString("utf16le"))) content = field.value.toString('utf16le');
+      else content = field.value.toString('hex');
+
+      (detailsTable.querySelector(".veritySchematicFieldContent") as HTMLElement)
+        .innerText = content;
       fieldDetailsConstainer.appendChild(detailsTable);
     }
 
