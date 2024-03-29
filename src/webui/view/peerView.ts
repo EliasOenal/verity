@@ -47,7 +47,7 @@ export class PeerView extends VerityView {
     try {
       // Print & set peer ID on all relevant elements
       const idField: HTMLTableCellElement = peerLi.querySelector('.verityPeerId');
-      idField.innerText = peer.idString;
+      idField.innerText = peer.idString ?? "unknown";
       peerLi.setAttribute("id", "verityPeer-" + peer.idString);
       const disconnectButton = peerLi.querySelector('.verityPeerDisconnectButton');
       disconnectButton.setAttribute("data-peerid", peer.idString);
