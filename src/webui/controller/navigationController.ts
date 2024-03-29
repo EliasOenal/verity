@@ -51,6 +51,7 @@ export class NavigationController extends VerityController {
   newController(controller: VerityController, navBarItemId: string = undefined) {
     this.controllerStack.push(controller);  // Remember this controller and
     this.navIdStack.push(navBarItemId);     // the associated nav bar item (if any).
+    controller.once("closed", () => this.closeCurrentController());
     this.displayOrHideBackButton();  // Only show back button if there's something to go back to.
     this.navbarMarkActive(navBarItemId);  // Update active nav bar item.
   }

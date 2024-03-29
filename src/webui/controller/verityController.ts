@@ -1,7 +1,9 @@
 import { VerityView } from "../view/verityView";
 
+import EventEmitter from "events";
+
 /** Abstract base class for our controllers */
-export abstract class VerityController {
+export abstract class VerityController extends EventEmitter {
   public contentAreaView: VerityView = undefined;
 
   /**
@@ -13,6 +15,7 @@ export abstract class VerityController {
   // if necessary.
   shutdown(): Promise<void> {
     if (this.contentAreaView) this.contentAreaView.shutdown();
+    this.emit("closed");
     // Return a resolved promise
     return new Promise<void>(resolve => resolve());
   }
@@ -25,6 +28,7 @@ export abstract class VerityController {
   // if necessary.
   close(): Promise<void> {
     if (this.contentAreaView) this.contentAreaView.unshow();
+    this.emit("closed");
     // Return a resolved promise
     return new Promise<void>(resolve => resolve());
   }
