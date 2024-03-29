@@ -73,7 +73,7 @@ export class IdentityController extends VerityController {
     }
     this._identity = identity;
     this.showLoginStatus();
-    this.contentAreaView?.shutdown();
+    this.close();
   }
 
   logOut() {
@@ -106,7 +106,7 @@ export class IdentityController extends VerityController {
     }
     this._identity.store("ID/ZW");
     this.showLoginStatus();
-    this.contentAreaView.shutdown();
+    this.close();
   }
 
   randomMultiavatar() {
