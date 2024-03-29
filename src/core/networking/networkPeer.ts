@@ -43,6 +43,14 @@ export interface NetworkPeerOptions {
     networkTimeoutSecs?: number,
 }
 
+export enum NetworkPeerLifecycle {
+    CONNECTING = 1,
+    HANDSHAKING = 2,
+    ONLINE = 3,
+    CLOSING = 4,
+    CLOSED = 5,
+}
+
 /**
  * Class representing a network peer, responsible for handling incoming and outgoing messages.
  */
@@ -54,6 +62,9 @@ export class NetworkPeer extends Peer {
     }
     keyRequestTimer?: NodeJS.Timeout = undefined; // Timer for key requests
     peerRequestTimer?: NodeJS.Timeout = undefined; // Timer for node requests
+
+    private _status: NetworkPeerLifecycle = NetworkPeerLifecycle.CONNECTING;
+    get status(): NetworkPeerLifecycle { return this._status }
 
     private onlinePromiseResolve: Function;
     /**
@@ -67,8 +78,7 @@ export class NetworkPeer extends Peer {
             this.onlinePromiseResolve = resolve;
         });
     get onlinePromise() { return this._onlinePromise; }
-    private _online: boolean = false;  // extra bool because JS doesn't let us query the promise's internal state :(
-    get online() { return this._online; }
+    get online() { return this._status === NetworkPeerLifecycle.ONLINE; }
 
     private unsentCubeMeta: Set<CubeMeta> = undefined;
     private unsentPeers: Peer[] = undefined;  // TODO this should probably be a Set instead
@@ -119,6 +129,7 @@ export class NetworkPeer extends Peer {
         this.setTimeout();  // connection timeout
         this.conn.readyPromise.then(() => {
             clearTimeout(this.networkTimeout);  // clear connection timeout
+            this._status = NetworkPeerLifecycle.HANDSHAKING;
             logger.info(`NetworkPeer ${this.toString()}: Connected, I'll go ahead and say HELLO`);
             this.sendHello();
         });
@@ -126,7 +137,7 @@ export class NetworkPeer extends Peer {
 
     close(): Promise<void> {
         logger.trace(`NetworkPeer ${this.toString()}: Closing connection.`);
-        this._online = false;
+        this._status = NetworkPeerLifecycle.CLOSING;
         // Remove all listeners and timers to avoid memory leaks
         this.networkManager.peerDB.removeListener(
             'exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
@@ -140,6 +151,7 @@ export class NetworkPeer extends Peer {
         // Note: this means conn.close() gets called twice when closure
         // originates from the conn, but that's okay.
         const closedPromise: Promise<void> = this._conn.close();
+        closedPromise.then(() => {this._status = NetworkPeerLifecycle.CLOSED });
 
         // If we never got online, "resolve" the promise with undefined.
         // Rejecting it would be the cleaner choice, but then we'd need to catch
@@ -204,6 +216,11 @@ export class NetworkPeer extends Peer {
      * @param message The incoming message as a Buffer.
      */
     private handleMessage(message: Buffer): void {
+        if (this._status >= NetworkPeerLifecycle.CLOSING) {
+            // This NetworkPeer has already been closed;
+            // not handling any further messages.
+            return;
+        }
         // Mark peer alive
         // maybe TODO: maybe we should only mark a peer alive *after* we tried
         // parsing their message?
@@ -307,7 +324,7 @@ export class NetworkPeer extends Peer {
         }
 
         // Is this a spurious repeat HELLO?
-        if (this._online) {
+        if (this.online) {
             // If the peer has unexpectedly changed its ID, disconnect.
             if (!this.id.equals(peerID)) {
                 logger.info(`NetworkPeer ${this.toString()} suddenly changed its ID from ${this.id?.toString('hex')} to ${peerID.toString('hex')}, closing connection.`);
@@ -318,7 +335,7 @@ export class NetworkPeer extends Peer {
             }
         } else {  // not a repeat hello
             this._id = peerID;
-            this._online = true;
+            this._status = NetworkPeerLifecycle.ONLINE;
             logger.trace(`NetworkPeer ${this.toString()}: received HELLO, peer now considered online`);
 
             // Let the network manager know this peer is now online.
