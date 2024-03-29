@@ -1,3 +1,14 @@
+function registerServiceWorker() {
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function() {
+      navigator.serviceWorker
+        .register("/serviceWorker.js")
+        .then(res => console.log("service worker registered"))
+        .catch(err => console.log("service worker not registered", err))
+    })
+  }
+}
+
 function updateIcon() {
   const iconSpan = document.getElementById('theme-icon');
   if (document.documentElement.getAttribute('data-bs-theme') === 'dark') {
@@ -69,6 +80,7 @@ function onTextareaInput(textarea) {
 window.onTextareaInput = onTextareaInput;
 
 function frontendMain() {
+  registerServiceWorker();
   updateIcon();
   autoResizeTextareas();
 }

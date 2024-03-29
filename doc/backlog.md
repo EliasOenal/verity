@@ -9,9 +9,11 @@
   enable it by default for full nodes.
   Rework current naive key list based exchange into a sliding-window based
   exchange of most current Cubes.
+- Support WebRTC server nodes, or some other way to set up full nodes in a way
+  which does not require an SSL cert and still makes them reachable from secure
+  browser contexts.
 
 ## Microblogging app
-- PWA
 - QR codes for adding / subscribing to local friends
 
 # Other global TODOs
