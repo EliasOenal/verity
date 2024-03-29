@@ -155,6 +155,7 @@ export class NavigationController extends VerityController {
 
   navPeers() {
     this.newController(this.ui.peerController, "navPeers");
+    this.ui.peerController.redisplayPeers();
     this.ui.peerController.contentAreaView.show();
   }
 

@@ -17,8 +17,9 @@ export const enum ShallDisplay {
 };
 
 export class PeerController extends VerityController {
-  displayedPeers: Map<string, HTMLLIElement> = new Map();
+  displayedPeers: Map<Peer, HTMLLIElement> = new Map();
   shallDisplay: ShallDisplay = ShallDisplay.Connected;
+  redisplayTimeout: NodeJS.Timeout = undefined;
 
   constructor(
       private networkManager: NetworkManager,
@@ -30,13 +31,14 @@ export class PeerController extends VerityController {
     // maybo TODO: PeerController should do all this stuff only when asked to.
     // The constructor is not meant to fire up optional features -- and the
     // peer detail view is not just optional but probably rarely used.
-    this.networkManager.on('peeronline', (peer) => this.redisplayPeers());
-    this.networkManager.on('updatepeer', (peer) => this.redisplayPeers());
-    this.networkManager.on('peerclosed', (peer) => this.redisplayPeers());
-    this.peerDB.on('newPeer', (peer) => this.redisplayPeers());
-    this.peerDB.on('verifiedPeer', (peer) => this.redisplayPeers());
-    this.peerDB.on('exchangeablePeer', (peer) => this.redisplayPeers());
-    this.peerDB.on('removePeer', (peer) => this.redisplayPeers());
+    // Note: Subscriptions disabled as we're currently just polling once per second
+    // this.networkManager.on('peeronline', (peer) => this.redisplayPeers());
+    // this.networkManager.on('updatepeer', (peer) => this.redisplayPeers());
+    // this.networkManager.on('peerclosed', (peer) => this.redisplayPeers());
+    // this.peerDB.on('newPeer', (peer) => this.redisplayPeers());
+    // this.peerDB.on('verifiedPeer', (peer) => this.redisplayPeers());
+    // this.peerDB.on('exchangeablePeer', (peer) => this.redisplayPeers());
+    // this.peerDB.on('removePeer', (peer) => this.redisplayPeers());
     this.redisplayPeers();
 
     this.networkManager.on('online', () => this.onlineView.showOnline());
@@ -52,14 +54,18 @@ export class PeerController extends VerityController {
   }
 
   redisplayPeers(): void {
-    const peersUnaccountedFor: Map<string, HTMLLIElement> = new Map(this.displayedPeers);
+    if (this.redisplayTimeout !== undefined) clearInterval(this.redisplayTimeout);
+    this.redisplayTimeout = undefined;
+    const peersUnaccountedFor: Map<Peer, HTMLLIElement> = new Map(this.displayedPeers);
     for (const peer of this.shallDisplayPeers()) {
-      peersUnaccountedFor.delete(peer.idString);
+      peersUnaccountedFor.delete(peer);
       this.displayPeer(peer);
     }
-    for (const idString of peersUnaccountedFor.keys()) {
-      this.undisplayPeer(idString);
+    for (const peer of peersUnaccountedFor.keys()) {
+      this.undisplayPeer(peer);
     }
+    // all done, redisplay in one second
+    this.redisplayTimeout = setTimeout(() => this.redisplayPeers(), 1000);
   }
 
   displayPeer(peer: Peer): void {
@@ -68,23 +74,17 @@ export class PeerController extends VerityController {
     let networkPeer: NetworkPeer = undefined;
     if (peer instanceof NetworkPeer) networkPeer = peer;
 
-    if (!peer.id) return;  // this should never have been called for non-verified peers
     // Peer already displayed?
-    let li: HTMLLIElement = this.displayedPeers.get(peer.idString);
+    let li: HTMLLIElement = this.displayedPeers.get(peer);
     li = this.contentAreaView.displayPeer(peer, li);
-    this.displayedPeers.set(peer.idString, li);
-
-    if (networkPeer) {
-      // TODO: limit redisplaying to once per second
-      networkPeer.conn.once("transmissionLogged", () => this.displayPeer(peer));
-    }
+    this.displayedPeers.set(peer, li);
   }
 
-  undisplayPeer(idString: string): void {
-    // logger.trace("PeerDisplay: Undisplaying peer " + idString);
-    const peerli = this.displayedPeers.get(idString);
+  undisplayPeer(peer: Peer): void {
+    // logger.trace("PeerDisplay: Undisplaying peer " + peer.idString);
+    const peerli = this.displayedPeers.get(peer);
     this.contentAreaView.undisplayPeer(peerli);
-    this.displayedPeers.delete(idString);
+    this.displayedPeers.delete(peer);
   }
 
   connectPeer(form: HTMLFormElement) {
@@ -115,7 +115,7 @@ export class PeerController extends VerityController {
     }
     peer.primaryAddressIndex = index;
     if (peer instanceof NetworkPeer) this.displayPeer(peer);  // redisplay
-    else this.undisplayPeer(peer.idString);  // apparently no longer connected
+    else this.undisplayPeer(peer);  // apparently no longer connected
   }
 
   disconnectPeer(button: HTMLButtonElement, reconnect: boolean = false): void {
@@ -139,30 +139,40 @@ export class PeerController extends VerityController {
   }
 
   shutdown(): Promise<void> {
-    this.networkManager.removeListener('peeronline', (peer) => this.redisplayPeers());
-    this.networkManager.removeListener('updatepeer', (peer) => this.redisplayPeers());
-    this.networkManager.removeListener('peerclosed', (peer) => this.redisplayPeers());
-    this.peerDB.removeListener('newPeer', (peer) => this.redisplayPeers());
-    this.peerDB.removeListener('verifiedPeer', (peer) => this.redisplayPeers());
-    this.peerDB.removeListener('exchangeablePeer', (peer) => this.redisplayPeers());
-    this.peerDB.removeListener('removePeer', (peer) => this.redisplayPeers());
+    // Note: Subscriptions disabled as we're currently just polling once per second
+    // this.networkManager.removeListener('peeronline', (peer) => this.redisplayPeers());
+    // this.networkManager.removeListener('updatepeer', (peer) => this.redisplayPeers());
+    // this.networkManager.removeListener('peerclosed', (peer) => this.redisplayPeers());
+    // this.peerDB.removeListener('newPeer', (peer) => this.redisplayPeers());
+    // this.peerDB.removeListener('verifiedPeer', (peer) => this.redisplayPeers());
+    // this.peerDB.removeListener('exchangeablePeer', (peer) => this.redisplayPeers());
+    // this.peerDB.removeListener('removePeer', (peer) => this.redisplayPeers());
     this.networkManager.removeListener('online', () => this.onlineView.showOnline());
     this.networkManager.removeListener('offline', () => this.onlineView.showOffline());
+
+    this.close();
     return super.shutdown();
   }
 
-  private shallDisplayPeers(): Peer[] {
+  close(): Promise<void> {
+    // clear redisplay polling
+    if (this.redisplayTimeout !== undefined) clearInterval(this.redisplayTimeout);
+    this.redisplayTimeout = undefined;
+    return super.close();
+  }
+
+  private *shallDisplayPeers(): Generator<Peer> {
     if (this.shallDisplay === ShallDisplay.Connected) {
-      return this.networkManager.incomingPeers.concat(
-        this.networkManager.outgoingPeers);
+      for (const peer of this.networkManager.incomingPeers.concat(
+             this.networkManager.outgoingPeers)) yield peer;
     } else if (this.shallDisplay === ShallDisplay.Exchangeable) {
-      return Array.from(this.peerDB.peersExchangeable.values());
+      for (const peer of this.peerDB.peersExchangeable.values()) yield peer;
     } else if (this.shallDisplay === ShallDisplay.Verified) {
-      return Array.from(this.peerDB.peersVerified.values());
+      for (const peer of this.peerDB.peersVerified.values()) yield peer;
     } else if (this.shallDisplay === ShallDisplay.Unverified) {
-      return Array.from(this.peerDB.peersUnverified.values());
+      for (const peer of this.peerDB.peersUnverified.values()) yield peer;
     } else {
-      return [];
+      return;
     }
   }
 }
