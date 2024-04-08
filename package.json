@@ -42,7 +42,7 @@
     "bencodec": "^3.0.1",
     "browser-or-node": "^2.1.1",
     "cmd-ts": "^0.13.0",
-    "eslint": "^8.57.0",
+    "eslint": "^9.0.0",
     "events": "^3.3.0",
     "extensionless": "^1.9.6",
     "isomorphic-ws": "^5.0.0",
