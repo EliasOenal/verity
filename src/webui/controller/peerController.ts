@@ -118,14 +118,36 @@ export class PeerController extends VerityController {
     else this.undisplayPeer(peer);  // apparently no longer connected
   }
 
-  disconnectPeer(button: HTMLButtonElement, reconnect: boolean = false): void {
+  // BUGBUG: This button is currently broken for all unverified peers, i.e.
+  //         peer's whose ID we dont't know
+  reconnectPeer(button: HTMLButtonElement): void {
+    // if already connected, disconnect first
+    const peerIdString = button.getAttribute("data-peerid");  // that's why it's broken for unverified peers
+    const peer: Peer = this.peerDB.getPeer(peerIdString);
+    let networkPeer: NetworkPeer = undefined;
+    if (peer instanceof NetworkPeer) networkPeer = peer;  // should always be true
+    if (networkPeer) {
+      const closePromise = networkPeer.close();
+      this.redisplayPeers();
+      closePromise.then(() => {
+        this.networkManager.connect(peer);
+        this.redisplayPeers();
+      });
+    } else {
+      this.networkManager.connect(peer);
+      this.redisplayPeers();
+    }
+  }
+
+  disconnectPeer(button: HTMLButtonElement): void {
     const peerIdString = button.getAttribute("data-peerid");
-    const peer: NetworkPeer = this.peerDB.getPeer(peerIdString) as NetworkPeer;
-    try {  // peers currently connected are guaranteed to be NetworkPeers, but just in case...
-      peer.close();
-      if (reconnect) this.networkManager.connect(peer);
-    } catch(error) {
-      logger.error(`PeerController.disconnectPeer(): Error disconnecting peer ${peerIdString}: ${error}`);
+    const peer: Peer = this.peerDB.getPeer(peerIdString);
+    let networkPeer: NetworkPeer = undefined;
+    if (peer instanceof NetworkPeer) networkPeer = peer;  // should always be true
+    if (networkPeer) {
+      const closePromise = networkPeer.close();
+      this.redisplayPeers();
+      closePromise.then(() => this.redisplayPeers());
     }
   }
 
