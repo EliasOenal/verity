@@ -419,13 +419,18 @@
               </td>
             </tr>
           </table>
-          <p>
-            <button class="verityPeerReconnectButton btn btn-warning"
+          <p class="verityPeerConnectionControls">
+            <button class="verityPeerConnectButton btn btn-success me-1"
                     data-peerid="e66c51d5130992aac3be542a5df17996"
-                    onclick="window.verityUI.peerController.disconnectPeer(this, true)">
+                    onclick="window.verityUI.peerController.reconnectPeer(this)">
+              Connect
+            </button>
+            <button class="verityPeerReconnectButton btn btn-warning me-1"
+                    data-peerid="e66c51d5130992aac3be542a5df17996"
+                    onclick="window.verityUI.peerController.reconnectPeer(this)">
               Reconnect
             </button>
-            <button class="verityPeerDisconnectButton btn btn-danger"
+            <button class="verityPeerDisconnectButton btn btn-danger me-1"
                     data-peerid="e66c51d5130992aac3be542a5df17996"
                     onclick="window.verityUI.peerController.disconnectPeer(this)">
               Disconnect

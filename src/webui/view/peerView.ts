@@ -104,12 +104,21 @@ export class PeerView extends VerityView {
         // All done
         addrsList.appendChild(addrLi);
       }
-      // // TODO: ONLY Display appropriate connect/reconnect/disconnect buttons
-      const disconnectButton = peerLi.querySelector('.verityPeerDisconnectButton');
-      disconnectButton.setAttribute("data-peerid", peer.idString);
-      const reconnectButton = peerLi.querySelector('.verityPeerReconnectButton');
+      // Only Display appropriate connect/reconnect/disconnect buttons
+      const buttonContainer: HTMLElement = peerLi.querySelector('.verityPeerConnectionControls');
+      // All buttons are predefined in the template, so let's first fetch them.
+      const connectButton = this.newFromTemplate('.verityPeerConnectButton');
+      connectButton.setAttribute("data-peerid", peer.idString);
+      const reconnectButton = this.newFromTemplate('.verityPeerReconnectButton');
       reconnectButton.setAttribute("data-peerid", peer.idString);
-
+      const disconnectButton = this.newFromTemplate('.verityPeerDisconnectButton');
+      disconnectButton.setAttribute("data-peerid", peer.idString);
+      // Now based on connection status, only show the correct buttons
+      if (!networkPeer || networkPeer.status >= NetworkPeerLifecycle.CLOSING) {
+        buttonContainer.replaceChildren(connectButton);
+      } else {
+        buttonContainer.replaceChildren(reconnectButton, disconnectButton);
+      }
     } catch(err) {
       logger.error("PeerView: Could not display some peer data, did you mess with my DOM elements?! Error was: " + err?.toString() ?? err);
     }
