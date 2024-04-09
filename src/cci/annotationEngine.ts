@@ -10,9 +10,7 @@ import { cciRelationship } from './cube/cciRelationship';
 import { EventEmitter } from 'events';
 import { BaseFields } from '../core/fields/baseFields';
 
-
 import { Buffer } from 'buffer';
-
 
 type RelationshipClassConstructor = new (type: number, remoteKey: CubeKey) => cciRelationship;
 export function defaultGetFieldsFunc(cube: Cube): BaseFields {
@@ -20,6 +18,17 @@ export function defaultGetFieldsFunc(cube: Cube): BaseFields {
 }
 
 export class AnnotationEngine extends EventEmitter {
+  static Construct(
+    cubeStore: CubeStore,
+    getFields: (cube: Cube) => BaseFields = defaultGetFieldsFunc,
+    relationshipClass: RelationshipClassConstructor = cciRelationship,
+    limitRelationshipTypes: Map<number, number> = undefined
+  ): Promise<AnnotationEngine> {
+    const ae: AnnotationEngine = new this(
+      cubeStore, getFields, relationshipClass, limitRelationshipTypes);
+    return ae.ready;
+  }
+
   /**
    * Stores reverse relationships for each Cube.
    * Getting the relationships of any particular Cube is easy -- just read the
@@ -32,6 +41,20 @@ export class AnnotationEngine extends EventEmitter {
    * for every Cube we know (the map's key is the stringified Cube key).
    */
   reverseRelationships: Map<string, Array<cciRelationship>> = new Map();  // using string representation of CubeKey as maps don't work well with Buffers
+
+  // Provide a ready promise
+  private readyPromiseResolve: Function;
+  private readyPromiseReject: Function;
+  private _ready: Promise<AnnotationEngine> = new Promise<AnnotationEngine>(
+      (resolve, reject) => {
+          this.readyPromiseResolve = resolve;
+          this.readyPromiseReject = reject;
+      });
+  /**
+   * Kindly always await ready before using an AnnotationEngine, or it might not yet
+   * be fully initialized.
+   **/
+  get ready(): Promise<AnnotationEngine> { return this._ready }
 
   constructor(
   /**
@@ -53,7 +76,7 @@ export class AnnotationEngine extends EventEmitter {
    * If the maximum number of Relationships of a specific type allowed per Cube
    * is undefined it will be considered unlimited.
    */
-      private readonly limitRelationshipTypes: Map<number, number> = undefined)
+      readonly limitRelationshipTypes: Map<number, number> = undefined)
     {
     super();
     // set CubeStore and subscribe to events
@@ -154,10 +177,24 @@ export class AnnotationEngine extends EventEmitter {
       else return undefined;
   }
 
-  protected crawlCubeStore(): void {
-    for (const cubeInfo of this.cubeStore.getAllCubeInfo()) {
-      this.autoAnnotate(cubeInfo);
+  // This does not scale well as it forces CubeStore to read every single
+  // Cube from persistent storage every time Verity starts.
+  // TODO: Provide an option not to crawl (for apps only interested in recent
+  // Cubes) AND provide an option to persist annotations.
+  // This is a low priority, non-breaking todo which only needs to be addressed
+  // once we actually have a userbase.
+  protected async crawlCubeStore(): Promise<void> {
+    for (const cubeInfo of await this.cubeStore.getAllCubeInfo()) {
+      // TODO: This is not efficient. We should instead fire those off all at
+      // once, collect them and later await Promises.all
+      await this.crawlCubeStoreEach(cubeInfo);
     }
+    this.readyPromiseResolve(this);
   }
 
+  // Split out into it's own method so superclasses have more flexibility
+  // in mixing in their own code. (Namely, ZwAnnotationEngine uses this.)
+  protected async crawlCubeStoreEach(cubeInfo: CubeInfo): Promise<void> {
+    this.autoAnnotate(cubeInfo);
+  }
 }

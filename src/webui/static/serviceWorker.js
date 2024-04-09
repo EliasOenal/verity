@@ -27,6 +27,9 @@ self.addEventListener("install", installEvent => {
 
 self.addEventListener("fetch", fetchEvent => {
   fetchEvent.respondWith(
+    // BUGBUG: This basically freezes our assets in time, which prevents any
+    // software updates.
+    // TODO: Auto-update assets once in a while when internet connection is available.
     caches.match(fetchEvent.request).then(res => {
       return res || fetch(fetchEvent.request)
     })

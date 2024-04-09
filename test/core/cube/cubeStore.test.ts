@@ -1,6 +1,6 @@
 import { Settings } from '../../../src/core/settings';
 
-import { CubeType } from '../../../src/core/cube/cubeDefinitions';
+import { CubeKey, CubeType } from '../../../src/core/cube/cubeDefinitions';
 import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
 import { CubeStore as CubeStore } from '../../../src/core/cube/cubeStore';
 import { CubeField, CubeFieldType } from '../../../src/core/cube/cubeField';
@@ -47,25 +47,26 @@ describe('cubeStore', () => {
       });
     });
     it('should add a freshly sculpted cube at full difficulty', async () => {
-      expect(cubeStore.getNumberOfStoredCubes()).toEqual(0);
+      expect(await cubeStore.getNumberOfStoredCubes()).toEqual(0);
       const cube = Cube.Frozen({fields: CubeField.Payload(
         "Ego sum cubus recens sculputus.")});
       const key = await cube.getKey();
       await cubeStore.addCube(cube);
-      expect(cubeStore.getNumberOfStoredCubes()).toEqual(1);
+      expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);
 
-      const restored = cubeStore.getCube(key, coreTlvCubeFamily);  // parse payload too
+      const restored: Cube = await cubeStore.getCube(key, coreTlvCubeFamily);  // parse payload too
       expect(restored).toBeInstanceOf(Cube);
       expect(restored.fields.getFirst(CubeFieldType.PAYLOAD).
         value.toString('ascii')).toEqual("Ego sum cubus recens sculputus.");
     });
 
     it('should add a cube from binary data', async () => {
-      const cubeKey = (await cubeStore.addCube(validBinaryCube)).getKeyIfAvailable();
+      const cube: Cube = await cubeStore.addCube(validBinaryCube);
+      const cubeKey = await cube.getKey();
       expect(cubeKey).toBeInstanceOf(Buffer);
-      expect(cubeKey!.length).toEqual(32);
-      expect(cubeStore.getCube(cubeKey!)).toBeDefined();
-      expect(await (cubeStore.getCube(cubeKey!)!.getBinaryData())).toEqual(validBinaryCube);
+      expect(cubeKey.length).toEqual(32);
+      expect(await cubeStore.getCube(cubeKey)).toBeDefined();
+      expect(await ((await cubeStore.getCube(cubeKey!)!).getBinaryData())).toEqual(validBinaryCube);
     }, 3000);
 
     it('should error when adding a cube with invalid binary data', async () => {
@@ -75,7 +76,7 @@ describe('cubeStore', () => {
 
     it('should error when getting a cube with invalid hash', async () => {
       const buffer = Buffer.alloc(32);
-      expect(cubeStore.getCube(buffer)).toBeUndefined();
+      expect(await cubeStore.getCube(buffer)).toBeUndefined();
     }, 3000);
 
     it('should not add cubes with insufficient difficulty', async () => {
@@ -86,7 +87,7 @@ describe('cubeStore', () => {
       binaryData.writeUInt8(100, 7); // Length
       const cube = new Cube(binaryData);
       expect(await cubeStore.addCube(cube)).toBeUndefined();
-      expect(cubeStore.getNumberOfStoredCubes()).toEqual(0);
+      expect(await cubeStore.getNumberOfStoredCubes()).toEqual(0);
     }, 3000);
   });
 
@@ -105,30 +106,28 @@ describe('cubeStore', () => {
 
     it('should add 20 cubes to the storage and get them back', async () => {
       // create 20 cubes and wait till they are stored
-      const promises: Array<Promise<Cube>> = [];
+      const cubes: Cube[] = [];
       for (let i = 0; i < 20; i++) {
         const cube = Cube.Frozen({
           fields: CubeField.Payload(
             "Sum cubus inutilis qui in tua taberna residebo et spatium tuum absumam."),
           requiredDifficulty: reducedDifficulty
         });
-        promises.push(cubeStore.addCube(cube));
+        cubes.push(cube);
+        await cubeStore.addCube(cube);
       }
-      const cubes = await Promise.all(promises);
 
-      cubes.forEach((cube, i) => {
-        const hash = cube.getKeyIfAvailable();
-        if (!hash) throw new Error(`Hash is undefined for cube ${i}`);
-        const binaryData = cubeStore.getCube(hash)?.getBinaryData();
-        expect(hash).toBeInstanceOf(Buffer);
-        if (hash) {
-          expect(hash.length).toEqual(32);
-          expect(cubeStore.getCube(hash)!.getBinaryData()).toEqual(binaryData);
-        }
-      });
-
-      expect(cubeStore.getNumberOfStoredCubes()).toEqual(20);
-    }, 30000);
+      for (const cube of cubes) {
+        const key: CubeKey = await cube.getKey();
+        expect(key).toBeInstanceOf(Buffer);
+        expect(key.length).toEqual(32);
+        const restoredCube: Cube = await cubeStore.getCube(key);
+        expect(restoredCube).toBeInstanceOf(Cube);
+        const binaryData = await cube.getBinaryData();
+        expect(await (restoredCube.getBinaryData())).toEqual(binaryData);
+      };
+      expect(await cubeStore.getNumberOfStoredCubes()).toEqual(20);
+    }, 3000);
 
     it('should update the initial MUC with the updated MUC.', async () => {
       // Generate a key pair for testing
@@ -150,9 +149,11 @@ describe('cubeStore', () => {
       expect(info).toBeDefined();
       expect(muc.getDate()).toEqual(1695340000);
       expect(info.date).toEqual(1695340000);
+      expect(await cubeStore.getNumberOfStoredCubes()).toEqual(0);
       await cubeStore.addCube(muc);
-      expect(cubeStore.getCube(key).getDate()).toEqual(1695340000);
-      expect(cubeStore.getCubeInfo(key).date).toEqual(1695340000);
+      expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);
+      expect((await cubeStore.getCube(key)).getDate()).toEqual(1695340000);
+      expect((await cubeStore.getCubeInfo(key)).date).toEqual(1695340000);
 
       // Create updated MUC
       const muc2 = Cube.MUC(publicKey, privateKey, {
@@ -165,15 +166,17 @@ describe('cubeStore', () => {
       const key2 = await muc2.getKey();
       const info2 = await muc2.getCubeInfo();
       expect(key2).toBeDefined();
+      expect(key2.equals(key)).toBe(true);
       expect(info2).toBeDefined();
       expect(muc2.getDate()).toEqual(1695340001);
       expect(info2.date).toEqual(1695340001);
       await cubeStore.addCube(muc2);
+      expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);  // still 1, MUC just updated
 
       // Verify that the first MUC has been updated with the second MUC
       const retrievedMuc = cubeStore.getCube(key);
       expect(retrievedMuc).toBeDefined();
-      expect(retrievedMuc.getDate()).toEqual(1695340001);
+      expect((await retrievedMuc).getDate()).toEqual(1695340001);
     }, 10000);
 
     it('correctly stores and retrieves a binary MUC with payload', async () => {
@@ -198,7 +201,7 @@ describe('cubeStore', () => {
 
       const restoredmuc = cubeStore.getCube(muckey, coreTlvCubeFamily);  // restore payload too
       expect(restoredmuc).toBeDefined();
-      const restoredpayload = restoredmuc?.fields.getFirst(CubeFieldType.PAYLOAD);
+      const restoredpayload = (await restoredmuc)?.fields.getFirst(CubeFieldType.PAYLOAD);
       expect(restoredpayload).toBeDefined();
       expect(restoredpayload?.value.toString('utf8')).toEqual(
         "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum.");
@@ -214,7 +217,7 @@ describe('cubeStore', () => {
       expect(spammyCube.fields.all.length).toBeGreaterThan(300);  // lots of spam
       await cubeStore.addCube(spammyBinary);
 
-      const restored: Cube = cubeStore.getCube(spamKey);
+      const restored: Cube = await cubeStore.getCube(spamKey);
       expect(restored.fields.all.length).toEqual(3);  // spam ignored
     });
   });
@@ -238,7 +241,7 @@ describe('cubeStore', () => {
       const added = await cciCubeStore.addCube(binaryCube);
       expect(added).toBeTruthy();
 
-      const restored: cciCube = cciCubeStore.getCube(key) as cciCube;
+      const restored: cciCube = await cciCubeStore.getCube(key) as cciCube;
       expect(restored).toBeTruthy();
       expect(restored).toBeInstanceOf(cciCube);
       expect(restored.fields).toBeInstanceOf(cciFields);

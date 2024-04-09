@@ -108,19 +108,19 @@ export class Identity {
   // TODO: Once we have a cube exchange scheduler, schedule the purported
   // Identity MUC for retrieval if we don't have it (this will be necessary for
   // light nodes)
-  static Load(
+  static async Load(
       cubeStore: CubeStore,
       username: string,
       password: string,
       options?: IdentityOptions,
-  ): Identity | undefined {
+  ): Promise<Identity | undefined> {
     const masterKey: Buffer = Identity.DeriveMasterKey(username, password,
       options?.argonCpuHardness, options?.argonMemoryHardness);
     const keyPair: KeyPair = Identity.DeriveKeypair(masterKey);
-    const idMuc: cciCube = ensureCci(cubeStore.getCube(
+    const idMuc: cciCube = ensureCci(await cubeStore.getCube(
       Buffer.from(keyPair.publicKey), cciFamily));
     if (idMuc === undefined) return undefined;
-    const identity = new Identity(cubeStore, idMuc, options);
+    const identity: Identity = await Identity.Construct(cubeStore, idMuc, options);
     identity.supplySecrets(masterKey, Buffer.from(keyPair.privateKey));
     return identity;
   }
@@ -131,11 +131,21 @@ export class Identity {
     username: string,
     password: string,
     options?: IdentityOptions,
-  ): Identity {
+  ): Promise<Identity> {
     const masterKey: Buffer = Identity.DeriveMasterKey(
       username, password,
       options?.argonCpuHardness, options?.argonMemoryHardness);
-    return new Identity(cubeStore, masterKey, options);
+    return Identity.Construct(cubeStore, masterKey, options);
+  }
+
+  /** Convenient await-able wrapper around the constructor  */
+  static Construct(
+    cubeStore: CubeStore,
+    mucOrMasterkey: cciCube | Buffer,
+    options?: IdentityOptions,
+  ): Promise<Identity> {
+    const id = new Identity(cubeStore, mucOrMasterkey, options);
+    return id.ready;
   }
 
   static DeriveKeypair(masterKey: Buffer): KeyPair {
@@ -152,7 +162,7 @@ export class Identity {
       password: string,
       argonCpuHardness = sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE,
       argonMemoryHardness = sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE,
-    ): Buffer {
+  ): Buffer {
     return Buffer.from(sodium.crypto_pwhash(
       sodium.crypto_sign_SEEDBYTES,
       password,
@@ -180,7 +190,9 @@ export class Identity {
    * Usage note: Calling this.avatar.render() yields a valid image which
    * can directly be used as an img's src.
    */
-  avatar: Avatar = undefined;
+  private _avatar: Avatar = undefined;
+  get avatar(): Avatar { return this._avatar ?? this.defaultAvatar() }
+  set avatar(obj: Avatar) { this._avatar = obj }
 
   /**
    * If this Identity object knows an IdentityPersistant object
@@ -239,6 +251,20 @@ export class Identity {
    */
   private makeMucPromise: Promise<cciCube> = undefined;
 
+  // Provide a ready promise
+  private readyPromiseResolve: Function;
+  private readyPromiseReject: Function;
+  private _ready: Promise<Identity> = new Promise<Identity>(
+      (resolve, reject) => {
+          this.readyPromiseResolve = resolve;
+          this.readyPromiseReject = reject;
+      });
+  /**
+   * Kindly always await ready before using an Identity, or it might not yet
+   * be fully initialized.
+   **/
+  get ready(): Promise<Identity> { return this._ready }
+
   /**
    * Depending on whether you provide a key pair or an existing Identity MUC,
    * this will either create a brand new Identity or parse an existing one
@@ -258,8 +284,6 @@ export class Identity {
    * @param [required_difficulty] Set this to override tbe system-defined
    *        minimum Cube challenge difficulty. For example, you may want to set
    *        this to 0 for testing.
-   * @throws FieldError when supplied MUC is unparsable or ApiMisuseError in
-   *         in case of conflicting params.
    * !!! Identity may only be constructed after awaiting sodium.ready !!!
    **/
   constructor(
@@ -276,7 +300,9 @@ export class Identity {
 
     // are we loading or creating an Identity?
     if (mucOrMasterkey instanceof Cube) {  // checking for the more generic Cube instead of cciCube as this is the more correct branch compared to handling this as a KeyPair (also Cube subclass handling is not completely clean yet throughout our codebase)
-      this.parseMuc(mucOrMasterkey);
+      this.parseMuc(mucOrMasterkey).then(() => {
+        this.readyPromiseResolve(this)
+    });
     } else {  // create new Identity
       this._masterKey = mucOrMasterkey;
       this._muc = cciCube.ExtensionMuc(
@@ -284,15 +310,14 @@ export class Identity {
         [],  // TODO: allow to set fields like username directly on construction
         IDMUC_MASTERINDEX, IDMUC_CONTEXT_STRING,
       );
+      this.readyPromiseResolve(this);
     }
-    // create default avatar based on pubkey if none was set yet
-    if (this.avatar === undefined) this.avatar = this.defaultAvatar();
   }
 
   /**
    * Suppose you learn an existing Identity's secrets... somehow...
    * Use this method to supply them then :)
-   * No validation will be down whatsoever.
+   * No validation will be done whatsoever.
    * (This is used after restoring a locally owned Identity from persistant
    * storage and it's a bit ugly, but it will do for now.)
    */
@@ -372,19 +397,20 @@ export class Identity {
       (subscription: CubeKey) => subscription.equals(remoteIdentity));
   }
 
-  recursiveWebOfSubscriptions(maxDepth: number = 1, curDepth: number = 0): CubeKey[] {
+  // maybe TODO: make this a Generator instead?
+  async recursiveWebOfSubscriptions(maxDepth: number = 1, curDepth: number = 0): Promise<CubeKey[]> {
     let recursiveSubs: CubeKey[] = this.subscriptionRecommendations;
     if (curDepth < maxDepth) {
       for (const sub of this._subscriptionRecommendations) {
-        const muc: cciCube = ensureCci(this.cubeStore.getCube(sub, cciFamily));
+        const muc: cciCube = ensureCci(await this.cubeStore.getCube(sub, cciFamily));
         if (!muc) continue;
         let id: Identity;
         try {
-          id = new Identity(this.cubeStore, muc);
+          id = await Identity.Construct(this.cubeStore, muc);
         } catch(err) { continue; }
         if (!id) continue;
         recursiveSubs = recursiveSubs.concat(
-          id.recursiveWebOfSubscriptions(maxDepth, curDepth+1)
+          await id.recursiveWebOfSubscriptions(maxDepth, curDepth+1)
         );
       }
     }
@@ -441,9 +467,9 @@ export class Identity {
     }
 
     // Write avatar string
-    if (this.avatar &&
+    if (this._avatar !== undefined &&
         this.avatar.scheme != AvatarScheme.UNKNOWN &&
-        !(this.avatar.equals(this.defaultAvatar()))) {
+        !(this._avatar.equals(this.defaultAvatar()))) {
           newMuc.fields.insertFieldBeforeBackPositionals(this.avatar.toField());
     }
 
@@ -573,31 +599,30 @@ export class Identity {
   /**
    * Sets this Identity based on a MUC; should only be used on construction.
    */
-  private parseMuc(muc: cciCube): void {
+  private async parseMuc(muc: cciCube): Promise<void> {
     if (Settings.RUNTIME_ASSERTIONS) {
       // disabled for now: Identity doesn't *really* require a cciCube object
       // and our codebase currently does not cleanly distinguish required
       // Cube classes yet
       // if (!(muc instanceof cciCube)) {
-      //   throw new CubeError("Identity: Supplied Cube is not as CCI Cube");
+      //   this.readyPromiseReject(new CubeError("Identity: Supplied Cube is not as CCI Cube"));
+      //   return;
       // }
       if (muc.cubeType != CubeType.MUC) {
-        throw new CubeError("Identity: Supplied Cube is not a MUC");
+        this.readyPromiseReject(new CubeError("Identity: Supplied Cube is not a MUC"));
+        return;
       }
     }
 
-    // read name (mandatory)
+    // read name
     const nameField: cciField = muc.fields.getFirst(cciFieldType.USERNAME);
     if (nameField) this.name = nameField.value.toString('utf-8');
-    if (!this.name) {
-      throw new FieldError("Identity: Supplied MUC lacks user name");
-    }
 
     // read cube references, these being:
     // - avatar seed
     const avatarSeedField: cciField = muc.fields.getFirst(cciFieldType.AVATAR);
     if (avatarSeedField) {
-      this.avatar = new Avatar(avatarSeedField);
+      this._avatar = new Avatar(avatarSeedField);
     }
 
     // - profile picture reference
@@ -611,16 +636,19 @@ export class Identity {
     if (keyBackupCubeRel) this.keyBackupCube = keyBackupCubeRel.remoteKey;
 
     // - recursively fetch my-post references
-    this.recursiveParsePostReferences(muc, []);
+    await this.recursiveParsePostReferences(muc, []);
 
     // recursively fetch my own SUBSCRIPTION_RECOMMENDATION references
-    this.recursiveParseSubscriptionRecommendations(muc);
+    await this.recursiveParseSubscriptionRecommendations(muc);
     // last but not least: store this MUC as our MUC
     this._muc = muc;
   }
 
   // TODO: check and limit recursion
-  recursiveParseSubscriptionRecommendations(mucOrMucExtension: Cube, alreadyTraversedCubes: string[] = []) {
+  async recursiveParseSubscriptionRecommendations(
+      mucOrMucExtension: Cube,
+      alreadyTraversedCubes: string[] = []
+  ): Promise<void> {
     // do we even have this cube?
     if (!mucOrMucExtension) return;
     // have we been here before? avoid endless recursion
@@ -642,9 +670,9 @@ export class Identity {
     const furtherIndices = fields.getRelationships(
       cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX);
     for (const furtherIndex of furtherIndices) {
-      const furtherCube: Cube = this.cubeStore.getCube(furtherIndex.remoteKey, cciFamily);
+      const furtherCube: Cube = await this.cubeStore.getCube(furtherIndex.remoteKey, cciFamily);
       if (furtherCube) {
-        this.recursiveParseSubscriptionRecommendations(furtherCube, alreadyTraversedCubes);
+        await this.recursiveParseSubscriptionRecommendations(furtherCube, alreadyTraversedCubes);
       }
     }
   }
@@ -657,7 +685,7 @@ export class Identity {
    * This is the recursive part of that.
    */
   // TODO: check and limit recursion
-  private recursiveParsePostReferences(mucOrMucExtension: Cube, alreadyTraversedCubes: string[]): void {
+  private async recursiveParsePostReferences(mucOrMucExtension: Cube, alreadyTraversedCubes: string[]): Promise<void> {
     // do we even have this cube?
     if (!mucOrMucExtension) return;
     // have we been here before? avoid endless recursion
@@ -672,7 +700,7 @@ export class Identity {
     const myPostRels: cciRelationship[] = fields.getRelationships(
       cciRelationshipType.MYPOST);
     for (const postrel of myPostRels) {
-      const postInfo: CubeInfo = this.cubeStore.getCubeInfo(postrel.remoteKey);
+      const postInfo: CubeInfo = await this.cubeStore.getCubeInfo(postrel.remoteKey);
       if (!postInfo) continue;  // skip posts we don't actually have
       if (!(this.posts.includes(postrel.remoteKey.toString('hex')))) {
         // Insert sorted by date. This is not efficient but I think it doesn't matter.
@@ -681,7 +709,7 @@ export class Identity {
           // if the post to insert is newer than the post we're currently looking at,
           // insert before
           const postrelDate = postInfo.date;
-          const compareToDate = this.cubeStore.getCubeInfo(this.posts[i]).date;
+          const compareToDate = (await this.cubeStore.getCubeInfo(this.posts[i])).date;
           if (postrelDate >= compareToDate) {
               this.posts.splice(i, 0, postrel.remoteKey.toString('hex'));  // inserts at position i
               inserted = true;
@@ -690,7 +718,10 @@ export class Identity {
         }
         if (!inserted) this.posts.push(postrel.remoteKey.toString('hex'));
       }
-      this.recursiveParsePostReferences(this.cubeStore.getCube(postrel.remoteKey, cciFamily), alreadyTraversedCubes);
+      await this.recursiveParsePostReferences(
+        await this.cubeStore.getCube(postrel.remoteKey, cciFamily),
+        alreadyTraversedCubes
+      );
     }
   }
 }

@@ -90,13 +90,14 @@ export class IdentityPersistance {
         const privkey: Buffer = Buffer.from(
           Identity.DeriveKeypair(masterKey).privateKey);
         const muc = ensureCci(
-          cubeStore.getCube(Buffer.from(pubkeyString, 'hex'), cciFamily));
+          await cubeStore.getCube(Buffer.from(pubkeyString, 'hex'), cciFamily));
         if (muc === undefined) {
           logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkeyString + " is not present");
           continue;
         }
         muc.privateKey = privkey;
-        const id = new Identity(cubeStore, muc, { persistance: this });
+        const id: Identity = await Identity.Construct(
+          cubeStore, muc, { persistance: this });
         id.supplySecrets(masterKey, privkey);
         identities.push(id);
       } catch (error) {

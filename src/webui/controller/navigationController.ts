@@ -84,23 +84,24 @@ export class NavigationController extends VerityController {
     else backArea.setAttribute("style", "display: none");
   }
 
-  navPostsAll(): void {
+  async navPostsAll(): Promise<void> {
     this.closeAllControllers();
     logger.trace("VerityUI: Displaying all posts including anonymous ones");
-    const annotationEngine = new ZwAnnotationEngine(
+    const annotationEngine: ZwAnnotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.ui.node.cubeStore,
       SubscriptionRequirement.none,  // show all posts
       [],       // subscriptions don't play a role in this mode
       true,     // auto-learn MUCs to display authorship info if available
-      true);    // allow anonymous posts
+      true      // allow anonymous posts
+    );
     const controller = new PostController(this.ui.node.cubeStore, annotationEngine, this.ui.identity);
     this.newController(controller, "navPostsAll");
   }
 
-  navPostsWithAuthors(): void {
+  async navPostsWithAuthors(): Promise<void> {
     this.closeAllControllers();
     logger.trace("VerityUI: Displaying posts associated with a MUC");
-    const annotationEngine = new ZwAnnotationEngine(
+    const annotationEngine: ZwAnnotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.ui.node.cubeStore,
       SubscriptionRequirement.none,
       [],       // no subscriptions as they don't play a role in this mode
@@ -110,44 +111,45 @@ export class NavigationController extends VerityController {
     this.newController(controller, "navPostsWithAuthors");
   }
 
-  navPostsSubscribedInTree(): void {
+  async navPostsSubscribedInTree(): Promise<void> {
     if (!this.ui.identity) return;
     this.closeAllControllers();
     logger.trace("VerityUI: Displaying posts from trees with subscribed author activity");
-    const annotationEngine = new ZwAnnotationEngine(
+    const annotationEngine: ZwAnnotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.ui.node.cubeStore,
       SubscriptionRequirement.subscribedInTree,
-      this.ui.identity.subscriptionRecommendations,  // subscriptions
+      await this.ui.node.cubeStore.getCubeInfos(this.ui.identity.subscriptionRecommendations),  // subscriptions
       true,      // auto-learn MUCs (to be able to display authors when available)
       false);    // do not allow anonymous posts
     const controller = new PostController(this.ui.node.cubeStore, annotationEngine, this.ui.identity);
     this.newController(controller, "navPostsSubscribedInTree");
   }
 
-  navPostsSubscribedReplied(wotDepth: number = 0): void {
+  async navPostsSubscribedReplied(wotDepth: number = 0): Promise<void> {
     if (!this.ui.identity) return;
     this.closeAllControllers();
     logger.trace("VerityUI: Displaying posts from subscribed authors and their preceding posts");
     let navName: string = "navPostsSubscribedReplied";
     if (wotDepth) navName += wotDepth;
-    const annotationEngine = new ZwAnnotationEngine(
+    const annotationEngine: ZwAnnotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.ui.node.cubeStore,
       SubscriptionRequirement.subscribedReply,
-      this.ui.identity.recursiveWebOfSubscriptions(wotDepth),  // subscriptions
+      await this.ui.node.cubeStore.getCubeInfos(
+        await this.ui.identity.recursiveWebOfSubscriptions(wotDepth)),  // subscriptions
       true,      // auto-learn MUCs (to be able to display authors when available)
       false);    // do not allow anonymous posts
     const controller = new PostController(this.ui.node.cubeStore, annotationEngine, this.ui.identity);
     this.newController(controller, navName);
   }
 
-  navPostsSubscribedStrict(): void {
+  async navPostsSubscribedStrict(): Promise<void> {
     if (!this.ui.identity) return;
     this.closeAllControllers();
     logger.trace("VerityUI: Displaying posts from subscribed authors strictly");
-    const annotationEngine = new ZwAnnotationEngine(
+    const annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.ui.node.cubeStore,
       SubscriptionRequirement.subscribedOnly,  // strictly show subscribed
-      this.ui.identity.subscriptionRecommendations,  // subscriptions
+      await this.ui.node.cubeStore.getCubeInfos(this.ui.identity.subscriptionRecommendations),  // subscriptions
       false,     // do no auto-learn MUCs (strictly only posts by subscribed will be displayed)
       false);    // do not allow anonymous posts
     const controller = new PostController(this.ui.node.cubeStore, annotationEngine, this.ui.identity);

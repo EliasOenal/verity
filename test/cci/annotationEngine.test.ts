@@ -22,8 +22,8 @@ describe('annotationEngine', () => {
   }, 3000);
 
   describe('default settings', () => {
-    beforeEach(() => {
-      annotationEngine = new AnnotationEngine(cubeStore);
+    beforeEach(async () => {
+      annotationEngine = await AnnotationEngine.Construct(cubeStore);
     }, 3000);
 
     it('correctly creates a reverse relationship', async () => {
@@ -48,7 +48,7 @@ describe('annotationEngine', () => {
       const annotationSpec = new Map([
         [cciRelationshipType.MENTION, 1]
       ]);
-      const annotationEngine = new AnnotationEngine(
+      const annotationEngine: AnnotationEngine = await AnnotationEngine.Construct(
         cubeStore, defaultGetFieldsFunc, cciRelationship, annotationSpec);
 
       // Let's create a non-conforming Cube that MENTIONs two MUCs and defines a

@@ -504,7 +504,7 @@ export class NetworkManager extends EventEmitter {
         return totalStats;
     }
 
-    prettyPrintStats(): string {
+    async prettyPrintStats(): Promise<string> {
         let output = '\nStatistics:\n';
         output += `My (high level) PeerID: ${this.id.toString('hex').toUpperCase()}\n`;
         if (this.transports.size) {
@@ -519,7 +519,7 @@ export class NetworkManager extends EventEmitter {
 
         output += `\nLocal Store\n`;
         output += `Cubes: ${this.cubeStore.getNumberOfStoredCubes()}\n`;
-        output += `Memory: ${this.cubeStore.getNumberOfStoredCubes() * NetConstants.CUBE_SIZE}\n`;
+        output += `Memory: ${await this.cubeStore.getNumberOfStoredCubes() * NetConstants.CUBE_SIZE}\n`;
 
         output += `\nNetwork Total\n`;
         const totalStats = this.getNetStatistics();

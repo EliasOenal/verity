@@ -105,12 +105,9 @@ describe('RequestScheduler', () => {
     expect(scheduler.calcRequestScaleFactor()).toBe(0.25);
   });
 
-  it.skip('should request a Cube from another node if first request fails', async() => {
-    // (must keep track of nodes already requested from I guess)
-  });
+  it.todo('should request a Cube from another node if first request fails');
+  // (must keep track of nodes already requested from I guess)
 
-  it.skip('should never request a Cube from two nodes at once, not even as a full node', async() => {
+  it.todo('should never request a Cube from two nodes at once, not even as a full node');
     // (this implies KeyResponses must be fed through the Scheduler)
-  });
-
 });

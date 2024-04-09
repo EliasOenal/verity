@@ -92,7 +92,7 @@ export class PostController extends VerityController {
       subscribeButton.classList.add("active");
       await this.identity.store("ID/ZW");
     }
-    this.redisplayAuthor(this.cubeStore.getCubeInfo(authorkeystring));
+    this.redisplayAuthor(await this.cubeStore.getCubeInfo(authorkeystring));
   }
 
 
@@ -101,14 +101,14 @@ export class PostController extends VerityController {
     return super.shutdown();
   }
 
-  redisplayPosts() {
+  async redisplayPosts(): Promise<void> {
     // clear all currently displayed cubes:
     this.clearAllPosts();
     // redisplay them one by one:
     // logger.trace("CubeDisplay: Redisplaying all cubes");
-    for (const cubeInfo of this.cubeStore.getAllCubeInfo()) {
-        if (this.annotationEngine.isCubeDisplayable(cubeInfo.key)) {
-            this.displayPost(cubeInfo.key);
+    for (const cubeInfo of await this.cubeStore.getAllCubeInfo()) {
+        if (await this.annotationEngine.isCubeDisplayable(cubeInfo.key)) {
+            await this.displayPost(cubeInfo.key);
         }
     }
   }
@@ -124,10 +124,10 @@ export class PostController extends VerityController {
 
   // Show all new cubes that are displayable.
   // This will handle cubeStore cubeDisplayable events.
-  displayPost(binarykey: CubeKey): void {
+  async displayPost(binarykey: CubeKey): Promise<void> {
     // logger.trace(`PostDisplay: Attempting to display post ${binarykey.toString('hex')}`)
     // get Cube
-    const cube: cciCube = ensureCci(this.cubeStore.getCube(binarykey, cciFamily));
+    const cube: cciCube = ensureCci(await this.cubeStore.getCube(binarykey, cciFamily));
     if (cube === undefined) return;
     const fields: cciFields = cube.fields;
 
@@ -137,7 +137,7 @@ export class PostController extends VerityController {
     data.keystring = binarykey.toString('hex');
     data.timestamp = cube.getDate();
     data.text = fields.getFirst(cciFieldType.PAYLOAD).value.toString();
-    this.findAuthor(data);  // this sets data.author and data.authorkey
+    await this.findAuthor(data);  // this sets data.author and data.authorkey
 
     // is this post already displayed?
     if (this.displayedPosts.has(data.keystring)) return;
@@ -149,10 +149,10 @@ export class PostController extends VerityController {
       data.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));
       if (!data.superior) {
         // Apparently the original post has not yet been displayed, so let's display it
-        this.displayPost(superiorPostKey);
+        await this.displayPost(superiorPostKey);
         data.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));
         if (!data.superior || !data.superior.displayElement) {  // STILL not displayed?!?!
-          logger.error("PostDisplay: Failed to display a post because the superior post cannot be displayed. This indicates displayPost was called on a non-displayable post, which should not be done.");
+          logger.error("PostController: Failed to display a post because the superior post cannot be displayed. This indicates displayPost was called on a non-displayable post, which should not be done.");
           return;
         }
       }
@@ -172,7 +172,7 @@ export class PostController extends VerityController {
   }
 
   /** Redisplays authorship information for all of one author's posts */
-  redisplayAuthor(mucInfo: CubeInfo) {
+  async redisplayAuthor(mucInfo: CubeInfo) {
     const muc = ensureCci(mucInfo.getCube(cciFamily));
     if (muc === undefined) {
       logger.trace(`PostController.redisplayAuthor: Cannot get author for post ${mucInfo.keyString} as it does not appear to be a CCI cube`);
@@ -182,13 +182,13 @@ export class PostController extends VerityController {
     // maybe TODO: Recreating the whole Identity is unnecessary.
     // Identity should split out the post list retrieval code into a static method.
     try {
-      id = new Identity(
+      id = await Identity.Construct(
         this.cubeStore,
         muc,
         {parsers: cciFieldParsers});
     } catch(error) { return; }
     for (const post of id.posts) {
-      const cubeInfo: CubeInfo = this.cubeStore.getCubeInfo(post);
+      const cubeInfo: CubeInfo = await this.cubeStore.getCubeInfo(post);
       if (!cubeInfo) continue;
       this.redisplayPostAuthor(cubeInfo.key);
     }
@@ -203,8 +203,8 @@ export class PostController extends VerityController {
     }
   }
 
-  private findAuthor(data: PostData): void {
-    const authorObject: Identity = this.annotationEngine.cubeAuthor(data.binarykey);
+  private async findAuthor(data: PostData): Promise<void> {
+    const authorObject: Identity = await this.annotationEngine.cubeAuthor(data.binarykey);
     if (authorObject) {
       data.authorkey = authorObject.key.toString('hex');
       // TODO: display if this authorship information is authenticated,

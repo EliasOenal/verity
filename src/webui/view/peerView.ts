@@ -77,7 +77,7 @@ export class PeerView extends VerityView {
         } else if (networkPeer.status === NetworkPeerLifecycle.CLOSED) {
           statusField.innerText = 'Not connected';
         } else {  // should never happen
-          statusField.innerText = 'Unkown NetworkPeer lifecycle status';
+          statusField.innerText = 'Unknown NetworkPeer lifecycle status: ' + networkPeer.status;
         }
       } else {
         statusField.innerText = 'Not connected';

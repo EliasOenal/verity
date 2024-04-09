@@ -12,7 +12,6 @@ import { Buffer } from 'buffer'
 // associated length data. These should extend the base CubeFieldTypes.
 // However, TypeScript lacks a proper way to extend enums.
 // Therefore, CCI currently uses the core's CubeFieldTypes, which include
-
 // CCI fields even though they don't belong there.
 export const cciFieldType = CubeFieldType;
 export const cciFieldLength = CubeFieldLength;
