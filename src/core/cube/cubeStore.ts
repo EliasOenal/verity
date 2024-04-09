@@ -170,7 +170,7 @@ export class CubeStore extends EventEmitter {
       // Sometimes we get the same cube twice (e.g. due to network latency).
       // In that case, do nothing -- no need to invalidate the hash or to
       // emit an event.
-      if (this.hasCube(cubeInfo.key) && cubeInfo.cubeType == CubeType.FROZEN) {
+      if (await this.hasCube(cubeInfo.key) && cubeInfo.cubeType == CubeType.FROZEN) {
         logger.debug('CubeStorage: duplicate - frozen cube already exists');
         return cube;
       }
@@ -180,8 +180,8 @@ export class CubeStore extends EventEmitter {
       // If this is a MUC, check if we already have a MUC with this key.
       // Replace it with the incoming MUC if it's newer than the one we have.
       if (cubeInfo.cubeType == CubeType.MUC) {
-        if (this.hasCube(cubeInfo.key)) {
-          const storedCube: CubeInfo = this.getCubeInfo(cubeInfo.key);
+        if (await this.hasCube(cubeInfo.key)) {
+          const storedCube: CubeInfo = await this.getCubeInfo(cubeInfo.key);
           const winningCube: CubeMeta = cubeContest(storedCube, cubeInfo);
           if (winningCube === storedCube) {
             logger.trace('CubeStorage: Keeping stored MUC over incoming MUC');
@@ -224,24 +224,25 @@ export class CubeStore extends EventEmitter {
     }
   }
 
-  hasCube(key: CubeKey | string): boolean {
+  async hasCube(key: CubeKey | string): Promise<boolean> {
     if (key instanceof Buffer) key = key.toString('hex');
     return this.storage.has(key);
   }
 
-  getNumberOfStoredCubes(): number {
+  async getNumberOfStoredCubes(): Promise<number> {
     return this.storage.size;
   }
 
-  getCubeInfo(key: CubeKey | string): CubeInfo {
+  async getCubeInfo(key: CubeKey | string): Promise<CubeInfo> {
     if (key instanceof Buffer) key = key.toString('hex');
     return this.storage.get(key);
   }
-  getCubeRaw(key: CubeKey | string): Buffer | undefined {
-    const cubeInfo: CubeInfo = this.getCubeInfo(key);
-    if (cubeInfo) return cubeInfo.binaryCube;
-    else return undefined;
+  async getCubeInfos(keys: Iterable<CubeKey | string>): Promise<CubeInfo[]> {
+    const cubeInfos: CubeInfo[] = [];
+    for (const key of keys) cubeInfos.push(await this.getCubeInfo(key));
+    return cubeInfos;
   }
+
   /**
    * Get a Cube from storage. If the cube is currently dormant, it will
    * automatically get reinstantiated for you.
@@ -250,11 +251,11 @@ export class CubeStore extends EventEmitter {
    *        re-parsed. The CubeInfo is supposed to know which parser to use,
    *        but you can override it here if you want.
    */
-  getCube(
+  async getCube(
       key: CubeKey | string,
       family: CubeFamilyDefinition = undefined,  // undefined = will use CubeInfo's default
-    ): Cube | undefined {
-    const cubeInfo: CubeInfo = this.getCubeInfo(key);
+    ): Promise<Cube> {
+    const cubeInfo: CubeInfo = await this.getCubeInfo(key);
     if (cubeInfo) return cubeInfo.getCube(family);
     else return undefined;
   }
@@ -263,7 +264,7 @@ export class CubeStore extends EventEmitter {
    * Converts all cube keys to actual CubeKeys (i.e. binary buffers).
    * If you're fine with strings, just call this.storage.keys instead, much cheaper.
    */
-  getAllKeys(): Set<CubeKey> {
+  async getAllKeys(): Promise<Set<CubeKey>> {
     const ret: Set<CubeKey> = new Set();
     for (const [key, cubeInfo] of this.storage) {
       ret.add(cubeInfo.key);
@@ -271,12 +272,12 @@ export class CubeStore extends EventEmitter {
     return ret;
   }
 
-  getAllKeystrings(): IterableIterator<string> {
+  async getAllKeystrings(): Promise<IterableIterator<string>> {
     return this.storage.keys();
   }
 
   // TODO: we can probably get rid of this method now
-  getAllCubeMeta(): Set<CubeMeta> {
+  async getAllCubeMeta(): Promise<Set<CubeMeta>> {
     const ret: Set<CubeMeta> = new Set();
     for (const [key, cubeInfo] of this.storage) {
       ret.add(cubeInfo);
@@ -284,7 +285,7 @@ export class CubeStore extends EventEmitter {
     return ret;
   }
 
-  getAllCubeInfo(): IterableIterator<CubeInfo> {
+  async getAllCubeInfo(): Promise<IterableIterator<CubeInfo>> {
     return this.storage.values();
   }
 

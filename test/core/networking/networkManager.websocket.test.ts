@@ -232,20 +232,20 @@ describe('networkManager - WebSocket connections', () => {
         const key = await cube.getKey();
         await node1.cubeStore.addCube(cube);
 
-        expect(node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
-        expect(node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
+        expect(await node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+        expect(await node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
 
         await node1.connect(new Peer("127.0.0.1:3022"));
         // Wait up to three seconds for Cube exchange to happen
         for (let i = 0; i < 30; i++) {
-            if (node2.cubeStore.getNumberOfStoredCubes() >= 2) {
+            if (await node2.cubeStore.getNumberOfStoredCubes() >= 2) {
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
-        const received = node2.cubeStore.getCube(key, coreTlvCubeFamily);
+        const received: Cube = await node2.cubeStore.getCube(key, coreTlvCubeFamily);
         expect(received).toBeInstanceOf(Cube);
-        expect(received.fields.getFirst(CubeFieldType.PAYLOAD)?.value?.toString('utf-8')).
+        expect((await received).fields.getFirst(CubeFieldType.PAYLOAD)?.value?.toString('utf-8')).
             toEqual("Hic cubus automatice transferetur");
 
         await Promise.all([node1.shutdown(), node2.shutdown()]);
@@ -268,8 +268,8 @@ describe('networkManager - WebSocket connections', () => {
         const key = await cube.getKey();
         await node1.cubeStore.addCube(cube);
 
-        expect(node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
-        expect(node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
+        expect(await node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+        expect(await node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
 
         const node2to1 = await node2.connect(new Peer("127.0.0.1:3021"));
         await node2to1.onlinePromise;
@@ -277,14 +277,14 @@ describe('networkManager - WebSocket connections', () => {
         node2to1.sendCubeRequest([key]);
         // Wait up to three seconds for Cube exchange to happen
         for (let i = 0; i < 30; i++) {
-            if (node2.cubeStore.getNumberOfStoredCubes() >= 2) {
+            if (await node2.cubeStore.getNumberOfStoredCubes() >= 2) {
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
-        const received = node2.cubeStore.getCube(key, coreTlvCubeFamily);
+        const received: Cube = await node2.cubeStore.getCube(key, coreTlvCubeFamily);
         expect(received).toBeInstanceOf(Cube);
-        expect(received.fields.getFirst(CubeFieldType.PAYLOAD)?.value?.toString('utf-8')).
+        expect((await received).fields.getFirst(CubeFieldType.PAYLOAD)?.value?.toString('utf-8')).
             toEqual("Hic cubus per rogatum transferetur");
 
         await Promise.all([node1.shutdown(), node2.shutdown()]);
@@ -307,8 +307,8 @@ describe('networkManager - WebSocket connections', () => {
         const key = await cube.getKey();
         await node1.cubeStore.addCube(cube);
 
-        expect(node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
-        expect(node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
+        expect(await node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+        expect(await node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
 
         const node2to1 = await node2.connect(new Peer("127.0.0.1:3021"));
         await node2to1.onlinePromise;
@@ -316,7 +316,7 @@ describe('networkManager - WebSocket connections', () => {
         // wait a little...
         await new Promise(resolve => setTimeout(resolve, 3000));
         // light node: no request, no Cube
-        expect(node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
+        expect(await node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
 
         await Promise.all([node1.shutdown(), node2.shutdown()]);
     });
@@ -361,21 +361,21 @@ describe('networkManager - WebSocket connections', () => {
             buffer.writeInt8(i);
             await cubeStore.addCube(cube);
         }
-        expect(cubeStore.getAllKeys().size).toEqual(numberOfCubes);
+        expect((await cubeStore.getAllKeys()).size).toEqual(numberOfCubes);
 
         // sync cubes from peer 1 to peer 2
         expect(manager1.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
         manager2.outgoingPeers[0].sendKeyRequest();
         // Verify cubes have been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
-            if (cubeStore2.getAllKeys().size == numberOfCubes) {
+            if ((await cubeStore2.getAllKeys()).size == numberOfCubes) {
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
-        expect(cubeStore2.getAllKeys().size).toEqual(numberOfCubes);
-        for (const hash of cubeStore.getAllKeys()) {
-            expect(cubeStore2.getCube(hash)).toBeInstanceOf(Cube);
+        expect((await cubeStore2.getAllKeys()).size).toEqual(numberOfCubes);
+        for (const hash of await cubeStore.getAllKeys()) {
+            expect(await cubeStore2.getCube(hash)).toBeInstanceOf(Cube);
         }
 
         // sync cubes from peer 2 to peer 3
@@ -383,13 +383,13 @@ describe('networkManager - WebSocket connections', () => {
         manager3.incomingPeers[0].sendKeyRequest();
         // Verify cubes have been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
-            if (cubeStore3.getAllKeys().size == numberOfCubes) {
+            if ((await cubeStore3.getAllKeys()).size == numberOfCubes) {
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
-        for (const hash of cubeStore2.getAllKeys()) {
-            expect(cubeStore3.getCube(hash)).toBeInstanceOf(Cube);
+        for (const hash of await cubeStore2.getAllKeys()) {
+            expect(await cubeStore3.getCube(hash)).toBeInstanceOf(Cube);
         }
 
         const promise1_shutdown = manager1.shutdown();
@@ -414,9 +414,7 @@ describe('networkManager - WebSocket connections', () => {
             fullNodeMinimalFeatures);
 
         // Start both nodes
-        const promise1_listening = manager1.start();
-        const promise2_listening = manager2.start();
-        await Promise.all([promise1_listening, promise2_listening]);
+        await Promise.all([manager1.start(), manager2.start()]);
 
         // Connect peer 1 to peer 2
         manager1.connect(new Peer(new WebSocketAddress('localhost', 5001)));
@@ -438,24 +436,24 @@ describe('networkManager - WebSocket connections', () => {
         );
         mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
         const firstMucHash = await muc.getHash();
-        expect(cubeStore.getAllKeys().size).toEqual(1);
+        expect((await cubeStore.getAllKeys()).size).toEqual(1);
 
         // sync MUC from peer 1 to peer 2
         expect(manager2.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
         manager2.incomingPeers[0].sendKeyRequest();
         // Verify MUC has been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
-            if (cubeStore2.getCube(mucKey)) {
+            if (await cubeStore2.getCube(mucKey)) {
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         // check MUC has been received correctly at peer 2
-        expect(cubeStore2.getAllKeys().size).toEqual(1);
-        expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
-        expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(firstMucHash)).toBeTruthy();
-        receivedFields = cubeStore2.getCube(mucKey, coreTlvCubeFamily)?.fields!;
+        expect(await cubeStore2.getNumberOfStoredCubes()).toEqual(1);
+        expect(await cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
+        expect((await (await cubeStore2.getCube(mucKey))?.getHash())!.equals(firstMucHash)).toBeTruthy();
+        receivedFields = (await cubeStore2.getCube(mucKey, coreTlvCubeFamily))?.fields!;
         expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("Prima versio cubi usoris mutabilis mei.");
 
         // update MUC at peer 1
@@ -467,23 +465,23 @@ describe('networkManager - WebSocket connections', () => {
             {fields: CubeField.Payload(counterBuffer), requiredDifficulty: reducedDifficulty});
         mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
         const secondMucHash = await muc.getHash();
-        expect(cubeStore.getAllKeys().size).toEqual(1);  // still just one, new MUC version replaces old MUC version
+        expect((await cubeStore.getAllKeys()).size).toEqual(1);  // still just one, new MUC version replaces old MUC version
 
         // sync MUC from peer 1 to peer 2, again
         manager2.incomingPeers[0].sendKeyRequest();
         // Verify MUC has been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
-            if (cubeStore2.getCube(mucKey)?.getHashIfAvailable()?.equals(secondMucHash)) {
+            if ((await cubeStore2.getCube(mucKey))?.getHashIfAvailable()?.equals(secondMucHash)) {
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         // check MUC has been updated correctly at peer 2
-        expect(cubeStore2.getAllKeys().size).toEqual(1);
-        expect(cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
-        expect((await cubeStore2.getCube(mucKey)?.getHash())!.equals(secondMucHash)).toBeTruthy();
-        receivedFields = cubeStore2.getCube(mucKey, coreTlvCubeFamily)?.fields!;
+        expect(await cubeStore2.getNumberOfStoredCubes()).toEqual(1);  // still one, MUC has only been updated
+        expect(await cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
+        expect((await (await cubeStore2.getCube(mucKey))?.getHash())!.equals(secondMucHash)).toBeTruthy();
+        receivedFields = (await cubeStore2.getCube(mucKey, coreTlvCubeFamily))?.fields!;
         expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("Secunda versio cubi usoris mutabilis mei.");
 
         // teardown
@@ -906,11 +904,7 @@ describe('networkManager - WebSocket connections', () => {
         await Promise.all(shutdownPromises);
     });
 
-    it.skip('should fail gracefully when trying to connect to an invalid address', async () => {
-        // TODO implement
-    });
+    it.todo('should fail gracefully when trying to connect to an invalid address');
 
-    it.skip('only accepts incoming connections when enabled', async() => {
-        // TODO implement
-    })
+    it.todo('only accepts incoming connections when enabled');
 });

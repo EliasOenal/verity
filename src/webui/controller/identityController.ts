@@ -41,18 +41,18 @@ export class IdentityController extends VerityController {
     this.contentAreaView.show();
   }
 
-  performLogin(form: HTMLFormElement) {
+  async performLogin(form: HTMLFormElement) {
     const username: string =
       (form.querySelector(".verityUsernameInput") as HTMLInputElement).value;
     const password: string =
       (form.querySelector(".verityPasswordInput") as HTMLInputElement).value;
     // TODO: enforce some minimum length for both
-    let identity: Identity = Identity.Load(
+    let identity: Identity = await Identity.Load(
       this.cubeStore, username, password, {persistance: this.persistence});
     if (identity instanceof Identity) {
       identity.persistance.store(identity);  // don't use identity.store() to avoid MUC rebuild
     } else {
-      identity = Identity.Create(
+      identity = await Identity.Create(
         this.cubeStore, username, password, {persistance: this.persistence});
       identity.name = username;  // TODO separate username and display name
       identity.store("ID/ZW");

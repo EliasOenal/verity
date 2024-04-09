@@ -34,9 +34,7 @@ describe('makePost function', () => {
     expect(async () => { await makePost(text) }).rejects.toThrow();
   });
 
-  it.skip('should create a post with replyto and id', async () => {
-    // TODO implement -- maybe simplify Identity before
-  });
+  it.todo('should create a post with replyto and id');
 });
 
 describe('assertZwCube function', () => {

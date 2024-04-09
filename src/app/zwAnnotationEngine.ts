@@ -15,6 +15,8 @@ import { assertZwCube } from "./zwUtil";
 
 import { logger } from "../core/logger";
 
+import { Buffer } from 'buffer';
+
 // TODO: Split post selection and associated criteria out of here, moving it to
 // a new class ContentSelector. Instead of purely binary criteria, assign them
 // scores to heuristically determine the best posts to show based on multiple
@@ -28,6 +30,21 @@ export enum SubscriptionRequirement {
 }
 
 export class ZwAnnotationEngine extends AnnotationEngine {
+  static ZwConstruct(
+    cubeStore: CubeStore,
+    subscriptionRequirement: SubscriptionRequirement = SubscriptionRequirement.none,
+    subscribedMucs: CubeInfo[] = undefined,
+    autoLearnMucs: boolean = true,
+    allowAnonymous: boolean = false,
+    limitRelationshipTypes: Map<number, number> = cciRelationshipLimits,
+  ): Promise<ZwAnnotationEngine> {
+    const ae: ZwAnnotationEngine = new ZwAnnotationEngine(
+      cubeStore, subscriptionRequirement, subscribedMucs, autoLearnMucs,
+      allowAnonymous, limitRelationshipTypes
+    );
+    return ae.ready as Promise<ZwAnnotationEngine>;
+  }
+
   identityMucs: Map<string, CubeInfo> = new Map();
   subscribedMucs: Map<string, CubeInfo> = new Map();
   authorsCubes: Map<string, Set<string>> = new Map();
@@ -35,14 +52,14 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   constructor(
       cubeStore: CubeStore,
       private subscriptionRequirement: SubscriptionRequirement = SubscriptionRequirement.none,
-      subscribedMucs: CubeKey[] = undefined,
+      subscribedMucs: CubeInfo[] = undefined,
       private autoLearnMucs: boolean = true,
       private allowAnonymous: boolean = false,
       limitRelationshipTypes: Map<number, number> = cciRelationshipLimits,
     ) {
     super(cubeStore, defaultGetFieldsFunc, cciRelationship, limitRelationshipTypes);
     if (subscribedMucs) {
-      for (const key of subscribedMucs) this.trustMuc(key);
+      for (const mucInfo of subscribedMucs) this.trustMuc(mucInfo);
     }
     if (autoLearnMucs === true) {
       this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
@@ -50,7 +67,6 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnAuthorsPosts(cubeInfo));
     this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
     this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeMakesOthersDisplayable(cubeInfo));
-    this.crawlCubeStoreZw();
   }
 
   /**
@@ -67,23 +83,24 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    * @param [allowAnonymous] Unless set, only cubes which are owned by one of
    *                         authors in this.identityMucs are considered displayable.
    */
-  isCubeDisplayable(
+  async isCubeDisplayable(
       cubeInfo: CubeInfo | CubeKey,
-      mediaType: MediaTypes = MediaTypes.TEXT): boolean {
-    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo);
+      mediaType: MediaTypes = MediaTypes.TEXT): Promise<boolean> {
+    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = await this.cubeStore.getCubeInfo(cubeInfo);
+    const cube: Cube = cubeInfo.getCube(cciFamily);
 
     // is this even a valid ZwCube?
-    if (!assertZwCube) return false;
-    const fields: cciFields = this.getFields(cubeInfo.getCube(cciFamily)) as cciFields;  // TODO de-uglify
+    if (!assertZwCube(cube)) return false;
+    const fields: cciFields = this.getFields(cube) as cciFields;
 
-    // does this have a ZwPayload field and does it contain something??
+    // does this have a Payload field and does it contain something??
     const payload = fields?.getFirst(cciFieldType.PAYLOAD);
     if (!payload || !payload.length) return false;
 
     // does it have the correct media type?
     const typefield = fields.getFirst(cciFieldType.MEDIA_TYPE);
     if (!typefield) return false;
-    if (mediaType && mediaType != typefield.value.readUIntBE(0, cciFieldLength[cciFieldType.MEDIA_TYPE])) {
+    if (mediaType !== typefield.value.readUIntBE(0, cciFieldLength[cciFieldType.MEDIA_TYPE])) {
       return false;
     }
 
@@ -113,21 +130,22 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       fields.getFirstRelationship(cciRelationshipType.REPLY_TO);
     if (reply_to) {
       // logger.trace("annotationEngine: Checking for displayability of a reply")
-      const basePost: CubeInfo = this.cubeStore.getCubeInfo(reply_to.remoteKey);
+      const basePost: CubeInfo = await this.cubeStore.getCubeInfo(reply_to.remoteKey);
       if (!basePost) return false;
-      if (!this.isCubeDisplayable(basePost, mediaType)) return false;
+      if (!await this.isCubeDisplayable(basePost, mediaType)) return false;
     }
     // logger.trace("annotationEngine: Confiming cube " + key.toString('hex') + " is displayable.");
     return true;
   }
 
-  isAuthorKnown(key: CubeKey, mustBeSubscribed: boolean): boolean {
+  isAuthorKnown(key: CubeKey | string, mustBeSubscribed: boolean): boolean {
     // TODO: maybe following the ownership chain of this cube up to the author
     // is actually faster than checking all know posts
+    if (key instanceof Buffer) key = key.toString('hex');
     for (const [authorkeystring, knownSet] of this.authorsCubes.entries()) {
-      if(knownSet.has(key.toString('hex'))) {
+      if(knownSet.has(key)) {
         // Author is known! Depending on the specified authorship requirements,
-        // this might already be enough or they might be subscribed as well.
+        // this might already be enough or they might have to be subscribed as well.
         if (mustBeSubscribed) {
           if (this.subscribedMucs.has(authorkeystring)) return true;
         } else {
@@ -138,7 +156,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     return false;
   }
 
-  recursiveSubscribedAuthorInThread(key: CubeKey, alreadyTraversed: string[] = []): boolean {
+  async recursiveSubscribedAuthorInThread(key: CubeKey, alreadyTraversed: string[] = []): Promise<boolean> {
     // prevent endless recursion
     if (alreadyTraversed.includes(key.toString('hex'))) return false;
     alreadyTraversed.push(key.toString('hex'));
@@ -150,7 +168,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     // if specified authorship requirements are lax enough, also check
     // up the tree to find replies to a subscribed author's posts
     if (this.subscriptionRequirement <= SubscriptionRequirement.subscribedInTree) {
-      const cube: Cube = this.cubeStore.getCube(key, cciFamily);
+      const cube: Cube = await this.cubeStore.getCube(key, cciFamily);
       if (!assertZwCube(cube)) return false;
       const fields: cciFields = cube.fields as cciFields;
       const replies: cciRelationship[] = fields.
@@ -169,18 +187,18 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    * It does that by leveraging the stored reverse-MYPOST relationships created
    * by this engine.
    */
-  cubeAuthor(key: CubeKey): Identity {
+  async cubeAuthor(key: CubeKey): Promise<Identity> {
     const parentrel = this.getFirstReverseRelationship(key, cciRelationshipType.MYPOST);
     // logger.trace(`ZwAnnotationEngine: Looking for the author of ${key.toString('hex')} whose parent is ${parentrel?.remoteKey?.toString('hex')}`);
     if (!parentrel) return undefined;
     const parentkey = parentrel.remoteKey;
     if (this.identityMucs.has(parentkey.toString('hex'))) {
       const idmuc = ensureCci(
-        this.cubeStore.getCube(parentkey, cciFamily));
+        await this.cubeStore.getCube(parentkey, cciFamily));
       if (!idmuc) return undefined;
       let id: Identity = undefined;
       try {
-        id = new Identity(this.cubeStore, idmuc, {parsers: cciFieldParsers});
+        id = await Identity.Construct(this.cubeStore, idmuc, {parsers: cciFieldParsers});
       } catch(error) {
         // logger.info("ZwAnnotationEngine: While searching for author of " + key.toString('hex') + " I failed to create an Identity out of MUC " + rootmuc.getKeyIfAvailable()?.toString('hex') + " even though there's a MYPOST chain through " + mucOrMucExtension.getKeyIfAvailable()?.toString('hex'));
       }
@@ -202,7 +220,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    * should not do anyway.
    * So TODO remove I guess?
    */
-  cubeAuthorWithoutAnnotations(key: CubeKey): Identity {
+  async cubeAuthorWithoutAnnotations(key: CubeKey): Promise<Identity> {
     // check all MUCs
     for (const mucInfo of this.identityMucs.values()) {
       const muc = ensureCci(  // in theory, our CubeInfos should already know what kind of Cube they represent, but better safe than sorry
@@ -212,7 +230,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
         logger.error("ZwAnnotationEngine: A MUC we remembered has gone missing.");
         continue;
       }
-      const potentialResult: Identity = this.cubeAuthorWithoutAnnotationsRecursion(key, muc, muc);
+      const potentialResult: Identity = await this.cubeAuthorWithoutAnnotationsRecursion(key, muc, muc);
       if (potentialResult) {
         // logger.trace("ZwAnnotationEngine: I found out that the author of cube " + key.toString('hex') + " is " + potentialResult.name);
         return potentialResult;
@@ -223,7 +241,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   }
 
   /** This is the recursive part of cubeAuthor() */
-  private cubeAuthorWithoutAnnotationsRecursion(key: CubeKey, mucOrMucExtension: cciCube, rootmuc: cciCube): Identity {
+  private async cubeAuthorWithoutAnnotationsRecursion(key: CubeKey, mucOrMucExtension: cciCube, rootmuc: cciCube): Promise<Identity> {
     if (!assertZwCube(mucOrMucExtension)) return undefined;
     const fields: cciFields = mucOrMucExtension.fields;
     const postrels: Array<cciRelationship> = fields.getRelationships(cciRelationshipType.MYPOST);
@@ -234,27 +252,27 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       if (postrel.remoteKey.equals(key)) {  // bingo!
         let id: Identity = undefined;
         try {
-          id = new Identity(this.cubeStore, rootmuc);
+          id = await Identity.Construct(this.cubeStore, rootmuc);
         } catch(error) {
           // logger.info("ZwAnnotationEngine: While searching for author of " + key.toString('hex') + " I failed to create an Identity out of MUC " + rootmuc.getKeyIfAvailable()?.toString('hex') + " even though there's a MYPOST chain through " + mucOrMucExtension.getKeyIfAvailable()?.toString('hex'));
         }
         if (id) return id;
       } else {  // maybe this other post contains the authorship information we seek?
         const subpost = ensureCci(
-          this.cubeStore.getCube(postrel.remoteKey, cciFamily));
+          await this.cubeStore.getCube(postrel.remoteKey, cciFamily));
         if (subpost === undefined) continue;  // skip non-CCI Cubes (and any garbage in general)
-        const potentialResult: Identity = this.cubeAuthorWithoutAnnotationsRecursion(key, subpost, rootmuc);
+        const potentialResult: Identity = await this.cubeAuthorWithoutAnnotationsRecursion(key, subpost, rootmuc);
         if (potentialResult) return potentialResult;
       }
     }
     return undefined;  // no authorship information found, not even really deep down
   }
 
-  private emitIfCubeDisplayable(
+  private async emitIfCubeDisplayable(
       cubeInfo: CubeInfo | CubeKey,
-      mediaType: MediaTypes = MediaTypes.TEXT): boolean {
-    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo) as CubeInfo;
-    const displayable: boolean = this.isCubeDisplayable(cubeInfo, mediaType);
+      mediaType: MediaTypes = MediaTypes.TEXT): Promise<boolean> {
+    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = await this.cubeStore.getCubeInfo(cubeInfo) as CubeInfo;
+    const displayable: boolean = await this.isCubeDisplayable(cubeInfo, mediaType);
     if (displayable) {
       // logger.trace(`ZwAnnotationEngine: Marking cube ${key.toString('hex')} displayable.`)
       this.emit('cubeDisplayable', cubeInfo.key);  // TODO: why not just emit the cubeInfo?
@@ -266,23 +284,23 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   // Note: In case anonymous posts are disallowed, learning authorship
   // information will make a post displayable. This case is not handled here but
   // in learnAuthorsPosts()
-  private emitIfCubeMakesOthersDisplayable(
+  private async emitIfCubeMakesOthersDisplayable(
       cubeInfo: CubeInfo | CubeKey,
-      mediaType: MediaTypes = MediaTypes.TEXT): boolean {
-    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = this.cubeStore.getCubeInfo(cubeInfo) as CubeInfo;
+      mediaType: MediaTypes = MediaTypes.TEXT): Promise<boolean> {
+    if (!(cubeInfo instanceof CubeInfo)) cubeInfo = await this.cubeStore.getCubeInfo(cubeInfo) as CubeInfo;
     let ret: boolean = false;
 
     // Am I the base post to a reply we already have?
-    if (this.isCubeDisplayable(cubeInfo, mediaType)) {
+    if (await this.isCubeDisplayable(cubeInfo, mediaType)) {
       // In a base-reply relationship, I as a base can only make my reply
       // displayable if I am displayable myself.
       const replies: Array<cciRelationship> = this.getReverseRelationships(
         cubeInfo.key,
         cciRelationshipType.REPLY_TO);
       for (const reply of replies) {
-        if (this.emitIfCubeDisplayable(reply.remoteKey, mediaType)) {  // will emit a cubeDisplayable event for reply.remoteKey if so
+        if (await this.emitIfCubeDisplayable(reply.remoteKey, mediaType)) {  // will emit a cubeDisplayable event for reply.remoteKey if so
           ret = true;
-          this.emitIfCubeMakesOthersDisplayable(reply.remoteKey, mediaType);
+          await this.emitIfCubeMakesOthersDisplayable(reply.remoteKey, mediaType);
         }
       }
     }
@@ -295,11 +313,10 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    * @param key Must be the key of a valid Identity MUC
    */
   // TODO move to CCI
-  private learnMuc(input: CubeInfo | CubeKey): void {
-    let mucInfo: CubeInfo;
-    if (input instanceof CubeInfo) mucInfo = input;
-    else mucInfo = this.cubeStore.getCubeInfo(input);
-    if (this.validateMuc(mucInfo)) {
+  // Note: learnMuc must not be made async, as then we might learn the MUC after
+  // they're being evaluated, leading to false negatives
+  private learnMuc(mucInfo: CubeInfo): void {
+    if (this.validateMuc(mucInfo) === true) {
       this.identityMucs.set(mucInfo.key.toString('hex'), mucInfo);
       // logger.trace(`ZwAnnotationEngine: Learned Identity MUC ${key.toString('hex')}, user name ${id.name}`);
     }
@@ -312,16 +329,10 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    * If the MUC is not yet known, it will also be marked known.
    * @param key Must be the key of a valid Identity MUC
    */
-  private trustMuc(input: CubeInfo | CubeKey): void {
-    let mucInfo: CubeInfo;
-    if (input instanceof CubeInfo) mucInfo = input;
-    else mucInfo = this.cubeStore.getCubeInfo(input);
-    // TODO: We could probably skip this very inefficient check for subscribed MUCs.
-    if (this.validateMuc(mucInfo)) {
-      this.identityMucs.set(mucInfo.key.toString('hex'), mucInfo);
-      this.subscribedMucs.set(mucInfo.key.toString('hex'), mucInfo);
-      // logger.trace(`ZwAnnotationEngine: Trusting Identity MUC ${key.toString('hex')}, user name ${id.name}`);
-    }
+  private trustMuc(mucInfo: CubeInfo): void {
+    // Note: We are not validating subscribed MUCs as this is expensive and asynchroneous.
+    this.identityMucs.set(mucInfo.key.toString('hex'), mucInfo);
+    this.subscribedMucs.set(mucInfo.key.toString('hex'), mucInfo);
   }
 
   // TODO move to CCI
@@ -332,12 +343,15 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     // Check if this is an Identity MUC by trying to create an Identity object
     // for it.
     // I'm not sure if that's efficient.
-    let id: Identity;
-    try {
-      const muc = ensureCci(mucInfo.getCube(cciFamily));
-      if (muc === undefined) return false;
-      id = new Identity(this.cubeStore, muc);
-    } catch (error) { return false; }
+    // Disabled for now as it's not really important and forces us to make
+    // MUC learning asynchroneous, which sometimes causes us to learn a MUC
+    // too late.
+    // let id: Identity;
+    // try {
+    //   const muc = ensureCci(mucInfo.getCube(cciFamily));
+    //   if (muc === undefined) return false;
+    //   id = await Identity.Construct(this.cubeStore, muc);
+    // } catch (error) { return false; }
     return true;  // all checks passed
   }
 
@@ -348,11 +362,11 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    * @emits "authorLearned" with a post CubeInfo if we just learned who the
    *        author of that post is.
    */
-  private learnAuthorsPosts(mucInfo: CubeInfo): void {
+  private async learnAuthorsPosts(mucInfo: CubeInfo): Promise<void> {
     // Is this even a MUC? Otherwise, it's definitely not a valid Identity.
-    if (mucInfo.cubeType != CubeType.MUC) return;
+    if (mucInfo.cubeType !== CubeType.MUC) return;
     // are we even interested in this author?
-    const muckeystring: string = mucInfo.key.toString('hex');
+    const muckeystring: string = mucInfo.keyString;
     if (!this.identityMucs.has(muckeystring)) return;
 
     // if this is the first time we learn of this author, initialize their cube set
@@ -365,14 +379,20 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     }
 
     // traverse cube and unknown subcubes
-    this.learnAuthorsPostsRecursion(mucInfo, mucInfo);
+    await this.learnAuthorsPostsRecursion(mucInfo, mucInfo);
 
     // Let our listeners know we've just processed a new or updated MUC.
     // For example, PostView may use this to update the displayed authorship information.
-    this.emit("authorUpdated", mucInfo);  }
+    this.emit("authorUpdated", mucInfo);
+  }
 
   /** Recursive part of learnAuthorsPosts */
-  private learnAuthorsPostsRecursion(mucInfo: CubeInfo, postInfo: CubeInfo, alreadyTraversed: Set<string> = new Set()): void {
+  // TODO limit recursion
+  private async learnAuthorsPostsRecursion(
+      mucInfo: CubeInfo,
+      postInfo: CubeInfo,
+      alreadyTraversed: Set<string> = new Set()
+  ): Promise<void> {
     const muckeystring: string = mucInfo.key.toString('hex');
     if (alreadyTraversed.has(muckeystring)) return;  // prevent endless recursion
     // If we either don't have this cube or know it already, do nothing...
@@ -394,7 +414,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       // traverse it for further MYPOST references.
       if (!this.authorsCubes.get(muckeystring).has(postkeystring)) {
         this.authorsCubes.get(muckeystring).add(postkeystring);
-        const postInfo: CubeInfo = this.cubeStore.getCubeInfo(postRef.remoteKey);
+        const postInfo: CubeInfo = await this.cubeStore.getCubeInfo(postRef.remoteKey);
         // We learned the authorship -- but but have we actually received this post yet?
         // (It's about a 50/50 chance we see the post or the authorship reference first.)
         // Only if we actually have this post, emit an event, check for displayability
@@ -408,16 +428,13 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     }
   }
 
-  crawlCubeStoreZw(): void {
+  protected async crawlCubeStoreEach(cubeInfo: CubeInfo): Promise<void> {
+    await super.crawlCubeStoreEach(cubeInfo);
     if (this.autoLearnMucs) {
-      for (const cubeInfo of this.cubeStore.getAllCubeInfo()) {
-        this.learnMuc(cubeInfo);
-      }
+      await this.learnMuc(cubeInfo);
     }
-    for (const cubeInfo of this.cubeStore.getAllCubeInfo()) {
-      this.learnAuthorsPosts(cubeInfo);
-      this.emitIfCubeDisplayable(cubeInfo);
-      this.emitIfCubeMakesOthersDisplayable(cubeInfo);
-    }
+    await this.learnAuthorsPosts(cubeInfo);
+    await this.emitIfCubeDisplayable(cubeInfo);
+    await this.emitIfCubeMakesOthersDisplayable(cubeInfo);
   }
 }

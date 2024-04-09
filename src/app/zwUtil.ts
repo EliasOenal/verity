@@ -46,7 +46,7 @@ export async function makePost(
     // Note: We currently just include our newest posts in our root MUC, and then include
     // reference to older posts within our new posts themselves.
     // We might need to change that again as it basically precludes us from ever
-    // de-referencing ("deleting") as post.
+    // de-referencing ("deleting") a post.
     // previous note was: use fibonacci spacing for post references instead of linear,
     // but only if there are actually enough posts to justify it
     cube.fields.insertTillFull(cciField.FromRelationships(
@@ -86,8 +86,10 @@ export function assertZwCube(cube: Cube): boolean {
     logger.trace("assertZwCube: Supplied cube does not have an application field");
     return false;
   }
-  if (applicationField.value.toString() != "ZW" &&
-      applicationField.value.toString() != "ID/ZW") {
+  if (applicationField.value.toString() !== "ZW" &&
+      applicationField.value.toString() !== "ID/ZW" &&
+      applicationField.value.toString() !== "ID"  // note: this is overly broad to be strictly considered ZW, ZW Identities should always identify as "ID/ZW". We're currently accepting just ID as there's not really a reason to stop parsing them just here.
+  ){
     logger.trace("assertZwCube: Supplied cube does not have a ZW application string");
     return false;
   }

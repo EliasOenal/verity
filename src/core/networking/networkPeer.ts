@@ -80,7 +80,7 @@ export class NetworkPeer extends Peer {
     get onlinePromise() { return this._onlinePromise; }
     get online() { return this._status === NetworkPeerLifecycle.ONLINE; }
 
-    private unsentCubeMeta: Set<CubeMeta> = undefined;
+    private unsentCubeMeta: Set<CubeMeta> = new Set();
     private unsentPeers: Peer[] = undefined;  // TODO this should probably be a Set instead
 
     get conn(): TransportConnection { return this._conn }
@@ -116,7 +116,9 @@ export class NetworkPeer extends Peer {
         // Take note of all cubes I could share with this new peer. While the
         // connection lasts, supplement this with any newly learned cubes.
         // This is used to ensure we don't offer peers the same cube twice.
-        this.unsentCubeMeta = cubeStore.getAllCubeMeta();
+        // TODO: In the interest of keeping peer handling efficient and reducing
+        // our Sybil attack surface this feature should be removed.
+        cubeStore.getAllCubeMeta().then(cubeMetas => {this.unsentCubeMeta = cubeMetas});
         cubeStore.on('cubeAdded', (cube: CubeMeta) => this.unsentCubeMeta.add(cube));
 
         // Take note of all other peers I could exchange with this new peer.
@@ -391,7 +393,7 @@ export class NetworkPeer extends Peer {
      * blindly request all Cubes.
      * @param data The HashResponse data.
      */
-    private handleKeyResponse(msg: KeyResponseMessage): void {
+    private async handleKeyResponse(msg: KeyResponseMessage): Promise<void> {
         if (this.lightNode) {
             logger.info(`${this.toString()}: handleKeyResponse() called but light mode enabled, doing nothing.`)
             return;
@@ -424,14 +426,14 @@ export class NetworkPeer extends Peer {
         }
 
         // For each regular key not in cube storage, request the cube
-        const missingKeys: Buffer[] = regularCubeInfo.filter(detail => !this.cubeStore.hasCube(detail.key)).map(detail => detail.key);
+        const missingKeys: Buffer[] = regularCubeInfo.filter(async detail => !(await this.cubeStore.hasCube(detail.key))).map(detail => detail.key);
         for (const muc of mucInfo) {
             // Request any MUC not in cube storage
-            if (!this.cubeStore.hasCube(muc.key)) {
+            if (!(await this.cubeStore.hasCube(muc.key))) {
                 missingKeys.push(muc.key);
             } else {
                 // For each MUC in cube storage, identify winner and request if necessary
-                const storedCube: CubeMeta = this.cubeStore.getCubeInfo(muc.key);
+                const storedCube: CubeMeta = await this.cubeStore.getCubeInfo(muc.key);
                 try {
                     const winningCube: CubeMeta = cubeContest(storedCube, muc);
                     if (winningCube !== storedCube) {
@@ -451,13 +453,13 @@ export class NetworkPeer extends Peer {
      * Handle a CubeRequest message.
      * @param data The CubeRequest data.
      */
-    private handleCubeRequest(msg: CubeRequestMessage): void {
+    private async handleCubeRequest(msg: CubeRequestMessage): Promise<void> {
         const requestedKeys: Generator<CubeKey> = msg.cubeKeys();
         // fetch all requested binary Cubes
         const binaryCubes: Buffer[] = [];
         for (const requestedKey of requestedKeys) {
             binaryCubes.push(
-                this.cubeStore.getCubeInfo(requestedKey).binaryCube);
+                (await this.cubeStore.getCubeInfo(requestedKey)).binaryCube);
         }
         const reply = new CubeResponseMessage(binaryCubes);
         logger.trace(`NetworkPeer ${this.toString()}: handleCubeRequest: sending ${reply.cubeCount} cubes`);
@@ -492,8 +494,8 @@ export class NetworkPeer extends Peer {
      */
     private handleServerAddress(msg: ServerAddressMessage): void {
         if (msg.address.type == SupportedTransports.ws && msg.address.ip === "0.0.0.0") {
-            // HACKHACK Handle special case: If the remote peer did not indicate it's
-            // IP address (but instead identifies any),
+            // HACKHACK Handle special case: If the remote peer did not indicate its
+            // IP address (but instead identifies as the 'any' address "0.0.0.0"),
             // substitute this by the IP address we're currently
             // using for this peer.
             // It's a bad solution implemented in ugly code.

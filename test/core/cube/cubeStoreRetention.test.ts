@@ -1,9 +1,9 @@
 import { Settings } from '../../../src/core/settings';
 import { Cube } from '../../../src/core/cube/cube';
-import { CubeStore as CubeStore } from '../../../src/core/cube/cubeStore';
+import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 describe('CubeStore Retention Policy', () => {
-    let cubeStore;
+    let cubeStore: CubeStore;
     const reducedDifficulty = 0;
 
     beforeEach(() => {
@@ -39,7 +39,7 @@ describe('CubeStore Retention Policy', () => {
 
         await cubeStore.addCube(currentCube);
 
-        const storedCube = cubeStore.getCube(currentCube.getKeyIfAvailable());
+        const storedCube: Cube = await cubeStore.getCube(currentCube.getKeyIfAvailable());
         expect(storedCube).toBeDefined();
         expect(storedCube!.getHash()).toEqual(currentCube.getHash());
     });

@@ -68,7 +68,7 @@ export interface CubeInfoOptions {
  * @classdesc CubeInfo describes a cube as seen by our local node.
  * While a cube is always a cube, our view of it changes over time.
  * From our local point of view, in this specific Verity instance any cube can
- * be in any of these two states:
+ * be in any of these three states:
  * - active:     The most complete state: We know the cube, have its binary
  *               representation stored and we have a Cube object in memory that we
  *               can use and call methods on.

@@ -63,7 +63,5 @@ describe('libp2p transport', () => {
   }, 1000000);
 
 
-  it.skip('automatically creates server objects as per supplied spec', async() => {
-    // TODO IMPLEMENT
-  });
+  it.todo('automatically creates server objects as per supplied spec');
 });

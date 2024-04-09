@@ -5,6 +5,8 @@
   (e.g. pruning based on available space -- this is especially important
   now that we basically don't have any content and will therefore basically
   not want to do any pruning at all)
+  Note: In the browser, use navigator.storage.estimate() to start pruning
+  well before we reach the returned quota.
 - Support multiple Cube exchange methods, implement ToW based exchange and
   enable it by default for full nodes.
   Rework current naive key list based exchange into a sliding-window based
@@ -14,6 +16,7 @@
   browser contexts.
 
 ## Microblogging app
+- PWA: Rework service worker to auto-update cached assets
 - QR codes for adding / subscribing to local friends
 
 # Other global TODOs

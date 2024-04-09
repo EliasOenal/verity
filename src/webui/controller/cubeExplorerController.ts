@@ -25,18 +25,18 @@ export class CubeExplorerController extends VerityController {
   // TODO pagination (we currently just abort after maxCubes and print a warning)
   // TODO sorting (e.g. by date)
   // TODO support non CCI cubes (including invalid / partial CCI cubes)
-  redisplay() {
+  async redisplay() {
     const search: string = (this.contentAreaView.renderedView.querySelector(
       ".verityCubeKeyFilter") as HTMLInputElement)?.value;
 
     this.contentAreaView.clearAll();
     let displayed = 0, unparsable = 0, filtered = 0;
-    for (const key of this.cubeStore.getAllKeystrings()) {
+    for (const key of await this.cubeStore.getAllKeystrings()) {
       if (search && !key.includes(search)) {
         filtered++;
         continue;  // skip non-matching
       }
-      const cube: Cube = this.cubeStore.getCube(key, cciFamily);  // try to parse as CCI, but probably okay if it's not
+      const cube: Cube = await this.cubeStore.getCube(key, cciFamily);  // try to parse as CCI, but probably okay if it's not
       if (!cube) {
         unparsable++;
         continue;  // TODO error handling
@@ -49,10 +49,10 @@ export class CubeExplorerController extends VerityController {
       }
     }
     this.contentAreaView.displayStats(
-      this.cubeStore.getNumberOfStoredCubes(), displayed, unparsable, filtered);
+      await this.cubeStore.getNumberOfStoredCubes(), displayed, unparsable, filtered);
   }
 
-  changeEncoding(select: HTMLSelectElement) {
+  async changeEncoding(select: HTMLSelectElement) {
     const cubeLi: HTMLLIElement =
       getElementAboveByClassName(select, "verityCube") as HTMLLIElement;
     const cubeKeyString = cubeLi.getAttribute("data-cubekey");
@@ -62,7 +62,7 @@ export class CubeExplorerController extends VerityController {
       logger.warn("CubeExplorerController.changeEncoding(): Could not find my elems and attrs, did you mess with my DOM elements?!");
       return;
     }
-    const cube = this.cubeStore.getCube(cubeKeyString, cciFamily);
+    const cube: Cube = await this.cubeStore.getCube(cubeKeyString, cciFamily);
     if (!cube) {
       logger.warn("CubeExplorerController.changeEncoding(): could not find Cube " + cubeKeyString);
       return;

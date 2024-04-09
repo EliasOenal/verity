@@ -45,7 +45,7 @@ describe('Identity', () => {
 
   describe('MUC storage basics', () => {
     it('should create an Identity, then store and retrieve it to and from a MUC object', async() => {
-      const original: Identity = Identity.Create(
+      const original: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       original.name = "Probator Identitatum";
       const muc = await original.makeMUC(undefined, reducedDifficulty);
@@ -53,15 +53,15 @@ describe('Identity', () => {
       const mucadded = await cubeStore.addCube(muc);
       expect(mucadded.getKeyIfAvailable()).toEqual(original.publicKey);
 
-      const restoredmuc: cciCube = cubeStore.getCube(await muc.getKey()) as cciCube;
+      const restoredmuc: cciCube = await cubeStore.getCube(await muc.getKey()) as cciCube;
       expect(restoredmuc).toBeInstanceOf(cciCube);
-      const restored = new Identity(cubeStore, restoredmuc);
+      const restored: Identity = await Identity.Construct(cubeStore, restoredmuc);
       expect(restored).toBeInstanceOf(Identity);
       expect(restored.name).toEqual("Probator Identitatum");
     }, 10000);
 
     it('should store and retrieve an Identity to and from a MUC object', async () => {
-      const original: Identity = Identity.Create(
+      const original: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
 
       // populate ID
@@ -77,7 +77,7 @@ describe('Identity', () => {
       await cubeStore.addCube(post);
       expect(postkey).toBeInstanceOf(Buffer);
       expect(original.posts.length).toEqual(1);
-      expect((cubeStore.getCube(original.posts[0]) as Cube).fields.getFirst(cciFieldType.PAYLOAD).value.toString('utf-8')).
+      expect((await cubeStore.getCube(original.posts[0]) as Cube).fields.getFirst(cciFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
 
       // compile ID into MUC
@@ -97,9 +97,9 @@ describe('Identity', () => {
       expect(mucadded.getKeyIfAvailable()).toEqual(original.publicKey);
 
       // Restore the Identity from the stored MUC
-      const restoredmuc: cciCube = cubeStore.getCube(await muc.getKey()) as cciCube;
+      const restoredmuc: cciCube = await cubeStore.getCube(await muc.getKey()) as cciCube;
       expect(restoredmuc).toBeInstanceOf(cciCube);
-      const restored = new Identity(cubeStore, restoredmuc);
+      const restored: Identity = await Identity.Construct(cubeStore, restoredmuc);
       expect(restored).toBeInstanceOf(Identity);
       expect(restored.name).toEqual("Probator Identitatum");
       expect(restored.profilepic[0]).toEqual(0xDA);
@@ -107,13 +107,13 @@ describe('Identity', () => {
       expect(restored.avatar.seedString).toEqual("0102030405");
       expect(restored.keyBackupCube[0]).toEqual(0x13);
       expect(restored.posts.length).toEqual(1);
-      expect((cubeStore.getCube(restored.posts[0]) as Cube).fields.getFirst(
+      expect((await cubeStore.getCube(restored.posts[0]) as Cube).fields.getFirst(
         cciFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
     }, 10000);
 
     it('should store and retrieve an Identity to and from a binary MUC', async () => {
-      const original: Identity = Identity.Create(
+      const original: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
 
       // populate ID
@@ -135,9 +135,10 @@ describe('Identity', () => {
       expect(mucadded.getKeyIfAvailable()).toEqual(original.publicKey);
 
       // restore Identity from stored MUC
-      const restoredmuc: Cube = cubeStore.getCube(await muc.getKey(), cciFamily);
+      const restoredmuc: Cube = await cubeStore.getCube(await muc.getKey(), cciFamily);
       expect(restoredmuc).toBeInstanceOf(Cube);
-      const restored = new Identity(cubeStore, restoredmuc as cciCube);
+      const restored: Identity = await Identity.Construct(
+        cubeStore, restoredmuc as cciCube);
       expect(restored).toBeInstanceOf(Identity);
       expect(restored.name).toEqual("Probator Identitatum");
       expect(restored.profilepic[0]).toEqual(0xDA);
@@ -145,13 +146,13 @@ describe('Identity', () => {
       expect(restored.avatar.seedString).toEqual("0102030405");
       expect(restored.keyBackupCube[0]).toEqual(0x13);
       expect(restored.posts.length).toEqual(1);
-      expect((cubeStore.getCube(restored.posts[0]) as Cube).fields.getFirst(cciFieldType.PAYLOAD).value.toString('utf-8')).
+      expect((await cubeStore.getCube(restored.posts[0]) as Cube).fields.getFirst(cciFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
     }, 10000);
 
     it('restores its post list recursively and sorted by creation time descending', async () => {
       const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
-      const original: Identity = Identity.Create(
+      const original: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       original.name = "Probator memoriae tabellae";
       const idkey = original.publicKey;
@@ -171,11 +172,11 @@ describe('Identity', () => {
       const muc: cciCube = original.muc;
       await cubeStore.addCube(muc);
 
-      const restored = new Identity(cubeStore, cubeStore.getCube(idkey) as cciCube)
+      const restored: Identity = await Identity.Construct(cubeStore, await cubeStore.getCube(idkey) as cciCube)
       expect(restored.posts.length).toEqual(TESTPOSTCOUNT);
-      let newerPost: cciCube = cubeStore.getCube(restored.posts[0]) as cciCube;
+      let newerPost: cciCube = await cubeStore.getCube(restored.posts[0]) as cciCube;
       for (let i=0; i<TESTPOSTCOUNT; i++) {
-        const restoredPost: cciCube = cubeStore.getCube(restored.posts[i]) as cciCube;
+        const restoredPost: cciCube = await cubeStore.getCube(restored.posts[i]) as cciCube;
         const postText: string = restoredPost.fields.getFirst(cciFieldType.PAYLOAD).value.toString('utf-8');
         expect(postText).toEqual("I got " + (TESTPOSTCOUNT-i).toString() + " important things to say");
         expect(restoredPost!.getDate()).toBeLessThanOrEqual(newerPost!.getDate());
@@ -190,7 +191,7 @@ describe('Identity', () => {
         parsers: cciFieldParsers,
         requiredDifficulty: 1,
       }
-      const id: Identity = Identity.Create(
+      const id: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       for (let i = 0; i < 100; i++) {
         // saving stuff
@@ -206,16 +207,16 @@ describe('Identity', () => {
         await cubeStore.addCube(muc);
 
         // reading it back
-        const restoredMuc = cubeStore.getCube(key, cciFamily) as cciCube;
+        const restoredMuc = await cubeStore.getCube(key, cciFamily) as cciCube;
         expect(restoredMuc).toBeInstanceOf(Cube);
-        const restored: Identity = new Identity(cubeStore, restoredMuc, idTestOptions);
+        const restored: Identity = await Identity.Construct(cubeStore, restoredMuc, idTestOptions);
         expect(restored.name).toEqual("Probator condendi repetitionis " + i);
         expect(parseInt(restored.avatar.seedString, 16)).toEqual(i);
       }
     }, 200000);
 
     it('does not store a default avatar to MUC', async() => {
-      const id: Identity = Identity.Create(
+      const id: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       const muc = await id.store();
       expect(muc.fields.getFirst(cciFieldType.AVATAR)).toBeUndefined();
@@ -224,7 +225,7 @@ describe('Identity', () => {
 
   describe('subscription recommendations', ()  => {
     it('correctly identifies authors as subscribed or not subscribed', async () => {
-      const subject: Identity = Identity.Create(
+      const subject: Identity = await Identity.Create(
         cubeStore, "subscriptor", "clavis mea", idTestOptions);
       subject.name = "Subscriptor novarum interessantiarum";
 
@@ -234,7 +235,7 @@ describe('Identity', () => {
       const nonsubscribed: CubeKey[] = [];
 
       for (let i=0; i<TESTSUBCOUNT; i++) {
-        const other: Identity = Identity.Create(
+        const other: Identity = await Identity.Create(
           cubeStore, "figurarius"+i, "clavis"+i, idTestOptions);
         other.name = "Figurarius subscriptus numerus " + i;
         other.muc.setDate(0);  // skip waiting period for the test
@@ -244,7 +245,7 @@ describe('Identity', () => {
         expect(subject.subscriptionRecommendations[i].equals(other.key)).toBeTruthy();
       }
       for (let i=0; i<TESTSUBCOUNT; i++) {
-        const other: Identity = Identity.Create(
+        const other: Identity = await Identity.Create(
           cubeStore, "non implicatus "+i, "secretum"+i, idTestOptions);
         other.name = "Persona non implicata " + i;
         other.muc.setDate(0);  // skip waiting period for the test
@@ -262,11 +263,11 @@ describe('Identity', () => {
     it('preserves extension MUC keys and does not update unchanged MUCs when adding subscriptions', async () => {
       // Create a subject. First subscribe 40 authors, then add one more.
       const TESTSUBCOUNT = 40;
-      const subject: Identity = Identity.Create(
+      const subject: Identity = await Identity.Create(
         cubeStore, "subscriptor", "clavis mea", idTestOptions);
       subject.name = "Subscriptor consuentus novarum interessantiarum";
       for (let i=0; i<TESTSUBCOUNT; i++) {
-        const other: Identity = Identity.Create(
+        const other: Identity = await Identity.Create(
           cubeStore, "figurarius"+i, "clavis"+i, idTestOptions);
         other.name = "Figurarius " + i + "-tus";
         other.muc.setDate(0);  // skip waiting period for the test
@@ -291,7 +292,7 @@ describe('Identity', () => {
       expect(secondExtensionMucHash).toBeInstanceOf(Buffer);
 
       // Now add one more subscription
-      const plusone: Identity = Identity.Create(
+      const plusone: Identity = await Identity.Create(
         cubeStore, "adiectus", "secretum", idTestOptions);
       plusone.name = "Figurarius adiectus"
       plusone.muc.setDate(0);  // accelerate test
@@ -323,7 +324,7 @@ describe('Identity', () => {
     it("correctly saves and restores recommended subscriptions to and from extension MUCs", async () => {
       // Create a subject and subscribe 100 other authors
       const TESTSUBCOUNT = 100;
-      const subject: Identity = Identity.Create(
+      const subject: Identity = await Identity.Create(
         cubeStore,
         "subscriptor",
         "clavis mea",
@@ -331,7 +332,7 @@ describe('Identity', () => {
       );
       subject.name = "Subscriptor novarum interessantiarum";
       for (let i = 0; i < TESTSUBCOUNT; i++) {
-        const other: Identity = Identity.Create(
+        const other: Identity = await Identity.Create(
           cubeStore,
           "figurarius" + i,
           "clavis" + i,
@@ -349,7 +350,7 @@ describe('Identity', () => {
       const muc: cciCube = await subject.store(undefined, reducedDifficulty);
 
       // Master MUC stored in CubeStore?
-      const recovered_muc: cciCube = cubeStore.getCube(subject.key) as cciCube;
+      const recovered_muc: cciCube = await cubeStore.getCube(subject.key) as cciCube;
       expect(recovered_muc).toBeInstanceOf(cciCube);
 
       // First subscription recommendation index saved in MUC?
@@ -365,7 +366,7 @@ describe('Identity', () => {
         )
       ).toBeTruthy();
       // First subscription recommendation index saved in CubeStore?
-      const firstIndexCube: cciCube = cubeStore.getCube(
+      const firstIndexCube: cciCube = await cubeStore.getCube(
         rel.remoteKey
       ) as cciCube;
       expect(firstIndexCube).toBeInstanceOf(cciCube);
@@ -384,21 +385,21 @@ describe('Identity', () => {
           cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX
         );
       expect(secondIndexRel).toBeInstanceOf(cciRelationship);
-      const secondIndexCube: cciCube = cubeStore.getCube(
+      const secondIndexCube: cciCube = await cubeStore.getCube(
         secondIndexRel.remoteKey
       ) as cciCube;
       expect(secondIndexCube).toBeInstanceOf(cciCube);
 
       // let's put it all together:
       // all subscription recommendations correctly restored?
-      const restored: Identity = new Identity(cubeStore, muc);
+      const restored: Identity = await Identity.Construct(cubeStore, muc);
       expect(restored.subscriptionRecommendations.length).toEqual(TESTSUBCOUNT);
       for (let i = 0; i < TESTSUBCOUNT; i++) {
-        const othermuc = cubeStore.getCube(
+        const othermuc = await cubeStore.getCube(
           restored.subscriptionRecommendations[i]
         ) as cciCube;
         expect(othermuc).toBeInstanceOf(cciCube);
-        const restoredother: Identity = new Identity(cubeStore, othermuc);
+        const restoredother: Identity = await Identity.Construct(cubeStore, othermuc);
         expect(restoredother.name).toEqual("Figurarius " + i + "-tus");
       }
     }, 10000);
@@ -439,7 +440,7 @@ describe('Identity', () => {
 
       let idkey: CubeKey | undefined = undefined;
       {  // phase 1: create new identity and store it
-        const id: Identity = Identity.Create(
+        const id: Identity = await Identity.Create(
           cubeStore, "usor probationis", "clavis probationis", idTestOptions);
         idkey = id.key;
         expect(id.name).toBeUndefined();
@@ -466,8 +467,8 @@ describe('Identity', () => {
 
   describe('static helpers', () => {
     describe('Create', () => {
-      it('should create a valid Identity', () => {
-        const original: Identity = Identity.Create(
+      it('should create a valid Identity', async () => {
+        const original: Identity = await Identity.Create(
           cubeStore, "usor probationis", "clavis probationis", idTestOptions);
         expect(original.masterKey).toBeInstanceOf(Buffer);
         expect(original.key).toBeInstanceOf(Buffer);
@@ -478,8 +479,8 @@ describe('Identity', () => {
       // Note: This test asserts key derivation (and avatar) stability.
       // It is at full hardness in order to automatically detect
       // any inconsitencies occurring on prod settings.
-      it('should be stable, i.e. always create the same Identity including the same avatar for the same user/pass combo at full hardness', () => {
-        const id: Identity = Identity.Create(
+      it('should be stable, i.e. always create the same Identity including the same avatar for the same user/pass combo at full hardness', async () => {
+        const id: Identity = await Identity.Create(
           cubeStore, "Identitas stabilis", "Clavis stabilis", {
             persistance: undefined,
             requiredDifficulty: 0,  // this is just the hashcash level,
@@ -510,7 +511,7 @@ describe('Identity', () => {
 
       it('correctly restores an existing Identity', async () => {
         // create an Identity
-        const original: Identity = Identity.Create(
+        const original: Identity = await Identity.Create(
           cubeStore, "usor probationis", "clavis probationis", idTestOptions);
         // make lots of custom changes
         original.name = "Sum usor frequens, semper redeo"
@@ -534,7 +535,7 @@ describe('Identity', () => {
         await original.store();
 
         // restore Identity
-        const restored = Identity.Load(cubeStore,
+        const restored: Identity = await Identity.Load(cubeStore,
           "usor probationis", "clavis probationis", idTestOptions);
 
         // assert all values custom changes still present

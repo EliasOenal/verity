@@ -32,7 +32,7 @@ describe("Identity2", () => {
     // second apart as our minimal time resolution is one full second.
     // Threfore, it by definition takes at least three seconds.
     it("correctly handles subsequent changes", async () => {
-      const id: Identity = Identity.Create(
+      const id: Identity = await Identity.Create(
         cubeStore,
         "usor probationis",
         "clavis probationis",
@@ -76,7 +76,7 @@ describe("Identity2", () => {
     // actual default minimum MUC spacing of 5 seconds, and therefore by
     // definition takes at least 5 seconds.
     it("combines makeMUC requests spaced less than 5 seconds apart", async () => {
-      const id: Identity = Identity.Create(
+      const id: Identity = await Identity.Create(
         cubeStore,
         "usor probationis",
         "clavis probationis",
