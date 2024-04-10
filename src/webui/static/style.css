@@ -9,8 +9,13 @@
 
 body {
   min-width: 20em;
+  overscroll-behavior-y: contain;  /* disable pull to refresh */
 }
-
+@media (max-width: 575px) { /* HACKHACK: this replicates Bootstrap's breakpoint -- TODO reference it properly instead */
+  body {
+    touch-action: pan-y;  /* disable pinch to zoom and lots of other stuff -- allow vertical scrolling only */
+  }
+}
 
 /**
  * Animation stuff
