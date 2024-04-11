@@ -180,6 +180,25 @@ export class Identity {
     return ids;
   }
 
+  static validateMuc(mucInfo: CubeInfo): boolean {
+    // is this even a MUC?
+    if (mucInfo.cubeType != CubeType.MUC) return false;
+
+    // Check if this is an Identity MUC by trying to create an Identity object
+    // for it.
+    // I'm not sure if that's efficient.
+    // Disabled for now as it's not really important and forces us to make
+    // MUC learning asynchroneous, which sometimes causes us to learn a MUC
+    // too late.
+    // let id: Identity;
+    // try {
+    //   const muc = ensureCci(mucInfo.getCube(cciFamily));
+    //   if (muc === undefined) return false;
+    //   id = await Identity.Construct(this.cubeStore, muc);
+    // } catch (error) { return false; }
+    return true;  // all checks passed
+  }
+
   /** @member This Identity's display name */
   name: string = undefined;
 
@@ -297,6 +316,13 @@ export class Identity {
     this.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY,
     this.parsers = options?.parsers ?? cciFieldParsers;
     this.persistance = options?.persistance ?? undefined;
+
+    // Subscribe to remote Identity updates (i.e. same user using multiple devices)
+    // Note: We're subscribing using once instead of on and renew the subscription
+    // manually on each call as this saves us from implementing a destructor-like
+    // shutdown procedure.
+    this.cubeStore.once("cubeAdded",
+      cubeInfo => this.mergeRemoteChanges(cubeInfo));
 
     // are we loading or creating an Identity?
     if (mucOrMasterkey instanceof Cube) {  // checking for the more generic Cube instead of cciCube as this is the more correct branch compared to handling this as a KeyPair (also Cube subclass handling is not completely clean yet throughout our codebase)
@@ -644,8 +670,22 @@ export class Identity {
     this._muc = muc;
   }
 
+  private mergeRemoteChanges(incoming: CubeInfo): void {
+    // renew subscription
+    this.cubeStore.once("cubeAdded",
+      cubeInfo => this.mergeRemoteChanges(cubeInfo));
+    // check if this is even our MUC
+    if (!(incoming.key.equals(this.key))) return;
+    // check if this MUC is even valid
+    if (!Identity.validateMuc(incoming)) return;
+    // TODO: This does not actually perform a merge,
+    // it just gives precedence to the remote version.
+    // TODO: This currently creates a race condition as parseMuc() is async.
+    this.parseMuc(incoming.getCube(cciFamily) as cciCube);
+  }
+
   // TODO: check and limit recursion
-  async recursiveParseSubscriptionRecommendations(
+  private async recursiveParseSubscriptionRecommendations(
       mucOrMucExtension: Cube,
       alreadyTraversedCubes: string[] = []
   ): Promise<void> {

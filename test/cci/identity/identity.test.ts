@@ -405,6 +405,74 @@ describe('Identity', () => {
     }, 10000);
   });  // describe subscription recommendations
 
+  describe('remote updates', () => {
+    it('will preserve posts written, users subscribed to as well as name and avatar changes performed on another device', async() => {
+      // create an Identity
+      const id: Identity = await Identity.Create(
+        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
+      // make a post and set some user attributes
+      id.name = "Dominus plurium apparatorum";
+      id.avatar = new Avatar("1234567890", AvatarScheme.MULTIAVATAR);
+      await cubeStore.addCube(await makePost(
+        "Hoc est scriptum in computatore domi meae",
+        undefined, id, reducedDifficulty));
+      await id.store();
+      // expect everything to be saved correctly
+      expect(id.name).toEqual("Dominus plurium apparatorum")
+      expect(id.avatar.seedString).toEqual("1234567890");
+      expect(id.posts.length).toBe(1);
+      expect((await cubeStore.getCube(id.posts[0])).fields.getFirst(
+        cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
+          "Hoc est scriptum in computatore domi meae");
+
+      // re-instantiate same identity
+      const secondDeviceId: Identity = await Identity.Load(
+        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
+      // expect all data to have loaded correctly
+      expect(secondDeviceId.name).toEqual("Dominus plurium apparatorum")
+      expect(secondDeviceId.avatar.seedString).toEqual("1234567890");
+      expect(secondDeviceId.posts.length).toBe(1);
+      expect((await cubeStore.getCube(secondDeviceId.posts[0])).fields.getFirst(
+        cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
+          "Hoc est scriptum in computatore domi meae");
+      // perform changes
+      await cubeStore.addCube(await makePost(
+        "Hoc scriptum est in telefono mobili meo",
+        undefined, secondDeviceId, reducedDifficulty));
+      secondDeviceId.name = "Dominus plurium apparatorum qui nunc iter agit";
+      secondDeviceId.avatar = new Avatar("cafebabe42", AvatarScheme.MULTIAVATAR);
+      await secondDeviceId.store();
+      // expect all changes to be saved correctly
+      expect(secondDeviceId.name).toEqual("Dominus plurium apparatorum qui nunc iter agit")
+      expect(secondDeviceId.avatar.seedString).toEqual("cafebabe42");
+      expect(secondDeviceId.posts.length).toBe(2);
+      expect((await cubeStore.getCube(secondDeviceId.posts[1])).fields.getFirst(
+        cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
+          "Hoc est scriptum in computatore domi meae");
+      expect((await cubeStore.getCube(secondDeviceId.posts[0])).fields.getFirst(
+        cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
+          "Hoc scriptum est in telefono mobili meo");
+
+      await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
+
+      // expect all changes to have synced to the the first "device"
+      // (= original Identity instance)
+      expect(id.name).toEqual("Dominus plurium apparatorum qui nunc iter agit")
+      expect(id.avatar.seedString).toEqual("cafebabe42");
+      expect(id.posts.length).toBe(2);
+      expect((await cubeStore.getCube(id.posts[1])).fields.getFirst(
+        cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
+          "Hoc est scriptum in computatore domi meae");
+      expect((await cubeStore.getCube(id.posts[0])).fields.getFirst(
+        cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
+          "Hoc scriptum est in telefono mobili meo");
+    });
+
+    // this will probably still fail as we currently don't actively attempt to merge
+    // conflicting MUC versions
+    it.todo('will merge posts created on this and another device in quick succession');
+  });
+
   describe('local persistant storage', () => {
     let persistance: IdentityPersistance;
     let idTestOptions: IdentityOptions;
@@ -546,7 +614,7 @@ describe('Identity', () => {
         expect(restored.avatar.seedString).toEqual(chosenAvatar);
         expect(restored.posts.length).toEqual(1);
         expect(restored.posts[0]).toEqual(myPostKey);
-      })
-    })
-  })
+      });
+    });
+  });  // static helpers
 });
