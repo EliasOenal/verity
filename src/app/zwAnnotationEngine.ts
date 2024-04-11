@@ -316,7 +316,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   // Note: learnMuc must not be made async, as then we might learn the MUC after
   // they're being evaluated, leading to false negatives
   private learnMuc(mucInfo: CubeInfo): void {
-    if (this.validateMuc(mucInfo) === true) {
+    if (Identity.validateMuc(mucInfo) === true) {
       this.identityMucs.set(mucInfo.key.toString('hex'), mucInfo);
       // logger.trace(`ZwAnnotationEngine: Learned Identity MUC ${key.toString('hex')}, user name ${id.name}`);
     }
@@ -333,26 +333,6 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     // Note: We are not validating subscribed MUCs as this is expensive and asynchroneous.
     this.identityMucs.set(mucInfo.key.toString('hex'), mucInfo);
     this.subscribedMucs.set(mucInfo.key.toString('hex'), mucInfo);
-  }
-
-  // TODO move to CCI
-  private validateMuc(mucInfo: CubeInfo): boolean {
-    // is this even a MUC?
-    if (mucInfo.cubeType != CubeType.MUC) return false;
-
-    // Check if this is an Identity MUC by trying to create an Identity object
-    // for it.
-    // I'm not sure if that's efficient.
-    // Disabled for now as it's not really important and forces us to make
-    // MUC learning asynchroneous, which sometimes causes us to learn a MUC
-    // too late.
-    // let id: Identity;
-    // try {
-    //   const muc = ensureCci(mucInfo.getCube(cciFamily));
-    //   if (muc === undefined) return false;
-    //   id = await Identity.Construct(this.cubeStore, muc);
-    // } catch (error) { return false; }
-    return true;  // all checks passed
   }
 
   /**
