@@ -1,6 +1,6 @@
 import { Settings } from '../../../src/core/settings';
 import { Cube } from '../../../src/core/cube/cube';
-import { CubeStore } from '../../../src/core/cube/cubeStore';
+import { CubeStore, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 
 describe('CubeStore Retention Policy', () => {
     let cubeStore: CubeStore;
@@ -8,7 +8,7 @@ describe('CubeStore Retention Policy', () => {
 
     beforeEach(() => {
         cubeStore = new CubeStore({
-            enableCubePersistance: false,
+            enableCubePersistence: EnableCubePersitence.OFF,
             requiredDifficulty: Settings.REQUIRED_DIFFICULTY,
             enableCubeRetentionPolicy: true,
         });
@@ -32,7 +32,7 @@ describe('CubeStore Retention Policy', () => {
 
     it('should accept a current cube', async () => {
         // TODO reduce challenge level for tests -- currently running on full
-        // due to lifetime becoming negative on level challenge levels
+        // due to lifetime becoming negative on low challenge levels
         // https://github.com/EliasOenal/verity/issues/134
         const currentCube = Cube.Frozen({requiredDifficulty: Settings.REQUIRED_DIFFICULTY});
         currentCube.setDate(Math.floor(Date.now() / 1000)); // current time
@@ -43,4 +43,6 @@ describe('CubeStore Retention Policy', () => {
         expect(storedCube).toBeDefined();
         expect(storedCube!.getHash()).toEqual(currentCube.getHash());
     });
+
+    // TODO add more tests, e.g. concerning persistence
 });

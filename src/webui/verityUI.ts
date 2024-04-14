@@ -15,6 +15,7 @@ import { VeraAnimationController } from './controller/veraAnimationController';
 import { isBrowser } from 'browser-or-node';
 import sodium from 'libsodium-wrappers-sumo'
 import { VerityController } from './controller/verityController';
+import { EnableCubePersitence } from '../core/cube/cubeStore';
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
@@ -36,7 +37,7 @@ export class VerityUI {
       {
         announceToTorrentTrackers: false,
         autoConnect: true,
-        enableCubePersistance: true,
+        enableCubePersistence: EnableCubePersitence.BACKUP,  // TODO change to primary once we don't habitually crawl the whole CubeStore anymore
         lightNode: false,
         peerExchange: true,
         useRelaying: true,

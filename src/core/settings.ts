@@ -1,13 +1,15 @@
-
 export const Settings = {
     // Cube related:
     CUBE_VERSION: 1,         // Cubes sculpted locally will have this version
     REQUIRED_DIFFICULTY: 12,  // hash cash must have this many zero bits at the end
     HASHCASH_SIZE: 4,  // reverse at least 4 bytes as scratch space for hash cash, giving us 2^32 attempts which is more than enough
-    CUBE_PERSISTANCE: true,
     TREE_OF_WISDOM: true, // enable Tree of Wisdom structure for efficient cube syncing
     CUBE_RETENTION_POLICY: false,  // Verify cubes against current epoch
     NONCE_SIZE: 4,  // reserve at least 4 bytes as scratch space for hash cash, giving us 2^32 attempts which is more than enough
+
+    // CubeStore related
+    // - CubePersistence related
+    CUBE_PERSISTENCE_DB_NAME: "cubes",
 
     /**
      * Seed bytes used to derive a MUC extension key from a user's master key.

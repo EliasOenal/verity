@@ -13,6 +13,7 @@ import { vera } from './misc/vera';
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
+import { EnableCubePersitence } from './core/cube/cubeStore';
 
 let readline: any;
 let cmd;
@@ -140,7 +141,7 @@ class VerityCmdClient {
           this.node = new VerityNode(servers, peers,
             {
               announceToTorrentTrackers: tracker,
-              enableCubePersistance: !nopersist,
+              enableCubePersistence: nopersist? EnableCubePersitence.OFF : EnableCubePersitence.BACKUP,  // TODO change to primary once tests are clean
               autoConnect: true,
               lightNode: false,
               peerExchange: true,
@@ -156,7 +157,7 @@ class VerityCmdClient {
         {
           announceToTorrentTrackers: false,
           autoConnect: true,
-          enableCubePersistance: true,
+          enableCubePersistence: EnableCubePersitence.BACKUP,
           lightNode: false,
           peerExchange: true,
         });

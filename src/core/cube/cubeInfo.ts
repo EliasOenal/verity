@@ -13,7 +13,7 @@ export interface CubeMeta {
   key: CubeKey;
   cubeType: CubeType;
   date: number;
-  challengeLevel: number;
+  difficulty: number;
 }
 
 export interface CubeInfoOptions {
@@ -106,8 +106,24 @@ export class CubeInfo {
   private _cubeType: CubeType = undefined;
   get cubeType(): CubeType { return Cube.Type(this.binaryCube) ?? this._cubeType }
 
-  date: number = undefined;
-  challengeLevel: number = undefined;
+  private _date: number = undefined;
+  get date(): number {
+    if (this._date === undefined) {
+      const cube = this.getCube();
+      this._date = cube.getDate();
+    }
+    return this._date;
+  }
+
+  private _difficulty: number = undefined;
+  get difficulty(): number {
+    if (this._difficulty === undefined) {
+      const cube = this.getCube();
+      this._difficulty = cube.getDifficulty();
+    }
+    return this._difficulty;
+  }
+
   readonly family: CubeFamilyDefinition;
 
   /**
@@ -124,8 +140,8 @@ export class CubeInfo {
   // contradictory information as we currently don't validate the details
   // provided against the information contained in the actual (binary) Cube.
   constructor(options: CubeInfoOptions) {
-    this.date = options.date;
-    this.challengeLevel = options.challengeLevel;
+    this._date = options.date;
+    this._difficulty = options.challengeLevel;
 
     if (options.cube instanceof Cube) {
       // active Cube
