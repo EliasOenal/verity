@@ -1,7 +1,7 @@
 // cubePersistence.ts
 import { CubeInfo } from './cubeInfo';
 import { EventEmitter } from 'events';
-import { VerityError } from "../settings";
+import { Settings, VerityError } from "../settings";
 
 import { logger } from '../logger';
 
@@ -10,17 +10,22 @@ import { Buffer } from 'buffer';
 import { Level } from 'level';
 
 const CUBEDB_VERSION = 3;
-// TODO: If we find random data in the database that doesn't parse as a cube, we should delete it.
+// maybe TODO: If we find random data in the database that doesn't parse as a cube, should we delete it?
+
+export interface CubePersistenceOptions {
+  dbName?: string;
+}
 
 // Will emit a ready event once available
 export class CubePersistence extends EventEmitter {
   private db: Level<string, Buffer>
 
-  constructor() {
+  constructor(options?: CubePersistenceOptions) {
     super();
-    let dbname: string;
-    if (isBrowser || isWebWorker) dbname = "cubes";
-    else dbname = "./cubes.db";
+    // Set database name, add .db file extension for non-browser environments
+    let dbname: string = options?.dbName ?? Settings.CUBE_PERSISTENCE_DB_NAME;
+    if (!isBrowser && !isWebWorker) dbname += ".db";
+    // open the database
     this.db = new Level<string, Buffer>(
       dbname,
       {
@@ -37,21 +42,37 @@ export class CubePersistence extends EventEmitter {
   storeCubes(data: Map<string, CubeInfo>) {
     if (this.db.status != 'open') return;
     for (const [key, cubeInfo] of data) {
-      this.storeRawCube(key, cubeInfo.binaryCube)
+      this.storeCube(key, cubeInfo.binaryCube)
     }
   }
 
-  storeRawCube(key: string, rawcube: Buffer): Promise<void> {
+  storeCube(key: string, cube: Buffer): Promise<void> {
     // TODO: This is an asynchronous storage operation, because just about
     // every damn thing in this language is asynchronous.
     // Handle the result event some time, maybe... or don't, whatever.
     if (this.db.status != 'open') return;
     // logger.trace("cubePersistent: Storing cube " + key);
-    return this.db.put(key, rawcube);
+    return this.db.put(key, cube);
+  }
+
+  async getCube(key: string): Promise<Buffer> {
+    try {
+      const ret = await this.db.get(key);
+      return ret;
+    } catch (error) {
+      logger.trace(`CubePersistance.getCube(): Cannot find Cube ${key}, error status ${error.status} ${error.code}, ${error.message}`);
+      return undefined;
+    }
+  }
+
+  getAllKeys(options = {}): Promise<Array<string>> {
+    if (this.db.status != 'open') return;
+    return this.db.keys(options).all();
   }
 
   // Creates an asynchronous request for all raw cubes.
-  requestRawCubes(options = {}): Promise<Array<Buffer>> {
+  // TODO: return an iterable instead
+  getAllCubes(options = {}): Promise<Array<Buffer>> {
     if (this.db.status != 'open') return;
     return this.db.values(options).all();
   }
@@ -61,7 +82,7 @@ export class CubePersistence extends EventEmitter {
    * @param {string} key The key of the cube to be deleted.
    * @returns {Promise<void>} A promise that resolves when the cube is deleted, or rejects with an error.
    */
-  async deleteRawCube(key: string): Promise<void> {
+  async deleteCube(key: string): Promise<void> {
     if (this.db.status !== 'open') {
       logger.error("cubePersistence: Attempt to delete cube in a closed DB");
       throw new PersistenceError("DB is not open");
@@ -73,6 +94,10 @@ export class CubePersistence extends EventEmitter {
     } catch (error) {
       logger.error(`cubePersistence: Failed to delete cube with key ${key}: ${error}`);
     }
+  }
+
+  async shutdown(): Promise<void> {
+    await this.db.close();
   }
 }
 

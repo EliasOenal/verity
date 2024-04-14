@@ -1,5 +1,5 @@
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { CubeStore } from "../../../src/core/cube/cubeStore";
+import { CubeStore, EnableCubePersitence } from "../../../src/core/cube/cubeStore";
 import { Identity, IdentityOptions } from "../../../src/cci/identity/identity";
 import { cciCube } from "../../../src/cci/cube/cciCube";
 
@@ -21,7 +21,7 @@ describe("Identity2", () => {
 
   beforeEach(async () => {
     cubeStore = new CubeStore({
-      enableCubePersistance: false,
+      enableCubePersistence: EnableCubePersitence.OFF,
       requiredDifficulty: 0, // require no hashcash for faster testing
     });
   });

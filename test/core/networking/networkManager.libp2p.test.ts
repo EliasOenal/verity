@@ -12,7 +12,7 @@ import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { CubeField, CubeFieldType } from '../../../src/core/cube/cubeField';
 import { CubeFields } from '../../../src/core/cube/cubeFields';
-import { CubeStore } from '../../../src/core/cube/cubeStore';
+import { CubeStore, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 
 import { Peer } from '../../../src/core/peering/peer';
 import { PeerDB } from '../../../src/core/peering/peerDB';
@@ -28,7 +28,7 @@ import sodium from 'libsodium-wrappers-sumo'
 describe('networkManager - libp2p connections', () => {
   const reducedDifficulty = 0;
   const testCubeStoreParams = {
-    enableCubePersistance: false,
+    enableCubePersistance: EnableCubePersitence.OFF,
     enableCubeRetentionPolicy: false,
     requiredDifficulty: 0
   }

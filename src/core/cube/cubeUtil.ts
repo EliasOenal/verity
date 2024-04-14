@@ -54,8 +54,8 @@ export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMe
             break;
         case CubeType.PIC:
             // Calculate the expiration date of each cube
-            const expirationLocalCube = localCube.date + (cubeLifetime(localCube.challengeLevel) * UNIX_SECONDS_PER_EPOCH);
-            const expirationIncomingCube = incomingCube.date + (cubeLifetime(incomingCube.challengeLevel) * UNIX_SECONDS_PER_EPOCH);
+            const expirationLocalCube = localCube.date + (cubeLifetime(localCube.difficulty) * UNIX_SECONDS_PER_EPOCH);
+            const expirationIncomingCube = incomingCube.date + (cubeLifetime(incomingCube.difficulty) * UNIX_SECONDS_PER_EPOCH);
 
             // Resolve the conflict based on expiration dates
             if (expirationLocalCube > expirationIncomingCube) {

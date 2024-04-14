@@ -86,7 +86,7 @@ export class KeyResponseMessage extends NetworkMessage {
         offset += NetConstants.CUBE_TYPE_SIZE;
 
         value.writeUIntBE(
-          cubeMeta.challengeLevel, offset, NetConstants.CHALLENGE_LEVEL_SIZE);
+          cubeMeta.difficulty, offset, NetConstants.CHALLENGE_LEVEL_SIZE);
         offset += NetConstants.CHALLENGE_LEVEL_SIZE;
 
         // Convert the date (timestamp) to a 5-byte buffer and copy

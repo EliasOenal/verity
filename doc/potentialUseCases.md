@@ -7,6 +7,7 @@ But still, let's collect some ideas:
 - Microblogging
 - Collection of billing data, e.g. from smart meters
 - LoRa access point
+- Storage of survey results, e.g. Diary Studies
 
 ## User growth strategies
 ### Microblogging

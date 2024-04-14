@@ -1,6 +1,6 @@
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
-import { CubeStore } from '../../../src/core/cube/cubeStore';
+import { CubeStore, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 import { Cube } from '../../../src/core/cube/cube'
 
 import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
@@ -37,7 +37,7 @@ describe('Identity', () => {
 
   beforeEach(async () => {
     cubeStore = new CubeStore({
-      enableCubePersistance: false,
+      enableCubePersistence: EnableCubePersitence.OFF,
       requiredDifficulty: 0,  // require no hashcash for faster testing
       enableCubeRetentionPolicy: false,  // TODO: we should make these tests pass with retention policy enabled
     });
