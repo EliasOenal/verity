@@ -5,11 +5,12 @@ import { CubeInfo, CubeMeta } from './cubeInfo'
 import { CubePersistence, CubePersistenceOptions } from "./cubePersistence";
 import { CubeType, CubeKey, InsufficientDifficulty } from './cubeDefinitions';
 import { CubeFamilyDefinition } from './cubeFamily';
-import { cubeContest, shouldRetainCube, getCurrentEpoch } from './cubeUtil';
+import { cubeContest, shouldRetainCube, getCurrentEpoch, keyVariants } from './cubeUtil';
 import { TreeOfWisdom } from '../tow';
 import { logger } from '../logger';
 
 import { EventEmitter } from 'events';
+import { WeakValueMap } from 'weakref'
 import { Buffer } from 'buffer';
 
 // TODO: we need to be able to pin certain cubes
@@ -87,11 +88,13 @@ export interface CubeStoreOptions {
 export class CubeStore extends EventEmitter {
   readyPromise: Promise<any>;
 
+  readonly inMemory: boolean;
+
   /**
    * If this CubeStore is configured to keep Cubes in RAM, this will be where
    * we store them.
    */
-  private storage: Map<string, CubeInfo> = undefined;
+  private storage: Map<string, CubeInfo> | WeakValueMap<string, CubeInfo> = undefined;
 
   /** Refers to the persistant cube storage database, if available and enabled */
   private persistence: CubePersistence = undefined;
@@ -121,18 +124,21 @@ export class CubeStore extends EventEmitter {
     if (options?.enableCubePersistence > EnableCubePersitence.OFF) {
       this.persistence = new CubePersistence(options);
       if (options.enableCubePersistence >= EnableCubePersitence.PRIMARY) {
-        this.storage = undefined;
+        this.inMemory = false;
+        this.storage = new WeakValueMap();  // in-memory cache
       } else {
+        this.inMemory = true;
         this.storage = new Map();
       }
 
       this.persistence.on('ready', async () => {
         logger.trace("cubeStore: received ready event from cubePersistence");
-        if (this.storage) await this.syncPersistentStorage();
+        if (this.inMemory) await this.syncPersistentStorage();
         this.pruneCubes();  // not await-ing as pruning is non-essential
         this.emit("ready");
       });
     } else {
+      this.inMemory = true;
       this.storage = new Map();
       this.emit("ready");
     }
@@ -215,7 +221,7 @@ export class CubeStore extends EventEmitter {
         }
       }
 
-      // Store the cube to RAM -- TODO: does not scale, obviously
+      // Store the cube to RAM (or in-memory cache)
       if (this.storage) this.storage.set(cubeInfo.keyString, cubeInfo);
       // save cube to disk (if available and enabled)
       if (this.persistence) {
@@ -247,40 +253,41 @@ export class CubeStore extends EventEmitter {
     }
   }
 
+  // TODO get rid of this method
   async hasCube(key: CubeKey | string): Promise<boolean> {
-    if (key instanceof Buffer) key = key.toString('hex');
-    if (this.storage) return this.storage.has(key);
-    else return await this.persistence.getCube(key) ? true: false;  // TODO: is there a more efficient way to do this?
+    const cubeInfo = await this.getCubeInfo(key);
+    if (cubeInfo !== undefined) return true;
+    else return false;
   }
 
   async getNumberOfStoredCubes(): Promise<number> {
-    if (this.storage) return this.storage.size;
+    if (this.inMemory) return (this.storage as Map<string, CubeInfo>).size;
     else {
-      const all = await this.persistence.getAllCubes();
-      return (all).length;  // TODO: is there a more efficient way to do this?
+      return (await this.persistence.getAllCubes()).length;  // TODO: is there a more efficient way to do this?
     }
-  }
-
-  keyVariants(keyInput: CubeKey | string): {keyString: string, binaryKey: CubeKey} {
-    let keyString: string, binaryKey: CubeKey;
-    if (keyInput instanceof Buffer) {
-      keyString = keyInput.toString('hex');
-      binaryKey = keyInput;
-    } else {
-      keyString = keyInput;
-      binaryKey = Buffer.from(keyInput, 'hex');
-    }
-    return {keyString: keyString, binaryKey: binaryKey};
   }
 
   async getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo> {
-    const key = this.keyVariants(keyInput);
-    if (this.storage) return this.storage.get(key.keyString);
-    else return new CubeInfo({
-      key: key.binaryKey,
-      cube: await this.persistence.getCube(key.keyString),
-      family: this.family,
-    });
+    const key = keyVariants(keyInput);
+    if (this.inMemory) return this.storage.get(key.keyString);
+    else {  // persistence is primary -- get from cache or fetch from persistence
+      const cached = this.storage.get(key.keyString);
+      if (cached) return cached;
+      else {
+        const binaryCube: Buffer = await this.persistence.getCube(key.keyString);
+        if (binaryCube !== undefined) {
+          const cubeInfo = new CubeInfo({
+            key: key.binaryKey,
+            cube: binaryCube,
+            family: this.family,
+          });
+          this.storage.set(key.keyString, cubeInfo);
+          return cubeInfo;
+        } else {
+          return undefined;
+        }
+      }
+    }
   }
   async getCubeInfos(keys: Iterable<CubeKey | string>): Promise<CubeInfo[]> {
     const cubeInfos: CubeInfo[] = [];
@@ -309,9 +316,11 @@ export class CubeStore extends EventEmitter {
    * Converts all cube keys to actual CubeKeys (i.e. binary buffers).
    * If you're fine with strings, just call this.storage.keys instead, much cheaper.
    */
+  // TODO: when persitence is the primary storage, fetch them in larger batches
+  // rather than one by one
   async getAllKeys(): Promise<Set<CubeKey>> {
     const ret: Set<CubeKey> = new Set();
-    if (this.storage) {
+    if (this.inMemory) {
       for (const [key, cubeInfo] of this.storage) {
         ret.add(cubeInfo.key);
       }
@@ -324,23 +333,23 @@ export class CubeStore extends EventEmitter {
   }
 
   async getAllKeystrings(): Promise<IterableIterator<string>> {
-    if (this.storage) return this.storage.keys();
+    if (this.inMemory) return this.storage.keys();
     else return (await this.persistence.getAllKeys()).values();
   }
 
-  // TODO: At least of one this method's user's (namely NetworkPeer)
-  // probably expect data to be present that is not always
-  // guaranteed to be present in a CubeInfo, and will probably be missing when reading
-  // directly from persistance
-  async getAllCubeInfo(): Promise<IterableIterator<CubeInfo>> {
-    if (this.storage) return this.storage.values();
+  // TODO: when persitence is the primary storage, fetch them in larger batches
+  // rather than one by one
+  async getAllCubeInfo(
+    family: CubeFamilyDefinition = this.family,
+  ): Promise<IterableIterator<CubeInfo>> {
+    if (this.inMemory) return this.storage.values();
     else {
       // TODO: this is not efficient, just keep it an iterable
       // TODO: even worse, DONT INSTANTIATE THE FRICKIN' CUBE
       const binaryCubes: Buffer[] = await this.persistence.getAllCubes();
       const cubeInfos: CubeInfo[] = [];
       for (const binaryCube of binaryCubes) {
-        const cube: Cube = new Cube(binaryCube);
+        const cube: Cube = new family.cubeClass(binaryCube);
         cubeInfos.push(await cube.getCubeInfo());
       }
       return cubeInfos.values();
@@ -348,14 +357,14 @@ export class CubeStore extends EventEmitter {
   }
 
   async deleteCube(keyInput: CubeKey | string) {
-    const key = this.keyVariants(keyInput);
+    const key = keyVariants(keyInput);
     this.storage?.delete(key.keyString);
     this.treeOfWisdom?.delete(key.keyString);
     await this.persistence?.deleteCube(key.keyString);
   }
 
   async pruneCubes(): Promise<void> {
-    if (!this.storage) return;  // TODO BUGBUG: make this work in persitent-only mode
+    if (!this.inMemory) return;  // TODO BUGBUG: make this work in persitent-only mode
     if (!this.enableCubeRetentionPolicy) return;  // feature disabled?
     const currentEpoch = getCurrentEpoch();
     const cubeKeys = Array.from(this.storage.keys());
@@ -395,10 +404,10 @@ export class CubeStore extends EventEmitter {
   // We will then proceed to store all of our cubes into it,
   // and load all cubes from it.
   private async syncPersistentStorage() {
-    if (!this.persistence) return;
+    if (!this.persistence || !this.inMemory) return;
     for (const rawcube of await this.persistence.getAllCubes()) {
       await this.addCube(Buffer.from(rawcube));
     }
-    this.persistence.storeCubes(this.storage);
+    this.persistence.storeCubes(this.storage as Map<string, CubeInfo>);
   }
 }

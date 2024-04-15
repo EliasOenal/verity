@@ -15,6 +15,8 @@ import { CubePersistenceOptions } from '../../../src/core/cube/cubePersistence';
 
 // TODO: Add tests involving Cube deletion
 // TODO: Add tests checking Tree of Wisdom state (partilarly in combination with deletion)
+// TODO: For EnableCubePersistence.PRIMARY mode, add tests verifying the weak
+//       ref cache actually works.
 
 describe('cubeStore', () => {
   // TODO: Update payload field ID. Make tests actually check payload.
@@ -143,6 +145,11 @@ describe('cubeStore', () => {
           const mockKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42);
           expect(await cubeStore.getCube(mockKey)).toBeUndefined;
           expect(await cubeStore.getCubeInfo(mockKey)).toBeUndefined;
+        });
+
+        it('should return an empty iterable when requesting all entries', async () => {
+          expect(Array.from(await cubeStore.getAllCubeInfo())).toEqual([]);
+          expect(Array.from(await cubeStore.getAllKeys())).toEqual([]);
         });
 
         it('should add 20 cubes to the storage and get them back', async () => {

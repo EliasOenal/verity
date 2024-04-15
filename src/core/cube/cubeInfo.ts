@@ -4,6 +4,7 @@ import { CubeType, CubeKey, CubeError } from './cubeDefinitions';
 import { CubeFamilyDefinition } from './cubeFamily';
 
 import { Buffer } from 'buffer';
+import { keyVariants } from './cubeUtil';
 
 /**
  * @interface CubeMeta is a restricted view on CubeInfo containing metadata only.
@@ -88,7 +89,7 @@ export interface CubeInfoOptions {
  * either in the active or dormant state.
  *
  * CubeInfo keeps track of cubes and their local states, provides useful
- * information even in the dormant state, and allows us to activate
+ * information even when dormant, and allows us to activate
  * a dormant cube (i.e. instantiate it and get a Cube object).
 */
 export class CubeInfo {
@@ -107,6 +108,11 @@ export class CubeInfo {
   get cubeType(): CubeType { return Cube.Type(this.binaryCube) ?? this._cubeType }
 
   private _date: number = undefined;
+  /**
+   * Returns this Cube's sculpting date.
+   * Note that this getter may reactivate a dormant Cube in the background if
+   * the requested information was not provided when this CubeInfo was created.
+   **/
   get date(): number {
     if (this._date === undefined) {
       const cube = this.getCube();
@@ -116,6 +122,11 @@ export class CubeInfo {
   }
 
   private _difficulty: number = undefined;
+  /**
+  * Returns this Cube's difficulty, i.e. it's achieved hashcash challenge level.
+  * Note that this getter may reactivate a dormant Cube in the background if
+  * the requested information was not provided when this CubeInfo was created.
+  **/
   get difficulty(): number {
     if (this._difficulty === undefined) {
       const cube = this.getCube();

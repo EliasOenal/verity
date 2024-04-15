@@ -1,5 +1,5 @@
 // cubeUtil.ts
-import { BinaryDataError, CubeError, CubeSignatureError, CubeType, SmartCubeTypeNotImplemented } from './cubeDefinitions';
+import { BinaryDataError, CubeError, CubeKey, CubeSignatureError, CubeType, SmartCubeTypeNotImplemented } from './cubeDefinitions';
 import { Cube } from './cube';
 import { CubeMeta } from './cubeInfo';
 import { logger } from '../logger';
@@ -8,7 +8,6 @@ import { Buffer } from 'buffer';
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 
 import pkg from 'js-sha3';  // strange standards compliant syntax for importing
-import { Settings } from '../settings';
 const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
 
 export const UNIX_SECONDS_PER_EPOCH = 5400;
@@ -144,4 +143,16 @@ export function shouldRetainCube(key: String, cubeDate: number, challengeLevel: 
 
     // Cube should be retained if it hasn't expired and its sculpting date isn't set in the future
     return expirationEpoch >= currentEpoch && cubeDateInEpochs <= currentEpoch;
+}
+
+export function keyVariants(keyInput: CubeKey | string): {keyString: string, binaryKey: CubeKey} {
+    let keyString: string, binaryKey: CubeKey;
+    if (keyInput instanceof Buffer) {
+      keyString = keyInput.toString('hex');
+      binaryKey = keyInput;
+    } else {
+      keyString = keyInput;
+      binaryKey = Buffer.from(keyInput, 'hex');
+    }
+    return {keyString: keyString, binaryKey: binaryKey};
 }
