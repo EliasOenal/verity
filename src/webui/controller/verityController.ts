@@ -26,9 +26,9 @@ export abstract class VerityController extends EventEmitter {
    **/
   // Subclasses should override this and add additional cleanup code
   // if necessary.
-  close(): Promise<void> {
-    if (this.contentAreaView) this.contentAreaView.unshow();
-    this.emit("closed");
+  close(unshow: boolean = true, emit: boolean = true): Promise<void> {
+    if (unshow && this.contentAreaView) this.contentAreaView.unshow();
+    if (emit) this.emit("closed");
     // Return a resolved promise
     return new Promise<void>(resolve => resolve());
   }

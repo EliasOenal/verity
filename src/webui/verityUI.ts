@@ -49,7 +49,7 @@ export class VerityUI {
     const ui: VerityUI = new VerityUI(node);
     await ui.node.cubeStore.readyPromise;
     await ui.initializeIdentity();
-    await ui.nav.navPostsWithAuthors();
+    await ui.nav.navPostsAll();
     veraStartupAnim.stop();
     return ui;
   }

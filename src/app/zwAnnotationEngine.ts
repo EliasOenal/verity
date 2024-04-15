@@ -402,7 +402,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
         if (postInfo) {
           this.emit('authorLearned', postInfo);
           this.emitIfCubeDisplayable(postInfo);
-          this.learnAuthorsPostsRecursion(mucInfo, postInfo, alreadyTraversed);
+          await this.learnAuthorsPostsRecursion(mucInfo, postInfo, alreadyTraversed);
         }
       }
     }
