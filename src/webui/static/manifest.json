@@ -5,7 +5,7 @@
   "start_url": "index.html",
   "display": "standalone",
   "theme_color": "#1c2b32",
-  "orientation": "any",
+  "orientation": "natural",
   "icons": [
     {
       "src": "vera.svg",
