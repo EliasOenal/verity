@@ -65,16 +65,20 @@ export class CubePersistence extends EventEmitter {
     }
   }
 
-  getAllKeys(options = {}): Promise<Array<string>> {
-    if (this.db.status != 'open') return;
-    return this.db.keys(options).all();
+  async getAllKeys(options = {}): Promise<Array<string>> {
+    if (this.db.status != 'open') return [];
+    const keys = Array.from(await this.db.keys(options).all());
+    if (keys !== undefined) return keys;
+    else return [];
   }
 
   // Creates an asynchronous request for all raw cubes.
   // TODO: return an iterable instead
-  getAllCubes(options = {}): Promise<Array<Buffer>> {
-    if (this.db.status != 'open') return;
-    return this.db.values(options).all();
+  async getAllCubes(options = {}): Promise<Array<Buffer>> {
+    if (this.db.status != 'open') return [];
+    const vals = await this.db.values(options).all();
+    if (vals !== undefined) return vals;
+    else return [];
   }
 
 /**
