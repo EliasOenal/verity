@@ -37,7 +37,7 @@ export class VerityUI {
       {
         announceToTorrentTrackers: false,
         autoConnect: true,
-        enableCubePersistence: EnableCubePersitence.BACKUP,  // TODO change to primary once we don't habitually crawl the whole CubeStore anymore
+        enableCubePersistence: EnableCubePersitence.PRIMARY,
         lightNode: false,
         peerExchange: true,
         useRelaying: true,

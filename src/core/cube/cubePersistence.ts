@@ -58,6 +58,7 @@ export class CubePersistence extends EventEmitter {
   async getCube(key: string): Promise<Buffer> {
     try {
       const ret = await this.db.get(key);
+      logger.trace(`CubePersistence.getCube() fetched binary Cube ${key}`);
       return ret;
     } catch (error) {
       logger.trace(`CubePersistance.getCube(): Cannot find Cube ${key}, error status ${error.status} ${error.code}, ${error.message}`);
@@ -65,20 +66,20 @@ export class CubePersistence extends EventEmitter {
     }
   }
 
-  async getAllKeys(options = {}): Promise<Array<string>> {
-    if (this.db.status != 'open') return [];
-    const keys = Array.from(await this.db.keys(options).all());
-    if (keys !== undefined) return keys;
-    else return [];
+  async *getAllKeys(options = {}): AsyncGenerator<string> {
+    if (this.db.status != 'open') return undefined;
+    const allKeys = this.db.keys(options);
+    let key: string;
+    while (key = await allKeys.next()) yield key;
   }
 
   // Creates an asynchronous request for all raw cubes.
   // TODO: return an iterable instead
-  async getAllCubes(options = {}): Promise<Array<Buffer>> {
+  async *getAllCubes(options = {}): AsyncGenerator<Buffer> {
     if (this.db.status != 'open') return [];
-    const vals = await this.db.values(options).all();
-    if (vals !== undefined) return vals;
-    else return [];
+    const allCubes = this.db.values(options);
+    let binaryCube: Buffer;
+    while (binaryCube = await allCubes.next()) yield binaryCube;
   }
 
 /**

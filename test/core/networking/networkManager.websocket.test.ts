@@ -361,21 +361,21 @@ describe('networkManager - WebSocket connections', () => {
             buffer.writeInt8(i);
             await cubeStore.addCube(cube);
         }
-        expect((await cubeStore.getAllKeys()).size).toEqual(numberOfCubes);
+        expect(await cubeStore.getNumberOfStoredCubes()).toEqual(numberOfCubes);
 
         // sync cubes from peer 1 to peer 2
         expect(manager1.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
         manager2.outgoingPeers[0].sendKeyRequest();
         // Verify cubes have been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
-            if ((await cubeStore2.getAllKeys()).size == numberOfCubes) {
+            if (await cubeStore2.getNumberOfStoredCubes() === numberOfCubes) {
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
-        expect((await cubeStore2.getAllKeys()).size).toEqual(numberOfCubes);
-        for (const hash of await cubeStore.getAllKeys()) {
-            expect(await cubeStore2.getCube(hash)).toBeInstanceOf(Cube);
+        expect(await cubeStore2.getNumberOfStoredCubes()).toEqual(numberOfCubes);
+        for await (const key of cubeStore.getAllKeys()) {
+            expect(await cubeStore2.getCube(key)).toBeInstanceOf(Cube);
         }
 
         // sync cubes from peer 2 to peer 3
@@ -383,13 +383,14 @@ describe('networkManager - WebSocket connections', () => {
         manager3.incomingPeers[0].sendKeyRequest();
         // Verify cubes have been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
-            if ((await cubeStore3.getAllKeys()).size == numberOfCubes) {
+            if (await cubeStore3.getNumberOfStoredCubes() === numberOfCubes) {
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
-        for (const hash of await cubeStore2.getAllKeys()) {
-            expect(await cubeStore3.getCube(hash)).toBeInstanceOf(Cube);
+        expect(await cubeStore3.getNumberOfStoredCubes()).toEqual(numberOfCubes);
+        for await (const key of cubeStore2.getAllKeys()) {
+            expect(await cubeStore3.getCube(key)).toBeInstanceOf(Cube);
         }
 
         const promise1_shutdown = manager1.shutdown();
@@ -436,7 +437,7 @@ describe('networkManager - WebSocket connections', () => {
         );
         mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
         const firstMucHash = await muc.getHash();
-        expect((await cubeStore.getAllKeys()).size).toEqual(1);
+        expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);
 
         // sync MUC from peer 1 to peer 2
         expect(manager2.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
@@ -465,7 +466,7 @@ describe('networkManager - WebSocket connections', () => {
             {fields: CubeField.Payload(counterBuffer), requiredDifficulty: reducedDifficulty});
         mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
         const secondMucHash = await muc.getHash();
-        expect((await cubeStore.getAllKeys()).size).toEqual(1);  // still just one, new MUC version replaces old MUC version
+        expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);  // still just one, new MUC version replaces old MUC version
 
         // sync MUC from peer 1 to peer 2, again
         manager2.incomingPeers[0].sendKeyRequest();

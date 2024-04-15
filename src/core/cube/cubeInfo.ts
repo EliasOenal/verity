@@ -223,4 +223,9 @@ export class CubeInfo {
 
   toString(): string { return `CubeInfo for ${this.keyString}` }
 
+  get valid(): boolean {
+    if (this.key !== undefined && this.binaryCube !== undefined) return true;
+    else return false;
+  }
+
 }

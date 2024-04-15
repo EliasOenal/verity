@@ -12,11 +12,14 @@ import { cciFields } from '../../../src/cci/cube/cciFields';
 import sodium from 'libsodium-wrappers-sumo'
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubePersistenceOptions } from '../../../src/core/cube/cubePersistence';
+import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 
 // TODO: Add tests involving Cube deletion
 // TODO: Add tests checking Tree of Wisdom state (partilarly in combination with deletion)
 // TODO: For EnableCubePersistence.PRIMARY mode, add tests verifying the weak
 //       ref cache actually works.
+//       Also add tests for negative cache, i.e. Cubes unparsable
+//       (not parseable at all or at chosen CubeFamily)
 
 describe('cubeStore', () => {
   // TODO: Update payload field ID. Make tests actually check payload.
@@ -130,11 +133,11 @@ describe('cubeStore', () => {
           await cubeStore.readyPromise;
         });
         beforeEach(async () => {
-          for (const key of await cubeStore.getAllKeys()) await cubeStore.deleteCube(key);
+          for await (const key of cubeStore.getAllKeys()) await cubeStore.deleteCube(key);
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
         });
         afterEach(async () => {
-          for (const key of await cubeStore.getAllKeys()) await cubeStore.deleteCube(key);
+          for await (const key of cubeStore.getAllKeys()) await cubeStore.deleteCube(key);
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
         });
         afterAll(async () => {
@@ -148,17 +151,39 @@ describe('cubeStore', () => {
         });
 
         it('should return an empty iterable when requesting all entries', async () => {
-          expect(Array.from(await cubeStore.getAllCubeInfo())).toEqual([]);
-          expect(Array.from(await cubeStore.getAllKeys())).toEqual([]);
+          expect(await cubeStore.getAllCubeInfos().next()).toBeUndefined;
+          expect(await cubeStore.getAllKeys().next()).toBeUndefined;
         });
 
-        it('should add 20 cubes to the storage and get them back', async () => {
+        it('should add 2 Cubes and get them back [testing getAllCubeInfos()]', async () => {
+          const first: Cube = Cube.Frozen({fields: CubeField.Payload(
+            "Cubus probationis")});
+          const second: Cube = Cube.Frozen({fields: CubeField.Payload(
+            "Cubus probationis")});
+          await cubeStore.addCube(first);
+          await cubeStore.addCube(second);
+          const restored: CubeInfo[] = [];
+          for await (const cubeInfo of cubeStore.getAllCubeInfos()) {
+            restored.push(cubeInfo)
+          }
+          expect(restored).toHaveLength(2);
+          const firstRestored: Cube = restored[0].getCube(coreTlvCubeFamily);
+          const secondRestored: Cube = restored[1].getCube(coreTlvCubeFamily);
+          expect(firstRestored.fields.getFirst(CubeFieldType.PAYLOAD)
+            .value.toString('utf8')).toEqual("Cubus probationis");
+          expect(secondRestored.fields.getFirst(CubeFieldType.PAYLOAD)
+            .value.toString('utf8')).toEqual("Cubus probationis");
+          // ensure we actually restored two different Cubes
+          expect(restored[0].keyString).not.toEqual(restored[1].keyString);
+        }, 1000000000);
+
+        it('should add 20 Cubes and get them back [testing getCube() and getNumberOfStoredCubes()]', async () => {
           // create 20 cubes and wait till they are stored
           const cubes: Cube[] = [];
           for (let i = 0; i < 20; i++) {
             const cube = Cube.Frozen({
               fields: CubeField.Payload(
-                "Sum cubus inutilis qui in tua taberna residebo et spatium tuum absumam."),
+                "Cubus inutilis in repositorio tuo residens et spatium tuum consumens"),
               requiredDifficulty: reducedDifficulty
             });
             cubes.push(cube);
@@ -174,8 +199,9 @@ describe('cubeStore', () => {
             const binaryData = await cube.getBinaryData();
             expect(await (restoredCube.getBinaryData())).toEqual(binaryData);
           };
-          expect(await cubeStore.getNumberOfStoredCubes()).toEqual(20);
-        }, 3000);
+          const cubesStored: number = await cubeStore.getNumberOfStoredCubes();
+          expect(cubesStored).toEqual(20);
+        }, 30000);
 
         it('should update the initial MUC with the updated MUC', async () => {
           // Generate a key pair for testing
@@ -281,11 +307,11 @@ describe('cubeStore', () => {
         beforeEach(async () => {
           cubeStore = new CubeStore(cubeStoreOptions);
           await cubeStore.readyPromise;
-          for (const key of await cubeStore.getAllKeys()) await cubeStore.deleteCube(key);
+          for await (const key of cubeStore.getAllKeys()) await cubeStore.deleteCube(key);
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
         });
         afterEach(async () => {
-          for (const key of await cubeStore.getAllKeys()) await cubeStore.deleteCube(key);
+          for await (const key of cubeStore.getAllKeys()) await cubeStore.deleteCube(key);
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
           await cubeStore.shutdown();
         });
