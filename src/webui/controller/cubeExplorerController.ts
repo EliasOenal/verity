@@ -31,7 +31,7 @@ export class CubeExplorerController extends VerityController {
 
     this.contentAreaView.clearAll();
     let displayed = 0, unparsable = 0, filtered = 0;
-    for (const key of await this.cubeStore.getAllKeystrings()) {
+    for await (const key of this.cubeStore.getAllKeys(true)) {
       if (search && !key.includes(search)) {
         filtered++;
         continue;  // skip non-matching
@@ -42,7 +42,7 @@ export class CubeExplorerController extends VerityController {
         continue;  // TODO error handling
       }
       displayed++;
-      this.contentAreaView.displayCube(key, cube);
+      this.contentAreaView.displayCube(key as string, cube);
       if (displayed >= this.maxCubes) {
         this.contentAreaView.showBelowCubes(`Maximum of ${displayed} Cubes displayed, rest omittted. Consider narrower filter.`);
         break;

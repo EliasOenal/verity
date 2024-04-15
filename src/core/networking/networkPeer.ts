@@ -118,10 +118,11 @@ export class NetworkPeer extends Peer {
         // This is used to ensure we don't offer peers the same cube twice.
         // TODO: In the interest of keeping peer handling efficient and reducing
         // our Sybil attack surface this feature should be removed.
-        // TODO BUGBUG: The next line probably expects information in the CubeInfo/CubeMeta
-        // that's not always guaranteed to be present, in particular when the CubeInfo
-        // is generated on demand by reading from persistence.
-        cubeStore.getAllCubeInfo().then(cubeMetas => {this.unsentCubeMeta = new Set(cubeMetas)});
+        (async () => {
+            for await (const cubeInfo of cubeStore.getAllCubeInfos()) {
+                this.unsentCubeMeta.add(cubeInfo);
+            }
+        })();
         cubeStore.on('cubeAdded', (cube: CubeMeta) => this.unsentCubeMeta.add(cube));
 
         // Take note of all other peers I could exchange with this new peer.

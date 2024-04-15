@@ -305,6 +305,7 @@ export class Identity {
    *        this to 0 for testing.
    * !!! Identity may only be constructed after awaiting sodium.ready !!!
    **/
+  // TODO: Provide option NOT to subscribe to remote MUC changes
   constructor(
       cubeStore: CubeStore,
       mucOrMasterkey: cciCube | Buffer,
