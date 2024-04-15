@@ -48,7 +48,14 @@ export class NavigationController extends VerityController {
     else return this.controllerStack[this.controllerStack.length-1];
   }
 
-  newController(controller: VerityController, navBarItemId: string = undefined) {
+  newController(
+      controller: VerityController,
+      navBarItemId: string = undefined,
+      closeAllOthers: boolean = false,
+  ): void {
+    if (closeAllOthers) {
+      this.closeAllControllers(false);
+    }
     this.controllerStack.push(controller);  // Remember this controller and
     this.navIdStack.push(navBarItemId);     // the associated nav bar item (if any).
     controller.once("closed", () => this.closeCurrentController());
@@ -56,24 +63,35 @@ export class NavigationController extends VerityController {
     this.navbarMarkActive(navBarItemId);  // Update active nav bar item.
   }
 
-  closeCurrentController() {
-    if (this.currentController !== undefined) {
-      this.currentController.close();  // Close controller
-      this.controllerStack.pop();      // and remove it from stack.
+  closeCurrentController(updateView: boolean = true) {
+    if (this.controllerStack.length > 0) {
+      this.closeController(this.controllerStack.length - 1, updateView);
+    }
+  }
+
+  closeController(controllerStackIndex: number, updateView: boolean = true): void {
+    const controller = this.controllerStack[controllerStackIndex];
+    controller.close(false, false);  // close controller, but don't unshow yet
+    this.controllerStack.splice(controllerStackIndex, 1);  // remove it from stack
+    this.navIdStack.splice(controllerStackIndex, 1);
+    if (updateView) {  // make the UI reflect the controller change
       this.displayOrHideBackButton();  // Only show back button if there's something to go back to.
       if (this.currentController !== undefined) {
+        // if possible, show the latest Controller again
         this.currentController.contentAreaView.show();
+      } else {
+        // if there is none, just show an empty content area
+        controller.contentAreaView.unshow();
       }
-      this.navIdStack.pop();
       if (this.navIdStack.length > 0) {  // should always be true
         this.navbarMarkActive(this.navIdStack[this.navIdStack.length-1]);  // Update active nav bar item.
       }
     }
   }
 
-  closeAllControllers() {
+  closeAllControllers(updateView: boolean = true) {
     while(this.currentController !== undefined) {
-      this.closeCurrentController();
+      this.closeCurrentController(updateView);
     }
   }
 
@@ -85,7 +103,6 @@ export class NavigationController extends VerityController {
   }
 
   async navPostsAll(): Promise<void> {
-    this.closeAllControllers();
     logger.trace("VerityUI: Displaying all posts including anonymous ones");
     const annotationEngine: ZwAnnotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.ui.node.cubeStore,
@@ -95,11 +112,10 @@ export class NavigationController extends VerityController {
       true      // allow anonymous posts
     );
     const controller = new PostController(this.ui.node.cubeStore, annotationEngine, this.ui.identity);
-    this.newController(controller, "navPostsAll");
+    this.newController(controller, "navPostsAll", true);
   }
 
   async navPostsWithAuthors(): Promise<void> {
-    this.closeAllControllers();
     logger.trace("VerityUI: Displaying posts associated with a MUC");
     const annotationEngine: ZwAnnotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.ui.node.cubeStore,
@@ -108,12 +124,11 @@ export class NavigationController extends VerityController {
       true,     // auto-learn MUCs (posts associated with any Identity MUC are okay)
       false);   // do not allow anonymous posts
     const controller = new PostController(this.ui.node.cubeStore, annotationEngine, this.ui.identity);
-    this.newController(controller, "navPostsWithAuthors");
+    this.newController(controller, "navPostsWithAuthors", true);
   }
 
   async navPostsSubscribedInTree(): Promise<void> {
     if (!this.ui.identity) return;
-    this.closeAllControllers();
     logger.trace("VerityUI: Displaying posts from trees with subscribed author activity");
     const annotationEngine: ZwAnnotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.ui.node.cubeStore,
@@ -122,12 +137,11 @@ export class NavigationController extends VerityController {
       true,      // auto-learn MUCs (to be able to display authors when available)
       false);    // do not allow anonymous posts
     const controller = new PostController(this.ui.node.cubeStore, annotationEngine, this.ui.identity);
-    this.newController(controller, "navPostsSubscribedInTree");
+    this.newController(controller, "navPostsSubscribedInTree", true);
   }
 
   async navPostsSubscribedReplied(wotDepth: number = 0): Promise<void> {
     if (!this.ui.identity) return;
-    this.closeAllControllers();
     logger.trace("VerityUI: Displaying posts from subscribed authors and their preceding posts");
     let navName: string = "navPostsSubscribedReplied";
     if (wotDepth) navName += wotDepth;
@@ -139,12 +153,11 @@ export class NavigationController extends VerityController {
       true,      // auto-learn MUCs (to be able to display authors when available)
       false);    // do not allow anonymous posts
     const controller = new PostController(this.ui.node.cubeStore, annotationEngine, this.ui.identity);
-    this.newController(controller, navName);
+    this.newController(controller, navName, true);
   }
 
   async navPostsSubscribedStrict(): Promise<void> {
     if (!this.ui.identity) return;
-    this.closeAllControllers();
     logger.trace("VerityUI: Displaying posts from subscribed authors strictly");
     const annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.ui.node.cubeStore,
@@ -153,7 +166,7 @@ export class NavigationController extends VerityController {
       false,     // do no auto-learn MUCs (strictly only posts by subscribed will be displayed)
       false);    // do not allow anonymous posts
     const controller = new PostController(this.ui.node.cubeStore, annotationEngine, this.ui.identity);
-    this.newController(controller, "navPostsSubscribedStrict");
+    this.newController(controller, "navPostsSubscribedStrict", true);
   }
 
   navPeers() {
