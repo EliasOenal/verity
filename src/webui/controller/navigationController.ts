@@ -71,7 +71,8 @@ export class NavigationController extends VerityController {
 
   closeController(controllerStackIndex: number, updateView: boolean = true): void {
     const controller = this.controllerStack[controllerStackIndex];
-    controller.close(false, false);  // close controller, but don't unshow yet
+    controller.removeListener("closed", () => this.closeCurrentController());
+    controller.close(false);  // close controller, but don't unshow yet
     this.controllerStack.splice(controllerStackIndex, 1);  // remove it from stack
     this.navIdStack.splice(controllerStackIndex, 1);
     if (updateView) {  // make the UI reflect the controller change

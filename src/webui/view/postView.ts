@@ -9,7 +9,7 @@ export class PostView extends VerityView {
   constructor(
       htmlTemplate: HTMLTemplateElement = document.getElementById(
         "verityPostViewTemplate") as HTMLTemplateElement,
-      show: boolean = true
+      show: boolean = false,
   ){
     super(htmlTemplate);
     this.postList = this.renderedView.querySelector(".verityPostList") as HTMLUListElement;

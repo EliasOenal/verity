@@ -50,12 +50,15 @@ export class PostController extends VerityController {
       private cubeStore: CubeStore,
       private annotationEngine: ZwAnnotationEngine,
       private identity: Identity = undefined,
-      public contentAreaView: PostView = new PostView()) {
+      public contentAreaView: PostView = new PostView(),
+      show: boolean = true,
+      showImmediately: boolean = true,
+  ){
     super();
     this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey)); // list cubes
     this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
-    this.redisplayPosts();
-    // this.cubeAuthorRedisplayTimer = setInterval(() => this.redisplayAllCubeAuthors(), 5000);
+    if (showImmediately) this.contentAreaView.show();
+    this.redisplayPosts().then(() => {if (show) this.contentAreaView.show()});
   }
 
   async makeNewPost(input: HTMLFormElement) {
