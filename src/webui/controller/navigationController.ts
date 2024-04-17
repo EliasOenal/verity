@@ -1,5 +1,5 @@
 import { VerityUI } from "../verityUI";
-import { ZwAnnotationEngine, SubscriptionRequirement } from "../../app/zwAnnotationEngine";
+import { ZwAnnotationEngine, SubscriptionRequirement } from "../../app/zw/zwAnnotationEngine";
 import { VerityController } from "./verityController";
 import { PostController } from "./postController";
 import { CubeExplorerController } from "./cubeExplorerController";

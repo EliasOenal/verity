@@ -1,4 +1,4 @@
-import { ZwConfig } from "../../app/zwConfig";
+import { ZwConfig } from "../../app/zw/zwConfig";
 import { logger } from "../../core/logger";
 import { PostData } from "../controller/postController";
 import { VerityView } from "./verityView";

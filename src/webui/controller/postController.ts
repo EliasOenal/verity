@@ -10,8 +10,8 @@ import { ensureCci } from "../../cci/cube/cciCubeUtil";
 import { Identity } from "../../cci/identity/identity";
 import { UNKNOWNAVATAR } from "../../cci/identity/avatar";
 
-import { makePost } from "../../app/zwUtil";
-import { ZwAnnotationEngine } from "../../app/zwAnnotationEngine";
+import { makePost } from "../../app/zw/zwUtil";
+import { ZwAnnotationEngine } from "../../app/zw/zwAnnotationEngine";
 
 import { PostView } from "../view/postView";
 import { VerityController } from "./verityController";

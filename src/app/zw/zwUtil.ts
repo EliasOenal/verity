@@ -3,22 +3,22 @@
  * application.
  */
 
-import { Settings } from "../core/settings";
+import { Settings } from "../../core/settings";
 
-import { Cube } from "../core/cube/cube";
-import { CubeKey, CubeType } from "../core/cube/cubeDefinitions";
+import { Cube } from "../../core/cube/cube";
+import { CubeKey, CubeType } from "../../core/cube/cubeDefinitions";
 
-import { cciField, MediaTypes, cciFieldType } from "../cci/cube/cciField";
-import { cciFields, cciFrozenFieldDefinition } from "../cci/cube/cciFields";
-import { cciRelationship, cciRelationshipType } from "../cci/cube/cciRelationship";
-import { cciCube, cciFamily } from "../cci/cube/cciCube";
-import { Identity } from "../cci/identity/identity";
-import { isCci } from "../cci/cube/cciCubeUtil";
+import { cciField, MediaTypes, cciFieldType } from "../../cci/cube/cciField";
+import { cciFields, cciFrozenFieldDefinition } from "../../cci/cube/cciFields";
+import { cciRelationship, cciRelationshipType } from "../../cci/cube/cciRelationship";
+import { cciCube, cciFamily } from "../../cci/cube/cciCube";
+import { Identity } from "../../cci/identity/identity";
+import { isCci } from "../../cci/cube/cciCubeUtil";
 
 import { Buffer } from 'buffer';
 
-import { logger } from "../core/logger";
-import { NetConstants } from "../core/networking/networkDefinitions";
+import { logger } from "../../core/logger";
+import { NetConstants } from "../../core/networking/networkDefinitions";
 
 /**
  * Creates a new Cube containing a correctly formed text post.
