@@ -9,8 +9,8 @@ import { MediaTypes, cciField} from "../../src/cci/cube/cciField";
 import { cciRelationshipType, cciRelationship } from "../../src/cci/cube/cciRelationship";
 import { Identity, IdentityOptions } from "../../src/cci/identity/identity";
 
-import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zwAnnotationEngine";
-import { makePost } from "../../src/app/zwUtil"
+import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zw/zwAnnotationEngine";
+import { makePost } from "../../src/app/zw/zwUtil"
 
 import { jest } from '@jest/globals'
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
