@@ -9,14 +9,15 @@ import { CubeFieldType, CubeFieldLength, CubeField } from "../../core/cube/cubeF
 import { Buffer } from 'buffer'
 import { FieldNumericalParam } from "../../core/fields/fieldParser";
 
-// HACKHACK: For proper layering, this file should define CCI field IDs and
-// associated length data. These should extend the base CubeFieldTypes.
-// However, TypeScript lacks a proper way to extend enums.
-// Therefore, CCI currently uses the core's CubeFieldTypes, which include
-
-// CCI fields even though they don't belong there.
+/**
+ * cciAdditionalFieldType contains the field types defined on the CCI layer,
+ * which supplement the CoreFieldTypes.
+ * For three CCI field types -- PAYLAOD, CCI_END and PADDING -- this
+ * implementation improperly defines them in the core layer instead, as they
+ * are used in core layer unit tests and in padding up "core" Cubes.
+ **/
 enum cciAdditionalFieldType {
-  // PADDING_SINGLEBYTE = 0x00 << 2,  // 0 -- currently defined on core layer
+  // CCI_END = 0x00 << 2,  // 0 -- currently defined on core layer
   APPLICATION = 0x01 << 2,  // 4
   CONTINUED_IN = 0x02 << 2,  // 8
 
