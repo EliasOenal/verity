@@ -29,7 +29,7 @@ export enum CubeFieldType {
 
   // HACKHACK: CCI field types PAYLOAD, PADDING and CCI_END currently defined on
   // core layer as we use them within core unit tests.
-  PADDING_SINGLEBYTE = 0x00 << 2,  // 0
+  CCI_END = 0x00 << 2,  // 0
   PAYLOAD = 0x10 << 2,  // 64
   PADDING = 0x1F << 2,  // 124
 
@@ -47,7 +47,7 @@ export const CubeFieldLength: FieldNumericalParam = {
   [CubeFieldType.NONCE]: Settings.NONCE_SIZE,
   [CubeFieldType.PAYLOAD]: undefined,
   [CubeFieldType.PADDING]: undefined,
-  [CubeFieldType.PADDING_SINGLEBYTE]: 0,
+  [CubeFieldType.CCI_END]: 0,
 };
 
 export class CubeField extends BaseField {
@@ -93,7 +93,7 @@ export class CubeField extends BaseField {
         Buffer.from(random_bytes));
     } else {
       field = new CubeField(
-        CubeFieldType.PADDING_SINGLEBYTE,
+        CubeFieldType.CCI_END,
         Buffer.alloc(0));
     }
     return field;
