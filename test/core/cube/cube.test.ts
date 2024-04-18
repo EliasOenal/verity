@@ -302,7 +302,7 @@ describe('cube', () => {
       expect(fullyParsedMuc.fields.all.length).toBeGreaterThanOrEqual(7);
       expect(fullyParsedMuc.fields.all[0].type).toEqual(CubeFieldType.TYPE);
       expect(fullyParsedMuc.fields.all[1].type).toEqual(CubeFieldType.PAYLOAD);
-      expect(fullyParsedMuc.fields.all[2].type).toEqual(CubeFieldType.PADDING_SINGLEBYTE);
+      expect(fullyParsedMuc.fields.all[2].type).toEqual(CubeFieldType.CCI_END);
       expect(fullyParsedMuc.fields.all[backPos-4].type).toEqual(CubeFieldType.PUBLIC_KEY);
       expect(fullyParsedMuc.fields.all[backPos-3].type).toEqual(CubeFieldType.DATE);
       expect(fullyParsedMuc.fields.all[backPos-2].type).toEqual(CubeFieldType.SIGNATURE);

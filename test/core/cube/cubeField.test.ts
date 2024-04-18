@@ -63,7 +63,7 @@ describe('CubeField', () => {
 
     it('should create a PADDING_SINGLEBYTE field', () => {
       const field = CubeField.Padding(1);
-      expect(field.type).toBe(CubeFieldType.PADDING_SINGLEBYTE);
+      expect(field.type).toBe(CubeFieldType.CCI_END);
       expect(field.value.length).toBe(0);
     });
   });
