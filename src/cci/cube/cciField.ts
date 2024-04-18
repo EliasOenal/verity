@@ -7,14 +7,50 @@ import { FieldError } from "../../core/cube/cubeDefinitions";
 import { CubeFieldType, CubeFieldLength, CubeField } from "../../core/cube/cubeField";
 
 import { Buffer } from 'buffer'
+import { FieldNumericalParam } from "../../core/fields/fieldParser";
 
 // HACKHACK: For proper layering, this file should define CCI field IDs and
 // associated length data. These should extend the base CubeFieldTypes.
 // However, TypeScript lacks a proper way to extend enums.
 // Therefore, CCI currently uses the core's CubeFieldTypes, which include
+
 // CCI fields even though they don't belong there.
-export const cciFieldType = CubeFieldType;
-export const cciFieldLength = CubeFieldLength;
+enum cciAdditionalFieldType {
+  // PADDING_SINGLEBYTE = 0x00 << 2,  // 0 -- currently defined on core layer
+  APPLICATION = 0x01 << 2,  // 4
+  CONTINUED_IN = 0x02 << 2,  // 8
+
+  /**
+  * Seed used to derive a new key pair for an extension MUC.
+  * Note that this should not actually be public information as it's only needed
+  * by the author to derive their private key from their master key.
+  * We're still putting it right into the MUC out of convenience and due to
+  * the fact that this information must be available somewhere on the network
+  * for Identity recovery ("password-based login").
+  * We're pretty confident this does not actually expose any cryptographically
+  * sensitive information, but we maybe should encrypt it.
+  */
+  SUBKEY_SEED = 0x03 << 2,  // 12
+
+  // PAYLOAD = 0x10 << 2,  // 64 -- currently defined on core layer
+  RELATES_TO = 0x13 << 2,  // 76
+  USERNAME = 0x14 << 2,  // 80
+  MEDIA_TYPE = 0x15 << 2,  // 84
+  AVATAR = 0x16 << 2,
+  // PADDING = 0x1F << 2,  // 124 -- currently defined on core layer
+}
+export const cciFieldType = {...CubeFieldType, ...cciAdditionalFieldType} as const;
+
+export const cciAdditionalFieldLength: FieldNumericalParam = {
+  [cciFieldType.CONTINUED_IN]: NetConstants.CUBE_KEY_SIZE,
+  [cciFieldType.SUBKEY_SEED]: undefined,
+  [cciFieldType.AVATAR]: undefined,
+  [cciFieldType.APPLICATION]: undefined,
+  [cciFieldType.MEDIA_TYPE]: 1,
+  [cciFieldType.RELATES_TO]: NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE,
+  [cciFieldType.USERNAME]: undefined,
+}
+export const cciFieldLength = {...CubeFieldLength, ...cciAdditionalFieldLength};
 
 
 export enum MediaTypes {
@@ -33,7 +69,7 @@ export class cciField extends CubeField {
 
   static SubkeySeed(buf: Buffer | Uint8Array): CubeField {
     if (!(buf instanceof Buffer)) buf = Buffer.from(buf);
-    return new CubeField(CubeFieldType.SUBKEY_SEED, buf as Buffer);
+    return new CubeField(cciFieldType.SUBKEY_SEED, buf as Buffer);
   }
 
   static Application(applicationString: string): cciField {

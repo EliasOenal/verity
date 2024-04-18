@@ -27,32 +27,14 @@ export enum CubeFieldType {
   SIGNATURE = 2005,
   NONCE = 2006,
 
+  // HACKHACK: CCI field types PAYLOAD, PADDING and CCI_END currently defined on
+  // core layer as we use them within core unit tests.
+  PADDING_SINGLEBYTE = 0x00 << 2,  // 0
+  PAYLOAD = 0x10 << 2,  // 64
+  PADDING = 0x1F << 2,  // 124
+
   // HACKHACK: CCI field types currently included here as Typescript lacks
   // a proper way to extend enums.
-  PADDING_SINGLEBYTE = 0x00 << 2,  // 0
-
-  APPLICATION = 0x01 << 2,  // 4
-  CONTINUED_IN = 0x02 << 2,  // 8
-
-  /**
-  * Seed used to derive a new key pair for an extension MUC.
-  * Note that this should not actually be public information as it's only needed
-  * by the author to derive their private key from their master key.
-  * We're still putting it right into the MUC out of convenience and due to
-  * the fact that this information must be available somewhere on the network
-  * for Identity recovery ("password-based login").
-  * We're pretty confident this does not actually expose any cryptographically
-  * sensitive information, but we maybe should encrypt it.
-  */
-  SUBKEY_SEED = 0x03 << 2,  // 12
-
-  PAYLOAD = 0x10 << 2,  // 64
-
-  RELATES_TO = 0x13 << 2,  // 76
-  USERNAME = 0x14 << 2,  // 80
-  MEDIA_TYPE = 0x15 << 2,  // 84
-  AVATAR = 0x16 << 2,
-  PADDING = 0x1F << 2,  // 124
 }
 
 export const CubeFieldLength: FieldNumericalParam = {
@@ -63,16 +45,9 @@ export const CubeFieldLength: FieldNumericalParam = {
   [CubeFieldType.DATE]: NetConstants.TIMESTAMP_SIZE,
   [CubeFieldType.SIGNATURE]: NetConstants.SIGNATURE_SIZE,
   [CubeFieldType.NONCE]: Settings.NONCE_SIZE,
-  [CubeFieldType.CONTINUED_IN]: NetConstants.CUBE_KEY_SIZE,
-  [CubeFieldType.SUBKEY_SEED]: undefined,
   [CubeFieldType.PAYLOAD]: undefined,
   [CubeFieldType.PADDING]: undefined,
-  [CubeFieldType.AVATAR]: undefined,
   [CubeFieldType.PADDING_SINGLEBYTE]: 0,
-  [CubeFieldType.APPLICATION]: undefined,
-  [CubeFieldType.MEDIA_TYPE]: 1,
-  [CubeFieldType.RELATES_TO]: NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE,
-  [CubeFieldType.USERNAME]: undefined,
 };
 
 export class CubeField extends BaseField {

@@ -6,25 +6,25 @@ import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 describe('cciField', () => {
   describe('constructor', () => {
     it('should construct a cciField for types with no fixed length', () => {
-      const type = CubeFieldType.APPLICATION;
+      const type = cciFieldType.APPLICATION;
       const value = Buffer.alloc(10); // Arbitrary buffer length for APPLICATION
       expect(() => new cciField(type, value)).not.toThrow();
     });
 
     it('should construct a cciField with fixed length', () => {
-      const type = CubeFieldType.MEDIA_TYPE;
+      const type = cciFieldType.MEDIA_TYPE;
       const value = Buffer.alloc(1);
       expect(() => new cciField(type, value)).not.toThrow();
     });
 
     it('should throw error for invalid length', () => {
-      const type = CubeFieldType.MEDIA_TYPE;
+      const type = cciFieldType.MEDIA_TYPE;
       const value = Buffer.alloc(20); // Arbitrary buffer length not matching MEDIA_TYPE
       expect(() => new cciField(type, value)).toThrow(FieldError);
     });
 
     it('should construct a cciField with length defined by relationship', () => {
-      const type = CubeFieldType.RELATES_TO;
+      const type = cciFieldType.RELATES_TO;
       const value = Buffer.alloc(NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE);
       expect(() => new cciField(type, value)).not.toThrow();
     });
