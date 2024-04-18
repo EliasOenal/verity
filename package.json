@@ -35,7 +35,7 @@
     "@libp2p/circuit-relay-v2": "^1.0.20",
     "@libp2p/identify": "^1.0.19",
     "@libp2p/mplex": "^10.0.20",
-    "@libp2p/webrtc": "^4.0.26",
+    "@libp2p/webrtc": "^4.0.28",
     "@libp2p/websockets": "^8.0.20",
     "@multiavatar/multiavatar": "^1.0.7",
     "@types/libsodium-wrappers": "^0.7.14",
