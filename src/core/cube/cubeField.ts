@@ -120,7 +120,7 @@ export class CubeField extends BaseField {
     return new fieldClass(CubeFieldType.PAYLOAD, buf);
   }
 
-  constructor(type: number, value: Buffer, start?: number) {
+  constructor(type: number, value: Buffer | string, start?: number) {
     if (Settings.RUNTIME_ASSERTIONS && CubeFieldLength[type] !== undefined &&
         value.length !== CubeFieldLength[type]) {
       throw new FieldError(`Cannot construct CubeField of type ${type} with length ${value.length}, spec prescribes length of ${CubeFieldLength[type]}`);
