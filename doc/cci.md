@@ -43,7 +43,7 @@ Standardized fields are defined to establish a universal foundation for payloads
 | Type (Hex)  | Field Name             | Len | Description                                                                         |
 | 0x11        | Content name           | var | Concise, plain text description of this Cube's Payload, e.g. "Chancellor on brink of second bailout for banks" or "Charpentier - Te Deum, Prelude.mp3" |
 | 0x12        | Description            | var | A short summary of this Cube's Payload, e.g. a textual descriptionm of non-text content, a summary or an article's lead paragraph. Should be plain text with optional markdown. |
-| 0x13        | Related to             |   1 | A single byte code denoting commonly used relationships this cube may have with other cubes. |
+| 0x13        | Related to             |  33 | A single byte code denoting commonly used relationships this cube may have with other cubes, plus the key of the referred Cube |
 | 0x14        | User name              | var | TODO move to two byte code
 | 0x15        | Media type (short)     |   1 | Type of content in this Cube's Payload field. This short field contains a single byte code denoting commonly used media types and should be preferred whenever applicable. |
 | 0x16        | User avatar            | var | Describes an auto-generated, guaranteed safe to show avatar for this user - TODO move to two byte code|

@@ -10,6 +10,7 @@ import { Buffer } from 'buffer';
 export class BaseField {
   type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Applications may or may not chose to keep their application-level fields compatible with our top-level numbering.
   value: Buffer;
+  get valueString(): string { return this.value.toString('utf8') }
   get length(): number { return this.value?.length; }
 
   /**
@@ -22,10 +23,11 @@ export class BaseField {
    */
   start: number = undefined;
 
-  constructor(type: number, value: Buffer, start?: number) {
+  constructor(type: number, value: Buffer | string, start?: number) {
       this.type = type;
-      this.value = value;
       this.start = start;
+      if (value instanceof Buffer) this.value = value;
+      else this.value = Buffer.from(value, 'utf8');
   }
 
   equals(other: BaseField, compareLocation: boolean = false) {

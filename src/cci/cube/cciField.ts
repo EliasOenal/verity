@@ -112,7 +112,7 @@ export class cciField extends CubeField {
     for (const rel of rels) yield cciField.RelatesTo(rel);
   }
 
-  constructor(type: number, value: Buffer, start?: number) {
+  constructor(type: number, value: Buffer | string, start?: number) {
     // Note: cciFieldLength is currently just an alias for CubeFieldLength,
     // making this check completely redundant. However, we will want to properly
     // separate them at some point, and then it won't be.
