@@ -361,4 +361,53 @@ describe('baseFields', () => {
       });
     });
   });
+
+  describe('sliceBy', () => {
+    it('should slice fields by type', () => {
+      const fields: BaseFields = new BaseFields([
+        new BaseField(TestFieldType.NONCE, "abc"),
+        new BaseField(TestFieldType.PAYLOAD, "def"),
+        new BaseField(TestFieldType.NONCE, "ghi"),
+        new BaseField(TestFieldType.PAYLOAD, "jkl"),
+        new BaseField(TestFieldType.NONCE, "mno"),
+        new BaseField(TestFieldType.NONCE, "pqr"),
+        new BaseField(TestFieldType.NONCE, "stu"),
+        new BaseField(TestFieldType.NONCE, "vwx"),
+        new BaseField(TestFieldType.PAYLOAD, "yz!"),
+      ], testFieldDefinition);
+      {  // standard slicing not including leading non-matching fields
+        const slices: BaseFields[] = fields.sliceBy(TestFieldType.PAYLOAD);
+        expect(slices).toHaveLength(3);
+        expect(slices[0].length).toEqual(2);
+        expect(slices[0].all[0].type).toEqual(TestFieldType.PAYLOAD);
+        expect(slices[0].all[0].valueString).toEqual("def");
+        expect(slices[0].all[1].type).toEqual(TestFieldType.NONCE);
+        expect(slices[0].all[1].valueString).toEqual("ghi");
+        expect(slices[1].length).toEqual(5);
+        expect(slices[1].all[0].type).toEqual(TestFieldType.PAYLOAD);
+        expect(slices[1].all[0].valueString).toEqual("jkl");
+        expect(slices[1].all[1].type).toEqual(TestFieldType.NONCE);
+        expect(slices[1].all[1].valueString).toEqual("mno");
+        expect(slices[1].all[2].type).toEqual(TestFieldType.NONCE);
+        expect(slices[1].all[2].valueString).toEqual("pqr");
+        expect(slices[1].all[3].type).toEqual(TestFieldType.NONCE);
+        expect(slices[1].all[3].valueString).toEqual("stu");
+        expect(slices[1].all[4].type).toEqual(TestFieldType.NONCE);
+        expect(slices[1].all[4].valueString).toEqual("vwx");
+        expect(slices[2].length).toEqual(1);
+        expect(slices[2].all[0].type).toEqual(TestFieldType.PAYLOAD);
+        expect(slices[2].all[0].valueString).toEqual("yz!");
+      }
+      {  // slicing including leading non-matching fields
+        const slices: BaseFields[] = fields.sliceBy(TestFieldType.PAYLOAD, true);
+        expect(slices).toHaveLength(4);
+        expect(slices[0].length).toEqual(1);
+        expect(slices[0].all[0].type).toEqual(TestFieldType.NONCE);
+        expect(slices[0].all[0].valueString).toEqual("abc");
+        expect(slices[1].length).toEqual(2);
+        expect(slices[2].length).toEqual(5);
+        expect(slices[3].length).toEqual(1);
+      }
+    });
+  });
 });

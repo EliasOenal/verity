@@ -34,6 +34,8 @@ enum cciAdditionalFieldType {
   SUBKEY_SEED = 0x03 << 2,  // 12
 
   // PAYLOAD = 0x10 << 2,  // 64 -- currently defined on core layer
+  CONTENTNAME = 0x11 << 2,  // 68
+  DESCRIPTION = 0x12 << 2,  // 72
   RELATES_TO = 0x13 << 2,  // 76
   USERNAME = 0x14 << 2,  // 80
   MEDIA_TYPE = 0x15 << 2,  // 84
@@ -44,6 +46,8 @@ export const cciFieldType = {...CubeFieldType, ...cciAdditionalFieldType} as con
 
 export const cciAdditionalFieldLength: FieldNumericalParam = {
   [cciFieldType.CONTINUED_IN]: NetConstants.CUBE_KEY_SIZE,
+  [cciFieldType.CONTENTNAME]: undefined,
+  [cciFieldType.DESCRIPTION]: undefined,
   [cciFieldType.SUBKEY_SEED]: undefined,
   [cciFieldType.AVATAR]: undefined,
   [cciFieldType.APPLICATION]: undefined,
@@ -75,8 +79,16 @@ export class cciField extends CubeField {
 
   static Application(applicationString: string): cciField {
     const applicationBuf = Buffer.from(applicationString, 'utf-8');
-    return new cciField(
+    return new this(
       cciFieldType.APPLICATION, applicationBuf);
+  }
+
+  static ContentName(name: string) {
+    return new this(cciFieldType.CONTENTNAME, name);
+  }
+
+  static Description(desc: string) {
+    return new this(cciFieldType.DESCRIPTION, desc);
   }
 
   static RelatesTo(rel: cciRelationship) {
@@ -90,8 +102,7 @@ export class cciField extends CubeField {
         0,  // source start
         NetConstants.CUBE_KEY_SIZE  // source end
     );
-    return new cciField(
-      cciFieldType.RELATES_TO, value);
+    return new this(cciFieldType.RELATES_TO, value);
   }
 
 
@@ -100,12 +111,16 @@ export class cciField extends CubeField {
   }
 
   static MediaType(type: MediaTypes) {
-    return new cciField(cciFieldType.MEDIA_TYPE, Buffer.alloc(1).fill(type));
+    return new this(cciFieldType.MEDIA_TYPE, Buffer.alloc(1).fill(type));
   }
 
   static Username(name: string): cciField {
     const buf = Buffer.from(name, 'utf-8');
-    return new cciField(cciFieldType.USERNAME, buf);
+    return new this(cciFieldType.USERNAME, buf);
+  }
+
+  static CciEnd() {
+    return new this(cciFieldType.CCI_END, Buffer.alloc(0));
   }
 
   static *FromRelationships(rels: Iterable<cciRelationship>): Generator<cciField> {

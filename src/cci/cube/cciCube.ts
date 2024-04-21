@@ -78,10 +78,9 @@ export class cciCube extends Cube {
   }
 
   constructor(
-          param1: Buffer | CubeType,
-          options?: CubeOptions)
-  {
-    if (options === undefined) options = {};
+    param1: Buffer | CubeType,
+    options: CubeOptions = {},
+  ){
     options.family = options.family ?? cciFamily;
     super(param1, options)
   }

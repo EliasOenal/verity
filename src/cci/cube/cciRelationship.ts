@@ -40,6 +40,11 @@ export class cciRelationship {
   type: cciRelationshipType;
   remoteKey: CubeKey;
 
+  get remoteKeyString(): string {
+    if (this.remoteKey === undefined) return "undefined";
+    else return this.remoteKey.toString('hex');
+  }
+
   constructor(type: cciRelationshipType = undefined, remoteKey: CubeKey = undefined) {
       this.type = type;
       this.remoteKey = remoteKey;
