@@ -74,19 +74,20 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
     }
 
     /**
-    * Gets all fields of a specified type, or all fields
-    * @param type Which type of field to get
+    * Gets all fields of one or more specified types, or all fields
+    * @param type Which type(s) of field to get
     * @return An array of Field objects, which may be empty.
     */
-    public get(type: number = undefined): Array<BaseField> {  // in top-level fields, type must be one of FieldType as defined in cubeDefinitions.ts
+    public get(type: number | number[] = undefined): Array<BaseField> {  // in top-level fields, type must be one of FieldType as defined in cubeDefinitions.ts
+        if (!(Array.isArray(type))) type = [type];
         if (type) {
             const ret = [];
             for (const field of this.data) {
-                if (field.type === type) ret.push(field);
+                if (type.includes(field.type)) ret.push(field);
             }
             return ret;
         }
-        else return this.data;
+        else return this.data;  // performance optimisation in case of no filter
     }
 
     /** Gets the first field of a specified type */
@@ -95,6 +96,39 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
             if (field.type === type) return field;
         }
         return undefined;  // none found
+    }
+
+    /**
+     * Splits the list of fields into arrays starting with a field of the
+     * specified type.
+     * @param [type] The Field type to slice by
+     * @param [includeBefore] If the field list does not start with a field of
+     * the specified type, this flag determines what to do with the front fields.
+     * If true, they will be returned as the first slice.
+     * If false, they will not be returned at all.
+     */
+    public sliceBy(type: Number, includeBefore: boolean = false): this[] {
+        const slices: BaseFields[] = [];
+        function commitSlice(slice: BaseFields) {
+            if (slice.length > 0) {
+                if (includeBefore || slice.all[0].type === type) {
+                    // but only if it starts with the specified field type
+                    // or the caller opted in to getting the leading fields
+                    slices.push(slice);
+                }
+            }
+        }
+        let currentSlice: BaseFields = new (this.constructor as any)([], this.fieldDefinition);
+        for (const field of this.data) {
+            if (field.type === type) {
+                commitSlice(currentSlice);
+                // start new slice
+                currentSlice = new (this.constructor as any)([], this.fieldDefinition);
+            }
+            currentSlice.appendField(field);  // commit field to slice
+        }
+        commitSlice(currentSlice);
+        return slices as this[];
     }
 
     public appendField(field: BaseField): void {

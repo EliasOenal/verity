@@ -760,7 +760,7 @@ export class Identity {
         if (!inserted) this.posts.push(postrel.remoteKey.toString('hex'));
       }
       await this.recursiveParsePostReferences(
-        await this.cubeStore.getCube(postrel.remoteKey, cciFamily),
+        await this.cubeStore.getCube(postrel.remoteKey),
         alreadyTraversedCubes
       );
     }

@@ -1,4 +1,5 @@
 import { cciField, cciFieldType, MediaTypes } from "../../../src/cci/cube/cciField";
+import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 import { FieldError } from "../../../src/core/cube/cubeDefinitions";
 import { CubeFieldType, CubeField } from "../../../src/core/cube/cubeField";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
@@ -48,11 +49,13 @@ describe('cciField', () => {
     });
 
     it('should create RelatesTo cciField', () => {
-      const rel = { type: 0, remoteKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE) };
+      const rel = new cciRelationship(cciRelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42));
       const field = cciField.RelatesTo(rel);
       expect(field instanceof cciField).toBe(true);
       expect(field.type).toBe(cciFieldType.RELATES_TO);
-      expect(field.value).toEqual(Buffer.alloc(NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE));
+      const restoredRel = cciRelationship.fromField(field);
+      expect(restoredRel.type).toBe(cciRelationshipType.MYPOST);
+      expect(restoredRel.remoteKey).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42));
     });
 
     it('should create Payload cciField', () => {
@@ -82,7 +85,7 @@ describe('cciField', () => {
 
   describe('static FromRelationships generator', () => {
     it('should generate fields from relationships', () => {
-      const rels = [{ type: 1, remoteKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE) }];
+      const rels = [new cciRelationship(cciRelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))];
       const gen = cciField.FromRelationships(rels);
       expect(gen.next().value instanceof cciField).toBe(true);
     });

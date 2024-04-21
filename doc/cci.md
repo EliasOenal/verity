@@ -39,8 +39,6 @@ Standardized fields are defined to establish a universal foundation for payloads
 | Type (hex)  | Field name             | Len | Description                                                                         |
 |-------------|------------------------|-----|-------------------------------------------------------------------------------------|
 | 0x10        | Payload                | var | Denotes the "main" or most relevant data, the raison d'être for this Cube.          |
-
-| Type (Hex)  | Field Name             | Len | Description                                                                         |
 | 0x11        | Content name           | var | Concise, plain text description of this Cube's Payload, e.g. "Chancellor on brink of second bailout for banks" or "Charpentier - Te Deum, Prelude.mp3" |
 | 0x12        | Description            | var | A short summary of this Cube's Payload, e.g. a textual descriptionm of non-text content, a summary or an article's lead paragraph. Should be plain text with optional markdown. |
 | 0x13        | Related to             |  33 | A single byte code denoting commonly used relationships this cube may have with other cubes, plus the key of the referred Cube |

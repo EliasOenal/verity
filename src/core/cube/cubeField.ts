@@ -54,15 +54,13 @@ export class CubeField extends BaseField {
   static Type(cubeType: CubeType): CubeField {
     const typeFieldBuf: Buffer = Buffer.alloc(CubeFieldLength[CubeFieldType.TYPE]);
     typeFieldBuf.writeUIntBE(cubeType, 0, CubeFieldLength[CubeFieldType.TYPE]);
-    return new CubeField(
-      CubeFieldType.TYPE, typeFieldBuf);
+    return new this(CubeFieldType.TYPE, typeFieldBuf);
   }
 
   static Date(cubeDate: number = unixtime()): CubeField {
     const dateFieldBuf: Buffer = Buffer.alloc(CubeFieldLength[CubeFieldType.DATE]);
     dateFieldBuf.writeUIntBE(cubeDate, 0, CubeFieldLength[CubeFieldType.DATE]);
-    return new CubeField(
-      CubeFieldType.DATE, dateFieldBuf);
+    return new this(CubeFieldType.DATE, dateFieldBuf);
   }
 
   static Nonce(): CubeField {
@@ -70,7 +68,7 @@ export class CubeField extends BaseField {
     for (let i = 0; i < Settings.NONCE_SIZE; i++) {
       random_bytes[i] = Math.floor(Math.random() * 256);
     }
-    return new CubeField(
+    return new this(
       CubeFieldType.NONCE,
       Buffer.from(random_bytes));
   }
@@ -88,25 +86,19 @@ export class CubeField extends BaseField {
       for (let i = 0; i < length - 2; i++) {  // maybe TODO: 2 is the header length of a variable size field and we should usually get this value from the field parser rather than littering literals throughout the code
         random_bytes[i] = Math.floor(Math.random() * 256);
       }
-      field = new CubeField(
-        CubeFieldType.PADDING,
-        Buffer.from(random_bytes));
+      field = new this(CubeFieldType.PADDING, Buffer.from(random_bytes));
     } else {
-      field = new CubeField(
-        CubeFieldType.CCI_END,
-        Buffer.alloc(0));
+      field = new this(CubeFieldType.CCI_END, Buffer.alloc(0));
     }
     return field;
   }
 
   static PublicKey(publicKey: Buffer): CubeField {
-    return new CubeField(
-      CubeFieldType.PUBLIC_KEY,
-      publicKey as Buffer);
+    return new this(CubeFieldType.PUBLIC_KEY, publicKey as Buffer);
   }
 
   static Signature(): CubeField {
-    return new CubeField(
+    return new this(
       CubeFieldType.SIGNATURE,
       Buffer.alloc(CubeFieldLength[CubeFieldType.SIGNATURE]));
   }
