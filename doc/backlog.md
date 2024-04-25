@@ -26,6 +26,10 @@
   full nodes run by users subject to such restrictions to still contribute to
   Verity as a whole.
 
+# CCI Identity
+- Support umbrella identities linking together a user's profiles over multiple
+  Verity apps.
+
 ## Microblogging app
 - PWA: Rework service worker to auto-update cached assets
 - QR codes for adding / subscribing to local friends
