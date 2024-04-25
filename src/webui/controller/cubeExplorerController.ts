@@ -36,7 +36,7 @@ export class CubeExplorerController extends VerityController {
         filtered++;
         continue;  // skip non-matching
       }
-      const cube: Cube = await this.cubeStore.getCube(key, cciFamily);  // try to parse as CCI, but probably okay if it's not
+      const cube: Cube = await this.cubeStore.getCube(key);  // try to parse as CCI, but probably okay if it's not
       if (!cube) {
         unparsable++;
         continue;  // TODO error handling
@@ -62,7 +62,7 @@ export class CubeExplorerController extends VerityController {
       logger.warn("CubeExplorerController.changeEncoding(): Could not find my elems and attrs, did you mess with my DOM elements?!");
       return;
     }
-    const cube: Cube = await this.cubeStore.getCube(cubeKeyString, cciFamily);
+    const cube: Cube = await this.cubeStore.getCube(cubeKeyString);
     if (!cube) {
       logger.warn("CubeExplorerController.changeEncoding(): could not find Cube " + cubeKeyString);
       return;
