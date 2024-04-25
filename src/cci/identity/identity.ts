@@ -46,6 +46,8 @@ export interface IdentityOptions {
    * change will invalidate all existing passwords.
    **/
   argonMemoryHardness?: number,
+
+  idmucContextString?: string,
 }
 
 // TODO: Split out the MUC management code.
@@ -116,7 +118,7 @@ export class Identity {
   ): Promise<Identity | undefined> {
     const masterKey: Buffer = Identity.DeriveMasterKey(username, password,
       options?.argonCpuHardness, options?.argonMemoryHardness);
-    const keyPair: KeyPair = Identity.DeriveKeypair(masterKey);
+    const keyPair: KeyPair = Identity.DeriveKeypair(masterKey, options);
     const idMuc: cciCube = ensureCci(await cubeStore.getCube(
       Buffer.from(keyPair.publicKey), cciFamily));
     if (idMuc === undefined) return undefined;
@@ -148,9 +150,10 @@ export class Identity {
     return id.ready;
   }
 
-  static DeriveKeypair(masterKey: Buffer): KeyPair {
+  static DeriveKeypair(masterKey: Buffer, options?: IdentityOptions): KeyPair {
+    const contextString: string = options?.idmucContextString ?? IDMUC_CONTEXT_STRING;
     const derivedSeed = sodium.crypto_kdf_derive_from_key(
-      sodium.crypto_sign_SEEDBYTES, IDMUC_MASTERINDEX, IDMUC_CONTEXT_STRING,
+      sodium.crypto_sign_SEEDBYTES, IDMUC_MASTERINDEX, contextString,
       masterKey, "uint8array");
     const keyPair: KeyPair = sodium.crypto_sign_seed_keypair(
       derivedSeed, "uint8array");
@@ -233,6 +236,7 @@ export class Identity {
   get masterKey(): Buffer {
     return this._masterKey;  // TODO change this as discussed below
   }
+  readonly idmucContextString: string;
 
   /**
    * Subscription recommendations are publically visible subscriptions of other
@@ -315,6 +319,7 @@ export class Identity {
     // set options
     this.minMucRebuildDelay = options?.minMucRebuildDelay ?? ZwConfig.MIN_MUC_REBUILD_DELAY;
     this.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY,
+    this.idmucContextString = options?.idmucContextString ?? IDMUC_CONTEXT_STRING;
     this.parsers = options?.parsers ?? cciFieldParsers;
     this.persistance = options?.persistance ?? undefined;
 
@@ -335,7 +340,7 @@ export class Identity {
       this._muc = cciCube.ExtensionMuc(
         mucOrMasterkey,
         [],  // TODO: allow to set fields like username directly on construction
-        IDMUC_MASTERINDEX, IDMUC_CONTEXT_STRING,
+        IDMUC_MASTERINDEX, this.idmucContextString,
       );
       this.readyPromiseResolve(this);
     }
@@ -397,8 +402,9 @@ export class Identity {
   }
 
   /** Stores a new cube key a the the beginning of my post list */
-  rememberMyPost(cubeKey: CubeKey) {
-    this.posts.unshift(cubeKey.toString('hex'));
+  rememberMyPost(cubeKey: CubeKey | string) {
+    if (typeof cubeKey !== 'string') cubeKey = cubeKey.toString('hex');
+    this.posts.unshift(cubeKey);
   }
 
   /** Removes a cube key from my post list */
