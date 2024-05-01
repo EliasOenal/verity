@@ -2,6 +2,11 @@ import { UiError } from "../webUiDefinitions";
 import { logger } from "../../core/logger";
 
 // TODO: make template handling more clearly optional
+
+export const alertTypes =
+  ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'] as const;
+export type AlertTypeList = typeof alertTypes[number];
+
 /** Abstract base class for our views */
 export abstract class VerityView {
   renderedView: HTMLElement;
@@ -56,6 +61,35 @@ export abstract class VerityView {
       this.htmlTemplate.content.querySelector(templateQuery);
     const entry: HTMLElement = templateEntry.cloneNode(true) as HTMLElement;
     return entry;
+  }
+
+  makeAlert(
+      container: HTMLElement | string,
+      type: AlertTypeList,
+      msg: string,
+      exclusive: boolean = false,
+  ): HTMLElement {
+    if (exclusive) this.clearAlerts();
+    if (typeof container === 'string') {
+      container = this.renderedView.querySelector(container) as HTMLElement;
+    }
+    container.classList.add("verityAlert", "alert", "alert-"+type);
+    container.setAttribute("role", "alert");
+    container.innerText = msg;
+    return container;
+  }
+
+  clearAlerts(where: HTMLElement | string = this.renderedView): void {
+    if (typeof where === 'string') {
+      where = this.renderedView.querySelector(where) as HTMLElement;
+    }
+    const alerts: NodeListOf<HTMLElement> = where.querySelectorAll(".verityAlert");
+    for (const alert of alerts) {
+      alert.classList.remove("verityAlert", "alert");
+      for (const alertType of alertTypes) alert.classList.remove("alert-"+alertType);
+      alert.removeAttribute("role");
+      alert.innerText = '';
+    }
   }
 }
 
