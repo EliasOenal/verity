@@ -1,6 +1,12 @@
 # Feature backlog
 ## Core
 - Direct access to Cubes from persistant memory / stop loading all Cubes to RAM
+- Define a common interface for CubeStore and RequestScheduler so application
+  code on light nodes can fetch Cubes directly from the network; rewrite a lot
+  of CCI and application level code to use this new interface instead of assuming
+  everything is always present in the local CubeStore (i.e. stop assuming
+  everything is running on a full node)
+- Implement PIC
 - Parametrize pruning and enable it by default
   (e.g. pruning based on available space -- this is especially important
   now that we basically don't have any content and will therefore basically
@@ -26,11 +32,15 @@
   full nodes run by users subject to such restrictions to still contribute to
   Verity as a whole.
 
-# CCI Identity
+# CCI
+- Implement Cube encryption
+- Implement continuation chains
+
+## CCI Identity
 - Support umbrella identities linking together a user's profiles over multiple
   Verity apps.
 
-## Microblogging app
+# Microblogging app
 - PWA: Rework service worker to auto-update cached assets
 - QR codes for adding / subscribing to local friends
 
