@@ -9,8 +9,6 @@ import { Cube, CubeOptions } from "../../core/cube/cube";
 import sodium, { KeyPair, crypto_kdf_KEYBYTES } from 'libsodium-wrappers-sumo'
 
 export class cciCube extends Cube {
-  class = cciCube;  // javascript introspection sucks
-
   static Frozen(options?: CubeOptions): cciCube {
     if (options === undefined) options = {};
     options.family = options?.family ?? cciFamily;

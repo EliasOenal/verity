@@ -17,8 +17,8 @@ import { FieldNumericalParam } from "../../core/fields/fieldParser";
  * are used in core layer unit tests and in padding up "core" Cubes.
  **/
 enum cciAdditionalFieldType {
-  // CCI_END = 0x00 << 2,  // 0 -- currently defined on core layer
-  APPLICATION = 0x01 << 2,  // 4
+  // CCI_END = 0x00 << 2,    // 0 -- currently defined on core layer
+  APPLICATION = 0x01 << 2,   // 4
   CONTINUED_IN = 0x02 << 2,  // 8
 
   /**
@@ -31,16 +31,16 @@ enum cciAdditionalFieldType {
   * We're pretty confident this does not actually expose any cryptographically
   * sensitive information, but we maybe should encrypt it.
   */
-  SUBKEY_SEED = 0x03 << 2,  // 12
+  SUBKEY_SEED = 0x03 << 2,   // 12
 
-  // PAYLOAD = 0x10 << 2,  // 64 -- currently defined on core layer
-  CONTENTNAME = 0x11 << 2,  // 68
-  DESCRIPTION = 0x12 << 2,  // 72
-  RELATES_TO = 0x13 << 2,  // 76
-  USERNAME = 0x14 << 2,  // 80
-  MEDIA_TYPE = 0x15 << 2,  // 84
-  AVATAR = 0x16 << 2,
-  // PADDING = 0x1F << 2,  // 124 -- currently defined on core layer
+  // PAYLOAD = 0x10 << 2,    // 64 -- currently defined on core layer
+  CONTENTNAME = 0x11 << 2,   // 68
+  DESCRIPTION = 0x12 << 2,   // 72
+  RELATES_TO = 0x13 << 2,    // 76
+  USERNAME = 0x14 << 2,      // 80
+  MEDIA_TYPE = 0x15 << 2,    // 84
+  AVATAR = 0x16 << 2,        // 88
+  // PADDING = 0x1F << 2,    // 124 -- currently defined on core layer
 }
 export const cciFieldType = {...CubeFieldType, ...cciAdditionalFieldType} as const;
 
