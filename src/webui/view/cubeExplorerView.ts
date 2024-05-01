@@ -25,6 +25,7 @@ enum EncodingIndex {
 export class CubeExplorerView extends VerityView {
   private cubeList: HTMLUListElement;
 
+  // TODO: Do not display view before values have been filled in
   constructor(
       htmlTemplate: HTMLTemplateElement = document.getElementById(
         "verityCubeExplorerTemplate") as HTMLTemplateElement,
