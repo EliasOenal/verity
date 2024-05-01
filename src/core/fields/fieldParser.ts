@@ -1,3 +1,4 @@
+import { ApiMisuseError, Settings } from "../settings";
 import { BinaryDataError, FieldError } from "../cube/cubeDefinitions";
 import { BaseField } from "./baseField";
 import { BaseFields } from "./baseFields";
@@ -22,11 +23,24 @@ export interface FieldDefinition {
 
 export class FieldParser {
   static validateFieldDefinition(fieldDef: FieldDefinition) {
-    // Ensure all field class IDs fit into NetConstants.MESSAGE_CLASS_SIZE,
+    // Ensure all defined fields have a specified length or are explicitly
+    // declared variable by setting their length to undefined
+    for (const fieldType of Object.values(fieldDef.fieldNames)) {
+      if (typeof fieldType === 'number') {  // filter out TypeScript-specific enum reverse mapping
+        if (!(fieldType in fieldDef.fieldLengths)) {
+          throw new ApiMisuseError(`Invalid field definition: No length specified for field type ${fieldType}, not even undefined.`);
+        }
+      }
+    }
+    // TODO: Ensure all field class IDs fit into NetConstants.FIELD_TYPE_SIZE
+    // (or rather into a fixed size of 6 bits as we don't actually support
+    // variably sized types just yet),
     // except those of positional fields (as those are local-only and will never
     // be actually used on the network).
-
-    // TODO implement
+    // Maybe also print a warning when a positional field ID *does* fit into the
+    // type ID space as that's a waste of ID space and also plain confusing.
+    //
+    // TODO: Think about addional useful sanity checking
     return true;
   }
 
@@ -34,7 +48,9 @@ export class FieldParser {
   decompileTlv: boolean = true;
 
   constructor(readonly fieldDef: FieldDefinition) {
-    FieldParser.validateFieldDefinition(fieldDef);
+    if (Settings.RUNTIME_ASSERTIONS) {
+      FieldParser.validateFieldDefinition(fieldDef);
+    }
   }
 
   /**
