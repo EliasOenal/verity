@@ -116,7 +116,7 @@ export class CubeInfo {
   get date(): number {
     if (this._date === undefined) {
       const cube = this.getCube();
-      this._date = cube.getDate();
+      this._date = cube?.getDate();  // if Cube unavailable, _date will stay undefined
     }
     return this._date;
   }
@@ -130,7 +130,7 @@ export class CubeInfo {
   get difficulty(): number {
     if (this._difficulty === undefined) {
       const cube = this.getCube();
-      this._difficulty = cube.getDifficulty();
+      this._difficulty = cube?.getDifficulty();  // if Cube unavailable, _difficulty will stay undefined
     }
     return this._difficulty;
   }

@@ -23,8 +23,6 @@ export interface CubeOptions {
 }
 
 export class Cube {
-    class = Cube;  // javascript introspection sucks
-
     /**
      * Creates a new standard or "frozen" cube.
      * @param data Supply your custom fields here. We will supplement them
@@ -238,8 +236,9 @@ export class Cube {
         this._fields = fields;
     }
 
-    // TODO: Having something as simple as getKey() async keeps causing hickups.
-    // We should make hash generation explicit and getKey() immediate.
+    // Note: Arguably, it might have been a better idea to make key generation
+    // explicit rather than having getKey() async. But it's what we did and it's
+    // pretty stable by now.
     public async getKey(): Promise<CubeKey> {
         if (this.cubeType == CubeType.MUC) {
             return this.publicKey;
@@ -248,6 +247,9 @@ export class Cube {
         } else {
             throw new CubeError("CubeType " + this.cubeType + " not implemented");
         }
+    }
+    public async getKeyString(): Promise<string> {
+        return (await this.getKey()).toString('hex');
     }
 
     public getKeyIfAvailable(): CubeKey {
@@ -258,6 +260,10 @@ export class Cube {
         } else {
             throw new CubeError("CubeType " + this.cubeType + " not implemented");
         }
+    }
+    public getKeyStringIfAvailable(): string {
+        return this.getKeyIfAvailable()?
+            this.getKeyIfAvailable().toString('hex') : undefined;
     }
 
     public async getHash(): Promise<Buffer> {
