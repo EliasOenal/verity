@@ -40,6 +40,7 @@ describe('Identity', () => {
       enableCubePersistence: EnableCubePersitence.OFF,
       requiredDifficulty: 0,  // require no hashcash for faster testing
       enableCubeRetentionPolicy: false,  // TODO: we should make these tests pass with retention policy enabled
+      family: cciFamily,
     });
   });
 

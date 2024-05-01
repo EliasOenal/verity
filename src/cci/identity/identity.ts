@@ -120,7 +120,7 @@ export class Identity {
       options?.argonCpuHardness, options?.argonMemoryHardness);
     const keyPair: KeyPair = Identity.DeriveKeypair(masterKey, options);
     const idMuc: cciCube = ensureCci(await cubeStore.getCube(
-      Buffer.from(keyPair.publicKey), cciFamily));
+      Buffer.from(keyPair.publicKey)));
     if (idMuc === undefined) return undefined;
     const identity: Identity = await Identity.Construct(cubeStore, idMuc, options);
     identity.supplySecrets(masterKey, Buffer.from(keyPair.privateKey));
@@ -195,7 +195,7 @@ export class Identity {
     // too late.
     // let id: Identity;
     // try {
-    //   const muc = ensureCci(mucInfo.getCube(cciFamily));
+    //   const muc = ensureCci(mucInfo.getCube());
     //   if (muc === undefined) return false;
     //   id = await Identity.Construct(this.cubeStore, muc);
     // } catch (error) { return false; }
@@ -435,7 +435,7 @@ export class Identity {
     let recursiveSubs: CubeKey[] = this.subscriptionRecommendations;
     if (curDepth < maxDepth) {
       for (const sub of this._subscriptionRecommendations) {
-        const muc: cciCube = ensureCci(await this.cubeStore.getCube(sub, cciFamily));
+        const muc: cciCube = ensureCci(await this.cubeStore.getCube(sub));
         if (!muc) continue;
         let id: Identity;
         try {
@@ -683,12 +683,17 @@ export class Identity {
       cubeInfo => this.mergeRemoteChanges(cubeInfo));
     // check if this is even our MUC
     if (!(incoming.key.equals(this.key))) return;
+    // check if this is even an update
+    if (incoming.getCube().getHashIfAvailable().    // hash always available as
+          equals(this.muc.getHashIfAvailable())) {  // CubeStore.addCube() awaits it
+      return;
+    }
     // check if this MUC is even valid
     if (!Identity.validateMuc(incoming)) return;
     // TODO: This does not actually perform a merge,
     // it just gives precedence to the remote version.
     // TODO: This currently creates a race condition as parseMuc() is async.
-    this.parseMuc(incoming.getCube(cciFamily) as cciCube);
+    this.parseMuc(incoming.getCube() as cciCube);
   }
 
   // TODO: check and limit recursion
@@ -717,7 +722,7 @@ export class Identity {
     const furtherIndices = fields.getRelationships(
       cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX);
     for (const furtherIndex of furtherIndices) {
-      const furtherCube: Cube = await this.cubeStore.getCube(furtherIndex.remoteKey, cciFamily);
+      const furtherCube: Cube = await this.cubeStore.getCube(furtherIndex.remoteKey);
       if (furtherCube) {
         await this.recursiveParseSubscriptionRecommendations(furtherCube, alreadyTraversedCubes);
       }
@@ -748,7 +753,13 @@ export class Identity {
       cciRelationshipType.MYPOST);
     for (const postrel of myPostRels) {
       const postInfo: CubeInfo = await this.cubeStore.getCubeInfo(postrel.remoteKey);
-      if (!postInfo) continue;  // skip posts we don't actually have
+      if (!postInfo) {  // skip posts we don't actually have
+        // TODO: think about whether this is actually a good idea once we migrate
+        // to the RequestScheduler interface instead of just assuming everything
+        // is in our local CubeStore.
+        logger.trace(`Identity.recursiveParsePostReferences(): While reconstructing the post list of Identity ${this.keyString} I'll skip post ${postrel.remoteKeyString} as I can't find it.`);
+        continue;
+      }
       if (!(this.posts.includes(postrel.remoteKey.toString('hex')))) {
         // Insert sorted by date. This is not efficient but I think it doesn't matter.
         let inserted: boolean = false;
@@ -756,19 +767,20 @@ export class Identity {
           // if the post to insert is newer than the post we're currently looking at,
           // insert before
           const postrelDate = postInfo.date;
-          const compareToDate = (await this.cubeStore.getCubeInfo(this.posts[i])).date;
-          if (postrelDate >= compareToDate) {
-              this.posts.splice(i, 0, postrel.remoteKey.toString('hex'));  // inserts at position i
-              inserted = true;
-              break;
-            }
+          const compareTo: CubeInfo = await this.cubeStore.getCubeInfo(this.posts[i]);
+          if (compareTo === undefined) {
+            logger.warn(`Identity.recursiveParsePostReferences(): While reconstructing the post list of Identity ${this.keyString} I could not fetch the CubeInfo of this Identity's post ${this.posts[i]}`);
+          }
+          if (compareTo !== undefined && postrelDate >= compareTo.date) {
+            this.posts.splice(i, 0, postrel.remoteKey.toString('hex'));  // inserts at position i
+            inserted = true;
+            break;
+          }
         }
         if (!inserted) this.posts.push(postrel.remoteKey.toString('hex'));
       }
       await this.recursiveParsePostReferences(
-        await this.cubeStore.getCube(postrel.remoteKey),
-        alreadyTraversedCubes
-      );
+        await this.cubeStore.getCube(postrel.remoteKey), alreadyTraversedCubes);
     }
   }
 }
