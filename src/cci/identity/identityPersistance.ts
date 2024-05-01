@@ -90,7 +90,7 @@ export class IdentityPersistance {
         const privkey: Buffer = Buffer.from(
           Identity.DeriveKeypair(masterKey).privateKey);
         const muc = ensureCci(
-          await cubeStore.getCube(Buffer.from(pubkeyString, 'hex'), cciFamily));
+          await cubeStore.getCube(Buffer.from(pubkeyString, 'hex')));
         if (muc === undefined) {
           logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkeyString + " is not present");
           continue;
