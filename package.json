@@ -49,7 +49,7 @@
     "it-pipe": "^3.0.1",
     "js-sha3": "^0.9.3",
     "level": "^8.0.1",
-    "libp2p": "^1.4.3",
+    "libp2p": "^1.5.0",
     "libsodium-wrappers-sumo": "^0.7.13",
     "pino": "^9.0.0",
     "pino-pretty": "^11.0.0",
