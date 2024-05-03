@@ -11,7 +11,7 @@ import { cciFieldType } from '../../../src/cci/cube/cciField';
 import { cciRelationshipType, cciRelationship } from '../../../src/cci/cube/cciRelationship';
 import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
 import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
-import { IdentityPersistance } from '../../../src/cci/identity/identityPersistance';
+import { IdentityPersistence } from '../../../src/cci/identity/identityPersistence';
 
 import sodium from 'libsodium-wrappers-sumo'
 
@@ -475,12 +475,12 @@ describe('Identity', () => {
   });
 
   describe('local persistant storage', () => {
-    let persistance: IdentityPersistance;
+    let persistance: IdentityPersistence;
     let idTestOptions: IdentityOptions;
 
     beforeEach(async () => {
       // Open the DB and make sure it's empty
-      persistance = await IdentityPersistance.create("testidentity");
+      persistance = await IdentityPersistence.Create({dbName: "testidentity"});
       await persistance.deleteAll();
       const ids: Array<Identity> = await persistance.retrieve(cubeStore);
       expect(ids).toBeDefined();
@@ -488,7 +488,7 @@ describe('Identity', () => {
       idTestOptions = {
         minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
         requiredDifficulty: reducedDifficulty,
-        persistance: persistance,
+        persistence: persistance,
       }
     });
 
@@ -551,7 +551,7 @@ describe('Identity', () => {
       it('should be stable, i.e. always create the same Identity including the same avatar for the same user/pass combo at full hardness', async () => {
         const id: Identity = await Identity.Create(
           cubeStore, "Identitas stabilis", "Clavis stabilis", {
-            persistance: undefined,
+            persistence: undefined,
             requiredDifficulty: 0,  // this is just the hashcash level,
                                     // note argon settings have not been touched
         });

@@ -73,12 +73,9 @@ export class VerityUI {
     this.node.shutdown();
   }
 
-  async initializeIdentity(): Promise<void> {
-    const idlist: Identity[] = await Identity.retrieve(this.node.cubeStore);
-    let identity: Identity = undefined;
-    if (idlist?.length) identity = idlist[0];
-    this.identityController = new IdentityController(this.node.cubeStore, identity);
-    this.identityController.showLoginStatus();
+  initializeIdentity(): Promise<boolean> {
+    this.identityController = new IdentityController(this.node.cubeStore);
+    return this.identityController.loadLocal();
   }
 }
 

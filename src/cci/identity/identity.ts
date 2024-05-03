@@ -1,5 +1,5 @@
 /** !!! This module may only be used after awaiting sodium.ready !!! */
-import { IdentityPersistance } from './identityPersistance';
+import { IdentityPersistence } from './identityPersistence';
 import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
 
 import { unixtime } from '../../core/helpers';
@@ -13,7 +13,7 @@ import { cciCube, cciFamily } from '../cube/cciCube';
 import { ensureCci } from '../cube/cciCubeUtil';
 
 import { Settings, VerityError } from '../../core/settings';
-import { FieldParserTable } from '../../core/cube/cubeFields';
+import { CubeFamilyDefinition, FieldParserTable } from '../../core/cube/cubeFields';
 import { CubeStore } from '../../core/cube/cubeStore';
 import { CubeInfo } from '../../core/cube/cubeInfo';
 import { CubeError, CubeKey, CubeType, FieldError } from '../../core/cube/cubeDefinitions';
@@ -28,10 +28,10 @@ const IDMUC_CONTEXT_STRING = "CCI Identity";
 const IDMUC_MASTERINDEX = 0;
 
 export interface IdentityOptions {
-  persistance?: IdentityPersistance,
+  persistence?: IdentityPersistence,
   minMucRebuildDelay?: number,
   requiredDifficulty?: number,
-  parsers?: FieldParserTable,
+  family?: CubeFamilyDefinition,
 
   /**
    * Adjust how much CPU power it will take to restore an Identity from
@@ -177,8 +177,8 @@ export class Identity {
   }
 
   /// @static Retrieves all Identity objects stored in persistant storage.
-  static async retrieve(cubeStore: CubeStore, dbname: string = "identity"): Promise<Identity[]> {
-    const persistance: IdentityPersistance = await IdentityPersistance.create(dbname);
+  static async retrieve(cubeStore: CubeStore, options?: IdentityOptions): Promise<Identity[]> {
+    const persistance: IdentityPersistence = await IdentityPersistence.Create(options);
     const ids: Array<Identity> = await persistance.retrieve(cubeStore);
     return ids;
   }
@@ -220,7 +220,7 @@ export class Identity {
    * If this Identity object knows an IdentityPersistant object
    * it can be stored in a local database. If it doesn't... then it can't.
    */
-  persistance: IdentityPersistance;
+  persistance: IdentityPersistence;
 
   /**
    * Identity requires CubeStore for loading and parsing Identity extension
@@ -230,7 +230,10 @@ export class Identity {
 
   private minMucRebuildDelay: number;
   private requiredDifficulty: number;
-  readonly parsers: FieldParserTable;
+
+  // TODO: actually use this attribute, i.e. when determining which kinds of
+  // Cubes to sculpt
+  readonly family: CubeFamilyDefinition;
 
   private _masterKey: Buffer = undefined;
   get masterKey(): Buffer {
@@ -323,8 +326,8 @@ export class Identity {
     this.minMucRebuildDelay = options?.minMucRebuildDelay ?? ZwConfig.MIN_MUC_REBUILD_DELAY;
     this.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY,
     this.idmucContextString = options?.idmucContextString ?? IDMUC_CONTEXT_STRING;
-    this.parsers = options?.parsers ?? cciFieldParsers;
-    this.persistance = options?.persistance ?? undefined;
+    this.family = options?.family ?? cciFamily;
+    this.persistance = options?.persistence ?? undefined;
 
     // Subscribe to remote Identity updates (i.e. same user using multiple devices)
     // Note: We're subscribing using once instead of on and renew the subscription
