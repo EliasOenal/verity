@@ -42,12 +42,7 @@ export class PostView extends VerityView {
     this.displayCubeAuthor(data);
     // date
     const dateelem = li.getElementsByClassName("verityPostDate")[0] as HTMLElement;
-    const date: Date = new Date(data.timestamp*1000);
-    const dateformat: Intl.DateTimeFormatOptions =
-      { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    dateelem.innerText =
-      date.toLocaleDateString(navigator.language, dateformat) + " " +
-      date.toLocaleTimeString(navigator.language);
+    dateelem.innerText = this.formatDate(data.timestamp*1000)
     // post text
     const text: HTMLParagraphElement =
       li.getElementsByClassName("verityPostContent")[0] as HTMLParagraphElement;
