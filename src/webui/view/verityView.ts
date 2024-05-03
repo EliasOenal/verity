@@ -91,5 +91,16 @@ export abstract class VerityView {
       alert.innerText = '';
     }
   }
+
+  formatDate(
+      unixtime: number,
+      dateFormat: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
+  ): string {
+    const date: Date = new Date(unixtime*1000);
+    const dateText =
+      date.toLocaleDateString(navigator.language, dateFormat) + " " +
+      date.toLocaleTimeString(navigator.language);
+    return dateText;
+  }
 }
 
