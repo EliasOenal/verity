@@ -8,7 +8,7 @@ import { Identity } from "../../cci/identity/identity";
 import { MediaTypes, cciFieldType, cciFieldLength } from "../../cci/cube/cciField";
 import { cciFieldParsers, cciFields } from "../../cci/cube/cciFields";
 import { cciRelationshipLimits, cciRelationship, cciRelationshipType } from "../../cci/cube/cciRelationship";
-import { cciCube } from "../../cci/cube/cciCube";
+import { cciCube, cciFamily } from "../../cci/cube/cciCube";
 import { ensureCci } from "../../cci/cube/cciCubeUtil";
 
 import { assertZwCube } from "./zwUtil";
@@ -198,7 +198,9 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       if (!idmuc) return undefined;
       let id: Identity = undefined;
       try {
-        id = await Identity.Construct(this.cubeStore, idmuc, {parsers: cciFieldParsers});
+        id = await Identity.Construct(this.cubeStore, idmuc,
+          {family: cciFamily}  // note: forcing CCI here as this is strictly what the ZW app uses
+        );
       } catch(error) {
         // logger.info("ZwAnnotationEngine: While searching for author of " + key.toString('hex') + " I failed to create an Identity out of MUC " + rootmuc.getKeyIfAvailable()?.toString('hex') + " even though there's a MYPOST chain through " + mucOrMucExtension.getKeyIfAvailable()?.toString('hex'));
       }

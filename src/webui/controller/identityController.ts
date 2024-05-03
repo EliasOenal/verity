@@ -1,7 +1,7 @@
 import { CubeStore } from "../../core/cube/cubeStore";
 
-import { Identity } from "../../cci/identity/identity";
-import { IdentityPersistance } from "../../cci/identity/identityPersistance";
+import { Identity, IdentityOptions } from "../../cci/identity/identity";
+import { IdentityPersistence, IdentityPersistenceOptions } from "../../cci/identity/identityPersistence";
 
 import { EditIdentityView } from "../view/editIdentityView";
 import { LoginFormView } from "../view/loginFormView";
@@ -13,22 +13,36 @@ import { Avatar, AvatarScheme } from "../../cci/identity/avatar";
 
 export class IdentityController extends VerityController {
   loginStatusView: LoginStatusView = new LoginStatusView();
-  persistence: IdentityPersistance = new IdentityPersistance("identity");
 
-  private _identity: Identity;
+  private _identity: Identity = undefined;
   get identity(): Identity { return this._identity}
   set identity(identity: Identity) {
     this._identity = identity;
     this.showLoginStatus();
   }
 
+  get persistence(): IdentityPersistence { return this.options.persistence }
+
   constructor(
     readonly cubeStore: CubeStore,
-    identity: Identity = undefined,
+    readonly options: IdentityOptions&IdentityPersistenceOptions = {},
   ){
     super();
-    this._identity = identity;
+    if (options.persistence === undefined) {
+      options.persistence = new IdentityPersistence(options);
+    }
     this.showLoginStatus();
+  }
+
+  async loadLocal(): Promise<boolean> {
+    const idlist: Identity[] = await Identity.retrieve(this.cubeStore);
+    let identity: Identity = undefined;
+    if (idlist?.length) identity = idlist[0];
+    this.showLoginStatus();
+    if (identity) {
+      this.identity = identity;
+      return true;
+    } else return false;
   }
 
   showLoginStatus() {
@@ -48,12 +62,12 @@ export class IdentityController extends VerityController {
       (form.querySelector(".verityPasswordInput") as HTMLInputElement).value;
     // TODO: enforce some minimum length for both
     let identity: Identity = await Identity.Load(
-      this.cubeStore, username, password, {persistance: this.persistence});
+      this.cubeStore, username, password, this.options);
     if (identity instanceof Identity) {
       identity.persistance.store(identity);  // don't use identity.store() to avoid MUC rebuild
     } else {
       identity = await Identity.Create(
-        this.cubeStore, username, password, {persistance: this.persistence});
+        this.cubeStore, username, password, this.options);
       identity.name = username;  // TODO separate username and display name
       identity.store("ID/ZW");
     }

@@ -1,4 +1,4 @@
-import { Identity } from './identity';
+import { Identity, IdentityOptions } from './identity';
 
 import { CubeKey } from '../../core/cube/cubeDefinitions';
 import { CubeStore } from '../../core/cube/cubeStore';
@@ -11,7 +11,13 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node
 import { Level } from 'level';
 import { Buffer } from 'buffer';
 
-const IDENTITYDB_VERSION = 1;
+const DEFAULT_DB_NAME = "identity";
+const DEFAULT_DB_VERSION = 1;
+
+export interface IdentityPersistenceOptions {
+  dbName?: string,
+  dbVersion?: number,
+}
 
 /**
  * This class is designed to be used in conjunction with Identity and represents
@@ -21,8 +27,8 @@ const IDENTITYDB_VERSION = 1;
  * An IdentityPersistance object encapsulates a database connection used for
  * storing and retrieving identities.
  */
-export class IdentityPersistance {
-  private dbname: string;
+export class IdentityPersistence {
+  private dbName: string;
   private db: Level<string, string>;  // key => JSON-serialized Identity object
 
   /// @static Use this static method to create IdentityPersistance objects
@@ -30,21 +36,26 @@ export class IdentityPersistance {
   /// It's a convenient workaround to abstract from the hazzle that database
   /// operations are async but constructor's aren't allowed to be.
   /// I don't like Javascript.
-  static async create(dbname: string = "identity"): Promise<IdentityPersistance> {
-    const obj = new IdentityPersistance(dbname);
+  static async Create(
+      options?: IdentityOptions | IdentityPersistenceOptions
+  ): Promise<IdentityPersistence> {
+    const obj = new IdentityPersistence(options);
     await obj.open()
     return obj;
   }
 
-  constructor(dbname: string = "identity") {
-    if (isBrowser || isWebWorker) this.dbname = dbname;
-    else this.dbname = "./" + dbname + ".db";
+  constructor(readonly options: IdentityOptions & IdentityPersistenceOptions = {}) {
+    this.options.dbName = this.options.dbName ?? DEFAULT_DB_NAME;
+    this.options.dbVersion = this.options.dbVersion ?? DEFAULT_DB_VERSION;
+    this.options.persistence = this;
+    if (isBrowser || isWebWorker) this.dbName = options.dbName;
+    else this.dbName = "./" + options.dbName + ".db";
     this.db = new Level<string, string>(
-      this.dbname,
+      this.dbName,
       {
         keyEncoding: 'utf8',
         valueEncoding: 'utf8',
-        version: IDENTITYDB_VERSION
+        version: DEFAULT_DB_VERSION
       });
   }
 
@@ -88,7 +99,7 @@ export class IdentityPersistance {
       try {
         const masterKey = Buffer.from(masterkeyString, 'hex');
         const privkey: Buffer = Buffer.from(
-          Identity.DeriveKeypair(masterKey).privateKey);
+          Identity.DeriveKeypair(masterKey, this.options).privateKey);
         const muc = ensureCci(
           await cubeStore.getCube(Buffer.from(pubkeyString, 'hex')));
         if (muc === undefined) {
@@ -97,7 +108,7 @@ export class IdentityPersistance {
         }
         muc.privateKey = privkey;
         const id: Identity = await Identity.Construct(
-          cubeStore, muc, { persistance: this });
+          cubeStore, muc, this.options);
         id.supplySecrets(masterKey, privkey);
         identities.push(id);
       } catch (error) {

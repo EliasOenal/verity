@@ -189,7 +189,7 @@ export class PostController extends VerityController {
       id = await Identity.Construct(
         this.cubeStore,
         muc,
-        {parsers: cciFieldParsers});
+        {family: cciFamily});
     } catch(error) { return; }
     for (const post of id.posts) {
       const cubeInfo: CubeInfo = await this.cubeStore.getCubeInfo(post);
