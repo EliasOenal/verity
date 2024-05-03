@@ -247,6 +247,9 @@ export class Identity {
   get subscriptionRecommendations(): Array<CubeKey> {
     return this._subscriptionRecommendations
   };
+  get subscriptionRecommendationStrings(): Array<string> {
+    return this.subscriptionRecommendations.map(key => key.toString('hex'));
+  }
 
   private _subscriptionRecommendationIndices: Array<cciCube> = [];
   get subscriptionRecommendationIndices(): Array<cciCube> {
@@ -412,7 +415,8 @@ export class Identity {
     this.posts = this.posts.filter(p => p !== cubeKey.toString('hex'));
   }
 
-  addSubscriptionRecommendation(remoteIdentity: CubeKey) {
+  addSubscriptionRecommendation(remoteIdentity: CubeKey | string) {
+    if (typeof remoteIdentity === 'string') remoteIdentity = Buffer.from(remoteIdentity, 'hex');
     if (remoteIdentity instanceof Buffer && remoteIdentity.length == NetConstants.CUBE_KEY_SIZE) {
       this._subscriptionRecommendations.push(remoteIdentity);
     } else {
@@ -420,9 +424,10 @@ export class Identity {
     }
   }
 
-  removeSubscriptionRecommendation(remoteIdentity: CubeKey) {
+  removeSubscriptionRecommendation(remoteIdentity: CubeKey | string) {
+    if (typeof remoteIdentity === 'string') remoteIdentity = Buffer.from(remoteIdentity, 'hex');
     this._subscriptionRecommendations = this._subscriptionRecommendations.filter(
-      (existing: CubeKey) => !existing.equals(remoteIdentity));
+      (existing: CubeKey) => !existing.equals(remoteIdentity as Buffer));
   }
 
   isSubscribed(remoteIdentity: CubeKey) {
