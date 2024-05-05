@@ -35,7 +35,7 @@ export class IdentityController extends VerityController {
   }
 
   async loadLocal(): Promise<boolean> {
-    const idlist: Identity[] = await Identity.retrieve(this.cubeStore);
+    const idlist: Identity[] = await Identity.retrieve(this.cubeStore, this.options);
     let identity: Identity = undefined;
     if (idlist?.length) identity = idlist[0];
     this.showLoginStatus();
