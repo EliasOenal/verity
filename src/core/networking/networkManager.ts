@@ -17,7 +17,7 @@ import { Buffer } from 'buffer';
 import * as cryptolib from 'crypto';
 import { TransportConnection } from './transport/transportConnection';
 import { AddressAbstraction } from '../peering/addressing';
-import { RequestScheduler } from './requestScheduler';
+import { RequestScheduler } from './cubeRetrieval/requestScheduler';
 let crypto;
 if (isBrowser || isWebWorker) {
     crypto = window.crypto;
@@ -45,7 +45,10 @@ export interface NetworkManagerOptions {
 }
 
 /**
- * Class representing a network manager, responsible for handling incoming and outgoing connections.
+ * The NetworkManager is the central coordinating instance responsible for
+ * handling incoming and outgoing connections.
+ * Note that NetworkManager does not automatically start after construction;
+ * please call and await start() before actually using it.
  */
 export class NetworkManager extends EventEmitter {
     // overridable values from Settings

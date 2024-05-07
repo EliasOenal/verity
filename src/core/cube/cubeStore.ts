@@ -83,7 +83,12 @@ export interface CubeStoreOptions {
   cubeClass?: typeof Cube;
 }
 
-export class CubeStore extends EventEmitter {
+export interface CubeRetrievalInterface {
+  getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo>;
+  getCube(key: CubeKey | string, family: CubeFamilyDefinition): Promise<Cube>;
+}
+
+export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   readyPromise: Promise<any>;
 
   readonly inMemory: boolean;

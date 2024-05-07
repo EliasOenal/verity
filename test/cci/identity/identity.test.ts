@@ -480,7 +480,7 @@ describe('Identity', () => {
 
     beforeEach(async () => {
       // Open the DB and make sure it's empty
-      persistance = await IdentityPersistence.Create({dbName: "testidentity"});
+      persistance = await IdentityPersistence.Construct({dbName: "testidentity"});
       await persistance.deleteAll();
       const ids: Array<Identity> = await persistance.retrieve(cubeStore);
       expect(ids).toBeDefined();

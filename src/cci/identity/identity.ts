@@ -178,7 +178,7 @@ export class Identity {
 
   /// @static Retrieves all Identity objects stored in persistant storage.
   static async retrieve(cubeStore: CubeStore, options?: IdentityOptions): Promise<Identity[]> {
-    const persistance: IdentityPersistence = await IdentityPersistence.Create(options);
+    const persistance: IdentityPersistence = await IdentityPersistence.Construct(options);
     const ids: Array<Identity> = await persistance.retrieve(cubeStore);
     return ids;
   }
