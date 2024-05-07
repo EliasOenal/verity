@@ -1,12 +1,15 @@
-import { Settings } from '../settings';
-import { logger } from '../logger';
-import { NetConstants } from './networkDefinitions';
-import type { CubeKey } from '../cube/cubeDefinitions';
-import type { CubeInfo } from '../cube/cubeInfo';
-import type { NetworkManager } from './networkManager';
-import type { NetworkPeer } from './networkPeer';
+import { Settings } from '../../settings';
+import { logger } from '../../logger';
+import { NetConstants } from '../networkDefinitions';
+import type { CubeKey } from '../../cube/cubeDefinitions';
+import type { CubeInfo } from '../../cube/cubeInfo';
+import type { NetworkManager } from '../networkManager';
+import type { NetworkPeer } from '../networkPeer';
 
 import { Buffer } from 'buffer';  // for browsers
+import { RequestStrategy, RandomStrategy } from './requestStrategy';
+import { RequestedCube } from './requestedCube';
+import { keyVariants } from '../../cube/cubeUtil';
 
 // TODO: only schedule next request after previous request has been *fulfilled*,
 // or after a sensible timeout
@@ -18,66 +21,6 @@ export interface RequestSchedulerOptions {
   requestScaleFactor?: number;
   requestTimeout?: number;
 }
-
-/**
- * Internal data structure representing a local application's request for a
- * Cube. Contains a promise and its associated resolve and reject functions
- * so we can let the application know when their request has been fulfilled
- * (or is not fulfillable).
- **/
-export class RequestedCube {
-  public requestRunning = false;
-  public promise: Promise<CubeInfo>;
-
-  private timeout: NodeJS.Timeout = undefined;
-  private resolve: Function;
-  private reject: Function;
-
-  constructor(
-    readonly key: CubeKey,
-    timeout = Settings.CUBE_REQUEST_TIMEOUT,
-  ) {
-    this.promise = new Promise((resolve, reject) => {
-      this.resolve = resolve;
-      this.reject = reject;
-    });
-    this.timeout = setTimeout(() => this.reject(undefined), timeout);
-  }
-
-  fulfilled(cubeInfo: CubeInfo): void {
-    clearTimeout(this.timeout);
-    this.resolve(cubeInfo);
-  }
-
-  shutdown(): void {
-    clearTimeout(this.timeout);
-  }
-}
-
-/**
- * RequestStrategies determine which connected node we'll ask whenever we
- * request a Cube, whether it is because a local application has requested it
- * or whether we're a full node and just try to get our hands on every single
- * Cube out there.
- */
-abstract class RequestStrategy {
-  select(available: NetworkPeer[]): NetworkPeer {
-    return undefined;
-  }
-}
-/**
- * What does it sound like? We'll just ask any connected node, potentially
- * several times in a row if luck has it.
- * This is the most basic and probably least useful strategy.
- **/
-class RandomStrategy extends RequestStrategy {
-  select(available: NetworkPeer[]): NetworkPeer {
-    const index = Math.floor(Math.random()*available.length);
-    return available[index];
-  }
-}
-
-
 
 /**
  * Queries our connected peers for Cubes, depending on the configuration and
@@ -97,6 +40,7 @@ export class RequestScheduler {
 
   requestInterval?: number;
   requestScaleFactor?: number;
+
   requestTimeout?: number;
 
   private requestedCubes: Map<string, RequestedCube> = new Map();
@@ -118,11 +62,12 @@ export class RequestScheduler {
   }
 
   requestCube(
-    key: CubeKey,
+    keyInput: CubeKey | string,
     timeout: number = this.requestTimeout
   ): Promise<CubeInfo> {
-    const req = new RequestedCube(key, timeout);  // create request
-    this.requestedCubes.set(key.toString('hex'), req);  // remember request
+    const key = keyVariants(keyInput);
+    const req = new RequestedCube(key.binaryKey, timeout);  // create request
+    this.requestedCubes.set(key.keyString, req);  // remember request
     this.scheduleNextRequest(0);  // schedule request
     return req.promise;  // return result eventually
   }

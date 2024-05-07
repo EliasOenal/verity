@@ -470,7 +470,7 @@ export class Cube {
 
     getDifficulty(): number {
         if (this.binaryData === undefined || this.hash === undefined) {
-            this.compile();
+            this.compile();  // BUGBUG: this does not work, needs await, thus whole method needs to be async
         }
         return CubeUtil.countTrailingZeroBits(this.hash);
     }

@@ -1,7 +1,7 @@
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { NetworkManager } from "../../../src/core/networking/networkManager";
-import { RequestScheduler } from "../../../src/core/networking/requestScheduler";
+import { RequestScheduler } from "../../../src/core/networking/cubeRetrieval/requestScheduler";
 import { Settings } from "../../../src/core/settings";
 import type { Cube } from "../../../src/core/cube/cube";
 

@@ -36,7 +36,7 @@ export class IdentityPersistence {
   /// It's a convenient workaround to abstract from the hazzle that database
   /// operations are async but constructor's aren't allowed to be.
   /// I don't like Javascript.
-  static async Create(
+  static async Construct(
       options?: IdentityOptions | IdentityPersistenceOptions
   ): Promise<IdentityPersistence> {
     const obj = new IdentityPersistence(options);

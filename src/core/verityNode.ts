@@ -1,24 +1,25 @@
 import { CubeStore, CubeStoreOptions } from "./cube/cubeStore";
 import { SupportedTransports } from "./networking/networkDefinitions";
 import { NetworkManager, NetworkManagerOptions } from "./networking/networkManager";
+import { CubeRetriever } from "./networking/cubeRetrieval/cubeRetriever";
 import { AddressAbstraction } from "./peering/addressing";
 import { Peer } from "./peering/peer";
 import { PeerDB } from "./peering/peerDB";
 
 import { logger } from "./logger";
-import { Multiaddr } from '@multiformats/multiaddr'
 
 type VerityOptions = NetworkManagerOptions & CubeStoreOptions;
 
 export class VerityNode {
-  cubeStore: CubeStore;
-  peerDB: PeerDB;
-  networkManager: NetworkManager;
+  readonly cubeStore: CubeStore;
+  readonly peerDB: PeerDB;
+  readonly networkManager: NetworkManager;
+  readonly cubeRetriever: CubeRetriever;
 
-  onlinePromise: Promise<void>;
-  cubeStoreReadyPromise: Promise<void>;
-  readyPromise: Promise<any>;  // apparently combining a void promise with another void promise does not yield a void promise
-  shutdownPromise: Promise<void>;
+  readonly onlinePromise: Promise<void>;
+  readonly cubeStoreReadyPromise: Promise<void>;
+  readonly readyPromise: Promise<any>;  // apparently combining a void promise with another void promise does not yield a void promise
+  readonly shutdownPromise: Promise<void>;
 
   constructor(
     /**
@@ -51,6 +52,9 @@ export class VerityNode {
       resolve(undefined);
     }))
     this.readyPromise = Promise.all([this.onlinePromise, this.cubeStoreReadyPromise]);
+    // Construct cube retrieval helper object
+    this.cubeRetriever =
+      new CubeRetriever(this.cubeStore, this.networkManager.scheduler);
 
     // Inform clients when this node will eventually shut down
     this.shutdownPromise = new Promise(resolve => this.networkManager.once('shutdown', () => {

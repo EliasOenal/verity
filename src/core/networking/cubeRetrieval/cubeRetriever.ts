@@ -1,0 +1,48 @@
+import { Cube } from "../../cube/cube";
+import { CubeKey } from "../../cube/cubeDefinitions";
+import { CubeFamilyDefinition } from "../../cube/cubeFields";
+import { CubeInfo } from "../../cube/cubeInfo";
+import { CubeRetrievalInterface, CubeStore } from "../../cube/cubeStore";
+import { RequestScheduler } from "./requestScheduler";
+
+/**
+ * "He may not be Golden, but he'll always be your most trusted companion."
+ * CubeRetriever is a helper class mainly used for light nodes, facilitating
+ * Cube retrieval no matter whether a Cube is already present in the local
+ * CubeStore or needs to be requested over the wire.
+ */
+export class CubeRetriever implements CubeRetrievalInterface {
+  constructor(
+    readonly cubeStore: CubeStore,
+    readonly requestScheduler: RequestScheduler,
+  ) {
+  }
+
+  async getCubeInfo(
+      keyInput: CubeKey | string,
+      timeout: number = undefined,
+  ): Promise<CubeInfo> {
+    const local: CubeInfo = await this.cubeStore.getCubeInfo(keyInput);
+    // Note that we unfortunately chose incompatible retrieval interfaces for
+    // CubeStore and RequestScheduler: CubeStore will return undefined for
+    // unavailable Cubes while RequestScheduler will reject the promise.
+    // CubeRetriever follows the CubeStore API and will return undefined
+    // whenever it was not possible to retrieve a Cube within the applicable
+    // timeout (if any).
+    if (local !== undefined) return local;
+    try {
+      const retrieved = await this.requestScheduler.requestCube(keyInput, timeout);
+      return retrieved;
+    } catch(error) {
+      return undefined;
+    }
+  }
+
+  async getCube(
+      key: CubeKey | string,
+      family: CubeFamilyDefinition = undefined,  // undefined = will use CubeInfo's default
+      timeout: number = undefined,  // undefined = will use RequestScheduler's default
+  ): Promise<Cube> {
+    return (await this.getCubeInfo(key, timeout))?.getCube(family);
+  }
+}

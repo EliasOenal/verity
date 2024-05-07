@@ -11,7 +11,7 @@ import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
 import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
 import { CubeField, CubeFieldType } from '../../../src/core/cube/cubeField';
 import { CubeFields } from '../../../src/core/cube/cubeFields';
-import { CubeStore, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
+import { CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 
 import { WebSocketAddress } from '../../../src/core/peering/addressing';
 import { Peer } from '../../../src/core/peering/peer';
@@ -42,8 +42,8 @@ const lightNodeMinimalFeatures: NetworkManagerOptions = {  // disable optional f
 
 describe('networkManager - WebSocket connections', () => {
     const reducedDifficulty = 0;
-    const testCubeStoreParams = {
-        enableCubePersistance: EnableCubePersitence.OFF,
+    const testCubeStoreParams: CubeStoreOptions = {
+        enableCubePersistence: EnableCubePersitence.OFF,
         enableCubeRetentionPolicy: false,
         requiredDifficulty: 0
     }
