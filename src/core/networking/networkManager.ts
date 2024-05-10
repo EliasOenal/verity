@@ -1,12 +1,19 @@
 import { Settings, VerityError } from '../settings';
 import { unixtime } from '../helpers';
+
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
-import { NetworkTransport, TransportParamMap } from './transport/networkTransport';
-import { createNetworkPeerConnection, createNetworkTransport } from './transport/transportFactory';
-import { CubeStore } from '../cube/cubeStore';
-import { Peer } from '../peering/peer';
-import { PeerDB } from '../peering/peerDB';
 import { NetworkPeer, NetworkStats } from './networkPeer';
+import { NetworkTransport, TransportParamMap } from './transport/networkTransport';
+import { TransportConnection } from './transport/transportConnection';
+import { createNetworkPeerConnection, createNetworkTransport } from './transport/transportFactory';
+import { RequestScheduler } from './cubeRetrieval/requestScheduler';
+import type { RequestSchedulerOptions } from './cubeRetrieval/requestScheduler';
+
+import { CubeStore } from '../cube/cubeStore';
+
+import { Peer } from '../peering/peer';
+import { AddressAbstraction } from '../peering/addressing';
+import { PeerDB } from '../peering/peerDB';
 
 import { logger } from '../logger';
 
@@ -15,9 +22,6 @@ import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
 
 import * as cryptolib from 'crypto';
-import { TransportConnection } from './transport/transportConnection';
-import { AddressAbstraction } from '../peering/addressing';
-import { RequestScheduler } from './cubeRetrieval/requestScheduler';
 let crypto;
 if (isBrowser || isWebWorker) {
     crypto = window.crypto;
@@ -25,7 +29,7 @@ if (isBrowser || isWebWorker) {
     crypto = cryptolib;
 }
 
-export interface NetworkManagerOptions {
+export interface NetworkManagerOwnOptions {
     announceToTorrentTrackers?: boolean;
 
     /**
@@ -43,6 +47,9 @@ export interface NetworkManagerOptions {
     maximumConnections?: number,
     acceptIncomingConnections?: boolean,
 }
+
+export type NetworkManagerOptions =
+    NetworkManagerOwnOptions & RequestSchedulerOptions;
 
 /**
  * The NetworkManager is the central coordinating instance responsible for
@@ -138,7 +145,7 @@ export class NetworkManager extends EventEmitter {
         this._peerExchange = options?.peerExchange ?? true;
 
         // Create components
-        this.scheduler = new RequestScheduler(this, {lightNode: this.lightNode});
+        this.scheduler = new RequestScheduler(this, options);
 
         // Create NetworkTransport objects for all requested transport types.
         this.transports = createNetworkTransport(transports, options);

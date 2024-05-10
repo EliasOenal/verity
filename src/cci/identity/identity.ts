@@ -7,7 +7,7 @@ import { Cube } from '../../core/cube/cube';
 import { logger } from '../../core/logger';
 
 import { cciField, cciFieldType } from '../cube/cciField';
-import { cciFieldParsers, cciFields, cciMucFieldDefinition } from '../cube/cciFields';
+import { cciFields, cciMucFieldDefinition } from '../cube/cciFields';
 import { cciRelationship, cciRelationshipType } from '../cube/cciRelationship';
 import { cciCube, cciFamily } from '../cube/cciCube';
 import { ensureCci } from '../cube/cciCubeUtil';
@@ -23,6 +23,7 @@ import { ZwConfig } from '../../app/zw/zwConfig';  // TODO remove dependency fro
 
 import { Buffer } from 'buffer';
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
+import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
 
 const IDMUC_CONTEXT_STRING = "CCI Identity";
 const IDMUC_MASTERINDEX = 0;
@@ -111,7 +112,7 @@ export class Identity {
   // Identity MUC for retrieval if we don't have it (this will be necessary for
   // light nodes)
   static async Load(
-      cubeStore: CubeStore,
+      cubeStoreOrRetriever: CubeStore | CubeRetriever,
       username: string,
       password: string,
       options?: IdentityOptions,
@@ -119,17 +120,18 @@ export class Identity {
     const masterKey: Buffer = Identity.DeriveMasterKey(username, password,
       options?.argonCpuHardness, options?.argonMemoryHardness);
     const keyPair: KeyPair = Identity.DeriveKeypair(masterKey, options);
-    const idMuc: cciCube = ensureCci(await cubeStore.getCube(
+    const idMuc: cciCube = ensureCci(await cubeStoreOrRetriever.getCube(
       Buffer.from(keyPair.publicKey)));
     if (idMuc === undefined) return undefined;
-    const identity: Identity = await Identity.Construct(cubeStore, idMuc, options);
+    const identity: Identity =
+      await Identity.Construct(cubeStoreOrRetriever, idMuc, options);
     identity.supplySecrets(masterKey, Buffer.from(keyPair.privateKey));
     return identity;
   }
 
   /** Creates a new Identity for a given username and password combination. */
   static Create(
-    cubeStore: CubeStore,
+    cubeStoreOrRetriever: CubeStore | CubeRetriever,
     username: string,
     password: string,
     options?: IdentityOptions,
@@ -137,16 +139,16 @@ export class Identity {
     const masterKey: Buffer = Identity.DeriveMasterKey(
       username, password,
       options?.argonCpuHardness, options?.argonMemoryHardness);
-    return Identity.Construct(cubeStore, masterKey, options);
+    return Identity.Construct(cubeStoreOrRetriever, masterKey, options);
   }
 
   /** Convenient await-able wrapper around the constructor  */
   static Construct(
-    cubeStore: CubeStore,
+    cubeStoreOrRetriever: CubeStore | CubeRetriever,
     mucOrMasterkey: cciCube | Buffer,
     options?: IdentityOptions,
   ): Promise<Identity> {
-    const id = new Identity(cubeStore, mucOrMasterkey, options);
+    const id = new Identity(cubeStoreOrRetriever, mucOrMasterkey, options);
     return id.ready;
   }
 
@@ -169,7 +171,8 @@ export class Identity {
     return Buffer.from(sodium.crypto_pwhash(
       sodium.crypto_sign_SEEDBYTES,
       password,
-      sodium.crypto_hash(username, "uint8array").subarray(0, sodium.crypto_pwhash_SALTBYTES),
+      sodium.crypto_hash(username, "uint8array").subarray(
+        0, sodium.crypto_pwhash_SALTBYTES),
       argonCpuHardness,
       argonMemoryHardness,
       sodium.crypto_pwhash_ALG_ARGON2ID13,
@@ -177,9 +180,13 @@ export class Identity {
   }
 
   /// @static Retrieves all Identity objects stored in persistant storage.
-  static async retrieve(cubeStore: CubeStore, options?: IdentityOptions): Promise<Identity[]> {
-    const persistance: IdentityPersistence = await IdentityPersistence.Construct(options);
-    const ids: Array<Identity> = await persistance.retrieve(cubeStore);
+  static async retrieve(
+      cubeStoreOrRetriever: CubeStore | CubeRetriever,
+      options?: IdentityOptions
+  ): Promise<Identity[]> {
+    const persistance: IdentityPersistence =
+      await IdentityPersistence.Construct(options);
+    const ids: Array<Identity> = await persistance.retrieve(cubeStoreOrRetriever);
     return ids;
   }
 
@@ -226,7 +233,13 @@ export class Identity {
    * Identity requires CubeStore for loading and parsing Identity extension
    * Cubes as well as storing locally owned Identities.
    **/
-  private cubeStore: CubeStore;
+  readonly cubeStore: CubeStore;
+  /**
+   * For light nodes, Identity can additionally use a CubeRetriever to help
+   * reconstruct Identity data from the network. If this is not required,
+   * it will simply work on the local CubeStore instead.
+   */
+  readonly cubeRetriever: CubeStore | CubeRetriever;
 
   private minMucRebuildDelay: number;
   private requiredDifficulty: number;
@@ -317,17 +330,24 @@ export class Identity {
    **/
   // TODO: Provide option NOT to subscribe to remote MUC changes
   constructor(
-      cubeStore: CubeStore,
+      cubeStoreOrRetriever: CubeStore | CubeRetriever,
       mucOrMasterkey: cciCube | Buffer,
       options?: IdentityOptions,
   ){
-    this.cubeStore = cubeStore;
+    // remember my CubeStore, and CubeRetriever if applicable
+    this.cubeRetriever = cubeStoreOrRetriever;
+    if (cubeStoreOrRetriever instanceof CubeRetriever) {
+      this.cubeStore = cubeStoreOrRetriever.cubeStore;
+    } else this.cubeStore = cubeStoreOrRetriever;
     // set options
     this.minMucRebuildDelay = options?.minMucRebuildDelay ?? ZwConfig.MIN_MUC_REBUILD_DELAY;
     this.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY,
     this.idmucContextString = options?.idmucContextString ?? IDMUC_CONTEXT_STRING;
     this.family = options?.family ?? cciFamily;
     this.persistance = options?.persistence ?? undefined;
+
+    // TODO: If using a CubeRetriever, subscribe to own MUC to allow remote
+    // Identity updates.
 
     // Subscribe to remote Identity updates (i.e. same user using multiple devices)
     // Note: We're subscribing using once instead of on and renew the subscription
@@ -378,8 +398,8 @@ export class Identity {
    * (Yes, I know this is functionally identical with publicKey(), but it's
    * about the semantics :-P )
   */
-  get key(): CubeKey { return Buffer.from(this._muc.publicKey); }
-  get keyString(): string { return this._muc.publicKey.toString('hex') }
+  get key(): CubeKey { return this._muc?.publicKey; }
+  get keyString(): string { return this._muc?.publicKey?.toString('hex') }
 
   get muc(): cciCube { return this._muc; }
 
@@ -443,11 +463,11 @@ export class Identity {
     let recursiveSubs: CubeKey[] = this.subscriptionRecommendations;
     if (curDepth < maxDepth) {
       for (const sub of this._subscriptionRecommendations) {
-        const muc: cciCube = ensureCci(await this.cubeStore.getCube(sub));
+        const muc: cciCube = ensureCci(await this.cubeRetriever.getCube(sub));
         if (!muc) continue;
         let id: Identity;
         try {
-          id = await Identity.Construct(this.cubeStore, muc);
+          id = await Identity.Construct(this.cubeRetriever, muc);
         } catch(err) { continue; }
         if (!id) continue;
         recursiveSubs = recursiveSubs.concat(
@@ -690,7 +710,7 @@ export class Identity {
     this.cubeStore.once("cubeAdded",
       cubeInfo => this.mergeRemoteChanges(cubeInfo));
     // check if this is even our MUC
-    if (!(incoming.key.equals(this.key))) return;
+    if (!this.key || !(incoming.key?.equals(this.key))) return;
     // check if this is even an update
     if (incoming.getCube().getHashIfAvailable().    // hash always available as
           equals(this.muc.getHashIfAvailable())) {  // CubeStore.addCube() awaits it
@@ -730,7 +750,7 @@ export class Identity {
     const furtherIndices = fields.getRelationships(
       cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX);
     for (const furtherIndex of furtherIndices) {
-      const furtherCube: Cube = await this.cubeStore.getCube(furtherIndex.remoteKey);
+      const furtherCube: Cube = await this.cubeRetriever.getCube(furtherIndex.remoteKey);
       if (furtherCube) {
         await this.recursiveParseSubscriptionRecommendations(furtherCube, alreadyTraversedCubes);
       }
@@ -760,7 +780,7 @@ export class Identity {
     const myPostRels: cciRelationship[] = fields.getRelationships(
       cciRelationshipType.MYPOST);
     for (const postrel of myPostRels) {
-      const postInfo: CubeInfo = await this.cubeStore.getCubeInfo(postrel.remoteKey);
+      const postInfo: CubeInfo = await this.cubeRetriever.getCubeInfo(postrel.remoteKey);
       if (!postInfo) {  // skip posts we don't actually have
         // TODO: think about whether this is actually a good idea once we migrate
         // to the RequestScheduler interface instead of just assuming everything
@@ -775,7 +795,7 @@ export class Identity {
           // if the post to insert is newer than the post we're currently looking at,
           // insert before
           const postrelDate = postInfo.date;
-          const compareTo: CubeInfo = await this.cubeStore.getCubeInfo(this.posts[i]);
+          const compareTo: CubeInfo = await this.cubeRetriever.getCubeInfo(this.posts[i]);
           if (compareTo === undefined) {
             logger.warn(`Identity.recursiveParsePostReferences(): While reconstructing the post list of Identity ${this.keyString} I could not fetch the CubeInfo of this Identity's post ${this.posts[i]}`);
           }
@@ -788,7 +808,7 @@ export class Identity {
         if (!inserted) this.posts.push(postrel.remoteKey.toString('hex'));
       }
       await this.recursiveParsePostReferences(
-        await this.cubeStore.getCube(postrel.remoteKey), alreadyTraversedCubes);
+        await this.cubeRetriever.getCube(postrel.remoteKey), alreadyTraversedCubes);
     }
   }
 }

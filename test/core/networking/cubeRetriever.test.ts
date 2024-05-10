@@ -23,7 +23,7 @@ const testCubeStoreParams: CubeStoreOptions = {
   enableCubeRetentionPolicy: false,
   requiredDifficulty: 0,
   family: coreTlvCubeFamily,
-}
+};
 const lightNodeMinimalFeatures: NetworkManagerOptions = {  // disable optional features
   announceToTorrentTrackers: false,
   autoConnect: false,
