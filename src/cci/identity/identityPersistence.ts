@@ -10,6 +10,7 @@ import { logger } from '../../core/logger';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
 import { Level } from 'level';
 import { Buffer } from 'buffer';
+import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
 
 const DEFAULT_DB_NAME = "identity";
 const DEFAULT_DB_VERSION = 1;
@@ -89,7 +90,7 @@ export class IdentityPersistence {
    * be present in the local Cube store.
    * This method will *not* retrieve missing MUCs from the network.
    */
-  async retrieve(cubeStore: CubeStore): Promise<Identity[]> {
+  async retrieve(cubeStore: CubeStore | CubeRetriever): Promise<Identity[]> {
     if (this.db.status != 'open') {
       logger.error("IdentityPersistance: Could not retrieve identity, DB not open");
       return undefined;

@@ -1,6 +1,6 @@
-import { NetConstants } from '../../../src/core/networking/networkDefinitions';
+import { NetConstants, SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
-import { CubeStore, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
+import { CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 import { Cube } from '../../../src/core/cube/cube'
 
 import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
@@ -14,6 +14,12 @@ import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
 import { IdentityPersistence } from '../../../src/cci/identity/identityPersistence';
 
 import sodium from 'libsodium-wrappers-sumo'
+import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
+import { PeerDB } from '../../../src/core/peering/peerDB';
+import { CubeRetriever } from '../../../src/core/networking/cubeRetrieval/cubeRetriever';
+import { NetworkPeer } from '../../../src/core/networking/networkPeer';
+import { WebSocketAddress } from '../../../src/core/peering/addressing';
+import { Peer } from '../../../src/core/peering/peer';
 
 // maybe TODO: Some tests here use "ZW" stuff from the microblogging app
 // which breaks the current layering.
@@ -28,7 +34,13 @@ describe('Identity', () => {
     requiredDifficulty: reducedDifficulty,
     argonCpuHardness: 1,  // == crypto_pwhash_OPSLIMIT_MIN (sodium not ready)
     argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
-  }
+  };
+  const testCubeStoreParams: CubeStoreOptions = {
+    enableCubePersistence: EnableCubePersitence.OFF,
+    enableCubeRetentionPolicy: false,
+    requiredDifficulty: 0,
+    family: cciFamily,
+  };
   let cubeStore: CubeStore;
 
   beforeAll(async () => {
@@ -36,12 +48,7 @@ describe('Identity', () => {
   });
 
   beforeEach(async () => {
-    cubeStore = new CubeStore({
-      enableCubePersistence: EnableCubePersitence.OFF,
-      requiredDifficulty: 0,  // require no hashcash for faster testing
-      enableCubeRetentionPolicy: false,  // TODO: we should make these tests pass with retention policy enabled
-      family: cciFamily,
-    });
+    cubeStore = new CubeStore(testCubeStoreParams);
   });
 
   describe('MUC storage basics', () => {
@@ -472,6 +479,165 @@ describe('Identity', () => {
     // this will probably still fail as we currently don't actively attempt to merge
     // conflicting MUC versions
     it.todo('will merge posts created on this and another device in quick succession');
+  });
+
+  describe('remote Identity reconstruction', () => {
+    const testNetworkingOptions: NetworkManagerOptions = {  // disable optional features
+      announceToTorrentTrackers: false,
+      autoConnect: false,
+      lightNode: true,
+      peerExchange: false,
+      requestInterval: 100,
+      requestTimeout: 1000,
+    };
+    let local: NetworkManager;
+    let remote: NetworkManager;
+    let cubeRetriever: CubeRetriever;
+
+    beforeEach(async() => {
+      local = new NetworkManager(
+        new CubeStore(testCubeStoreParams),
+        new PeerDB(),
+        new Map([[SupportedTransports.ws, 18101]]),
+        testNetworkingOptions,
+      );
+      cubeRetriever = new CubeRetriever(local.cubeStore, local.scheduler);
+      remote = new NetworkManager(
+        new CubeStore(testCubeStoreParams),
+        new PeerDB(),
+        new Map([[SupportedTransports.ws, 18102]]),
+        testNetworkingOptions,
+      );
+      await Promise.all([local.start(), remote.start()]);
+      const np: NetworkPeer =
+        local.connect(new Peer(new WebSocketAddress("localhost", 18102)));
+      await np.onlinePromise;
+    });
+
+    afterEach(async() => {
+      await Promise.all([local.shutdown(), remote.shutdown()]);
+    });
+
+    it('will correctly reconstruct an Identity created on another node even when operating as a light node', async() => {
+      // just preparing some test constants and containers
+      const TESTPOSTCOUNT = 10;
+      const testPosts: cciCube[] = [];
+      const TESTSUBCOUNT = 4;
+      const testSubs: CubeKey[] = [];
+      const testSubSubs: CubeKey[] = [];
+      {  // block on remote node
+        // Far away in a different corner of the network, a new and rather
+        // convoluted Identity gets created on a remote node.
+        // (note all CubeStore references are remote.cubeStore)
+        const subject: Identity = await Identity.Create(remote.cubeStore,
+          "user remotus", "clavis secreta", idTestOptions);
+        subject.name = "usor in alia parte retis positus";
+        subject.avatar = new Avatar("0102030405", AvatarScheme.MULTIAVATAR);
+
+        // store 100 posts (guaranteed not to fit into the MUC and thus forcing
+        // Identity to use sub-references)
+        for (let i=0; i<TESTPOSTCOUNT; i++) {
+          const post: cciCube = await makePost(
+            (i+1).toString() + "res importantes diciendas habeo",
+            undefined, subject, reducedDifficulty
+          );
+          // manually save post to ID rather then through makePost because we will
+          // manipulate the date below, and that changes the key
+          subject.forgetMyPost(await post.getKey());
+          post.setDate(1715279573 + i);  // now you know when this test was written!
+          subject.rememberMyPost(await post.getKey());
+          await remote.cubeStore.addCube(post);
+          testPosts.push(post);
+        }
+        expect(subject.posts.length).toEqual(TESTPOSTCOUNT);
+
+        // Build a test web of trust: Subscribe to 40 authors.
+        // Each of those is subscribe to an additional author.
+        for (let i=0; i<TESTSUBCOUNT; i++) {
+          // create directly subscribed ID
+          const subscribed: Identity = await Identity.Create(
+            remote.cubeStore, "figurarius"+i, "clavis"+i, idTestOptions);
+          subscribed.name = "Figurarius " + i + "-tus";
+          testSubs.push(subscribed.key);
+
+          // create subject's subscribed ID
+          const subsubscribed: Identity = await Identity.Create(
+            remote.cubeStore, "figurarius etiam magis indirectus "+i,
+            "clavis etiam magis indirectus "+i, idTestOptions);
+          subsubscribed.name = "Figurarius etiam magis indirectus " + i + "-tus";
+          testSubSubs.push(subsubscribed.key);
+
+          // subsubscribed gets stored
+          subsubscribed.muc.setDate(0);  // skip waiting period for the test
+          await subsubscribed.store(undefined, reducedDifficulty);
+
+          // subscribed subscribes to subsubscribed and gets stored
+          subscribed.addSubscriptionRecommendation(subsubscribed.key);
+          subscribed.muc.setDate(0);  // skip waiting period for the test
+          await subscribed.store(undefined, reducedDifficulty);
+          expect(subscribed.subscriptionRecommendations[0].
+            equals(subsubscribed.key)).toBeTruthy();
+
+          // subject subscribes to subscribed
+          subject.addSubscriptionRecommendation(subscribed.key);
+          expect(subject.subscriptionRecommendations[i].
+            equals(subscribed.key)).toBeTruthy();
+        }
+        // just double-check this worked
+        expect(subject.subscriptionRecommendations.length).toBe(TESTSUBCOUNT);
+
+        // store the subject
+        subject.muc.setDate(0);  // hack, just for the test let's not wait 5s for the MUC update
+        const muc: cciCube = await subject.store(undefined, reducedDifficulty);
+
+        // just some sanity checks
+        expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(0);
+        expect(await remote.cubeStore.getNumberOfStoredCubes()).toBeGreaterThan(
+          TESTPOSTCOUNT + TESTSUBCOUNT);
+      }
+
+      { // block on local node
+        // now let's restore the subject on a different node
+        const restored: Identity = await Identity.Load(cubeRetriever,
+          "user remotus", "clavis secreta", idTestOptions);
+
+        // verify all basic properties have been restored correctly
+        expect(restored.name).toBe("usor in alia parte retis positus");
+        expect(restored.avatar).toBeInstanceOf(Avatar);
+        expect(restored.avatar.equals(new Avatar(
+          "0102030405", AvatarScheme.MULTIAVATAR
+          ))).toBe(true);
+
+        // verify all posts have been restored correctly
+        expect(restored.posts.length).toBe(TESTPOSTCOUNT);
+        for (let i=0; i<TESTPOSTCOUNT; i++) {
+          const restoredPost: cciCube =
+            await cubeRetriever.getCube(restored.posts[i]) as cciCube;
+          const postText: string =
+            restoredPost.fields.getFirst(cciFieldType.PAYLOAD).valueString;
+          expect(postText).toEqual(
+            (TESTPOSTCOUNT-i).toString() + "res importantes diciendas habeo");
+        }
+
+        // verify all subscriptions have been restored correctly
+        expect(restored.subscriptionRecommendations.length).toBe(TESTSUBCOUNT);
+        for (let i=0; i<testSubs.length; i++) {
+          expect(restored.subscriptionRecommendations.includes(testSubs[i]));
+        }
+
+        // verify all indirect subscriptions are correctly recognized as within
+        // this user's web of trust
+        const restoredWot: CubeKey[] = await restored.recursiveWebOfSubscriptions(1);
+        for (let i=0; i<testSubSubs.length; i++) {
+          expect(restoredWot.includes(testSubSubs[i]));
+        }
+        // direct subscriptions are technically also part of our web of trust,
+        // so let's quickly check for those, too
+        for (let i=0; i<testSubs.length; i++) {
+          expect(restoredWot.includes(testSubs[i]));
+        }
+      }
+    }, 60000);
   });
 
   describe('local persistant storage', () => {
