@@ -284,8 +284,11 @@ export class Identity {
    **/
   keyBackupCube: CubeKey = undefined;
 
-  /** List of own posts, sorted by date descending */
-  posts: Array<string> = [];  // using strings as binary Cube keys (Buffers) don't compare well with standard methods
+  /** List of own posts, in undefined order */
+  posts: Array<CubeKey> = [];
+  get postKeyString(): Array<string> {
+    return this.posts.map(key => key.toString('hex'));
+  }
 
   /** When the user tries to rebuild their Identity MUC too often, we'll
    * remember their request in this promise. Any subsequent Identity changes
@@ -359,6 +362,7 @@ export class Identity {
     // are we loading or creating an Identity?
     if (mucOrMasterkey instanceof Cube) {  // checking for the more generic Cube instead of cciCube as this is the more correct branch compared to handling this as a KeyPair (also Cube subclass handling is not completely clean yet throughout our codebase)
       this.parseMuc(mucOrMasterkey).then(() => {
+        // TODO: this makes little sense outside of synthetic tests, see discussion in parseMuc() jsdoc
         this.readyPromiseResolve(this)
     });
     } else {  // create new Identity
@@ -429,13 +433,14 @@ export class Identity {
 
   /** Stores a new cube key a the the beginning of my post list */
   rememberMyPost(cubeKey: CubeKey | string) {
-    if (typeof cubeKey !== 'string') cubeKey = cubeKey.toString('hex');
+    if (!(cubeKey instanceof Buffer)) cubeKey = Buffer.from(cubeKey, 'hex');
     this.posts.unshift(cubeKey);
   }
 
   /** Removes a cube key from my post list */
-  forgetMyPost(cubeKey: CubeKey) {
-    this.posts = this.posts.filter(p => p !== cubeKey.toString('hex'));
+  forgetMyPost(cubeKey: CubeKey | string) {
+    if (!(cubeKey instanceof Buffer)) cubeKey = Buffer.from(cubeKey, 'hex');
+    this.posts = this.posts.filter(p => !p.equals(cubeKey as CubeKey));
   }
 
   addSubscriptionRecommendation(remoteIdentity: CubeKey | string) {
@@ -659,8 +664,24 @@ export class Identity {
 
   /**
    * Sets this Identity based on a MUC; should only be used on construction.
+   * @returns A promise that will resolve once the Identity reconstruction
+   *   process has completed, no matter how successfully so.
+   *   The returned promise should *not* be awaited in any interactive context:
+   *   (Implementation note / TODO following... whatever, I'll just put that here.)
+   *   At least with "foreign" Identities (i.e. Identities not owned by this
+   *   node's user) it is expected that some older sub-referenced information
+   *   (e.g. lists of old posts) may at some point drop out of the network.
+   *   Whenever that happens, the returned promise will not resolve until
+   *   after the final timeout, which defaults to at least 60 seconds.
+   *   This makes it completely unacceptable to await this promise in any
+   *   interactive use case.
+   *   Furthermore, this promise finally resolving confers no information
+   *   whatsoever on whether the Identity was restored successfully.
+   *   In the extreme case of trying to restore on an offline node,
+   *   it will just resolve after the retrieval timeout and still be no good.
+   *   We need to rethink that...
    */
-  private async parseMuc(muc: cciCube): Promise<void> {
+  private parseMuc(muc: cciCube): Promise<void> {
     if (Settings.RUNTIME_ASSERTIONS) {
       // disabled for now: Identity doesn't *really* require a cciCube object
       // and our codebase currently does not cleanly distinguish required
@@ -697,12 +718,17 @@ export class Identity {
     if (keyBackupCubeRel) this.keyBackupCube = keyBackupCubeRel.remoteKey;
 
     // - recursively fetch my-post references
-    await this.recursiveParsePostReferences(muc, []);
+    const postPromise: Promise<void> =
+      this.recursiveParsePostReferences(muc, []);
 
     // recursively fetch my own SUBSCRIPTION_RECOMMENDATION references
-    await this.recursiveParseSubscriptionRecommendations(muc);
+    const subRecPromise: Promise<void> =
+      this.recursiveParseSubscriptionRecommendations(muc);
     // last but not least: store this MUC as our MUC
     this._muc = muc;
+
+    return Promise.all(  // HACKHACK typecast
+      [postPromise, subRecPromise]) as unknown as Promise<void>;
   }
 
   private mergeRemoteChanges(incoming: CubeInfo): void {
@@ -765,50 +791,74 @@ export class Identity {
    * This is the recursive part of that.
    */
   // TODO: check and limit recursion
-  private async recursiveParsePostReferences(mucOrMucExtension: Cube, alreadyTraversedCubes: string[]): Promise<void> {
+  private recursiveParsePostReferences(
+      mucOrMucExtension: Cube,
+      alreadyTraversedCubes: string[],
+  ): Promise<void> {
     // do we even have this cube?
-    if (!mucOrMucExtension) return;
+    if (!mucOrMucExtension) {
+      // Nothing to do here, so just return a resolved promise
+      return new Promise<void>(resolve => resolve());
+    }
     // have we been here before? avoid endless recursion
-    const thisCubesKeyString = (mucOrMucExtension.getKeyIfAvailable()).toString('hex');
-    if (thisCubesKeyString === undefined || alreadyTraversedCubes.includes(thisCubesKeyString)) return;
-    else alreadyTraversedCubes.push(thisCubesKeyString);
+    const thisCubesKeyString = (mucOrMucExtension.getKeyStringIfAvailable());
+    if (thisCubesKeyString === undefined ||
+        alreadyTraversedCubes.includes(thisCubesKeyString)
+    ){
+      // Nothing to do here, so just return a resolved promise
+      return new Promise<void>(resolve => resolve());
+    }
+    else { alreadyTraversedCubes.push(thisCubesKeyString) }
 
-    if (!(mucOrMucExtension.fields instanceof cciFields)) return;  // no CCI, no rels
+    if (!(mucOrMucExtension.fields instanceof cciFields)) {
+      return new Promise<void>(resolve => resolve());  // no CCI, no rels
+    }
     const fields: cciFields = mucOrMucExtension.fields as cciFields;
-    if (!fields) return;
+    if (!fields) return new Promise<void>(resolve => resolve());
+
+    // prepare return promises
+    const retPromises: Promise<void>[] = [];
 
     const myPostRels: cciRelationship[] = fields.getRelationships(
       cciRelationshipType.MYPOST);
     for (const postrel of myPostRels) {
-      const postInfo: CubeInfo = await this.cubeRetriever.getCubeInfo(postrel.remoteKey);
-      if (!postInfo) {  // skip posts we don't actually have
-        // TODO: think about whether this is actually a good idea once we migrate
-        // to the RequestScheduler interface instead of just assuming everything
-        // is in our local CubeStore.
-        logger.trace(`Identity.recursiveParsePostReferences(): While reconstructing the post list of Identity ${this.keyString} I'll skip post ${postrel.remoteKeyString} as I can't find it.`);
+      if (this.posts.includes(postrel.remoteKey)) {
+        // if we'we already parsed this post, skip it
         continue;
       }
-      if (!(this.posts.includes(postrel.remoteKey.toString('hex')))) {
-        // Insert sorted by date. This is not efficient but I think it doesn't matter.
-        let inserted: boolean = false;
-        for (let i = 0; i < this.posts.length; i++) {
-          // if the post to insert is newer than the post we're currently looking at,
-          // insert before
-          const postrelDate = postInfo.date;
-          const compareTo: CubeInfo = await this.cubeRetriever.getCubeInfo(this.posts[i]);
-          if (compareTo === undefined) {
-            logger.warn(`Identity.recursiveParsePostReferences(): While reconstructing the post list of Identity ${this.keyString} I could not fetch the CubeInfo of this Identity's post ${this.posts[i]}`);
+      // fetch referred post
+      const postPromise: Promise<CubeInfo> =
+        this.cubeRetriever.getCubeInfo(postrel.remoteKey);
+      const recursionPromise: Promise<void> = new Promise(recursionResolve => {
+        postPromise.then((postInfo: CubeInfo) => {
+          if (!postInfo) {  // skip posts we don't actually have
+            // TODO: reconsider whether this is actually a good idea.
+            // A user's post is after all still this user's post even if it happen
+            // not to be available at this moment...
+            logger.trace(`Identity.recursiveParsePostReferences(): While reconstructing the post list of Identity ${this.keyString} I'll skip post ${postrel.remoteKeyString} as I can't find it.`);
+            return recursionResolve();
           }
-          if (compareTo !== undefined && postrelDate >= compareTo.date) {
-            this.posts.splice(i, 0, postrel.remoteKey.toString('hex'));  // inserts at position i
-            inserted = true;
-            break;
+          if (this.posts.includes(postInfo.key)) {
+            // if we'we already parsed this post, skip it
+            // (re-checking this here as things might have changed while we
+            // waited for the post to get fetched)
+            return recursionResolve();
           }
-        }
-        if (!inserted) this.posts.push(postrel.remoteKey.toString('hex'));
-      }
-      await this.recursiveParsePostReferences(
-        await this.cubeRetriever.getCube(postrel.remoteKey), alreadyTraversedCubes);
+          // Parse & remember this post
+          const post: Cube = postInfo.getCube();
+          if (post === undefined) return recursionResolve();
+          this.posts.push(post.getKeyIfAvailable());
+
+          // Continue recursion:
+          // Search for further post references within this post.
+          const recursionDone: Promise<void> =
+            this.recursiveParsePostReferences(post, alreadyTraversedCubes);
+          recursionDone.then(() => recursionResolve());
+        });
+
+      });
+      retPromises.push(recursionPromise);
     }
+    return Promise.all(retPromises) as unknown as Promise<void>;  // HACKHACK typecast
   }
 }

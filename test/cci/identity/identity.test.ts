@@ -158,8 +158,10 @@ describe('Identity', () => {
         toEqual("Habeo res importantes dicere");
     }, 10000);
 
-    it('restores its post list recursively and sorted by creation time descending', async () => {
-      const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
+    it('restores its post list recursively', async () => {
+      const TESTPOSTCOUNT = 1000;  // 100 keys are more than guaranteed not to fit in the MUC
+      const testPostKeys: string[] = [];
+
       const original: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       original.name = "Probator memoriae tabellae";
@@ -167,28 +169,27 @@ describe('Identity', () => {
 
       for (let i=0; i<TESTPOSTCOUNT; i++) {
         const post: cciCube = await makePost("I got " + (i+1).toString() + " important things to say", undefined, original, reducedDifficulty);
-        // manually save post to ID rather then through makePost because we will
-        // manipulate the date below, and that changes the key
-        original.forgetMyPost(await post.getKey());
-        post.setDate(1694284300 + i);  // now you know when this test was written!
-        original.rememberMyPost(await post.getKey());
+        const key: CubeKey = post.getKeyIfAvailable();
+        expect(key).toBeDefined();
+        const keyString: string = post.getKeyStringIfAvailable();
+        expect(keyString).toBeDefined();
+        testPostKeys.push(keyString);
         await cubeStore.addCube(post);
       }
       expect(original.posts.length).toEqual(TESTPOSTCOUNT);
+      expect(testPostKeys.length).toEqual(TESTPOSTCOUNT);
 
       await original.store(undefined, reducedDifficulty)
       const muc: cciCube = original.muc;
       await cubeStore.addCube(muc);
 
       const restored: Identity = await Identity.Construct(cubeStore, await cubeStore.getCube(idkey) as cciCube)
+      // await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
       expect(restored.posts.length).toEqual(TESTPOSTCOUNT);
-      let newerPost: cciCube = await cubeStore.getCube(restored.posts[0]) as cciCube;
-      for (let i=0; i<TESTPOSTCOUNT; i++) {
-        const restoredPost: cciCube = await cubeStore.getCube(restored.posts[i]) as cciCube;
-        const postText: string = restoredPost.fields.getFirst(cciFieldType.PAYLOAD).value.toString('utf-8');
-        expect(postText).toEqual("I got " + (TESTPOSTCOUNT-i).toString() + " important things to say");
-        expect(restoredPost!.getDate()).toBeLessThanOrEqual(newerPost!.getDate());
-        newerPost = restoredPost;
+      for (let i=0; i<restored.posts.length; i++) {
+        const restoredPostKey: string = restored.posts[i].toString('hex');
+        expect(restoredPostKey).toHaveLength(NetConstants.CUBE_KEY_SIZE*2);  // *2 due to string representation
+        expect(testPostKeys).toContain(restoredPostKey);
       }
     }, 10000);
 
@@ -468,10 +469,10 @@ describe('Identity', () => {
       expect(id.name).toEqual("Dominus plurium apparatorum qui nunc iter agit")
       expect(id.avatar.seedString).toEqual("cafebabe42");
       expect(id.posts.length).toBe(2);
-      expect((await cubeStore.getCube(id.posts[1])).fields.getFirst(
+      expect((await cubeStore.getCube(id.posts[0])).fields.getFirst(
         cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
           "Hoc est scriptum in computatore domi meae");
-      expect((await cubeStore.getCube(id.posts[0])).fields.getFirst(
+      expect((await cubeStore.getCube(id.posts[1])).fields.getFirst(
         cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
           "Hoc scriptum est in telefono mobili meo");
     });
@@ -520,9 +521,9 @@ describe('Identity', () => {
 
     it('will correctly reconstruct an Identity created on another node even when operating as a light node', async() => {
       // just preparing some test constants and containers
-      const TESTPOSTCOUNT = 10;
-      const testPosts: cciCube[] = [];
-      const TESTSUBCOUNT = 4;
+      const TESTPOSTCOUNT = 100;
+      const testPostKeys: string[] = [];
+      const TESTSUBCOUNT = 40;
       const testSubs: CubeKey[] = [];
       const testSubSubs: CubeKey[] = [];
       {  // block on remote node
@@ -547,7 +548,7 @@ describe('Identity', () => {
           post.setDate(1715279573 + i);  // now you know when this test was written!
           subject.rememberMyPost(await post.getKey());
           await remote.cubeStore.addCube(post);
-          testPosts.push(post);
+          testPostKeys.push(await post.getKeyString());
         }
         expect(subject.posts.length).toEqual(TESTPOSTCOUNT);
 
@@ -610,31 +611,27 @@ describe('Identity', () => {
 
         // verify all posts have been restored correctly
         expect(restored.posts.length).toBe(TESTPOSTCOUNT);
+        expect(testPostKeys.length).toBe(TESTPOSTCOUNT);
         for (let i=0; i<TESTPOSTCOUNT; i++) {
-          const restoredPost: cciCube =
-            await cubeRetriever.getCube(restored.posts[i]) as cciCube;
-          const postText: string =
-            restoredPost.fields.getFirst(cciFieldType.PAYLOAD).valueString;
-          expect(postText).toEqual(
-            (TESTPOSTCOUNT-i).toString() + "res importantes diciendas habeo");
+          expect(testPostKeys).toContain(restored.posts[i].toString('hex'));
         }
 
         // verify all subscriptions have been restored correctly
         expect(restored.subscriptionRecommendations.length).toBe(TESTSUBCOUNT);
         for (let i=0; i<testSubs.length; i++) {
-          expect(restored.subscriptionRecommendations.includes(testSubs[i]));
+          expect(restored.subscriptionRecommendations).toContainEqual(testSubs[i]);
         }
 
         // verify all indirect subscriptions are correctly recognized as within
         // this user's web of trust
         const restoredWot: CubeKey[] = await restored.recursiveWebOfSubscriptions(1);
         for (let i=0; i<testSubSubs.length; i++) {
-          expect(restoredWot.includes(testSubSubs[i]));
+          expect(restoredWot).toContainEqual(testSubSubs[i]);
         }
         // direct subscriptions are technically also part of our web of trust,
         // so let's quickly check for those, too
         for (let i=0; i<testSubs.length; i++) {
-          expect(restoredWot.includes(testSubs[i]));
+          expect(restoredWot).toContainEqual(testSubs[i]);
         }
       }
     }, 60000);
@@ -764,7 +761,7 @@ describe('Identity', () => {
         const pubkey = original.muc.publicKey.toString('hex');
         const privkey = original.muc.privateKey.toString('hex');
         const chosenAvatar: string = original.avatar.seedString;
-        const myPostKey: string = original.posts[0];
+        const myPostKey: CubeKey = original.posts[0];
 
         // store Identity
         await original.store();
