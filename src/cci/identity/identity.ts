@@ -1,4 +1,3 @@
-/** !!! This module may only be used after awaiting sodium.ready !!! */
 import { IdentityPersistence } from './identityPersistence';
 import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
 
@@ -122,6 +121,7 @@ export class Identity {
       password: string,
       options?: IdentityOptions,
   ): Promise<Identity | undefined> {
+    await sodium.ready;
     const masterKey: Buffer = Identity.DeriveMasterKey(username, password,
       options?.argonCpuHardness, options?.argonMemoryHardness);
     const keyPair: KeyPair = Identity.DeriveKeypair(masterKey, options);
@@ -135,28 +135,52 @@ export class Identity {
   }
 
   /** Creates a new Identity for a given username and password combination. */
-  static Create(
+  static async Create(
     cubeStoreOrRetriever: CubeStore | CubeRetriever,
     username: string,
     password: string,
     options?: IdentityOptions,
   ): Promise<Identity> {
+    await sodium.ready;
     const masterKey: Buffer = Identity.DeriveMasterKey(
       username, password,
       options?.argonCpuHardness, options?.argonMemoryHardness);
     return Identity.Construct(cubeStoreOrRetriever, masterKey, options);
   }
 
-  /** Convenient await-able wrapper around the constructor  */
-  static Construct(
+  /**
+   * Convenient await-able wrapper around the constructor.
+   * Depending on whether you provide a key pair or an existing Identity MUC,
+   * this will either create a brand new Identity or parse an existing one
+   * from the supplied MUC.
+   * Usage note: Consider using Identity.retrieve() instead which automatically
+   * handles loading existing Identities from local storage.
+   * @param [mucOrMasterkey] Either a cryptographic key pair to create a new
+   *        Identity with or a valid existing Identity MUC.
+   *        Exisiting Identities can be loaded this way even if you don't have
+   *        the private key; however, they can obviously not be store()d.
+   * @param [persistance] If you want to locally store this Identity to disk,
+   *        please construct an IdentityPersistance object and supply it here.
+   *        Does only make sense for local Identities, i.e. one for which you
+   *        have the private key.
+   * @param [minMucRebuildDelay] Set this to override the system-defined minimum
+   *        time between Identity MUC updates.
+   * @param [required_difficulty] Set this to override tbe system-defined
+   *        minimum Cube challenge difficulty. For example, you may want to set
+   *        this to 0 for testing.
+   * !!! Identity may only be constructed after awaiting sodium.ready !!!
+   **/
+  static async Construct(
     cubeStoreOrRetriever: CubeStore | CubeRetriever,
     mucOrMasterkey: cciCube | Buffer,
     options?: IdentityOptions,
   ): Promise<Identity> {
+    await sodium.ready;
     const id = new Identity(cubeStoreOrRetriever, mucOrMasterkey, options);
     return id.ready;
   }
 
+  /** This method may only be called after awaiting sodium.ready. */
   static DeriveKeypair(masterKey: Buffer, options?: IdentityOptions): KeyPair {
     const contextString: string = options?.idmucContextString ?? IDMUC_CONTEXT_STRING;
     const derivedSeed = sodium.crypto_kdf_derive_from_key(
@@ -167,6 +191,7 @@ export class Identity {
     return keyPair;
   }
 
+  /** This method may only be called after awaiting sodium.ready. */
   static DeriveMasterKey(
       username: string,
       password: string,
@@ -189,6 +214,7 @@ export class Identity {
       cubeStoreOrRetriever: CubeStore | CubeRetriever,
       options?: IdentityOptions
   ): Promise<Identity[]> {
+    await sodium.ready;
     const persistance: IdentityPersistence =
       await IdentityPersistence.Construct(options);
     const ids: Array<Identity> = await persistance.retrieve(cubeStoreOrRetriever);
@@ -316,26 +342,12 @@ export class Identity {
   get ready(): Promise<Identity> { return this._ready }
 
   /**
-   * Depending on whether you provide a key pair or an existing Identity MUC,
-   * this will either create a brand new Identity or parse an existing one
-   * from the supplied MUC.
-   * Usage note: Consider using Identity.retrieve() instead which automatically
-   * handles loading existing Identities from local storage.
-   * @param [mucOrMasterkey] Either a cryptographic key pair to create a new
-   *        Identity with or a valid existing Identity MUC.
-   *        Exisiting Identities can be loaded this way even if you don't have
-   *        the private key; however, they can obviously not be store()d.
-   * @param [persistance] If you want to locally store this Identity to disk,
-   *        please construct an IdentityPersistance object and supply it here.
-   *        Does only make sense for local Identities, i.e. one for which you
-   *        have the private key.
-   * @param [minMucRebuildDelay] Set this to override the system-defined minimum
-   *        time between Identity MUC updates.
-   * @param [required_difficulty] Set this to override tbe system-defined
-   *        minimum Cube challenge difficulty. For example, you may want to set
-   *        this to 0 for testing.
-   * !!! Identity may only be constructed after awaiting sodium.ready !!!
-   **/
+   * This constructor may only be called after awaiting sodium.ready.
+   * Consider using Identity.Construct instead of calling the constructor
+   * directly which will take care of everything for you.
+   * Identity.Construct has the exact same signature as this constructor;
+   * see there for param documentation.
+   */
   // TODO: Provide option NOT to subscribe to remote MUC changes
   constructor(
       cubeStoreOrRetriever: CubeStore | CubeRetriever,

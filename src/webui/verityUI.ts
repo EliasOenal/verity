@@ -29,7 +29,6 @@ export class VerityUI {
     logger.info('Starting web node');
     const veraStartupAnim =  new VeraAnimationController();
     veraStartupAnim.start();
-    await sodium.ready;
 
     const node = new VerityNode(
       new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
