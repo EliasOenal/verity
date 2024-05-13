@@ -736,12 +736,15 @@ export class Identity {
     this.cubeStore.once("cubeAdded",
       cubeInfo => this.mergeRemoteChanges(cubeInfo));
     // check if this is even our MUC
-    if (!this.key || !(incoming.key?.equals(this.key))) return;
-    // check if this is even an update
-    if (incoming.getCube().getHashIfAvailable().    // hash always available as
-          equals(this.muc.getHashIfAvailable())) {  // CubeStore.addCube() awaits it
-      return;
-    }
+    if (!this.key ||  // can't perform merge if we don't even know our own key
+        !(incoming.key?.equals(this.key))) return;
+    // optimization: check if this is even an update and skip if it isn't
+    if (
+        this.muc.getHashIfAvailable() &&  // need to know own hash for skipping,
+        incoming.getCube().getHashIfAvailable() &&  // need to know incoming hash,
+        this.muc.getHashIfAvailable().equals(  // and they need to be equal
+          incoming.getCube().getHashIfAvailable())
+    ){ return }
     // check if this MUC is even valid
     if (!Identity.validateMuc(incoming)) return;
     // TODO: This does not actually perform a merge,
