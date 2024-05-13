@@ -7,7 +7,7 @@ import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
 import { makePost } from '../../../src/app/zw/zwUtil';
 import { cciFieldParsers, cciFields } from '../../../src/cci/cube/cciFields';
 
-import { cciFieldType } from '../../../src/cci/cube/cciField';
+import { MediaTypes, cciField, cciFieldType } from '../../../src/cci/cube/cciField';
 import { cciRelationshipType, cciRelationship } from '../../../src/cci/cube/cciRelationship';
 import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
 import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
@@ -23,9 +23,6 @@ import { Peer } from '../../../src/core/peering/peer';
 
 // maybe TODO: Some tests here use "ZW" stuff from the microblogging app
 // which breaks the current layering.
-
-// TODO: add tests for fun stuff like cyclical post references
-// (what makes them even funnier is that they currently should fail :D )
 
 describe('Identity', () => {
   const reducedDifficulty = 0;  // no hash cash for testing
@@ -158,41 +155,6 @@ describe('Identity', () => {
         toEqual("Habeo res importantes dicere");
     }, 10000);
 
-    it('restores its post list recursively', async () => {
-      const TESTPOSTCOUNT = 1000;  // 100 keys are more than guaranteed not to fit in the MUC
-      const testPostKeys: string[] = [];
-
-      const original: Identity = await Identity.Create(
-        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
-      original.name = "Probator memoriae tabellae";
-      const idkey = original.publicKey;
-
-      for (let i=0; i<TESTPOSTCOUNT; i++) {
-        const post: cciCube = await makePost("I got " + (i+1).toString() + " important things to say", undefined, original, reducedDifficulty);
-        const key: CubeKey = post.getKeyIfAvailable();
-        expect(key).toBeDefined();
-        const keyString: string = post.getKeyStringIfAvailable();
-        expect(keyString).toBeDefined();
-        testPostKeys.push(keyString);
-        await cubeStore.addCube(post);
-      }
-      expect(original.posts.length).toEqual(TESTPOSTCOUNT);
-      expect(testPostKeys.length).toEqual(TESTPOSTCOUNT);
-
-      await original.store(undefined, reducedDifficulty)
-      const muc: cciCube = original.muc;
-      await cubeStore.addCube(muc);
-
-      const restored: Identity = await Identity.Construct(cubeStore, await cubeStore.getCube(idkey) as cciCube)
-      // await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
-      expect(restored.posts.length).toEqual(TESTPOSTCOUNT);
-      for (let i=0; i<restored.posts.length; i++) {
-        const restoredPostKey: string = restored.posts[i].toString('hex');
-        expect(restoredPostKey).toHaveLength(NetConstants.CUBE_KEY_SIZE*2);  // *2 due to string representation
-        expect(testPostKeys).toContain(restoredPostKey);
-      }
-    }, 10000);
-
     it('still works even if I update my Identity really really often', async() => {
       const idTestOptions = {
         persistance: undefined,
@@ -230,6 +192,116 @@ describe('Identity', () => {
       const muc = await id.store();
       expect(muc.fields.getFirst(cciFieldType.AVATAR)).toBeUndefined();
     })
+  });
+
+  describe('own posts', () => {
+    it('restores its post list recursively', async () => {
+      const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
+      const testPostKeys: string[] = [];
+
+      const original: Identity = await Identity.Create(
+        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
+      original.name = "Probator memoriae tabellae";
+      const idkey = original.publicKey;
+
+      for (let i=0; i<TESTPOSTCOUNT; i++) {
+        const post: cciCube = await makePost("I got " + (i+1).toString() + " important things to say", undefined, original, reducedDifficulty);
+        const key: CubeKey = post.getKeyIfAvailable();
+        expect(key).toBeDefined();
+        const keyString: string = post.getKeyStringIfAvailable();
+        expect(keyString).toBeDefined();
+        testPostKeys.push(keyString);
+        await cubeStore.addCube(post);
+      }
+      expect(original.posts.length).toEqual(TESTPOSTCOUNT);
+      expect(testPostKeys.length).toEqual(TESTPOSTCOUNT);
+
+      await original.store(undefined, reducedDifficulty)
+      const muc: cciCube = original.muc;
+      await cubeStore.addCube(muc);
+
+      const restored: Identity = await Identity.Construct(cubeStore, await cubeStore.getCube(idkey) as cciCube)
+      expect(restored.posts.length).toEqual(TESTPOSTCOUNT);
+      for (let i=0; i<restored.posts.length; i++) {
+        const restoredPostKey: string = restored.posts[i].toString('hex');
+        expect(restoredPostKey).toHaveLength(NetConstants.CUBE_KEY_SIZE*2);  // *2 due to string representation
+        expect(testPostKeys).toContain(restoredPostKey);
+      }
+    }, 10000);
+
+    it('will not fail on circular post references', async() => {
+      // Note that unlike regular posts, at least one of those has to be a MUC.
+      // With regular posts, circular references are impossible as you'd need
+      // to know both post's keys to create the reference, but creating the
+      // reference will change the key.
+      // We do however still want the Identity module to withstand such nonsense
+      // and also to allow applications to use MUCs as posts, hence this test.
+      const postKeyPair = sodium.crypto_sign_keypair();
+      const postPubKey: Buffer = Buffer.from(postKeyPair.publicKey);
+      const postPrivKey: Buffer = Buffer.from(postKeyPair.privateKey);
+      // Prepare the first post which will later complete the circular reference
+      const postA: cciCube = cciCube.MUC(postPubKey, postPrivKey, {
+        requiredDifficulty: reducedDifficulty,
+        fields: [
+          cciField.Application(("Test")),
+          cciField.MediaType(MediaTypes.TEXT),
+          cciField.Payload("Per mentionem ad aliam tabulam, circulum mentionis creo"),
+          // post reference can only be added later as we don't know the key yet
+        ]
+      });
+      const keyA: CubeKey = postA.getKeyIfAvailable();  // MUC keys are always available
+      // Craft the second post
+      const postB: cciCube = cciCube.Frozen({
+        requiredDifficulty: reducedDifficulty,
+        fields: [
+          cciField.Application(("Test")),
+          cciField.MediaType(MediaTypes.TEXT),
+          cciField.Payload("Hoc est ordinarius tabulae mentionem"),
+          cciField.RelatesTo(new cciRelationship(
+            cciRelationshipType.MYPOST, keyA)),
+        ]
+      });
+      const keyB: CubeKey = await postB.getKey();  // implicitly compiles postB
+      await cubeStore.addCube(postB);
+      // complete circular reference
+      postA.fields.insertFieldBeforeBackPositionals(
+        cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.MYPOST, keyB)));
+      await postA.compile();
+      await cubeStore.addCube(postA);
+      // Now craft an Identity MUC referring to postB
+      const idKeyPair = sodium.crypto_sign_keypair();
+      const idPubKey: Buffer = Buffer.from(idKeyPair.publicKey);
+      const idPrivKey: Buffer = Buffer.from(idKeyPair.privateKey);
+      const idMuc: cciCube = cciCube.MUC(idPubKey, idPrivKey, {
+        requiredDifficulty: reducedDifficulty,
+        fields: [
+          cciField.Application("ID"),
+          cciField.Username("Usor confusus"),
+          cciField.RelatesTo(new cciRelationship(
+            cciRelationshipType.MYPOST, keyB)),
+        ]
+      });
+      await idMuc.compile();
+      await cubeStore.addCube(idMuc);
+      // verify we have indeed created a circular reference
+      expect(idMuc.fields.getFirstRelationship(
+        cciRelationshipType.MYPOST).remoteKey).toEqual(keyB);
+      expect(postB.fields.getFirstRelationship(
+        cciRelationshipType.MYPOST).remoteKey).toEqual(keyA);
+      expect(postA.fields.getFirstRelationship(
+        cciRelationshipType.MYPOST).remoteKey).toEqual(keyB);
+      // now try an Identity restore from this MUC
+      const restored: Identity =
+        await Identity.Construct(cubeStore, idMuc, idTestOptions);
+      // restored Identity should correctly list two posts, A and B
+      expect(restored.posts).toHaveLength(2);
+      expect(restored.posts).toContainEqual(keyA);
+      expect(restored.posts).toContainEqual(keyB);
+    });
+
+    // recursion depth limit not implemented yet
+    it.todo('will not recurse deeper than the specified limit while restoring post list');
   });
 
   describe('subscription recommendations', ()  => {
@@ -412,6 +484,8 @@ describe('Identity', () => {
         expect(restoredother.name).toEqual("Figurarius " + i + "-tus");
       }
     }, 10000);
+
+    it.todo('will not fail on circular subscription recommendation index cubes');
   });  // describe subscription recommendations
 
   describe('remote updates', () => {

@@ -55,6 +55,10 @@ export interface IdentityOptions {
 // Much of it (like writing multi-cube long indexes of cube keys) are not even
 // Identity specific and should be exposed as common CCI building blocks.
 
+// TODO: For both post and subscription/recommendation referenced, introduce a
+// parameter governing whether those references should be kept in dedicated,
+// separate extension MUCs or whether they should be piggy-backed on top of posts.
+
 /**
  * !!! May only be used after awaiting sodium.ready !!!
  * @classdesc An identity describes who a user is.
@@ -80,6 +84,7 @@ export interface IdentityOptions {
  *       Links to the first cube of a continuation chain containing
  *       this user's profile picture in JPEG format. Maximum size of three
  *       cubes, i.e. just below 3kB.
+ *       This is currently UNUSED and NOT IMPLEMENTED.
  *   - RELATES_TO/MYPOST: Links to a post made by this user.
  *       (These posts itself will contain more RELATES_TO/MYPOST fields, building
  *       a kind of linked list of a user's posts.)
