@@ -141,7 +141,7 @@ describe('cube', () => {
 
 
   describe('compilation', () => {
-    it('should write fields to binary data correctly even after manipulating them', async () => {
+    it('should compile fields correctly even after manipulating them', async () => {
       const cube = Cube.Frozen({
         fields: CubeField.Payload(Buffer.alloc(500, " ")),
         requiredDifficulty: reducedDifficulty});
@@ -156,6 +156,36 @@ describe('cube', () => {
       expect(reconstructed_string).toEqual(
         'Ego sum determinavit tarde quid dicere Cubus.');
     }, 3000);
+
+    it('should recompile fields correctly after manipulating them', async() => {
+      // sculpt Cube
+      const cube = Cube.Frozen({
+        fields: CubeField.Payload("Cubus sum"),
+        requiredDifficulty: reducedDifficulty});
+      await cube.compile();
+      // test reactivation of first Cube version
+      {
+        const binaryData = cube.getBinaryDataIfAvailable();  // available as we just compiled
+        expect(binaryData[0]).toEqual(CubeType.FROZEN);
+        const parser = new FieldParser(coreFrozenFieldDefinition);  // decompileTlv is true
+        const recontructed: BaseFields = parser.decompileFields(binaryData);
+        expect(recontructed.getFirst(CubeFieldType.PAYLOAD).valueString).
+          toEqual("Cubus sum");
+      }
+      // manipulate & recompile Cube
+      cube.fields.getFirst(CubeFieldType.PAYLOAD).value =
+        Buffer.from('Determinavit tarde quid dicere Cubus sum', 'ascii');
+      await cube.compile();
+      // test reactivation of first Cube version
+      {
+        const binaryData = cube.getBinaryDataIfAvailable();  // available as we just compiled
+        expect(binaryData[0]).toEqual(CubeType.FROZEN);
+        const parser = new FieldParser(coreFrozenFieldDefinition);  // decompileTlv is true
+        const recontructed: BaseFields = parser.decompileFields(binaryData);
+        expect(recontructed.getFirst(CubeFieldType.PAYLOAD).valueString).
+          toEqual("Determinavit tarde quid dicere Cubus sum");
+      }
+    });
   });
 
 
@@ -378,7 +408,10 @@ describe('cube', () => {
   describe('method padUp()', () => {
     it('Should not add padding if not required', async() => {
       // Create a Cube with fields whose total length is equal to the cube size
-      const cube = Cube.Frozen({fields: CubeField.Payload("His cubus plenus est")});
+      const cube = Cube.Frozen({
+        fields: CubeField.Payload("His cubus plenus est"),
+        requiredDifficulty: reducedDifficulty,
+      });
       const freeSpace = NetConstants.CUBE_SIZE - cube.fields.getByteLength();
       const plHl = cube.fieldParser.getFieldHeaderLength(CubeFieldType.PAYLOAD);
       cube.fields.insertFieldBeforeBackPositionals(CubeField.Payload(
@@ -398,7 +431,8 @@ describe('cube', () => {
       // Create a Cube with fields whose total length is equal to the cube size
       const payload = CubeField.Payload(
         "Hic cubus nimis parvus, ideo supplendus est.");
-      const cube = Cube.Frozen({fields: payload});
+      const cube = Cube.Frozen({
+        fields: payload, requiredDifficulty: reducedDifficulty});
 
       const fieldCountBeforePadding = cube.fields.all.length;
       const paddingAdded = cube.padUp();
@@ -415,6 +449,20 @@ describe('cube', () => {
         cube.fieldParser.getFieldHeaderLength(CubeFieldType.PAYLOAD) +
         payload.length;
       expect(binaryCube[expectEndMarkerAt]).toEqual(0x00);
+    });
+
+    it('should remove extra padding if necessary', async() => {
+      const overlyPadded: Cube = Cube.Frozen({
+        requiredDifficulty: reducedDifficulty,
+        fields: [
+          CubeField.Payload("Hic cubus nimis multum impluvium continet."),
+        ]
+      });
+      overlyPadded.fields.insertFieldBeforeBackPositionals(
+        CubeField.Padding(2000)  // are you crazy?!
+      );
+      const binaryCube: Buffer = await overlyPadded.getBinaryData();
+      expect(binaryCube).toHaveLength(NetConstants.CUBE_SIZE);
     });
   });  // describe padUp()
 });
