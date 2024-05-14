@@ -224,7 +224,7 @@ export class Cube {
             // verify all fields together are less than 1024 bytes
             let totalLength = fields.getByteLength();
             if (totalLength > NetConstants.CUBE_SIZE) {
-                throw new FieldSizeError(`Cube.setFields(): Can set fields with a total length of ${totalLength} as Cube size is ${NetConstants.CUBE_SIZE}`);
+                throw new FieldSizeError(`Cube.setFields(): Can't set fields with a total length of ${totalLength} as Cube size is ${NetConstants.CUBE_SIZE}`);
             }
             // verify there's a NONCE field
             if (!(fields.getFirst(CubeFieldType.NONCE))) {
@@ -289,9 +289,22 @@ export class Cube {
      * you request binary data. It can however safely be called multiple times.
      */
     public padUp(): boolean {
-        // pad up to 1024 bytes if necessary
-        const len = this.fields.getByteLength();
-        if (len < (NetConstants.CUBE_SIZE)) {  // any padding required?
+        let len = this.fields.getByteLength();  // how large are we now?
+        if (len > NetConstants.CUBE_SIZE) {  // Cube to large :(
+            // is this a recompile and we need to strip out the old padding?
+            const paddingFields: Iterable<CubeField> =
+                this.fields.get(CubeFieldType.PADDING);
+            for (const paddingField of paddingFields) {
+                this.fields.removeField(paddingField);
+            }
+            len = this.fields.getByteLength();
+            if (len > NetConstants.CUBE_SIZE) {  // still to large :(
+                throw new FieldSizeError(
+                    `Cannot compile this Cube as it is too large. Current ` +
+                    `length is ${len}, maximum is ${NetConstants.CUBE_SIZE}`);
+            }
+        }
+        if (len < NetConstants.CUBE_SIZE) {  // any padding required?
             // start with a 0x00 single byte padding field to indicate end of CCI data
             this.fields.insertFieldBeforeBackPositionals(CubeField.Padding(1));
             // now add further padding as required
