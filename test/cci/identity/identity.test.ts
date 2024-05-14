@@ -551,9 +551,44 @@ describe('Identity', () => {
           "Hoc scriptum est in telefono mobili meo");
     });
 
-    // this will probably still fail as we currently don't actively attempt to merge
+    // this still fails as we currently don't actively attempt to merge
     // conflicting MUC versions
-    it.todo('will merge posts created on this and another device in quick succession');
+    it.skip('will merge posts on conflicting remote updates', async() => {
+      const masterKey: Buffer = Buffer.from(
+        sodium.randombytes_buf(sodium.crypto_sign_SEEDBYTES, 'uint8array'));
+
+      // create Identity
+      const leftId: Identity =
+        await Identity.Construct(cubeStore, masterKey, idTestOptions);
+      const commonPostKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1);
+      leftId.rememberMyPost(commonPostKey);
+      const leftOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2);
+      leftId.rememberMyPost(leftOnlyKey);
+      expect(leftId.posts).toHaveLength(2);
+      expect(leftId.posts.some(key => key.equals(commonPostKey))).toBeTruthy();
+      expect(leftId.posts.some(key => key.equals(leftOnlyKey))).toBeTruthy();
+      const leftMuc: cciCube = await leftId.makeMUC();
+
+      // create conflicting Identity (this might e.g. happen on another device)
+      const anotherCubeStore = new CubeStore(testCubeStoreParams);
+      const rightId: Identity =
+        await Identity.Construct(cubeStore, masterKey, idTestOptions);
+      rightId.rememberMyPost(commonPostKey);
+      const rightOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3);
+      rightId.rememberMyPost(rightOnlyKey);
+      expect(rightId.posts).toHaveLength(2);
+      expect(rightId.posts.some(key => key.equals(commonPostKey))).toBeTruthy();
+      expect(rightId.posts.some(key => key.equals(leftOnlyKey))).toBeFalsy();
+      expect(rightId.posts.some(key => key.equals(rightOnlyKey))).toBeTruthy();
+      const rightMuc: cciCube = await rightId.makeMUC();
+
+      // merge right to left by adding right's MUC to left's CubeStore
+      await cubeStore.addCube(rightMuc);
+      expect(leftId.posts).toHaveLength(3);
+      expect(leftId.posts.some(key => key.equals(commonPostKey))).toBeTruthy();
+      expect(leftId.posts.some(key => key.equals(leftOnlyKey))).toBeTruthy();
+      expect(leftId.posts.some(key => key.equals(rightOnlyKey))).toBeTruthy();
+    });
   });
 
   describe('remote Identity reconstruction', () => {

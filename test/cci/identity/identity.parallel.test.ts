@@ -5,7 +5,7 @@ import { cciCube } from "../../../src/cci/cube/cciCube";
 
 import sodium from "libsodium-wrappers-sumo";
 
-describe("Identity2", () => {
+describe("Identity (parallel test suite for better test performance)", () => {
   const reducedDifficulty = 0; // no hash cash for testing
   const idTestOptions: IdentityOptions = {
     minMucRebuildDelay: 1, // allow updating Identity MUCs every second
