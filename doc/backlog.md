@@ -16,7 +16,10 @@
 - Support multiple Cube exchange methods, implement ToW based exchange and
   enable it by default for full nodes.
   Rework current naive key list based exchange into a sliding-window based
-  exchange of most current Cubes.
+  exchange of most recent Cubes.
+- MUC subscriptions, i.e. implement a way in which a node can easily receive
+  updates to a MUC without polling and re-downloading the same version over and
+  over again.
 - Support WebRTC server nodes, or some other way to set up full nodes in a way
   which does not require an SSL cert and still makes them reachable from secure
   browser contexts.
@@ -31,6 +34,8 @@
   It's a less intrusive alternative to fully private Verity networks, empowering
   full nodes run by users subject to such restrictions to still contribute to
   Verity as a whole.
+- At some point in the far future: Local node-to-node communication using
+  Bluetooth or ad-hoc WiFi
 
 # CCI
 - Implement Cube encryption
@@ -39,9 +44,13 @@
 ## CCI Identity
 - Support umbrella identities linking together a user's profiles over multiple
   Verity apps.
+- Implement merge of remote changes. Problem: How to deal with deletions?
 
 # Microblogging app
 - PWA: Rework service worker to auto-update cached assets
+- Show user's profiles and their posts
+- Allow further customization of profiles, e.g. with a short introductory text
+- Implement post groups, e.g. hash tags
 - QR codes for adding / subscribing to local friends
 
 # Other global TODOs
