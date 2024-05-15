@@ -1,5 +1,5 @@
 import { AddressError, SupportedTransports } from '../networking/networkDefinitions';
-import { fibonacci, unixtime } from '../helpers';
+import { fibonacci, unixtime } from '../helpers/misc';
 import { Settings, VerityError } from '../settings';
 
 import { WebSocketAddress } from './addressing';

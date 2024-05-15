@@ -3,7 +3,7 @@ import { AddressAbstraction, WebSocketAddress } from "./addressing";
 import { logger } from "../logger";
 
 import { Multiaddr } from '@multiformats/multiaddr'
-import { unixtime } from "../helpers";
+import { unixtime } from "../helpers/misc";
 
 /**
  * Basic representation of a peer without session and networking information.

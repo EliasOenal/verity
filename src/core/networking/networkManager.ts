@@ -1,5 +1,5 @@
 import { Settings, VerityError } from '../settings';
-import { unixtime } from '../helpers';
+import { unixtime } from '../helpers/misc';
 
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { NetworkPeer, NetworkStats } from './networkPeer';

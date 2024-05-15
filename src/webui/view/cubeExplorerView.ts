@@ -3,7 +3,7 @@ import { cciFields } from "../../cci/cube/cciFields";
 import { Cube } from "../../core/cube/cube";
 import { CubeType } from "../../core/cube/cubeDefinitions";
 import { CubeField } from "../../core/cube/cubeField";
-import { isPrintable } from "../../core/helpers";
+import { isPrintable } from "../../core/helpers/misc";
 import { VerityView } from "./verityView";
 
 const cubeEmoji: Map<CubeType, string> = new Map([

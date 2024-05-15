@@ -1,7 +1,7 @@
 import { IdentityPersistence } from './identityPersistence';
 import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
 
-import { unixtime } from '../../core/helpers';
+import { unixtime } from '../../core/helpers/misc';
 import { Cube } from '../../core/cube/cube';
 import { logger } from '../../core/logger';
 
