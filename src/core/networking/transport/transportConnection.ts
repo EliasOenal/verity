@@ -4,7 +4,7 @@ import { AddressError, SupportedTransports } from "../networkDefinitions";
 import EventEmitter from "events";
 import { Buffer } from 'buffer';
 import { AddressAbstraction } from "../../peering/addressing";
-import { unixtime } from "../../helpers";
+import { unixtime } from "../../helpers/misc";
 import { logger } from "../../logger";
 
 export interface TransportConnectionOptions {

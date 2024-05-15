@@ -1,6 +1,6 @@
 import { Settings } from '../settings';
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
-import { unixtime } from '../helpers';
+import { unixtime } from '../helpers/misc';
 import { CubeRequestMessage, CubeResponseMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, NetworkMessage, PeerRequestMessage, PeerResponseMessage, ServerAddressMessage } from './networkMessage';
 
 import { CubeStore } from '../cube/cubeStore';

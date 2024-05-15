@@ -2,7 +2,7 @@
 import { Settings } from '../../../src/core/settings';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
-import { unixtime } from '../../../src/core/helpers';
+import { unixtime } from '../../../src/core/helpers/misc';
 import { BaseField } from '../../../src/core/fields/baseField';
 import { BaseFields } from '../../../src/core/fields/baseFields';
 import { FieldParser } from '../../../src/core/fields/fieldParser';
