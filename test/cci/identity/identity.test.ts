@@ -26,18 +26,8 @@ import { Peer } from '../../../src/core/peering/peer';
 
 describe('Identity', () => {
   const reducedDifficulty = 0;  // no hash cash for testing
-  const idTestOptions: IdentityOptions = {
-    minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
-    requiredDifficulty: reducedDifficulty,
-    argonCpuHardness: 1,  // == crypto_pwhash_OPSLIMIT_MIN (sodium not ready)
-    argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
-  };
-  const testCubeStoreParams: CubeStoreOptions = {
-    enableCubePersistence: EnableCubePersitence.OFF,
-    enableCubeRetentionPolicy: false,
-    requiredDifficulty: 0,
-    family: cciFamily,
-  };
+  let idTestOptions: IdentityOptions;
+  let testCubeStoreParams: CubeStoreOptions;
   let cubeStore: CubeStore;
 
   beforeAll(async () => {
@@ -45,6 +35,18 @@ describe('Identity', () => {
   });
 
   beforeEach(async () => {
+    idTestOptions = {
+      minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
+      requiredDifficulty: reducedDifficulty,
+      argonCpuHardness: 1,  // == crypto_pwhash_OPSLIMIT_MIN (sodium not ready)
+      argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
+    };
+    testCubeStoreParams = {
+      enableCubePersistence: EnableCubePersitence.OFF,
+      enableCubeRetentionPolicy: false,
+      requiredDifficulty: 0,
+      family: cciFamily,
+    };
     cubeStore = new CubeStore(testCubeStoreParams);
   });
 
@@ -568,11 +570,12 @@ describe('Identity', () => {
       expect(leftId.posts.some(key => key.equals(commonPostKey))).toBeTruthy();
       expect(leftId.posts.some(key => key.equals(leftOnlyKey))).toBeTruthy();
       const leftMuc: cciCube = await leftId.makeMUC();
+      await cubeStore.addCube(leftMuc);
 
       // create conflicting Identity (this might e.g. happen on another device)
       const anotherCubeStore = new CubeStore(testCubeStoreParams);
       const rightId: Identity =
-        await Identity.Construct(cubeStore, masterKey, idTestOptions);
+        await Identity.Construct(anotherCubeStore, masterKey, idTestOptions);
       rightId.rememberMyPost(commonPostKey);
       const rightOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3);
       rightId.rememberMyPost(rightOnlyKey);
@@ -588,6 +591,45 @@ describe('Identity', () => {
       expect(leftId.posts.some(key => key.equals(commonPostKey))).toBeTruthy();
       expect(leftId.posts.some(key => key.equals(leftOnlyKey))).toBeTruthy();
       expect(leftId.posts.some(key => key.equals(rightOnlyKey))).toBeTruthy();
+    });
+
+    it('should not apply remote changes when explicitly not subscribed', async() => {
+      const masterKey: Buffer = Buffer.from(
+        sodium.randombytes_buf(sodium.crypto_sign_SEEDBYTES, 'uint8array'));
+      idTestOptions.subscribeRemoteChanges = false;
+
+      // create Identity
+      const leftId: Identity =
+        await Identity.Construct(cubeStore, masterKey, idTestOptions);
+      const commonPostKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1);
+      leftId.rememberMyPost(commonPostKey);
+      const leftOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2);
+      leftId.rememberMyPost(leftOnlyKey);
+      expect(leftId.posts).toHaveLength(2);
+      expect(leftId.posts.some(key => key.equals(commonPostKey))).toBeTruthy();
+      expect(leftId.posts.some(key => key.equals(leftOnlyKey))).toBeTruthy();
+      const leftMuc: cciCube = await leftId.makeMUC();
+      await cubeStore.addCube(leftMuc);
+
+      // create conflicting Identity (this might e.g. happen on another device)
+      const anotherCubeStore = new CubeStore(testCubeStoreParams);
+      const rightId: Identity =
+        await Identity.Construct(anotherCubeStore, masterKey, idTestOptions);
+      rightId.rememberMyPost(commonPostKey);
+      const rightOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3);
+      rightId.rememberMyPost(rightOnlyKey);
+      expect(rightId.posts).toHaveLength(2);
+      expect(rightId.posts.some(key => key.equals(commonPostKey))).toBeTruthy();
+      expect(rightId.posts.some(key => key.equals(leftOnlyKey))).toBeFalsy();
+      expect(rightId.posts.some(key => key.equals(rightOnlyKey))).toBeTruthy();
+      const rightMuc: cciCube = await rightId.makeMUC();
+
+      // merge right to left by adding right's MUC to left's CubeStore
+      await cubeStore.addCube(rightMuc);
+      expect(leftId.posts).toHaveLength(2);
+      expect(leftId.posts.some(key => key.equals(commonPostKey))).toBeTruthy();
+      expect(leftId.posts.some(key => key.equals(leftOnlyKey))).toBeTruthy();
+      expect(leftId.posts.some(key => key.equals(rightOnlyKey))).toBeFalsy();
     });
   });
 

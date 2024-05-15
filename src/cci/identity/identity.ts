@@ -48,6 +48,14 @@ export interface IdentityOptions {
   argonMemoryHardness?: number,
 
   idmucContextString?: string,
+
+  /**
+   * Whether this Identity should listen for remote updates to itself.
+   * This is required whenever the same Identity may be actively used (= edited)
+   * different nodes as otherwise changes won't be synced.
+   * Default: true
+   **/
+  subscribeRemoteChanges?: boolean;
 }
 
 // TODO: Split out the MUC management code.
@@ -57,6 +65,12 @@ export interface IdentityOptions {
 // TODO: For both post and subscription/recommendation referenced, introduce a
 // parameter governing whether those references should be kept in dedicated,
 // separate extension MUCs or whether they should be piggy-backed on top of posts.
+
+// TODO: Once we properly merge conflicting remote changes, deleting stuff
+// will be essentially broken. Implement a way to delete stuff without it being
+// synced back from another node.
+// Maybe a Lamport clock? Did I mention that I like Lamport clocks? :)
+// (turns out a simple Lamport clock isn't enough :( )
 
 /**
  * !!! May only be used after awaiting sodium.ready !!!
@@ -370,11 +384,13 @@ export class Identity {
     // Identity updates.
 
     // Subscribe to remote Identity updates (i.e. same user using multiple devices)
-    // Note: We're subscribing using once instead of on and renew the subscription
-    // manually on each call as this saves us from implementing a destructor-like
-    // shutdown procedure.
-    this.cubeStore.once("cubeAdded",
-      cubeInfo => this.mergeRemoteChanges(cubeInfo));
+    if (!(options?.subscribeRemoteChanges === false)) {  // unless explicitly opted out
+      // Note: We're subscribing using once() instead of on() and renew the
+      // subscription manually on each call as this saves us from implementing
+      // a destructor-like shutdown procedure.
+      this.cubeStore.once("cubeAdded",
+        cubeInfo => this.mergeRemoteChanges(cubeInfo));
+    }
 
     // are we loading or creating an Identity?
     if (mucOrMasterkey instanceof Cube) {  // checking for the more generic Cube instead of cciCube as this is the more correct branch compared to handling this as a KeyPair (also Cube subclass handling is not completely clean yet throughout our codebase)
@@ -748,6 +764,7 @@ export class Identity {
       [postPromise, subRecPromise]) as unknown as Promise<void>;
   }
 
+  // TODO: implement an actual merge
   private mergeRemoteChanges(incoming: CubeInfo): void {
     // renew subscription
     this.cubeStore.once("cubeAdded",
@@ -764,10 +781,14 @@ export class Identity {
     ){ return }
     // check if this MUC is even valid
     if (!Identity.validateMuc(incoming)) return;
-    // TODO: This does not actually perform a merge,
-    // it just gives precedence to the remote version.
+    // TODO: This does not actually perform a merge.
+    // It just gives precedence to "never" version, which is not a good idea
+    // to start with and is exacerbated by the fact that no actual time
+    // synchronisation exists between nodes.
     // TODO: This currently creates a race condition as parseMuc() is async.
-    this.parseMuc(incoming.getCube() as cciCube);
+    if (incoming.date > this.muc.getDate()) {
+      this.parseMuc(incoming.getCube() as cciCube);
+    }
   }
 
   // TODO: check and limit recursion

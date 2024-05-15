@@ -199,14 +199,12 @@ export class Cube {
         });
     }
 
-    // maybe TODO: get rid of this? This just returns a field, why the special treatment?
     public getDate(): number {
         const dateField: CubeField =
             this.fields.getFirst(CubeFieldType.DATE);
         return dateField.value.readUIntBE(0, NetConstants.TIMESTAMP_SIZE);
     }
 
-    // maybe TODO: get rid of this? This just manipulates a field, why the special treatment?
     public setDate(date: number): void {
         this.cubeManipulated();
         const dateField: CubeField =
