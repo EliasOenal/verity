@@ -14,6 +14,10 @@ import { keyVariants } from '../../cube/cubeUtil';
 // TODO: only schedule next request after previous request has been *fulfilled*,
 // or after a sensible timeout
 
+// TODO: Add option to fire a request immediately, within reasonable limits.
+// This is required for interactive applications to perform reasonably on
+// light nodes.
+
 export interface RequestSchedulerOptions {
   lightNode?: boolean;
   requestStrategy?: RequestStrategy;
@@ -44,6 +48,7 @@ export class RequestScheduler {
   requestTimeout?: number;
 
   private requestedCubes: Map<string, RequestedCube> = new Map();
+  private subscribedCubes: CubeKey[] = [];
   private currentTimer: NodeJS.Timeout = undefined;
 
   constructor(
@@ -70,6 +75,24 @@ export class RequestScheduler {
     this.requestedCubes.set(key.keyString, req);  // remember request
     this.scheduleNextRequest(0);  // schedule request
     return req.promise;  // return result eventually
+  }
+
+  /**
+   * Subscribe to a Cube, ensuring you will receive any an all remote updates.
+   * This obviously only makes sense for mutable Cubes, i.e. MUCs.
+   **/
+  // Note: We don't have any actual notion of subscriptions on the core network
+  // layer yet. What this currently does is just re-request the same Cube over
+  // and over again, which is obviously stupid.
+  subscribeCube(keyInput: CubeKey | string): void {
+    if (this.lightNode) {  // full nodes are implicitly subscribed to everything
+      const key = keyVariants(keyInput);
+      if (this.subscribedCubes.some(subbedKey => subbedKey.equals(key.binaryKey))) {
+        return;  // already subscribed, nothing to do here
+      }
+      this.subscribedCubes.push(key.binaryKey);
+      this.scheduleNextRequest(0);  // schedule request
+    }
   }
 
   set requestStrategy(newStrat: RequestStrategy) {
@@ -112,7 +135,8 @@ export class RequestScheduler {
     // cancel timer calling this exact function
     this.clearScheduledRequest();
     // is there even anything left to request?
-    if (this.lightNode && this.requestedCubes.size === 0) {
+    if (this.lightNode &&
+        this.requestedCubes.size === 0 && this.subscribedCubes.length === 0) {
       logger.trace(`RequestScheduler.performRequest(): doing nothing, we're a light node and there are no open requests`);
       return;  // nothing to do
     }
@@ -126,6 +150,14 @@ export class RequestScheduler {
         for (const [keystring, req] of this.requestedCubes) {
           if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
           if (!req.requestRunning) keys.push(req.key);
+        }
+        for (const key of this.subscribedCubes) {
+          if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
+          // Note: This is COMPLETELY INEFFICIENT BULLSHIT!
+          // It means we're requesting the exact same Cube over and over again.
+          // We need to implement a proper subscription mechanism at the core
+          // networking layer.
+          keys.push(key);
         }
         logger.trace(`RequestScheduler.performRequest(): requesting ${keys.length} Cubes from ${peerSelected.toString()}`);
         peerSelected.sendCubeRequest(keys);
