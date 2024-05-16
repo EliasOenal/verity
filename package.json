@@ -36,7 +36,7 @@
     "@libp2p/identify": "^2.0.1",
     "@libp2p/mplex": "^10.0.23",
     "@libp2p/webrtc": "^4.0.29",
-    "@libp2p/websockets": "^8.0.21",
+    "@libp2p/websockets": "^8.0.23",
     "@multiavatar/multiavatar": "^1.0.7",
     "@types/libsodium-wrappers": "^0.7.14",
     "bencodec": "^3.0.1",
