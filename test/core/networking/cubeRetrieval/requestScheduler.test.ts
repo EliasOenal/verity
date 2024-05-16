@@ -7,6 +7,7 @@ import type { Cube } from "../../../../src/core/cube/cube";
 import { EventEmitter } from 'events';
 
 // mocks
+// TODO: use standard jest mocks instead I guess...
 class mockCubeStore extends EventEmitter {
   addCube(cubeInfo: CubeInfo) {
     this.emit("cubeAdded", cubeInfo);
@@ -16,12 +17,15 @@ class mockCubeStore extends EventEmitter {
 class mockNetworkPeer {
   called = undefined;
   param = undefined;
+  calls = 0;
   sendKeyRequest() {
     this.called = "sendKeyRequest";
+    this.calls++;
   }
   sendCubeRequest(param: Array<any>) {
     this.called = "sendCubeRequest";
     this.param = param;
+    this.calls++;
   }
 }
 
@@ -37,6 +41,8 @@ describe('RequestScheduler', () => {
   describe('mock-based unit tests', () => {
     let scheduler: RequestScheduler;
     const testKey = Buffer.from("01".repeat(NetConstants.CUBE_KEY_SIZE), 'hex');
+    const testKey2 = Buffer.from("02".repeat(NetConstants.CUBE_KEY_SIZE), 'hex');
+    const testKey3 = Buffer.from("03".repeat(NetConstants.CUBE_KEY_SIZE), 'hex');
 
     beforeEach(() => {
       // create a scheduler
@@ -83,7 +89,7 @@ describe('RequestScheduler', () => {
     it('should schedule CubeRequests in light mode', async () => {
       scheduler.lightNode = true;
       scheduler.requestCube(testKey);
-      await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
+      await new Promise(resolve => setTimeout(resolve, 200));  // give it some time
       expect((scheduler.networkManager.onlinePeers[0] as unknown as mockNetworkPeer).
         called).toEqual("sendCubeRequest");
     });
@@ -94,6 +100,21 @@ describe('RequestScheduler', () => {
       await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
       expect((scheduler.networkManager.onlinePeers[0] as unknown as mockNetworkPeer).
         called).toEqual("sendKeyRequest");
+    });
+
+    it('should group together multiple Cube requests', async() => {
+      scheduler.requestCube(testKey);
+      // even async requests within interactiveRequestDelay (default 100ms)
+      // should be grouped
+      await new Promise(resolve => setTimeout(resolve, 80));
+      // still within interactive delay, should not have been called yet
+      expect((scheduler.networkManager.onlinePeers[0] as unknown as mockNetworkPeer).
+      calls).toBe(0);
+      scheduler.requestCube(testKey2);
+      // call should still be performed within the original 100ms
+      await new Promise(resolve => setTimeout(resolve, 40));
+      expect((scheduler.networkManager.onlinePeers[0] as unknown as mockNetworkPeer).
+        calls).toBe(1);
     });
 
     it('should correctly calculate the request scale factor', () => {
