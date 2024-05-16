@@ -42,7 +42,7 @@ export class PostView extends VerityView {
     this.displayCubeAuthor(data);
     // date
     const dateelem = li.getElementsByClassName("verityPostDate")[0] as HTMLElement;
-    dateelem.innerText = this.formatDate(data.timestamp*1000)
+    dateelem.innerText = this.formatDate(data.timestamp)
     // post text
     const text: HTMLParagraphElement =
       li.getElementsByClassName("verityPostContent")[0] as HTMLParagraphElement;
