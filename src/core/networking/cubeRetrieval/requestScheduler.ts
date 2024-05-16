@@ -1,15 +1,19 @@
 import { Settings } from '../../settings';
-import { logger } from '../../logger';
 import { NetConstants } from '../networkDefinitions';
+
+import { RequestStrategy, RandomStrategy } from './requestStrategy';
+import { RequestedCube } from './requestedCube';
+
+import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
 import type { CubeKey } from '../../cube/cubeDefinitions';
 import type { CubeInfo } from '../../cube/cubeInfo';
+import { keyVariants } from '../../cube/cubeUtil';
 import type { NetworkManager } from '../networkManager';
 import type { NetworkPeer } from '../networkPeer';
 
+import { logger } from '../../logger';
+
 import { Buffer } from 'buffer';  // for browsers
-import { RequestStrategy, RandomStrategy } from './requestStrategy';
-import { RequestedCube } from './requestedCube';
-import { keyVariants } from '../../cube/cubeUtil';
 
 // TODO: only schedule next request after previous request has been *fulfilled*,
 // or after a sensible timeout
@@ -24,6 +28,7 @@ export interface RequestSchedulerOptions {
   requestInterval?: number;
   requestScaleFactor?: number;
   requestTimeout?: number;
+  interactiveRequestDelay?: number;
 }
 
 /**
@@ -42,14 +47,15 @@ export class RequestScheduler {
   private _requestStrategy: RequestStrategy;
   get requestStrategy(): RequestStrategy { return this._requestStrategy }
 
-  requestInterval?: number;
-  requestScaleFactor?: number;
+  requestInterval: number;
+  requestScaleFactor: number;
+  interactiveRequestDelay: number;
 
   requestTimeout?: number;
 
   private requestedCubes: Map<string, RequestedCube> = new Map();
   private subscribedCubes: CubeKey[] = [];
-  private currentTimer: NodeJS.Timeout = undefined;
+  private timer: ShortenableTimeout = new ShortenableTimeout(this.performRequest, this);
 
   constructor(
     readonly networkManager: NetworkManager,
@@ -61,6 +67,7 @@ export class RequestScheduler {
     this.requestInterval = options?.requestInterval ?? Settings.KEY_REQUEST_TIME;
     this.requestScaleFactor = options?.requestScaleFactor ?? Settings.REQUEST_SCALE_FACTOR;
     this.requestTimeout = options?.requestTimeout ?? Settings.CUBE_REQUEST_TIMEOUT;
+    this.interactiveRequestDelay = options?.interactiveRequestDelay ?? Settings.INTERACTIVE_REQUEST_DELAY;
 
     this.networkManager.cubeStore.on("cubeAdded", (cubeInfo: CubeInfo) =>
       this.cubeAddedHandler(cubeInfo));
@@ -68,12 +75,13 @@ export class RequestScheduler {
 
   requestCube(
     keyInput: CubeKey | string,
+    scheduleIn: number = this.interactiveRequestDelay,
     timeout: number = this.requestTimeout
   ): Promise<CubeInfo> {
     const key = keyVariants(keyInput);
     const req = new RequestedCube(key.binaryKey, timeout);  // create request
     this.requestedCubes.set(key.keyString, req);  // remember request
-    this.scheduleNextRequest(0);  // schedule request
+    this.scheduleNextRequest(scheduleIn);  // schedule request
     return req.promise;  // return result eventually
   }
 
@@ -84,14 +92,17 @@ export class RequestScheduler {
   // Note: We don't have any actual notion of subscriptions on the core network
   // layer yet. What this currently does is just re-request the same Cube over
   // and over again, which is obviously stupid.
-  subscribeCube(keyInput: CubeKey | string): void {
+  subscribeCube(
+      keyInput: CubeKey | string,
+      scheduleIn: number = this.interactiveRequestDelay,
+  ): void {
     if (this.lightNode) {  // full nodes are implicitly subscribed to everything
       const key = keyVariants(keyInput);
       if (this.subscribedCubes.some(subbedKey => subbedKey.equals(key.binaryKey))) {
         return;  // already subscribed, nothing to do here
       }
       this.subscribedCubes.push(key.binaryKey);
-      this.scheduleNextRequest(0);  // schedule request
+      this.scheduleNextRequest(scheduleIn);  // schedule request
     }
   }
 
@@ -103,21 +114,12 @@ export class RequestScheduler {
    *           (which happens when there already is a request scheduled)
    */
   scheduleNextRequest(millis: number = undefined): boolean {
-    if (this.currentTimer !== undefined) {
-      logger.trace(`RequestScheduler.scheduleNextRequest(): ignoring call as there is already a request scheduled`);
-      return false;
-    }
     if (millis === undefined) {
       millis = this.requestInterval * this.calcRequestScaleFactor();
     }
     logger.trace(`RequestScheduler.scheduleNextRequest(): scheduling next request in ${millis} ms`);
-    this.currentTimer = setTimeout(() => this.performRequest(), millis);
+    this.timer.set(millis);
     return true;
-  }
-
-  private clearScheduledRequest(): void {
-    clearTimeout(this.currentTimer);
-    this.currentTimer = undefined;
   }
 
   private calcRequestScaleFactor(): number {
@@ -133,7 +135,7 @@ export class RequestScheduler {
 
   private performRequest(): void {
     // cancel timer calling this exact function
-    this.clearScheduledRequest();
+    this.timer.clear();
     // is there even anything left to request?
     if (this.lightNode &&
         this.requestedCubes.size === 0 && this.subscribedCubes.length === 0) {
@@ -201,7 +203,7 @@ export class RequestScheduler {
   }
 
   shutdown(): void {
-    this.clearScheduledRequest();
+    this.timer.clear();
     this.networkManager.cubeStore.removeListener("cubeAdded", (cubeInfo: CubeInfo) =>
       this.cubeAddedHandler(cubeInfo));
     for (const [key, req] of this.requestedCubes) req.shutdown();

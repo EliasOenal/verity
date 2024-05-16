@@ -43,6 +43,7 @@ export const Settings = {
     // Request scheduler related:
     CUBE_REQUEST_TIMEOUT: (60 * 1000),
     REQUEST_SCALE_FACTOR: 4,  // make requests n times more often at MAXIMUM_CONNECTION compared to on a single connection (only used by RequestScheduler, not by autonomous NetworkPeers)
+    INTERACTIVE_REQUEST_DELAY: 100,  // when a (presumably) interactive application requests a Cube through CubeRetriever on a light node, auto-schedule the next request in 100ms
 
     // Debugging related:
     RUNTIME_ASSERTIONS: true,

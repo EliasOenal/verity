@@ -20,7 +20,8 @@ export class CubeRetriever implements CubeRetrievalInterface {
 
   async getCubeInfo(
       keyInput: CubeKey | string,
-      timeout: number = undefined,
+      scheduleIn: number = undefined,  // undefined = will use RequestScheduler's default
+      timeout: number = undefined, // undefined = will use RequestScheduler's default
   ): Promise<CubeInfo> {
     const local: CubeInfo = await this.cubeStore.getCubeInfo(keyInput);
     // Note that we unfortunately chose incompatible retrieval interfaces for
@@ -31,7 +32,8 @@ export class CubeRetriever implements CubeRetrievalInterface {
     // timeout (if any).
     if (local !== undefined) return local;
     try {
-      const retrieved = await this.requestScheduler.requestCube(keyInput, timeout);
+      const retrieved = await this.requestScheduler.requestCube(
+        keyInput, scheduleIn, timeout);
       return retrieved;
     } catch(error) {
       return undefined;
@@ -41,8 +43,9 @@ export class CubeRetriever implements CubeRetrievalInterface {
   async getCube(
       key: CubeKey | string,
       family: CubeFamilyDefinition = undefined,  // undefined = will use CubeInfo's default
+      scheduleIn: number = undefined,  // undefined = will use RequestScheduler's default
       timeout: number = undefined,  // undefined = will use RequestScheduler's default
   ): Promise<Cube> {
-    return (await this.getCubeInfo(key, timeout))?.getCube(family);
+    return (await this.getCubeInfo(key, scheduleIn, timeout))?.getCube(family);
   }
 }
