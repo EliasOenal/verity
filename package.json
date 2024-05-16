@@ -34,7 +34,7 @@
     "@chainsafe/libp2p-yamux": "^6.0.2",
     "@libp2p/circuit-relay-v2": "^1.0.23",
     "@libp2p/identify": "^2.0.0",
-    "@libp2p/mplex": "^10.0.22",
+    "@libp2p/mplex": "^10.0.23",
     "@libp2p/webrtc": "^4.0.29",
     "@libp2p/websockets": "^8.0.21",
     "@multiavatar/multiavatar": "^1.0.7",
