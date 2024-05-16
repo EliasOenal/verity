@@ -14,7 +14,7 @@ describe("ShortenableTimeout", () => {
     const callback = jest.fn();
 
     shortenableTimeout = new ShortenableTimeout(callback);
-    shortenableTimeout.setTimeout(delay);
+    shortenableTimeout.set(delay);
     expect(callback).not.toHaveBeenCalled();
 
     // Wait for delay + 10 milliseconds to ensure the callback has been called
@@ -31,10 +31,10 @@ describe("ShortenableTimeout", () => {
     const callback = jest.fn();
 
     shortenableTimeout = new ShortenableTimeout(callback);
-    shortenableTimeout.setTimeout(delay1);
+    shortenableTimeout.set(delay1);
 
     // Replace the timeout with a shorter delay
-    shortenableTimeout.setTimeout(delay2);
+    shortenableTimeout.set(delay2);
 
     // Wait for delay2 + 10 milliseconds to ensure the callback has been called
     setTimeout(() => {
@@ -50,10 +50,10 @@ describe("ShortenableTimeout", () => {
     const callback = jest.fn();
 
     shortenableTimeout = new ShortenableTimeout(callback);
-    shortenableTimeout.setTimeout(delay1);
+    shortenableTimeout.set(delay1);
 
     // Ignore the request because the new delay is longer than the remaining time
-    shortenableTimeout.setTimeout(delay2);
+    shortenableTimeout.set(delay2);
 
     // Wait for delay1 + 10 milliseconds to ensure the callback has been called only once
     setTimeout(() => {
@@ -69,13 +69,13 @@ describe("ShortenableTimeout", () => {
     const callback = jest.fn();
 
     shortenableTimeout = new ShortenableTimeout(callback);
-    shortenableTimeout.setTimeout(delay1);
+    shortenableTimeout.set(delay1);
 
     // After half of delay1, with only 150ms remaining, try to "shorten" the
     // timeout to 200ms.
     setTimeout(() => {
       // this should be ignored, as at most 150ms are remaining on the first one
-      shortenableTimeout.setTimeout(delay2);
+      shortenableTimeout.set(delay2);
     }, 150);
 
     // After delay1 + 10 milliseconds, ensure the callback has been called
@@ -89,6 +89,27 @@ describe("ShortenableTimeout", () => {
       expect(callback).toHaveBeenCalledTimes(1);
       done();
     }, delay1 + delay2 + 10);
+  });
+
+  it('should set a new timeout if the previous one has already fired', (done) => {
+    const delay = 50;
+    const callback = jest.fn();
+
+    shortenableTimeout = new ShortenableTimeout(callback);
+    shortenableTimeout.set(delay);
+
+    // After double the delay the callback should have long fired.
+    // If we re-set it now, it should set up as a new timeout.
+    setTimeout(() => {
+      shortenableTimeout.set(delay);
+    }, 2*delay);
+
+    // After two delays (make that four to be on the safe side), callback
+    // should therefore have been invoked twice.
+    setTimeout(() => {
+      expect(callback).toHaveBeenCalledTimes(2);
+      done();
+    }, 4*delay);
   });
 
 });
