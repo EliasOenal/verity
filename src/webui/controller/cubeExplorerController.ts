@@ -5,17 +5,32 @@ import type { CubeStore } from "../../core/cube/cubeStore";
 import { logger } from "../../core/logger";
 import { getElementAboveByClassName } from "../helpers";
 import { CubeExplorerView } from "../view/cubeExplorerView";
-import { VerityController } from "./verityController";
+import { NavigationController } from "./navigationController";
+import { ControllerContext, VerityController } from "./verityController";
 
 export class CubeExplorerController extends VerityController {
   constructor(
-      readonly cubeStore: CubeStore,
+      parent: ControllerContext,
       readonly maxCubes: number = 1000,
       public contentAreaView: CubeExplorerView = new CubeExplorerView(),
   ){
-    super();
-    this.contentAreaView = contentAreaView;
+    super(parent);
+
+    // set nav methods
+    this.viewSelectMethods.set("all", this.selectAll);
   }
+
+  //***
+  // View selection methods
+  //***
+
+  selectAll(): Promise<void> {
+    return this.redisplay();
+  }
+
+  //***
+  // View assembly methods
+  //***
 
   /**
    * @param [search] If defined, only show Cubes whose hex-represented key
@@ -25,7 +40,7 @@ export class CubeExplorerController extends VerityController {
   // TODO pagination (we currently just abort after maxCubes and print a warning)
   // TODO sorting (e.g. by date)
   // TODO support non CCI cubes (including invalid / partial CCI cubes)
-  async redisplay() {
+  async redisplay(): Promise<void> {
     const search: string = (this.contentAreaView.renderedView.querySelector(
       ".verityCubeKeyFilter") as HTMLInputElement)?.value;
 
@@ -52,6 +67,10 @@ export class CubeExplorerController extends VerityController {
       await this.cubeStore.getNumberOfStoredCubes(), displayed, unparsable, filtered);
   }
 
+  //***
+  // Navigation methods
+  //***
+
   async changeEncoding(select: HTMLSelectElement) {
     const cubeLi: HTMLLIElement =
       getElementAboveByClassName(select, "verityCube") as HTMLLIElement;
@@ -77,3 +96,5 @@ export class CubeExplorerController extends VerityController {
     this.contentAreaView.setDecodedFieldContent(field, select.selectedIndex, detailsTable);
   }
 }
+
+NavigationController.RegisterController("cubeExplorer", CubeExplorerController);

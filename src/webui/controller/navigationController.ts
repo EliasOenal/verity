@@ -1,10 +1,16 @@
 import { VerityUI } from "../verityUI";
 import { ZwAnnotationEngine, SubscriptionRequirement } from "../../app/zw/zwAnnotationEngine";
-import { VerityController } from "./verityController";
+import { ControllerError, VerityController } from "./verityController";
 import { PostController } from "./postController";
 import { CubeExplorerController } from "./cubeExplorerController";
 
 import { logger } from "../../core/logger";
+
+interface ControllerStackLayer {
+  controller: VerityController;
+  navId: string;
+  navName: string;
+};
 
 /**
  * The NavigationController is a special one, as it not only controls
@@ -14,27 +20,47 @@ import { logger } from "../../core/logger";
  **/
 export class NavigationController extends VerityController {
   /**
+   * Static controller registry
+   * Controller *classes* auto-register here on inception.
+   * (TODO document more thoroughly)
+   **/
+  private static ControllerClasses: Map<string, typeof VerityController> = new Map();
+  static RegisterController(name: string, ctrlClass: typeof VerityController) {
+    this.ControllerClasses.set(name, ctrlClass);
+  }
+
+  /**
+   * Dynamic controller registry
+   */
+  private registeredControllers: Map<number, VerityController> = new Map();
+  controllerRegistryHighestId: number = 0;
+  registerController(controller: VerityController): number {
+    this.controllerRegistryHighestId++;
+    this.registeredControllers.set(this.controllerRegistryHighestId, controller);
+    return this.controllerRegistryHighestId;
+  }
+  unregisterController(id: number) {
+    this.registeredControllers.delete(id);
+  }
+
+  /**
    * The stack of active controllers for verityContentArea.
    * The top one always has control and can conveniently be retrieved by
    * accessing currentController instead.
-   **/
-  controllerStack: VerityController[] = [];
-  /**
-   * For each controller in controllerStack, this remembers the associated
-   * active nav bar item. It there is no associated active nav bar item, we explicitly
-   * put undefined on the stack, which means all nav bar items marked inactive.
+   * For each controller in controllerStack, we also remember the associated
+   * function to invoke on the controller and the active nav bar item.
+   * If there is no associated active nav bar item, we explicitly
+   * store undefined, which means all nav bar items marked inactive.
    */
-  navIdStack: string[] = [];
+  controllerStack: ControllerStackLayer[] = [];
 
-  constructor(
-    /**
-     * Owing to the NavigationControllers special role as basically being an
-     * extension to VerityUI it is tightly coupled to it, in contrast to
-     * regular types of controllers.
-     **/
-    public ui: VerityUI,
-   ){
-    super();
+  constructor(readonly parent: VerityUI){
+    super(parent);
+  }
+
+  get currentControlLayer(): ControllerStackLayer {
+    if (this.controllerStack.length === 0) return undefined;
+    else return this.controllerStack[this.controllerStack.length-1];
   }
 
   /**
@@ -44,23 +70,52 @@ export class NavigationController extends VerityController {
    * one below :)
   **/
   get currentController(): VerityController {
-    if (this.controllerStack.length === 0) return undefined;
-    else return this.controllerStack[this.controllerStack.length-1];
+    return this.currentControlLayer?.controller;
   }
 
-  newController(
-      controller: VerityController,
-      navBarItemId: string = undefined,
-      closeAllOthers: boolean = false,
-  ): void {
-    if (closeAllOthers) {
-      this.closeAllControllers(false);
+  async showNew(controllerName: string, navName: string): Promise<void> {
+    // instantiate controller
+    const controllerClass: typeof VerityController =
+    NavigationController.ControllerClasses.get(controllerName);
+    if (controllerClass === undefined) throw new NoSuchController(controllerName);
+    const controller: VerityController = new controllerClass(this.parent);
+    // TODO: before awaiting selectView() we should display some feedback
+    // to the user, e.g. a loading animation or something
+    await controller.selectView(navName);
+    this.newControlLayer({
+      controller: controller,
+      navName: navName,
+      navId: `verityNav-${controllerName}.${navName}`,
+    });
+    this.currentController.contentAreaView.show();
+  }
+
+  showNewExclusive(controller: string, navName: string): Promise<void> {
+    this.closeAllControllers(false);
+    return this.showNew(controller, navName);
+  }
+
+  async show(controllerId: number, navName: string): Promise<void> {
+    const controller: VerityController =
+      this.registeredControllers.get(controllerId);
+    if (controller === undefined) {
+      throw new NoSuchController(controllerId.toString());
     }
-    this.controllerStack.push(controller);  // Remember this controller and
-    this.navIdStack.push(navBarItemId);     // the associated nav bar item (if any).
-    controller.once("closed", () => this.closeCurrentController());
+    await controller.selectView(navName);
+    this.newControlLayer({
+      controller: controller,
+      navName: navName,
+      navId: `verityNav-${controllerId}.${navName}`,
+    });
+    this.currentController.contentAreaView.show();
+  }
+
+  newControlLayer(
+      layer: ControllerStackLayer,
+  ): void {
+    this.controllerStack.push(layer);
     this.displayOrHideBackButton();  // Only show back button if there's something to go back to.
-    this.navbarMarkActive(navBarItemId);  // Update active nav bar item.
+    this.navbarMarkActive(layer.navId);  // Update active nav bar item.
   }
 
   closeCurrentController(updateView: boolean = true) {
@@ -69,12 +124,22 @@ export class NavigationController extends VerityController {
     }
   }
 
-  closeController(controllerStackIndex: number, updateView: boolean = true): void {
-    const controller = this.controllerStack[controllerStackIndex];
-    controller.removeListener("closed", () => this.closeCurrentController());
-    controller.close(false);  // close controller, but don't unshow yet
+  closeController(controllerStackIndex: VerityController | number, updateView: boolean = true): void {
+    if (typeof controllerStackIndex !== 'number') {
+      for (let i=0; i<this.controllerStack.length; i++) {
+        if (this.controllerStack[i].controller === controllerStackIndex) {
+          controllerStackIndex = i;
+          break;
+        }
+      }
+    }
+    if (typeof controllerStackIndex !== 'number') {
+      logger.error("NavigationController: Tried to close a Controller which is not on my controller stack; ignoring.");
+      return;
+    }
+    const layer = this.controllerStack[controllerStackIndex];
+    layer.controller.close(false, false);  // close controller, but don't unshow yet
     this.controllerStack.splice(controllerStackIndex, 1);  // remove it from stack
-    this.navIdStack.splice(controllerStackIndex, 1);
     if (updateView) {  // make the UI reflect the controller change
       this.displayOrHideBackButton();  // Only show back button if there's something to go back to.
       if (this.currentController !== undefined) {
@@ -82,11 +147,9 @@ export class NavigationController extends VerityController {
         this.currentController.contentAreaView.show();
       } else {
         // if there is none, just show an empty content area
-        controller.contentAreaView.unshow();
+        layer.controller.contentAreaView.unshow();
       }
-      if (this.navIdStack.length > 0) {  // should always be true
-        this.navbarMarkActive(this.navIdStack[this.navIdStack.length-1]);  // Update active nav bar item.
-      }
+      this.navbarMarkActive(layer.navId);  // Update active nav bar item.
     }
   }
 
@@ -103,96 +166,6 @@ export class NavigationController extends VerityController {
     else backArea.setAttribute("style", "display: none");
   }
 
-  async navPostsAll(): Promise<void> {
-    logger.trace("VerityUI: Displaying all posts including anonymous ones");
-    const annotationEngine: ZwAnnotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      this.ui.node.cubeStore,
-      SubscriptionRequirement.none,  // show all posts
-      [],       // subscriptions don't play a role in this mode
-      true,     // auto-learn MUCs to display authorship info if available
-      true      // allow anonymous posts
-    );
-    const controller = new PostController(this.ui.node.cubeStore, annotationEngine, this.ui.identity);
-    this.newController(controller, "navPostsAll", true);
-  }
-
-  async navPostsWithAuthors(): Promise<void> {
-    logger.trace("VerityUI: Displaying posts associated with a MUC");
-    const annotationEngine: ZwAnnotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      this.ui.node.cubeStore,
-      SubscriptionRequirement.none,
-      [],       // no subscriptions as they don't play a role in this mode
-      true,     // auto-learn MUCs (posts associated with any Identity MUC are okay)
-      false);   // do not allow anonymous posts
-    const controller = new PostController(this.ui.node.cubeStore, annotationEngine, this.ui.identity);
-    this.newController(controller, "navPostsWithAuthors", true);
-  }
-
-  async navPostsSubscribedInTree(): Promise<void> {
-    if (!this.ui.identity) return;
-    logger.trace("VerityUI: Displaying posts from trees with subscribed author activity");
-    const annotationEngine: ZwAnnotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      this.ui.node.cubeStore,
-      SubscriptionRequirement.subscribedInTree,
-      await this.ui.node.cubeStore.getCubeInfos(this.ui.identity.subscriptionRecommendations),  // subscriptions
-      true,      // auto-learn MUCs (to be able to display authors when available)
-      false);    // do not allow anonymous posts
-    const controller = new PostController(this.ui.node.cubeStore, annotationEngine, this.ui.identity);
-    this.newController(controller, "navPostsSubscribedInTree", true);
-  }
-
-  async navPostsSubscribedReplied(wotDepth: number = 0): Promise<void> {
-    if (!this.ui.identity) return;
-    logger.trace("VerityUI: Displaying posts from subscribed authors and their preceding posts");
-    let navName: string = "navPostsSubscribedReplied";
-    if (wotDepth) navName += wotDepth;
-    const annotationEngine: ZwAnnotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      this.ui.node.cubeStore,
-      SubscriptionRequirement.subscribedReply,
-      await this.ui.node.cubeStore.getCubeInfos(
-        await this.ui.identity.recursiveWebOfSubscriptions(wotDepth)),  // subscriptions
-      true,      // auto-learn MUCs (to be able to display authors when available)
-      false);    // do not allow anonymous posts
-    const controller = new PostController(this.ui.node.cubeStore, annotationEngine, this.ui.identity);
-    this.newController(controller, navName, true);
-  }
-
-  async navPostsSubscribedStrict(): Promise<void> {
-    if (!this.ui.identity) return;
-    logger.trace("VerityUI: Displaying posts from subscribed authors strictly");
-    const annotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      this.ui.node.cubeStore,
-      SubscriptionRequirement.subscribedOnly,  // strictly show subscribed
-      await this.ui.node.cubeStore.getCubeInfos(this.ui.identity.subscriptionRecommendations),  // subscriptions
-      false,     // do no auto-learn MUCs (strictly only posts by subscribed will be displayed)
-      false);    // do not allow anonymous posts
-    const controller = new PostController(this.ui.node.cubeStore, annotationEngine, this.ui.identity);
-    this.newController(controller, "navPostsSubscribedStrict", true);
-  }
-
-  navPeers() {
-    this.newController(this.ui.peerController, "navPeers");
-    this.ui.peerController.redisplayPeers();
-    this.ui.peerController.contentAreaView.show();
-  }
-
-  navCubeExplorer(): void {
-    const controller = new CubeExplorerController(this.ui.node.cubeStore);
-    this.newController(controller, "navCubeExplorer");
-    controller.redisplay();
-    controller.contentAreaView.show();
-  }
-
-  navLogin(): void {
-    this.newController(this.ui.identityController);
-    this.ui.identityController.showLoginForm();
-  }
-
-  navEditIdentity(): void {
-    this.newController(this.ui.identityController);
-    this.ui.identityController.showEditIdentity();
-  }
-
   private navbarMarkActive(id: string) {
     for (const nav of document.getElementsByClassName("nav-item")) {
       if (nav.id == id) nav.classList.add("active");
@@ -200,3 +173,5 @@ export class NavigationController extends VerityController {
     }
   }
 }
+
+export class NoSuchController extends ControllerError { name = "NoSuchController "}

@@ -3,6 +3,7 @@ import { VerityView } from "./verityView";
 
 export class LoginStatusView extends VerityView {
   constructor(
+      readonly controllerId: number,
       htmlTemplate: HTMLTemplateElement = document.getElementById(
         "verityIdentityRowTemplate") as HTMLTemplateElement,
       viewArea: HTMLElement = document.getElementById("verityIdentityArea"),
@@ -18,6 +19,7 @@ export class LoginStatusView extends VerityView {
     const profilePicElem:  HTMLImageElement = (this.renderedView.querySelector(
       ".verityMyProfilePic")) as HTMLImageElement;
     profilePicElem.src = "unknownuser.svg";
+    this.setLinkTargets();
     this.show();
   }
 
@@ -34,6 +36,18 @@ export class LoginStatusView extends VerityView {
       ".verityMyProfilePic")) as HTMLImageElement;
     profilePicElem.src = identity.avatar.render();
     infoArea.replaceChildren(infoDiv);
+    this.setLinkTargets();
     this.show();
+  }
+
+  private setLinkTargets() {
+    const loginLink: HTMLAnchorElement =
+      this.renderedView.querySelector('.verityIdentityLoginLink')
+    loginLink?.setAttribute("onclick",
+      `window.verity.nav.show(${this.controllerId}, "login")`);
+    const editLink: HTMLAnchorElement =
+      this.renderedView.querySelector('.verityIdentityEditLink')
+    editLink?.setAttribute("onclick",
+      `window.verity.nav.show(${this.controllerId}, "edit")`);
   }
 }
