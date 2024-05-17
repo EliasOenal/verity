@@ -51,51 +51,39 @@
           -->
           <div id="leftnavCollapsible" class="collapse navbar-collapse d-sm-block">
             <ul id="toplevelnav" class="navbar-nav my-5">
-              <li class="nav-item" id="navPostsAll">
+              <li class="nav-item" id="verityNav-post.all">
                 <a href="#" class="nav-link"
-                  onclick="window.verityUI.nav.navPostsAll()">
+                  onclick="window.verity.nav.showNewExclusive('post', 'all')">
                     All posts
                 </a>
               </li>
-              <li class="nav-item" id="navPostsWithAuthors">
+              <li class="nav-item" id="verityNav-post.withAuthors">
                 <a href="#" class="nav-link"
-                  onclick="window.verityUI.nav.navPostsWithAuthors()">
+                onclick="window.verity.nav.showNewExclusive('post', 'withAuthors')">
                     No anonymous posts
                 </a>
               </li>
-              <li class="nav-item" id="navPostsSubscribedInTree">
+              <li class="nav-item" id="verityNav-post.subscribedInTree">
                 <a href="#" class="nav-link"
-                  onclick="window.verityUI.nav.navPostsSubscribedInTree()">
+                onclick="window.verity.nav.showNewExclusive('post', 'subscribedInTree')">
                     Subscribed (anywhere in thread)
                 </a>
               </li>
-              <li class="nav-item" id="navPostsSubscribedReplied">
+              <li class="nav-item" id="verityNav-post.subscribedReplied">
                 <a href="#" class="nav-link"
-                  onclick="window.verityUI.nav.navPostsSubscribedReplied()">
+                onclick="window.verity.nav.showNewExclusive('post', 'subscribedReplied')">
                     Subscribed (+preceding)
                 </a>
               </li>
-              <li class="nav-item" id="navPostsSubscribedStrict">
+              <li class="nav-item" id="verityNav-post.wot">
                 <a href="#" class="nav-link"
-                  onclick="window.verityUI.nav.navPostsSubscribedStrict()">
-                    Subscribed (strict)
-                </a>
-              </li>
-              <li class="nav-item" id="navPostsSubscribedReplied1">
-                <a href="#" class="nav-link"
-                  onclick="window.verityUI.nav.navPostsSubscribedReplied(1)">
-                    Subscribed (+preceding+WOT1)
-                </a>
-              </li>
-              <li class="nav-item" id="navPostsSubscribedReplied3">
-                <a href="#" class="nav-link"
-                  onclick="window.verityUI.nav.navPostsSubscribedReplied(3)">
+                onclick="window.verity.nav.showNewExclusive('post', 'wot')">
                     Subscribed (+preceding+WOT3)
                 </a>
               </li>
-              <li class="nav-item" id="navCubeExplorer">
+              <li class="nav-item" id="verityNav-cubeExplorer.all">
                 <a href="#" class="nav-link"
-                  onclick="window.verityUI.nav.navCubeExplorer()">
+                  onclick="window.verity.nav.showNew('cubeExplorer', 'all')">
                     Cube Explorer
                 </a>
               </li>
@@ -110,7 +98,7 @@
                 <div class="verityMyIdentityInfoArea">
                   <div class="verityNotLoggedIn">
                     <b class="verityLoadingPlaceholder">Loading...</b><br />
-                    <a class="verityLoadingPlaceholder" href="#" onclick="window.verityUI.identityController.showLoginForm()">
+                    <a class="verityLoadingPlaceholder" href="#" onclick="window.verity.identityController.showLoginForm()">
                       Please wait
                     </a>
                   </div>
@@ -120,7 +108,7 @@
             </div> <!-- identityrow-->
 
             <div class="row my-4" id="verityOnlineStatusArea">
-              <a class="verityOnlineStatus" href="#" onclick="window.verityUI.nav.navPeers()">
+              <a class="verityOnlineStatus" href="#" onclick="false">
                 <span class="redDot"></span>Offline
               </a>
             </div>
@@ -130,7 +118,7 @@
         <div class="col-sm-8 container-fluid" id="verityContentCol">
           <div id="verityBackArea" class="mt-3 mt-sm-5 me-2" style="display: none"> <!-- will be shown as necessary by JS -->
             <a href="#" id="verityBackButton" class="bi bi-arrow-left"
-               onclick="window.verityUI.nav.closeCurrentController()"></a>
+               onclick="window.verity.nav.closeCurrentController()"></a>
           </div>
           <div id="verityContentArea"></div>
         </div> <!-- verityContentCol -->
@@ -148,7 +136,7 @@
     <div class="verityPostView">
       <div class="verityNewPostDiv mt-3 mt-sm-5 mb-3">
         <form id="verityNewPostForm" class="form-floating row" action="javascript:void(0);"
-          onsubmit="window.verityUI.currentController.makeNewPost(this);">
+          onsubmit="window.verity.currentController.makeNewPost(this);">
           <textarea id="verityNewPostInput" class="form-control verityPostInput"
                     maxlength="600" rows="2" placeholder="Make new post"
                     oninput="window.onTextareaInput(this)" required></textarea>
@@ -175,7 +163,7 @@
                 <button type="button"
                         class="btn btn-outline-primary veritySubscribeButton"
                         data-authorkey="<muckey>"
-                        onclick="window.verityUI.currentController.subscribeUser(this)">
+                        onclick="window.verity.currentController.subscribeUser(this)">
                   Subscribe
                 </button>
                 <br />
@@ -187,7 +175,7 @@
             <p class="verityPostContent" title="Cube Key <cubekey>">Text</p>
             <div class="verityReplyDiv">
               <form action="javascript:void(0);"
-                    onsubmit="window.verityUI.currentController.makeNewPost(this);"
+                    onsubmit="window.verity.currentController.makeNewPost(this);"
                     class="verityReplyForm input-group">
                 <textarea maxlength="600" class="form-control verityPostInput"
                           rows="1" type="text" required
@@ -223,15 +211,15 @@
       <div class="verityMyIdentityInfoArea">
         <div class="verityNotLoggedIn">
           <b>Not logged in</b><br />
-          <a href="#" onclick="window.verityUI.nav.navLogin()">
+          <a href="#" class="verityIdentityLoginLink" onclick="false">
             Log in
           </a>
         </div>
         <div class="verityMyIdentityInfo">
           <b class="verityMyIdentityDisplayname">Usor probus veritatem tuendus</b><br />
-          <a href="#" onclick="window.verityUI.nav.navEditIdentity()">
+          <a href="#" class="verityIdentityEditLink" onclick="false">
             Edit
-          </a> · <a href="#" onclick="window.verityUI.identityController.logOut()">
+          </a> · <a href="#" class="verityIdentityLogoutLink" onclick="window.verity.identityController.logOut()">
             Logout
           </a>
         </div>
@@ -267,7 +255,7 @@
       </p>
 -->
       <form action="javascript:void(0);"
-            onsubmit="window.verityUI.identityController.performLogin(this);">
+            onsubmit="window.verity.identityController.performLogin(this);">
       <div class="form-floating my-2">
         <input class="form-control form-control-sm verityUsernameInput"
               type="text" id="verityLoginUsername"
@@ -292,7 +280,7 @@
     <div class="verityEditIdentityView">
       <h2 class="mt-3 mt-sm-5 mb-3">That's me</h2>
       <form action="javascript:void(0);"
-            onsubmit="window.verityUI.identityController.performEditIdentity(this);">
+            onsubmit="window.verity.identityController.performEditIdentity(this);">
       <div class="input-group my-2">
         <span class="input-group-text" id="verityEditIdentityDisplayNameDesc">
           Display name
@@ -307,7 +295,7 @@
              class="verityEditIdentityAvatar" />
         <input type="hidden" class="verityEditIdentityAvatarSeed" value="" />
         <button class="btn btn-primary mx-3" type="button"
-                onclick="window.verityUI.identityController.randomMultiavatar()">
+                onclick="window.verity.identityController.randomMultiavatar()">
           Get me a different avatar
         </button>
       </div>
@@ -328,14 +316,14 @@
       <p class="form-check form-switch">
         <input class="verityAutoConnectSwitch form-check-input"
                type="checkbox" role="switch"
-               onclick="window.verityUI.peerController.toggleAutoConnect(this)"
+               onclick="window.verity.peerController.toggleAutoConnect(this)"
                checked />
         Auto-connect peers
       </p>
       <div class="verityNewPeerDiv">
         <form class="verityNewPeerForm input-group"
               action="javascript:void(0);"
-              onsubmit="window.verityUI.peerController.connectPeer(this);">
+              onsubmit="window.verity.peerController.connectPeer(this);">
           <div class="form-floating">
             <input id="verityNewPeerInput" class="form-control verityNewPeerInput"
                    maxlength="600" placeholder="New peer address" required />
@@ -351,28 +339,28 @@
         <li class="nav-item verityPeerTypeNavItem">
           <a class="nav-link verityPeerTypeNavLink active" href="#"
              data-verityShallDisplay="1"
-             onclick="window.verityUI.currentController.changeDisplayTo(1)">
+             onclick="window.verity.currentController.changeDisplayTo(1)">
             Connected
           </a>
         </li>
         <li class="nav-item verityPeerTypeNavItem">
           <a class="nav-link verityPeerTypeNavLink" href="#"
             data-verityShallDisplay="2"
-             onclick="window.verityUI.currentController.changeDisplayTo(2)">
+             onclick="window.verity.currentController.changeDisplayTo(2)">
             Exchangeable
           </a>
         </li>
         <li class="nav-item verityPeerTypeNavItem">
           <a class="nav-link verityPeerTypeNavLink" href="#"
             data-verityShallDisplay="3"
-             onclick="window.verityUI.currentController.changeDisplayTo(3)">
+             onclick="window.verity.currentController.changeDisplayTo(3)">
             Verified
           </a>
         </li>
         <li class="nav-item verityPeerTypeNavItem">
           <a class="nav-link verityPeerTypeNavLink" href="#"
             data-verityShallDisplay="4"
-             onclick="window.verityUI.currentController.changeDisplayTo(4)">
+             onclick="window.verity.currentController.changeDisplayTo(4)">
             Unverified
           </a>
         </li>
@@ -404,14 +392,14 @@
                   <li value="0">ws://demonstration.address <br />
                     <button type="button" data-peerid="e66c51d5130992aac3be542a5df17996"
                     data-addrindex="1" class="veritySmallButton btn btn-outline-primary active"
-                    onclick="window.verityUI.peerController.makeAddressPrimary(this)">
+                    onclick="window.verity.peerController.makeAddressPrimary(this)">
                       Primary
                     </button>
                   </li>
                   <li value="1">/dns4/demonstration.address/tcp/1985/wss/ <br/>
                     <button type="button" data-peerid="e66c51d5130992aac3be542a5df17996"
                     data-addrindex="1" class="veritySmallButton btn btn-outline-primary"
-                    onclick="window.verityUI.peerController.makeAddressPrimary(this)">
+                    onclick="window.verity.peerController.makeAddressPrimary(this)">
                       Primary
                     </button>
                   </li>
@@ -422,17 +410,17 @@
           <p class="verityPeerConnectionControls">
             <button class="verityPeerConnectButton btn btn-success me-1"
                     data-peerid="e66c51d5130992aac3be542a5df17996"
-                    onclick="window.verityUI.peerController.reconnectPeer(this)">
+                    onclick="window.verity.peerController.reconnectPeer(this)">
               Connect
             </button>
             <button class="verityPeerReconnectButton btn btn-warning me-1"
                     data-peerid="e66c51d5130992aac3be542a5df17996"
-                    onclick="window.verityUI.peerController.reconnectPeer(this)">
+                    onclick="window.verity.peerController.reconnectPeer(this)">
               Reconnect
             </button>
             <button class="verityPeerDisconnectButton btn btn-danger me-1"
                     data-peerid="e66c51d5130992aac3be542a5df17996"
-                    onclick="window.verityUI.peerController.disconnectPeer(this)">
+                    onclick="window.verity.peerController.disconnectPeer(this)">
               Disconnect
             </button>
           </p>
@@ -447,7 +435,7 @@
     <div class="verityCubeExplorer">
       <h2 class="mt-3 mt-sm-5 mb-3">CCI Cube explorer</h2>
       <form class="my-4 form-floating" action="javascript:void(0);"
-            onsubmit="window.verityUI.currentController.redisplay();">
+            onsubmit="window.verity.currentController.redisplay();">
         <div class="input-group">
           <span class="input-group-text" id="verityCubeKeyFilterDesc">
             Cube Key
@@ -546,7 +534,7 @@
                     <th>Content<br />
                       <select name="verityContentEncodingSwitch"
                               class="verityContentEncodingSwitch"
-                              oninput="window.verityUI.currentController.changeEncoding(this)">
+                              oninput="window.verity.currentController.changeEncoding(this)">
                         <option value="utf8">UTF-8</option>
                         <option value="utf16">UTF-16</option>
                         <option value="hex">Hex</option>

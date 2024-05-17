@@ -388,6 +388,8 @@ export class Identity {
       // Note: We're subscribing using once() instead of on() and renew the
       // subscription manually on each call as this saves us from implementing
       // a destructor-like shutdown procedure.
+      // TODO BUGBUG: This does not work as a renewed one-off prevents this object
+      // form being garbage collected just as well as a regular subscription does.
       this.cubeStore.once("cubeAdded",
         cubeInfo => this.mergeRemoteChanges(cubeInfo));
     }

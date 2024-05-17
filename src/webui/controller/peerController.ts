@@ -7,7 +7,8 @@ import { logger } from "../../core/logger";
 
 import { OnlineView } from "../view/onlineView";
 import { PeerView } from "../view/peerView"
-import { VerityController } from "./verityController";
+import { ControllerContext, VerityController } from "./verityController";
+import { NavigationController } from "./navigationController";
 
 export const enum ShallDisplay {
   Connected = 1,
@@ -20,39 +21,39 @@ export class PeerController extends VerityController {
   displayedPeers: Map<Peer, HTMLLIElement> = new Map();
   shallDisplay: ShallDisplay = ShallDisplay.Connected;
   redisplayTimeout: NodeJS.Timeout = undefined;
+  private onlineView: OnlineView;
+
+  get networkManager(): NetworkManager { return this.parent.node.networkManager }
+  get peerDB(): PeerDB { return this.parent.node.peerDB }
 
   constructor(
-      private networkManager: NetworkManager,
-      private peerDB: PeerDB,
-      public contentAreaView = new PeerView(networkManager.id.toString('hex')),
-      private onlineView = new OnlineView(),
+      parent: ControllerContext,
+      public contentAreaView = new PeerView(parent.node.networkManager.id.toString('hex')),
   ){
-    super();
-    // maybo TODO: PeerController should do all this stuff only when asked to.
-    // The constructor is not meant to fire up optional features -- and the
-    // peer detail view is not just optional but probably rarely used.
-    // Note: Subscriptions disabled as we're currently just polling once per second
-    // this.networkManager.on('peeronline', (peer) => this.redisplayPeers());
-    // this.networkManager.on('updatepeer', (peer) => this.redisplayPeers());
-    // this.networkManager.on('peerclosed', (peer) => this.redisplayPeers());
-    // this.peerDB.on('newPeer', (peer) => this.redisplayPeers());
-    // this.peerDB.on('verifiedPeer', (peer) => this.redisplayPeers());
-    // this.peerDB.on('exchangeablePeer', (peer) => this.redisplayPeers());
-    // this.peerDB.on('removePeer', (peer) => this.redisplayPeers());
-    this.redisplayPeers();
-
+    super(parent);
+    this.onlineView = new OnlineView(this.navId);
+    // subscribe to online status so we can display it in OnlineView
     this.networkManager.on('online', () => this.onlineView.showOnline());
     this.networkManager.on('offline', () => this.onlineView.showOffline());
+    // show the initial online status in OnlineView
     if (this.networkManager.online) this.onlineView.showOnline();
     else this.onlineView.showOffline();
+
+    // set nav methods
+    this.viewSelectMethods.set("details", this.selectDetails);
   }
 
-  changeDisplayTo(shallDisplay: ShallDisplay): void {
-    this.shallDisplay = shallDisplay;
-    this.contentAreaView.markNavActive(shallDisplay);
+  //***
+  // View selection methods
+  //***
+  selectDetails(): Promise<void> {
     this.redisplayPeers();
+    return new Promise<void>(resolve => resolve());  // nothing to do, return resolved promise
   }
 
+  //***
+  // View assembly methods
+  //***
   redisplayPeers(): void {
     if (this.redisplayTimeout !== undefined) clearInterval(this.redisplayTimeout);
     this.redisplayTimeout = undefined;
@@ -87,6 +88,27 @@ export class PeerController extends VerityController {
     this.displayedPeers.delete(peer);
   }
 
+
+  //***
+  // Navigation methods
+  //***
+
+  /**
+   * Called from: PeerView
+   * Changes the peer group to be displayed
+   */
+  changeDisplayTo(shallDisplay: ShallDisplay): void {
+    this.shallDisplay = shallDisplay;
+    this.contentAreaView.markNavActive(shallDisplay);
+    this.redisplayPeers();
+  }
+
+  /**
+   * Called from: PeerView
+   * Initiates a connection attempt to a peer
+   */
+  // BUGBUG: This button is currently broken for all unverified peers, i.e.
+  //         peer's whose ID we dont't know
   connectPeer(form: HTMLFormElement) {
     const input: HTMLInputElement = form.querySelector('.verityNewPeerInput');
     const addr: AddressAbstraction = AddressAbstraction.CreateAddress(input.value);
@@ -101,6 +123,11 @@ export class PeerController extends VerityController {
     }
   }
 
+  /**
+   * Called from: PeerView
+   * Changes this peer's primary address, i.e. the address used on connection
+   * attempts.
+   */
   makeAddressPrimary(button: HTMLButtonElement) {
     const peerIdString = button.getAttribute("data-peerid");
     const peer: Peer = this.peerDB.getPeer(peerIdString);
@@ -118,8 +145,10 @@ export class PeerController extends VerityController {
     else this.undisplayPeer(peer);  // apparently no longer connected
   }
 
-  // BUGBUG: This button is currently broken for all unverified peers, i.e.
-  //         peer's whose ID we dont't know
+  /**
+   * Called from: PeerView
+   * Disconnects a peer and attempts to initiate a new connection
+   */
   reconnectPeer(button: HTMLButtonElement): void {
     // if already connected, disconnect first
     const peerIdString = button.getAttribute("data-peerid");  // that's why it's broken for unverified peers
@@ -139,6 +168,10 @@ export class PeerController extends VerityController {
     }
   }
 
+  /**
+   * Called from: PeerView
+   * Closes a peer connection
+   */
   disconnectPeer(button: HTMLButtonElement): void {
     const peerIdString = button.getAttribute("data-peerid");
     const peer: Peer = this.peerDB.getPeer(peerIdString);
@@ -151,6 +184,10 @@ export class PeerController extends VerityController {
     }
   }
 
+  /**
+   * Called from: PeerView
+   * Enables or disabled NetworkManager's peer auto-connection feature
+   */
   toggleAutoConnect(sw: HTMLInputElement): void {
     if (sw.checked) {
       this.networkManager.autoConnect = true;
@@ -160,15 +197,11 @@ export class PeerController extends VerityController {
     }
   }
 
+  //***
+  // Cleanup methods
+  //***
+
   shutdown(): Promise<void> {
-    // Note: Subscriptions disabled as we're currently just polling once per second
-    // this.networkManager.removeListener('peeronline', (peer) => this.redisplayPeers());
-    // this.networkManager.removeListener('updatepeer', (peer) => this.redisplayPeers());
-    // this.networkManager.removeListener('peerclosed', (peer) => this.redisplayPeers());
-    // this.peerDB.removeListener('newPeer', (peer) => this.redisplayPeers());
-    // this.peerDB.removeListener('verifiedPeer', (peer) => this.redisplayPeers());
-    // this.peerDB.removeListener('exchangeablePeer', (peer) => this.redisplayPeers());
-    // this.peerDB.removeListener('removePeer', (peer) => this.redisplayPeers());
     this.networkManager.removeListener('online', () => this.onlineView.showOnline());
     this.networkManager.removeListener('offline', () => this.onlineView.showOffline());
 
@@ -176,13 +209,16 @@ export class PeerController extends VerityController {
     return super.shutdown();
   }
 
-  close(): Promise<void> {
+  close(unshow: boolean = true, callback: boolean = true): Promise<void> {
     // clear redisplay polling
     if (this.redisplayTimeout !== undefined) clearInterval(this.redisplayTimeout);
     this.redisplayTimeout = undefined;
-    return super.close();
+    return super.close(unshow, callback);
   }
 
+  //***
+  // Data conversion methods
+  //***
   private *shallDisplayPeers(): Generator<Peer> {
     if (this.shallDisplay === ShallDisplay.Connected) {
       for (const peer of this.networkManager.incomingPeers.concat(
@@ -198,3 +234,5 @@ export class PeerController extends VerityController {
     }
   }
 }
+
+NavigationController.RegisterController("peer", PeerController);

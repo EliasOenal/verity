@@ -11,14 +11,16 @@ import { Identity } from "../../cci/identity/identity";
 import { UNKNOWNAVATAR } from "../../cci/identity/avatar";
 
 import { makePost } from "../../app/zw/zwUtil";
-import { ZwAnnotationEngine } from "../../app/zw/zwAnnotationEngine";
+import { SubscriptionRequirement, ZwAnnotationEngine } from "../../app/zw/zwAnnotationEngine";
 
 import { PostView } from "../view/postView";
-import { VerityController } from "./verityController";
+import { ControllerContext, VerityController } from "./verityController";
 
 import { logger } from "../../core/logger";
 
 import { Buffer } from 'buffer';
+import { NavigationController } from "./navigationController";
+import { VerityUI } from "../verityUI";
 
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
@@ -41,68 +43,107 @@ export interface PostData {
   displayElement?: HTMLLIElement;
 }
 
-/** This is the presenter class for viewing posts */
 export class PostController extends VerityController {
   private displayedPosts: Map<string, PostData> = new Map();
-  private cubeAuthorRedisplayTimer: NodeJS.Timeout = undefined;  // TODO replace, ugly.
+  private annotationEngine: ZwAnnotationEngine;
 
   constructor(
-      private cubeStore: CubeStore,
-      private annotationEngine: ZwAnnotationEngine,
-      private identity: Identity = undefined,
+      parent: ControllerContext,
       public contentAreaView: PostView = new PostView(),
-      show: boolean = true,
-      showImmediately: boolean = true,
   ){
-    super();
-    this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey)); // list cubes
+    super(parent);
+
+    // set nav methods
+    this.viewSelectMethods.set("all", this.selectAllPosts);
+    this.viewSelectMethods.set("withAuthors", this.selectPostsWithAuthors);
+    this.viewSelectMethods.set("subscribedInTree", this.selectSubscribedInTree);
+    this.viewSelectMethods.set("subscribedReplied", this.selectSubscribedReplied);
+    this.viewSelectMethods.set("wot", this.selectWot);
+  }
+
+  //***
+  // View selection methods
+  //***
+  async selectAllPosts(): Promise<void> {
+    logger.trace("PostController: Displaying all posts including anonymous ones");
+    this.removeAnnotationEngineListeners();
+    this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
+      this.cubeStore,
+      SubscriptionRequirement.none,  // show all posts
+      [],       // subscriptions don't play a role in this mode
+      true,     // auto-learn MUCs to display authorship info if available
+      true,     // allow anonymous posts
+    );
+    this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
     this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
-    if (showImmediately) this.contentAreaView.show();
-    this.redisplayPosts().then(() => {if (show) this.contentAreaView.show()});
+    return this.redisplayPosts();
   }
 
-  async makeNewPost(input: HTMLFormElement) {
-    const replytostring: string = input.getAttribute("data-cubekey");
-    const replyto: CubeKey =
-      replytostring? Buffer.from(replytostring, 'hex') : undefined;
-    const textarea: HTMLTextAreaElement =
-      input.getElementsByTagName("textarea")[0] as HTMLTextAreaElement;
-    const text = textarea.value;
-    if (!text.length) return;  // don't make empty posts
-    // clear the input
-    textarea.value = '';
-    // @ts-ignore Typescript doesn't like us using custom window attributes
-    window.onTextareaInput(textarea);
-    // First create the post, then update the identity, then add the cube.
-    // This way the UI directly displays you as the author.
-    const post = await makePost(text, replyto, this.identity);
-    if (this.identity) await this.identity.store("ID/ZW");  // TODO: move this to constructor
-    this.cubeStore.addCube(post);
+  async selectPostsWithAuthors(): Promise<void> {
+    logger.trace("PostController: Displaying posts associated with a MUC");
+    this.removeAnnotationEngineListeners();
+    this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
+      this.cubeStore,
+      SubscriptionRequirement.none,
+      [],       // no subscriptions as they don't play a role in this mode
+      true,     // auto-learn MUCs (posts associated with any Identity MUC are okay)
+      false,
+    );
+    this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
+    this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
+    return this.redisplayPosts();
   }
 
-  async subscribeUser(subscribeButton: HTMLButtonElement) {
-    const authorkeystring = subscribeButton.getAttribute("data-authorkey");
-    const authorkey = Buffer.from(authorkeystring, 'hex');
-    // subscribing or unsubscribing?
-    if (subscribeButton.classList.contains("active")) {
-      logger.trace("VerityUI: Unsubscribing from " + authorkeystring);
-      this.identity.removeSubscriptionRecommendation(authorkey);
-      subscribeButton.classList.remove("active");
-      await this.identity.store("ID/ZW");
-    } else {
-      logger.trace("VerityUI: Subscribing to " + authorkeystring);
-      this.identity.addSubscriptionRecommendation(authorkey);
-      subscribeButton.classList.add("active");
-      await this.identity.store("ID/ZW");
-    }
-    this.redisplayAuthor(await this.cubeStore.getCubeInfo(authorkeystring));
+  async selectSubscribedInTree(): Promise<void> {
+    logger.trace("PostController: Displaying posts from trees with subscribed author activity");
+    this.removeAnnotationEngineListeners();
+    this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
+      this.cubeStore,
+      SubscriptionRequirement.subscribedInTree,
+      await this.cubeStore.getCubeInfos(this.identity.subscriptionRecommendations),  // subscriptions
+      true,      // auto-learn MUCs (to be able to display authors when available)
+      false,     // do not allow anonymous posts
+    );
+    this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
+    this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
+    return this.redisplayPosts();
   }
 
-
-  shutdown(): Promise<void> {
-    clearInterval(this.cubeAuthorRedisplayTimer);
-    return super.shutdown();
+  async selectSubscribedReplied(): Promise<void> {
+    logger.trace("PostController: Displaying posts from subscribed authors and their preceding posts");
+    this.removeAnnotationEngineListeners();
+    this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
+      this.cubeStore,
+      SubscriptionRequirement.subscribedReply,
+      await this.cubeStore.getCubeInfos(
+        await this.identity.recursiveWebOfSubscriptions(0)),  // subscriptions
+      true,      // auto-learn MUCs (to be able to display authors when available)
+      false,     // do not allow anonymous posts
+    );
+    this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
+    this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
+    return this.redisplayPosts();
   }
+
+  async selectWot(): Promise<void> {
+    logger.trace("PostController: Displaying posts from subscribed, sub-subscribed and sub-sub-subscribed authors and their preceding posts (WOT3)");
+    this.removeAnnotationEngineListeners();
+    this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
+      this.cubeStore,
+      SubscriptionRequirement.subscribedReply,
+      await this.cubeStore.getCubeInfos(
+        await this.identity.recursiveWebOfSubscriptions(3)),  // subscriptions
+      true,      // auto-learn MUCs (to be able to display authors when available)
+      false,     // do not allow anonymous posts
+    );
+    this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
+    this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
+    return this.redisplayPosts();
+  }
+
+  //***
+  // View assembly methods
+  //***
 
   async redisplayPosts(): Promise<void> {
     // clear all currently displayed cubes:
@@ -207,6 +248,51 @@ export class PostController extends VerityController {
     }
   }
 
+  //***
+  // Navigation methods
+  //***
+
+  async makeNewPost(input: HTMLFormElement) {
+    const replytostring: string = input.getAttribute("data-cubekey");
+    const replyto: CubeKey =
+      replytostring? Buffer.from(replytostring, 'hex') : undefined;
+    const textarea: HTMLTextAreaElement =
+      input.getElementsByTagName("textarea")[0] as HTMLTextAreaElement;
+    const text = textarea.value;
+    if (!text.length) return;  // don't make empty posts
+    // clear the input
+    textarea.value = '';
+    // @ts-ignore Typescript doesn't like us using custom window attributes
+    window.onTextareaInput(textarea);
+    // First create the post, then update the identity, then add the cube.
+    // This way the UI directly displays you as the author.
+    const post = await makePost(text, replyto, this.identity);
+    if (this.identity) await this.identity.store("ID/ZW");  // TODO: move this to constructor
+    this.cubeStore.addCube(post);
+  }
+
+  async subscribeUser(subscribeButton: HTMLButtonElement) {
+    const authorkeystring = subscribeButton.getAttribute("data-authorkey");
+    const authorkey = Buffer.from(authorkeystring, 'hex');
+    // subscribing or unsubscribing?
+    if (subscribeButton.classList.contains("active")) {
+      logger.trace("VerityUI: Unsubscribing from " + authorkeystring);
+      this.identity.removeSubscriptionRecommendation(authorkey);
+      subscribeButton.classList.remove("active");
+      await this.identity.store("ID/ZW");
+    } else {
+      logger.trace("VerityUI: Subscribing to " + authorkeystring);
+      this.identity.addSubscriptionRecommendation(authorkey);
+      subscribeButton.classList.add("active");
+      await this.identity.store("ID/ZW");
+    }
+    this.redisplayAuthor(await this.cubeStore.getCubeInfo(authorkeystring));
+  }
+
+
+  //***
+  // Data conversion methods
+  //***
   private async findAuthor(data: PostData): Promise<void> {
     const authorObject: Identity = await this.annotationEngine.cubeAuthor(data.binarykey);
     if (authorObject) {
@@ -232,4 +318,23 @@ export class PostController extends VerityController {
       data.author = data.author.slice(0, 57) + "...";
     }
   }
+
+  //***
+  // State management methods
+  //***
+  private removeAnnotationEngineListeners(): void {
+    this.annotationEngine?.removeListener('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
+    this.annotationEngine?.removeListener('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
+  }
+
+  //***
+  // Cleanup methods
+  //***
+  shutdown(): Promise<void> {
+    this.removeAnnotationEngineListeners();
+    return super.shutdown();
+  }
+
 }
+
+NavigationController.RegisterController("post", PostController);

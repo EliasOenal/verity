@@ -7,12 +7,13 @@ import { EditIdentityView } from "../view/editIdentityView";
 import { LoginFormView } from "../view/loginFormView";
 import { LoginStatusView } from "../view/loginStatusView";
 import { VerityView } from "../view/verityView";
-import { VerityController } from "./verityController";
+import { ControllerContext, VerityController } from "./verityController";
 
 import { Avatar, AvatarScheme } from "../../cci/identity/avatar";
+import { NavigationController } from "./navigationController";
 
 export class IdentityController extends VerityController {
-  loginStatusView: LoginStatusView = new LoginStatusView();
+  loginStatusView: LoginStatusView;
 
   private _identity: Identity = undefined;
   get identity(): Identity { return this._identity}
@@ -24,37 +25,55 @@ export class IdentityController extends VerityController {
   get persistence(): IdentityPersistence { return this.options.persistence }
 
   constructor(
-    readonly cubeStore: CubeStore,
+    parent: ControllerContext,
     readonly options: IdentityOptions&IdentityPersistenceOptions = {},
   ){
-    super();
+    super(parent);
     if (options.persistence === undefined) {
       options.persistence = new IdentityPersistence(options);
     }
+    this.loginStatusView = new LoginStatusView(this.navId);
     this.showLoginStatus();
+
+    // set nav methods
+    this.viewSelectMethods.set("login", this.selectLoginForm);
+    this.viewSelectMethods.set("edit", this.selectEditForm);
   }
 
-  async loadLocal(): Promise<boolean> {
-    const idlist: Identity[] = await Identity.retrieve(this.cubeStore, this.options);
-    let identity: Identity = undefined;
-    if (idlist?.length) identity = idlist[0];
-    this.showLoginStatus();
-    if (identity) {
-      this.identity = identity;
-      return true;
-    } else return false;
+  //***
+  // View selection methods
+  //***
+  selectLoginForm(): Promise<void> {
+    this.contentAreaView = new LoginFormView();
+    return new Promise<void>(resolve => resolve());  // nothing to do, return resolved promise
   }
+
+  selectEditForm(): Promise<void> {
+    this.contentAreaView = new EditIdentityView(this.identity);
+    (this.contentAreaView as EditIdentityView).displayAvatar(
+      this._identity.avatar?.seedString, this.identity.avatar.render());
+    return new Promise<void>(resolve => resolve());  // nothing to do, return resolved promise
+  }
+
+
+  //***
+  // View assembly methods
+  //***
 
   showLoginStatus() {
     if (this._identity) this.loginStatusView.showLoggedIn(this._identity);
     else this.loginStatusView.showNotLoggedIn();
   }
 
-  showLoginForm() {
-    this.contentAreaView = new LoginFormView();
-    this.contentAreaView.show();
-  }
 
+  //***
+  // Navigation methods
+  //***
+
+  /**
+   * Called from: login form view
+   * Submit method.
+   */
   async performLogin(form: HTMLFormElement) {
     const username: string =
       (form.querySelector(".verityUsernameInput") as HTMLInputElement).value;
@@ -90,6 +109,10 @@ export class IdentityController extends VerityController {
     this.close();
   }
 
+  /**
+   * Called from: login status view
+   * Logs the current user out.
+   */
   logOut() {
     // TODO: handle the various Identites we may have in our local Identity DB
     // sensibly. Either expose them as various locally saved accounts, or just
@@ -101,13 +124,10 @@ export class IdentityController extends VerityController {
     // not be able to log back in if they ever forget their password
   }
 
-  showEditIdentity() {
-    this.contentAreaView = new EditIdentityView(this.identity);
-    (this.contentAreaView as EditIdentityView).displayAvatar(
-      this._identity.avatar?.seedString, this.identity.avatar.render());
-    this.contentAreaView.show();
-  }
-
+  /**
+   * Called from: edit identity form
+   * Submit method.
+   */
   performEditIdentity(form: HTMLFormElement) {
     // TODO input validation
     const displayname: string = ((form.querySelector(
@@ -123,10 +143,30 @@ export class IdentityController extends VerityController {
     this.close();
   }
 
+  /**
+   * Called from: edit identity form
+   * Creates a new random multiavatar for the user.
+   **/
   randomMultiavatar() {
-    // This method only makes sense within the edit identity form
     if (!(this.contentAreaView instanceof EditIdentityView)) return;
     const randomAvatar = new Avatar(true);
     this.contentAreaView.displayAvatar(randomAvatar.seedString, randomAvatar.render());
   }
+
+
+  //***
+  // Business logic invocation methods
+  //***
+  async loadLocal(): Promise<boolean> {
+    const idlist: Identity[] = await Identity.retrieve(this.cubeStore, this.options);
+    let identity: Identity = undefined;
+    if (idlist?.length) identity = idlist[0];
+    this.showLoginStatus();
+    if (identity) {
+      this.identity = identity;
+      return true;
+    } else return false;
+  }
 }
+
+NavigationController.RegisterController("identity", IdentityController);

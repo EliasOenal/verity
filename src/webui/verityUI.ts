@@ -12,15 +12,22 @@ import { IdentityController } from './controller/identityController';
 import { NavigationController } from './controller/navigationController';
 import { VeraAnimationController } from './controller/veraAnimationController';
 
+// TODO: Move to app config
+// Controllers must be imported to get registered
+import { PostController } from './controller/postController';
+PostController;
+import { CubeExplorerController } from './controller/cubeExplorerController';
+CubeExplorerController;
+
 import { isBrowser } from 'browser-or-node';
 import sodium from 'libsodium-wrappers-sumo'
-import { VerityController } from './controller/verityController';
+import { ControllerContext, VerityController } from './controller/verityController';
 import { EnableCubePersitence } from '../core/cube/cubeStore';
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
 
-export class VerityUI {
+export class VerityUI implements ControllerContext {
   /**
    * Workaround to those damn omnipresent async constructs.
    * Always create your VerityUI this way or it won't have an Identity 🤷
@@ -48,7 +55,7 @@ export class VerityUI {
     const ui: VerityUI = new VerityUI(node);
     await ui.node.cubeStore.readyPromise;
     await ui.initializeIdentity();
-    await ui.nav.navPostsAll();
+    await ui.nav.showNewExclusive("post", "withAuthors");  // TODO: move to app config
     veraStartupAnim.stop();
     return ui;
   }
@@ -65,7 +72,7 @@ export class VerityUI {
       readonly node: VerityNode,
       readonly veraAnimationController: VeraAnimationController = new VeraAnimationController(),
     ){
-    this.peerController = new PeerController(this.node.networkManager, this.node.peerDB);
+    this.peerController = new PeerController(this);
   }
 
   shutdown() {
@@ -73,7 +80,7 @@ export class VerityUI {
   }
 
   initializeIdentity(): Promise<boolean> {
-    this.identityController = new IdentityController(this.node.cubeStore);
+    this.identityController = new IdentityController(this);
     return this.identityController.loadLocal();
   }
 }
@@ -91,7 +98,7 @@ async function webmain() {
   ];
   const verityUI = await VerityUI.Construct(initialPeers);
   // @ts-ignore TypeScript does not like us creating extra window attributes
-  window.verityUI = verityUI;
+  window.verity = verityUI;
 
   // Shut node down cleanly when user exits
   // @ts-ignore TypeScript does not like us creating extra window attributes
