@@ -8,7 +8,7 @@ import { PeerDB } from "./peering/peerDB";
 
 import { logger } from "./logger";
 
-type VerityOptions = NetworkManagerOptions & CubeStoreOptions;
+export type VerityNodeOptions = NetworkManagerOptions & CubeStoreOptions;
 
 export class VerityNode {
   readonly cubeStore: CubeStore;
@@ -17,8 +17,7 @@ export class VerityNode {
   readonly cubeRetriever: CubeRetriever;
 
   readonly onlinePromise: Promise<void>;
-  readonly cubeStoreReadyPromise: Promise<void>;
-  readonly readyPromise: Promise<any>;  // apparently combining a void promise with another void promise does not yield a void promise
+  readonly readyPromise: Promise<void>;
   readonly shutdownPromise: Promise<void>;
 
   constructor(
@@ -29,7 +28,7 @@ export class VerityNode {
      */
     public readonly servers: Map<SupportedTransports, any> = new Map(),
     private initialPeers: Array<AddressAbstraction> = [],
-    options: VerityOptions
+    options: VerityNodeOptions
   ){
     this.cubeStore = new CubeStore(options);
     // find a suitable port number for tracker announcement
@@ -48,10 +47,9 @@ export class VerityNode {
     this.onlinePromise = new Promise(resolve => this.networkManager.once('online', () => {
       resolve(undefined);
     }));
-    this.cubeStoreReadyPromise = new Promise(resolve => this.cubeStore.once('ready', () => {
+    this.readyPromise = new Promise(resolve => this.cubeStore.once('ready', () => {
       resolve(undefined);
     }))
-    this.readyPromise = Promise.all([this.onlinePromise, this.cubeStoreReadyPromise]);
     // Construct cube retrieval helper object
     this.cubeRetriever =
       new CubeRetriever(this.cubeStore, this.networkManager.scheduler);

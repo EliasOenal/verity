@@ -1,26 +1,26 @@
-import { CubeKey } from "../../core/cube/cubeDefinitions";
-import { CubeInfo } from "../../core/cube/cubeInfo";
-import { CubeStore } from "../../core/cube/cubeStore";
+import { CubeKey } from "../../../../core/cube/cubeDefinitions";
+import { CubeInfo } from "../../../../core/cube/cubeInfo";
+import { CubeStore } from "../../../../core/cube/cubeStore";
 
-import { cciFieldType } from "../../cci/cube/cciField";
-import { cciFieldParsers, cciFields } from "../../cci/cube/cciFields";
-import { cciCube, cciFamily } from "../../cci/cube/cciCube";
-import { cciRelationship, cciRelationshipType } from "../../cci/cube/cciRelationship";
-import { ensureCci } from "../../cci/cube/cciCubeUtil";
-import { Identity } from "../../cci/identity/identity";
-import { UNKNOWNAVATAR } from "../../cci/identity/avatar";
+import { cciFieldType } from "../../../../cci/cube/cciField";
+import { cciFieldParsers, cciFields } from "../../../../cci/cube/cciFields";
+import { cciCube, cciFamily } from "../../../../cci/cube/cciCube";
+import { cciRelationship, cciRelationshipType } from "../../../../cci/cube/cciRelationship";
+import { ensureCci } from "../../../../cci/cube/cciCubeUtil";
+import { Identity } from "../../../../cci/identity/identity";
+import { UNKNOWNAVATAR } from "../../../../cci/identity/avatar";
 
-import { makePost } from "../../app/zw/zwUtil";
-import { SubscriptionRequirement, ZwAnnotationEngine } from "../../app/zw/zwAnnotationEngine";
+import { makePost } from "../../model/zwUtil";
+import { SubscriptionRequirement, ZwAnnotationEngine } from "../../model/zwAnnotationEngine";
 
 import { PostView } from "../view/postView";
-import { ControllerContext, VerityController } from "./verityController";
+import { ControllerContext, VerityController } from "../../../../webui/controller/verityController";
 
-import { logger } from "../../core/logger";
+import { logger } from "../../../../core/logger";
 
 import { Buffer } from 'buffer';
-import { NavigationController } from "./navigationController";
-import { VerityUI } from "../verityUI";
+import { NavigationController } from "../../../../webui/controller/navigationController";
+import { VerityUI } from "../../../../webui/verityUI";
 
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
@@ -336,5 +336,3 @@ export class PostController extends VerityController {
   }
 
 }
-
-NavigationController.RegisterController("post", PostController);

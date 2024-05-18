@@ -18,7 +18,7 @@ import { CubeInfo } from '../../core/cube/cubeInfo';
 import { CubeError, CubeKey, CubeType, FieldError } from '../../core/cube/cubeDefinitions';
 import { NetConstants } from '../../core/networking/networkDefinitions';
 
-import { ZwConfig } from '../../app/zw/zwConfig';  // TODO remove dependency from CCI to app
+import { ZwConfig } from '../../app/zw/model/zwConfig';  // TODO remove dependency from CCI to app
 
 import { Buffer } from 'buffer';
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'

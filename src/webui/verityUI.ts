@@ -1,61 +1,105 @@
 import { SupportedTransports } from '../core/networking/networkDefinitions';
-
-import { logger } from '../core/logger'
-import { VerityNode } from '../core/verityNode';
+import { VerityNode, VerityNodeOptions } from '../core/verityNode';
 import { AddressAbstraction } from '../core/peering/addressing';
+import { EnableCubePersitence } from '../core/cube/cubeStore';
 
 import { cciFamily } from '../cci/cube/cciCube';
 import { Identity } from '../cci/identity/identity';
 
+import { ControllerContext, VerityController } from './controller/verityController';
 import { PeerController } from './controller/peerController';
 import { IdentityController } from './controller/identityController';
 import { NavigationController } from './controller/navigationController';
 import { VeraAnimationController } from './controller/veraAnimationController';
-
-// TODO: Move to app config
-// Controllers must be imported to get registered
-import { PostController } from './controller/postController';
-PostController;
 import { CubeExplorerController } from './controller/cubeExplorerController';
-CubeExplorerController;
 
-import { isBrowser } from 'browser-or-node';
-import sodium from 'libsodium-wrappers-sumo'
-import { ControllerContext, VerityController } from './controller/verityController';
-import { EnableCubePersitence } from '../core/cube/cubeStore';
+import { logger } from '../core/logger'
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
+
+export const defaultInitialPeers: AddressAbstraction[] = [
+  new AddressAbstraction("verity.hahn.mt:1984"),
+  new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss/"),
+  // new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/wss"),
+  // new AddressAbstraction("verity.hahn.mt:1985"),
+  // new AddressAbstraction("verity.hahn.mt:1986"),
+  // new AddressAbstraction("132.145.174.233:1984"),
+  // new AddressAbstraction("158.101.100.95:1984"),
+  // new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/ws"),
+];
+
+const defaultControllerClasses: Array<Array<string | typeof VerityController>> = [
+  ["identity", IdentityController],
+  ["peer", PeerController],
+  ["cubeExplorer", CubeExplorerController],
+  // Note: NavigationController is not listed here as it does not need to
+  // register with itself.
+  // VeraAnimationController is not listed here as it's not actually a
+  // VerityController but basically just a helper used on startup.
+]
+
+export interface VerityUiOptions {
+  controllerClasses: Array<Array<string | typeof VerityController>>,
+  initialPeers?: AddressAbstraction[],
+  initialController: string;
+  initialNav: string;
+};
+
+export type VerityOptions = VerityNodeOptions & VerityUiOptions;
+
+
+// Tell Typescript we're planning to use the custom window.verity attribute
+// in the browser.
+declare global {
+  interface Window {
+    verity: VerityUI;
+    webmain: () => Promise<void>,
+  }
+}
 
 export class VerityUI implements ControllerContext {
   /**
    * Workaround to those damn omnipresent async constructs.
    * Always create your VerityUI this way or it won't have an Identity 🤷
    */
-  static async Construct(initialPeers: AddressAbstraction[]): Promise<VerityUI> {
+  static async Construct(options: VerityOptions): Promise<VerityUI> {
     logger.info('Starting web node');
     const veraStartupAnim =  new VeraAnimationController();
     veraStartupAnim.start();
 
+    // set default options if requred
+    options.enableCubePersistence = options.enableCubePersistence ?? EnableCubePersitence.PRIMARY;
+    options.lightNode = options.lightNode ?? true;
+    options.useRelaying = options.useRelaying ?? true;
+    options.family = options.family ?? cciFamily;
+    // Torrent tracker usage must be enforced off as it's not supported
+    // in the browser environment.
+    options.announceToTorrentTrackers = false;
+
     const node = new VerityNode(
       new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
-      initialPeers,
-      {
-        announceToTorrentTrackers: false,
-        autoConnect: true,
-        enableCubePersistence: EnableCubePersitence.PRIMARY,
-        lightNode: false,
-        peerExchange: true,
-        useRelaying: true,
-        family: cciFamily,
-      });
-    await node.cubeStoreReadyPromise;
-    logger.info("Cube Store is ready");
+      options?.initialPeers ?? defaultInitialPeers,
+      options
+    );
+    await node.readyPromise;
+    logger.info("Verity node is ready");
 
+    // Construct UI and link it to window.verity
     const ui: VerityUI = new VerityUI(node);
-    await ui.node.cubeStore.readyPromise;
+    window.verity = ui;
+    // Shut node down cleanly when user exits
+    window.onbeforeunload = function(){ window.verity.shutdown() }
+
+    // Register controllers
+    for (const [name, controllerClass] of
+          [...defaultControllerClasses, ...options.controllerClasses]) {
+      ui.nav.registerControllerClass(
+        name as string, controllerClass as typeof VerityController);
+    }
+
     await ui.initializeIdentity();
-    await ui.nav.showNewExclusive("post", "withAuthors");  // TODO: move to app config
+    await ui.nav.showNewExclusive(options.initialController, options.initialNav);
     veraStartupAnim.stop();
     return ui;
   }
@@ -84,25 +128,3 @@ export class VerityUI implements ControllerContext {
     return this.identityController.loadLocal();
   }
 }
-
-async function webmain() {
-  const initialPeers = [
-    new AddressAbstraction("verity.hahn.mt:1984"),
-    new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss/"),
-    // new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/wss"),
-    // new AddressAbstraction("verity.hahn.mt:1985"),
-    // new AddressAbstraction("verity.hahn.mt:1986"),
-    // new AddressAbstraction("132.145.174.233:1984"),
-    // new AddressAbstraction("158.101.100.95:1984"),
-    // new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/ws"),
-  ];
-  const verityUI = await VerityUI.Construct(initialPeers);
-  // @ts-ignore TypeScript does not like us creating extra window attributes
-  window.verity = verityUI;
-
-  // Shut node down cleanly when user exits
-  // @ts-ignore TypeScript does not like us creating extra window attributes
-  window.onbeforeunload = function(){ window.verityUI.shutdown() }
-}
-
-if (isBrowser) webmain();

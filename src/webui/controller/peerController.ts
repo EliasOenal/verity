@@ -234,5 +234,3 @@ export class PeerController extends VerityController {
     }
   }
 }
-
-NavigationController.RegisterController("peer", PeerController);
