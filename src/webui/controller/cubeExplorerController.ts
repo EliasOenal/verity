@@ -96,5 +96,3 @@ export class CubeExplorerController extends VerityController {
     this.contentAreaView.setDecodedFieldContent(field, select.selectedIndex, detailsTable);
   }
 }
-
-NavigationController.RegisterController("cubeExplorer", CubeExplorerController);

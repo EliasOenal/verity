@@ -1,7 +1,7 @@
 import { VerityUI } from "../verityUI";
-import { ZwAnnotationEngine, SubscriptionRequirement } from "../../app/zw/zwAnnotationEngine";
+import { ZwAnnotationEngine, SubscriptionRequirement } from "../../app/zw/model/zwAnnotationEngine";
 import { ControllerError, VerityController } from "./verityController";
-import { PostController } from "./postController";
+import { PostController } from "../../app/zw/webui/controller/postController";
 import { CubeExplorerController } from "./cubeExplorerController";
 
 import { logger } from "../../core/logger";
@@ -20,17 +20,16 @@ interface ControllerStackLayer {
  **/
 export class NavigationController extends VerityController {
   /**
-   * Static controller registry
-   * Controller *classes* auto-register here on inception.
+   * Controller class registry
    * (TODO document more thoroughly)
    **/
-  private static ControllerClasses: Map<string, typeof VerityController> = new Map();
-  static RegisterController(name: string, ctrlClass: typeof VerityController) {
-    this.ControllerClasses.set(name, ctrlClass);
+  private controllerClasses: Map<string, typeof VerityController> = new Map();
+  registerControllerClass(name: string, ctrlClass: typeof VerityController) {
+    this.controllerClasses.set(name, ctrlClass);
   }
 
   /**
-   * Dynamic controller registry
+   * Controller instance registry
    */
   private registeredControllers: Map<number, VerityController> = new Map();
   controllerRegistryHighestId: number = 0;
@@ -76,7 +75,7 @@ export class NavigationController extends VerityController {
   async showNew(controllerName: string, navName: string): Promise<void> {
     // instantiate controller
     const controllerClass: typeof VerityController =
-    NavigationController.ControllerClasses.get(controllerName);
+    this.controllerClasses.get(controllerName);
     if (controllerClass === undefined) throw new NoSuchController(controllerName);
     const controller: VerityController = new controllerClass(this.parent);
     // TODO: before awaiting selectView() we should display some feedback
@@ -149,7 +148,8 @@ export class NavigationController extends VerityController {
         // if there is none, just show an empty content area
         layer.controller.contentAreaView.unshow();
       }
-      this.navbarMarkActive(layer.navId);  // Update active nav bar item.
+      // Update active nav bar item
+      this.navbarMarkActive(this.currentControlLayer.navId);
     }
   }
 

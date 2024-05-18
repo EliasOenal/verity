@@ -168,5 +168,3 @@ export class IdentityController extends VerityController {
     } else return false;
   }
 }
-
-NavigationController.RegisterController("identity", IdentityController);
