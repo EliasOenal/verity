@@ -16,6 +16,7 @@ export async function webmain() {
         {controller: "cubeExplorer", navAction: "all", text: "Cube Explorer"},
       ],
     initialNav: {controller: "post", navAction: "withAuthors"},
+    lightNode: false,
   });
   await ui.node.shutdownPromise;
 };
