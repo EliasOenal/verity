@@ -4,6 +4,7 @@ export class OnlineView extends VerityView {
   constructor(
       readonly controllerId: number,
       viewArea: HTMLElement = document.getElementById("verityOnlineStatusArea"),
+      public renderedView = document.createElement('a'),
       show: boolean = false,
   ){
     super(undefined, viewArea);
@@ -19,14 +20,13 @@ export class OnlineView extends VerityView {
   }
 
   private showStatus(text: string, dot: string) {
-    this.renderedView = document.createElement('a');
     this.renderedView.setAttribute("class", "verityOnlineStatus");
     this.renderedView.setAttribute("href", "#");
     this.renderedView.setAttribute("onclick",
       `window.verity.nav.show(${this.controllerId}, "details")`);
     const greenDot: HTMLElement = document.createElement('span');
     greenDot.setAttribute("class", dot);
-    this.renderedView.appendChild(greenDot);
+    this.renderedView.replaceChildren(greenDot);
     this.renderedView.appendChild(document.createTextNode(text));
   }
 }
