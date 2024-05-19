@@ -37,7 +37,7 @@ export class NavigationController extends VerityController {
   // TODO: Provide some visual feedback on navigation as controllers could
   // potentially take significant time to build their view.
   // Let's maybe run Vera's animation and slowly grey out the previous view.
-  async showNew(navItem: NavItem): Promise<void> {
+  async showNew(navItem: NavItem, show: boolean = true): Promise<void> {
     if (navItem.exclusive) this.closeAllControllers(false);
     // instantiate controller
     const controllerClass: typeof VerityController =
@@ -52,10 +52,10 @@ export class NavigationController extends VerityController {
       navAction: navItem.navAction,
       navId: `verityNav-${navItem.controller}.${navItem.navAction}`,
     });
-    this.currentController.contentAreaView.show();
+    if (show) this.currentController.contentAreaView.show();
   }
 
-  async show(controllerId: number, navName: string): Promise<void> {
+  async show(controllerId: number, navName: string, show: boolean = true): Promise<void> {
     const controller: VerityController =
       this.registeredControllers.get(controllerId);
     if (controller === undefined) {
@@ -67,7 +67,7 @@ export class NavigationController extends VerityController {
       navAction: navName,
       navId: `verityNav-${controllerId}.${navName}`,
     });
-    this.currentController.contentAreaView.show();
+    if (show) this.currentController.contentAreaView.show();
   }
 
   //***

@@ -61,8 +61,8 @@ export class IdentityController extends VerityController {
   //***
 
   showLoginStatus() {
-    if (this._identity) this.loginStatusView.showLoggedIn(this._identity);
-    else this.loginStatusView.showNotLoggedIn();
+    if (this._identity) this.loginStatusView.renderLoggedIn(this._identity);
+    else this.loginStatusView.renderLoggedOut();
   }
 
 

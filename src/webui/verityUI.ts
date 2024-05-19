@@ -102,13 +102,26 @@ export class VerityUI implements ControllerContext {
       ui.nav.makeNavItem(navItem);
     }
 
-    await ui.initializeIdentity();
-
-    // All done, now update the DOM and stop the startup animation
+    // Start preparing Identity and initial view
+    const identityPromise: Promise<any> = ui.initializeIdentity();
     // If supplied (which the app really should do), perform an initial nav
     // action. Otherwise, the content area will just stay blank.
-    if (options.initialNav) await ui.nav.showNew(options.initialNav);
+    let initialViewPromise: Promise<any>;
+    if (options.initialNav) {
+      initialViewPromise = ui.nav.showNew(options.initialNav, false);
+    } else {
+      // no view specified, so nothing to prepare, so just make a resolved promise
+      initialViewPromise = new Promise<void>(resolve => resolve());
+    }
+
+    // Wait till everything is ready to draw the UI
+    await Promise.all([identityPromise, initialViewPromise]);
+
+    // All done, now update the DOM and stop the startup animation
     ui.nav.navigationView.show();  // display navbar items
+    ui.identityController.loginStatusView.show();  // display Identity status
+    ui.peerController.onlineView.show();
+    ui.currentController?.contentAreaView?.show();  // display initial nav
     veraStartupAnim.stop();
     return ui;
   }
