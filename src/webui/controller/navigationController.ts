@@ -5,11 +5,19 @@ import { PostController } from "../../app/zw/webui/controller/postController";
 import { CubeExplorerController } from "./cubeExplorerController";
 
 import { logger } from "../../core/logger";
+import { NavigationView } from "../view/navigationView";
+
+export interface NavItem {
+  controller: string,
+  navAction: string,
+  text?: string,
+  exclusive?: boolean,
+}
 
 interface ControllerStackLayer {
   controller: VerityController;
   navId: string;
-  navName: string;
+  navAction: string;
 };
 
 /**
@@ -19,6 +27,67 @@ interface ControllerStackLayer {
  * perhaps NavigationGrandmaster would have been more appropriate.
  **/
 export class NavigationController extends VerityController {
+  constructor(readonly parent: VerityUI){
+    super(parent);
+  }
+
+  //***
+  // View selection methods
+  //***
+  // TODO: Provide some visual feedback on navigation as controllers could
+  // potentially take significant time to build their view.
+  // Let's maybe run Vera's animation and slowly grey out the previous view.
+  async showNew(navItem: NavItem): Promise<void> {
+    if (navItem.exclusive) this.closeAllControllers(false);
+    // instantiate controller
+    const controllerClass: typeof VerityController =
+    this.controllerClasses.get(navItem.controller);
+    if (controllerClass === undefined) throw new NoSuchController(navItem.controller);
+    const controller: VerityController = new controllerClass(this.parent);
+    // TODO: before awaiting selectView() we should display some feedback
+    // to the user, e.g. a loading animation or something
+    await controller.selectView(navItem.navAction);
+    this.newControlLayer({
+      controller: controller,
+      navAction: navItem.navAction,
+      navId: `verityNav-${navItem.controller}.${navItem.navAction}`,
+    });
+    this.currentController.contentAreaView.show();
+  }
+
+  async show(controllerId: number, navName: string): Promise<void> {
+    const controller: VerityController =
+      this.registeredControllers.get(controllerId);
+    if (controller === undefined) {
+      throw new NoSuchController(controllerId.toString());
+    }
+    await controller.selectView(navName);
+    this.newControlLayer({
+      controller: controller,
+      navAction: navName,
+      navId: `verityNav-${controllerId}.${navName}`,
+    });
+    this.currentController.contentAreaView.show();
+  }
+
+  //***
+  // Navbar (and other navigation element) management
+  //***
+  navigationView: NavigationView = new NavigationView();
+
+  makeNavItem(navItem: NavItem): void {
+    this.navigationView.makeNavItem(navItem);
+  }
+
+  private displayOrHideBackButton() {
+    if (this.controllerStack.length > 1) this.navigationView.displayBackButton();
+    else this.navigationView.hideBackButton();
+  }
+
+  //***
+  // Controller management
+  //***
+
   /**
    * Controller class registry
    * (TODO document more thoroughly)
@@ -53,10 +122,6 @@ export class NavigationController extends VerityController {
    */
   controllerStack: ControllerStackLayer[] = [];
 
-  constructor(readonly parent: VerityUI){
-    super(parent);
-  }
-
   get currentControlLayer(): ControllerStackLayer {
     if (this.controllerStack.length === 0) return undefined;
     else return this.controllerStack[this.controllerStack.length-1];
@@ -64,7 +129,7 @@ export class NavigationController extends VerityController {
 
   /**
    * The controller currently owning verityContentArea.
-   * This is always to top controller on the controllerStack; and we will
+   * This is always the top controller on the controllerStack; and we will
    * conveniently display a back button to close it and return control to the
    * one below :)
   **/
@@ -72,49 +137,12 @@ export class NavigationController extends VerityController {
     return this.currentControlLayer?.controller;
   }
 
-  async showNew(controllerName: string, navName: string): Promise<void> {
-    // instantiate controller
-    const controllerClass: typeof VerityController =
-    this.controllerClasses.get(controllerName);
-    if (controllerClass === undefined) throw new NoSuchController(controllerName);
-    const controller: VerityController = new controllerClass(this.parent);
-    // TODO: before awaiting selectView() we should display some feedback
-    // to the user, e.g. a loading animation or something
-    await controller.selectView(navName);
-    this.newControlLayer({
-      controller: controller,
-      navName: navName,
-      navId: `verityNav-${controllerName}.${navName}`,
-    });
-    this.currentController.contentAreaView.show();
-  }
-
-  showNewExclusive(controller: string, navName: string): Promise<void> {
-    this.closeAllControllers(false);
-    return this.showNew(controller, navName);
-  }
-
-  async show(controllerId: number, navName: string): Promise<void> {
-    const controller: VerityController =
-      this.registeredControllers.get(controllerId);
-    if (controller === undefined) {
-      throw new NoSuchController(controllerId.toString());
-    }
-    await controller.selectView(navName);
-    this.newControlLayer({
-      controller: controller,
-      navName: navName,
-      navId: `verityNav-${controllerId}.${navName}`,
-    });
-    this.currentController.contentAreaView.show();
-  }
-
   newControlLayer(
       layer: ControllerStackLayer,
   ): void {
     this.controllerStack.push(layer);
     this.displayOrHideBackButton();  // Only show back button if there's something to go back to.
-    this.navbarMarkActive(layer.navId);  // Update active nav bar item.
+    this.navigationView.navbarMarkActive(layer.navId);  // Update active nav bar item.
   }
 
   closeCurrentController(updateView: boolean = true) {
@@ -149,27 +177,13 @@ export class NavigationController extends VerityController {
         layer.controller.contentAreaView.unshow();
       }
       // Update active nav bar item
-      this.navbarMarkActive(this.currentControlLayer.navId);
+      this.navigationView.navbarMarkActive(this.currentControlLayer?.navId);
     }
   }
 
   closeAllControllers(updateView: boolean = true) {
     while(this.currentController !== undefined) {
       this.closeCurrentController(updateView);
-    }
-  }
-
-  private displayOrHideBackButton() {
-    // HACKHACK: UI code should be encapsulated somewhere, e.g. in a View...
-    const backArea = document.getElementById("verityBackArea");
-    if (this.controllerStack.length > 1) backArea.setAttribute("style", "display: block");
-    else backArea.setAttribute("style", "display: none");
-  }
-
-  private navbarMarkActive(id: string) {
-    for (const nav of document.getElementsByClassName("nav-item")) {
-      if (nav.id == id) nav.classList.add("active");
-      else nav.classList.remove("active");
     }
   }
 }

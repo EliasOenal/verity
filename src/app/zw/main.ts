@@ -8,8 +8,14 @@ export async function webmain() {
     controllerClasses:[
         ["post", PostController],
       ],
-    initialController: "post",
-    initialNav: "withAuthors",
+    navItems: [
+        {controller: "post", navAction: "withAuthors", text: "All posts", exclusive: true},
+        {controller: "post", navAction: "all", text: "All posts (incl anonymous)", exclusive: true},
+        {controller: "post", navAction: "subscribedReplied", text: "Subscribed", exclusive: true},
+        {controller: "post", navAction: "wot", text: "Web of trust", exclusive: true},
+        {controller: "cubeExplorer", navAction: "all", text: "Cube Explorer"},
+      ],
+    initialNav: {controller: "post", navAction: "withAuthors"},
   });
   await ui.node.shutdownPromise;
 };

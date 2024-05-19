@@ -9,7 +9,7 @@ import { Identity } from '../cci/identity/identity';
 import { ControllerContext, VerityController } from './controller/verityController';
 import { PeerController } from './controller/peerController';
 import { IdentityController } from './controller/identityController';
-import { NavigationController } from './controller/navigationController';
+import { NavItem, NavigationController } from './controller/navigationController';
 import { VeraAnimationController } from './controller/veraAnimationController';
 import { CubeExplorerController } from './controller/cubeExplorerController';
 
@@ -42,8 +42,8 @@ const defaultControllerClasses: Array<Array<string | typeof VerityController>> =
 export interface VerityUiOptions {
   controllerClasses: Array<Array<string | typeof VerityController>>,
   initialPeers?: AddressAbstraction[],
-  initialController: string;
-  initialNav: string;
+  navItems?: NavItem[],
+  initialNav?: NavItem;
 };
 
 export type VerityOptions = VerityNodeOptions & VerityUiOptions;
@@ -97,9 +97,18 @@ export class VerityUI implements ControllerContext {
       ui.nav.registerControllerClass(
         name as string, controllerClass as typeof VerityController);
     }
+    // Make navbar items
+    if (options?.navItems) for (const navItem of options.navItems) {
+      ui.nav.makeNavItem(navItem);
+    }
 
     await ui.initializeIdentity();
-    await ui.nav.showNewExclusive(options.initialController, options.initialNav);
+
+    // All done, now update the DOM and stop the startup animation
+    // If supplied (which the app really should do), perform an initial nav
+    // action. Otherwise, the content area will just stay blank.
+    if (options.initialNav) await ui.nav.showNew(options.initialNav);
+    ui.nav.navigationView.show();  // display navbar items
     veraStartupAnim.stop();
     return ui;
   }
