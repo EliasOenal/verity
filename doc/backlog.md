@@ -20,6 +20,7 @@
 - MUC subscriptions, i.e. implement a way in which a node can easily receive
   updates to a MUC without polling and re-downloading the same version over and
   over again.
+- Persist known good peers to reduce reliance and load on initial peers
 - Support WebRTC server nodes, or some other way to set up full nodes in a way
   which does not require an SSL cert and still makes them reachable from secure
   browser contexts.
