@@ -1,8 +1,12 @@
-const path = require('path');
-const CopyWebpackPlugin = require("copy-webpack-plugin");
-const webpack = require('webpack');
+import { createRequire } from 'node:module';
+import path from 'path';
+import webpack from 'webpack';
+import CopyWebpackPlugin from 'copy-webpack-plugin';
 
-module.exports = {
+const { resolve } = createRequire(import.meta.url);
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
+
+export default {
   target: 'web',
   entry: {
     verityUI: './src/app/zw/main.ts',
@@ -20,26 +24,13 @@ module.exports = {
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
     fallback: {
-      // Use can only include required modules. Also install the package.
-      // for example: npm install --save-dev assert
-      url: require.resolve('url'),
-      // fs: require.resolve('fs'),
+      url: resolve('url'),
       fs: false,
-      //assert: require.resolve('assert'),
-      // crypto: require.resolve('crypto-browserify'),
       crypto: false,  // using native web crypto api
-      // http: require.resolve('stream-http'),
-      //https: require.resolve('https-browserify'),
-      //os: require.resolve('os-browserify/browser'),
-      buffer: require.resolve('buffer'),
-      stream: require.resolve('stream-browserify'),
-      // "util": require.resolve("util/"),
-      // "path": require.resolve("path-browserify"),
-      // "tty": require.resolve("tty-browserify"),
-      //"net": require.resolve("net-browserify"),
-      // "timers": require.resolve("timers-browserify"),
-      "events": require.resolve("events/"),
-    }
+      buffer: resolve('buffer'),
+      stream: resolve('stream-browserify'),
+      "events": resolve("events/"),
+    },
   },
   externals: {
     bufferutil: "bufferutil",
