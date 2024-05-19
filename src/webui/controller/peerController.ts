@@ -21,7 +21,7 @@ export class PeerController extends VerityController {
   displayedPeers: Map<Peer, HTMLLIElement> = new Map();
   shallDisplay: ShallDisplay = ShallDisplay.Connected;
   redisplayTimeout: NodeJS.Timeout = undefined;
-  private onlineView: OnlineView;
+  onlineView: OnlineView;
 
   get networkManager(): NetworkManager { return this.parent.node.networkManager }
   get peerDB(): PeerDB { return this.parent.node.peerDB }

@@ -60,7 +60,12 @@
             </ul>
 
             <div id="verityIdentityArea">
-              <div class="verityIdentityRow">
+              <!-- Here's some demo content for the Identity / login status
+                   area. We originally showed a greyed out placeholder, but
+                   currently we just don't show anything at all until
+                   IdentityController is ready, hence the "display: none".
+              -->
+              <div class="verityIdentityRow" style="display: none">
                 <div class="verityMyProfilePicArea">
                   <img src="unknownuser.svg" alt="" height="100%"
                       class="verityMyProfilePic" id="verityMyProfilePic" />
@@ -78,7 +83,12 @@
             </div> <!-- identityrow-->
 
             <div class="row my-4" id="verityOnlineStatusArea">
-              <a class="verityOnlineStatus" href="#" onclick="false">
+              <!-- Here's some demo content for the online status area,
+                   showing this node as offline. We currently don't display
+                   any online status until the PeerController is ready, hence
+                   the "display: none".
+              -->
+              <a class="verityOnlineStatus" href="#" onclick="false" style="display: none">
                 <span class="redDot"></span>Offline
               </a>
             </div>
