@@ -1,12 +1,12 @@
-import { VerityView } from "../view/verityView";
+import { VerityView } from "./verityView";
 
 import EventEmitter from "events";
-import { UiError } from "../webUiDefinitions";
+import { UiError } from "./webUiDefinitions";
 
-import type { Identity } from "../../cci/identity/identity";
-import type { NavigationController } from "./navigationController";
-import type { VerityNode } from "../../core/verityNode";
-import type { CubeStore } from "../../core/cube/cubeStore";
+import type { Identity } from "../cci/identity/identity";
+import type { NavigationController } from "./navigation/navigationController";
+import type { VerityNode } from "../core/verityNode";
+import type { CubeStore } from "../core/cube/cubeStore";
 
 export interface ControllerContext {
   node: VerityNode;

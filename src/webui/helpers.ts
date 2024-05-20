@@ -16,3 +16,13 @@ export function setAttributeForAll(
     else elem.removeAttribute(attrName);
   }
 }
+
+export function loadTemplate(module: any) {
+  document.body.insertAdjacentHTML('beforeend', module.default);
+}
+
+export function loadStyle(module: any) {
+  const styleElem: HTMLStyleElement = document.createElement("style");
+  styleElem.textContent = module.default;
+  document.head.appendChild(styleElem);
+}

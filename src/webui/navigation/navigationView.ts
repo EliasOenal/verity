@@ -1,5 +1,5 @@
-import { NavItem } from "../controller/navigationController";
-import { VerityView } from "./verityView";
+import { NavItem } from "./navigationController";
+import { VerityView } from "../verityView";
 
 export class NavigationView extends VerityView {
   constructor() {

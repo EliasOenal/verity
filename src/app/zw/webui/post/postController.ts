@@ -13,13 +13,13 @@ import { UNKNOWNAVATAR } from "../../../../cci/identity/avatar";
 import { makePost } from "../../model/zwUtil";
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../model/zwAnnotationEngine";
 
-import { PostView } from "../view/postView";
-import { ControllerContext, VerityController } from "../../../../webui/controller/verityController";
+import { PostView } from "./postView";
+import { ControllerContext, VerityController } from "../../../../webui/verityController";
 
 import { logger } from "../../../../core/logger";
 
 import { Buffer } from 'buffer';
-import { NavigationController } from "../../../../webui/controller/navigationController";
+import { NavigationController } from "../../../../webui/navigation/navigationController";
 import { VerityUI } from "../../../../webui/verityUI";
 
 // TODO refactor: just put the damn CubeInfo in here

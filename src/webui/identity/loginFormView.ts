@@ -1,4 +1,4 @@
-import { VerityView } from "./verityView";
+import { VerityView } from "../verityView";
 
 export class LoginFormView extends VerityView {
   constructor(

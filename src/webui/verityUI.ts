@@ -6,12 +6,12 @@ import { EnableCubePersitence } from '../core/cube/cubeStore';
 import { cciFamily } from '../cci/cube/cciCube';
 import { Identity } from '../cci/identity/identity';
 
-import { ControllerContext, VerityController } from './controller/verityController';
-import { PeerController } from './controller/peerController';
-import { IdentityController } from './controller/identityController';
-import { NavItem, NavigationController } from './controller/navigationController';
-import { VeraAnimationController } from './controller/veraAnimationController';
-import { CubeExplorerController } from './controller/cubeExplorerController';
+import { ControllerContext, VerityController } from './verityController';
+import { PeerController } from './peer/peerController';
+import { IdentityController } from './identity/identityController';
+import { NavItem, NavigationController } from './navigation/navigationController';
+import { VeraAnimationController } from './veraAnimationController';
+import { CubeExplorerController } from './cubeExplorer/cubeExplorerController';
 
 import { logger } from '../core/logger'
 

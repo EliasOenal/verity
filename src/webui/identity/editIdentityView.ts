@@ -1,5 +1,5 @@
 import { Identity } from "../../cci/identity/identity";
-import { VerityView } from "./verityView";
+import { VerityView } from "../verityView";
 
 export class EditIdentityView extends VerityView {
   constructor(
