@@ -79,6 +79,11 @@ function onTextareaInput(textarea) {
 }
 window.onTextareaInput = onTextareaInput;
 
+function clearParent(elem, parentLevel = 1, queryString="input") {
+  for (let i=0; i<parentLevel; i++) elem = elem.parentElement;
+  for (const target of elem.querySelectorAll(queryString)) target.value = "";
+}
+
 function frontendMain() {
   registerServiceWorker();
   updateIcon();

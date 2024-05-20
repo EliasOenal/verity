@@ -78,7 +78,7 @@ export class CubeExplorerView extends VerityView {
     // set general cube information
     (li.querySelector(".verityCubeType") as HTMLElement).innerText = typeWithEmoji;
     (li.querySelector(".verityCubeHash") as HTMLElement).innerText = cube.getHashIfAvailable().toString('hex');
-    const dateText = this.formatDate(cube.getDate()*1000);
+    const dateText = this.formatDate(cube.getDate());
     (li.querySelector(".verityCubeDate") as HTMLElement).innerText = dateText;
     (li.querySelector(".verityCubeDifficulty") as HTMLElement).innerText = cube.getDifficulty().toString();
 
