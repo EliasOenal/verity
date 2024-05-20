@@ -155,7 +155,7 @@ export class CubeExplorerView extends VerityView {
     // do we know the name of this relationship type?
     let relTypeString: string;
     if (rel.type in cciRelationshipType) {
-      relTypeString = `${cciRelationshipType[rel.type]} (code ${rel.type} / ${rel.type.toString(16)})`
+      relTypeString = `${cciRelationshipType[rel.type]} (code ${rel.type} / 0x${rel.type.toString(16)})`
     } else relTypeString = rel.type.toString();
     // prepare view: Relationship type row
     const typeRow: HTMLTableRowElement = document.createElement('tr');
@@ -192,6 +192,13 @@ export class CubeExplorerView extends VerityView {
       encodingIndex: EncodingIndex = this.findBestEncoding(field.value),
   ): void {
     let content: string;
+    if (field.value.length === 0) {
+      // no content, nothing to display
+      const contentRow: HTMLTableRowElement =
+      detailsTable.querySelector(".veritySchematicFieldContentRow");
+      contentRow?.remove();
+      return;
+    }
     if (encodingIndex == EncodingIndex.utf8) content = field.value.toString("utf8");
     else if (encodingIndex == EncodingIndex.utf16) content = field.value.toString("utf16le");
     else content = field.value.toString("hex");
