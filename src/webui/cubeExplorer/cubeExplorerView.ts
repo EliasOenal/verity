@@ -179,6 +179,7 @@ export class CubeExplorerView extends VerityView {
     remoteHeader.textContent = "Remote Cube";
     const remoteCell: HTMLTableCellElement = document.createElement('td');
     const remoteData: HTMLAnchorElement = document.createElement('a');
+    remoteCell.classList.add("verityEllipsisedKey");  // for CSS styling
     remoteData.textContent = rel.remoteKeyString;
     remoteData.href = "#";
     remoteData.onclick = () => this.controller.redisplay({key: rel.remoteKeyString});
