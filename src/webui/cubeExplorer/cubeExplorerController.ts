@@ -9,13 +9,22 @@ import { NavigationController } from "../navigation/navigationController";
 import { ControllerContext, VerityController } from "../verityController";
 import type { CubeKey } from "../../core/cube/cubeDefinitions";
 
+export interface CubeFilter {
+  key?: string,
+  dateFrom?: number;
+  dateTo?: number;
+  content?: string;
+}
+
 export class CubeExplorerController extends VerityController {
+  declare public contentAreaView: CubeExplorerView;
+
   constructor(
       parent: ControllerContext,
       readonly maxCubes: number = 1000,
-      public contentAreaView: CubeExplorerView = new CubeExplorerView(),
   ){
     super(parent);
+    this.contentAreaView = new CubeExplorerView(this);
 
     // set nav methods
     this.viewSelectMethods.set("all", this.selectAll);
@@ -34,36 +43,24 @@ export class CubeExplorerController extends VerityController {
   //***
 
   /**
-   * @param [search] If defined, only show Cubes whose hex-represented key
-   * includes this string.
+   * @param [filter] If defined, only show Cubes matching this filter.
+   *   If undefined / not supplied, will try to fetch filter setting from the
+   *   view. If you explicitly want no filter, set to null.
    */
   // TODO refined cube search (e.g. by date, fields present or even field content)
   // TODO pagination (we currently just abort after maxCubes and print a warning)
   // TODO sorting (e.g. by date)
   // TODO support non CCI cubes (including invalid / partial CCI cubes)
-  async redisplay(): Promise<void> {
-    // read and parse search filters:
-    // Cube Key
-    const keySearch: string = (this.contentAreaView.renderedView.querySelector(
-      ".verityCubeKeyFilter") as HTMLInputElement)?.value;
-    // Sculpt date
-    const dateFromInput: string = (this.contentAreaView.renderedView.querySelector(
-      ".verityCubeDateFrom") as HTMLInputElement)?.value;
-    let dateFrom: number = (new Date(dateFromInput)).getTime() / 1000;
-    if (Number.isNaN(dateFrom)) dateFrom = Number.MIN_SAFE_INTEGER;
-    const dateToInput: string = (this.contentAreaView.renderedView.querySelector(
-      ".verityCubeDateTo") as HTMLInputElement)?.value;
-    let dateTo: number = (new Date(dateToInput)).getTime() / 1000;
-    if (Number.isNaN(dateTo)) dateTo = Number.MAX_SAFE_INTEGER;
-    // String content
-    const contentSearch: string = (this.contentAreaView.renderedView.querySelector(
-      ".verityCubeContentFilter") as HTMLInputElement)?.value;
+  async redisplay(filter?: CubeFilter): Promise<void> {
+    if (filter === undefined) filter = this.contentAreaView.fetchCubeFilter();
+    else if (filter === null) filter = {};
+    this.contentAreaView.displayCubeFilter(filter);
 
     this.contentAreaView.clearAll();
     let displayed = 0, unparsable = 0, filtered = 0;
     for await (const key of this.cubeStore.getAllKeys(true)) {
       // Apply key filter before even activating this Cube
-      if (keySearch && !key.includes(keySearch)) {
+      if (filter.key !== undefined && !key.includes(filter.key)) {
         filtered++;
         continue;  // skip non-matching
       }
@@ -74,10 +71,11 @@ export class CubeExplorerController extends VerityController {
         continue;
       }
       // apply further filters
-      if (cube.getDate() < dateFrom || cube.getDate() > dateTo ||
-          contentSearch.length>0 &&  // raw content filter
-            !cube.getBinaryDataIfAvailable().toString('utf-8').includes(
-              contentSearch)
+      if ((filter.dateFrom !== undefined && cube.getDate() < filter.dateFrom) ||
+          (filter.dateTo !== undefined && cube.getDate() > filter.dateTo) ||
+          (filter.content !== undefined && !cube.getBinaryDataIfAvailable().
+            toString('utf-8').includes(filter.content)
+          )
       ){
         filtered++;
         continue;
