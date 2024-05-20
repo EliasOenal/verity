@@ -111,10 +111,18 @@ export class CubeExplorerView extends VerityView {
       detailsTable.setAttribute("data-fieldindex", i.toString());
       detailsTable.setAttribute("id", `pills-${key}-${i}`);
       detailsTable.setAttribute("aria-labelledby", `pills-tab-${key}-${i}`);
+      // field type
+      let fieldType: string = fieldName ?? field.type.toString();
+      if (Object.values(cube.fieldParser.fieldDef.positionalFront).includes(field.type) ||
+          Object.values(cube.fieldParser.fieldDef.positionalBack).includes(field.type)) {
+        fieldType += " (positional field)"
+      } else fieldType += ` (code ${(field.type >> 2).toString()} / 0x${(field.type >> 2).toString(16)})`;
       (detailsTable.querySelector(".veritySchematicFieldType") as HTMLElement)
-        .innerText = (fieldName ?? field.type.toString()) + ` (code ${(field.type >> 2).toString()} / 0x${(field.type >> 2).toString(16)})`;  // TODO omit code for positionals
+        .innerText = fieldType;
+      // field start index
       (detailsTable.querySelector(".veritySchematicFieldStart") as HTMLElement)
         .innerText = field.start.toString();
+      // content length
       (detailsTable.querySelector(".veritySchematicFieldLength") as HTMLElement)
         .innerText = field.length.toString();
       // TODO: parse known field contents instead of just dumping their value
