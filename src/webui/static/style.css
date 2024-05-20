@@ -354,11 +354,14 @@ ul.verityCubeList {
 table.veritySchematicCube {
   border: none;
 }
-.verityCubeSummary {
+.verityEllipsisedKey {
   overflow: hidden;
   text-overflow: ellipsis;
   text-wrap: nowrap;
 }
+/* td.verityEllipsisedKey {
+  max-width: 0;
+} */
 .veritySchematicFieldDetails td {
   overflow: hidden;
   text-overflow: ellipsis;
