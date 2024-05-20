@@ -119,7 +119,7 @@ export class CubeExplorerController extends VerityController {
       return;
 
     }
-    this.contentAreaView.setDecodedFieldContent(field, select.selectedIndex, detailsTable);
+    this.contentAreaView.setRawFieldContent(field, detailsTable, select.selectedIndex);
   }
 
   //***

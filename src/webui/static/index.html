@@ -465,32 +465,34 @@
                        role="tabpanel"
                        aria-labelledby="pills-tab-44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000-0"
                        data-fieldindex="1">
-                  <tr class="veritySchematicFieldDetails">
-                    <th>Type</th>
-                    <td class="veritySchematicFieldType">VERSION</td>
-                  </tr>
-                  <tr>
-                    <th>Start index</th>
-                    <td class="veritySchematicFieldStart">1337</td>
-                  </tr>
-                  <tr>
-                    <th>Content length</th>
-                    <td class="veritySchematicFieldLength">31337</td>
-                  </tr>
-                  <tr>
-                    <th>Content<br />
-                      <select name="verityContentEncodingSwitch"
-                              class="verityContentEncodingSwitch"
-                              oninput="window.verity.currentController.changeEncoding(this)">
-                        <option value="utf8">UTF-8</option>
-                        <option value="utf16">UTF-16</option>
-                        <option value="hex">Hex</option>
-                      </select>
-                    </th>
-                    <td class="veritySchematicFieldContent">
-                      0xcafebabe
-                    </td>
-                  </tr>
+                  <tbody>
+                    <tr>
+                      <th>Type</th>
+                      <td class="veritySchematicFieldType">VERSION</td>
+                    </tr>
+                    <tr>
+                      <th>Start index</th>
+                      <td class="veritySchematicFieldStart">1337</td>
+                    </tr>
+                    <tr>
+                      <th>Content length</th>
+                      <td class="veritySchematicFieldLength">31337</td>
+                    </tr>
+                    <tr class="veritySchematicFieldContentRow">
+                      <th>Content<br />
+                        <select name="verityContentEncodingSwitch"
+                                class="verityContentEncodingSwitch"
+                                oninput="window.verity.currentController.changeEncoding(this)">
+                          <option value="utf8">UTF-8</option>
+                          <option value="utf16">UTF-16</option>
+                          <option value="hex">Hex</option>
+                        </select>
+                      </th>
+                      <td class="veritySchematicFieldContent">
+                        0xcafebabe
+                      </td>
+                    </tr>
+                  </tbody>
                 </table>
               </div>
             </div>
