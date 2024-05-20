@@ -6,6 +6,7 @@ import { CubeType } from "../../core/cube/cubeDefinitions";
 import { CubeField } from "../../core/cube/cubeField";
 import { isPrintable } from "../../core/helpers/misc";
 import { VerityView } from "../verityView";
+import { CubeExplorerController, CubeFilter } from "./cubeExplorerController";
 
 const cubeEmoji: Map<CubeType, string> = new Map([
   [CubeType.FROZEN, String.fromCodePoint(0x1F9CA)],  // 🧊
@@ -28,6 +29,7 @@ export class CubeExplorerView extends VerityView {
 
   // TODO: Do not display view before values have been filled in
   constructor(
+      readonly controller: CubeExplorerController,
       htmlTemplate: HTMLTemplateElement = document.getElementById(
         "verityCubeExplorerTemplate") as HTMLTemplateElement,
   ){
@@ -167,10 +169,14 @@ export class CubeExplorerView extends VerityView {
     const remoteRow: HTMLTableRowElement = document.createElement('tr');
     const remoteHeader: HTMLTableCellElement = document.createElement('th');
     remoteHeader.textContent = "Remote Cube";
-    const remoteData: HTMLTableCellElement = document.createElement('td');
+    const remoteCell: HTMLTableCellElement = document.createElement('td');
+    const remoteData: HTMLAnchorElement = document.createElement('a');
     remoteData.textContent = rel.remoteKeyString;
+    remoteData.href = "#";
+    remoteData.onclick = () => this.controller.redisplay({key: rel.remoteKeyString});
+    remoteCell.appendChild(remoteData);
     remoteRow.appendChild(remoteHeader);
-    remoteRow.appendChild(remoteData);
+    remoteRow.appendChild(remoteCell);
     // replace generic content row with relationship type and target rows
     const contentRow: HTMLTableRowElement =
       detailsTable.querySelector(".veritySchematicFieldContentRow");
@@ -198,5 +204,54 @@ export class CubeExplorerView extends VerityView {
   showBelowCubes(message: string): void {
     (this.renderedView.querySelector('.verityMessageBottom') as HTMLElement)
       .innerText = message;
+  }
+
+  fetchCubeFilter(): CubeFilter {
+    const ret: CubeFilter = {};
+    // read and parse search filters:
+    // Cube Key
+    const key: string = (this.renderedView.querySelector(
+      ".verityCubeKeyFilter") as HTMLInputElement)?.value;
+    if (key.length > 0) ret.key = key;
+    // Sculpt date
+    const dateFromInput: string = (this.renderedView.querySelector(
+      ".verityCubeDateFrom") as HTMLInputElement)?.value;
+    let dateFrom: number = (new Date(dateFromInput)).getTime() / 1000;
+    if (!Number.isNaN(dateFrom)) ret.dateFrom = dateFrom;
+    const dateToInput: string = (this.renderedView.querySelector(
+      ".verityCubeDateTo") as HTMLInputElement)?.value;
+    let dateTo: number = (new Date(dateToInput)).getTime() / 1000;
+    if (!Number.isNaN(dateTo)) ret.dateTo = dateTo;
+    // String content
+    const content: string = (this.renderedView.querySelector(
+      ".verityCubeContentFilter") as HTMLInputElement)?.value;
+    if (content.length > 0) ret.content = content;
+    return ret;
+  }
+
+  displayCubeFilter(filter: CubeFilter): void {
+    // key filter
+    const keyInput: HTMLInputElement =
+      this.renderedView.querySelector('.verityCubeKeyFilter');
+    keyInput.value = filter.key ?? "";
+    // date from filter
+    const dateFromInput: HTMLInputElement =
+      this.renderedView.querySelector(".verityCubeDateFrom");
+    dateFromInput.value = this.unixtimeToDatetimeLocal(filter.dateFrom);
+    // date to filter
+    const dateToInput: HTMLInputElement =
+    this.renderedView.querySelector(".verityCubeDateTo");
+    dateToInput.value = this.unixtimeToDatetimeLocal(filter.dateTo);
+    // content string filter
+    const contentInput: HTMLInputElement =
+      this.renderedView.querySelector(".verityCubeContentFilter");
+    contentInput.textContent = filter.content ?? "";
+  }
+
+  private unixtimeToDatetimeLocal(unixtime: number): string {
+    if (unixtime === undefined) return "";
+    var date = new Date(unixtime * 1000);
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+    return date.toISOString().slice(0,16);
   }
 }
