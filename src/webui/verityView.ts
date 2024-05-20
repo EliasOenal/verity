@@ -1,5 +1,5 @@
-import { UiError } from "../webUiDefinitions";
-import { logger } from "../../core/logger";
+import { UiError } from "./webUiDefinitions";
+import { logger } from "../core/logger";
 
 // TODO: make template handling more clearly optional
 

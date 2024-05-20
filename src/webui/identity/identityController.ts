@@ -3,14 +3,14 @@ import { CubeStore } from "../../core/cube/cubeStore";
 import { Identity, IdentityOptions } from "../../cci/identity/identity";
 import { IdentityPersistence, IdentityPersistenceOptions } from "../../cci/identity/identityPersistence";
 
-import { EditIdentityView } from "../view/editIdentityView";
-import { LoginFormView } from "../view/loginFormView";
-import { LoginStatusView } from "../view/loginStatusView";
-import { VerityView } from "../view/verityView";
-import { ControllerContext, VerityController } from "./verityController";
+import { EditIdentityView } from "./editIdentityView";
+import { LoginFormView } from "./loginFormView";
+import { LoginStatusView } from "./loginStatusView";
+import { VerityView } from "../verityView";
+import { ControllerContext, VerityController } from "../verityController";
 
 import { Avatar, AvatarScheme } from "../../cci/identity/avatar";
-import { NavigationController } from "./navigationController";
+import { NavigationController } from "../navigation/navigationController";
 
 export class IdentityController extends VerityController {
   loginStatusView: LoginStatusView;

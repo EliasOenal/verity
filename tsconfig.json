@@ -9,12 +9,16 @@
     "moduleResolution": "Node",
     "lib": ["ES2022", "dom", "dom.iterable"],
     "sourceMap": true,
+    "typeRoots": ["./src/types", "./node_modules/@types"],
   },
   "include": [
     "./**/*.ts",
     "../test/**/*.ts",
   ],
-  "exclude": ["webspecific"],
+  "exclude": [
+    "webspecific",
+    "misc/",
+  ],
   "scripts": {
     "pretest": "tsc",
     "test": "jest"

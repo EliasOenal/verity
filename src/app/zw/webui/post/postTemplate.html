@@ -1,0 +1,65 @@
+<template id="verityPostViewTemplate">
+  <div class="verityPostView">
+    <div class="verityNewPostDiv mt-3 mt-sm-5 mb-3">
+      <form id="verityNewPostForm" class="form-floating row" action="javascript:void(0);"
+        onsubmit="window.verity.currentController.makeNewPost(this);">
+        <textarea id="verityNewPostInput" class="form-control verityPostInput"
+                  maxlength="600" rows="2" placeholder="Make new post"
+                  oninput="window.onTextareaInput(this)" required></textarea>
+        <label class="form-label" for="verityNewPostInput">Make new post</label>
+        <button class="btn btn-primary" type="submit" id="newcube">Post</button>
+      </form>
+      <div class="progress bg-danger verityPostCharCountBarContainer" role="progressbar">
+        <div class="progress-bar bg-success verityPostCharCountBar" style="width: 100%">
+        </div>
+        <div class="verityPostRemainingChars" style="display: none;">600</div>
+      </div>
+    </div>
+
+    <div class="row" id="verityPostsRow">
+      <ul class="verityPostList list-unstyled">
+        <li class="verityPost move-fade-in"
+        data-cubekey="<cubekey>" data-timestamp="1695048919">
+          <div class="verityPostHeader">
+            <img class="verityPostProfilePic" src="" />
+            <p>
+              <b class="verityCubeAuthor" title="MUC key <muckey>" id="<cubekey>-author">
+                User name
+              </b>
+              <button type="button"
+                      class="btn btn-outline-primary veritySubscribeButton"
+                      data-authorkey="<muckey>"
+                      onclick="window.verity.currentController.subscribeUser(this)">
+                Subscribe
+              </button>
+              <br />
+              <small class="verityPostDate">
+                Friday, September 15, 2023 6:22:12 PM
+              </small>
+            </p>
+          </div>
+          <p class="verityPostContent" title="Cube Key <cubekey>">Text</p>
+          <div class="verityReplyDiv">
+            <form action="javascript:void(0);"
+                  onsubmit="window.verity.currentController.makeNewPost(this);"
+                  class="verityReplyForm input-group">
+              <textarea maxlength="600" class="form-control verityPostInput"
+                        rows="1" type="text" required
+                        placeholder="Reply" id="verityReplyInput-<cubekey>"
+                        oninput="window.onTextareaInput(this)"></textarea>
+              <button type="submit" class="btn btn-primary verityPostButton"
+                      id="replybutton-<cubekey>">
+                Post
+              </button>
+            </form>
+            <div class="progress bg-danger verityPostCharCountBarContainer"
+                 role="progressbar">
+              <div class="progress-bar bg-success verityPostCharCountBar"></div>
+              <div class="verityPostRemainingChars" style="display: none;">600</div>
+            </div>
+          </div> <!-- verityReplyDiv-->
+      </li>
+      </ul>
+    </div> <!-- verityPostsRow -->
+  </div> <!-- verityPostView -->
+</template>

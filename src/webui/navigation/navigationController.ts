@@ -1,11 +1,11 @@
 import { VerityUI } from "../verityUI";
 import { ZwAnnotationEngine, SubscriptionRequirement } from "../../app/zw/model/zwAnnotationEngine";
-import { ControllerError, VerityController } from "./verityController";
-import { PostController } from "../../app/zw/webui/controller/postController";
-import { CubeExplorerController } from "./cubeExplorerController";
+import { ControllerError, VerityController } from "../verityController";
+import { PostController } from "../../app/zw/webui/post/postController";
+import { CubeExplorerController } from "../cubeExplorer/cubeExplorerController";
 
 import { logger } from "../../core/logger";
-import { NavigationView } from "../view/navigationView";
+import { NavigationView } from "./navigationView";
 
 export interface NavItem {
   controller: string,

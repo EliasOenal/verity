@@ -19,6 +19,16 @@ export default {
         use: 'ts-loader',
         exclude: /node_modules/,
       },
+      {
+        test: /\.html$/,
+        use: 'raw-loader',
+        exclude: ["/node_modules/", "/src/webui/static/"],
+      },
+      {
+        test: /\.css$/,
+        use: 'raw-loader',
+        exclude: ["/node_modules/", "/src/webui/static/"],
+      },
     ],
   },
   resolve: {
@@ -29,7 +39,8 @@ export default {
       crypto: false,  // using native web crypto api
       buffer: resolve('buffer'),
       stream: resolve('stream-browserify'),
-      "events": resolve("events/"),
+      events: resolve("events/"),
+      "process/browser": resolve("process/browser"),
     },
   },
   externals: {

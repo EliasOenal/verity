@@ -5,10 +5,10 @@ import { Peer } from "../../core/peering/peer";
 import { PeerDB } from '../../core/peering/peerDB';
 import { logger } from "../../core/logger";
 
-import { OnlineView } from "../view/onlineView";
-import { PeerView } from "../view/peerView"
-import { ControllerContext, VerityController } from "./verityController";
-import { NavigationController } from "./navigationController";
+import { OnlineView } from "./onlineView";
+import { PeerView } from "./peerView"
+import { ControllerContext, VerityController } from "../verityController";
+import { NavigationController } from "../navigation/navigationController";
 
 export const enum ShallDisplay {
   Connected = 1,

@@ -2,7 +2,6 @@ import { VerityError } from "../../../settings";
 import { NetworkManager, NetworkManagerOptions } from "../../networkManager";
 import { NetworkTransport } from "../networkTransport";
 import { WebSocketServer } from "./webSocketServer";
-import { logger } from "core/logger";
 
 import { isNode } from "browser-or-node";
 

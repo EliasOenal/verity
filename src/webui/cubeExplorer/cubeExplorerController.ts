@@ -4,9 +4,9 @@ import type { CubeField } from "../../core/cube/cubeField";
 import type { CubeStore } from "../../core/cube/cubeStore";
 import { logger } from "../../core/logger";
 import { getElementAboveByClassName } from "../helpers";
-import { CubeExplorerView } from "../view/cubeExplorerView";
-import { NavigationController } from "./navigationController";
-import { ControllerContext, VerityController } from "./verityController";
+import { CubeExplorerView } from "./cubeExplorerView";
+import { NavigationController } from "../navigation/navigationController";
+import { ControllerContext, VerityController } from "../verityController";
 
 export class CubeExplorerController extends VerityController {
   constructor(

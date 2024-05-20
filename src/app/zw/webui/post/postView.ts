@@ -1,7 +1,11 @@
 import { ZwConfig } from "../../model/zwConfig";
 import { logger } from "../../../../core/logger";
-import { PostData } from "../controller/postController";
-import { VerityView } from "../../../../webui/view/verityView";
+import { PostData } from "./postController";
+import { VerityView } from "../../../../webui/verityView";
+
+import { loadTemplate } from "../../../../webui/helpers";
+import * as template from './postTemplate.html';
+loadTemplate(template);
 
 export class PostView extends VerityView {
   private postList: HTMLUListElement;

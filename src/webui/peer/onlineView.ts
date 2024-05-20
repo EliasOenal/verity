@@ -1,4 +1,4 @@
-import { VerityView } from "./verityView";
+import { VerityView } from "../verityView";
 
 export class OnlineView extends VerityView {
   constructor(

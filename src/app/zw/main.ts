@@ -1,4 +1,4 @@
-import { PostController } from "./webui/controller/postController";
+import { PostController } from "./webui/post/postController";
 import { VerityUI } from "../../webui/verityUI";
 import { isBrowser } from "browser-or-node";
 import { logger } from "../../core/logger";
