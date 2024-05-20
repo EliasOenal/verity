@@ -1,5 +1,6 @@
 import { MediaTypes, cciField, cciFieldType } from "../../cci/cube/cciField";
 import { cciFields } from "../../cci/cube/cciFields";
+import { cciRelationship, cciRelationshipType } from "../../cci/cube/cciRelationship";
 import { Cube } from "../../core/cube/cube";
 import { CubeType } from "../../core/cube/cubeDefinitions";
 import { CubeField } from "../../core/cube/cubeField";
@@ -116,7 +117,7 @@ export class CubeExplorerView extends VerityView {
         .innerText = field.length.toString();
       // TODO: parse known field contents instead of just dumping their value
       // find best encoding for content -- TODO: when decoding PAYLOAD, should respect MEDIA_TYPE field if any
-      this.setDecodedFieldContent(field, this.findBestEncoding(field.value), detailsTable);
+      this.setDecodedFieldContent(field, detailsTable);
       fieldDetailsConstainer.appendChild(detailsTable);
     }
 
@@ -132,10 +133,58 @@ export class CubeExplorerView extends VerityView {
     } else {
        return EncodingIndex.hex;
     }
-
   }
 
-  setDecodedFieldContent(field: CubeField, encodingIndex: EncodingIndex, detailsTable: HTMLTableElement): void {
+  setDecodedFieldContent(field: CubeField, detailsTable: HTMLTableElement): void {
+    // can we decode this field type semantically?
+    if (field.type === cciFieldType.RELATES_TO) {
+      this.setRelFieldContent(field, detailsTable);
+    } else {
+      // no semantic decoding available, offer basic string and hex decoding instead
+      this.setRawFieldContent(field, detailsTable);
+    }
+  }
+
+  private setRelFieldContent(
+      field: CubeField,
+      detailsTable: HTMLTableElement
+  ): void {
+    const rel: cciRelationship = cciRelationship.fromField(field);
+    // do we know the name of this relationship type?
+    let relTypeString: string;
+    if (rel.type in cciRelationshipType) {
+      relTypeString = `${cciRelationshipType[rel.type]} (code ${rel.type} / ${rel.type.toString(16)})`
+    } else relTypeString = rel.type.toString();
+    // prepare view: Relationship type row
+    const typeRow: HTMLTableRowElement = document.createElement('tr');
+    const typeHeader: HTMLTableCellElement = document.createElement('th');
+    typeHeader.textContent = "Relationship type";
+    typeRow.appendChild(typeHeader);
+    const typeData: HTMLTableCellElement = document.createElement('td');
+    typeData.textContent = relTypeString;
+    typeRow.appendChild(typeData);
+    // prepare view: Remote Cube
+    const remoteRow: HTMLTableRowElement = document.createElement('tr');
+    const remoteHeader: HTMLTableCellElement = document.createElement('th');
+    remoteHeader.textContent = "Remote Cube";
+    const remoteData: HTMLTableCellElement = document.createElement('td');
+    remoteData.textContent = rel.remoteKeyString;
+    remoteRow.appendChild(remoteHeader);
+    remoteRow.appendChild(remoteData);
+    // replace generic content row with relationship type and target rows
+    const contentRow: HTMLTableRowElement =
+      detailsTable.querySelector(".veritySchematicFieldContentRow");
+    contentRow?.remove();
+    const tBody: HTMLTableSectionElement = detailsTable.querySelector("tbody");
+    tBody.appendChild(typeRow);
+    tBody.appendChild(remoteRow);
+  }
+
+  setRawFieldContent(
+      field: CubeField,
+      detailsTable: HTMLTableElement,
+      encodingIndex: EncodingIndex = this.findBestEncoding(field.value),
+  ): void {
     let content: string;
     if (encodingIndex == EncodingIndex.utf8) content = field.value.toString("utf8");
     else if (encodingIndex == EncodingIndex.utf16) content = field.value.toString("utf16le");

@@ -52,7 +52,7 @@ export class cciRelationship {
 
   static fromField(field: cciField): cciRelationship {
       const relationship = new cciRelationship;
-      if (field.type != cciFieldType.RELATES_TO) {
+      if (field.type !== cciFieldType.RELATES_TO) {
           throw (new WrongFieldType(
               "Can only construct relationship object from RELATES_TO field, " +
               "got " + field.type + "."));
