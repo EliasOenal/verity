@@ -6,8 +6,7 @@ import { BinaryDataError, BinaryLengthError, CubeError, CubeKey, CubeSignatureEr
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField, CubeFieldType } from "./cubeField";
-import { CubeFields, coreFieldParsers, coreTlvFieldParsers } from './cubeFields';
-import { CubeFamilyDefinition } from "./cubeFamily";
+import { CubeFamilyDefinition, CubeFields, coreFieldParsers, coreTlvFieldParsers, rawFieldParsers } from './cubeFields';
 
 import { FieldParser } from "../fields/fieldParser";
 
@@ -495,8 +494,11 @@ export const coreCubeFamily: CubeFamilyDefinition = {
     cubeClass: Cube,
     parsers: coreFieldParsers,
 }
-
 export const coreTlvCubeFamily: CubeFamilyDefinition = {  // for testing only
     cubeClass: Cube,
     parsers: coreTlvFieldParsers,
+}
+export const rawCubeFamily: CubeFamilyDefinition = {  // for testing only
+    cubeClass: Cube,
+    parsers: rawFieldParsers,
 }

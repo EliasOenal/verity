@@ -4,7 +4,7 @@ import { Cube, coreCubeFamily } from './cube';
 import { CubeInfo, CubeMeta } from './cubeInfo'
 import { CubePersistence, CubePersistenceOptions } from "./cubePersistence";
 import { CubeType, CubeKey, InsufficientDifficulty } from './cubeDefinitions';
-import { CubeFamilyDefinition } from './cubeFamily';
+import { CubeFamilyDefinition } from './cubeFields';
 import { cubeContest, shouldRetainCube, getCurrentEpoch, keyVariants } from './cubeUtil';
 import { TreeOfWisdom } from '../tow';
 import { logger } from '../logger';

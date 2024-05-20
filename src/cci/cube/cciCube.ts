@@ -2,9 +2,9 @@ import { Settings, VerityError } from "../../core/settings";
 import { cciField } from "./cciField";
 import { cciFields, cciFieldParsers } from "./cciFields";
 import { CubeError, CubeType, FieldError } from "../../core/cube/cubeDefinitions";
-import { CubeFamilyDefinition } from "../../core/cube/cubeFamily";
 
 import { Cube, CubeOptions } from "../../core/cube/cube";
+import { CubeFamilyDefinition } from "../../core/cube/cubeFields";
 
 import sodium, { KeyPair, crypto_kdf_KEYBYTES } from 'libsodium-wrappers-sumo'
 
