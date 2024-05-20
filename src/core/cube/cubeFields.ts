@@ -122,11 +122,37 @@ export class CubeFields extends BaseFields {
   }
 }
 
-// NOTE: Never move this to another file. This only works if it is defined
+/**
+ * A CubeFamily describes our local interpretation of a Cube, based on the way
+ * how we parse it. Contrary to a CubeType, which is a real thing and exists
+ * while a Cube is in transit through the network, CubeFamily is an implementation
+ * detail; you could argue that it's not real.
+ * There are currently two main CubeFamily definitions, coreCubeFamily and
+ * cciFamily. cciFamily describes Cubes parsed according to CCI rules and is,
+ * obviously, relevant to CCI-compliant application.
+ * coreCubeFamily describes Cubes for which we do not parse any TLV fields;
+ * this is only relevant to server-only nodes which only store and forward
+ * Cubes but are not interested at all in their payload.
+ **/
+export interface CubeFamilyDefinition {
+  cubeClass: typeof Cube,
+  parsers: FieldParserTable,
+}
+export interface FieldParserTable {  // this implements a lookup table
+  [n: number]: FieldParser;
+}
+
+// Introducing the Core Cube family, describing Cubes parsed only for their
+// positional fields, discarding all TLV information.
+// This is how forwarding-only, "server" nodes parse Cubes as they just
+// don't care about their contents.
+
+// NOTE: Never move any this to another file. This only works if it is defined
 // strictly after CubeField. If you move it somewhere else, it's basically
 // random whether it works or you get random undefined values in code
 // coming from some files (but not others).
 // Javascript is crazy.
+
 export const coreFrozenFieldDefinition: FieldDefinition = {
   fieldNames: CubeFieldType,
   fieldLengths: CubeFieldLength,
@@ -166,36 +192,60 @@ coreFrozenParser.decompileTlv = false;  // core-only nodes ignore TLV
 export const coreMucParser: FieldParser = new FieldParser(coreMucFieldDefinition);
 coreMucParser.decompileTlv = false;  // core-only nodes ignore TLV
 
-export interface FieldParserTable {  // this implements a lookup table
-  [n: number]: FieldParser;
-}
-
 export const coreFieldParsers: FieldParserTable = {
   [CubeType.FROZEN]: coreFrozenParser,
   [CubeType.MUC]: coreMucParser,
 }
+// coreCubeFamily itself defined in cube.ts as, again, Javascript is annoying
 
-// a set of TLV-enabled parsers -- for testing only, please use CCI instead
+// Core TLV Cube family -- for testing only, please use CCI instead
 export const coreTlvFrozenParser: FieldParser = new FieldParser(coreFrozenFieldDefinition);
 export const coreTlvMucParser: FieldParser = new FieldParser(coreMucFieldDefinition);
 export const coreTlvFieldParsers: FieldParserTable = {
   [CubeType.FROZEN]: coreTlvFrozenParser,
   [CubeType.MUC]: coreTlvMucParser,
 }
+// coreTlvCubeFamily itself defined in cube.ts as, again, Javascript is annoying
 
-/**
- * A CubeFamily describes our local interpretation of a Cube, based on the way
- * how we parse it. Contrary to a CubeType, which is a real thing and exists
- * while a Cube is in transit through the network, CubeFamily is an implementation
- * detail; you could argue that it's not real.
- * There are currently two main CubeFamily definitions, coreCubeFamily and
- * cciFamily. cciFamily describes Cubes parsed according to CCI rules and is,
- * obviously, relevant to CCI-compliant application.
- * coreCubeFamily describes Cubes for which we do not parse any TLV fields;
- * this is only relevant to server-only nodes which only store and forward
- * Cubes but are not interested at all in their payload.
- **/
-export interface CubeFamilyDefinition {
-  cubeClass: typeof Cube,
-  parsers: FieldParserTable,
+// Core raw Cube family -- describing Cubes parsed for their positional fields
+// and exposing all TLV data, including any potential padding, as a single
+// PAYLOAD blob.
+export const rawFrozenPositional: PositionalFields = {
+  1: CubeFieldType.TYPE,
+  2: CubeFieldType.RAWFROZEN,
+  3: CubeFieldType.NONCE,
+  4: CubeFieldType.DATE,
+};
+export const rawMucPositional: PositionalFields = {
+  1: CubeFieldType.TYPE,
+  2: CubeFieldType.RAWMUC,
+  3: CubeFieldType.PUBLIC_KEY,
+  4: CubeFieldType.DATE,
+  5: CubeFieldType.SIGNATURE,
+  6: CubeFieldType.NONCE,
+};
+export const rawFrozenFieldDefinition: FieldDefinition = {
+  fieldNames: CubeFieldType,
+  fieldLengths: CubeFieldLength,
+  positionalFront: rawFrozenPositional,
+  positionalBack: {},
+  fieldObjectClass: CubeField,
+  fieldsObjectClass: CubeFields,
+  firstFieldOffset: 0,
 }
+export const rawMucFieldDefinition: FieldDefinition = {
+  fieldNames: CubeFieldType,
+  fieldLengths: CubeFieldLength,
+  positionalFront: rawMucPositional,
+  positionalBack: {},
+  fieldObjectClass: CubeField,
+  fieldsObjectClass: CubeFields,
+  firstFieldOffset: 0,
+}
+export const rawFrozenParser: FieldParser = new FieldParser(rawFrozenFieldDefinition);
+export const rawMucParser: FieldParser = new FieldParser(rawMucFieldDefinition);
+export const rawFieldParsers: FieldParserTable = {
+  [CubeType.FROZEN]: rawFrozenParser,
+  [CubeType.MUC]: rawMucParser,
+}
+// rawCubeFamily itself defined in cube.ts as, again, Javascript is annoying

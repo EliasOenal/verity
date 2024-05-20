@@ -1,5 +1,5 @@
 import { cciFamily } from "../../cci/cube/cciCube";
-import type { Cube } from "../../core/cube/cube";
+import { rawCubeFamily, type Cube } from "../../core/cube/cube";
 import type { CubeField } from "../../core/cube/cubeField";
 import type { CubeStore } from "../../core/cube/cubeStore";
 import { logger } from "../../core/logger";
@@ -7,6 +7,7 @@ import { getElementAboveByClassName } from "../helpers";
 import { CubeExplorerView } from "./cubeExplorerView";
 import { NavigationController } from "../navigation/navigationController";
 import { ControllerContext, VerityController } from "../verityController";
+import type { CubeKey } from "../../core/cube/cubeDefinitions";
 
 export class CubeExplorerController extends VerityController {
   constructor(
@@ -67,10 +68,10 @@ export class CubeExplorerController extends VerityController {
         continue;  // skip non-matching
       }
       // fetch Cube
-      const cube: Cube = await this.cubeStore.getCube(key);  // TODO: Add option to parse as something other than this CubeStore's default family
-      if (!cube) {
+      const cube: Cube = await this.getCube(key);
+      if (cube === undefined) {  // unparseable, giving up
         unparsable++;
-        continue;  // TODO error handling -- try to parse as raw
+        continue;
       }
       // apply further filters
       if (cube.getDate() < dateFrom || cube.getDate() > dateTo ||
@@ -106,7 +107,7 @@ export class CubeExplorerController extends VerityController {
       logger.warn("CubeExplorerController.changeEncoding(): Could not find my elems and attrs, did you mess with my DOM elements?!");
       return;
     }
-    const cube: Cube = await this.cubeStore.getCube(cubeKeyString);
+    let cube: Cube = await this.getCube(cubeKeyString);
     if (!cube) {
       logger.warn("CubeExplorerController.changeEncoding(): could not find Cube " + cubeKeyString);
       return;
@@ -119,5 +120,19 @@ export class CubeExplorerController extends VerityController {
 
     }
     this.contentAreaView.setDecodedFieldContent(field, select.selectedIndex, detailsTable);
+  }
+
+  //***
+  // Data conversion methods
+  //***
+
+  // TODO: try to parse as different families before resorting to raw
+  // if more CubeFamily definitions are available
+  async getCube(key: CubeKey | string): Promise<Cube> {
+    let cube: Cube = await this.cubeStore.getCube(key);  // TODO: Add option to parse as something other than this CubeStore's default family
+    if (cube === undefined) {  // unparseable, retry as raw
+      cube = await this.cubeStore.getCube(key, rawCubeFamily);
+    }
+    return cube;
   }
 }

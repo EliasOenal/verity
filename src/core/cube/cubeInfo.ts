@@ -1,7 +1,7 @@
 import { logger } from '../logger';
 import { Cube, coreCubeFamily } from './cube'
 import { CubeType, CubeKey, CubeError } from './cubeDefinitions';
-import { CubeFamilyDefinition } from './cubeFamily';
+import { CubeFamilyDefinition } from './cubeFields';
 
 import { Buffer } from 'buffer';
 import { keyVariants } from './cubeUtil';

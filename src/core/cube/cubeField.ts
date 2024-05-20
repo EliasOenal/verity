@@ -7,6 +7,7 @@ import { FieldNumericalParam } from '../fields/fieldParser';
 import { CubeType, FieldError } from './cubeDefinitions';
 
 import { Buffer } from 'buffer';
+import { coreFrozenParser } from './cubeFields';
 
 /**
  * Core field definitions.
@@ -33,8 +34,8 @@ export enum CubeFieldType {
   PAYLOAD = 0x10 << 2,  // 64
   PADDING = 0x1F << 2,  // 124
 
-  // HACKHACK: CCI field types currently included here as Typescript lacks
-  // a proper way to extend enums.
+  RAWFROZEN = 3001,  // only used for alternate family parsing
+  RAWMUC = 3002,  // only used for alternate family parsing
 }
 
 export const CubeFieldLength: FieldNumericalParam = {
@@ -48,6 +49,8 @@ export const CubeFieldLength: FieldNumericalParam = {
   [CubeFieldType.PAYLOAD]: undefined,
   [CubeFieldType.PADDING]: undefined,
   [CubeFieldType.CCI_END]: 0,
+  [CubeFieldType.RAWFROZEN]: NetConstants.CUBE_SIZE - NetConstants.CUBE_TYPE_SIZE - NetConstants.TIMESTAMP_SIZE - Settings.NONCE_SIZE,
+  [CubeFieldType.RAWMUC]: NetConstants.CUBE_SIZE - NetConstants.CUBE_TYPE_SIZE - NetConstants.PUBLIC_KEY_SIZE - NetConstants.TIMESTAMP_SIZE - NetConstants.SIGNATURE_SIZE - Settings.NONCE_SIZE,
 };
 
 export class CubeField extends BaseField {
