@@ -350,7 +350,7 @@
   <!-- CubeExplorer related templates -->
   <template id="verityCubeExplorerTemplate">
     <div class="verityCubeExplorer">
-      <h2 class="mt-3 mt-sm-5 mb-3">CCI Cube explorer</h2>
+      <h2 class="mt-3 mt-sm-5 mb-3">Cube explorer</h2>
       <form class="my-4 form-floating" action="javascript:void(0);"
             onsubmit="window.verity.currentController.redisplay();">
         <div class="input-group">
@@ -358,9 +358,39 @@
             Cube Key
           </span>
           <input class="form-control form-control-sm verityCubeKeyFilter"
-                 type="text" id="verityCubeKeyFilter" aria-label="Cube Key"
-                 aria-describedby="verityCubeKeyFilterDesc" />
+                 type="text" aria-describedby="verityCubeKeyFilterDesc" />
+        </div>
+        <div class="input-group">
+          <span class="input-group-text" id="verityCubeDateFilterFromDesc">
+            Sculpt date from
+          </span>
+          <input class="form-control form-control-sm verityCubeDateFrom"
+                 type="datetime-local"
+                 aria-describedby="verityCubeDateFilterFromDesc" />
+          <span class="input-group-text" id="verityCubeDateFilterToDesc">
+            to
+          </span>
+          <input class="form-control form-control-sm verityCubeDateTo"
+                 type="datetime-local"
+                 aria-describedby="verityCubeDateFilterToDesc" />
+          <button class="btn btn-sm btn-secondary" type="button"
+                  onclick='clearParent(this)'>
+            Reset
+          </button>
+        </div>
+        <div class="input-group">
+          <span class="input-group-text" id="verityCubeContentFilterDesc">
+            Containing UTF-8
+          </span>
+          <input class="form-control form-control-sm verityCubeContentFilter"
+                 type="text" aria-describedby="verityCubeContentFilterDesc" />
+        </div>
+        <div class="my-1">
           <button class="btn btn-primary" type="submit">Filter</button>
+          <button class="btn btn-secondary" type="button"
+                  onclick="clearParent(this, 2); window.verity.currentController.redisplay();">
+            Reset
+          </button>
         </div>
       </form>
       <table class="table verityCubeStats">
@@ -378,7 +408,7 @@
         </tr>
         <tr class="table-light">
           <th>= Cubes displayed</th>
-          <td class="verityCubeStoreStatCubesDisplayed">1337</td>
+          <td class="verityCubeStoreStatCubesDisplayed">31337</td>
         </tr>
       </table>
 
@@ -400,19 +430,19 @@
               <table class="table verityCubeInfo">
                 <tr>
                   <th>Cube type</th>
-                  <td class="verityCubeType">Frozen</td>
+                  <td class="verityCubeType">Example type</td>
                 </tr>
                 <tr>
                   <th>Hash</th>
-                  <td class="verityCubeHash">44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000</td>
+                  <td class="verityCubeHash">1337133713371337133713371337133713371337133713371337133713371337</td>
                 </tr>
                 <tr>
                   <th>Date</th>
-                  <td class="verityCubeDate">Tuesday, February 6, 2024 1:01:04 PM</td>
+                  <td class="verityCubeDate">Exampleday, February 32, 1629 5:67:74 PM</td>
                 </tr>
                 <tr>
                   <th>Difficulty</th>
-                  <td class="verityCubeDifficulty">42</td>
+                  <td class="verityCubeDifficulty">Over 9000</td>
                 </tr>
               </table>
               <!-- Schematic Cube view-->

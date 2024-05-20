@@ -41,20 +41,45 @@ export class CubeExplorerController extends VerityController {
   // TODO sorting (e.g. by date)
   // TODO support non CCI cubes (including invalid / partial CCI cubes)
   async redisplay(): Promise<void> {
-    const search: string = (this.contentAreaView.renderedView.querySelector(
+    // read and parse search filters:
+    // Cube Key
+    const keySearch: string = (this.contentAreaView.renderedView.querySelector(
       ".verityCubeKeyFilter") as HTMLInputElement)?.value;
+    // Sculpt date
+    const dateFromInput: string = (this.contentAreaView.renderedView.querySelector(
+      ".verityCubeDateFrom") as HTMLInputElement)?.value;
+    let dateFrom: number = (new Date(dateFromInput)).getTime() / 1000;
+    if (Number.isNaN(dateFrom)) dateFrom = Number.MIN_SAFE_INTEGER;
+    const dateToInput: string = (this.contentAreaView.renderedView.querySelector(
+      ".verityCubeDateTo") as HTMLInputElement)?.value;
+    let dateTo: number = (new Date(dateToInput)).getTime() / 1000;
+    if (Number.isNaN(dateTo)) dateTo = Number.MAX_SAFE_INTEGER;
+    // String content
+    const contentSearch: string = (this.contentAreaView.renderedView.querySelector(
+      ".verityCubeContentFilter") as HTMLInputElement)?.value;
 
     this.contentAreaView.clearAll();
     let displayed = 0, unparsable = 0, filtered = 0;
     for await (const key of this.cubeStore.getAllKeys(true)) {
-      if (search && !key.includes(search)) {
+      // Apply key filter before even activating this Cube
+      if (keySearch && !key.includes(keySearch)) {
         filtered++;
         continue;  // skip non-matching
       }
-      const cube: Cube = await this.cubeStore.getCube(key);  // try to parse as CCI, but probably okay if it's not
+      // fetch Cube
+      const cube: Cube = await this.cubeStore.getCube(key);  // TODO: Add option to parse as something other than this CubeStore's default family
       if (!cube) {
         unparsable++;
-        continue;  // TODO error handling
+        continue;  // TODO error handling -- try to parse as raw
+      }
+      // apply further filters
+      if (cube.getDate() < dateFrom || cube.getDate() > dateTo ||
+          contentSearch.length>0 &&  // raw content filter
+            !cube.getBinaryDataIfAvailable().toString('utf-8').includes(
+              contentSearch)
+      ){
+        filtered++;
+        continue;
       }
       displayed++;
       this.contentAreaView.displayCube(key as string, cube);
