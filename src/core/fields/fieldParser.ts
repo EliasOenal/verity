@@ -11,17 +11,63 @@ export type EnumType =  { [key: number|string]: number|string|undefined };
 export type FieldNumericalParam = { [key: number]: number | undefined };
 export type PositionalFields = { [key: number]: number };
 
+/**
+ * @member fieldNames - An enum mapping field codes to field names and vice-versa.
+ *         Note that all fields must be contained in this enum, even positional
+ *         fields (for which a virtual field code must be assigned).
+ * @member fieldLengths - An object mapping field codes to field lengths.
+ *         Note that all fields defined under fieldNames must be present in this
+ *         mapping. Variable length fields must be explicitly mapped to undefined.
+ * @member fieldObjectClass - The class used to represent an individual field.
+ *         Should be a subclass of BaseField. When decompiling binary data,
+ *         FieldParser will instantiate one object of this class per field.
+ * @member fieldsObjectClass - The class used to represent a collection of fields.
+ *         Should be a subclass of BaseFields. When decompiling binary data,
+ *         FieldParser will instantiate one object of this class which will
+ *         contain a reference to every parsed field.
+ * @member positionalFront - If the data to be parsed contains positional fields,
+ *         i.e. fields without any header, at the start of the data blob,
+ *         provide a mapper object describing them here. This object should map
+ *         the running number of the field, counted from the front and starting
+ *         at 1, to it's virtual field code.
+ * @member positionalBack - If the data to be parsed contains positional fields,
+ *         i.e. fields without any header, at the end of the data blob,
+ *         provide a mapper object describing them here. This object should map
+ *         the running number of the field, counted from the back and starting
+ *         at 1, to it's virtual field code.
+ * @member firstFieldOffset - If there's any data at the front of your binary
+ *         blobs which FieldParser should just ignore, specify the length in bytes.
+ * @member stopField - A field code signalling to FieldParser that parsing
+ *         should be stopped after processing this field. If the stop field is
+ *         a regular content-bearing field, it's contents will still be parsed.
+ *         Back positionals will still be parsed regardless and are never
+ *         affected by stop fields.
+ *         This option only affects decompiling, not compiling.
+ * @member remainderField - Only to be used in conjunction with stopField.
+ *         If a remainder field code is specified, FieldParser will create a
+ *         virtual field of this code after the stop field containing all
+ *         remaining binary data in the blob.
+ *         This option only affects decompiling, not compiling.
+ */
 export interface FieldDefinition {
   fieldNames: EnumType;
-  fieldLengths: FieldNumericalParam;  // maps field IDs to field lenghths, e.g. FIELD_LENGTHS defined in field.ts
-  fieldObjectClass: any,     // the Field class you'd like to use, e.g. CubeField for core-only processing. Using type any as it turns out to be much to complex to declare a type of "class".
-  fieldsObjectClass: any,    // the Fields class you'd like to use, e.g. CubeFields for core-only-processing. Using type any as it turns out to be much to complex to declare a type of "class".
-  positionalFront: FieldNumericalParam;
-  positionalBack: FieldNumericalParam;
-  firstFieldOffset: number;
+  fieldLengths: FieldNumericalParam;
+  fieldObjectClass: any,     // using type any as it turns out to be much to complex to declare a type of "class"
+  fieldsObjectClass: any,    // using type any as it turns out to be much to complex to declare a type of "class"
+  positionalFront?: FieldNumericalParam;
+  positionalBack?: FieldNumericalParam;
+  firstFieldOffset?: number;
+  stopField?: number,
+  remainderField?: number,
 }
 
 export class FieldParser {
+  static normalizeFieldDefinition(fieldDef: FieldDefinition) {
+    if (fieldDef.positionalFront === undefined) fieldDef.positionalFront = {};
+    if (fieldDef.positionalBack === undefined) fieldDef.positionalBack = {};
+    if (fieldDef.firstFieldOffset === undefined) fieldDef.firstFieldOffset = 0;
+  }
+
   static validateFieldDefinition(fieldDef: FieldDefinition) {
     // Ensure all defined fields have a specified length or are explicitly
     // declared variable by setting their length to undefined
@@ -48,8 +94,9 @@ export class FieldParser {
   decompileTlv: boolean = true;
 
   constructor(readonly fieldDef: FieldDefinition) {
+    FieldParser.normalizeFieldDefinition(this.fieldDef);
     if (Settings.RUNTIME_ASSERTIONS) {
-      FieldParser.validateFieldDefinition(fieldDef);
+      FieldParser.validateFieldDefinition(this.fieldDef);
     }
   }
 
@@ -79,11 +126,14 @@ export class FieldParser {
     if (binaryData === undefined)
       throw new BinaryDataError("Binary data not initialized");
     const fields: BaseField[] = [];
+
+    // First, stip off and parse any back positional fields. We'll add them
+    // back in in the end.
     const {backPositionals, dataLength} = this.decompileBackPositionalFields(binaryData);
 
-    // Respect initial offset (currently unused)
+    // Prepare for parsing: Respect initial offset, if any
     let byteIndex = this.fieldDef.firstFieldOffset;
-    // Keeps track of the running order. Needed to handle positional fields.
+    // Keep track of the running order (needed to handle positional fields)
     let fieldIndex = 0;
 
     // traverse binary data and parse fields:
@@ -94,6 +144,16 @@ export class FieldParser {
       if (decompiled === undefined) break;  // undefined signals that we're done decompiling
       fields.push(decompiled.field);
       byteIndex = decompiled.byteIndex;
+      // if this was a stop field, stop processing
+      if (decompiled.field.type === this.fieldDef.stopField) {
+        // create a remainder field if requested
+        if (this.fieldDef.remainderField !== undefined) {
+          const remainder: BaseField =
+            this.virtualRemainderField(binaryData, byteIndex);
+          fields.push(remainder);
+        }
+        break;
+      }
     }
     const fieldArray: BaseField[] = fields.concat(backPositionals);
     const fieldsObj: BaseFields = new this.fieldDef.fieldsObjectClass(fieldArray, this.fieldDef);
@@ -164,6 +224,13 @@ export class FieldParser {
     }
   }
 
+  private virtualRemainderField(binaryData: Buffer, byteIndex: number): BaseField {
+    const value = binaryData.subarray(byteIndex, binaryData.length);
+    const field: BaseField = new this.fieldDef.fieldObjectClass(
+      this.fieldDef.remainderField, value, byteIndex);
+    return field;
+  }
+
   private decompileBackPositionalFields(binaryData: Buffer): { backPositionals: BaseField[]; dataLength: number; } {
     const backPositionals: BaseField[] = [];
     let dataLength: number = binaryData.length;
@@ -195,7 +262,7 @@ export class FieldParser {
     let byteIndex = this.fieldDef.firstFieldOffset; // Respect initial offset. Currently unused.
     for (let fieldIndex: number = 1; fieldIndex <= fields.length; fieldIndex++) {
       const field: BaseField = fields[fieldIndex-1];
-      // First, handle the field header:
+      // First, handle the field header. If it's positional, it has no header.
       if (this.isPositionalField(fields, fieldIndex)) {
         // assert the user has supplied the correct field
         if (field.type !== this.positionalFieldType(fields.length, fieldIndex)) {

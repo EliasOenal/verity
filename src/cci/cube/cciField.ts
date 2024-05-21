@@ -41,6 +41,9 @@ enum cciAdditionalFieldType {
   MEDIA_TYPE = 0x15 << 2,    // 84
   AVATAR = 0x16 << 2,        // 88
   // PADDING = 0x1F << 2,    // 124 -- currently defined on core layer
+
+  REMAINDER = 40001,         // virtual field only used on decompiling Cubes
+                             // to represent data after CCI_END
 }
 export const cciFieldType = {...CubeFieldType, ...cciAdditionalFieldType} as const;
 
@@ -54,6 +57,7 @@ export const cciAdditionalFieldLength: FieldNumericalParam = {
   [cciFieldType.MEDIA_TYPE]: 1,
   [cciFieldType.RELATES_TO]: NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE,
   [cciFieldType.USERNAME]: undefined,
+  [cciFieldType.REMAINDER]: undefined,
 }
 export const cciFieldLength = {...CubeFieldLength, ...cciAdditionalFieldLength};
 
