@@ -67,7 +67,8 @@ export const cciFrozenFieldDefinition: FieldDefinition = {
   positionalBack: frozenPositionalBack,
   fieldObjectClass: cciField,
   fieldsObjectClass: cciFields,
-  firstFieldOffset: 0,
+  stopField: cciFieldType.CCI_END,
+  remainderField: cciFieldType.REMAINDER,
 }
 export const cciMucFieldDefinition: FieldDefinition = {
   fieldNames: cciFieldType,
@@ -76,7 +77,8 @@ export const cciMucFieldDefinition: FieldDefinition = {
   positionalBack: mucPositionalBack,
   fieldObjectClass: cciField,
   fieldsObjectClass: cciFields,
-  firstFieldOffset: 0,
+  stopField: cciFieldType.CCI_END,
+  remainderField: cciFieldType.REMAINDER,
 }
 export const cciFrozenParser: FieldParser = new FieldParser(cciFrozenFieldDefinition);
 export const cciMucParser: FieldParser = new FieldParser(cciMucFieldDefinition);

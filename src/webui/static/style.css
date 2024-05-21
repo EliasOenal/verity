@@ -360,7 +360,7 @@ table.veritySchematicCube {
   text-wrap: nowrap;
 }
 /* td.verityEllipsisedKey {
-  max-width: 0;
+  max-width: 0;  -- this was meant to make ellipsising work in table columns, but it breaks the layout :(
 } */
 .veritySchematicFieldDetails td {
   overflow: hidden;
