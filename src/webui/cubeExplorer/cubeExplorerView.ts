@@ -6,7 +6,7 @@ import { CubeType } from "../../core/cube/cubeDefinitions";
 import { CubeField } from "../../core/cube/cubeField";
 import { isPrintable } from "../../core/helpers/misc";
 import { VerityView } from "../verityView";
-import { CubeExplorerController, CubeFilter } from "./cubeExplorerController";
+import { CubeExplorerController, CubeFilter, EncodingIndex } from "./cubeExplorerController";
 
 const cubeEmoji: Map<CubeType, string> = new Map([
   [CubeType.FROZEN, String.fromCodePoint(0x1F9CA)],  // 🧊
@@ -16,13 +16,6 @@ const cubeTypeString: Map<CubeType, string> = new Map([
   [CubeType.FROZEN, "Frozen (basic) Cube"],
   [CubeType.MUC, "Mutable User Cube"],
 ]);
-
-enum EncodingIndex {
-  // always make sure these match the select option order in index.html
-  utf8 = 0,
-  utf16 = 1,
-  hex = 2,
-}
 
 export class CubeExplorerView extends VerityView {
   private cubeList: HTMLUListElement;
@@ -38,17 +31,20 @@ export class CubeExplorerView extends VerityView {
     this.clearAll();
   }
 
+  //***
+  // View assembly methods
+  //***
+
   clearAll(): void {
+    this.displayStats(0, 0, 0);
     this.cubeList.replaceChildren();
   }
 
-  displayStats(total: number, displayed: number, unparsable: number, filtered: number): void {
+  displayStats(total: number, displayed: number, filtered: number): void {
     (this.renderedView.querySelector(".verityCubeStoreStatTotalCubes") as HTMLElement)
       .innerText = total.toString();
     (this.renderedView.querySelector(".verityCubeStoreStatCubesDisplayed") as HTMLElement)
       .innerText = displayed.toString();
-    (this.renderedView.querySelector(".verityCubeStoreStatCubesUnparsable") as HTMLElement)
-      .innerText = unparsable.toString();
     (this.renderedView.querySelector(".verityCubeStoreStatCubesFiltered") as HTMLElement)
       .innerText = filtered.toString();
   }
@@ -135,16 +131,6 @@ export class CubeExplorerView extends VerityView {
     this.cubeList.appendChild(li);
   }
 
-  findBestEncoding(val: Buffer): EncodingIndex {
-    if (isPrintable(val.toString("utf8"))) {
-      return EncodingIndex.utf8;
-    } else if (isPrintable(val.toString("utf16le"))) {
-      return EncodingIndex.utf16;
-    } else {
-       return EncodingIndex.hex;
-    }
-  }
-
   setDecodedFieldContent(field: CubeField, detailsTable: HTMLTableElement): void {
     // can we decode this field type semantically?
     if (field.type === cciFieldType.RELATES_TO) {
@@ -200,7 +186,6 @@ export class CubeExplorerView extends VerityView {
       detailsTable: HTMLTableElement,
       encodingIndex: EncodingIndex = this.findBestEncoding(field.value),
   ): void {
-    let content: string;
     if (field.value.length === 0) {
       // no content, nothing to display
       const contentRow: HTMLTableRowElement =
@@ -208,41 +193,17 @@ export class CubeExplorerView extends VerityView {
       contentRow?.remove();
       return;
     }
-    if (encodingIndex == EncodingIndex.utf8) content = field.value.toString("utf8");
-    else if (encodingIndex == EncodingIndex.utf16) content = field.value.toString("utf16le");
-    else content = field.value.toString("hex");
+    const content: string = field.value.toString(  // use specified encoding or default to hex
+      EncodingIndex[encodingIndex] as BufferEncoding ?? 'hex');
     (detailsTable.querySelector(".veritySchematicFieldContent") as HTMLElement)
       .innerText = content;
     (detailsTable.querySelector(".verityContentEncodingSwitch") as HTMLSelectElement)
-      .selectedIndex = encodingIndex;
+      .value = EncodingIndex[encodingIndex];
   }
 
   showBelowCubes(message: string): void {
     (this.renderedView.querySelector('.verityMessageBottom') as HTMLElement)
       .innerText = message;
-  }
-
-  fetchCubeFilter(): CubeFilter {
-    const ret: CubeFilter = {};
-    // read and parse search filters:
-    // Cube Key
-    const key: string = (this.renderedView.querySelector(
-      ".verityCubeKeyFilter") as HTMLInputElement)?.value;
-    if (key.length > 0) ret.key = key;
-    // Sculpt date
-    const dateFromInput: string = (this.renderedView.querySelector(
-      ".verityCubeDateFrom") as HTMLInputElement)?.value;
-    let dateFrom: number = (new Date(dateFromInput)).getTime() / 1000;
-    if (!Number.isNaN(dateFrom)) ret.dateFrom = dateFrom;
-    const dateToInput: string = (this.renderedView.querySelector(
-      ".verityCubeDateTo") as HTMLInputElement)?.value;
-    let dateTo: number = (new Date(dateToInput)).getTime() / 1000;
-    if (!Number.isNaN(dateTo)) ret.dateTo = dateTo;
-    // String content
-    const content: string = (this.renderedView.querySelector(
-      ".verityCubeContentFilter") as HTMLInputElement)?.value;
-    if (content.length > 0) ret.content = content;
-    return ret;
   }
 
   displayCubeFilter(filter: CubeFilter): void {
@@ -264,10 +225,63 @@ export class CubeExplorerView extends VerityView {
     contentInput.textContent = filter.content ?? "";
   }
 
+
+  //***
+  // Data conversion methods
+  //***
+
+  findBestEncoding(val: Buffer): EncodingIndex {
+    if (isPrintable(val.toString("utf8"))) {
+      return EncodingIndex.utf8;
+    } else if (isPrintable(val.toString("utf16le"))) {
+      return EncodingIndex.utf16le;
+    } else {
+       return EncodingIndex.hex;
+    }
+  }
+
   private unixtimeToDatetimeLocal(unixtime: number): string {
     if (unixtime === undefined) return "";
     var date = new Date(unixtime * 1000);
     date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
     return date.toISOString().slice(0,16);
+  }
+
+
+  //***
+  // Input retrieval methods
+  //***
+
+  fetchCubeFilter(): CubeFilter {
+    const ret: CubeFilter = {};
+    // read and parse search filters:
+    // Cube Key
+    const key: string = (this.renderedView.querySelector(
+      ".verityCubeKeyFilter") as HTMLInputElement)?.value;
+    if (key.length > 0) ret.key = key;
+    // Sculpt date
+    const dateFromInput: string = (this.renderedView.querySelector(
+      ".verityCubeDateFrom") as HTMLInputElement)?.value;
+    let dateFrom: number = (new Date(dateFromInput)).getTime() / 1000;
+    if (!Number.isNaN(dateFrom)) ret.dateFrom = dateFrom;
+    const dateToInput: string = (this.renderedView.querySelector(
+      ".verityCubeDateTo") as HTMLInputElement)?.value;
+    let dateTo: number = (new Date(dateToInput)).getTime() / 1000;
+    if (!Number.isNaN(dateTo)) ret.dateTo = dateTo;
+    // Content filter encoding
+    const encodingSelect: HTMLSelectElement =
+      this.renderedView.querySelector(".verityContentEncodingSelect");
+    ret.contentEncoding = EncodingIndex[encodingSelect.value];
+    if (ret.contentEncoding === undefined) {
+      // if somehow the DOM got corrupted and we get an encoding index which
+      // does not exist, just default to hex and reflect that back to the view
+      ret.contentEncoding = EncodingIndex.hex;
+      encodingSelect.value = 'hex';
+    }
+    // Content filter string
+    const content: string = (this.renderedView.querySelector(
+      ".verityCubeContentFilter") as HTMLInputElement)?.value;
+    if (content.length > 0) ret.content = content;
+    return ret;
   }
 }

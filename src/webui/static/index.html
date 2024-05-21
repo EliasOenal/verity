@@ -380,7 +380,16 @@
         </div>
         <div class="input-group">
           <span class="input-group-text" id="verityCubeContentFilterDesc">
-            Containing UTF-8
+            Containing
+            <select name="verityContentEncodingSelect" class="verityContentEncodingSelect ms-2">
+              <!-- Note: For now, please manually ensure the value of all options
+                   matches a supported encoding in EncodingIndex,
+                   both here and below in the content decoding select.
+              -->
+              <option value="utf8" selected>UTF-8</option>
+              <option value="utf16le">UTF-16</option>
+              <option value="hex">Hex</option>
+            </select>
           </span>
           <input class="form-control form-control-sm verityCubeContentFilter"
                  type="text" aria-describedby="verityCubeContentFilterDesc" />
@@ -401,10 +410,6 @@
         <tr>
           <th>– not matching filter</th>
           <td class="verityCubeStoreStatCubesFiltered">over 9000</td>
-        </tr>
-        <tr>
-          <th>– unparsable</th>
-          <td class="verityCubeStoreStatCubesUnparsable">over 9000</td>
         </tr>
         <tr class="table-light">
           <th>= Cubes displayed</th>
@@ -482,11 +487,15 @@
                     </tr>
                     <tr class="veritySchematicFieldContentRow">
                       <th>Content<br />
+                        <!-- Note: For now, please manually ensure the value of all options
+                             matches a supported encoding in EncodingIndex,
+                             both here and above in the filter encoding selector.
+                        -->
                         <select name="verityContentEncodingSwitch"
                                 class="verityContentEncodingSwitch"
                                 oninput="window.verity.currentController.changeEncoding(this)">
                           <option value="utf8">UTF-8</option>
-                          <option value="utf16">UTF-16</option>
+                          <option value="utf16le">UTF-16</option>
                           <option value="hex">Hex</option>
                         </select>
                       </th>

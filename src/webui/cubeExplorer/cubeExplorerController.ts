@@ -8,12 +8,21 @@ import { CubeExplorerView } from "./cubeExplorerView";
 import { NavigationController } from "../navigation/navigationController";
 import { ControllerContext, VerityController } from "../verityController";
 import type { CubeKey } from "../../core/cube/cubeDefinitions";
+import { CubeInfo } from "../../core/cube/cubeInfo";
 
 export interface CubeFilter {
   key?: string,
   dateFrom?: number;
   dateTo?: number;
   content?: string;
+  contentEncoding?: EncodingIndex;
+}
+
+export enum EncodingIndex {
+  // always make sure these match the select option order in index.html
+  utf8 = 1,
+  utf16le = 2,
+  hex = 3,
 }
 
 export class CubeExplorerController extends VerityController {
@@ -51,44 +60,58 @@ export class CubeExplorerController extends VerityController {
   // TODO pagination (we currently just abort after maxCubes and print a warning)
   // TODO sorting (e.g. by date)
   // TODO support non CCI cubes (including invalid / partial CCI cubes)
-  async redisplay(filter?: CubeFilter): Promise<void> {
+  redisplay(filter?: CubeFilter): Promise<void> {
     if (filter === undefined) filter = this.contentAreaView.fetchCubeFilter();
     else if (filter === null) filter = {};
     this.contentAreaView.displayCubeFilter(filter);
 
     this.contentAreaView.clearAll();
-    let displayed = 0, unparsable = 0, filtered = 0;
-    for await (const key of this.cubeStore.getAllKeys(true)) {
-      // Apply key filter before even activating this Cube
-      if (filter.key !== undefined && !key.includes(filter.key)) {
-        filtered++;
-        continue;  // skip non-matching
+    let initialPromise: Promise<number> = this.cubeStore.getNumberOfStoredCubes();
+    initialPromise.then(async (total: number) => {
+      let displayed = 0, unparsable = 0, filtered = 0;
+      for await (const key of this.cubeStore.getAllKeys(true)) {
+        // update stats to reflect parsing progress
+        this.contentAreaView.displayStats(total, displayed, filtered);
+        // Apply key filter before even activating this Cube
+        if (filter.key !== undefined && !key.includes(filter.key)) {
+          filtered++;
+          continue;  // skip non-matching
+        }
+        // fetch Cube
+        const cube: Cube = await this.getCube(key);
+        if (cube === undefined) {  // unparseable, giving up
+          unparsable++;
+          continue;
+        }
+        // apply further filters:
+        // prepare raw content filter if specified
+        let decodedBinary: string;
+        if (filter.content) {
+          decodedBinary = cube.getBinaryDataIfAvailable().toString(
+            EncodingIndex[filter.contentEncoding] as BufferEncoding);
+        }
+        // apply filters
+        if ((filter.dateFrom !== undefined && cube.getDate() < filter.dateFrom) ||
+            (filter.dateTo !== undefined && cube.getDate() > filter.dateTo) ||
+            (filter.content !== undefined && !decodedBinary.includes(filter.content)
+            )
+        ){
+          filtered++;
+          continue;
+        }
+        displayed++;
+        this.contentAreaView.displayCube(key as string, cube);
+        if (displayed >= this.maxCubes) {
+          this.contentAreaView.showBelowCubes(`Maximum of ${displayed} Cubes displayed, rest omittted. Consider narrower filter.`);
+          break;
+        }
       }
-      // fetch Cube
-      const cube: Cube = await this.getCube(key);
-      if (cube === undefined) {  // unparseable, giving up
-        unparsable++;
-        continue;
-      }
-      // apply further filters
-      if ((filter.dateFrom !== undefined && cube.getDate() < filter.dateFrom) ||
-          (filter.dateTo !== undefined && cube.getDate() > filter.dateTo) ||
-          (filter.content !== undefined && !cube.getBinaryDataIfAvailable().
-            toString('utf-8').includes(filter.content)
-          )
-      ){
-        filtered++;
-        continue;
-      }
-      displayed++;
-      this.contentAreaView.displayCube(key as string, cube);
-      if (displayed >= this.maxCubes) {
-        this.contentAreaView.showBelowCubes(`Maximum of ${displayed} Cubes displayed, rest omittted. Consider narrower filter.`);
-        break;
-      }
-    }
-    this.contentAreaView.displayStats(
-      await this.cubeStore.getNumberOfStoredCubes(), displayed, unparsable, filtered);
+      this.contentAreaView.displayStats(total, displayed, filtered);
+    });
+    // View can be displayed as soon as the first CubeStore operation
+    // has succeeded. More Cubes will then be added to the list as they get
+    // parsed.
+    return initialPromise as unknown as Promise<void>;
   }
 
   //***
@@ -98,7 +121,7 @@ export class CubeExplorerController extends VerityController {
   async changeEncoding(select: HTMLSelectElement) {
     const cubeLi: HTMLLIElement =
       getElementAboveByClassName(select, "verityCube") as HTMLLIElement;
-    const cubeKeyString = cubeLi.getAttribute("data-cubekey");
+    const cubeKeyString = cubeLi?.getAttribute("data-cubekey");
     const detailsTable: HTMLTableElement = getElementAboveByClassName(select, "veritySchematicFieldDetails") as HTMLTableElement;
     const fieldIndex: number = Number.parseInt(detailsTable?.getAttribute?.("data-fieldindex"));
     if (!cubeLi || !detailsTable || !cubeKeyString || isNaN(fieldIndex)) {
@@ -117,7 +140,7 @@ export class CubeExplorerController extends VerityController {
       return;
 
     }
-    this.contentAreaView.setRawFieldContent(field, detailsTable, select.selectedIndex);
+    this.contentAreaView.setRawFieldContent(field, detailsTable, EncodingIndex[select.value]);
   }
 
   //***
