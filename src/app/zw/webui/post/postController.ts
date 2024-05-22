@@ -1,9 +1,8 @@
 import { CubeKey } from "../../../../core/cube/cubeDefinitions";
 import { CubeInfo } from "../../../../core/cube/cubeInfo";
-import { CubeStore } from "../../../../core/cube/cubeStore";
 
 import { cciFieldType } from "../../../../cci/cube/cciField";
-import { cciFieldParsers, cciFields } from "../../../../cci/cube/cciFields";
+import { cciFields } from "../../../../cci/cube/cciFields";
 import { cciCube, cciFamily } from "../../../../cci/cube/cciCube";
 import { cciRelationship, cciRelationshipType } from "../../../../cci/cube/cciRelationship";
 import { ensureCci } from "../../../../cci/cube/cciCubeUtil";
@@ -19,8 +18,6 @@ import { ControllerContext, VerityController } from "../../../../webui/verityCon
 import { logger } from "../../../../core/logger";
 
 import { Buffer } from 'buffer';
-import { NavigationController } from "../../../../webui/navigation/navigationController";
-import { VerityUI } from "../../../../webui/verityUI";
 
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
@@ -227,10 +224,7 @@ export class PostController extends VerityController {
     // maybe TODO: Recreating the whole Identity is unnecessary.
     // Identity should split out the post list retrieval code into a static method.
     try {
-      id = await Identity.Construct(
-        this.cubeStore,
-        muc,
-        {family: cciFamily});
+      id = await Identity.Construct(this.cubeStore, muc);
     } catch(error) { return; }
     for (const post of id.posts) {
       const cubeInfo: CubeInfo = await this.cubeStore.getCubeInfo(post);
@@ -267,7 +261,7 @@ export class PostController extends VerityController {
     // First create the post, then update the identity, then add the cube.
     // This way the UI directly displays you as the author.
     const post = await makePost(text, replyto, this.identity);
-    if (this.identity) await this.identity.store("ID/ZW");  // TODO: move this to constructor
+    if (this.identity) await this.identity.store();
     this.cubeStore.addCube(post);
   }
 
@@ -279,12 +273,12 @@ export class PostController extends VerityController {
       logger.trace("VerityUI: Unsubscribing from " + authorkeystring);
       this.identity.removeSubscriptionRecommendation(authorkey);
       subscribeButton.classList.remove("active");
-      await this.identity.store("ID/ZW");
+      await this.identity.store();
     } else {
       logger.trace("VerityUI: Subscribing to " + authorkeystring);
       this.identity.addSubscriptionRecommendation(authorkey);
       subscribeButton.classList.add("active");
-      await this.identity.store("ID/ZW");
+      await this.identity.store();
     }
     this.redisplayAuthor(await this.cubeStore.getCubeInfo(authorkeystring));
   }

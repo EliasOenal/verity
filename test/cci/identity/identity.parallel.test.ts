@@ -39,7 +39,7 @@ describe("Identity (parallel test suite for better test performance)", () => {
         idTestOptions
       );
       id.name = "Probator Identitatum";
-      const firstMuc: cciCube = await id.store(undefined, reducedDifficulty);
+      const firstMuc: cciCube = await id.store();
       const firstMucHash: Buffer = firstMuc.getHashIfAvailable();
       expect(firstMuc).toBeInstanceOf(cciCube);
       expect(firstMucHash).toBeInstanceOf(Buffer);
@@ -49,7 +49,7 @@ describe("Identity (parallel test suite for better test performance)", () => {
 
       id.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xda);
       id.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
-      const secondMuc: cciCube = await id.store(undefined, reducedDifficulty);
+      const secondMuc: cciCube = await id.store();
       const secondMucHash: Buffer = secondMuc.getHashIfAvailable();
       expect(secondMuc).toBeInstanceOf(cciCube);
       expect(secondMucHash).toBeInstanceOf(Buffer);
@@ -59,7 +59,7 @@ describe("Identity (parallel test suite for better test performance)", () => {
       expect(id.keyBackupCube).toBeInstanceOf(Buffer);
 
       id.name = "Probator Identitatum Repetitus";
-      const thirdMuc: cciCube = await id.store(undefined, reducedDifficulty);
+      const thirdMuc: cciCube = await id.store();
       const thirdMucHash: Buffer = thirdMuc.getHashIfAvailable();
       expect(thirdMuc).toBeInstanceOf(cciCube);
       expect(thirdMucHash).toBeInstanceOf(Buffer);
@@ -92,10 +92,10 @@ describe("Identity (parallel test suite for better test performance)", () => {
       // store() now requests generation of a new, second MUC.
       // This will not happen, though, as the first MUC is less than five seconds old.
       // Instead, the operation will be rescheduled five seconds from now.
-      id.store(undefined, reducedDifficulty); // note there's no "await"
+      id.store(); // note there's no "await"
 
       id.name = "Probator Minimae Distantiae Temporis";
-      const thirdMuc: cciCube = await id.store(undefined, reducedDifficulty); // with await this time
+      const thirdMuc: cciCube = await id.store(); // with await this time
       expect(thirdMuc).toEqual(id.muc);
       expect(thirdMuc.getHashIfAvailable()).toEqual(
         id.muc.getHashIfAvailable()

@@ -4,7 +4,7 @@ import { AddressAbstraction } from '../core/peering/addressing';
 import { EnableCubePersitence } from '../core/cube/cubeStore';
 
 import { cciFamily } from '../cci/cube/cciCube';
-import { Identity } from '../cci/identity/identity';
+import { Identity, IdentityOptions } from '../cci/identity/identity';
 
 import { ControllerContext, VerityController } from './verityController';
 import { PeerController } from './peer/peerController';
@@ -14,6 +14,7 @@ import { VeraAnimationController } from './veraAnimationController';
 import { CubeExplorerController } from './cubeExplorer/cubeExplorerController';
 
 import { logger } from '../core/logger'
+import { IdentityPersistenceOptions } from '../cci/identity/identityPersistence';
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
@@ -46,7 +47,7 @@ export interface VerityUiOptions {
   initialNav?: NavItem;
 };
 
-export type VerityOptions = VerityNodeOptions & VerityUiOptions;
+export type VerityOptions = VerityNodeOptions & VerityUiOptions & IdentityOptions & IdentityPersistenceOptions;
 
 
 // Tell Typescript we're planning to use the custom window.verity attribute
@@ -103,7 +104,7 @@ export class VerityUI implements ControllerContext {
     }
 
     // Start preparing Identity and initial view
-    const identityPromise: Promise<any> = ui.initializeIdentity();
+    const identityPromise: Promise<any> = ui.initializeIdentity(options);
     // If supplied (which the app really should do), perform an initial nav
     // action. Otherwise, the content area will just stay blank.
     let initialViewPromise: Promise<any>;
@@ -145,8 +146,10 @@ export class VerityUI implements ControllerContext {
     this.node.shutdown();
   }
 
-  initializeIdentity(): Promise<boolean> {
-    this.identityController = new IdentityController(this);
+  initializeIdentity(
+      options?: IdentityOptions&IdentityPersistenceOptions
+  ): Promise<boolean> {
+    this.identityController = new IdentityController(this, options);
     return this.identityController.loadLocal();
   }
 }
