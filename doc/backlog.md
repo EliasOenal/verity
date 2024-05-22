@@ -47,6 +47,9 @@
   Verity apps.
 - Implement merge of remote changes. Problem: How to deal with deletions?
 
+# UI Framework
+- Move Verity node to a (shared) WebWorker (comlink)
+
 # Microblogging app
 - PWA: Rework service worker to auto-update cached assets
 - Show user's profiles and their posts
