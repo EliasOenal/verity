@@ -88,7 +88,7 @@ export class IdentityController extends VerityController {
       identity = await Identity.Create(
         this.cubeStore, username, password, this.options);
       identity.name = username;  // TODO separate username and display name
-      identity.store("ID/ZW");
+      identity.store();
     }
     // @ts-ignore Typescript does not know the PasswordCredential DOM API
     // TODO: This just doesn't work in Chrome.
@@ -138,7 +138,7 @@ export class IdentityController extends VerityController {
     if (avatarSeed?.length) {
       this._identity.avatar = new Avatar(avatarSeed, AvatarScheme.MULTIAVATAR);
     }
-    this._identity.store("ID/ZW");
+    this._identity.store();
     this.showLoginStatus();
     this.close();
   }
@@ -158,7 +158,7 @@ export class IdentityController extends VerityController {
   // Business logic invocation methods
   //***
   async loadLocal(): Promise<boolean> {
-    const idlist: Identity[] = await Identity.retrieve(this.cubeStore, this.options);
+    const idlist: Identity[] = await Identity.Retrieve(this.cubeStore, this.options);
     let identity: Identity = undefined;
     if (idlist?.length) identity = idlist[0];
     this.showLoginStatus();

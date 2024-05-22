@@ -199,7 +199,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       let id: Identity = undefined;
       try {
         id = await Identity.Construct(this.cubeStore, idmuc,
-          {family: cciFamily, subscribeRemoteChanges: false}  // note: forcing CCI here as this is strictly what the ZW app uses
+          {subscribeRemoteChanges: false}  // note: forcing CCI here as this is strictly what the ZW app uses
         );
       } catch(error) {
         // logger.info("ZwAnnotationEngine: While searching for author of " + key.toString('hex') + " I failed to create an Identity out of MUC " + rootmuc.getKeyIfAvailable()?.toString('hex') + " even though there's a MYPOST chain through " + mucOrMucExtension.getKeyIfAvailable()?.toString('hex'));
@@ -318,7 +318,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   // Note: learnMuc must not be made async, as then we might learn the MUC after
   // they're being evaluated, leading to false negatives
   private learnMuc(mucInfo: CubeInfo): void {
-    if (Identity.validateMuc(mucInfo) === true) {
+    if (Identity.ValidateMuc(mucInfo) === true) {
       this.identityMucs.set(mucInfo.key.toString('hex'), mucInfo);
       // logger.trace(`ZwAnnotationEngine: Learned Identity MUC ${key.toString('hex')}, user name ${id.name}`);
     }

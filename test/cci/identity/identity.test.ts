@@ -55,7 +55,7 @@ describe('Identity', () => {
       const original: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       original.name = "Probator Identitatum";
-      const muc = await original.makeMUC(undefined, reducedDifficulty);
+      const muc = await original.makeMUC();
       expect(muc).toBeInstanceOf(cciCube);
       const mucadded = await cubeStore.addCube(muc);
       expect(mucadded.getKeyIfAvailable()).toEqual(original.publicKey);
@@ -88,7 +88,7 @@ describe('Identity', () => {
         toEqual("Habeo res importantes dicere");
 
       // compile ID into MUC
-      const muc: cciCube = await original.makeMUC(undefined, reducedDifficulty);
+      const muc: cciCube = await original.makeMUC();
       expect(muc).toBeInstanceOf(cciCube);
 
       // double check everything's in there
@@ -131,7 +131,7 @@ describe('Identity', () => {
       await cubeStore.addCube(await makePost("Habeo res importantes dicere", undefined, original, reducedDifficulty));
 
       // compile ID into binary MUC
-      const muc = await original.makeMUC(undefined, reducedDifficulty);
+      const muc = await original.makeMUC();
       expect(muc).toBeInstanceOf(cciCube);
       const muckey = await muc.getKey();
       expect(muckey).toBeInstanceOf(Buffer);
@@ -218,7 +218,7 @@ describe('Identity', () => {
       expect(original.posts.length).toEqual(TESTPOSTCOUNT);
       expect(testPostKeys.length).toEqual(TESTPOSTCOUNT);
 
-      await original.store(undefined, reducedDifficulty)
+      await original.store();
       const muc: cciCube = original.muc;
       await cubeStore.addCube(muc);
 
@@ -322,7 +322,7 @@ describe('Identity', () => {
           cubeStore, "figurarius"+i, "clavis"+i, idTestOptions);
         other.name = "Figurarius subscriptus numerus " + i;
         other.muc.setDate(0);  // skip waiting period for the test
-        other.store(undefined, reducedDifficulty);
+        other.store();
         subscribed.push(other.key);
         subject.addSubscriptionRecommendation(other.key);
         expect(subject.subscriptionRecommendations[i].equals(other.key)).toBeTruthy();
@@ -332,7 +332,7 @@ describe('Identity', () => {
           cubeStore, "non implicatus "+i, "secretum"+i, idTestOptions);
         other.name = "Persona non implicata " + i;
         other.muc.setDate(0);  // skip waiting period for the test
-        other.store(undefined, reducedDifficulty);
+        other.store();
         nonsubscribed.push(other.key);
       }
 
@@ -354,12 +354,12 @@ describe('Identity', () => {
           cubeStore, "figurarius"+i, "clavis"+i, idTestOptions);
         other.name = "Figurarius " + i + "-tus";
         other.muc.setDate(0);  // skip waiting period for the test
-        other.store(undefined, reducedDifficulty);
+        other.store();
         subject.addSubscriptionRecommendation(other.key);
         expect(subject.subscriptionRecommendations[i].equals(other.key)).toBeTruthy();
       }
       subject.muc.setDate(0);  // hack, just for the test let's not wait 5s for the MUC update
-      const muc: cciCube = await subject.store(undefined, reducedDifficulty);
+      const muc: cciCube = await subject.store();
 
       // Good, 40 added. Now let's have a look at the extension MUCs.
       const firstExtensionMuc: cciCube = subject.subscriptionRecommendationIndices[0];
@@ -379,7 +379,7 @@ describe('Identity', () => {
         cubeStore, "adiectus", "secretum", idTestOptions);
       plusone.name = "Figurarius adiectus"
       plusone.muc.setDate(0);  // accelerate test
-      plusone.store(undefined, reducedDifficulty);
+      plusone.store();
       subject.addSubscriptionRecommendation(plusone.key);
       subject.muc.setDate(0);  // accelarate test
       await subject.store();
@@ -423,14 +423,14 @@ describe('Identity', () => {
         );
         other.name = "Figurarius " + i + "-tus";
         other.muc.setDate(0); // skip waiting period for the test
-        other.store(undefined, reducedDifficulty);
+        other.store();
         subject.addSubscriptionRecommendation(other.key);
         expect(
           subject.subscriptionRecommendations[i].equals(other.key)
         ).toBeTruthy();
       }
       subject.muc.setDate(0); // hack, just for the test let's not wait 5s for the MUC update
-      const muc: cciCube = await subject.store(undefined, reducedDifficulty);
+      const muc: cciCube = await subject.store();
 
       // Master MUC stored in CubeStore?
       const recovered_muc: cciCube = await cubeStore.getCube(subject.key) as cciCube;
@@ -721,12 +721,12 @@ describe('Identity', () => {
 
           // subsubscribed gets stored
           subsubscribed.muc.setDate(0);  // skip waiting period for the test
-          await subsubscribed.store(undefined, reducedDifficulty);
+          await subsubscribed.store();
 
           // subscribed subscribes to subsubscribed and gets stored
           subscribed.addSubscriptionRecommendation(subsubscribed.key);
           subscribed.muc.setDate(0);  // skip waiting period for the test
-          await subscribed.store(undefined, reducedDifficulty);
+          await subscribed.store();
           expect(subscribed.subscriptionRecommendations[0].
             equals(subsubscribed.key)).toBeTruthy();
 
@@ -740,7 +740,7 @@ describe('Identity', () => {
 
         // store the subject
         subject.muc.setDate(0);  // hack, just for the test let's not wait 5s for the MUC update
-        const muc: cciCube = await subject.store(undefined, reducedDifficulty);
+        const muc: cciCube = await subject.store();
 
         // just some sanity checks
         expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(0);
@@ -830,7 +830,7 @@ describe('Identity', () => {
         id.name = "Probator Identitatum";
         id.avatar = new Avatar("0102030405", AvatarScheme.MULTIAVATAR);
 
-        const storePromise: Promise<Cube> = id.store(undefined, reducedDifficulty);
+        const storePromise: Promise<Cube> = id.store();
         expect(storePromise).toBeInstanceOf(Promise<Cube>);
         await storePromise;
       }

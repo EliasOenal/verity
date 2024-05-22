@@ -5,33 +5,41 @@ import { unixtime } from '../../core/helpers/misc';
 import { Cube } from '../../core/cube/cube';
 import { logger } from '../../core/logger';
 
+import { Settings, VerityError } from '../../core/settings';
+import { NetConstants } from '../../core/networking/networkDefinitions';
+import { CubeStore } from '../../core/cube/cubeStore';
+import { CubeInfo } from '../../core/cube/cubeInfo';
+import { CubeError, CubeKey, CubeType } from '../../core/cube/cubeDefinitions';
+import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
+
 import { cciField, cciFieldType } from '../cube/cciField';
 import { cciFields, cciMucFieldDefinition } from '../cube/cciFields';
 import { cciRelationship, cciRelationshipType } from '../cube/cciRelationship';
 import { cciCube, cciFamily } from '../cube/cciCube';
 import { ensureCci } from '../cube/cciCubeUtil';
 
-import { Settings, VerityError } from '../../core/settings';
-import { CubeFamilyDefinition, FieldParserTable } from '../../core/cube/cubeFields';
-import { CubeStore } from '../../core/cube/cubeStore';
-import { CubeInfo } from '../../core/cube/cubeInfo';
-import { CubeError, CubeKey, CubeType, FieldError } from '../../core/cube/cubeDefinitions';
-import { NetConstants } from '../../core/networking/networkDefinitions';
-
-import { ZwConfig } from '../../app/zw/model/zwConfig';  // TODO remove dependency from CCI to app
-
 import { Buffer } from 'buffer';
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
-import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
 
-const IDMUC_CONTEXT_STRING = "CCI Identity";
+const DEFAULT_IDMUC_CONTEXT_STRING = "CCI Identity";
+const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
 const IDMUC_MASTERINDEX = 0;
+const DEFAULT_MIN_MUC_REBUILD_DELAY = 5;  // minimum five seconds between Identity MUC generations unless specified otherwise
+
 
 export interface IdentityOptions {
+  /**
+   * If you this Identity stored locally on this node, please create an
+   * IdentityPersistence object and supply it here.
+   * This is only relevant to local Identities, i.e. Identities owned by
+   * this node's user.
+   */
   persistence?: IdentityPersistence,
   minMucRebuildDelay?: number,
   requiredDifficulty?: number,
-  family?: CubeFamilyDefinition,
+
+  // TODO: Offer a family param governing which kinds of Cubes Identity will sculpt
+  // family?: CubeFamilyDefinition,
 
   /**
    * Adjust how much CPU power it will take to restore an Identity from
@@ -47,7 +55,24 @@ export interface IdentityOptions {
    **/
   argonMemoryHardness?: number,
 
+  /**
+   * Governs how a local Identity's cryptographic key pair is derived from
+   * it's master key. This needs to be changed if an application deliberately
+   * wants to use Identities separate from and incompatible with regular CCI
+   * Identities, allowing a user to have completely separate CCI Identities
+   * and application Identities on the same Verity network using the same
+   * username/password combination.
+   * Other than that, it is not recommended to change this option.
+   */
   idmucContextString?: string,
+
+  /**
+   * The application value used in this Identity's MUCs. Defaults to "ID".
+   * Should only be changed if the goal is to create separate
+   * application-specific Identities, in which case idmucContentString
+   * should also be changed.
+   */
+  idmucApplicationString?: string,
 
   /**
    * Whether this Identity should listen for remote updates to itself.
@@ -196,7 +221,7 @@ export class Identity {
 
   /** This method may only be called after awaiting sodium.ready. */
   static DeriveKeypair(masterKey: Buffer, options?: IdentityOptions): KeyPair {
-    const contextString: string = options?.idmucContextString ?? IDMUC_CONTEXT_STRING;
+    const contextString: string = options?.idmucContextString ?? DEFAULT_IDMUC_CONTEXT_STRING;
     const derivedSeed = sodium.crypto_kdf_derive_from_key(
       sodium.crypto_sign_SEEDBYTES, IDMUC_MASTERINDEX, contextString,
       masterKey, "uint8array");
@@ -224,7 +249,7 @@ export class Identity {
   }
 
   /// @static Retrieves all Identity objects stored in persistant storage.
-  static async retrieve(
+  static async Retrieve(
       cubeStoreOrRetriever: CubeStore | CubeRetriever,
       options?: IdentityOptions
   ): Promise<Identity[]> {
@@ -235,7 +260,7 @@ export class Identity {
     return ids;
   }
 
-  static validateMuc(mucInfo: CubeInfo): boolean {
+  static ValidateMuc(mucInfo: CubeInfo): boolean {
     // is this even a MUC?
     if (mucInfo.cubeType != CubeType.MUC) return false;
 
@@ -272,7 +297,7 @@ export class Identity {
    * If this Identity object knows an IdentityPersistant object
    * it can be stored in a local database. If it doesn't... then it can't.
    */
-  persistance: IdentityPersistence;
+  get persistance(): IdentityPersistence { return this.options.persistence }
 
   /**
    * Identity requires CubeStore for loading and parsing Identity extension
@@ -286,18 +311,10 @@ export class Identity {
    */
   readonly cubeRetriever: CubeStore | CubeRetriever;
 
-  private minMucRebuildDelay: number;
-  private requiredDifficulty: number;
-
-  // TODO: actually use this attribute, i.e. when determining which kinds of
-  // Cubes to sculpt
-  readonly family: CubeFamilyDefinition;
-
   private _masterKey: Buffer = undefined;
   get masterKey(): Buffer {
     return this._masterKey;  // TODO change this as discussed below
   }
-  readonly idmucContextString: string;
 
   /**
    * Subscription recommendations are publically visible subscriptions of other
@@ -366,7 +383,7 @@ export class Identity {
   constructor(
       cubeStoreOrRetriever: CubeStore | CubeRetriever,
       mucOrMasterkey: cciCube | Buffer,
-      options?: IdentityOptions,
+      readonly options: IdentityOptions = {},
   ){
     // remember my CubeStore, and CubeRetriever if applicable
     this.cubeRetriever = cubeStoreOrRetriever;
@@ -374,14 +391,10 @@ export class Identity {
       this.cubeStore = cubeStoreOrRetriever.cubeStore;
     } else this.cubeStore = cubeStoreOrRetriever;
     // set options
-    this.minMucRebuildDelay = options?.minMucRebuildDelay ?? ZwConfig.MIN_MUC_REBUILD_DELAY;
-    this.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY,
-    this.idmucContextString = options?.idmucContextString ?? IDMUC_CONTEXT_STRING;
-    this.family = options?.family ?? cciFamily;
-    this.persistance = options?.persistence ?? undefined;
-
-    // TODO: If using a CubeRetriever, subscribe to own MUC to allow remote
-    // Identity updates.
+    if (options.minMucRebuildDelay === undefined) options.minMucRebuildDelay = DEFAULT_MIN_MUC_REBUILD_DELAY;
+    if (options.requiredDifficulty === undefined) options.requiredDifficulty = Settings.REQUIRED_DIFFICULTY;
+    if (options.idmucContextString === undefined) options.idmucContextString = DEFAULT_IDMUC_CONTEXT_STRING;
+    if (options.idmucApplicationString === undefined) options.idmucApplicationString = DEFAULT_IDMUC_APPLICATION_STRING;
 
     // Subscribe to remote Identity updates (i.e. same user using multiple devices)
     if (!(options?.subscribeRemoteChanges === false)) {  // unless explicitly opted out
@@ -405,7 +418,7 @@ export class Identity {
       this._muc = cciCube.ExtensionMuc(
         mucOrMasterkey,
         [],  // TODO: allow to set fields like username directly on construction
-        IDMUC_MASTERINDEX, this.idmucContextString,
+        IDMUC_MASTERINDEX, this.options.idmucContextString,
       );
       this.readyPromiseResolve(this);
     }
@@ -447,15 +460,12 @@ export class Identity {
    * and publish it by inserting it into the CubeStore.
    * (You could also provide a private cubeStore instead, but why should you?)
    */
-  async store(
-      applicationString: string = "ID",
-      requiredDifficulty = this.requiredDifficulty,
-  ):Promise<cciCube>{
+  async store():Promise<cciCube>{
     if (!this.privateKey || !this.masterKey) {
       throw new VerityError("Identity: Cannot store an Identity whose private and master key I don't have");
     }
     logger.trace("Identity: Storing identity " + this.name);
-    const muc = await this.makeMUC(applicationString, requiredDifficulty);
+    const muc = await this.makeMUC();
     for (const extensionMuc of this.subscriptionRecommendationIndices) {
       await this.cubeStore.addCube(extensionMuc);
     }
@@ -525,10 +535,7 @@ export class Identity {
   * changes have been performed to avoid spamming multiple MUC versions
   * (and having to compute hashcash for all of them).
   */
-  async makeMUC(
-      applicationString: string = undefined,
-      requiredDifficulty = this.requiredDifficulty,
-  ): Promise<cciCube> {
+  async makeMUC(): Promise<cciCube> {
     // Make sure we don't rebuild our MUC too often. This is to limit spam,
     // reduce local hash cash load and to prevent rapid subsequent changes to
     // be lost due to our one second minimum time resolution.
@@ -545,7 +552,7 @@ export class Identity {
     }
 
     // If the last MUC rebuild was too short a while ago, wait a little.
-    const earliestAllowed: number = this.muc.getDate() + this.minMucRebuildDelay;
+    const earliestAllowed: number = this.muc.getDate() + this.options.minMucRebuildDelay;
     if (unixtime() < earliestAllowed) {
       const waitFor = earliestAllowed - (Math.floor(Date.now() / 1000));
       await new Promise(resolve => setTimeout(resolve, waitFor*1000));
@@ -554,12 +561,12 @@ export class Identity {
     const newMuc: cciCube = cciCube.MUC(
       this._muc.publicKey, this._muc.privateKey, {
         family: cciFamily,
-        requiredDifficulty: requiredDifficulty
+        requiredDifficulty: this.options.requiredDifficulty
     });
     // Include application header if requested
-    if (applicationString) {
+    if (this.options.idmucApplicationString) {
       newMuc.fields.insertFieldBeforeBackPositionals(
-        cciField.Application(applicationString));
+        cciField.Application(this.options.idmucApplicationString));
     }
 
     // Write username
@@ -591,7 +598,7 @@ export class Identity {
     // Write subscription recommendations
     // (these will be in there own sub-MUCs and we'll reference the first one
     // of those here)
-    this.writeSubscriptionRecommendations(requiredDifficulty);
+    this.writeSubscriptionRecommendations();
     if (this.subscriptionRecommendationIndices.length) {  // any subs at all?
       newMuc.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
         new cciRelationship(cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
@@ -624,10 +631,7 @@ export class Identity {
     return def;
   }
 
-  private writeSubscriptionRecommendations(
-      requiredDifficulty = this.requiredDifficulty,
-      applicationString: string = undefined,
-  ): void {
+  private writeSubscriptionRecommendations(): void {
     // TODO: properly calculate available space
     // For now, let's just eyeball it:
     // TODO UPDATE CALCULATION
@@ -645,8 +649,8 @@ export class Identity {
     // The cubes themselves will be sculpted in the next step.
     const fieldSets: cciFields[] = [];
     let fields: cciFields = new cciFields([], cciMucFieldDefinition);
-    if (applicationString) {
-      fields.appendField(cciField.Application(applicationString));
+    if (this.options.idmucApplicationString) {
+      fields.appendField(cciField.Application(this.options.idmucApplicationString));
     }
     for (let i=0; i<this.subscriptionRecommendations.length; i++) {
       // write rel
@@ -660,8 +664,8 @@ export class Identity {
           i == this._subscriptionRecommendations.length - 1) {
         fieldSets.push(fields);
         fields = new cciFields([], cciMucFieldDefinition);
-        if (applicationString) {
-          fields.appendField(cciField.Application(applicationString));
+        if (this.options.idmucApplicationString) {
+          fields.appendField(cciField.Application(this.options.idmucApplicationString));
         }
       }
     }
@@ -686,7 +690,7 @@ export class Identity {
         // cheaper to just keep an open slot on the first extension MUC.
         const indexCube: cciCube = cciCube.ExtensionMuc(
           this.masterKey, fields, i, "Subscription recommendation indices",
-          false, cciFamily, requiredDifficulty);
+          false, cciFamily, this.options.requiredDifficulty);
         this.subscriptionRecommendationIndices[i] = indexCube;
       }
       // Note: Once calling store(), we will still try to reinsert non-changed
@@ -782,7 +786,7 @@ export class Identity {
           incoming.getCube().getHashIfAvailable())
     ){ return }
     // check if this MUC is even valid
-    if (!Identity.validateMuc(incoming)) return;
+    if (!Identity.ValidateMuc(incoming)) return;
     // TODO: This does not actually perform a merge.
     // It just gives precedence to "never" version, which is not a good idea
     // to start with and is exacerbated by the fact that no actual time

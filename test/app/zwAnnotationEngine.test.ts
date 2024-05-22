@@ -286,7 +286,7 @@ describe('ZwAnnotationEngine', () => {
       const id: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       id.name = "Probator Annotationem";
-      await id.store(undefined, reducedDifficulty);
+      await id.store();
       await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
       expect(annotationEngine.identityMucs.size).toEqual(1);
       const restored: Identity = await Identity.Construct(cubeStore,
@@ -320,7 +320,7 @@ describe('ZwAnnotationEngine', () => {
       await cubeStore.addCube(post);
       const postKey = await post.getKey();
       expect(postKey).toBeDefined;
-      await id.store(undefined, reducedDifficulty);
+      await id.store();
       await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
 
       const restoredAuthor: Identity = await annotationEngine.cubeAuthor(postKey);
@@ -338,7 +338,7 @@ describe('ZwAnnotationEngine', () => {
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       id.name = "Probator Attributionis Auctoris";
       expect(id.muc).toBeInstanceOf(Cube);
-      const preliminaryMuc: Cube = await id.store(undefined, reducedDifficulty);
+      const preliminaryMuc: Cube = await id.store();
       expect(preliminaryMuc).toEqual(id.muc);
       expect(id.muc).toBeInstanceOf(Cube);
       const idKey = id.muc.getKeyIfAvailable();
@@ -352,7 +352,7 @@ describe('ZwAnnotationEngine', () => {
           "I got important stuff to say", undefined, id, reducedDifficulty)
         )).getKeyIfAvailable();
       expect(postKey).toBeInstanceOf(Buffer);
-      const firstMuc: Cube = await id.store(undefined, reducedDifficulty);
+      const firstMuc: Cube = await id.store();
 
       // re-storing the Identity changes it's hash but keeps it's key
       expect(id.muc).toBeInstanceOf(Cube);
@@ -435,7 +435,7 @@ describe('ZwAnnotationEngine', () => {
       await new Promise(resolve => setTimeout(resolve, 250));
       // our user makes a new post
       await cubeStore.addCube(await makePost("verba mea magna sunt", undefined, id, reducedDifficulty));
-      await id.store(undefined, reducedDifficulty);
+      await id.store();
       const idHashAfterOneNewPost = id.muc.getHashIfAvailable();
       await new Promise(resolve => setTimeout(resolve, 250));
 
@@ -460,7 +460,7 @@ describe('ZwAnnotationEngine', () => {
       await new Promise(resolve => setTimeout(resolve, 250));
       // our user changes it's name
       id.name = "Probator Attributionis Auctoris et Persona Gravissima in Generali";
-      await id.store(undefined, reducedDifficulty);
+      await id.store();
       await new Promise(resolve => setTimeout(resolve, 250));
       const idHashAfterNameChange = id.muc.getHashIfAvailable();
 
@@ -486,7 +486,7 @@ describe('ZwAnnotationEngine', () => {
       await cubeStore.addCube(post);
       const postKey = (await post.getKey()).toString('hex');
       expect(postKey).toBeDefined;
-      await id.store(undefined, reducedDifficulty);
+      await id.store();
       await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
 
       const restoredAuthor: Identity = await annotationEngine.cubeAuthor(Buffer.from(postKey, 'hex'));
@@ -507,7 +507,7 @@ describe('ZwAnnotationEngine', () => {
         posts.push(await post.getKey());
         await cubeStore.addCube(post);
       }
-      await id.store(undefined, reducedDifficulty);
+      await id.store();
       await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
 
       for (let i=0; i<TESTPOSTCOUNT; i++) {
