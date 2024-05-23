@@ -8,6 +8,10 @@ import type { NavigationController } from "./navigation/navigationController";
 import type { VerityNode } from "../core/verityNode";
 import type { CubeStore } from "../core/cube/cubeStore";
 
+/**
+ * The interface a controller's parent object needs to provide;
+ * usually implemented by VerityUi.
+ */
 export interface ControllerContext {
   node: VerityNode;
   identity: Identity;
@@ -60,6 +64,21 @@ export class VerityController {
     if (callback) this.parent.nav.closeController(this);
     // Return a resolved promise
     return new Promise<void>(resolve => resolve());
+  }
+
+  /**
+   * Using this callback other modules can let us notify about a breaking
+   * change in user Identity, e.g. a log in or log out.
+   * Subclasses should override this method to handle this even in whichever
+   * way appropriate and return true afterwards.
+   * In pratice, this will get called by VerityUI and VerityUI will restart
+   * this controller if it doesn't return true to indicate the change was
+   * handled internally.
+   * The new Identity will be available as this.identity.
+   * @returns Whether the event was handled or not.
+   */
+  async identityChanged(): Promise<boolean> {
+    return false;
   }
 }
 

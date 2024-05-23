@@ -156,4 +156,12 @@ export class CubeExplorerController extends VerityController {
     }
     return cube;
   }
+
+  //***
+  // Framework event handling
+  //***
+  async identityChanged(): Promise<boolean> {
+    // this controller does not care about user Identites
+    return true;
+  }
 }
