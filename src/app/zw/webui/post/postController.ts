@@ -322,6 +322,17 @@ export class PostController extends VerityController {
   }
 
   //***
+  // Framework event handling
+  //***
+  async identityChanged(): Promise<boolean> {
+    // TODO: we should handle Identity changes gracefully and update the
+    // existing view.
+    // As we currently don't do that, just return false which will cause us
+    // to get restarted on Identity changes.
+    return false;
+  }
+
+  //***
   // Cleanup methods
   //***
   shutdown(): Promise<void> {

@@ -10,7 +10,7 @@ import { VerityView } from "../verityView";
 import { ControllerContext, VerityController } from "../verityController";
 
 import { Avatar, AvatarScheme } from "../../cci/identity/avatar";
-import { NavigationController } from "../navigation/navigationController";
+import { VerityUI } from "../verityUI";
 
 export class IdentityController extends VerityController {
   loginStatusView: LoginStatusView;
@@ -106,6 +106,7 @@ export class IdentityController extends VerityController {
     }
     this._identity = identity;
     this.showLoginStatus();
+    await this.parent.nav.identityChanged();
     this.close();
   }
 
@@ -113,11 +114,12 @@ export class IdentityController extends VerityController {
    * Called from: login status view
    * Logs the current user out.
    */
-  logOut() {
+  async logOut(): Promise<void> {
     // TODO: handle the various Identites we may have in our local Identity DB
     // sensibly. Either expose them as various locally saved accounts, or just
     // delete them on logout, or whatever. But do something!
     this._identity = undefined;
+    await this.parent.nav.identityChanged();
     this.showLoginStatus();
     // TODO: we should show the user some promts asking them whether they're
     // sure and stuff -- and most importantly, reminding them that they will
@@ -166,5 +168,16 @@ export class IdentityController extends VerityController {
       this.identity = identity;
       return true;
     } else return false;
+  }
+
+
+  //***
+  // Framework event handling
+  //***
+
+  async identityChanged(): Promise<boolean> {
+    // Identity controller must ignore its own identityChanged events
+    // as it is the very instance causing them.
+    return true;
   }
 }

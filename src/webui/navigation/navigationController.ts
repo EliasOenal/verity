@@ -1,11 +1,12 @@
 import { VerityUI } from "../verityUI";
 import { ZwAnnotationEngine, SubscriptionRequirement } from "../../app/zw/model/zwAnnotationEngine";
-import { ControllerError, VerityController } from "../verityController";
+import { ControllerContext, ControllerError, VerityController } from "../verityController";
 import { PostController } from "../../app/zw/webui/post/postController";
 import { CubeExplorerController } from "../cubeExplorer/cubeExplorerController";
 
 import { logger } from "../../core/logger";
 import { NavigationView } from "./navigationView";
+import { Identity } from "../../cci/identity/identity";
 
 export interface NavItem {
   controller: string,
@@ -39,11 +40,7 @@ export class NavigationController extends VerityController {
   // Let's maybe run Vera's animation and slowly grey out the previous view.
   async showNew(navItem: NavItem, show: boolean = true): Promise<void> {
     if (navItem.exclusive) this.closeAllControllers(false);
-    // instantiate controller
-    const controllerClass: typeof VerityController =
-    this.controllerClasses.get(navItem.controller);
-    if (controllerClass === undefined) throw new NoSuchController(navItem.controller);
-    const controller: VerityController = new controllerClass(this.parent);
+    const controller: VerityController = this.instantiateController(navItem.controller);
     // TODO: before awaiting selectView() we should display some feedback
     // to the user, e.g. a loading animation or something
     await controller.selectView(navItem.navAction);
@@ -137,6 +134,15 @@ export class NavigationController extends VerityController {
     return this.currentControlLayer?.controller;
   }
 
+  private instantiateController(ctrlClassId: string): VerityController {
+    // instantiate controller
+    const controllerClass: typeof VerityController =
+      this.controllerClasses.get(ctrlClassId);
+    if (controllerClass === undefined) throw new NoSuchController(ctrlClassId);
+    const controller: VerityController = new controllerClass(this.parent);
+    return controller;
+  }
+
   newControlLayer(
       layer: ControllerStackLayer,
   ): void {
@@ -185,6 +191,51 @@ export class NavigationController extends VerityController {
     while(this.currentController !== undefined) {
       this.closeCurrentController(updateView);
     }
+  }
+
+  restartController(layer: ControllerStackLayer, alreadyRestarted: VerityController[]): Promise<void> {
+    if (!alreadyRestarted.includes(layer.controller)) {
+      // only re-instantiate controller once
+      const Constructor = layer.controller.constructor as { new (parent: ControllerContext): VerityController }
+      layer.controller = new Constructor(this.parent);
+    }
+    // but always re-trigger the navigation action
+    return layer.controller.selectView(layer.navAction);
+  }
+
+
+  /**
+   * Using this method, Controllers (in practice: IdentityController)
+   * can let us know that there has been a breaking change in user Identity,
+   * e.g. a log in or log out. We will then let our Controllers know,
+   * and restart them if they do not implement a handler for this event.
+   */
+  identityChanged(): Promise<boolean> {
+    let currentControllerPromise: Promise<any>;
+    const alreadyRestarted: VerityController[] = [];
+    for (let i=0; i<this.controllerStack.length; i++) {
+      const layer: ControllerStackLayer = this.controllerStack[i];
+      const controller: VerityController = this.controllerStack[i].controller;
+      const eventHandledPromise: Promise<boolean> = controller.identityChanged();
+      const donePromise: Promise<any> = new Promise<void>(resolve => {
+        eventHandledPromise.then((eventHandled: boolean) => {
+          if (!eventHandled) {
+            const controllerRestartedPromise: Promise<void> =
+              this.restartController(this.controllerStack[i], alreadyRestarted);
+            controllerRestartedPromise.then(resolve);
+          } else resolve();
+        });
+      });
+      if (layer === this.currentControlLayer) {
+        currentControllerPromise = donePromise;
+      }
+    }
+    // reshow the current controller once it has been updated
+    currentControllerPromise.then(
+      () => this.currentController.contentAreaView?.show());
+    // let's just wait for the topmost controller to be done
+    return new Promise<boolean>(resolve =>
+      currentControllerPromise.then(() => resolve(true)));
   }
 }
 

@@ -53,10 +53,7 @@ export type VerityOptions = VerityNodeOptions & VerityUiOptions & IdentityOption
 // Tell Typescript we're planning to use the custom window.verity attribute
 // in the browser.
 declare global {
-  interface Window {
-    verity: VerityUI;
-    webmain: () => Promise<void>,
-  }
+  interface Window { verity: VerityUI }
 }
 
 export class VerityUI implements ControllerContext {
@@ -103,13 +100,15 @@ export class VerityUI implements ControllerContext {
       ui.nav.makeNavItem(navItem);
     }
 
-    // Start preparing Identity and initial view
+    // Prepare user Identity, and then prepare the initial view
     const identityPromise: Promise<any> = ui.initializeIdentity(options);
     // If supplied (which the app really should do), perform an initial nav
     // action. Otherwise, the content area will just stay blank.
-    let initialViewPromise: Promise<any>;
+    let initialViewPromise: Promise<void>;
     if (options.initialNav) {
-      initialViewPromise = ui.nav.showNew(options.initialNav, false);
+      initialViewPromise = new Promise(resolve =>
+        identityPromise.then(() =>
+          ui.nav.showNew(options.initialNav, false).then(resolve)));
     } else {
       // no view specified, so nothing to prepare, so just make a resolved promise
       initialViewPromise = new Promise<void>(resolve => resolve());
