@@ -794,6 +794,9 @@ export class Identity {
     // TODO: This currently creates a race condition as parseMuc() is async.
     if (incoming.date > this.muc.getDate()) {
       this.parseMuc(incoming.getCube() as cciCube);
+      logger.trace("Identity.mergeRemoteChanges: Adopting incoming MUC");
+    } else {
+      logger.trace("Identity.mergeRemoteChanges: Rejecting incoming MUC as mine is newer");
     }
   }
 
@@ -804,6 +807,7 @@ export class Identity {
   ): Promise<void> {
     // do we even have this cube?
     if (!mucOrMucExtension) return;
+    logger.trace(`Identity.recursiveParseSubscriptionRecommendations: Parsing Cube ${mucOrMucExtension.getKeyStringIfAvailable()}`);
     // have we been here before? avoid endless recursion
     const thisCubesKeyString = (mucOrMucExtension.getKeyIfAvailable()).toString('hex');
     if (thisCubesKeyString === undefined || alreadyTraversedCubes.includes(thisCubesKeyString)) return;
@@ -847,6 +851,7 @@ export class Identity {
       // Nothing to do here, so just return a resolved promise
       return new Promise<void>(resolve => resolve());
     }
+    logger.trace(`Identity.recursiveParsePostReferences: Parsing Cube ${mucOrMucExtension.getKeyStringIfAvailable()}`);
     // have we been here before? avoid endless recursion
     const thisCubesKeyString = (mucOrMucExtension.getKeyStringIfAvailable());
     if (thisCubesKeyString === undefined ||
