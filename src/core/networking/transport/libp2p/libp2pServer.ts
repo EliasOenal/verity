@@ -10,8 +10,8 @@ export class Libp2pServer extends TransportServer {
   private listen: string[] = [];
   declare protected transport: Libp2pTransport;
 
-  constructor(parent: Libp2pTransport) {
-    super(parent);
+  constructor(transport: Libp2pTransport) {
+    super(transport);
   }
 
   async start(): Promise<void> {
@@ -23,8 +23,8 @@ export class Libp2pServer extends TransportServer {
   }
 
   shutdown(): Promise<void> {
-    // TODO: Something's still fishy here...
-    return this.transport.node.unhandle("/verity/1.0.0");
+    // TODO: Something's still fishy here... node is sometimes undefined
+    return this.transport.node?.unhandle("/verity/1.0.0");
   }
 
   toString(): string {
