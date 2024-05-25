@@ -39,4 +39,5 @@ export enum SupportedTransports {
 }
 
 export class NetworkError extends VerityError { name = "NetworkError" }
+export class NetworkPeerError extends NetworkError { name = "NetworkPeerError" }
 export class AddressError extends NetworkError { name = "AddressError" }

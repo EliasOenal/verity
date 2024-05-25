@@ -18,7 +18,8 @@ export class WebSocketConnection extends TransportConnection {
   private socketClosedSignal: AbortSignal = this.socketClosedController.signal;
 
   constructor(
-      conn_param: WebSocketAddress | WebSocket) {
+      conn_param: WebSocketAddress | WebSocket)
+  {
     super(
       conn_param instanceof WebSocketAddress ?  // address or socket provided?
         new AddressAbstraction(conn_param) :

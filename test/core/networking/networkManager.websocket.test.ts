@@ -2,7 +2,7 @@ import { Settings } from '../../../src/core/settings';
 import { SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 
 import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
-import { NetworkPeer } from '../../../src/core/networking/networkPeer';
+import { NetworkPeer, NetworkPeerLifecycle } from '../../../src/core/networking/networkPeer';
 import { WebSocketTransport } from '../../../src/core/networking/transport/webSocket/webSocketTransport';
 import { WebSocketServer } from '../../../src/core/networking/transport/webSocket/webSocketServer';
 import { WebSocketConnection } from '../../../src/core/networking/transport/webSocket/webSocketConnection';
@@ -199,8 +199,9 @@ describe('networkManager - WebSocket connections', () => {
         expect(protagonist.online).toBeFalsy();
         expect(peerObj.online).toBeFalsy();
 
-        await peerObj.onlinePromise;  // now them should be online!
+        await peerObj.onlinePromise;  // now they should be online!
         expect(protagonist.online).toBeTruthy();
+        expect(peerObj.status).toEqual(NetworkPeerLifecycle.ONLINE);
         expect(peerObj.online).toBeTruthy();
 
         // After connect, protagonist should tell its peer it's server port.
@@ -580,7 +581,7 @@ describe('networkManager - WebSocket connections', () => {
             otherManager.on('peerclosed',  resolve));
         const myDuplicateNp: NetworkPeer =
             myManager.connect(new Peer(new WebSocketAddress('127.0.0.1', 7005)));
-        let othersDuplicateNp;
+        let othersDuplicateNp: NetworkPeer;
         otherManager.on("incomingPeer", peer => othersDuplicateNp = peer);
         await iNotedDuplicate;
         logger.error("iNotedDuplicate")

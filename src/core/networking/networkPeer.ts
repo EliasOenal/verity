@@ -51,6 +51,22 @@ export enum NetworkPeerLifecycle {
     CLOSED = 5,
 }
 
+class NetworkPeerLifecycleStatus {
+    value: NetworkPeerLifecycle = NetworkPeerLifecycle.CONNECTING;
+    advance(newValue: NetworkPeerLifecycle): boolean {
+        if (newValue > this.value) {
+            this.value = newValue;
+            return true;
+        } else {
+            // This can happen for example if a connection object reports being
+            // ready really late, so that we might even register the Verity-level
+            // handshake as complete first. In this case, we must avoid reducing
+            // our lifecycle status back from ONLINE to HANDSHAKING.
+            return false;
+        }
+    }
+}
+
 /**
  * Class representing a network peer, responsible for handling incoming and outgoing messages.
  */
@@ -63,10 +79,10 @@ export class NetworkPeer extends Peer {
     keyRequestTimer?: NodeJS.Timeout = undefined; // Timer for key requests
     peerRequestTimer?: NodeJS.Timeout = undefined; // Timer for node requests
 
-    private _status: NetworkPeerLifecycle = NetworkPeerLifecycle.CONNECTING;
-    get status(): NetworkPeerLifecycle { return this._status }
+    private _status: NetworkPeerLifecycleStatus = new NetworkPeerLifecycleStatus;
+    get status(): NetworkPeerLifecycle { return this._status.value }
 
-    private onlinePromiseResolve: Function;
+    private onlinePromiseResolve: (np: NetworkPeer) => void;
     /**
      * A peer will be considered to be online once a correct HELLO message
      * has been received.
@@ -74,11 +90,9 @@ export class NetworkPeer extends Peer {
      * with undefined.
      */
     private _onlinePromise: Promise<NetworkPeer> = new Promise<NetworkPeer>(
-        (resolve) => {
-            this.onlinePromiseResolve = resolve;
-        });
+        resolve => this.onlinePromiseResolve = resolve);
     get onlinePromise() { return this._onlinePromise; }
-    get online() { return this._status === NetworkPeerLifecycle.ONLINE; }
+    get online() { return this.status === NetworkPeerLifecycle.ONLINE; }
 
     private unsentCubeMeta: Set<CubeMeta> = new Set();
     private unsentPeers: Peer[] = undefined;  // TODO this should probably be a Set instead
@@ -135,7 +149,7 @@ export class NetworkPeer extends Peer {
         this.setTimeout();  // connection timeout
         this.conn.readyPromise.then(() => {
             clearTimeout(this.networkTimeout);  // clear connection timeout
-            this._status = NetworkPeerLifecycle.HANDSHAKING;
+            this._status.advance(NetworkPeerLifecycle.HANDSHAKING);
             logger.info(`NetworkPeer ${this.toString()}: Connected, I'll go ahead and say HELLO`);
             this.sendHello();
         });
@@ -143,7 +157,7 @@ export class NetworkPeer extends Peer {
 
     close(): Promise<void> {
         logger.trace(`NetworkPeer ${this.toString()}: Closing connection.`);
-        this._status = NetworkPeerLifecycle.CLOSING;
+        this._status.advance(NetworkPeerLifecycle.CLOSING);
         // Remove all listeners and timers to avoid memory leaks
         this.networkManager.peerDB.removeListener(
             'exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
@@ -157,7 +171,7 @@ export class NetworkPeer extends Peer {
         // Note: this means conn.close() gets called twice when closure
         // originates from the conn, but that's okay.
         const closedPromise: Promise<void> = this._conn.close();
-        closedPromise.then(() => {this._status = NetworkPeerLifecycle.CLOSED });
+        closedPromise.then(() => {this._status.advance(NetworkPeerLifecycle.CLOSED) });
 
         // If we never got online, "resolve" the promise with undefined.
         // Rejecting it would be the cleaner choice, but then we'd need to catch
@@ -222,7 +236,7 @@ export class NetworkPeer extends Peer {
      * @param message The incoming message as a Buffer.
      */
     private handleMessage(message: Buffer): void {
-        if (this._status >= NetworkPeerLifecycle.CLOSING) {
+        if (this.status >= NetworkPeerLifecycle.CLOSING) {
             // This NetworkPeer has already been closed;
             // not handling any further messages.
             return;
@@ -330,38 +344,38 @@ export class NetworkPeer extends Peer {
         }
 
         // Is this a spurious repeat HELLO?
-        if (this.online) {
+        if (this.status >= NetworkPeerLifecycle.ONLINE) {
             // If the peer has unexpectedly changed its ID, disconnect.
             if (!this.id.equals(peerID)) {
                 logger.info(`NetworkPeer ${this.toString()} suddenly changed its ID from ${this.id?.toString('hex')} to ${peerID.toString('hex')}, closing connection.`);
                 this.close();
-                return;
             } else {  // no unexpected ID change, just a spurious HELLO to be ignored
                 logger.trace(`NetworkPeer ${this.toString()}: Received spurious repeat HELLO`);
             }
         } else {  // not a repeat hello
             this._id = peerID;
-            this._status = NetworkPeerLifecycle.ONLINE;
+            this._status.advance(NetworkPeerLifecycle.ONLINE);
             logger.trace(`NetworkPeer ${this.toString()}: received HELLO, peer now considered online`);
 
             // Let the network manager know this peer is now online.
             // Abort if the network manager gives us a thumbs down on the peer.
             if (!this.networkManager.handlePeerOnline(this)) return;
             this.onlinePromiseResolve(this);  // let listeners know we learnt the peer's ID
-        }
-        // Send my publicly reachable address if I have one
-        this.sendMyServerAddress();
 
-        // Asks for their know peers in regular intervals
-        if (!this.peerRequestTimer) {
-            this.peerRequestTimer = setInterval(() =>
-                this.sendPeerRequest(), Settings.NODE_REQUEST_TIME);
-        }
-        // If we're scheduling our own requests and are not a light node,
-        // ask for available cubes in regular intervals
-        if (this.autoRequest && !this.lightNode && !this.keyRequestTimer) {
-            this.keyRequestTimer = setInterval(() => this.sendKeyRequest(),
-                Settings.KEY_REQUEST_TIME);
+            // Send my publicly reachable address if I have one
+            this.sendMyServerAddress();
+
+            // Asks for their know peers in regular intervals
+            if (!this.peerRequestTimer) {
+                this.peerRequestTimer = setInterval(() =>
+                    this.sendPeerRequest(), Settings.NODE_REQUEST_TIME);
+            }
+            // If we're scheduling our own requests and are not a light node,
+            // ask for available cubes in regular intervals
+            if (this.autoRequest && !this.lightNode && !this.keyRequestTimer) {
+                this.keyRequestTimer = setInterval(() => this.sendKeyRequest(),
+                    Settings.KEY_REQUEST_TIME);
+            }
         }
     }
 
