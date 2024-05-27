@@ -4,7 +4,8 @@
   "description": "Write something really important sounding here",
   "type": "module",
   "exports": {
-    "./src/": "./src/"
+    "./src/": "./src/",
+    "./webpack.veritycommon.mjs": "./webpack.veritycommon.mjs"
   },
   "scripts": {
     "start": "node --import=extensionless/register dist/src/verity.js",
