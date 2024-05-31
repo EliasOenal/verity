@@ -257,6 +257,10 @@ div.verityMyIdentityInfoArea a {
   padding-right: 0.3em;
 }
 
+.veritySemanticList {
+  list-style: none;
+  padding: 0;
+}
 
 /*
  * Post view

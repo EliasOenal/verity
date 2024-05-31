@@ -98,7 +98,7 @@ export class PeerView extends VerityView {
         primaryButton.setAttribute("data-addrindex", i.toString());
         primaryButton.setAttribute("class", "veritySmallButton btn btn-outline-primary");
         if (peer.primaryAddressIndex == i) primaryButton.classList.add("active");
-        primaryButton.setAttribute("onclick", "window.verityUI.peerController.makeAddressPrimary(this)");
+        primaryButton.setAttribute("onclick", "window.verity.peerController.makeAddressPrimary(this)");
         primaryButton.innerText = "Primary";
         addrLi.appendChild(primaryButton);
         // All done
