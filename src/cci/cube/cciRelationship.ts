@@ -3,6 +3,7 @@ import { CubeKey, WrongFieldType } from "../../core/cube/cubeDefinitions";
 import { cciField, cciFieldType } from "./cciField";
 
 import { Buffer } from 'buffer';
+import { logger } from "../../core/logger";
 
 export enum cciRelationshipType {
   CONTINUED_IN = 1,
@@ -18,6 +19,8 @@ export enum cciRelationshipType {
 
   // Only used in MUC extension cubes:
   SUBSCRIPTION_RECOMMENDATION = 81,
+
+  // codes 128 and above are reserved for app-specific usage
 }
 
 export const cciRelationshipLimits: Map<cciRelationshipType, number> = new Map([
@@ -51,13 +54,18 @@ export class cciRelationship {
   }
 
   static fromField(field: cciField): cciRelationship {
-      const relationship = new cciRelationship;
+      const relationship = new cciRelationship();
       if (field.type !== cciFieldType.RELATES_TO) {
-          throw (new WrongFieldType(
-              "Can only construct relationship object from RELATES_TO field, " +
-              "got " + field.type + "."));
+        logger.error(`cciRelationship.fromField(): Can only construct relationship object from RELATES_TO field, got ${field.type}; returning undefined instead.`);
+        return undefined;
       }
-      relationship.type = field.value.readIntBE(0, NetConstants.RELATIONSHIP_TYPE_SIZE);
+      // sanity-check field size
+      if (field.length <
+          NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE) {
+        logger.error(`cciRelationship.fromField(): Supplies RELATES_TO field is invalid as it is just ${field.length} bytes long, must be ${NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE}; returning undefined instead.`);
+        return undefined;
+      }
+      relationship.type = field.value.readUIntBE(0, NetConstants.RELATIONSHIP_TYPE_SIZE);
       relationship.remoteKey = field.value.subarray(
           NetConstants.RELATIONSHIP_TYPE_SIZE,
           NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE);
