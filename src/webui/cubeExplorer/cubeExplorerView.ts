@@ -5,6 +5,7 @@ import { Cube } from "../../core/cube/cube";
 import { CubeType } from "../../core/cube/cubeDefinitions";
 import { CubeField } from "../../core/cube/cubeField";
 import { isPrintable } from "../../core/helpers/misc";
+import { datetimeLocalToUnixtime, unixtimeToDatetimeLocal } from "../helpers/datetime";
 import { VerityView } from "../verityView";
 import { CubeExplorerController, CubeFilter, EncodingIndex } from "./cubeExplorerController";
 
@@ -214,11 +215,11 @@ export class CubeExplorerView extends VerityView {
     // date from filter
     const dateFromInput: HTMLInputElement =
       this.renderedView.querySelector(".verityCubeDateFrom");
-    dateFromInput.value = this.unixtimeToDatetimeLocal(filter.dateFrom);
+    dateFromInput.value = unixtimeToDatetimeLocal(filter.dateFrom);
     // date to filter
     const dateToInput: HTMLInputElement =
     this.renderedView.querySelector(".verityCubeDateTo");
-    dateToInput.value = this.unixtimeToDatetimeLocal(filter.dateTo);
+    dateToInput.value = unixtimeToDatetimeLocal(filter.dateTo);
     // content string filter
     const contentInput: HTMLInputElement =
       this.renderedView.querySelector(".verityCubeContentFilter");
@@ -240,14 +241,6 @@ export class CubeExplorerView extends VerityView {
     }
   }
 
-  private unixtimeToDatetimeLocal(unixtime: number): string {
-    if (unixtime === undefined) return "";
-    var date = new Date(unixtime * 1000);
-    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-    return date.toISOString().slice(0,16);
-  }
-
-
   //***
   // Input retrieval methods
   //***
@@ -262,12 +255,10 @@ export class CubeExplorerView extends VerityView {
     // Sculpt date
     const dateFromInput: string = (this.renderedView.querySelector(
       ".verityCubeDateFrom") as HTMLInputElement)?.value;
-    let dateFrom: number = (new Date(dateFromInput)).getTime() / 1000;
-    if (!Number.isNaN(dateFrom)) ret.dateFrom = dateFrom;
+    ret.dateFrom = datetimeLocalToUnixtime(dateFromInput);
     const dateToInput: string = (this.renderedView.querySelector(
       ".verityCubeDateTo") as HTMLInputElement)?.value;
-    let dateTo: number = (new Date(dateToInput)).getTime() / 1000;
-    if (!Number.isNaN(dateTo)) ret.dateTo = dateTo;
+    ret.dateTo = datetimeLocalToUnixtime(dateToInput);
     // Content filter encoding
     const encodingSelect: HTMLSelectElement =
       this.renderedView.querySelector(".verityContentEncodingSelect");
