@@ -1,9 +1,7 @@
 import { createRequire } from 'node:module';
-import path from 'path';
 import webpack from 'webpack';
 
 const { resolve } = createRequire(import.meta.url);
-const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
 export const commonConfig = {
   mode: 'development',
@@ -54,17 +52,8 @@ export const commonConfig = {
       resourceRegExp: /nodespecific/,
     }),
   ],
-  output: {
-    filename: '[name].js',
-    path: path.resolve(__dirname, 'distweb'),
-  },
   target: 'web',
   entry: {
     verityUI: './src/main.ts',
-  },
-  devServer: {
-    static: path.join(__dirname, "distweb"),
-    compress: true,
-    port: 11984,
   },
 };

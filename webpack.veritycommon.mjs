@@ -1,24 +1,38 @@
 import { commonConfig } from './webpack.base.mjs'
 import CopyWebpackPlugin from 'copy-webpack-plugin';
+import path from 'path';
 
 // exported for application sub-projects only
-export const frontendConfig = {
-  ...commonConfig
+export function frontendConfig(basepath, libpath=basepath+"/node_modules/verity/") {
+  const ret = {
+    ...commonConfig,
+    output: {
+      filename: '[name].js',
+      path: path.resolve(basepath, './distweb'),
+    },
+    devServer: {
+      static: path.join(basepath, "./distweb"),
+      compress: true,
+      port: 11984,
+    },
+
+  }
+  ret.plugins.push(
+    new CopyWebpackPlugin({
+      patterns: [
+        { from: libpath+'/src/webui/static/index.html' },
+        { from: libpath+'/src/webui/static/style.css' },
+        { from: libpath+'/src/webui/static/frontend.js' },  // alternatively, we could write that in Typescript and make it a second bundle
+        { from: libpath+'/src/webui/static/manifest.json' },
+        { from: libpath+'/src/webui/static/serviceWorker.js' },
+        { from: libpath+'/img/vera.svg' },
+        { from: libpath+'/img/unknownuser.svg' },
+        { from: libpath+'/img/bootstrap.bundle.min.js' },
+        { from: libpath+'/img/bootstrap.min.css' },
+        { from: libpath+'/img/bootstrap-icons.min.css' },
+        { from: libpath+'/img/bootstrap-icons.woff', to: 'fonts/bootstrap-icons.woff' },
+      ]
+    }),
+  );
+  return ret;
 };
-frontendConfig.plugins.push(
-  new CopyWebpackPlugin({
-    patterns: [
-      { from: 'node_modules/verity/src/webui/static/index.html' },
-      { from: 'node_modules/verity/src/webui/static/style.css' },
-      { from: 'node_modules/verity/src/webui/static/frontend.js' },  // alternatively, we could write that in Typescript and make it a second bundle
-      { from: 'node_modules/verity/src/webui/static/manifest.json' },
-      { from: 'node_modules/verity/src/webui/static/serviceWorker.js' },
-      { from: 'node_modules/verity/img/vera.svg' },
-      { from: 'node_modules/verity/img/unknownuser.svg' },
-      { from: 'node_modules/verity/img/bootstrap.bundle.min.js' },
-      { from: 'node_modules/verity/img/bootstrap.min.css' },
-      { from: 'node_modules/verity/img/bootstrap-icons.min.css' },
-      { from: 'node_modules/verity/img/bootstrap-icons.woff', to: 'fonts/bootstrap-icons.woff' },
-    ]
-  }),
-);
