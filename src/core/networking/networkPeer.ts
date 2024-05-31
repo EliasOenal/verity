@@ -476,8 +476,9 @@ export class NetworkPeer extends Peer {
         // fetch all requested binary Cubes
         const binaryCubes: Buffer[] = [];
         for (const requestedKey of requestedKeys) {
-            binaryCubes.push(
-                (await this.cubeStore.getCubeInfo(requestedKey)).binaryCube);
+            const binaryCube: Buffer =
+                (await this.cubeStore.getCubeInfo(requestedKey))?.binaryCube
+            if (binaryCube !== undefined) binaryCubes.push(binaryCube);
         }
         const reply = new CubeResponseMessage(binaryCubes);
         logger.trace(`NetworkPeer ${this.toString()}: handleCubeRequest: sending ${reply.cubeCount} cubes`);
