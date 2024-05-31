@@ -44,7 +44,7 @@ export class cciFields extends CubeFields {
     for (const relationshipfield of relationshipfields) {
       const relationship: cciRelationship =
         cciRelationship.fromField(relationshipfield);
-      if (!type || relationship.type == type) ret.push(relationship);
+      if (type === undefined || relationship.type === type) ret.push(relationship);
     }
     return ret;
   }

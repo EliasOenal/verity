@@ -79,8 +79,8 @@ describe('cciRelationship', () => {
     expect(fields.getFirstRelationship(cciRelationshipType.MYPOST).remoteKey[0]).toEqual(21);
   });
 
-  it('throws trying to demarshal a non-relationship field', () => {
+  it('returns undefined when trying to demarshal a non-relationship field', () => {
     const field = cciField.Payload("Hoc non est relationem.");
-    expect(() => cciRelationship.fromField(field)).toThrow(WrongFieldType);
+    expect(cciRelationship.fromField(field)).toBeUndefined();
   });
 });

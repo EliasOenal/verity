@@ -99,7 +99,7 @@ export class cciField extends CubeField {
     const value: Buffer = Buffer.alloc(
         NetConstants.RELATIONSHIP_TYPE_SIZE +
         NetConstants.CUBE_KEY_SIZE);
-    value.writeIntBE(rel.type, 0, NetConstants.RELATIONSHIP_TYPE_SIZE);
+    value.writeUIntBE(rel.type, 0, NetConstants.RELATIONSHIP_TYPE_SIZE);
     rel.remoteKey.copy(
         value,  // target buffer
         NetConstants.RELATIONSHIP_TYPE_SIZE,  // target start position
