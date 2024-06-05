@@ -28,7 +28,7 @@ export class VerityNode {
      */
     public readonly servers: Map<SupportedTransports, any> = new Map(),
     private initialPeers: Array<AddressAbstraction> = [],
-    options: VerityNodeOptions
+    options: VerityNodeOptions = {}
   ){
     this.cubeStore = new CubeStore(options);
     // find a suitable port number for tracker announcement
@@ -66,8 +66,9 @@ export class VerityNode {
     }
   }
 
-  shutdown() {
+  shutdown(): Promise<void> {
     this.networkManager.shutdown();
     this.peerDB.shutdown();
+    return this.shutdownPromise;
   }
 }

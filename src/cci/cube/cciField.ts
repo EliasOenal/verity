@@ -74,7 +74,8 @@ export enum MediaTypes {
  * A cciField object represents a single CCI-compliant field in a Cube.
  */
 export class cciField extends CubeField {
-  static relationshipType = cciRelationship;
+  // line below causes issues due to circular dependency
+  // static relationshipType = cciRelationship;
 
   static SubkeySeed(buf: Buffer | Uint8Array): CubeField {
     if (!(buf instanceof Buffer)) buf = Buffer.from(buf);
