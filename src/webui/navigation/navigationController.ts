@@ -1,6 +1,6 @@
 import { VerityUI } from "../verityUI";
 import { ZwAnnotationEngine, SubscriptionRequirement } from "../../app/zw/model/zwAnnotationEngine";
-import { ControllerContext, ControllerError, VerityController } from "../verityController";
+import { ControllerContext, ControllerError, NavControllerInterface, VerityController } from "../verityController";
 import { PostController } from "../../app/zw/webui/post/postController";
 import { CubeExplorerController } from "../cubeExplorer/cubeExplorerController";
 
@@ -27,7 +27,7 @@ interface ControllerStackLayer {
  * Maybe it's even a stretch calling the NavigationController a controller,
  * perhaps NavigationGrandmaster would have been more appropriate.
  **/
-export class NavigationController extends VerityController {
+export class NavigationController extends VerityController implements NavControllerInterface {
   constructor(readonly parent: VerityUI){
     super(parent);
   }
@@ -104,8 +104,13 @@ export class NavigationController extends VerityController {
     this.registeredControllers.set(this.controllerRegistryHighestId, controller);
     return this.controllerRegistryHighestId;
   }
-  unregisterController(id: number) {
-    this.registeredControllers.delete(id);
+  unregisterController(controller: number | VerityController): void {
+    if (typeof controller === 'number') this.registeredControllers.delete(controller);
+    else {
+      for (const [key, value] of this.registeredControllers.entries()) {
+        if (value === controller) this.registeredControllers.delete(key);
+      }
+    }
   }
 
   /**
