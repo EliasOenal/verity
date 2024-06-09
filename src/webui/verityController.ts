@@ -1,10 +1,7 @@
 import { VerityView } from "./verityView";
-
-import EventEmitter from "events";
 import { UiError } from "./webUiDefinitions";
 
 import type { Identity } from "../cci/identity/identity";
-import type { NavigationController } from "./navigation/navigationController";
 import type { VerityNode } from "../core/verityNode";
 import type { CubeStore } from "../core/cube/cubeStore";
 
@@ -15,7 +12,22 @@ import type { CubeStore } from "../core/cube/cubeStore";
 export interface ControllerContext {
   node: VerityNode;
   identity: Identity;
-  nav: NavigationController;
+  nav: NavControllerInterface;
+}
+
+export interface NavControllerInterface {
+  registerController(controller: VerityController): number;
+  closeController(controllerStackIndex: VerityController | number, updateView?: boolean): void;
+  unregisterController(controller: number | VerityController): void;
+  identityChanged(): Promise<boolean>;
+}
+
+/** Mock for testing only */
+export class DummyNavController implements NavControllerInterface {
+  registerController(controller: VerityController): number { return 0; }
+  closeController(controllerStackIndex: number | VerityController, updateView?: boolean): void {}
+  unregisterController(controller: number | VerityController): void {}
+  identityChanged(): Promise<boolean> { return new Promise<boolean>(resolve => {resolve(true)})}
 }
 
 /** Abstract base class for our controllers */
@@ -46,9 +58,14 @@ export class VerityController {
    **/
   // Subclasses should override this and add additional cleanup code
   // if necessary.
+  // TODO BUGBUG: We must actually start using this, we're currently probably
+  // leaking stale controller objects whereever we go
   shutdown(callback: boolean = true): Promise<void> {
     if (this.contentAreaView) this.contentAreaView.shutdown();
-    if (callback) this.parent.nav.closeController(this);
+    if (callback) {
+      this.parent.nav.closeController(this);
+      this.parent.nav.unregisterController(this);
+    }
     // Return a resolved promise
     return new Promise<void>(resolve => resolve());
   }
