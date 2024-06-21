@@ -1,9 +1,12 @@
-import { NavItem } from "./navigationController";
+import { NavItem, NavigationController } from "./navigationController";
 import { VerityView } from "../verityView";
 
 export class NavigationView extends VerityView {
-  constructor() {
-    super(undefined, document.getElementById("verityNavbar"));
+  declare readonly controller: NavigationController
+  constructor(
+    controller: NavigationController
+  ) {
+    super(controller, undefined, document.getElementById("verityNavbar"));
     this.renderedView = document.createElement('div');
   }
 
@@ -11,13 +14,13 @@ export class NavigationView extends VerityView {
     // create nav container li
     const navLi: HTMLLIElement = document.createElement("li");
     navLi.className = "nav-item";
-    navLi.id = `verityNav-${navItem.controller}.${navItem.navAction}`;
+    navLi.id = navItem.navId;
     // create nav link
     const navLink: HTMLAnchorElement = document.createElement("a");
     navLink.href = "#";
     navLink.className = "nav-link";
     navLink.addEventListener('click', () =>
-      window.verity.nav.showNew(navItem));
+      this.controller.show(navItem, true));
     navLink.textContent = navItem.text ??  // provide default if no text specified
       `${navItem.controller} ${navItem.navAction}`;
     // add new nav item to navbar
@@ -27,7 +30,7 @@ export class NavigationView extends VerityView {
 
   navbarMarkActive(id: string) {
     for (const nav of this.renderedView.getElementsByClassName("nav-item")) {
-      if (nav.id == id) nav.classList.add("active");
+      if (nav.id === id) nav.classList.add("active");
       else nav.classList.remove("active");
     }
   }

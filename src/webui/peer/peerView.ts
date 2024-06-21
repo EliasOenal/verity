@@ -3,23 +3,25 @@ import { NetworkPeer, NetworkPeerLifecycle } from "../../core/networking/network
 import { logger } from "../../core/logger";
 import { VerityView } from "../verityView";
 import { unixtime } from "../../core/helpers/misc";
-import { ShallDisplay } from "./peerController";
+import type { PeerController, ShallDisplay } from "./peerController";
 
 export class PeerView extends VerityView {
   private peerList: HTMLUListElement;
 
   constructor(
-      private myId: string,
+      controller: PeerController,
       htmlTemplate: HTMLTemplateElement = document.getElementById(
         "verityPeerViewTemplate") as HTMLTemplateElement,
       show: boolean = false,
   ){
-    super(htmlTemplate);
+    super(controller, htmlTemplate);
     this.peerList = this.renderedView.querySelector(".verityPeerList");
     this.clearAll();
     this.printMyId();
     if (show) this.show();
   }
+
+  get myId(): string { return this.controller.parent.node.networkManager.id.toString('hex'); }
 
   clearAll() {
     this.peerList.replaceChildren();

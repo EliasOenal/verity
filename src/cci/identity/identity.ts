@@ -477,9 +477,17 @@ export class Identity {
   }
 
   /** Stores a new cube key a the the beginning of my post list */
-  rememberMyPost(cubeKey: CubeKey | string) {
-    if (!(cubeKey instanceof Buffer)) cubeKey = Buffer.from(cubeKey, 'hex');
+  rememberMyPost(cubeKey: CubeKey | string): boolean {
+    // sanity checks
+    if (!cubeKey) return false;
+    try {  // convert key to binary if supplied as string
+      if (!(cubeKey instanceof Buffer)) cubeKey = Buffer.from(cubeKey, 'hex');
+    } catch { return false; }  // could fail if supplied key string is invalid
+    if (cubeKey.length != NetConstants.CUBE_KEY_SIZE) return false;
+
+    // everything looks good, let's remember this post
     this.posts.unshift(cubeKey);
+    return true;
   }
 
   /** Removes a cube key from my post list */

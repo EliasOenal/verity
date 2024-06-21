@@ -1,24 +1,55 @@
-import { VerityUI } from "../verityUI";
-import { ZwAnnotationEngine, SubscriptionRequirement } from "../../app/zw/model/zwAnnotationEngine";
+import { NavigationView } from "./navigationView";
 import { ControllerContext, ControllerError, NavControllerInterface, VerityController } from "../verityController";
-import { PostController } from "../../app/zw/webui/post/postController";
-import { CubeExplorerController } from "../cubeExplorer/cubeExplorerController";
+import { VerityUI } from "../verityUI";
 
 import { logger } from "../../core/logger";
-import { NavigationView } from "./navigationView";
-import { Identity } from "../../cci/identity/identity";
 
 export interface NavItem {
-  controller: string,
-  navAction: string,
+  /**
+   * An existing VerityController or a VerityController subclass which will
+   * handle the navigation request and display the appropriate view.
+   **/
+  controller: VerityController | typeof VerityController,
+
+  /** The controller method used to build this view */
+  navAction: ()=>Promise<void>,
+
+  /** The link text to be displayed to the user */
   text?: string,
+
+  /**
+   * Whether calling this nav item should close all previous controllers.
+   * If false, the new controller will be added to the stack of controllers
+   * and a back arrow will be displayed to allow the user to return to the
+   * previous controller.
+   **/
   exclusive?: boolean,
+
+  /**
+   * If true, the controller managing this view will only be closed rather than
+   * shut down when the nav item is closed.
+   * This is only useful for controllers doing other work in the background as
+   * opposed to just managing a view, and should of course only be used with
+   * pre-instantiated controllers (otherwise memory leaks will ensue, or worse!)
+   **/
+  keepAliveOnClose?: boolean,
+
+  /**
+   * This attribute will be set automatically by NavController whenever
+   * makeNavItem() is called. It's the navigation link's ID attribute in the DOM.
+   */
+  navId?: string;
 }
 
-interface ControllerStackLayer {
+interface ControllerStackLayer extends NavItem {
+  /**
+   * The VerityController managing this view.
+   * In contrast to NavItem, this is now definitely an instance rather than a class.
+   **/
   controller: VerityController;
-  navId: string;
-  navAction: string;
+
+  /** The controller method used to build the selected view */
+  navAction: ()=>Promise<void>;
 };
 
 /**
@@ -28,6 +59,8 @@ interface ControllerStackLayer {
  * perhaps NavigationGrandmaster would have been more appropriate.
  **/
 export class NavigationController extends VerityController implements NavControllerInterface {
+  lastNavId: number = 0;
+
   constructor(readonly parent: VerityUI){
     super(parent);
   }
@@ -38,31 +71,26 @@ export class NavigationController extends VerityController implements NavControl
   // TODO: Provide some visual feedback on navigation as controllers could
   // potentially take significant time to build their view.
   // Let's maybe run Vera's animation and slowly grey out the previous view.
-  async showNew(navItem: NavItem, show: boolean = true): Promise<void> {
+  async show(navItem: NavItem, show: boolean = true): Promise<void> {
     if (navItem.exclusive) this.closeAllControllers(false);
-    const controller: VerityController = this.instantiateController(navItem.controller);
-    // TODO: before awaiting selectView() we should display some feedback
+    let controller: VerityController;
+    if (navItem.controller instanceof VerityController) {
+      controller = navItem.controller;
+    } else {
+      // instantiate controller
+      controller = new navItem.controller(this.parent);
+    }
+
+    // TODO: before awaiting the view we should display some feedback
     // to the user, e.g. a loading animation or something
-    await controller.selectView(navItem.navAction);
+    const viewBuilder: () => Promise<void> =
+      navItem.navAction.bind(controller);
+    await viewBuilder();
     this.newControlLayer({
       controller: controller,
       navAction: navItem.navAction,
-      navId: `verityNav-${navItem.controller}.${navItem.navAction}`,
-    });
-    if (show) this.currentController.contentAreaView.show();
-  }
-
-  async show(controllerId: number, navName: string, show: boolean = true): Promise<void> {
-    const controller: VerityController =
-      this.registeredControllers.get(controllerId);
-    if (controller === undefined) {
-      throw new NoSuchController(controllerId.toString());
-    }
-    await controller.selectView(navName);
-    this.newControlLayer({
-      controller: controller,
-      navAction: navName,
-      navId: `verityNav-${controllerId}.${navName}`,
+      navId: navItem.navId,
+      keepAliveOnClose: navItem.keepAliveOnClose,
     });
     if (show) this.currentController.contentAreaView.show();
   }
@@ -70,9 +98,10 @@ export class NavigationController extends VerityController implements NavControl
   //***
   // Navbar (and other navigation element) management
   //***
-  navigationView: NavigationView = new NavigationView();
+  navigationView: NavigationView = new NavigationView(this);
 
   makeNavItem(navItem: NavItem): void {
+    navItem.navId = `verityNav-${++this.lastNavId}`;
     this.navigationView.makeNavItem(navItem);
   }
 
@@ -84,34 +113,6 @@ export class NavigationController extends VerityController implements NavControl
   //***
   // Controller management
   //***
-
-  /**
-   * Controller class registry
-   * (TODO document more thoroughly)
-   **/
-  private controllerClasses: Map<string, typeof VerityController> = new Map();
-  registerControllerClass(name: string, ctrlClass: typeof VerityController) {
-    this.controllerClasses.set(name, ctrlClass);
-  }
-
-  /**
-   * Controller instance registry
-   */
-  private registeredControllers: Map<number, VerityController> = new Map();
-  controllerRegistryHighestId: number = 0;
-  registerController(controller: VerityController): number {
-    this.controllerRegistryHighestId++;
-    this.registeredControllers.set(this.controllerRegistryHighestId, controller);
-    return this.controllerRegistryHighestId;
-  }
-  unregisterController(controller: number | VerityController): void {
-    if (typeof controller === 'number') this.registeredControllers.delete(controller);
-    else {
-      for (const [key, value] of this.registeredControllers.entries()) {
-        if (value === controller) this.registeredControllers.delete(key);
-      }
-    }
-  }
 
   /**
    * The stack of active controllers for verityContentArea.
@@ -139,15 +140,6 @@ export class NavigationController extends VerityController implements NavControl
     return this.currentControlLayer?.controller;
   }
 
-  private instantiateController(ctrlClassId: string): VerityController {
-    // instantiate controller
-    const controllerClass: typeof VerityController =
-      this.controllerClasses.get(ctrlClassId);
-    if (controllerClass === undefined) throw new NoSuchController(ctrlClassId);
-    const controller: VerityController = new controllerClass(this.parent);
-    return controller;
-  }
-
   newControlLayer(
       layer: ControllerStackLayer,
   ): void {
@@ -162,7 +154,9 @@ export class NavigationController extends VerityController implements NavControl
     }
   }
 
-  closeController(controllerStackIndex: VerityController | number, updateView: boolean = true): void {
+  closeController(controllerStackIndex: VerityController | number, updateView: boolean = true, unregister: boolean = true): void {
+    // Make sure we have the controller stack index, as we'll need it to remove
+    // it from the controllerStack array later
     if (typeof controllerStackIndex !== 'number') {
       for (let i=0; i<this.controllerStack.length; i++) {
         if (this.controllerStack[i].controller === controllerStackIndex) {
@@ -175,9 +169,16 @@ export class NavigationController extends VerityController implements NavControl
       logger.error("NavigationController: Tried to close a Controller which is not on my controller stack; ignoring.");
       return;
     }
+    // Make sure we have the actual controller stack layer as well
     const layer = this.controllerStack[controllerStackIndex];
-    layer.controller.close(false, false);  // close controller, but don't unshow yet
-    this.controllerStack.splice(controllerStackIndex, 1);  // remove it from stack
+
+    // Remove controller from my controller stack
+    this.controllerStack.splice(controllerStackIndex, 1);
+    // Close controller, but don't unshow yet.
+    // Shut it down completely by default, except if it requested to keep runnning.
+    if (layer.keepAliveOnClose) layer.controller.close(false, false);
+    else layer.controller.shutdown(false, false);
+
     if (updateView) {  // make the UI reflect the controller change
       this.displayOrHideBackButton();  // Only show back button if there's something to go back to.
       if (this.currentController !== undefined) {
@@ -205,7 +206,9 @@ export class NavigationController extends VerityController implements NavControl
       layer.controller = new Constructor(this.parent);
     }
     // but always re-trigger the navigation action
-    return layer.controller.selectView(layer.navAction);
+    const viewBuilder: () => Promise<void> =
+      layer.navAction.bind(layer.controller);
+    return viewBuilder();
   }
 
 

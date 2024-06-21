@@ -1,14 +1,17 @@
 import { Identity } from "../../cci/identity/identity";
 import { VerityView } from "../verityView";
+import type { IdentityController } from "./identityController";
 
 export class LoginStatusView extends VerityView {
+  declare readonly controller: IdentityController;
+
   constructor(
-      readonly controllerId: number,
+      controller: IdentityController,
       htmlTemplate: HTMLTemplateElement = document.getElementById(
         "verityIdentityRowTemplate") as HTMLTemplateElement,
       viewArea: HTMLElement = document.getElementById("verityIdentityArea"),
   ){
-    super(htmlTemplate, viewArea);
+    super(controller, htmlTemplate, viewArea);
   }
 
   renderLoggedOut(show: boolean = false): void {
@@ -42,12 +45,18 @@ export class LoginStatusView extends VerityView {
 
   private setLinkTargets() {
     const loginLink: HTMLAnchorElement =
-      this.renderedView.querySelector('.verityIdentityLoginLink')
-    loginLink?.setAttribute("onclick",
-      `window.verity.nav.show(${this.controllerId}, "login")`);
+      this.renderedView.querySelector('.verityIdentityLoginLink');
+    if (loginLink) loginLink.onclick = () =>
+      this.controller.parent.nav.show({
+        controller: this.controller,
+        navAction: this.controller.selectLoginForm
+      });
     const editLink: HTMLAnchorElement =
       this.renderedView.querySelector('.verityIdentityEditLink')
-    editLink?.setAttribute("onclick",
-      `window.verity.nav.show(${this.controllerId}, "edit")`);
+    if (editLink) editLink.onclick = () =>
+      this.controller.parent.nav.show({
+        controller: this.controller,
+        navAction: this.controller.selectEditForm
+      });
   }
 }

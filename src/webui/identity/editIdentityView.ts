@@ -1,17 +1,19 @@
 import { Identity } from "../../cci/identity/identity";
 import { VerityView } from "../verityView";
 
+import type { IdentityController } from "./identityController";
+
 export class EditIdentityView extends VerityView {
   constructor(
-    identity: Identity,
+    controller: IdentityController,
     htmlTemplate: HTMLTemplateElement = document.getElementById(
       "verityEditIdentityTemplate") as HTMLTemplateElement,
   ){
-    super(htmlTemplate);
+    super(controller, htmlTemplate);
 
     const displayNameInput: HTMLInputElement =
       this.renderedView.querySelector(".verityDisplayNameInput");
-    displayNameInput.value = identity.name;
+    displayNameInput.value = this.controller.identity.name;
   }
 
   displayAvatar(seed: string, src: string) {

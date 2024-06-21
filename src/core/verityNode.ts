@@ -47,9 +47,7 @@ export class VerityNode {
     this.onlinePromise = new Promise(resolve => this.networkManager.once('online', () => {
       resolve(undefined);
     }));
-    this.readyPromise = new Promise(resolve => this.cubeStore.once('ready', () => {
-      resolve(undefined);
-    }))
+    this.readyPromise = this.cubeStore.readyPromise;  // that's a little useless
     // Construct cube retrieval helper object
     this.cubeRetriever =
       new CubeRetriever(this.cubeStore, this.networkManager.scheduler);

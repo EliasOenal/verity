@@ -34,9 +34,6 @@ export class CubeExplorerController extends VerityController {
   ){
     super(parent);
     this.contentAreaView = new CubeExplorerView(this);
-
-    // set nav methods
-    this.viewSelectMethods.set("all", this.selectAll);
   }
 
   //***

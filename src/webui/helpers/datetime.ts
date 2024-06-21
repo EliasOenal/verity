@@ -11,3 +11,14 @@ export function datetimeLocalToUnixtime(timestring: string): number {
   if (Number.isNaN(ret)) ret = undefined;
   return ret;
 }
+
+export function formatDate(
+  unixtime: number,
+  dateFormat: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
+): string {
+const date: Date = new Date(unixtime*1000);
+const dateText =
+  date.toLocaleDateString(window.navigator.language, dateFormat) + " " +
+  date.toLocaleTimeString(window.navigator.language);
+return dateText;
+}
