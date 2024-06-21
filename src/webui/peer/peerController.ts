@@ -18,6 +18,8 @@ export const enum ShallDisplay {
 };
 
 export class PeerController extends VerityController {
+  declare public contentAreaView: PeerView;
+
   displayedPeers: Map<Peer, HTMLLIElement> = new Map();
   shallDisplay: ShallDisplay = ShallDisplay.Connected;
   redisplayTimeout: NodeJS.Timeout = undefined;
@@ -28,19 +30,16 @@ export class PeerController extends VerityController {
 
   constructor(
       parent: ControllerContext,
-      public contentAreaView = new PeerView(parent.node.networkManager.id.toString('hex')),
   ){
     super(parent);
-    this.onlineView = new OnlineView(this.navId);
+    this.contentAreaView = new PeerView(this);
+    this.onlineView = new OnlineView(this);
     // subscribe to online status so we can display it in OnlineView
     this.networkManager.on('online', () => this.onlineView.showOnline());
     this.networkManager.on('offline', () => this.onlineView.showOffline());
     // show the initial online status in OnlineView
     if (this.networkManager.online) this.onlineView.showOnline();
     else this.onlineView.showOffline();
-
-    // set nav methods
-    this.viewSelectMethods.set("details", this.selectDetails);
   }
 
   //***
@@ -201,12 +200,12 @@ export class PeerController extends VerityController {
   // Cleanup methods
   //***
 
-  shutdown(): Promise<void> {
+  shutdown(unshow: boolean = true, callback: boolean = true): Promise<void> {
     this.networkManager.removeListener('online', () => this.onlineView.showOnline());
     this.networkManager.removeListener('offline', () => this.onlineView.showOffline());
 
-    this.close();
-    return super.shutdown();
+    this.close(unshow, callback);
+    return super.shutdown(unshow, callback);
   }
 
   close(unshow: boolean = true, callback: boolean = true): Promise<void> {

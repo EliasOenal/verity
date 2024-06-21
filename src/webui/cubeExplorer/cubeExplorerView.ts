@@ -5,7 +5,7 @@ import { Cube } from "../../core/cube/cube";
 import { CubeType } from "../../core/cube/cubeDefinitions";
 import { CubeField } from "../../core/cube/cubeField";
 import { isPrintable } from "../../core/helpers/misc";
-import { datetimeLocalToUnixtime, unixtimeToDatetimeLocal } from "../helpers/datetime";
+import { datetimeLocalToUnixtime, formatDate, unixtimeToDatetimeLocal } from "../helpers/datetime";
 import { VerityView } from "../verityView";
 import { CubeExplorerController, CubeFilter, EncodingIndex } from "./cubeExplorerController";
 
@@ -19,15 +19,16 @@ const cubeTypeString: Map<CubeType, string> = new Map([
 ]);
 
 export class CubeExplorerView extends VerityView {
+  declare readonly controller: CubeExplorerController;
   private cubeList: HTMLUListElement;
 
   // TODO: Do not display view before values have been filled in
   constructor(
-      readonly controller: CubeExplorerController,
+      controller: CubeExplorerController,
       htmlTemplate: HTMLTemplateElement = document.getElementById(
         "verityCubeExplorerTemplate") as HTMLTemplateElement,
   ){
-    super(htmlTemplate);
+    super(controller, htmlTemplate);
     this.cubeList = this.renderedView.querySelector(".verityCubeList") as HTMLUListElement;
     this.clearAll();
   }
@@ -78,7 +79,7 @@ export class CubeExplorerView extends VerityView {
     // set general cube information
     (li.querySelector(".verityCubeType") as HTMLElement).innerText = typeWithEmoji;
     (li.querySelector(".verityCubeHash") as HTMLElement).innerText = cube.getHashIfAvailable().toString('hex');
-    const dateText = this.formatDate(cube.getDate());
+    const dateText = formatDate(cube.getDate());
     (li.querySelector(".verityCubeDate") as HTMLElement).innerText = dateText;
     (li.querySelector(".verityCubeDifficulty") as HTMLElement).innerText = cube.getDifficulty().toString();
 

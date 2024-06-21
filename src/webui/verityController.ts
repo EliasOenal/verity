@@ -4,6 +4,7 @@ import { UiError } from "./webUiDefinitions";
 import type { Identity } from "../cci/identity/identity";
 import type { VerityNode } from "../core/verityNode";
 import type { CubeStore } from "../core/cube/cubeStore";
+import type { NavItem } from "./navigation/navigationController";
 
 /**
  * The interface a controller's parent object needs to provide;
@@ -16,56 +17,44 @@ export interface ControllerContext {
 }
 
 export interface NavControllerInterface {
-  registerController(controller: VerityController): number;
+  show(navItem: NavItem, show?: boolean): Promise<void>;
   closeController(controllerStackIndex: VerityController | number, updateView?: boolean): void;
-  unregisterController(controller: number | VerityController): void;
   identityChanged(): Promise<boolean>;
 }
 
 /** Mock for testing only */
 export class DummyNavController implements NavControllerInterface {
-  registerController(controller: VerityController): number { return 0; }
+  show(navItem: NavItem, show?: boolean): Promise<void> { return new Promise<void>(resolve => {resolve()})}
   closeController(controllerStackIndex: number | VerityController, updateView?: boolean): void {}
-  unregisterController(controller: number | VerityController): void {}
   identityChanged(): Promise<boolean> { return new Promise<boolean>(resolve => {resolve(true)})}
 }
 
 /** Abstract base class for our controllers */
 export class VerityController {
   public contentAreaView: VerityView = undefined;
-  readonly viewSelectMethods: Map<string, () => Promise<void>> = new Map();
-  readonly navId: number = undefined;
-
   get cubeStore(): CubeStore { return this.parent.node.cubeStore }
   get identity(): Identity { return this.parent.identity }
 
   constructor(
     readonly parent: ControllerContext,
   ){
-    this.navId = this.parent?.nav?.registerController(this);
-  }
-
-  selectView(name: string): Promise<void> {
-    const func: ()=>Promise<void> = this.viewSelectMethods.get(name);
-    if (func) return func.call(this);
-    else throw new NoSuchView(name);
   }
 
   /**
    * Permanently get rid of this controller.
    * Controllers must not be reused after shutdown; instead a new instance must
    * be created if needed.
+   * @param [unshow=true] Whether to immediately un-show the associated view,
+   *   i.e. remove it from the DOM. Otherwise, it will stick around on the DOM
+   *   until you remove it yourself.
    **/
   // Subclasses should override this and add additional cleanup code
   // if necessary.
   // TODO BUGBUG: We must actually start using this, we're currently probably
   // leaking stale controller objects whereever we go
-  shutdown(callback: boolean = true): Promise<void> {
-    if (this.contentAreaView) this.contentAreaView.shutdown();
-    if (callback) {
-      this.parent.nav.closeController(this);
-      this.parent.nav.unregisterController(this);
-    }
+  shutdown(unshow: boolean = true, callback: boolean = true): Promise<void> {
+    this.contentAreaView?.shutdown?.(unshow);
+    if (callback) this.parent.nav.closeController(this);
     // Return a resolved promise
     return new Promise<void>(resolve => resolve());
   }
@@ -74,8 +63,9 @@ export class VerityController {
    * Closes this controller, but allows it to remain active in the
    * background if this particular type of controller supports it.
    **/
-  // Subclasses should override this and add additional cleanup code
-  // if necessary.
+  // This redirects to shutdown by default as we don't want controllers
+  // sticking around for no reason. Controllers actually wishing to continue
+  // running in the background must override this method.
   close(unshow: boolean = true, callback: boolean = true): Promise<void> {
     if (unshow && this.contentAreaView) this.contentAreaView.unshow();
     if (callback) this.parent.nav.closeController(this);

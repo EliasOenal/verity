@@ -15,7 +15,7 @@
     "server": "webpack serve"
   },
   "author": "Elias Oenal, Victor Hahn",
-  "license": "",
+  "license": "proprietary (open source option coming soon)",
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/ws": "^8.5.10",

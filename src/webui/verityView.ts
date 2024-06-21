@@ -1,5 +1,6 @@
 import { UiError } from "./webUiDefinitions";
 import { logger } from "../core/logger";
+import type { VerityController } from "./verityController";
 
 // TODO: make template handling more clearly optional
 
@@ -12,8 +13,9 @@ export abstract class VerityView {
   renderedView: HTMLElement;
 
   constructor(
-    protected htmlTemplate: HTMLTemplateElement,
-    protected viewArea: HTMLElement = document.getElementById("verityContentArea")
+    readonly controller: VerityController,
+    readonly htmlTemplate: HTMLTemplateElement,
+    readonly viewArea: HTMLElement = document.getElementById("verityContentArea")
   ) {
     if (!this.viewArea) throw new UiError("VerityView: Cannot create a view without a view area");
     if (htmlTemplate) this.renderedView =
@@ -39,11 +41,7 @@ export abstract class VerityView {
    * left off.
    **/
   unshow() {
-    try {
-      this.viewArea.removeChild(this.renderedView);
-    } catch (err) {
-      logger.debug("VerityView.unshow: Error unshowing: " + err?.toString() ?? err);
-    }
+    this.renderedView.remove();
   }
 
   /**
@@ -51,9 +49,9 @@ export abstract class VerityView {
    * necessary. A view that has been shut down can never be shown again; a new
    * view must be constructed instead.
    */
-  shutdown() {
+  shutdown(unshow: boolean = true) {
     // To be replaced or extended by subclass as needed.
-    this.unshow();
+    if (unshow) this.unshow();
   }
 
   newFromTemplate(templateQuery: string): HTMLElement {
@@ -90,17 +88,6 @@ export abstract class VerityView {
       alert.removeAttribute("role");
       alert.innerText = '';
     }
-  }
-
-  formatDate(
-      unixtime: number,
-      dateFormat: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
-  ): string {
-    const date: Date = new Date(unixtime*1000);
-    const dateText =
-      date.toLocaleDateString(navigator.language, dateFormat) + " " +
-      date.toLocaleTimeString(navigator.language);
-    return dateText;
   }
 }
 

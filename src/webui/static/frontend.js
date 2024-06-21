@@ -1,7 +1,7 @@
 function registerServiceWorker() {
-  if ("serviceWorker" in navigator) {
+  if ("serviceWorker" in window.navigator) {
     window.addEventListener("load", function() {
-      navigator.serviceWorker
+      window.navigator.serviceWorker
         .register("/serviceWorker.js")
         .then(res => console.log("Verity service worker registered"))
         .catch(err => console.log("Verity service worker not registered: ", err))

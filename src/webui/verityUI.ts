@@ -89,12 +89,6 @@ export class VerityUI implements ControllerContext {
     // Shut node down cleanly when user exits
     window.onbeforeunload = function(){ window.verity.shutdown() }
 
-    // Register controllers
-    for (const [name, controllerClass] of
-          [...defaultControllerClasses, ...options.controllerClasses]) {
-      ui.nav.registerControllerClass(
-        name as string, controllerClass as typeof VerityController);
-    }
     // Make navbar items
     if (options?.navItems) for (const navItem of options.navItems) {
       ui.nav.makeNavItem(navItem);
@@ -108,7 +102,7 @@ export class VerityUI implements ControllerContext {
     if (options.initialNav) {
       initialViewPromise = new Promise(resolve =>
         identityPromise.then(() =>
-          ui.nav.showNew(options.initialNav, false).then(resolve)));
+          ui.nav.show(options.initialNav, false).then(resolve)));
     } else {
       // no view specified, so nothing to prepare, so just make a resolved promise
       initialViewPromise = new Promise<void>(resolve => resolve());

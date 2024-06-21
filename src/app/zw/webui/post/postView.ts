@@ -1,21 +1,24 @@
 import { ZwConfig } from "../../model/zwConfig";
 import { logger } from "../../../../core/logger";
-import { PostData } from "./postController";
 import { VerityView } from "../../../../webui/verityView";
+
+import type { PostController, PostData } from "./postController";
 
 import { loadTemplate } from "../../../../webui/helpers";
 import * as template from './postTemplate.html';
+import { formatDate } from "../../../../webui/helpers/datetime";
 loadTemplate(template);
 
 export class PostView extends VerityView {
   private postList: HTMLUListElement;
 
   constructor(
+      controller: PostController,
       htmlTemplate: HTMLTemplateElement = document.getElementById(
         "verityPostViewTemplate") as HTMLTemplateElement,
       show: boolean = false,
   ){
-    super(htmlTemplate);
+    super(controller, htmlTemplate);
     this.postList = this.renderedView.querySelector(".verityPostList") as HTMLUListElement;
     this.clearAll();
     if (show) this.show();
@@ -46,7 +49,7 @@ export class PostView extends VerityView {
     this.displayCubeAuthor(data);
     // date
     const dateelem = li.getElementsByClassName("verityPostDate")[0] as HTMLElement;
-    dateelem.innerText = this.formatDate(data.timestamp)
+    dateelem.innerText = formatDate(data.timestamp)
     // post text
     const text: HTMLParagraphElement =
       li.getElementsByClassName("verityPostContent")[0] as HTMLParagraphElement;

@@ -41,21 +41,15 @@ export interface PostData {
 }
 
 export class PostController extends VerityController {
+  declare public contentAreaView: PostView;
   private displayedPosts: Map<string, PostData> = new Map();
   private annotationEngine: ZwAnnotationEngine;
 
   constructor(
       parent: ControllerContext,
-      public contentAreaView: PostView = new PostView(),
   ){
     super(parent);
-
-    // set nav methods
-    this.viewSelectMethods.set("all", this.selectAllPosts);
-    this.viewSelectMethods.set("withAuthors", this.selectPostsWithAuthors);
-    this.viewSelectMethods.set("subscribedInTree", this.selectSubscribedInTree);
-    this.viewSelectMethods.set("subscribedReplied", this.selectSubscribedReplied);
-    this.viewSelectMethods.set("wot", this.selectWot);
+    this.contentAreaView = new PostView(this);
   }
 
   //***
@@ -335,9 +329,9 @@ export class PostController extends VerityController {
   //***
   // Cleanup methods
   //***
-  shutdown(): Promise<void> {
+  shutdown(unshow: boolean = true, callback: boolean = true): Promise<void> {
     this.removeAnnotationEngineListeners();
-    return super.shutdown();
+    return super.shutdown(unshow, callback);
   }
 
 }

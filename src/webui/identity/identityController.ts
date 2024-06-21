@@ -32,24 +32,20 @@ export class IdentityController extends VerityController {
     if (options.persistence === undefined) {
       options.persistence = new IdentityPersistence(options);
     }
-    this.loginStatusView = new LoginStatusView(this.navId);
+    this.loginStatusView = new LoginStatusView(this);
     this.showLoginStatus();
-
-    // set nav methods
-    this.viewSelectMethods.set("login", this.selectLoginForm);
-    this.viewSelectMethods.set("edit", this.selectEditForm);
   }
 
   //***
   // View selection methods
   //***
   selectLoginForm(): Promise<void> {
-    this.contentAreaView = new LoginFormView();
+    this.contentAreaView = new LoginFormView(this);
     return new Promise<void>(resolve => resolve());  // nothing to do, return resolved promise
   }
 
   selectEditForm(): Promise<void> {
-    this.contentAreaView = new EditIdentityView(this.identity);
+    this.contentAreaView = new EditIdentityView(this);
     (this.contentAreaView as EditIdentityView).displayAvatar(
       this._identity.avatar?.seedString, this.identity.avatar.render());
     return new Promise<void>(resolve => resolve());  // nothing to do, return resolved promise
