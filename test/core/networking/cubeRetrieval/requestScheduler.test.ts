@@ -32,7 +32,7 @@ class mockNetworkPeer {
 class mockNetworkManager {
   cubeStore = new mockCubeStore();
   onlinePeers: Array<any> = [];
-  maximumConnections = 10;
+  options = {maximumConnections: 10};
   get onlinePeerCount() { return this.onlinePeers.length }
 };
 
@@ -87,7 +87,7 @@ describe('RequestScheduler', () => {
     });
 
     it('should schedule CubeRequests in light mode', async () => {
-      scheduler.lightNode = true;
+      scheduler.options.lightNode = true;
       scheduler.requestCube(testKey);
       await new Promise(resolve => setTimeout(resolve, 200));  // give it some time
       expect((scheduler.networkManager.onlinePeers[0] as unknown as mockNetworkPeer).
@@ -95,7 +95,7 @@ describe('RequestScheduler', () => {
     });
 
     it('should schedule KeyRequests in full mode', async () => {
-      scheduler.lightNode = false;
+      scheduler.options.lightNode = false;
       scheduler.requestCube(testKey);
       await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
       expect((scheduler.networkManager.onlinePeers[0] as unknown as mockNetworkPeer).
@@ -137,7 +137,7 @@ describe('RequestScheduler', () => {
 
     describe('Cube subscriptions', () => {
       it('should request a subscribed Cube in light mode', async() => {
-        scheduler.lightNode = true;
+        scheduler.options.lightNode = true;
         scheduler.subscribeCube(testKey);
         // @ts-ignore spying on private attribute
         expect(scheduler.subscribedCubes).toContainEqual(testKey);
@@ -149,7 +149,7 @@ describe('RequestScheduler', () => {
       });
 
       it('should ignore Cube requests when running as a full node', () => {
-        scheduler.lightNode = false;
+        scheduler.options.lightNode = false;
         scheduler.subscribeCube(testKey);
         // @ts-ignore spying on private attribute
         expect(scheduler.subscribedCubes).not.toContainEqual(testKey);

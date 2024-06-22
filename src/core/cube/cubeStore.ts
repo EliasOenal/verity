@@ -85,8 +85,9 @@ export interface CubeStoreOptions {
 
 export interface CubeRetrievalInterface {
   getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo>;
-  getCube(key: CubeKey | string, family: CubeFamilyDefinition): Promise<Cube>;
+  getCube(key: CubeKey | string, family?: CubeFamilyDefinition): Promise<Cube>;
 }
+
 
 export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   readyPromise: Promise<any>;
@@ -295,11 +296,6 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       }
     }
   }
-  async getCubeInfos(keys: Iterable<CubeKey | string>): Promise<CubeInfo[]> {
-    const cubeInfos: CubeInfo[] = [];
-    for (const key of keys) cubeInfos.push(await this.getCubeInfo(key));
-    return cubeInfos;
-  }
 
   /**
    * Get a Cube from storage. If the cube is currently dormant, it will
@@ -347,6 +343,13 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
         yield await this.getCubeInfo(key);
       }
     }
+  }
+  // Note: This duplicate getAllCubeInfos(), but AsyncGenerators are still a
+  // bit tricky to handle a times. So we're gonna keep this for now.
+  async getCubeInfos(keys: Iterable<CubeKey | string>): Promise<CubeInfo[]> {
+    const cubeInfos: CubeInfo[] = [];
+    for (const key of keys) cubeInfos.push(await this.getCubeInfo(key));
+    return cubeInfos;
   }
 
   async deleteCube(keyInput: CubeKey | string) {

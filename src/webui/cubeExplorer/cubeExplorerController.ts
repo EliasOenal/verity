@@ -1,14 +1,10 @@
-import { cciFamily } from "../../cci/cube/cciCube";
 import { rawCubeFamily, type Cube } from "../../core/cube/cube";
 import type { CubeField } from "../../core/cube/cubeField";
-import type { CubeStore } from "../../core/cube/cubeStore";
 import { logger } from "../../core/logger";
 import { getElementAboveByClassName } from "../helpers";
 import { CubeExplorerView } from "./cubeExplorerView";
-import { NavigationController } from "../navigation/navigationController";
-import { ControllerContext, VerityController } from "../verityController";
+import { ControllerContext, VerityController, VerityControllerOptions } from "../verityController";
 import type { CubeKey } from "../../core/cube/cubeDefinitions";
-import { CubeInfo } from "../../core/cube/cubeInfo";
 
 export interface CubeFilter {
   key?: string,
@@ -25,14 +21,23 @@ export enum EncodingIndex {
   hex = 3,
 }
 
+const DEFAULT_MAX_CUBES = 1000;  // TODO move to config
+
+export interface CubeExplorerControllerOptions extends VerityControllerOptions {
+  maxCubes?: number;
+}
+
 export class CubeExplorerController extends VerityController {
   declare public contentAreaView: CubeExplorerView;
+  declare readonly options: CubeExplorerControllerOptions;
 
   constructor(
       parent: ControllerContext,
-      readonly maxCubes: number = 1000,
+      options: CubeExplorerControllerOptions = {},
   ){
     super(parent);
+    options.maxCubes = options.maxCubes ?? DEFAULT_MAX_CUBES;
+
     this.contentAreaView = new CubeExplorerView(this);
   }
 
@@ -98,7 +103,7 @@ export class CubeExplorerController extends VerityController {
         }
         displayed++;
         this.contentAreaView.displayCube(key as string, cube);
-        if (displayed >= this.maxCubes) {
+        if (displayed >= this.options.maxCubes) {
           this.contentAreaView.showBelowCubes(`Maximum of ${displayed} Cubes displayed, rest omittted. Consider narrower filter.`);
           break;
         }

@@ -9,12 +9,15 @@ import { Identity, IdentityOptions } from '../cci/identity/identity';
 import { ControllerContext, VerityController } from './verityController';
 import { PeerController } from './peer/peerController';
 import { IdentityController } from './identity/identityController';
-import { NavItem, NavigationController } from './navigation/navigationController';
+import { NavigationController } from './navigation/navigationController';
 import { VeraAnimationController } from './veraAnimationController';
 import { CubeExplorerController } from './cubeExplorer/cubeExplorerController';
 
 import { logger } from '../core/logger'
 import { IdentityPersistenceOptions } from '../cci/identity/identityPersistence';
+
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
+import { NavItem } from './navigation/navigationDefinitions';
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
@@ -29,16 +32,6 @@ export const defaultInitialPeers: AddressAbstraction[] = [
   // new AddressAbstraction("158.101.100.95:1984"),
   // new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/ws"),
 ];
-
-const defaultControllerClasses: Array<Array<string | typeof VerityController>> = [
-  ["identity", IdentityController],
-  ["peer", PeerController],
-  ["cubeExplorer", CubeExplorerController],
-  // Note: NavigationController is not listed here as it does not need to
-  // register with itself.
-  // VeraAnimationController is not listed here as it's not actually a
-  // VerityController but basically just a helper used on startup.
-]
 
 export interface VerityUiOptions {
   controllerClasses: Array<Array<string | typeof VerityController>>,
@@ -65,6 +58,8 @@ export class VerityUI implements ControllerContext {
     logger.info('Starting web node');
     const veraStartupAnim =  new VeraAnimationController();
     veraStartupAnim.start();
+
+    await sodium.ready;
 
     // set default options if requred
     options.enableCubePersistence = options.enableCubePersistence ?? EnableCubePersitence.PRIMARY;

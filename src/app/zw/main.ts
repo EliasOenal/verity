@@ -3,7 +3,7 @@ import { VerityUI } from "../../webui/verityUI";
 import { isBrowser } from "browser-or-node";
 import { logger } from "../../core/logger";
 import { CubeExplorerController } from "../../webui/cubeExplorer/cubeExplorerController";
-import type { NavItem } from "../../webui/navigation/navigationController";
+import type { NavItem } from "../../webui/navigation/navigationDefinitions";
 
 export async function webmain() {
   const navItems: NavItem[] = [

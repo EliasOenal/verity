@@ -8,7 +8,7 @@ import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
 import type { CubeKey } from '../../cube/cubeDefinitions';
 import type { CubeInfo } from '../../cube/cubeInfo';
 import { keyVariants } from '../../cube/cubeUtil';
-import type { NetworkManager } from '../networkManager';
+import type { NetworkManager, NetworkManagerIf } from '../networkManager';
 import type { NetworkPeer } from '../networkPeer';
 
 import { logger } from '../../logger';
@@ -23,7 +23,14 @@ import { Buffer } from 'buffer';  // for browsers
 // light nodes.
 
 export interface RequestSchedulerOptions {
+  /**
+   * If true, will only fetch explicitly requested Cubes.
+   * (Note: This also means we will never send KeyRequests as we're not
+   * interested in learning random available keys.)
+   * If false, we're a full node and will try to fetch every single Cube out there.
+   **/
   lightNode?: boolean;
+
   requestStrategy?: RequestStrategy;
   requestInterval?: number;
   requestScaleFactor?: number;
@@ -36,38 +43,21 @@ export interface RequestSchedulerOptions {
  * on local application's requests.
  */
 export class RequestScheduler {
-  /**
-   * If true, will only fetch explicitly requested Cubes.
-   * (Note: This also means we will never send KeyRequests as we're not
-   * interested in learning random available keys.)
-   * If false, we're a full node and will try to fetch every single Cube out there.
-   **/
-  lightNode: boolean = true;
-
-  private _requestStrategy: RequestStrategy;
-  get requestStrategy(): RequestStrategy { return this._requestStrategy }
-
-  requestInterval: number;
-  requestScaleFactor: number;
-  interactiveRequestDelay: number;
-
-  requestTimeout?: number;
-
   private requestedCubes: Map<string, RequestedCube> = new Map();
   private subscribedCubes: CubeKey[] = [];
   private timer: ShortenableTimeout = new ShortenableTimeout(this.performRequest, this);
 
   constructor(
-    readonly networkManager: NetworkManager,
-    options?: RequestSchedulerOptions
+    readonly networkManager: NetworkManagerIf,
+    readonly options: RequestSchedulerOptions = {},
   ){
     // set options
-    this.lightNode = options?.lightNode ?? true;
-    this.requestStrategy = options.requestStrategy ?? new RandomStrategy();
-    this.requestInterval = options?.requestInterval ?? Settings.KEY_REQUEST_TIME;
-    this.requestScaleFactor = options?.requestScaleFactor ?? Settings.REQUEST_SCALE_FACTOR;
-    this.requestTimeout = options?.requestTimeout ?? Settings.CUBE_REQUEST_TIMEOUT;
-    this.interactiveRequestDelay = options?.interactiveRequestDelay ?? Settings.INTERACTIVE_REQUEST_DELAY;
+    options.lightNode = options?.lightNode ?? true;
+    options.requestStrategy = options.requestStrategy ?? new RandomStrategy();
+    options.requestInterval = options?.requestInterval ?? Settings.KEY_REQUEST_TIME;
+    options.requestScaleFactor = options?.requestScaleFactor ?? Settings.REQUEST_SCALE_FACTOR;
+    options.requestTimeout = options?.requestTimeout ?? Settings.CUBE_REQUEST_TIMEOUT;
+    options.interactiveRequestDelay = options?.interactiveRequestDelay ?? Settings.INTERACTIVE_REQUEST_DELAY;
 
     this.networkManager.cubeStore.on("cubeAdded", (cubeInfo: CubeInfo) =>
       this.cubeAddedHandler(cubeInfo));
@@ -75,8 +65,8 @@ export class RequestScheduler {
 
   requestCube(
     keyInput: CubeKey | string,
-    scheduleIn: number = this.interactiveRequestDelay,
-    timeout: number = this.requestTimeout
+    scheduleIn: number = this.options.interactiveRequestDelay,
+    timeout: number = this.options.requestTimeout
   ): Promise<CubeInfo> {
     const key = keyVariants(keyInput);
     const req = new RequestedCube(key.binaryKey, timeout);  // create request
@@ -94,9 +84,9 @@ export class RequestScheduler {
   // and over again, which is obviously stupid.
   subscribeCube(
       keyInput: CubeKey | string,
-      scheduleIn: number = this.interactiveRequestDelay,
+      scheduleIn: number = this.options.interactiveRequestDelay,
   ): void {
-    if (this.lightNode) {  // full nodes are implicitly subscribed to everything
+    if (this.options.lightNode) {  // full nodes are implicitly subscribed to everything
       const key = keyVariants(keyInput);
       if (this.subscribedCubes.some(subbedKey => subbedKey.equals(key.binaryKey))) {
         return;  // already subscribed, nothing to do here
@@ -106,16 +96,13 @@ export class RequestScheduler {
     }
   }
 
-  set requestStrategy(newStrat: RequestStrategy) {
-    this._requestStrategy = newStrat;
-  };
 
   /** @returns true if request scheduled, false if not scheduled
    *           (which happens when there already is a request scheduled)
    */
   scheduleNextRequest(millis: number = undefined): boolean {
     if (millis === undefined) {
-      millis = this.requestInterval * this.calcRequestScaleFactor();
+      millis = this.options.requestInterval * this.calcRequestScaleFactor();
     }
     logger.trace(`RequestScheduler.scheduleNextRequest(): scheduling next request in ${millis} ms`);
     this.timer.set(millis);
@@ -124,10 +111,10 @@ export class RequestScheduler {
 
   private calcRequestScaleFactor(): number {
     const conn = this.networkManager.onlinePeerCount;
-    const max = this.networkManager.maximumConnections;
+    const max = this.networkManager.options.maximumConnections;
     const notConn = (max-1)-(conn-1);
 
-    const base = 1/this.requestScaleFactor;
+    const base = 1/this.options.requestScaleFactor;
     const step = (1-base) / (max-1);
 
     return base + notConn*step;
@@ -137,16 +124,16 @@ export class RequestScheduler {
     // cancel timer calling this exact function
     this.timer.clear();
     // is there even anything left to request?
-    if (this.lightNode &&
+    if (this.options.lightNode &&
         this.requestedCubes.size === 0 && this.subscribedCubes.length === 0) {
       logger.trace(`RequestScheduler.performRequest(): doing nothing, we're a light node and there are no open requests`);
       return;  // nothing to do
     }
     // select a peer to send request to
     const peerSelected: NetworkPeer =
-      this.requestStrategy.select(this.networkManager.onlinePeers);
+      this.options.requestStrategy.select(this.networkManager.onlinePeers);
     if (peerSelected !== undefined) {
-      if (this.lightNode) {
+      if (this.options.lightNode) {
         // request all Cubes that we're looking for, up the the maximum allowed
         const keys: CubeKey[] = [];
         for (const [keystring, req] of this.requestedCubes) {

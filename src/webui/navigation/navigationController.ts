@@ -1,56 +1,8 @@
+import { ControllerStackLayer, NavControllerIf, NavItem } from "./navigationDefinitions";
 import { NavigationView } from "./navigationView";
-import { ControllerContext, ControllerError, NavControllerInterface, VerityController } from "../verityController";
-import { VerityUI } from "../verityUI";
+import { ControllerContext, ControllerError, VerityController, VerityControllerOptions } from "../verityController";
 
 import { logger } from "../../core/logger";
-
-export interface NavItem {
-  /**
-   * An existing VerityController or a VerityController subclass which will
-   * handle the navigation request and display the appropriate view.
-   **/
-  controller: VerityController | typeof VerityController,
-
-  /** The controller method used to build this view */
-  navAction: ()=>Promise<void>,
-
-  /** The link text to be displayed to the user */
-  text?: string,
-
-  /**
-   * Whether calling this nav item should close all previous controllers.
-   * If false, the new controller will be added to the stack of controllers
-   * and a back arrow will be displayed to allow the user to return to the
-   * previous controller.
-   **/
-  exclusive?: boolean,
-
-  /**
-   * If true, the controller managing this view will only be closed rather than
-   * shut down when the nav item is closed.
-   * This is only useful for controllers doing other work in the background as
-   * opposed to just managing a view, and should of course only be used with
-   * pre-instantiated controllers (otherwise memory leaks will ensue, or worse!)
-   **/
-  keepAliveOnClose?: boolean,
-
-  /**
-   * This attribute will be set automatically by NavController whenever
-   * makeNavItem() is called. It's the navigation link's ID attribute in the DOM.
-   */
-  navId?: string;
-}
-
-interface ControllerStackLayer extends NavItem {
-  /**
-   * The VerityController managing this view.
-   * In contrast to NavItem, this is now definitely an instance rather than a class.
-   **/
-  controller: VerityController;
-
-  /** The controller method used to build the selected view */
-  navAction: ()=>Promise<void>;
-};
 
 /**
  * The NavigationController is a special one, as it not only controls
@@ -58,16 +10,31 @@ interface ControllerStackLayer extends NavItem {
  * Maybe it's even a stretch calling the NavigationController a controller,
  * perhaps NavigationGrandmaster would have been more appropriate.
  **/
-export class NavigationController extends VerityController implements NavControllerInterface {
+export class NavigationController extends VerityController implements NavControllerIf {
+  /**
+   * Navigation links in the DOM will be given an ID attribute with a unique
+   * number. This number will be incremented every time a new navigation link
+   * is created, so that we can easily identify and manipulate them.
+   **/
   lastNavId: number = 0;
 
-  constructor(readonly parent: VerityUI){
-    super(parent);
+  constructor(readonly parent: ControllerContext, options: VerityControllerOptions = {}){
+    options.contentAreaView = options.contentAreaView ?? NavigationView;
+    super(parent, options);
+    parent.nav = this;  // I am the NavController!
   }
 
   //***
   // View selection methods
   //***
+
+  /**
+   * Show a view by either instantiating the controller or taking an existing
+   * controller instance and calling the navAction method on it.
+   * @param navItem The NavItem dataset describing the view to show.
+   * @param show Whether to show the view immediately after building it.
+   *             You will usually want to leave this at default (true).
+   */
   // TODO: Provide some visual feedback on navigation as controllers could
   // potentially take significant time to build their view.
   // Let's maybe run Vera's animation and slowly grey out the previous view.
@@ -98,13 +65,22 @@ export class NavigationController extends VerityController implements NavControl
   //***
   // Navbar (and other navigation element) management
   //***
-  navigationView: NavigationView = new NavigationView(this);
+  declare contentAreaView: NavigationView;
+  get navigationView(): NavigationView { return this.contentAreaView }
 
+  /**
+   * Create a new navigation link in the navigation bar.
+   * @param navItem The NavItem dataset describing the navigation item.
+   */
   makeNavItem(navItem: NavItem): void {
     navItem.navId = `verityNav-${++this.lastNavId}`;
     this.navigationView.makeNavItem(navItem);
   }
 
+  /**
+   * Display or hide the back button in the navigation bar depending on whether
+   * there are controllers below the current one on the stack to go back to.
+   */
   private displayOrHideBackButton() {
     if (this.controllerStack.length > 1) this.navigationView.displayBackButton();
     else this.navigationView.hideBackButton();
@@ -125,6 +101,9 @@ export class NavigationController extends VerityController implements NavControl
    */
   controllerStack: ControllerStackLayer[] = [];
 
+  /**
+   * The controller layer currently owning verityContentArea.
+   */
   get currentControlLayer(): ControllerStackLayer {
     if (this.controllerStack.length === 0) return undefined;
     else return this.controllerStack[this.controllerStack.length-1];
@@ -140,6 +119,12 @@ export class NavigationController extends VerityController implements NavControl
     return this.currentControlLayer?.controller;
   }
 
+  /**
+   * Add a new controller to the controller stack.
+   * You will usually not want to call this directly, but rather use the show()
+   * method to show a view and add the controller to the stack.
+   * @param layer The controller layer to add to the stack.
+   */
   newControlLayer(
       layer: ControllerStackLayer,
   ): void {
@@ -148,13 +133,31 @@ export class NavigationController extends VerityController implements NavControl
     this.navigationView.navbarMarkActive(layer.navId);  // Update active nav bar item.
   }
 
+  /**
+   * Close the current controller and return control to the one below, if any.
+   * You will usually not want to call this directly. Rather, this will be called
+   * if the user clicks the back button, or if a controller chooses to self-close.
+   * @param updateView Whether to update the view after closing the controller.
+   */
   closeCurrentController(updateView: boolean = true) {
     if (this.controllerStack.length > 0) {
       this.closeController(this.controllerStack.length - 1, updateView);
     }
   }
 
-  closeController(controllerStackIndex: VerityController | number, updateView: boolean = true, unregister: boolean = true): void {
+  /**
+   * Close a controller and remove it from the controller stack.
+   * You will usually not want to call this directly.
+   * @param controllerStackIndex Either the controller to close or
+   *                             its index in the controller stack.
+   * @param updateView Whether to update the view after closing the controller.
+   * @param unregister
+   * @returns
+   */
+  closeController(
+      controllerStackIndex: VerityController | number,
+      updateView: boolean = true,
+  ): void {
     // Make sure we have the controller stack index, as we'll need it to remove
     // it from the controllerStack array later
     if (typeof controllerStackIndex !== 'number') {
@@ -193,12 +196,27 @@ export class NavigationController extends VerityController implements NavControl
     }
   }
 
+  /**
+   * Close all controllers and remove them from the controller stack.
+   * You will usually not want to call this directly. Rather, this will be
+   * called automatically if a NavItem with the exclusive flag set is shown.
+   * @param updateView Whether to update the view after closing the controllers.
+   */
   closeAllControllers(updateView: boolean = true) {
     while(this.currentController !== undefined) {
       this.closeCurrentController(updateView);
     }
   }
 
+  /**
+   * Restart a controller, i.e. re-instantiate it and re-trigger the navigation.
+   * You will usually not want to call this directly. Rather, this will be
+   * called automatically if a controller signals that the user's identity
+   * has changed.
+   * @param layer The controller layer to restart.
+   * @param alreadyRestarted A list of controllers that have already been
+      *                      restarted and will therefore not be restarted again.
+   */
   restartController(layer: ControllerStackLayer, alreadyRestarted: VerityController[]): Promise<void> {
     if (!alreadyRestarted.includes(layer.controller)) {
       // only re-instantiate controller once

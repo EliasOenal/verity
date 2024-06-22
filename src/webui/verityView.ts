@@ -9,7 +9,7 @@ export const alertTypes =
 export type AlertTypeList = typeof alertTypes[number];
 
 /** Abstract base class for our views */
-export abstract class VerityView {
+export class VerityView {
   renderedView: HTMLElement;
 
   constructor(
@@ -29,9 +29,9 @@ export abstract class VerityView {
    **/
   show(exclusive: boolean = true) {
     if (exclusive) {
-      this.viewArea.replaceChildren(this.renderedView);
+      this.viewArea?.replaceChildren(this.renderedView);
     } else {
-      this.viewArea.prepend(this.renderedView);
+      this.viewArea?.prepend(this.renderedView);
     }
   }
 
@@ -41,7 +41,7 @@ export abstract class VerityView {
    * left off.
    **/
   unshow() {
-    this.renderedView.remove();
+    this.renderedView?.remove();
   }
 
   /**
@@ -55,6 +55,7 @@ export abstract class VerityView {
   }
 
   newFromTemplate(templateQuery: string): HTMLElement {
+    if (!this.htmlTemplate) throw new UiError("VerityView.newFromTemplate(): No template defined");
     const templateEntry: HTMLElement =
       this.htmlTemplate.content.querySelector(templateQuery);
     const entry: HTMLElement = templateEntry.cloneNode(true) as HTMLElement;

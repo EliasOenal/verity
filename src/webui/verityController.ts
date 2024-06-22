@@ -2,31 +2,43 @@ import { VerityView } from "./verityView";
 import { UiError } from "./webUiDefinitions";
 
 import type { Identity } from "../cci/identity/identity";
-import type { VerityNode } from "../core/verityNode";
+import { DummyVerityNode, type VerityNode, type VerityNodeIf } from "../core/verityNode";
 import type { CubeStore } from "../core/cube/cubeStore";
-import type { NavItem } from "./navigation/navigationController";
+import { DummyNavController, type NavControllerIf, type NavItem } from "./navigation/navigationDefinitions";
 
 /**
  * The interface a controller's parent object needs to provide;
  * usually implemented by VerityUi.
  */
 export interface ControllerContext {
-  node: VerityNode;
-  identity: Identity;
-  nav: NavControllerInterface;
+  /**
+   * Provides access to the Verity core node, including stuff like Cube storage
+   * and retrieval as well as networking
+   **/
+  node: VerityNodeIf;
+
+  /** Optionally, the Identity of the currently logged in user */
+  identity?: Identity;
+
+  /**
+   * The navigation controller,
+   * which is the central instance controlling the user interface.
+   */
+  nav: NavControllerIf;
 }
 
-export interface NavControllerInterface {
-  show(navItem: NavItem, show?: boolean): Promise<void>;
-  closeController(controllerStackIndex: VerityController | number, updateView?: boolean): void;
-  identityChanged(): Promise<boolean>;
+/** Dummy for testing only */
+export class DummyControllerContext implements ControllerContext {
+  identity: undefined;
+  constructor(
+    public readonly node: VerityNodeIf = new DummyVerityNode(),
+    public readonly nav: NavControllerIf = new DummyNavController(),
+  ) {}
 }
 
-/** Mock for testing only */
-export class DummyNavController implements NavControllerInterface {
-  show(navItem: NavItem, show?: boolean): Promise<void> { return new Promise<void>(resolve => {resolve()})}
-  closeController(controllerStackIndex: number | VerityController, updateView?: boolean): void {}
-  identityChanged(): Promise<boolean> { return new Promise<boolean>(resolve => {resolve(true)})}
+export interface VerityControllerOptions {
+  contentAreaView?: VerityView | typeof VerityView;
+  htmlTemplateOverride?: HTMLTemplateElement;
 }
 
 /** Abstract base class for our controllers */
@@ -37,7 +49,15 @@ export class VerityController {
 
   constructor(
     readonly parent: ControllerContext,
+    public options: VerityControllerOptions = {}
   ){
+    // If specified, set or instantiate the contentAreaView.
+    if (options.contentAreaView) {
+      if (options.contentAreaView instanceof VerityView) {
+        this.contentAreaView = options.contentAreaView;
+      } else this.contentAreaView = new options.contentAreaView(
+          this, options.htmlTemplateOverride);
+    }
   }
 
   /**
