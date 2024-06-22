@@ -29,7 +29,6 @@ export interface ControllerContext {
 
 /** Dummy for testing only */
 export class DummyControllerContext implements ControllerContext {
-  identity: undefined;
   constructor(
     public readonly node: VerityNodeIf = new DummyVerityNode(),
     public readonly nav: NavControllerIf = new DummyNavController(),

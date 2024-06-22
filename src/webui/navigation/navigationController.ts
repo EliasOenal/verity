@@ -50,9 +50,9 @@ export class NavigationController extends VerityController implements NavControl
 
     // TODO: before awaiting the view we should display some feedback
     // to the user, e.g. a loading animation or something
-    const viewBuilder: () => Promise<void> =
+    const navAction: () => Promise<void> =
       navItem.navAction.bind(controller);
-    await viewBuilder();
+    await navAction();
     this.newControlLayer({
       controller: controller,
       navAction: navItem.navAction,
@@ -217,7 +217,7 @@ export class NavigationController extends VerityController implements NavControl
    * @param alreadyRestarted A list of controllers that have already been
       *                      restarted and will therefore not be restarted again.
    */
-  restartController(layer: ControllerStackLayer, alreadyRestarted: VerityController[]): Promise<void> {
+  restartController(layer: ControllerStackLayer, alreadyRestarted: VerityController[] = []): Promise<void> {
     if (!alreadyRestarted.includes(layer.controller)) {
       // only re-instantiate controller once
       const Constructor = layer.controller.constructor as { new (parent: ControllerContext): VerityController }
