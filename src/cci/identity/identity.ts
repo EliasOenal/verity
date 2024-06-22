@@ -7,7 +7,7 @@ import { logger } from '../../core/logger';
 
 import { Settings, VerityError } from '../../core/settings';
 import { NetConstants } from '../../core/networking/networkDefinitions';
-import { CubeStore } from '../../core/cube/cubeStore';
+import { CubeRetrievalInterface, CubeStore } from '../../core/cube/cubeStore';
 import { CubeInfo } from '../../core/cube/cubeInfo';
 import { CubeError, CubeKey, CubeType } from '../../core/cube/cubeDefinitions';
 import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
@@ -210,7 +210,7 @@ export class Identity {
    * !!! Identity may only be constructed after awaiting sodium.ready !!!
    **/
   static async Construct(
-    cubeStoreOrRetriever: CubeStore | CubeRetriever,
+    cubeStoreOrRetriever: CubeRetriever | CubeStore,
     mucOrMasterkey: cciCube | Buffer,
     options?: IdentityOptions,
   ): Promise<Identity> {
@@ -309,7 +309,7 @@ export class Identity {
    * reconstruct Identity data from the network. If this is not required,
    * it will simply work on the local CubeStore instead.
    */
-  readonly cubeRetriever: CubeStore | CubeRetriever;
+  readonly cubeRetriever: CubeRetriever | CubeStore;
 
   private _masterKey: Buffer = undefined;
   get masterKey(): Buffer {
@@ -381,7 +381,7 @@ export class Identity {
    */
   // TODO: Provide option NOT to subscribe to remote MUC changes
   constructor(
-      cubeStoreOrRetriever: CubeStore | CubeRetriever,
+      cubeStoreOrRetriever: CubeRetriever | CubeStore,
       mucOrMasterkey: cciCube | Buffer,
       readonly options: IdentityOptions = {},
   ){

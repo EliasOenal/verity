@@ -539,8 +539,8 @@ describe('networkManager - libp2p connections', () => {
     expect(server.incomingPeers.length).toEqual(0);
     expect(browser1.incomingPeers.length).toEqual(0);
     expect(browser2.incomingPeers.length).toEqual(0);
-    expect(browser1.autoConnect).toBeFalsy();
-    expect(browser2.autoConnect).toBeFalsy();
+    expect(browser1.options.autoConnect).toBeFalsy();
+    expect(browser2.options.autoConnect).toBeFalsy();
 
     // connect both browsers to the server;
     // double-check server also considers itself connected to both browsers
@@ -791,8 +791,8 @@ describe('networkManager - libp2p connections', () => {
     expect(libp2pConnAtBrowser1.transient).toBeFalsy();
 
     // that's all the connections we want, disable auto-connect
-    browser1.autoConnect = false;
-    browser2.autoConnect = false;
+    browser1.options.autoConnect = false;
+    browser2.options.autoConnect = false;
 
     // Shut down server
     const browser1Closed = new Promise(resolve => browser1.on("peerclosed", resolve));

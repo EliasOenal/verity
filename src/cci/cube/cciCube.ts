@@ -42,7 +42,7 @@ export class cciCube extends Cube {
     family: CubeFamilyDefinition = cciFamily,
     required_difficulty = Settings.REQUIRED_DIFFICULTY
   ): cciCube {
-    if (masterKey instanceof Buffer) masterKey = Uint8Array.from(masterKey);  // will fail in vitest otherwise
+    masterKey = Uint8Array.from(masterKey);  // will strangely fail in vitest otherwise
     if (!(fields instanceof cciFields)) {
       fields = new cciFields(cciFields as any, family.parsers[CubeType.MUC].fieldDef);
     }

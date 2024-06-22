@@ -7,12 +7,13 @@ import { EditIdentityView } from "./editIdentityView";
 import { LoginFormView } from "./loginFormView";
 import { LoginStatusView } from "./loginStatusView";
 import { VerityView } from "../verityView";
-import { ControllerContext, VerityController } from "../verityController";
+import { ControllerContext, VerityController, VerityControllerOptions } from "../verityController";
 
 import { Avatar, AvatarScheme } from "../../cci/identity/avatar";
 import { VerityUI } from "../verityUI";
 
 export class IdentityController extends VerityController {
+  declare options: IdentityOptions&IdentityPersistenceOptions&VerityControllerOptions;
   loginStatusView: LoginStatusView;
 
   private _identity: Identity = undefined;
@@ -26,7 +27,7 @@ export class IdentityController extends VerityController {
 
   constructor(
     parent: ControllerContext,
-    readonly options: IdentityOptions&IdentityPersistenceOptions = {},
+    options: IdentityOptions&IdentityPersistenceOptions&VerityControllerOptions = {},
   ){
     super(parent);
     if (options.persistence === undefined) {

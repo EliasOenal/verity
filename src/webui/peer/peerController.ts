@@ -1,5 +1,5 @@
 import { NetworkPeer } from "../../core/networking/networkPeer";
-import { NetworkManager } from "../../core/networking/networkManager";
+import { NetworkManager, NetworkManagerIf } from "../../core/networking/networkManager";
 import { AddressAbstraction } from '../../core/peering/addressing';
 import { Peer } from "../../core/peering/peer";
 import { PeerDB } from '../../core/peering/peerDB';
@@ -25,7 +25,7 @@ export class PeerController extends VerityController {
   redisplayTimeout: NodeJS.Timeout = undefined;
   onlineView: OnlineView;
 
-  get networkManager(): NetworkManager { return this.parent.node.networkManager }
+  get networkManager(): NetworkManagerIf { return this.parent.node.networkManager }
   get peerDB(): PeerDB { return this.parent.node.peerDB }
 
   constructor(
@@ -189,10 +189,10 @@ export class PeerController extends VerityController {
    */
   toggleAutoConnect(sw: HTMLInputElement): void {
     if (sw.checked) {
-      this.networkManager.autoConnect = true;
+      this.networkManager.options.autoConnect = true;
       this.networkManager.autoConnectPeers();
     } else {
-      this.networkManager.autoConnect = false;
+      this.networkManager.options.autoConnect = false;
     }
   }
 

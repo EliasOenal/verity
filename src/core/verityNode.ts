@@ -1,20 +1,35 @@
-import { CubeStore, CubeStoreOptions } from "./cube/cubeStore";
+import { CubeRetrievalInterface, CubeStore, CubeStoreOptions, EnableCubePersitence } from "./cube/cubeStore";
 import { SupportedTransports } from "./networking/networkDefinitions";
-import { NetworkManager, NetworkManagerOptions } from "./networking/networkManager";
+import { DummyNetworkManager, NetworkManager, NetworkManagerIf, NetworkManagerOptions } from "./networking/networkManager";
 import { CubeRetriever } from "./networking/cubeRetrieval/cubeRetriever";
 import { AddressAbstraction } from "./peering/addressing";
 import { Peer } from "./peering/peer";
 import { PeerDB } from "./peering/peerDB";
 
 import { logger } from "./logger";
+import { CubePersistence } from "./cube/cubePersistence";
+import { RequestScheduler } from "./networking/cubeRetrieval/requestScheduler";
 
 export type VerityNodeOptions = NetworkManagerOptions & CubeStoreOptions;
 
-export class VerityNode {
+export interface VerityNodeIf {
+  readonly cubeStore: CubeStore;
+  readonly peerDB: PeerDB;
+  readonly networkManager: NetworkManagerIf;
+  readonly cubeRetriever: CubeRetrievalInterface;
+
+  readonly onlinePromise: Promise<void>;
+  readonly readyPromise: Promise<void>;
+  readonly shutdownPromise: Promise<void>;
+
+  shutdown(): Promise<void>;
+}
+
+export class VerityNode implements VerityNodeIf {
   readonly cubeStore: CubeStore;
   readonly peerDB: PeerDB;
   readonly networkManager: NetworkManager;
-  readonly cubeRetriever: CubeRetriever;
+  readonly cubeRetriever: CubeRetrievalInterface;
 
   readonly onlinePromise: Promise<void>;
   readonly readyPromise: Promise<void>;
@@ -67,6 +82,33 @@ export class VerityNode {
   shutdown(): Promise<void> {
     this.networkManager.shutdown();
     this.peerDB.shutdown();
+    return this.shutdownPromise;
+  }
+}
+
+
+/** Dummy for testing only */
+export class DummyVerityNode implements VerityNodeIf {
+  readonly cubeStore: CubeStore;
+  readonly peerDB: PeerDB;
+  readonly networkManager: NetworkManagerIf;
+  readonly cubeRetriever: CubeRetrievalInterface;
+
+  readonly onlinePromise: Promise<void>;
+  readonly readyPromise: Promise<void>;
+  readonly shutdownPromise: Promise<void>;
+
+  constructor(){
+    this.cubeStore = new CubeStore({enableCubePersistence: EnableCubePersitence.OFF});
+    this.peerDB = new PeerDB();
+    this.networkManager = new DummyNetworkManager(this.cubeStore, this.peerDB);
+    this.cubeRetriever = new CubeRetriever(this.cubeStore, new RequestScheduler(this.networkManager));
+    this.onlinePromise = Promise.resolve(undefined);
+    this.readyPromise = Promise.resolve(undefined);
+    this.shutdownPromise = Promise.resolve(undefined);
+  }
+
+  shutdown(): Promise<void> {
     return this.shutdownPromise;
   }
 }

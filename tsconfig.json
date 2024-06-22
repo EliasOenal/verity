@@ -9,7 +9,12 @@
     "moduleResolution": "Node",
     "lib": ["ES2022", "dom", "dom.iterable"],
     "sourceMap": true,
-    "typeRoots": ["./src/types", "./node_modules/@types"],
+    "typeRoots": [
+      "./src/types",
+      "./node_modules/@types"
+    ],
+    "declaration": true,
+    "declarationDir": "./dist/",
   },
   "include": [
     "./**/*.ts",
@@ -18,6 +23,7 @@
   "exclude": [
     "webspecific",
     "misc/",
+    "dist/"
   ],
   "scripts": {
     "pretest": "tsc",

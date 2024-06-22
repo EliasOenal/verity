@@ -51,28 +51,35 @@ export interface NetworkManagerOwnOptions {
 export type NetworkManagerOptions =
     NetworkManagerOwnOptions & RequestSchedulerOptions;
 
+
+export interface NetworkManagerIf extends EventEmitter {
+    start(): Promise<void>;
+    shutdown(): Promise<void>;
+    getNetStatistics(): NetworkStats;
+    prettyPrintStats(): Promise<string>;
+    online: boolean;
+    id: Buffer;
+    idString: string;
+    cubeStore: CubeStore;
+    peerDB: PeerDB;
+    onlinePeerCount: number;
+    onlinePeers: NetworkPeer[];
+    options: NetworkManagerOptions;
+    transports: Map<SupportedTransports, NetworkTransport>;
+    scheduler: RequestScheduler;
+    connect(peer: Peer): NetworkPeer;
+    autoConnectPeers(existingRun?: boolean): void;
+    incomingPeers: NetworkPeer[];
+    outgoingPeers: NetworkPeer[];
+}
+
 /**
  * The NetworkManager is the central coordinating instance responsible for
  * handling incoming and outgoing connections.
  * Note that NetworkManager does not automatically start after construction;
  * please call and await start() before actually using it.
  */
-export class NetworkManager extends EventEmitter {
-    // overridable values from Settings
-    newPeerInterval: number;
-    connectRetryInterval: number;
-    reconnectInterval: number;
-    maximumConnections: number;
-
-    // instance behaviour
-    readonly announceToTorrentTrackers?: boolean;
-    private _lightNode?: boolean;
-    public autoConnect: boolean;
-    private _peerExchange?: boolean;
-
-    // toggle-able flags
-    public acceptIncomingConnections: boolean;
-
+export class NetworkManager extends EventEmitter implements NetworkManagerIf {
     // Components
     transports: Map<SupportedTransports, NetworkTransport> = new Map();
     scheduler: RequestScheduler;
@@ -128,21 +135,19 @@ export class NetworkManager extends EventEmitter {
             private _cubeStore: CubeStore,
             private _peerDB: PeerDB,
             transports: TransportParamMap = new Map(),
-            options: NetworkManagerOptions = {},
+            readonly options: NetworkManagerOptions = {},
 ) {
         super();
         // set overridable options
-        this.newPeerInterval = options?.newPeerInterval ?? Settings.NEW_PEER_INTERVAL;
-        this.connectRetryInterval = options?.connectRetryInterval ?? Settings.CONNECT_RETRY_INTERVAL;
-        this.reconnectInterval = options?.reconnectInterval ?? Settings.RECONNECT_INTERVAL;
-        this.maximumConnections = options?.maximumConnections ?? Settings.MAXIMUM_CONNECTIONS;
-        this.acceptIncomingConnections = options?.acceptIncomingConnections ?? true;
-
-        // set instance behavior
-        this.announceToTorrentTrackers = options?.announceToTorrentTrackers ?? true;
-        this._lightNode = options?.lightNode ?? true;
-        this.autoConnect = options?.autoConnect ?? true;
-        this._peerExchange = options?.peerExchange ?? true;
+        options.newPeerInterval = options?.newPeerInterval ?? Settings.NEW_PEER_INTERVAL;
+        options.connectRetryInterval = options?.connectRetryInterval ?? Settings.CONNECT_RETRY_INTERVAL;
+        options.reconnectInterval = options?.reconnectInterval ?? Settings.RECONNECT_INTERVAL;
+        options.maximumConnections = options?.maximumConnections ?? Settings.MAXIMUM_CONNECTIONS;
+        options.acceptIncomingConnections = options?.acceptIncomingConnections ?? true;
+        options.announceToTorrentTrackers = options?.announceToTorrentTrackers ?? true;
+        options.lightNode = options?.lightNode ?? true;
+        options.autoConnect = options?.autoConnect ?? true;
+        options.peerExchange = options?.peerExchange ?? true;
 
         // Create components
         this.scheduler = new RequestScheduler(this, options);
@@ -156,14 +161,10 @@ export class NetworkManager extends EventEmitter {
         this._id = Buffer.from(crypto.getRandomValues(new Uint8Array(NetConstants.PEER_ID_SIZE)));
     }
 
-    get online(): boolean { return this._online }
-
     get cubeStore(): CubeStore { return this._cubeStore; }
-    get lightNode(): boolean { return this._lightNode; }
-    get peerExchange(): boolean { return this._peerExchange }
+    get peerDB(): PeerDB { return this._peerDB; }
 
-    public get peerDB() { return this._peerDB; }
-    public getCubeStore() { return this.cubeStore; }
+    get online(): boolean { return this._online }
 
     public async start(): Promise<void> {
         const transportPromises: Promise<void>[] = [];
@@ -193,7 +194,7 @@ export class NetworkManager extends EventEmitter {
             }
         }
 
-        if (this.announceToTorrentTrackers) {
+        if (this.options.announceToTorrentTrackers) {
             this._peerDB.startAnnounceTimer();
             this._peerDB.announce();
         }
@@ -223,7 +224,7 @@ export class NetworkManager extends EventEmitter {
     * re-calls to self will set existingRun, and nobody else should.
     */
     autoConnectPeers(existingRun: boolean = false): void {
-        if (!this.autoConnect) return;
+        if (!this.options.autoConnect) return;
         // Don't do anything if we're already in the process of connecting new peers
         // or if we're shutting down.
         if (!existingRun && this.isConnectingPeers) {
@@ -234,7 +235,7 @@ export class NetworkManager extends EventEmitter {
         // Only connect a new peer if we're not over the maximum,
         // and if we're not already in the process of connecting new peers
         if (this.outgoingPeers.length + this.incomingPeers.length <
-                this.maximumConnections) {
+                this.options.maximumConnections) {
             const connectTo: Peer = this._peerDB.selectPeerToConnect(
                 this.outgoingPeers.concat(this.incomingPeers));  // this is not efficient -- severity: low (run only while connecting new peers and max once per second)
             // logger.trace(`NetworkManager: autoConnectPeers() running, next up is ${connectTo?.toString()}`);
@@ -252,15 +253,15 @@ export class NetworkManager extends EventEmitter {
                     // unsuccessful. In case of getting spammed with fake nodes,
                     // this currently takes forever till we even try a legit one.
                     this.connectPeersInterval = setInterval(() =>
-                        this.autoConnectPeers(true), this.newPeerInterval);
+                        this.autoConnectPeers(true), this.options.newPeerInterval);
                 } catch (error) {
-                    logger.trace("NetworkManager: Connection attempt failed, retrying in " + this.connectRetryInterval/1000 + " seconds");
+                    logger.trace("NetworkManager: Connection attempt failed, retrying in " + this.options.connectRetryInterval/1000 + " seconds");
                     // Note this does not actually catch failed connections,
                     // it just catched failed *connect calls*.
                     // Actual connection failure usually happens much later down
                     // the line (async) and does not get detected here.
                     this.connectPeersInterval = setInterval(() =>
-                        this.autoConnectPeers(true), this.connectRetryInterval);
+                        this.autoConnectPeers(true), this.options.connectRetryInterval);
                 }
             } else {  // no suitable peers found, so stop trying
                 // TODO HACKHACK:
@@ -268,7 +269,7 @@ export class NetworkManager extends EventEmitter {
                 // as we won't otherwise notice when a reconnect interval has passed.
                 // This is not really elegant but it's what we currently do.
                 this.connectPeersInterval = setInterval(() =>
-                    this.autoConnectPeers(), this.reconnectInterval);
+                    this.autoConnectPeers(), this.options.reconnectInterval);
                 this.isConnectingPeers = false;
             }
         } else {  // we're done, enough peers connected
@@ -297,9 +298,9 @@ export class NetworkManager extends EventEmitter {
             this.cubeStore,
             {
                 extraAddresses: peer.addresses,
-                lightNode: this.lightNode,
+                lightNode: this.options.lightNode,
                 autoRequest: false,  // using scheduler
-                peerExchange: this.peerExchange,
+                peerExchange: this.options.peerExchange,
             }
             );
         networkPeer.lastConnectAttempt = peer.lastConnectAttempt;
@@ -323,7 +324,7 @@ export class NetworkManager extends EventEmitter {
         logger.trace('NetworkManager: shutdown()');
         // stop auto-connection
         this.stopConnectingPeers();
-        this.autoConnect = false;
+        this.options.autoConnect = false;
         // shut down components
         this.scheduler.shutdown();
         this._peerDB.removeListener('newPeer',
@@ -358,9 +359,9 @@ export class NetworkManager extends EventEmitter {
             conn,
             this.cubeStore,
             {
-                lightNode: this.lightNode,
+                lightNode: this.options.lightNode,
                 autoRequest: false,  // using scheduler
-                peerExchange: this.peerExchange,
+                peerExchange: this.options.peerExchange,
             }
         );
         this.incomingPeers.push(networkPeer);
@@ -422,7 +423,7 @@ export class NetworkManager extends EventEmitter {
         // Ask peer for node exchange now
         // This is a pure optimisation to enhance startup time; NetworkPeer
         // will periodically ask for it in a short while.
-        if (this.peerExchange) peer.sendPeerRequest();
+        if (this.options.peerExchange) peer.sendPeerRequest();
 
         // Relay the online event to our subscribers
         this.emit('peeronline', peer);
@@ -573,9 +574,29 @@ export class NetworkManager extends EventEmitter {
                 output += `RX ${MessageClass[typeEnum]}: ${stats.rx.messageTypes[typeEnum]?.count} packets, ${stats.rx.messageTypes[typeEnum]?.bytes} bytes\n`;
             }
         }
-
         return output;
     }
+}
 
 
+export class DummyNetworkManager extends EventEmitter implements NetworkManagerIf {
+    constructor(public cubeStore: CubeStore, public peerDB: PeerDB, transports: TransportParamMap = new Map(), public options: NetworkManagerOptions = {}) {
+        super();
+        this.scheduler = new RequestScheduler(this, options);
+    }
+    transports: Map<SupportedTransports, NetworkTransport>;
+    scheduler: RequestScheduler;
+    connect(peer: Peer): NetworkPeer { return undefined }
+    autoConnectPeers(existingRun?: boolean): void {}
+    incomingPeers: NetworkPeer[] = [];
+    outgoingPeers: NetworkPeer[] = [];
+    onlinePeers: NetworkPeer[] = [];
+    start(): Promise<void> { return Promise.resolve(); }
+    shutdown(): Promise<void> { return Promise.resolve(); }
+    getNetStatistics(): NetworkStats { return { tx: { sentMessages: 0, messageBytes: 0, messageTypes: {} }, rx: { receivedMessages: 0, messageBytes: 0, messageTypes: {} } }; }
+    prettyPrintStats(): Promise<string> { return Promise.resolve(''); }
+    online: boolean = false;
+    id: Buffer = Buffer.alloc(NetConstants.PEER_ID_SIZE, 42);
+    idString: string = this.id.toString('hex');
+    onlinePeerCount: number = 0;
 }
