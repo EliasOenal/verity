@@ -16,7 +16,7 @@ import { FieldNumericalParam } from "../../core/fields/fieldParser";
  * implementation improperly defines them in the core layer instead, as they
  * are used in core layer unit tests and in padding up "core" Cubes.
  **/
-enum cciAdditionalFieldType {
+export enum cciAdditionalFieldType {
   // CCI_END = 0x00 << 2,    // 0 -- currently defined on core layer
   APPLICATION = 0x01 << 2,   // 4
   CONTINUED_IN = 0x02 << 2,  // 8

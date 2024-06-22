@@ -16,7 +16,7 @@ export interface VerityNodeIf {
   readonly cubeStore: CubeStore;
   readonly peerDB: PeerDB;
   readonly networkManager: NetworkManagerIf;
-  readonly cubeRetriever: CubeRetrievalInterface;
+  readonly cubeRetriever: CubeRetriever;
 
   readonly onlinePromise: Promise<void>;
   readonly readyPromise: Promise<void>;
@@ -29,7 +29,7 @@ export class VerityNode implements VerityNodeIf {
   readonly cubeStore: CubeStore;
   readonly peerDB: PeerDB;
   readonly networkManager: NetworkManager;
-  readonly cubeRetriever: CubeRetrievalInterface;
+  readonly cubeRetriever: CubeRetriever;
 
   readonly onlinePromise: Promise<void>;
   readonly readyPromise: Promise<void>;
@@ -92,7 +92,7 @@ export class DummyVerityNode implements VerityNodeIf {
   readonly cubeStore: CubeStore;
   readonly peerDB: PeerDB;
   readonly networkManager: NetworkManagerIf;
-  readonly cubeRetriever: CubeRetrievalInterface;
+  readonly cubeRetriever: CubeRetriever;
 
   readonly onlinePromise: Promise<void>;
   readonly readyPromise: Promise<void>;

@@ -17,7 +17,6 @@ export class VerityView {
     readonly htmlTemplate: HTMLTemplateElement,
     readonly viewArea: HTMLElement = document.getElementById("verityContentArea")
   ) {
-    if (!this.viewArea) throw new UiError("VerityView: Cannot create a view without a view area");
     if (htmlTemplate) this.renderedView =
       this.htmlTemplate.content.firstElementChild.cloneNode(true) as HTMLElement;
   }

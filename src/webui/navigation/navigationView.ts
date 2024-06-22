@@ -11,11 +11,13 @@ export interface NavigationViewIf {
 }
 
 /** Mock for testing only */
-export class DummyNavigationView implements NavigationViewIf {
+export class DummyNavigationView extends VerityView implements NavigationViewIf {
+  backButton: boolean;
+  constructor() { super(undefined, undefined, null) }
   makeNavItem(navItem: NavItem): void {}
   navbarMarkActive(id: string): void {}
-  displayBackButton(): void {}
-  hideBackButton(): void {}
+  displayBackButton(): void { this.backButton = true }
+  hideBackButton(): void { this.backButton = false }
 }
 
 export class NavigationView extends VerityView implements NavigationViewIf {
