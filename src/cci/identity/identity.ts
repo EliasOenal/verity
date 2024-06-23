@@ -34,7 +34,7 @@ export interface IdentityOptions {
    * This is only relevant to local Identities, i.e. Identities owned by
    * this node's user.
    */
-  persistence?: IdentityPersistence,
+  identityPersistence?: IdentityPersistence,
   minMucRebuildDelay?: number,
   requiredDifficulty?: number,
 
@@ -297,7 +297,7 @@ export class Identity {
    * If this Identity object knows an IdentityPersistant object
    * it can be stored in a local database. If it doesn't... then it can't.
    */
-  get persistance(): IdentityPersistence { return this.options.persistence }
+  get persistance(): IdentityPersistence { return this.options.identityPersistence }
 
   /**
    * Identity requires CubeStore for loading and parsing Identity extension

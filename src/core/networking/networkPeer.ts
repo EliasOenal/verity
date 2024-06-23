@@ -424,7 +424,7 @@ export class NetworkPeer extends Peer {
             // if retention policy is enabled, ensure the offered Cube has
             // not yet reached its recycling date
             const currentEpoch = getCurrentEpoch(); // Get the current epoch
-            if(this.cubeStore.enableCubeRetentionPolicy &&
+            if(this.cubeStore.options.enableCubeRetentionPolicy &&
                !shouldRetainCube(
                     incomingCubeInfo.keyString,
                     incomingCubeInfo.date,

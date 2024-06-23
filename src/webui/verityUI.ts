@@ -33,8 +33,12 @@ export const defaultInitialPeers: AddressAbstraction[] = [
   // new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/ws"),
 ];
 
+export const defaultNavItems: NavItem[] = [
+  {controller: CubeExplorerController, navAction: CubeExplorerController.prototype.selectAll, text: "Cube Explorer"},
+];
+export const defaultInitialNav: NavItem = defaultNavItems[0];
+
 export interface VerityUiOptions {
-  controllerClasses: Array<Array<string | typeof VerityController>>,
   initialPeers?: AddressAbstraction[],
   navItems?: NavItem[],
   initialNav?: NavItem;
@@ -61,25 +65,28 @@ export class VerityUI implements ControllerContext {
 
     await sodium.ready;
 
-    // set default options if requred
-    options.enableCubePersistence = options.enableCubePersistence ?? EnableCubePersitence.PRIMARY;
-    options.lightNode = options.lightNode ?? true;
-    options.useRelaying = options.useRelaying ?? true;
-    options.family = options.family ?? cciFamily;
+    // set default options if none specified
+    options.initialPeers ??= defaultInitialPeers;
+    options.navItems ??= defaultNavItems;
+    options.initialNav ??= defaultInitialNav;
+    options.enableCubePersistence ??= EnableCubePersitence.PRIMARY;
+    options.lightNode ??= true;
+    options.useRelaying ??= true;
+    options.family ??= cciFamily;
     // Torrent tracker usage must be enforced off as it's not supported
     // in the browser environment.
     options.announceToTorrentTrackers = false;
 
     const node = new VerityNode(
       new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
-      options?.initialPeers ?? defaultInitialPeers,
+      options?.initialPeers,
       options
     );
     await node.readyPromise;
     logger.info("Verity node is ready");
 
     // Construct UI and link it to window.verity
-    const ui: VerityUI = new VerityUI(node);
+    const ui: VerityUI = new VerityUI(node, options);
     window.verity = ui;
     // Shut node down cleanly when user exits
     window.onbeforeunload = function(){ window.verity.shutdown() }
@@ -125,7 +132,7 @@ export class VerityUI implements ControllerContext {
 
   constructor(
       readonly node: VerityNode,
-      readonly veraAnimationController: VeraAnimationController = new VeraAnimationController(),
+      readonly options: VerityOptions = {},
     ){
     this.peerController = new PeerController(this);
   }

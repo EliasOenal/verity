@@ -48,7 +48,7 @@ export class IdentityPersistence {
   constructor(readonly options: IdentityOptions & IdentityPersistenceOptions = {}) {
     this.options.dbName = this.options.dbName ?? DEFAULT_DB_NAME;
     this.options.dbVersion = this.options.dbVersion ?? DEFAULT_DB_VERSION;
-    this.options.persistence = this;
+    this.options.identityPersistence = this;
     if (isBrowser || isWebWorker) this.dbName = options.dbName;
     else this.dbName = "./" + options.dbName + ".db";
     this.db = new Level<string, string>(

@@ -127,6 +127,10 @@ export class CubeFields extends BaseFields {
  * how we parse it. Contrary to a CubeType, which is a real thing and exists
  * while a Cube is in transit through the network, CubeFamily is an implementation
  * detail; you could argue that it's not real.
+ * A CubeFamily consists of two parts, a CubeClass and a FieldParserTable.
+ * The CubeClass is the class we use to instantiate Cubes of this family and is
+ * usually a subclass of Cube. The FieldParserTable defines how a Cube is
+ * compiled and decompiled, i.e. how we parse its fields.
  * There are currently two main CubeFamily definitions, coreCubeFamily and
  * cciFamily. cciFamily describes Cubes parsed according to CCI rules and is,
  * obviously, relevant to CCI-compliant application.

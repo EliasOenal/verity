@@ -14,9 +14,6 @@ export async function webmain() {
     {controller: CubeExplorerController, navAction: CubeExplorerController.prototype.selectAll, text: "Cube Explorer"},
   ];
   const ui = await VerityUI.Construct({
-    controllerClasses:[
-        ["post", PostController],
-      ],
     navItems: navItems,
     initialNav: navItems[0],
     lightNode: false,
