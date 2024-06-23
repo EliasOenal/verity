@@ -1,16 +1,12 @@
-import { CubeStore } from "../../core/cube/cubeStore";
-
 import { Identity, IdentityOptions } from "../../cci/identity/identity";
 import { IdentityPersistence, IdentityPersistenceOptions } from "../../cci/identity/identityPersistence";
 
 import { EditIdentityView } from "./editIdentityView";
 import { LoginFormView } from "./loginFormView";
 import { LoginStatusView } from "./loginStatusView";
-import { VerityView } from "../verityView";
 import { ControllerContext, VerityController, VerityControllerOptions } from "../verityController";
 
 import { Avatar, AvatarScheme } from "../../cci/identity/avatar";
-import { VerityUI } from "../verityUI";
 
 export class IdentityController extends VerityController {
   declare options: IdentityOptions&IdentityPersistenceOptions&VerityControllerOptions;
@@ -29,7 +25,7 @@ export class IdentityController extends VerityController {
     parent: ControllerContext,
     options: IdentityOptions&IdentityPersistenceOptions&VerityControllerOptions = {},
   ){
-    super(parent);
+    super(parent, options);
     if (options.identityPersistence === undefined) {
       options.identityPersistence = new IdentityPersistence(options);
     }
