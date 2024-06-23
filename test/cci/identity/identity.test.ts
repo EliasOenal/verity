@@ -802,7 +802,7 @@ describe('Identity', () => {
       idTestOptions = {
         minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
         requiredDifficulty: reducedDifficulty,
-        persistence: persistance,
+        identityPersistence: persistance,
       }
     });
 
@@ -865,7 +865,7 @@ describe('Identity', () => {
       it('should be stable, i.e. always create the same Identity including the same avatar for the same user/pass combo at full hardness', async () => {
         const id: Identity = await Identity.Create(
           cubeStore, "Identitas stabilis", "Clavis stabilis", {
-            persistence: undefined,
+            identityPersistence: undefined,
             requiredDifficulty: 0,  // this is just the hashcash level,
                                     // note argon settings have not been touched
         });

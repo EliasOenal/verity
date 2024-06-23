@@ -23,15 +23,15 @@ export class IdentityController extends VerityController {
     this.showLoginStatus();
   }
 
-  get persistence(): IdentityPersistence { return this.options.persistence }
+  get persistence(): IdentityPersistence { return this.options.identityPersistence }
 
   constructor(
     parent: ControllerContext,
     options: IdentityOptions&IdentityPersistenceOptions&VerityControllerOptions = {},
   ){
     super(parent);
-    if (options.persistence === undefined) {
-      options.persistence = new IdentityPersistence(options);
+    if (options.identityPersistence === undefined) {
+      options.identityPersistence = new IdentityPersistence(options);
     }
     this.loginStatusView = new LoginStatusView(this);
     this.showLoginStatus();

@@ -32,55 +32,40 @@ export enum EnableCubePersitence {
 export interface CubeStoreOptions {
   /**
    * Save cubes to local storage.
-   * Default: Settings.CUBE_PERSISTANCE
+   * @default Settings.CUBE_PERSISTANCE
    **/
   enableCubePersistence?: EnableCubePersitence,
 
   /**
    * If enabled, do not accept or keep old cubes past their scheduled
    * recycling date. (Pruning not fully implemented yet.)
-   * Default: Settings.CUBE_RETENTION_POLICY
+   * @default Settings.CUBE_RETENTION_POLICY
    */
   enableCubeRetentionPolicy?: boolean,
 
   /**
    * When enabled, uses a Merckle-Patricia-Trie for efficient full node
    * synchronisation. Do not enable for light nodes.
-   * Default: Settings.TREE_OF_WISDOM
+   * @default Settings.TREE_OF_WISDOM
    */
   enableTreeOfWisdom?: boolean,
 
   /**
    * Minimum hash cash level required to accept a Cube. Used for spam prevention.
    * Set to 0 to disable entirely (not recommended for prod use).
-   * Default: Settings.REQUIRED_DIFFICULTY
+   * @default Settings.REQUIRED_DIFFICULTY
    */
   requiredDifficulty?: number,
 
-  // TODO update comment to reflect type change from FieldParserTable to CubeFamilyDefinition
   /**
-   * Choose the default parser to be used for binary cubes store in this
-   * CubeStore. By default, we will use the coreFieldParsers, which only
-   * parse the core or "boilerplate" fields and ignore any payload.
-   * This default setting is really only useful for "server-only" nodes who
-   * do nothing but store and forward Cubes.
-   * For nodes actually doing stuff, chose the parser table matching your Cube
-   * format. If you're using CCI, and we strongly recommend you do, choose
-   * cciFieldParsers.
+   * This CubeStore's default CubeFamily, defining how Cubes are parsed.
+   * @default coreCubeFamily
+   *   Defaults to coreCubeFamily, which only parses the core fields and
+   *   ignores any payload. You will obviously want to change this for your
+   *   application and set it to either cciCubeFamily or your own custom
+   *   CubeFamily definition.
    */
   family?: CubeFamilyDefinition,
-
-  /**
-   * The default implementation class this CubeStore will use when
-   * re-instantiating a binary ("dormant") Cube. This could be plain old Cube,
-   * cciCube, or an application specific variant.
-   * Defaults to Cube, the Verity core implementation. Application will usually
-   * want to change this; for CCI-compliant applications, cciCube will be the
-   * right choice.
-   * Note that this option will not affect "active" Cubes, i.e. Cubes locally
-   * supplied as Cube or Cube-subclass objects.
-   */
-  cubeClass?: typeof Cube;
 }
 
 export interface CubeRetrievalInterface {
@@ -105,26 +90,25 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   /** The Tree of Wisdom maps cube keys to their hashes. */
   private treeOfWisdom: TreeOfWisdom = undefined;
 
-  readonly enableCubeRetentionPolicy: boolean;
-
-  readonly family: CubeFamilyDefinition;
-  readonly required_difficulty: number;
-
-  constructor(options: CubeStoreOptions & CubePersistenceOptions) {
+  constructor(readonly options: CubeStoreOptions & CubePersistenceOptions) {
     super();
-    this.required_difficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
-    this.family = options?.family ?? coreCubeFamily;
-    this.enableCubeRetentionPolicy = options?.enableCubeRetentionPolicy ?? Settings.CUBE_RETENTION_POLICY;
+    // set default options if none specified
+    this.options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
+    this.options.family ??= coreCubeFamily;
+    this.options.enableCubeRetentionPolicy ??= Settings.CUBE_RETENTION_POLICY;
 
+    // Configure this CubeStore according to the options specified:
+    // Do we want to use a Merckle-Patricia-Trie for efficient full node sync?
     if (options?.enableTreeOfWisdom ?? Settings.TREE_OF_WISDOM) {
       this.treeOfWisdom = new TreeOfWisdom();
     }
-
-    this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 10);  // one for each peer and a few for ourselves
+    // Increase maximum listeners: one for each peer and a few for ourselves
+    this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 10);
+    // provide a nice await-able promise for when this CubeStore is ready
     this.readyPromise = new Promise(resolve => this.once('ready', () => {
       resolve(undefined);
     }));
-
+    // Do we want to keep cubes in RAM, or do we want to use persistent storage?
     if (options?.enableCubePersistence > EnableCubePersitence.OFF) {
       this.persistence = new CubePersistence(options);
       if (options.enableCubePersistence >= EnableCubePersitence.PRIMARY) {
@@ -134,7 +118,8 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
         this.inMemory = true;
         this.storage = new Map();
       }
-
+      // When using persistent storage, the CubeStore is ready when the
+      // persistence layer is ready.
       this.persistence.on('ready', async () => {
         logger.trace("cubeStore: received ready event from cubePersistence");
         if (this.inMemory) await this.syncPersistentStorage();
@@ -144,6 +129,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     } else {
       this.inMemory = true;
       this.storage = new Map();
+      // In-memory CubeStores are ready immediately.
       this.emit("ready");
     }
   }
@@ -166,7 +152,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   async addCube(cube_input: Cube): Promise<Cube>;
   async addCube(
       cube_input: Cube | Buffer,
-      family: CubeFamilyDefinition = this.family,
+      family: CubeFamilyDefinition = this.options.family,
   ): Promise<Cube> {
     try {
       // Cube objects are ephemeral as storing binary data is more efficient.
@@ -190,7 +176,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       }
       const cubeInfo: CubeInfo = await cube.getCubeInfo();
 
-      if (this.enableCubeRetentionPolicy) { // cube valid for current epoch?
+      if (this.options.enableCubeRetentionPolicy) { // cube valid for current epoch?
         let res: boolean = shouldRetainCube(
           cubeInfo.keyString, cubeInfo.date,
           cubeInfo.difficulty, getCurrentEpoch());
@@ -207,7 +193,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
         logger.debug('CubeStorage: duplicate - frozen cube already exists');
         return cube;
       }
-      if (cube.getDifficulty() < this.required_difficulty) {
+      if (cube.getDifficulty() < this.options.requiredDifficulty) {
         throw new InsufficientDifficulty("CubeStore: Cube does not meet difficulty requirements");
       }
       // If this is a MUC, check if we already have a MUC with this key.
@@ -286,7 +272,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
           const cubeInfo = new CubeInfo({
             key: key.binaryKey,
             cube: binaryCube,
-            family: this.family,
+            family: this.options.family,
           });
           this.storage.set(key.keyString, cubeInfo);
           return cubeInfo;
@@ -361,7 +347,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
 
   async pruneCubes(): Promise<void> {
     // TODO test this in persistent-only mode
-    if (!this.enableCubeRetentionPolicy) return;  // feature disabled?
+    if (!this.options.enableCubeRetentionPolicy) return;  // feature disabled?
     const currentEpoch = getCurrentEpoch();
     const cubeKeys = [];
     for await (const key of this.getAllKeys()) cubeKeys.push(key);  // TODO use async Generator directly instead of copying to Array
