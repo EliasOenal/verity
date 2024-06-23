@@ -46,6 +46,8 @@ describe('NavigationController', () => {
 
       await navController.show(navItem);
       expect(navController.controllerStack.length).toBe(1);
+      // expect that the view was not asked to show a back button as there's only one controller
+      expect((navController.contentAreaView as unknown as DummyNavigationView).backButton).toBe(false);
       const controller: DummyVerityController = navController.currentController as DummyVerityController;
       expect(controller).toBeInstanceOf(DummyVerityController);
       expect(controller.navActionCalled).toBe(true);
@@ -64,9 +66,13 @@ describe('NavigationController', () => {
       await navController.show(previousNavItem);
       await navController.show(previousNavItem);
       expect(navController.controllerStack.length).toBe(2);
+      // expect that the view was asked to show a back button as there's more than one controller
+      expect((navController.contentAreaView as unknown as DummyNavigationView).backButton).toBe(true);
 
       await navController.show(navItem);
       expect(navController.controllerStack.length).toBe(1);
+      // expect that the view was not asked to show a back button as there's only one controller
+      expect((navController.contentAreaView as unknown as DummyNavigationView).backButton).toBe(false);
     });
   });
 
@@ -111,8 +117,14 @@ describe('NavigationController', () => {
         navAction: DummyVerityController.prototype.navAction
       });
       expect(navController.controllerStack.length).toBe(1);
+      // expect that the view was not asked to show a back button as there's only one controller
+      expect((navController.contentAreaView as unknown as DummyNavigationView).backButton).toBe(false);
+
       navController.closeCurrentController();
       expect(navController.controllerStack.length).toBe(0);
+      // expect that the view was not asked to show a back button as there's no controllers at all
+      expect((navController.contentAreaView as unknown as DummyNavigationView).backButton).toBe(false);
+
       expect(navController.currentController).toBeUndefined();
     });
 
@@ -143,9 +155,14 @@ describe('NavigationController', () => {
         navId: 'verityNav-1',
       });
       expect(navController.controllerStack.length).toBe(1);
+      // expect that the view was not asked to show a back button as there's only one controller
+      expect((navController.contentAreaView as unknown as DummyNavigationView).backButton).toBe(false);
+
       const controller = new DummyVerityController(navController.parent);
       navController.closeController(controller);
       expect(navController.controllerStack.length).toBe(1);
+      // expect that the view was not asked to show a back button as there's only one controller
+      expect((navController.contentAreaView as unknown as DummyNavigationView).backButton).toBe(false);
     });
 
     it.todo('should update the view if specified');
@@ -155,17 +172,22 @@ describe('NavigationController', () => {
     it('should close all controllers in the stack', () => {
       const controller1 = new DummyVerityController(navController.parent);
       const controller2 = new DummyVerityController(navController.parent);
-      navController.controllerStack.push({
+      navController.newControlLayer({
         controller: controller1,
         navAction: DummyVerityController.prototype.navAction,
       });
-      navController.controllerStack.push({
+      navController.newControlLayer({
         controller: controller2,
         navAction: DummyVerityController.prototype.navAction,
       });
       expect(navController.controllerStack.length).toBe(2);
+      // expect that the view was asked to show a back button as there's more than one controller
+      expect((navController.contentAreaView as unknown as DummyNavigationView).backButton).toBe(true);
+
       navController.closeAllControllers();
       expect(navController.controllerStack.length).toBe(0);
+      // expect that the view was not asked to show a back button as there's no controllers at all
+      expect((navController.contentAreaView as unknown as DummyNavigationView).backButton).toBe(false);
     });
   });
 
