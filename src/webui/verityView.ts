@@ -62,7 +62,7 @@ export class VerityView {
   }
 
   makeAlert(
-      container: HTMLElement | string,
+      container: HTMLElement | string | null,
       type: AlertTypeList,
       msg: string,
       exclusive: boolean = false,
@@ -70,6 +70,10 @@ export class VerityView {
     if (exclusive) this.clearAlerts();
     if (typeof container === 'string') {
       container = this.renderedView.querySelector(container) as HTMLElement;
+      if (!container) logger.error(`VerityView.makeAlert(): Container ${container} does not exist. Will create a new one for you, but this will obviously not be part of the DOM.`);
+    }
+    if (!container) {
+      container = document.createElement("div");
     }
     container.classList.add("verityAlert", "alert", "alert-"+type);
     container.setAttribute("role", "alert");
