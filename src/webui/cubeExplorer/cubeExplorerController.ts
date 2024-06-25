@@ -1,7 +1,7 @@
 import { rawCubeFamily, type Cube } from "../../core/cube/cube";
 import type { CubeField } from "../../core/cube/cubeField";
 import { logger } from "../../core/logger";
-import { getElementAboveByClassName } from "../helpers";
+import { getElementAboveByClassName } from "../helpers/dom";
 import { CubeExplorerView } from "./cubeExplorerView";
 import { ControllerContext, VerityController, VerityControllerOptions } from "../verityController";
 import type { CubeKey } from "../../core/cube/cubeDefinitions";

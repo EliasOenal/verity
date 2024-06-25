@@ -4,7 +4,7 @@ import { VerityView } from "../../../../webui/verityView";
 
 import type { PostController, PostData } from "./postController";
 
-import { loadTemplate } from "../../../../webui/helpers";
+import { loadTemplate } from "../../../../webui/helpers/dom";
 import * as template from './postTemplate.html';
 import { formatDate } from "../../../../webui/helpers/datetime";
 loadTemplate(template);
