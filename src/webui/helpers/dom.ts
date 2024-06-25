@@ -1,4 +1,4 @@
-import { logger } from "../core/logger";
+import { logger } from "../../core/logger";
 
 /** Gets the closest parent element of a specific class */
 export function getElementAboveByClassName(elem: HTMLElement, classname: string): HTMLElement {
