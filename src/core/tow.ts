@@ -66,7 +66,7 @@ class BranchNode implements Node {
   private children: (Node | Buffer | null)[];
   private value: Buffer | null;
   private hash: string | null;
-  public static BRANCH_NODE_CHILDREN = 16;
+  public static readonly BRANCH_NODE_CHILDREN = 16;
 
   constructor() {
     this.children = new Array(BranchNode.BRANCH_NODE_CHILDREN).fill(null);
