@@ -15,15 +15,17 @@
     ],
     "declaration": true,
     "declarationDir": "./dist/",
+    "skipLibCheck": true,
   },
   "include": [
-    "./**/*.ts",
-    "../test/**/*.ts",
+    "src/**/*.ts",
+    "test/**/*.ts",
   ],
   "exclude": [
     "webspecific",
     "misc/",
-    "dist/"
+    "dist/",
+    "node_modules/",
   ],
   "scripts": {
     "pretest": "tsc",

@@ -75,3 +75,4 @@ logo/
 *.py,cover
 *.code-workspace
 
+.aider*
