@@ -14,6 +14,8 @@ import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { EnableCubePersitence } from './core/cube/cubeStore';
+import { FileApplication } from './app/fileApplication';
+import * as fs from 'fs/promises';
 
 let readline: any;
 let cmd;
@@ -34,9 +36,10 @@ class VerityCmdClient {
 
       process.stdin.on('keypress', async (str, key) => {
         if (key && key.ctrl && key.name == 'c') process.exit();
-        if (str === 's') logger.info('\n' + this.node.networkManager.prettyPrintStats());
+        if (str === 's') logger.info('\n' + await this.node.networkManager.prettyPrintStats());
         if (str === 'm') this.updateMuc();
         if (str === 'c') this.makeNewCube();
+        if (str === 'f') this.insertFile();
       });
     }
 
@@ -186,6 +189,26 @@ class VerityCmdClient {
   public async makeNewCube(message: string = "Hello Verity") {
     const cube = Cube.Frozen({fields: CubeField.Payload(message)});
     this.node.cubeStore.addCube(cube);
+  }
+
+  public async insertFile(filePath: string = "test.file") {
+    try {
+      const fileContent = await fs.readFile(filePath);
+      const fileName = filePath.split('/').pop() || filePath;
+      const cubes = await FileApplication.createFileCubes(fileContent, fileName);
+      if (cubes.length > 0) {
+        const firstCubeKey = await cubes[0].getKey();
+        for (const cube of cubes) {
+          await this.node.cubeStore.addCube(cube);
+        }
+        logger.info(`File ${fileName} inserted into the network`);
+        logger.info(`Cube key to retrieve the file: ${firstCubeKey.toString('hex')}`);
+      } else {
+        logger.warn(`No cubes created for file ${fileName}`);
+      }
+    } catch (error) {
+      logger.error(`Error inserting file: ${error.message}`);
+    }
   }
 }
 

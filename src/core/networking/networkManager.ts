@@ -529,7 +529,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         }
 
         output += `\nLocal Store\n`;
-        output += `Cubes: ${this.cubeStore.getNumberOfStoredCubes()}\n`;
+        output += `Cubes: ${await this.cubeStore.getNumberOfStoredCubes()}\n`;
         output += `Memory: ${await this.cubeStore.getNumberOfStoredCubes() * NetConstants.CUBE_SIZE}\n`;
 
         output += `\nNetwork Total\n`;
