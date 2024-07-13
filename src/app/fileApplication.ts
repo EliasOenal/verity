@@ -17,7 +17,9 @@ export class FileApplication {
     let offset = 0;
 
     while (offset < fileContent.length) {
-      const chunk = fileContent.slice(offset, offset + this.MAX_PAYLOAD_SIZE);
+      const remainingSize = fileContent.length - offset;
+      const chunkSize = Math.min(remainingSize, this.MAX_PAYLOAD_SIZE);
+      const chunk = fileContent.slice(offset, offset + chunkSize);
       const fields = new cciFields(undefined, cciFrozenFieldDefinition);
 
       // Add fields in the correct order
@@ -26,7 +28,7 @@ export class FileApplication {
       fields.appendField(cciField.Payload(chunk));
       fields.appendField(cciField.Date());
 
-      if (offset + chunk.length < fileContent.length) {
+      if (offset + chunkSize < fileContent.length) {
         const nextCube = cciCube.Frozen();
         await nextCube.getKey(); // Ensure the next cube has a key
         const nextCubeKey = await nextCube.getKey();
@@ -38,7 +40,7 @@ export class FileApplication {
 
       const cube = cciCube.Frozen({ fields });
       cubes.push(cube);
-      offset += chunk.length;
+      offset += chunkSize;
     }
 
     return cubes;
