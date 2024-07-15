@@ -360,6 +360,40 @@
           <input class="form-control form-control-sm verityCubeKeyFilter"
                  type="text" aria-describedby="verityCubeKeyFilterDesc" />
         </div>
+        <div class="input-group">
+          <span class="input-group-text" id="verityCubeDateFilterFromDesc">
+            Sculpt date from
+          </span>
+          <input class="form-control form-control-sm verityCubeDateFrom"
+                 type="datetime-local"
+                 aria-describedby="verityCubeDateFilterFromDesc" />
+          <span class="input-group-text" id="verityCubeDateFilterToDesc">
+            to
+          </span>
+          <input class="form-control form-control-sm verityCubeDateTo"
+                 type="datetime-local"
+                 aria-describedby="verityCubeDateFilterToDesc" />
+          <button class="btn btn-sm btn-secondary" type="button"
+                  onclick='clearParent(this)'>
+            Reset
+          </button>
+        </div>
+        <div class="input-group">
+          <span class="input-group-text" id="verityCubeContentFilterDesc">
+            Containing
+            <select name="verityContentEncodingSelect" class="verityContentEncodingSelect ms-2">
+              <!-- Note: For now, please manually ensure the value of all options
+                   matches a supported encoding in EncodingIndex,
+                   both here and below in the content decoding select.
+              -->
+              <option value="utf8" selected>UTF-8</option>
+              <option value="utf16le">UTF-16</option>
+              <option value="hex">Hex</option>
+            </select>
+          </span>
+          <input class="form-control form-control-sm verityCubeContentFilter"
+                 type="text" aria-describedby="verityCubeContentFilterDesc" />
+        </div>
         <div class="my-1">
           <button class="btn btn-primary" type="submit">Filter</button>
           <button class="btn btn-secondary" type="button"
@@ -370,8 +404,8 @@
       </form>
       <table class="table verityCubeStats">
         <tr>
-          <th>Total Cubes stored</th>
-          <td class="verityCubeStoreStatTotalCubes">31337</td>
+          <th>Cubes processed</th>
+          <td class="verityCubeStoreStatCubesProcessed">31337</td>
         </tr>
         <tr>
           <th>– not matching filter</th>
@@ -388,8 +422,7 @@
             data-cubekey="44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000">
           <h5 class="accordion-header">
             <button class="accordion-button verityCubeToggleControl collapsed"
-                    type="button" data-bs-toggle="collapse" aria-expanded="false"
-                    data-bs-target="#verityExploredCube-44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000"
+                    type="button" aria-expanded="false"
                     aria-controls="verityExploredCube-44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000">
               <span class="verityCubeSummary verityEllipsisedKey">
                 1337133713371337133713371337133713371337133713371337133713371337
@@ -397,9 +430,9 @@
             </button>
           </h5>
           <div id="verityExploredCube-44ef229784f42e86fdfa6e7b7b57157d05b47eb1373d5c1c1e36201376441000"
-               class="accordion-collapse collapse verityExploredCube"
-               data-bs-parent="#verityExploredCubes">
+               class="accordion-collapse collapse verityExploredCube">
             <div class="accordion-body">
+              <div class="verityMessageTop"></div>
               <table class="table verityCubeInfo">
                 <tr>
                   <th>Cube type</th>
