@@ -5,6 +5,7 @@ import { CubeFamilyDefinition } from './cubeFields';
 
 import { Buffer } from 'buffer';
 import { ApiMisuseError } from '../settings';
+import { dateFromBinary, typeFromBinary } from './cubeUtil';
 
 /**
  * @interface CubeMeta is a restricted view on CubeInfo containing metadata only.
@@ -105,7 +106,7 @@ export class CubeInfo {
   binaryCube: Buffer = undefined;
 
   private _cubeType: CubeType = undefined;
-  get cubeType(): CubeType { return Cube.Type(this.binaryCube) ?? this._cubeType }
+  get cubeType(): CubeType { return typeFromBinary(this.binaryCube) ?? this._cubeType }
 
   private _date: number = undefined;
   /**
@@ -151,6 +152,8 @@ export class CubeInfo {
   // contradictory information as we currently don't validate the details
   // provided against the information contained in the actual (binary) Cube.
   constructor(options: CubeInfoOptions) {
+    // we'll believe the caller that the provided cube information is correct,
+    // but if we're able to read those ourselves we'll override them below
     this._date = options.date;
     this._difficulty = options.challengeLevel;
 
@@ -170,6 +173,7 @@ export class CubeInfo {
       // dormant Cube
       this.binaryCube = options.cube;
       this.key = options.key;
+      this._date = dateFromBinary(this.binaryCube);
       if(!this.key) {
         throw new ApiMisuseError("CubeInfo on dormant Cubes can only be contructed if you supply the Cube key.");
       }
