@@ -54,15 +54,24 @@ export class VerityNode implements VerityNodeIf {
     this.peerDB = new PeerDB(port);
     if (port === undefined) options.announceToTorrentTrackers = false;
 
-    // Start networking and inform clients when this node is fully ready
+    // Prepare networking
     this.networkManager = new NetworkManager(
       this.cubeStore, this.peerDB,
       this.servers,
       options);
+    // Only start networking once our CubeStore is ready
+    this.cubeStore.readyPromise.then(() => this.networkManager.start());
+    // Let user know when we are online
     this.onlinePromise = new Promise(resolve => this.networkManager.once('online', () => {
       resolve(undefined);
     }));
-    this.readyPromise = this.cubeStore.readyPromise;  // that's a little useless
+
+    // Let the user know when the Node object is ready to use.
+    // Currently, this only depends on CubeStore being ready.
+    // It notably does not depend on us being online as Verity can very much
+    // also be used while offline.
+    this.readyPromise = this.cubeStore.readyPromise;  // that's a little useless, I know
+
     // Construct cube retrieval helper object
     this.cubeRetriever =
       new CubeRetriever(this.cubeStore, this.networkManager.scheduler);
@@ -72,7 +81,6 @@ export class VerityNode implements VerityNodeIf {
       logger.info('NetworkManager has shut down. Exiting...');
       resolve(undefined);
     }));
-    this.networkManager.start();
 
     for (const initialPeer of initialPeers) {
       this.peerDB.learnPeer(new Peer(initialPeer));
