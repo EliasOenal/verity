@@ -360,40 +360,6 @@
           <input class="form-control form-control-sm verityCubeKeyFilter"
                  type="text" aria-describedby="verityCubeKeyFilterDesc" />
         </div>
-        <div class="input-group">
-          <span class="input-group-text" id="verityCubeDateFilterFromDesc">
-            Sculpt date from
-          </span>
-          <input class="form-control form-control-sm verityCubeDateFrom"
-                 type="datetime-local"
-                 aria-describedby="verityCubeDateFilterFromDesc" />
-          <span class="input-group-text" id="verityCubeDateFilterToDesc">
-            to
-          </span>
-          <input class="form-control form-control-sm verityCubeDateTo"
-                 type="datetime-local"
-                 aria-describedby="verityCubeDateFilterToDesc" />
-          <button class="btn btn-sm btn-secondary" type="button"
-                  onclick='clearParent(this)'>
-            Reset
-          </button>
-        </div>
-        <div class="input-group">
-          <span class="input-group-text" id="verityCubeContentFilterDesc">
-            Containing
-            <select name="verityContentEncodingSelect" class="verityContentEncodingSelect ms-2">
-              <!-- Note: For now, please manually ensure the value of all options
-                   matches a supported encoding in EncodingIndex,
-                   both here and below in the content decoding select.
-              -->
-              <option value="utf8" selected>UTF-8</option>
-              <option value="utf16le">UTF-16</option>
-              <option value="hex">Hex</option>
-            </select>
-          </span>
-          <input class="form-control form-control-sm verityCubeContentFilter"
-                 type="text" aria-describedby="verityCubeContentFilterDesc" />
-        </div>
         <div class="my-1">
           <button class="btn btn-primary" type="submit">Filter</button>
           <button class="btn btn-secondary" type="button"

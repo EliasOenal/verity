@@ -21,7 +21,7 @@ export enum EncodingIndex {
   hex = 3,
 }
 
-const DEFAULT_MAX_CUBES = 1000;  // TODO move to config
+const DEFAULT_MAX_CUBES = 100;  // TODO move to config
 
 export interface CubeExplorerControllerOptions extends VerityControllerOptions {
   maxCubes?: number;
@@ -36,7 +36,7 @@ export class CubeExplorerController extends VerityController {
       options: CubeExplorerControllerOptions = {},
   ){
     super(parent);
-    options.maxCubes = options.maxCubes ?? DEFAULT_MAX_CUBES;
+    this.options.maxCubes = DEFAULT_MAX_CUBES;
 
     this.contentAreaView = new CubeExplorerView(this);
   }
@@ -71,6 +71,7 @@ export class CubeExplorerController extends VerityController {
     let initialPromise: Promise<number> = this.cubeStore.getNumberOfStoredCubes();
     initialPromise.then(async (total: number) => {
       let displayed = 0, filtered = 0;
+      this.contentAreaView.showBelowCubes(``);
       for await (const key of this.cubeStore.getAllKeys(true)) {
         // update stats to reflect progress
         this.contentAreaView.displayStats(total, displayed, filtered);
