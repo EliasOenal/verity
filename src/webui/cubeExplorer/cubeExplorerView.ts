@@ -1,12 +1,14 @@
-import { MediaTypes, cciField, cciFieldType } from "../../cci/cube/cciField";
-import { cciFields } from "../../cci/cube/cciFields";
+import { cciFieldType } from "../../cci/cube/cciField";
 import { cciRelationship, cciRelationshipType } from "../../cci/cube/cciRelationship";
 import { Cube } from "../../core/cube/cube";
 import { CubeType } from "../../core/cube/cubeDefinitions";
 import { CubeField } from "../../core/cube/cubeField";
 import { isPrintable } from "../../core/helpers/misc";
+import { logger } from "../../core/logger";
+import { toggleCollapsible } from "../helpers/bootstrap";
 import { datetimeLocalToUnixtime, formatDate, unixtimeToDatetimeLocal } from "../helpers/datetime";
-import { VerityView } from "../verityView";
+import { AlertTypeList, VerityView } from "../verityView";
+import { UiError } from "../webUiDefinitions";
 import { CubeExplorerController, CubeFilter, EncodingIndex } from "./cubeExplorerController";
 
 const cubeEmoji: Map<CubeType, string> = new Map([
@@ -30,6 +32,7 @@ export class CubeExplorerView extends VerityView {
   ){
     super(controller, htmlTemplate);
     this.cubeList = this.renderedView.querySelector(".verityCubeList") as HTMLUListElement;
+    if (!this.cubeList) throw new UiError("CubeExplorerView.constructor(): Could not find verityCubeList in template");
     this.clearAll();
   }
 
@@ -42,9 +45,9 @@ export class CubeExplorerView extends VerityView {
     this.cubeList.replaceChildren();
   }
 
-  displayStats(total: number, displayed: number, filtered: number): void {
-    (this.renderedView.querySelector(".verityCubeStoreStatTotalCubes") as HTMLElement)
-      .innerText = total.toString();
+  displayStats(processed: number, displayed: number, filtered: number): void {
+    (this.renderedView.querySelector(".verityCubeStoreStatCubesProcessed") as HTMLElement)
+      .innerText = processed.toString();
     (this.renderedView.querySelector(".verityCubeStoreStatCubesDisplayed") as HTMLElement)
       .innerText = displayed.toString();
     (this.renderedView.querySelector(".verityCubeStoreStatCubesFiltered") as HTMLElement)
@@ -63,7 +66,7 @@ export class CubeExplorerView extends VerityView {
     const summary: HTMLElement = li.querySelector(".verityCubeSummary");
     summary.innerText = key;
 
-    toggleControl.addEventListener('click', () => this.loadCubeDetails(key));
+    toggleControl.addEventListener('click', () => this.controller.toggleCubeDetails(key));
 
     this.cubeList.appendChild(li);
   }
@@ -112,6 +115,8 @@ export class CubeExplorerView extends VerityView {
       if (Object.values(cube.fieldParser.fieldDef.positionalFront).includes(field.type) ||
           Object.values(cube.fieldParser.fieldDef.positionalBack).includes(field.type)) {
         fieldType += " (positional field)"
+      } else if (cube.fieldParser.fieldDef.remainderField === field.type) {
+        fieldType += " (virtual field containing unparsed data)"
       } else fieldType += ` (code ${(field.type >> 2).toString()} / 0x${(field.type >> 2).toString(16)})`;
       (detailsTable.querySelector(".veritySchematicFieldType") as HTMLElement).innerText = fieldType;
       (detailsTable.querySelector(".veritySchematicFieldStart") as HTMLElement).innerText = field.start.toString();
@@ -122,16 +127,40 @@ export class CubeExplorerView extends VerityView {
     }
   }
 
-  showCubeError(key: string, errorMessage: string): void {
+  toggleCubeDetails(key: string): void {
     const li = this.cubeList.querySelector(`[data-cubekey="${key}"]`) as HTMLLIElement;
-    if (!li) return;
-
-    const detailsContainer: HTMLElement = li.querySelector(".verityExploredCube");
-    detailsContainer.innerHTML = `<p class="text-danger">${errorMessage}</p>`;
+    const toggleControl: HTMLElement = li.querySelector(".verityCubeToggleControl");
+    const collapsible: HTMLElement = li.querySelector(".verityExploredCube");
+    toggleCollapsible(toggleControl, collapsible);
   }
 
-  private loadCubeDetails(key: string): void {
-    this.controller.loadCubeDetails(key);
+  /**
+   * Displays an alert on top or instead of the Cube's details.
+   * @param key - The key of the Cube for which the alert shall be displayed
+   * @param type - A Bootstrap alert type, e.g. "danger" for an error
+   * @param msg - The message to display in the alert
+   * @param exclusive - If true, the alert will be displayed instead of the
+   *   Cube details. Otherwise, it will be displayed on top of the Cube details.
+   * @returns The HTMLElement containing the alert
+   */
+  makeCubeAlert(
+      key: string,
+      type: AlertTypeList,
+      msg: string,
+      exclusive: boolean = false
+  ): HTMLElement {
+    // fetch this Cube's DOM container
+    const li = this.cubeList.querySelector(`[data-cubekey="${key}"]`) as HTMLLIElement;
+    const accordionBody: HTMLElement = li?.querySelector(".accordion-body");
+    //
+    let messageContainer: HTMLElement;
+    if (!exclusive) messageContainer = accordionBody?.querySelector(".verityMessageTop");
+    else messageContainer = accordionBody;
+    if (!messageContainer) {
+      logger.warn(`CubeExplorerView.makeCubeAlert(): Could not find message container for Cube ${key}, did you mess with my DOM elements?!`);
+      return undefined;
+    }
+    return this.makeAlert(messageContainer, type, msg, exclusive);
   }
 
   setDecodedFieldContent(field: CubeField, detailsTable: HTMLTableElement): void {
@@ -214,11 +243,23 @@ export class CubeExplorerView extends VerityView {
     const keyInput: HTMLInputElement =
       this.renderedView.querySelector('.verityCubeKeyFilter');
     keyInput.value = filter.key ?? "";
+    // date from filter
+    const dateFromInput: HTMLInputElement =
+      this.renderedView.querySelector(".verityCubeDateFrom");
+    dateFromInput.value = unixtimeToDatetimeLocal(filter.dateFrom);
+    // date to filter
+    const dateToInput: HTMLInputElement =
+    this.renderedView.querySelector(".verityCubeDateTo");
+    dateToInput.value = unixtimeToDatetimeLocal(filter.dateTo);
+    // content string filter
+    const contentInput: HTMLInputElement =
+      this.renderedView.querySelector(".verityCubeContentFilter");
+    contentInput.textContent = filter.content ?? "";
   }
 
 
   //***
-  // Data conversion methods
+  // Conversion methods: Model to view
   //***
 
   findBestEncoding(val: Buffer): EncodingIndex {
@@ -232,7 +273,7 @@ export class CubeExplorerView extends VerityView {
   }
 
   //***
-  // Input retrieval methods
+  // Conversion methods: View to model
   //***
 
   fetchCubeFilter(): CubeFilter {
@@ -242,7 +283,27 @@ export class CubeExplorerView extends VerityView {
     const key: string = (this.renderedView.querySelector(
       ".verityCubeKeyFilter") as HTMLInputElement)?.value;
     if (key.length > 0) ret.key = key;
-
+    // Sculpt date
+    const dateFromInput: string = (this.renderedView.querySelector(
+      ".verityCubeDateFrom") as HTMLInputElement)?.value;
+    ret.dateFrom = datetimeLocalToUnixtime(dateFromInput);
+    const dateToInput: string = (this.renderedView.querySelector(
+      ".verityCubeDateTo") as HTMLInputElement)?.value;
+    ret.dateTo = datetimeLocalToUnixtime(dateToInput);
+    // Content filter encoding
+    const encodingSelect: HTMLSelectElement =
+      this.renderedView.querySelector(".verityContentEncodingSelect");
+    ret.contentEncoding = EncodingIndex[encodingSelect.value];
+    if (ret.contentEncoding === undefined) {
+      // if somehow the DOM got corrupted and we get an encoding index which
+      // does not exist, just default to hex and reflect that back to the view
+      ret.contentEncoding = EncodingIndex.hex;
+      encodingSelect.value = 'hex';
+    }
+    // Content filter string
+    const content: string = (this.renderedView.querySelector(
+      ".verityCubeContentFilter") as HTMLInputElement)?.value;
+    if (content.length > 0) ret.content = content;
     return ret;
   }
 }
