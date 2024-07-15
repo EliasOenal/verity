@@ -8,7 +8,32 @@ export const alertTypes =
   ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'] as const;
 export type AlertTypeList = typeof alertTypes[number];
 
-/** Abstract base class for our views */
+/**
+ * Abstract base class for our views.
+ *
+ * Advice for implementing subclasses:
+ * - Methods should be grouped by purpose and ordered like this:
+ *   1) Primary View assembly methods
+ *      Each of these should assemble an entire view and are usually called
+ *      by the controller. Their name should always start with "view".
+ *   2) Secondary View assembly methods
+ *      Those are called by the primary view assembly methods but can also be
+ *      called by the controller to update parts of the view
+ *   3) DOM manipulation actions
+ *      These are called directly as event handlers from the view and only
+ *      manipulate the view, e.g. toggle collapsibles, add or remove elements,
+ *      etc.
+ *   4) Input validation methods
+ *      For views accepting inputs, those provide preliminary input validation
+ *      before inputs are submitted. They may also be called by the controller,
+ *      for example when a submit action is triggered (and refused, probably).
+ *   5) Conversion methods: Model to view
+ *      Methods that convert model data to view elements
+ *   6) Conversion methods: View to model
+ *      Methods that convert view elements to model data, e.g. input retrieval.
+ *   7) Local helper methods
+ *      Methods only used from within this view, which should be marked private.
+ **/
 export class VerityView {
   renderedView: HTMLElement;
 
@@ -61,6 +86,18 @@ export class VerityView {
     return entry;
   }
 
+  /**
+   * Displays an alert on top or instead of the Cube's details.
+   * For consistency, you should always use this method to display errors,
+   * warnings, or other important messages to the user.
+   * @param container - The HTMLElement within which the alert should be
+   *   displayed. All other content will be removed from this container.
+   * @param type - A Bootstrap alert type, e.g. "danger" for an error
+   * @param msg - The message to display in the alert
+   * @param exclusive - If true, all other alerts will be cleared from the
+   *   entire renderedView.
+   * @returns The HTMLElement containing the alert
+   */
   makeAlert(
       container: HTMLElement | string | null,
       type: AlertTypeList,
@@ -77,7 +114,7 @@ export class VerityView {
     }
     container.classList.add("verityAlert", "alert", "alert-"+type);
     container.setAttribute("role", "alert");
-    container.innerText = msg;
+    container.textContent = msg;
     return container;
   }
 
@@ -90,7 +127,7 @@ export class VerityView {
       alert.classList.remove("verityAlert", "alert");
       for (const alertType of alertTypes) alert.classList.remove("alert-"+alertType);
       alert.removeAttribute("role");
-      alert.innerText = '';
+      alert.textContent = '';
     }
   }
 }
