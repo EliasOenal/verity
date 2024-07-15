@@ -216,7 +216,8 @@ export class CubeInfo {
       }
       return cube;
     } catch (err) {
-      logger.warn(`${this.toString()}: Could not instantiate Cube: ${err?.toString() ?? err}`);
+      logger.error(`${this.toString()}: Could not instantiate Cube: ${err?.toString() ?? err}`);
+      throw "Could not instantiate Cube: " + err + " for " + this.keyString + " Cube should have been in store.";
       return undefined;
     }
   }

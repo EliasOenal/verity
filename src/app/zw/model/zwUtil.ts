@@ -90,7 +90,7 @@ export function assertZwCube(cube: Cube): boolean {
       applicationField.value.toString() !== "ID/ZW" &&
       applicationField.value.toString() !== "ID"  // note: this is overly broad to be strictly considered ZW, ZW Identities should always identify as "ID/ZW". We're currently accepting just ID as there's not really a reason to stop parsing them just here.
   ){
-    logger.trace("assertZwCube: Supplied cube does not have a ZW application string");
+    //logger.trace("assertZwCube: Supplied cube does not have a ZW application string");
     return false;
   }
   return true;
