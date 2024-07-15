@@ -11,7 +11,7 @@ Challenge verification is always the SHA3 hash of the whole cube.
 | Public Key         | 32 bytes          | -      | -   | S   | S    |
 | Date               | 5 bytes           | H      | OH  | S   | OS   |
 | Signature          | 64 bytes          | -      | -   | OS  | OS   |
-| Nonce              | 4 bytes(variable) | H      | OH  | OS  | OS   |
+| Nonce              | 4 bytes           | H      | OH  | OS  | OS   |
 
 -: Not present for this type of cube.<br>
 H: This is hashed to derive cube key.<br>
