@@ -134,7 +134,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     }
   }
 
-  // TODO: implement importing CubeInfo directly
+
   /**
    * Add a binary Cube to storage.
    * @param parsers defines how this binary Cubes should be parsed.
@@ -146,10 +146,15 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     family?: CubeFamilyDefinition): Promise<Cube>;
   /**
    * Add a Cube object to storage.
-   * (Note you cannot specify a FieldParserTable in this variant as the Cube
-   * object is already parsed and should hopefully know how this happened.)
+   * (Note you cannot specify a custom family setting in this variant as the
+   * Cube has already been parsed.)
    */
   async addCube(cube_input: Cube): Promise<Cube>;
+
+  // TODO (maybe): implement importing CubeInfo directly
+  // TODO (someday): Instead of instantiiating a Cube object, we could optionally
+  //  instead implement a limited set of checks directly on binary
+  //  to alleviate load, especially on full nodes.
   async addCube(
       cube_input: Cube | Buffer,
       family: CubeFamilyDefinition = this.options.family,
