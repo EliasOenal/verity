@@ -6,7 +6,7 @@ export enum CubeType {
   FROZEN = (Settings.CUBE_VERSION << 4) + (0 << 2),
   PIC = (Settings.CUBE_VERSION << 4) + (1 << 2),  // not fully implemented yet
   MUC = (Settings.CUBE_VERSION << 4) + (2 << 2),
-  // PMUC = (Settings.CUBE_VERISION << 4) + (3 << 2), not implemented yet
+  PMUC = (Settings.CUBE_VERSION << 4) + (3 << 2)  // not implemented yet
 }
 
 // semantic typedef

@@ -78,11 +78,6 @@ export class Cube {
         return undefined;
     }
 
-    static Type(binaryCube: Buffer): CubeType {
-        if (!(binaryCube instanceof Buffer)) return undefined;
-        return binaryCube.readIntBE(0, NetConstants.CUBE_TYPE_SIZE);
-    }
-
     readonly _cubeType: CubeType;
     get cubeType(): CubeType { return this._cubeType }
 
@@ -139,7 +134,7 @@ export class Cube {
                 throw new BinaryLengthError(`Cannot reactivate dormant (binary) Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
             }
             this.binaryData = binaryData;
-            this._cubeType = Cube.Type(binaryData);
+            this._cubeType = CubeUtil.typeFromBinary(binaryData);
             if (!(this._cubeType in CubeType)) {
                 logger.info(`Cube: Cannot reactivate dormant (binary) Cube of unknown type ${this._cubeType}`);
                 throw new CubeError(`Cannot reactivate dormant (binary) Cube of unknown type ${this._cubeType}`)

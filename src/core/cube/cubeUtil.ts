@@ -8,6 +8,9 @@ import { Buffer } from 'buffer';
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 
 import pkg from 'js-sha3';  // strange standards compliant syntax for importing
+import { NetConstants } from '../networking/networkDefinitions';
+import { Settings } from '../settings';
+import { CubeField, CubeFieldLength, CubeFieldType } from './cubeField';
 const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
 
 export const UNIX_SECONDS_PER_EPOCH = 5400;
@@ -155,4 +158,31 @@ export function keyVariants(keyInput: CubeKey | string): {keyString: string, bin
       binaryKey = Buffer.from(keyInput, 'hex');
     }
     return {keyString: keyString, binaryKey: binaryKey};
+}
+
+export function typeFromBinary(binaryCube: Buffer): CubeType {
+    if (!(binaryCube instanceof Buffer)) return undefined;
+    return binaryCube.readIntBE(0, NetConstants.CUBE_TYPE_SIZE);
+}
+
+export function dateFromBinary(binary: Buffer): number {
+    const type: CubeType = typeFromBinary(binary);
+    if (type === CubeType.FROZEN || type === CubeType.PIC) {
+        return binary.readUIntBE(
+            NetConstants.CUBE_SIZE
+                - CubeFieldLength[CubeFieldType.NONCE]
+                - CubeFieldLength[CubeFieldType.DATE],
+            NetConstants.TIMESTAMP_SIZE
+        )
+    } else if (type === CubeType.MUC || type === CubeType.PMUC) {
+        return binary.readUIntBE(
+            NetConstants.CUBE_SIZE
+                - CubeFieldLength[CubeFieldType.NONCE]
+                - CubeFieldLength[CubeFieldType.SIGNATURE]
+                - CubeFieldLength[CubeFieldType.DATE],
+            NetConstants.TIMESTAMP_SIZE
+        )
+    } else {
+        throw new SmartCubeTypeNotImplemented(`cubeUtil.dateFromBinary(): Cube type ${type} not implemented`);
+    }
 }
