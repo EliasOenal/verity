@@ -140,6 +140,8 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
    * @param parsers defines how this binary Cubes should be parsed.
    * Will use this store's default if not specified, which in turn will use the
    * core-only parsers if you didn't specify anything else on construction.
+   * @returns the Cube object that was added to storage, or undefined if it
+   *   was not added
    */
   async addCube(
     cube_input: Buffer,
@@ -194,12 +196,13 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       // Sometimes we get the same cube twice (e.g. due to network latency).
       // In that case, do nothing -- no need to invalidate the hash or to
       // emit an event.
-      if (await this.hasCube(cubeInfo.key) && cubeInfo.cubeType == CubeType.FROZEN) {
-        logger.debug('CubeStorage: duplicate - frozen cube already exists');
+      if (await this.hasCube(cubeInfo.key) && cubeInfo.cubeType === CubeType.FROZEN) {
+        logger.debug(`CubeStore.addCube(): skipping frozen Cube ${cubeInfo.keyString} as we already have it.`);
         return cube;
       }
       if (cube.getDifficulty() < this.options.requiredDifficulty) {
-        throw new InsufficientDifficulty("CubeStore: Cube does not meet difficulty requirements");
+        logger.debug(`CubeStore.addCube(): skipping Cube ${cubeInfo.keyString} due to insufficient difficulty`);
+        return undefined;
       }
       // If this is a MUC, check if we already have a MUC with this key.
       // Replace it with the incoming MUC if it's newer than the one we have.
@@ -255,6 +258,11 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     else return false;
   }
 
+  /**
+   * Get the number of cubes stored in this CubeStore.
+   * Note: For CubeStores working directly with persistent storage, this
+   * operation is VERY inefficient and should be avoided.
+   */
   async getNumberOfStoredCubes(): Promise<number> {
     if (this.inMemory) return (this.storage as Map<string, CubeInfo>).size;
     else {
