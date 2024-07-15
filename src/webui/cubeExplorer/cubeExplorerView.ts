@@ -41,6 +41,7 @@ export class CubeExplorerView extends VerityView {
   //***
 
   clearAll(): void {
+    this.clearAlerts();
     this.displayStats(0, 0, 0);
     this.cubeList.replaceChildren();
   }
@@ -154,7 +155,7 @@ export class CubeExplorerView extends VerityView {
     const accordionBody: HTMLElement = li?.querySelector(".accordion-body");
     //
     let messageContainer: HTMLElement;
-    if (!exclusive) messageContainer = accordionBody?.querySelector(".verityMessageTop");
+    if (!exclusive) messageContainer = accordionBody?.querySelector(".verityMessageCube");
     else messageContainer = accordionBody;
     if (!messageContainer) {
       logger.warn(`CubeExplorerView.makeCubeAlert(): Could not find message container for Cube ${key}, did you mess with my DOM elements?!`);
@@ -233,9 +234,18 @@ export class CubeExplorerView extends VerityView {
       .value = EncodingIndex[encodingIndex];
   }
 
-  showBelowCubes(message: string): void {
-    (this.renderedView.querySelector('.verityMessageBottom') as HTMLElement)
-      .innerText = message;
+  makeAlertBelowCubes(
+    type: AlertTypeList,
+    msg: string,
+    exclusive: boolean = false,
+  ): HTMLElement {
+    const container: HTMLElement =
+      this.renderedView.querySelector('.verityMessageBottom');
+    if (!container) {
+      logger.error("CubeExplorerView.makeAlertBelowCubes(): Could not find message container, did you mess with my DOM elements?!");
+      return undefined;
+    }
+    this.makeAlert(container, type, msg, exclusive);
   }
 
   displayCubeFilter(filter: CubeFilter): void {

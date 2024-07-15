@@ -145,7 +145,8 @@ export class CubeExplorerController extends VerityController {
       displayed++;
       this.contentAreaView.displayCubeSummary(key as string);
       if (displayed >= this.options.maxCubes) {
-        this.contentAreaView.showBelowCubes(`Maximum of ${displayed} Cubes displayed, rest omitted. Consider narrower filter.`);
+        this.contentAreaView.makeAlertBelowCubes("info",
+          `Maximum of ${displayed} Cubes displayed, rest omitted. Consider narrower filter.`);
         break;
       }
     }
