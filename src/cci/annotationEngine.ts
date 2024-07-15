@@ -10,6 +10,9 @@ import { EventEmitter } from 'events';
 import { BaseFields } from '../core/fields/baseFields';
 
 import { Buffer } from 'buffer';
+import { Settings } from 'core/settings';
+import { NetConstants } from '../core/networking/networkDefinitions';
+import { logger } from '../core/logger';
 
 type RelationshipClassConstructor = new (type: number, remoteKey: CubeKey) => cciRelationship;
 export function defaultGetFieldsFunc(cube: Cube): BaseFields {
@@ -85,6 +88,14 @@ export class AnnotationEngine extends EventEmitter {
   }
 
   autoAnnotate(cubeInfo: CubeInfo): void {
+    // TODO: Prevent the annotation engine from loading obviously corrupt cubes
+    // This is not the right place to catch this. Why do we even have them in the store?
+    if ( !cubeInfo || !cubeInfo.binaryCube || cubeInfo.binaryCube.length == 4)
+    {
+      logger.error(`AnnotationEngine: Tried to load corrupt cube ${cubeInfo.key.toString('hex')}`);
+      return;
+    }
+
     // logger.trace(`AnnotationEngine: Auto-annotating cube ${cubeInfo.key.toString('hex')}`);
     const cube: Cube = cubeInfo.getCube();  // TODO: CCI CubeInfos should learn what kind of Cube they represent much earlier in the process
 

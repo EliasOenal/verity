@@ -70,50 +70,34 @@ export class CubeExplorerController extends VerityController {
     this.contentAreaView.clearAll();
     let initialPromise: Promise<number> = this.cubeStore.getNumberOfStoredCubes();
     initialPromise.then(async (total: number) => {
-      let displayed = 0, unparsable = 0, filtered = 0;
+      let displayed = 0, filtered = 0;
       for await (const key of this.cubeStore.getAllKeys(true)) {
-        // update stats to reflect parsing progress
+        // update stats to reflect progress
         this.contentAreaView.displayStats(total, displayed, filtered);
-        // Apply key filter before even activating this Cube
+        // Apply key filter
         if (filter.key !== undefined && !key.includes(filter.key)) {
           filtered++;
           continue;  // skip non-matching
         }
-        // fetch Cube
-        const cube: Cube = await this.getCube(key);
-        if (cube === undefined) {  // unparseable, giving up
-          unparsable++;
-          continue;
-        }
-        // apply further filters:
-        // prepare raw content filter if specified
-        let decodedBinary: string;
-        if (filter.content) {
-          decodedBinary = cube.getBinaryDataIfAvailable().toString(
-            EncodingIndex[filter.contentEncoding] as BufferEncoding);
-        }
-        // apply filters
-        if ((filter.dateFrom !== undefined && cube.getDate() < filter.dateFrom) ||
-            (filter.dateTo !== undefined && cube.getDate() > filter.dateTo) ||
-            (filter.content !== undefined && !decodedBinary.includes(filter.content)
-            )
-        ){
-          filtered++;
-          continue;
-        }
         displayed++;
-        this.contentAreaView.displayCube(key as string, cube);
+        this.contentAreaView.displayCubeSummary(key as string);
         if (displayed >= this.options.maxCubes) {
-          this.contentAreaView.showBelowCubes(`Maximum of ${displayed} Cubes displayed, rest omittted. Consider narrower filter.`);
+          this.contentAreaView.showBelowCubes(`Maximum of ${displayed} Cubes displayed, rest omitted. Consider narrower filter.`);
           break;
         }
       }
       this.contentAreaView.displayStats(total, displayed, filtered);
     });
-    // View can be displayed as soon as the first CubeStore operation
-    // has succeeded. More Cubes will then be added to the list as they get
-    // parsed.
     return initialPromise as unknown as Promise<void>;
+  }
+
+  async loadCubeDetails(key: string): Promise<void> {
+    const cube: Cube = await this.getCube(key);
+    if (cube === undefined) {
+      this.contentAreaView.showCubeError(key, "Unable to parse cube");
+      return;
+    }
+    this.contentAreaView.displayCubeDetails(key, cube);
   }
 
   //***
@@ -155,6 +139,10 @@ export class CubeExplorerController extends VerityController {
     let cube: Cube = await this.cubeStore.getCube(key);  // TODO: Add option to parse as something other than this CubeStore's default family
     if (cube === undefined) {  // unparseable, retry as raw
       cube = await this.cubeStore.getCube(key, rawCubeFamily);
+    }
+    if (cube === undefined) {
+      logger.error("CubeExplorerController.getCube(): Unable to parse Cube " + key);
+      return undefined;
     }
     return cube;
   }

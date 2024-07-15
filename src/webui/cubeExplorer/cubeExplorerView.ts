@@ -51,20 +51,8 @@ export class CubeExplorerView extends VerityView {
       .innerText = filtered.toString();
   }
 
-  displayCube(key: string, cube: Cube, li?: HTMLLIElement): void {
-    // prepare data
-    let emoji: string = "", type: string = "", typeWithEmoji: string = "";
-    // select cube emoji
-    if (cubeEmoji.get(cube.cubeType)) emoji = cubeEmoji.get(cube.cubeType) + '\xa0';  // emoji + nbsp
-    // select cube name string
-    if (cubeTypeString.has(cube.cubeType)) type = cubeTypeString.get(cube.cubeType);
-    else if (CubeType[cube.cubeType]) type = CubeType[cube.cubeType];  // fallback in case cubeTypeString is incomplete
-    else type = cube.cubeType.toString();  // fallback in case of unknown Cube type -- should never happen
-    // combine emoji with name
-    typeWithEmoji = emoji + type;
-
-    // prepare containers and set HTML element attributes
-    if (!li) li = this.newFromTemplate(".verityCube") as HTMLLIElement;
+  displayCubeSummary(key: string): void {
+    const li = this.newFromTemplate(".verityCube") as HTMLLIElement;
     li.setAttribute("data-cubekey", key);
     const toggleControl: HTMLElement = li.querySelector(".verityCubeToggleControl");
     toggleControl.setAttribute("data-bs-target", `#verityExploredCube-${key}`);
@@ -72,28 +60,40 @@ export class CubeExplorerView extends VerityView {
     const detailsContainer: HTMLElement = li.querySelector(".verityExploredCube");
     detailsContainer.setAttribute("id", `verityExploredCube-${key}`);
 
-    // set summary (i.e. what's visible before clicking)
+    const summary: HTMLElement = li.querySelector(".verityCubeSummary");
+    summary.innerText = key;
+
+    toggleControl.addEventListener('click', () => this.loadCubeDetails(key));
+
+    this.cubeList.appendChild(li);
+  }
+
+  displayCubeDetails(key: string, cube: Cube): void {
+    const li = this.cubeList.querySelector(`[data-cubekey="${key}"]`) as HTMLLIElement;
+    if (!li) return;
+
+    let emoji: string = "", type: string = "", typeWithEmoji: string = "";
+    if (cubeEmoji.get(cube.cubeType)) emoji = cubeEmoji.get(cube.cubeType) + '\xa0';
+    if (cubeTypeString.has(cube.cubeType)) type = cubeTypeString.get(cube.cubeType);
+    else if (CubeType[cube.cubeType]) type = CubeType[cube.cubeType];
+    else type = cube.cubeType.toString();
+    typeWithEmoji = emoji + type;
+
     const summary: HTMLElement = li.querySelector(".verityCubeSummary");
     summary.innerText = emoji + key;
 
-    // set general cube information
     (li.querySelector(".verityCubeType") as HTMLElement).innerText = typeWithEmoji;
     (li.querySelector(".verityCubeHash") as HTMLElement).innerText = cube.getHashIfAvailable().toString('hex');
     const dateText = formatDate(cube.getDate());
     (li.querySelector(".verityCubeDate") as HTMLElement).innerText = dateText;
     (li.querySelector(".verityCubeDifficulty") as HTMLElement).innerText = cube.getDifficulty().toString();
 
-    // set schematic view
-    // prepare containers
-    const schematicContainer: HTMLElement =
-      li.querySelector(".veritySchematicFields");
+    const schematicContainer: HTMLElement = li.querySelector(".veritySchematicFields");
     schematicContainer.replaceChildren();
-    const fieldDetailsConstainer: HTMLElement =
-      li.querySelector(".veritySchematicFieldDetailsContainer");
-    fieldDetailsConstainer.replaceChildren();
-    // populate fields
+    const fieldDetailsContainer: HTMLElement = li.querySelector(".veritySchematicFieldDetailsContainer");
+    fieldDetailsContainer.replaceChildren();
+
     for (let i=0; i<cube.fields.length; i++) {
-      // schematic header
       const field = cube.fields.all[i];
       const fieldName: string = cube.fieldParser.fieldDef.fieldNames[field.type] as string;
       const schematicField: HTMLElement = this.newFromTemplate(".veritySchematicField");
@@ -103,34 +103,35 @@ export class CubeExplorerView extends VerityView {
       schematicField.innerText = fieldName ?? (field.type >> 2).toString();
       schematicContainer.appendChild(schematicField);
 
-      // field details
-      const detailsTable: HTMLTableElement =
-        this.newFromTemplate(".veritySchematicFieldDetails") as HTMLTableElement;
+      const detailsTable: HTMLTableElement = this.newFromTemplate(".veritySchematicFieldDetails") as HTMLTableElement;
       detailsTable.setAttribute("data-fieldindex", i.toString());
       detailsTable.setAttribute("id", `pills-${key}-${i}`);
       detailsTable.setAttribute("aria-labelledby", `pills-tab-${key}-${i}`);
-      // field type
+
       let fieldType: string = fieldName ?? field.type.toString();
       if (Object.values(cube.fieldParser.fieldDef.positionalFront).includes(field.type) ||
           Object.values(cube.fieldParser.fieldDef.positionalBack).includes(field.type)) {
         fieldType += " (positional field)"
       } else fieldType += ` (code ${(field.type >> 2).toString()} / 0x${(field.type >> 2).toString(16)})`;
-      (detailsTable.querySelector(".veritySchematicFieldType") as HTMLElement)
-        .innerText = fieldType;
-      // field start index
-      (detailsTable.querySelector(".veritySchematicFieldStart") as HTMLElement)
-        .innerText = field.start.toString();
-      // content length
-      (detailsTable.querySelector(".veritySchematicFieldLength") as HTMLElement)
-        .innerText = field.length.toString();
-      // TODO: parse known field contents instead of just dumping their value
-      // find best encoding for content -- TODO: when decoding PAYLOAD, should respect MEDIA_TYPE field if any
-      this.setDecodedFieldContent(field, detailsTable);
-      fieldDetailsConstainer.appendChild(detailsTable);
-    }
+      (detailsTable.querySelector(".veritySchematicFieldType") as HTMLElement).innerText = fieldType;
+      (detailsTable.querySelector(".veritySchematicFieldStart") as HTMLElement).innerText = field.start.toString();
+      (detailsTable.querySelector(".veritySchematicFieldLength") as HTMLElement).innerText = field.length.toString();
 
-    // all done, append Cube to list
-    this.cubeList.appendChild(li);
+      this.setDecodedFieldContent(field, detailsTable);
+      fieldDetailsContainer.appendChild(detailsTable);
+    }
+  }
+
+  showCubeError(key: string, errorMessage: string): void {
+    const li = this.cubeList.querySelector(`[data-cubekey="${key}"]`) as HTMLLIElement;
+    if (!li) return;
+
+    const detailsContainer: HTMLElement = li.querySelector(".verityExploredCube");
+    detailsContainer.innerHTML = `<p class="text-danger">${errorMessage}</p>`;
+  }
+
+  private loadCubeDetails(key: string): void {
+    this.controller.loadCubeDetails(key);
   }
 
   setDecodedFieldContent(field: CubeField, detailsTable: HTMLTableElement): void {

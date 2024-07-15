@@ -10,6 +10,7 @@ import { cciFieldParsers, cciFields } from "../../../cci/cube/cciFields";
 import { cciRelationshipLimits, cciRelationship, cciRelationshipType } from "../../../cci/cube/cciRelationship";
 import { cciCube, cciFamily } from "../../../cci/cube/cciCube";
 import { ensureCci } from "../../../cci/cube/cciCubeUtil";
+import { NetConstants } from "../../../core/networking/networkDefinitions";
 
 import { assertZwCube } from "./zwUtil";
 
@@ -87,6 +88,15 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       cubeInfo: CubeInfo | CubeKey,
       mediaType: MediaTypes = MediaTypes.TEXT): Promise<boolean> {
     if (!(cubeInfo instanceof CubeInfo)) cubeInfo = await this.cubeStore.getCubeInfo(cubeInfo);
+
+    // TODO: Prevent the annotation engine from loading obviously corrupt cubes
+    // This is not the right place to catch this. Why do we even have them in the store?
+    if ( !cubeInfo || !cubeInfo.binaryCube || cubeInfo.binaryCube.length == 4)
+    {
+      logger.error(`zwAnnotationEngine: Tried to load corrupt cube ${cubeInfo.key.toString('hex')}`);
+      return;
+    }
+
     const cube: Cube = cubeInfo.getCube();
 
     // is this even a valid ZwCube?
