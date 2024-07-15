@@ -4,7 +4,7 @@ import { CubeType, CubeKey, CubeError } from './cubeDefinitions';
 import { CubeFamilyDefinition } from './cubeFields';
 
 import { Buffer } from 'buffer';
-import { keyVariants } from './cubeUtil';
+import { ApiMisuseError } from '../settings';
 
 /**
  * @interface CubeMeta is a restricted view on CubeInfo containing metadata only.
@@ -158,11 +158,11 @@ export class CubeInfo {
       // active Cube
       this.binaryCube = options.cube.getBinaryDataIfAvailable();
       if(!this.binaryCube) {
-        throw new CubeError("CubeInfo can only be constructed for compiled Cubes, call and await Cube's getBinaryData() first");
+        throw new ApiMisuseError("CubeInfo can only be constructed for compiled Cubes, call and await Cube's getBinaryData() first");
       }
       this.key = options.cube.getKeyIfAvailable();
       if(!this.key) {
-        throw new CubeError("CubeInfo can only be constructed for Cubes which know their key, call and await Cube's getKey() first");
+        throw new ApiMisuseError("CubeInfo can only be constructed for Cubes which know their key, call and await Cube's getKey() first");
       }
       this.objectCache = new WeakRef(options.cube);
       this.family = options.cube.family;
@@ -171,7 +171,7 @@ export class CubeInfo {
       this.binaryCube = options.cube;
       this.key = options.key;
       if(!this.key) {
-        throw new CubeError("CubeInfo on dormant Cubes can only be contructed if you supply the Cube key.");
+        throw new ApiMisuseError("CubeInfo on dormant Cubes can only be contructed if you supply the Cube key.");
       }
       this.family = options?.family ?? coreCubeFamily;
     } else {
@@ -188,7 +188,14 @@ export class CubeInfo {
    * If the cube is currently in dormant state, this instantiates the Cube object
    * for you.
    * We use an object cache (WeakRef) to prevent unnecessary re-instantiations of
-   * Cube objects, so there's no need for the caller to cache them.
+   * Cube objects, so there's no need for the caller to cache them unless you
+   * use a custom family setting.
+   * @param family - If you want to have this Cube parsed differently than
+   *   the default setting, you can provide a custom CubeFamily here.
+   *   The Cube will not be cached in this case, so you should cache it yourself.
+   * @returns The requested Cube, or undefined if the Cube is incomplete or
+   *  unparseable.
+   * @throws Should not throw.
    */
   getCube(
       family: CubeFamilyDefinition = this.family,
@@ -217,7 +224,6 @@ export class CubeInfo {
       return cube;
     } catch (err) {
       logger.error(`${this.toString()}: Could not instantiate Cube: ${err?.toString() ?? err}`);
-      throw "Could not instantiate Cube: " + err + " for " + this.keyString + " Cube should have been in store.";
       return undefined;
     }
   }
