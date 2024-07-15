@@ -56,7 +56,10 @@ export class CubeExplorerView extends VerityView {
   }
 
   displayCubeSummary(key: string): void {
+    // instantiate from template
     const li = this.newFromTemplate(".verityCube") as HTMLLIElement;
+
+    // fill in attributes with Cube key
     li.setAttribute("data-cubekey", key);
     const toggleControl: HTMLElement = li.querySelector(".verityCubeToggleControl");
     toggleControl.setAttribute("data-bs-target", `#verityExploredCube-${key}`);
@@ -64,9 +67,16 @@ export class CubeExplorerView extends VerityView {
     const detailsContainer: HTMLElement = li.querySelector(".verityExploredCube");
     detailsContainer.setAttribute("id", `verityExploredCube-${key}`);
 
+    // write toggler text
     const summary: HTMLElement = li.querySelector(".verityCubeSummary");
-    summary.innerText = key;
+    summary.textContent = key;
 
+    // remove Cube details from now to shrink DOM size
+    const exploredCube: HTMLElement = li.querySelector(".verityExploredCube");
+    exploredCube.replaceChildren();
+
+    // set event handler for toggler -- this will not just toggle the accordion
+    // but also fetch and fill in the Cube details
     toggleControl.addEventListener('click', () => this.controller.toggleCubeDetails(key));
 
     this.cubeList.appendChild(li);
@@ -85,6 +95,11 @@ export class CubeExplorerView extends VerityView {
 
     const summary: HTMLElement = li.querySelector(".verityCubeSummary");
     summary.innerText = emoji + key;
+
+    // (re-)create Cube details container
+    const exploredCube: HTMLElement = li.querySelector(".verityExploredCube");
+    const newExploredCube: HTMLElement = this.newFromTemplate(".verityExploredCube");
+    exploredCube.replaceChildren(...(Array.from(newExploredCube.children)));
 
     (li.querySelector(".verityCubeType") as HTMLElement).innerText = typeWithEmoji;
     (li.querySelector(".verityCubeHash") as HTMLElement).innerText = cube.getHashIfAvailable().toString('hex');
