@@ -214,18 +214,6 @@ export class CubeExplorerView extends VerityView {
     const keyInput: HTMLInputElement =
       this.renderedView.querySelector('.verityCubeKeyFilter');
     keyInput.value = filter.key ?? "";
-    // date from filter
-    const dateFromInput: HTMLInputElement =
-      this.renderedView.querySelector(".verityCubeDateFrom");
-    dateFromInput.value = unixtimeToDatetimeLocal(filter.dateFrom);
-    // date to filter
-    const dateToInput: HTMLInputElement =
-    this.renderedView.querySelector(".verityCubeDateTo");
-    dateToInput.value = unixtimeToDatetimeLocal(filter.dateTo);
-    // content string filter
-    const contentInput: HTMLInputElement =
-      this.renderedView.querySelector(".verityCubeContentFilter");
-    contentInput.textContent = filter.content ?? "";
   }
 
 
@@ -254,27 +242,7 @@ export class CubeExplorerView extends VerityView {
     const key: string = (this.renderedView.querySelector(
       ".verityCubeKeyFilter") as HTMLInputElement)?.value;
     if (key.length > 0) ret.key = key;
-    // Sculpt date
-    const dateFromInput: string = (this.renderedView.querySelector(
-      ".verityCubeDateFrom") as HTMLInputElement)?.value;
-    ret.dateFrom = datetimeLocalToUnixtime(dateFromInput);
-    const dateToInput: string = (this.renderedView.querySelector(
-      ".verityCubeDateTo") as HTMLInputElement)?.value;
-    ret.dateTo = datetimeLocalToUnixtime(dateToInput);
-    // Content filter encoding
-    const encodingSelect: HTMLSelectElement =
-      this.renderedView.querySelector(".verityContentEncodingSelect");
-    ret.contentEncoding = EncodingIndex[encodingSelect.value];
-    if (ret.contentEncoding === undefined) {
-      // if somehow the DOM got corrupted and we get an encoding index which
-      // does not exist, just default to hex and reflect that back to the view
-      ret.contentEncoding = EncodingIndex.hex;
-      encodingSelect.value = 'hex';
-    }
-    // Content filter string
-    const content: string = (this.renderedView.querySelector(
-      ".verityCubeContentFilter") as HTMLInputElement)?.value;
-    if (content.length > 0) ret.content = content;
+
     return ret;
   }
 }
