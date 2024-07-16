@@ -75,4 +75,6 @@ logo/
 *.py,cover
 *.code-workspace
 
+# AI foo for developers who are too lazy to code themselves
 .aider*
+aider
