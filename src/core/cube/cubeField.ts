@@ -45,12 +45,12 @@ export const CubeFieldLength: FieldNumericalParam = {
   [CubeFieldType.PUBLIC_KEY]: NetConstants.PUBLIC_KEY_SIZE,
   [CubeFieldType.DATE]: NetConstants.TIMESTAMP_SIZE,
   [CubeFieldType.SIGNATURE]: NetConstants.SIGNATURE_SIZE,
-  [CubeFieldType.NONCE]: Settings.NONCE_SIZE,
+  [CubeFieldType.NONCE]: NetConstants.NONCE_SIZE,
   [CubeFieldType.PAYLOAD]: undefined,
   [CubeFieldType.PADDING]: undefined,
   [CubeFieldType.CCI_END]: 0,
-  [CubeFieldType.RAWFROZEN]: NetConstants.CUBE_SIZE - NetConstants.CUBE_TYPE_SIZE - NetConstants.TIMESTAMP_SIZE - Settings.NONCE_SIZE,
-  [CubeFieldType.RAWMUC]: NetConstants.CUBE_SIZE - NetConstants.CUBE_TYPE_SIZE - NetConstants.PUBLIC_KEY_SIZE - NetConstants.TIMESTAMP_SIZE - NetConstants.SIGNATURE_SIZE - Settings.NONCE_SIZE,
+  [CubeFieldType.RAWFROZEN]: NetConstants.CUBE_SIZE - NetConstants.CUBE_TYPE_SIZE - NetConstants.TIMESTAMP_SIZE - NetConstants.NONCE_SIZE,
+  [CubeFieldType.RAWMUC]: NetConstants.CUBE_SIZE - NetConstants.CUBE_TYPE_SIZE - NetConstants.PUBLIC_KEY_SIZE - NetConstants.TIMESTAMP_SIZE - NetConstants.SIGNATURE_SIZE - NetConstants.NONCE_SIZE,
 };
 
 export class CubeField extends BaseField {
@@ -67,8 +67,8 @@ export class CubeField extends BaseField {
   }
 
   static Nonce(): CubeField {
-    const random_bytes = new Uint8Array(Settings.NONCE_SIZE);
-    for (let i = 0; i < Settings.NONCE_SIZE; i++) {
+    const random_bytes = new Uint8Array(NetConstants.NONCE_SIZE);
+    for (let i = 0; i < NetConstants.NONCE_SIZE; i++) {
       random_bytes[i] = Math.floor(Math.random() * 256);
     }
     return new this(

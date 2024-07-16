@@ -233,7 +233,7 @@ describe('cube', () => {
         new CubeField(CubeFieldType.PUBLIC_KEY, publicKey),
         CubeField.Date(),
         new CubeField(CubeFieldType.SIGNATURE, Buffer.alloc(NetConstants.SIGNATURE_SIZE)),
-        new CubeField(CubeFieldType.NONCE, Buffer.alloc(Settings.NONCE_SIZE)),
+        new CubeField(CubeFieldType.NONCE, Buffer.alloc(NetConstants.NONCE_SIZE)),
       ], coreMucFieldDefinition);
 
       muc.setFields(fields);
