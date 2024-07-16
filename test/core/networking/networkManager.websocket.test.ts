@@ -576,7 +576,10 @@ describe('networkManager - WebSocket connections', () => {
         const promise2_shutdown = manager2.shutdown();
         await Promise.all([promise1_shutdown, promise2_shutdown]);
       }, 10000);
-    });
+
+      it.todo('will not request Cubes already in store');
+      it.todo('will not send Cubes that have not been requested');
+    });  // as a full node
 
     describe('as a light node', () => {
       it('exchanges Cubes on request', async () => {
@@ -648,8 +651,8 @@ describe('networkManager - WebSocket connections', () => {
 
         await Promise.all([node1.shutdown(), node2.shutdown()]);
       });
-    });
-  });
+    });  // as a light node
+  });  // cube exchange
 
   describe('peer exchange and auto-connect', () => {
     it('should exchange peers and auto-connect them', async () => {
