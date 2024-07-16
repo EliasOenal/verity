@@ -47,12 +47,19 @@ export class CubePersistence extends EventEmitter {
   }
 
   storeCube(key: string, cube: Buffer): Promise<void> {
-    // TODO: This is an asynchronous storage operation, because just about
-    // every damn thing in this language is asynchronous.
-    // Handle the result event some time, maybe... or don't, whatever.
-    if (this.db.status != 'open') return;
-    // logger.trace("cubePersistent: Storing cube " + key);
-    return this.db.put(key, cube);
+    if (this.db.status !== 'open') {
+      logger.warn("cubePersistence: Attempt to store cube in a closed DB");
+      return Promise.resolve();
+    }
+    
+    return this.db.put(key, cube)
+      .then(() => {
+        logger.trace(`cubePersistence: Successfully stored cube ${key}`);
+      })
+      .catch((error) => {
+        logger.error(`cubePersistence: Failed to store cube ${key}: ${error}`);
+        throw new PersistenceError(`Failed to store cube ${key}: ${error}`);
+      });
   }
 
   async getCube(key: string): Promise<Buffer> {
