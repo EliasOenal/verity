@@ -31,7 +31,7 @@ describe('CubeField', () => {
     it('should create a Nonce field', () => {
       const field = CubeField.Nonce();
       expect(field.type).toBe(CubeFieldType.NONCE);
-      expect(field.value.length).toBe(Settings.NONCE_SIZE);
+      expect(field.value.length).toBe(NetConstants.NONCE_SIZE);
     });
 
     it('should create a Payload field', () => {

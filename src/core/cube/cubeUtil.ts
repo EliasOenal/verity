@@ -166,23 +166,25 @@ export function typeFromBinary(binaryCube: Buffer): CubeType {
 }
 
 export function dateFromBinary(binary: Buffer): number {
-    const type: CubeType = typeFromBinary(binary);
-    if (type === CubeType.FROZEN || type === CubeType.PIC) {
-        return binary.readUIntBE(
-            NetConstants.CUBE_SIZE
-                - CubeFieldLength[CubeFieldType.NONCE]
-                - CubeFieldLength[CubeFieldType.DATE],
-            NetConstants.TIMESTAMP_SIZE
-        )
-    } else if (type === CubeType.MUC || type === CubeType.PMUC) {
-        return binary.readUIntBE(
-            NetConstants.CUBE_SIZE
-                - CubeFieldLength[CubeFieldType.NONCE]
-                - CubeFieldLength[CubeFieldType.SIGNATURE]
-                - CubeFieldLength[CubeFieldType.DATE],
-            NetConstants.TIMESTAMP_SIZE
-        )
-    } else {
-        throw new SmartCubeTypeNotImplemented(`cubeUtil.dateFromBinary(): Cube type ${type} not implemented`);
+    const cubeType = typeFromBinary(binary);
+    let datePosition;
+
+    switch (cubeType) {
+        case CubeType.FROZEN:
+            datePosition = NetConstants.CUBE_SIZE - NetConstants.NONCE_SIZE - NetConstants.TIMESTAMP_SIZE;
+            break;
+        case CubeType.PIC:
+            datePosition = NetConstants.CUBE_SIZE - NetConstants.NONCE_SIZE - NetConstants.TIMESTAMP_SIZE;
+            break;
+        case CubeType.MUC:
+            datePosition = NetConstants.CUBE_SIZE - NetConstants.NONCE_SIZE - NetConstants.SIGNATURE_SIZE - NetConstants.TIMESTAMP_SIZE;
+            break;
+        case CubeType.PMUC:
+            datePosition = NetConstants.CUBE_SIZE - NetConstants.NONCE_SIZE - NetConstants.SIGNATURE_SIZE - NetConstants.TIMESTAMP_SIZE;
+            break;
+        default:
+            throw new CubeError(`Unsupported cube type: ${cubeType}`);
     }
+
+    return binary.readUIntBE(datePosition, NetConstants.TIMESTAMP_SIZE);
 }

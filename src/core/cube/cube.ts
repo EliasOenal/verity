@@ -453,7 +453,7 @@ export class Cube {
                 // Check 1000 hashes before yielding control back to the event loop
                 for (let i = 0; i < 1000; i++) {
                     // Write the nonce to binaryData
-                    nonceField.value.writeUIntBE(nonce, 0, Settings.NONCE_SIZE);
+                    nonceField.value.writeUIntBE(nonce, 0, NetConstants.NONCE_SIZE);
                     // Calculate the hash
                     hash = CubeUtil.calculateHash(this.binaryData);
                     // Check if the hash is valid

@@ -5,7 +5,6 @@ export const Settings = {
     HASHCASH_SIZE: 4,  // reverse at least 4 bytes as scratch space for hash cash, giving us 2^32 attempts which is more than enough
     TREE_OF_WISDOM: true, // enable Tree of Wisdom structure for efficient cube syncing
     CUBE_RETENTION_POLICY: false,  // Verify cubes against current epoch
-    NONCE_SIZE: 4,  // reserve at least 4 bytes as scratch space for hash cash, giving us 2^32 attempts which is more than enough
 
     // CubeStore related
     // - CubePersistence related
