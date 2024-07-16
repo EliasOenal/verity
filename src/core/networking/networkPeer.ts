@@ -492,18 +492,37 @@ export class NetworkPeer extends Peer {
     // TODO: If we're a light node, make sure we actually requested those
     private handleCubeResponse(msg: CubeResponseMessage): void {
         const binaryCubes: Generator<Buffer> = msg.binaryCubes();
-        for (const binaryCube of binaryCubes) {
-            // Add the cube to the CubeStorage
-            // If this fails, CubeStore will log an error and we will ignore this cube.
-            // Grant this peer local reputation if cube is accepted.
-            // TODO BUGBUG: This currently grants reputation score for duplicates,
-            // which is absolutely contrary to what we want :'D
-            this.cubeStore.addCube(binaryCube)
-                .then((value) => {
-                    if(value) { this.scoreReceivedCube(value.getDifficulty()); }
-                });
-        }
-        logger.info(`NetworkPeer ${this.toString()}: handleCubeResponse: received ${msg.cubeCount} cubes`);
+        const processBatch = async (iterator: Iterator<Buffer>, batchSize: number) => {
+            let count = 0;
+            for (let i = 0; i < batchSize; i++) {
+                const { value: binaryCube, done } = iterator.next();
+                if (done) break;
+                count++;
+                // Add the cube to the CubeStorage
+                // If this fails, CubeStore will log an error and we will ignore this cube.
+                // Grant this peer local reputation if cube is accepted.
+                // TODO BUGBUG: This currently grants reputation score for duplicates,
+                // which is absolutely contrary to what we want :'D
+                const value = await this.cubeStore.addCube(binaryCube);
+                if (value) { this.scoreReceivedCube(value.getDifficulty()); }
+            }
+            return count;
+        };
+
+        const processAllCubes = async () => {
+            const iterator = binaryCubes[Symbol.iterator]();
+            let totalProcessed = 0;
+            while (true) {
+                const processed = await processBatch(iterator, 10);
+                if (processed === 0) break;
+                totalProcessed += processed;
+                // Allow other operations to run
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+            logger.info(`NetworkPeer ${this.toString()}: handleCubeResponse: processed ${totalProcessed} cubes`);
+        };
+
+        processAllCubes();
     }
 
     /**
