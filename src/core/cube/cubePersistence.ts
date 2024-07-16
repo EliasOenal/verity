@@ -62,15 +62,16 @@ export class CubePersistence extends EventEmitter {
       });
   }
 
-  async getCube(key: string): Promise<Buffer> {
-    try {
-      const ret = await this.db.get(key);
-      logger.trace(`CubePersistence.getCube() fetched binary Cube ${key}`);
-      return ret;
-    } catch (error) {
-      logger.trace(`CubePersistance.getCube(): Cannot find Cube ${key}, error status ${error.status} ${error.code}, ${error.message}`);
-      return undefined;
-    }
+  getCube(key: string): Promise<Buffer> {
+    return this.db.get(key)
+      .then(ret => {
+        logger.trace(`CubePersistence.getCube() fetched binary Cube ${key}`);
+        return ret;
+      })
+      .catch(error => {
+        logger.trace(`CubePersistance.getCube(): Cannot find Cube ${key}, error status ${error.status} ${error.code}, ${error.message}`);
+        return undefined;
+      });
   }
 
   async *getAllKeys(options = {}): AsyncGenerator<string> {
