@@ -25,7 +25,7 @@
     "jest-runner": "^29.7.0",
     "libsodium-wrappers": "^0.7.14",
     "raw-loader": "^4.0.2",
-    "ts-jest": "^29.2.2",
+    "ts-jest": "^29.2.3",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.3",
