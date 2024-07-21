@@ -354,6 +354,11 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
 
     /** Called by NetworkServer only, should never be called manually. */
     handleIncomingPeer(conn: TransportConnection) {
+        if (!this.options.acceptIncomingConnections) {
+            logger.trace("NetworkManager: Refused an incoming connection as I was told not to accept any.");
+            conn.close();
+            return;
+        }
         const networkPeer = new NetworkPeer(
             this,
             conn,

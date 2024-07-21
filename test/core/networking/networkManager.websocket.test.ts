@@ -365,8 +365,63 @@ describe('networkManager - WebSocket connections', () => {
         ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
     }, 500000);
 
+    it('only accepts incoming connections when enabled', async () => {
+      const myPeerDB = new PeerDB();
+      const myManager = new NetworkManager(
+        new CubeStore(testCubeStoreParams),
+        myPeerDB,
+        new Map([[SupportedTransports.ws, 7005]]),
+        { ...fullNodeMinimalFeatures, acceptIncomingConnections: false }
+      );
+      await myManager.start();
+
+      const otherPeerDB = new PeerDB();
+      const otherManager = new NetworkManager(
+        new CubeStore(testCubeStoreParams),
+        otherPeerDB,
+        undefined,  // no listener
+        fullNodeMinimalFeatures
+      );
+      await otherManager.start();
+
+      // Attempt to connect to myManager and set a timeout for the attempt
+      const connectionAttempt = new Promise<boolean>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Connection attempt timed out')), 200);
+        otherManager.connect(new Peer(new WebSocketAddress('localhost', 7005)));
+        myManager.on('incomingPeer', () => {
+          clearTimeout(timeout);
+          resolve(true);
+        });
+      });
+
+      let connectionEstablished = false;
+      try {
+        connectionEstablished = await connectionAttempt;
+      } catch (error) {
+        connectionEstablished = false;
+      }
+
+      // Ensure the connection was not established since acceptIncomingConnections is false
+      expect(connectionEstablished).toBe(false);
+      expect(myManager.incomingPeers.length).toEqual(0);
+      expect(myPeerDB.peersVerified.size).toEqual(0);
+
+      // Teardown
+      const iShutdown = new Promise(resolve => myManager.on('shutdown', resolve));
+      const otherShutdown = new Promise(resolve => otherManager.on('shutdown', resolve));
+      await myManager.shutdown();
+      await otherManager.shutdown();
+      await iShutdown;
+      await otherShutdown;
+
+      // Ensure all connections are closed
+      expect(myManager.outgoingPeers.length).toEqual(0);
+      expect(myManager.incomingPeers.length).toEqual(0);
+      expect(otherManager.outgoingPeers.length).toEqual(0);
+      expect(otherManager.incomingPeers.length).toEqual(0);
+    });
+
     it.todo('should fail gracefully when trying to connect to an invalid address');
-    it.todo('only accepts incoming connections when enabled');
   });
 
   describe('cube exchange', () => {
