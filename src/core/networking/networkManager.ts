@@ -357,6 +357,9 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         if (!this.options.acceptIncomingConnections) {
             logger.trace("NetworkManager: Refused an incoming connection as I was told not to accept any.");
             conn.close();
+            // TODO: We should probably let the peer know that we're not
+            // currently accepting incoming connections so they don't try again
+            // and also stop including us in their peer exchanges.
             return;
         }
         const networkPeer = new NetworkPeer(

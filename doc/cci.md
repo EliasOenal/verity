@@ -10,7 +10,17 @@ The Common Cube Interface (CCI) is a standardized payload format designed to fac
 
 ## Overview
 
-CCI delineates a specific range of type numbers for standardized fields and reserves a separate range for custom fields defined by individual applications. This ensures a harmonized approach to handling payload data while allowing applications the flexibility to introduce their custom fields based on specific requirements.
+CCI describes a Type-Length-Value data structure within a Cube's Payload area.
+It also defines a common set of type numbers for standardized fields. This ensures a harmonized approach to handling payload data while allowing applications the flexibility to introduce their custom fields based on specific requirements.
+
+### TLV format
+
+1. **Type (6 bits)**: Each field starts with a one-byte type identifier, followed by a length (types of static length may omit this) and the actual value. The type is a 6-bit identifier, and the length, if present, is encoded as a 10-bit integer, both packed into a two-byte header. The length is encoded as big endian.
+
+2. **Length (10 bits, optional)**: This is the length of the value in bytes. For fields with a fixed length this entry is omitted (value will start at the next byte boundary) and the length is implicitly known. For types with variable length, this field specifies the length of the value.
+
+3. **Value (variable length)**: This is the actual data. The length of this field is specified by the length field or is implicitly known based on the type.
+
 
 ### Common Cube Interface (CCI) Field Specifications
 
@@ -20,7 +30,7 @@ Proposed repartition of type space:
 0x0C - 0x0F: Less common technical fields (multi-byte fields like 0x0C42)
 0x10 - 0x1B: Common content-descriptive fields
 0x1C - 0x1F: Less common content-descriptive fields (multi-byte fields like 0x1C42)
-0x20 - 0x3F: Application-specific
+0x20 - 0x3F: Application-specific fields (must be variable length)
 
 #### Core CCI fields
 | Type (Hex)  | Length | Field Name             | Description |
