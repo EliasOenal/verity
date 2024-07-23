@@ -9,7 +9,7 @@ import type { NavItem } from "../../webui/navigation/navigationDefinitions";
 export async function webmain() {
   const navItems: NavItem[] = [
     {controller: PostController, navAction: PostController.prototype.selectPostsWithAuthors, text: "All posts", exclusive: true},
-    {controller: PostController, navAction: PostController.prototype.selectAllPosts, text: "All posts (incl anonymous)", exclusive: true},
+    {controller: PostController, navAction: PostController.prototype.selectAllPosts, text: "All posts (incl. anon.)", exclusive: true},
     {controller: PostController, navAction: PostController.prototype.selectSubscribedReplied, text: "Subscribed", exclusive: true},
     {controller: PostController, navAction: PostController.prototype.selectWot, text: "Web of trust", exclusive: true},
     {controller: CubeExplorerController, navAction: CubeExplorerController.prototype.selectAll, text: "Cube Explorer"},
