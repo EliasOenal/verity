@@ -12,6 +12,7 @@ import { IdentityController } from './identity/identityController';
 import { NavigationController } from './navigation/navigationController';
 import { VeraAnimationController } from './veraAnimationController';
 import { CubeExplorerController } from './cubeExplorer/cubeExplorerController';
+import { FileUploadController } from './fileUpload/fileUploadController';
 
 import { logger } from '../core/logger'
 import { IdentityPersistenceOptions } from '../cci/identity/identityPersistence';
@@ -127,6 +128,7 @@ export class VerityUI implements ControllerContext {
   nav: NavigationController = new NavigationController(this);
   peerController: PeerController;
   identityController: IdentityController;
+  fileUploadController: FileUploadController;
 
   get currentController(): VerityController { return this.nav.currentController }
 
@@ -135,6 +137,7 @@ export class VerityUI implements ControllerContext {
       readonly options: VerityOptions = {},
     ){
     this.peerController = new PeerController(this);
+    this.fileUploadController = new FileUploadController(this);
   }
 
   shutdown() {
