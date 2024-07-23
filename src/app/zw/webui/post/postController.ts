@@ -18,6 +18,7 @@ import { ControllerContext, VerityController } from "../../../../webui/verityCon
 import { logger } from "../../../../core/logger";
 
 import { Buffer } from 'buffer';
+import { FileApplication } from '../../../fileApplication';
 
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
@@ -172,7 +173,7 @@ export class PostController extends VerityController {
     data.binarykey = binarykey;
     data.keystring = binarykey.toString('hex');
     data.timestamp = cube.getDate();
-    data.text = fields.getFirst(cciFieldType.PAYLOAD).value.toString();
+    data.text = await this.processImageTags(fields.getFirst(cciFieldType.PAYLOAD).value.toString());
     await this.findAuthor(data);  // this sets data.author and data.authorkey
 
     // is this post already displayed?
@@ -313,6 +314,51 @@ export class PostController extends VerityController {
   private removeAnnotationEngineListeners(): void {
     this.annotationEngine?.removeListener('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
     this.annotationEngine?.removeListener('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
+  }
+
+  private async processImageTags(text: string): Promise<string> {
+    const regex = /\[img\]([a-fA-F0-9]{64})\[\/img\]/g;
+    const promises = [];
+    let match;
+    
+    while ((match = regex.exec(text)) !== null) {
+      const cubeKey = match[1];
+      promises.push(this.getImageDataUrl(cubeKey));
+    }
+
+    const imageDataUrls = await Promise.all(promises);
+    
+    return text.replace(regex, (_, cubeKey) => {
+      const dataUrl = imageDataUrls.shift();
+      return dataUrl ? `<img src="${dataUrl}" alt="${cubeKey}">` : '[Image not found]';
+    });
+  }
+
+  private async getImageDataUrl(cubeKey: string): Promise<string | null> {
+    try {
+      const { content, fileName } = await FileApplication.retrieveFile(Buffer.from(cubeKey, 'hex'), this.cubeStore);
+      const base64 = Buffer.from(content).toString('base64');
+      const mimeType = this.getMimeType(fileName);
+      return `data:${mimeType};base64,${base64}`;
+    } catch (error) {
+      console.error('Error retrieving image:', error);
+      return null;
+    }
+  }
+
+  private getMimeType(fileName: string): string {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      default:
+        return 'application/octet-stream';
+    }
   }
 
   //***
