@@ -14,12 +14,12 @@ export class FileApplication {
 
   static async createFileCubes(fileContent: Buffer, fileName: string): Promise<cciCube[]> {
     const cubes: cciCube[] = [];
-    let offset = 0;
+    let remainingSize = fileContent.length;
 
-    while (offset < fileContent.length) {
-      const remainingSize = fileContent.length - offset;
+    while (remainingSize > 0) {
       const chunkSize = Math.min(remainingSize, this.MAX_PAYLOAD_SIZE);
-      const chunk = fileContent.slice(offset, offset + chunkSize);
+      const startOffset = fileContent.length - remainingSize;
+      const chunk = fileContent.slice(startOffset, startOffset + chunkSize);
       const fields = new cciFields(undefined, cciFrozenFieldDefinition);
 
       // Add fields in the correct order
@@ -28,10 +28,8 @@ export class FileApplication {
       fields.appendField(cciField.Payload(chunk));
       fields.appendField(cciField.Date());
 
-      if (offset + chunkSize < fileContent.length) {
-        const nextCube = cciCube.Frozen();
-        await nextCube.getKey(); // Ensure the next cube has a key
-        const nextCubeKey = await nextCube.getKey();
+      if (cubes.length > 0) {
+        const nextCubeKey = await cubes[cubes.length - 1].getKey();
         fields.appendField(cciField.RelatesTo(new cciRelationship(cciRelationshipType.CONTINUED_IN, nextCubeKey)));
       }
 
@@ -39,8 +37,8 @@ export class FileApplication {
       fields.appendField(cciField.CciEnd());
 
       const cube = cciCube.Frozen({ fields });
-      cubes.push(cube);
-      offset += chunkSize;
+      cubes.unshift(cube); // Add to the beginning of the array
+      remainingSize -= chunkSize;
     }
 
     return cubes;
