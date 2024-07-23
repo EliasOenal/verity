@@ -92,6 +92,8 @@
                 <span class="redDot"></span>Offline
               </a>
             </div>
+
+            <div id="verityFileUploadArea"></div>
           </nav> <!-- leftnavCollapsible -->
         </div> <!-- leftnav -->
 
@@ -514,6 +516,20 @@
   </template> <!-- verityCubeExplorerTemplate -->
   <!-- End of CubeExplorer related templates -->
 
-</body>
+  <!-- FileUpload related templates -->
+  <template id="verityFileUploadTemplate">
+    <div class="verityFileUpload">
+      <h5 class="mt-3 mb-3">Upload File</h5>
+      <form class="verityFileUploadForm">
+        <div class="mb-3">
+          <input type="file" class="form-control verityFileInput" required>
+        </div>
+        <button type="submit" class="btn btn-primary verityFileSubmit" disabled>Upload</button>
+      </form>
+      <div class="verityFileUploadMessage mt-3"></div>
+    </div>
+  </template>
+  <!-- End of FileUpload related templates -->
 
+</body>
 </html>
