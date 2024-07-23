@@ -3,7 +3,7 @@ import { VerityUI } from "../../webui/verityUI";
 import { isBrowser } from "browser-or-node";
 import { logger } from "../../core/logger";
 import { CubeExplorerController } from "../../webui/cubeExplorer/cubeExplorerController";
-import { FileUploadController } from "../../webui/fileUpload/fileUploadController";
+import { FileManagerController } from "../../webui/fileManager/fileManagerController";
 import type { NavItem } from "../../webui/navigation/navigationDefinitions";
 
 export async function webmain() {
@@ -13,7 +13,7 @@ export async function webmain() {
     {controller: PostController, navAction: PostController.prototype.selectSubscribedReplied, text: "Subscribed", exclusive: true},
     {controller: PostController, navAction: PostController.prototype.selectWot, text: "Web of trust", exclusive: true},
     {controller: CubeExplorerController, navAction: CubeExplorerController.prototype.selectAll, text: "Cube Explorer"},
-    {controller: FileUploadController, navAction: FileUploadController.prototype.showUploadForm, text: "File Upload"},
+    {controller: FileManagerController, navAction: FileManagerController.prototype.showFileManager, text: "File Manager"},
   ];
   const ui = await VerityUI.Construct({
     navItems: navItems,
