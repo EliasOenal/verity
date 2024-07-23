@@ -378,4 +378,19 @@ table.veritySchematicCube {
 /* Identity edit form */
 img.verityEditIdentityAvatar {
   height: 12ex;
+}/*
+ * File Manager
+ */
+.verityFileManager {
+  width: 100%;
+  max-width: none;
+}
+
+.verityFileMessage img {
+  max-width: 100%;
+  height: auto;
+}
+
+.verityFileManager h2 {
+  margin-top: 0;
 }

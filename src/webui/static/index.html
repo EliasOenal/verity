@@ -516,20 +516,32 @@
   </template> <!-- verityCubeExplorerTemplate -->
   <!-- End of CubeExplorer related templates -->
 
-  <!-- FileUpload related templates -->
-  <template id="verityFileUploadTemplate">
-    <div class="verityFileUpload">
-      <h5 class="mt-3 mb-3">Upload File</h5>
-      <form class="verityFileUploadForm">
+  <!-- FileManager related templates -->
+  <template id="verityFileManagerTemplate">
+    <div class="verityFileManager">
+      <h2 class="mb-4">File Manager</h2>
+      <form class="verityFileUploadForm mb-4">
+        <h3 class="h5 mb-3">Upload File</h3>
         <div class="mb-3">
-          <input type="file" class="form-control verityFileInput" required>
+          <input type="file" class="form-control verityFileInput">
         </div>
         <button type="submit" class="btn btn-primary verityFileSubmit" disabled>Upload</button>
       </form>
-      <div class="verityFileUploadMessage mt-3"></div>
+      <div class="verityFileUploadMessage mb-4"></div>
+      <form class="verityFileDownloadForm mb-4">
+        <h3 class="h5 mb-3">Download or Inspect File</h3>
+        <div class="mb-3">
+          <input type="text" class="form-control verityFileKeyInput" placeholder="Enter file key">
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-primary verityFileDownload" disabled>Download</button>
+          <button type="button" class="btn btn-secondary verityFileInspect" disabled>Inspect</button>
+        </div>
+      </form>
+      <div class="verityFileDownloadMessage"></div>
     </div>
   </template>
-  <!-- End of FileUpload related templates -->
+  <!-- End of FileManager related templates -->
 
 </body>
 </html>
