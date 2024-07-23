@@ -231,12 +231,10 @@ export class CubeResponseMessage extends NetworkMessage {
         const binaryCube = this.value.subarray(
           NetConstants.COUNT_SIZE + i * NetConstants.CUBE_SIZE,  // start / offset
           NetConstants.COUNT_SIZE + (i + 1) * NetConstants.CUBE_SIZE);  // end (= start + 1 Cube)
-        yield binaryCube;
+        yield Buffer.from(binaryCube);
     }
   }
 }
-
-
 
 export class ServerAddressMessage extends NetworkMessage {
   readonly address: AddressAbstraction;
