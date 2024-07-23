@@ -16,6 +16,7 @@ export class FileApplication {
     const cubes: cciCube[] = [];
     let remainingSize = fileContent.length;
 
+    // Process the file content from end to beginning
     while (remainingSize > 0) {
       const chunkSize = Math.min(remainingSize, this.MAX_PAYLOAD_SIZE);
       const startOffset = fileContent.length - remainingSize;
@@ -29,8 +30,8 @@ export class FileApplication {
       fields.appendField(cciField.Date());
 
       if (cubes.length > 0) {
-        const nextCubeKey = await cubes[cubes.length - 1].getKey();
-        fields.appendField(cciField.RelatesTo(new cciRelationship(cciRelationshipType.CONTINUED_IN, nextCubeKey)));
+        const previousCubeKey = await cubes[0].getKey();
+        fields.appendField(cciField.RelatesTo(new cciRelationship(cciRelationshipType.CONTINUED_IN, previousCubeKey)));
       }
 
       // Ensure CciEnd is the last field added
