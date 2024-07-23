@@ -44,7 +44,7 @@ export class FileUploadView extends VerityView {
   showUploadSuccess(fileName: string, cubeKeys: string[]): void {
     this.messageArea.innerHTML = `
       <p>File "${fileName}" uploaded successfully!</p>
-      <p>Cube keys:</p>
+      <p>Cube keys: (Hint: Use first key in [img][/img] tags.)</p>
       <ul>
         ${cubeKeys.map(key => `<li>${key}</li>`).join('')}
       </ul>

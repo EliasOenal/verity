@@ -6,6 +6,7 @@ import { cciRelationship, cciRelationshipType } from '../cci/cube/cciRelationshi
 import { cciFields, cciFrozenFieldDefinition } from '../cci/cube/cciFields';
 import { CubeKey } from '../core/cube/cubeDefinitions';
 import { Settings } from '../core/settings';
+import { logger } from '../core/logger';
 
 export class FileApplication {
   private static readonly APPLICATION_IDENTIFIER = 'file';
@@ -17,9 +18,10 @@ export class FileApplication {
     let remainingSize = fileContent.length;
 
     // Process the file content from end to beginning
+    // Slice chunk size from the end of the file and add it to the payload field
     while (remainingSize > 0) {
       const chunkSize = Math.min(remainingSize, this.MAX_PAYLOAD_SIZE);
-      const startOffset = fileContent.length - remainingSize;
+      const startOffset = remainingSize - chunkSize;
       const chunk = fileContent.slice(startOffset, startOffset + chunkSize);
       const fields = new cciFields(undefined, cciFrozenFieldDefinition);
 
