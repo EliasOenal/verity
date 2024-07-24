@@ -46,6 +46,7 @@ function autoResizeTextareas() {
     tx[i].setAttribute("style", "height:" + (tx[i].scrollHeight) + "px;overflow-y:hidden;");
   }
 }
+
 function onTextareaInput(textarea) {
   // auto-resize
   textarea.style.height = 0;
@@ -83,6 +84,24 @@ function clearParent(elem, parentLevel = 1, queryString="input") {
   for (let i=0; i<parentLevel; i++) elem = elem.parentElement;
   for (const target of elem.querySelectorAll(queryString)) target.value = "";
 }
+
+function togglePostContent(button) {
+  const postContent = button.closest('.verityPost').querySelector('.verityPostContent');
+
+  if (postContent.classList.contains('expand')) {
+    // Collapse content
+    button.classList.remove('rotate');
+    postContent.classList.remove('expand');
+  } else if (postContent.scrollHeight > postContent.clientHeight){
+    // Expand content
+    button.classList.add('rotate');
+    postContent.classList.add('expand');
+  } else {
+    // No need to expand, remove button
+    button.remove();
+  }
+}
+window.togglePostContent = togglePostContent;
 
 function frontendMain() {
   registerServiceWorker();

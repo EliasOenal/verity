@@ -18,27 +18,31 @@
 
     <div class="row" id="verityPostsRow">
       <ul class="verityPostList list-unstyled">
-        <li class="verityPost move-fade-in"
-        data-cubekey="<cubekey>" data-timestamp="1695048919">
-          <div class="verityPostHeader">
-            <img class="verityPostProfilePic" src="" />
-            <p>
-              <b class="verityCubeAuthor" title="MUC key <muckey>" id="<cubekey>-author">
-                User name
-              </b>
-              <button type="button"
-                      class="btn btn-outline-primary veritySubscribeButton"
-                      data-authorkey="<muckey>"
-                      onclick="window.verity.currentController.subscribeUser(this)">
-                Subscribe
-              </button>
-              <br />
-              <small class="verityPostDate">
-                Friday, September 15, 2023 6:22:12 PM
-              </small>
-            </p>
+        <li class="verityPost move-fade-in" data-cubekey="<cubekey>" data-timestamp="1695048919">
+          <div class="verityPostHeader d-flex justify-content-between align-items-start">
+            <div class="d-flex">
+              <img class="verityPostProfilePic" src="" />
+              <div class="ms-3">
+                <p class="mb-0">
+                  <b class="verityCubeAuthor" title="MUC key <muckey>" id="<cubekey>-author">
+                    User name
+                  </b>
+                  <button type="button" class="btn btn-outline-primary btn-sm veritySubscribeButton"
+                          data-authorkey="<muckey>"
+                          onclick="window.verity.currentController.subscribeUser(this)">
+                    Subscribe
+                  </button>
+                </p>
+                <small class="verityPostDate">
+                  Friday, September 15, 2023 6:22:12 PM
+                </small>
+              </div>
+            </div>
+            <button class="btn btn-link p-0 expandButton" onclick="togglePostContent(this)" aria-label="Expand post">
+              <i class="bi bi-chevron-left"></i>
+            </button>
           </div>
-          <p class="verityPostContent" title="Cube Key <cubekey>">Text</p>
+          <p class="verityPostContent mt-2" title="Cube Key <cubekey>">Text</p>
           <div class="verityReplyDiv">
             <form action="javascript:void(0);"
                   onsubmit="window.verity.currentController.makeNewPost(this);"
@@ -52,13 +56,12 @@
                 Post
               </button>
             </form>
-            <div class="progress bg-danger verityPostCharCountBarContainer"
-                 role="progressbar">
+            <div class="progress bg-danger verityPostCharCountBarContainer" role="progressbar">
               <div class="progress-bar bg-success verityPostCharCountBar"></div>
               <div class="verityPostRemainingChars" style="display: none;">600</div>
             </div>
           </div> <!-- verityReplyDiv-->
-      </li>
+        </li>
       </ul>
     </div> <!-- verityPostsRow -->
   </div> <!-- verityPostView -->
