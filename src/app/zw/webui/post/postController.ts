@@ -19,6 +19,7 @@ import { logger } from "../../../../core/logger";
 
 import { Buffer } from 'buffer';
 import { FileApplication } from '../../../fileApplication';
+import DOMPurify from 'dompurify';
 
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
@@ -173,7 +174,12 @@ export class PostController extends VerityController {
     data.binarykey = binarykey;
     data.keystring = binarykey.toString('hex');
     data.timestamp = cube.getDate();
-    data.text = await this.processImageTags(fields.getFirst(cciFieldType.PAYLOAD).value.toString());
+    data.text = fields.getFirst(cciFieldType.PAYLOAD).value.toString();
+    data.text = DOMPurify.sanitize(data.text, {
+      ALLOWED_TAGS: ['b', 'i', 'u', 's', 'em', 'strong', 'mark', 'sub', 'sup', 'p', 'br', 'ul', 'ol', 'li'],
+      ALLOWED_ATTR: []
+    });
+    data.text = await this.processImageTags(data.text);
     await this.findAuthor(data);  // this sets data.author and data.authorkey
 
     // is this post already displayed?
