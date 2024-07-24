@@ -7,7 +7,6 @@ import type { PostController, PostData } from "./postController";
 import { loadTemplate } from "../../../../webui/helpers/dom";
 import * as template from './postTemplate.html';
 import { formatDate } from "../../../../webui/helpers/datetime";
-import DOMPurify from 'dompurify';
 loadTemplate(template);
 
 export class PostView extends VerityView {
@@ -54,10 +53,7 @@ export class PostView extends VerityView {
     // post text
     const text: HTMLParagraphElement =
       li.getElementsByClassName("verityPostContent")[0] as HTMLParagraphElement;
-    text.innerHTML = DOMPurify.sanitize(data.text, {
-      ALLOWED_TAGS: ['img'],
-      ALLOWED_ATTR: ['src', 'alt']
-    });
+    text.innerHTML = data.text; // Was sanitized in controller
     text.title = `Cube Key ${data.keystring}`;  // show cube key as tooltip
 
     // Configure reply input field

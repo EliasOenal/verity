@@ -394,3 +394,10 @@ img.verityEditIdentityAvatar {
 .verityFileManager h2 {
   margin-top: 0;
 }
+
+.verityPostContent {
+  line-height: 1.2em;
+  max-height: calc(1.2em * 15);
+  overflow: hidden;
+  position: relative;
+}
