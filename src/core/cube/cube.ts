@@ -442,14 +442,29 @@ export class Cube {
      * For MUCs, it also signs the cube, populating its SIGNATURE field.
      */
     // Non-worker version kept for browser portability
-    findValidHash(nonceField: CubeField): Promise<Buffer> {
-        return new Promise((resolve) => {
+
+    findValidHash(nonceField: CubeField, abortSignal?: AbortSignal): Promise<Buffer> {
+        return new Promise((resolve, reject) => {
             let nonce: number = 0;
             let hash: Buffer;
+
+            const checkAbort = () => {
+                if (abortSignal?.aborted) {
+                    reject(new Error('findValidHash() aborted'));
+                    return true;
+                }
+                return false;
+            };
+
             const checkHash = () => {
                 if (this.binaryData === undefined) {
-                    throw new BinaryDataError("Binary data not initialized");
+                    reject(new BinaryDataError("findValidHash() Binary data not initialized"));
+                    return;
                 }
+
+                // Check for abort signal before starting the hash checking
+                if (checkAbort()) return;
+
                 // Check 1000 hashes before yielding control back to the event loop
                 for (let i = 0; i < 1000; i++) {
                     // Write the nonce to binaryData
@@ -465,9 +480,14 @@ export class Cube {
                     // Increment the nonce
                     nonce++;
                 }
+
+                // Check for abort signal before rescheduling
+                if (checkAbort()) return;
+
                 // If no valid hash was found after 1000 tries, schedule the next check
                 setTimeout(checkHash, 0);
             };
+
             // Start the hash checking
             checkHash();
         });
