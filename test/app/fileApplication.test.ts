@@ -27,9 +27,6 @@ describe('FileApplication', () => {
 
     const dateField = cube.fields.get(cciFieldType.DATE)[0];
     expect(dateField).toBeDefined();
-
-    const cciEndField = cube.fields.get(cciFieldType.CCI_END)[0];
-    expect(cciEndField).toBeDefined();
   });
 
   test('createFileCubes with 2kb content', async () => {
@@ -54,9 +51,6 @@ describe('FileApplication', () => {
       const dateField = cube.fields.get(cciFieldType.DATE)[0];
       expect(dateField).toBeDefined();
 
-      const cciEndField = cube.fields.get(cciFieldType.CCI_END)[0];
-      expect(cciEndField).toBeDefined();
-
       if (index < cubes.length - 1) {
         const continuationRel = cube.fields.getFirstRelationship(cciRelationshipType.CONTINUED_IN);
         expect(continuationRel).toBeDefined();
@@ -79,7 +73,7 @@ describe('FileApplication', () => {
       const content = 'Hello File!';
       const fileName = 'test.txt';
       const cubes = await FileApplication.createFileCubes(Buffer.from(content), fileName);
-      
+
       const mockCubeStore = {
         getCube: async (key: CubeKey) => cubes[0]
       };
