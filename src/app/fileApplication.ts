@@ -7,13 +7,15 @@ import { cciFields, cciFrozenFieldDefinition } from '../cci/cube/cciFields';
 import { CubeKey } from '../core/cube/cubeDefinitions';
 import { Settings } from '../core/settings';
 import { logger } from '../core/logger';
+import { EventEmitter } from 'events';
 
 export class FileApplication {
   private static readonly APPLICATION_IDENTIFIER = 'file';
 
-  static async createFileCubes(fileContent: Buffer, fileName: string): Promise<cciCube[]> {
+  static async createFileCubes(fileContent: Buffer, fileName: string, progressCallback?: (progress: number, remainingSize: number) => void): Promise<cciCube[]> {
     const cubes: cciCube[] = [];
     let remainingSize = fileContent.length;
+    const totalSize = fileContent.length;
 
     // Process the file content from end to beginning
     // Slice chunk size from the end of the file and add it to the payload field
@@ -42,6 +44,12 @@ export class FileApplication {
 
       cubes.unshift(cube); // Add to the beginning of the array
       remainingSize -= chunkSize;
+
+      // Call progress callback if provided
+      if (progressCallback) {
+        const progress = ((totalSize - remainingSize) / totalSize) * 100;
+        progressCallback(progress, remainingSize);
+      }
     }
 
     return cubes;
