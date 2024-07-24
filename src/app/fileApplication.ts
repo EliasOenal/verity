@@ -10,8 +10,6 @@ import { logger } from '../core/logger';
 
 export class FileApplication {
   private static readonly APPLICATION_IDENTIFIER = 'file';
-  private static readonly MAX_PAYLOAD_SIZE = 800; // Reserve some space for other fields
-                                                  // TODO: Determine correct size
 
   static async createFileCubes(fileContent: Buffer, fileName: string): Promise<cciCube[]> {
     const cubes: cciCube[] = [];
@@ -20,26 +18,28 @@ export class FileApplication {
     // Process the file content from end to beginning
     // Slice chunk size from the end of the file and add it to the payload field
     while (remainingSize > 0) {
-      const chunkSize = Math.min(remainingSize, this.MAX_PAYLOAD_SIZE);
-      const startOffset = remainingSize - chunkSize;
-      const chunk = fileContent.slice(startOffset, startOffset + chunkSize);
-      const fields = new cciFields(undefined, cciFrozenFieldDefinition);
+      // Prepare Cube including boilerplate fields
+      const cube = cciCube.Frozen({ fields: [
+        cciField.Application(this.APPLICATION_IDENTIFIER),
+        cciField.ContentName(fileName)
+      ]});
 
-      // Add fields in the correct order
-      fields.appendField(cciField.Application(this.APPLICATION_IDENTIFIER));
-      fields.appendField(cciField.ContentName(fileName));
-      fields.appendField(cciField.Payload(chunk));
-      fields.appendField(cciField.Date());
-
+      // Chain Cubes if required
       if (cubes.length > 0) {
         const previousCubeKey = await cubes[0].getKey();
-        fields.appendField(cciField.RelatesTo(new cciRelationship(cciRelationshipType.CONTINUED_IN, previousCubeKey)));
+        cube.fields.insertFieldBeforeBackPositionals(
+          cciField.RelatesTo(new cciRelationship(
+            cciRelationshipType.CONTINUED_IN, previousCubeKey)));
       }
 
-      // Ensure CciEnd is the last field added
-      fields.appendField(cciField.CciEnd());
+      // Add payload
+      const chunkSize = Math.min(remainingSize,
+        cube.fields.bytesRemaining() -
+        cube.fieldParser.getFieldHeaderLength(cciFieldType.PAYLOAD));
+      const startOffset = remainingSize - chunkSize;
+      const chunk = fileContent.slice(startOffset, startOffset + chunkSize);
+      cube.fields.insertFieldBeforeBackPositionals(cciField.Payload(chunk));
 
-      const cube = cciCube.Frozen({ fields });
       cubes.unshift(cube); // Add to the beginning of the array
       remainingSize -= chunkSize;
     }
@@ -55,13 +55,13 @@ export class FileApplication {
 
     while (currentCubeKey) {
       const cube = await cubeStore.getCube(currentCubeKey);
-      
+
       if (!cube) {
         throw new Error('Cube not found');
       }
 
       const cciCube = cube as cciCube;
-      
+
       const applicationFields = cciCube.fields.get(cciFieldType.APPLICATION);
       if (!applicationFields || !applicationFields.some(field => field.valueString === this.APPLICATION_IDENTIFIER)) {
         throw new Error('Not a file application cube');
