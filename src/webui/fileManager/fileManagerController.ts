@@ -24,8 +24,7 @@ export class FileManagerController extends VerityController {
       const cubeKeys: string[] = [];
 
       const progressCallback = (progress: number, remainingSize: number) => {
-        const remainingCubes = Math.ceil(remainingSize / 1024); // Assuming 1KB per cube
-        this.contentAreaView.updateUploadProgress(progress, remainingCubes);
+        this.contentAreaView.updateUploadProgress(progress, remainingSize);
       };
 
       const cubes = await FileApplication.createFileCubes(buffer, file.name, progressCallback);
