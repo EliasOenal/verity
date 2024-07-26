@@ -163,7 +163,7 @@ export class FileManagerView extends VerityView {
     `;
   }
 
-  updateUploadProgress(progress: number, remainingCubes: number): void {
+  updateUploadProgress(progress: number, remainingSize: number): void {
     if (this.uploadStartTime === null) {
       this.uploadStartTime = Date.now();
     }
@@ -173,10 +173,10 @@ export class FileManagerView extends VerityView {
     const remainingTime = estimatedTotalTime - elapsedTime;
 
     this.progressBar.style.width = `${progress}%`;
-    this.progressBar.style.transition = 'width 0.5s ease-in-out';
+    this.progressBar.style.transition = 'width .5s ease';
     this.progressBar.setAttribute('aria-valuenow', progress.toString());
     
-    const progressText = `${progress.toFixed(1)}% | ${remainingCubes} cubes | ${this.formatTime(remainingTime)}`;
+    const progressText = `${progress.toFixed(1)}% | ${remainingSize} bytes remaining | ${this.formatTime(remainingTime)}`;
     this.progressText.textContent = progressText;
   }
 
