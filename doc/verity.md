@@ -52,7 +52,22 @@ alternative to traditional, centralized social networks.
   Each of these message classes will have different data payloads:
   - `Hello`: **Node Identifier (16 bytes)**: This is a unique NodeID that's randomly generated at startup. Primary purpose is to detect when we connected to ourselves. This may happen if we don't know our external IP. (e.g. NAT) Secondarily this may be used to detect duplicate connections to the same node, which may happen if the node is reachable via multiple IPs.
 
-  - `KeyRequest`: This message does not need any further data. The act of repeatedly sending it is sufficient to request all cube keys iteratively. This message may get extended in the future to allow for more fine-grained control over which keys to request. (e.g. by date or by MPT subtree)
+  - `KeyRequest`:
+    - **Header Byte (1 byte)**: Indicates the mode of the request:
+      * `0x00`: Legacy Mode (Deprecated)
+      * `0x01`: Sliding Window Mode
+      * `0x02`: Sequential Store Sync Mode
+      * (KeyRequest missing a header byte is treated as Legacy Mode request)
+    - **Key Count (4 bytes)**: This is an integer indicating the number of keys being requested.
+    - **Request Key (32 bytes)**: Used in Sliding Window and Sequential Store Sync modes. Specifies the key to start from. In Sliding Window Mode it can be zero to start from the beginning. Mandatory in Sequential Store Sync Mode. The key itself is not included in the response, only the respective keys that succeed it.
+
+    To support Sliding Window Mode each node holds one sliding window of the keys to the most recently received cubes. Upon receiving a request the requested key is identified and the keys succeeding it, up to the number of requested keys, is then sent via KeyResponse. The size of the window is configurable, but should be at least 1000 keys. The oldest keys are overwritten by the newest. This mode is meant for near real-time synchronization of the most recent cubes. On startup if no new cubes are downloaded the keys reported from other nodes may be used to fill the window, even if the respective cubes are already in the store.
+
+    Sequential Store Sync Mode is a similar approach to Sliding Window Mode, but instead of a window, the node sends keys that succeed the requested key in the store. Reaching the last key of the store is a special case, where the node loops back to the first key and continues. This mode is mainly meant for background synchronization of the store.
+
+    This message may get extended in the future to allow for more fine-grained control over which keys to request. (e.g. by date or by MPT subtree)
+
+    >DoS Vulnerability: The Legacy Mode is deprecated and not recommended due to its potential for Denial of Service attacks. Supporting it requires large amounts of RAM on the node to store all keys.
 
   - `KeyResponse`:
     - **Key Count (4 bytes)**: This is an integer indicating the number of keys being sent.
