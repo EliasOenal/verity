@@ -90,7 +90,57 @@ export class CubePersistence extends EventEmitter {
     while (binaryCube = await allCubes.next()) yield binaryCube;
   }
 
-/**
+  /**
+   * Get a specified number of keys succeeding a given input key.
+   * @param startKey The key to start from (exclusive).
+   * @param count The number of keys to retrieve.
+   * @returns An array of keys succeeding the input key.
+   */
+  async getSucceedingKeys(startKey: string, count: number): Promise<string[]> {
+    if (this.db.status !== 'open') {
+      throw new PersistenceError("DB is not open");
+    }
+
+    const keys: string[] = [];
+    let iterator = this.db.iterator({
+      gt: startKey,
+      limit: count,
+      keys: true,
+      values: false
+    });
+
+    try {
+      for await (const [key] of iterator) {
+        keys.push(key);
+      }
+    } catch (error) {
+      logger.error(`Error retrieving succeeding keys: ${error}`);
+      throw new PersistenceError(`Failed to retrieve succeeding keys: ${error}`);
+    }
+
+    // If we haven't collected enough keys, wrap around to the beginning
+    if (keys.length < count) {
+      iterator = this.db.iterator({
+        limit: count - keys.length,
+        keys: true,
+        values: false
+      });
+
+      try {
+        for await (const [key] of iterator) {
+          keys.push(key);
+          if (keys.length === count) break;
+        }
+      } catch (error) {
+        logger.error(`Error retrieving wrapped-around keys: ${error}`);
+        throw new PersistenceError(`Failed to retrieve wrapped-around keys: ${error}`);
+      }
+    }
+
+    return keys;
+  }
+
+  /**
    * Deletes a cube from persistent storage based on its key.
    * @param {string} key The key of the cube to be deleted.
    * @returns {Promise<void>} A promise that resolves when the cube is deleted, or rejects with an error.

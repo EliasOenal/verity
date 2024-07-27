@@ -1,5 +1,6 @@
 import { Settings, VerityError } from '../settings';
 import { unixtime } from '../helpers/misc';
+import { CubeKey } from '../cube/cubeDefinitions';
 
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { NetworkPeer, NetworkStats } from './networkPeer';
@@ -46,6 +47,7 @@ export interface NetworkManagerOwnOptions {
     reconnectInterval?: number,
     maximumConnections?: number,
     acceptIncomingConnections?: boolean,
+    recentKeyWindowSize?: number,
 }
 
 export type NetworkManagerOptions =
@@ -90,6 +92,14 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
     /** List of current remote-initiated peer connections */
     incomingPeers: NetworkPeer[] = [];
 
+    /** Sliding window of recent keys */
+    /* The ideal implementation would likely be a circular buffer, with a hash map.
+     * The hash map would allow for O(1) lookups to find a key in the window,
+     * and the circular buffer would allow for O(1) removal of the oldest key.
+     * For now it's just a simple array, as the window size is reasonably small.
+     */
+    private recentKeysWindow: CubeKey[] = [];
+
     get onlinePeers(): NetworkPeer[] {
         return this.outgoingPeers.concat(this.incomingPeers).filter(
             peer => peer.online);
@@ -98,6 +108,22 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
     }
     get onlinePeerCount(): number {
         return this.onlinePeers.length;  // note: this is not efficient
+    }
+
+    /**
+     * Check if the recent keys window is full
+     * @returns True if the window is full, false otherwise
+     */
+    isRecentKeysWindowFull(): boolean {
+        return this.recentKeysWindow.length >= this.options.recentKeyWindowSize;
+    }
+
+    /**
+     * Get the current number of keys in the recent keys window
+     * @returns The number of keys in the window
+     */
+    getRecentKeysWindowSize(): number {
+        return this.recentKeysWindow.length;
     }
 
     /**
@@ -136,7 +162,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
             private _peerDB: PeerDB,
             transports: TransportParamMap = new Map(),
             readonly options: NetworkManagerOptions = {},
-) {
+    ) {
         super();
         // set overridable options
         options.newPeerInterval = options?.newPeerInterval ?? Settings.NEW_PEER_INTERVAL;
@@ -148,6 +174,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         options.lightNode = options?.lightNode ?? true;
         options.autoConnect = options?.autoConnect ?? true;
         options.peerExchange = options?.peerExchange ?? true;
+        options.recentKeyWindowSize = options?.recentKeyWindowSize ?? Settings.RECENT_KEY_WINDOW_SIZE;
 
         // Create components
         this.scheduler = new RequestScheduler(this, options);
@@ -159,6 +186,58 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         // Maybe TODO: try to use the same peer ID for transports that themselves
         // require a peer ID, i.e. libp2p
         this._id = Buffer.from(crypto.getRandomValues(new Uint8Array(NetConstants.PEER_ID_SIZE)));
+    }
+
+    /**
+     * Add a new key to the sliding window of recent keys
+     * @param key The new key to add
+     */
+    addRecentKey(key: CubeKey): void {
+        if (this.isRecentKeysWindowFull()) {
+            this.recentKeysWindow.shift(); // Remove the oldest key
+        }
+        this.recentKeysWindow.push(key);
+    }
+
+    /**
+     * Get the current content of the sliding window
+     * @returns An array of recent keys
+     */
+    getRecentKeys(): CubeKey[] {
+        return [...this.recentKeysWindow]; // Return a copy to prevent external modifications
+    }
+
+    /**
+     * Check if a key is in the sliding window
+     * @param key The key to check
+     * @returns True if the key is in the sliding window, false otherwise
+     */
+    isKeyRecent(key: CubeKey): boolean {
+        return this.recentKeysWindow.some(recentKey => recentKey.equals(key));
+    }
+
+    /**
+     * Get a specified number of keys succeeding a given input key from the recent keys window.
+     * If the key is not found, it returns the requested number of keys from the start of the window.
+     * @param startKey The key to start from (exclusive).
+     * @param count The number of keys to retrieve.
+     * @returns An array of keys succeeding the input key or from the start of the window.
+     */
+    getRecentSucceedingKeys(startKey: CubeKey, count: number): CubeKey[] {
+        const startIndex = this.recentKeysWindow.findIndex(key => key.equals(startKey));
+        
+        // If the key is not found or it's the last key, start from the beginning
+        const beginIndex = (startIndex === -1 || startIndex === this.recentKeysWindow.length - 1) ? 0 : startIndex + 1;
+        
+        const result: CubeKey[] = [];
+        let currentIndex = beginIndex;
+
+        while (result.length < count && result.length < this.recentKeysWindow.length) {
+            result.push(this.recentKeysWindow[currentIndex]);
+            currentIndex = (currentIndex + 1) % this.recentKeysWindow.length;
+        }
+
+        return result;
     }
 
     get cubeStore(): CubeStore { return this._cubeStore; }
@@ -608,3 +687,5 @@ export class DummyNetworkManager extends EventEmitter implements NetworkManagerI
     idString: string = this.id.toString('hex');
     onlinePeerCount: number = 0;
 }
+
+// Add these methods to the NetworkManager class
