@@ -75,6 +75,7 @@ export class CubePersistence extends EventEmitter {
   }
 
   async *getAllKeys(options = {}): AsyncGenerator<string> {
+    logger.warn("CubePersistence:getAllKeys() is deprecated");
     if (this.db.status != 'open') return undefined;
     const allKeys = this.db.keys(options);
     let key: string;
@@ -84,6 +85,7 @@ export class CubePersistence extends EventEmitter {
   // Creates an asynchronous request for all raw cubes.
   // TODO: return an iterable instead
   async *getAllCubes(options = {}): AsyncGenerator<Buffer> {
+    logger.warn("CubePersistence:getAllCubes() is deprecated");
     if (this.db.status != 'open') return [];
     const allCubes = this.db.values(options);
     let binaryCube: Buffer;
