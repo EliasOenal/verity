@@ -26,6 +26,7 @@ export const Settings = {
     RECONNECT_INTERVAL: (10 * 1000),  // Initially reconnect a peer after 10sec
     RECONNECT_MAX_FIBONACCI_FACTOR: 8, // 20, // increase RETRY and RECONNECT intervals on each failure according to a Fibonacci factor, but no more than 20 times (i.e. a maximum of 6765 times the initial interval)
     MAXIMUM_CONNECTIONS: 20, // Maximum number of connections to maintain
+    RECENT_KEY_WINDOW_SIZE: 10000, // Network Manager keeps track of the last 10,000 new keys
 
     // Individual connection settings:
     DISCONNECT_ERROR_COUNT: 5,  // close a network peer after at least five
