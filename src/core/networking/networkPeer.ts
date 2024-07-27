@@ -444,7 +444,13 @@ export class NetworkPeer extends Peer {
         }
 
         // For each regular key not in cube storage, request the cube
-        const missingKeys: Buffer[] = regularCubeInfo.filter(async detail => !(await this.cubeStore.hasCube(detail.key))).map(detail => detail.key);
+        const missingKeys: Buffer[] = [];
+        for (const detail of regularCubeInfo) {
+            if (!(await this.cubeStore.hasCube(detail.key))) {
+                missingKeys.push(detail.key);
+            }
+        }
+
         for (const muc of mucInfo) {
             // Request any MUC not in cube storage
             if (!(await this.cubeStore.hasCube(muc.key))) {
