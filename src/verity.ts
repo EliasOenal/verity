@@ -144,7 +144,7 @@ class VerityCmdClient {
           this.node = new VerityNode(servers, peers,
             {
               announceToTorrentTrackers: tracker,
-              enableCubePersistence: nopersist? EnableCubePersitence.OFF : EnableCubePersitence.BACKUP,  // TODO change to primary once tests are clean
+              enableCubePersistence: nopersist? EnableCubePersitence.OFF : EnableCubePersitence.PRIMARY,
               autoConnect: true,
               lightNode: false,
               peerExchange: true,
@@ -160,7 +160,7 @@ class VerityCmdClient {
         {
           announceToTorrentTrackers: false,
           autoConnect: true,
-          enableCubePersistence: EnableCubePersitence.BACKUP,
+          enableCubePersistence: EnableCubePersitence.PRIMARY,
           lightNode: false,
           peerExchange: true,
         });
