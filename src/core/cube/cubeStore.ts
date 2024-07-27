@@ -110,7 +110,6 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     }));
     // Do we want to keep cubes in RAM, or do we want to use persistent storage?
     if (options?.enableCubePersistence > EnableCubePersitence.OFF) {
-      this.persistence = new CubePersistence(options);
       if (options.enableCubePersistence >= EnableCubePersitence.PRIMARY) {
         this.inMemory = false;
         this.storage = new WeakValueMap();  // in-memory cache
@@ -120,8 +119,9 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       }
       // When using persistent storage, the CubeStore is ready when the
       // persistence layer is ready.
+      this.persistence = new CubePersistence(options);
       this.persistence.on('ready', async () => {
-        logger.trace("cubeStore: received ready event from cubePersistence");
+        logger.trace("cubeStore: received ready event from cubePersistence, enableCubePersistence is: " + options.enableCubePersistence);
         if (this.inMemory) await this.syncPersistentStorage();
         this.pruneCubes();  // not await-ing as pruning is non-essential
         this.emit("ready");
