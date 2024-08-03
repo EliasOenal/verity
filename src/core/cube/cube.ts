@@ -133,7 +133,7 @@ export class Cube {
                 logger.info(`Cube: Cannot reactivate dormant (binary) Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
                 throw new BinaryLengthError(`Cannot reactivate dormant (binary) Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
             }
-            this.binaryData = binaryData;
+            this.binaryData = binaryData;  // maybe TODO: why do we even need to keep the binary buffer after parsing?
             this._cubeType = CubeUtil.typeFromBinary(binaryData);
             if (!(this._cubeType in CubeType)) {
                 logger.info(`Cube: Cannot reactivate dormant (binary) Cube of unknown type ${this._cubeType}`);

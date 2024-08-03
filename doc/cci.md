@@ -80,34 +80,23 @@ Defined schemes are (length includes scheme code):
 
 
 ### Custom Fields
-
-Applications can define custom fields starting from `0x10` to `0x3F`, providing ample space to cater to various application-specific requirements. Custom fields allow applications to tailor the payload structure to suit their unique needs, adding a range of functionalities.
+Applications have two ways of suppplementing CCI with custom fields:
+1) Applications can define custom fields starting from `0x20` to `0x3F`.
+   These fields must be variable length.
+2) Applications can place the CCI_END marker field (0x00). Any content following
+   within the Cube will be ignored by pure CCI parsers and can be used to store
+   application data in any application-defined format.
 
 # Applications using CCI
 
 # File Application
 
-The file application is a specific implementation leveraging the Common Cube Interface (CCI) to facilitate the transmission and reception of files over the Verity network. It only supports PIC and PMUC cubes to prevent files from unexpectedly changing. This application defines a set of custom fields tailored to handle file attributes efficiently.
+The file application is a specific implementation leveraging the Common Cube Interface (CCI) to facilitate the transmission and reception of files over the Verity network. <strike>It only supports PIC and PMUC cubes to prevent files from unexpectedly changing.</strike>
 
-## Application Identifier
-
-To uniquely identify the payload as belonging to the file application, we define the following application identifier:
-
-- **Application Identifier**: `file`
-
-## Custom Fields
-
-To adequately represent file data and associated attributes within a payload, the file application defines the following custom fields:
-
-| Type (Hex) | Field Name      | Description |
-|------------|-----------------|-----------------------------------------------------------------------------------|
-| 0x10       | File Content    | The actual data content of the file. (= CCI Payload)                              |
-| 0x11       | Filename        | The name of the file, including the extension, to indicate the file type (= CCI Content Name) |
-| 0x12       | MIME Type       | The MIME type of the file, offering a standardized indication of the file format. (suggest to use CCI media type instead) |
-| 0x13       | Metadata        | Additional information about the file (file size, creation date, etc.) (suggest to use separate fields -- actually, we should incorporate certain commonly used metadata types like size and date into CCI)           |
+**Application Identifier**: `file`
 
 ### Usage
 
-When transmitting a file, the application should at minimum populate the filename and file content fields to ensure the recipient has the necessary data to reconstruct the file. The inclusion of MIME Type and Metadata fields is encouraged to provide a richer set of information about the file, facilitating more nuanced handling and organization of files by the recipient application.
+When transmitting a file, the application should at minimum populate the filename and file content fields to ensure the recipient has the necessary data to reconstruct the file. The inclusion of MIME Type and metadata fields is encouraged to provide a richer set of information about the file, facilitating more nuanced handling and organization of files by the recipient application.
 
 For files that exceed the payload capacity of a single cube, the application utilizes the "Next Cube Reference" field defined in the CCI to chain multiple cubes together, allowing for the seamless assembly of larger files.

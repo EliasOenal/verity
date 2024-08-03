@@ -37,6 +37,7 @@
   Verity as a whole.
 - At some point in the far future: Local node-to-node communication using
   Bluetooth or ad-hoc WiFi
+- Full node verification
 
 # CCI
 - Implement Cube encryption

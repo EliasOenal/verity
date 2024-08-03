@@ -12,6 +12,8 @@ export enum cciRelationshipType {
   QUOTATION = 4,
   MYPOST = 5,
 
+  REPLACED_BY = 11,
+
   // Only used in MUCs:
   PROFILEPIC = 71,
   KEY_BACKUP_CUBE = 72,
