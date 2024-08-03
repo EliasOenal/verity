@@ -32,6 +32,10 @@ export const NetConstants =  {
     PUBLIC_KEY_SIZE: 32,
     SIGNATURE_SIZE: 64,
     NONCE_SIZE: 4,
+    KEY_REQUEST_MODE_SIZE: 1,
+    KEY_COUNT_SIZE: 4,
+    ADDRESS_TYPE_SIZE: 1,
+    ADDRESS_LENGTH_SIZE: 2,
 }
 
 export enum SupportedTransports {

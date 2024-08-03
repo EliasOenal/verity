@@ -14,7 +14,7 @@ export abstract class NetworkMessage extends BaseField {
     if (type === MessageClass.Hello) {
       return new HelloMessage(value);
     } else if (type === MessageClass.KeyRequest) {
-      return new KeyRequestMessage();
+      return new KeyRequestMessage(value);
     } else if (type === MessageClass.KeyResponse) {
       return new KeyResponseMessage(value);
     } else if (type === MessageClass.CubeRequest) {
@@ -33,8 +33,6 @@ export abstract class NetworkMessage extends BaseField {
   }
 }
 
-
-
 export class HelloMessage extends NetworkMessage {
   constructor(value: Buffer) {
     super(MessageClass.Hello, value);
@@ -45,39 +43,79 @@ export class HelloMessage extends NetworkMessage {
   }
 }
 
+export enum KeyRequestMode {
+  Legacy = 0x00,
+  SlidingWindow = 0x01,
+  SequentialStoreSync = 0x02,
+}
 
-
-// TODO: Support different key exchange methods
 export class KeyRequestMessage extends NetworkMessage {
-  constructor() {
-    super(MessageClass.KeyRequest, Buffer.alloc(0));
+  readonly mode: KeyRequestMode;
+  readonly keyCount: number;
+  readonly startKey: CubeKey;
+
+  constructor(buffer: Buffer);
+  constructor(mode: KeyRequestMode, keyCount: number, startKey?: CubeKey);
+  constructor(modeOrBuffer: KeyRequestMode | Buffer, keyCount?: number, startKey?: CubeKey) {
+    if (modeOrBuffer instanceof Buffer) {
+      if (modeOrBuffer.length !== NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE) {
+        throw new CubeError(`KeyRequestMessage constructor: Invalid buffer length ${modeOrBuffer.length}, must be ${NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE}`);
+      }
+      super(MessageClass.KeyRequest, modeOrBuffer);
+      this.mode = this.value.readUInt8(0);
+      this.keyCount = this.value.readUInt32BE(NetConstants.KEY_REQUEST_MODE_SIZE);
+      this.startKey = this.value.subarray(NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE, NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE) as CubeKey;
+    } else {
+      const bufferSize = NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE;
+      
+      const buffer = Buffer.alloc(bufferSize);
+      let offset = 0;
+      
+      // Write mode
+      buffer.writeUInt8(modeOrBuffer, offset);
+      offset += NetConstants.KEY_REQUEST_MODE_SIZE;
+      
+      // Write key count
+      buffer.writeUInt32BE(keyCount!, offset);
+      offset += NetConstants.KEY_COUNT_SIZE;
+      
+      // Write start key or zeros if not provided
+      if (startKey) {
+        startKey.copy(buffer, offset);
+      } else {
+        buffer.fill(0, offset, offset + NetConstants.CUBE_KEY_SIZE);
+      }
+      
+      super(MessageClass.KeyRequest, buffer);
+    }
   }
 }
 
-
-
 export class KeyResponseMessage extends NetworkMessage {
   readonly keyCount: number;
+  readonly mode: KeyRequestMode;
 
   constructor(value: Buffer);
-  constructor(cubeMetas: CubeMeta[]);
-
-  constructor(param: Buffer | CubeMeta[]) {
+  constructor(mode: KeyRequestMode, cubeMetas: CubeMeta[]);
+  constructor(param: Buffer | KeyRequestMode, cubeMetas?: CubeMeta[]) {
     if (param instanceof Buffer) {
       super(MessageClass.KeyResponse, param);
+      this.mode = param.readUInt8(0);
       // ensure number of requests per message does not exceed maximum
       this.keyCount = Math.min(
-        this.value.readUIntBE(0, NetConstants.COUNT_SIZE),
+        this.value.readUIntBE(1, NetConstants.COUNT_SIZE),
         NetConstants.MAX_CUBES_PER_MESSAGE);
     } else {
-      const cubeMetas: CubeMeta[] = param;
+      const mode = param;
       const CUBE_META_WIRE_SIZE =
         NetConstants.CUBE_KEY_SIZE + NetConstants.TIMESTAMP_SIZE +
         NetConstants.CHALLENGE_LEVEL_SIZE + NetConstants.CUBE_TYPE_SIZE;
-      const value = Buffer.alloc(NetConstants.COUNT_SIZE +
+      const value = Buffer.alloc(1 + NetConstants.COUNT_SIZE +
         cubeMetas.length * CUBE_META_WIRE_SIZE);
 
       let offset = 0;
+      value.writeUInt8(mode, offset);
+      offset += NetConstants.KEY_REQUEST_MODE_SIZE;
       value.writeUIntBE(cubeMetas.length, offset, NetConstants.COUNT_SIZE);
       offset += NetConstants.COUNT_SIZE;
 
@@ -97,41 +135,44 @@ export class KeyResponseMessage extends NetworkMessage {
         offset += NetConstants.CUBE_KEY_SIZE;
       }
       super(MessageClass.KeyResponse, value);
-      this.keyCount = param.length;
+      this.mode = mode;
+      this.keyCount = cubeMetas.length;
     }
   }
 
-
   *cubeInfos(): Generator<CubeInfo> {
-    let offset = NetConstants.COUNT_SIZE;
-    // use plain old for loop to enforce maximum requests per message,
-    // as represented by this.keyCount
-    for (let i = 0; i < this.keyCount; i++) {
-        const cubeType = this.value.readUIntBE(offset, NetConstants.CUBE_TYPE_SIZE);
-        offset += NetConstants.CUBE_TYPE_SIZE;
+    try {
+      let offset = NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.COUNT_SIZE;
+      // use plain old for loop to enforce maximum requests per message,
+      // as represented by this.keyCount
+      for (let i = 0; i < this.keyCount; i++) {
+          const cubeType = this.value.readUIntBE(offset, NetConstants.CUBE_TYPE_SIZE);
+          offset += NetConstants.CUBE_TYPE_SIZE;
 
-        const challengeLevel = this.value.readUIntBE(
+          const challengeLevel = this.value.readUIntBE(
           offset, NetConstants.CHALLENGE_LEVEL_SIZE);
-        offset += NetConstants.CHALLENGE_LEVEL_SIZE;
+          offset += NetConstants.CHALLENGE_LEVEL_SIZE;
 
-        // Read timestamp as a 5-byte number
-        const timestamp = this.value.readUIntBE(offset, NetConstants.TIMESTAMP_SIZE);
-        offset += NetConstants.TIMESTAMP_SIZE;
+          // Read timestamp as a 5-byte number
+          const timestamp = this.value.readUIntBE(offset, NetConstants.TIMESTAMP_SIZE);
+          offset += NetConstants.TIMESTAMP_SIZE;
 
-        const key = this.value.subarray(offset, offset + NetConstants.CUBE_KEY_SIZE);
-        offset += NetConstants.CUBE_KEY_SIZE;
-        const incomingCubeInfo = new CubeInfo({
-            key: key,
-            date: timestamp,
-            challengeLevel: challengeLevel,
-            cubeType: cubeType
-        });
-        yield incomingCubeInfo;
+          const key = this.value.subarray(offset, offset + NetConstants.CUBE_KEY_SIZE);
+          offset += NetConstants.CUBE_KEY_SIZE;
+          const incomingCubeInfo = new CubeInfo({
+              key: key,
+              date: timestamp,
+              challengeLevel: challengeLevel,
+              cubeType: cubeType
+          });
+          yield incomingCubeInfo;
+      }
+    }
+    catch (error) {
+      throw new CubeError(`KeyResponseMessage.cubeInfos(): Error while parsing CubeInfo: ${error}`);
     }
   }
 }
-
-
 
 export class CubeRequestMessage extends NetworkMessage {
   readonly keyCount: number;
@@ -145,13 +186,18 @@ export class CubeRequestMessage extends NetworkMessage {
       // ensure number of requests per message does not exceed maximum
       this.keyCount = Math.min(
         this.value.readUIntBE(0, NetConstants.COUNT_SIZE),
-        NetConstants.MAX_CUBES_PER_MESSAGE);
+        NetConstants.MAX_CUBES_PER_MESSAGE
+      );
     } else {
       const keys: CubeKey[] = param;
       // ensure number of requests per message does not exceed maximum
-      const keyCount = Math.min(keys.length, NetConstants.MAX_CUBES_PER_MESSAGE);
-      const value: Buffer = Buffer.alloc(NetConstants.COUNT_SIZE +
-        keys.length * NetConstants.HASH_SIZE);
+      const keyCount = Math.min(
+        keys.length,
+        NetConstants.MAX_CUBES_PER_MESSAGE
+      );
+      const value: Buffer = Buffer.alloc(
+        NetConstants.COUNT_SIZE + keys.length * NetConstants.CUBE_KEY_SIZE
+      );
       let offset = 0;
 
       value.writeUIntBE(keys.length, offset, NetConstants.COUNT_SIZE);
@@ -162,7 +208,7 @@ export class CubeRequestMessage extends NetworkMessage {
       for (let i = 0; i < keyCount; i++) {
         const key: CubeKey = keys[i];
         key.copy(value, offset);
-        offset += NetConstants.HASH_SIZE;
+        offset += NetConstants.CUBE_KEY_SIZE;
       }
       super(MessageClass.CubeRequest, value);
       this.keyCount = keyCount;
@@ -172,15 +218,12 @@ export class CubeRequestMessage extends NetworkMessage {
   *cubeKeys(): Generator<CubeKey> {
     for (let i = 0; i < this.keyCount; i++) {
       yield this.value.subarray(
-        NetConstants.COUNT_SIZE + i * NetConstants.HASH_SIZE,
-        NetConstants.COUNT_SIZE + (i + 1) * NetConstants.HASH_SIZE);
+        NetConstants.COUNT_SIZE + i * NetConstants.CUBE_KEY_SIZE,
+        NetConstants.COUNT_SIZE + (i + 1) * NetConstants.CUBE_KEY_SIZE
+      );
+    }
   }
-
-  }
-
 }
-
-
 
 export class CubeResponseMessage extends NetworkMessage {
   constructor(value: Buffer);
@@ -247,8 +290,10 @@ export class ServerAddressMessage extends NetworkMessage {
       super(MessageClass.MyServerAddress, param);
       // parse address
       let offset = 0;
-      const type: SupportedTransports = this.value.readUInt8(offset++);
-      const length: number = this.value.readUInt16BE(offset); offset += 2;
+      const type: SupportedTransports = this.value.readUInt8(offset);
+      offset += NetConstants.ADDRESS_TYPE_SIZE;
+      const length: number = this.value.readUInt16BE(offset);
+      offset += NetConstants.ADDRESS_LENGTH_SIZE;
       let addrString: string =
           this.value.subarray(offset, offset+length).toString('ascii');
       offset += length;
@@ -259,14 +304,14 @@ export class ServerAddressMessage extends NetworkMessage {
       const address: AddressAbstraction = param;
       const addressString: string = address.toString();
       const message = Buffer.alloc(
-          1 + // address type -- todo parametrize
-          2 + // address length -- todo parametrize
+          NetConstants.ADDRESS_TYPE_SIZE +
+          NetConstants.ADDRESS_LENGTH_SIZE +
           addressString.length);
       let offset = 0;
       message.writeUInt8(address.type, offset);
-      offset += 1;  // todo parametrize
+      offset += NetConstants.ADDRESS_TYPE_SIZE;
       message.writeUInt16BE(addressString.length, offset);
-      offset += 2;  // todo parametrize
+      offset += NetConstants.ADDRESS_LENGTH_SIZE;
       message.write(addressString, offset, 'ascii');
       offset += addressString.length;
 
@@ -276,16 +321,12 @@ export class ServerAddressMessage extends NetworkMessage {
   }
 }
 
-
-
 // TODO: Support different peer exchange methods
 export class PeerRequestMessage extends NetworkMessage {
   constructor() {
     super(MessageClass.PeerRequest, Buffer.alloc(0));
   }
 }
-
-
 
 export class PeerResponseMessage extends NetworkMessage {
   constructor(value: Buffer);
@@ -309,9 +350,10 @@ export class PeerResponseMessage extends NetworkMessage {
       message.writeUIntBE(peers.length, offset, NetConstants.COUNT_SIZE);
       offset += NetConstants.COUNT_SIZE;
       for (const peer of peers) {
-          message.writeUInt8(peer.address.type, offset++);
+          message.writeUInt8(peer.address.type, offset);
+          offset += NetConstants.ADDRESS_TYPE_SIZE;
           message.writeUInt16BE(peer.address.toString().length, offset);
-          offset += 2;
+          offset += NetConstants.ADDRESS_LENGTH_SIZE;
           message.write(
             peer.address.toString(),
             offset,
@@ -334,9 +376,10 @@ export class PeerResponseMessage extends NetworkMessage {
     offset += NetConstants.COUNT_SIZE;
     for (let i = 0; i < peerCount; i++) {
         // read address
-        const addressType: SupportedTransports = this.value.readUInt8(offset++);
+        const addressType: SupportedTransports = this.value.readUInt8(offset);
+        offset += NetConstants.ADDRESS_TYPE_SIZE;
         const addressLength: number = this.value.readUint16BE(offset);
-        offset += 2;
+        offset += NetConstants.ADDRESS_LENGTH_SIZE;
         const peerAddress = this.value.subarray(offset, offset + addressLength);
         offset += addressLength;
 

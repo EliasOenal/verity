@@ -20,6 +20,7 @@ import { logger } from '../../../src/core/logger';
 
 import WebSocket from 'isomorphic-ws';
 import sodium from 'libsodium-wrappers-sumo'
+import { KeyRequestMode } from '../../../src/core/networking/networkMessage';
 
 // Note: Most general functionality concerning NetworkManager, NetworkPeer
 // etc is described within the WebSocket tests while the libp2p tests are more
@@ -506,7 +507,7 @@ describe('networkManager - WebSocket connections', () => {
 
         // sync cubes from peer 1 to peer 2
         expect(manager1.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
-        manager2.outgoingPeers[0].sendKeyRequest();
+        manager2.outgoingPeers[0].sendKeyRequests();
         // Verify cubes have been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
           if (await cubeStore2.getNumberOfStoredCubes() === numberOfCubes) {
@@ -521,7 +522,7 @@ describe('networkManager - WebSocket connections', () => {
 
         // sync cubes from peer 2 to peer 3
         expect(manager3.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
-        manager3.incomingPeers[0].sendKeyRequest();
+        manager3.incomingPeers[0].sendKeyRequests();
         // Verify cubes have been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
           if (await cubeStore3.getNumberOfStoredCubes() === numberOfCubes) {
@@ -582,7 +583,7 @@ describe('networkManager - WebSocket connections', () => {
 
         // sync MUC from peer 1 to peer 2
         expect(manager2.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
-        manager2.incomingPeers[0].sendKeyRequest();
+        manager2.incomingPeers[0].sendKeyRequests();
         // Verify MUC has been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
           if (await cubeStore2.getCube(mucKey)) {
@@ -610,7 +611,7 @@ describe('networkManager - WebSocket connections', () => {
         expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);  // still just one, new MUC version replaces old MUC version
 
         // sync MUC from peer 1 to peer 2, again
-        manager2.incomingPeers[0].sendKeyRequest();
+        manager2.incomingPeers[0].sendKeyRequests();
         // Verify MUC has been synced. Wait up to three seconds for that to happen.
         for (let i = 0; i < 30; i++) {
           if ((await cubeStore2.getCube(mucKey))?.getHashIfAvailable()?.equals(secondMucHash)) {
@@ -979,3 +980,38 @@ describe('networkManager - WebSocket connections', () => {
     });
   });
 });
+
+async function createAndAddCubes(cubeStore: CubeStore, count: number): Promise<Cube[]> {
+  const cubes: Cube[] = [];
+  for (let i = 0; i < count; i++) {
+    const cube = Cube.Frozen({
+      fields: CubeField.Payload(`Test cube ${i}`),
+      requiredDifficulty: 0
+    });
+    await cubeStore.addCube(cube);
+    cubes.push(cube);
+  }
+  return cubes;
+}
+
+async function waitForCubeSync(cubeStore: CubeStore, expectedCount: number, timeout: number = 5000): Promise<void> {
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeout) {
+    if (await cubeStore.getNumberOfStoredCubes() >= expectedCount) {
+      return;
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  throw new Error(`Timeout waiting for cube sync. Expected ${expectedCount} cubes, got ${await cubeStore.getNumberOfStoredCubes()}`);
+}
+
+async function getAllCubes(cubeStore: CubeStore): Promise<Cube[]> {
+  const cubes: Cube[] = [];
+  for await (const key of cubeStore.getAllKeys()) {
+    const cube = await cubeStore.getCube(key);
+    if (cube) {
+      cubes.push(cube);
+    }
+  }
+  return cubes;
+}

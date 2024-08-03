@@ -1,5 +1,6 @@
 import { Settings } from '../../settings';
 import { NetConstants } from '../networkDefinitions';
+import { KeyRequestMode } from '../networkMessage';
 
 import { RequestStrategy, RandomStrategy } from './requestStrategy';
 import { RequestedCube } from './requestedCube';
@@ -155,7 +156,7 @@ export class RequestScheduler {
       } else {
         logger.trace(`RequestScheduler.performRequest(): sending KeyRequest to ${peerSelected.toString()}`);
         // if we're a full node, send a key request
-        peerSelected.sendKeyRequest();
+        peerSelected.sendKeyRequests();
         // Note / TODO: For full nodes, the key response will currently still be directly
         // handled by the NetworkPeer. This should instead also be controlled
         // by the RequestScheduler.

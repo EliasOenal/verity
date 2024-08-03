@@ -231,7 +231,7 @@ describe('networkManager - libp2p connections', () => {
 
     // sync cubes from peer 1 to peer 2
     expect(manager1.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
-    manager2.outgoingPeers[0].sendKeyRequest();
+    manager2.outgoingPeers[0].sendKeyRequests();
     // Verify cubes have been synced. Wait up to three seconds for that to happen.
     for (let i = 0; i < 30; i++) {
       if (await cubeStore2.getNumberOfStoredCubes() === numberOfCubes) {
@@ -245,7 +245,7 @@ describe('networkManager - libp2p connections', () => {
 
     // sync cubes from peer 2 to peer 3
     expect(manager3.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
-    manager3.incomingPeers[0].sendKeyRequest();
+    manager3.incomingPeers[0].sendKeyRequests();
     // Verify cubes have been synced. Wait up to three seconds for that to happen.
     for (let i = 0; i < 30; i++) {
       if (await cubeStore3.getNumberOfStoredCubes() == numberOfCubes) {
@@ -309,7 +309,7 @@ describe('networkManager - libp2p connections', () => {
 
     // sync MUC from peer 1 to peer 2
     expect(manager2.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
-    manager2.incomingPeers[0].sendKeyRequest();
+    manager2.incomingPeers[0].sendKeyRequests();
     // Verify MUC has been synced. Wait up to three seconds for that to happen.
     for (let i = 0; i < 30; i++) {
       if (await cubeStore2.getCube(mucKey)) {
@@ -339,7 +339,7 @@ describe('networkManager - libp2p connections', () => {
     expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);  // still just one, new MUC version replaces old MUC version
 
     // sync MUC from peer 1 to peer 2, again
-    manager2.incomingPeers[0].sendKeyRequest();
+    manager2.incomingPeers[0].sendKeyRequests();
     // Verify MUC has been synced. Wait up to three seconds for that to happen.
     for (let i = 0; i < 30; i++) {
       if ((await cubeStore2.getCube(mucKey))?.getHashIfAvailable()?.equals(secondMucHash)) {
@@ -829,7 +829,7 @@ describe('networkManager - libp2p connections', () => {
     // This is exactly what we did not want to see.
     // And strangely enough, it actually works in real world browser tests o.O
     logger.trace("TEST: Performing Cube exchange")
-    browser2.outgoingPeers[0].sendKeyRequest();
+    browser2.outgoingPeers[0].sendKeyRequests();
     // Wait up to three seconds for cube to sync
     for (let i = 0; i < 30; i++) {
       if (await browser2.cubeStore.getNumberOfStoredCubes() == 1) {

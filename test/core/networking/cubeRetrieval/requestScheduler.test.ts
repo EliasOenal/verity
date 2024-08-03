@@ -18,8 +18,8 @@ class mockNetworkPeer {
   called = undefined;
   param = undefined;
   calls = 0;
-  sendKeyRequest() {
-    this.called = "sendKeyRequest";
+  sendKeyRequests() {
+    this.called = "sendKeyRequests";
     this.calls++;
   }
   sendCubeRequest(param: Array<any>) {
@@ -99,7 +99,7 @@ describe('RequestScheduler', () => {
       scheduler.requestCube(testKey);
       await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
       expect((scheduler.networkManager.onlinePeers[0] as unknown as mockNetworkPeer).
-        called).toEqual("sendKeyRequest");
+        called).toEqual("sendKeyRequests");
     });
 
     it('should group together multiple Cube requests', async() => {
