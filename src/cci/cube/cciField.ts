@@ -42,6 +42,26 @@ export enum cciAdditionalFieldType {
   AVATAR = 0x16 << 2,        // 88
   // PADDING = 0x1F << 2,    // 124 -- currently defined on core layer
 
+  // Reserved space from 0x20 to 0x2F, may either be used for future CCI fields
+  // or to extend the custom field range in the future.
+
+  CUSTOM1 = 0x30 << 2,      // 192
+  CUSTOM2 = 0x31 << 2,      // 196
+  CUSTOM3 = 0x32 << 2,      // 200
+  CUSTOM4 = 0x33 << 2,      // 204
+  CUSTOM5 = 0x34 << 2,      // 208
+  CUSTOM6 = 0x35 << 2,      // 212
+  CUSTOM7 = 0x36 << 2,      // 216
+  CUSTOM8 = 0x37 << 2,      // 220
+  CUSTOM9 = 0x38 << 2,      // 224
+  CUSTOM10 = 0x39 << 2,      // 228
+  CUSTOM11 = 0x3A << 2,      // 232
+  CUSTOM12 = 0x3B << 2,      // 236
+  CUSTOM13 = 0x3C << 2,      // 240
+  CUSTOM14 = 0x3D << 2,      // 244
+  CUSTOM15 = 0x3E << 2,      // 248
+  CUSTOM16 = 0x3F << 2,      // 252
+
   REMAINDER = 40001,         // virtual field only used on decompiling Cubes
                              // to represent data after CCI_END
 }
@@ -57,6 +77,22 @@ export const cciAdditionalFieldLength: FieldNumericalParam = {
   [cciFieldType.MEDIA_TYPE]: 1,
   [cciFieldType.RELATES_TO]: NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE,
   [cciFieldType.USERNAME]: undefined,
+  [cciFieldType.CUSTOM1]: undefined,
+  [cciFieldType.CUSTOM2]: undefined,
+  [cciFieldType.CUSTOM3]: undefined,
+  [cciFieldType.CUSTOM4]: undefined,
+  [cciFieldType.CUSTOM5]: undefined,
+  [cciFieldType.CUSTOM6]: undefined,
+  [cciFieldType.CUSTOM7]: undefined,
+  [cciFieldType.CUSTOM8]: undefined,
+  [cciFieldType.CUSTOM9]: undefined,
+  [cciFieldType.CUSTOM10]: undefined,
+  [cciFieldType.CUSTOM11]: undefined,
+  [cciFieldType.CUSTOM12]: undefined,
+  [cciFieldType.CUSTOM13]: undefined,
+  [cciFieldType.CUSTOM14]: undefined,
+  [cciFieldType.CUSTOM15]: undefined,
+  [cciFieldType.CUSTOM16]: undefined,
   [cciFieldType.REMAINDER]: undefined,
 }
 export const cciFieldLength = {...CubeFieldLength, ...cciAdditionalFieldLength};

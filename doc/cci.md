@@ -30,7 +30,8 @@ Proposed repartition of type space:
 0x0C - 0x0F: Less common technical fields (multi-byte fields like 0x0C42)
 0x10 - 0x1B: Common content-descriptive fields
 0x1C - 0x1F: Less common content-descriptive fields (multi-byte fields like 0x1C42)
-0x20 - 0x3F: Application-specific fields (must be variable length)
+0x20 - 0x2F: Reserved
+0x30 - 0x3F: Application-specific fields (must be variable length)
 
 #### Core CCI fields
 | Type (Hex)  | Length | Field Name             | Description |
@@ -81,7 +82,7 @@ Defined schemes are (length includes scheme code):
 
 ### Custom Fields
 Applications have two ways of suppplementing CCI with custom fields:
-1) Applications can define custom fields starting from `0x20` to `0x3F`.
+1) Applications can define custom fields starting from `0x30` to `0x3F`.
    These fields must be variable length.
 2) Applications can place the CCI_END marker field (0x00). Any content following
    within the Cube will be ignored by pure CCI parsers and can be used to store
