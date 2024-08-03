@@ -57,7 +57,6 @@ alternative to traditional, centralized social networks.
       * `0x00`: Legacy Mode (Deprecated)
       * `0x01`: Sliding Window Mode
       * `0x02`: Sequential Store Sync Mode
-      * (KeyRequest missing a header byte is treated as Legacy Mode request)
     - **Key Count (4 bytes)**: This is an integer indicating the number of keys being requested.
     - **Request Key (32 bytes)**: Used in Sliding Window and Sequential Store Sync modes. Specifies the key to start from. In Sliding Window Mode it can be zero to start from the beginning. Mandatory in Sequential Store Sync Mode. The key itself is not included in the response, only the respective keys that succeed it.
 
@@ -70,6 +69,10 @@ alternative to traditional, centralized social networks.
     >DoS Vulnerability: The Legacy Mode is deprecated and not recommended due to its potential for Denial of Service attacks. Supporting it requires large amounts of RAM on the node to store all keys.
 
   - `KeyResponse`:
+    - **Header Byte (1 byte)**: Indicates the mode of the request:
+      * `0x00`: Legacy Mode (Deprecated)
+      * `0x01`: Sliding Window Mode
+      * `0x02`: Sequential Store Sync Mode
     - **Key Count (4 bytes)**: This is an integer indicating the number of keys being sent.
     - **Cube Details**: Each detail includes:
       - **Cube Type (1 byte)**: The type of the cube (e.g., regular, MUC, IPC).

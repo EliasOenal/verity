@@ -2,7 +2,7 @@ import { CubeKey } from "../../../src/core/cube/cubeDefinitions";
 import { Cube } from "../../../src/core/cube/cube";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { MessageClass } from "../../../src/core/networking/networkDefinitions";
-import { NetworkMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, CubeRequestMessage, CubeResponseMessage, ServerAddressMessage, PeerRequestMessage, PeerResponseMessage } from "../../../src/core/networking/networkMessage";
+import { NetworkMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, CubeRequestMessage, CubeResponseMessage, ServerAddressMessage, PeerRequestMessage, PeerResponseMessage, KeyRequestMode } from "../../../src/core/networking/networkMessage";
 import { AddressAbstraction } from "../../../src/core/peering/addressing";
 import { Peer } from "../../../src/core/peering/peer";
 import { VerityError } from "../../../src/core/settings";
@@ -13,7 +13,7 @@ describe('NetworkMessage', () => {
     const helloMessage = NetworkMessage.fromBinary(MessageClass.Hello, Buffer.from('abcdefghijklmnop', 'ascii'));
     expect(helloMessage).toBeInstanceOf(HelloMessage);
 
-    const keyRequestMessage = NetworkMessage.fromBinary(MessageClass.KeyRequest, Buffer.from('invalid message content, but who cares'));
+    const keyRequestMessage = NetworkMessage.fromBinary(MessageClass.KeyRequest, Buffer.from('invalid message content, but who care'));
     expect(keyRequestMessage).toBeInstanceOf(KeyRequestMessage);
 
     // Add similar tests for other message types
@@ -35,7 +35,7 @@ describe('HelloMessage', () => {
 
 describe('KeyRequestMessage', () => {
   it('should create KeyRequestMessage instance', () => {
-    const keyRequestMessage = new KeyRequestMessage();
+    const keyRequestMessage = new KeyRequestMessage(KeyRequestMode.SlidingWindow, 10);
     expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
   });
 });
@@ -65,7 +65,7 @@ describe('KeyResponseMessage, CubeRequestMessage and CubeResponseMessage', () =>
 
   it('should create and parse KeyResponseMessage', async() => {
     // create message
-    const keyResponseMessage = new KeyResponseMessage([cubeInfo1, cubeInfo2, cubeInfo3]);
+    const keyResponseMessage = new KeyResponseMessage(KeyRequestMode.SlidingWindow, [cubeInfo1, cubeInfo2, cubeInfo3]);
 
     // test construction based on CubeMeta list
     {

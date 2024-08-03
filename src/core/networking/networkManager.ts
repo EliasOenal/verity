@@ -11,6 +11,7 @@ import { RequestScheduler } from './cubeRetrieval/requestScheduler';
 import type { RequestSchedulerOptions } from './cubeRetrieval/requestScheduler';
 
 import { CubeStore } from '../cube/cubeStore';
+import { CubeInfo } from '../cube/cubeInfo';
 
 import { Peer } from '../peering/peer';
 import { AddressAbstraction } from '../peering/addressing';
@@ -106,6 +107,14 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         // note: this is not efficient as it creates two copies:
         // first in concat, then in filter
     }
+
+    /**
+     * Handle the 'cubeAdded' event from CubeStore
+     * @param cubeInfo The CubeInfo of the newly added cube
+     */
+    private handleCubeAdded(cubeInfo: CubeInfo): void {
+        this.addRecentKey(cubeInfo.key);
+    }
     get onlinePeerCount(): number {
         return this.onlinePeers.length;  // note: this is not efficient
     }
@@ -186,6 +195,21 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         // Maybe TODO: try to use the same peer ID for transports that themselves
         // require a peer ID, i.e. libp2p
         this._id = Buffer.from(crypto.getRandomValues(new Uint8Array(NetConstants.PEER_ID_SIZE)));
+
+        // Set up event listener for cubeAdded event
+        this._cubeStore.on('cubeAdded', this.handleCubeAdded.bind(this));
+
+        // Add cube key 0 of store to window, so it's not empty. A random key would be better,
+        // but we don't have a good way to do this without incurring O(n) cost.
+        // This is so Sliding Window Mode can return it to a KeyRequest and in turn 
+        // Sequential Store Sync Mode can use it as a starting point.
+        this._cubeStore.readyPromise.then(() => {
+            this._cubeStore.getKeyAtPosition(0)?.then(key => {
+                if (key) {
+                    this.addRecentKey(key);
+                }
+            });
+        });
     }
 
     /**
@@ -193,6 +217,11 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
      * @param key The new key to add
      */
     addRecentKey(key: CubeKey): void {
+        // print stack trace if key is undefined
+        if (!key) {
+            logger.error("NetworkManager.addRecentKey() called with undefined key");
+            return;
+        }
         if (this.isRecentKeysWindowFull()) {
             this.recentKeysWindow.shift(); // Remove the oldest key
         }
@@ -219,25 +248,27 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
     /**
      * Get a specified number of keys succeeding a given input key from the recent keys window.
      * If the key is not found, it returns the requested number of keys from the start of the window.
+     * If the requested key is already the last key in the window, return an empty array.
      * @param startKey The key to start from (exclusive).
      * @param count The number of keys to retrieve.
      * @returns An array of keys succeeding the input key or from the start of the window.
      */
     getRecentSucceedingKeys(startKey: CubeKey, count: number): CubeKey[] {
         const startIndex = this.recentKeysWindow.findIndex(key => key.equals(startKey));
-        
-        // If the key is not found or it's the last key, start from the beginning
-        const beginIndex = (startIndex === -1 || startIndex === this.recentKeysWindow.length - 1) ? 0 : startIndex + 1;
-        
-        const result: CubeKey[] = [];
-        let currentIndex = beginIndex;
 
-        while (result.length < count && result.length < this.recentKeysWindow.length) {
-            result.push(this.recentKeysWindow[currentIndex]);
-            currentIndex = (currentIndex + 1) % this.recentKeysWindow.length;
+        // If the key is not found, start from the beginning
+        const beginIndex = (startIndex === -1) ? 0 : startIndex + 1;
+    
+        // Return empty array if startIndex is the last index in the window
+        if (beginIndex >= this.recentKeysWindow.length) {
+            return [];
         }
+    
+        // Calculate the number of elements we can retrieve
+        const availableCount = Math.min(count, this.recentKeysWindow.length - beginIndex);
 
-        return result;
+        // Return the slice of keys starting from beginIndex
+        return this.recentKeysWindow.slice(beginIndex, beginIndex + availableCount);
     }
 
     get cubeStore(): CubeStore { return this._cubeStore; }
@@ -687,5 +718,3 @@ export class DummyNetworkManager extends EventEmitter implements NetworkManagerI
     idString: string = this.id.toString('hex');
     onlinePeerCount: number = 0;
 }
-
-// Add these methods to the NetworkManager class

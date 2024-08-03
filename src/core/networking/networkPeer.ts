@@ -1,5 +1,6 @@
 import { Settings } from '../settings';
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
+import { KeyRequestMode } from './networkMessage';
 import { unixtime } from '../helpers/misc';
 import { CubeRequestMessage, CubeResponseMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, NetworkMessage, PeerRequestMessage, PeerResponseMessage, ServerAddressMessage } from './networkMessage';
 
@@ -16,6 +17,8 @@ import { getCurrentEpoch, shouldRetainCube } from '../cube/cubeUtil';
 import { logger } from '../logger';
 
 import { Buffer } from 'buffer';
+import { log, trace } from 'console';
+import { start } from 'repl';
 
 export interface PacketStats {
     count: number,
@@ -83,6 +86,12 @@ export class NetworkPeer extends Peer {
     get status(): NetworkPeerLifecycle { return this._status.value }
 
     private onlinePromiseResolve: (np: NetworkPeer) => void;
+
+    private lastRequestedKey?: CubeKey;
+    
+    get lastKey(): CubeKey | undefined {
+        return this.lastRequestedKey;
+    }
     /**
      * A peer will be considered to be online once a correct HELLO message
      * has been received.
@@ -267,14 +276,19 @@ export class NetworkPeer extends Peer {
                     break;
                 case MessageClass.KeyRequest:
                     try {  // non-essential feature (for us... for them it's rather essential, but we don't care :D)
-                        this.handleKeyRequest();
+                        this.handleKeyRequest(msg as KeyRequestMessage);
                         break;
                     } catch (err) {  // we'll mostly ignore errors with this
                         logger.warn(`NetworkPeer ${this.toString()}: Ignoring a PeerRequest because an error occurred processing it: ${err}`);
                         break;
                     }
                 case MessageClass.KeyResponse:
-                    this.handleKeyResponse(msg as KeyResponseMessage);
+                    try {  // non-essential feature
+                        this.handleKeyResponse(msg as KeyResponseMessage);
+                    }
+                    catch (err) {  // we'll mostly ignore errors with this
+                        logger.warn(`NetworkPeer ${this.toString()}: Ignoring a KeyResponse because an error occurred processing it: ${err}`);
+                    }
                     break;
                 case MessageClass.CubeRequest:
                     try {  // non-essential feature
@@ -373,7 +387,7 @@ export class NetworkPeer extends Peer {
             // If we're scheduling our own requests and are not a light node,
             // ask for available cubes in regular intervals
             if (this.autoRequest && !this.lightNode && !this.keyRequestTimer) {
-                this.keyRequestTimer = setInterval(() => this.sendKeyRequest(),
+                this.keyRequestTimer = setInterval(() => this.sendKeyRequests(),
                     Settings.KEY_REQUEST_TIME);
             }
         }
@@ -382,26 +396,68 @@ export class NetworkPeer extends Peer {
     /**
      * Handle a KeyRequest message.
      */
-    private handleKeyRequest(): void {
-        // Send MAX_CUBE_HASH_COUNT unsent hashes from unsentHashes
+    private async handleKeyRequest(msg: KeyRequestMessage): Promise<void> {
+        try {
+            const mode = msg.mode;
+            const keyCount = msg.keyCount || NetConstants.MAX_CUBES_PER_MESSAGE;
+            const startKey = msg.startKey;
+
+            let cubes: CubeMeta[];
+            logger.trace(`NetworkPeer ${this.toString()}: handleKeyRequest: received KeyRequest in mode ${KeyRequestMode[mode]}, keyCount: ${keyCount}, startKey: ${startKey?.toString('hex')}`);
+            switch (mode) {
+                case KeyRequestMode.Legacy:
+                    cubes = await this.handleLegacyKeyRequest(keyCount);
+                    break;
+                case KeyRequestMode.SlidingWindow:
+                    cubes = await this.handleSlidingWindowKeyRequest(startKey, keyCount);
+                    break;
+                case KeyRequestMode.SequentialStoreSync:
+                    cubes = await this.handleSequentialStoreSyncKeyRequest(startKey, keyCount);
+                    break;
+                default:
+                    logger.warn(`NetworkPeer ${this.toString()}: Received unknown KeyRequest mode: ${mode}`);
+                    return;
+            }
+
+            const reply: KeyResponseMessage = new KeyResponseMessage(mode, cubes);
+            logger.trace(`NetworkPeer ${this.toString()}: handleKeyRequest: sending ${cubes.length} cube keys in ${KeyRequestMode[mode]} mode`);
+            this.sendMessage(reply);
+        } catch (err) {
+            logger.warn(`NetworkPeer ${this.toString()}: Error handling KeyRequest: ${err}`);
+        }
+    }
+
+    private handleLegacyKeyRequest(keyCount: number): CubeMeta[] {
         const cubes: CubeMeta[] = [];
         const iterator: IterableIterator<CubeMeta> = this.unsentCubeMeta.values();
-        for (let i = 0; i < NetConstants.MAX_CUBES_PER_MESSAGE; i++) {
+        logger.warn(`NetworkPeer ${this.toString()}: handleLegacyKeyRequest() called, but this method is deprecated.`);
+        for (let i = 0; i < keyCount; i++) {
             const result = iterator.next();
-            if (result.done) break;  // check if the iterator is exhausted
+            if (result.done) break;
 
             const cube: CubeMeta = result.value;
             if (cube.key) {
                 cubes.push(cube);
                 this.unsentCubeMeta.delete(cube);
-            }
-            else
+            } else {
                 break;
+            }
         }
+        return cubes;
+    }
 
-        const reply: KeyResponseMessage = new KeyResponseMessage(cubes);
-        logger.trace(`NetworkPeer ${this.toString()}: handleKeyRequest: sending ${cubes.length} cube details`);
-        this.sendMessage(reply);
+    private async handleSlidingWindowKeyRequest(startKey: CubeKey, keyCount: number): Promise<CubeMeta[]> {
+        const recentKeys = startKey 
+            ? this.networkManager.getRecentSucceedingKeys(startKey, keyCount)
+            : this.networkManager.getRecentKeys().slice(0, keyCount);
+
+        const cubeInfos = await Promise.all(recentKeys.map(key => this.cubeStore.getCubeInfo(key)));
+        return cubeInfos.filter((info): info is CubeInfo => info !== undefined);
+    }
+
+    private async handleSequentialStoreSyncKeyRequest(startKey: CubeKey, keyCount: number): Promise<CubeMeta[]> {
+        // This method should be implemented in the CubeStore class
+        return await this.cubeStore.getSucceedingCubeInfos(startKey, keyCount);
     }
 
     /**
@@ -412,64 +468,77 @@ export class NetworkPeer extends Peer {
      * @param data The HashResponse data.
      */
     private async handleKeyResponse(msg: KeyResponseMessage): Promise<void> {
-        if (this.lightNode) {
-            logger.info(`${this.toString()}: handleKeyResponse() called but light mode enabled, doing nothing.`)
-            return;
-        }
-        const cubeInfos: Generator<CubeInfo> = msg.cubeInfos();
-        const regularCubeInfo: CubeInfo[] = [];
-        const mucInfo: CubeInfo[] = [];
-
-        for (const incomingCubeInfo of cubeInfos) {
-            // if retention policy is enabled, ensure the offered Cube has
-            // not yet reached its recycling date
-            const currentEpoch = getCurrentEpoch(); // Get the current epoch
-            if(this.cubeStore.options.enableCubeRetentionPolicy &&
-               !shouldRetainCube(
-                    incomingCubeInfo.keyString,
-                    incomingCubeInfo.date,
-                    incomingCubeInfo.difficulty,
-                    currentEpoch)) {
-                logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Was offered cube hash outside of retention policy, ignoring.`);
-                continue;
+        try {
+            if (this.lightNode) {
+                logger.warn(`${this.toString()}: handleKeyResponse() called but light mode enabled, doing nothing.`)
+                return;
             }
 
-            if (incomingCubeInfo.cubeType === CubeType.FROZEN) {
-                regularCubeInfo.push(incomingCubeInfo);
-            } else if (incomingCubeInfo.cubeType === CubeType.MUC) {
-                mucInfo.push(incomingCubeInfo);
-            } else {
-                logger.info(`NetworkPeer ${this.toString()}: in handleKeyResponse I saw a CubeType of ${incomingCubeInfo.cubeType}. I don't know what that is.`)
-            }
-        }
+            const cubeInfos: Generator<CubeInfo> = msg.cubeInfos();
+            const regularCubeInfo: CubeInfo[] = [];
+            const mucInfo: CubeInfo[] = [];
+            let lastKey: CubeKey | undefined;
 
-        // For each regular key not in cube storage, request the cube
-        const missingKeys: Buffer[] = [];
-        for (const detail of regularCubeInfo) {
-            if (!(await this.cubeStore.hasCube(detail.key))) {
-                missingKeys.push(detail.key);
-            }
-        }
+            for (const incomingCubeInfo of cubeInfos) {
+                lastKey = incomingCubeInfo.key;
+                // if retention policy is enabled, ensure the offered Cube has
+                // not yet reached its recycling date
+                const currentEpoch = getCurrentEpoch(); // Get the current epoch
+                if(this.cubeStore.options.enableCubeRetentionPolicy &&
+                !shouldRetainCube(
+                        incomingCubeInfo.keyString,
+                        incomingCubeInfo.date,
+                        incomingCubeInfo.difficulty,
+                        currentEpoch)) {
+                    logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Was offered cube hash outside of retention policy, ignoring.`);
+                    continue;
+                }
 
-        for (const muc of mucInfo) {
-            // Request any MUC not in cube storage
-            if (!(await this.cubeStore.hasCube(muc.key))) {
-                missingKeys.push(muc.key);
-            } else {
-                // For each MUC in cube storage, identify winner and request if necessary
-                const storedCube: CubeMeta = await this.cubeStore.getCubeInfo(muc.key);
-                try {
-                    const winningCube: CubeMeta = cubeContest(storedCube, muc);
-                    if (winningCube !== storedCube) {
-                        missingKeys.push(muc.key);
-                    }
-                } catch(error) {
-                    logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Error handling incoming MUC ${muc.keyString}: ${error}`);
+                if (incomingCubeInfo.cubeType === CubeType.FROZEN) {
+                    regularCubeInfo.push(incomingCubeInfo);
+                } else if (incomingCubeInfo.cubeType === CubeType.MUC) {
+                    mucInfo.push(incomingCubeInfo);
+                } else {
+                    logger.info(`NetworkPeer ${this.toString()}: in handleKeyResponse I saw a CubeType of ${incomingCubeInfo.cubeType}. I don't know what that is.`)
                 }
             }
-        }
-        if (missingKeys.length > 0) {
-            this.sendCubeRequest(missingKeys);
+
+            // For each regular key not in cube storage, request the cube
+            const missingKeys: Buffer[] = [];
+            for (const detail of regularCubeInfo) {
+                if (!(await this.cubeStore.hasCube(detail.key))) {
+                    missingKeys.push(detail.key);
+                }
+            }
+
+            for (const muc of mucInfo) {
+                // Request any MUC not in cube storage
+                if (!(await this.cubeStore.hasCube(muc.key))) {
+                    missingKeys.push(muc.key);
+                } else {
+                    // For each MUC in cube storage, identify winner and request if necessary
+                    const storedCube: CubeMeta = await this.cubeStore.getCubeInfo(muc.key);
+                    try {
+                        const winningCube: CubeMeta = cubeContest(storedCube, muc);
+                        if (winningCube !== storedCube) {
+                            missingKeys.push(muc.key);
+                        }
+                    } catch(error) {
+                        logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Error handling incoming MUC ${muc.keyString}: ${error}`);
+                    }
+                }
+            }
+            if (missingKeys.length > 0) {
+                this.sendCubeRequest(missingKeys);
+            }
+
+            // Update the last requested key for the appropriate mode
+            if (lastKey) {
+                this.updateLastRequestedKey(msg.mode, lastKey);
+            }
+        } catch (err) {
+            logger.warn(`NetworkPeer.handleKeyResponse(): Error handling KeyResponse: ${err}`);
+            throw(err);
         }
     }
 
@@ -525,7 +594,7 @@ export class NetworkPeer extends Peer {
                 // Allow other operations to run
                 await new Promise(resolve => setTimeout(resolve, 0));
             }
-            logger.info(`NetworkPeer ${this.toString()}: handleCubeResponse: processed ${totalProcessed} cubes`);
+            logger.info(`NetworkPeer ${this.toString()}: handleCubeResponse: processed incoming ${totalProcessed} cubes`);
         };
 
         processAllCubes();
@@ -573,14 +642,55 @@ export class NetworkPeer extends Peer {
         this.sendMessage(msg);
     }
 
+    private lastSlidingWindowKey: CubeKey;
+    private lastSequentialSyncKey: CubeKey;
+
+    sendKeyRequests(): void {
+        if (this.lastSlidingWindowKey === undefined) {
+            this.sendSpecificKeyRequest(KeyRequestMode.SlidingWindow, 1000);
+        } else {
+            this.sendSpecificKeyRequest(KeyRequestMode.SlidingWindow, 1000, this.lastSlidingWindowKey);
+        }
+        
+        if (this.lastSequentialSyncKey !== undefined) {
+            this.sendSpecificKeyRequest(KeyRequestMode.SequentialStoreSync, 1000, this.lastSequentialSyncKey);
+        } else {
+            // To sync the store we need a starting point
+            // Next call we should hopefully have one
+        }
+    }
+
     /**
-      * Send a KeyRequest message.
-      */
-    sendKeyRequest(): void {
-        logger.trace(`NetworkPeer ${this.toString()}: sending KeyRequest`);
-        const msg: KeyRequestMessage = new KeyRequestMessage();
+     * Send a KeyRequest message.
+     * @param mode The mode of the key request.
+     * @param keyCount The number of keys to request.
+     * @param startKey The key to start from (for SlidingWindow and SequentialStoreSync modes).
+     */
+    private sendSpecificKeyRequest(mode: KeyRequestMode, keyCount: number = 1000, startKey?: CubeKey): void {
+        logger.trace(`NetworkPeer ${this.toString()}: sending KeyRequest in ${KeyRequestMode[mode]} mode, requesting ${keyCount} keys, starting from ${startKey?.toString('hex')}`);
+        const msg: KeyRequestMessage = new KeyRequestMessage(mode, keyCount, startKey);
         this.setTimeout();  // expect a timely reply to this request
         this.sendMessage(msg);
+    }
+
+    /**
+     * Update the last requested key for the appropriate mode after receiving a KeyResponse.
+     * @param mode The mode of the key request.
+     * @param lastKey The last key received in the response.
+     */
+    updateLastRequestedKey(mode: KeyRequestMode, lastKey: CubeKey): void {
+        if (mode === KeyRequestMode.SlidingWindow) {
+            this.lastSlidingWindowKey = lastKey;
+
+            // Initialize the lastSequentialSyncKey from sliding window.
+            // Using a random key from the sliding window might be slightly better
+            // than using the last key, but this is good enough.
+            if(this.lastSequentialSyncKey === undefined) {
+                this.lastSequentialSyncKey = lastKey;
+            }
+        } else if (mode === KeyRequestMode.SequentialStoreSync) {
+            this.lastSequentialSyncKey = lastKey;
+        }
     }
 
     /**

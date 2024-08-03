@@ -161,6 +161,36 @@ export class CubePersistence extends EventEmitter {
     }
   }
 
+   /**
+   * Get the key at the specified position in the database.
+   * @param position The position of the key to retrieve.
+   * @returns A promise that resolves with the key at the specified position.
+   */
+   async getKeyAtPosition(position: number): Promise<string> {
+    if (this.db.status !== 'open') {
+      throw new PersistenceError("DB is not open");
+    }
+
+    let count = 0;
+    const iterator = this.db.iterator({
+      keys: true,
+      values: false
+    });
+
+    try {
+      for await (const [key] of iterator) {
+        if (count === position) {
+          return key;
+        }
+        count++;
+      }
+      throw new PersistenceError(`Position ${position} is out of bounds`);
+    } catch (error) {
+      logger.error(`Error retrieving key at position ${position}: ${error}`);
+      return undefined;
+    }
+  }
+
   async shutdown(): Promise<void> {
     await this.db.close();
   }
