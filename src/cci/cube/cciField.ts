@@ -19,7 +19,6 @@ import { FieldNumericalParam } from "../../core/fields/fieldParser";
 export enum cciAdditionalFieldType {
   // CCI_END = 0x00 << 2,    // 0 -- currently defined on core layer
   APPLICATION = 0x01 << 2,   // 4
-  CONTINUED_IN = 0x02 << 2,  // 8
 
   /**
   * Seed used to derive a new key pair for an extension MUC.
@@ -68,7 +67,6 @@ export enum cciAdditionalFieldType {
 export const cciFieldType = {...CubeFieldType, ...cciAdditionalFieldType} as const;
 
 export const cciAdditionalFieldLength: FieldNumericalParam = {
-  [cciFieldType.CONTINUED_IN]: NetConstants.CUBE_KEY_SIZE,
   [cciFieldType.CONTENTNAME]: undefined,
   [cciFieldType.DESCRIPTION]: undefined,
   [cciFieldType.SUBKEY_SEED]: undefined,
