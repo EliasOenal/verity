@@ -92,7 +92,7 @@ describe('Identity', () => {
       expect(muc).toBeInstanceOf(cciCube);
 
       // double check everything's in there
-      expect(muc.fields.getFirstRelationship(cciRelationshipType.PROFILEPIC).remoteKey).
+      expect(muc.fields.getFirstRelationship(cciRelationshipType.ILLUSTRATION).remoteKey).
         toEqual(original.profilepic);
       expect(muc.fields.getFirstRelationship(cciRelationshipType.KEY_BACKUP_CUBE).remoteKey).
         toEqual(original.keyBackupCube);

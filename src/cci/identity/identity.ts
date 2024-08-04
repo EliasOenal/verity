@@ -592,7 +592,7 @@ export class Identity {
     // Write profile picture reference
     if (this.profilepic) {
       newMuc.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
-        new cciRelationship(cciRelationshipType.PROFILEPIC, this.profilepic)
+        new cciRelationship(cciRelationshipType.ILLUSTRATION, this.profilepic)
       ));
     }
 
@@ -756,7 +756,7 @@ export class Identity {
 
     // - profile picture reference
     const profilePictureRel: cciRelationship = muc.fields.getFirstRelationship(
-      cciRelationshipType.PROFILEPIC);
+      cciRelationshipType.ILLUSTRATION);
     if (profilePictureRel) this.profilepic = profilePictureRel.remoteKey;
 
     // - key backup cube reference

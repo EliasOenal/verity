@@ -7,15 +7,16 @@ import { logger } from "../../core/logger";
 
 export enum cciRelationshipType {
   CONTINUED_IN = 1,
-  MENTION = 2,
+  EXTENDED_IN = 2,
   REPLY_TO = 3,
   QUOTATION = 4,
   MYPOST = 5,
+  MENTION = 6,
 
   REPLACED_BY = 11,
 
   // Only used in MUCs:
-  PROFILEPIC = 71,
+  ILLUSTRATION = 71,
   KEY_BACKUP_CUBE = 72,
   SUBSCRIPTION_RECOMMENDATION_INDEX = 73,
 
@@ -31,7 +32,7 @@ export const cciRelationshipLimits: Map<cciRelationshipType, number> = new Map([
   [cciRelationshipType.REPLY_TO, 1],
   [cciRelationshipType.QUOTATION, undefined],
   [cciRelationshipType.MYPOST, undefined],
-  [cciRelationshipType.PROFILEPIC, 1],
+  [cciRelationshipType.ILLUSTRATION, 1],
   [cciRelationshipType.KEY_BACKUP_CUBE, undefined],
   [cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX, undefined],
   [cciRelationshipType.SUBSCRIPTION_RECOMMENDATION, undefined]

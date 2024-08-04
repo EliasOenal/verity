@@ -117,11 +117,12 @@ The cube lifetime function has several key properties that make it well-suited f
 
 ## Implementation notes
 ### Cube types
-| Cube type   | Implemented |
+| Cube type      | Implemented |
+|----------------|-------------|
 | Frozen (basic) | yes         |
-| PIC         | no          |
-| MUC         | yes         |
-| PMUC        | no          |
+| PIC            | no          |
+| MUC            | yes         |
+| PMUC           | no          |
 
 Notify field not implemented yet.
 Current implementation does not support optional positional fields, though we
