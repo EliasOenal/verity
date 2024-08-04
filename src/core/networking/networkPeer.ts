@@ -103,7 +103,6 @@ export class NetworkPeer extends Peer {
     get onlinePromise() { return this._onlinePromise; }
     get online() { return this.status === NetworkPeerLifecycle.ONLINE; }
 
-    private unsentCubeMeta: Set<CubeMeta> = new Set();
     private unsentPeers: Peer[] = undefined;  // TODO this should probably be a Set instead
 
     get conn(): TransportConnection { return this._conn }
@@ -136,18 +135,6 @@ export class NetworkPeer extends Peer {
         this._conn.on("messageReceived", msg => this.handleMessage(msg));
         this._conn.once("closed", () => this.close());
 
-        // Take note of all cubes I could share with this new peer. While the
-        // connection lasts, supplement this with any newly learned cubes.
-        // This is used to ensure we don't offer peers the same cube twice.
-        // TODO: In the interest of keeping peer handling efficient and reducing
-        // our Sybil attack surface this feature should be removed.
-        (async () => {
-            for await (const cubeInfo of cubeStore.getAllCubeInfos()) {
-                this.unsentCubeMeta.add(cubeInfo);
-            }
-        })();
-        cubeStore.on('cubeAdded', (cube: CubeMeta) => this.unsentCubeMeta.add(cube));
-
         // Take note of all other peers I could exchange with this new peer.
         // This is used to ensure we don't exchange the same peers twice.
         this.unsentPeers = Array.from(this.networkManager.peerDB.peersExchangeable.values());  // TODO: there's really no reason to convert to array here
@@ -170,8 +157,6 @@ export class NetworkPeer extends Peer {
         // Remove all listeners and timers to avoid memory leaks
         this.networkManager.peerDB.removeListener(
             'exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
-        this.cubeStore.removeListener(
-            'cubeAdded', (cube: CubeMeta) => this.unsentCubeMeta.add(cube));
         clearInterval(this.keyRequestTimer);
         clearInterval(this.peerRequestTimer);
         clearTimeout(this.networkTimeout);
@@ -405,9 +390,6 @@ export class NetworkPeer extends Peer {
             let cubes: CubeMeta[];
             logger.trace(`NetworkPeer ${this.toString()}: handleKeyRequest: received KeyRequest in mode ${KeyRequestMode[mode]}, keyCount: ${keyCount}, startKey: ${startKey?.toString('hex')}`);
             switch (mode) {
-                case KeyRequestMode.Legacy:
-                    cubes = await this.handleLegacyKeyRequest(keyCount);
-                    break;
                 case KeyRequestMode.SlidingWindow:
                     cubes = await this.handleSlidingWindowKeyRequest(startKey, keyCount);
                     break;
@@ -425,25 +407,6 @@ export class NetworkPeer extends Peer {
         } catch (err) {
             logger.warn(`NetworkPeer ${this.toString()}: Error handling KeyRequest: ${err}`);
         }
-    }
-
-    private handleLegacyKeyRequest(keyCount: number): CubeMeta[] {
-        const cubes: CubeMeta[] = [];
-        const iterator: IterableIterator<CubeMeta> = this.unsentCubeMeta.values();
-        logger.warn(`NetworkPeer ${this.toString()}: handleLegacyKeyRequest() called, but this method is deprecated.`);
-        for (let i = 0; i < keyCount; i++) {
-            const result = iterator.next();
-            if (result.done) break;
-
-            const cube: CubeMeta = result.value;
-            if (cube.key) {
-                cubes.push(cube);
-                this.unsentCubeMeta.delete(cube);
-            } else {
-                break;
-            }
-        }
-        return cubes;
     }
 
     private async handleSlidingWindowKeyRequest(startKey: CubeKey, keyCount: number): Promise<CubeMeta[]> {
@@ -499,7 +462,7 @@ export class NetworkPeer extends Peer {
                 } else if (incomingCubeInfo.cubeType === CubeType.MUC) {
                     mucInfo.push(incomingCubeInfo);
                 } else {
-                    logger.info(`NetworkPeer ${this.toString()}: in handleKeyResponse I saw a CubeType of ${incomingCubeInfo.cubeType}. I don't know what that is.`)
+                    logger.debug(`NetworkPeer ${this.toString()}: in handleKeyResponse I saw a CubeType of ${incomingCubeInfo.cubeType}. I don't know what that is.`)
                 }
             }
 

@@ -169,7 +169,8 @@ export class KeyResponseMessage extends NetworkMessage {
       }
     }
     catch (error) {
-      throw new CubeError(`KeyResponseMessage.cubeInfos(): Error while parsing CubeInfo: ${error}`);
+      logger.info(`KeyResponseMessage.cubeInfos(): Error while parsing CubeInfo: ${error}, trace: ${error.stack}`);
+      return;
     }
   }
 }
