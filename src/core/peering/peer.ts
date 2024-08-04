@@ -161,7 +161,7 @@ export class Peer {
 
   get trustScore() {
     let ret = this._trustScore;  // base trust score
-    // peer loses one trust for every second since we last heard something from
+    // peer loses 0.1 trust for every second since we last heard something from
     // them (which obviously only works if this peer has ever been connected before)
     if (this.lastConnectAttempt) ret -= (unixtime() - this.lastSuccessfulConnection)*0.1;
     // logger.trace(`Peer ${this.toString()} has calculated trust score ${ret}`);

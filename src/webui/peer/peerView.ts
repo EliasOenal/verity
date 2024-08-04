@@ -4,6 +4,7 @@ import { logger } from "../../core/logger";
 import { VerityView } from "../verityView";
 import { unixtime } from "../../core/helpers/misc";
 import type { PeerController, ShallDisplay } from "./peerController";
+import { humanFileSize } from "../helpers/datetime";
 
 export class PeerView extends VerityView {
   private peerList: HTMLUListElement;
@@ -40,6 +41,7 @@ export class PeerView extends VerityView {
   }
 
   redrawPeerData(peer: Peer, peerLi: HTMLLIElement): void {
+    const freshLi = this.newFromTemplate(".verityPeer") as HTMLLIElement;
     // TODO change once we refactor NetworkPeer into encapsulating Peer rather
     // than inheriting from it
     let networkPeer: NetworkPeer = undefined;
@@ -48,20 +50,20 @@ export class PeerView extends VerityView {
     // logger.trace("PeerView: (Re-)Displaying peer "+ peer.toString());
     try {
       // Print & set peer ID on all relevant elements
-      const idField: HTMLTableCellElement = peerLi.querySelector('.verityPeerId');
+      const idField: HTMLTableCellElement = freshLi.querySelector('.verityPeerId');
       idField.innerText = peer.idString ?? "unknown";
-      peerLi.setAttribute("id", "verityPeer-" + peer.idString);
-      // Print connected address
-      const connField: HTMLTableCellElement = peerLi.querySelector('.verityPeerConn');
-      if (networkPeer) {
-        connField.innerText = networkPeer.conn.addressString;
-      } else {
-        connField.innerText = "Not connected"
-      }
-      // Print connection status
-      const statusField: HTMLTableCellElement =
-        peerLi.querySelector('.verityPeerTransmissionStatus');
-      if (networkPeer) {
+      freshLi.setAttribute("id", "verityPeer-" + peer.idString);
+
+      // Print trust score
+      const trustField: HTMLTableCellElement = freshLi.querySelector('.verityPeerScore');
+      trustField.innerText = peer.trustScore.toString();
+
+      // Print peer connection information depending on whether this peer is
+      // connected or not (i.e. whether or not it is a NetworkPeer)
+      if (networkPeer) {  // connected peer
+        // Print connection status
+        const statusField: HTMLTableCellElement =
+          freshLi.querySelector('.verityPeerStatus');
         if (networkPeer.status === NetworkPeerLifecycle.CONNECTING) {
           statusField.innerText = "Trying to connect...";
         } else if (networkPeer.status === NetworkPeerLifecycle.HANDSHAKING) {
@@ -81,12 +83,39 @@ export class PeerView extends VerityView {
         } else {  // should never happen
           statusField.innerText = 'Unknown NetworkPeer lifecycle status: ' + networkPeer.status;
         }
-      } else {
+
+        // Print connected address
+        const connField: HTMLTableCellElement = freshLi.querySelector('.verityPeerConn');
+        connField.innerText = networkPeer.conn.addressString;
+
+        // Print transmission stats
+        const txMsg: HTMLTableCellElement = freshLi.querySelector('.verityPeerTxMsg');
+        txMsg.innerText = networkPeer.stats.tx.sentMessages.toString();
+        const txBytes: HTMLTableCellElement = freshLi.querySelector('.verityPeerTxSize');
+        txBytes.innerText = humanFileSize(networkPeer.stats.tx.messageBytes);
+        const rxMsg: HTMLTableCellElement = freshLi.querySelector('.verityPeerRxMsg');
+        rxMsg.innerText = networkPeer.stats.rx.receivedMessages.toString();
+        const rxBytes: HTMLTableCellElement = freshLi.querySelector('.verityPeerRxSize');
+        rxBytes.innerText = humanFileSize(networkPeer.stats.rx.messageBytes);
+
+      } else {  // disconnected peer
+        // Print connection status
+        const statusField: HTMLTableCellElement =
+          freshLi.querySelector('.verityPeerStatus');
         statusField.innerText = 'Not connected';
+
+        // Remove connected address
+        const connRow: HTMLTableRowElement = freshLi.querySelector('.verityPeerConnRow');
+        connRow.remove();
+
+        // Remove transmission stats
+        const transmissionRow: HTMLTableRowElement = freshLi.querySelector('.verityPeerTransmissionRow');
+        transmissionRow.remove();
       }
+
       // Print all known addresses
       const addrsList: HTMLTableCellElement =
-        peerLi.querySelector('.verityPeerAddressList');
+        freshLi.querySelector('.verityPeerAddressList');
       addrsList.replaceChildren();
       for (let i=0; i<peer.addresses.length; i++) {
         const addrLi = document.createElement('li');
@@ -106,8 +135,9 @@ export class PeerView extends VerityView {
         // All done
         addrsList.appendChild(addrLi);
       }
+
       // Only Display appropriate connect/reconnect/disconnect buttons
-      const buttonContainer: HTMLElement = peerLi.querySelector('.verityPeerConnectionControls');
+      const buttonContainer: HTMLElement = freshLi.querySelector('.verityPeerConnectionControls');
       // All buttons are predefined in the template, so let's first fetch them.
       const connectButton = this.newFromTemplate('.verityPeerConnectButton');
       connectButton.setAttribute("data-peerid", peer.idString);
@@ -115,12 +145,16 @@ export class PeerView extends VerityView {
       reconnectButton.setAttribute("data-peerid", peer.idString);
       const disconnectButton = this.newFromTemplate('.verityPeerDisconnectButton');
       disconnectButton.setAttribute("data-peerid", peer.idString);
+
       // Now based on connection status, only show the correct buttons
       if (!networkPeer || networkPeer.status >= NetworkPeerLifecycle.CLOSING) {
         buttonContainer.replaceChildren(connectButton);
       } else {
         buttonContainer.replaceChildren(reconnectButton, disconnectButton);
       }
+
+      // All done, replace the old peerLi with the new one
+      peerLi.replaceChildren(...freshLi.children);
     } catch(err) {
       logger.error("PeerView: Could not display some peer data, did you mess with my DOM elements?! Error was: " + err?.toString() ?? err);
     }
