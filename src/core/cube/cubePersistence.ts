@@ -65,11 +65,11 @@ export class CubePersistence extends EventEmitter {
   getCube(key: string): Promise<Buffer> {
     return this.db.get(key)
       .then(ret => {
-        logger.trace(`CubePersistence.getCube() fetched binary Cube ${key}`);
+        //logger.trace(`CubePersistence.getCube() fetched binary Cube ${key}`);
         return ret;
       })
       .catch(error => {
-        logger.trace(`CubePersistance.getCube(): Cannot find Cube ${key}, error status ${error.status} ${error.code}, ${error.message}`);
+        logger.debug(`CubePersistance.getCube(): Cannot find Cube ${key}, error status ${error.status} ${error.code}, ${error.message}`);
         return undefined;
       });
   }
