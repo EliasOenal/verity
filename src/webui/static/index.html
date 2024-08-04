@@ -290,32 +290,45 @@
             <tr class="verityPeerDataRow">
               <th class="verityPeerDataHeader">ID</th>
               <td class="verityPeerData verityPeerId">
-                e66c51d5130992aac3be542a5df17996
+                13371337133713371337133713371337
               </td>
             </tr>
-            <tr class="verityPeerDataRow">
+            <tr class="verityPeerDataRow verityPeerStatusRow">
+              <th class="verityPeerDataHeader">Status</th>
+              <td class="verityPeerData verityPeerStatus">OK</td>
+            </tr>
+            <tr class="verityPeerDataRow verityPeerConnRow">
               <th class="verityPeerDataHeader">Connected through</th>
               <td class="verityPeerData verityPeerConn">
-                ws://verity.hahn.mt:1984/
+                scheme://address.tld:123456789/
               </td>
             </tr>
-            <tr class="verityPeerDataRow">
-              <th class="verityPeerDataHeader">Status</th>
-              <td class="verityPeerData verityPeerTransmissionStatus">OK</td>
+            <tr class="verityPeerDataRow verityPeerScoreRow">
+              <th class="verityPeerDataHeader">Trust score</th>
+              <td class="verityPeerData verityPeerScore">over 9000</td>
+            </tr>
+            <tr class="verityPeerDataRow verityPeerTransmissionRow">
+              <th class="verityPeerDataHeader">Messages transmitted</th>
+              <td class="verityPeerData">
+                Sent: <span class="verityPeerTxMsg">over 9000</span>
+                (<span class="verityPeerTxSize">10000QB</span> total)<br/>
+                Received: <span class="verityPeerRxMsg">over 9000</span>
+                (<span class="verityPeerRxSize">10000QB</span> total)
+              </td>
             </tr>
             <tr class="verityPeerDataRow">
               <th class="verityPeerDataHeader">Known addresses</th>
               <td class="verityPeerData verityPeerAddresses">
                 <ol class="verityPeerAddressList">
                   <li value="0">ws://demonstration.address <br />
-                    <button type="button" data-peerid="e66c51d5130992aac3be542a5df17996"
+                    <button type="button" data-peerid="13371337133713371337133713371337"
                     data-addrindex="1" class="veritySmallButton btn btn-outline-primary active"
                     onclick="window.verity.peerController.makeAddressPrimary(this)">
                       Primary
                     </button>
                   </li>
                   <li value="1">/dns4/demonstration.address/tcp/1985/wss/ <br/>
-                    <button type="button" data-peerid="e66c51d5130992aac3be542a5df17996"
+                    <button type="button" data-peerid="13371337133713371337133713371337"
                     data-addrindex="1" class="veritySmallButton btn btn-outline-primary"
                     onclick="window.verity.peerController.makeAddressPrimary(this)">
                       Primary
