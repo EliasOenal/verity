@@ -17,8 +17,6 @@ import { getCurrentEpoch, shouldRetainCube } from '../cube/cubeUtil';
 import { logger } from '../logger';
 
 import { Buffer } from 'buffer';
-import { log, trace } from 'console';
-import { start } from 'repl';
 
 export interface PacketStats {
     count: number,
@@ -88,7 +86,7 @@ export class NetworkPeer extends Peer {
     private onlinePromiseResolve: (np: NetworkPeer) => void;
 
     private lastRequestedKey?: CubeKey;
-    
+
     get lastKey(): CubeKey | undefined {
         return this.lastRequestedKey;
     }
@@ -410,7 +408,7 @@ export class NetworkPeer extends Peer {
     }
 
     private async handleSlidingWindowKeyRequest(startKey: CubeKey, keyCount: number): Promise<CubeMeta[]> {
-        const recentKeys = startKey 
+        const recentKeys = startKey
             ? this.networkManager.getRecentSucceedingKeys(startKey, keyCount)
             : this.networkManager.getRecentKeys().slice(0, keyCount);
 
@@ -614,7 +612,7 @@ export class NetworkPeer extends Peer {
         } else {
             this.sendSpecificKeyRequest(KeyRequestMode.SlidingWindow, 1000, this.lastSlidingWindowKey);
         }
-        
+
         if (this.lastSequentialSyncKey !== undefined) {
             this.sendSpecificKeyRequest(KeyRequestMode.SequentialStoreSync, 1000, this.lastSequentialSyncKey);
         } else {
