@@ -144,155 +144,184 @@ describe('cubeStore', () => {
           await cubeStore.shutdown();
         });
 
-        it('should return undefined when requesting an unavailable Cube', async () => {
-          const mockKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42);
-          expect(await cubeStore.getCube(mockKey)).toBeUndefined;
-          expect(await cubeStore.getCubeInfo(mockKey)).toBeUndefined;
-        });
+        describe('adding and retrieving Cubes', () => {
+          it('should add 2 Cubes and get them back [testing getAllCubeInfos()]', async () => {
+            const first: Cube = Cube.Frozen({fields: CubeField.Payload(
+              "Cubus probationis")});
+            const second: Cube = Cube.Frozen({fields: CubeField.Payload(
+              "Cubus probationis")});
+            await cubeStore.addCube(first);
+            await cubeStore.addCube(second);
+            const restored: CubeInfo[] = [];
+            for await (const cubeInfo of cubeStore.getAllCubeInfos()) {
+              restored.push(cubeInfo)
+            }
+            expect(restored).toHaveLength(2);
+            const firstRestored: Cube = restored[0].getCube(coreTlvCubeFamily);
+            const secondRestored: Cube = restored[1].getCube(coreTlvCubeFamily);
+            expect(firstRestored.fields.getFirst(CubeFieldType.PAYLOAD)
+              .value.toString('utf8')).toEqual("Cubus probationis");
+            expect(secondRestored.fields.getFirst(CubeFieldType.PAYLOAD)
+              .value.toString('utf8')).toEqual("Cubus probationis");
+            // ensure we actually restored two different Cubes
+            expect(restored[0].keyString).not.toEqual(restored[1].keyString);
+          }, 1000000000);
 
-        it('should return an empty iterable when requesting all entries', async () => {
-          expect(await cubeStore.getAllCubeInfos().next()).toBeUndefined;
-          expect(await cubeStore.getAllKeys().next()).toBeUndefined;
-        });
+          it('should add 20 Cubes and get them back [testing getCube() and getNumberOfStoredCubes()]', async () => {
+            // create 20 cubes and wait till they are stored
+            const cubes: Cube[] = [];
+            for (let i = 0; i < 20; i++) {
+              const cube = Cube.Frozen({
+                fields: CubeField.Payload(
+                  "Cubus inutilis in repositorio tuo residens et spatium tuum consumens"),
+                requiredDifficulty: reducedDifficulty
+              });
+              cubes.push(cube);
+              await cubeStore.addCube(cube);
+            }
 
-        it('should add 2 Cubes and get them back [testing getAllCubeInfos()]', async () => {
-          const first: Cube = Cube.Frozen({fields: CubeField.Payload(
-            "Cubus probationis")});
-          const second: Cube = Cube.Frozen({fields: CubeField.Payload(
-            "Cubus probationis")});
-          await cubeStore.addCube(first);
-          await cubeStore.addCube(second);
-          const restored: CubeInfo[] = [];
-          for await (const cubeInfo of cubeStore.getAllCubeInfos()) {
-            restored.push(cubeInfo)
-          }
-          expect(restored).toHaveLength(2);
-          const firstRestored: Cube = restored[0].getCube(coreTlvCubeFamily);
-          const secondRestored: Cube = restored[1].getCube(coreTlvCubeFamily);
-          expect(firstRestored.fields.getFirst(CubeFieldType.PAYLOAD)
-            .value.toString('utf8')).toEqual("Cubus probationis");
-          expect(secondRestored.fields.getFirst(CubeFieldType.PAYLOAD)
-            .value.toString('utf8')).toEqual("Cubus probationis");
-          // ensure we actually restored two different Cubes
-          expect(restored[0].keyString).not.toEqual(restored[1].keyString);
-        }, 1000000000);
+            for (const cube of cubes) {
+              const key: CubeKey = await cube.getKey();
+              expect(key).toBeInstanceOf(Buffer);
+              expect(key.length).toEqual(32);
+              const restoredCube: Cube = await cubeStore.getCube(key);
+              expect(restoredCube).toBeInstanceOf(Cube);
+              const binaryData = await cube.getBinaryData();
+              expect(await (restoredCube.getBinaryData())).toEqual(binaryData);
+            };
+            const cubesStored: number = await cubeStore.getNumberOfStoredCubes();
+            expect(cubesStored).toEqual(20);
+          }, 30000);
 
-        it('should add 20 Cubes and get them back [testing getCube() and getNumberOfStoredCubes()]', async () => {
-          // create 20 cubes and wait till they are stored
-          const cubes: Cube[] = [];
-          for (let i = 0; i < 20; i++) {
-            const cube = Cube.Frozen({
+          it('should update the initial MUC with the updated MUC', async () => {
+            // Generate a key pair for testing
+            await sodium.ready;
+            const keyPair = sodium.crypto_sign_keypair();
+            const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+            const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+
+            // Create original MUC
+            const muc = Cube.MUC(publicKey, privateKey, {
+                fields: CubeField.Payload(
+                  "Sum cubus usoris mutabilis, signatus a domino meo."),
+                requiredDifficulty: reducedDifficulty
+            });
+            muc.setDate(1695340000);
+            const key = await muc.getKey();
+            const info = await muc.getCubeInfo();
+            expect(key).toBeDefined();
+            expect(info).toBeDefined();
+            expect(muc.getDate()).toEqual(1695340000);
+            expect(info.date).toEqual(1695340000);
+            expect(await cubeStore.getNumberOfStoredCubes()).toEqual(0);
+            await cubeStore.addCube(muc);
+            expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);
+            expect((await cubeStore.getCube(key)).getDate()).toEqual(1695340000);
+            expect((await cubeStore.getCubeInfo(key)).date).toEqual(1695340000);
+
+            // Create updated MUC
+            const muc2 = Cube.MUC(publicKey, privateKey, {
               fields: CubeField.Payload(
-                "Cubus inutilis in repositorio tuo residens et spatium tuum consumens"),
+                "Actualizatus sum a domino meo, sed clavis mea semper eadem est."),
               requiredDifficulty: reducedDifficulty
             });
-            cubes.push(cube);
-            await cubeStore.addCube(cube);
-          }
+            // Make sure date is ever so slightly newer
+            muc2.setDate(1695340001);
+            const key2 = await muc2.getKey();
+            const info2 = await muc2.getCubeInfo();
+            expect(key2).toBeDefined();
+            expect(key2.equals(key)).toBe(true);
+            expect(info2).toBeDefined();
+            expect(muc2.getDate()).toEqual(1695340001);
+            expect(info2.date).toEqual(1695340001);
+            await cubeStore.addCube(muc2);
+            expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);  // still 1, MUC just updated
 
-          for (const cube of cubes) {
-            const key: CubeKey = await cube.getKey();
-            expect(key).toBeInstanceOf(Buffer);
-            expect(key.length).toEqual(32);
-            const restoredCube: Cube = await cubeStore.getCube(key);
-            expect(restoredCube).toBeInstanceOf(Cube);
-            const binaryData = await cube.getBinaryData();
-            expect(await (restoredCube.getBinaryData())).toEqual(binaryData);
-          };
-          const cubesStored: number = await cubeStore.getNumberOfStoredCubes();
-          expect(cubesStored).toEqual(20);
-        }, 30000);
+            // Verify that the first MUC has been updated with the second MUC
+            const retrievedMuc = cubeStore.getCube(key);
+            expect(retrievedMuc).toBeDefined();
+            expect((await retrievedMuc).getDate()).toEqual(1695340001);
+          }, 10000);
 
-        it('should update the initial MUC with the updated MUC', async () => {
-          // Generate a key pair for testing
-          await sodium.ready;
-          const keyPair = sodium.crypto_sign_keypair();
-          const publicKey: Buffer = Buffer.from(keyPair.publicKey);
-          const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+          it('correctly stores and retrieves a binary MUC with payload', async () => {
+            // Generate a key pair for testing
+            await sodium.ready;
+            const keyPair = sodium.crypto_sign_keypair();
+            const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+            const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
-          // Create original MUC
-          const muc = Cube.MUC(publicKey, privateKey, {
+            const muc = Cube.MUC(publicKey, privateKey, {
               fields: CubeField.Payload(
-                "Sum cubus usoris mutabilis, signatus a domino meo."),
+                "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum."),
               requiredDifficulty: reducedDifficulty
+            });
+            const muckey = await muc.getKey();
+            expect(muckey).toEqual(publicKey);
+
+            const binarymuc = await muc.getBinaryData();
+            expect(binarymuc).toBeDefined();
+            const cubeadded = await cubeStore.addCube(binarymuc);
+            expect(cubeadded.getKeyIfAvailable()).toEqual(muckey);
+
+            const restoredmuc = cubeStore.getCube(muckey, coreTlvCubeFamily);  // restore payload too
+            expect(restoredmuc).toBeDefined();
+            const restoredpayload = (await restoredmuc)?.fields.getFirst(CubeFieldType.PAYLOAD);
+            expect(restoredpayload).toBeDefined();
+            expect(restoredpayload?.value.toString('utf8')).toEqual(
+              "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum.");
           });
-          muc.setDate(1695340000);
-          const key = await muc.getKey();
-          const info = await muc.getCubeInfo();
-          expect(key).toBeDefined();
-          expect(info).toBeDefined();
-          expect(muc.getDate()).toEqual(1695340000);
-          expect(info.date).toEqual(1695340000);
-          expect(await cubeStore.getNumberOfStoredCubes()).toEqual(0);
-          await cubeStore.addCube(muc);
-          expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);
-          expect((await cubeStore.getCube(key)).getDate()).toEqual(1695340000);
-          expect((await cubeStore.getCubeInfo(key)).date).toEqual(1695340000);
 
-          // Create updated MUC
-          const muc2 = Cube.MUC(publicKey, privateKey, {
-            fields: CubeField.Payload(
-              "Actualizatus sum a domino meo, sed clavis mea semper eadem est."),
-            requiredDifficulty: reducedDifficulty
+          it('should not parse TLV fields by default', async() => {
+            const spammyCube = Cube.Frozen({  // Cube with 300 TLV fields
+              fields: Array.from({ length: 300 }, () => CubeField.Payload("!")),
+              requiredDifficulty: reducedDifficulty
+            });
+            const spammyBinary: Buffer = await spammyCube.getBinaryData();
+            const spamKey: Buffer = await spammyCube.getKey();
+            expect(spammyCube.fields.all.length).toBeGreaterThan(300);  // lots of spam
+            await cubeStore.addCube(spammyBinary);
+
+            const restored: Cube = await cubeStore.getCube(spamKey);
+            expect(restored.fields.all.length).toEqual(3);  // spam ignored
           });
-          // Make sure date is ever so slightly newer
-          muc2.setDate(1695340001);
-          const key2 = await muc2.getKey();
-          const info2 = await muc2.getCubeInfo();
-          expect(key2).toBeDefined();
-          expect(key2.equals(key)).toBe(true);
-          expect(info2).toBeDefined();
-          expect(muc2.getDate()).toEqual(1695340001);
-          expect(info2.date).toEqual(1695340001);
-          await cubeStore.addCube(muc2);
-          expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);  // still 1, MUC just updated
-
-          // Verify that the first MUC has been updated with the second MUC
-          const retrievedMuc = cubeStore.getCube(key);
-          expect(retrievedMuc).toBeDefined();
-          expect((await retrievedMuc).getDate()).toEqual(1695340001);
-        }, 10000);
-
-        it('correctly stores and retrieves a binary MUC with payload', async () => {
-          // Generate a key pair for testing
-          await sodium.ready;
-          const keyPair = sodium.crypto_sign_keypair();
-          const publicKey: Buffer = Buffer.from(keyPair.publicKey);
-          const privateKey: Buffer = Buffer.from(keyPair.privateKey);
-
-          const muc = Cube.MUC(publicKey, privateKey, {
-            fields: CubeField.Payload(
-              "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum."),
-            requiredDifficulty: reducedDifficulty
-          });
-          const muckey = await muc.getKey();
-          expect(muckey).toEqual(publicKey);
-
-          const binarymuc = await muc.getBinaryData();
-          expect(binarymuc).toBeDefined();
-          const cubeadded = await cubeStore.addCube(binarymuc);
-          expect(cubeadded.getKeyIfAvailable()).toEqual(muckey);
-
-          const restoredmuc = cubeStore.getCube(muckey, coreTlvCubeFamily);  // restore payload too
-          expect(restoredmuc).toBeDefined();
-          const restoredpayload = (await restoredmuc)?.fields.getFirst(CubeFieldType.PAYLOAD);
-          expect(restoredpayload).toBeDefined();
-          expect(restoredpayload?.value.toString('utf8')).toEqual(
-            "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum.");
         });
 
-        it('should not parse TLV fields by default', async() => {
-          const spammyCube = Cube.Frozen({  // Cube with 300 TLV fields
-            fields: Array.from({ length: 300 }, () => CubeField.Payload("!")),
-            requiredDifficulty: reducedDifficulty
-          });
-          const spammyBinary: Buffer = await spammyCube.getBinaryData();
-          const spamKey: Buffer = await spammyCube.getKey();
-          expect(spammyCube.fields.all.length).toBeGreaterThan(300);  // lots of spam
-          await cubeStore.addCube(spammyBinary);
+        describe('deleting Cubes', () => {
+          it.todo('write tests for deleting Cubes');
+        });
 
-          const restored: Cube = await cubeStore.getCube(spamKey);
-          expect(restored.fields.all.length).toEqual(3);  // spam ignored
+        describe('edge cases adding Cubes', () => {
+          it('should return undefined when trying to add a corrupt Cube', async () => {
+            const corruptCube = Buffer.alloc(1024);
+            corruptCube[0] = 0x01;  // Cube version 1
+            corruptCube[1] = 0x00;  // Cube type 0
+            corruptCube[2] = 0x01;  // TLV field type 1
+            corruptCube[3] = 0x01;  // TLV field length 1
+            corruptCube[4] = 0x00;  // TLV field value 0
+            expect(await cubeStore.addCube(corruptCube)).toBeUndefined;
+          });
+        });
+
+        describe('edge cases retrieving Cubes', () => {
+          it('should return undefined when requesting an unavailable Cube', async () => {
+            const mockKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42);
+            expect(await cubeStore.getCube(mockKey)).toBeUndefined;
+            expect(await cubeStore.getCubeInfo(mockKey)).toBeUndefined;
+          });
+
+          it('should return an empty iterable when requesting all entries', async () => {
+            expect(await cubeStore.getAllCubeInfos().next()).toBeUndefined;
+            expect(await cubeStore.getAllKeys().next()).toBeUndefined;
+          });
+
+          it.todo('should return undefined when trying to retrieve a corrupt Cube');
+          // This test is not trivial to implement as this case can only happen
+          // when using persitent storage, which is not enabled for these tests.
+          // Basically a corrupt Cube needs to sneak into the database where it
+          // is stored as binary, and trying to construct a CubeInfo for it on
+          // retrieval will then fail.
+          // This happened in the past when we updated the Cube format and
+          // tried to retrieve old Cubes from the database.
         });
       });
 

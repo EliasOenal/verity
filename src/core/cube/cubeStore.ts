@@ -205,7 +205,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       if(key)
         return CubeKey.from(key, "hex");
       else
-        return undefined;      
+        return undefined;
     }
     return undefined;
   }
@@ -390,13 +390,18 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
           key.keyString
         );
         if (binaryCube !== undefined) {
-          const cubeInfo = new CubeInfo({
-            key: key.binaryKey,
-            cube: binaryCube,
-            family: this.options.family,
-          });
-          this.storage.set(key.keyString, cubeInfo);
-          return cubeInfo;
+          try {  // could fail e.g. on invalid binary data
+            const cubeInfo = new CubeInfo({
+              key: key.binaryKey,
+              cube: binaryCube,
+              family: this.options.family,
+            });
+            this.storage.set(key.keyString, cubeInfo);
+            return cubeInfo;
+          } catch (err) {
+            logger.error(`CubeStore.getCubeInfo(): Could not create CubeInfo for Cube ${key.keyString}: ${err?.toString() ?? err}`);
+            return undefined;
+          }
         } else {
           return undefined;
         }

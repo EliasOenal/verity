@@ -151,6 +151,10 @@ export class CubeInfo {
   // NOTE, maybe TODO: If binaryCube is specified, this CubeInfo could contain
   // contradictory information as we currently don't validate the details
   // provided against the information contained in the actual (binary) Cube.
+  /**
+   * @throws ApiMisuseError on invalid combination of options;
+   *         May throw CubeError on invalid input, e.g. corrupt binary data
+   */
   constructor(options: CubeInfoOptions) {
     // we'll believe the caller that the provided cube information is correct,
     // but if we're able to read those ourselves we'll override them below
