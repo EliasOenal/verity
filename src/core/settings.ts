@@ -9,6 +9,8 @@ export const Settings = {
     // CubeStore related
     // - CubePersistence related
     CUBE_PERSISTENCE_DB_NAME: "cubes",
+    CUBE_PERSISTENCE_VERIFICATION: false,  // Verify 0.07% of read cubes (1 in 1337)
+    CUBE_PERSISTENCE_DELETE_CORRUPT: false,  // Delete corrupt cubes from the database
 
     /**
      * Seed bytes used to derive a MUC extension key from a user's master key.
