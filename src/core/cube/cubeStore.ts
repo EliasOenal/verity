@@ -190,7 +190,12 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
           "cubeStore: received ready event from cubePersistence, enableCubePersistence is: " +
             options.enableCubePersistence
         );
-        if (this.inMemory) await this.syncPersistentStorage();
+        if (options.enableCubePersistence === EnableCubePersitence.BACKUP) {
+          // For CubeStores configured to keep cubes in RAM but still persist
+          // them, we now need to load all Cubes.
+          // In all other cases, we do not and should not.
+          await this.syncPersistentStorage();
+        }
         this.pruneCubes(); // not await-ing as pruning is non-essential
         this.emit("ready");
       });
@@ -539,13 +544,14 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     await this.persistence?.shutdown();
   }
 
-  // This gets called once a persistence object is ready, if both persitent
-  // and in-RAM storage are enabled.
-  // We will then proceed to store all of our cubes into it,
-  // and load all cubes from it.
+  /**
+   * Load all persistent cubes into RAM and store all RAM cubes persistently.
+   * This is (only) used for CubeStores that are configured to keep cubes in RAM
+   * but still persist them; in this case, it will be called upon construction.
+   */
   private async syncPersistentStorage() {
     if (!this.persistence || !this.inMemory) return;
-    for await (const rawcube of this.persistence.getCubes()) {
+    for await (const rawcube of this.persistence.getCubes({ limit: Infinity})) {
       await this.addCube(Buffer.from(rawcube));
     }
     this.persistence.storeCubes(this.storage as Map<string, CubeInfo>);
