@@ -42,6 +42,14 @@ export interface CubeStoreOptions {
   enableCubePersistence?: EnableCubePersitence;
 
   /**
+   * This option is only relevant if enableCubePersistence is set to PRIMARY.
+   * If true, the CubeStore will keep a negative cache of keys that have been
+   * checked and found to not exist in the database.
+   * @default true
+   */
+  negativeCache?: boolean;
+
+  /**
    * If enabled, do not accept or keep old cubes past their scheduled
    * recycling date. (Pruning not fully implemented yet.)
    * @default Settings.CUBE_RETENTION_POLICY
@@ -150,6 +158,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     this.options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
     this.options.family ??= coreCubeFamily;
     this.options.enableCubeRetentionPolicy ??= Settings.CUBE_RETENTION_POLICY;
+    this.options.negativeCache ??= true;
 
     // Configure this CubeStore according to the options specified:
     // Do we want to use a Merckle-Patricia-Trie for efficient full node sync?
@@ -413,9 +422,10 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
             return undefined;
           }
         } else {
-          // populate negative cache
-          // const invalidCubeInfo: CubeInfo = new CubeInfo({ key: key.binaryKey });
-          // this.storage.set(key.keyString, invalidCubeInfo);
+          if (this.options.negativeCache) {  // populate negative cache
+            const invalidCubeInfo: CubeInfo = new CubeInfo({ key: key.binaryKey });
+            this.storage.set(key.keyString, invalidCubeInfo);
+          }
           return undefined;
         }
       }
