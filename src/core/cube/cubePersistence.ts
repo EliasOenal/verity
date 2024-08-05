@@ -84,6 +84,7 @@ export class CubePersistence extends EventEmitter {
       options: KeyIteratorOptions<string> = {},
   ): AsyncGenerator<string> {
     if (options.limit === undefined) options.limit = 1000;
+    if (options.limit === Infinity || options.limit > 1000) logger.warn("CubePersistence:getKeys() requesting over 1000 Keys is deprecated. Please fix your application and set a reasonable limit.");
     if (this.db.status != 'open') return undefined;  // "Generator has completed"
     const allKeys = this.db.keys(options);
     let key: string;
@@ -110,6 +111,7 @@ export class CubePersistence extends EventEmitter {
       options: ValueIteratorOptions<string, Buffer> = {},
   ): AsyncGenerator<Buffer> {
     if (options.limit === undefined) options.limit = 1000;
+    if (options.limit === Infinity || options.limit > 1000) logger.warn("CubePersistence:getCubes() requesting over 1000 Cubes is deprecated. Please fix your application and set a reasonable limit.");
     if (this.db.status != 'open') return undefined;  // "Generator has completed"
     const allCubes = this.db.values(options);
     let binaryCube: Buffer;
