@@ -7,7 +7,7 @@ import { logger } from '../logger';
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { Buffer } from 'buffer';
-import { Level } from 'level';
+import { KeyIteratorOptions, Level, ValueIteratorOptions } from 'level';
 
 const CUBEDB_VERSION = 3;
 // maybe TODO: If we find random data in the database that doesn't parse as a cube, should we delete it?
@@ -51,7 +51,7 @@ export class CubePersistence extends EventEmitter {
       logger.warn("cubePersistence: Attempt to store cube in a closed DB");
       return Promise.resolve();
     }
-    
+
     return this.db.put(key, cube)
       .then(() => {
         logger.trace(`cubePersistence: Successfully stored cube ${key}`);
@@ -74,19 +74,43 @@ export class CubePersistence extends EventEmitter {
       });
   }
 
-  async *getAllKeys(options = {}): AsyncGenerator<string> {
-    logger.warn("CubePersistence:getAllKeys() is deprecated");
-    if (this.db.status != 'open') return undefined;
+  /**
+   * Asynchroneously retrieve multiple binary Cubes from the database.
+   * Note that you always need to provide a meaningful option object, as otherwise
+   * you will just get the first 1000 Cubes from the database.
+   * @param options see getCubes()
+   */
+  async *getKeys(
+      options: KeyIteratorOptions<string> = {},
+  ): AsyncGenerator<string> {
+    if (options.limit === undefined) options.limit = 1000;
+    if (this.db.status != 'open') return undefined;  // "Generator has completed"
     const allKeys = this.db.keys(options);
     let key: string;
     while (key = await allKeys.next()) yield key;
   }
 
-  // Creates an asynchronous request for all raw cubes.
-  // TODO: return an iterable instead
-  async *getAllCubes(options = {}): AsyncGenerator<Buffer> {
-    logger.warn("CubePersistence:getAllCubes() is deprecated");
-    if (this.db.status != 'open') return [];
+  /**
+   * Asynchroneously retrieve multiple binary Cubes from the database.
+   * Note that you always need to provide a meaningful option object, as otherwise
+   * you will just get the first 1000 Cubes from the database.
+   * @param options An object containing filtering and limiting options.
+   *   This follows level's iterator options, see their docs for details. In short:
+   *   - gt (greater than) or gte (greater than or equal):
+   *     Defines at which key to start retrieving.
+   *   - lt (less than) or lte (less than or equal):
+   *     Defines at which key to stop retrieving.
+   *   - reverse (boolean, default: false): Defines the order in which the entries are yielded
+   *   - limit (number, default: 1000): Limits the number of Cubes retrieved.
+   *     Note that in contrast to level's interface we impose a default limit
+   *     of 1000 to prevent accidental CubeStore walks, which can be very slow,
+   *     completely impractical and block an application for basically forever.
+   */
+  async *getCubes(
+      options: ValueIteratorOptions<string, Buffer> = {},
+  ): AsyncGenerator<Buffer> {
+    if (options.limit === undefined) options.limit = 1000;
+    if (this.db.status != 'open') return undefined;  // "Generator has completed"
     const allCubes = this.db.values(options);
     let binaryCube: Buffer;
     while (binaryCube = await allCubes.next()) yield binaryCube;

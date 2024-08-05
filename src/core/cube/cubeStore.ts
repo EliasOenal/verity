@@ -355,7 +355,17 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     }
   }
 
-  // TODO get rid of this method
+  /**
+   * Whether or not we have a Cube with the given key.
+   * NOTE: This method is really just a convenience wrapper around getCubeInfo().
+   * Performance-wise, it does not make any difference whether you just check
+   * if we have a Cube or if you actually retrieve it:
+   * - If we're an in-memory store, we'll just check our Map either way.
+   * - If we're a persistent store, we'll have to fetch the Cube from
+   *   persistence either way, and as retrieving from disk is the most expensive
+   *   part of that we will also want to create a CubeInfo for it and cache it
+   *   just in case somebody asks for it again.
+   */
   async hasCube(key: CubeKey | string): Promise<boolean> {
     const cubeInfo = await this.getCubeInfo(key);
     if (cubeInfo !== undefined) return true;
@@ -396,13 +406,16 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
               cube: binaryCube,
               family: this.options.family,
             });
-            this.storage.set(key.keyString, cubeInfo);
+            this.storage.set(key.keyString, cubeInfo); // cache it
             return cubeInfo;
           } catch (err) {
             logger.error(`CubeStore.getCubeInfo(): Could not create CubeInfo for Cube ${key.keyString}: ${err?.toString() ?? err}`);
             return undefined;
           }
         } else {
+          // populate negative cache
+          // const invalidCubeInfo: CubeInfo = new CubeInfo({ key: key.binaryKey });
+          // this.storage.set(key.keyString, invalidCubeInfo);
           return undefined;
         }
       }
@@ -439,9 +452,9 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
         else yield cubeInfo.key;
       }
     } else {
-      for await (const key of this.persistence.getAllKeys()) {
+      for await (const key of this.persistence.getKeys({ limit: Infinity})) {
         if (asString) yield key;
-        else yield Buffer.from(key, "hex");
+        else yield keyVariants(key).binaryKey;
       }
     }
   }
@@ -522,7 +535,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   // and load all cubes from it.
   private async syncPersistentStorage() {
     if (!this.persistence || !this.inMemory) return;
-    for await (const rawcube of this.persistence.getAllCubes()) {
+    for await (const rawcube of this.persistence.getCubes()) {
       await this.addCube(Buffer.from(rawcube));
     }
     this.persistence.storeCubes(this.storage as Map<string, CubeInfo>);
