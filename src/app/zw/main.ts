@@ -17,7 +17,7 @@ export async function webmain() {
   ];
   const ui = await VerityUI.Construct({
     navItems: navItems,
-    initialNav: navItems[0],
+    initialNav: navItems[5],
     lightNode: false,
   });
   await ui.node.shutdownPromise;
