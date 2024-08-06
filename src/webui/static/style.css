@@ -407,7 +407,7 @@ img.verityEditIdentityAvatar {
 }
 
 .verityPostContent.expand {
-  max-height: 50em;
+  max-height: 100em;
 }
 
 .expandButton {
