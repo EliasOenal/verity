@@ -6,7 +6,7 @@ import { BinaryDataError, BinaryLengthError, CubeError, CubeKey, CubeSignatureEr
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField, CubeFieldType } from "./cubeField";
-import { CubeFamilyDefinition, CubeFields, coreFieldParsers, coreTlvFieldParsers, rawFieldParsers } from './cubeFields';
+import { CubeFamilyDefinition, CubeFields, coreFieldParsers, coreTlvFieldParsers } from './cubeFields';
 
 import { FieldParser } from "../fields/fieldParser";
 
@@ -14,6 +14,7 @@ import { logger } from '../logger';
 
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
+import { rawFieldParsers } from './fieldDefinitions';
 
 export interface CubeOptions {
     fields?: CubeFields | CubeField[] | CubeField,
@@ -503,17 +504,17 @@ export class Cube {
 }
 
 // Note: Never move the family definitions to another file as they must be
-// executed strictly after the Cube implementation. You may get uncaught
-// ReferenceErrors otherwise.
-export const coreCubeFamily: CubeFamilyDefinition = {
+// executed strictly after the Cube implementation.
+// You may get random uncaught ReferenceErrors otherwise.
+export const coreCubeFamily: CubeFamilyDefinition = {  // TODO get rid of this, use rawCubeFamily throughout the core instead
     cubeClass: Cube,
     parsers: coreFieldParsers,
 }
-export const coreTlvCubeFamily: CubeFamilyDefinition = {  // for testing only
+export const coreTlvCubeFamily: CubeFamilyDefinition = {  // for testing only -- TODO get rid of this
     cubeClass: Cube,
     parsers: coreTlvFieldParsers,
 }
-export const rawCubeFamily: CubeFamilyDefinition = {  // for testing only
+export const rawCubeFamily: CubeFamilyDefinition = {  // TODO: replace coreCubeFamily with this
     cubeClass: Cube,
     parsers: rawFieldParsers,
 }

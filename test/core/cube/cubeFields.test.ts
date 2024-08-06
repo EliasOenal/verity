@@ -1,7 +1,6 @@
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { CubeFieldType, CubeField } from "../../../src/core/cube/cubeField";
 import { CubeFields, coreFrozenFieldDefinition } from "../../../src/core/cube/cubeFields";
-import { Settings } from "../../../src/core/settings";
 
 describe('CubeFields', () => {
   describe('static creation methods', () => {
