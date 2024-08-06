@@ -3,9 +3,9 @@ import { FieldDefinition, FieldNumericalParam, FieldParser, PositionalFields } f
 import { BaseField } from "../../../src/core/fields/baseField";
 import { BaseFields } from "../../../src/core/fields/baseFields";
 
-import { BinaryDataError, CubeType, FieldError } from "../../../src/core/cube/cubeDefinitions";
-import { CubeField, CubeFieldType } from "../../../src/core/cube/cubeField";
-import { CubeFields, coreTlvFrozenParser, coreFrozenFieldDefinition } from "../../../src/core/cube/cubeFields";
+import { BinaryDataError, CubeFieldType, CubeType, FieldError } from "../../../src/core/cube/cube.definitions";
+import { CubeField } from "../../../src/core/cube/cubeField";
+import { CubeFields, coreTlvFrozenParser, CoreFrozenFieldDefinition } from "../../../src/core/cube/cubeFields";
 
 describe('fieldParser', () => {
   describe('positional field tests with synthetic field description', () => {
@@ -257,7 +257,7 @@ describe('fieldParser', () => {
   describe('core cube field', () => {
     it('should correctly compile and decompile core fields', () => {
       const fieldParser: FieldParser = coreTlvFrozenParser;
-      const fields = new CubeFields(undefined, coreFrozenFieldDefinition);
+      const fields = new CubeFields(undefined, CoreFrozenFieldDefinition);
 
       // define a few fields
       fields.appendField(CubeField.Type(CubeType.FROZEN));

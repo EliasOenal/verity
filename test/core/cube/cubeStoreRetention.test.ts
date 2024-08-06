@@ -1,6 +1,8 @@
 import { Settings } from '../../../src/core/settings';
 import { Cube } from '../../../src/core/cube/cube';
 import { CubeStore, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
+import { CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeField } from '../../../src/core/cube/cubeField';
 
 describe('CubeStore Retention Policy', () => {
     let cubeStore: CubeStore;
@@ -34,7 +36,11 @@ describe('CubeStore Retention Policy', () => {
         // TODO reduce challenge level for tests -- currently running on full
         // due to lifetime becoming negative on low challenge levels
         // https://github.com/EliasOenal/verity/issues/134
-        const currentCube = Cube.Frozen({requiredDifficulty: Settings.REQUIRED_DIFFICULTY});
+        const currentCube = Cube.Frozen({
+            fields: CubeField.RawContent(CubeType.FROZEN,
+                "Cubi recentes accipiendi sunt"),
+            requiredDifficulty: Settings.REQUIRED_DIFFICULTY
+        });
         currentCube.setDate(Math.floor(Date.now() / 1000)); // current time
 
         await cubeStore.addCube(currentCube);

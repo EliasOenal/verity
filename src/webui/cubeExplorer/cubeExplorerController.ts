@@ -1,10 +1,10 @@
-import { rawCubeFamily, type Cube } from "../../core/cube/cube";
+import { coreCubeFamily, type Cube } from "../../core/cube/cube";
 import type { CubeField } from "../../core/cube/cubeField";
 import { logger } from "../../core/logger";
 import { getElementAboveByClassName } from "../helpers/dom";
 import { CubeExplorerView } from "./cubeExplorerView";
 import { ControllerContext, VerityController, VerityControllerOptions } from "../verityController";
-import type { CubeKey } from "../../core/cube/cubeDefinitions";
+import type { CubeKey } from "../../core/cube/cube.definitions";
 import { CubeStore } from "../../core/cube/cubeStore";
 
 export interface CubeFilter {
@@ -210,7 +210,7 @@ export class CubeExplorerController extends VerityController {
   async getCube(key: CubeKey | string): Promise<Cube> {
     let cube: Cube = await this.cubeStore.getCube(key);  // TODO: Add option to parse as something other than this CubeStore's default family
     if (cube === undefined) {  // unparseable, retry as raw
-      cube = await this.cubeStore.getCube(key, rawCubeFamily);
+      cube = await this.cubeStore.getCube(key, coreCubeFamily);
     }
     if (cube === undefined) {
       logger.error("CubeExplorerController.getCube(): Unable to parse Cube " + key);

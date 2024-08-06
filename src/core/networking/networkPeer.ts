@@ -9,7 +9,7 @@ import { CubeInfo, CubeMeta } from '../cube/cubeInfo';
 import { WebSocketAddress, AddressAbstraction } from '../peering/addressing';
 import { Peer } from '../peering/peer';
 import { NetworkManager } from "./networkManager";
-import { CubeKey, CubeType } from '../cube/cubeDefinitions';
+import { CubeKey, CubeType } from '../cube/cube.definitions';
 import { cubeContest } from '../cube/cubeUtil';
 import { TransportConnection } from './transport/transportConnection';
 import { getCurrentEpoch, shouldRetainCube } from '../cube/cubeUtil';

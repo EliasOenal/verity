@@ -1,4 +1,4 @@
-import { CubeType, WrongFieldType } from "../../../src/core/cube/cubeDefinitions";
+import { CubeType, WrongFieldType } from "../../../src/core/cube/cube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 import { cciField } from "../../../src/cci/cube/cciField";

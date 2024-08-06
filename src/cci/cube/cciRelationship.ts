@@ -1,5 +1,5 @@
 import { NetConstants } from "../../core/networking/networkDefinitions";
-import { CubeKey, WrongFieldType } from "../../core/cube/cubeDefinitions";
+import { CubeKey, WrongFieldType } from "../../core/cube/cube.definitions";
 import { cciField, cciFieldType } from "./cciField";
 
 import { Buffer } from 'buffer';

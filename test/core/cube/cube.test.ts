@@ -7,15 +7,16 @@ import { BaseField } from '../../../src/core/fields/baseField';
 import { BaseFields } from '../../../src/core/fields/baseFields';
 import { FieldParser } from '../../../src/core/fields/fieldParser';
 
-import { BinaryLengthError, CubeSignatureError, CubeType, FieldError, FieldSizeError, InsufficientDifficulty } from '../../../src/core/cube/cubeDefinitions';
+import { BinaryLengthError, CubeFieldLength, CubeFieldType, CubeSignatureError, CubeType, FieldError, FieldSizeError, InsufficientDifficulty } from '../../../src/core/cube/cube.definitions';
 import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
 import { calculateHash, countTrailingZeroBits } from '../../../src/core/cube/cubeUtil';
-import { CubeFieldType, CubeField, CubeFieldLength } from '../../../src/core/cube/cubeField';
-import { CubeFields, coreFrozenFieldDefinition, coreMucFieldDefinition } from '../../../src/core/cube/cubeFields';
+import { CubeField } from '../../../src/core/cube/cubeField';
+import { CubeFields, CoreFrozenFieldDefinition, CoreMucFieldDefinition } from '../../../src/core/cube/cubeFields';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
+import { cciCube } from '../../../src/cci/cube/cciCube';
 
 // TODO: Add more tests. This is one of our most crucial core classes and it's
 // nowhere near fully covered.
@@ -57,12 +58,12 @@ describe('cube', () => {
       }, 3000);
 
       expect(fields[0].type).toEqual(CubeFieldType.TYPE);
+      expect(fields[1].type).toEqual(CubeFieldType.FROZEN_RAWCONTENT);
+      expect(fields[2].type).toEqual(CubeFieldType.DATE);
 
-      expect(fields[1].type).toEqual(CubeFieldType.DATE);
-
-      expect(fields[2].type).toEqual(CubeFieldType.NONCE);
-      expect(fields[2].length).toEqual(4);
-      expect(fields[2].value).toEqual(Buffer.from([0x00, 0x00, 0x00, 0xed]));
+      expect(fields[3].type).toEqual(CubeFieldType.NONCE);
+      expect(fields[3].length).toEqual(4);
+      expect(fields[3].value).toEqual(Buffer.from([0x00, 0x00, 0x00, 0xed]));
     }, 3000);
 
     it('construct a Cube object with no fields by default', () => {
@@ -86,7 +87,8 @@ describe('cube', () => {
       // 4 bytes NONCE
       const payloadLength = 1012;
       const cube = Cube.Frozen({
-        fields: CubeField.Payload("a".repeat(payloadLength)),
+        fields: CubeField.RawContent(CubeType.FROZEN,
+          "Hic Cubus maximae magnitudinis est"),
         requiredDifficulty: reducedDifficulty});
       const binaryData = await cube.getBinaryData();
       expect(binaryData.length).toEqual(1024);
@@ -99,24 +101,29 @@ describe('cube', () => {
       const cube = new Cube(CubeType.FROZEN);
       const fields = new CubeFields([
         CubeField.Type(CubeType.FROZEN),
-        CubeField.Payload("Ero celeber Cubus cum compilatus fuero."),
+        CubeField.RawContent(CubeType.FROZEN,
+          "Ero celeber Cubus cum compilatus fuero."),
         CubeField.Date(),
         CubeField.Nonce(),
-      ], coreFrozenFieldDefinition);
+      ], CoreFrozenFieldDefinition);
       cube.setFields(fields);
       expect(cube.fields).toEqual(fields);
-      expect(cube.fields.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual(
+      expect(cube.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).valueString).toContain(
         "Ero celeber Cubus cum compilatus fuero.");
     }, 3000);
 
-    it('should throw an error when there is not enough space for a field value', () => {
+    it.skip('should throw an error when there is not enough space for a field value', () => {
+      // Cannot sensibly be tested on the core layer as there's no TLV;
+      // everything is fixed size anyway and will throw way before setFields()
+      // if sizes don't match.
+      // TODO: Move to CCI tests
       const cube = new Cube(CubeType.FROZEN);
       const fields = new CubeFields([
         CubeField.Type(CubeType.FROZEN),
-        new CubeField(CubeFieldType.PAYLOAD, Buffer.alloc(8020)),
+        new CubeField(CubeFieldType.FROZEN_RAWCONTENT, Buffer.alloc(8020)),
         CubeField.Date(),
         CubeField.Nonce()
-      ], coreFrozenFieldDefinition); // Too long for the binary data
+      ], CoreFrozenFieldDefinition); // Too long for the binary data
       expect(() => cube.setFields(fields)).toThrow(FieldSizeError);
     }, 3000);
 
@@ -131,9 +138,9 @@ describe('cube', () => {
 
   describe('static methods', () => {
     it('provides a convience method to sculpt a new fully valid frozen cube', () => {
-      const cube = Cube.Frozen({fields: CubeField.Payload("hello Cube")});
+      const cube = Cube.Frozen({fields: CubeField.RawContent(CubeType.FROZEN, "hello Cube")});
       expect(cube.fields.all[0].type).toEqual(CubeFieldType.TYPE);
-      expect(cube.fields.all[1].type).toEqual(CubeFieldType.PAYLOAD);
+      expect(cube.fields.all[1].type).toEqual(CubeFieldType.FROZEN_RAWCONTENT);
       expect(cube.fields.all[2].type).toEqual(CubeFieldType.DATE);
       expect(cube.fields.all[3].type).toEqual(CubeFieldType.NONCE);
     }, 3000);
@@ -143,47 +150,46 @@ describe('cube', () => {
   describe('compilation', () => {
     it('should compile fields correctly even after manipulating them', async () => {
       const cube = Cube.Frozen({
-        fields: CubeField.Payload(Buffer.alloc(500, " ")),
+        fields: CubeField.RawContent(CubeType.FROZEN, " "),
         requiredDifficulty: reducedDifficulty});
-      cube.fields.getFirst(CubeFieldType.PAYLOAD).value.write(
+      cube.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).value.write(
         'Ego sum determinavit tarde quid dicere Cubus.', 'ascii');
       const binaryData = await cube.getBinaryData();
       expect(binaryData[0]).toEqual(CubeType.FROZEN);
-      const parser = new FieldParser(coreFrozenFieldDefinition);  // decompileTlv is true
+      const parser = new FieldParser(CoreFrozenFieldDefinition);  // decompileTlv is true
       const recontructed: BaseFields = parser.decompileFields(binaryData);
-      const reconstructed_payload: BaseField = recontructed.getFirst(CubeFieldType.PAYLOAD);
-      const reconstructed_string = reconstructed_payload.value.toString('ascii').trim();
-      expect(reconstructed_string).toEqual(
+      const reconstructed_payload: BaseField = recontructed.getFirst(CubeFieldType.FROZEN_RAWCONTENT);
+      expect(reconstructed_payload.valueString).toContain(
         'Ego sum determinavit tarde quid dicere Cubus.');
     }, 3000);
 
     it('should recompile fields correctly after manipulating them', async() => {
       // sculpt Cube
       const cube = Cube.Frozen({
-        fields: CubeField.Payload("Cubus sum"),
+        fields: CubeField.RawContent(CubeType.FROZEN, "Cubus sum"),
         requiredDifficulty: reducedDifficulty});
       await cube.compile();
       // test reactivation of first Cube version
       {
         const binaryData = cube.getBinaryDataIfAvailable();  // available as we just compiled
         expect(binaryData[0]).toEqual(CubeType.FROZEN);
-        const parser = new FieldParser(coreFrozenFieldDefinition);  // decompileTlv is true
+        const parser = new FieldParser(CoreFrozenFieldDefinition);  // decompileTlv is true
         const recontructed: BaseFields = parser.decompileFields(binaryData);
-        expect(recontructed.getFirst(CubeFieldType.PAYLOAD).valueString).
-          toEqual("Cubus sum");
+        expect(recontructed.getFirst(CubeFieldType.FROZEN_RAWCONTENT).valueString).
+          toContain("Cubus sum");
       }
       // manipulate & recompile Cube
-      cube.fields.getFirst(CubeFieldType.PAYLOAD).value =
-        Buffer.from('Determinavit tarde quid dicere Cubus sum', 'ascii');
+      cube.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).value.write(
+        'Determinavit tarde quid dicere Cubus sum', 'ascii');
       await cube.compile();
       // test reactivation of first Cube version
       {
         const binaryData = cube.getBinaryDataIfAvailable();  // available as we just compiled
         expect(binaryData[0]).toEqual(CubeType.FROZEN);
-        const parser = new FieldParser(coreFrozenFieldDefinition);  // decompileTlv is true
+        const parser = new FieldParser(CoreFrozenFieldDefinition);  // decompileTlv is true
         const recontructed: BaseFields = parser.decompileFields(binaryData);
-        expect(recontructed.getFirst(CubeFieldType.PAYLOAD).valueString).
-          toEqual("Determinavit tarde quid dicere Cubus sum");
+        expect(recontructed.getFirst(CubeFieldType.FROZEN_RAWCONTENT).valueString).
+          toContain("Determinavit tarde quid dicere Cubus sum");
       }
     });
   });
@@ -191,7 +197,10 @@ describe('cube', () => {
 
   describe('hashing', () => {
     it('should calculate the hash correctly', async () => {
-      const cube = Cube.Frozen({requiredDifficulty: reducedDifficulty});
+      const cube = Cube.Frozen({
+        fields: CubeField.RawContent(CubeType.FROZEN, "Quaeso computa digestum meum"),
+        requiredDifficulty: reducedDifficulty
+      });
       const key = await cube.getKey();
       expect(key).toBeDefined();
       expect(key.length).toEqual(NetConstants.HASH_SIZE); // SHA-3-256 hash length is 32 bytes
@@ -209,7 +218,7 @@ describe('cube', () => {
 
     it('should create a new cube that meets the challenge requirements', async () => {
       const cube = Cube.Frozen({
-        fields: CubeField.Payload('Hello world, this is a payload for a cube!')
+        fields: CubeField.RawContent(CubeType.FROZEN, 'Exigo requisitum provocationis')
       });
       const key: Buffer = await cube.getKey();
       expect(key[key.length - 1]).toEqual(0);  // == min 8 bits difficulty
@@ -229,12 +238,13 @@ describe('cube', () => {
       muc.privateKey = privateKey;
 
       const fields = new CubeFields([
-        new CubeField(CubeFieldType.TYPE, Buffer.alloc(NetConstants.CUBE_TYPE_SIZE)),
-        new CubeField(CubeFieldType.PUBLIC_KEY, publicKey),
+        CubeField.Type(CubeType.MUC),
+        CubeField.RawContent(CubeType.MUC, "Ego sum cubus usoris mutabilis."),
+        CubeField.PublicKey(publicKey),
         CubeField.Date(),
-        new CubeField(CubeFieldType.SIGNATURE, Buffer.alloc(NetConstants.SIGNATURE_SIZE)),
-        new CubeField(CubeFieldType.NONCE, Buffer.alloc(NetConstants.NONCE_SIZE)),
-      ], coreMucFieldDefinition);
+        CubeField.Signature(Buffer.alloc(NetConstants.SIGNATURE_SIZE)),
+        CubeField.Nonce(),
+      ], CoreMucFieldDefinition);
 
       muc.setFields(fields);
       const key = await muc.getKey();
@@ -256,7 +266,7 @@ describe('cube', () => {
 
       const muc = Cube.MUC(
         publicKey, privateKey, {
-          fields: CubeField.Payload(
+          fields: CubeField.RawContent(CubeType.MUC,
             "Ego sum cubus usoris mutabilis, semper secure signatus."),
           requiredDifficulty: reducedDifficulty
       });
@@ -292,7 +302,6 @@ describe('cube', () => {
       expect(parsedMuc.getKeyIfAvailable().equals(mucKey)).toBeTruthy();
     });
 
-    // This test fails using Settings.HASH_WORKERS=true and I don't understand why :(
     it('should correctly parse MUC from binary', async () => {
       // Generate a key pair for testing
       await sodium.ready;
@@ -302,7 +311,7 @@ describe('cube', () => {
 
       // Create a new MUC with a random payload
       const muc = Cube.MUC(publicKey, privateKey, {
-        fields: CubeField.Payload(
+        fields: CubeField.RawContent(CubeType.MUC,
           "Ego sum cubus usoris mutabilis, peculiare informatiuncula quae a domino meo corrigi potest."),
         requiredDifficulty: reducedDifficulty
       });
@@ -312,35 +321,20 @@ describe('cube', () => {
       const binMuc: Buffer = await muc.getBinaryData();
       expect(binMuc).toBeInstanceOf(Buffer);
 
-      // Do a core-only parsing from binary which will ignore TLV fields
       const coreParsedMuc = new Cube(binMuc);
       expect(coreParsedMuc).toBeInstanceOf(Cube);
-      expect(coreParsedMuc.fields.all.length).toEqual(5);
+      expect(coreParsedMuc.fields.all.length).toEqual(6);
       expect(coreParsedMuc.fields.all[0].type).toEqual(CubeFieldType.TYPE);
-      expect(coreParsedMuc.fields.all[1].type).toEqual(CubeFieldType.PUBLIC_KEY);
-      expect(coreParsedMuc.fields.all[2].type).toEqual(CubeFieldType.DATE);
-      expect(coreParsedMuc.fields.all[3].type).toEqual(CubeFieldType.SIGNATURE);
-      expect(coreParsedMuc.fields.all[4].type).toEqual(CubeFieldType.NONCE);
+      expect(coreParsedMuc.fields.all[1].type).toEqual(CubeFieldType.MUC_RAWCONTENT);
+      expect(coreParsedMuc.fields.all[2].type).toEqual(CubeFieldType.PUBLIC_KEY);
+      expect(coreParsedMuc.fields.all[3].type).toEqual(CubeFieldType.DATE);
+      expect(coreParsedMuc.fields.all[4].type).toEqual(CubeFieldType.SIGNATURE);
+      expect(coreParsedMuc.fields.all[5].type).toEqual(CubeFieldType.NONCE);
       expect(coreParsedMuc.publicKey.equals(publicKey)).toBeTruthy();
       expect(coreParsedMuc.fields.getFirst(CubeFieldType.DATE).value.equals(
         muc.fields.getFirst(CubeFieldType.DATE).value)).toBeTruthy();
 
-      // Do a full parsing from binary including TLV
-      const fullyParsedMuc = new Cube(binMuc, {family: coreTlvCubeFamily});
-      const backPos = fullyParsedMuc.fields.all.length;
-      expect(fullyParsedMuc).toBeInstanceOf(Cube);
-      expect(fullyParsedMuc.fields.all.length).toBeGreaterThanOrEqual(7);
-      expect(fullyParsedMuc.fields.all[0].type).toEqual(CubeFieldType.TYPE);
-      expect(fullyParsedMuc.fields.all[1].type).toEqual(CubeFieldType.PAYLOAD);
-      expect(fullyParsedMuc.fields.all[2].type).toEqual(CubeFieldType.CCI_END);
-      expect(fullyParsedMuc.fields.all[backPos-4].type).toEqual(CubeFieldType.PUBLIC_KEY);
-      expect(fullyParsedMuc.fields.all[backPos-3].type).toEqual(CubeFieldType.DATE);
-      expect(fullyParsedMuc.fields.all[backPos-2].type).toEqual(CubeFieldType.SIGNATURE);
-      expect(fullyParsedMuc.fields.all[backPos-1].type).toEqual(CubeFieldType.NONCE);
-      expect(fullyParsedMuc.publicKey.equals(publicKey)).toBeTruthy();
-      expect(fullyParsedMuc.fields.getFirst(CubeFieldType.DATE).value.equals(
-        muc.fields.getFirst(CubeFieldType.DATE).value)).toBeTruthy();
-      expect(fullyParsedMuc.fields.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual(
+      expect(coreParsedMuc.fields.getFirst(CubeFieldType.MUC_RAWCONTENT).valueString).toContain(
         "Ego sum cubus usoris mutabilis, peculiare informatiuncula quae a domino meo corrigi potest.");
     }, 5000000);
 
@@ -354,7 +348,7 @@ describe('cube', () => {
       // Sculpt MUC
       const muc = Cube.MUC(
         publicKey, privateKey, {
-          fields: CubeField.Payload(
+          fields: CubeField.RawContent(CubeType.MUC,
             "Ego sum cubus usoris mutabilis qui male tactus est."),
           requiredDifficulty: reducedDifficulty
       });
@@ -375,7 +369,7 @@ describe('cube', () => {
 
       const muc: Cube = Cube.MUC(
         publicKey, privateKey, {
-          fields: CubeField.Payload(
+          fields: CubeField.RawContent(CubeType.MUC,
             "Signum meum nondum certum est, sed clavis mea semper eadem erit."),
           requiredDifficulty: reducedDifficulty
       });
@@ -391,7 +385,7 @@ describe('cube', () => {
 
       const muc: Cube = Cube.MUC(
         publicKey, privateKey, {
-          fields: CubeField.Payload(
+          fields: CubeField.RawContent(CubeType.MUC,
             "Gratiose tibi dabo signum meum etiamsi non intersit tibi de mea data binaria."),
           requiredDifficulty: reducedDifficulty
       });
@@ -406,9 +400,13 @@ describe('cube', () => {
   });
 
   describe('method padUp()', () => {
+    // TODO: move to CCI or get rid of it completely or whatever...
+    // padding as such does not even exist in the core layer.
+    // It's merely an implementation detail that we use it at all in CCI.
+    // We could also just treat everything after the CCI_END marker as void.
     it('Should not add padding if not required', async() => {
       // Create a Cube with fields whose total length is equal to the cube size
-      const cube = Cube.Frozen({
+      const cube = cciCube.Frozen({
         fields: CubeField.Payload("His cubus plenus est"),
         requiredDifficulty: reducedDifficulty,
       });
@@ -431,7 +429,7 @@ describe('cube', () => {
       // Create a Cube with fields whose total length is equal to the cube size
       const payload = CubeField.Payload(
         "Hic cubus nimis parvus, ideo supplendus est.");
-      const cube = Cube.Frozen({
+      const cube = cciCube.Frozen({
         fields: payload, requiredDifficulty: reducedDifficulty});
 
       const fieldCountBeforePadding = cube.fields.all.length;
@@ -452,7 +450,7 @@ describe('cube', () => {
     });
 
     it('should remove extra padding if necessary', async() => {
-      const overlyPadded: Cube = Cube.Frozen({
+      const overlyPadded: Cube = cciCube.Frozen({
         requiredDifficulty: reducedDifficulty,
         fields: [
           CubeField.Payload("Hic cubus nimis multum impluvium continet."),

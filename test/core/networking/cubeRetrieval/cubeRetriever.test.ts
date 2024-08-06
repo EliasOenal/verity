@@ -1,5 +1,5 @@
 import { Cube, coreTlvCubeFamily } from "../../../../src/core/cube/cube";
-import { CubeKey } from "../../../../src/core/cube/cubeDefinitions";
+import { CubeKey, CubeType } from "../../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../../src/core/cube/cubeField";
 import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
 import { CubeStore, CubeStoreOptions, EnableCubePersitence } from "../../../../src/core/cube/cubeStore";
@@ -59,7 +59,7 @@ describe('CubeRetriever', () => {
   it('retrieves a locally available Cube', async () => {
     // create Cube
     const cube: Cube = Cube.Frozen({
-      fields: CubeField.Payload("Cubus localis in loco nostro disponibilis est"),
+      fields: CubeField.RawContent(CubeType.FROZEN, "Cubus localis in loco nostro disponibilis est"),
       requiredDifficulty: reducedDifficulty,
     });
     await local.cubeStore.addCube(cube);
@@ -81,7 +81,7 @@ describe('CubeRetriever', () => {
   it('retrieves a Cube available remotely', async () => {
       // create Cube
     const cube: Cube = Cube.Frozen({
-      fields: CubeField.Payload("Cubus remotus per rete petendus est"),
+      fields: CubeField.RawContent(CubeType.FROZEN, "Cubus remotus per rete petendus est"),
       requiredDifficulty: reducedDifficulty,
     });
     await remote.cubeStore.addCube(cube);

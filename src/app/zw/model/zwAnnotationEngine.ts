@@ -1,4 +1,4 @@
-import { CubeKey, CubeType } from "../../../core/cube/cubeDefinitions";
+import { CubeKey, CubeType } from "../../../core/cube/cube.definitions";
 import { Cube } from "../../../core/cube/cube";
 import { CubeInfo } from "../../../core/cube/cubeInfo";
 import { CubeStore } from "../../../core/cube/cubeStore";

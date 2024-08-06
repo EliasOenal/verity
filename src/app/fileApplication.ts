@@ -4,7 +4,7 @@ import { cciCube } from '../cci/cube/cciCube';
 import { cciField, cciFieldType, MediaTypes } from '../cci/cube/cciField';
 import { cciRelationship, cciRelationshipType } from '../cci/cube/cciRelationship';
 import { cciFields, cciFrozenFieldDefinition } from '../cci/cube/cciFields';
-import { CubeKey } from '../core/cube/cubeDefinitions';
+import { CubeKey } from '../core/cube/cube.definitions';
 import { Settings } from '../core/settings';
 import { logger } from '../core/logger';
 import { EventEmitter } from 'events';

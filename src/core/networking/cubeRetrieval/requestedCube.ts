@@ -1,5 +1,5 @@
 import { Settings } from "../../settings";
-import type { CubeKey } from "../../cube/cubeDefinitions";
+import type { CubeKey } from "../../cube/cube.definitions";
 import type { CubeInfo } from "../../cube/cubeInfo";
 
 /**

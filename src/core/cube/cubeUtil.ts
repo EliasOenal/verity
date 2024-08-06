@@ -1,16 +1,14 @@
 // cubeUtil.ts
-import { BinaryDataError, CubeError, CubeKey, CubeSignatureError, CubeType, SmartCubeTypeNotImplemented } from './cubeDefinitions';
+import { NetConstants } from '../networking/networkDefinitions';
+import { CubeError, CubeKey, CubeType } from './cube.definitions';
 import { Cube } from './cube';
 import { CubeMeta } from './cubeInfo';
+
 import { logger } from '../logger';
 
 import { Buffer } from 'buffer';
-import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 
 import pkg from 'js-sha3';  // strange standards compliant syntax for importing
-import { NetConstants } from '../networking/networkDefinitions';
-import { Settings } from '../settings';
-import { CubeField, CubeFieldLength, CubeFieldType } from './cubeField';
 const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
 
 export const UNIX_SECONDS_PER_EPOCH = 5400;

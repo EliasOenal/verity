@@ -1,6 +1,6 @@
 import { cciFamily, cciCube } from "../../../../src/cci/cube/cciCube";
 import { cciField, cciFieldType } from "../../../../src/cci/cube/cciField";
-import { CubeKey } from "../../../../src/core/cube/cubeDefinitions";
+import { CubeKey } from "../../../../src/core/cube/cube.definitions";
 import { CubeStoreOptions, EnableCubePersitence, CubeStore } from "../../../../src/core/cube/cubeStore";
 import { SupportedTransports } from "../../../../src/core/networking/networkDefinitions";
 import { NetworkManagerOptions, NetworkManager } from "../../../../src/core/networking/networkManager";

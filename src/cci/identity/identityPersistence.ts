@@ -1,6 +1,6 @@
 import { Identity, IdentityOptions } from './identity';
 
-import { CubeKey } from '../../core/cube/cubeDefinitions';
+import { CubeKey } from '../../core/cube/cube.definitions';
 import { CubeStore } from '../../core/cube/cubeStore';
 import { ensureCci } from '../cube/cciCubeUtil';
 import { cciFamily } from '../cube/cciCube';

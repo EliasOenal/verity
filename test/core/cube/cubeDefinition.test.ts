@@ -1,5 +1,6 @@
-import { CubeFieldLength, CubeFieldType } from "../../../src/core/cube/cubeField";
-import { RawFrozenFields, RawFrozenFieldsWithNotify, RawMucFields, RawMucFieldsWithNotify, RawPicFields, RawPicFieldsWithNotify } from "../../../src/core/cube/fieldDefinitions";
+import { coreCubeFamily } from "../../../src/core/cube/cube";
+import { CubeFieldLength, CubeFieldType, CubeType, FrozenCorePositionalFront, FrozenNotifyPositionalBack, FrozenPositionalBack, MucCorePositionalFront, MucNotifyPositionalBack, MucPositionalBack, PicCorePositionalFront, PicNotifyPositionalBack, PicPositionalBack, PmucCorePositionalFront, PmucNotifyPositionalBack, PmucPositionalBack } from "../../../src/core/cube/cube.definitions";
+import { enumNums } from "../../../src/core/helpers/misc";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 describe('Cube field definitions', () => {
@@ -100,53 +101,18 @@ describe('Cube field definitions', () => {
   });
 
   describe('positional field definitions', () => {
-    test('field sizes for plain FROZEN Cubes should add up to the total Cube size', () => {
-      let size: number = 0;
-      for (const field of Object.values(RawFrozenFields)) {
-        size += CubeFieldLength[field];
-      }
-      expect(size).toBe(NetConstants.CUBE_SIZE);
+    enumNums(CubeType).forEach((type) => {  // perform the tests for every CubeType
+      test(`field sizes for plain ${CubeType[type]} Cubes should add up to the total Cube size`, () => {
+        let size: number = 0;
+        const fields = [
+          ...Object.values(coreCubeFamily.parsers[type].fieldDef.positionalFront),
+          ...Object.values(coreCubeFamily.parsers[type].fieldDef.positionalBack),
+        ];
+        for (const field of fields) {
+          size += CubeFieldLength[field];
+        }
+        expect(size).toBe(NetConstants.CUBE_SIZE);
+      });
     });
-
-    test('field sizes for FROZEN Cubes with NOTIFY should add up to the total Cube size', () => {
-      let size: number = 0;
-      for (const field of Object.values(RawFrozenFieldsWithNotify)) {
-        size += CubeFieldLength[field];
-      }
-      expect(size).toBe(NetConstants.CUBE_SIZE);
-    });
-
-    test('field sizes for PIC Cubes should add up to the total Cube size', () => {
-      let size: number = 0;
-      for (const field of Object.values(RawPicFields)) {
-        size += CubeFieldLength[field];
-      }
-      expect(size).toBe(NetConstants.CUBE_SIZE);
-    });
-
-    test('field sizes for PIC Cubes with NOTIFY should add up to the total Cube size', () => {
-      let size: number = 0;
-      for (const field of Object.values(RawPicFieldsWithNotify)) {
-        size += CubeFieldLength[field];
-      }
-      expect(size).toBe(NetConstants.CUBE_SIZE);
-    });
-
-    test('field sizes for MUC Cubes should add up to the total Cube size', () => {
-      let size: number = 0;
-      for (const field of Object.values(RawMucFields)) {
-        size += CubeFieldLength[field];
-      }
-      expect(size).toBe(NetConstants.CUBE_SIZE);
-    });
-
-    test('field sizes for MUC Cubes with NOTIFY should add up to the total Cube size', () => {
-      let size: number = 0;
-      for (const field of Object.values(RawMucFieldsWithNotify)) {
-        size += CubeFieldLength[field];
-      }
-      expect(size).toBe(NetConstants.CUBE_SIZE);
-    });
-
   });
 });

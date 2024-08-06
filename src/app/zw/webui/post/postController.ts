@@ -1,4 +1,4 @@
-import { CubeKey } from "../../../../core/cube/cubeDefinitions";
+import { CubeKey } from "../../../../core/cube/cube.definitions";
 import { CubeInfo } from "../../../../core/cube/cubeInfo";
 
 import { cciFieldType } from "../../../../cci/cube/cciField";
@@ -326,14 +326,14 @@ export class PostController extends VerityController {
     const regex = /\[img\]([a-fA-F0-9]{64})\[\/img\]/g;
     const promises = [];
     let match;
-    
+
     while ((match = regex.exec(text)) !== null) {
       const cubeKey = match[1];
       promises.push(this.getImageDataUrl(cubeKey));
     }
 
     const imageDataUrls = await Promise.all(promises);
-    
+
     return text.replace(regex, (_, cubeKey) => {
       const dataUrl = imageDataUrls.shift();
       return dataUrl ? `<img src="${dataUrl}" alt="${cubeKey}">` : '[Image not found]';

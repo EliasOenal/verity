@@ -3,7 +3,7 @@ import { ApiMisuseError, Settings, VerityError } from "../settings";
 import { Cube, coreCubeFamily } from "./cube";
 import { CubeInfo, CubeMeta } from "./cubeInfo";
 import { CubePersistence, CubePersistenceOptions } from "./cubePersistence";
-import { CubeType, CubeKey, InsufficientDifficulty } from "./cubeDefinitions";
+import { CubeType, CubeKey, InsufficientDifficulty } from "./cube.definitions";
 import { CubeFamilyDefinition } from "./cubeFields";
 import {
   cubeContest,
@@ -410,9 +410,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       else if (cached?.valid === false) return undefined; // negative cache hit
       else {
         // cache miss
-        const binaryCube: Buffer = await this.persistence.getCube(
-          key.keyString
-        );
+        const binaryCube: Buffer = await this.persistence.getCube(key.keyString);
         if (binaryCube !== undefined) {
           try {  // could fail e.g. on invalid binary data
             const cubeInfo = new CubeInfo({

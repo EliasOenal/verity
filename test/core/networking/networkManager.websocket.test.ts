@@ -7,9 +7,9 @@ import { WebSocketTransport } from '../../../src/core/networking/transport/webSo
 import { WebSocketServer } from '../../../src/core/networking/transport/webSocket/webSocketServer';
 import { WebSocketConnection } from '../../../src/core/networking/transport/webSocket/webSocketConnection';
 
-import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
-import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
-import { CubeField, CubeFieldType } from '../../../src/core/cube/cubeField';
+import { CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
+import { Cube } from '../../../src/core/cube/cube';
+import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields } from '../../../src/core/cube/cubeFields';
 import { CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 
@@ -20,7 +20,6 @@ import { logger } from '../../../src/core/logger';
 
 import WebSocket from 'isomorphic-ws';
 import sodium from 'libsodium-wrappers-sumo'
-import { KeyRequestMode } from '../../../src/core/networking/networkMessage';
 
 // Note: Most general functionality concerning NetworkManager, NetworkPeer
 // etc is described within the WebSocket tests while the libp2p tests are more
@@ -440,7 +439,7 @@ describe('networkManager - WebSocket connections', () => {
           fullNodeMinimalFeatures);
         await Promise.all([node1.start(), node2.start()]);
         const cube = Cube.Frozen(
-          { fields: CubeField.Payload("Hic cubus automatice transferetur") })
+          { fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus automatice transferetur") })
         const key = await cube.getKey();
         await node1.cubeStore.addCube(cube);
 
@@ -455,10 +454,10 @@ describe('networkManager - WebSocket connections', () => {
           }
           await new Promise(resolve => setTimeout(resolve, 100));
         }
-        const received: Cube = await node2.cubeStore.getCube(key, coreTlvCubeFamily);
+        const received: Cube = await node2.cubeStore.getCube(key);
         expect(received).toBeInstanceOf(Cube);
-        expect((await received).fields.getFirst(CubeFieldType.PAYLOAD)?.value?.toString('utf-8')).
-          toEqual("Hic cubus automatice transferetur");
+        expect((await received).fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).valueString).
+          toContain("Hic cubus automatice transferetur");
 
         await Promise.all([node1.shutdown(), node2.shutdown()]);
       });
@@ -498,9 +497,11 @@ describe('networkManager - WebSocket connections', () => {
 
         // Create new cubes at peer 1
         for (let i = 0; i < numberOfCubes; i++) {
-          const cube = Cube.Frozen({ requiredDifficulty: reducedDifficulty });
-          const buffer: Buffer = Buffer.alloc(1);
-          buffer.writeInt8(i);
+          const cube = Cube.Frozen({
+            fields: CubeField.RawContent(CubeType.FROZEN,
+              `Cubus inutilis numero ${i} amplitudinem retis tuam consumens`),
+            requiredDifficulty: reducedDifficulty
+          });
           await cubeStore.addCube(cube);
         }
         expect(await cubeStore.getNumberOfStoredCubes()).toEqual(numberOfCubes);
@@ -575,7 +576,10 @@ describe('networkManager - WebSocket connections', () => {
         muc = Cube.MUC(
           Buffer.from(keyPair.publicKey),
           Buffer.from(keyPair.privateKey),
-          { fields: CubeField.Payload(counterBuffer), requiredDifficulty: reducedDifficulty }
+          {
+            fields: CubeField.RawContent(CubeType.MUC, counterBuffer),
+            requiredDifficulty: reducedDifficulty,
+          }
         );
         mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
         const firstMucHash = await muc.getHash();
@@ -596,8 +600,9 @@ describe('networkManager - WebSocket connections', () => {
         expect(await cubeStore2.getNumberOfStoredCubes()).toEqual(1);
         expect(await cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
         expect((await (await cubeStore2.getCube(mucKey))?.getHash())!.equals(firstMucHash)).toBeTruthy();
-        receivedFields = (await cubeStore2.getCube(mucKey, coreTlvCubeFamily))?.fields!;
-        expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("Prima versio cubi usoris mutabilis mei.");
+        receivedFields = (await cubeStore2.getCube(mucKey))?.fields!;
+        expect(receivedFields?.getFirst(CubeFieldType.MUC_RAWCONTENT).valueString).
+          toContain("Prima versio cubi usoris mutabilis mei.");
 
         // update MUC at peer 1
         await new Promise(resolve => setTimeout(resolve, 1000));  // wait one second as we don't have better time resolution
@@ -605,7 +610,11 @@ describe('networkManager - WebSocket connections', () => {
         muc = Cube.MUC(
           Buffer.from(keyPair.publicKey),
           Buffer.from(keyPair.privateKey),
-          { fields: CubeField.Payload(counterBuffer), requiredDifficulty: reducedDifficulty });
+          {
+            fields: CubeField.RawContent(CubeType.MUC, counterBuffer),
+            requiredDifficulty: reducedDifficulty,
+          }
+        );
         mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
         const secondMucHash = await muc.getHash();
         expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);  // still just one, new MUC version replaces old MUC version
@@ -624,8 +633,9 @@ describe('networkManager - WebSocket connections', () => {
         expect(await cubeStore2.getNumberOfStoredCubes()).toEqual(1);  // still one, MUC has only been updated
         expect(await cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
         expect((await (await cubeStore2.getCube(mucKey))?.getHash())!.equals(secondMucHash)).toBeTruthy();
-        receivedFields = (await cubeStore2.getCube(mucKey, coreTlvCubeFamily))?.fields!;
-        expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual("Secunda versio cubi usoris mutabilis mei.");
+        receivedFields = (await cubeStore2.getCube(mucKey))?.fields!;
+        expect(receivedFields?.getFirst(CubeFieldType.MUC_RAWCONTENT).valueString).
+          toContain("Secunda versio cubi usoris mutabilis mei.");
 
         // teardown
         const promise1_shutdown = manager1.shutdown();
@@ -651,7 +661,7 @@ describe('networkManager - WebSocket connections', () => {
           lightNodeMinimalFeatures);
         await Promise.all([node1.start(), node2.start()]);
         const cube = Cube.Frozen(
-          { fields: CubeField.Payload("Hic cubus per rogatum transferetur") })
+          { fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus per rogatum transferetur") })
         const key = await cube.getKey();
         await node1.cubeStore.addCube(cube);
 
@@ -669,10 +679,10 @@ describe('networkManager - WebSocket connections', () => {
           }
           await new Promise(resolve => setTimeout(resolve, 100));
         }
-        const received: Cube = await node2.cubeStore.getCube(key, coreTlvCubeFamily);
+        const received: Cube = await node2.cubeStore.getCube(key);
         expect(received).toBeInstanceOf(Cube);
-        expect((await received).fields.getFirst(CubeFieldType.PAYLOAD)?.value?.toString('utf-8')).
-          toEqual("Hic cubus per rogatum transferetur");
+        expect((await received).fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).valueString).
+          toContain("Hic cubus per rogatum transferetur");
 
         await Promise.all([node1.shutdown(), node2.shutdown()]);
       });
@@ -690,7 +700,7 @@ describe('networkManager - WebSocket connections', () => {
           lightNodeMinimalFeatures);
         await Promise.all([node1.start(), node2.start()]);
         const cube = Cube.Frozen(
-          { fields: CubeField.Payload("Hic cubus per rogatum transferetur") })
+          { fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus per rogatum transferetur") })
         const key = await cube.getKey();
         await node1.cubeStore.addCube(cube);
 
@@ -985,7 +995,7 @@ async function createAndAddCubes(cubeStore: CubeStore, count: number): Promise<C
   const cubes: Cube[] = [];
   for (let i = 0; i < count; i++) {
     const cube = Cube.Frozen({
-      fields: CubeField.Payload(`Test cube ${i}`),
+      fields: CubeField.RawContent(CubeType.FROZEN, `Test cube ${i}`),
       requiredDifficulty: 0
     });
     await cubeStore.addCube(cube);

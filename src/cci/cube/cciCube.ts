@@ -1,7 +1,7 @@
 import { Settings, VerityError } from "../../core/settings";
 import { cciField } from "./cciField";
 import { cciFields, cciFieldParsers } from "./cciFields";
-import { CubeError, CubeType, FieldError } from "../../core/cube/cubeDefinitions";
+import { CubeError, CubeType, FieldError } from "../../core/cube/cube.definitions";
 
 import { Cube, CubeOptions } from "../../core/cube/cube";
 import { CubeFamilyDefinition } from "../../core/cube/cubeFields";

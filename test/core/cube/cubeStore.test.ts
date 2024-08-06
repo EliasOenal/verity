@@ -1,18 +1,18 @@
 import { Settings } from '../../../src/core/settings';
+import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
-import { CubeKey, CubeType } from '../../../src/core/cube/cubeDefinitions';
+import { CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
 import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
 import { CubeStore as CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
-import { CubeField, CubeFieldType } from '../../../src/core/cube/cubeField';
+import { CubeField } from '../../../src/core/cube/cubeField';
+import { CubePersistenceOptions } from '../../../src/core/cube/cubePersistence';
+import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 
 import { MediaTypes, cciField, cciFieldType } from '../../../src/cci/cube/cciField';
 import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
 import { cciFields } from '../../../src/cci/cube/cciFields';
 
 import sodium from 'libsodium-wrappers-sumo'
-import { NetConstants } from '../../../src/core/networking/networkDefinitions';
-import { CubePersistenceOptions } from '../../../src/core/cube/cubePersistence';
-import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 
 // TODO: Add tests involving Cube deletion
 // TODO: Add tests checking Tree of Wisdom state (partilarly in combination with deletion)
@@ -59,8 +59,10 @@ describe('cubeStore', () => {
 
     it('should add a freshly sculpted cube at full difficulty', async () => {
       expect(await cubeStore.getNumberOfStoredCubes()).toEqual(0);
-      const cube = Cube.Frozen({fields: CubeField.Payload(
-        "Ego sum cubus recens sculputus.")});
+      const cube = Cube.Frozen({
+        fields: CubeField.Payload("Ego sum cubus recens sculputus."),
+        family: coreTlvCubeFamily,
+      });
       const key = await cube.getKey();
       await cubeStore.addCube(cube);
       expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);
@@ -146,34 +148,37 @@ describe('cubeStore', () => {
 
         describe('adding and retrieving Cubes', () => {
           it('should add 2 Cubes and get them back [testing getAllCubeInfos()]', async () => {
-            const first: Cube = Cube.Frozen({fields: CubeField.Payload(
-              "Cubus probationis")});
-            const second: Cube = Cube.Frozen({fields: CubeField.Payload(
-              "Cubus probationis")});
+            const first: Cube = Cube.Frozen({
+              fields: CubeField.RawContent(
+                CubeType.FROZEN, "Cubus probationis primus"),
+              requiredDifficulty: reducedDifficulty,
+            });
+            const second: Cube = Cube.Frozen({
+              fields: CubeField.RawContent(
+                CubeType.FROZEN, "Cubus probationis secundus"),
+              requiredDifficulty: reducedDifficulty,
+            });
             await cubeStore.addCube(first);
             await cubeStore.addCube(second);
-            const restored: CubeInfo[] = [];
-            for await (const cubeInfo of cubeStore.getAllCubeInfos()) {
-              restored.push(cubeInfo)
-            }
-            expect(restored).toHaveLength(2);
-            const firstRestored: Cube = restored[0].getCube(coreTlvCubeFamily);
-            const secondRestored: Cube = restored[1].getCube(coreTlvCubeFamily);
-            expect(firstRestored.fields.getFirst(CubeFieldType.PAYLOAD)
-              .value.toString('utf8')).toEqual("Cubus probationis");
-            expect(secondRestored.fields.getFirst(CubeFieldType.PAYLOAD)
-              .value.toString('utf8')).toEqual("Cubus probationis");
+            expect(await cubeStore.getNumberOfStoredCubes()).toBe(2);
+
+            const firstRestored: Cube = await cubeStore.getCube(await first.getKey());
+            const secondRestored: Cube = await cubeStore.getCube(await second.getKey());
+            expect(firstRestored.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT)
+              .valueString).toContain("Cubus probationis primus");
+            expect(secondRestored.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT)
+              .valueString).toContain("Cubus probationis secundus");
             // ensure we actually restored two different Cubes
-            expect(restored[0].keyString).not.toEqual(restored[1].keyString);
-          }, 1000000000);
+            expect(await firstRestored.getKey()).not.toEqual(await secondRestored.getKey());
+          }, 1000);
 
           it('should add 20 Cubes and get them back [testing getCube() and getNumberOfStoredCubes()]', async () => {
             // create 20 cubes and wait till they are stored
             const cubes: Cube[] = [];
             for (let i = 0; i < 20; i++) {
               const cube = Cube.Frozen({
-                fields: CubeField.Payload(
-                  "Cubus inutilis in repositorio tuo residens et spatium tuum consumens"),
+                fields: CubeField.RawContent(CubeType.FROZEN,
+                  `Cubus inutilis numero ${i.toString()} in repositorio tuo residens et spatium tuum consumens`),
                 requiredDifficulty: reducedDifficulty
               });
               cubes.push(cube);
@@ -191,7 +196,7 @@ describe('cubeStore', () => {
             };
             const cubesStored: number = await cubeStore.getNumberOfStoredCubes();
             expect(cubesStored).toEqual(20);
-          }, 30000);
+          }, 1000);
 
           it('should update the initial MUC with the updated MUC', async () => {
             // Generate a key pair for testing
@@ -202,7 +207,7 @@ describe('cubeStore', () => {
 
             // Create original MUC
             const muc = Cube.MUC(publicKey, privateKey, {
-                fields: CubeField.Payload(
+                fields: CubeField.RawContent(CubeType.MUC,
                   "Sum cubus usoris mutabilis, signatus a domino meo."),
                 requiredDifficulty: reducedDifficulty
             });
@@ -221,7 +226,7 @@ describe('cubeStore', () => {
 
             // Create updated MUC
             const muc2 = Cube.MUC(publicKey, privateKey, {
-              fields: CubeField.Payload(
+              fields: CubeField.RawContent(CubeType.MUC,
                 "Actualizatus sum a domino meo, sed clavis mea semper eadem est."),
               requiredDifficulty: reducedDifficulty
             });
@@ -251,7 +256,7 @@ describe('cubeStore', () => {
             const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
             const muc = Cube.MUC(publicKey, privateKey, {
-              fields: CubeField.Payload(
+              fields: CubeField.RawContent(CubeType.MUC,
                 "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum."),
               requiredDifficulty: reducedDifficulty
             });
@@ -263,18 +268,19 @@ describe('cubeStore', () => {
             const cubeadded = await cubeStore.addCube(binarymuc);
             expect(cubeadded.getKeyIfAvailable()).toEqual(muckey);
 
-            const restoredmuc = cubeStore.getCube(muckey, coreTlvCubeFamily);  // restore payload too
+            const restoredmuc = cubeStore.getCube(muckey);
             expect(restoredmuc).toBeDefined();
-            const restoredpayload = (await restoredmuc)?.fields.getFirst(CubeFieldType.PAYLOAD);
+            const restoredpayload = (await restoredmuc)?.fields.getFirst(CubeFieldType.MUC_RAWCONTENT);
             expect(restoredpayload).toBeDefined();
-            expect(restoredpayload?.value.toString('utf8')).toEqual(
+            expect(restoredpayload?.valueString).toContain(
               "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum.");
           });
 
           it('should not parse TLV fields by default', async() => {
             const spammyCube = Cube.Frozen({  // Cube with 300 TLV fields
               fields: Array.from({ length: 300 }, () => CubeField.Payload("!")),
-              requiredDifficulty: reducedDifficulty
+              requiredDifficulty: reducedDifficulty,
+              family: coreTlvCubeFamily,
             });
             const spammyBinary: Buffer = await spammyCube.getBinaryData();
             const spamKey: Buffer = await spammyCube.getKey();
@@ -282,7 +288,7 @@ describe('cubeStore', () => {
             await cubeStore.addCube(spammyBinary);
 
             const restored: Cube = await cubeStore.getCube(spamKey);
-            expect(restored.fields.all.length).toEqual(3);  // spam ignored
+            expect(restored.fields.all.length).toEqual(4);  // spam ignored
           });
         });
 
