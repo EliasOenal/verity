@@ -39,6 +39,18 @@
   Bluetooth or ad-hoc WiFi
 - Full node verification
 
+### Cube exchange
+- Light nodes could provide bloom filters to their peers to give an advance
+  indication of which Cubes they are able to serve.
+  This appears to scale pretty well: A light node holding 100000 Cubes would
+  only need a bloom filter of 150KiB (using 3 hash functions) to achieve a
+  1% false positive rate (https://hur.st/bloomfilter/?n=100000&p=0.01&m=&k=).
+  **Optimisation:** Use multiple bloom filters, one per epoch, defining epochs
+  based on Cube sculpt date.
+  **Cons:** Exposes the light node's local store, therefore not usuable for
+  applications requiring client anonymity. But then again, for client anonymity
+  light nodes should never serve any Cubes at all.
+
 # CCI
 - Implement Cube encryption
 - Implement continuation chains
