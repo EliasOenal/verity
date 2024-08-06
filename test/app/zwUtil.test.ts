@@ -1,4 +1,4 @@
-import { CubeKey } from "../../src/core/cube/cubeDefinitions";
+import { CubeKey } from "../../src/core/cube/cube.definitions";
 import { Cube } from "../../src/core/cube/cube";
 
 import { cciCube } from "../../src/cci/cube/cciCube";

@@ -3,11 +3,11 @@ import { NetConstants } from "../../core/networking/networkDefinitions";
 
 import { cciRelationship } from "./cciRelationship";
 
-import { FieldError } from "../../core/cube/cubeDefinitions";
-import { CubeFieldType, CubeFieldLength, CubeField } from "../../core/cube/cubeField";
+import { FieldNumericalParam } from "../../core/fields/fieldParser";
+import { CubeFieldLength, CubeFieldType, FieldError } from "../../core/cube/cube.definitions";
+import { CubeField } from "../../core/cube/cubeField";
 
 import { Buffer } from 'buffer'
-import { FieldNumericalParam } from "../../core/fields/fieldParser";
 
 /**
  * cciAdditionalFieldType contains the field types defined on the CCI layer,

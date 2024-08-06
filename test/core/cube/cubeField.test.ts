@@ -1,7 +1,6 @@
-import { CubeType, FieldError } from "../../../src/core/cube/cubeDefinitions";
-import { CubeField, CubeFieldType } from "../../../src/core/cube/cubeField";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { Settings } from "../../../src/core/settings";
+import { CubeFieldType, CubeType, FieldError } from "../../../src/core/cube/cube.definitions";
+import { CubeField } from "../../../src/core/cube/cubeField";
 
 describe('CubeField', () => {
   describe('constructor', () => {

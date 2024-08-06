@@ -7,10 +7,10 @@ import { Libp2pConnection } from '../../../src/core/networking/transport/libp2p/
 import { Libp2pTransport } from '../../../src/core/networking/transport/libp2p/libp2pTransport';
 import { AddressAbstraction } from '../../../src/core/peering/addressing';
 
-import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
+import { CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
 import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
-import { CubeField, CubeFieldType } from '../../../src/core/cube/cubeField';
+import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields } from '../../../src/core/cube/cubeFields';
 import { CubeStore, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 
@@ -222,9 +222,11 @@ describe('networkManager - libp2p connections', () => {
 
     // Create new cubes at peer 1
     for (let i = 0; i < numberOfCubes; i++) {
-      const cube = Cube.Frozen({requiredDifficulty: reducedDifficulty});
-      const buffer: Buffer = Buffer.alloc(1);
-      buffer.writeInt8(i);
+      const cube = Cube.Frozen({
+        fields: CubeField.RawContent(CubeType.FROZEN,
+          `Cubus inutilis numero ${i} amplitudinem retis tuam consumens`),
+        requiredDifficulty: reducedDifficulty
+      });
       await cubeStore.addCube(cube);
     }
     expect(await cubeStore.getNumberOfStoredCubes()).toEqual(numberOfCubes);
@@ -301,7 +303,10 @@ describe('networkManager - libp2p connections', () => {
     muc = Cube.MUC(
       Buffer.from(keyPair.publicKey),
       Buffer.from(keyPair.privateKey),
-      { fields: CubeField.Payload(counterBuffer), requiredDifficulty: reducedDifficulty}
+      {
+        fields: CubeField.RawContent(CubeType.MUC, counterBuffer),
+        requiredDifficulty: reducedDifficulty,
+      }
     );
     mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
     const firstMucHash = await muc.getHash();
@@ -323,9 +328,9 @@ describe('networkManager - libp2p connections', () => {
     expect(await cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
     expect((await (await cubeStore2.getCube(mucKey))?.getHash())!.equals(
       firstMucHash)).toBeTruthy();
-    receivedFields = (await cubeStore2.getCube(mucKey, coreTlvCubeFamily))?.fields!;
-    expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual(
-      "Prima versio cubi usoris mutabilis mei.");
+    receivedFields = (await cubeStore2.getCube(mucKey))?.fields!;
+    expect(receivedFields?.getFirst(CubeFieldType.MUC_RAWCONTENT).valueString).
+      toContain("Prima versio cubi usoris mutabilis mei.");
 
     // update MUC at peer 1
     await new Promise(resolve => setTimeout(resolve, 1000));  // wait one second as we don't have better time resolution
@@ -333,7 +338,11 @@ describe('networkManager - libp2p connections', () => {
     muc = Cube.MUC(
       Buffer.from(keyPair.publicKey),
       Buffer.from(keyPair.privateKey),
-      {fields: CubeField.Payload(counterBuffer), requiredDifficulty: reducedDifficulty});
+      {
+        fields: CubeField.RawContent(CubeType.MUC, counterBuffer),
+        requiredDifficulty: reducedDifficulty,
+      }
+    );
     mucKey = (await cubeStore.addCube(muc)).getKeyIfAvailable();
     const secondMucHash = await muc.getHash();
     expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);  // still just one, new MUC version replaces old MUC version
@@ -352,9 +361,9 @@ describe('networkManager - libp2p connections', () => {
     expect(await cubeStore2.getNumberOfStoredCubes()).toEqual(1);
     expect(await cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
     expect((await (await cubeStore2.getCube(mucKey))?.getHash())!.equals(secondMucHash)).toBeTruthy();
-    receivedFields = (await cubeStore2.getCube(mucKey, coreTlvCubeFamily))?.fields!;
-    expect(receivedFields?.getFirst(CubeFieldType.PAYLOAD).value.toString()).toEqual(
-      "Secunda versio cubi usoris mutabilis mei.");
+    receivedFields = (await cubeStore2.getCube(mucKey))?.fields!;
+    expect(receivedFields?.getFirst(CubeFieldType.MUC_RAWCONTENT).valueString).
+      toContain("Secunda versio cubi usoris mutabilis mei.");
 
     // teardown
     const promise1_shutdown = manager1.shutdown();

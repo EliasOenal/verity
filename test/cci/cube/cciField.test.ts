@@ -1,7 +1,7 @@
 import { cciField, cciFieldType, MediaTypes } from "../../../src/cci/cube/cciField";
 import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
-import { FieldError } from "../../../src/core/cube/cubeDefinitions";
-import { CubeFieldType, CubeField } from "../../../src/core/cube/cubeField";
+import { FieldError } from "../../../src/core/cube/cube.definitions";
+import { CubeField } from "../../../src/core/cube/cubeField";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 describe('cciField', () => {

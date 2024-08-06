@@ -9,7 +9,7 @@ import { Settings, VerityError } from '../../core/settings';
 import { NetConstants } from '../../core/networking/networkDefinitions';
 import { CubeRetrievalInterface, CubeStore } from '../../core/cube/cubeStore';
 import { CubeInfo } from '../../core/cube/cubeInfo';
-import { CubeError, CubeKey, CubeType } from '../../core/cube/cubeDefinitions';
+import { CubeError, CubeKey, CubeType } from '../../core/cube/cube.definitions';
 import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
 
 import { cciField, cciFieldType } from '../cube/cciField';

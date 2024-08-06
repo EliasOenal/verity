@@ -1,10 +1,10 @@
-import { rawCubeFamily } from "../../../src/core/cube/cube";
-import { CubeType } from "../../../src/core/cube/cubeDefinitions";
-import { CubeField, CubeFieldType, RawcontentFieldType } from "../../../src/core/cube/cubeField";
+import { CubeFieldType, CubeType, RawcontentFieldType } from "../../../src/core/cube/cube.definitions";
+import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeFields } from "../../../src/core/cube/cubeFields";
 import { enumNums } from "../../../src/core/helpers/misc";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import type { FieldParser } from "../../../src/core/fields/fieldParser";
+import { coreCubeFamily } from "../../../src/core/cube/cube";
 
 describe('CubeFields compilation and decompilation using rawCubeFamily', () => {
   enumNums(CubeType).forEach((type) => {  // perform the tests for every CubeType
@@ -15,7 +15,7 @@ describe('CubeFields compilation and decompilation using rawCubeFamily', () => {
 
       beforeEach(() => {
         // Create sample CubeFields based on the specific CubeType
-        parser = rawCubeFamily.parsers[type];
+        parser = coreCubeFamily.parsers[type];
         cubeFields = new CubeFields([CubeField.Type(type)], parser.fieldDef);
 
         // Add fields based on CubeType

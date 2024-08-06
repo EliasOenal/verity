@@ -3,7 +3,7 @@ import { cciCube } from '../../src/cci/cube/cciCube';
 import { cciField, cciFieldType } from '../../src/cci/cube/cciField';
 import { cciRelationshipType } from '../../src/cci/cube/cciRelationship';
 import { Buffer } from 'buffer';
-import { CubeKey } from '../../src/core/cube/cubeDefinitions';
+import { CubeKey } from '../../src/core/cube/cube.definitions';
 import { Cube } from '../../src/core/cube/cube';
 
 describe('FileApplication', () => {

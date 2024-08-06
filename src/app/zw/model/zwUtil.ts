@@ -6,7 +6,7 @@
 import { Settings } from "../../../core/settings";
 
 import { Cube } from "../../../core/cube/cube";
-import { CubeKey, CubeType } from "../../../core/cube/cubeDefinitions";
+import { CubeKey, CubeType } from "../../../core/cube/cube.definitions";
 
 import { cciField, MediaTypes, cciFieldType } from "../../../cci/cube/cciField";
 import { cciFields, cciFrozenFieldDefinition } from "../../../cci/cube/cciFields";

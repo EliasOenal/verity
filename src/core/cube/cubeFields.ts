@@ -1,63 +1,13 @@
 import { NetConstants } from "../networking/networkDefinitions";
 
 import { BaseFields, FieldPosition } from "../fields/baseFields";
-import { PositionalFields, FieldDefinition, FieldParser } from "../fields/fieldParser";
+import { FieldDefinition, FieldParser } from "../fields/fieldParser";
 
-import { CubeType } from "./cubeDefinitions";
 import type { Cube } from "./cube";
-import { CubeFieldType, CubeField, CubeFieldLength } from "./cubeField";
+import { CubeField } from "./cubeField";
 
 import { Buffer } from 'buffer';
-
-/**
- * For positional fields, defines the running order this field must be at.
- * It follows that positional fields are both mandatory and can only occur once.
- * This section defines the positional fields for our four cube types.
- * Note: The current implementation requires positional fields to be at the very
- * beginning.
- * Note: In the current implementation, positional fields MUST have a defined length.
- * Note: Numbering starts at 1 (not 0).
- */
-export const frozenPositionalFront: PositionalFields = {
-  1: CubeFieldType.TYPE,
-};
-export const frozenPositionalBack: PositionalFields = {
-  1: CubeFieldType.NONCE,
-  2: CubeFieldType.DATE,
-}
-
-export const mucPositionalFront: PositionalFields = frozenPositionalFront;  // no difference before payload
-export const mucPositionalBack: PositionalFields = {
-  1: CubeFieldType.NONCE,
-  2: CubeFieldType.SIGNATURE,
-  3: CubeFieldType.DATE,
-  4: CubeFieldType.PUBLIC_KEY,
-}
-export const mucPositionalBackWithNotify: PositionalFields = {
-  1: CubeFieldType.NONCE,
-  2: CubeFieldType.SIGNATURE,
-  3: CubeFieldType.DATE,
-  4: CubeFieldType.PUBLIC_KEY,
-  5: CubeFieldType.NOTIFY,
-}
-
-export const pmucPositionalFront: PositionalFields = frozenPositionalFront;  // no difference to Frozen Cubes
-export const pmucPositionalBack: PositionalFields = {
-  1: CubeFieldType.NONCE,
-  2: CubeFieldType.SIGNATURE,
-  3: CubeFieldType.DATE,
-  4: CubeFieldType.PUBLIC_KEY,
-  5: CubeFieldType.PMUC_UPDATE_COUNT,
-}
-export const pmucPositionalBackWithNotify: PositionalFields = {
-  1: CubeFieldType.NONCE,
-  2: CubeFieldType.SIGNATURE,
-  3: CubeFieldType.DATE,
-  4: CubeFieldType.PUBLIC_KEY,
-  5: CubeFieldType.PMUC_UPDATE_COUNT,
-  6: CubeFieldType.NOTIFY,
-}
-
+import { CubeFieldType, CubeType, CubeFieldLength, FrozenCorePositionalFront, FrozenPositionalBack, FrozenNotifyCorePositionalFront, FrozenNotifyPositionalBack, PicCorePositionalFront, PicPositionalBack, PicNotifyCorePositionalFront, PicNotifyPositionalBack, MucCorePositionalFront, MucPositionalBack, MucNotifyCorePositionalFront, MucNotifyPositionalBack, PmucCorePositionalFront, PmucPositionalBack, PmucNotifyCorePositionalFront, PmucNotifyPositionalBack, FrozenPositionalFront, MucPositionalFront } from "./cube.definitions";
 
 export class CubeFields extends BaseFields {
   /**
@@ -68,7 +18,7 @@ export class CubeFields extends BaseFields {
    **/
   static Frozen(
       data: CubeFields | CubeField[] | CubeField = undefined,
-      fieldDefinition: FieldDefinition = coreFrozenFieldDefinition
+      fieldDefinition: FieldDefinition = CoreFrozenFieldDefinition
   ): CubeFields {
     if (data instanceof CubeField) data = [data];
     if (data instanceof CubeFields) data = data.all;
@@ -77,6 +27,14 @@ export class CubeFields extends BaseFields {
 
     fields.ensureFieldInFront(CubeFieldType.TYPE,
       fieldDefinition.fieldObjectClass.Type(CubeType.FROZEN));
+
+    // HACKHACK just for core-only nodes
+    // It's ugly but it makes our tests stay green
+    if (fieldDefinition === CoreFrozenFieldDefinition) {
+      fields.ensureFieldInBack(CubeFieldType.FROZEN_RAWCONTENT,
+      CubeField.RawContent(CubeType.FROZEN));
+    }
+
     fields.ensureFieldInBack(CubeFieldType.DATE,
       fieldDefinition.fieldObjectClass.Date());
     fields.ensureFieldInBack(CubeFieldType.NONCE,
@@ -95,7 +53,7 @@ export class CubeFields extends BaseFields {
   static Muc(
       publicKey: Buffer | Uint8Array,
       data: CubeFields | CubeField[] | CubeField = undefined,
-      fieldDefinition: FieldDefinition = coreMucFieldDefinition
+      fieldDefinition: FieldDefinition = CoreMucFieldDefinition
   ): CubeFields {
     // input normalization
     if (data instanceof CubeField) data = [data];
@@ -106,6 +64,14 @@ export class CubeFields extends BaseFields {
 
     fields.ensureFieldInFront(CubeFieldType.TYPE,
       fieldDefinition.fieldObjectClass.Type(CubeType.MUC));
+
+    // HACKHACK just for core-only nodes
+    // It's ugly but it makes our tests stay green
+    if (fieldDefinition === CoreMucFieldDefinition) {
+      fields.ensureFieldInBack(CubeFieldType.MUC_RAWCONTENT,
+      CubeField.RawContent(CubeType.MUC));
+    }
+
     fields.ensureFieldInBack(CubeFieldType.PUBLIC_KEY,
       fieldDefinition.fieldObjectClass.PublicKey(publicKey));
     fields.ensureFieldInBack(CubeFieldType.DATE,
@@ -170,7 +136,8 @@ export interface FieldParserTable {  // this implements a lookup table
 }
 
 // Introducing the Core Cube family, describing Cubes parsed only for their
-// positional fields, discarding all TLV information.
+// positional fields, ignoring any TLV information and presenting their raw
+// content as a single field.
 // This is how forwarding-only, "server" nodes parse Cubes as they just
 // don't care about their contents.
 
@@ -180,56 +147,143 @@ export interface FieldParserTable {  // this implements a lookup table
 // coming from some files (but not others).
 // Javascript is crazy.
 
-// TODO: get rid of those, use the raw field definitions (which include the core
-// payload field) instead
-export const coreFrozenFieldDefinition: FieldDefinition = {
+export const CoreFrozenFieldDefinition: FieldDefinition = {
   fieldNames: CubeFieldType,
   fieldLengths: CubeFieldLength,
-  positionalFront: frozenPositionalFront,
-  positionalBack: frozenPositionalBack,
+  positionalFront: FrozenCorePositionalFront,
+  positionalBack: FrozenPositionalBack,
   fieldObjectClass: CubeField,
   fieldsObjectClass: CubeFields,
   firstFieldOffset: 0,
-}
-export const coreMucFieldDefinition: FieldDefinition = {
+};
+export const CoreFrozenNotifyFieldDefinition: FieldDefinition = {
   fieldNames: CubeFieldType,
   fieldLengths: CubeFieldLength,
-  positionalFront: mucPositionalFront,
-  positionalBack: mucPositionalBack,
+  positionalFront: FrozenNotifyCorePositionalFront,
+  positionalBack: FrozenNotifyPositionalBack,
   fieldObjectClass: CubeField,
   fieldsObjectClass: CubeFields,
   firstFieldOffset: 0,
+};
+export const CorePicFieldDefinition: FieldDefinition = {
+  fieldNames: CubeFieldType,
+  fieldLengths: CubeFieldLength,
+  positionalFront: PicCorePositionalFront,
+  positionalBack: PicPositionalBack,
+  fieldObjectClass: CubeField,
+  fieldsObjectClass: CubeFields
+};
+export const CorePicNotifyFieldDefinition: FieldDefinition = {
+  fieldNames: CubeFieldType,
+  fieldLengths: CubeFieldLength,
+  positionalFront: PicNotifyCorePositionalFront,
+  positionalBack: PicNotifyPositionalBack,
+  fieldObjectClass: CubeField,
+  fieldsObjectClass: CubeFields,
+  firstFieldOffset: 0,
+};
+export const CoreMucFieldDefinition: FieldDefinition = {
+  fieldNames: CubeFieldType,
+  fieldLengths: CubeFieldLength,
+  positionalFront: MucCorePositionalFront,
+  positionalBack: MucPositionalBack,
+  fieldObjectClass: CubeField,
+  fieldsObjectClass: CubeFields,
+  firstFieldOffset: 0,
+};
+export const CoreMucNotifyFieldDefinition: FieldDefinition = {
+  fieldNames: CubeFieldType,
+  fieldLengths: CubeFieldLength,
+  positionalFront: MucNotifyCorePositionalFront,
+  positionalBack: MucNotifyPositionalBack,
+  fieldObjectClass: CubeField,
+  fieldsObjectClass: CubeFields,
+  firstFieldOffset: 0,
+};
+export const CorePmucFieldDefinition: FieldDefinition = {
+  fieldNames: CubeFieldType,
+  fieldLengths: CubeFieldLength,
+  positionalFront: PmucCorePositionalFront,
+  positionalBack: PmucPositionalBack,
+  fieldObjectClass: CubeField,
+  fieldsObjectClass: CubeFields,
+  firstFieldOffset: 0,
+};
+export const CorePmucNotifyFieldDefinition: FieldDefinition = {
+  fieldNames: CubeFieldType,
+  fieldLengths: CubeFieldLength,
+  positionalFront: PmucNotifyCorePositionalFront,
+  positionalBack: PmucNotifyPositionalBack,
+  fieldObjectClass: CubeField,
+  fieldsObjectClass: CubeFields,
+  firstFieldOffset: 0,
+};
+
+// The (singleton) FieldParser for all standard Cube types, supporting
+// core fields only.
+// Applications will need to create their own FieldParser(s) for any
+// custom/payload fields they might want to use.
+// CCI provides an optional interface for this.
+const CoreFrozenParser: FieldParser = new FieldParser(CoreFrozenFieldDefinition);
+CoreFrozenParser.decompileTlv = false;  // core-only nodes ignore TLV
+
+const CoreFrozenNotifyParser: FieldParser = new FieldParser(CoreFrozenNotifyFieldDefinition);
+CoreFrozenNotifyParser.decompileTlv = false;  // core-only nodes ignore TLV
+
+const CorePicParser: FieldParser = new FieldParser(CorePicFieldDefinition);
+CorePicParser.decompileTlv = false;  // core-only nodes ignore TLV
+
+const CorePicNotifyParser: FieldParser = new FieldParser(CorePicNotifyFieldDefinition);
+CorePicNotifyParser.decompileTlv = false;  // core-only nodes ignore TLV
+
+const CoreMucParser: FieldParser = new FieldParser(CoreMucFieldDefinition);
+CoreMucParser.decompileTlv = false;  // core-only nodes ignore TLV
+
+const CoreMucNotifyParser: FieldParser = new FieldParser(CoreMucNotifyFieldDefinition);
+CoreMucNotifyParser.decompileTlv = false;  // core-only nodes ignore TLV
+
+const CorePmucParser: FieldParser = new FieldParser(CorePmucFieldDefinition);
+CorePmucParser.decompileTlv = false;  // core-only nodes ignore TLV
+
+const CorePmucNotifyParser: FieldParser = new FieldParser(CorePmucNotifyFieldDefinition);
+CorePmucNotifyParser.decompileTlv = false;  // core-only nodes ignore TLV
+
+// FieldParserTable for the raw Cube family
+export const CoreFieldParsers: FieldParserTable = {
+  [CubeType.FROZEN]: CoreFrozenParser,
+  [CubeType.FROZEN_NOTIFY]: CoreFrozenNotifyParser,
+  [CubeType.PIC]: CorePicParser,
+  [CubeType.PIC_NOTIFY]: CorePicNotifyParser,
+  [CubeType.MUC]: CoreMucParser,
+  [CubeType.MUC_NOTIFY]: CoreMucNotifyParser,
+  [CubeType.PMUC]: CorePmucParser,
+  [CubeType.PMUC_NOTIFY]: CorePmucNotifyParser,
 }
 
-/**
- * The (singleton) FieldParser for standard, "frozen" cubes, supporting
- * core fields only.
- * Applications will need to create their own FieldParser(s) for any
- * custom/payload fields they might want to use.
- * CCI provides an optional interface for this.
- */
-export const coreFrozenParser: FieldParser = new FieldParser(coreFrozenFieldDefinition);
-coreFrozenParser.decompileTlv = false;  // core-only nodes ignore TLV
-
-/**
- * The (singleton) FieldParser for standard, "frozen" cubes, supporting
- * core fields only.
- * Applications will need to create their own FieldParser(s) for any
- * custom/payload fields they might want to use.
- * CCI provides an optional interface for this.
- */
-export const coreMucParser: FieldParser = new FieldParser(coreMucFieldDefinition);
-coreMucParser.decompileTlv = false;  // core-only nodes ignore TLV
-
-export const coreFieldParsers: FieldParserTable = {
-  [CubeType.FROZEN]: coreFrozenParser,
-  [CubeType.MUC]: coreMucParser,
-}
-// coreCubeFamily itself defined in cube.ts as, again, Javascript is annoying
+// CoreCubeFamily itself defined in cube.ts as, again, Javascript is annoying
 
 // Core TLV Cube family -- for testing only, please use CCI instead
-export const coreTlvFrozenParser: FieldParser = new FieldParser(coreFrozenFieldDefinition);
-export const coreTlvMucParser: FieldParser = new FieldParser(coreMucFieldDefinition);
+// TODO get rid of this
+export const CoreFrozenTlvFieldDefinition: FieldDefinition = {
+  fieldNames: CubeFieldType,
+  fieldLengths: CubeFieldLength,
+  positionalFront: FrozenPositionalFront,
+  positionalBack: FrozenPositionalBack,
+  fieldObjectClass: CubeField,
+  fieldsObjectClass: CubeFields,
+  firstFieldOffset: 0,
+};
+export const coreTlvFrozenParser: FieldParser = new FieldParser(CoreFrozenTlvFieldDefinition);
+export const CoreMucTlvFieldDefinition: FieldDefinition = {
+  fieldNames: CubeFieldType,
+  fieldLengths: CubeFieldLength,
+  positionalFront: MucPositionalFront,
+  positionalBack: MucPositionalBack,
+  fieldObjectClass: CubeField,
+  fieldsObjectClass: CubeFields,
+  firstFieldOffset: 0,
+};
+export const coreTlvMucParser: FieldParser = new FieldParser(CoreMucTlvFieldDefinition);
 export const coreTlvFieldParsers: FieldParserTable = {
   [CubeType.FROZEN]: coreTlvFrozenParser,
   [CubeType.MUC]: coreTlvMucParser,

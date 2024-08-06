@@ -3,7 +3,7 @@ import { FileManagerView } from "./fileManagerView";
 import { FileApplication } from "../../app/fileApplication";
 import { logger } from "../../core/logger";
 import { Buffer } from 'buffer';
-import { CubeKey } from "../../core/cube/cubeDefinitions";
+import { CubeKey } from "../../core/cube/cube.definitions";
 
 export class FileManagerController extends VerityController {
   declare public contentAreaView: FileManagerView;
@@ -28,7 +28,7 @@ export class FileManagerController extends VerityController {
       };
 
       const cubes = await FileApplication.createFileCubes(buffer, file.name, progressCallback);
-      
+
       for (const cube of cubes) {
         await this.cubeStore.addCube(cube);
         const key = await cube.getKey();
@@ -48,7 +48,7 @@ export class FileManagerController extends VerityController {
     try {
       const cubeKey = Buffer.from(key, 'hex') as CubeKey;
       const { content, fileName } = await FileApplication.retrieveFile(cubeKey, this.cubeStore);
-      
+
       const blob = new Blob([content], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
 
@@ -72,7 +72,7 @@ export class FileManagerController extends VerityController {
     try {
       const cubeKey = Buffer.from(key, 'hex') as CubeKey;
       const { content, fileName } = await FileApplication.retrieveFile(cubeKey, this.cubeStore);
-      
+
       let imageUrl: string | undefined;
       if (this.isImage(fileName)) {
         const blob = new Blob([content], { type: this.getImageMimeType(fileName) });

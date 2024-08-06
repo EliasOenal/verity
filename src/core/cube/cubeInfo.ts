@@ -1,6 +1,6 @@
 import { logger } from '../logger';
 import { Cube, coreCubeFamily } from './cube'
-import { CubeType, CubeKey, CubeError } from './cubeDefinitions';
+import { CubeType, CubeKey, CubeError } from './cube.definitions';
 import { CubeFamilyDefinition } from './cubeFields';
 
 import { Buffer } from 'buffer';

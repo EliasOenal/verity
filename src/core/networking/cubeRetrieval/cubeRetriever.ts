@@ -1,5 +1,5 @@
 import { Cube } from "../../cube/cube";
-import { CubeKey } from "../../cube/cubeDefinitions";
+import { CubeKey } from "../../cube/cube.definitions";
 import { CubeFamilyDefinition } from "../../cube/cubeFields";
 import { CubeInfo } from "../../cube/cubeInfo";
 import { CubeRetrievalInterface, CubeStore } from "../../cube/cubeStore";

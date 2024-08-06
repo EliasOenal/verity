@@ -1,5 +1,5 @@
 import { NetConstants, SupportedTransports } from '../../../src/core/networking/networkDefinitions';
-import { CubeKey } from '../../../src/core/cube/cubeDefinitions';
+import { CubeKey } from '../../../src/core/cube/cube.definitions';
 import { CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 import { Cube } from '../../../src/core/cube/cube'
 

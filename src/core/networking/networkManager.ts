@@ -1,6 +1,6 @@
 import { Settings, VerityError } from '../settings';
 import { unixtime } from '../helpers/misc';
-import { CubeKey } from '../cube/cubeDefinitions';
+import { CubeKey } from '../cube/cube.definitions';
 
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { NetworkPeer, NetworkStats } from './networkPeer';
@@ -201,7 +201,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
 
         // Add cube key 0 of store to window, so it's not empty. A random key would be better,
         // but we don't have a good way to do this without incurring O(n) cost.
-        // This is so Sliding Window Mode can return it to a KeyRequest and in turn 
+        // This is so Sliding Window Mode can return it to a KeyRequest and in turn
         // Sequential Store Sync Mode can use it as a starting point.
         this._cubeStore.readyPromise.then(() => {
             this._cubeStore.getKeyAtPosition(0)?.then(key => {
@@ -258,12 +258,12 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
 
         // If the key is not found, start from the beginning
         const beginIndex = (startIndex === -1) ? 0 : startIndex + 1;
-    
+
         // Return empty array if startIndex is the last index in the window
         if (beginIndex >= this.recentKeysWindow.length) {
             return [];
         }
-    
+
         // Calculate the number of elements we can retrieve
         const availableCount = Math.min(count, this.recentKeysWindow.length - beginIndex);
 

@@ -1,5 +1,5 @@
 import { BaseField } from "../fields/baseField";
-import { CubeError, CubeKey } from "../cube/cubeDefinitions";
+import { CubeError, CubeKey } from "../cube/cube.definitions";
 import { CubeInfo, CubeMeta } from "../cube/cubeInfo";
 import { logger } from "../logger";
 import { AddressAbstraction } from "../peering/addressing";
@@ -67,25 +67,25 @@ export class KeyRequestMessage extends NetworkMessage {
       this.startKey = this.value.subarray(NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE, NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE) as CubeKey;
     } else {
       const bufferSize = NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE;
-      
+
       const buffer = Buffer.alloc(bufferSize);
       let offset = 0;
-      
+
       // Write mode
       buffer.writeUInt8(modeOrBuffer, offset);
       offset += NetConstants.KEY_REQUEST_MODE_SIZE;
-      
+
       // Write key count
       buffer.writeUInt32BE(keyCount!, offset);
       offset += NetConstants.KEY_COUNT_SIZE;
-      
+
       // Write start key or zeros if not provided
       if (startKey) {
         startKey.copy(buffer, offset);
       } else {
         buffer.fill(0, offset, offset + NetConstants.CUBE_KEY_SIZE);
       }
-      
+
       super(MessageClass.KeyRequest, buffer);
     }
   }

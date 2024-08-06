@@ -1,4 +1,4 @@
-import { CubeKey } from "../../../src/core/cube/cubeDefinitions";
+import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
 import { Cube } from "../../../src/core/cube/cube";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { MessageClass } from "../../../src/core/networking/networkDefinitions";
@@ -47,15 +47,15 @@ describe('KeyResponseMessage, CubeRequestMessage and CubeResponseMessage', () =>
   beforeAll(async () => {
     // prepare some cube keys
     cube1 = Cube.Frozen({
-      fields: CubeField.Payload("Primus cubus transmittendus est"),
+      fields: CubeField.RawContent(CubeType.FROZEN, "Primus cubus transmittendus est"),
       requiredDifficulty: 0,
     });
     cube2 = Cube.Frozen({
-      fields: CubeField.Payload("Secundus cubus transmittendus est"),
+      fields: CubeField.RawContent(CubeType.FROZEN, "Secundus cubus transmittendus est"),
       requiredDifficulty: 0,
     });
     cube3 = Cube.Frozen({
-      fields: CubeField.Payload("Tertius cubus transmittendus est"),
+      fields: CubeField.RawContent(CubeType.FROZEN, "Tertius cubus transmittendus est"),
       requiredDifficulty: 0,
     });
     cubeInfo1 = await cube1.getCubeInfo();
