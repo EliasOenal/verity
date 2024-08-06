@@ -37,3 +37,10 @@ export function isPrintable(str: string): boolean {
   if (printable / str.length > 0.9) return true;  // 90% ASCII sounds about printable
   else return false;
 }
+
+export function enumStrings(e: any): string[] {
+  return Object.keys(e).filter((entry) => isNaN(Number(entry)));
+}
+export function enumNums(e: any): number[] {
+  return Object.values(e).filter((entry) => Number.isFinite(entry)) as number[];
+}

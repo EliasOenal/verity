@@ -36,6 +36,8 @@ export const NetConstants =  {
     KEY_COUNT_SIZE: 4,
     ADDRESS_TYPE_SIZE: 1,
     ADDRESS_LENGTH_SIZE: 2,
+    NOTIFY_SIZE: 4,
+    PMUC_UPDATE_COUNT_SIZE: 4,
 }
 
 export enum SupportedTransports {

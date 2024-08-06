@@ -7,8 +7,6 @@ import { CubeType } from "./cubeDefinitions";
 import type { Cube } from "./cube";
 import { CubeFieldType, CubeField, CubeFieldLength } from "./cubeField";
 
-import { logger } from "../logger";
-
 import { Buffer } from 'buffer';
 
 /**
@@ -27,12 +25,37 @@ export const frozenPositionalBack: PositionalFields = {
   1: CubeFieldType.NONCE,
   2: CubeFieldType.DATE,
 }
+
 export const mucPositionalFront: PositionalFields = frozenPositionalFront;  // no difference before payload
 export const mucPositionalBack: PositionalFields = {
   1: CubeFieldType.NONCE,
   2: CubeFieldType.SIGNATURE,
   3: CubeFieldType.DATE,
   4: CubeFieldType.PUBLIC_KEY,
+}
+export const mucPositionalBackWithNotify: PositionalFields = {
+  1: CubeFieldType.NONCE,
+  2: CubeFieldType.SIGNATURE,
+  3: CubeFieldType.DATE,
+  4: CubeFieldType.PUBLIC_KEY,
+  5: CubeFieldType.NOTIFY,
+}
+
+export const pmucPositionalFront: PositionalFields = frozenPositionalFront;  // no difference to Frozen Cubes
+export const pmucPositionalBack: PositionalFields = {
+  1: CubeFieldType.NONCE,
+  2: CubeFieldType.SIGNATURE,
+  3: CubeFieldType.DATE,
+  4: CubeFieldType.PUBLIC_KEY,
+  5: CubeFieldType.PMUC_UPDATE_COUNT,
+}
+export const pmucPositionalBackWithNotify: PositionalFields = {
+  1: CubeFieldType.NONCE,
+  2: CubeFieldType.SIGNATURE,
+  3: CubeFieldType.DATE,
+  4: CubeFieldType.PUBLIC_KEY,
+  5: CubeFieldType.PMUC_UPDATE_COUNT,
+  6: CubeFieldType.NOTIFY,
 }
 
 
@@ -157,6 +180,8 @@ export interface FieldParserTable {  // this implements a lookup table
 // coming from some files (but not others).
 // Javascript is crazy.
 
+// TODO: get rid of those, use the raw field definitions (which include the core
+// payload field) instead
 export const coreFrozenFieldDefinition: FieldDefinition = {
   fieldNames: CubeFieldType,
   fieldLengths: CubeFieldLength,
@@ -210,46 +235,3 @@ export const coreTlvFieldParsers: FieldParserTable = {
   [CubeType.MUC]: coreTlvMucParser,
 }
 // coreTlvCubeFamily itself defined in cube.ts as, again, Javascript is annoying
-
-// Core raw Cube family -- describing Cubes parsed for their positional fields
-// and exposing all TLV data, including any potential padding, as a single
-// PAYLOAD blob.
-export const rawFrozenPositional: PositionalFields = {
-  1: CubeFieldType.TYPE,
-  2: CubeFieldType.RAWFROZEN,
-  3: CubeFieldType.NONCE,
-  4: CubeFieldType.DATE,
-};
-export const rawMucPositional: PositionalFields = {
-  1: CubeFieldType.TYPE,
-  2: CubeFieldType.RAWMUC,
-  3: CubeFieldType.PUBLIC_KEY,
-  4: CubeFieldType.DATE,
-  5: CubeFieldType.SIGNATURE,
-  6: CubeFieldType.NONCE,
-};
-export const rawFrozenFieldDefinition: FieldDefinition = {
-  fieldNames: CubeFieldType,
-  fieldLengths: CubeFieldLength,
-  positionalFront: rawFrozenPositional,
-  positionalBack: {},
-  fieldObjectClass: CubeField,
-  fieldsObjectClass: CubeFields,
-  firstFieldOffset: 0,
-}
-export const rawMucFieldDefinition: FieldDefinition = {
-  fieldNames: CubeFieldType,
-  fieldLengths: CubeFieldLength,
-  positionalFront: rawMucPositional,
-  positionalBack: {},
-  fieldObjectClass: CubeField,
-  fieldsObjectClass: CubeFields,
-  firstFieldOffset: 0,
-}
-export const rawFrozenParser: FieldParser = new FieldParser(rawFrozenFieldDefinition);
-export const rawMucParser: FieldParser = new FieldParser(rawMucFieldDefinition);
-export const rawFieldParsers: FieldParserTable = {
-  [CubeType.FROZEN]: rawFrozenParser,
-  [CubeType.MUC]: rawMucParser,
-}
-// rawCubeFamily itself defined in cube.ts as, again, Javascript is annoying

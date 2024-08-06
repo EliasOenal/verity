@@ -4,9 +4,13 @@ import { Buffer } from 'buffer';
 
 export enum CubeType {
   FROZEN = (Settings.CUBE_VERSION << 4) + (0 << 2),
-  PIC = (Settings.CUBE_VERSION << 4) + (1 << 2),  // not fully implemented yet
+  FROZEN_NOTIFY = (Settings.CUBE_VERSION << 4) + (0 << 2) + (1 << 0) ,
+  PIC = (Settings.CUBE_VERSION << 4) + (1 << 2),                    // not fully implemented yet
+  PIC_NOTIFY = (Settings.CUBE_VERSION << 4) + (1 << 2) + (1 << 0),  // not fully implemented yet
   MUC = (Settings.CUBE_VERSION << 4) + (2 << 2),
-  PMUC = (Settings.CUBE_VERSION << 4) + (3 << 2)  // not implemented yet
+  MUC_NOTIFY = (Settings.CUBE_VERSION << 4) + (2 << 2) + (1 << 0),
+  PMUC = (Settings.CUBE_VERSION << 4) + (3 << 2),                   // not implemented yet
+  PMUC_NOTIFY = (Settings.CUBE_VERSION << 4) + (3 << 2) + (1 << 0)  // not implemented yet
 }
 
 // semantic typedef
