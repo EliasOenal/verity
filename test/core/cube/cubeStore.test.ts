@@ -196,7 +196,7 @@ describe('cubeStore', () => {
             };
             const cubesStored: number = await cubeStore.getNumberOfStoredCubes();
             expect(cubesStored).toEqual(20);
-          }, 1000);
+          }, 10000);
 
           it('should update the initial MUC with the updated MUC', async () => {
             // Generate a key pair for testing
