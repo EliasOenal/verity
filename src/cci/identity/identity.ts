@@ -815,7 +815,6 @@ export class Identity {
   ): Promise<void> {
     // do we even have this cube?
     if (!mucOrMucExtension) return;
-    logger.trace(`Identity.recursiveParseSubscriptionRecommendations: Parsing Cube ${mucOrMucExtension.getKeyStringIfAvailable()}`);
     // have we been here before? avoid endless recursion
     const thisCubesKeyString = (mucOrMucExtension.getKeyIfAvailable()).toString('hex');
     if (thisCubesKeyString === undefined || alreadyTraversedCubes.includes(thisCubesKeyString)) return;
