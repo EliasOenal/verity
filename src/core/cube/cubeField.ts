@@ -6,6 +6,7 @@ import { BaseField } from '../fields/baseField';
 import { CubeFieldLength, CubeFieldType, CubeType, FieldError, RawcontentFieldType } from './cube.definitions';
 
 import { Buffer } from 'buffer';
+import { paddedBuffer } from './cubeUtil';
 
 export class CubeField extends BaseField {
   static Type(cubeType: CubeType): CubeField {
@@ -71,12 +72,7 @@ export class CubeField extends BaseField {
 
   static RawContent(cubeType: CubeType, content: string | Buffer = ""): CubeField {
     const fieldType: CubeFieldType = RawcontentFieldType[cubeType];
-    const buf: Buffer = Buffer.alloc(CubeFieldLength[fieldType], 0);
-    if (typeof content === 'string' || content instanceof String) {
-      buf.write(content as string, 0, CubeFieldLength[fieldType], 'utf-8');
-    } else {
-      content.copy(buf, 0, 0, CubeFieldLength[fieldType]);
-    }
+    const buf: Buffer = paddedBuffer(content, CubeFieldLength[fieldType]);
     return new this(fieldType, buf);
   }
 

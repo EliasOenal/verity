@@ -207,3 +207,17 @@ export function dateFromBinary(binary: Buffer): number {
 
     return binary.readUIntBE(datePosition, NetConstants.TIMESTAMP_SIZE);
 }
+
+export function paddedBuffer(content: string | Buffer = "", length: number): Buffer {
+  // allocate Buffer of given length and fill with zeros
+  const buf: Buffer = Buffer.alloc(length, 0);
+  // write content to the Buffer
+  if (typeof content === 'string' || content instanceof String) {
+    // if it's a string, encode as utf-8 and write to Buffer
+    buf.write(content as string, 0, length, 'utf-8');
+  } else {
+    // if it's a Buffer, just copy the content
+    content.copy(buf, 0, 0, length);
+  }
+  return buf;
+}

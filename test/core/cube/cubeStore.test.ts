@@ -1,7 +1,7 @@
 import { Settings } from '../../../src/core/settings';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
-import { CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeFieldLength, CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
 import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
 import { CubeStore as CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 import { CubeField } from '../../../src/core/cube/cubeField';
@@ -13,6 +13,7 @@ import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
 import { cciFields } from '../../../src/cci/cube/cciFields';
 
 import sodium from 'libsodium-wrappers-sumo'
+import { paddedBuffer } from '../../../src/core/cube/cubeUtil';
 
 // TODO: Add tests involving Cube deletion
 // TODO: Add tests checking Tree of Wisdom state (partilarly in combination with deletion)
@@ -59,18 +60,18 @@ describe('cubeStore', () => {
 
     it('should add a freshly sculpted cube at full difficulty', async () => {
       expect(await cubeStore.getNumberOfStoredCubes()).toEqual(0);
+      const content = paddedBuffer("Ego sum cubus recens sculputus.", CubeFieldLength[CubeFieldType.FROZEN_RAWCONTENT]);
       const cube = Cube.Frozen({
-        fields: CubeField.Payload("Ego sum cubus recens sculputus."),
-        family: coreTlvCubeFamily,
+        fields: new CubeField(CubeFieldType.FROZEN_RAWCONTENT, content),
       });
       const key = await cube.getKey();
       await cubeStore.addCube(cube);
       expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);
 
-      const restored: Cube = await cubeStore.getCube(key, coreTlvCubeFamily);  // parse payload too
+      const restored: Cube = await cubeStore.getCube(key);
       expect(restored).toBeInstanceOf(Cube);
-      expect(restored.fields.getFirst(CubeFieldType.PAYLOAD).
-        value.toString('ascii')).toEqual("Ego sum cubus recens sculputus.");
+      expect(restored.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).
+        value).toEqual(content);
     });
 
     it('should add a cube from binary data', async () => {
@@ -246,7 +247,7 @@ describe('cubeStore', () => {
             expect((await retrievedMuc).getDate()).toEqual(1695340001);
           }, 10000);
 
-          it('correctly stores and retrieves a binary MUC with payload', async () => {
+          it('correctly stores and retrieves a binary MUC', async () => {
             // Generate a key pair for testing
             await sodium.ready;
             const keyPair = sodium.crypto_sign_keypair();

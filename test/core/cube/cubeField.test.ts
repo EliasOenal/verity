@@ -33,13 +33,6 @@ describe('CubeField', () => {
       expect(field.value.length).toBe(NetConstants.NONCE_SIZE);
     });
 
-    it('should create a Payload field', () => {
-      const payload = 'Hello, world!';
-      const field = CubeField.Payload(payload);
-      expect(field.type).toBe(CubeFieldType.PAYLOAD);
-      expect(field.value.toString('utf-8')).toBe(payload);
-    });
-
     it('should create a PublicKey field', () => {
       const publicKey = Buffer.alloc(NetConstants.PUBLIC_KEY_SIZE).fill(42); // Example public key
       const field = CubeField.PublicKey(publicKey);
@@ -51,19 +44,6 @@ describe('CubeField', () => {
       const field = CubeField.Signature();
       expect(field.type).toBe(CubeFieldType.SIGNATURE);
       expect(field.value.length).toBe(64); // Assuming NetConstants.SIGNATURE_SIZE is 64
-    });
-
-    it('should create a PADDING field', () => {
-      const length = 10; // Example length
-      const field = CubeField.Padding(length);
-      expect(field.type).toBe(CubeFieldType.PADDING);
-      expect(field.value.length).toBe(length - 2); // Assuming 2 is the header length
-    });
-
-    it('should create a PADDING_SINGLEBYTE field', () => {
-      const field = CubeField.Padding(1);
-      expect(field.type).toBe(CubeFieldType.CCI_END);
-      expect(field.value.length).toBe(0);
     });
   });
 });

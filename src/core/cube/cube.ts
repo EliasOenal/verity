@@ -280,6 +280,9 @@ export class Cube {
      * You don't need to call that manually, we will do that for you whenever
      * you request binary data. It can however safely be called multiple times.
      */
+    // TODO: move this to CCI or get rid of it entirely --
+    // since the core no longer handles variable length fields at all
+    // it has no notion of padding anymore
     public padUp(): boolean {
         let len = this.fields.getByteLength();  // how large are we now?
         if (len > NetConstants.CUBE_SIZE) {  // Cube to large :(
@@ -441,8 +444,7 @@ export class Cube {
      * hashcash difficulty.
      * For MUCs, it also signs the cube, populating its SIGNATURE field.
      */
-    // Non-worker version kept for browser portability
-
+    // Non-worker version for browser portability
     findValidHash(nonceField: CubeField, abortSignal?: AbortSignal): Promise<Buffer> {
         return new Promise((resolve, reject) => {
             let nonce: number = 0;
