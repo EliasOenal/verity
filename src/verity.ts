@@ -16,6 +16,7 @@ import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node
 import { EnableCubePersitence } from './core/cube/cubeStore';
 import { FileApplication } from './app/fileApplication';
 import * as fs from 'fs/promises';
+import { CubeType } from './core/cube/cube.definitions';
 
 let readline: any;
 let cmd;
@@ -180,14 +181,14 @@ class VerityCmdClient {
     const muc = Cube.MUC(
       Buffer.from(this.keyPair.publicKey),
       Buffer.from(this.keyPair.privateKey),
-      {fields: CubeField.Payload(messageBuffer)}
+      {fields: CubeField.RawContent(CubeType.MUC, messageBuffer)}
     );
     this.node.cubeStore.addCube(muc);
   }
 
   /** Just for manual testing: Handler for the 'c' hotkey */
   public async makeNewCube(message: string = "Hello Verity") {
-    const cube = Cube.Frozen({fields: CubeField.Payload(message)});
+    const cube = Cube.Frozen({fields: CubeField.RawContent(CubeType.FROZEN, message)});
     this.node.cubeStore.addCube(cube);
   }
 
