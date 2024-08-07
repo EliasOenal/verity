@@ -6,7 +6,7 @@ import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldType, CubeKey, 
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField } from "./cubeField";
-import { CoreFieldParsers, CubeFamilyDefinition, CubeFields, coreTlvFieldParsers } from './cubeFields';
+import { CoreFieldParsers, CubeFamilyDefinition, CubeFields } from './cubeFields';
 
 import { FieldParser } from "../fields/fieldParser";
 
@@ -275,42 +275,6 @@ export class Cube {
         return this.binaryData;
     }
 
-    /**
-     * Automatically add Padding to reach full Cube length.
-     * You don't need to call that manually, we will do that for you whenever
-     * you request binary data. It can however safely be called multiple times.
-     */
-    // TODO: move this to CCI or get rid of it entirely --
-    // since the core no longer handles variable length fields at all
-    // it has no notion of padding anymore
-    public padUp(): boolean {
-        let len = this.fields.getByteLength();  // how large are we now?
-        if (len > NetConstants.CUBE_SIZE) {  // Cube to large :(
-            // is this a recompile and we need to strip out the old padding?
-            const paddingFields: Iterable<CubeField> =
-                this.fields.get(CubeFieldType.PADDING);
-            for (const paddingField of paddingFields) {
-                this.fields.removeField(paddingField);
-            }
-            len = this.fields.getByteLength();
-            if (len > NetConstants.CUBE_SIZE) {  // still to large :(
-                throw new FieldSizeError(
-                    `Cannot compile this Cube as it is too large. Current ` +
-                    `length is ${len}, maximum is ${NetConstants.CUBE_SIZE}`);
-            }
-        }
-        if (len < NetConstants.CUBE_SIZE) {  // any padding required?
-            // start with a 0x00 single byte padding field to indicate end of CCI data
-            this.fields.insertFieldBeforeBackPositionals(CubeField.Padding(1));
-            // now add further padding as required
-            const paddingRequired = NetConstants.CUBE_SIZE - len - 1;
-            if (paddingRequired) this.fields.insertFieldBeforeBackPositionals(
-                CubeField.Padding(paddingRequired));
-            this.cubeManipulated();
-            return true;
-        } else return false;
-    }
-
     /// @method Any change to a cube invalidates it and basically returns it to
     /// "new cube in the making" state. Binary data, hash and potentially cube key
     /// are now invalid. Delete them; out getter methods will make sure to
@@ -334,7 +298,6 @@ export class Cube {
      * you try top getBinaryData() or getHash().
      **/
     public async compile(): Promise<void> {
-        this.padUp();
         // compile it
         this.binaryData = this.fieldParser.compileFields(this._fields);
         if (Settings.RUNTIME_ASSERTIONS && this.binaryData.length != NetConstants.CUBE_SIZE) {
@@ -510,8 +473,4 @@ export class Cube {
 export const coreCubeFamily: CubeFamilyDefinition = {
     cubeClass: Cube,
     parsers: CoreFieldParsers,
-}
-export const coreTlvCubeFamily: CubeFamilyDefinition = {  // for testing only -- TODO get rid of this
-    cubeClass: Cube,
-    parsers: coreTlvFieldParsers,
 }

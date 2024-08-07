@@ -76,22 +76,4 @@ describe('CubeFields', () => {
       });
     });
   });
-
-  describe('insertTillFull', () => {
-    it('should insert fields until cube is full', () => {
-      const fields = new CubeFields([], CoreFrozenFieldDefinition);
-      const latinBraggery = "Nullo campo iterari in aeternum potest";
-      const field = CubeField.Payload(latinBraggery);
-      const spaceAvailable = NetConstants.CUBE_SIZE;
-      const spacePerField = NetConstants.FIELD_TYPE_SIZE + NetConstants.FIELD_LENGTH_SIZE + latinBraggery.length;
-      const fittingFieldCount = Math.floor(spaceAvailable / spacePerField);
-      const insertedCount = fields.insertTillFull([field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field]);
-      expect(insertedCount).toBe(fittingFieldCount);
-      expect(fields.length).toBe(fittingFieldCount);
-
-      // cube already full, should not fit more fields
-      const insertedCount2 = fields.insertTillFull([field, field, field, field, field, field, field, field, field, field, field, field]);
-      expect(insertedCount2).toBe(0);
-    });
-  });
 });

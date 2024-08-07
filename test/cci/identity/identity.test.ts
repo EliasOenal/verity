@@ -1,25 +1,29 @@
-import { NetConstants, SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 import { CubeKey } from '../../../src/core/cube/cube.definitions';
 import { CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 import { Cube } from '../../../src/core/cube/cube'
 
-import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
-import { makePost } from '../../../src/app/zw/model/zwUtil';
-import { cciFieldParsers, cciFields } from '../../../src/cci/cube/cciFields';
+import { NetConstants, SupportedTransports } from '../../../src/core/networking/networkDefinitions';
+import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
+import { CubeRetriever } from '../../../src/core/networking/cubeRetrieval/cubeRetriever';
+import { NetworkPeer } from '../../../src/core/networking/networkPeer';
 
-import { MediaTypes, cciField, cciFieldType } from '../../../src/cci/cube/cciField';
+import { WebSocketAddress } from '../../../src/core/peering/addressing';
+import { Peer } from '../../../src/core/peering/peer';
+import { PeerDB } from '../../../src/core/peering/peerDB';
+
+import { cciFieldType, MediaTypes } from '../../../src/cci/cube/cciCube.definitions';
+import { cciFieldParsers, cciFields } from '../../../src/cci/cube/cciFields';
+import { cciField } from '../../../src/cci/cube/cciField';
 import { cciRelationshipType, cciRelationship } from '../../../src/cci/cube/cciRelationship';
 import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
+
+import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
 import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
 import { IdentityPersistence } from '../../../src/cci/identity/identityPersistence';
 
+import { makePost } from '../../../src/app/zw/model/zwUtil';
+
 import sodium from 'libsodium-wrappers-sumo'
-import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
-import { PeerDB } from '../../../src/core/peering/peerDB';
-import { CubeRetriever } from '../../../src/core/networking/cubeRetrieval/cubeRetriever';
-import { NetworkPeer } from '../../../src/core/networking/networkPeer';
-import { WebSocketAddress } from '../../../src/core/peering/addressing';
-import { Peer } from '../../../src/core/peering/peer';
 
 // maybe TODO: Some tests here use "ZW" stuff from the microblogging app
 // which breaks the current layering.

@@ -31,26 +31,6 @@ export class CubeField extends BaseField {
       Buffer.from(random_bytes));
   }
 
-  /**
-   * Will return a PADDING field if requested length is > 1 or the special
-   * PADDING_SINGLEBYTE field for the length==1 edge case.
-  */
-  // Architecturally, this belongs to cciField but it's defined here for
-  // practical considerations
-  static Padding(length: number): CubeField {
-    let field: CubeField;
-    if (length > 1) {
-      const random_bytes = new Uint8Array(length-2);
-      for (let i = 0; i < length - 2; i++) {  // maybe TODO: 2 is the header length of a variable size field and we should usually get this value from the field parser rather than littering literals throughout the code
-        random_bytes[i] = Math.floor(Math.random() * 256);
-      }
-      field = new this(CubeFieldType.PADDING, Buffer.from(random_bytes));
-    } else {
-      field = new this(CubeFieldType.CCI_END, Buffer.alloc(0));
-    }
-    return field;
-  }
-
   static PublicKey(publicKey?: Buffer): CubeField {
     if (publicKey === undefined) {
       publicKey = Buffer.alloc(NetConstants.PUBLIC_KEY_SIZE);
@@ -89,15 +69,6 @@ export class CubeField extends BaseField {
     const buf: Buffer = Buffer.alloc(CubeFieldLength[CubeFieldType.PMUC_UPDATE_COUNT]);
     buf.writeUIntBE(count, 0, CubeFieldLength[CubeFieldType.PMUC_UPDATE_COUNT]);
     return new this(CubeFieldType.PMUC_UPDATE_COUNT, buf);
-  }
-
-  // Architecturally, this belongs to cciField but it's defined here for
-  // practical considerations
-  static Payload(buf: Buffer | string, fieldClass = CubeField) {
-    if (typeof buf === 'string' || buf instanceof String)  {
-        buf = Buffer.from(buf, 'utf-8');
-    }
-    return new fieldClass(CubeFieldType.PAYLOAD, buf);
   }
 
   constructor(type: number, value: Buffer | string, start?: number) {

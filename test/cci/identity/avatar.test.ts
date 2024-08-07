@@ -1,6 +1,8 @@
-import { cciField, cciFieldType } from "../../../src/cci/cube/cciField";
-import { Avatar, AvatarScheme, AvatarSeedLength, UNKNOWNAVATAR } from "../../../src/cci/identity/avatar";
 import { ApiMisuseError } from "../../../src/core/settings";
+
+import { cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { cciField } from "../../../src/cci/cube/cciField";
+import { Avatar, AvatarScheme, AvatarSeedLength, UNKNOWNAVATAR } from "../../../src/cci/identity/avatar";
 
 describe('Avatar class', () => {
   describe('Constructor', () => {

@@ -8,7 +8,7 @@ import { Libp2pTransport } from '../../../src/core/networking/transport/libp2p/l
 import { AddressAbstraction } from '../../../src/core/peering/addressing';
 
 import { CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
-import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
+import { Cube } from '../../../src/core/cube/cube';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields } from '../../../src/core/cube/cubeFields';
@@ -628,7 +628,7 @@ describe('networkManager - libp2p connections', () => {
     // share a Cube between the browsers
     {  // browser1 to browser2
       const cubeSent: Cube = Cube.Frozen({
-        fields: CubeField.Payload("Hic cubus directe ad collegam meum iturus est"),
+        fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus directe ad collegam meum iturus est"),
         requiredDifficulty: reducedDifficulty  // no hashcash for faster testing
       });
       await browser1.cubeStore.addCube(cubeSent);
@@ -637,7 +637,7 @@ describe('networkManager - libp2p connections', () => {
       let cubeReceived: Cube = undefined;
       const cubeReceivedPromise = new Promise<void>(
         (resolve) => browser2.cubeStore.once('cubeAdded', (cubeInfo: CubeInfo) => {
-          cubeReceived = cubeInfo.getCube(coreTlvCubeFamily);
+          cubeReceived = cubeInfo.getCube();
           resolve();
       }));
       // Send the Cube --
@@ -647,8 +647,8 @@ describe('networkManager - libp2p connections', () => {
       await cubeReceivedPromise;
       expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
       expect(cubeReceived).toBeInstanceOf(Cube);
-      expect(cubeReceived.fields.getFirst(CubeFieldType.PAYLOAD).
-        value.toString('utf8')).toEqual(
+      expect(cubeReceived.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).
+        valueString).toContain(
           "Hic cubus directe ad collegam meum iturus est");
     }
 
@@ -675,7 +675,7 @@ describe('networkManager - libp2p connections', () => {
     // between the browsers
     {  // browser2 to browser1
       const cubeSent: Cube = Cube.Frozen({
-        fields: CubeField.Payload("Gratias collega, cubus tuus aestimatur."),
+        fields: CubeField.RawContent(CubeType.FROZEN, "Gratias collega, cubus tuus aestimatur."),
         requiredDifficulty: reducedDifficulty  // no hashcash for faster testing
       });
       await browser2.cubeStore.addCube(cubeSent);
@@ -702,8 +702,8 @@ describe('networkManager - libp2p connections', () => {
 
       expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(2);
       expect(cubeReceived).toBeInstanceOf(Cube);
-      expect(cubeReceived.fields.getFirst(CubeFieldType.PAYLOAD).
-        value.toString('hex')).toEqual(
+      expect(cubeReceived.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).
+        valueString).toContain(
           "Gratias collega, cubus tuus aestimatur.");
     }
 
@@ -827,7 +827,7 @@ describe('networkManager - libp2p connections', () => {
     expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(0);
     expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
     const cube: Cube = Cube.Frozen({
-      fields: CubeField.Payload("Hic cubus directe ad collegam meum iturus est"),
+      fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus directe ad collegam meum iturus est"),
       requiredDifficulty: reducedDifficulty  // no hashcash for faster testing
     });
     const cubeKey: Buffer = await cube.getKey();
@@ -848,8 +848,8 @@ describe('networkManager - libp2p connections', () => {
     }
     const recovered: Cube = await browser2.cubeStore.getCube(cubeKey);
     expect(recovered).toBeInstanceOf(Cube);
-    expect(recovered.fields.getFirst(CubeFieldType.PAYLOAD).value).
-      toEqual("Hic cubus directe ad collegam meum iturus est");
+    expect(recovered.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).valueString).
+      toContain("Hic cubus directe ad collegam meum iturus est");
 
     await browser1.shutdown();
     await browser2.shutdown();

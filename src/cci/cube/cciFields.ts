@@ -1,11 +1,16 @@
+import { NetConstants } from "../../core/networking/networkDefinitions";
+
+import { FieldPosition } from "../../core/fields/baseFields";
+import { CubeField } from "../../core/cube/cubeField";
 import { CubeFields, FieldParserTable } from "../../core/cube/cubeFields";
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
 import { CubeType, FrozenPositionalBack, FrozenPositionalFront, MucPositionalBack, MucPositionalFront } from "../../core/cube/cube.definitions";
-import { cciField, cciFieldType, cciFieldLength } from "./cciField";
+
+import { cciFieldType, cciFieldLength } from "./cciCube.definitions";
+import { cciField } from "./cciField";
 import { cciRelationship } from "./cciRelationship";
 
 import { Buffer } from 'buffer'
-import { CubeField } from "../../core/cube/cubeField";
 
 /**
  * A cciFields object is a wrapper object for the list of fields contained
@@ -55,10 +60,37 @@ export class cciFields extends CubeFields {
     if (rels.length) return rels[0];
     else return undefined;
   }
+
+  bytesRemaining(max: number = NetConstants.CUBE_SIZE): number {
+    return max - this.getByteLength();
+  }
+
+  /**
+   * Adds additional fields until either supplied fields have been added or
+   * there's no space left in the Cube.
+   * @param fields An iterable of CubeFields, e.g. an Array or a Generator.
+   * @returns The number of fields inserted.
+   */
+  insertTillFull(
+      fields: Iterable<CubeField>,
+      position: FieldPosition = FieldPosition.BEFORE_BACK_POSITIONALS): number {
+    let inserted = 0;
+    for (const field of fields) {
+      const spaceRemaining = this.bytesRemaining();
+      const spaceRequired = field.length +
+        FieldParser.getFieldHeaderLength(field.type, this.fieldDefinition);
+      if (spaceRemaining < spaceRequired) break;
+      this.insertField(field, position);
+      inserted++;
+    }
+    return inserted;
+  }
+
 }
 
 // NOTE: Never move this to another file. This only works if it is defined
 // strictly after cciField and cciFields.
+// For the same reason, cciFamily is defined in the same file as cciCube.
 // Javascript is crazy.
 export const cciFrozenFieldDefinition: FieldDefinition = {
   fieldNames: cciFieldType,

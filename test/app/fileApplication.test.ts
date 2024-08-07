@@ -1,10 +1,13 @@
-import { FileApplication } from '../../src/app/fileApplication';
-import { cciCube } from '../../src/cci/cube/cciCube';
-import { cciField, cciFieldType } from '../../src/cci/cube/cciField';
-import { cciRelationshipType } from '../../src/cci/cube/cciRelationship';
-import { Buffer } from 'buffer';
 import { CubeKey } from '../../src/core/cube/cube.definitions';
-import { Cube } from '../../src/core/cube/cube';
+
+import { cciFieldType } from '../../src/cci/cube/cciCube.definitions';
+import { cciCube } from '../../src/cci/cube/cciCube';
+import { cciField } from '../../src/cci/cube/cciField';
+import { cciRelationshipType } from '../../src/cci/cube/cciRelationship';
+
+import { FileApplication } from '../../src/app/fileApplication';
+
+import { Buffer } from 'buffer';
 
 describe('FileApplication', () => {
   test('createFileCubes with small string', async () => {

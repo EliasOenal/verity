@@ -5,7 +5,10 @@ import { BaseFields } from "../../../src/core/fields/baseFields";
 
 import { BinaryDataError, CubeFieldType, CubeType, FieldError } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
-import { CubeFields, coreTlvFrozenParser, CoreFrozenFieldDefinition } from "../../../src/core/cube/cubeFields";
+import { CubeFields } from "../../../src/core/cube/cubeFields";
+import { cciFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../../src/cci/cube/cciFields";
+import { cciField } from "../../../src/cci/cube/cciField";
+import { cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
 
 describe('fieldParser', () => {
   describe('positional field tests with synthetic field description', () => {
@@ -255,17 +258,21 @@ describe('fieldParser', () => {
   });
 
   describe('core cube field', () => {
-    it('should correctly compile and decompile core fields', () => {
-      const fieldParser: FieldParser = coreTlvFrozenParser;
-      const fields = new CubeFields(undefined, CoreFrozenFieldDefinition);
+    it.todo("write tests")
+  });
+
+  describe('CCI fields', () => {
+    it('should correctly compile and decompile CCI fields', () => {
+      const fieldParser: FieldParser = cciFrozenParser;
+      const fields = new cciFields(undefined, cciFrozenFieldDefinition);
 
       // define a few fields
       fields.appendField(CubeField.Type(CubeType.FROZEN));
       fields.appendField(
-        CubeField.Payload("Mein kleiner grüner Kaktus")
+        cciField.Payload("Mein kleiner grüner Kaktus")
       );
       fields.appendField(
-        CubeField.Payload("steht draußen am Balkon")
+        cciField.Payload("steht draußen am Balkon")
       );
       fields.appendField(CubeField.Date());
       fields.appendField(CubeField.Nonce());
@@ -276,18 +283,16 @@ describe('fieldParser', () => {
 
       // compare
       expect(restored.length).toEqual(5);
-      expect(restored.get(CubeFieldType.PAYLOAD).length).toEqual(2);
+      expect(restored.get(cciFieldType.PAYLOAD).length).toEqual(2);
       expect(
-        restored.get(CubeFieldType.PAYLOAD)[0].value.toString('utf-8')).
+        restored.get(cciFieldType.PAYLOAD)[0].value.toString('utf-8')).
         toEqual("Mein kleiner grüner Kaktus");
       expect(
-        restored.get(CubeFieldType.PAYLOAD)[1].value.toString('utf-8')).
+        restored.get(cciFieldType.PAYLOAD)[1].value.toString('utf-8')).
         toEqual("steht draußen am Balkon");
     });
-  });
 
-  describe('CCI fields', () => {
-    // TODO: rewrite for CCI
+    // TODO: rewrite tests for CCI or get rid of them
     // it('should correctly compile and decompile ZW fields', () => {
     //   const fieldParser: FieldParser = new FieldParser(zwFieldDefinition);
     //   const fields = new ZwFields();

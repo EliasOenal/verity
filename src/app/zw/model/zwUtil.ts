@@ -4,11 +4,13 @@
  */
 
 import { Settings } from "../../../core/settings";
+import { NetConstants } from "../../../core/networking/networkDefinitions";
 
 import { Cube } from "../../../core/cube/cube";
 import { CubeKey, CubeType } from "../../../core/cube/cube.definitions";
 
-import { cciField, MediaTypes, cciFieldType } from "../../../cci/cube/cciField";
+import { MediaTypes, cciFieldType } from "../../../cci/cube/cciCube.definitions";
+import { cciField } from "../../../cci/cube/cciField";
 import { cciFields, cciFrozenFieldDefinition } from "../../../cci/cube/cciFields";
 import { cciRelationship, cciRelationshipType } from "../../../cci/cube/cciRelationship";
 import { cciCube, cciFamily } from "../../../cci/cube/cciCube";
@@ -18,7 +20,6 @@ import { isCci } from "../../../cci/cube/cciCubeUtil";
 import { Buffer } from 'buffer';
 
 import { logger } from "../../../core/logger";
-import { NetConstants } from "../../../core/networking/networkDefinitions";
 
 /**
  * Creates a new Cube containing a correctly formed text post.

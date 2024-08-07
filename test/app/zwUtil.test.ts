@@ -1,12 +1,12 @@
-import { CubeKey } from "../../src/core/cube/cube.definitions";
 import { Cube } from "../../src/core/cube/cube";
-
-import { cciCube } from "../../src/cci/cube/cciCube";
-import { Identity } from "../../src/cci/identity/identity";
-import { makePost, assertZwCube, assertZwMuc } from "../../src/app/zw/model/zwUtil";
-import { cciField, cciFieldType } from "../../src/cci/cube/cciField";
+import { cciField } from "../../src/cci/cube/cciField";
 import { NetConstants } from "../../src/core/networking/networkDefinitions";
+
+import { cciFieldType } from "../../src/cci/cube/cciCube.definitions";
+import { cciCube } from "../../src/cci/cube/cciCube";
 import { cciRelationshipType } from "../../src/cci/cube/cciRelationship";
+
+import { makePost, assertZwCube } from "../../src/app/zw/model/zwUtil";
 
 describe('makePost function', () => {
   it('should create a basic post', async () => {

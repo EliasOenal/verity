@@ -84,31 +84,6 @@ export class CubeFields extends BaseFields {
     // logger.trace("CubeFields.Muc() creates this field set for a MUC: " + fields.toLongString());
     return fields;
   }
-
-  bytesRemaining(max: number = NetConstants.CUBE_SIZE): number {
-    return max - this.getByteLength();
-  }
-
-  /**
-   * Adds additional fields until either supplied fields have been added or
-   * there's no space left in the Cube.
-   * @param fields An iterable of CubeFields, e.g. an Array or a Generator.
-   * @returns The number of fields inserted.
-   */
-  insertTillFull(
-      fields: Iterable<CubeField>,
-      position: FieldPosition = FieldPosition.BEFORE_BACK_POSITIONALS): number {
-    let inserted = 0;
-    for (const field of fields) {
-      const spaceRemaining = this.bytesRemaining();
-      const spaceRequired = field.length +
-        FieldParser.getFieldHeaderLength(field.type, this.fieldDefinition);
-      if (spaceRemaining < spaceRequired) break;
-      this.insertField(field, position);
-      inserted++;
-    }
-    return inserted;
-  }
 }
 
 /**
@@ -261,31 +236,3 @@ export const CoreFieldParsers: FieldParserTable = {
 }
 
 // CoreCubeFamily itself defined in cube.ts as, again, Javascript is annoying
-
-// Core TLV Cube family -- for testing only, please use CCI instead
-// TODO get rid of this
-export const CoreFrozenTlvFieldDefinition: FieldDefinition = {
-  fieldNames: CubeFieldType,
-  fieldLengths: CubeFieldLength,
-  positionalFront: FrozenPositionalFront,
-  positionalBack: FrozenPositionalBack,
-  fieldObjectClass: CubeField,
-  fieldsObjectClass: CubeFields,
-  firstFieldOffset: 0,
-};
-export const coreTlvFrozenParser: FieldParser = new FieldParser(CoreFrozenTlvFieldDefinition);
-export const CoreMucTlvFieldDefinition: FieldDefinition = {
-  fieldNames: CubeFieldType,
-  fieldLengths: CubeFieldLength,
-  positionalFront: MucPositionalFront,
-  positionalBack: MucPositionalBack,
-  fieldObjectClass: CubeField,
-  fieldsObjectClass: CubeFields,
-  firstFieldOffset: 0,
-};
-export const coreTlvMucParser: FieldParser = new FieldParser(CoreMucTlvFieldDefinition);
-export const coreTlvFieldParsers: FieldParserTable = {
-  [CubeType.FROZEN]: coreTlvFrozenParser,
-  [CubeType.MUC]: coreTlvMucParser,
-}
-// coreTlvCubeFamily itself defined in cube.ts as, again, Javascript is annoying

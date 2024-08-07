@@ -1,7 +1,7 @@
 import { CubeKey } from "../../../../core/cube/cube.definitions";
 import { CubeInfo } from "../../../../core/cube/cubeInfo";
 
-import { cciFieldType } from "../../../../cci/cube/cciField";
+import { cciFieldType } from "../../../../cci/cube/cciCube.definitions";
 import { cciFields } from "../../../../cci/cube/cciFields";
 import { cciCube, cciFamily } from "../../../../cci/cube/cciCube";
 import { cciRelationship, cciRelationshipType } from "../../../../cci/cube/cciRelationship";

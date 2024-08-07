@@ -1,13 +1,16 @@
 import { Settings, VerityError } from "../../core/settings";
 import { cciField } from "./cciField";
 import { cciFields, cciFieldParsers } from "./cciFields";
-import { CubeError, CubeType, FieldError } from "../../core/cube/cube.definitions";
+import { CubeError, CubeFieldType, CubeType, FieldError, FieldSizeError } from "../../core/cube/cube.definitions";
 
 import { Cube, CubeOptions } from "../../core/cube/cube";
 import { CubeFamilyDefinition } from "../../core/cube/cubeFields";
 
 import sodium, { KeyPair, crypto_kdf_KEYBYTES } from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer'
+import { CubeField } from "../../core/cube/cubeField";
+import { NetConstants } from "../../core/networking/networkDefinitions";
+import { cciFieldType } from "./cciCube.definitions";
 
 export class cciCube extends Cube {
   static Frozen(options?: CubeOptions): cciCube {
@@ -20,9 +23,9 @@ export class cciCube extends Cube {
     return cube;
   }
   static MUC(
-      publicKey: Buffer | Uint8Array,
-      privateKey: Buffer | Uint8Array,
-      options?: CubeOptions): cciCube {
+    publicKey: Buffer | Uint8Array,
+    privateKey: Buffer | Uint8Array,
+    options?: CubeOptions): cciCube {
     if (options === undefined) options = {};
     options.family = options?.family ?? cciFamily;
     const cube: cciCube = super.MUC(publicKey, privateKey, options) as cciCube;
@@ -47,7 +50,7 @@ export class cciCube extends Cube {
       fields = new cciFields(cciFields as any, family.parsers[CubeType.MUC].fieldDef);
     }
     if (subkeyIndex === undefined) {
-      const max: number = Math.pow(2, (Settings.MUC_EXTENSION_SEED_SIZE*8)) - 1;
+      const max: number = Math.pow(2, (Settings.MUC_EXTENSION_SEED_SIZE * 8)) - 1;
       subkeyIndex = Math.floor(  // TODO: Use a proper cryptographic function instead
         Math.random() * max);
     }
@@ -70,9 +73,9 @@ export class cciCube extends Cube {
     // Create and return extension MUC
     const extensionMuc: cciCube = cciCube.MUC(
       keyPair.publicKey, keyPair.privateKey, {
-        fields: fields,
-        family: family,
-        requiredDifficulty: required_difficulty
+      fields: fields,
+      family: family,
+      requiredDifficulty: required_difficulty
     });
     return extensionMuc;
   }
@@ -80,7 +83,7 @@ export class cciCube extends Cube {
   constructor(
     param1: Buffer | CubeType,
     options: CubeOptions = {},
-  ){
+  ) {
     options.family = options.family ?? cciFamily;
     super(param1, options)
   }
@@ -88,7 +91,7 @@ export class cciCube extends Cube {
 
   public get fields(): cciFields {
     if (Settings.RUNTIME_ASSERTIONS && !(this.assertCci())) {
-        throw new FieldError("This CCI Cube does not have CCI fields but " + this._fields.constructor.name);
+      throw new FieldError("This CCI Cube does not have CCI fields but " + this._fields.constructor.name);
     }
     return this._fields as cciFields;
   }
@@ -97,12 +100,56 @@ export class cciCube extends Cube {
     if (this._fields instanceof cciFields) return true;
     else return false;
   }
+
+  /**
+   * Automatically add Padding to reach full Cube length.
+   * You don't need to call that manually, we will do that for you whenever
+   * you request binary data. It can however safely be called multiple times.
+   */
+  // TODO: move this to CCI or get rid of it entirely --
+  // since the core no longer handles variable length fields at all
+  // it has no notion of padding anymore
+  public padUp(): boolean {
+    let len = this.fields.getByteLength();  // how large are we now?
+    if (len > NetConstants.CUBE_SIZE) {  // Cube to large :(
+      // is this a recompile and we need to strip out the old padding?
+      const paddingFields: Iterable<CubeField> =
+        this.fields.get(cciFieldType.PADDING);
+      for (const paddingField of paddingFields) {
+        this.fields.removeField(paddingField);
+      }
+      len = this.fields.getByteLength();
+      if (len > NetConstants.CUBE_SIZE) {  // still to large :(
+        throw new FieldSizeError(
+          `Cannot compile this Cube as it is too large. Current ` +
+          `length is ${len}, maximum is ${NetConstants.CUBE_SIZE}`);
+      }
+    }
+    if (len < NetConstants.CUBE_SIZE) {  // any padding required?
+      // start with a 0x00 single byte padding field to indicate end of CCI data
+      this.fields.insertFieldBeforeBackPositionals(cciField.Padding(1));
+      // now add further padding as required
+      const paddingRequired = NetConstants.CUBE_SIZE - len - 1;
+      if (paddingRequired) this.fields.insertFieldBeforeBackPositionals(
+        cciField.Padding(paddingRequired));
+      this.cubeManipulated();
+      return true;
+    } else return false;
+  }
+
+  // As we're using TLV fields in CCI but don't in the core, we need to ensure
+  // our Cube is of the correct size before passing it down to the core for
+  // compilation.
+  compile(): Promise<void> {
+    this.padUp();
+    return super.compile();
+  }
 }
 
-// Note: Never move the family definition to another file as it must be
-// executed strictly after the cciCube implementation. You may get uncaught
-// ReferenceErrors otherwise.
-export const cciFamily: CubeFamilyDefinition = {
-  cubeClass: cciCube,
-  parsers: cciFieldParsers,
-}
+  // Note: Never move the family definition to another file as it must be
+  // executed strictly after the cciCube implementation. You may get uncaught
+  // ReferenceErrors otherwise.
+  export const cciFamily: CubeFamilyDefinition = {
+    cubeClass: cciCube,
+    parsers: cciFieldParsers,
+  }
