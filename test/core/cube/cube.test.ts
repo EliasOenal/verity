@@ -1,5 +1,4 @@
 // cube.test.ts
-import { Settings } from '../../../src/core/settings';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 import { unixtime } from '../../../src/core/helpers/misc';
@@ -7,8 +6,8 @@ import { BaseField } from '../../../src/core/fields/baseField';
 import { BaseFields } from '../../../src/core/fields/baseFields';
 import { FieldParser } from '../../../src/core/fields/fieldParser';
 
-import { BinaryLengthError, CubeFieldLength, CubeFieldType, CubeSignatureError, CubeType, FieldError, FieldSizeError, InsufficientDifficulty } from '../../../src/core/cube/cube.definitions';
-import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
+import { BinaryLengthError, CubeFieldLength, CubeFieldType, CubeSignatureError, CubeType, FieldSizeError } from '../../../src/core/cube/cube.definitions';
+import { Cube } from '../../../src/core/cube/cube';
 import { calculateHash, countTrailingZeroBits } from '../../../src/core/cube/cubeUtil';
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields, CoreFrozenFieldDefinition, CoreMucFieldDefinition } from '../../../src/core/cube/cubeFields';
@@ -30,7 +29,7 @@ describe('cube', () => {
     0x10,
 
     // Payload TLV field
-    0x04,  // payload field type is 4 (1 byte)
+    0x04,  // CCI payload field type is 4 (1 byte)
     0x14,  // payload length is 20 chars (1 byte)
     0x43, 0x75, 0x62, 0x75, 0x73, 0x20, // "Cubus "
     0x64, 0x65, 0x6d, 0x6f, 0x6e, 0x73, 0x74, 0x72,
@@ -76,16 +75,11 @@ describe('cube', () => {
       expect(() => new Cube(Buffer.alloc(578232))).toThrow(BinaryLengthError);  // too long
     }, 3000);
 
-    // TODO: this test is overly broad, as demonstrated by the fact that it did
-    // not break when switching from Cube0.2 to Cube1.0
+    // TODO: move this test to CCI or get rid of it
+    // In the current core architecture it's completely useless as all
+    // fields are mandatory, all fields are fixes size and therefore a Cube
+    // is always maximum size.
     it('should accept maximum size cubes', async () => {
-      // Maximum size Cube consisting of:
-      // 1 byte Version/TYPE
-      // 2 byte PAYLOAD type+length
-      // ... bytes PAYLOAD value
-      // 5 bytes DATE
-      // 4 bytes NONCE
-      const payloadLength = 1012;
       const cube = Cube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN,
           "Hic Cubus maximae magnitudinis est"),
@@ -398,69 +392,4 @@ describe('cube', () => {
       expect(hash).toEqual(calculateHash(binaryCube));
     }, 5000);
   });
-
-  describe('method padUp()', () => {
-    // TODO: move to CCI or get rid of it completely or whatever...
-    // padding as such does not even exist in the core layer.
-    // It's merely an implementation detail that we use it at all in CCI.
-    // We could also just treat everything after the CCI_END marker as void.
-    it('Should not add padding if not required', async() => {
-      // Create a Cube with fields whose total length is equal to the cube size
-      const cube = cciCube.Frozen({
-        fields: CubeField.Payload("His cubus plenus est"),
-        requiredDifficulty: reducedDifficulty,
-      });
-      const freeSpace = NetConstants.CUBE_SIZE - cube.fields.getByteLength();
-      const plHl = cube.fieldParser.getFieldHeaderLength(CubeFieldType.PAYLOAD);
-      cube.fields.insertFieldBeforeBackPositionals(CubeField.Payload(
-        Buffer.alloc(freeSpace - plHl)));  // cube now all filled up
-      expect(cube.fields.getByteLength()).toEqual(NetConstants.CUBE_SIZE);
-
-      const fieldCountBeforePadding = cube.fields.all.length;
-      const paddingAdded: boolean = cube.padUp();
-      const fieldCountAfterPadding = cube.fields.all.length;
-
-      expect(paddingAdded).toBe(false);
-      expect(fieldCountAfterPadding).toEqual(fieldCountBeforePadding);
-      expect(cube.fields.getByteLength()).toEqual(NetConstants.CUBE_SIZE);
-    });
-
-    it('Should add padding starting with 0x00 if required', async() => {
-      // Create a Cube with fields whose total length is equal to the cube size
-      const payload = CubeField.Payload(
-        "Hic cubus nimis parvus, ideo supplendus est.");
-      const cube = cciCube.Frozen({
-        fields: payload, requiredDifficulty: reducedDifficulty});
-
-      const fieldCountBeforePadding = cube.fields.all.length;
-      const paddingAdded = cube.padUp();
-      const fieldCountAfterPadding = cube.fields.all.length;
-
-      expect(paddingAdded).toBe(true);
-      expect(fieldCountAfterPadding).toBeGreaterThan(fieldCountBeforePadding);
-      expect(cube.fields.getByteLength()).toEqual(NetConstants.CUBE_SIZE);
-
-      // now get binary data and ensure padding starts with 0x00
-      const binaryCube: Buffer = await cube.getBinaryData();
-      const expectEndMarkerAt =
-        payload.start +
-        cube.fieldParser.getFieldHeaderLength(CubeFieldType.PAYLOAD) +
-        payload.length;
-      expect(binaryCube[expectEndMarkerAt]).toEqual(0x00);
-    });
-
-    it('should remove extra padding if necessary', async() => {
-      const overlyPadded: Cube = cciCube.Frozen({
-        requiredDifficulty: reducedDifficulty,
-        fields: [
-          CubeField.Payload("Hic cubus nimis multum impluvium continet."),
-        ]
-      });
-      overlyPadded.fields.insertFieldBeforeBackPositionals(
-        CubeField.Padding(2000)  // are you crazy?!
-      );
-      const binaryCube: Buffer = await overlyPadded.getBinaryData();
-      expect(binaryCube).toHaveLength(NetConstants.CUBE_SIZE);
-    });
-  });  // describe padUp()
 });
