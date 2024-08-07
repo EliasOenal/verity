@@ -36,8 +36,8 @@ describe('CubeFields', () => {
     });
 
     describe('static method MUC', () => {
-      it('should create a valid MUC field set', () => {
-        const publicKey = Buffer.alloc(NetConstants.PUBLIC_KEY_SIZE); // example public key
+      it.only('should create a valid MUC field set', () => {
+        const publicKey = Buffer.alloc(NetConstants.PUBLIC_KEY_SIZE, 42); // example public key
         const fields = CubeFields.Muc(publicKey);
         expect(fields.all.length).toBe(6); // 5 mandatory fields for MUC cubes
         expect(fields.all[0].type).toBe(CubeFieldType.TYPE);

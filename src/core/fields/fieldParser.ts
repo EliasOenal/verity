@@ -9,6 +9,7 @@ import { Buffer } from 'buffer';
 
 export type EnumType =  { [key: number|string]: number|string|undefined };
 export type FieldNumericalParam = { [key: number]: number | undefined };
+export type FieldFactoryParam = { [key: number]: () => BaseField | undefined };
 export type PositionalFields = { [key: number]: number };
 
 /**
@@ -35,6 +36,9 @@ export type PositionalFields = { [key: number]: number };
  *         provide a mapper object describing them here. This object should map
  *         the running number of the field, counted from the back and starting
  *         at 1, to it's virtual field code.
+ * @member defaultField - May be used to specify default values for certain field types.
+ *         This is only used by code creating default fields.
+ *         A default of zero-length Buffer is assumed for all fields not specified.
  * @member firstFieldOffset - If there's any data at the front of your binary
  *         blobs which FieldParser should just ignore, specify the length in bytes.
  * @member stopField - A field code signalling to FieldParser that parsing
@@ -56,6 +60,7 @@ export interface FieldDefinition {
   fieldsObjectClass: any,    // using type any as it turns out to be much to complex to declare a type of "class"
   positionalFront?: FieldNumericalParam;
   positionalBack?: FieldNumericalParam;
+  defaultField?: FieldFactoryParam;
   firstFieldOffset?: number;
   stopField?: number,
   remainderField?: number,
