@@ -1,5 +1,5 @@
 import { Settings, VerityError } from "../../settings";
-import { AddressError, SupportedTransports } from "../networkDefinitions";
+import { SupportedTransports } from "../networkDefinitions";
 
 import EventEmitter from "events";
 import { Buffer } from 'buffer';

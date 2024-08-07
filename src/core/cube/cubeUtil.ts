@@ -5,11 +5,36 @@ import { Cube } from './cube';
 import { CubeMeta } from './cubeInfo';
 
 import { logger } from '../logger';
-
 import { Buffer } from 'buffer';
+import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 
-import pkg from 'js-sha3';  // strange standards compliant syntax for importing
-const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
+/*
+ * Calculate the hash of a buffer using the SHA3-256 algorithm.
+ * The implementation is dynamically loaded based on the runtime environment.
+ * @param {Buffer} data - The data to hash.
+ * @returns {Buffer} The hash of the data.
+ */
+export let calculateHash: (data: Buffer) => Buffer;
+if (isNode) {
+  // Dynamically import the crypto module
+  import("crypto")
+    .then((crypto) => {
+      calculateHash = (data: Buffer) =>
+        Buffer.from(crypto.createHash("sha3-256").update(data).digest());
+    })
+    .catch((error) => {
+      console.error("Failed to load crypto module:", error);
+    });
+} else {
+  // Use the js-sha3 implementation
+  import("js-sha3")
+    .then((pkg) => {
+      calculateHash = (data: Buffer) => Buffer.from(pkg.sha3_256.arrayBuffer(data));
+    })
+    .catch((error) => {
+      console.error("Failed to load js-sha3 module:", error);
+    });
+}
 
 export const UNIX_SECONDS_PER_EPOCH = 5400;
 export const UNIX_MS_PER_EPOCH = 5400000;
@@ -70,10 +95,6 @@ export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMe
         default:
             throw new CubeError("cubeUtil: Unknown cube type.");
     }
-}
-
-export function calculateHash(data: Buffer): Buffer {
-    return Buffer.from(sha3_256.arrayBuffer(data));
 }
 
 export function countTrailingZeroBits(buffer: Buffer): number {

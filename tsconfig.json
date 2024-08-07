@@ -26,9 +26,5 @@
     "misc/",
     "dist/",
     "node_modules/",
-  ],
-  "scripts": {
-    "pretest": "tsc",
-    "test": "jest"
-  }
+  ]
 }
