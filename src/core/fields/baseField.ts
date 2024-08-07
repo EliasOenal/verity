@@ -1,4 +1,5 @@
 import { Buffer } from 'buffer';
+import { FieldDefinition } from './fieldParser';
 
 /**
  * A field is a data entry in binary TLV data.
@@ -8,6 +9,28 @@ import { Buffer } from 'buffer';
  * technically abstract.
  */
 export class BaseField {
+ /**
+ * Returns a new default field for the specified type. The default value is either:
+ * - the default value specified in the field definition, or
+ * - a buffer of the specified length filled with zeros, or
+ * - a zero-length buffer if no length is specified.
+ * @param fieldDefinition
+ * @param type
+ * @returns
+ */
+  static DefaultField(
+    fieldDefinition: FieldDefinition,
+    type: number,
+  ): BaseField {
+    // allocate a buffer of the correct length as specified in the field definition,
+    // or zero-length if length is not specified
+    const val: Buffer = Buffer.alloc(fieldDefinition.fieldLengths[type] ?? 0, 0);
+    // if a default value is specified in the field definition,
+    // copy it into the buffer
+    fieldDefinition.defaultField[type]?.()?.value?.copy?.(val);
+    return new fieldDefinition.fieldObjectClass(type, val);
+  }
+
   type: number;  // In top-level fields, type will be one of FieldType (enum in cubeDefinitions.ts). Applications may or may not chose to keep their application-level fields compatible with our top-level numbering.
   value: Buffer;
   get valueString(): string { return this.value.toString('utf8') }

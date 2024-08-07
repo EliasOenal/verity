@@ -15,7 +15,6 @@ import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
-import { cciCube } from '../../../src/cci/cube/cciCube';
 
 // TODO: Add more tests. This is one of our most crucial core classes and it's
 // nowhere near fully covered.
@@ -46,7 +45,6 @@ describe('cube', () => {
   ]);
 
   describe('construction', () => {
-    // This test parses a bit weirdly, the zero fill after the nonce decodes into additional TLV fields of length 0
     it('should construct a cube object from binary data.', () => {
       expect(() => validBinaryCube.length === 1024).toBeTruthy();
       const cube = new Cube(validBinaryCube);
@@ -77,7 +75,7 @@ describe('cube', () => {
 
     // TODO: move this test to CCI or get rid of it
     // In the current core architecture it's completely useless as all
-    // fields are mandatory, all fields are fixes size and therefore a Cube
+    // fields are mandatory, all fields are fixed size and therefore a Cube
     // is always maximum size.
     it('should accept maximum size cubes', async () => {
       const cube = Cube.Frozen({
@@ -141,7 +139,7 @@ describe('cube', () => {
   });  // static methods
 
 
-  describe('compilation', () => {
+  describe('basic compilation', () => {
     it('should compile fields correctly even after manipulating them', async () => {
       const cube = Cube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, " "),
@@ -188,6 +186,40 @@ describe('cube', () => {
     });
   });
 
+  describe('compilation and decompilation by Cube type', () => {
+    it('should compile and decompile a frozen cube correctly', async () => {
+      const cube = Cube.Frozen({
+        fields: CubeField.RawContent(CubeType.FROZEN, "Cubus sum"),
+        requiredDifficulty: reducedDifficulty});
+      await cube.compile();
+      const binaryData = cube.getBinaryDataIfAvailable();
+      const parser = new FieldParser(CoreFrozenFieldDefinition);  // decompileTlv is true
+      const recontructed: BaseFields = parser.decompileFields(binaryData);
+      expect(recontructed.getFirst(CubeFieldType.FROZEN_RAWCONTENT).valueString).
+        toContain("Cubus sum");
+    }, 3000);
+
+    it('should compile and decompile a MUC correctly', async () => {
+      // Generate a key pair for testing
+      await sodium.ready;
+      const keyPair = sodium.crypto_sign_keypair();
+      const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+      const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+
+      const muc = Cube.MUC(
+        publicKey, privateKey, {
+          fields: CubeField.RawContent(CubeType.MUC,
+            "Ego sum cubus usoris mutabilis."),
+          requiredDifficulty: reducedDifficulty
+      });
+      await muc.compile();
+      const binaryData = muc.getBinaryDataIfAvailable();
+      const parser = new FieldParser(CoreMucFieldDefinition);  // decompileTlv is true
+      const recontructed: BaseFields = parser.decompileFields(binaryData);
+      expect(recontructed.getFirst(CubeFieldType.MUC_RAWCONTENT).valueString).
+        toContain("Ego sum cubus usoris mutabilis.");
+    }, 3000);
+  });
 
   describe('hashing', () => {
     it('should calculate the hash correctly', async () => {

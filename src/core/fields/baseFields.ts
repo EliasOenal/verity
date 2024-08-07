@@ -3,6 +3,7 @@ import { ApiMisuseError } from '../settings';
 import { BaseField } from './baseField';
 
 import { Buffer } from 'buffer';
+import { logger } from '../logger';
 
 export enum FieldPosition {
     FRONT,
@@ -13,6 +14,47 @@ export enum FieldPosition {
 
 /** Nice wrapper around a field array providing some useful methods. */
 export class BaseFields {  // cannot make abstract, FieldParser creates temporary BaseField objects
+    /**
+     * Creates a new field set with all mandatory positional fields filled in.
+     * @param fieldDefinition Defines what kinds of fields you want.
+     *   The FieldDefinition should not have holes in its positional field
+     *   specification.
+     * @param data Optionally, your existing field set
+     * @returns A new field set enriched with all mandatory positional fields.
+     *   If your field definition has holes in its positional field specification,
+     *  dummy zero type, zero length fields will be created to fill them.
+     */
+    static DefaultPositionals(
+            fieldDefinition: FieldDefinition,
+            data: BaseFields | BaseField[] | BaseField | undefined = undefined,
+    ): BaseFields {
+        // normalize input
+        if (data instanceof BaseField) data = [data];
+        if (data instanceof BaseFields) data = data.all;
+
+        // create a new fields instance, preserving user-supplied fields
+        const fields: BaseFields =
+            new fieldDefinition.fieldsObjectClass(data, fieldDefinition);
+
+        // ensure the fields object has all required front positionals
+        const fieldPositionsFront: number[] =
+            Object.keys(fieldDefinition.positionalFront).map(key => Number.parseInt(key));
+        for (let i=Math.max(...fieldPositionsFront); i>=1; i--) {
+            let type = fieldDefinition.positionalFront[i] ?? 0;
+            fields.ensureFieldInFront(type, fieldDefinition);
+        }
+
+        // ensure the fields object has all required back positionals
+        const fieldPositionsBack: number[] =
+            Object.keys(fieldDefinition.positionalBack).map(key => Number.parseInt(key));
+        for (let i=Math.max(...fieldPositionsBack); i>=1; i--) {
+            let type = fieldDefinition.positionalBack[i] ?? 0;
+            fields.ensureFieldInBack(type, fieldDefinition);
+        }
+
+        return fields;
+    }
+
     fieldDefinition: FieldDefinition = undefined;
     private data: Array<BaseField> = undefined;
     get all() {
@@ -227,8 +269,13 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
      * field list. If a field of such type already exists, it is moved to the
      * front. Otherwise, the supplied defaultField will be inserted at the front.
      */
-    public ensureFieldInFront(type: number, defaultField: BaseField): void {
-        let field = this.getFirst(type);
+    public ensureFieldInFront(type: number, defaultField: BaseField | FieldDefinition): void {
+        // normalize input
+        if (!(defaultField instanceof BaseField)) {
+            defaultField = BaseField.DefaultField(defaultField as FieldDefinition, type);
+        }
+
+        let field = this.getFirst(type) ?? defaultField;
         if (field === undefined) {
           field = defaultField;
         } else {
@@ -242,7 +289,12 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
      * field list. If a field of such type already exists, it is moved to the
      * back. Otherwise, the supplied defaultField will be inserted at the back.
      */
-    public ensureFieldInBack(type: number, defaultField: BaseField): void {
+    public ensureFieldInBack(type: number, defaultField: BaseField | FieldDefinition): void {
+        // normalize input
+        if (!(defaultField instanceof BaseField)) {
+            defaultField = BaseField.DefaultField(defaultField as FieldDefinition, type);
+        }
+
         let field = this.getFirst(type);
         if (field === undefined) {
           field = defaultField;

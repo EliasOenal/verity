@@ -7,7 +7,7 @@ import type { Cube } from "./cube";
 import { CubeField } from "./cubeField";
 
 import { Buffer } from 'buffer';
-import { CubeFieldType, CubeType, CubeFieldLength, FrozenCorePositionalFront, FrozenPositionalBack, FrozenNotifyCorePositionalFront, FrozenNotifyPositionalBack, PicCorePositionalFront, PicPositionalBack, PicNotifyCorePositionalFront, PicNotifyPositionalBack, MucCorePositionalFront, MucPositionalBack, MucNotifyCorePositionalFront, MucNotifyPositionalBack, PmucCorePositionalFront, PmucPositionalBack, PmucNotifyCorePositionalFront, PmucNotifyPositionalBack, FrozenPositionalFront, MucPositionalFront } from "./cube.definitions";
+import { CubeFieldType, CubeType, CubeFieldLength, FrozenCorePositionalFront, FrozenPositionalBack, FrozenNotifyCorePositionalFront, FrozenNotifyPositionalBack, PicCorePositionalFront, PicPositionalBack, PicNotifyCorePositionalFront, PicNotifyPositionalBack, MucCorePositionalFront, MucPositionalBack, MucNotifyCorePositionalFront, MucNotifyPositionalBack, PmucCorePositionalFront, PmucPositionalBack, PmucNotifyCorePositionalFront, PmucNotifyPositionalBack, FrozenPositionalFront, MucPositionalFront, FrozenDefaultFields, FrozenNotifyDefaultFields, PicDefaultFields, PicNotifyDefaultFields, MucDefaultFields, MucNotifyDefaultFields, PmucDefaultFields, PmucNotifyDefaultFields } from "./cube.definitions";
 
 export class CubeFields extends BaseFields {
   /**
@@ -15,33 +15,13 @@ export class CubeFields extends BaseFields {
    * Just supply your payload fields and we'll take care of the rest.
    * You can also go a step further and just use Cube.Frozen() for even more
    * convenience, which will then in turn call us.
+   * @deprecated Use DefaultPositionals() directly please
    **/
   static Frozen(
       data: CubeFields | CubeField[] | CubeField = undefined,
       fieldDefinition: FieldDefinition = CoreFrozenFieldDefinition
   ): CubeFields {
-    if (data instanceof CubeField) data = [data];
-    if (data instanceof CubeFields) data = data.all;
-    const fields: CubeFields =
-      new fieldDefinition.fieldsObjectClass(data, fieldDefinition);
-
-    fields.ensureFieldInFront(CubeFieldType.TYPE,
-      fieldDefinition.fieldObjectClass.Type(CubeType.FROZEN));
-
-    // HACKHACK just for core-only nodes
-    // It's ugly but it makes our tests stay green
-    if (fieldDefinition === CoreFrozenFieldDefinition) {
-      fields.ensureFieldInBack(CubeFieldType.FROZEN_RAWCONTENT,
-      CubeField.RawContent(CubeType.FROZEN));
-    }
-
-    fields.ensureFieldInBack(CubeFieldType.DATE,
-      fieldDefinition.fieldObjectClass.Date());
-    fields.ensureFieldInBack(CubeFieldType.NONCE,
-      fieldDefinition.fieldObjectClass.Nonce());
-
-    // logger.trace("CubeFields.Frozen() creates this field set for a frozen Cube: " + fields.toLongString());
-    return fields;
+    return BaseFields.DefaultPositionals(fieldDefinition, data) as CubeFields;
   }
 
   /**
@@ -49,40 +29,17 @@ export class CubeFields extends BaseFields {
    * Just supply your payload fields and we'll take care of the rest.
    * You can also go a step further and just use Cube.MUC() for even more
    * convenience, which will then in turn call us.
+   * @deprecated Use DefaultPositionals() directly please
    **/
   static Muc(
       publicKey: Buffer | Uint8Array,
       data: CubeFields | CubeField[] | CubeField = undefined,
       fieldDefinition: FieldDefinition = CoreMucFieldDefinition
   ): CubeFields {
-    // input normalization
-    if (data instanceof CubeField) data = [data];
-    if (data instanceof CubeFields) data = data.all;
-    if (!(publicKey instanceof Buffer)) publicKey = Buffer.from(publicKey);
-    const fields: CubeFields =
-      new fieldDefinition.fieldsObjectClass(data, fieldDefinition);
-
-    fields.ensureFieldInFront(CubeFieldType.TYPE,
-      fieldDefinition.fieldObjectClass.Type(CubeType.MUC));
-
-    // HACKHACK just for core-only nodes
-    // It's ugly but it makes our tests stay green
-    if (fieldDefinition === CoreMucFieldDefinition) {
-      fields.ensureFieldInBack(CubeFieldType.MUC_RAWCONTENT,
-      CubeField.RawContent(CubeType.MUC));
-    }
-
-    fields.ensureFieldInBack(CubeFieldType.PUBLIC_KEY,
-      fieldDefinition.fieldObjectClass.PublicKey(publicKey));
-    fields.ensureFieldInBack(CubeFieldType.DATE,
-      fieldDefinition.fieldObjectClass.Date());
-    fields.ensureFieldInBack(CubeFieldType.SIGNATURE,
-      fieldDefinition.fieldObjectClass.Signature());
-    fields.ensureFieldInBack(CubeFieldType.NONCE,
-      fieldDefinition.fieldObjectClass.Nonce());
-
-    // logger.trace("CubeFields.Muc() creates this field set for a MUC: " + fields.toLongString());
-    return fields;
+    // HACKHACK, we should get rid of this method anyway
+    const fieldsObj: CubeFields = new CubeFields(data, fieldDefinition);
+    fieldsObj.ensureFieldInBack(CubeFieldType.PUBLIC_KEY, fieldDefinition.fieldObjectClass.PublicKey(publicKey as Buffer));
+    return BaseFields.DefaultPositionals(fieldDefinition, fieldsObj) as CubeFields;
   }
 }
 
@@ -127,6 +84,7 @@ export const CoreFrozenFieldDefinition: FieldDefinition = {
   fieldLengths: CubeFieldLength,
   positionalFront: FrozenCorePositionalFront,
   positionalBack: FrozenPositionalBack,
+  defaultField: FrozenDefaultFields,
   fieldObjectClass: CubeField,
   fieldsObjectClass: CubeFields,
   firstFieldOffset: 0,
@@ -136,6 +94,7 @@ export const CoreFrozenNotifyFieldDefinition: FieldDefinition = {
   fieldLengths: CubeFieldLength,
   positionalFront: FrozenNotifyCorePositionalFront,
   positionalBack: FrozenNotifyPositionalBack,
+  defaultField: FrozenNotifyDefaultFields,
   fieldObjectClass: CubeField,
   fieldsObjectClass: CubeFields,
   firstFieldOffset: 0,
@@ -145,6 +104,7 @@ export const CorePicFieldDefinition: FieldDefinition = {
   fieldLengths: CubeFieldLength,
   positionalFront: PicCorePositionalFront,
   positionalBack: PicPositionalBack,
+  defaultField: PicDefaultFields,
   fieldObjectClass: CubeField,
   fieldsObjectClass: CubeFields
 };
@@ -153,6 +113,7 @@ export const CorePicNotifyFieldDefinition: FieldDefinition = {
   fieldLengths: CubeFieldLength,
   positionalFront: PicNotifyCorePositionalFront,
   positionalBack: PicNotifyPositionalBack,
+  defaultField: PicNotifyDefaultFields,
   fieldObjectClass: CubeField,
   fieldsObjectClass: CubeFields,
   firstFieldOffset: 0,
@@ -162,6 +123,7 @@ export const CoreMucFieldDefinition: FieldDefinition = {
   fieldLengths: CubeFieldLength,
   positionalFront: MucCorePositionalFront,
   positionalBack: MucPositionalBack,
+  defaultField: MucDefaultFields,
   fieldObjectClass: CubeField,
   fieldsObjectClass: CubeFields,
   firstFieldOffset: 0,
@@ -171,6 +133,7 @@ export const CoreMucNotifyFieldDefinition: FieldDefinition = {
   fieldLengths: CubeFieldLength,
   positionalFront: MucNotifyCorePositionalFront,
   positionalBack: MucNotifyPositionalBack,
+  defaultField: MucNotifyDefaultFields,
   fieldObjectClass: CubeField,
   fieldsObjectClass: CubeFields,
   firstFieldOffset: 0,
@@ -180,6 +143,7 @@ export const CorePmucFieldDefinition: FieldDefinition = {
   fieldLengths: CubeFieldLength,
   positionalFront: PmucCorePositionalFront,
   positionalBack: PmucPositionalBack,
+  defaultField: PmucDefaultFields,
   fieldObjectClass: CubeField,
   fieldsObjectClass: CubeFields,
   firstFieldOffset: 0,
@@ -189,6 +153,7 @@ export const CorePmucNotifyFieldDefinition: FieldDefinition = {
   fieldLengths: CubeFieldLength,
   positionalFront: PmucNotifyCorePositionalFront,
   positionalBack: PmucNotifyPositionalBack,
+  defaultField: PmucNotifyDefaultFields,
   fieldObjectClass: CubeField,
   fieldsObjectClass: CubeFields,
   firstFieldOffset: 0,

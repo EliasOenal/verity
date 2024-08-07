@@ -4,7 +4,7 @@ import { FieldPosition } from "../../core/fields/baseFields";
 import { CubeField } from "../../core/cube/cubeField";
 import { CubeFields, FieldParserTable } from "../../core/cube/cubeFields";
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
-import { CubeType, FrozenPositionalBack, FrozenPositionalFront, MucPositionalBack, MucPositionalFront } from "../../core/cube/cube.definitions";
+import { CubeType, FrozenDefaultFields, FrozenPositionalBack, FrozenPositionalFront, MucDefaultFields, MucPositionalBack, MucPositionalFront } from "../../core/cube/cube.definitions";
 
 import { cciFieldType, cciFieldLength } from "./cciCube.definitions";
 import { cciField } from "./cciField";
@@ -99,6 +99,7 @@ export const cciFrozenFieldDefinition: FieldDefinition = {
   positionalBack: FrozenPositionalBack,
   fieldObjectClass: cciField,
   fieldsObjectClass: cciFields,
+  defaultField: FrozenDefaultFields,
   stopField: cciFieldType.CCI_END,
   remainderField: cciFieldType.REMAINDER,
 }
@@ -109,6 +110,7 @@ export const cciMucFieldDefinition: FieldDefinition = {
   positionalBack: MucPositionalBack,
   fieldObjectClass: cciField,
   fieldsObjectClass: cciFields,
+  defaultField: MucDefaultFields,
   stopField: cciFieldType.CCI_END,
   remainderField: cciFieldType.REMAINDER,
 }

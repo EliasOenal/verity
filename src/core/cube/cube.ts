@@ -34,9 +34,10 @@ export class Cube {
         options.family = options?.family ?? coreCubeFamily;
         options.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
         // prepare fields
-        options.fields = CubeFields.Frozen(
+        options.fields = CubeFields.DefaultPositionals(
+            options.family.parsers[CubeType.FROZEN].fieldDef,
             options?.fields,  // include the user's custom fields, obviously
-            options.family.parsers[CubeType.FROZEN].fieldDef);
+        );
         const cube: Cube = new options.family.cubeClass(CubeType.FROZEN, options);
         return cube;
     }

@@ -2,6 +2,9 @@ import { ApiMisuseError } from "../../../src/core/settings";
 import { BaseField } from "../../../src/core/fields/baseField";
 import { BaseFields, FieldPosition } from "../../../src/core/fields/baseFields";
 import { FieldNumericalParam, PositionalFields, FieldDefinition, FieldParser } from "../../../src/core/fields/fieldParser";
+import { CoreFrozenFieldDefinition } from "../../../src/core/cube/cubeFields";
+import { CubeFieldType, CubeType } from "../../../src/core/cube/cube.definitions";
+import { CubeField } from "../../../src/core/cube/cubeField";
 
 describe('baseFields', () => {
   // any similarities with CubeFieldTypes, living or dead, are purely coincidental
@@ -409,5 +412,37 @@ describe('baseFields', () => {
         expect(slices[3].length).toEqual(1);
       }
     });
+  });
+
+  describe('DefaultPositionals', () => {
+    it('should fill in missing positional fields with default values', () => {
+      const result = BaseFields.DefaultPositionals(CoreFrozenFieldDefinition);
+      // ensure correct types
+      const frontTypes = result.all.map(field => field.type);
+      expect(frontTypes).toEqual([CubeFieldType.TYPE, CubeFieldType.FROZEN_RAWCONTENT, CubeFieldType.DATE, CubeFieldType.NONCE]);
+      // ensure TYPE field has correct content (others are non-static)
+      const typeField = result.getFirst(CubeFieldType.TYPE);
+      expect(typeField.value[0]).toBe(CubeType.FROZEN);
+    });
+
+    it('should retain input field when supplied as a single BaseField', () => {
+      const data = CubeField.Type(CubeType.FROZEN);
+      const result = BaseFields.DefaultPositionals(CoreFrozenFieldDefinition, data);
+      expect(result.all).toContainEqual(data);
+    });
+
+    it('should retain input field when supplied as an array of BaseField', () => {
+      const data = [CubeField.Type(CubeType.FROZEN)];
+      const result = BaseFields.DefaultPositionals(CoreFrozenFieldDefinition, data);
+      expect(result.all).toEqual(expect.arrayContaining(data));
+    });
+
+    it('should retain input field when supplied as a BaseFields object', () => {
+      const data = new BaseFields([CubeField.Type(CubeType.FROZEN)], CoreFrozenFieldDefinition);
+      const result = BaseFields.DefaultPositionals(CoreFrozenFieldDefinition, data);
+      expect(result.all).toEqual(expect.arrayContaining(data.all));
+    });
+
+    it.todo('should handle gaps in positional fields');
   });
 });
