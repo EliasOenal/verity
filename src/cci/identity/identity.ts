@@ -859,7 +859,6 @@ export class Identity {
       // Nothing to do here, so just return a resolved promise
       return new Promise<void>(resolve => resolve());
     }
-    logger.trace(`Identity.recursiveParsePostReferences: Parsing Cube ${mucOrMucExtension.getKeyStringIfAvailable()}`);
     // have we been here before? avoid endless recursion
     const thisCubesKeyString = (mucOrMucExtension.getKeyStringIfAvailable());
     if (thisCubesKeyString === undefined ||
