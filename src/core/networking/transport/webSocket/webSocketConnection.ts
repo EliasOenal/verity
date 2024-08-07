@@ -49,6 +49,7 @@ export class WebSocketConnection extends TransportConnection {
       // i.e. not try to reconnect them for some time.
       logger.info(`${this.toString()}: WebSocket error: ${error.message}`);
       this.close();
+    // @ts-ignore I don't know why the compiler complains about the signal
     }, { signal: this.socketClosedSignal });
 
     // Handle incoming messages
@@ -63,6 +64,7 @@ export class WebSocketConnection extends TransportConnection {
       }
       this.transmissionSuccessful();
       this.emit("messageReceived", msgData);  // NetworkPeer will call handleMessage() on this
+    // @ts-ignore I don't know why the compiler complains about the signal
     }, { signal: this.socketClosedSignal });
 
     // @ts-ignore When using socketCloseSignal the compiler mismatches the function overload
@@ -71,6 +73,7 @@ export class WebSocketConnection extends TransportConnection {
       // at least if they did that repeatedly and never even sent a valid HELLO.
       logger.info(`${this.toString()}: Peer closed on us`);
       this.close();
+    // @ts-ignore I don't know why the compiler complains about the signal
     }, { once: true, signal: this.socketClosedSignal });
 
     if (this.ready()) this.emit("ready");
