@@ -93,12 +93,10 @@ describe('cubeStore', () => {
     }, 3000);
 
     it('should not add cubes with insufficient difficulty', async () => {
-      const binaryData = Buffer.alloc(1024);
-      binaryData[0] = CubeType.FROZEN;  // manually set Cube type
-      // Manually set a field in the binary data for testing
-      binaryData[6] = CubeFieldType.PAYLOAD; // Type
-      binaryData.writeUInt8(100, 7); // Length
-      const cube = new Cube(binaryData);
+      const cube = Cube.Frozen({
+        fields: CubeField.RawContent(CubeType.FROZEN, "Cubus difficultatis insufficientis"),
+        requiredDifficulty: 0,
+      });
       expect(await cubeStore.addCube(cube)).toBeUndefined();
       expect(await cubeStore.getNumberOfStoredCubes()).toEqual(0);
     }, 3000);
