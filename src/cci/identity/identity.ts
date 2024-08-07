@@ -12,7 +12,8 @@ import { CubeInfo } from '../../core/cube/cubeInfo';
 import { CubeError, CubeKey, CubeType } from '../../core/cube/cube.definitions';
 import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
 
-import { cciField, cciFieldType } from '../cube/cciField';
+import { cciFieldType } from '../cube/cciCube.definitions';
+import { cciField } from '../cube/cciField';
 import { cciFields, cciMucFieldDefinition } from '../cube/cciFields';
 import { cciRelationship, cciRelationshipType } from '../cube/cciRelationship';
 import { cciCube, cciFamily } from '../cube/cciCube';

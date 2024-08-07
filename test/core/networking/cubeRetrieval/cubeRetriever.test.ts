@@ -1,4 +1,4 @@
-import { Cube, coreTlvCubeFamily } from "../../../../src/core/cube/cube";
+import { Cube } from "../../../../src/core/cube/cube";
 import { CubeKey, CubeType } from "../../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../../src/core/cube/cubeField";
 import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
@@ -21,7 +21,6 @@ const testCubeStoreParams: CubeStoreOptions = {
   enableCubePersistence: EnableCubePersitence.OFF,
   enableCubeRetentionPolicy: false,
   requiredDifficulty: 0,
-  family: coreTlvCubeFamily,
 };
 const lightNodeMinimalFeatures: NetworkManagerOptions = {  // disable optional features
   announceToTorrentTrackers: false,

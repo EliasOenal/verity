@@ -1,7 +1,8 @@
 import { ApiMisuseError, Settings } from "../../core/settings";
 import { FieldNumericalParam } from "../../core/fields/fieldParser";
 
-import { cciField, cciFieldType } from "../cube/cciField";
+import { cciFieldType } from "../cube/cciCube.definitions";
+import { cciField } from "../cube/cciField";
 
 import { Buffer } from 'buffer';
 import multiavatar from "@multiavatar/multiavatar";

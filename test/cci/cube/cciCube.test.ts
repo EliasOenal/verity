@@ -1,6 +1,6 @@
 import { cciCube } from "../../../src/cci/cube/cciCube";
-import { cciField, cciFieldType } from "../../../src/cci/cube/cciField";
-import { CubeFieldType } from "../../../src/core/cube/cube.definitions";
+import { cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { cciField } from "../../../src/cci/cube/cciField";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 const reducedDifficulty = 0;
@@ -16,7 +16,7 @@ describe('cciCube', () => {
         requiredDifficulty: reducedDifficulty,
       });
       const freeSpace = NetConstants.CUBE_SIZE - cube.fields.getByteLength();
-      const plHl = cube.fieldParser.getFieldHeaderLength(CubeFieldType.PAYLOAD);
+      const plHl = cube.fieldParser.getFieldHeaderLength(cciFieldType.PAYLOAD);
       cube.fields.insertFieldBeforeBackPositionals(cciField.Payload(
         Buffer.alloc(freeSpace - plHl)));  // cube now all filled up
       expect(cube.fields.getByteLength()).toEqual(NetConstants.CUBE_SIZE);

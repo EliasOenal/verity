@@ -4,8 +4,9 @@ import { CubeField } from "../../src/core/cube/cubeField";
 import { CubeInfo } from "../../src/core/cube/cubeInfo";
 import { CubeStore, EnableCubePersitence } from "../../src/core/cube/cubeStore";
 
+import { MediaTypes } from "../../src/cci/cube/cciCube.definitions";
 import { cciCube, cciFamily } from "../../src/cci/cube/cciCube";
-import { MediaTypes, cciField} from "../../src/cci/cube/cciField";
+import { cciField} from "../../src/cci/cube/cciField";
 import { cciRelationshipType, cciRelationship } from "../../src/cci/cube/cciRelationship";
 import { Identity, IdentityOptions } from "../../src/cci/identity/identity";
 
@@ -305,7 +306,7 @@ describe('ZwAnnotationEngine', () => {
         Buffer.from(keys.publicKey),
         Buffer.from(keys.privateKey),
         {
-          fields: CubeField.Payload("hoc non est identitatis"),
+          fields: cciField.Payload("hoc non est identitatis"),
           family: cciFamily, requiredDifficulty: reducedDifficulty
         });
       await cubeStore.addCube(muc);
@@ -413,7 +414,7 @@ describe('ZwAnnotationEngine', () => {
         Buffer.from(unrelatedKeys.publicKey),
         Buffer.from(unrelatedKeys.privateKey),
         {
-          fields: CubeField.Payload("I am some other application's MUC"),
+          fields: cciField.Payload("I am some other application's MUC"),
           family: cciFamily,
           requiredDifficulty: reducedDifficulty
         }));

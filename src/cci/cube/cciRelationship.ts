@@ -1,9 +1,11 @@
 import { NetConstants } from "../../core/networking/networkDefinitions";
-import { CubeKey, WrongFieldType } from "../../core/cube/cube.definitions";
-import { cciField, cciFieldType } from "./cciField";
+import { CubeKey } from "../../core/cube/cube.definitions";
+import { cciFieldType } from "./cciCube.definitions";
+import { cciField } from "./cciField";
+
+import { logger } from "../../core/logger";
 
 import { Buffer } from 'buffer';
-import { logger } from "../../core/logger";
 
 export enum cciRelationshipType {
   CONTINUED_IN = 1,

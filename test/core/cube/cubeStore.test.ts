@@ -2,18 +2,18 @@ import { Settings } from '../../../src/core/settings';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 import { CubeFieldLength, CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
-import { Cube, coreTlvCubeFamily } from '../../../src/core/cube/cube';
+import { Cube } from '../../../src/core/cube/cube';
 import { CubeStore as CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubePersistenceOptions } from '../../../src/core/cube/cubePersistence';
-import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 
-import { MediaTypes, cciField, cciFieldType } from '../../../src/cci/cube/cciField';
+import { cciField } from '../../../src/cci/cube/cciField';
 import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
 import { cciFields } from '../../../src/cci/cube/cciFields';
 
 import sodium from 'libsodium-wrappers-sumo'
 import { paddedBuffer } from '../../../src/core/cube/cubeUtil';
+import { MediaTypes, cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
 
 // TODO: Add tests involving Cube deletion
 // TODO: Add tests checking Tree of Wisdom state (partilarly in combination with deletion)
@@ -276,10 +276,9 @@ describe('cubeStore', () => {
           });
 
           it('should not parse TLV fields by default', async() => {
-            const spammyCube = Cube.Frozen({  // Cube with 300 TLV fields
-              fields: Array.from({ length: 300 }, () => CubeField.Payload("!")),
+            const spammyCube = cciCube.Frozen({  // Cube with 300 TLV fields
+              fields: Array.from({ length: 300 }, () => cciField.Payload("!")),
               requiredDifficulty: reducedDifficulty,
-              family: coreTlvCubeFamily,
             });
             const spammyBinary: Buffer = await spammyCube.getBinaryData();
             const spamKey: Buffer = await spammyCube.getKey();

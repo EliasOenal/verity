@@ -1,4 +1,5 @@
-import { cciField, cciFieldType, MediaTypes } from "../../../src/cci/cube/cciField";
+import { cciFieldType, MediaTypes } from "../../../src/cci/cube/cciCube.definitions";
+import { cciField } from "../../../src/cci/cube/cciField";
 import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 import { FieldError } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
@@ -84,13 +85,13 @@ describe('cciField', () => {
 
     it('should create a Padding field', () => {
       const length = 10; // Example length
-      const field = CubeField.Padding(length);
+      const field = cciField.Padding(length);
       expect(field.type).toBe(cciFieldType.PADDING);
       expect(field.value.length).toBe(length - 2); // Assuming 2 is the header length
     });
 
     it('should create a CCI_END marker', () => {
-      const field = CubeField.Padding(1);
+      const field = cciField.Padding(1);
       expect(field.type).toBe(cciFieldType.CCI_END);
       expect(field.value.length).toBe(0);
     });
@@ -104,4 +105,3 @@ describe('cciField', () => {
     });
   });
 });
-

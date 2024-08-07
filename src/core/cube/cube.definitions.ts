@@ -37,14 +37,6 @@ export enum CubeFieldType {
   SIGNATURE = 2005,
   NONCE = 2006,
 
-  // HACKHACK: CCI field types PAYLOAD, PADDING and CCI_END currently defined on
-  // core layer as we use them within core unit tests.
-  // TODO: Get rid of them here, use the raw Cube family throughout the core
-  //       and then use the raw content fields in the core tests
-  CCI_END = 0x00 << 2,  // 0
-  PAYLOAD = 0x10 << 2,  // 64
-  PADDING = 0x1F << 2,  // 124
-
   // fields exposing the full raw payload of the Cube at the core layer:
   FROZEN_RAWCONTENT = 2101,
   FROZEN_NOTIFY_RAWCONTENT = 2102,
@@ -64,10 +56,9 @@ export const CubeFieldLength: FieldNumericalParam = {
   [CubeFieldType.DATE]: NetConstants.TIMESTAMP_SIZE,
   [CubeFieldType.SIGNATURE]: NetConstants.SIGNATURE_SIZE,
   [CubeFieldType.NONCE]: NetConstants.NONCE_SIZE,
-  [CubeFieldType.PAYLOAD]: undefined,  // TODO move to CCI
-  [CubeFieldType.PADDING]: undefined,  // TODO move to CCI
-  [CubeFieldType.CCI_END]: 0,  // TODO move to CCI
-  // virtual fields exposing the raw content of the Cube at the core layer:
+  // Fields exposing the raw content of the Cube at the core layer --
+  // these are usually only used in the core layer and not exposed to the
+  // application, in particular they are not used within CCI.
   [CubeFieldType.FROZEN_RAWCONTENT]: NetConstants.CUBE_SIZE - NetConstants.CUBE_TYPE_SIZE - NetConstants.TIMESTAMP_SIZE - NetConstants.NONCE_SIZE,
   [CubeFieldType.FROZEN_NOTIFY_RAWCONTENT]: NetConstants.CUBE_SIZE - NetConstants.CUBE_TYPE_SIZE - NetConstants.NOTIFY_SIZE - NetConstants.TIMESTAMP_SIZE - NetConstants.NONCE_SIZE,
   [CubeFieldType.PIC_RAWCONTENT]: NetConstants.CUBE_SIZE - NetConstants.CUBE_TYPE_SIZE - NetConstants.TIMESTAMP_SIZE - NetConstants.NONCE_SIZE,

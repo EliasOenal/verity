@@ -1,4 +1,4 @@
-import { cciFieldType } from "../../cci/cube/cciField";
+import { cciFieldType } from "../../cci/cube/cciCube.definitions";
 import { cciRelationship, cciRelationshipType } from "../../cci/cube/cciRelationship";
 import { Cube } from "../../core/cube/cube";
 import { CubeType } from "../../core/cube/cube.definitions";

@@ -1,8 +1,10 @@
-import { cciCube } from "../../../src/cci/cube/cciCube";
-import { cciField, cciFieldType } from "../../../src/cci/cube/cciField";
-import { cciFieldParsers, cciFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../../src/cci/cube/cciFields";
-import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
+
+import { cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { cciCube } from "../../../src/cci/cube/cciCube";
+import { cciField } from "../../../src/cci/cube/cciField";
+import { cciFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../../src/cci/cube/cciFields";
+import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 
 describe('cciFields', () => {
   describe('constructor', () => {
@@ -65,105 +67,125 @@ describe('cciFields', () => {
       expect(restored.getFirst(cciFieldType.CUSTOM3).valueString).toBe(custom3);
     });
   });
-});
 
-describe('getRelationships', () => {
-  it('should return empty array if no relationships found', () => {
-    const fields = new cciFields(undefined, cciFrozenFieldDefinition);
-    expect(fields.getRelationships()).toEqual([]);
-  });
+  describe('getRelationships', () => {
+    it('should return empty array if no relationships found', () => {
+      const fields = new cciFields(undefined, cciFrozenFieldDefinition);
+      expect(fields.getRelationships()).toEqual([]);
+    });
 
-  it('should return relationships of specified type if provided', () => {
-    const rels = [
-      cciField.RelatesTo(new cciRelationship(
-        cciRelationshipType.MYPOST,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
-      cciField.RelatesTo(new cciRelationship(
-        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
-      cciField.RelatesTo(new cciRelationship(
-        cciRelationshipType.MYPOST,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(43))),
-      cciField.RelatesTo(new cciRelationship(
-        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(138))),
-    ];
-    const fields = new cciFields(rels, cciFrozenFieldDefinition);
-    expect(fields.getRelationships(cciRelationshipType.MYPOST).length).toBe(2);
-  });
-
-  it('should return all relationships if type not provided', () => {
-    const rels = [
-      cciField.RelatesTo(new cciRelationship(
-        cciRelationshipType.MYPOST,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
-      cciField.RelatesTo(new cciRelationship(
-        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
-      cciField.RelatesTo(new cciRelationship(
-        cciRelationshipType.MYPOST,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(43))),
-      cciField.RelatesTo(new cciRelationship(
-        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(138))),
-    ];
-    const fields = new cciFields(rels, cciFrozenFieldDefinition);
-    expect(fields.getRelationships().length).toBe(4);
-  });
-});
-
-describe('getFirstRelationship', () => {
-  it('should return undefined if no relationships found', () => {
-    const fields = new cciFields(undefined, cciFrozenFieldDefinition);
-    expect(fields.getFirstRelationship()).toBeUndefined();
-  });
-
-  it('should return first relationship of specified type if provided', () => {
-    const rels = [
-      cciField.RelatesTo(new cciRelationship(
-        cciRelationshipType.MYPOST,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
-      cciField.RelatesTo(new cciRelationship(
-        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
+    it('should return relationships of specified type if provided', () => {
+      const rels = [
+        cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.MYPOST,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
+        cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
+        cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.MYPOST,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(43))),
+        cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(138))),
       ];
-    const fields = new cciFields(rels, cciFrozenFieldDefinition);
-    expect(fields.getFirstRelationship(
-      cciRelationshipType.SUBSCRIPTION_RECOMMENDATION).type).toBe(
-        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION);
-    expect(fields.getFirstRelationship(
-      cciRelationshipType.SUBSCRIPTION_RECOMMENDATION).remoteKey).toEqual(
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137));
+      const fields = new cciFields(rels, cciFrozenFieldDefinition);
+      expect(fields.getRelationships(cciRelationshipType.MYPOST).length).toBe(2);
+    });
+
+    it('should return all relationships if type not provided', () => {
+      const rels = [
+        cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.MYPOST,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
+        cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
+        cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.MYPOST,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(43))),
+        cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(138))),
+      ];
+      const fields = new cciFields(rels, cciFrozenFieldDefinition);
+      expect(fields.getRelationships().length).toBe(4);
+    });
   });
 
-  it('should return first relationship if type not provided', () => {
-    const rels = [
-      cciField.RelatesTo(new cciRelationship(
-        cciRelationshipType.MYPOST,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
-      cciField.RelatesTo(new cciRelationship(
-        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
+  describe('getFirstRelationship', () => {
+    it('should return undefined if no relationships found', () => {
+      const fields = new cciFields(undefined, cciFrozenFieldDefinition);
+      expect(fields.getFirstRelationship()).toBeUndefined();
+    });
+
+    it('should return first relationship of specified type if provided', () => {
+      const rels = [
+        cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.MYPOST,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
+        cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
       ];
-    const fields = new cciFields(rels, cciFrozenFieldDefinition);
-    expect(fields.getFirstRelationship().type).toBe(
+      const fields = new cciFields(rels, cciFrozenFieldDefinition);
+      expect(fields.getFirstRelationship(
+        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION).type).toBe(
+          cciRelationshipType.SUBSCRIPTION_RECOMMENDATION);
+      expect(fields.getFirstRelationship(
+        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION).remoteKey).toEqual(
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137));
+    });
+
+    it('should return first relationship if type not provided', () => {
+      const rels = [
+        cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.MYPOST,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
+        cciField.RelatesTo(new cciRelationship(
+          cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
+      ];
+      const fields = new cciFields(rels, cciFrozenFieldDefinition);
+      expect(fields.getFirstRelationship().type).toBe(
         cciRelationshipType.MYPOST);
-    expect(fields.getFirstRelationship().remoteKey).toEqual(
+      expect(fields.getFirstRelationship().remoteKey).toEqual(
         Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42));
+    });
+
+    it('correctly sets and retrieves a reply_to relationship field in a full stack test', async () => {
+      const root: cciCube = cciCube.Frozen(
+        { fields: cciField.Payload(Buffer.alloc(200)) });
+      const leaf: cciCube = cciCube.Frozen({
+        fields: [
+          cciField.Payload(Buffer.alloc(200)),
+          cciField.RelatesTo(new cciRelationship(
+            cciRelationshipType.REPLY_TO, (await root.getKey())))
+        ]
+      });
+
+      const retrievedRel: cciRelationship = leaf.fields.getFirstRelationship();
+      expect(retrievedRel.type).toEqual(cciRelationshipType.REPLY_TO);
+      expect(retrievedRel.remoteKey.toString('hex')).toEqual(
+        (await root.getKey()).toString('hex'));
+    }, 3000);
   });
 
-  it('correctly sets and retrieves a reply_to relationship field in a full stack test', async () => {
-    const root: cciCube = cciCube.Frozen(
-      {fields: cciField.Payload(Buffer.alloc(200))});
-    const leaf: cciCube = cciCube.Frozen({fields: [
-      cciField.Payload(Buffer.alloc(200)),
-      cciField.RelatesTo(new cciRelationship(
-        cciRelationshipType.REPLY_TO, (await root.getKey())))
-    ]});
+  describe('insertTillFull', () => {
+    it('should insert fields until cube is full', () => {
+      const fields = new cciFields([], cciFrozenFieldDefinition);
+      const latinBraggery = "Nullo campo iterari in aeternum potest";
+      const field = cciField.Payload(latinBraggery);
+      const spaceAvailable = NetConstants.CUBE_SIZE;
+      const spacePerField = NetConstants.FIELD_TYPE_SIZE + NetConstants.FIELD_LENGTH_SIZE + latinBraggery.length;
+      const fittingFieldCount = Math.floor(spaceAvailable / spacePerField);
+      const insertedCount = fields.insertTillFull([field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field, field]);
+      expect(insertedCount).toBe(fittingFieldCount);
+      expect(fields.length).toBe(fittingFieldCount);
 
-    const retrievedRel: cciRelationship = leaf.fields.getFirstRelationship();
-    expect(retrievedRel.type).toEqual(cciRelationshipType.REPLY_TO);
-    expect(retrievedRel.remoteKey.toString('hex')).toEqual(
-      (await root.getKey()).toString('hex'));
-  }, 3000);
+      // cube already full, should not fit more fields
+      const insertedCount2 = fields.insertTillFull([field, field, field, field, field, field, field, field, field, field, field, field]);
+      expect(insertedCount2).toBe(0);
+    });
+  });
 });
