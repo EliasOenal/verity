@@ -7,6 +7,7 @@ import { CubeMeta } from './cubeInfo';
 import { logger } from '../logger';
 import { Buffer } from 'buffer';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
+import pkg from 'js-sha3';
 
 /*
  * Calculate the hash of a buffer using the SHA3-256 algorithm.
@@ -20,20 +21,14 @@ if (isNode) {
   import("crypto")
     .then((crypto) => {
       calculateHash = (data: Buffer) =>
-        Buffer.from(crypto.createHash("sha3-256").update(data).digest());
+       crypto.createHash("sha3-256").update(data).digest();
     })
     .catch((error) => {
       console.error("Failed to load crypto module:", error);
     });
 } else {
-  // Use the js-sha3 implementation
-  import("js-sha3")
-    .then((pkg) => {
-      calculateHash = (data: Buffer) => Buffer.from(pkg.sha3_256.arrayBuffer(data));
-    })
-    .catch((error) => {
-      console.error("Failed to load js-sha3 module:", error);
-    });
+    // Use the js-sha3 implementation
+    calculateHash = (data: Buffer) => Buffer.from(pkg.sha3_256.arrayBuffer(data));
 }
 
 export const UNIX_SECONDS_PER_EPOCH = 5400;
