@@ -224,7 +224,7 @@ describe('cube', () => {
   });
 
   describe('tests by Cube type', () => {
-    describe('basic compilation and decompilation by Cube type', () => {
+    describe('compilation and decompilation by Cube type', () => {
       enumNums(CubeType).forEach((type) => {  // perform the tests for every CubeType
         it(`should compile and decompile ${CubeType[type]} Cubes correctly`, async () => {
           // Craft a randomized content string. We will later test if it's
@@ -234,16 +234,18 @@ describe('cube', () => {
           const randomNotifyNumer = Math.floor(Math.random() * 255);
 
           // Set up our custom Cube content:
-          // One raw content field plus a Notify field if this is a Notify type.
+          // One raw content field...
           const incompleteFieldset: CubeField[] =
             [CubeField.RawContent(type, contentString)];
+          // ... plus a Notify field if this is a Notify type ...
           if (HasNotify[type]) incompleteFieldset.push(
             CubeField.Notify(Buffer.alloc(NetConstants.NOTIFY_SIZE, randomNotifyNumer)));
-          let privateKey: Buffer;
+          // ... plus a public key field if this is a signed type.
+          let publicKey: Buffer, privateKey: Buffer;
           if (HasSignature[type]) {
             await sodium.ready;
             const keyPair = sodium.crypto_sign_keypair();
-            const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+            publicKey = Buffer.from(keyPair.publicKey);
             privateKey = Buffer.from(keyPair.privateKey);
             incompleteFieldset.push(CubeField.PublicKey(publicKey));
           }
@@ -256,12 +258,30 @@ describe('cube', () => {
             fields: fields,
             requiredDifficulty: reducedDifficulty,
           });
+          // if this is a signed Cube type, supply the private key
           if (HasSignature[type]) cube.privateKey = privateKey;
           // compile Cube
           const binaryData = await cube.getBinaryData();
-          // verify hash calculation is correct
+          // verify hash calculation is correct (has is always calculated from
+          // the entire binary data, even though key generation differs by Cube type)
           const expectedHash: Buffer = Buffer.from(sha3_256.arrayBuffer(binaryData));
           expect(await cube.getHash()).toEqual(expectedHash);
+          // verify key calculation is correct
+          const key = await cube.getKey();
+          // for signed Cubes, the key is the public key
+          if (HasSignature[type]) expect(key).toEqual(publicKey);
+          else if (type === CubeType.FROZEN || type === CubeType.FROZEN_NOTIFY) {
+            // for frozen Cubes, the key is the full hash
+            expect(key).toEqual(expectedHash);
+          } else if (type === CubeType.PIC || type === CubeType.PIC_NOTIFY) {
+            // for PICs, the key is the hash excluding the DATE and NONCE fields
+            const keyHashLength =
+              CubeFieldLength[CubeFieldType.TYPE] +
+              CubeFieldLength[CubeFieldType.PIC_RAWCONTENT];  // equal to the lengths of PIC_NOTIFY_RAWCONTENT plus NOTIFY
+            const keyHashableBinaryData = binaryData.subarray(0, keyHashLength);
+            const expectedKey = Buffer.from(sha3_256.arrayBuffer(keyHashableBinaryData));
+            expect(key).toEqual(expectedKey);
+          }
 
           // decompile the Cube and check if the content is still the same
           const recontructed: Cube = new Cube(binaryData);
