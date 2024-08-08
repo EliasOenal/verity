@@ -2,7 +2,7 @@
 import { Settings } from '../settings';
 import { NetConstants } from '../networking/networkDefinitions';
 
-import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldError, FieldSizeError } from "./cube.definitions";
+import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldError, FieldSizeError, HasSignature } from "./cube.definitions";
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField } from "./cubeField";
@@ -97,6 +97,7 @@ export class Cube {
 
     private binaryData: Buffer = undefined;
 
+    private picKey: CubeKey = undefined;  // only used for PICs
     private hash: Buffer = undefined;
 
     private _privateKey: Buffer = undefined;
@@ -233,10 +234,18 @@ export class Cube {
     // explicit rather than having getKey() async. But it's what we did and it's
     // pretty stable by now.
     public async getKey(): Promise<CubeKey> {
-        if (this.cubeType == CubeType.MUC) {
+        if (HasSignature[this.cubeType]) {
+            // for signed Cubes, the key is the public key
             return this.publicKey;
-        } else if (this.cubeType === CubeType.FROZEN) {
+        } else if (this.cubeType === CubeType.FROZEN ||
+                   this.cubeType === CubeType.FROZEN_NOTIFY) {
+            // for frozen Cubes, the key is the whole hash
             return await this.getHash();
+        } else if (this.cubeType === CubeType.PIC ||
+                   this.cubeType === CubeType.PIC_NOTIFY) {
+            // for PICs, the key is the hash excluding the NONCE and DATE fields
+            if (this.picKey === undefined) await this.generatePicKey();
+            return this.picKey;
         } else {
             throw new CubeError("CubeType " + this.cubeType + " not implemented");
         }
@@ -367,6 +376,21 @@ export class Cube {
         // Calculate hashcash. If this is a MUC, this will also sign it.
         this.hash = await this.findValidHash(nonceField);
         // logger.info("cube: Using hash " + this.hash.toString('hex') + "as cubeKey");
+    }
+
+    private generatePicKey(): void {
+        if (this.cubeType !== CubeType.PIC && this.cubeType !== CubeType.PIC_NOTIFY) {
+            logger.error("Cube: generatePicKey called on non-PIC cube, doing nothing");
+            return;
+        };
+        if (this.binaryData === undefined) {
+            logger.error("Cube: generatePicKey called on undefined binary data");
+            throw new BinaryDataError("Cube: generatePicKey called on undefined binary data");
+        }
+        const keyHashLength = CubeFieldLength[CubeFieldType.TYPE] +
+            CubeFieldLength[CubeFieldType.PIC_RAWCONTENT];  // equal to the lengths of PIC_NOTIFY_RAWCONTENT plus NOTIFY
+        const keyHashableBinaryData = this.binaryData.subarray(0, keyHashLength);
+        this.picKey = CubeUtil.calculateHash(keyHashableBinaryData);
     }
 
     /**
