@@ -8,6 +8,7 @@ import { NetConstants } from "../networking/networkDefinitions";
 import { Buffer } from 'buffer';
 
 export type EnumType =  { [key: number|string]: number|string|undefined };
+export type FieldBooleanParam = { [key: number]: boolean | undefined };
 export type FieldNumericalParam = { [key: number]: number | undefined };
 export type FieldFactoryParam = { [key: number]: () => BaseField | undefined };
 export type PositionalFields = { [key: number]: number };

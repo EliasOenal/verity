@@ -1,6 +1,6 @@
 import { Settings, VerityError } from "../settings";
 import { NetConstants } from "../networking/networkDefinitions";
-import type { FieldFactoryParam, FieldNumericalParam, PositionalFields } from "../fields/fieldParser";
+import type { FieldBooleanParam, FieldFactoryParam, FieldNumericalParam, PositionalFields } from "../fields/fieldParser";
 
 import { Buffer } from 'buffer';
 import { CubeField } from "./cubeField";
@@ -68,17 +68,6 @@ export const CubeFieldLength: FieldNumericalParam = {
   [CubeFieldType.MUC_NOTIFY_RAWCONTENT]: NetConstants.CUBE_SIZE - NetConstants.CUBE_TYPE_SIZE - NetConstants.NOTIFY_SIZE - NetConstants.PUBLIC_KEY_SIZE - NetConstants.TIMESTAMP_SIZE - NetConstants.SIGNATURE_SIZE - NetConstants.NONCE_SIZE,
   [CubeFieldType.PMUC_RAWCONTENT]: NetConstants.CUBE_SIZE - NetConstants.CUBE_TYPE_SIZE - NetConstants.PMUC_UPDATE_COUNT_SIZE - NetConstants.PUBLIC_KEY_SIZE - NetConstants.TIMESTAMP_SIZE - NetConstants.SIGNATURE_SIZE - NetConstants.NONCE_SIZE,
   [CubeFieldType.PMUC_NOTIFY_RAWCONTENT]: NetConstants.CUBE_SIZE - NetConstants.CUBE_TYPE_SIZE - NetConstants.NOTIFY_SIZE - NetConstants.PMUC_UPDATE_COUNT_SIZE - NetConstants.PUBLIC_KEY_SIZE - NetConstants.TIMESTAMP_SIZE - NetConstants.SIGNATURE_SIZE - NetConstants.NONCE_SIZE,
-};
-
-export const RawcontentFieldType: FieldNumericalParam = {
-  [CubeType.FROZEN]: CubeFieldType.FROZEN_RAWCONTENT,
-  [CubeType.FROZEN_NOTIFY]: CubeFieldType.FROZEN_NOTIFY_RAWCONTENT,
-  [CubeType.PIC]: CubeFieldType.PIC_RAWCONTENT,
-  [CubeType.PIC_NOTIFY]: CubeFieldType.PIC_NOTIFY_RAWCONTENT,
-  [CubeType.MUC]: CubeFieldType.MUC_RAWCONTENT,
-  [CubeType.MUC_NOTIFY]: CubeFieldType.MUC_NOTIFY_RAWCONTENT,
-  [CubeType.PMUC]: CubeFieldType.PMUC_RAWCONTENT,
-  [CubeType.PMUC_NOTIFY]: CubeFieldType.PMUC_NOTIFY_RAWCONTENT,
 };
 
 //===
@@ -257,6 +246,39 @@ export const PmucNotifyDefaultFields: FieldFactoryParam = {
   [CubeFieldType.DATE]: () => CubeField.Date(),
   [CubeFieldType.PUBLIC_KEY]: () => CubeField.PublicKey(),
   [CubeFieldType.PMUC_UPDATE_COUNT]: () => CubeField.PmucUpdateCount(),
+};
+
+// Next up are a few convenience lookup tables allowing for simplified handling
+// of Cube types and their associated field definitions.
+export const HasNotify: FieldBooleanParam = {
+  [CubeType.FROZEN]: false,
+  [CubeType.FROZEN_NOTIFY]: true,
+  [CubeType.PIC]: false,
+  [CubeType.PIC_NOTIFY]: true,
+  [CubeType.MUC]: false,
+  [CubeType.MUC_NOTIFY]: true,
+  [CubeType.PMUC]: false,
+  [CubeType.PMUC_NOTIFY]: true,
+};
+export const HasSignature: FieldBooleanParam = {
+  [CubeType.FROZEN]: false,
+  [CubeType.FROZEN_NOTIFY]: false,
+  [CubeType.PIC]: false,
+  [CubeType.PIC_NOTIFY]: false,
+  [CubeType.MUC]: true,
+  [CubeType.MUC_NOTIFY]: true,
+  [CubeType.PMUC]: true,
+  [CubeType.PMUC_NOTIFY]: true,
+};
+export const RawcontentFieldType: FieldNumericalParam = {
+  [CubeType.FROZEN]: CubeFieldType.FROZEN_RAWCONTENT,
+  [CubeType.FROZEN_NOTIFY]: CubeFieldType.FROZEN_NOTIFY_RAWCONTENT,
+  [CubeType.PIC]: CubeFieldType.PIC_RAWCONTENT,
+  [CubeType.PIC_NOTIFY]: CubeFieldType.PIC_NOTIFY_RAWCONTENT,
+  [CubeType.MUC]: CubeFieldType.MUC_RAWCONTENT,
+  [CubeType.MUC_NOTIFY]: CubeFieldType.MUC_NOTIFY_RAWCONTENT,
+  [CubeType.PMUC]: CubeFieldType.PMUC_RAWCONTENT,
+  [CubeType.PMUC_NOTIFY]: CubeFieldType.PMUC_NOTIFY_RAWCONTENT,
 };
 
 // semantic typedef
