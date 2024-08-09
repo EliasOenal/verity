@@ -318,14 +318,27 @@ describe('cubeStore', () => {
             expect(await cubeStore.getAllKeys().next()).toBeUndefined;
           });
 
-          it.todo('should return undefined when trying to retrieve a corrupt Cube');
-          // This test is not trivial to implement as this case can only happen
-          // when using persitent storage, which is not enabled for these tests.
-          // Basically a corrupt Cube needs to sneak into the database where it
-          // is stored as binary, and trying to construct a CubeInfo for it on
-          // retrieval will then fail.
-          // This happened in the past when we updated the Cube format and
-          // tried to retrieve old Cubes from the database.
+          if (testOptions.enableCubePersistence !== EnableCubePersitence.OFF) {
+            // This can only happen when using persistent storage.
+            // It happened in the past when we updated the Cube format and
+            // tried to retrieve old Cubes from the database.
+            it('should return undefined when trying to retrieve a corrupt Cube', async () => {
+              // craft and store a corrupt Cube
+              const corruptCube: Buffer =  Buffer.alloc(NetConstants.CUBE_SIZE, 137);
+              const key: Buffer =  Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 101);
+              // @ts-ignore accessing private member persistence
+              await cubeStore.persistence.storeCube(key.toString('hex'), corruptCube);
+
+              // double-check that the Cube is stored in persistent storage
+              // @ts-ignore accessing private member persistence
+              const stored: Buffer = await cubeStore.persistence.getCube(key.toString('hex'));
+              expect(stored).toEqual(corruptCube);
+
+              // expect CubeStore to just return undefined
+              expect(await cubeStore.getCube(key)).toBeUndefined;
+              // note: the result of getCubeInfo() in this case is undefined
+            });
+          }
         });
       });
 
