@@ -162,13 +162,13 @@ export function shouldRetainCube(key: String, cubeDate: number, challengeLevel: 
     return expirationEpoch >= currentEpoch && cubeDateInEpochs <= currentEpoch;
 }
 
-export function keyVariants(keyInput: CubeKey | string): {keyString: string, binaryKey: CubeKey} {
+export function keyVariants(keyInput: CubeKey | string | String): {keyString: string, binaryKey: CubeKey} {
     let keyString: string, binaryKey: CubeKey;
     if (keyInput instanceof Buffer) {
       keyString = keyInput.toString('hex');
       binaryKey = keyInput;
     } else {
-      keyString = keyInput;
+      keyString = keyInput.toString();  // this gets rid of any "String" object we might have -- TODO: I'm not sure if this is efficient
       binaryKey = Buffer.from(keyInput, 'hex');
     }
     return {keyString: keyString, binaryKey: binaryKey};

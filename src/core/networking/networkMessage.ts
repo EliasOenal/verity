@@ -162,7 +162,7 @@ export class KeyResponseMessage extends NetworkMessage {
           const incomingCubeInfo = new CubeInfo({
               key: key,
               date: timestamp,
-              challengeLevel: challengeLevel,
+              difficulty: challengeLevel,
               cubeType: cubeType
           });
           yield incomingCubeInfo;

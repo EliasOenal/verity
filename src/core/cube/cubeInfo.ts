@@ -36,7 +36,7 @@ export interface CubeInfoOptions {
   cubeType?: CubeType;
 
   date?: number;
-  challengeLevel?: number;
+  difficulty?: number;
 
   // TODO update comment to adequately reflect new type CubeFamilyDefinition
   /**
@@ -159,7 +159,7 @@ export class CubeInfo {
     // we'll believe the caller that the provided cube information is correct,
     // but if we're able to read those ourselves we'll override them below
     this._date = options.date;
-    this._difficulty = options.challengeLevel;
+    this._difficulty = options.difficulty;
 
     if (options.cube instanceof Cube) {
       // active Cube

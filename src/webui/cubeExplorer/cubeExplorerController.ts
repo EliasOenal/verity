@@ -37,7 +37,7 @@ class CubeStoreWalk {
   }
 
   async *keys(asString: boolean = false): AsyncGenerator<CubeKey|string> {
-    for await (const key of this.cubeStore.getAllKeys(asString)) {
+    for await (const key of this.cubeStore.getKeyRange({asString: asString, limit: Infinity })) {
       if (this._abort) return;
       yield key;
     }

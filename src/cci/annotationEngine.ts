@@ -194,7 +194,7 @@ export class AnnotationEngine extends EventEmitter {
   // This is a low priority, non-breaking todo which only needs to be addressed
   // once we actually have a userbase.
   protected async crawlCubeStore(): Promise<void> {
-    for await (const cubeInfo of this.cubeStore.getAllCubeInfos()) {
+    for await (const cubeInfo of this.cubeStore.getCubeInfoRange()) {
       // TODO: This is not efficient. We should instead fire those off all at
       // once, collect them and later await Promises.all
       await this.crawlCubeStoreEach(cubeInfo);

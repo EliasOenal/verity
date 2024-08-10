@@ -3,7 +3,7 @@ import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 import { CubeFieldLength, CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
 import { Cube } from '../../../src/core/cube/cube';
-import { CubeStore as CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
+import { CubeIteratorOptions, CubeStore as CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubePersistenceOptions } from '../../../src/core/cube/cubePersistence';
 
@@ -15,6 +15,24 @@ import sodium from 'libsodium-wrappers-sumo'
 import { paddedBuffer } from '../../../src/core/cube/cubeUtil';
 import { MediaTypes, cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
 
+// declarations
+let cubeStore: CubeStore;
+const reducedDifficulty = 0;
+
+// helper functions
+async function populateStore(num: number): Promise<CubeKey[]> {
+  const keys: CubeKey[] = [];
+  for (let i = 0; i < num; i++) {
+    const cube = Cube.Frozen({
+      fields: CubeField.RawContent(CubeType.FROZEN, `Cubus numero ${i}`),
+      requiredDifficulty: reducedDifficulty
+    })
+    keys.push(await cube.getKey());
+    await cubeStore.addCube(cube);
+  }
+  return keys;
+}
+
 // TODO: Add tests involving Cube deletion
 // TODO: Add tests checking Tree of Wisdom state (partilarly in combination with deletion)
 // TODO: For EnableCubePersistence.PRIMARY mode, add tests verifying the weak
@@ -24,7 +42,7 @@ import { MediaTypes, cciFieldType } from '../../../src/cci/cube/cciCube.definiti
 
 describe('cubeStore', () => {
   // TODO: Update payload field ID. Make tests actually check payload.
-  const validBinaryCube =  Buffer.from([
+  const validBinaryCube = Buffer.from([
     // Cube version (1) (half byte), Cube type (basic "frozen" Cube, 0) (half byte)
     0x10,
     // Payload TLV field
@@ -43,9 +61,6 @@ describe('cubeStore', () => {
     0x00, 0x65, 0xba, 0x8e, 0x38,
     0x00, 0x00, 0x00, 0xed  // Nonce passing challenge requirement
   ]);
-
-  let cubeStore: CubeStore;
-  const reducedDifficulty = 0;
 
   describe('tests at full difficulty', () => {
     // If these tests actually calculate hashcash, let's keep them to an absolute
@@ -123,7 +138,7 @@ describe('cubeStore', () => {
       },
     ])('tests run for all three persistence levels', (testOptions) => {
       describe('core level', () => {
-        const cubeStoreOptions: CubeStoreOptions&CubePersistenceOptions = {
+        const cubeStoreOptions: CubeStoreOptions & CubePersistenceOptions = {
           enableCubePersistence: EnableCubePersitence.OFF,
           requiredDifficulty: reducedDifficulty,
           enableCubeRetentionPolicy: false,
@@ -134,11 +149,11 @@ describe('cubeStore', () => {
           await cubeStore.readyPromise;
         });
         beforeEach(async () => {
-          for await (const key of cubeStore.getAllKeys()) await cubeStore.deleteCube(key);
+          for await (const key of cubeStore.getKeyRange({ limit: Infinity })) await cubeStore.deleteCube(key);
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
         });
         afterEach(async () => {
-          for await (const key of cubeStore.getAllKeys()) await cubeStore.deleteCube(key);
+          for await (const key of cubeStore.getKeyRange({ limit: Infinity })) await cubeStore.deleteCube(key);
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
         });
         afterAll(async () => {
@@ -206,9 +221,9 @@ describe('cubeStore', () => {
 
             // Create original MUC
             const muc = Cube.MUC(publicKey, privateKey, {
-                fields: CubeField.RawContent(CubeType.MUC,
-                  "Sum cubus usoris mutabilis, signatus a domino meo."),
-                requiredDifficulty: reducedDifficulty
+              fields: CubeField.RawContent(CubeType.MUC,
+                "Sum cubus usoris mutabilis, signatus a domino meo."),
+              requiredDifficulty: reducedDifficulty
             });
             muc.setDate(1695340000);
             const key = await muc.getKey();
@@ -275,7 +290,7 @@ describe('cubeStore', () => {
               "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum.");
           });
 
-          it('should not parse TLV fields by default', async() => {
+          it('should not parse TLV fields by default', async () => {
             const spammyCube = cciCube.Frozen({  // Cube with 300 TLV fields
               fields: Array.from({ length: 300 }, () => cciField.Payload("!")),
               requiredDifficulty: reducedDifficulty,
@@ -284,9 +299,146 @@ describe('cubeStore', () => {
             const spamKey: Buffer = await spammyCube.getKey();
             expect(spammyCube.fields.all.length).toBeGreaterThan(300);  // lots of spam
             await cubeStore.addCube(spammyBinary);
+            const keys = await populateStore(10);
+            keys.sort(Buffer.compare);
+
+            const options: CubeIteratorOptions = { gt: keys[3], lt: keys[7] };
+            const resultKeys = [];
 
             const restored: Cube = await cubeStore.getCube(spamKey);
             expect(restored.fields.all.length).toEqual(4);  // spam ignored
+          });
+        });
+
+        describe('getKeyRange() method', () => {
+          it('should return keys within the specified range using gt and lt', async () => {
+            expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
+            const keys = await populateStore(10);
+            expect(await cubeStore.getNumberOfStoredCubes()).toBe(10);
+            keys.sort(Buffer.compare);
+
+            const options: CubeIteratorOptions = { gt: keys[3], lt: keys[7] };
+            const resultKeys = [];
+
+            for await (const key of cubeStore.getKeyRange(options)) {
+              resultKeys.push(key);
+            }
+            expect(resultKeys).toHaveLength(3);
+            expect(resultKeys).toContainEqual(keys[4]);
+            expect(resultKeys).toContainEqual(keys[5]);
+            expect(resultKeys).toContainEqual(keys[6]);
+          });
+
+          it('should return keys within the specified range using gte and lte', async () => {
+            const keys = await populateStore(10);
+            keys.sort(Buffer.compare);
+
+            const options: CubeIteratorOptions = { gte: keys[3], lte: keys[7] };
+            const resultKeys = [];
+
+            for await (const key of cubeStore.getKeyRange(options)) {
+              resultKeys.push(key);
+            }
+            expect(resultKeys).toHaveLength(5);
+            expect(resultKeys).toContainEqual(keys[3]);
+            expect(resultKeys).toContainEqual(keys[4]);
+            expect(resultKeys).toContainEqual(keys[5]);
+            expect(resultKeys).toContainEqual(keys[6]);
+            expect(resultKeys).toContainEqual(keys[7]);
+          });
+
+          it('should respect the limit option (no filtering)', async () => {
+            const keys = await populateStore(10);
+            const options: CubeIteratorOptions = { limit: 3 };
+
+            const resultKeys = [];
+            for await (const key of cubeStore.getKeyRange(options)) {
+              resultKeys.push(key);
+            }
+            expect(resultKeys).toHaveLength(3);
+          });
+
+          it('should respect both filtering and limit at the same time', async () => {
+            const keys = await populateStore(10);
+            keys.sort(Buffer.compare);
+
+            const options: CubeIteratorOptions = { gte: keys[3], lte: keys[7], limit: 2 };
+            const resultKeys = [];
+
+            for await (const key of cubeStore.getKeyRange(options)) {
+              resultKeys.push(key);
+            }
+            expect(resultKeys).toHaveLength(2);
+            expect(resultKeys).not.toContainEqual(keys[0]);
+            expect(resultKeys).not.toContainEqual(keys[1]);
+            expect(resultKeys).not.toContainEqual(keys[8]);
+            expect(resultKeys).not.toContainEqual(keys[9]);
+          });
+
+          it('should wrap around if wraparound is true and limit is not reached', async () => {
+            const keys = await populateStore(10);
+            keys.sort(Buffer.compare);
+
+            const options: CubeIteratorOptions = { gte: keys[7], wraparound: true, limit: 5 };
+            const resultKeys = [];
+
+            for await (const key of cubeStore.getKeyRange(options)) {
+              resultKeys.push(key);
+            }
+            expect(resultKeys).toHaveLength(5);
+            expect(resultKeys).toContainEqual(keys[7]);
+            expect(resultKeys).toContainEqual(keys[8]);
+            expect(resultKeys).toContainEqual(keys[9]);
+            // Note: while it is required that all keys >= 7 are returned,
+            // it is completely undefined which keys < 7 are returned.
+            // This is because the storage backends are not required to store
+            // Cubes sorted by key, and notably the in-memory Map does not.
+          });
+
+          it('should not return the same key twice in wraparound mode', async () => {
+            const keys = await populateStore(5);
+            keys.sort(Buffer.compare);
+
+            const options: CubeIteratorOptions = { gt: keys[3], wraparound: true };
+            const resultKeys = [];
+
+            for await (const key of cubeStore.getKeyRange(options)) {
+              resultKeys.push(key);
+            }
+            expect(resultKeys).toHaveLength(5);
+            expect(resultKeys).toContainEqual(keys[0]);
+            expect(resultKeys).toContainEqual(keys[1]);
+            expect(resultKeys).toContainEqual(keys[2]);
+            expect(resultKeys).toContainEqual(keys[3]);
+            expect(resultKeys).toContainEqual(keys[4]);
+          });
+
+          it('should return keys as strings when asString option is true', async () => {
+            const keys = await populateStore(5);
+            keys.sort(Buffer.compare);
+
+            const options: CubeIteratorOptions = { asString: true };
+            const resultKeys = [];
+
+            for await (const key of cubeStore.getKeyRange(options)) {
+              resultKeys.push(key);
+            }
+            expect(resultKeys).toHaveLength(5);
+            expect(resultKeys).toContainEqual(keys[0].toString('hex'));
+            expect(resultKeys).toContainEqual(keys[1].toString('hex'));
+            expect(resultKeys).toContainEqual(keys[2].toString('hex'));
+            expect(resultKeys).toContainEqual(keys[3].toString('hex'));
+            expect(resultKeys).toContainEqual(keys[4].toString('hex'));
+          });
+
+          it('should return no keys if the limit is set to 0', async () => {
+            const keys = await populateStore(5);
+            const options: CubeIteratorOptions = { limit: 0 };
+            const resultKeys = [];
+            for await (const key of cubeStore.getKeyRange(options)) {
+              resultKeys.push(key);
+            }
+            expect(resultKeys).toHaveLength(0);
           });
         });
 
@@ -313,9 +465,9 @@ describe('cubeStore', () => {
             expect(await cubeStore.getCubeInfo(mockKey)).toBeUndefined;
           });
 
-          it('should return an empty iterable when requesting all entries', async () => {
-            expect(await cubeStore.getAllCubeInfos().next()).toBeUndefined;
-            expect(await cubeStore.getAllKeys().next()).toBeUndefined;
+          it('should return an empty iterable when requesting all entries from an empty CubeStore', async () => {
+            expect(await cubeStore.getCubeInfoRange().next()).toBeUndefined;
+            expect(await cubeStore.getKeyRange().next()).toBeUndefined;
           });
 
           if (testOptions.enableCubePersistence !== EnableCubePersitence.OFF) {
@@ -324,8 +476,8 @@ describe('cubeStore', () => {
             // tried to retrieve old Cubes from the database.
             it('should return undefined when trying to retrieve a corrupt Cube', async () => {
               // craft and store a corrupt Cube
-              const corruptCube: Buffer =  Buffer.alloc(NetConstants.CUBE_SIZE, 137);
-              const key: Buffer =  Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 101);
+              const corruptCube: Buffer = Buffer.alloc(NetConstants.CUBE_SIZE, 137);
+              const key: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 101);
               // @ts-ignore accessing private member persistence
               await cubeStore.persistence.storeCube(key.toString('hex'), corruptCube);
 
@@ -343,7 +495,7 @@ describe('cubeStore', () => {
       });
 
       describe('tests involving CCI layer', () => {
-        const cubeStoreOptions: CubeStoreOptions&CubePersistenceOptions = {
+        const cubeStoreOptions: CubeStoreOptions & CubePersistenceOptions = {
           enableCubePersistence: EnableCubePersitence.OFF,
           requiredDifficulty: reducedDifficulty,
           enableCubeRetentionPolicy: false,
@@ -353,22 +505,24 @@ describe('cubeStore', () => {
         beforeEach(async () => {
           cubeStore = new CubeStore(cubeStoreOptions);
           await cubeStore.readyPromise;
-          for await (const key of cubeStore.getAllKeys()) await cubeStore.deleteCube(key);
+          for await (const key of cubeStore.getKeyRange({ limit: Infinity })) await cubeStore.deleteCube(key);
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
         });
         afterEach(async () => {
-          for await (const key of cubeStore.getAllKeys()) await cubeStore.deleteCube(key);
+          for await (const key of cubeStore.getKeyRange({ limit: Infinity })) await cubeStore.deleteCube(key);
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
           await cubeStore.shutdown();
         });
 
-        it("respects the user's Cube parsing settings", async() => {
-          const cube: cciCube = cciCube.Frozen({fields: [
-            cciField.Application("Applicatio probandi"),
-            cciField.MediaType(MediaTypes.TEXT),
-            cciField.Username("Usor probandi"),
-            cciField.Payload("In hac applicatio probationis, usor probandi creat contentum probandi, ut programma probatorium confirmet omnem testium datam conservatam esse."),
-          ], requiredDifficulty: reducedDifficulty });
+        it("respects the user's Cube parsing settings", async () => {
+          const cube: cciCube = cciCube.Frozen({
+            fields: [
+              cciField.Application("Applicatio probandi"),
+              cciField.MediaType(MediaTypes.TEXT),
+              cciField.Username("Usor probandi"),
+              cciField.Payload("In hac applicatio probationis, usor probandi creat contentum probandi, ut programma probatorium confirmet omnem testium datam conservatam esse."),
+            ], requiredDifficulty: reducedDifficulty
+          });
           const binaryCube: Buffer = await cube.getBinaryData();
           const key: Buffer = await cube.getKey();
           const added = await cubeStore.addCube(binaryCube);
