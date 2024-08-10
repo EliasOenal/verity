@@ -5,7 +5,7 @@ import { CubeFieldLength, CubeFieldType, CubeKey, CubeType } from '../../../src/
 import { Cube } from '../../../src/core/cube/cube';
 import { CubeIteratorOptions, CubeStore as CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 import { CubeField } from '../../../src/core/cube/cubeField';
-import { CubePersistenceOptions } from '../../../src/core/cube/cubePersistence';
+import { LevelPersistenceOptions } from '../../../src/core/cube/levelPersistence';
 
 import { cciField } from '../../../src/cci/cube/cciField';
 import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
@@ -124,26 +124,18 @@ describe('cubeStore', () => {
     // So should all other Cube-sculpting tests in other units.
 
     describe.each([
-      {
-        enableCubePersistence: EnableCubePersitence.OFF,
-        dbName: 'cubes.test',  // unnecessary at this setting, but including it anyway
-      },
-      {
-        enableCubePersistence: EnableCubePersitence.BACKUP,
-        dbName: 'cubes.test',
-      },
-      {
-        enableCubePersistence: EnableCubePersitence.PRIMARY,
-        dbName: 'cubes.test',
-      },
+      { enableCubePersistence: EnableCubePersitence.OFF, },
+      { enableCubePersistence: EnableCubePersitence.BACKUP, },
+      { enableCubePersistence: EnableCubePersitence.PRIMARY, },
     ])('tests run for all three persistence levels', (testOptions) => {
       describe('core level', () => {
-        const cubeStoreOptions: CubeStoreOptions & CubePersistenceOptions = {
-          enableCubePersistence: EnableCubePersitence.OFF,
+        const cubeStoreOptions: CubeStoreOptions & LevelPersistenceOptions = {
           requiredDifficulty: reducedDifficulty,
           enableCubeRetentionPolicy: false,
+          dbName: 'cubes.test',
+          dbVersion: 1,
+          ...testOptions,
         };
-        Object.assign(cubeStoreOptions, testOptions);  // mix in options defined in describe.each
         beforeAll(async () => {
           cubeStore = new CubeStore(cubeStoreOptions);
           await cubeStore.readyPromise;
@@ -479,11 +471,11 @@ describe('cubeStore', () => {
               const corruptCube: Buffer = Buffer.alloc(NetConstants.CUBE_SIZE, 137);
               const key: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 101);
               // @ts-ignore accessing private member persistence
-              await cubeStore.persistence.storeCube(key.toString('hex'), corruptCube);
+              await cubeStore.persistence.store(key.toString('hex'), corruptCube);
 
               // double-check that the Cube is stored in persistent storage
               // @ts-ignore accessing private member persistence
-              const stored: Buffer = await cubeStore.persistence.getCube(key.toString('hex'));
+              const stored: Buffer = await cubeStore.persistence.get(key.toString('hex'));
               expect(stored).toEqual(corruptCube);
 
               // expect CubeStore to just return undefined
@@ -495,11 +487,13 @@ describe('cubeStore', () => {
       });
 
       describe('tests involving CCI layer', () => {
-        const cubeStoreOptions: CubeStoreOptions & CubePersistenceOptions = {
-          enableCubePersistence: EnableCubePersitence.OFF,
+        const cubeStoreOptions: CubeStoreOptions & LevelPersistenceOptions = {
+          family: cciFamily,
           requiredDifficulty: reducedDifficulty,
           enableCubeRetentionPolicy: false,
-          family: cciFamily,
+          dbName: 'cubes.test',
+          dbVersion: 1,
+          ...testOptions,
         };
         Object.assign(cubeStoreOptions, testOptions);  // mix in options defined in describe.each
         beforeEach(async () => {

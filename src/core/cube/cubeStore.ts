@@ -1,23 +1,17 @@
 // cubeStore.ts
-import { ApiMisuseError, Settings, VerityError } from "../settings";
+import { ApiMisuseError, Settings } from "../settings";
 import { Cube, coreCubeFamily } from "./cube";
 import { CubeInfo, CubeMeta } from "./cubeInfo";
-import { CubePersistence, CubePersistenceOptions } from "./cubePersistence";
-import { CubeType, CubeKey, InsufficientDifficulty } from "./cube.definitions";
+import { LevelPersistence, LevelPersistenceOptions } from "./levelPersistence";
+import { CubeType, CubeKey } from "./cube.definitions";
 import { CubeFamilyDefinition } from "./cubeFields";
-import {
-  cubeContest,
-  shouldRetainCube,
-  getCurrentEpoch,
-  keyVariants,
-} from "./cubeUtil";
+import {cubeContest, shouldRetainCube, getCurrentEpoch,keyVariants} from "./cubeUtil";
 import { TreeOfWisdom } from "../tow";
 import { logger } from "../logger";
 
 import { EventEmitter } from "events";
 import { WeakValueMap } from "weakref";
 import { Buffer } from "buffer";
-import { KeyIteratorOptions, ValueIteratorOptions } from "level";
 
 // TODO: we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes
@@ -100,6 +94,7 @@ export interface CubeRetrievalInterface {
 export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   readyPromise: Promise<any>;
   readonly inMemory: boolean;
+  readonly options: CubeStoreOptions & LevelPersistenceOptions;
 
   /**
    * If this CubeStore is configured to keep Cubes in RAM, this will be where
@@ -109,21 +104,26 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     undefined;
 
   /** Refers to the persistant cube storage database, if available and enabled */
-  private persistence: CubePersistence = undefined;
+  private persistence: LevelPersistence = undefined;
   /** The Tree of Wisdom maps cube keys to their hashes. */
   private treeOfWisdom: TreeOfWisdom = undefined;
 
-  constructor(readonly options: CubeStoreOptions & CubePersistenceOptions) {
+  constructor(options: CubeStoreOptions | LevelPersistenceOptions) {
     super();
+    this.options = options as CubeStoreOptions & LevelPersistenceOptions;
     // set default options if none specified
     this.options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
     this.options.family ??= coreCubeFamily;
     this.options.enableCubeRetentionPolicy ??= Settings.CUBE_RETENTION_POLICY;
     this.options.negativeCache ??= true;
+    this.options.enableCubePersistence ??= EnableCubePersitence.OFF;
+    // ensure LevelPersistenceOptions are always set
+    this.options.dbName ??= Settings.CUBEDB_NAME;
+    this.options.dbVersion ??= Settings.CUBEDB_VERSION;
 
     // Configure this CubeStore according to the options specified:
     // Do we want to use a Merckle-Patricia-Trie for efficient full node sync?
-    if (options?.enableTreeOfWisdom ?? Settings.TREE_OF_WISDOM) {
+    if (this.options.enableTreeOfWisdom ?? Settings.TREE_OF_WISDOM) {
       this.treeOfWisdom = new TreeOfWisdom();
     }
     // Increase maximum listeners: one for each peer and a few for ourselves
@@ -135,8 +135,8 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       })
     );
     // Do we want to keep cubes in RAM, or do we want to use persistent storage?
-    if (options?.enableCubePersistence > EnableCubePersitence.OFF) {
-      if (options.enableCubePersistence >= EnableCubePersitence.PRIMARY) {
+    if (this.options.enableCubePersistence > EnableCubePersitence.OFF) {
+      if (this.options.enableCubePersistence >= EnableCubePersitence.PRIMARY) {
         this.inMemory = false;
         this.storage = new WeakValueMap(); // in-memory cache
       } else {
@@ -145,13 +145,13 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       }
       // When using persistent storage, the CubeStore is ready when the
       // persistence layer is ready.
-      this.persistence = new CubePersistence(options);
+      this.persistence = new LevelPersistence(this.options);
       this.persistence.on("ready", async () => {
         logger.trace(
           "cubeStore: received ready event from cubePersistence, enableCubePersistence is: " +
-            options.enableCubePersistence
+            this.options.enableCubePersistence
         );
-        if (options.enableCubePersistence === EnableCubePersitence.BACKUP) {
+        if (this.options.enableCubePersistence === EnableCubePersitence.BACKUP) {
           // For CubeStores configured to keep cubes in RAM but still persist
           // them, we now need to load all Cubes.
           // In all other cases, we do not and should not.
@@ -293,7 +293,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       if (this.storage) this.storage.set(cubeInfo.keyString, cubeInfo);
       // save cube to disk (if available and enabled)
       if (this.persistence) {
-        await this.persistence.storeCube(cubeInfo.key, cubeInfo.binaryCube);
+        await this.persistence.store(cubeInfo.key, cubeInfo.binaryCube);
       }
       // add cube to the Tree of Wisdom if enabled
       if (this.treeOfWisdom) {
@@ -368,7 +368,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       else if (cached?.valid === false) return undefined; // negative cache hit
       else {
         // cache miss
-        const binaryCube: Buffer = await this.persistence.getCube(key.binaryKey);
+        const binaryCube: Buffer = await this.persistence.get(key.binaryKey);
         if (binaryCube !== undefined) {
           try {  // could fail e.g. on invalid binary data
             const cubeInfo = new CubeInfo({
@@ -622,7 +622,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     const key = keyVariants(keyInput);
     this.storage?.delete(key.keyString);
     this.treeOfWisdom?.delete(key.keyString);
-    await this.persistence?.deleteCube(key.binaryKey);
+    await this.persistence?.delete(key.binaryKey);
   }
 
   async pruneCubes(): Promise<void> {
@@ -676,11 +676,11 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
    */
   private async syncPersistentStorage() {
     if (!this.persistence || !this.inMemory) return;
-    for await (const rawcube of this.persistence.getCubeRange({ limit: Infinity})) {
+    for await (const rawcube of this.persistence.getValueRange({ limit: Infinity})) {
       await this.addCube(Buffer.from(rawcube));
     }
     for (const cubeInfo of this.storage.values()) {
-      await this.persistence.storeCube(cubeInfo.key, cubeInfo.binaryCube);
+      await this.persistence.store(cubeInfo.key, cubeInfo.binaryCube);
     }
   }
 }
