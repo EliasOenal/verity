@@ -5,7 +5,6 @@ import { CubeFieldLength, CubeFieldType, CubeKey, CubeType } from '../../../src/
 import { Cube } from '../../../src/core/cube/cube';
 import { CubeIteratorOptions, CubeStore as CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 import { CubeField } from '../../../src/core/cube/cubeField';
-import { LevelPersistenceOptions } from '../../../src/core/cube/levelPersistence';
 
 import { cciField } from '../../../src/cci/cube/cciField';
 import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
@@ -129,11 +128,11 @@ describe('cubeStore', () => {
       { enableCubePersistence: EnableCubePersitence.PRIMARY, },
     ])('tests run for all three persistence levels', (testOptions) => {
       describe('core level', () => {
-        const cubeStoreOptions: CubeStoreOptions & LevelPersistenceOptions = {
+        const cubeStoreOptions: CubeStoreOptions = {
           requiredDifficulty: reducedDifficulty,
           enableCubeRetentionPolicy: false,
-          dbName: 'cubes.test',
-          dbVersion: 1,
+          cubeDbName: 'cubes.test',
+          cubeDbVersion: 1,
           ...testOptions,
         };
         beforeAll(async () => {
@@ -291,11 +290,6 @@ describe('cubeStore', () => {
             const spamKey: Buffer = await spammyCube.getKey();
             expect(spammyCube.fields.all.length).toBeGreaterThan(300);  // lots of spam
             await cubeStore.addCube(spammyBinary);
-            const keys = await populateStore(10);
-            keys.sort(Buffer.compare);
-
-            const options: CubeIteratorOptions = { gt: keys[3], lt: keys[7] };
-            const resultKeys = [];
 
             const restored: Cube = await cubeStore.getCube(spamKey);
             expect(restored.fields.all.length).toEqual(4);  // spam ignored
@@ -487,12 +481,12 @@ describe('cubeStore', () => {
       });
 
       describe('tests involving CCI layer', () => {
-        const cubeStoreOptions: CubeStoreOptions & LevelPersistenceOptions = {
+        const cubeStoreOptions: CubeStoreOptions = {
           family: cciFamily,
           requiredDifficulty: reducedDifficulty,
           enableCubeRetentionPolicy: false,
-          dbName: 'cubes.test',
-          dbVersion: 1,
+          cubeDbName: 'cubes.test',
+          cubeDbVersion: 1,
           ...testOptions,
         };
         Object.assign(cubeStoreOptions, testOptions);  // mix in options defined in describe.each

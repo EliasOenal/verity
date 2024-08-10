@@ -51,6 +51,12 @@
   applications requiring client anonymity. But then again, for client anonymity
   light nodes should never serve any Cubes at all.
 
+### Cube types
+- Implement special features for PIC and PMUC and test them, i.e.:
+  - PIC refresh
+  - PMUC refresh... and whatever else that thing does again
+  - whatever I forgot to mention here
+
 # CCI
 - Implement Cube encryption
 - Implement continuation chains
