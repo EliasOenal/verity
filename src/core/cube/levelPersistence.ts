@@ -1,5 +1,4 @@
-// cubePersistence.ts
-import { CubeInfo } from './cubeInfo';
+// LevelPersistence.ts
 import { EventEmitter } from 'events';
 import { Settings, VerityError } from "../settings";
 
@@ -8,89 +7,89 @@ import { logger } from '../logger';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { Buffer } from 'buffer';
 import { KeyIteratorOptions, Level, ValueIteratorOptions } from 'level';
-import { CubeKey } from './cube.definitions';
 import { CubeIteratorOptions } from './cubeStore';
 import { keyVariants } from './cubeUtil';
 
-const CUBEDB_VERSION = 3;
 // maybe TODO: If we find random data in the database that doesn't parse as a cube, should we delete it?
+// ... now that we generalized this Class, any deleting of unparseable Cubes
+//     would have to be done in the CubeStore
 
-export interface CubePersistenceOptions {
-  dbName?: string;
+export interface LevelPersistenceOptions {
+  dbName: string;
+  dbVersion: number;
 }
 
 // Will emit a ready event once available
-export class CubePersistence extends EventEmitter {
-  private db: Level<CubeKey, Buffer>
+export class LevelPersistence extends EventEmitter {
+  private db: Level<Buffer, Buffer>
 
-  constructor(options?: CubePersistenceOptions) {
+  constructor(readonly options: LevelPersistenceOptions) {
     super();
     // Set database name, add .db file extension for non-browser environments
-    let dbname: string = options?.dbName ?? Settings.CUBE_PERSISTENCE_DB_NAME;
-    if (!isBrowser && !isWebWorker) dbname += ".db";
+    if (!isBrowser && !isWebWorker) this.options.dbName += ".db";
     // open the database
-    this.db = new Level<CubeKey, Buffer>(
-      dbname,
+    this.db = new Level<Buffer, Buffer>(
+      this.options.dbName,
       {
         keyEncoding: 'buffer',
         valueEncoding: 'buffer',
-        version: CUBEDB_VERSION
+        version: options.dbVersion
       });
     this.db.open().then(() => {
       this.emit('ready');
     }).catch((error) => {
-      logger.error("cubePersistence: Could not open DB: " + error);
+      logger.error("LevelPersistence: Could not open DB: " + error);
     });
   }
 
-  storeCube(key: CubeKey, cube: Buffer): Promise<void> {
+  store(key: Buffer, value: Buffer): Promise<void> {
     if (this.db.status !== 'open') {
-      logger.warn("cubePersistence: Attempt to store cube in a closed DB");
+      logger.warn("LevelPersistence: Attempt to store in a closed DB");
       return Promise.resolve();
     }
 
-    return this.db.put(key, cube)
+    return this.db.put(key, value)
       .then(() => {
-        logger.trace(`cubePersistence: Successfully stored cube ${keyVariants(key).keyString}`);
+        logger.trace(`LevelPersistence: Successfully stored ${keyVariants(key).keyString}`);
       })
       .catch((error) => {
-        logger.error(`cubePersistence: Failed to store cube ${keyVariants(key).keyString}: ${error}`);
-        throw new PersistenceError(`Failed to store cube ${keyVariants(key).keyString}: ${error}`);
+        logger.error(`LevelPersistence: Failed to store ${keyVariants(key).keyString}: ${error}`);
+        throw new PersistenceError(`Failed to store ${keyVariants(key).keyString}: ${error}`);
       });
   }
 
-  getCube(key: CubeKey): Promise<Buffer> {
+  get(key: Buffer): Promise<Buffer> {
     return this.db.get(key)
       .then(ret => {
-        //logger.trace(`CubePersistence.getCube() fetched binary Cube ${keyVariants(key).keyString}`);
+        //logger.trace(`LevelPersistence.get() fetched ${keyVariants(key).keyString}`);
         return ret;
       })
       .catch(error => {
-        logger.debug(`CubePersistance.getCube(): Cannot find Cube ${keyVariants(key).keyString}, error status ${error.status} ${error.code}, ${error.message}`);
+        logger.debug(`LevelPersistance.get(): Cannot find ${keyVariants(key).keyString}, error status ${error.status} ${error.code}, ${error.message}`);
         return undefined;
       });
   }
 
   /**
-   * Asynchroneously retrieve multiple Cube keys from the database.
+   * Asynchroneously retrieve multiple keys from the database.
    * Note that you always need to provide a meaningful option object, as otherwise
-   * you will just get the first 1000 Cubes from the database.
-   * @param options see getCubeRange()
+   * you will just get the first 1000 keys from the database.
+   * @param options see getValueRange()
    */
   async *getKeyRange(
       options: CubeIteratorOptions = {},
-  ): AsyncGenerator<CubeKey> {
+  ): AsyncGenerator<Buffer> {
       // normalize input: keys are binary in LevelDB
       // Note! Unused options must be unset, not set to undefined.
       // Level just breaks when you set a limit of undefined and returns nothing.
-      const optionsNormalised: KeyIteratorOptions<CubeKey> = {};
+      const optionsNormalised: KeyIteratorOptions<Buffer> = {};
       if (options.gt) optionsNormalised.gt = keyVariants(options.gt).binaryKey;
       if (options.gte) optionsNormalised.gte = keyVariants(options.gte).binaryKey;
       if (options.lt) optionsNormalised.lt = keyVariants(options.lt).binaryKey;
       if (options.lte) optionsNormalised.lte = keyVariants(options.lte).binaryKey;
       optionsNormalised.limit = options.limit ?? 1000;
       optionsNormalised.reverse = false;
-    if (options.limit > 1000) logger.warn("CubePersistence:getKeys() requesting over 1000 Keys is deprecated. Please fix your application and set a reasonable limit.");
+    if (options.limit > 1000) logger.warn("LevelPersistence:getKeys() requesting over 1000 Keys is deprecated. Please fix your application and set a reasonable limit.");
 
     // return nothing if the DB is not open... not that we have any choice then
     if (this.db.status != 'open') return undefined;  // "Generator has completed"
@@ -100,9 +99,9 @@ export class CubePersistence extends EventEmitter {
   }
 
   /**
-   * Asynchroneously retrieve multiple binary Cubes from the database.
+   * Asynchroneously retrieve multiple values from the database.
    * Note that you always need to provide a meaningful option object, as otherwise
-   * you will just get the first 1000 Cubes from the database.
+   * you will just get the first 1000 values from the database.
    * @param options An object containing filtering and limiting options.
    *   This follows level's iterator options, see their docs for details. In short:
    *   - gt (greater than) or gte (greater than or equal):
@@ -110,38 +109,38 @@ export class CubePersistence extends EventEmitter {
    *   - lt (less than) or lte (less than or equal):
    *     Defines at which key to stop retrieving.
    *   - reverse (boolean, default: false): Defines the order in which the entries are yielded
-   *   - limit (number, default: 1000): Limits the number of Cubes retrieved.
+   *   - limit (number, default: 1000): Limits the number of values retrieved.
    *     Note that in contrast to level's interface we impose a default limit
-   *     of 1000 to prevent accidental CubeStore walks, which can be very slow,
+   *     of 1000 to prevent accidental full walks, which can be very slow,
    *     completely impractical and block an application for basically forever.
    */
-  async *getCubeRange(
-      options: ValueIteratorOptions<CubeKey, Buffer> = {},
+  async *getValueRange(
+      options: ValueIteratorOptions<Buffer, Buffer> = {},
   ): AsyncGenerator<Buffer> {
     options.limit ??= 1000;
-    if (options.limit > 1000) logger.warn("CubePersistence:getCubes() requesting over 1000 Cubes is deprecated. Please fix your application and set a reasonable limit.");
+    if (options.limit > 1000) logger.warn("LevelPersistence:getValueRange() requesting over 1000 values is deprecated. Please fix your application and set a reasonable limit.");
     if (this.db.status != 'open') return undefined;  // "Generator has completed"
-    const allCubes = this.db.values(options);
-    let binaryCube: Buffer;
-    while (binaryCube = await allCubes.next()) yield binaryCube;
+    const valGen = this.db.values(options);
+    let val: Buffer;
+    while (val = await valGen.next()) yield val;
   }
 
   /**
-   * Deletes a cube from persistent storage based on its key.
-   * @param {string} key The key of the cube to be deleted.
-   * @returns {Promise<void>} A promise that resolves when the cube is deleted, or rejects with an error.
+   * Deletes an entry from persistent storage based on its key.
+   * @param {string} key The key of the entry to be deleted.
+   * @returns {Promise<void>} A promise that resolves when the entry is deleted, or rejects with an error.
    */
-  async deleteCube(key: CubeKey): Promise<void> {
+  async delete(key: Buffer): Promise<void> {
     if (this.db.status !== 'open') {
-      logger.error("cubePersistence: Attempt to delete cube in a closed DB");
+      logger.error("LevelPersistence: Attempt to delete in a closed DB");
       throw new PersistenceError("DB is not open");
     }
 
     try {
       await this.db.del(key);
-      logger.info(`cubePersistence: Successfully deleted cube with key ${keyVariants(key).keyString}`);
+      logger.info(`LevelPersistence: Successfully deleted entry with key ${keyVariants(key).keyString}`);
     } catch (error) {
-      logger.error(`cubePersistence: Failed to delete cube with key ${keyVariants(key).keyString}: ${error}`);
+      logger.error(`LevelPersistence: Failed to delete entry with key ${keyVariants(key).keyString}: ${error}`);
     }
   }
 
@@ -150,7 +149,7 @@ export class CubePersistence extends EventEmitter {
    * @param position The position of the key to retrieve.
    * @returns A promise that resolves with the key at the specified position.
    */
-   async getKeyAtPosition(position: number): Promise<CubeKey> {
+   async getKeyAtPosition(position: number): Promise<Buffer> {
     if (this.db.status !== 'open') {
       throw new PersistenceError("DB is not open");
     }

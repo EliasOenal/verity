@@ -7,7 +7,7 @@ import { Peer } from "./peering/peer";
 import { PeerDB } from "./peering/peerDB";
 
 import { logger } from "./logger";
-import { CubePersistence } from "./cube/cubePersistence";
+import { LevelPersistence } from "./cube/levelPersistence";
 import { RequestScheduler } from "./networking/cubeRetrieval/requestScheduler";
 
 export type VerityNodeOptions = NetworkManagerOptions & CubeStoreOptions;
