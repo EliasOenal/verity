@@ -241,7 +241,7 @@ describe('networkManager - libp2p connections', () => {
       }
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    for await (const key of cubeStore.getAllKeys()) {
+    for await (const key of cubeStore.getKeyRange({ limit: Infinity })) {
       expect(await cubeStore2.getCube(key)).toBeInstanceOf(Cube);
     }
 
@@ -255,7 +255,7 @@ describe('networkManager - libp2p connections', () => {
       }
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    for await (const key of cubeStore2.getAllKeys()) {
+    for await (const key of cubeStore2.getKeyRange({ limit: Infinity })) {
       expect(await cubeStore3.getCube(key)).toBeInstanceOf(Cube);
     }
 

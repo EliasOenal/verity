@@ -190,7 +190,7 @@ export class Cube {
             key: await this.getKey(),
             cube: this,
             date: this.getDate(),
-            challengeLevel: CubeUtil.countTrailingZeroBits(this.hash),
+            difficulty: CubeUtil.countTrailingZeroBits(this.hash),
             family: family,
         });
     }

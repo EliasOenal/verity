@@ -517,7 +517,7 @@ describe('networkManager - WebSocket connections', () => {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
         expect(await cubeStore2.getNumberOfStoredCubes()).toEqual(numberOfCubes);
-        for await (const key of cubeStore.getAllKeys()) {
+        for await (const key of cubeStore.getKeyRange({ limit: Infinity })) {
           expect(await cubeStore2.getCube(key)).toBeInstanceOf(Cube);
         }
 
@@ -532,7 +532,7 @@ describe('networkManager - WebSocket connections', () => {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
         expect(await cubeStore3.getNumberOfStoredCubes()).toEqual(numberOfCubes);
-        for await (const key of cubeStore2.getAllKeys()) {
+        for await (const key of cubeStore2.getKeyRange({ limit: Infinity })) {
           expect(await cubeStore3.getCube(key)).toBeInstanceOf(Cube);
         }
 
@@ -1013,15 +1013,4 @@ async function waitForCubeSync(cubeStore: CubeStore, expectedCount: number, time
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   throw new Error(`Timeout waiting for cube sync. Expected ${expectedCount} cubes, got ${await cubeStore.getNumberOfStoredCubes()}`);
-}
-
-async function getAllCubes(cubeStore: CubeStore): Promise<Cube[]> {
-  const cubes: Cube[] = [];
-  for await (const key of cubeStore.getAllKeys()) {
-    const cube = await cubeStore.getCube(key);
-    if (cube) {
-      cubes.push(cube);
-    }
-  }
-  return cubes;
 }
