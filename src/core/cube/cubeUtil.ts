@@ -62,8 +62,10 @@ export function cubeLifetime(x: number, e1: number = 0, e2: number = 960, c1: nu
 export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMeta {
     switch (localCube.cubeType) {
         case CubeType.FROZEN:
+        case CubeType.FROZEN_NOTIFY:
             throw new CubeError("cubeUtil: Regular cubes cannot be contested.");
         case CubeType.MUC:
+        case CubeType.MUC_NOTIFY:
             // For MUCs the most recently sculpted cube wins. If they tie, the local
             // cube wins. We expect the owner of the MUC not to cause collisions.
             // If you do anyway - you brought it upon yourself.
@@ -73,6 +75,7 @@ export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMe
                 return incomingCube;
             break;
         case CubeType.PIC:
+        case CubeType.PIC_NOTIFY:
             // Calculate the expiration date of each cube
             const expirationLocalCube = localCube.date + (cubeLifetime(localCube.difficulty) * UNIX_SECONDS_PER_EPOCH);
             const expirationIncomingCube = incomingCube.date + (cubeLifetime(incomingCube.difficulty) * UNIX_SECONDS_PER_EPOCH);
@@ -87,6 +90,11 @@ export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMe
                 return localCube;
             }
             break;
+        // TODO:
+        // case CubeType.PMUC:
+        // case CubeType.PMUC_NOTIFY:
+        // how did those work again... highest PMUC_UPDATE_COUNT wins, and if
+        // those tie highest expiration time wins?
         default:
             throw new CubeError("cubeUtil: Unknown cube type.");
     }

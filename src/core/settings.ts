@@ -12,6 +12,8 @@ export const Settings = {
     CUBEDB_VERSION: 4,
     CUBE_PERSISTENCE_VERIFICATION: false,  // Not implemented -- Verify 0.07% of read cubes (1 in 1337)
     CUBE_PERSISTENCE_DELETE_CORRUPT: false,  // Not implemented -- Delete corrupt cubes from the database
+    NOTIFYDB_NAME: "notify",
+    NOTIFYDB_VERSION: 1,
 
     /**
      * Seed bytes used to derive a MUC extension key from a user's master key.
