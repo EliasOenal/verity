@@ -155,9 +155,11 @@ export class Cube {
             this.fieldParser = this.family.parsers[this._cubeType];
             if (options?.fields) {  // do we have a field set already?
                 if (!(options.fields instanceof CubeFields)) {
-                    options.fields =
+                    options.fields =  // upgrade to CubeFields if necessary
                         new this.fieldParser.fieldDef.fieldsObjectClass(
-                            options.fields);  // upgrade to CubeFields if needed
+                            options.fields,
+                            this.fieldParser.fieldDef
+                        );
                 }
                 this.setFields(options.fields as CubeFields);  // set fields
             }  // no fields yet? let's just start out with an empty set then
@@ -255,11 +257,18 @@ export class Cube {
     }
 
     public getKeyIfAvailable(): CubeKey {
-        if (this.cubeType == CubeType.MUC) {
+        if (HasSignature[this.cubeType]) {
+            // for signed Cubes, the key is the public key
             return this.publicKey;
-        } else if (this.cubeType === CubeType.FROZEN) {
+        } else if (this.cubeType === CubeType.FROZEN ||
+                   this.cubeType === CubeType.FROZEN_NOTIFY) {
+            // for frozen Cubes, the key is the whole hash
             return this.getHashIfAvailable();
-        } else {
+        } else if (this.cubeType === CubeType.PIC ||
+                   this.cubeType === CubeType.PIC_NOTIFY) {
+            // for PICs, the key is the hash excluding the NONCE and DATE fields
+            return this.picKey;
+         } else {
             throw new CubeError("CubeType " + this.cubeType + " not implemented");
         }
     }

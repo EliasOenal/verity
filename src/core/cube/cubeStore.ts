@@ -3,15 +3,16 @@ import { ApiMisuseError, Settings } from "../settings";
 import { Cube, coreCubeFamily } from "./cube";
 import { CubeInfo, CubeMeta } from "./cubeInfo";
 import { LevelPersistence, LevelPersistenceOptions } from "./levelPersistence";
-import { CubeType, CubeKey } from "./cube.definitions";
+import { CubeType, CubeKey, CubeFieldType } from "./cube.definitions";
 import { CubeFamilyDefinition } from "./cubeFields";
-import { cubeContest, shouldRetainCube, getCurrentEpoch, keyVariants } from "./cubeUtil";
+import { cubeContest, shouldRetainCube, getCurrentEpoch, keyVariants, writePersistentNotificationBlob, parsePersistentNotificationBlob } from "./cubeUtil";
 import { TreeOfWisdom } from "../tow";
 import { logger } from "../logger";
 
 import { EventEmitter } from "events";
 import { WeakValueMap } from "weakref";
 import { Buffer } from "buffer";
+import { NetConstants } from "../networking/networkDefinitions";
 
 // TODO: we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes
@@ -104,11 +105,14 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
    * If this CubeStore is configured to keep Cubes in RAM, this will be where
    * we store them.
    */
-  private storage: Map<string, CubeInfo> | WeakValueMap<string, CubeInfo> =
-    undefined;
+  private cubes: Map<string, CubeInfo> | WeakValueMap<string, CubeInfo>;
+  // TODO BUGBUG: I don't think this actually works in case of WeakValueMap
+  // because the value is an array that's never referenced anywhere else.
+  private notifications: Map<string, CubeInfo[]> | WeakValueMap<string, CubeInfo[]>;
 
   /** Refers to the persistant cube storage database, if available and enabled */
-  private persistence: LevelPersistence = undefined;
+  private cubePersistence: LevelPersistence = undefined;
+  private notificationPersistence: LevelPersistence = undefined;
   /** The Tree of Wisdom maps cube keys to their hashes. */
   private treeOfWisdom: TreeOfWisdom = undefined;
 
@@ -137,24 +141,33 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     );
     // Do we want to keep cubes in RAM, or do we want to use persistent storage?
     if (this.options.enableCubePersistence > EnableCubePersitence.OFF) {
+      // we are using some kind of persistent storage, let's differentiate
+      // the two possible cases:
       if (this.options.enableCubePersistence >= EnableCubePersitence.PRIMARY) {
+        // persistent storage is primary, in-memory cache is secondary
         this.inMemory = false;
-        this.storage = new WeakValueMap(); // in-memory cache
+        this.cubes = new WeakValueMap(); // in-memory cache
+        this.notifications = new WeakValueMap(); // in-memory cache
       } else {
+        // in-memory store is primary, persistent storage is backup only
         this.inMemory = true;
-        this.storage = new Map();
+        this.cubes = new Map();  // primary in-memory storage
+        this.notifications = new Map();  // primary in-memory storage
       }
       // When using persistent storage, the CubeStore is ready when the
       // persistence layer is ready.
-      this.persistence = new LevelPersistence({
+      this.cubePersistence = new LevelPersistence({
         dbName: this.options.cubeDbName ?? Settings.CUBEDB_NAME,
         dbVersion: this.options.cubeDbVersion ?? Settings.CUBEDB_VERSION,
       });
-      this.persistence.on("ready", async () => {
-        logger.trace(
-          "cubeStore: received ready event from cubePersistence, enableCubePersistence is: " +
-          this.options.enableCubePersistence
-        );
+      this.notificationPersistence = new LevelPersistence({
+        dbName: this.options.notifyDbName ?? Settings.NOTIFYDB_NAME,
+        dbVersion: this.options.notifyDbVersion ?? Settings.NOTIFYDB_VERSION,
+      });
+      Promise.all(
+        [this.cubePersistence.ready, this.notificationPersistence.ready]
+      ).then(async () => {
+        logger.trace(`cubeStore using persistence Level ${EnableCubePersitence[this.options.enableCubePersistence]} received ready from both LevelDBs`);
         if (this.options.enableCubePersistence === EnableCubePersitence.BACKUP) {
           // For CubeStores configured to keep cubes in RAM but still persist
           // them, we now need to load all Cubes.
@@ -165,8 +178,10 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
         this.emit("ready");
       });
     } else {
+      // we are using in-memory storage only
       this.inMemory = true;
-      this.storage = new Map();
+      this.cubes = new Map();
+      this.notifications = new Map();
       // In-memory CubeStores are ready immediately.
       this.emit("ready");
     }
@@ -280,10 +295,10 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       }
 
       // Store the cube to RAM (or in-memory cache)
-      if (this.storage) this.storage.set(cubeInfo.keyString, cubeInfo);
+      this.cubes.set(cubeInfo.keyString, cubeInfo);
       // save cube to disk (if available and enabled)
-      if (this.persistence) {
-        await this.persistence.store(cubeInfo.key, cubeInfo.binaryCube);
+      if (this.cubePersistence) {
+        await this.cubePersistence.store(cubeInfo.key, cubeInfo.binaryCube);
       }
       // add cube to the Tree of Wisdom if enabled
       if (this.treeOfWisdom) {
@@ -294,6 +309,9 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
         hash = hash.subarray(0, 20);
         this.treeOfWisdom.set(cubeInfo.key.toString("hex"), hash);
       }
+
+      // if this Cube has a notification field, index it
+      await this.addNotification(cubeInfo);
 
       // inform our application(s) about the new cube
       try {
@@ -334,11 +352,11 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
 
   /**
    * Get the number of cubes stored in this CubeStore.
-   * Note: For CubeStores working directly with persistent storage, this
-   * operation is VERY inefficient and should be avoided.
+   * @deprecated For CubeStores working directly with persistent storage, this
+   * operation is very inefficient -- O(n) -- and should be avoided.
    */
   async getNumberOfStoredCubes(): Promise<number> {
-    if (this.inMemory) return (this.storage as Map<string, CubeInfo>).size;
+    if (this.inMemory) return this.cubes.size;
     else {
       let count = 0;
       for await (const key of this.getKeyRange({ limit: Infinity })) count++;
@@ -348,15 +366,15 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
 
   async getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo> {
     const key = keyVariants(keyInput);
-    if (this.inMemory) return this.storage.get(key.keyString);
+    if (this.inMemory) return this.cubes.get(key.keyString);
     else {
       // persistence is primary -- get from cache or fetch from persistence
-      const cached = this.storage.get(key.keyString);
+      const cached = this.cubes.get(key.keyString);
       if (cached?.valid) return cached; // positive cache hit
       else if (cached?.valid === false) return undefined; // negative cache hit
       else {
         // cache miss
-        const binaryCube: Buffer = await this.persistence.get(key.binaryKey);
+        const binaryCube: Buffer = await this.cubePersistence.get(key.binaryKey);
         if (binaryCube !== undefined) {
           try {  // could fail e.g. on invalid binary data
             const cubeInfo = new CubeInfo({
@@ -364,7 +382,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
               cube: binaryCube,
               family: this.options.family,
             });
-            this.storage.set(key.keyString, cubeInfo); // cache it
+            this.cubes.set(key.keyString, cubeInfo); // cache it
             return cubeInfo;
           } catch (err) {
             logger.error(`CubeStore.getCubeInfo(): Could not create CubeInfo for Cube ${key.keyString}: ${err?.toString() ?? err}`);
@@ -373,7 +391,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
         } else {
           if (this.options.negativeCache) {  // populate negative cache
             const invalidCubeInfo: CubeInfo = new CubeInfo({ key: key.binaryKey });
-            this.storage.set(key.keyString, invalidCubeInfo);
+            this.cubes.set(key.keyString, invalidCubeInfo);
           }
           return undefined;
         }
@@ -437,7 +455,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       }
     }
     else {
-      for await (const key of this.persistence.getKeyRange(options)) {
+      for await (const key of this.cubePersistence.getKeyRange(options)) {
         if (count >= limit) break;  // respect limit
         // We will keep track of the first key returned, this is only used
         // in case wraparound is true.
@@ -517,16 +535,15 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     return cubeInfos;
   }
 
-
   async getKeyAtPosition(position: number): Promise<CubeKey> {
     if (this.inMemory) {
       let i = 0;
-      for (const key of this.storage.keys()) {
+      for (const key of this.cubes.keys()) {
         if (i === position) return CubeKey.from(key, "hex");
         i++;
       }
-    } else if (this.persistence) {
-      let key = await this.persistence.getKeyAtPosition(position)
+    } else if (this.cubePersistence) {
+      let key = await this.cubePersistence.getKeyAtPosition(position)
       if (key)
         return key;
       else
@@ -545,8 +562,8 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     startKey: CubeKey,
     count: number
   ): Promise<CubeMeta[]> {
-    if (this.persistence) {
-      const keys = await this.persistence.getSucceedingKeys(
+    if (this.cubePersistence) {
+      const keys = await this.cubePersistence.getSucceedingKeys(
         startKey.toString("hex"),
         count
       );
@@ -562,7 +579,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       // If no persistence, use in-memory storage
       const cubeInfos: CubeMeta[] = [];
       let foundStart = false;
-      for (const [key, cubeInfo] of this.storage) {
+      for (const [key, cubeInfo] of this.cubes) {
         if (foundStart) {
           cubeInfos.push(cubeInfo);
           if (cubeInfos.length === count) {
@@ -574,7 +591,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       }
       // If we haven't collected enough keys, wrap around to the beginning
       if (cubeInfos.length < count) {
-        for (const [, cubeInfo] of this.storage) {
+        for (const [, cubeInfo] of this.cubes) {
           cubeInfos.push(cubeInfo);
           if (cubeInfos.length === count) {
             break;
@@ -585,11 +602,82 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     }
   }
 
-  async deleteCube(keyInput: CubeKey | string) {
-    const key = keyVariants(keyInput);
-    this.storage?.delete(key.keyString);
-    this.treeOfWisdom?.delete(key.keyString);
-    await this.persistence?.delete(key.binaryKey);
+  async *getNotificationKeys(recipient: Buffer): AsyncGenerator<CubeKey> {
+    if (Settings.RUNTIME_ASSERTIONS &&
+      recipient?.length !== NetConstants.NOTIFY_SIZE) {
+      logger.error(`CubeStore.getNotifications(): Attempt to get notifications for invalid recipient key of size ${recipient?.length}, should be ${NetConstants.NOTIFY_SIZE}; skipping.`);
+      return undefined;
+    }
+    if (this.inMemory) {
+      // in-memory store is primary
+      const notificationInfos = this.notifications.get(keyVariants(recipient).keyString);
+      if (notificationInfos) for (const cubeInfo of notificationInfos) {
+        yield cubeInfo.key;
+      }
+    } else {  // persistent storage is primary
+      let record: Buffer = await this.notificationPersistence.get(recipient);
+      yield *parsePersistentNotificationBlob(record);
+    }
+  }
+
+  async *getNotificationCubeInfos(recipient: Buffer): AsyncGenerator<CubeInfo> {
+    if (this.inMemory) {
+      // in-memory store is primary --
+      // in-memory store directly stores the notification's CubeInfos
+      for (const cubeInfo of this.notifications.get(keyVariants(recipient).keyString)) {
+        yield cubeInfo;
+      }
+    } else {
+      // persistent storage is primary --
+      // persistent storage stores the keys of the notification Cubes,
+      // which we then need to separately fetch from the CubeStore
+      for await (const key of this.getNotificationKeys(recipient)) {
+        yield await this.getCubeInfo(key);
+      }
+    }
+  }
+
+  async *getNotificationCubes(recipient: Buffer): AsyncGenerator<Cube> {
+    for await (const cubeInfo of this.getNotificationCubeInfos(recipient)) {
+      yield cubeInfo.getCube();
+    }
+  }
+
+  /** @deprecated This method is not efficient -- O(n) */
+  async getNumberOfNotificationRecipients(): Promise<number> {
+    if (this.inMemory) return this.notifications.size;
+    else {
+      let count = 0;
+      for await (const key of this.notificationPersistence.getKeyRange({ limit: Infinity })) count++;
+      return count;
+    }
+  }
+
+  async deleteCube(keyInput: CubeKey | string | CubeInfo): Promise<void> {
+    // TODO: We currently re-activate the Cube just before deletion
+    // just to get any potential notifications. This is not very efficient.
+    // It'd make much more sense to parse the binary Cube directly.
+    // We could either implement this specifically for this case, or defer
+    // till we implement an optimised core-only parser for full nodes.
+    let cubeInfo: CubeInfo;
+    // normalize input
+    if (!(keyInput instanceof CubeInfo)) {
+      cubeInfo = await this.getCubeInfo(keyInput);
+    }
+    // Note: Do not abort if cubeInfo is undefined. This could be caused by
+    // a corrupt Cube in store which we still want to delete.
+    const key = keyVariants(cubeInfo?.key ?? keyInput as CubeKey);
+
+    // if there are any notifications indexed to this Cube, delete them first
+    const recipient: Buffer = cubeInfo?.getCube?.()?.fields?.getFirst?.(
+      CubeFieldType.NOTIFY)?.value;
+    if (recipient) await this.deleteNotification(recipient, cubeInfo.key);
+
+
+    // delete Cube from all possible kinds of storage
+    this.cubes?.delete(key.keyString);  // in-memory
+    this.treeOfWisdom?.delete(key.keyString);  // Merkle-Patricia-Trie
+    await this.cubePersistence?.delete(key.binaryKey);  // persistent storage
   }
 
   async pruneCubes(): Promise<void> {
@@ -632,10 +720,6 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     await checkAndPruneCubes(); // start pruning
   }
 
-  async shutdown(): Promise<void> {
-    await this.persistence?.shutdown();
-  }
-
   // Note that this method does neither handle the limit nor wraparound
   // options, the caller (getKeyRange) is responsible for that.
   private async *getInMemoryKeyRange(
@@ -654,7 +738,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     if (options.lte) lte = keyVariants(options.lte).keyString;
 
     // iterate over all keys
-    const iterator = this.storage.keys();
+    const iterator = this.cubes.keys();
     for (let entry = iterator.next(); !entry.done; entry = iterator.next()) {
       const key = keyVariants(entry.value);
       if (  // skip any keys not matching the requested ones
@@ -675,6 +759,91 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     }
   }
 
+  private async addNotification(cubeInfo: CubeInfo): Promise<void> {
+    const cube: Cube = cubeInfo.getCube();
+    // does this Cube even have a notification field?
+    const recipient: Buffer = cube.fields.getFirst(CubeFieldType.NOTIFY)?.value;
+    if (!recipient) return;
+    if (Settings.RUNTIME_ASSERTIONS &&
+      recipient?.length !== NetConstants.NOTIFY_SIZE) {
+      logger.error(`CubeStore.addNotification(): Cube ${cubeInfo.keyString} has a notify field of invalid size ${recipient?.length}, should be ${NetConstants.NOTIFY_SIZE}; skipping. This should never happen.`);
+      return;
+    }
+
+    // Always store notifications in memory, as the in-memory store will always be
+    // there, either as primary storage or as a cache.
+    // There's two possible cases:
+    const notificationInfos: CubeInfo[] =
+      this.notifications.get(keyVariants(recipient).keyString);
+    if (!notificationInfos) {
+      // ... this could be the first Cube with this notification key ...
+      this.notifications.set(keyVariants(recipient).keyString, [cubeInfo]);
+    } else {
+      // ... or we already have Cubes with this notification key, in which
+      // case we save the new one sorted by key.
+      notificationInfos.push(cubeInfo);
+      notificationInfos.sort((a, b) => a.key.compare(b.key));
+      this.notifications.set(keyVariants(recipient).keyString, notificationInfos);
+    }
+
+    // Store the notification to persistent storage if enabled:
+    if (this.notificationPersistence) {
+      // Fetch existing notification keys for this recipient, if any
+      const notificationKeys: CubeKey[] = [];
+      for await (const key of this.getNotificationKeys(recipient)) notificationKeys.push(key);
+      // add the new notification key to the list
+      notificationKeys.push(cubeInfo.key);
+      // notifications are sorted by Key
+      notificationKeys.sort((a, b) => a.compare(b));
+      // craft the persistent notification blob and store it
+      const blob: Buffer = writePersistentNotificationBlob(notificationKeys);
+      this.notificationPersistence.store(recipient, blob);
+    }
+  }
+
+  private async deleteNotification(recipient: Buffer, key: CubeKey): Promise<void> {
+    // sanity checks
+    if (Settings.RUNTIME_ASSERTIONS &&
+      recipient?.length !== NetConstants.NOTIFY_SIZE) {
+      logger.error(`CubeStore.deleteNotification(): Attempt to delete notification for invalid recipient key of size ${recipient?.length}, should be ${NetConstants.NOTIFY_SIZE}; skipping.`);
+      return;
+    }
+    // Always delete the notification from memory, as the in-memory store
+    // will always be there, either as primary storage or as a cache.
+    // First, get the notification list for this recipient
+    let inMemoryNotifications: CubeInfo[] =
+      this.notifications.get(keyVariants(recipient).keyString);
+    if (inMemoryNotifications) {  // only need to do anything if there are notifications
+      // Remove the specified notification from the list
+      inMemoryNotifications =
+        inMemoryNotifications.filter((cubeInfo) => !cubeInfo.key.equals(key));
+      // Update the in-memory notification list:
+      if (inMemoryNotifications.length === 0) {
+        // If there are no more notifications for this recipient, delete the record
+        this.notifications.delete(keyVariants(recipient).keyString);
+      } else {
+        // Otherwise, re-store the updated notification list
+        this.notifications.set(keyVariants(recipient).keyString, inMemoryNotifications);
+      }
+    }
+
+    // Delete the notification from persistent storage, if persistence is enabled
+    if (this.notificationPersistence) {
+      // Fetch all notifications for this recipient
+      let notificationKeys: CubeKey[] = [];
+      for await (const key of this.getNotificationKeys(recipient)) notificationKeys.push(key);
+      // Remove the specified notification key
+      notificationKeys = notificationKeys.filter((cubeKey) => !cubeKey.equals(key));
+      if (notificationKeys.length === 0) {
+        // if this recipient has no more notifications, delete the record
+        this.notificationPersistence.delete(recipient);
+      } else {
+        // otherwise, re-store the updated notification blob
+        const blob: Buffer = writePersistentNotificationBlob(notificationKeys);
+        this.notificationPersistence.store(recipient, blob);
+      }
+    }
+  }
 
   /**
    * Load all persistent cubes into RAM and store all RAM cubes persistently.
@@ -682,12 +851,20 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
    * but still persist them; in this case, it will be called upon construction.
    */
   private async syncPersistentStorage() {
-    if (!this.persistence || !this.inMemory) return;
-    for await (const rawcube of this.persistence.getValueRange({ limit: Infinity })) {
+    if (!this.cubePersistence || !this.inMemory) return;
+    for await (const rawcube of this.cubePersistence.getValueRange({ limit: Infinity })) {
       await this.addCube(Buffer.from(rawcube));
     }
-    for (const cubeInfo of this.storage.values()) {
-      await this.persistence.store(cubeInfo.key, cubeInfo.binaryCube);
+    for (const cubeInfo of this.cubes.values()) {
+      await this.cubePersistence.store(cubeInfo.key, cubeInfo.binaryCube);
     }
+  }
+
+
+  async shutdown(): Promise<void> {
+    await Promise.all([
+      this.cubePersistence?.shutdown(),
+      this.notificationPersistence?.shutdown(),
+    ]);
   }
 }

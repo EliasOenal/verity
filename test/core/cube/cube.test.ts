@@ -239,7 +239,7 @@ describe('cube', () => {
             [CubeField.RawContent(type, contentString)];
           // ... plus a Notify field if this is a Notify type ...
           if (HasNotify[type]) incompleteFieldset.push(
-            CubeField.Notify(Buffer.alloc(NetConstants.NOTIFY_SIZE, randomNotifyNumer)));
+            CubeField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, randomNotifyNumer)));
           // ... plus a public key field if this is a signed type.
           let publicKey: Buffer, privateKey: Buffer;
           if (HasSignature[type]) {
