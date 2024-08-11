@@ -19,12 +19,11 @@ export interface LevelPersistenceOptions {
   dbVersion: number;
 }
 
-// Will emit a ready event once available
-export class LevelPersistence extends EventEmitter {
+export class LevelPersistence {
+  readonly ready: Promise<void>;
   private db: Level<Buffer, Buffer>
 
   constructor(readonly options: LevelPersistenceOptions) {
-    super();
     // Set database name, add .db file extension for non-browser environments
     if (!isBrowser && !isWebWorker) this.options.dbName += ".db";
     // open the database
@@ -35,10 +34,13 @@ export class LevelPersistence extends EventEmitter {
         valueEncoding: 'buffer',
         version: options.dbVersion
       });
-    this.db.open().then(() => {
-      this.emit('ready');
-    }).catch((error) => {
-      logger.error("LevelPersistence: Could not open DB: " + error);
+    this.ready = new Promise<void>((resolve, reject) => {
+      this.db.open().then(() => {
+        resolve();
+      }).catch((error) => {
+        logger.error("LevelPersistence: Could not open DB: " + error);
+        reject(error);
+      });
     });
   }
 

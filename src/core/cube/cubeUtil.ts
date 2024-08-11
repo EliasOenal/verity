@@ -8,6 +8,7 @@ import { logger } from '../logger';
 import { Buffer } from 'buffer';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import pkg from 'js-sha3';
+import { Settings } from '../settings';
 
 /*
  * Calculate the hash of a buffer using the SHA3-256 algorithm.
@@ -184,7 +185,7 @@ export function keyVariants(keyInput: CubeKey | string | String): {keyString: st
 
 export function typeFromBinary(binaryCube: Buffer): CubeType {
     if (!(binaryCube instanceof Buffer)) return undefined;
-    return binaryCube.readIntBE(0, NetConstants.CUBE_TYPE_SIZE);
+    return binaryCube.readUIntBE(0, NetConstants.CUBE_TYPE_SIZE);
 }
 
 export function dateFromBinary(binary: Buffer): number {
@@ -193,15 +194,15 @@ export function dateFromBinary(binary: Buffer): number {
 
     switch (cubeType) {
         case CubeType.FROZEN:
-            datePosition = NetConstants.CUBE_SIZE - NetConstants.NONCE_SIZE - NetConstants.TIMESTAMP_SIZE;
-            break;
+        case CubeType.FROZEN_NOTIFY:
         case CubeType.PIC:
+        case CubeType.PIC_NOTIFY:
             datePosition = NetConstants.CUBE_SIZE - NetConstants.NONCE_SIZE - NetConstants.TIMESTAMP_SIZE;
             break;
         case CubeType.MUC:
-            datePosition = NetConstants.CUBE_SIZE - NetConstants.NONCE_SIZE - NetConstants.SIGNATURE_SIZE - NetConstants.TIMESTAMP_SIZE;
-            break;
+        case CubeType.MUC_NOTIFY:
         case CubeType.PMUC:
+        case CubeType.PMUC_NOTIFY:
             datePosition = NetConstants.CUBE_SIZE - NetConstants.NONCE_SIZE - NetConstants.SIGNATURE_SIZE - NetConstants.TIMESTAMP_SIZE;
             break;
         default:
@@ -223,4 +224,23 @@ export function paddedBuffer(content: string | Buffer = "", length: number): Buf
     content.copy(buf, 0, 0, length);
   }
   return buf;
+}
+
+export async function *parsePersistentNotificationBlob(blob: Buffer): AsyncGenerator<CubeKey> {
+  if (!blob) return;
+  if (Settings.RUNTIME_ASSERTIONS && blob?.length % NetConstants.CUBE_KEY_SIZE !== 0) {
+      logger.error(`CubeStore.parsePersistentNotificationBlob(): Got a persistent notification record of invalid length ${blob?.length} which is not a multiple of ${NetConstants.CUBE_KEY_SIZE}. This should never happen.`);
+  }
+  for (let i = 0; i < blob.length; i += NetConstants.NOTIFY_SIZE) {
+    let key: Buffer = blob.subarray(i, i + NetConstants.NOTIFY_SIZE);
+    yield key;
+  }
+}
+
+export function writePersistentNotificationBlob(keys: CubeKey[]): Buffer {
+  let record: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE * keys.length);
+  for (let i = 0; i < keys.length; i++) {
+    keys[i].copy(record, i * NetConstants.CUBE_KEY_SIZE);
+  }
+  return record;
 }

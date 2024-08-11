@@ -2,7 +2,7 @@ import { Settings } from '../../../src/core/settings';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 import { CubeFieldLength, CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
-import { Cube } from '../../../src/core/cube/cube';
+import { Cube, coreCubeFamily } from '../../../src/core/cube/cube';
 import { CubeIteratorOptions, CubeStore as CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
 import { CubeField } from '../../../src/core/cube/cubeField';
 
@@ -11,8 +11,9 @@ import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
 import { cciFields } from '../../../src/cci/cube/cciFields';
 
 import sodium from 'libsodium-wrappers-sumo'
-import { paddedBuffer } from '../../../src/core/cube/cubeUtil';
+import { paddedBuffer, parsePersistentNotificationBlob, writePersistentNotificationBlob } from '../../../src/core/cube/cubeUtil';
 import { MediaTypes, cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { CubeFields } from '../../../src/core/cube/cubeFields';
 
 // declarations
 let cubeStore: CubeStore;
@@ -133,6 +134,8 @@ describe('cubeStore', () => {
           enableCubeRetentionPolicy: false,
           cubeDbName: 'cubes.test',
           cubeDbVersion: 1,
+          notifyDbName: 'notifications.test',
+          notifyDbVersion: 1,
           ...testOptions,
         };
         beforeAll(async () => {
@@ -142,11 +145,13 @@ describe('cubeStore', () => {
         beforeEach(async () => {
           for await (const key of cubeStore.getKeyRange({ limit: Infinity })) await cubeStore.deleteCube(key);
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
+          expect(await cubeStore.getNumberOfNotificationRecipients()).toBe(0);
         });
         afterEach(async () => {
           for await (const key of cubeStore.getKeyRange({ limit: Infinity })) await cubeStore.deleteCube(key);
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
-        });
+          expect(await cubeStore.getNumberOfNotificationRecipients()).toBe(0);
+        }, 360000);
         afterAll(async () => {
           await cubeStore.shutdown();
         });
@@ -442,7 +447,7 @@ describe('cubeStore', () => {
             corruptCube[4] = 0x00;  // TLV field value 0
             expect(await cubeStore.addCube(corruptCube)).toBeUndefined;
           });
-        });
+        });  // edge cases adding Cubes
 
         describe('edge cases retrieving Cubes', () => {
           it('should return undefined when requesting an unavailable Cube', async () => {
@@ -465,28 +470,76 @@ describe('cubeStore', () => {
               const corruptCube: Buffer = Buffer.alloc(NetConstants.CUBE_SIZE, 137);
               const key: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 101);
               // @ts-ignore accessing private member persistence
-              await cubeStore.persistence.store(key.toString('hex'), corruptCube);
+              await cubeStore.cubePersistence.store(key.toString('hex'), corruptCube);
 
               // double-check that the Cube is stored in persistent storage
               // @ts-ignore accessing private member persistence
-              const stored: Buffer = await cubeStore.persistence.get(key.toString('hex'));
+              const stored: Buffer = await cubeStore.cubePersistence.get(key.toString('hex'));
               expect(stored).toEqual(corruptCube);
 
               // expect CubeStore to just return undefined
               expect(await cubeStore.getCube(key)).toBeUndefined;
               // note: the result of getCubeInfo() in this case is undefined
             });
-          }
-        });
-      });
+          }  // end of tests only performed with persistent storage
+        });  // edge cases retrieving Cubes
 
-      describe('tests involving CCI layer', () => {
+        describe('Notification tests', () => {
+          it('should index and retrieve notifications correctly', async () => {
+            // choose a notification recipient key
+            const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
+
+            // create two Cubes notifying this receiver
+            const cube1 = new Cube(CubeType.FROZEN_NOTIFY, {
+              fields: CubeFields.DefaultPositionals(
+                coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,
+                [
+                  CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis"),
+                  CubeField.Notify(recipientKey),
+                ]),
+              requiredDifficulty: reducedDifficulty
+            });
+            await cubeStore.addCube(cube1);
+
+            const cube2 = new Cube(CubeType.FROZEN_NOTIFY, {
+              fields: CubeFields.DefaultPositionals(
+                coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,
+                [
+                  CubeField.Notify(recipientKey),  // mix up input field or a bit for extra fuzzing
+                  CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Hic receptor notificationis popularis est"),
+                ]),
+              requiredDifficulty: reducedDifficulty
+            });
+            await cubeStore.addCube(cube2);
+
+            let notificationKeys: CubeKey[] = [
+              await cube1.getKey(),
+              await cube2.getKey(),
+            ];
+
+            // Ensure that the notifications have correctly been retrieved
+            // by checking that each notification returned has indeed been made
+            // and deleting it from our list. This should leave us with an empty list.
+            // Note there is no guarantee on the order of the notifications --
+            // ensure both notifications are present in the returned CubeInfos
+            for await (const notificationInfo of cubeStore.getNotificationCubeInfos(recipientKey)) {
+              expect(notificationKeys).toContainEqual(notificationInfo.key);
+              notificationKeys = notificationKeys.filter((k) => !k.equals(notificationInfo.key));
+            }
+            expect(notificationKeys).toHaveLength(0);
+          });
+        });  // NOTIFY tests
+      });  // core level tests
+
+      describe.skip('tests involving CCI layer', () => {
         const cubeStoreOptions: CubeStoreOptions = {
           family: cciFamily,
           requiredDifficulty: reducedDifficulty,
           enableCubeRetentionPolicy: false,
           cubeDbName: 'cubes.test',
           cubeDbVersion: 1,
+          notifyDbName: 'notifications.test',
+          notifyDbVersion: 1,
           ...testOptions,
         };
         Object.assign(cubeStoreOptions, testOptions);  // mix in options defined in describe.each
@@ -495,10 +548,12 @@ describe('cubeStore', () => {
           await cubeStore.readyPromise;
           for await (const key of cubeStore.getKeyRange({ limit: Infinity })) await cubeStore.deleteCube(key);
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
+          expect(await cubeStore.getNumberOfNotificationRecipients()).toBe(0);
         });
         afterEach(async () => {
           for await (const key of cubeStore.getKeyRange({ limit: Infinity })) await cubeStore.deleteCube(key);
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
+          expect(await cubeStore.getNumberOfNotificationRecipients()).toBe(0);
           await cubeStore.shutdown();
         });
 

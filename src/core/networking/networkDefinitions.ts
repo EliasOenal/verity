@@ -36,7 +36,7 @@ export const NetConstants =  {
     KEY_COUNT_SIZE: 4,
     ADDRESS_TYPE_SIZE: 1,
     ADDRESS_LENGTH_SIZE: 2,
-    NOTIFY_SIZE: 4,
+    NOTIFY_SIZE: 32,  // it will not be possible to change this without breaking a lot of code, as we assume in many places that NOTIFY contains exactly one Cube key
     PMUC_UPDATE_COUNT_SIZE: 4,
 }
 

@@ -9,6 +9,8 @@ cubes.db*
 cubes.test.db*
 identity.db*
 testidentity.db*
+notifications.db*
+notifications.test.db*
 
 # Test artifacts
 coverage/
