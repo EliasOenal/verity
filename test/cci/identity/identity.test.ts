@@ -654,15 +654,19 @@ describe('Identity', () => {
       local = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        new Map([[SupportedTransports.ws, 18101]]),
-        testNetworkingOptions,
+        {
+          ...testNetworkingOptions,
+          transports: new Map([[SupportedTransports.ws, 18101]]),
+        }
       );
       cubeRetriever = new CubeRetriever(local.cubeStore, local.scheduler);
       remote = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        new Map([[SupportedTransports.ws, 18102]]),
-        testNetworkingOptions,
+        {
+          ...testNetworkingOptions,
+          transports: new Map([[SupportedTransports.ws, 18102]]),
+        }
       );
       await Promise.all([local.start(), remote.start()]);
       const np: NetworkPeer =

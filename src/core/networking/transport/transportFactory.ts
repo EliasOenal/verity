@@ -14,7 +14,7 @@ import { logger } from "../../logger";
 // to avoid circular dependencies
 
 export function createNetworkTransport(
-  params: TransportParamMap,
+  params: TransportParamMap = new Map(),
   options: NetworkManagerOptions = {}
 ): TransportMap {
 const transports: TransportMap = new Map();

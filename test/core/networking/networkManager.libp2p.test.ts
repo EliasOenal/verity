@@ -44,14 +44,18 @@ describe('networkManager - libp2p connections', () => {
     const server = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17101/ws']]),
-        networkManagerOptionsDisabled);
+      {
+        ...networkManagerOptionsDisabled,
+        transports: new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17101/ws']]),
+      },
+    );
     await server.start();
     const client = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/webrtc']]),
-      {  // disable optional features
+      {
+        transports: new Map([[SupportedTransports.libp2p, '/webrtc']]),
+        // disable optional features
         announceToTorrentTrackers: false,
         autoConnect: false,
         lightNode: false,
@@ -74,14 +78,18 @@ describe('networkManager - libp2p connections', () => {
     const server = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17102/ws']]),
-        networkManagerOptionsDisabled);
+      {
+        ...networkManagerOptionsDisabled,
+        transports: new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17102/ws']]),
+      },
+    );
     await server.start();
     const client = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/webrtc']]),
-      {  // disable optional features
+      {
+        transports: new Map([[SupportedTransports.libp2p, '/webrtc']]),
+        // disable optional features
         announceToTorrentTrackers: false,
         autoConnect: false,
         lightNode: false,
@@ -134,13 +142,19 @@ describe('networkManager - libp2p connections', () => {
     const protagonist = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/ip6/::1/tcp/17103/ws']]),
-      networkManagerOptionsDisabled);
+      {
+        ...networkManagerOptionsDisabled,
+        transports: new Map([[SupportedTransports.libp2p, '/ip6/::1/tcp/17103/ws']]),
+      },
+    );
     const ipv6peer = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/ip6/::1/tcp/17104/ws']]),
-      networkManagerOptionsDisabled);
+      {
+        ...networkManagerOptionsDisabled,
+        transports: new Map([[SupportedTransports.libp2p, '/ip6/::1/tcp/17104/ws']]),
+      }
+    );
     await Promise.all([protagonist.start(), ipv6peer.start()]);
     const peerObj = protagonist.connect(
       new Peer(multiaddr("/ip6/::1/tcp/17104/ws"))
@@ -165,13 +179,19 @@ describe('networkManager - libp2p connections', () => {
     const client = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/ip6/::1/tcp/17105/ws']]),
-      networkManagerOptionsDisabled);
+      {
+        ...networkManagerOptionsDisabled,
+        transports: new Map([[SupportedTransports.libp2p, '/ip6/::1/tcp/17105/ws']]),
+      },
+    );
     const server = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/ip6/::1/tcp/17106/ws']]),
-      networkManagerOptionsDisabled);
+      {
+        ...networkManagerOptionsDisabled,
+        transports: new Map([[SupportedTransports.libp2p, '/ip6/::1/tcp/17106/ws']]),
+      },
+    );
     await Promise.all([client.start(), server.start()]);
     const peerObj = client.connect(
       new Peer(multiaddr("/ip6/::1/tcp/17106/ws"))
@@ -194,16 +214,25 @@ describe('networkManager - libp2p connections', () => {
     const cubeStore3 = new CubeStore(testCubeStoreParams);
     const manager1 = new NetworkManager(
       cubeStore, new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17111/ws']]),
-      networkManagerOptionsDisabled);
+      {
+        ...networkManagerOptionsDisabled,
+        transports: new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17111/ws']]),
+      },
+    );
     const manager2 = new NetworkManager(
       cubeStore2, new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17112/ws']]),
-      networkManagerOptionsDisabled);
+      {
+        ...networkManagerOptionsDisabled,
+        transports: new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17112/ws']]),
+      },
+    );
     const manager3 = new NetworkManager(
       cubeStore3, new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17113/ws']]),
-      networkManagerOptionsDisabled);
+      {
+        ...networkManagerOptionsDisabled,
+        transports: new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17113/ws']]),
+      },
+    );
 
     // Start all three nodes
     const promise1_listening = manager1.start();
@@ -274,13 +303,19 @@ describe('networkManager - libp2p connections', () => {
     const cubeStore = new CubeStore(testCubeStoreParams);
     const cubeStore2 = new CubeStore(testCubeStoreParams);
     const manager1 = new NetworkManager(
-        cubeStore, new PeerDB(),
-        new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17114/ws']]),
-        networkManagerOptionsDisabled);
+      cubeStore, new PeerDB(),
+      {
+        ...networkManagerOptionsDisabled,
+        transports: new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17114/ws']]),
+      },
+    );
     const manager2 = new NetworkManager(
-        cubeStore2, new PeerDB(),
-        new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17115/ws']]),
-        networkManagerOptionsDisabled);
+      cubeStore2, new PeerDB(),
+      {
+        ...networkManagerOptionsDisabled,
+        transports: new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17115/ws']]),
+      },
+    );
 
     // Start both nodes
     const promise1_listening = manager1.start();
@@ -377,8 +412,11 @@ describe('networkManager - libp2p connections', () => {
     const manager = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       peerDB,
-      new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17116/ws']]),
-      networkManagerOptionsDisabled);
+      {
+        ...networkManagerOptionsDisabled,
+        transports: new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17116/ws']]),
+      },
+    );
     await manager.start();
 
     expect(peerDB.peersBlocked.size).toEqual(0);
@@ -394,7 +432,7 @@ describe('networkManager - libp2p connections', () => {
     });
     expect(peerDB.peersBlocked.size).toEqual(1);
 
-    manager.shutdown();
+    await manager.shutdown();
   }, 3000);
 
 
@@ -407,8 +445,8 @@ describe('networkManager - libp2p connections', () => {
     const manager1 = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17117/ws']]),
       {  // select feature set for this test
+        transports: new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17117/ws']]),
         announceToTorrentTrackers: false,
         autoConnect: true,
         lightNode: false,
@@ -417,8 +455,8 @@ describe('networkManager - libp2p connections', () => {
     const manager2 = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17118/ws']]),
       {  // select feature set for this test
+        transports: new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17118/ws']]),
         announceToTorrentTrackers: false,
         autoConnect: true,
         lightNode: false,
@@ -427,8 +465,8 @@ describe('networkManager - libp2p connections', () => {
     const manager3 = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17119/ws']]),
       {  // select feature set for this test
+        transports: new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17119/ws']]),
         announceToTorrentTrackers: false,
         autoConnect: true,
         lightNode: false,
@@ -508,20 +546,26 @@ describe('networkManager - libp2p connections', () => {
     const browser1 = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
-      networkManagerOptions
+      {
+        ...networkManagerOptions,
+        transports: new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
+      },
     );
     const browser2 = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
-      networkManagerOptions
+      {
+        ...networkManagerOptions,
+        transports: new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
+      },
     );
     const server = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17290/ws']]),
-      networkManagerOptions
+      {
+        ...networkManagerOptions,
+        transports: new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17290/ws']]),
+      },
     );
     await server.start();
     await browser1.start();
@@ -739,20 +783,26 @@ describe('networkManager - libp2p connections', () => {
     const browser1 = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
-      browserOptions
+      {
+        ...browserOptions,
+        transports: new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
+      },
     );
     const browser2 = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
-      browserOptions
+      {
+        ...browserOptions,
+        transports: new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
+      },
     );
     const server = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17294/ws']]),
-      serverOptions
+      {
+        ...serverOptions,
+        transports: new Map([[SupportedTransports.libp2p, '/ip4/127.0.0.1/tcp/17294/ws']]),
+      },
     );
     await server.start();
 

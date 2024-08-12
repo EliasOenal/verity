@@ -34,15 +34,19 @@ describe('CubeRetriever', () => {
     local = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.ws, 18001]]),
-      lightNodeMinimalFeatures,
+      {
+        ...lightNodeMinimalFeatures,
+        transports: new Map([[SupportedTransports.ws, 18001]]),
+      },
     );
     cubeRetriever = new CubeRetriever(local.cubeStore, local.scheduler);
     remote = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.ws, 18002]]),
-      lightNodeMinimalFeatures,
+      {
+        ...lightNodeMinimalFeatures,
+        transports: new Map([[SupportedTransports.ws, 18002]]),
+      },
     );
     await Promise.all([local.start(), remote.start()]);
     const np: NetworkPeer =
