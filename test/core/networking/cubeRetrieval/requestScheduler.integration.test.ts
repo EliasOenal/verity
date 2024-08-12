@@ -40,14 +40,18 @@ describe('RequestScheduler integration tests', () => {
     local = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.ws, 18201]]),
-      testNetworkingOptions,
+      {
+        ...testNetworkingOptions,
+        transports: new Map([[SupportedTransports.ws, 18201]]),
+      },
     );
     remote = new NetworkManager(
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
-      new Map([[SupportedTransports.ws, 18202]]),
-      testNetworkingOptions,
+      {
+        ...testNetworkingOptions,
+        transports: new Map([[SupportedTransports.ws, 18202]]),
+      },
     );
     await Promise.all([local.start(), remote.start()]);
     const np: NetworkPeer =

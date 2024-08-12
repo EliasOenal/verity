@@ -1,5 +1,5 @@
 import { SupportedTransports } from '../core/networking/networkDefinitions';
-import { VerityNode, VerityNodeOptions } from '../core/verityNode';
+import { VerityNode, VerityNodeOptions, defaultInitialPeers } from '../core/verityNode';
 import { AddressAbstraction } from '../core/peering/addressing';
 import { EnableCubePersitence } from '../core/cube/cubeStore';
 
@@ -22,17 +22,6 @@ import { NavItem } from './navigation/navigationDefinitions';
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
-
-export const defaultInitialPeers: AddressAbstraction[] = [
-  new AddressAbstraction("verity.hahn.mt:1984"),
-  new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss/"),
-  // new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/wss"),
-  // new AddressAbstraction("verity.hahn.mt:1985"),
-  // new AddressAbstraction("verity.hahn.mt:1986"),
-  // new AddressAbstraction("132.145.174.233:1984"),
-  // new AddressAbstraction("158.101.100.95:1984"),
-  // new AddressAbstraction("/ip4/127.0.0.1/tcp/1985/ws"),
-];
 
 export const defaultNavItems: NavItem[] = [
   {controller: CubeExplorerController, navAction: CubeExplorerController.prototype.selectAll, text: "Cube Explorer"},
@@ -67,7 +56,8 @@ export class VerityUI implements ControllerContext {
     await sodium.ready;
 
     // set default options if none specified
-    options.initialPeers ??= defaultInitialPeers;
+    options.transports ??= new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
+    options.initialPeers ??= defaultInitialPeers,
     options.navItems ??= defaultNavItems;
     options.initialNav ??= defaultInitialNav;
     options.enableCubePersistence ??= EnableCubePersitence.PRIMARY;
@@ -78,11 +68,7 @@ export class VerityUI implements ControllerContext {
     // in the browser environment.
     options.announceToTorrentTrackers = false;
 
-    const node = new VerityNode(
-      new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
-      options?.initialPeers,
-      options
-    );
+    const node = new VerityNode(options);
     await node.readyPromise;
     logger.info("Verity node is ready");
 
@@ -93,19 +79,19 @@ export class VerityUI implements ControllerContext {
     window.onbeforeunload = function(){ window.verity.shutdown() }
 
     // Make navbar items
-    if (options?.navItems) for (const navItem of options.navItems) {
+    if (ui.options?.navItems) for (const navItem of ui.options.navItems) {
       ui.nav.makeNavItem(navItem);
     }
 
     // Prepare user Identity, and then prepare the initial view
-    const identityPromise: Promise<any> = ui.initializeIdentity(options);
+    const identityPromise: Promise<any> = ui.initializeIdentity(ui.options);
     // If supplied (which the app really should do), perform an initial nav
     // action. Otherwise, the content area will just stay blank.
     let initialViewPromise: Promise<void>;
-    if (options.initialNav) {
+    if (ui.options.initialNav) {
       initialViewPromise = new Promise(resolve =>
         identityPromise.then(() =>
-          ui.nav.show(options.initialNav, false).then(resolve)));
+          ui.nav.show(ui.options.initialNav, false).then(resolve)));
     } else {
       // no view specified, so nothing to prepare, so just make a resolved promise
       initialViewPromise = new Promise<void>(resolve => resolve());

@@ -51,8 +51,11 @@ describe('networkManager - WebSocket connections', () => {
       const manager: NetworkManager = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        new Map([[SupportedTransports.ws, 3000]]),
-        fullNodeMinimalFeatures);
+        {
+          ...fullNodeMinimalFeatures,
+          transports: new Map([[SupportedTransports.ws, 3000]]),
+        },
+      );
       expect(manager.transports.size).toEqual(1);
       expect(manager.transports.get(SupportedTransports.ws)).
         toBeInstanceOf(WebSocketTransport);
@@ -70,8 +73,11 @@ describe('networkManager - WebSocket connections', () => {
       const manager = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        new Map([[SupportedTransports.ws, 3001]]),
-        fullNodeMinimalFeatures);
+        {
+          ...fullNodeMinimalFeatures,
+          transports: new Map([[SupportedTransports.ws, 3001]]),
+        },
+      );
       manager.start();
       // @ts-ignore Checking private attributes
       (manager.transports.get(SupportedTransports.ws).servers[0] as WebSocketServer).server.on('connection', () => {
@@ -90,8 +96,11 @@ describe('networkManager - WebSocket connections', () => {
       const manager = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        new Map([[SupportedTransports.ws, 3003]]),
-        fullNodeMinimalFeatures);
+        {
+          ...fullNodeMinimalFeatures,
+          transports: new Map([[SupportedTransports.ws, 3003]]),
+        },
+      );
       await manager.start();
 
       const server = new WebSocket.Server({ port: 3002 });
@@ -112,18 +121,21 @@ describe('networkManager - WebSocket connections', () => {
       const listener = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        new Map([[SupportedTransports.ws, 4000]]),
-        fullNodeMinimalFeatures);
+        {
+          ...fullNodeMinimalFeatures,
+          transports: new Map([[SupportedTransports.ws, 4000]]),
+        },
+      );
       const client1 = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        undefined,  // no listeners
-        fullNodeMinimalFeatures);
+        fullNodeMinimalFeatures  // note: no listeners defined
+      );
       const client2 = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        undefined,  // no listeners
-        fullNodeMinimalFeatures);
+        fullNodeMinimalFeatures  // note: no listeners defined
+      );
       // wait for server to be listening
       await listener.start();
 
@@ -157,13 +169,19 @@ describe('networkManager - WebSocket connections', () => {
       const manager1 = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        new Map([[SupportedTransports.ws, 4010]]),
-        fullNodeMinimalFeatures);
+        {
+          ...fullNodeMinimalFeatures,
+          transports: new Map([[SupportedTransports.ws, 4010]]),
+        },
+      );
       const manager2 = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        new Map([[SupportedTransports.ws, 4011]]),
-        fullNodeMinimalFeatures);
+        {
+          ...fullNodeMinimalFeatures,
+          transports: new Map([[SupportedTransports.ws, 4011]]),
+        },
+      );
 
       const promise1_listening = manager1.start();
       const promise2_listening = manager2.start();
@@ -187,13 +205,19 @@ describe('networkManager - WebSocket connections', () => {
       const protagonist = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        new Map([[SupportedTransports.ws, 3010]]),
-        fullNodeMinimalFeatures);
+        {
+          ...fullNodeMinimalFeatures,
+          transports: new Map([[SupportedTransports.ws, 3010]]),
+        },
+      );
       const ipv6peer = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        new Map([[SupportedTransports.ws, 3011]]),
-        fullNodeMinimalFeatures);
+        {
+          ...fullNodeMinimalFeatures,
+          transports: new Map([[SupportedTransports.ws, 3011]]),
+        },
+      );
       await Promise.all([protagonist.start(), ipv6peer.start()]);
       const peerObj = protagonist.connect(
         new Peer(new WebSocketAddress("[::1]", 3011))
@@ -224,8 +248,11 @@ describe('networkManager - WebSocket connections', () => {
       const manager = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         peerDB,
-        new Map([[SupportedTransports.ws, 6004]]),
-        fullNodeMinimalFeatures);
+        {
+          ...fullNodeMinimalFeatures,
+          transports: new Map([[SupportedTransports.ws, 6004]]),
+        },
+      );
       await manager.start();
 
       expect(peerDB.peersBlocked.size).toEqual(0);
@@ -249,16 +276,19 @@ describe('networkManager - WebSocket connections', () => {
       const myManager = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         myPeerDB,
-        undefined,  // no listener
-        fullNodeMinimalFeatures);
+        fullNodeMinimalFeatures,  // note: no listeners defined
+      );
       myManager.start();
 
       const otherPeerDB = new PeerDB();
       const otherManager = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         otherPeerDB,
-        new Map([[SupportedTransports.ws, 7005]]),
-        fullNodeMinimalFeatures);
+        {
+          ...fullNodeMinimalFeatures,
+          transports: new Map([[SupportedTransports.ws, 7005]]),
+        },
+      );
       await otherManager.start();
 
       // connect to peer and wait till connected
@@ -370,8 +400,11 @@ describe('networkManager - WebSocket connections', () => {
       const myManager = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         myPeerDB,
-        new Map([[SupportedTransports.ws, 7005]]),
-        { ...fullNodeMinimalFeatures, acceptIncomingConnections: false }
+        {
+          ...fullNodeMinimalFeatures,
+          transports: new Map([[SupportedTransports.ws, 7005]]),
+          acceptIncomingConnections: false,
+        },
       );
       await myManager.start();
 
@@ -379,8 +412,7 @@ describe('networkManager - WebSocket connections', () => {
       const otherManager = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         otherPeerDB,
-        undefined,  // no listener
-        fullNodeMinimalFeatures
+        fullNodeMinimalFeatures,  // note: no listeners
       );
       await otherManager.start();
 
@@ -430,13 +462,19 @@ describe('networkManager - WebSocket connections', () => {
         const node1 = new NetworkManager(
           new CubeStore(testCubeStoreParams),
           new PeerDB(),
-          new Map([[SupportedTransports.ws, 3021]]),
-          fullNodeMinimalFeatures)
+          {
+            ...fullNodeMinimalFeatures,
+            transports: new Map([[SupportedTransports.ws, 3021]]),
+          },
+        );
         const node2 = new NetworkManager(
           new CubeStore(testCubeStoreParams),
           new PeerDB(),
-          new Map([[SupportedTransports.ws, 3022]]),
-          fullNodeMinimalFeatures);
+          {
+            ...fullNodeMinimalFeatures,
+            transports: new Map([[SupportedTransports.ws, 3022]]),
+          },
+        );
         await Promise.all([node1.start(), node2.start()]);
         const cube = Cube.Frozen(
           { fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus automatice transferetur") })
@@ -469,16 +507,25 @@ describe('networkManager - WebSocket connections', () => {
         const cubeStore3 = new CubeStore(testCubeStoreParams);
         const manager1 = new NetworkManager(
           cubeStore, new PeerDB(),
-          new Map([[SupportedTransports.ws, 4020]]),
-          fullNodeMinimalFeatures);
+          {
+            ...fullNodeMinimalFeatures,
+            transports: new Map([[SupportedTransports.ws, 4020]]),
+          },
+        );
         const manager2 = new NetworkManager(
           cubeStore2, new PeerDB(),
-          new Map([[SupportedTransports.ws, 4021]]),
-          fullNodeMinimalFeatures);
+          {
+            ...fullNodeMinimalFeatures,
+            transports: new Map([[SupportedTransports.ws, 4021]]),
+          },
+        );
         const manager3 = new NetworkManager(
           cubeStore3, new PeerDB(),
-          new Map([[SupportedTransports.ws, 4022]]),
-          fullNodeMinimalFeatures);
+          {
+            ...fullNodeMinimalFeatures,
+            transports: new Map([[SupportedTransports.ws, 4022]]),
+          },
+        );
 
         // Start all three nodes
         const promise1_listening = manager1.start();
@@ -550,12 +597,18 @@ describe('networkManager - WebSocket connections', () => {
         const cubeStore2 = new CubeStore(testCubeStoreParams);
         const manager1 = new NetworkManager(
           cubeStore, new PeerDB(),
-          new Map([[SupportedTransports.ws, 5002]]),
-          fullNodeMinimalFeatures);
+          {
+            ...fullNodeMinimalFeatures,
+            transports: new Map([[SupportedTransports.ws, 5002]]),
+          },
+        );
         const manager2 = new NetworkManager(
           cubeStore2, new PeerDB(),
-          new Map([[SupportedTransports.ws, 5001]]),
-          fullNodeMinimalFeatures);
+          {
+            ...fullNodeMinimalFeatures,
+            transports: new Map([[SupportedTransports.ws, 5001]]),
+          },
+        );
 
         // Start both nodes
         await Promise.all([manager1.start(), manager2.start()]);
@@ -652,13 +705,19 @@ describe('networkManager - WebSocket connections', () => {
         const node1 = new NetworkManager(
           new CubeStore(testCubeStoreParams),
           new PeerDB(),
-          new Map([[SupportedTransports.ws, 3021]]),
-          lightNodeMinimalFeatures)
+          {
+            ...lightNodeMinimalFeatures,
+            transports: new Map([[SupportedTransports.ws, 3021]]),
+          },
+        );
         const node2 = new NetworkManager(
           new CubeStore(testCubeStoreParams),
           new PeerDB(),
-          new Map([[SupportedTransports.ws, 3022]]),
-          lightNodeMinimalFeatures);
+          {
+            ...lightNodeMinimalFeatures,
+            transports: new Map([[SupportedTransports.ws, 3022]]),
+          },
+        );
         await Promise.all([node1.start(), node2.start()]);
         const cube = Cube.Frozen(
           { fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus per rogatum transferetur") })
@@ -691,13 +750,19 @@ describe('networkManager - WebSocket connections', () => {
         const node1 = new NetworkManager(
           new CubeStore(testCubeStoreParams),
           new PeerDB(),
-          new Map([[SupportedTransports.ws, 3021]]),
-          lightNodeMinimalFeatures)
+          {
+            ...lightNodeMinimalFeatures,
+            transports: new Map([[SupportedTransports.ws, 3021]]),
+          },
+        );
         const node2 = new NetworkManager(
           new CubeStore(testCubeStoreParams),
           new PeerDB(),
-          new Map([[SupportedTransports.ws, 3022]]),
-          lightNodeMinimalFeatures);
+          {
+            ...lightNodeMinimalFeatures,
+            transports: new Map([[SupportedTransports.ws, 3022]]),
+          },
+        );
         await Promise.all([node1.start(), node2.start()]);
         const cube = Cube.Frozen(
           { fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus per rogatum transferetur") })
@@ -726,8 +791,9 @@ describe('networkManager - WebSocket connections', () => {
       const manager1 = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        new Map([[SupportedTransports.ws, 7011]]),
-        {  // select feature set for this test
+        {
+          transports: new Map([[SupportedTransports.ws, 7011]]),
+          // select feature set for this test
           announceToTorrentTrackers: false,
           autoConnect: true,
           lightNode: false,
@@ -736,8 +802,9 @@ describe('networkManager - WebSocket connections', () => {
       const manager2 = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        new Map([[SupportedTransports.ws, 7012]]),
-        {  // select feature set for this test
+        {
+          transports: new Map([[SupportedTransports.ws, 7012]]),
+          // select feature set for this test
           announceToTorrentTrackers: false,
           autoConnect: true,
           lightNode: false,
@@ -746,8 +813,9 @@ describe('networkManager - WebSocket connections', () => {
       const manager3 = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
-        new Map([[SupportedTransports.ws, 7013]]),
-        {  // select feature set for this test
+        {
+          transports: new Map([[SupportedTransports.ws, 7013]]),
+          // select feature set for this test
           announceToTorrentTrackers: false,
           autoConnect: true,
           lightNode: false,
@@ -821,8 +889,9 @@ describe('networkManager - WebSocket connections', () => {
         const node = new NetworkManager(
           new CubeStore(testCubeStoreParams),
           new PeerDB(),
-          new Map([[SupportedTransports.ws, 28000 + i]]),
-          {  // select feature set for this test
+          {
+            transports: new Map([[SupportedTransports.ws, 28000 + i]]),
+            // select feature set for this test
             announceToTorrentTrackers: false,
             autoConnect: false,
             lightNode: false,
@@ -841,8 +910,9 @@ describe('networkManager - WebSocket connections', () => {
         const node = new NetworkManager(
           new CubeStore(testCubeStoreParams),
           new PeerDB(),
-          new Map([[SupportedTransports.ws, 29000 + i]]),
-          {  // select feature set for this test
+          {
+            transports: new Map([[SupportedTransports.ws, 29000 + i]]),
+            // select feature set for this test
             announceToTorrentTrackers: false,
             autoConnect: false,
             lightNode: false,
@@ -861,8 +931,9 @@ describe('networkManager - WebSocket connections', () => {
       const protagonist = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         peerDB,
-        new Map([[SupportedTransports.ws, 7999]]),
-        {  // select feature set for this test
+        {
+          transports: new Map([[SupportedTransports.ws, 7999]]),
+          // select feature set for this test
           announceToTorrentTrackers: false,
           autoConnect: true,
           lightNode: false,
@@ -924,8 +995,9 @@ describe('networkManager - WebSocket connections', () => {
         const node = new NetworkManager(
           new CubeStore(testCubeStoreParams),
           new PeerDB(),
-          new Map([[SupportedTransports.ws, 10000 + i]]),
-          {  // select feature set for this test
+          {
+            transports: new Map([[SupportedTransports.ws, 10000 + i]]),
+            // select feature set for this test
             announceToTorrentTrackers: false,
             autoConnect: false,
             lightNode: false,
@@ -944,8 +1016,9 @@ describe('networkManager - WebSocket connections', () => {
       const protagonist = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         peerDB,
-        new Map([[SupportedTransports.ws, 11000]]),
-        {  // select feature set for this test
+        {
+          transports: new Map([[SupportedTransports.ws, 11000]]),
+          // select feature set for this test
           announceToTorrentTrackers: false,
           autoConnect: true,
           lightNode: false,

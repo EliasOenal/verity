@@ -4,7 +4,7 @@ import { SupportedTransports } from './core/networking/networkDefinitions';
 
 import { Cube } from './core/cube/cube';
 import { CubeField } from './core/cube/cubeField';
-import { VerityNode } from "./core/verityNode";
+import { VerityNode, VerityNodeOptions, defaultInitialPeers } from "./core/verityNode";
 import { AddressAbstraction } from './core/peering/addressing';
 
 import { logger } from './core/logger';
@@ -25,12 +25,24 @@ if (isNode) {
   cmd = await import('cmd-ts');
 }
 
+export type VerityCmdClientOptions = VerityNodeOptions & {
+  keyPair?: KeyPair
+}
+
 class VerityCmdClient {
   public node: VerityNode;
   public onlinePromise: Promise<void> = undefined;
   private mucUpdateCounter: number = 0;
 
-  constructor(private keyPair: KeyPair) {
+  constructor(readonly options: VerityCmdClientOptions) {
+    // initialise options
+    options.initialPeers ??= [];
+    options.autoConnect ??= true;
+    options.lightNode ??= false;
+    options.peerExchange ??= true;
+    options.announceToTorrentTrackers ??= true;
+    options.enableCubePersistence ??= EnableCubePersitence.PRIMARY;
+
     if (isNode) {  // Provide debugging hotkeys
       readline.emitKeypressEvents(process.stdin);
       if (process.stdin.isTTY) process.stdin.setRawMode(true);
@@ -43,16 +55,6 @@ class VerityCmdClient {
         if (str === 'f') this.insertFile();
       });
     }
-
-    // Default initial peers to use if none are supplied as command line options:
-    let defaultInitialPeers: AddressAbstraction[] = [
-        new AddressAbstraction("verity.hahn.mt:1984"),
-        new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss"),
-        // new AddressAbstraction("verity.hahn.mt:1985"),
-        // new AddressAbstraction("verity.hahn.mt:1986"),
-        // new AddressAbstraction("132.145.174.233:1984"),
-        // new AddressAbstraction("158.101.100.95:1984"),
-    ];
 
     if (isNode) {  // we expect this to only ever be run in NodeJS, but just to be safe
       // prepare online promise
@@ -110,16 +112,15 @@ class VerityCmdClient {
           })
         },
         handler: ({ ws, libp2p, peer, tracker, nopersist, pubaddr }) => {
-          let servers = new Map();
-          let peers: AddressAbstraction[] = [];
           if (!ws && !libp2p && !peer && !tracker && !nopersist && !pubaddr) {
-            // use defaults if no options specified
+            // use defaults if no options specified neither on the command line nor on construction
             logger.info("Note: Will start with default settings as you did not specify any command line options. Use --help for options.")
-            peers = defaultInitialPeers;
-            servers.set(SupportedTransports.ws, Settings.DEFAULT_WS_PORT);
-            servers.set(SupportedTransports.libp2p, Settings.DEFAULT_LIBP2P_PORT);
-            tracker = true;
-            nopersist = false;
+            if (!options.transports) {
+              options.transports = new Map();
+              options.transports.set(SupportedTransports.ws, Settings.DEFAULT_WS_PORT);
+              options.transports.set(SupportedTransports.libp2p, Settings.DEFAULT_LIBP2P_PORT);
+            }
+            options.initialPeers ??= defaultInitialPeers;
           } else {
             // Print useful warnings in case of strange config choices
             if (!ws && !libp2p) {
@@ -129,48 +130,40 @@ class VerityCmdClient {
               logger.warn("Note: You have started this node without any of --peer and --tracker. I will still start up, but make no effort to connect to anybody else. Your exprience might be quite limited.")
             }
             // Apply config
-            if (libp2p) {
-              servers.set(SupportedTransports.libp2p, libp2p);
-            }
-            if (ws) servers.set(SupportedTransports.ws, ws);
+            options.transports = new Map();
+            if (libp2p) options.transports.set(SupportedTransports.libp2p, libp2p);
+            if (ws) options.transports.set(SupportedTransports.ws, ws);
             if (peer) {
               for (const onepeer of peer) {
                 const addr = new AddressAbstraction(onepeer);
-                peers.push(addr);
+                options.initialPeers.push(addr);
               }
             }
             if (!ws) tracker = false;  // can't use Torrent trackers w/o native server capability
-            if (nopersist) logger.warn("Note: Persistance has been turned off. All cubes will be gone once you shut down this instance, unless of course they have been transmitted to instances with persistance turned on.");
+            options.announceToTorrentTrackers = tracker;
+            options.publicAddress = pubaddr;
+            if (nopersist) {
+              options.enableCubePersistence = EnableCubePersitence.OFF;
+              logger.warn("Note: Persistance has been turned off. All cubes will be gone once you shut down this instance, unless of course they have been transmitted to instances with persistance turned on.");
+            }
           }
-          this.node = new VerityNode(servers, peers,
-            {
-              announceToTorrentTrackers: tracker,
-              enableCubePersistence: nopersist? EnableCubePersitence.OFF : EnableCubePersitence.PRIMARY,
-              autoConnect: true,
-              lightNode: false,
-              peerExchange: true,
-              publicAddress: pubaddr,
-            });
+          this.node = new VerityNode(options);
           this.node.onlinePromise.then(() => onlinePromiseResolve(undefined));
         },
       });
       cmd.run(parse, process.argv.slice(2));
     } else {  // if this is not NodeJS, which is really strange indeed
-      this.node = new VerityNode(
-        new Map(), defaultInitialPeers,
-        {
-          announceToTorrentTrackers: false,
-          autoConnect: true,
-          enableCubePersistence: EnableCubePersitence.PRIMARY,
-          lightNode: false,
-          peerExchange: true,
-        });
+      this.node = new VerityNode(options);
       this.onlinePromise = this.node.onlinePromise;
     }
   }
 
   /** Just for manual testing: Handler for the 'm' hotkey */
   public async updateMuc() {
+    if (!this.options.keyPair) {
+      logger.error("VerityCmdClient has been constructed without a key pair, cannot test MUC");
+      return;
+    }
     // write counter to buffer in ascii text
     const counterBuffer: Buffer = Buffer.alloc(8);
     counterBuffer.write(this.mucUpdateCounter.toString(), 0, 8, 'ascii');
@@ -179,8 +172,8 @@ class VerityCmdClient {
     const messageBuffer = Buffer.concat(
       [Buffer.from("Hello MUC: ", 'utf8'), counterBuffer]);
     const muc = Cube.MUC(
-      Buffer.from(this.keyPair.publicKey),
-      Buffer.from(this.keyPair.privateKey),
+      Buffer.from(this.options.keyPair.publicKey),
+      Buffer.from(this.options.keyPair.privateKey),
       {fields: CubeField.RawContent(CubeType.MUC, messageBuffer)}
     );
     this.node.cubeStore.addCube(muc);
@@ -221,7 +214,7 @@ async function main() {
   await sodium.ready;
   const keyPair = sodium.crypto_sign_keypair();
 
-  const client = new VerityCmdClient(keyPair);
+  const client = new VerityCmdClient({ keyPair: keyPair});
   await client.onlinePromise;
   logger.info("Node is online");
 

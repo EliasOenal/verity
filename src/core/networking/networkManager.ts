@@ -32,6 +32,13 @@ if (isBrowser || isWebWorker) {
 }
 
 export interface NetworkManagerOwnOptions {
+    /**
+     * Specifies which transports shall be enabled.
+     * The key of this map is a transport enum while the value contains
+     * transport-specific options.
+     */
+    transports?: TransportParamMap,
+
     announceToTorrentTrackers?: boolean;
 
     /**
@@ -169,7 +176,6 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
     constructor(
             private _cubeStore: CubeStore,
             private _peerDB: PeerDB,
-            transports: TransportParamMap = new Map(),
             readonly options: NetworkManagerOptions = {},
     ) {
         super();
@@ -189,7 +195,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         this.scheduler = new RequestScheduler(this, options);
 
         // Create NetworkTransport objects for all requested transport types.
-        this.transports = createNetworkTransport(transports, options);
+        this.transports = createNetworkTransport(options.transports, options);
 
         // Set a random peer ID
         // Maybe TODO: try to use the same peer ID for transports that themselves

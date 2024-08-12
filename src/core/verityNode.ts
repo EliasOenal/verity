@@ -10,7 +10,21 @@ import { logger } from "./logger";
 import { LevelPersistence } from "./cube/levelPersistence";
 import { RequestScheduler } from "./networking/cubeRetrieval/requestScheduler";
 
-export type VerityNodeOptions = NetworkManagerOptions & CubeStoreOptions;
+interface InitialisationOptions {
+  initialPeers?: AddressAbstraction[],
+}
+
+// Default initial peers to use if none are supplied as command line options:
+export const defaultInitialPeers: AddressAbstraction[] = [
+  new AddressAbstraction("verity.hahn.mt:1984"),
+  new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss"),
+  // new AddressAbstraction("verity.hahn.mt:1985"),
+  // new AddressAbstraction("verity.hahn.mt:1986"),
+  // new AddressAbstraction("132.145.174.233:1984"),
+  // new AddressAbstraction("158.101.100.95:1984"),
+];
+
+export type VerityNodeOptions = NetworkManagerOptions & CubeStoreOptions & InitialisationOptions;
 
 export interface VerityNodeIf {
   readonly cubeStore: CubeStore;
@@ -35,20 +49,15 @@ export class VerityNode implements VerityNodeIf {
   readonly readyPromise: Promise<void>;
   readonly shutdownPromise: Promise<void>;
 
-  constructor(
-    /**
-     * @member Is this a light client?
-     * Light clients do not announce and do not accept incoming connections.
-     * They also do not request cubes unless they are explicitly requested.
-     */
-    public readonly servers: Map<SupportedTransports, any> = new Map(),
-    private initialPeers: Array<AddressAbstraction> = [],
-    options: VerityNodeOptions = {}
-  ){
+  constructor(options: VerityNodeOptions = {}){
+    // set default options
+    options.transports ??= new Map();  // TODO use sensible default
+    options.initialPeers ??= defaultInitialPeers;
+
     this.cubeStore = new CubeStore(options);
     // find a suitable port number for tracker announcement
     let port;
-    const wsServerSpec = servers.get(SupportedTransports.ws);
+    const wsServerSpec = options.transports.get(SupportedTransports.ws);
     if (wsServerSpec) port = wsServerSpec;
     else port = undefined;
     this.peerDB = new PeerDB(port);
@@ -56,15 +65,12 @@ export class VerityNode implements VerityNodeIf {
 
     // Prepare networking
     this.networkManager = new NetworkManager(
-      this.cubeStore, this.peerDB,
-      this.servers,
-      options);
+      this.cubeStore, this.peerDB, options);
     // Only start networking once our CubeStore is ready
     this.cubeStore.readyPromise.then(() => this.networkManager.start());
     // Let user know when we are online
-    this.onlinePromise = new Promise(resolve => this.networkManager.once('online', () => {
-      resolve(undefined);
-    }));
+    this.onlinePromise = new Promise(resolve =>
+      this.networkManager.once('online', () => { resolve(undefined) }));
 
     // Let the user know when the Node object is ready to use.
     // Currently, this only depends on CubeStore being ready.
@@ -82,7 +88,7 @@ export class VerityNode implements VerityNodeIf {
       resolve(undefined);
     }));
 
-    for (const initialPeer of initialPeers) {
+    for (const initialPeer of options.initialPeers) {
       this.peerDB.learnPeer(new Peer(initialPeer));
     }
   }
