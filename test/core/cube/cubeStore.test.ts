@@ -528,10 +528,59 @@ describe('cubeStore', () => {
             }
             expect(notificationKeys).toHaveLength(0);
           });
+
+          it('should only return notifications for notified addresses', async () => {
+            // sculpt a notification Cube
+            const recipientKey1 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 84);
+            const cube1 = new Cube(CubeType.FROZEN_NOTIFY, {
+              fields: CubeFields.DefaultPositionals(
+                coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,
+                [
+                  CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis"),
+                  CubeField.Notify(recipientKey1),
+                ]),
+              requiredDifficulty: reducedDifficulty
+            });
+            await cubeStore.addCube(cube1);
+
+            // sculpt a Cube notifying another receiver
+            const recipientKey2 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 1337);
+            const cube2 = new Cube(CubeType.FROZEN_NOTIFY, {
+              fields: CubeFields.DefaultPositionals(
+                coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,
+                [
+                  CubeField.Notify(recipientKey2),
+                  CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis pro alio destinatoria"),
+                ]),
+              requiredDifficulty: reducedDifficulty
+            });
+            await cubeStore.addCube(cube2);
+
+            // sculpt a non-notification Cube
+            const cube3 = Cube.Frozen({
+              fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus neminem notificationem facit")
+            })
+            await cubeStore.addCube(cube3);
+
+            // Ensure the correct Cubes are returned upon notification retrieval
+            const notificationsForKey1: Cube[] = [];
+            for await (const cube of cubeStore.getNotificationCubes(recipientKey1)) {
+              notificationsForKey1.push(cube);
+            }
+            expect(notificationsForKey1).toHaveLength(1);
+            expect(await notificationsForKey1[0].getKey()).toEqual(await cube1.getKey());
+
+            const notificationsForKey2: Cube[] = [];
+            for await (const cube of cubeStore.getNotificationCubes(recipientKey1)) {
+              notificationsForKey2.push(cube);
+            }
+            expect(notificationsForKey2).toHaveLength(1);
+            expect(await notificationsForKey2[0].getKey()).toEqual(await cube1.getKey());
+          });
         });  // NOTIFY tests
       });  // core level tests
 
-      describe.skip('tests involving CCI layer', () => {
+      describe('tests involving CCI layer', () => {
         const cubeStoreOptions: CubeStoreOptions = {
           family: cciFamily,
           requiredDifficulty: reducedDifficulty,
