@@ -48,6 +48,7 @@ alternative to traditional, centralized social networks.
   - `0x05`: `MyServerAddress`
   - `0x06`: `NodeRequest`
   - `0x07`: `NodeResponse`
+  - `0x08`: `NotificationRequest`
 
   Each of these message classes will have different data payloads:
   - `Hello`: **Node Identifier (16 bytes)**: This is a unique NodeID that's randomly generated at startup. Primary purpose is to detect when we connected to ourselves. This may happen if we don't know our external IP. (e.g. NAT) Secondarily this may be used to detect duplicate connections to the same node, which may happen if the node is reachable via multiple IPs.
@@ -102,6 +103,12 @@ alternative to traditional, centralized social networks.
       - **Node Address type  (1 byte)**: 1=WebRTC, 2=LibP2p
       - **Node Address Length (2 bytes)**: An integer indicating the length of the node address.
       - **Node Address string (variable length)**: The node address (e.g., WebSocket URL). The length of the address should match the Node Address Length.
+
+  - `NotificationRequest`: Requests all Cubes with a NOTIFY field containing the
+    specified recipient key. This is a specialised type of CubeRequest and will
+    be answered with a CubeResponse.
+    - **Cube Key Count (4 bytes)**: The number of notification keys following
+    - **Recipient key (4 bytes)**: Sender requests all Cubes notifying the specified key
 
 # Encryption
 
