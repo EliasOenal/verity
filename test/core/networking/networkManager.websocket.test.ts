@@ -1,5 +1,5 @@
 import { Settings } from '../../../src/core/settings';
-import { SupportedTransports } from '../../../src/core/networking/networkDefinitions';
+import { NetConstants, SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 
 import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
 import { NetworkPeer, NetworkPeerLifecycle } from '../../../src/core/networking/networkPeer';
@@ -783,6 +783,70 @@ describe('networkManager - WebSocket connections', () => {
         await Promise.all([node1.shutdown(), node2.shutdown()]);
       });
     });  // as a light node
+
+    describe('notification retrieval', () => {
+      it('should retrieve notifications from other nodes', async () => {
+        // set up two nodes
+        const node1 = new NetworkManager(
+          new CubeStore(testCubeStoreParams),
+          new PeerDB(),
+          {
+            ...lightNodeMinimalFeatures,
+            transports: new Map([[SupportedTransports.ws, 3023]]),
+          },
+        );
+        const node2 = new NetworkManager(
+          new CubeStore(testCubeStoreParams),
+          new PeerDB(),
+          {
+            ...lightNodeMinimalFeatures,
+            transports: new Map([[SupportedTransports.ws, 3024]]),
+          },
+        );
+        await Promise.all([node1.start(), node2.start()]);
+
+        // sculpt a notification Cube at node1
+        const notificationKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
+        const latinSmartassery = "Cubi notificationes ad clavem notificationis referunt";
+        const contentField = CubeField.RawContent(CubeType.FROZEN_NOTIFY, latinSmartassery);
+        const notificationCube = Cube.Frozen({
+          fields: [
+            contentField,
+            CubeField.Notify(notificationKey),
+          ],
+          requiredDifficulty: reducedDifficulty,
+        });
+        await node1.cubeStore.addCube(notificationCube);
+
+        // connect node2 to node1
+        const node2to1 = node2.connect(new Peer("127.0.0.1:3023"));
+        await node2to1.onlinePromise;
+
+        // node2 requests notifications from node1
+        node2to1.sendNotificationRequest([notificationKey]);
+        // Wait up to three seconds for Cube exchange to happen
+        for (let i = 0; i < 30; i++) {
+          if (await node2.cubeStore.getNumberOfStoredCubes() >= 1) {
+            break;
+          }
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // verify notification has been received correctly
+        const receivedNotifications: Cube[] = [];
+        for await (const cube of node2.cubeStore.getNotificationCubes(notificationKey)) {
+          receivedNotifications.push(cube);
+        }
+        expect(receivedNotifications.length).toEqual(1);
+        expect(await receivedNotifications[0].getKey()).toEqual(await notificationCube.getKey());
+        expect(await receivedNotifications[0].fields.
+          getFirst(CubeFieldType.FROZEN_NOTIFY_RAWCONTENT)).
+            toEqual(contentField);
+
+        // shut down
+        await Promise.all([node1.shutdown(), node2.shutdown()]);
+      });
+    });  // notification retrieval
   });  // cube exchange
 
   describe('peer exchange and auto-connect', () => {

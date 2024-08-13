@@ -10,6 +10,7 @@ export enum MessageClass {
     MyServerAddress = 0x05,
     PeerRequest = 0x06,
     PeerResponse = 0x07,
+    NotificationRequest = 0x08,
 }
 
 export const NetConstants =  {

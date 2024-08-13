@@ -274,7 +274,7 @@ export class NetworkPeer extends Peer {
                     }
                     break;
                 case MessageClass.CubeRequest:
-                    try {  // non-essential feature
+                    try {  // non-essential feature (for us... for them it's rather essential, but we don't care :D)
                         this.handleCubeRequest(msg as CubeRequestMessage);
                         break;
                     } catch (err) {  // we'll mostly ignore errors with this
@@ -303,6 +303,15 @@ export class NetworkPeer extends Peer {
                 case MessageClass.PeerResponse:
                     try {  // non-essential feature
                         this.handlePeerResponse(msg as PeerResponseMessage);
+                        break;
+                    } catch (err) {  // we'll mostly ignore errors with this
+                        logger.warn(`NetworkPeer ${this.toString()}: Ignoring a NodeResponse because an error occurred processing it: ${err}`);
+                        // TODO: This should make this peer ineligible for peer exchange, at least for a while
+                        break;
+                    }
+                case MessageClass.NotificationRequest:
+                    try {  // non-essential feature
+                        this.handleNotificationRequest(msg as CubeRequestMessage);
                         break;
                     } catch (err) {  // we'll mostly ignore errors with this
                         logger.warn(`NetworkPeer ${this.toString()}: Ignoring a NodeResponse because an error occurred processing it: ${err}`);
@@ -511,13 +520,38 @@ export class NetworkPeer extends Peer {
         const requestedKeys: Generator<CubeKey> = msg.cubeKeys();
         // fetch all requested binary Cubes
         const binaryCubes: Buffer[] = [];
+        let count = 0;
         for (const requestedKey of requestedKeys) {
             const binaryCube: Buffer =
                 (await this.cubeStore.getCubeInfo(requestedKey))?.binaryCube
-            if (binaryCube !== undefined) binaryCubes.push(binaryCube);
+            if (binaryCube !== undefined) {
+                count++;
+                binaryCubes.push(binaryCube);
+            }
+            if (count >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
         }
         const reply = new CubeResponseMessage(binaryCubes);
         logger.trace(`NetworkPeer ${this.toString()}: handleCubeRequest: sending ${reply.cubeCount} cubes`);
+        this.sendMessage(reply);
+    }
+
+    private async handleNotificationRequest(msg:CubeRequestMessage): Promise<void> {
+        const requestedRecipients: Generator<CubeKey> = msg.cubeKeys();
+        // fetch all requested notifications
+        const binaryCubes: Buffer[] = [];
+        let count = 0;
+        for (const recipient of requestedRecipients) {
+            for await (const cubeInfo of this.cubeStore.getNotificationCubeInfos(recipient)) {
+                if (cubeInfo.binaryCube) {
+                    binaryCubes.push(cubeInfo.binaryCube);
+                    count++;
+                }
+                if (count >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
+            }
+            if (count >= NetConstants.MAX_CUBES_PER_MESSAGE) break;  // goto would avoid the duplicate break :)
+        }
+        const reply = new CubeResponseMessage(binaryCubes);
+        logger.trace(`NetworkPeer ${this.toString()}: handleNotificationRequest: sending ${reply.cubeCount} cubes`);
         this.sendMessage(reply);
     }
 
@@ -656,11 +690,23 @@ export class NetworkPeer extends Peer {
 
     /**
      * Send a CubeRequest message.
-     * @param keys The list of cube hashes to request.
+     * @param keys The list of cube keys to request.
      */
     sendCubeRequest(keys: Buffer[]): void {
         const msg: CubeRequestMessage = new CubeRequestMessage(keys);
         logger.trace(`NetworkPeer ${this.toString()}: sending CubeRequest for ${keys.length} cubes`);
+        this.setTimeout();  // expect a timely reply to this request
+        this.sendMessage(msg);
+    }
+
+    /**
+     * Send a NotificationRequest message.
+     * @param keys The list of notification keys to request.
+     */
+    sendNotificationRequest(keys: Buffer[]): void {
+        // NotificationRequests are a special type of CubeRequests
+        const msg: CubeRequestMessage = new CubeRequestMessage(keys, MessageClass.NotificationRequest);
+        logger.trace(`NetworkPeer ${this.toString()}: sending NotificationRequest for ${keys.length} cubes`);
         this.setTimeout();  // expect a timely reply to this request
         this.sendMessage(msg);
     }

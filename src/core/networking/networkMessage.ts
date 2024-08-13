@@ -27,6 +27,9 @@ export abstract class NetworkMessage extends BaseField {
       return new PeerRequestMessage();
     } else if (type === MessageClass.PeerResponse) {
       return new PeerResponseMessage(value);
+    } else if (type === MessageClass.NotificationRequest) {
+      // NotificationRequests are a special kind of CubeRequests
+      return new CubeRequestMessage(value, MessageClass.NotificationRequest);
     } else {
       throw new VerityError("NetworkMessage.fromBinary: Cannot parse message of unknown type " + type);
     }
@@ -178,12 +181,12 @@ export class KeyResponseMessage extends NetworkMessage {
 export class CubeRequestMessage extends NetworkMessage {
   readonly keyCount: number;
 
-  constructor(value: Buffer);
-  constructor(cubeKeys: CubeKey[]);
+  constructor(value: Buffer, messageClass?: MessageClass);
+  constructor(cubeKeys: CubeKey[], messageClass?: MessageClass);
 
-  constructor(param: Buffer | CubeKey[]) {
+  constructor(param: Buffer | CubeKey[], messageClass: MessageClass = MessageClass.CubeRequest) {
     if (param instanceof Buffer) {
-      super(MessageClass.CubeRequest, param);
+      super(messageClass, param);
       // ensure number of requests per message does not exceed maximum
       this.keyCount = Math.min(
         this.value.readUIntBE(0, NetConstants.COUNT_SIZE),
@@ -211,7 +214,7 @@ export class CubeRequestMessage extends NetworkMessage {
         key.copy(value, offset);
         offset += NetConstants.CUBE_KEY_SIZE;
       }
-      super(MessageClass.CubeRequest, value);
+      super(messageClass, value);
       this.keyCount = keyCount;
     }
   }
