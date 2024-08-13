@@ -624,7 +624,9 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     if (this.inMemory) {
       // in-memory store is primary --
       // in-memory store directly stores the notification's CubeInfos
-      for (const cubeInfo of this.notifications.get(keyVariants(recipient).keyString)) {
+      const notificationCubeInfos: CubeInfo[] =
+        this.notifications.get(keyVariants(recipient).keyString);
+      if (notificationCubeInfos) for (const cubeInfo of notificationCubeInfos) {
         yield cubeInfo;
       }
     } else {
