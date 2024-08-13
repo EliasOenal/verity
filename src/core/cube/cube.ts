@@ -6,7 +6,7 @@ import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFie
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField } from "./cubeField";
-import { CoreFieldParsers, CubeFamilyDefinition, CubeFields } from './cubeFields';
+import { CoreFieldParsers, CoreFrozenFieldDefinition, CubeFamilyDefinition, CubeFields } from './cubeFields';
 
 import { FieldParser } from "../fields/fieldParser";
 
@@ -23,22 +23,28 @@ export interface CubeOptions {
 
 export class Cube {
     /**
-     * Creates a new standard or "frozen" cube.
-     * @param data Supply your custom fields here. We will supplement them
+     * Creates a new standard or "frozen" cube, or a frozen notify Cube.
+     * @param data - Supply your custom fields here. We will supplement them
      * with all required boilerplate (i.e. we will create the TYPE, DATE and
      * NONCE fields for you).
+     * If data contains a NOTIFY field, the resulting Cube will be a notify Cube.
      */
-    static Frozen(options?: CubeOptions): Cube {
+    static Frozen(options: CubeOptions = {}): Cube {
         // set options
-        if (options === undefined) options = {};
         options.family = options?.family ?? coreCubeFamily;
         options.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
+        // which type of Cube was requested exactly, regular or notify variant?
+        let type: CubeType;
+        if (options.fields &&
+            CubeFields.getFirst(options.fields, CubeFieldType.NOTIFY) !== undefined) {
+            type = CubeType.FROZEN_NOTIFY;
+        } else type = CubeType.FROZEN;
         // prepare fields
         options.fields = CubeFields.DefaultPositionals(
-            options.family.parsers[CubeType.FROZEN].fieldDef,
+            options.family.parsers[type].fieldDef,
             options?.fields,  // include the user's custom fields, obviously
         );
-        const cube: Cube = new options.family.cubeClass(CubeType.FROZEN, options);
+        const cube: Cube = new options.family.cubeClass(type, options);
         return cube;
     }
 
@@ -47,6 +53,7 @@ export class Cube {
      * can edit even after it was sculpted and published.
      * @param data Supply your custom fields here. We will supplement them
      * with all required boilerplate.
+     * If data contains a NOTIFY field, the resulting Cube will be a notify Cube.
      */
     static MUC(publicKey: Buffer | Uint8Array,
                privateKey: Buffer | Uint8Array,
@@ -56,6 +63,12 @@ export class Cube {
         if (options === undefined) options = {};
         options.family = options?.family ?? coreCubeFamily;
         options.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
+        // which type of Cube was requested exactly, regular or notify variant?
+        let type: CubeType;
+        if (options.fields &&
+            CubeFields.getFirst(options.fields, CubeFieldType.NOTIFY) !== undefined) {
+            type = CubeType.MUC_NOTIFY;
+        } else type = CubeType.MUC;
         // upgrade keys to Buffer if required
         if (!(publicKey instanceof Buffer)) publicKey = Buffer.from(publicKey);
         if (!(privateKey instanceof Buffer)) privateKey = Buffer.from(privateKey);
@@ -63,8 +76,8 @@ export class Cube {
         options.fields = CubeFields.Muc(
             publicKey,
             options?.fields,  // include the user's custom fields, obviously
-            options.family.parsers[CubeType.MUC].fieldDef);
-        const cube: Cube = new options.family.cubeClass(CubeType.MUC, options);
+            options.family.parsers[type].fieldDef);
+        const cube: Cube = new options.family.cubeClass(type, options);
         // supply private key
         cube.privateKey = privateKey as Buffer;
         return cube;

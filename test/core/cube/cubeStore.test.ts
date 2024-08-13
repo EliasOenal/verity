@@ -489,7 +489,9 @@ describe('cubeStore', () => {
             // choose a notification recipient key
             const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
 
-            // create two Cubes notifying this receiver
+            // create two Cubes notifying this receiver --
+            // this tests sculpts the Cubes "manually" while the next one will
+            // use the convenience helpers
             const cube1 = new Cube(CubeType.FROZEN_NOTIFY, {
               fields: CubeFields.DefaultPositionals(
                 coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,
@@ -530,29 +532,27 @@ describe('cubeStore', () => {
           });
 
           it('should only return notifications for notified addresses', async () => {
-            // sculpt a notification Cube
+            // sculpt a notification Cube --
+            // this test will use the convenience helpers while the previous
+            // one sculpted them manually
             const recipientKey1 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 84);
-            const cube1 = new Cube(CubeType.FROZEN_NOTIFY, {
-              fields: CubeFields.DefaultPositionals(
-                coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,
-                [
-                  CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis"),
-                  CubeField.Notify(recipientKey1),
-                ]),
-              requiredDifficulty: reducedDifficulty
-            });
+            const cube1 = Cube.Frozen({
+              fields:                 [
+                CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis"),
+                CubeField.Notify(recipientKey1),
+              ],
+              requiredDifficulty: reducedDifficulty,
+            })
             await cubeStore.addCube(cube1);
 
             // sculpt a Cube notifying another receiver
             const recipientKey2 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 1337);
-            const cube2 = new Cube(CubeType.FROZEN_NOTIFY, {
-              fields: CubeFields.DefaultPositionals(
-                coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,
-                [
-                  CubeField.Notify(recipientKey2),
-                  CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis pro alio destinatoria"),
-                ]),
-              requiredDifficulty: reducedDifficulty
+            const cube2 = Cube.Frozen({
+              fields: [
+                CubeField.Notify(recipientKey2),
+                CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis pro alio destinatoria"),
+              ],
+              requiredDifficulty: reducedDifficulty,
             });
             await cubeStore.addCube(cube2);
 

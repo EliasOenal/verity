@@ -33,6 +33,9 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         if (data instanceof BaseFields) data = data.all;
 
         // create a new fields instance, preserving user-supplied fields
+        // note: this copy is inefficient and often unnecessary, but this Code
+        // only runs on Cube sculpting. Cube sculpting happens rarely and is
+        // computationally dominated by the hashcash calculation.
         const fields: BaseFields =
             new fieldDefinition.fieldsObjectClass(data, fieldDefinition);
 
@@ -115,29 +118,45 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         return this.data.length;
     }
 
+    static get(fields: BaseField | BaseFields | BaseField[], type: number | number[] = undefined): Array<BaseField> {  // in top-level fields, type must be one of FieldType as defined in cubeDefinitions.ts
+        // input normalisation
+        if (fields instanceof BaseField) fields = [fields];
+        if (fields instanceof BaseFields) fields = fields.all;
+        if (!(Array.isArray(type))) type = [type];
+
+        if (type) {  // any actual filtering requested?
+            const ret = [];
+            for (const field of fields) {
+                if (type.includes(field.type)) ret.push(field);
+            }
+            return ret;
+        }
+        else return fields;  // performance optimisation in case of no filter
+    }
+
     /**
     * Gets all fields of one or more specified types, or all fields
     * @param type Which type(s) of field to get
     * @return An array of Field objects, which may be empty.
     */
     public get(type: number | number[] = undefined): Array<BaseField> {  // in top-level fields, type must be one of FieldType as defined in cubeDefinitions.ts
-        if (!(Array.isArray(type))) type = [type];
-        if (type) {
-            const ret = [];
-            for (const field of this.data) {
-                if (type.includes(field.type)) ret.push(field);
-            }
-            return ret;
+        return BaseFields.get(this.data, type);
+    }
+
+    static getFirst(fields: BaseField | BaseFields | BaseField[], type: Number): BaseField {
+        // input normalisation
+        if (fields instanceof BaseField) fields = [fields];
+        if (fields instanceof BaseFields) fields = fields.all;
+        // perform search as requested
+        for (const field of fields) {
+            if (field.type === type) return field;
         }
-        else return this.data;  // performance optimisation in case of no filter
+        return undefined;  // none found
     }
 
     /** Gets the first field of a specified type */
     public getFirst(type: Number): BaseField {
-        for (const field of this.data) {
-            if (field.type === type) return field;
-        }
-        return undefined;  // none found
+        return BaseFields.getFirst(this.data, type);
     }
 
     /**
