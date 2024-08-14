@@ -464,9 +464,11 @@ export class NetworkPeer extends Peer {
                     continue;
                 }
 
-                if (incomingCubeInfo.cubeType === CubeType.FROZEN) {
+                if (incomingCubeInfo.cubeType === CubeType.FROZEN ||
+                    incomingCubeInfo.cubeType === CubeType.FROZEN_NOTIFY) {
                     regularCubeInfo.push(incomingCubeInfo);
-                } else if (incomingCubeInfo.cubeType === CubeType.MUC) {
+                } else if (incomingCubeInfo.cubeType === CubeType.MUC ||
+                           incomingCubeInfo.cubeType === CubeType.MUC_NOTIFY) {
                     mucInfo.push(incomingCubeInfo);
                 } else {
                     logger.debug(`NetworkPeer ${this.toString()}: in handleKeyResponse I saw a CubeType of ${incomingCubeInfo.cubeType}. I don't know what that is.`)
