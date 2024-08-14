@@ -6,7 +6,7 @@ import { RequestStrategy, RandomStrategy } from './requestStrategy';
 import { RequestedCube } from './requestedCube';
 
 import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
-import type { CubeKey } from '../../cube/cube.definitions';
+import { CubeFieldType, type CubeKey } from '../../cube/cube.definitions';
 import type { CubeInfo } from '../../cube/cubeInfo';
 import { keyVariants } from '../../cube/cubeUtil';
 import type { NetworkManager, NetworkManagerIf } from '../networkManager';
@@ -22,6 +22,8 @@ import { Buffer } from 'buffer';  // for browsers
 // TODO: Add option to fire a request immediately, within reasonable limits.
 // This is required for interactive applications to perform reasonably on
 // light nodes.
+
+// TODO: non-fulfilled requests must be rescheduled while within timeout
 
 export interface RequestSchedulerOptions {
   /**
@@ -45,6 +47,7 @@ export interface RequestSchedulerOptions {
  */
 export class RequestScheduler {
   private requestedCubes: Map<string, RequestedCube> = new Map();
+  private requestedNotifications: Map<string, RequestedCube> = new Map();
   private subscribedCubes: CubeKey[] = [];
   private timer: ShortenableTimeout = new ShortenableTimeout(this.performRequest, this);
 
@@ -64,6 +67,13 @@ export class RequestScheduler {
       this.cubeAddedHandler(cubeInfo));
   }
 
+  /**
+   * Request a Cube from the network.
+   * This obviously only makes sense for light nodes as full nodes will always
+   * attempt to sync all available Cubes.
+   * @returns A promise resolving to the CubeInfo of the requested Cube.
+   *  Promise will reject if Cube cannot be retrieved within timeout.
+   */
   requestCube(
     keyInput: CubeKey | string,
     scheduleIn: number = this.options.interactiveRequestDelay,
@@ -79,6 +89,8 @@ export class RequestScheduler {
   /**
    * Subscribe to a Cube, ensuring you will receive any an all remote updates.
    * This obviously only makes sense for mutable Cubes, i.e. MUCs.
+   * It also obviously only makes sense for light nodes as full nodes will always
+   * attempt to sync all available Cubes.
    **/
   // Note: We don't have any actual notion of subscriptions on the core network
   // layer yet. What this currently does is just re-request the same Cube over
@@ -95,6 +107,27 @@ export class RequestScheduler {
       this.subscribedCubes.push(key.binaryKey);
       this.scheduleNextRequest(scheduleIn);  // schedule request
     }
+  }
+
+  /**
+   * Request all Cubes notifying the specified key from the network.
+   * This obviously only makes sense for light nodes as full nodes will always
+   * attempt to sync all available Cubes.
+   * @returns A promise resolving to the first notification to this key.
+   *  Caller should check their local CubeStore to find all notifications.
+   *  Promise will reject if no notifications can be retrieved within timeout.
+   */
+  // maybe TODO: something like an AsyncGenerator as return type would make much more sense
+  requestNotifications(
+    recipientKey: Buffer,
+    scheduleIn: number = this.options.interactiveRequestDelay,
+    timeout: number = this.options.requestTimeout,
+  ): Promise<CubeInfo> {
+    const key = keyVariants(recipientKey);
+    const req = new RequestedCube(key.binaryKey, timeout);
+    this.requestedNotifications.set(key.keyString, req);  // remember request
+    this.scheduleNextRequest(scheduleIn);  // schedule request
+    return req.promise;  // return result eventually
   }
 
 
@@ -126,7 +159,10 @@ export class RequestScheduler {
     this.timer.clear();
     // is there even anything left to request?
     if (this.options.lightNode &&
-        this.requestedCubes.size === 0 && this.subscribedCubes.length === 0) {
+        this.requestedCubes.size === 0 &&
+        this.subscribedCubes.length === 0 &&
+        this.requestedNotifications.size === 0
+    ) {
       logger.trace(`RequestScheduler.performRequest(): doing nothing, we're a light node and there are no open requests`);
       return;  // nothing to do
     }
@@ -139,7 +175,10 @@ export class RequestScheduler {
         const keys: CubeKey[] = [];
         for (const [keystring, req] of this.requestedCubes) {
           if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
-          if (!req.requestRunning) keys.push(req.key);
+          if (!req.requestRunning) {
+            keys.push(req.key);
+            req.requestRunning = true;
+          }
         }
         for (const key of this.subscribedCubes) {
           if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
@@ -149,10 +188,26 @@ export class RequestScheduler {
           // networking layer.
           keys.push(key);
         }
-        logger.trace(`RequestScheduler.performRequest(): requesting ${keys.length} Cubes from ${peerSelected.toString()}`);
-        peerSelected.sendCubeRequest(keys);
+        if (keys.length > 0) {
+          logger.trace(`RequestScheduler.performRequest(): requesting ${keys.length} Cubes from ${peerSelected.toString()}`);
+          peerSelected.sendCubeRequest(keys);
+        }
         // Note: The cube response will currently still be directly handled by the
         // NetworkPeer. This should instead also be controlled by the RequestScheduler.
+
+        // request notifications
+        const notificationKeys: Buffer[] = [];
+        for (const [keystring, req] of this.requestedNotifications) {
+          if (notificationKeys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
+          if (!req.requestRunning) {
+            notificationKeys.push(req.key);
+            req.requestRunning = true;
+          }
+        }
+        if (notificationKeys.length > 0) {
+          logger.trace(`RequestScheduler.performRequest(): requesting notifications to ${notificationKeys.length} notifications keys from ${peerSelected.toString()}`);
+          peerSelected.sendNotificationRequest(notificationKeys);
+        }
       } else {
         logger.trace(`RequestScheduler.performRequest(): sending KeyRequest to ${peerSelected.toString()}`);
         // if we're a full node, send a key request
@@ -182,8 +237,15 @@ export class RequestScheduler {
   }
 
   cubeAddedHandler(cubeInfo: CubeInfo) {
-    // does this fulfil a request?
-    const req = this.requestedCubes.get(cubeInfo.keyString);
+    // does this fulfil a Cube request?
+    let req: RequestedCube = this.requestedCubes.get(cubeInfo.keyString);
+    // or does it maybe fulfil a notification request?
+    if (!req) {
+      // TODO: do not potentially reactivate Cube, this is very inefficient
+      const recipientKey: Buffer =
+        cubeInfo.getCube().fields.getFirst(CubeFieldType.NOTIFY)?.value;
+      if (recipientKey) req = this.requestedNotifications.get(keyVariants(recipientKey).keyString);
+    }
     if (req) {
       req.fulfilled(cubeInfo);
       this.requestedCubes.delete(cubeInfo.keyString);
