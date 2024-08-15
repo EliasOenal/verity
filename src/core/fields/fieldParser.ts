@@ -145,7 +145,6 @@ export class FieldParser {
     // traverse binary data and parse fields:
     while (byteIndex < dataLength) {
       fieldIndex++;  // first field has number one
-      let field: BaseField;
       const decompiled = this.decompileField(binaryData, byteIndex, fieldIndex);
       if (decompiled === undefined) break;  // undefined signals that we're done decompiling
       fields.push(decompiled.field);
@@ -164,7 +163,7 @@ export class FieldParser {
     const fieldArray: BaseField[] = fields.concat(backPositionals);
     const fieldsObj: BaseFields = new this.fieldDef.fieldsObjectClass(fieldArray, this.fieldDef);
     return fieldsObj;
-}
+  }
 
   /**
    * Upgrade fields to full fields.
@@ -312,11 +311,8 @@ export class FieldParser {
   }
 
   private readTLVHeader(binaryData: Buffer, byteIndex: number): { type: number, length: number, byteIndex: number } {
-    // We first parse just type in order to detect whether a length field is present.
-    // If the length field is present, we parse two bytes:
-    // the first byte contains 6 bits of type information
-    // and the last two bits of the first byte and the second byte contain the length
-    // information.
+    // We first parse just type in order to detect whether an implicit length
+    // is defined.
     const type: number = binaryData[byteIndex] & 0xFC;
     const typestring: string = type.toString();  // object keys are strings, nothing I can do about it
     if ( !(Object.keys(this.fieldDef.fieldLengths).includes(typestring)) ) {
@@ -324,8 +320,12 @@ export class FieldParser {
     }
     const implicit = this.fieldDef.fieldLengths[type];
     let length: number;
+    // If the length is implicit, there is no length field.
     if (implicit === undefined) {
-      // Parse length
+      // If however the length field is present, we parse two bytes:
+      // the first byte contains 6 bits of type information
+      // and the last two bits of the first byte and the second byte contain the length
+      // information.
       length = binaryData.readUInt16BE(byteIndex) & 0x03FF;
       byteIndex += 2;
     } else { // Implicit length saved one byte
