@@ -144,7 +144,7 @@ export class PostController extends VerityController {
     // redisplay them one by one:
     // logger.trace("CubeDisplay: Redisplaying all cubes");
     // TODO: we need to get rid of this full CubeStore walk
-    for await (const cubeInfo of this.cubeStore.getCubeInfoRange()) {
+    for await (const cubeInfo of this.cubeStore.getCubeInfoRange({ limit: Infinity })) {
         if (await this.annotationEngine.isCubeDisplayable(cubeInfo.key)) {
             await this.displayPost(cubeInfo.key);
         }
