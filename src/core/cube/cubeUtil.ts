@@ -2,7 +2,7 @@
 import { NetConstants } from '../networking/networkDefinitions';
 import { CubeError, CubeKey, CubeType } from './cube.definitions';
 import { Cube } from './cube';
-import { CubeMeta } from './cubeInfo';
+import { CubeInfo, CubeMeta } from './cubeInfo';
 
 import { logger } from '../logger';
 import { Buffer } from 'buffer';
@@ -60,11 +60,43 @@ export function cubeLifetime(x: number, e1: number = 0, e2: number = 960, c1: nu
     return Math.floor(lifetime);
 }
 
-export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMeta {
+/**
+ * Convenience wrapper around cubeLifetime() calculating a Cube's expiry date.
+ * @param difficulty The Cube's hash cash level
+ * @param sculptDate When the Cube was sculpted as a Unix timestamp
+ * @returns The Cube's expiry date as a Unix timestamp
+ */
+export function cubeExpiration(cubeInfo: CubeMeta): number {
+    return cubeInfo.date + cubeLifetime(cubeInfo.difficulty) * UNIX_SECONDS_PER_EPOCH;
+}
+
+export function cubeContest(localCube: CubeInfo, incomingCube: CubeInfo): CubeInfo {
+    if (Settings.RUNTIME_ASSERTIONS && localCube.cubeType !== incomingCube.cubeType) {
+        throw new CubeError(`cubeUtil.cubeContest(): cannot contest Cubes of different types; supplied Cube ${localCube.keyString} has type ${localCube.cubeType} while supplied Cube ${incomingCube.keyString} has type ${incomingCube.keyString}.`);
+    }
     switch (localCube.cubeType) {
         case CubeType.FROZEN:
         case CubeType.FROZEN_NOTIFY:
-            throw new CubeError("cubeUtil: Regular cubes cannot be contested.");
+            // Frozen Cubes are immutable, so they cannot be contested.
+            // We define that local cube always wins as it will never make sense
+            // to replace it.
+            return localCube;
+        case CubeType.PIC:
+        case CubeType.PIC_NOTIFY:
+            // Calculate the expiration date of each cube
+            const expirationLocalCube = cubeExpiration(localCube);
+            const expirationIncomingCube = cubeExpiration(incomingCube);
+
+            // Resolve the conflict based on expiration dates
+            if (cubeExpiration(localCube) > cubeExpiration(incomingCube)) {
+                return localCube;
+            } else if (expirationIncomingCube > expirationLocalCube) {
+                return incomingCube;
+            } else {
+                logger.trace(`cubeUtil: Two Cubes with the key ${localCube.key.toString('hex')} have the same expiration date, local wins.`);
+                return localCube;
+            }
+            break;
         case CubeType.MUC:
         case CubeType.MUC_NOTIFY:
             // For MUCs the most recently sculpted cube wins. If they tie, the local
@@ -75,29 +107,15 @@ export function cubeContest(localCube: CubeMeta, incomingCube: CubeMeta): CubeMe
             else
                 return incomingCube;
             break;
-        case CubeType.PIC:
-        case CubeType.PIC_NOTIFY:
-            // Calculate the expiration date of each cube
-            const expirationLocalCube = localCube.date + (cubeLifetime(localCube.difficulty) * UNIX_SECONDS_PER_EPOCH);
-            const expirationIncomingCube = incomingCube.date + (cubeLifetime(incomingCube.difficulty) * UNIX_SECONDS_PER_EPOCH);
-
-            // Resolve the conflict based on expiration dates
-            if (expirationLocalCube > expirationIncomingCube) {
-                return localCube;
-            } else if (expirationIncomingCube > expirationLocalCube) {
-                return incomingCube;
-            } else {
-                logger.trace(`cubeUtil: Two Cubes with the key ${localCube.key.toString('hex')} have the same expiration date, local wins.`);
-                return localCube;
-            }
-            break;
-        // TODO:
-        // case CubeType.PMUC:
-        // case CubeType.PMUC_NOTIFY:
-        // how did those work again... highest PMUC_UPDATE_COUNT wins, and if
-        // those tie highest expiration time wins?
+        case CubeType.PMUC:
+        case CubeType.PMUC_NOTIFY:
+        // TODO implement: Highest PMUC_UPDATE_COUNT wins, and if those tie
+        // highest expiration time wins.
+        // However, PMUC_UPDATE_COUNT is not yet available through CubeInfo,
+        // nor is it provided on KeyExchange.
+        throw new CubeError("cubeUtil: Unknown cube type.");
         default:
-            throw new CubeError("cubeUtil: Unknown cube type.");
+            throw new CubeError(`cubeUtil.cubeContest(): supplied Cube ${localCube.keyString} has unknown type ${localCube.cubeType}`);
     }
 }
 
