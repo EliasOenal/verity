@@ -48,10 +48,18 @@ alternative to traditional, centralized social networks.
   - `0x05`: `MyServerAddress`
   - `0x06`: `NodeRequest`
   - `0x07`: `NodeResponse`
-  - `0x08`: `NotificationRequest`
+  - `0x08`: `NotificationCubeRequest` (brand new and already basically deprecated)
 
   Each of these message classes will have different data payloads:
-  - `Hello`: **Node Identifier (16 bytes)**: This is a unique NodeID that's randomly generated at startup. Primary purpose is to detect when we connected to ourselves. This may happen if we don't know our external IP. (e.g. NAT) Secondarily this may be used to detect duplicate connections to the same node, which may happen if the node is reachable via multiple IPs.
+  - `Hello`:
+    - **Node Identifier (16 bytes)**: This is a unique NodeID that's randomly generated at startup. Primary purpose is to detect when we connected to ourselves. This may happen if we don't know our external IP. (e.g. NAT) Secondarily this may be used to detect duplicate connections to the same node, which may happen if the node is reachable via multiple IPs.
+    - Proposed future additions:
+      - **Node type (1 byte)***: 0x01 for full nodes, 0x02 for light nodes
+      - **Community key (32 byte)**: Identifies this node to belong to a specific community of Verity nodes. Other nodes should only proceed with the connection
+        if they identify with the same community. The exact mechanism of determining whether or not two nodes belong to the same community can be specific to the
+        individual community. By default, nodes are assumed to belong the same community if their community keys are identical.
+      - **Sharding from (32 bytes)**: Indicates this node only intends to serves Cubes with keys greater than this value.
+      - **Sharding to (32 bytes)**: Indicates this node only intends to serves Cubes with keys less than this value.
 
   - `KeyRequest`:
     - **Header Byte (1 byte)**: Indicates the mode of the request:
@@ -59,7 +67,14 @@ alternative to traditional, centralized social networks.
       * `0x01`: Sliding Window Mode
       * `0x02`: Sequential Store Sync Mode
     - **Key Count (4 bytes)**: This is an integer indicating the number of keys being requested.
-    - **Request Key (32 bytes)**: Used in Sliding Window and Sequential Store Sync modes. Specifies the key to start from. In Sliding Window Mode it can be zero to start from the beginning. Mandatory in Sequential Store Sync Mode. The key itself is not included in the response, only the respective keys that succeed it.
+    - **Start-from key (32 bytes)**: Used in Sliding Window and Sequential Store Sync modes. Specifies the key to start from. In Sliding Window Mode it can be zero to start from the beginning. Mandatory in Sequential Store Sync Mode. The key itself is not included in the response, only the respective keys that succeed it.
+    Proposed extension:
+      - **Filters (optional)**: Only request keys of Cubes matching certain criteria.
+        - **Cube Type (1 byte)**: The type of the cube (e.g., regular, MUC, IPC).
+        - **Minimum challenge Level (1 byte)**: The minimum number of trailing zeroes required in the Cube's hash.
+        - **Timestamp minimum (5 bytes)**: Cube must be newer than this timestamp
+        - **Timestamp maximum (5 bytes)**: Cube must be older than this timestamp
+        - **Notification to (32 bytes)**: Only request notification Cubes containing exactly this key in their NOTIFY field.
 
     To support Sliding Window Mode each node holds one sliding window of the keys to the most recently received cubes. Upon receiving a request the requested key is identified and the keys succeeding it, up to the number of requested keys, is then sent via KeyResponse. The size of the window is configurable, but should be at least 1000 keys. The oldest keys are overwritten by the newest. This mode is meant for near real-time synchronization of the most recent cubes. On startup if no new cubes are downloaded the keys reported from other nodes may be used to fill the window, even if the respective cubes are already in the store.
 
@@ -80,6 +95,7 @@ alternative to traditional, centralized social networks.
       - **Challenge Level (1 byte)**: The challenge level the cube adheres to.
       - **Timestamp (5 bytes)**: The timestamp of the cube.
       - **Key (32 bytes)**: The key of the cube.
+      - Proposed extension: **PMUC update count (4 byte)**
 
   - `CubeRequest`:
     - **Cube Key Count (4 bytes)**: This is an integer indicating the number of cubes being requested.
