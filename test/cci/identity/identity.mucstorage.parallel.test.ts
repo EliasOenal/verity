@@ -1,11 +1,11 @@
-import { NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { CubeStore, EnableCubePersitence } from "../../../src/core/cube/cubeStore";
-import { Identity, IdentityOptions } from "../../../src/cci/identity/identity";
 import { cciCube } from "../../../src/cci/cube/cciCube";
+import { IdentityOptions, Identity } from "../../../src/cci/identity/identity";
+import { CubeStore, EnableCubePersitence } from "../../../src/core/cube/cubeStore";
+import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 import sodium from "libsodium-wrappers-sumo";
 
-describe("Identity (parallel test suite for better test performance)", () => {
+describe("Identity (separate MUC storage test suite for long-running tests)", () => {
   const reducedDifficulty = 0; // no hash cash for testing
   const idTestOptions: IdentityOptions = {
     minMucRebuildDelay: 1, // allow updating Identity MUCs every second
@@ -26,8 +26,8 @@ describe("Identity (parallel test suite for better test performance)", () => {
     });
   });
 
-  describe("MUC storage basics", () => {
-    // This test has been moved to this parallel test file becaust it makes
+  describe("MUC storage", () => {
+    // This is a particularly long-running test because it makes
     // three consecutive MUC changes, which must each be spaced at least one
     // second apart as our minimal time resolution is one full second.
     // Threfore, it by definition takes at least three seconds.
@@ -69,10 +69,8 @@ describe("Identity (parallel test suite for better test performance)", () => {
       expect(id.profilepic).toBeInstanceOf(Buffer);
       expect(id.keyBackupCube).toBeInstanceOf(Buffer);
     }, 30000);
-  });
 
-  describe("MUC storage", () => {
-    // This test has been moved to this parallel test file because it uses the
+    // This is a particularly long-running test because it uses the
     // actual default minimum MUC spacing of 5 seconds, and therefore by
     // definition takes at least 5 seconds.
     it("combines makeMUC requests spaced less than 5 seconds apart", async () => {
