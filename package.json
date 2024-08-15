@@ -43,7 +43,7 @@
     "@libp2p/websockets": "^8.1.4",
     "@multiavatar/multiavatar": "^1.0.7",
     "@types/libsodium-wrappers": "^0.7.14",
-    "@types/node": "^22.2.0",
+    "@types/node": "^22.3.0",
     "bencodec": "^3.0.1",
     "browser-or-node": "^3.0.0",
     "cmd-ts": "^0.13.0",
