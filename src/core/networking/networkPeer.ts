@@ -327,10 +327,8 @@ export class NetworkPeer extends Peer {
             logger.info(`NetworkPeer ${this.toString()}: error while handling message: ${err}; stack trace: ${err.stack}`);
             // Blocklist repeat offenders based on local trust score
             if (!this.isTrusted) this.networkManager.closeAndBlockPeer(this);
-            // Maybe we should remove blocklisting
-            // after a defined timespan (increasing for repeat offenders)?
-            // Blocklist entries based on IP/Port are especially sensitive
-            // as the address could be reused by another node in a NAT environment.
+            // TODO: remove blocklisting -- trust score penalty should be enough
+            // as this should determine which peers we connect to
         }
     }
 
@@ -445,61 +443,39 @@ export class NetworkPeer extends Peer {
             }
 
             const cubeInfos: Generator<CubeInfo> = msg.cubeInfos();
-            const regularCubeInfo: CubeInfo[] = [];
-            const mucInfo: CubeInfo[] = [];
+            const missingKeys: Buffer[] = [];
             let lastKey: CubeKey | undefined;
 
             for (const incomingCubeInfo of cubeInfos) {
-                lastKey = incomingCubeInfo.key;
-                // if retention policy is enabled, ensure the offered Cube has
-                // not yet reached its recycling date
-                const currentEpoch = getCurrentEpoch(); // Get the current epoch
-                if(this.cubeStore.options.enableCubeRetentionPolicy &&
-                !shouldRetainCube(
-                        incomingCubeInfo.keyString,
-                        incomingCubeInfo.date,
-                        incomingCubeInfo.difficulty,
-                        currentEpoch)) {
-                    logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Was offered cube hash outside of retention policy, ignoring.`);
-                    continue;
-                }
-
-                if (incomingCubeInfo.cubeType === CubeType.FROZEN ||
-                    incomingCubeInfo.cubeType === CubeType.FROZEN_NOTIFY) {
-                    regularCubeInfo.push(incomingCubeInfo);
-                } else if (incomingCubeInfo.cubeType === CubeType.MUC ||
-                           incomingCubeInfo.cubeType === CubeType.MUC_NOTIFY) {
-                    mucInfo.push(incomingCubeInfo);
-                } else {
-                    logger.debug(`NetworkPeer ${this.toString()}: in handleKeyResponse I saw a CubeType of ${incomingCubeInfo.cubeType}. I don't know what that is.`)
-                }
-            }
-
-            // For each regular key not in cube storage, request the cube
-            const missingKeys: Buffer[] = [];
-            for (const detail of regularCubeInfo) {
-                if (!(await this.cubeStore.hasCube(detail.key))) {
-                    missingKeys.push(detail.key);
-                }
-            }
-
-            for (const muc of mucInfo) {
-                // Request any MUC not in cube storage
-                if (!(await this.cubeStore.hasCube(muc.key))) {
-                    missingKeys.push(muc.key);
-                } else {
-                    // For each MUC in cube storage, identify winner and request if necessary
-                    const storedCube: CubeMeta = await this.cubeStore.getCubeInfo(muc.key);
-                    try {
-                        const winningCube: CubeMeta = cubeContest(storedCube, muc);
-                        if (winningCube !== storedCube) {
-                            missingKeys.push(muc.key);
-                        }
-                    } catch(error) {
-                        logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Error handling incoming MUC ${muc.keyString}: ${error}`);
+                try {
+                    lastKey = incomingCubeInfo.key;
+                    // if retention policy is enabled, ensure the offered Cube has
+                    // not yet reached its recycling date
+                    const currentEpoch = getCurrentEpoch(); // Get the current epoch
+                    if(this.cubeStore.options.enableCubeRetentionPolicy &&
+                    !shouldRetainCube(
+                            incomingCubeInfo.keyString,
+                            incomingCubeInfo.date,
+                            incomingCubeInfo.difficulty,
+                            currentEpoch)) {
+                        logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Was offered cube hash outside of retention policy, ignoring.`);
+                        continue;
                     }
+
+                    // Do we already have this Cube?
+                    const storedCube: CubeInfo = await this.cubeStore.getCubeInfo(incomingCubeInfo.key);
+                    // Request Cube if not in cube storage, or if it is in
+                    // storage but the incoming one wins the CubeContest
+                    if (storedCube === undefined ||
+                        cubeContest(storedCube, incomingCubeInfo) === incomingCubeInfo
+                    ) {
+                        missingKeys.push(incomingCubeInfo.key);
+                    }
+                } catch(error) {
+                    logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Error handling incoming Cube ${incomingCubeInfo.keyString} (CubeType ${incomingCubeInfo.cubeType}): ${error}`);
                 }
             }
+
             if (missingKeys.length > 0) {
                 this.sendCubeRequest(missingKeys);
             }
@@ -508,6 +484,9 @@ export class NetworkPeer extends Peer {
             if (lastKey) {
                 this.updateLastRequestedKey(msg.mode, lastKey);
             }
+            // TODO: note that it is completely undefined when the next request
+            // will run; if we have many open connections the scheduler will
+            // currently just chose another random node next :o
         } catch (err) {
             logger.warn(`NetworkPeer.handleKeyResponse(): Error handling KeyResponse: ${err}`);
             throw(err);
