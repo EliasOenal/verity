@@ -8,7 +8,7 @@ import { RequestedCube } from './requestedCube';
 import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
 import { CubeFieldType, type CubeKey } from '../../cube/cube.definitions';
 import type { CubeInfo } from '../../cube/cubeInfo';
-import { keyVariants } from '../../cube/cubeUtil';
+import { cubeContest, getCurrentEpoch, keyVariants, shouldRetainCube } from '../../cube/cubeUtil';
 import type { NetworkManager, NetworkManagerIf } from '../networkManager';
 import type { NetworkPeer } from '../networkPeer';
 
@@ -48,8 +48,9 @@ export interface RequestSchedulerOptions {
 export class RequestScheduler {
   private requestedCubes: Map<string, RequestedCube> = new Map();
   private requestedNotifications: Map<string, RequestedCube> = new Map();
-  private subscribedCubes: CubeKey[] = [];
-  private timer: ShortenableTimeout = new ShortenableTimeout(this.performRequest, this);
+  private subscribedCubes: CubeKey[] = [];  // TODO use same format as for requestedCubes
+  private cubeRequestTimer: ShortenableTimeout = new ShortenableTimeout(this.performCubeRequest, this);
+  private keyRequestTimer: ShortenableTimeout = new ShortenableTimeout(this.performKeyRequest, this);
 
   constructor(
     readonly networkManager: NetworkManagerIf,
@@ -82,7 +83,7 @@ export class RequestScheduler {
     const key = keyVariants(keyInput);
     const req = new RequestedCube(key.binaryKey, timeout);  // create request
     this.requestedCubes.set(key.keyString, req);  // remember request
-    this.scheduleNextRequest(scheduleIn);  // schedule request
+    this.scheduleCubeRequest(scheduleIn);  // schedule request
     return req.promise;  // return result eventually
   }
 
@@ -105,8 +106,15 @@ export class RequestScheduler {
         return;  // already subscribed, nothing to do here
       }
       this.subscribedCubes.push(key.binaryKey);
-      this.scheduleNextRequest(scheduleIn);  // schedule request
+      this.scheduleCubeRequest(scheduleIn);  // schedule request
     }
+  }
+
+  isAlreadyRequested(keyInput: CubeKey | string): Promise<CubeInfo> {
+    // TODO support subscribed Cubes
+    const key = keyVariants(keyInput);
+    const req = this.requestedCubes.get(key.keyString);
+    return req ? req.promise : undefined;
   }
 
   /**
@@ -126,7 +134,7 @@ export class RequestScheduler {
     const key = keyVariants(recipientKey);
     const req = new RequestedCube(key.binaryKey, timeout);
     this.requestedNotifications.set(key.keyString, req);  // remember request
-    this.scheduleNextRequest(scheduleIn);  // schedule request
+    this.scheduleCubeRequest(scheduleIn);  // schedule request
     return req.promise;  // return result eventually
   }
 
@@ -134,13 +142,80 @@ export class RequestScheduler {
   /** @returns true if request scheduled, false if not scheduled
    *           (which happens when there already is a request scheduled)
    */
-  scheduleNextRequest(millis: number = undefined): boolean {
+  scheduleCubeRequest(millis: number = undefined): boolean {
     if (millis === undefined) {
       millis = this.options.requestInterval * this.calcRequestScaleFactor();
     }
-    logger.trace(`RequestScheduler.scheduleNextRequest(): scheduling next request in ${millis} ms`);
-    this.timer.set(millis);
+    if (this.cubeRequestTimer.set(millis)) {
+      logger.trace(`RequestScheduler.scheduleCubeRequest(): scheduled next Cube request in ${millis} ms`);
+    } else logger.trace(`RequestScheduler.scheduleCubeRequest(): I was called to schedule the next request in ${millis}ms, but there's already one scheduled in ${this.cubeRequestTimer.getRemainingTime()}ms`);
     return true;
+  }
+
+  scheduleKeyRequest(millis: number = undefined): boolean {
+    if (this.options.lightNode) {
+      logger.trace(`RequestScheduler.scheduleKeyRequest() called as a light node, this is wrong; doing nothing`);
+      return false;
+    }
+    if (millis === undefined) {
+      millis = this.options.requestInterval * this.calcRequestScaleFactor();
+    }
+    if (this.keyRequestTimer.set(millis)) {
+      logger.trace(`RequestScheduler.scheduleKeyRequest(): scheduled next key request in ${millis} ms`);
+    } else logger.trace(`RequestScheduler.scheduleKeyRequest(): I was called to schedule the next request in ${millis}ms, but there's already one scheduled in ${this.keyRequestTimer.getRemainingTime()}ms`);
+    return true;
+  }
+
+  /**
+   * Will be called by NetworkPeers getting offered Cubes by remote nodes
+   */
+  async handleCubesOffered(offered: Iterable<CubeInfo>, offeringPeer: NetworkPeer) {
+    let cubeRequestRequired: boolean = false;
+    for (const incomingCubeInfo of offered) {
+      try {
+        // if retention policy is enabled, ensure the offered Cube has
+        // not yet reached its recycling date
+        const currentEpoch = getCurrentEpoch(); // Get the current epoch
+        if(this.networkManager.cubeStore.options.enableCubeRetentionPolicy &&
+        !shouldRetainCube(
+            incomingCubeInfo.keyString,
+            incomingCubeInfo.date,
+            incomingCubeInfo.difficulty,
+            currentEpoch)) {
+          logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Was offered cube hash outside of retention policy, ignoring.`);
+          continue;
+        }
+
+        // If we're a light node, check if we're even interested in this Cube
+        if (this.options.lightNode) {
+          if (!(this.requestedCubes.has(incomingCubeInfo.keyString)) &&
+              !(this.subscribedCubes.includes(incomingCubeInfo.key))
+          ){
+            continue;
+          }
+          // TODO implement
+          // Slight problem here: An offered key could be in response to
+          // a notification request, be we have currently no way of telling
+          // whether that's the case
+        }
+
+        // Do we already have this Cube?
+        const storedCube: CubeInfo =
+          await this.networkManager.cubeStore.getCubeInfo(incomingCubeInfo.key);
+        // Request Cube if not in cube storage, or if it is in
+        // storage but the incoming one wins the CubeContest
+        if (storedCube === undefined ||
+          cubeContest(storedCube, incomingCubeInfo) === incomingCubeInfo
+        ) {
+          this.requestCube(incomingCubeInfo.key);
+          // maybe TODO: ensure this request is not send to another node before we're done?
+          cubeRequestRequired = true;
+        }
+      } catch(error) {
+        logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Error handling incoming Cube ${incomingCubeInfo.keyString} (CubeType ${incomingCubeInfo.cubeType}): ${error}`);
+      }
+    }
+    if (cubeRequestRequired) this.performCubeRequest(offeringPeer);
   }
 
   private calcRequestScaleFactor(): number {
@@ -154,73 +229,75 @@ export class RequestScheduler {
     return base + notConn*step;
   }
 
-  private performRequest(): void {
+  private performCubeRequest(peerSelected?: NetworkPeer): void {
     // cancel timer calling this exact function
-    this.timer.clear();
+    this.cubeRequestTimer.clear();
     // is there even anything left to request?
-    if (this.options.lightNode &&
-        this.requestedCubes.size === 0 &&
+    if (this.requestedCubes.size === 0 &&
         this.subscribedCubes.length === 0 &&
         this.requestedNotifications.size === 0
     ) {
-      logger.trace(`RequestScheduler.performRequest(): doing nothing, we're a light node and there are no open requests`);
+      logger.trace(`RequestScheduler.performRequest(): doing nothing as there are no open requests`);
       return;  // nothing to do
     }
     // select a peer to send request to
-    const peerSelected: NetworkPeer =
+    if (peerSelected === undefined) peerSelected =
       this.options.requestStrategy.select(this.networkManager.onlinePeers);
     if (peerSelected !== undefined) {
-      if (this.options.lightNode) {
-        // request all Cubes that we're looking for, up the the maximum allowed
-        const keys: CubeKey[] = [];
-        for (const [keystring, req] of this.requestedCubes) {
-          if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
-          if (!req.requestRunning) {
-            keys.push(req.key);
-            req.requestRunning = true;
-          }
+      // request all Cubes that we're looking for, up the the maximum allowed
+      const keys: CubeKey[] = [];
+      for (const [keystring, req] of this.requestedCubes) {
+        if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
+        if (!req.requestRunning) {
+          keys.push(req.key);
+          req.requestRunning = true;  // TODO: this must be set back to false if the request fails
         }
-        for (const key of this.subscribedCubes) {
-          if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
-          // Note: This is COMPLETELY INEFFICIENT BULLSHIT!
-          // It means we're requesting the exact same Cube over and over again.
-          // We need to implement a proper subscription mechanism at the core
-          // networking layer.
-          keys.push(key);
-        }
-        if (keys.length > 0) {
-          logger.trace(`RequestScheduler.performRequest(): requesting ${keys.length} Cubes from ${peerSelected.toString()}`);
-          peerSelected.sendCubeRequest(keys);
-        }
-        // Note: The cube response will currently still be directly handled by the
-        // NetworkPeer. This should instead also be controlled by the RequestScheduler.
+      }
+      for (const key of this.subscribedCubes) {
+        if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
+        // Note: This is COMPLETELY INEFFICIENT BULLSHIT!
+        // It means we're requesting the exact same Cube over and over again.
+        // We need to implement a proper subscription mechanism at the core
+        // networking layer.
+        keys.push(key);
+      }
+      if (keys.length > 0) {
+        logger.trace(`RequestScheduler.performRequest(): requesting ${keys.length} Cubes from ${peerSelected.toString()}`);
+        peerSelected.sendCubeRequest(keys);
+      }
+      // Note: The cube response will currently still be directly handled by the
+      // NetworkPeer. This should instead also be controlled by the RequestScheduler.
 
-        // request notifications
-        const notificationKeys: Buffer[] = [];
-        for (const [keystring, req] of this.requestedNotifications) {
-          if (notificationKeys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
-          if (!req.requestRunning) {
-            notificationKeys.push(req.key);
-            req.requestRunning = true;
-          }
+      // request notifications
+      const notificationKeys: Buffer[] = [];
+      for (const [keystring, req] of this.requestedNotifications) {
+        if (notificationKeys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
+        if (!req.requestRunning) {
+          notificationKeys.push(req.key);
+          req.requestRunning = true;
         }
-        if (notificationKeys.length > 0) {
-          logger.trace(`RequestScheduler.performRequest(): requesting notifications to ${notificationKeys.length} notifications keys from ${peerSelected.toString()}`);
-          peerSelected.sendNotificationRequest(notificationKeys);
-        }
-      } else {
-        logger.trace(`RequestScheduler.performRequest(): sending KeyRequest to ${peerSelected.toString()}`);
-        // if we're a full node, send a key request
-        peerSelected.sendKeyRequests();
-        // Note / TODO: For full nodes, the key response will currently still be directly
-        // handled by the NetworkPeer. This should instead also be controlled
-        // by the RequestScheduler.
+      }
+      if (notificationKeys.length > 0) {
+        logger.trace(`RequestScheduler.performRequest(): requesting notifications to ${notificationKeys.length} notifications keys from ${peerSelected.toString()}`);
+        peerSelected.sendNotificationRequest(notificationKeys);
       }
     } else {
       logger.info("RequestScheduler.performRequest(): No matching peer to run request, scheduling next try.")
     }
     // schedule next request
-    this.scheduleNextRequest();
+    this.scheduleCubeRequest();
+  }
+
+  private performKeyRequest(peerSelected?: NetworkPeer): void {
+    // cancel timer calling this exact function
+    this.keyRequestTimer.clear();
+    // select a peer to send request to
+    if (peerSelected === undefined) peerSelected =
+      this.options.requestStrategy.select(this.networkManager.onlinePeers);
+    if (peerSelected !== undefined) {
+      peerSelected.sendKeyRequests();
+    }
+    this.scheduleKeyRequest();
   }
 
   requestCubes(keys: CubeKey[]): Promise<CubeInfo>[];
@@ -253,9 +330,11 @@ export class RequestScheduler {
   }
 
   shutdown(): void {
-    this.timer.clear();
+    this.cubeRequestTimer.clear();
+    this.keyRequestTimer.clear();
     this.networkManager.cubeStore.removeListener("cubeAdded", (cubeInfo: CubeInfo) =>
       this.cubeAddedHandler(cubeInfo));
     for (const [key, req] of this.requestedCubes) req.shutdown();
+    for (const [key, req] of this.requestedNotifications) req.shutdown();
   }
 }

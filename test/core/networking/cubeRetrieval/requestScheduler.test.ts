@@ -1,16 +1,24 @@
 import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
 import { NetConstants } from "../../../../src/core/networking/networkDefinitions";
-import { NetworkManager } from "../../../../src/core/networking/networkManager";
+import { NetworkManager, NetworkManagerIf } from "../../../../src/core/networking/networkManager";
 import { RequestScheduler } from "../../../../src/core/networking/cubeRetrieval/requestScheduler";
 import { Cube } from "../../../../src/core/cube/cube";
 
 import { EventEmitter } from 'events';
 import { CubeField } from "../../../../src/core/cube/cubeField";
-import { CubeFieldType, CubeType } from "../../../../src/core/cube/cube.definitions";
-import { CubeStore, CubeStoreOptions } from "../../../../src/core/cube/cubeStore";
+import { CubeFieldType, CubeKey, CubeType } from "../../../../src/core/cube/cube.definitions";
+import { CubeStore, CubeStoreOptions, EnableCubePersitence } from "../../../../src/core/cube/cubeStore";
+import { getCurrentEpoch, shouldRetainCube, cubeContest } from "../../../../src/core/cube/cubeUtil";
+import { RequestedCube } from "../../../../src/core/networking/cubeRetrieval/requestedCube";
+import { NetworkPeer } from "../../../../src/core/networking/networkPeer";
+import { unixtime } from "../../../../src/core/helpers/misc";
+
+import { jest } from '@jest/globals'
+import { Settings } from "../../../../src/core/settings";
 
 const reducedDifficulty = 0;
 
+// TODO add test to ensure light nodes don't blindly follow KeyResponses
 // mocks
 class mockNetworkPeer {
   called = undefined;
@@ -28,6 +36,7 @@ class mockNetworkPeer {
 }
 
 const cubeStoreOptions: CubeStoreOptions = {
+  enableCubePersistence: EnableCubePersitence.OFF,
   requiredDifficulty: reducedDifficulty,
   enableCubeRetentionPolicy: false,
   cubeDbName: 'cubes.test',
@@ -45,7 +54,7 @@ class mockNetworkManager {
 
 
 describe('RequestScheduler', () => {
-  describe('mock-based unit tests', () => {
+  describe('mock-based unit tests (custom)', () => {
     let scheduler: RequestScheduler;
     const testKey = Buffer.from("01".repeat(NetConstants.CUBE_KEY_SIZE), 'hex');
     const testKey2 = Buffer.from("02".repeat(NetConstants.CUBE_KEY_SIZE), 'hex');
@@ -133,7 +142,7 @@ describe('RequestScheduler', () => {
       });
     });
 
-    describe('scheduleNextRequest() and performRequest()', () => {
+    describe('scheduleNextRequest() and performCubeRequest()', () => {
       it('should schedule CubeRequests in light mode', async () => {
         scheduler.options.lightNode = true;
         scheduler.requestCube(testKey);
@@ -142,13 +151,15 @@ describe('RequestScheduler', () => {
           called).toEqual("sendCubeRequest");
       });
 
-      it('should schedule KeyRequests in full mode', async () => {
-        scheduler.options.lightNode = false;
-        scheduler.requestCube(testKey);
-        await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
-        expect((scheduler.networkManager.onlinePeers[0] as unknown as mockNetworkPeer).
-          called).toEqual("sendKeyRequests");
-      });
+      // this is no longer current --
+      // TODO: write tests for scheduleKeyRequest() and performKeyRequest()
+      // it('should schedule KeyRequests in full mode', async () => {
+      //   scheduler.options.lightNode = false;
+      //   scheduler.requestCube(testKey);
+      //   await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
+      //   expect((scheduler.networkManager.onlinePeers[0] as unknown as mockNetworkPeer).
+      //     called).toEqual("sendKeyRequests");
+      // });
 
       it('should group together multiple Cube requests', async() => {
         scheduler.requestCube(testKey);
@@ -197,10 +208,169 @@ describe('RequestScheduler', () => {
         // @ts-ignore spying on private attribute
         expect(scheduler.subscribedCubes).not.toContainEqual(testKey);
       });
-    });
-
+    });  // subscribeCube()
   });
 
+  describe('mock-based unit tests (standard jest mocks', () => {
+    describe.each([true, false])('tests run as both full and light node', (lightNode) => {
+      describe('handleCubesOffered()', () => {
+        let scheduler: RequestScheduler;
+        let mockNetworkManager: jest.Mocked<NetworkManagerIf>;
+        let mockOfferingPeer: jest.Mocked<NetworkPeer>;
+        let cubeStore: CubeStore;
+
+        beforeEach(() => {
+          // note: copying cubeStoreOptions here so we can manipulate them
+          // within the tests without affecting subsequent tests
+          cubeStore = new CubeStore(Object.assign({}, cubeStoreOptions));
+          mockNetworkManager = {
+            cubeStore: cubeStore,
+            onlinePeers: [],
+            onlinePeerCount: 0,
+            options: { maximumConnections: 5 },
+          } as unknown as jest.Mocked<NetworkManagerIf>;
+
+          mockOfferingPeer = {
+            sendCubeRequest: jest.fn(),
+            toString: jest.fn().mockReturnValue('MockPeer'),
+          } as unknown as jest.Mocked<NetworkPeer>;
+
+          scheduler = new RequestScheduler(mockNetworkManager, { lightNode: lightNode });
+        });
+
+        afterEach(async () => {
+          jest.clearAllMocks();
+          await scheduler.shutdown();
+          await cubeStore.shutdown()
+        });
+
+        it('should ignore cubes that do not meet the retention policy', async () => {
+          // set options for this test
+          cubeStore.options.enableCubeRetentionPolicy = true;
+
+          // sculpt a test Cube
+          const date = 148302000;
+          const oldCube: Cube = Cube.Frozen({
+            fields: [
+              CubeField.RawContent(CubeType.FROZEN, "Viva Malta Repubblika!"),
+              CubeField.Date(date),
+            ],
+            requiredDifficulty: reducedDifficulty,
+          });
+          const oldCubeInfo: CubeInfo = await oldCube.getCubeInfo();
+          expect(oldCubeInfo.date).toBe(date);
+
+          // prepare to spy on method calls
+          const performCubeRequest = jest.spyOn(scheduler as any, 'performCubeRequest');
+
+          // perform test
+          await scheduler.handleCubesOffered([oldCubeInfo], mockOfferingPeer);
+
+          // assertions
+          expect(performCubeRequest).not.toHaveBeenCalled();
+          expect(scheduler.isAlreadyRequested(oldCubeInfo.key)).toBeFalsy();
+          expect(mockOfferingPeer.sendCubeRequest).not.toHaveBeenCalled();
+        });
+
+        it('should request cubes that are not in storage and meet the retention policy', async () => {
+          // set options for this test
+          cubeStore.options.enableCubeRetentionPolicy = true;
+
+          // sculpt a test Cube
+          const testCube: Cube = Cube.Frozen({
+            fields: [
+              CubeField.RawContent(CubeType.FROZEN, "Cubus sum"),
+            ],
+            requiredDifficulty: Settings.REQUIRED_DIFFICULTY,  // running on full difficulty due to issue Github#134
+          });
+          const testCubeInfo: CubeInfo = await testCube.getCubeInfo();
+
+          // if we are a light node, the Cubes must have been requested locally
+          if (scheduler.options.lightNode) scheduler.requestCube(testCubeInfo.key);
+
+          // prepare to spy on method calls
+          const performCubeRequest = jest.spyOn(scheduler as any, 'performCubeRequest');
+
+          // perform test
+          await scheduler.handleCubesOffered([testCubeInfo], mockOfferingPeer);
+
+          // assertions
+          expect(scheduler.isAlreadyRequested(testCubeInfo.key)).toBeTruthy();
+          expect(performCubeRequest).toHaveBeenCalled();
+          expect(mockOfferingPeer.sendCubeRequest).toHaveBeenCalled();
+        });
+
+        it('should request cubes that win the cube contest', async () => {
+          // sculpt test Cubes:
+          // an old one already in store...
+          const oldCube: Cube = Cube.PIC({
+            fields: [
+              CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
+              CubeField.Date(unixtime() - 172800),  // sculpted two days ago
+            ],
+            requiredDifficulty: reducedDifficulty,
+          });
+          await cubeStore.addCube(oldCube);
+          // ... and a new one that will be offered to us
+          const newCube: Cube = Cube.PIC({
+            fields: [
+              CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
+              CubeField.Date(unixtime()),  // sculpted right now
+            ],
+            requiredDifficulty: reducedDifficulty,
+          });
+          const testCubeInfo = await newCube.getCubeInfo();
+
+          // if we are a light node, the Cubes must have been requested locally
+          if (scheduler.options.lightNode) scheduler.requestCube(testCubeInfo.key);
+
+          // prepare to spy on method calls
+          const performCubeRequest = jest.spyOn(scheduler as any, 'performCubeRequest');
+
+          // perform test
+          await scheduler.handleCubesOffered([testCubeInfo], mockOfferingPeer);
+
+          // assertions
+          expect(scheduler.isAlreadyRequested(testCubeInfo.key)).toBeTruthy();
+          expect(performCubeRequest).toHaveBeenCalled();
+          expect(mockOfferingPeer.sendCubeRequest).toHaveBeenCalled();
+        });
+
+        it('should not request cubes that lose the cube contest', async () => {
+          // sculpt test Cubes:
+          // a new one already in store...
+          const newCube: Cube = Cube.PIC({
+            fields: [
+              CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
+              CubeField.Date(unixtime()),  // sculpted right now
+            ],
+            requiredDifficulty: reducedDifficulty,
+          });
+          await cubeStore.addCube(newCube);
+          // ... and an older one that will be offered to us
+          const oldCube: Cube = Cube.PIC({
+            fields: [
+              CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
+              CubeField.Date(unixtime() - 172800),  // sculpted two days ago
+            ],
+            requiredDifficulty: reducedDifficulty,
+          });
+          const testCubeInfo = await oldCube.getCubeInfo();
+
+          // prepare to spy on method calls
+          const performCubeRequest = jest.spyOn(scheduler as any, 'performCubeRequest');
+
+          // perform test
+          await scheduler.handleCubesOffered([testCubeInfo], mockOfferingPeer);
+
+          // assertions
+          expect(scheduler.isAlreadyRequested(testCubeInfo.key)).toBeFalsy();
+          expect(performCubeRequest).not.toHaveBeenCalled();
+          expect(mockOfferingPeer.sendCubeRequest).not.toHaveBeenCalled();
+        });
+      });  // handleCubesOffered()
+    });  //tests run as both full and light node
+  });  // mock-based unit tests
 });
 
 

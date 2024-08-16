@@ -415,7 +415,6 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
             {
                 extraAddresses: peer.addresses,
                 lightNode: this.options.lightNode,
-                autoRequest: false,  // using scheduler
                 peerExchange: this.options.peerExchange,
             }
             );
@@ -484,7 +483,6 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
             this.cubeStore,
             {
                 lightNode: this.options.lightNode,
-                autoRequest: false,  // using scheduler
                 peerExchange: this.options.peerExchange,
             }
         );
@@ -542,7 +540,8 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
 
         // Let out scheduler know -- if it's not already running requests, tell
         // it to do so now.
-        this.scheduler.scheduleNextRequest(0);
+        this.scheduler.scheduleCubeRequest(0);
+        if (!this.options.lightNode) this.scheduler.scheduleKeyRequest(0);
 
         // Ask peer for node exchange now
         // This is a pure optimisation to enhance startup time; NetworkPeer
