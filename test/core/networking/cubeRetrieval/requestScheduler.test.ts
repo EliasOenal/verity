@@ -98,8 +98,9 @@ describe('RequestScheduler', () => {
       });
 
       it('should reject Cube requests after timeout', async () => {
-        const promise = scheduler.requestCube(testKey, 10);  // I fully expect you to fetch my Cube in 10ms
+        const promise = scheduler.requestCube(testKey, 0, 10);  // I fully expect you to fetch my Cube in 10ms
         expect(promise).rejects.toBeUndefined();
+        await new Promise(resolve => setTimeout(resolve, 20));  // give it some time
       });
 
       it.todo('should request a Cube from another node if first request fails');
@@ -134,11 +135,6 @@ describe('RequestScheduler', () => {
         expect(result.getCube().fields.getFirst(
           CubeFieldType.FROZEN_NOTIFY_RAWCONTENT)).toEqual(contentField);
         expect((scheduler as any).requestedCubes.size).toEqual(0);  // spying on private attribute
-      });
-
-      it('should reject Cube requests after timeout', async () => {
-        const promise = scheduler.requestCube(testKey, 10);  // I fully expect you to fetch my Cube in 10ms
-        expect(promise).rejects.toBeUndefined();
       });
     });
 
@@ -211,8 +207,11 @@ describe('RequestScheduler', () => {
     });  // subscribeCube()
   });
 
-  describe('mock-based unit tests (standard jest mocks', () => {
-    describe.each([true, false])('tests run as both full and light node', (lightNode) => {
+  describe('mock-based unit tests (standard jest mocks)', () => {
+    describe.each([
+      true,
+      false,
+    ])('tests run as both full and light node', (lightNode) => {
       describe('handleCubesOffered()', () => {
         let scheduler: RequestScheduler;
         let mockNetworkManager: jest.Mocked<NetworkManagerIf>;
@@ -286,7 +285,11 @@ describe('RequestScheduler', () => {
           const testCubeInfo: CubeInfo = await testCube.getCubeInfo();
 
           // if we are a light node, the Cubes must have been requested locally
-          if (scheduler.options.lightNode) scheduler.requestCube(testCubeInfo.key);
+          if (scheduler.options.lightNode) {
+              scheduler.requestCube(testCubeInfo.key).catch( () => {
+                null;
+              });
+          }
 
           // prepare to spy on method calls
           const performCubeRequest = jest.spyOn(scheduler as any, 'performCubeRequest');
