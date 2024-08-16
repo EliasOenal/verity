@@ -30,7 +30,9 @@ export class RequestedCube {
       this.reject = reject;
     });
     if (timeout > 0) {
-      this.timeout = setTimeout(() => this.reject(undefined), timeout);
+      this.timeout = setTimeout(() => {
+        this.reject(undefined)
+      }, timeout);
     }
   }
 
@@ -41,5 +43,6 @@ export class RequestedCube {
 
   shutdown(): void {
     clearTimeout(this.timeout);
+    this.resolve(undefined);  // rejecting would be the proper choice, but I can't find out where to catch it
   }
 }
