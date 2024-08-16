@@ -32,7 +32,13 @@ export class LevelPersistence {
       {
         keyEncoding: 'buffer',
         valueEncoding: 'buffer',
-        version: options.dbVersion
+        version: options.dbVersion,
+        compression: false, // Cubes are assumed high entropy
+        cacheSize: 128 * 1024 * 1024, // 128MB LRU cache
+        writeBufferSize: 16 * 1024 * 1024, // 16MB write buffer
+        blockRestartInterval: 32, // This compresses keys with common prefixes
+        maxFileSize: 16 * 1024 * 1024, // 16MB so the amount of files doesn't get out of hand
+        maxOpenFiles: 5000, // This should take us to 80GB of data, we should benchmark it at that point
       });
     this.ready = new Promise<void>((resolve, reject) => {
       this.db.open().then(() => {
