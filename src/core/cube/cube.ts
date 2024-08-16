@@ -87,9 +87,24 @@ export class Cube {
      * Create a Persistant Immutable Cube, which is a type of smart cube used
      * for data to be made available long-term.
      */
+    // maybe TODO: unify with Frozen as the only line that differs is type selection
     static PIC(options: CubeOptions): Cube {
-        // TODO implement
-        return undefined;
+        // set options
+        options.family = options?.family ?? coreCubeFamily;
+        options.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
+        // which type of Cube was requested exactly, regular or notify variant?
+        let type: CubeType;
+        if (options.fields &&
+            CubeFields.getFirst(options.fields, CubeFieldType.NOTIFY) !== undefined) {
+            type = CubeType.PIC_NOTIFY;
+        } else type = CubeType.PIC;
+        // prepare fields
+        options.fields = CubeFields.DefaultPositionals(
+            options.family.parsers[type].fieldDef,
+            options?.fields,  // include the user's custom fields, obviously
+        );
+        const cube: Cube = new options.family.cubeClass(type, options);
+        return cube;
     }
 
     readonly _cubeType: CubeType;
