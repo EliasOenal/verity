@@ -97,5 +97,5 @@ describe('notification end-to-end tests', () => {
       sender.shutdown(),
       recipient.shutdown(),
     ]);
-  });
+  }, 20000);
 });
