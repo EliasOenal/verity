@@ -7,7 +7,7 @@ import { RequestedCube } from './requestedCube';
 
 import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
 import { CubeFieldType, type CubeKey } from '../../cube/cube.definitions';
-import type { CubeInfo } from '../../cube/cubeInfo';
+import { CubeInfo } from '../../cube/cubeInfo';
 import { cubeContest, getCurrentEpoch, keyVariants, shouldRetainCube } from '../../cube/cubeUtil';
 import type { NetworkManager, NetworkManagerIf } from '../networkManager';
 import type { NetworkPeer } from '../networkPeer';
@@ -51,6 +51,7 @@ export class RequestScheduler {
   private subscribedCubes: CubeKey[] = [];  // TODO use same format as for requestedCubes
   private cubeRequestTimer: ShortenableTimeout = new ShortenableTimeout(this.performCubeRequest, this);
   private keyRequestTimer: ShortenableTimeout = new ShortenableTimeout(this.performKeyRequest, this);
+  private _shutdown: boolean = false;
 
   constructor(
     readonly networkManager: NetworkManagerIf,
@@ -80,7 +81,10 @@ export class RequestScheduler {
     scheduleIn: number = this.options.interactiveRequestDelay,
     timeout: number = this.options.requestTimeout
   ): Promise<CubeInfo> {
-    const key = keyVariants(keyInput);
+    // do not accept any calls if this scheduler has already been shut down
+    if (this._shutdown) return new Promise<CubeInfo>((resolve, reject) => reject());
+
+    const key = keyVariants(keyInput);  // normalise input
     const req = new RequestedCube(key.binaryKey, timeout);  // create request
     this.requestedCubes.set(key.keyString, req);  // remember request
     this.scheduleCubeRequest(scheduleIn);  // schedule request
@@ -100,6 +104,8 @@ export class RequestScheduler {
       keyInput: CubeKey | string,
       scheduleIn: number = this.options.interactiveRequestDelay,
   ): void {
+    // do not accept any calls if this scheduler has already been shut down
+    if (this._shutdown) return;
     if (this.options.lightNode) {  // full nodes are implicitly subscribed to everything
       const key = keyVariants(keyInput);
       if (this.subscribedCubes.some(subbedKey => subbedKey.equals(key.binaryKey))) {
@@ -131,8 +137,11 @@ export class RequestScheduler {
     scheduleIn: number = this.options.interactiveRequestDelay,
     timeout: number = this.options.requestTimeout,
   ): Promise<CubeInfo> {
-    const key = keyVariants(recipientKey);
-    const req = new RequestedCube(key.binaryKey, timeout);
+    // do not accept any calls if this scheduler has already been shut down
+    if (this._shutdown) return new Promise<CubeInfo>((resolve, reject) => reject());
+
+    const key = keyVariants(recipientKey);  // normalise input
+    const req = new RequestedCube(key.binaryKey, timeout);  // create request
     this.requestedNotifications.set(key.keyString, req);  // remember request
     this.scheduleCubeRequest(scheduleIn);  // schedule request
     return req.promise;  // return result eventually
@@ -143,6 +152,9 @@ export class RequestScheduler {
    *           (which happens when there already is a request scheduled)
    */
   scheduleCubeRequest(millis: number = undefined): boolean {
+    // do not accept any calls if this scheduler has already been shut down
+    if (this._shutdown) return false;
+
     if (millis === undefined) {
       millis = this.options.requestInterval * this.calcRequestScaleFactor();
     }
@@ -153,6 +165,9 @@ export class RequestScheduler {
   }
 
   scheduleKeyRequest(millis: number = undefined): boolean {
+    // do not accept any calls if this scheduler has already been shut down
+    if (this._shutdown) return false;
+
     if (this.options.lightNode) {
       logger.trace(`RequestScheduler.scheduleKeyRequest() called as a light node, this is wrong; doing nothing`);
       return false;
@@ -169,7 +184,10 @@ export class RequestScheduler {
   /**
    * Will be called by NetworkPeers getting offered Cubes by remote nodes
    */
-  async handleCubesOffered(offered: Iterable<CubeInfo>, offeringPeer: NetworkPeer) {
+  async handleCubesOffered(offered: Iterable<CubeInfo>, offeringPeer: NetworkPeer): Promise<void> {
+    // do not accept any calls if this scheduler has already been shut down
+    if (this._shutdown) return;
+
     let cubeRequestRequired: boolean = false;
     for (const incomingCubeInfo of offered) {
       try {
@@ -182,7 +200,7 @@ export class RequestScheduler {
             incomingCubeInfo.date,
             incomingCubeInfo.difficulty,
             currentEpoch)) {
-          logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Was offered cube hash outside of retention policy, ignoring.`);
+          logger.info(`RequestScheduler.handleCubesOffered(): Was offered cube hash outside of retention policy by peer ${offeringPeer.toString()}, ignoring.`);
           continue;
         }
 
@@ -230,6 +248,9 @@ export class RequestScheduler {
   }
 
   private performCubeRequest(peerSelected?: NetworkPeer): void {
+    // do not accept any calls if this scheduler has already been shut down
+    if (this._shutdown) return;
+
     // cancel timer calling this exact function
     this.cubeRequestTimer.clear();
     // is there even anything left to request?
@@ -289,6 +310,9 @@ export class RequestScheduler {
   }
 
   private performKeyRequest(peerSelected?: NetworkPeer): void {
+    // do not accept any calls if this scheduler has already been shut down
+    if (this._shutdown) return;
+
     // cancel timer calling this exact function
     this.keyRequestTimer.clear();
     // select a peer to send request to
@@ -300,12 +324,16 @@ export class RequestScheduler {
     this.scheduleKeyRequest();
   }
 
+  // TODO remove? caller can call requestCube in a loop directly
   requestCubes(keys: CubeKey[]): Promise<CubeInfo>[];
   requestCubes(keys: CubeInfo[]): Promise<CubeInfo>[];
   requestCubes(keys: Array<CubeKey | CubeInfo>): Promise<CubeInfo>[];
   requestCubes(
     requests: Array<CubeKey | CubeInfo>):
   Promise<CubeInfo> | Promise<CubeInfo>[] {
+    // do not accept any calls if this scheduler has already been shut down
+    if (this._shutdown) return [];
+
     const promises: Promise<CubeInfo>[] = [];
     for (const req of requests) {
       promises.push(this.requestCube(req as CubeKey));  // or as CubeInfo, don't care
@@ -314,6 +342,9 @@ export class RequestScheduler {
   }
 
   cubeAddedHandler(cubeInfo: CubeInfo) {
+    // no not provide any further callbacks if this scheduler has already been shut down
+    if (this._shutdown) return;
+
     // does this fulfil a Cube request?
     let req: RequestedCube = this.requestedCubes.get(cubeInfo.keyString);
     // or does it maybe fulfil a notification request?
@@ -330,6 +361,7 @@ export class RequestScheduler {
   }
 
   shutdown(): void {
+    this._shutdown = true;
     this.cubeRequestTimer.clear();
     this.keyRequestTimer.clear();
     this.networkManager.cubeStore.removeListener("cubeAdded", (cubeInfo: CubeInfo) =>
