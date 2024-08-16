@@ -486,12 +486,8 @@ describe('networkManager - WebSocket connections', () => {
 
         await node1.connect(new Peer("127.0.0.1:3022"));
         // Wait up to three seconds for Cube exchange to happen
-        for (let i = 0; i < 30; i++) {
-          if (await node2.cubeStore.getNumberOfStoredCubes() >= 2) {
-            break;
-          }
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
+        await waitForCubeSync(node2.cubeStore, 1, 3000);
+
         const received: Cube = await node2.cubeStore.getCube(key);
         expect(received).toBeInstanceOf(Cube);
         expect((await received).fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).valueString).

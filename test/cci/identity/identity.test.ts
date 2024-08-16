@@ -348,7 +348,7 @@ describe('Identity', () => {
     it.todo('will not fail on circular subscription recommendation index cubes');
   });  // describe subscription recommendations
 
-  describe.only('remote updates', () => {
+  describe('remote updates', () => {
     it('will preserve posts written, users subscribed to as well as name and avatar changes performed on another device', async() => {
       // create an Identity
       const id: Identity = await Identity.Create(
