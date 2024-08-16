@@ -124,7 +124,7 @@ alternative to traditional, centralized social networks.
     specified recipient key. This is a specialised type of CubeRequest and will
     be answered with a CubeResponse.
     - **Cube Key Count (4 bytes)**: The number of notification keys following
-    - **Recipient key (4 bytes)**: Sender requests all Cubes notifying the specified key
+    - **Recipient key (32 bytes)**: Sender requests all Cubes notifying the specified key
 
 # Encryption
 
