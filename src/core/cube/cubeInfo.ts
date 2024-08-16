@@ -50,20 +50,6 @@ export interface CubeInfoOptions {
    * cciFieldParsers.
    */
   family?: CubeFamilyDefinition,
-
-  /**
-   * The implementation class the represented Cube is of, for example
-   * plain old Cube, cciCube, or an application specific variant.
-   * The class is only relevant locally -- all Cubes are just Cubes while in
-   * transit over the network. Note that this is NOT the Cube's type
-   * (e.g. Frozen, MUC, IPC, ...).
-   * This param is only used for incomplete and dormant Cubes.
-   * For active Cubes (= provided as Cube objects), the class is always inferred
-   * from the Cube object itself.
-   * If the class is neither provided nor can be inferred, we will just default
-   * to plain old Cube, which is probably too generic.
-   */
-  cubeClass?: typeof Cube;
 }
 
 /**
