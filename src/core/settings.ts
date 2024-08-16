@@ -41,14 +41,12 @@ export const Settings = {
     TRUST_SCORE_THRESHOLD: -1000,  // peers with a score below this are considered bad peers
     BAD_PEER_REHABILITATION_CHANCE: 0.1,  // chance of trying to connect to a peer with bad local trust score
 
-    // Network peer related:
-    KEY_REQUEST_TIME: (10 * 1000),  // asks nodes for new cube keys every 10 seconds
-    NODE_REQUEST_TIME: (10 * 1000),  // asks nodes for their known nodes every 10 seconds
-
     // Request scheduler related:
+    KEY_REQUEST_TIME: (10 * 1000),  // run CubeRequests and/or KeyRequests every 10 seconds by default
+    NODE_REQUEST_TIME: (10 * 1000),  // asks nodes for their known nodes every 10 seconds (this is still implemented directly in NetworkPeer rather than the RequestScheduler)
     CUBE_REQUEST_TIMEOUT: (60 * 1000),
-    REQUEST_SCALE_FACTOR: 4,  // make requests n times more often at MAXIMUM_CONNECTION compared to on a single connection (only used by RequestScheduler, not by autonomous NetworkPeers)
-    INTERACTIVE_REQUEST_DELAY: 100,  // when a (presumably) interactive application requests a Cube through CubeRetriever on a light node, auto-schedule the next request in 100ms
+    REQUEST_SCALE_FACTOR: 4,  // make requests n times more often at MAXIMUM_CONNECTION compared to on a single connection
+    INTERACTIVE_REQUEST_DELAY: 100,  // when a (presumably) interactive application requests a Cube on a light node, auto-schedule the next request in 100ms -- in other words, keep collecting requests for the next 100ms before actually performing the request
 
     // Debugging related:
     RUNTIME_ASSERTIONS: true,
