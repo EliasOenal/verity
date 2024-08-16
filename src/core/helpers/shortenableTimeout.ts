@@ -15,7 +15,7 @@ export class ShortenableTimeout {
     return this.delay - elapsedTime;
   }
 
-  set(delay: number): void {
+  set(delay: number): boolean {
     const remainingTime = this.getRemainingTime();
 
     // only reset timeout if requested time is shorter than remaining time,
@@ -23,7 +23,8 @@ export class ShortenableTimeout {
     // or if it has in fact never been set before
     if (remainingTime === undefined || delay < remainingTime) {
       this.setUpTimeout(delay);
-    }
+      return true;
+    } else return false;
   }
 
   clear(): void {

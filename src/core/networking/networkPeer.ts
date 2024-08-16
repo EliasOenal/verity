@@ -39,7 +39,6 @@ export interface NetworkStats {
 export interface NetworkPeerOptions {
     extraAddresses?: AddressAbstraction[],
     lightNode?: boolean,
-    autoRequest: boolean,
     peerExchange?: boolean,
     networkTimeoutSecs?: number,
 }
@@ -77,7 +76,6 @@ export class NetworkPeer extends Peer {
         tx: { sentMessages: 0, messageBytes: 0, messageTypes: {} },
         rx: { receivedMessages: 0, messageBytes: 0, messageTypes: {} },
     }
-    keyRequestTimer?: NodeJS.Timeout = undefined; // Timer for key requests
     peerRequestTimer?: NodeJS.Timeout = undefined; // Timer for node requests
 
     private _status: NetworkPeerLifecycleStatus = new NetworkPeerLifecycleStatus;
@@ -107,7 +105,6 @@ export class NetworkPeer extends Peer {
 
     private networkTimeout: NodeJS.Timeout = undefined;
     private lightNode: boolean;
-    private autoRequest: boolean;
     private peerExchange: boolean = true;
     private networkTimeoutSecs: number = Settings.NETWORK_TIMEOUT;
 
@@ -121,7 +118,6 @@ export class NetworkPeer extends Peer {
         super(_conn.address);
         // set opts
         this.lightNode = options?.lightNode ?? true;
-        this.autoRequest = options?.autoRequest ?? false;
         this.peerExchange = options?.peerExchange ?? true;
         this.networkTimeoutSecs = options?.networkTimeoutSecs ?? Settings.NETWORK_TIMEOUT;
         if (options.extraAddresses) {
@@ -155,7 +151,6 @@ export class NetworkPeer extends Peer {
         // Remove all listeners and timers to avoid memory leaks
         this.networkManager.peerDB.removeListener(
             'exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
-        clearInterval(this.keyRequestTimer);
         clearInterval(this.peerRequestTimer);
         clearTimeout(this.networkTimeout);
 
@@ -374,12 +369,6 @@ export class NetworkPeer extends Peer {
                 this.peerRequestTimer = setInterval(() =>
                     this.sendPeerRequest(), Settings.NODE_REQUEST_TIME);
             }
-            // If we're scheduling our own requests and are not a light node,
-            // ask for available cubes in regular intervals
-            if (this.autoRequest && !this.lightNode && !this.keyRequestTimer) {
-                this.keyRequestTimer = setInterval(() => this.sendKeyRequests(),
-                    Settings.KEY_REQUEST_TIME);
-            }
         }
     }
 
@@ -442,43 +431,23 @@ export class NetworkPeer extends Peer {
                 return;
             }
 
-            const cubeInfos: Generator<CubeInfo> = msg.cubeInfos();
-            const missingKeys: Buffer[] = [];
+            // Keep track of the last key we've seen from this remote node.
+            // This is so we can later continue syncing up to them.
             let lastKey: CubeKey | undefined;
 
-            for (const incomingCubeInfo of cubeInfos) {
-                try {
+            // Let the scheduler know which Cubes the remote node was kind
+            // enough to offer us. The scheduler will call back to us for each
+            // CubeInfo.
+            const keyCallback = function*() {
+                const cubeInfos: Generator<CubeInfo> = msg.cubeInfos();
+                for (const incomingCubeInfo of cubeInfos) {
                     lastKey = incomingCubeInfo.key;
-                    // if retention policy is enabled, ensure the offered Cube has
-                    // not yet reached its recycling date
-                    const currentEpoch = getCurrentEpoch(); // Get the current epoch
-                    if(this.cubeStore.options.enableCubeRetentionPolicy &&
-                    !shouldRetainCube(
-                            incomingCubeInfo.keyString,
-                            incomingCubeInfo.date,
-                            incomingCubeInfo.difficulty,
-                            currentEpoch)) {
-                        logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Was offered cube hash outside of retention policy, ignoring.`);
-                        continue;
-                    }
-
-                    // Do we already have this Cube?
-                    const storedCube: CubeInfo = await this.cubeStore.getCubeInfo(incomingCubeInfo.key);
-                    // Request Cube if not in cube storage, or if it is in
-                    // storage but the incoming one wins the CubeContest
-                    if (storedCube === undefined ||
-                        cubeContest(storedCube, incomingCubeInfo) === incomingCubeInfo
-                    ) {
-                        missingKeys.push(incomingCubeInfo.key);
-                    }
-                } catch(error) {
-                    logger.info(`NetworkPeer ${this.toString()}: handleKeyResponse(): Error handling incoming Cube ${incomingCubeInfo.keyString} (CubeType ${incomingCubeInfo.cubeType}): ${error}`);
+                    yield incomingCubeInfo;
                 }
             }
+            await this.networkManager.scheduler.handleCubesOffered(
+                keyCallback(), this);
 
-            if (missingKeys.length > 0) {
-                this.sendCubeRequest(missingKeys);
-            }
 
             // Update the last requested key for the appropriate mode
             if (lastKey) {
