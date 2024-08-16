@@ -8,6 +8,19 @@ But still, let's collect some ideas:
 - Collection of billing data, e.g. from smart meters
 - LoRa access point
 - Storage of survey results, e.g. Diary Studies
+- Direct messaging (like email/PM)
+- Imageboards (linking to external content)
+- Decentralized subscriptions/feeds (e.g. Youtube, Odysee, BitChute)
+- Closed forums
+- Wiki
+- P2P Marketplace
+- Personal Blogs
+- Short term static HTML hosting
+- Secure Drop Zones
+- Decentralized Dead Man’s Switch (Application layer service implementing Shamir's secret sharing)
+- IoT secure firmware updates
+- Chat (Anonymous, Pseudonymous)
+- Pastebin
 
 ## User growth strategies
 ### Microblogging
