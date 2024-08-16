@@ -212,7 +212,7 @@ describe('RequestScheduler', () => {
       true,
       false,
     ])('tests run as both full and light node', (lightNode) => {
-      describe('handleCubesOffered()', () => {
+      describe(`handleCubesOffered() as ${lightNode ? 'light node' : 'full node'}`, () => {
         let scheduler: RequestScheduler;
         let mockNetworkManager: jest.Mocked<NetworkManagerIf>;
         let mockOfferingPeer: jest.Mocked<NetworkPeer>;
@@ -286,9 +286,7 @@ describe('RequestScheduler', () => {
 
           // if we are a light node, the Cubes must have been requested locally
           if (scheduler.options.lightNode) {
-              scheduler.requestCube(testCubeInfo.key).catch( () => {
-                null;
-              });
+              scheduler.requestCube(testCubeInfo.key);
           }
 
           // prepare to spy on method calls
