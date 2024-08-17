@@ -8,7 +8,7 @@ describe('WebSocket transport', () => {
     // Manually create a WebSocket server
     const transport = new WebSocketTransport();
     await transport.start();
-    const server = new WebSocketServer(transport, 11984);
+    const server = new WebSocketServer(transport, 11980);
     await server.start();
 
     // expect a server-side connection to be spawned by the server upon connection
@@ -18,7 +18,7 @@ describe('WebSocket transport', () => {
     });
 
     // create connection
-    const clientConn = new WebSocketConnection(new WebSocketAddress('localhost', 11984));
+    const clientConn = new WebSocketConnection(new WebSocketAddress('localhost', 11980));
     await clientConn.readyPromise;
     expect(serverConn).toBeInstanceOf(WebSocketConnection);
 
