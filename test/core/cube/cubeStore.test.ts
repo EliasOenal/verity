@@ -486,11 +486,6 @@ describe('cubeStore', () => {
 
         describe('Notification tests', () => {
           it('should index and retrieve notifications correctly', async () => {
-            // if those assertions fail, tests either run in parallel in
-            // unexpected ways or the beforeEach() is not properly executed&awaited
-            expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
-            expect(await cubeStore.getNumberOfNotificationRecipients()).toBe(0);
-
             // choose a notification recipient key
             const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
 

@@ -813,7 +813,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       notificationKeys.sort((a, b) => a.compare(b));
       // craft the persistent notification blob and store it
       const blob: Buffer = writePersistentNotificationBlob(notificationKeys);
-      this.notificationPersistence.store(recipient, blob);
+      await this.notificationPersistence.store(recipient, blob);
     }
   }
 
