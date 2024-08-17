@@ -486,6 +486,11 @@ describe('cubeStore', () => {
 
         describe('Notification tests', () => {
           it('should index and retrieve notifications correctly', async () => {
+            // if those assertions fail, tests either run in parallel in
+            // unexpected ways or the beforeEach() is not properly executed&awaited
+            expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
+            expect(await cubeStore.getNumberOfNotificationRecipients()).toBe(0);
+
             // choose a notification recipient key
             const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
 
@@ -507,7 +512,7 @@ describe('cubeStore', () => {
               fields: CubeFields.DefaultPositionals(
                 coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,
                 [
-                  CubeField.Notify(recipientKey),  // mix up input field or a bit for extra fuzzing
+                  CubeField.Notify(recipientKey),  // mix up input field order for extra fuzzing
                   CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Hic receptor notificationis popularis est"),
                 ]),
               requiredDifficulty: reducedDifficulty
@@ -520,10 +525,11 @@ describe('cubeStore', () => {
             ];
 
             // Ensure that the notifications have correctly been retrieved
-            // by checking that each notification returned has indeed been made
-            // and deleting it from our list. This should leave us with an empty list.
-            // Note there is no guarantee on the order of the notifications --
-            // ensure both notifications are present in the returned CubeInfos
+            // by checking that each notification returned actually represents
+            // one of the Cubes we sculpted before; and then deleting it from
+            // the our list. This should leave us with an empty list, ensuring
+            // that no spurious notifications have been returned.
+            // Note there is no guarantee on the order of the notifications.
             for await (const notificationInfo of cubeStore.getNotificationCubeInfos(recipientKey)) {
               expect(notificationKeys).toContainEqual(notificationInfo.key);
               notificationKeys = notificationKeys.filter((k) => !k.equals(notificationInfo.key));
