@@ -240,17 +240,15 @@ export class NetworkPeer extends Peer {
         try {
             // TODO: use FieldParser to decompile messages
             const protocolVersion = message.readUintBE(0, NetConstants.PROTOCOL_VERSION_SIZE);
-            const messageClass = message.readUIntBE(NetConstants.PROTOCOL_VERSION_SIZE, NetConstants.MESSAGE_CLASS_SIZE);
-            const messageContent = message.subarray(NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
-            const msg: NetworkMessage = NetworkMessage.fromBinary(
-                messageClass, messageContent);
+            const binaryMessage = message.subarray(NetConstants.PROTOCOL_VERSION_SIZE);
+            const msg: NetworkMessage = NetworkMessage.fromBinary(binaryMessage);
             // logger.trace(`NetworkPeer ${this.toString()}: handleMessage() messageClass: ${MessageClass[messageClass]}`);
-            this.logRxStats(message, messageClass);
+            this.logRxStats(message, msg.type);
 
             // Process the message based on its class
-            switch (messageClass) {
+            switch (msg.type) {
                 case MessageClass.Hello:
-                    this.handleHello(messageContent);
+                    this.handleHello(msg as HelloMessage);
                     break;
                 case MessageClass.KeyRequest:
                     try {  // non-essential feature (for us... for them it's rather essential, but we don't care :D)
@@ -314,7 +312,7 @@ export class NetworkPeer extends Peer {
                         break;
                     }
                 default:
-                    logger.warn(`NetworkPeer ${this.toString()}: Ignoring message with unknown class: ${messageClass}`);
+                    logger.warn(`NetworkPeer ${this.toString()}: Ignoring message with unknown class: ${msg.type}`);
                     break;
             }
         } catch (err) {
@@ -333,11 +331,10 @@ export class NetworkPeer extends Peer {
         this.sendMessage(msg);
     }
 
-    private handleHello(data: Buffer): void {
+    private handleHello(msg: HelloMessage): void {
         // receive peer ID
-        const peerID: Buffer = data.subarray(0, NetConstants.PEER_ID_SIZE);
-        if (peerID.length != NetConstants.PEER_ID_SIZE) {  // ID too short
-            logger.info(`NetworkPeer ${this.toString()}: Received invalid peer ID sized ${peerID.length} bytes, should be ${NetConstants.PEER_ID_SIZE} bytes. Closing connection.`)
+        if (!msg.remoteId) {  // invalid ID
+            logger.info(`NetworkPeer ${this.toString()}: Received invalid peer ID, closing connection.`)
             this.close();
             return;
         }
@@ -345,14 +342,14 @@ export class NetworkPeer extends Peer {
         // Is this a spurious repeat HELLO?
         if (this.status >= NetworkPeerLifecycle.ONLINE) {
             // If the peer has unexpectedly changed its ID, disconnect.
-            if (!this.id.equals(peerID)) {
-                logger.info(`NetworkPeer ${this.toString()} suddenly changed its ID from ${this.id?.toString('hex')} to ${peerID.toString('hex')}, closing connection.`);
+            if (!this.id.equals(msg.remoteId)) {
+                logger.info(`NetworkPeer ${this.toString()} suddenly changed its ID from ${this.id?.toString('hex')} to ${msg.remoteId.toString('hex')}, closing connection.`);
                 this.close();
             } else {  // no unexpected ID change, just a spurious HELLO to be ignored
                 logger.trace(`NetworkPeer ${this.toString()}: Received spurious repeat HELLO`);
             }
         } else {  // not a repeat hello
-            this._id = peerID;
+            this._id = msg.remoteId;
             this._status.advance(NetworkPeerLifecycle.ONLINE);
             logger.trace(`NetworkPeer ${this.toString()}: received HELLO, peer now considered online`);
 
