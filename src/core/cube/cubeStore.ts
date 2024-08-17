@@ -98,7 +98,7 @@ export interface CubeRetrievalInterface {
 }
 
 export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
-  readyPromise: Promise<any>;
+  readyPromise: Promise<undefined>;
   readonly inMemory: boolean;
 
   /**
@@ -236,8 +236,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
         }
       } else {
         // should never be even possible to happen, and yet, there was this one time when it did
-        // @ts-ignore If we end up here, we're well outside any kind of sanity TypeScript can possibly be expected to understand.
-        throw new ApiMisuseError("CubeStore: invalid type supplied to addCube: " + cube_input.constructor.name);
+        throw new ApiMisuseError("CubeStore: invalid type supplied to addCube: " + (cube_input as unknown)?.constructor?.name);
       }
       // Now create the CubeInfo, which is a meta-object containing some core
       // information about the Cube so we don't have to re-instantiate it all
@@ -247,13 +246,13 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       // If ephemeral Cubes are enabled, ensure we only store recent Cubes.
       if (this.options.enableCubeRetentionPolicy) {
         // cube valid for current epoch?
-        let res: boolean = shouldRetainCube(
+        const current: boolean = shouldRetainCube(
           cubeInfo.keyString,
           cubeInfo.date,
           cubeInfo.difficulty,
           getCurrentEpoch()
         );
-        if (!res) {
+        if (!current) {
           logger.error(
             `CubeStore: Cube is not valid for current epoch, discarding.`
           );
@@ -359,6 +358,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     if (this.inMemory) return this.cubes.size;
     else {
       let count = 0;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       for await (const key of this.getKeyRange({ limit: Infinity })) count++;
       return count;
     }
@@ -442,7 +442,8 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     options: CubeIteratorOptions = {},
   ): AsyncGenerator<CubeKey | string> {
     let first: string = undefined;
-    let count: number = 0, limit = options.limit ?? 1000;
+    let count: number = 0;
+    const limit = options.limit ?? 1000;
     if (this.inMemory) {
       for await (const key of this.getInMemoryKeyRange(options)) {
         if (count >= limit) break;  // respect limit
@@ -543,7 +544,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
         i++;
       }
     } else if (this.cubePersistence) {
-      let key = await this.cubePersistence.getKeyAtPosition(position)
+      const key = await this.cubePersistence.getKeyAtPosition(position)
       if (key)
         return key;
       else
@@ -615,7 +616,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
         yield cubeInfo.key;
       }
     } else {  // persistent storage is primary
-      let record: Buffer = await this.notificationPersistence.get(recipient);
+      const record: Buffer = await this.notificationPersistence.get(recipient);
       yield *parsePersistentNotificationBlob(record);
     }
   }
@@ -650,6 +651,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     if (this.inMemory) return this.notifications.size;
     else {
       let count = 0;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       for await (const key of this.notificationPersistence.getKeyRange({ limit: Infinity })) count++;
       return count;
     }
