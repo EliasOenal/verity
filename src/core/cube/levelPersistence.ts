@@ -7,6 +7,7 @@ import { logger } from '../logger';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { Buffer } from 'buffer';
 import { KeyIteratorOptions, Level, ValueIteratorOptions } from 'level';
+import * as ClassicLevel from 'classic-level'
 import { CubeIteratorOptions } from './cubeStore';
 import { keyVariants } from './cubeUtil';
 
@@ -240,6 +241,33 @@ export class LevelPersistence {
     await this.db.clear();
   }
 
+  /**
+   * Get the approximate size of the database.
+   * @returns A promise that resolves with the approximate size of the database.
+   */
+  async approximateSize(): Promise<number> {
+    if (this.db.status !== "open") {
+      throw new PersistenceError("DB is not open");
+    }
+
+    if(isNode) {
+      // Cast the db object to ClassicLevel
+      const classicDb = this.db as ClassicLevel.ClassicLevel<Buffer,Buffer>;
+
+      try {
+        // Use a range that encompasses all possible keys
+        const size = await classicDb.approximateSize(Buffer.from([0x00]), Buffer.alloc(64, 0xff));
+        return size;
+      } catch (error) {
+        throw new PersistenceError(`Failed to get key count: ${error}`);
+      }
+    }
+    else
+    {
+      // Not implemented
+      return -1;
+    }
+  }
 
   async shutdown(): Promise<void> {
     await this.db.close();
