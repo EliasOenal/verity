@@ -43,6 +43,6 @@ export class RequestedCube {
 
   shutdown(): void {
     clearTimeout(this.timeout);
-    this.resolve(undefined);  // rejecting would be the proper choice, but I can't find out where to catch it
+    this.resolve(undefined);  // maybe the proper choice would be rejecting here and catching by the caller
   }
 }
