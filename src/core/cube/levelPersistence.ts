@@ -235,6 +235,11 @@ export class LevelPersistence {
     return keys;
   }
 
+  /** Deletes everything. Handle with care. */
+  async wipeAll(): Promise<void> {
+    await this.db.clear();
+  }
+
 
   async shutdown(): Promise<void> {
     await this.db.close();
