@@ -722,6 +722,18 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     await checkAndPruneCubes(); // start pruning
   }
 
+  /**
+   * Ever feel crushed by the weight of all those Cubes on your shoulders?
+   * Fancy a more quiet life without Cubes? wipeAll() is the answer.
+   * Handle with care.
+   */
+  async wipeAll(): Promise<void> {
+    this.cubes.clear();
+    this.notifications.clear();
+    await this.cubePersistence?.wipeAll();
+    await this.notificationPersistence?.wipeAll();
+  }
+
   // Note that this method does neither handle the limit nor wraparound
   // options, the caller (getKeyRange) is responsible for that.
   private async *getInMemoryKeyRange(

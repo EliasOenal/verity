@@ -143,12 +143,12 @@ describe('cubeStore', () => {
           await cubeStore.readyPromise;
         });
         beforeEach(async () => {
-          for await (const key of cubeStore.getKeyRange({ limit: Infinity })) await cubeStore.deleteCube(key);
+          await cubeStore.wipeAll();
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
           expect(await cubeStore.getNumberOfNotificationRecipients()).toBe(0);
         });
         afterEach(async () => {
-          for await (const key of cubeStore.getKeyRange({ limit: Infinity })) await cubeStore.deleteCube(key);
+          await cubeStore.wipeAll();
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
           expect(await cubeStore.getNumberOfNotificationRecipients()).toBe(0);
         }, 360000);
@@ -595,12 +595,12 @@ describe('cubeStore', () => {
         beforeEach(async () => {
           cubeStore = new CubeStore(cubeStoreOptions);
           await cubeStore.readyPromise;
-          for await (const key of cubeStore.getKeyRange({ limit: Infinity })) await cubeStore.deleteCube(key);
+          await cubeStore.wipeAll();
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
           expect(await cubeStore.getNumberOfNotificationRecipients()).toBe(0);
         });
         afterEach(async () => {
-          for await (const key of cubeStore.getKeyRange({ limit: Infinity })) await cubeStore.deleteCube(key);
+          await cubeStore.wipeAll();
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
           expect(await cubeStore.getNumberOfNotificationRecipients()).toBe(0);
           await cubeStore.shutdown();
