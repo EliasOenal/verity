@@ -1,7 +1,7 @@
 import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
 import { Cube } from "../../../src/core/cube/cube";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
-import { MessageClass } from "../../../src/core/networking/networkDefinitions";
+import { MessageClass, NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { NetworkMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, CubeRequestMessage, CubeResponseMessage, ServerAddressMessage, PeerRequestMessage, PeerResponseMessage, KeyRequestMode } from "../../../src/core/networking/networkMessage";
 import { AddressAbstraction } from "../../../src/core/peering/addressing";
 import { Peer } from "../../../src/core/peering/peer";
@@ -9,18 +9,40 @@ import { VerityError } from "../../../src/core/settings";
 import { CubeField } from "../../../src/core/cube/cubeField";
 
 describe('NetworkMessage', () => {
-  it('should create instances of derived message types', () => {
-    const helloMessage = NetworkMessage.fromBinary(MessageClass.Hello, Buffer.from('abcdefghijklmnop', 'ascii'));
-    expect(helloMessage).toBeInstanceOf(HelloMessage);
+  describe('fromBinary() static method', () => {
+    it('should create a valid Hello message', () => {
+      const helloMessage = NetworkMessage.fromBinary(Buffer.concat([
+        Buffer.alloc(NetConstants.MESSAGE_CLASS_SIZE, MessageClass.Hello),
+        Buffer.from('abcdefghijklmnop', 'ascii'),
+      ]));
+      expect(helloMessage).toBeInstanceOf(HelloMessage);
+    });
 
-    const keyRequestMessage = NetworkMessage.fromBinary(MessageClass.KeyRequest, Buffer.from('invalid message content, but who care'));
-    expect(keyRequestMessage).toBeInstanceOf(KeyRequestMessage);
+    it('should create a valid KeyRequest message', () => {
+      const keyRequestMessage = NetworkMessage.fromBinary(Buffer.concat([
+        Buffer.alloc(1, MessageClass.KeyRequest),
+        Buffer.alloc(NetConstants.KEY_REQUEST_MODE_SIZE, KeyRequestMode.SlidingWindow),
+        Buffer.alloc(NetConstants.KEY_COUNT_SIZE, 42),
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337),
+      ]));
+      expect(keyRequestMessage).toBeInstanceOf(KeyRequestMessage);
 
-    // Add similar tests for other message types
-  });
+      // Add similar tests for other message types
+    });
 
-  it('should throw VerityError for unknown message type', () => {
-    expect(() => NetworkMessage.fromBinary(999 as MessageClass, Buffer.from('InvalidType'))).toThrow(VerityError);
+    it.todo('should create a valid KeyResponse message');
+    it.todo('should create a valid CubeRequest message');
+    it.todo('should create a valid CubeResponse message');
+    it.todo('should create a valid MyServerAddress message');
+    it.todo('should create a valid PeerRequest message');
+    it.todo('should create a valid PeerResponse message');
+
+    it('should throw VerityError for unknown message type', () => {
+      expect(() => NetworkMessage.fromBinary(Buffer.concat([
+        Buffer.alloc(1, 255),
+        Buffer.from('InvalidType'),
+      ]))).toThrow(VerityError);
+    });
   });
 });
 

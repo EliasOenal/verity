@@ -1,5 +1,5 @@
 import { BaseField } from "../fields/baseField";
-import { CubeError, CubeKey } from "../cube/cube.definitions";
+import { CubeError, CubeKey, CubeType } from "../cube/cube.definitions";
 import { CubeInfo, CubeMeta } from "../cube/cubeInfo";
 import { logger } from "../logger";
 import { AddressAbstraction } from "../peering/addressing";
@@ -10,7 +10,9 @@ import { MessageClass, NetConstants, SupportedTransports } from "./networkDefini
 import { Buffer } from 'buffer';
 
 export abstract class NetworkMessage extends BaseField {
-  static fromBinary(type: MessageClass, value: Buffer): NetworkMessage {
+  static fromBinary(message: Buffer): NetworkMessage {
+    const type: MessageClass = NetworkMessage.MessageClass(message);
+    const value: Buffer = message.subarray(NetConstants.MESSAGE_CLASS_SIZE);
     if (type === MessageClass.Hello) {
       return new HelloMessage(value);
     } else if (type === MessageClass.KeyRequest) {
@@ -34,6 +36,10 @@ export abstract class NetworkMessage extends BaseField {
       throw new VerityError("NetworkMessage.fromBinary: Cannot parse message of unknown type " + type);
     }
   }
+
+  static MessageClass(message: Buffer): MessageClass {
+    return message.readUIntBE(0, NetConstants.MESSAGE_CLASS_SIZE);
+  }
 }
 
 export class HelloMessage extends NetworkMessage {
@@ -42,7 +48,11 @@ export class HelloMessage extends NetworkMessage {
   }
 
   get remoteId(): Buffer {
-    return this.value;
+    if (this.value.length < NetConstants.PEER_ID_SIZE) {
+      logger.trace(`HelloMessage.remoteId: Invalid message of length ${this.value.length} while a PeerID is ${NetConstants.PEER_ID_SIZE} long; returning undefined`);
+      return undefined;
+    }
+    return this.value.subarray(0, NetConstants.PEER_ID_SIZE);
   }
 }
 
