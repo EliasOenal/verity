@@ -66,15 +66,20 @@ alternative to traditional, centralized social networks.
       * `0x00`: Legacy Mode (Deprecated)
       * `0x01`: Sliding Window Mode
       * `0x02`: Sequential Store Sync Mode
+      * `0x03`: Notification Mode w/ Challenge constraint
+      * `0x04`: Notification Mode w/ Timestamp constraint
     - **Key Count (4 bytes)**: This is an integer indicating the number of keys being requested.
     - **Start-from key (32 bytes)**: Used in Sliding Window and Sequential Store Sync modes. Specifies the key to start from. In Sliding Window Mode it can be zero to start from the beginning. Mandatory in Sequential Store Sync Mode. The key itself is not included in the response, only the respective keys that succeed it.
-    Proposed extension:
-      - **Filters (optional)**: Only request keys of Cubes matching certain criteria.
-        - **Cube Type (1 byte)**: The type of the cube (e.g., regular, MUC, IPC).
+    - Only in Notification Mode:
+      - **Notification to (32 bytes)**: Only request notification Cubes containing exactly this key in their NOTIFY field.
+      - Only in Notification Mode w/ Challenge constraint:
         - **Minimum challenge Level (1 byte)**: The minimum number of trailing zeroes required in the Cube's hash.
+      - Only in Notification Mode w/ Timestamp constraint:
         - **Timestamp minimum (5 bytes)**: Cube must be newer than this timestamp
         - **Timestamp maximum (5 bytes)**: Cube must be older than this timestamp
-        - **Notification to (32 bytes)**: Only request notification Cubes containing exactly this key in their NOTIFY field.
+    - Proposed extension... some day... somehow... and in an orthogonal fashion please. These different modes with different options make me go crazy.
+      - **Filters (optional)**: Only request keys of Cubes matching certain criteria.
+          - **Cube Type (1 byte)**: The type of the cube (e.g., regular, MUC, IPC).
 
     To support Sliding Window Mode each node holds one sliding window of the keys to the most recently received cubes. Upon receiving a request the requested key is identified and the keys succeeding it, up to the number of requested keys, is then sent via KeyResponse. The size of the window is configurable, but should be at least 1000 keys. The oldest keys are overwritten by the newest. This mode is meant for near real-time synchronization of the most recent cubes. On startup if no new cubes are downloaded the keys reported from other nodes may be used to fill the window, even if the respective cubes are already in the store.
 
