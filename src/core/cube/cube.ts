@@ -6,7 +6,7 @@ import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFie
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField } from "./cubeField";
-import { CoreFieldParsers, CoreFrozenFieldDefinition, CubeFamilyDefinition, CubeFields } from './cubeFields';
+import { CoreFieldParsers, CubeFamilyDefinition, CubeFields } from './cubeFields';
 
 import { FieldParser } from "../fields/fieldParser";
 
@@ -239,14 +239,15 @@ export class Cube {
         dateField.value.writeUIntBE(date,  0, NetConstants.TIMESTAMP_SIZE);
     }
 
-    public setFields(fields: CubeFields | CubeField): void {
-        if (fields instanceof CubeFields) fields = fields;
-        else if (fields instanceof CubeField) fields = new CubeFields(fields, this.fieldParser.fieldDef);
+    public setFields(fieldsInput: CubeFields | CubeField): void {
+        let fields: CubeFields;
+        if (fieldsInput instanceof CubeFields) fields = fieldsInput;
+        else if (fieldsInput instanceof CubeField) fields = new CubeFields(fieldsInput, this.fieldParser.fieldDef);
         else throw TypeError("Invalid fields type");
 
         if (Settings.RUNTIME_ASSERTIONS) { // TODO: Double-check that it's okay to make these checks optional, i.e. they are not required for input sanitization
             // verify all fields together are less than 1024 bytes
-            let totalLength = fields.getByteLength();
+            const totalLength = fields.getByteLength();
             if (totalLength > NetConstants.CUBE_SIZE) {
                 throw new FieldSizeError(`Cube.setFields(): Can't set fields with a total length of ${totalLength} as Cube size is ${NetConstants.CUBE_SIZE}`);
             }
