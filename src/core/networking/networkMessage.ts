@@ -9,6 +9,37 @@ import { MessageClass, NetConstants, SupportedTransports } from "./networkDefini
 
 import { Buffer } from 'buffer';
 
+export interface CubeFilterOptions {
+  /** no more than this number of Cubes or records */
+  maxCount?: number;
+
+  /** TODO implement -- only Cubes of specified type -- keep in mind Notify Cubes have a different type */
+  cubeType?: CubeType,
+
+  /** TODO implement -- only Cubes with a hashcash level of this or higher */
+  difficulty?: number,
+
+  /** TODO implement -- only Cubes younger than this Unix timestamp */
+  timeMin?: number,
+
+  /** TODO implement -- only Cubes older than this Unix timestamp */
+  timeMax?: number,
+
+  /** only Cubes with a notification field referring to this key */
+  notifies?: Buffer,
+
+  /**
+   * Request to start returning keys from this key.
+   * This is currently only implemented for KeyRequests.
+   * Note that this does not imply a request to sort the returned keys in any
+   * way and the response can and frequently will contain keys smaller than
+   * the supplied one.
+   * The use case of this option is traversing a remote node's store, split
+   * over multiple requests.
+   **/
+  startKey?: CubeKey,
+}
+
 export abstract class NetworkMessage extends BaseField {
   static fromBinary(message: Buffer): NetworkMessage {
     const type: MessageClass = NetworkMessage.MessageClass(message);
@@ -43,6 +74,8 @@ export abstract class NetworkMessage extends BaseField {
 }
 
 export class HelloMessage extends NetworkMessage {
+  constructor(value: Buffer);
+  constructor(peerId: Buffer);
   constructor(value: Buffer) {
     super(MessageClass.Hello, value);
   }
@@ -68,8 +101,8 @@ export class KeyRequestMessage extends NetworkMessage {
   readonly startKey: CubeKey;
 
   constructor(buffer: Buffer);
-  constructor(mode: KeyRequestMode, keyCount: number, startKey?: CubeKey);
-  constructor(modeOrBuffer: KeyRequestMode | Buffer, keyCount?: number, startKey?: CubeKey) {
+  constructor(mode: KeyRequestMode, options?: CubeFilterOptions);
+  constructor(modeOrBuffer: KeyRequestMode|Buffer, options: CubeFilterOptions = {}) {
     if (modeOrBuffer instanceof Buffer) {
       if (modeOrBuffer.length !== NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE) {
         throw new CubeError(`KeyRequestMessage constructor: Invalid buffer length ${modeOrBuffer.length}, must be ${NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE}`);
@@ -85,21 +118,30 @@ export class KeyRequestMessage extends NetworkMessage {
       let offset = 0;
 
       // Write mode
-      buffer.writeUInt8(modeOrBuffer, offset);
+      buffer.writeUIntBE(modeOrBuffer, offset, NetConstants.KEY_REQUEST_MODE_SIZE);
       offset += NetConstants.KEY_REQUEST_MODE_SIZE;
 
       // Write key count
-      buffer.writeUInt32BE(keyCount!, offset);
+      const keyCount = options.maxCount ?? NetConstants.MAX_CUBES_PER_MESSAGE;
+      buffer.writeUIntBE(keyCount, offset, NetConstants.KEY_COUNT_SIZE);
       offset += NetConstants.KEY_COUNT_SIZE;
 
       // Write start key or zeros if not provided
-      if (startKey) {
-        startKey.copy(buffer, offset);
+      let startKey: CubeKey;
+      if (options.startKey) {
+        if (Settings.RUNTIME_ASSERTIONS && options.startKey.length !== NetConstants.CUBE_KEY_SIZE) {
+          logger.trace(`KeyRequestMessage constructor: Received invalid startKey of size ${options.startKey.length}, should be ${NetConstants.CUBE_KEY_SIZE}; will start at zero instead.`);
+        }
+        startKey = options.startKey;
       } else {
-        buffer.fill(0, offset, offset + NetConstants.CUBE_KEY_SIZE);
+        startKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0);
       }
-
+      startKey.copy(buffer, offset);
       super(MessageClass.KeyRequest, buffer);
+
+      // set attributes that we were not allowed to set before calling super
+      this.keyCount = keyCount;
+      this.startKey = startKey;
     }
   }
 }

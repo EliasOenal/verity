@@ -57,7 +57,7 @@ describe('HelloMessage', () => {
 
 describe('KeyRequestMessage', () => {
   it('should create KeyRequestMessage instance', () => {
-    const keyRequestMessage = new KeyRequestMessage(KeyRequestMode.SlidingWindow, 10);
+    const keyRequestMessage = new KeyRequestMessage(KeyRequestMode.SlidingWindow, {maxCount: 10});
     expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
   });
 });

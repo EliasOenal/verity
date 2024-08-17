@@ -610,7 +610,8 @@ export class NetworkPeer extends Peer {
      */
     private sendSpecificKeyRequest(mode: KeyRequestMode, keyCount: number = 1000, startKey?: CubeKey): void {
         logger.trace(`NetworkPeer ${this.toString()}: sending KeyRequest in ${KeyRequestMode[mode]} mode, requesting ${keyCount} keys, starting from ${startKey?.toString('hex')}`);
-        const msg: KeyRequestMessage = new KeyRequestMessage(mode, keyCount, startKey);
+        const msg: KeyRequestMessage = new KeyRequestMessage(mode, {
+            maxCount: keyCount, startKey: startKey});
         this.setTimeout();  // expect a timely reply to this request
         this.sendMessage(msg);
     }
