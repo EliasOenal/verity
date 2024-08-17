@@ -262,3 +262,14 @@ export function writePersistentNotificationBlob(keys: CubeKey[]): Buffer {
   }
   return record;
 }
+
+/**
+ * Estimate Cube store size based on the density of a few succeeding Cube keys.
+ * @param {Buffer} cubeKeys[] - A Buffer containing the hashes of a few succeeding Cubes.
+ * @returns {number} The estimated size of the Cube store in number of Cubes.
+ */
+export function estimateStoreSize(cubeKeys: Buffer[]): number {
+    // Implement me
+    throw new Error("estimateStoreSize: Not implemented");
+    return 0;
+}
