@@ -84,7 +84,9 @@ export class RequestScheduler {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return new Promise<CubeInfo>((resolve, reject) => reject());
 
-    if (this.isAlreadyRequested(keyInput)) return this.isAlreadyRequested(keyInput);
+    let alreadyReq: Promise<CubeInfo>;
+    if (alreadyReq = this.isAlreadyRequested(keyInput))
+      return alreadyReq;
     const key = keyVariants(keyInput);  // normalise input
     const req = new RequestedCube(key.binaryKey, timeout);  // create request
     this.requestedCubes.set(key.keyString, req);  // remember request
