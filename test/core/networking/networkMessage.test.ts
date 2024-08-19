@@ -56,11 +56,272 @@ describe('HelloMessage', () => {
 });
 
 describe('KeyRequestMessage', () => {
-  it('should create KeyRequestMessage instance', () => {
-    const keyRequestMessage = new KeyRequestMessage(KeyRequestMode.SlidingWindow, {maxCount: 10});
-    expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
+  describe('compilation', () => {
+    it('should create a valid KeyRequestMessage in SlidingWindow mode', () => {
+      const keyRequestMessage = new KeyRequestMessage(
+        KeyRequestMode.SlidingWindow, {
+          maxCount: 10,
+          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42),
+      });
+      expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
+      expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
+      // verify length
+      expect(keyRequestMessage.value.length).toEqual(NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE);
+      // verify mode
+      expect(keyRequestMessage.value.readUIntBE(0, NetConstants.KEY_REQUEST_MODE_SIZE)).toEqual(KeyRequestMode.SlidingWindow);
+      // verify key count
+      expect(keyRequestMessage.value.readUIntBE(NetConstants.KEY_REQUEST_MODE_SIZE, NetConstants.KEY_COUNT_SIZE)).toEqual(10);
+      // verify start key
+      expect(keyRequestMessage.value.subarray(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE,  // start index
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE  // end index
+      )).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42));
+    });
+
+    it('should create a valid KeyRequestMessage in Sequential Store Sync mode', () => {
+      const keyRequestMessage = new KeyRequestMessage(
+        KeyRequestMode.SequentialStoreSync, {
+          maxCount: 5,
+          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
+      });
+      expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
+      expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
+      // verify length
+      expect(keyRequestMessage.value.length).toEqual(NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE);
+      // verify mode
+      expect(keyRequestMessage.value.readUIntBE(0, NetConstants.KEY_REQUEST_MODE_SIZE)).toEqual(KeyRequestMode.SequentialStoreSync);
+      // verify key count
+      expect(keyRequestMessage.value.readUIntBE(NetConstants.KEY_REQUEST_MODE_SIZE, NetConstants.KEY_COUNT_SIZE)).toEqual(5);
+      // verify start key
+      expect(keyRequestMessage.value.subarray(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE,  // start index
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE  // end index
+      )).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
+    });
+
+    it('should create a valid KeyRequestMessage in Notification w/ Challenge Constraint mode', () => {
+      const keyRequestMessage = new KeyRequestMessage(
+        KeyRequestMode.NotificationChallenge, {
+          maxCount: 5,
+          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
+          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69),
+          difficulty: 42,
+        }
+      );
+      expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
+      expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
+      // verify length
+      expect(keyRequestMessage.value.length).toEqual(NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE + NetConstants.CHALLENGE_LEVEL_SIZE);
+      // verify mode
+      expect(keyRequestMessage.value.readUIntBE(0, NetConstants.KEY_REQUEST_MODE_SIZE)).toEqual(KeyRequestMode.NotificationChallenge);
+      // verify key count
+      expect(keyRequestMessage.value.readUIntBE(NetConstants.KEY_REQUEST_MODE_SIZE, NetConstants.KEY_COUNT_SIZE)).toEqual(5);
+      // verify start key
+      expect(keyRequestMessage.value.subarray(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE,  // start index
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE  // end index
+      )).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
+      // verify notify
+      expect(keyRequestMessage.value.subarray(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE,  // start index
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE  // end index
+      )).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE, 69));
+      // verify min difficulty
+      expect(keyRequestMessage.value.readUIntBE(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE,  // start index
+        NetConstants.CHALLENGE_LEVEL_SIZE  // read length
+      )).toEqual(42);
+    });
+
+    it('should create a valid KeyRequestMessage in Notification w/ Challenge Constraint mode w/ a default challenge of 0', () => {
+      const keyRequestMessage = new KeyRequestMessage(
+        KeyRequestMode.NotificationChallenge, {
+          maxCount: 5,
+          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
+          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69),
+        }
+      );
+      expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
+      expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
+      // verify length
+      expect(keyRequestMessage.value.length).toEqual(NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE + NetConstants.CHALLENGE_LEVEL_SIZE);
+      // verify mode
+      expect(keyRequestMessage.value.readUIntBE(0, NetConstants.KEY_REQUEST_MODE_SIZE)).toEqual(KeyRequestMode.NotificationChallenge);
+      // verify key count
+      expect(keyRequestMessage.value.readUIntBE(NetConstants.KEY_REQUEST_MODE_SIZE, NetConstants.KEY_COUNT_SIZE)).toEqual(5);
+      // verify start key
+      expect(keyRequestMessage.value.subarray(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE,  // start index
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE  // end index
+      )).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
+      // verify notify
+      expect(keyRequestMessage.value.subarray(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE,  // start index
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE  // end index
+      )).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE, 69));
+      // verify min difficulty
+      expect(keyRequestMessage.value.readUIntBE(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE,  // start index
+        NetConstants.CHALLENGE_LEVEL_SIZE  // read length
+      )).toEqual(0);
+    });
+
+    it('should create a valid KeyRequestMessage in Notification w/ Timestamp constraint mode', () => {
+      const keyRequestMessage = new KeyRequestMessage(
+        KeyRequestMode.NotificationTimestamp, {
+          maxCount: 5,
+          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
+          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69),
+          timeMin: 42,
+          timeMax: 1337,
+      });
+      expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
+      expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
+      // verify length
+      expect(keyRequestMessage.value.length).toEqual(
+        NetConstants.KEY_REQUEST_MODE_SIZE +
+        NetConstants.KEY_COUNT_SIZE +
+        NetConstants.CUBE_KEY_SIZE +
+        NetConstants.NOTIFY_SIZE +
+        2*NetConstants.TIMESTAMP_SIZE
+      );
+      // verify mode
+      expect(keyRequestMessage.value.readUIntBE(0, NetConstants.KEY_REQUEST_MODE_SIZE)).toEqual(KeyRequestMode.NotificationTimestamp);
+      // verify key count
+      expect(keyRequestMessage.value.readUIntBE(NetConstants.KEY_REQUEST_MODE_SIZE, NetConstants.KEY_COUNT_SIZE)).toEqual(5);
+      // verify start key
+      expect(keyRequestMessage.value.subarray(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE,  // start index
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE  // end index
+      )).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
+      // verify notify
+      expect(keyRequestMessage.value.subarray(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE,  // start index
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE  // end index
+      )).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE, 69));
+      // verify timestamps
+      expect(keyRequestMessage.value.readUIntBE(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE,  // start index
+        NetConstants.TIMESTAMP_SIZE  // read length
+      )).toEqual(42);
+      expect(keyRequestMessage.value.readUIntBE(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE + NetConstants.TIMESTAMP_SIZE,  // start index
+        NetConstants.TIMESTAMP_SIZE  // read length
+      )).toEqual(1337);
+    });
+
+    it('should create a valid KeyRequestMessage in Notification w/ Timestamp constraint mode with default timestamps', () => {
+      const keyRequestMessage = new KeyRequestMessage(
+        KeyRequestMode.NotificationTimestamp, {
+          maxCount: 5,
+          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
+          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69),
+      });
+      expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
+      expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
+      // verify length
+      expect(keyRequestMessage.value.length).toEqual(
+        NetConstants.KEY_REQUEST_MODE_SIZE +
+        NetConstants.KEY_COUNT_SIZE +
+        NetConstants.CUBE_KEY_SIZE +
+        NetConstants.NOTIFY_SIZE +
+        2*NetConstants.TIMESTAMP_SIZE
+      );
+      // verify mode
+      expect(keyRequestMessage.value.readUIntBE(0, NetConstants.KEY_REQUEST_MODE_SIZE)).toEqual(KeyRequestMode.NotificationTimestamp);
+      // verify key count
+      expect(keyRequestMessage.value.readUIntBE(NetConstants.KEY_REQUEST_MODE_SIZE, NetConstants.KEY_COUNT_SIZE)).toEqual(5);
+      // verify start key
+      expect(keyRequestMessage.value.subarray(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE,  // start index
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE  // end index
+      )).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
+      // verify notify
+      expect(keyRequestMessage.value.subarray(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE,  // start index
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE  // end index
+      )).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE, 69));
+      // verify min timestamp
+      expect(keyRequestMessage.value.subarray(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE,  // start index
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE + NetConstants.TIMESTAMP_SIZE  // end index
+      )).toEqual(Buffer.alloc(NetConstants.TIMESTAMP_SIZE, 0));
+      // verify max timestamp
+      expect(keyRequestMessage.value.subarray(
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE + NetConstants.TIMESTAMP_SIZE,  // start index
+        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE + 2*NetConstants.TIMESTAMP_SIZE  // end index
+      )).toEqual(Buffer.alloc(NetConstants.TIMESTAMP_SIZE, 0xff));
+    });
+  });  // compilation
+
+  describe('round trip', () => {
+    it('should decompile a valid KeyRequestMessage in SlidingWindow mode', () => {
+      const compiling = new KeyRequestMessage(KeyRequestMode.SlidingWindow, {
+        maxCount: 5,
+        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
+      });
+      const msg = new KeyRequestMessage(compiling.value);
+
+      expect(msg.type).toEqual(MessageClass.KeyRequest);
+      expect(msg.value).toEqual(compiling.value);
+
+      expect(msg.keyCount).toEqual(5);
+      expect(msg.startKey).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
+    });
+
+    it('should decompile a valid KeyRequestMessage in Sequential Store Sync mode', () => {
+      const compiling = new KeyRequestMessage(KeyRequestMode.SequentialStoreSync, {
+        maxCount: 5,
+        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
+      });
+      const msg = new KeyRequestMessage(compiling.value);
+
+      expect(msg.type).toEqual(MessageClass.KeyRequest);
+      expect(msg.value).toEqual(compiling.value);
+
+      expect(msg.keyCount).toEqual(5);
+      expect(msg.startKey).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
+    });
+
+    it('should decompile a valid KeyRequestMessage in Notification w/ Challenge Constraint mode', () => {
+      const compiling = new KeyRequestMessage(KeyRequestMode.NotificationChallenge, {
+        maxCount: 5,
+        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
+        notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69),
+        difficulty: 42,
+      });
+      const msg = new KeyRequestMessage(compiling.value);
+
+      expect(msg.type).toEqual(MessageClass.KeyRequest);
+      expect(msg.value).toEqual(compiling.value);
+
+      expect(msg.keyCount).toEqual(5);
+      expect(msg.startKey).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
+      expect(msg.notifies).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE, 69));
+      expect(msg.difficulty).toEqual(42);
+    });
+
+    it('should decompile a valid KeyRequestMessage in Notification w/ Timestamp Constraint mode', () => {
+      const compiling = new KeyRequestMessage(KeyRequestMode.NotificationTimestamp, {
+        maxCount: 5,
+        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
+        notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69),
+        timeMin: 42,
+        timeMax: 31337,
+      });
+      const msg = new KeyRequestMessage(compiling.value);
+
+      expect(msg.type).toEqual(MessageClass.KeyRequest);
+      expect(msg.value).toEqual(compiling.value);
+
+      expect(msg.keyCount).toEqual(5);
+      expect(msg.startKey).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
+      expect(msg.notifies).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE, 69));
+      expect(msg.timeMin).toEqual(42);
+      expect(msg.timeMax).toEqual(31337);
+    });
   });
-});
+});  // KeyRequestMessage
 
 describe('KeyResponseMessage, CubeRequestMessage and CubeResponseMessage', () => {
   let cube1: Cube, cube2: Cube, cube3: Cube;
