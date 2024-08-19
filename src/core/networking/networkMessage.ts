@@ -1,11 +1,11 @@
 import { BaseField } from "../fields/baseField";
-import { CubeError, CubeKey, CubeType } from "../cube/cube.definitions";
+import { CubeError, CubeKey, CubeType, FieldError } from "../cube/cube.definitions";
 import { CubeInfo, CubeMeta } from "../cube/cubeInfo";
 import { logger } from "../logger";
 import { AddressAbstraction } from "../peering/addressing";
 import { Peer } from "../peering/peer";
-import { Settings, VerityError } from "../settings";
-import { MessageClass, NetConstants, SupportedTransports } from "./networkDefinitions";
+import { ApiMisuseError, Settings, VerityError } from "../settings";
+import { MessageClass, NetConstants, NetworkError, SupportedTransports } from "./networkDefinitions";
 
 import { Buffer } from 'buffer';
 
@@ -93,55 +93,194 @@ export enum KeyRequestMode {
   Legacy = 0x00,
   SlidingWindow = 0x01,
   SequentialStoreSync = 0x02,
+  NotificationChallenge = 0x03,
+  NotificationTimestamp = 0x04,
 }
 
 export class KeyRequestMessage extends NetworkMessage {
-  readonly mode: KeyRequestMode;
-  readonly keyCount: number;
-  readonly startKey: CubeKey;
+  /**
+   * The 1.0 wire format is non-orthogonal and only allowed a very limited
+   * combination of filters.
+   * Hopefully we'll fix that in the next one.
+   */
+  static filterLegal(filter: CubeFilterOptions): boolean {
+    if (filter.cubeType ||
+      (filter.difficulty && !filter.notifies) ||
+      ((filter.timeMin || filter.timeMax) && !filter.notifies) ||
+      (filter.difficulty && (filter.timeMax || filter.timeMin))
+    ) {
+      return false;
+    } else return true; // maybe, if I didn't miss something
+  }
+
+  static compile(mode: KeyRequestMode, options: CubeFilterOptions = {}): Buffer {
+    if (!KeyRequestMessage.filterLegal(options)) {
+      logger.warn("KeyRequestMessage constructor: The supplied combinations of CubeFilterOptions is not supported in the 1.0 wire format, will ignore some of them. This should not happen.");  // none of that would be necessary with a proper orthogonal wire format
+    }
+    let bufferSize = NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE;
+    if (mode === KeyRequestMode.NotificationChallenge) {
+      bufferSize += NetConstants.NOTIFY_SIZE + NetConstants.CHALLENGE_LEVEL_SIZE;
+    } else if (mode === KeyRequestMode.NotificationTimestamp) {
+      bufferSize += NetConstants.NOTIFY_SIZE + 2*NetConstants.TIMESTAMP_SIZE;
+    }
+
+    const buffer = Buffer.alloc(bufferSize);
+    let offset = 0;
+
+    // Write mode
+    buffer.writeUIntBE(mode, offset, NetConstants.KEY_REQUEST_MODE_SIZE);
+    offset += NetConstants.KEY_REQUEST_MODE_SIZE;
+
+    // Write key count
+    const keyCount = options.maxCount ?? NetConstants.MAX_CUBES_PER_MESSAGE;
+    buffer.writeUIntBE(keyCount, offset, NetConstants.KEY_COUNT_SIZE);
+    offset += NetConstants.KEY_COUNT_SIZE;
+
+    // Write start key or zeros if not provided
+    let startKey: CubeKey;
+    if (options.startKey) {
+      if (Settings.RUNTIME_ASSERTIONS && options.startKey.length !== NetConstants.CUBE_KEY_SIZE) {
+        logger.trace(`KeyRequestMessage constructor: Received invalid startKey of size ${options.startKey.length}, should be ${NetConstants.CUBE_KEY_SIZE}; will start at zero instead.`);
+      }
+      startKey = options.startKey;
+    } else {
+      startKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0);
+    }
+    startKey.copy(buffer, offset);
+    offset += NetConstants.CUBE_KEY_SIZE;
+
+    if (mode === KeyRequestMode.NotificationChallenge ||
+        mode === KeyRequestMode.NotificationTimestamp) {
+      // write notification recipient key... but do some checks first
+      if (options.notifies === undefined) {
+        throw new ApiMisuseError("KeyRequestMessage constructor: Cannot construct a KeyRequest in a Notification mode if you don't supply the notification recipient key.");  // none of that would be necessary with a proper orthogonal wire format
+      }
+      if (options.notifies.length !== NetConstants.NOTIFY_SIZE) {
+        throw new FieldError(`KeyRequestMessage constructor: Got invalid notify recipient of length ${options.notifies.length}, should be ${NetConstants.NOTIFY_SIZE}`);
+      }
+      options.notifies.copy(buffer, offset);
+      offset += NetConstants.NOTIFY_SIZE;
+
+      // if in Notification w/ Challenge constraint mode, write the minimum challenge
+      if (mode === KeyRequestMode.NotificationChallenge) {
+        buffer.writeUIntBE(options.difficulty ?? 0, offset, NetConstants.CHALLENGE_LEVEL_SIZE);
+        offset += NetConstants.CHALLENGE_LEVEL_SIZE;
+      }
+
+      // if in Notification w/ Timestamp constraint mode, write the timestamps
+      if (mode === KeyRequestMode.NotificationTimestamp) {
+        buffer.writeUIntBE(options.timeMin ?? 0, offset, NetConstants.TIMESTAMP_SIZE);
+        offset += NetConstants.TIMESTAMP_SIZE;
+        buffer.writeUIntBE(options.timeMax ?? Math.pow(2, 8*NetConstants.TIMESTAMP_SIZE)-1, offset, NetConstants.TIMESTAMP_SIZE);
+        offset += NetConstants.TIMESTAMP_SIZE;
+      }
+    }
+
+    return buffer;
+  }
+
+  get mode(): KeyRequestMode {
+    return this.value.readUInt8(0);
+  }
+
+  get keyCount(): number {
+    return this.value.readUInt32BE(NetConstants.KEY_REQUEST_MODE_SIZE);
+  }
+
+  get startKey(): CubeKey {
+    const startIndex: number =
+      NetConstants.KEY_REQUEST_MODE_SIZE +
+      NetConstants.KEY_COUNT_SIZE;
+    const endIndex: number =
+      startIndex +
+      NetConstants.CUBE_KEY_SIZE;
+    return this.value.subarray(startIndex, endIndex) as CubeKey;
+  }
+
+  get notifies(): Buffer {
+    if (this.mode !== KeyRequestMode.NotificationChallenge &&
+        this.mode !== KeyRequestMode.NotificationTimestamp) {
+      return undefined;
+    }
+    const startIndex: number =
+      NetConstants.KEY_REQUEST_MODE_SIZE +
+      NetConstants.KEY_COUNT_SIZE +
+      NetConstants.CUBE_KEY_SIZE;
+    const endIndex: number =
+      startIndex +
+      NetConstants.NOTIFY_SIZE;
+    if (this.value.length < endIndex) {
+      logger.warn("KeyRequestMessage.notifies: Invalid KeyRequestMessage. Cannot fetch notification recipient key as message is too short.");
+      return undefined;
+    }
+    return this.value.subarray(startIndex, endIndex);
+  }
+
+  get difficulty(): number {
+    if (this.mode !== KeyRequestMode.NotificationChallenge) {
+      return undefined;
+    }
+    const startIndex: number =
+      NetConstants.KEY_REQUEST_MODE_SIZE +
+      NetConstants.KEY_COUNT_SIZE +
+      NetConstants.CUBE_KEY_SIZE +
+      NetConstants.NOTIFY_SIZE;
+    const endIndex: number =
+      startIndex +
+      NetConstants.CHALLENGE_LEVEL_SIZE;
+    if (this.value.length < endIndex) {
+      logger.warn("KeyRequestMessage.difficulty: Invalid KeyRequestMessage. Cannot fetch difficulty as message is too short.");
+      return undefined;
+    }
+    return this.value.readUIntBE(startIndex, NetConstants.CHALLENGE_LEVEL_SIZE);
+  }
+
+  get timeMin(): number {
+    if (this.mode !== KeyRequestMode.NotificationTimestamp) {
+      return undefined;
+    }
+    const startIndex: number =
+      NetConstants.KEY_REQUEST_MODE_SIZE +
+      NetConstants.KEY_COUNT_SIZE +
+      NetConstants.CUBE_KEY_SIZE +
+      NetConstants.NOTIFY_SIZE;
+    const endIndex: number =
+      startIndex +
+      NetConstants.TIMESTAMP_SIZE;
+    if (this.value.length < endIndex) {
+      logger.warn("KeyRequestMessage.timeMin: Invalid KeyRequestMessage. Cannot fetch minimum timestamp as message is too short.");
+      return undefined;
+    }
+    return this.value.readUIntBE(startIndex, NetConstants.TIMESTAMP_SIZE);
+  }
+
+  get timeMax(): number {
+    if (this.mode !== KeyRequestMode.NotificationTimestamp) {
+      return undefined;
+    }
+    const startIndex: number =
+      NetConstants.KEY_REQUEST_MODE_SIZE +
+      NetConstants.KEY_COUNT_SIZE +
+      NetConstants.CUBE_KEY_SIZE +
+      NetConstants.NOTIFY_SIZE +
+      NetConstants.TIMESTAMP_SIZE;
+    const endIndex: number =
+      startIndex +
+      NetConstants.TIMESTAMP_SIZE;
+    if (this.value.length < endIndex) {
+      logger.warn("KeyRequestMessage.timeMax: Invalid KeyRequestMessage. Cannot fetch maximum timestamp as message is too short.");
+      return undefined;
+    }
+    return this.value.readUIntBE(startIndex, NetConstants.TIMESTAMP_SIZE);
+  }
 
   constructor(buffer: Buffer);
   constructor(mode: KeyRequestMode, options?: CubeFilterOptions);
   constructor(modeOrBuffer: KeyRequestMode|Buffer, options: CubeFilterOptions = {}) {
     if (modeOrBuffer instanceof Buffer) {
-      if (modeOrBuffer.length !== NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE) {
-        throw new CubeError(`KeyRequestMessage constructor: Invalid buffer length ${modeOrBuffer.length}, must be ${NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE}`);
-      }
       super(MessageClass.KeyRequest, modeOrBuffer);
-      this.mode = this.value.readUInt8(0);
-      this.keyCount = this.value.readUInt32BE(NetConstants.KEY_REQUEST_MODE_SIZE);
-      this.startKey = this.value.subarray(NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE, NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE) as CubeKey;
     } else {
-      const bufferSize = NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE;
-
-      const buffer = Buffer.alloc(bufferSize);
-      let offset = 0;
-
-      // Write mode
-      buffer.writeUIntBE(modeOrBuffer, offset, NetConstants.KEY_REQUEST_MODE_SIZE);
-      offset += NetConstants.KEY_REQUEST_MODE_SIZE;
-
-      // Write key count
-      const keyCount = options.maxCount ?? NetConstants.MAX_CUBES_PER_MESSAGE;
-      buffer.writeUIntBE(keyCount, offset, NetConstants.KEY_COUNT_SIZE);
-      offset += NetConstants.KEY_COUNT_SIZE;
-
-      // Write start key or zeros if not provided
-      let startKey: CubeKey;
-      if (options.startKey) {
-        if (Settings.RUNTIME_ASSERTIONS && options.startKey.length !== NetConstants.CUBE_KEY_SIZE) {
-          logger.trace(`KeyRequestMessage constructor: Received invalid startKey of size ${options.startKey.length}, should be ${NetConstants.CUBE_KEY_SIZE}; will start at zero instead.`);
-        }
-        startKey = options.startKey;
-      } else {
-        startKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0);
-      }
-      startKey.copy(buffer, offset);
-      super(MessageClass.KeyRequest, buffer);
-
-      // set attributes that we were not allowed to set before calling super
-      this.keyCount = keyCount;
-      this.startKey = startKey;
+      super(MessageClass.KeyRequest, KeyRequestMessage.compile(modeOrBuffer, options));
     }
   }
 }
