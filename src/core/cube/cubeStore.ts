@@ -308,7 +308,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
    *   just in case somebody asks for it again.
    */
   async hasCube(key: CubeKey | string): Promise<boolean> {
-    const cubeInfo = await this.getCubeInfo(key);
+    const cubeInfo = await this.getCubeInfo(key, true);
     if (cubeInfo !== undefined) return true;
     else return false;
   }
@@ -324,7 +324,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     return count;
   }
 
-  async getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo> {
+  async getCubeInfo(keyInput: CubeKey | string, noLogErr: boolean = false): Promise<CubeInfo> {
     const key = keyVariants(keyInput);
     // get from cache if we have it...
     const cached = this.cubesWeakRefCache?.get(key.keyString);
@@ -336,7 +336,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     else {  // cache miss
       // ...  or fetch from persistence
       this.cacheStatistics.misses++;
-      const binaryCube: Buffer = await this.cubePersistence.get(key.binaryKey);
+      const binaryCube: Buffer = await this.cubePersistence.get(key.binaryKey, noLogErr);
       if (binaryCube !== undefined) {
         try {  // could fail e.g. on invalid binary data
           const cubeInfo = new CubeInfo({
