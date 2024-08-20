@@ -197,10 +197,34 @@ export class Cube {
 
     toString(): string {
         let ret = "";
-        if (this._cubeType == CubeType.FROZEN) ret = "Frozen Cube";
-        else if (this._cubeType == CubeType.MUC) ret = "MUC";
-        else if (this._cubeType == CubeType.PIC) ret = "PIC";
-        else ret = "Invalid or unknown type of Cube"
+        switch (this._cubeType) {
+            case CubeType.FROZEN:
+                ret = "Frozen Cube";
+                break;
+            case CubeType.FROZEN_NOTIFY:
+                ret = "Frozen Notification Cube";
+                break;
+            case CubeType.MUC:
+                ret = "MUC";
+                break;
+            case CubeType.MUC_NOTIFY:
+                ret = "Notification MUC";
+            case CubeType.PIC:
+                ret = "PIC";
+                break;
+            case CubeType.PIC_NOTIFY:
+                ret = "Notification PIC";
+                break;
+            case CubeType.PMUC:
+                ret = "PMUC";
+                break;
+            case CubeType.PMUC_NOTIFY:
+                ret = "Notification PMUC";
+                break;
+            default:
+                ret = "Invalid or unknown type of Cube";
+                break;
+        }
         ret += ` containing ${this.fields.toString()}`;
         return ret;
     }
@@ -404,7 +428,7 @@ export class Cube {
     private async generateCubeHash(): Promise<void> {
         if (this.binaryData === undefined) {
             logger.warn("Cube: generateCubeHash called on undefined binary data -- it's not a problem, but it's not supposed to happen either");
-            this.compile();
+            await this.compile();
         }
         const nonceField = this._fields.getFirst(CubeFieldType.NONCE);
         if (!nonceField) {
