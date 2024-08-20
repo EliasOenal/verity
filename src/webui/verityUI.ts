@@ -61,6 +61,7 @@ export class VerityUI implements ControllerContext {
     options.navItems ??= defaultNavItems;
     options.initialNav ??= defaultInitialNav;
     options.enableCubePersistence ??= EnableCubePersitence.PRIMARY;
+    options.inMemoryLevelDB ??= false;
     options.lightNode ??= true;
     options.useRelaying ??= true;
     options.family ??= cciFamily;

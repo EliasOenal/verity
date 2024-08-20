@@ -42,6 +42,7 @@ class VerityCmdClient {
     options.peerExchange ??= true;
     options.announceToTorrentTrackers ??= true;
     options.enableCubePersistence ??= EnableCubePersitence.PRIMARY;
+    options.inMemoryLevelDB ??= false;
 
     if (isNode) {  // Provide debugging hotkeys
       readline.emitKeypressEvents(process.stdin);
