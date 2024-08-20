@@ -169,7 +169,7 @@ describe("Identity (MUC storage)", () => {
         expect(restored.name).toEqual("Probator condendi repetitionis " + i);
         expect(parseInt(restored.avatar.seedString, 16)).toEqual(i);
       }
-    }, 200000);
+    }, 5000);
 
     it('does not store a default avatar to MUC', async() => {
       const id: Identity = await Identity.Create(

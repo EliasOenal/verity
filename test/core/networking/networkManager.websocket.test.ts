@@ -930,7 +930,7 @@ describe('networkManager - WebSocket connections', () => {
         manager2.shutdown(),
         manager3.shutdown()
       ]);
-    }, 20000);
+    }, 5000);
 
     // This test runs NetworkManager but actually tests a PeerDB feature
     it('should strongly prefer auto-connecting to peers with good reputation score while still giving low reputation ones a shot once in a while', async () => {

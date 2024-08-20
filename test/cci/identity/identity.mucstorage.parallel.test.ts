@@ -110,6 +110,6 @@ describe("Identity (separate MUC storage test suite for long-running tests)", ()
       const mucTimeDistance = thirdMucDate - firstMucDate;
       expect(mucTimeDistance).toBeGreaterThanOrEqual(5);
       expect(mucTimeDistance).toBeLessThanOrEqual(10);
-    }, 20000);
+    }, 10000);
   });
 });
