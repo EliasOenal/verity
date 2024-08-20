@@ -705,6 +705,11 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     }
   }
 
+  get getCacheStatistics(): { hits: number, misses: number }
+  {
+    return this.cacheStatistics;
+  }
+
   async shutdown(): Promise<void> {
     await Promise.all([
       this.cubePersistence?.shutdown(),

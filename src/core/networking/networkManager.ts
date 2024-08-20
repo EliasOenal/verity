@@ -654,6 +654,9 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         output += `\nLocal Store\n`;
         output += `Cubes: ${await this.cubeStore.getNumberOfStoredCubes()}\n`;
         output += `Memory: ${await this.cubeStore.getNumberOfStoredCubes() * NetConstants.CUBE_SIZE}\n`;
+        let cacheStats = await this.cubeStore.getCacheStatistics;
+        let cacheRatio = cacheStats.hits / (cacheStats.hits + cacheStats.misses);
+        output += `Cache: ${cacheStats.hits} hits, ${cacheStats.misses} misses, ${cacheRatio.toFixed(2)} hit ratio\n`;
 
         output += `\nNetwork Total\n`;
         const totalStats = this.getNetStatistics();
