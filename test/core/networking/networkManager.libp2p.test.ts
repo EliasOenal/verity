@@ -293,7 +293,7 @@ describe('networkManager - libp2p connections', () => {
     const promise2_shutdown = manager2.shutdown();
     const promise3_shutdown = manager3.shutdown();
     await Promise.all([promise1_shutdown, promise2_shutdown, promise3_shutdown]);
-  }, 10000);
+  }, 5000);
 
 
   it('syncs MUC updates', async () => {
@@ -404,7 +404,7 @@ describe('networkManager - libp2p connections', () => {
     const promise1_shutdown = manager1.shutdown();
     const promise2_shutdown = manager2.shutdown();
     await Promise.all([promise1_shutdown, promise2_shutdown]);
-  }, 10000);
+  }, 5000);
 
 
   it('should block a peer when trying to connect to itself', async () => {
@@ -757,7 +757,7 @@ describe('networkManager - libp2p connections', () => {
     expect(b1libp2pTransport.node.status).toEqual("stopped");
     expect(b2libp2pTransport.node.status).toEqual("stopped");
     expect(serverlibp2pTransport.node.status).toEqual("stopped");
-  }, 300000);
+  }, 5000);
 
 
 
@@ -903,7 +903,7 @@ describe('networkManager - libp2p connections', () => {
 
     await browser1.shutdown();
     await browser2.shutdown();
-  }, 100000);
+  }, 5000);
 
   it.todo('should fail gracefully when trying to connect to an invalid address');
 

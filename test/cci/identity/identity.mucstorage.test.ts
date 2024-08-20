@@ -48,7 +48,7 @@ describe("Identity (MUC storage)", () => {
       const restored: Identity = await Identity.Construct(cubeStore, restoredmuc);
       expect(restored).toBeInstanceOf(Identity);
       expect(restored.name).toEqual("Probator Identitatum");
-    }, 10000);
+    }, 5000);
 
     it('should store and retrieve an Identity to and from a MUC object', async () => {
       const original: Identity = await Identity.Create(
@@ -100,7 +100,7 @@ describe("Identity (MUC storage)", () => {
       expect((await cubeStore.getCube(restored.posts[0]) as Cube).fields.getFirst(
         cciFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
-    }, 10000);
+    }, 5000);
 
     it('should store and retrieve an Identity to and from a binary MUC', async () => {
       const original: Identity = await Identity.Create(
@@ -138,7 +138,7 @@ describe("Identity (MUC storage)", () => {
       expect(restored.posts.length).toEqual(1);
       expect((await cubeStore.getCube(restored.posts[0]) as Cube).fields.getFirst(cciFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
-    }, 10000);
+    }, 5000);
 
     it('still works even if I update my Identity really really often', async() => {
       const idTestOptions = {

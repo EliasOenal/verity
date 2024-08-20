@@ -477,7 +477,7 @@ describe('ZwAnnotationEngine', () => {
         expect(restoredAuthor.name).
           toEqual("Probator Attributionis Auctoris et Persona Gravissima in Generali");
       }
-    }, 30000);
+    }, 5000);
 
     it('should identify the author of a post after the key was converted to a string', async () => {
       const id: Identity = await Identity.Create(

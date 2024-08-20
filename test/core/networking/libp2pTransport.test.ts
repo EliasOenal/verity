@@ -60,7 +60,7 @@ describe('libp2p transport', () => {
     await clientConn.close();
     await serverConn.close();
     await transport.shutdown();
-  }, 1000000);
+  }, 5000);
 
 
   it.todo('automatically creates server objects as per supplied spec');

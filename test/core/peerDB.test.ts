@@ -20,7 +20,7 @@ describe ('PeerDB', () => {
 
         // Check if we received any new peers
         expect(newPeers.length).toBeGreaterThan(0);
-    }, 10000);
+    }, 5000);
 
     it('should correctly parse a buffer of peers', () => {
         const peers = Buffer.from([192, 168, 0, 1, 0x1f, 0x90]); // IP: 192.168.0.1, Port: 8080
