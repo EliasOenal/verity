@@ -124,9 +124,11 @@ describe('cubeStore', () => {
     // So should all other Cube-sculpting tests in other units.
 
     describe.each([
-      { inMemoryLevelDB: true, },
-      { inMemoryLevelDB: false, },
-    ])('tests run for all three persistence levels', (testOptions) => {
+      { inMemoryLevelDB: true, cubeCacheEnabled: true, },
+      { inMemoryLevelDB: true, cubeCacheEnabled: false, },
+      { inMemoryLevelDB: false, cubeCacheEnabled: true, },
+      { inMemoryLevelDB: false, cubeCacheEnabled: false, },
+    ])('tests run for both in-memory and persistent stores, both with and without weak cache', (testOptions) => {
       describe('core level', () => {
         const cubeStoreOptions: CubeStoreOptions = {
           requiredDifficulty: reducedDifficulty,
