@@ -7,7 +7,6 @@ import { Peer } from "./peering/peer";
 import { PeerDB } from "./peering/peerDB";
 
 import { logger } from "./logger";
-import { LevelPersistence } from "./cube/levelPersistence";
 import { RequestScheduler } from "./networking/cubeRetrieval/requestScheduler";
 
 interface InitialisationOptions {
@@ -53,6 +52,7 @@ export class VerityNode implements VerityNodeIf {
     // set default options
     options.transports ??= new Map();  // TODO use sensible default
     options.initialPeers ??= defaultInitialPeers;
+    options.inMemoryLevelDB ??= true;
 
     this.cubeStore = new CubeStore(options);
     // find a suitable port number for tracker announcement

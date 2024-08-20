@@ -2,7 +2,7 @@
 import { ApiMisuseError, Settings } from "../settings";
 import { Cube, coreCubeFamily } from "./cube";
 import { CubeInfo, CubeMeta } from "./cubeInfo";
-import { LevelPersistence, LevelPersistenceOptions } from "./levelPersistence";
+import { LevelBackend, LevelBackendOptions } from "./levelBackend";
 import { CubeType, CubeKey, CubeFieldType } from "./cube.definitions";
 import { CubeFamilyDefinition } from "./cubeFields";
 import { cubeContest, shouldRetainCube, getCurrentEpoch, keyVariants, writePersistentNotificationBlob, parsePersistentNotificationBlob } from "./cubeUtil";
@@ -41,6 +41,7 @@ export interface CubeStoreOptions {
   cubeDbVersion?: number,
   notifyDbName?: string,
   notifyDbVersion?: number,
+  inMemoryLevelDB?: boolean,
 
   /**
    * This option is only relevant if enableCubePersistence is set to PRIMARY.
@@ -111,14 +112,14 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   private notifications: Map<string, CubeInfo[]> | WeakValueMap<string, CubeInfo[]>;
 
   /** Refers to the persistant cube storage database, if available and enabled */
-  private cubePersistence: LevelPersistence = undefined;
-  private notificationPersistence: LevelPersistence = undefined;
+  private cubePersistence: LevelBackend = undefined;
+  private notificationPersistence: LevelBackend = undefined;
   /** The Tree of Wisdom maps cube keys to their hashes. */
   private treeOfWisdom: TreeOfWisdom = undefined;
 
   constructor(readonly options: CubeStoreOptions) {
     super();
-    this.options = options as CubeStoreOptions & LevelPersistenceOptions;
+    this.options = options as CubeStoreOptions & LevelBackendOptions;
     // set default options if none specified
     this.options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
     this.options.family ??= coreCubeFamily;
@@ -156,13 +157,15 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       }
       // When using persistent storage, the CubeStore is ready when the
       // persistence layer is ready.
-      this.cubePersistence = new LevelPersistence({
+      this.cubePersistence = new LevelBackend({
         dbName: this.options.cubeDbName ?? Settings.CUBEDB_NAME,
         dbVersion: this.options.cubeDbVersion ?? Settings.CUBEDB_VERSION,
+        inMemoryLevelDB: this.options.inMemoryLevelDB ?? true,
       });
-      this.notificationPersistence = new LevelPersistence({
+      this.notificationPersistence = new LevelBackend({
         dbName: this.options.notifyDbName ?? Settings.NOTIFYDB_NAME,
         dbVersion: this.options.notifyDbVersion ?? Settings.NOTIFYDB_VERSION,
+        inMemoryLevelDB: this.options.inMemoryLevelDB ?? true,
       });
       Promise.all(
         [this.cubePersistence.ready, this.notificationPersistence.ready]

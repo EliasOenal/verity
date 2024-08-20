@@ -1,4 +1,4 @@
-// LevelPersistence.ts
+// LevelBackend.ts
 import { EventEmitter } from 'events';
 import { Settings, VerityError } from "../settings";
 
@@ -7,7 +7,9 @@ import { logger } from '../logger';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import { Buffer } from 'buffer';
 import { KeyIteratorOptions, Level, ValueIteratorOptions } from 'level';
-import * as ClassicLevel from 'classic-level'
+import { ClassicLevel } from 'classic-level';
+import { MemoryLevel } from 'memory-level';
+import { AbstractLevel } from 'abstract-level';
 import { CubeIteratorOptions } from './cubeStore';
 import { keyVariants } from './cubeUtil';
 
@@ -15,37 +17,47 @@ import { keyVariants } from './cubeUtil';
 // ... now that we generalized this Class, any deleting of unparseable Cubes
 //     would have to be done in the CubeStore
 
-export interface LevelPersistenceOptions {
+export interface LevelBackendOptions {
   dbName: string;
   dbVersion: number;
+  inMemoryLevelDB: boolean;
 }
 
-export class LevelPersistence {
+export class LevelBackend {
   readonly ready: Promise<void>;
-  private db: Level<Buffer, Buffer>
+  private db: any; // Level or MemoryLevel
 
-  constructor(readonly options: LevelPersistenceOptions) {
-    // Set database name, add .db file extension for non-browser environments
-    if (!isBrowser && !isWebWorker) this.options.dbName += ".db";
-    // open the database
-    this.db = new Level<Buffer, Buffer>(
-      this.options.dbName,
-      {
+  constructor(readonly options: LevelBackendOptions) {
+    if (options.inMemoryLevelDB == true) {
+      this.db = new MemoryLevel<Buffer, Buffer>({
         keyEncoding: 'buffer',
         valueEncoding: 'buffer',
-        version: options.dbVersion,
-        compression: false, // Cubes are assumed high entropy
-        cacheSize: 128 * 1024 * 1024, // 128MB LRU cache
-        writeBufferSize: 16 * 1024 * 1024, // 16MB write buffer
-        blockRestartInterval: 32, // This compresses keys with common prefixes
-        maxFileSize: 16 * 1024 * 1024, // 16MB so the amount of files doesn't get out of hand
-        maxOpenFiles: 5000, // This should take us to 80GB of data, we should benchmark it at that point
       });
-    this.ready = new Promise<void>((resolve, reject) => {
+      logger.debug("LevelBackend: Using in-memory LevelDB, data will not be persisted");
+    } else {
+      // Set database name, add .db file extension for non-browser environments
+      if (!isBrowser && !isWebWorker) this.options.dbName += ".db";
+      // open the database
+      this.db = new Level<Buffer, Buffer>(
+        this.options.dbName,
+        {
+          keyEncoding: 'buffer',
+          valueEncoding: 'buffer',
+          version: options.dbVersion,
+          compression: false, // Cubes are assumed high entropy
+          cacheSize: 128 * 1024 * 1024, // 128MB LRU cache
+          writeBufferSize: 16 * 1024 * 1024, // 16MB write buffer
+          blockRestartInterval: 32, // This compresses keys with common prefixes
+          maxFileSize: 16 * 1024 * 1024, // 16MB so the amount of files doesn't get out of hand
+          maxOpenFiles: 5000, // This should take us to 80GB of data, we should benchmark it at that point
+        });
+        logger.debug("LevelBackend: Using persistent LevelDB, data will be persisted");
+      }
+      this.ready = new Promise<void>((resolve, reject) => {
       this.db.open().then(() => {
         resolve();
       }).catch((error) => {
-        logger.error("LevelPersistence: Could not open DB: " + error);
+        logger.error("LevelBackend: Could not open DB: " + error);
         reject(error);
       });
     });
@@ -53,28 +65,28 @@ export class LevelPersistence {
 
   store(key: Buffer, value: Buffer): Promise<void> {
     if (this.db.status !== 'open') {
-      logger.warn("LevelPersistence: Attempt to store in a closed DB");
+      logger.warn("LevelBackend: Attempt to store in a closed DB");
       return Promise.resolve();
     }
 
     return this.db.put(key, value)
       .then(() => {
-        logger.trace(`LevelPersistence: Successfully stored ${keyVariants(key).keyString}`);
+        logger.trace(`LevelBackend: Successfully stored ${keyVariants(key).keyString}`);
       })
       .catch((error) => {
-        logger.error(`LevelPersistence: Failed to store ${keyVariants(key).keyString}: ${error}`);
-        throw new PersistenceError(`Failed to store ${keyVariants(key).keyString}: ${error}`);
+        logger.error(`LevelBackend: Failed to store ${keyVariants(key).keyString}: ${error}`);
+        throw new levelBackendError(`Failed to store ${keyVariants(key).keyString}: ${error}`);
       });
   }
 
   get(key: Buffer): Promise<Buffer> {
     return this.db.get(key)
       .then(ret => {
-        //logger.trace(`LevelPersistence.get() fetched ${keyVariants(key).keyString}`);
+        //logger.trace(`LevelBackend.get() fetched ${keyVariants(key).keyString}`);
         return ret;
       })
       .catch(error => {
-        logger.debug(`LevelPersistance.get(): Cannot find ${keyVariants(key).keyString}, error status ${error.status} ${error.code}, ${error.message}`);
+        logger.debug(`LevelBackend.get(): Cannot find ${keyVariants(key).keyString}, error status ${error.status} ${error.code}, ${error.message}`);
         return undefined;
       });
   }
@@ -98,7 +110,7 @@ export class LevelPersistence {
       if (options.lte) optionsNormalised.lte = keyVariants(options.lte).binaryKey;
       optionsNormalised.limit = options.limit ?? 1000;
       optionsNormalised.reverse = false;
-    if (options.limit > 1000) logger.warn("LevelPersistence:getKeys() requesting over 1000 Keys is deprecated. Please fix your application and set a reasonable limit.");
+    if (options.limit > 1000) logger.warn("LevelBackend:getKeys() requesting over 1000 Keys is deprecated. Please fix your application and set a reasonable limit.");
 
     // return nothing if the DB is not open... not that we have any choice then
     if (this.db.status != 'open') return undefined;  // "Generator has completed"
@@ -127,7 +139,7 @@ export class LevelPersistence {
       options: ValueIteratorOptions<Buffer, Buffer> = {},
   ): AsyncGenerator<Buffer> {
     options.limit ??= 1000;
-    if (options.limit > 1000) logger.warn("LevelPersistence:getValueRange() requesting over 1000 values is deprecated. Please fix your application and set a reasonable limit.");
+    if (options.limit > 1000) logger.warn("LevelBackend:getValueRange() requesting over 1000 values is deprecated. Please fix your application and set a reasonable limit.");
     if (this.db.status != 'open') return undefined;  // "Generator has completed"
     const valGen = this.db.values(options);
     let val: Buffer;
@@ -141,15 +153,15 @@ export class LevelPersistence {
    */
   async delete(key: Buffer): Promise<void> {
     if (this.db.status !== 'open') {
-      logger.error("LevelPersistence: Attempt to delete in a closed DB");
-      throw new PersistenceError("DB is not open");
+      logger.error("LevelBackend: Attempt to delete in a closed DB");
+      throw new levelBackendError("DB is not open");
     }
 
     try {
       await this.db.del(key);
-      logger.info(`LevelPersistence: Successfully deleted entry with key ${keyVariants(key).keyString}`);
+      logger.info(`LevelBackend: Successfully deleted entry with key ${keyVariants(key).keyString}`);
     } catch (error) {
-      logger.error(`LevelPersistence: Failed to delete entry with key ${keyVariants(key).keyString}: ${error}`);
+      logger.error(`LevelBackend: Failed to delete entry with key ${keyVariants(key).keyString}: ${error}`);
     }
   }
 
@@ -160,7 +172,7 @@ export class LevelPersistence {
    */
    async getKeyAtPosition(position: number): Promise<Buffer> {
     if (this.db.status !== 'open') {
-      throw new PersistenceError("DB is not open");
+      throw new levelBackendError("DB is not open");
     }
 
     let count = 0;
@@ -176,7 +188,7 @@ export class LevelPersistence {
         }
         count++;
       }
-      throw new PersistenceError(`Position ${position} is out of bounds`);
+      throw new levelBackendError(`Position ${position} is out of bounds`);
     } catch (error) {
       logger.error(`Error retrieving key at position ${position}: ${error}`);
       return undefined;
@@ -194,7 +206,7 @@ export class LevelPersistence {
   // (which should be O(log n) instead of O(n)).
   async getSucceedingKeys(startKey: string, count: number): Promise<string[]> {
     if (this.db.status !== 'open') {
-      throw new PersistenceError("DB is not open");
+      throw new levelBackendError("DB is not open");
     }
 
     const keys: string[] = [];
@@ -211,7 +223,7 @@ export class LevelPersistence {
       }
     } catch (error) {
       logger.error(`Error retrieving succeeding keys: ${error}`);
-      throw new PersistenceError(`Failed to retrieve succeeding keys: ${error}`);
+      throw new levelBackendError(`Failed to retrieve succeeding keys: ${error}`);
     }
 
     // If we haven't collected enough keys, wrap around to the beginning
@@ -229,7 +241,7 @@ export class LevelPersistence {
         }
       } catch (error) {
         logger.error(`Error retrieving wrapped-around keys: ${error}`);
-        throw new PersistenceError(`Failed to retrieve wrapped-around keys: ${error}`);
+        throw new levelBackendError(`Failed to retrieve wrapped-around keys: ${error}`);
       }
     }
 
@@ -247,19 +259,19 @@ export class LevelPersistence {
    */
   async approximateSize(): Promise<number> {
     if (this.db.status !== "open") {
-      throw new PersistenceError("DB is not open");
+      throw new levelBackendError("DB is not open");
     }
 
-    if(isNode) {
+    if(isNode && this.db instanceof Level) {
       // Cast the db object to ClassicLevel
-      const classicDb = this.db as ClassicLevel.ClassicLevel<Buffer,Buffer>;
+      const classicDb = this.db as ClassicLevel<Buffer,Buffer>;
 
       try {
         // Use a range that encompasses all possible keys
         const size = await classicDb.approximateSize(Buffer.from([0x00]), Buffer.alloc(64, 0xff));
         return size;
       } catch (error) {
-        throw new PersistenceError(`Failed to get key count: ${error}`);
+        throw new levelBackendError(`Failed to get key count: ${error}`);
       }
     }
     else
@@ -275,4 +287,4 @@ export class LevelPersistence {
 }
 
 // Exception classes
-class PersistenceError extends VerityError { name = "PersistenceError" }
+class levelBackendError extends VerityError { name = "levelBackendError" }
