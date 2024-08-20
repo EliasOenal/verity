@@ -244,25 +244,6 @@ export function paddedBuffer(content: string | Buffer = "", length: number): Buf
   return buf;
 }
 
-export async function *parsePersistentNotificationBlob(blob: Buffer): AsyncGenerator<CubeKey> {
-  if (!blob) return;
-  if (Settings.RUNTIME_ASSERTIONS && blob?.length % NetConstants.CUBE_KEY_SIZE !== 0) {
-      logger.error(`CubeStore.parsePersistentNotificationBlob(): Got a persistent notification record of invalid length ${blob?.length} which is not a multiple of ${NetConstants.CUBE_KEY_SIZE}. This should never happen.`);
-  }
-  for (let i = 0; i < blob.length; i += NetConstants.NOTIFY_SIZE) {
-    let key: Buffer = blob.subarray(i, i + NetConstants.NOTIFY_SIZE);
-    yield key;
-  }
-}
-
-export function writePersistentNotificationBlob(keys: CubeKey[]): Buffer {
-  let record: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE * keys.length);
-  for (let i = 0; i < keys.length; i++) {
-    keys[i].copy(record, i * NetConstants.CUBE_KEY_SIZE);
-  }
-  return record;
-}
-
 /**
  * Estimate Cube store size based on the density of a few succeeding Cube keys.
  * @param {Buffer} cubeKeys[] - A Buffer containing the hashes of a few succeeding Cubes.

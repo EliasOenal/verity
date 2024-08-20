@@ -11,7 +11,7 @@ import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
 import { cciFields } from '../../../src/cci/cube/cciFields';
 
 import sodium from 'libsodium-wrappers-sumo'
-import { paddedBuffer, parsePersistentNotificationBlob, writePersistentNotificationBlob } from '../../../src/core/cube/cubeUtil';
+import { paddedBuffer } from '../../../src/core/cube/cubeUtil';
 import { MediaTypes, cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { CubeFields } from '../../../src/core/cube/cubeFields';
 

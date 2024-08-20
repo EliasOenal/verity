@@ -5,7 +5,7 @@ import { CubeInfo, CubeMeta } from "./cubeInfo";
 import { LevelBackend, LevelBackendOptions } from "./levelBackend";
 import { CubeType, CubeKey, CubeFieldType } from "./cube.definitions";
 import { CubeFamilyDefinition } from "./cubeFields";
-import { cubeContest, shouldRetainCube, getCurrentEpoch, keyVariants, writePersistentNotificationBlob, parsePersistentNotificationBlob } from "./cubeUtil";
+import { cubeContest, shouldRetainCube, getCurrentEpoch, keyVariants } from "./cubeUtil";
 import { TreeOfWisdom } from "../tow";
 import { logger } from "../logger";
 
@@ -82,14 +82,21 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   readonly inMemory: boolean;
 
   /**
-   * If this CubeStore is configured to keep Cubes in RAM, this will be where
-   * we store them.
+   * cubesWeakRefCache keeps track of the Cubes that have not been garbage collected yet.
+   * This improves performance as we don't have to re-parse Cubes that are still in memory.
    */
-  private cubes: Map<string, CubeInfo> | WeakValueMap<string, CubeInfo>;
-  // TODO BUGBUG: I don't think this actually works in case of WeakValueMap
-  // because the value is an array that's never referenced anywhere else.
-  private notifications: Map<string, CubeInfo[]> | WeakValueMap<string, CubeInfo[]>;
+  private cubesWeakRefCache: WeakValueMap<string, CubeInfo>;
 
+  // Index prefixes
+  // We could use sublevels instead - it's about the same thing
+  // Currently we have one for timestamp and one for challenge level
+  private static readonly NOTIFY_INDEX_PREFIX: {
+    timestamp: Buffer,
+    difficulty: Buffer,
+  } = {
+    timestamp: Buffer.from([0x00]),
+    difficulty: Buffer.from([0x01]),
+  }
   /** Refers to the persistant cube storage database, if available and enabled */
   private cubePersistence: LevelBackend = undefined;
   private notificationPersistence: LevelBackend = undefined;
@@ -128,11 +135,9 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     );
 
     // Keep weak references for caching
-    this.cubes = new WeakValueMap(); // in-memory cache
-    this.notifications = new WeakValueMap(); // in-memory cache
+    this.cubesWeakRefCache = new WeakValueMap(); // in-memory cache
 
-    // When using persistent storage, the CubeStore is ready when the
-    // persistence layer is ready.
+    // The CubeStore is ready when levelDB is ready.
     this.cubePersistence = new LevelBackend({
       dbName: this.options.cubeDbName ?? Settings.CUBEDB_NAME,
       dbVersion: this.options.cubeDbVersion ?? Settings.CUBEDB_VERSION,
@@ -258,7 +263,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       }
 
       // Store the cube to RAM (or in-memory cache)
-      this.cubes.set(cubeInfo.keyString, cubeInfo);
+      this.cubesWeakRefCache.set(cubeInfo.keyString, cubeInfo);
       // save cube to disk (if available and enabled)
       await this.cubePersistence.store(cubeInfo.key, cubeInfo.binaryCube);
       // add cube to the Tree of Wisdom if enabled
@@ -326,7 +331,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   async getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo> {
     const key = keyVariants(keyInput);
     // persistence is primary -- get from cache or fetch from persistence
-    const cached = this.cubes.get(key.keyString);
+    const cached = this.cubesWeakRefCache.get(key.keyString);
     if (cached?.valid)
     {
       this.cacheStatistics.hits++;
@@ -343,7 +348,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
             cube: binaryCube,
             family: this.options.family,
           });
-          this.cubes.set(key.keyString, cubeInfo); // cache it
+          this.cubesWeakRefCache.set(key.keyString, cubeInfo); // cache it
           return cubeInfo;
         } catch (err) {
           logger.error(`CubeStore.getCubeInfo(): Could not create CubeInfo for Cube ${key.keyString}: ${err?.toString() ?? err}`);
@@ -508,21 +513,26 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     return cubeInfos;
   }
 
-  async *getNotificationKeys(recipient: Buffer): AsyncGenerator<CubeKey> {
-    if (Settings.RUNTIME_ASSERTIONS &&
-      recipient?.length !== NetConstants.NOTIFY_SIZE) {
-      logger.error(`CubeStore.getNotifications(): Attempt to get notifications for invalid recipient key of size ${recipient?.length}, should be ${NetConstants.NOTIFY_SIZE}; skipping.`);
-      return undefined;
-    }
-    const record: Buffer = await this.notificationPersistence.get(recipient);
-    yield *parsePersistentNotificationBlob(record);
-  }
-
   async *getNotificationCubeInfos(recipient: Buffer): AsyncGenerator<CubeInfo> {
-    const notificationCubeInfos: CubeInfo[] =
-      this.notifications.get(keyVariants(recipient).keyString);
-    if (notificationCubeInfos) for (const cubeInfo of notificationCubeInfos) {
-      yield cubeInfo;
+    if (!recipient || recipient.length !== NetConstants.NOTIFY_SIZE) {
+      logger.error('CubeStore.getNotificationCubeInfos(): Invalid recipient buffer.');
+      return;
+    }
+  
+    // We have CubeStore.NOTIFY_INDEX_PREFIX indices, we iterate the date/timestamp index in this method.
+    const maxBuffer = Buffer.alloc(NetConstants.TIMESTAMP_SIZE + NetConstants.CUBE_KEY_SIZE, 0xff);
+    const iteratorOptions = {
+      gte: Buffer.concat([CubeStore.NOTIFY_INDEX_PREFIX.timestamp, recipient]),
+      lte: Buffer.concat([CubeStore.NOTIFY_INDEX_PREFIX.timestamp, recipient, maxBuffer]),
+    };
+
+    const iterator = this.notificationPersistence.getKeyRange(iteratorOptions);
+    for await (const key of iterator) {
+        const cubeKey = key.slice(CubeStore.NOTIFY_INDEX_PREFIX.timestamp.length + recipient.length + NetConstants.TIMESTAMP_SIZE); // Extract the cube key part, skipping recipient and date
+        const cubeInfo = await this.getCubeInfo(cubeKey);
+        if (cubeInfo) {
+          yield cubeInfo;
+      }
     }
   }
 
@@ -558,11 +568,11 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     // if there are any notifications indexed to this Cube, delete them first
     const recipient: Buffer = cubeInfo?.getCube?.()?.fields?.getFirst?.(
       CubeFieldType.NOTIFY)?.value;
-    if (recipient) await this.deleteNotification(recipient, cubeInfo.key);
+    if (recipient) await this.deleteNotification(cubeInfo);
 
 
     // delete Cube from all possible kinds of storage
-    this.cubes?.delete(key.keyString);  // in-memory
+    this.cubesWeakRefCache?.delete(key.keyString);  // in-memory
     this.treeOfWisdom?.delete(key.keyString);  // Merkle-Patricia-Trie
     await this.cubePersistence?.delete(key.binaryKey);  // persistent storage
   }
@@ -613,10 +623,27 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
    * Handle with care.
    */
   async wipeAll(): Promise<void> {
-    this.cubes.clear();
-    this.notifications.clear();
+    this.cubesWeakRefCache.clear();
     await this.cubePersistence?.wipeAll();
     await this.notificationPersistence?.wipeAll();
+  }
+
+  // Concatenate recipient, timestamp and cube key to create index key #1
+  private async getNotificationDateKey(cube: Cube): Promise<Buffer> {
+    const recipient: Buffer = cube.fields.getFirst(CubeFieldType.NOTIFY)?.value;
+    if (!recipient) return undefined;
+    let dateBuffer: Buffer = Buffer.alloc(NetConstants.TIMESTAMP_SIZE);
+    dateBuffer.writeUIntBE(cube.getDate(), 0, NetConstants.TIMESTAMP_SIZE);
+    return Buffer.concat([CubeStore.NOTIFY_INDEX_PREFIX.timestamp, recipient, dateBuffer, await cube.getKey()]);
+  }
+
+  // Concatenate recipient, difficulty and cube key to create index key #2
+  private async getNotificationDifficultyKey(cube: Cube): Promise<Buffer> {
+    const recipient: Buffer = cube.fields.getFirst(CubeFieldType.NOTIFY)?.value;
+    if (!recipient) return undefined;
+    let difficultyBuffer: Buffer = Buffer.alloc(1);
+    difficultyBuffer.writeUInt8(cube.getDifficulty());
+    return Buffer.concat([CubeStore.NOTIFY_INDEX_PREFIX.difficulty, recipient, difficultyBuffer, await cube.getKey()]);
   }
 
   private async addNotification(cubeInfo: CubeInfo): Promise<void> {
@@ -630,79 +657,31 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       return;
     }
 
-    // Always store notifications in memory, as the in-memory store will always be
-    // there, either as primary storage or as a cache.
-    // There's two possible cases:
-    const notificationInfos: CubeInfo[] =
-      this.notifications.get(keyVariants(recipient).keyString);
-    if (!notificationInfos) {
-      // ... this could be the first Cube with this notification key ...
-      this.notifications.set(keyVariants(recipient).keyString, [cubeInfo]);
-    } else {
-      // ... or we already have Cubes with this notification key, in which
-      // case we save the new one sorted by key.
-      notificationInfos.push(cubeInfo);
-      notificationInfos.sort((a, b) => a.key.compare(b.key));
-      this.notifications.set(keyVariants(recipient).keyString, notificationInfos);
-    }
-
-    // Store the notification to persistent storage if enabled:
-    if (this.notificationPersistence) {
-      // Fetch existing notification keys for this recipient, if any
-      const notificationKeys: CubeKey[] = [];
-      for await (const key of this.getNotificationKeys(recipient)) notificationKeys.push(key);
-      // add the new notification key to the list
-      notificationKeys.push(cubeInfo.key);
-      // notifications are sorted by Key
-      notificationKeys.sort((a, b) => a.compare(b));
-      // craft the persistent notification blob and store it
-      const blob: Buffer = writePersistentNotificationBlob(notificationKeys);
-      await this.notificationPersistence.store(recipient, blob);
-    }
+    let dateIndexKey: Buffer = await this.getNotificationDateKey(cube);
+    if(await this.notificationPersistence.get(dateIndexKey)) return; // already indexed - levelDB is sequentially consistent
+    let difficultyIndexKey: Buffer = await this.getNotificationDifficultyKey(cube);
+    // There may not be a need to await this.
+    await this.notificationPersistence.store(dateIndexKey, Buffer.alloc(0));
+    await this.notificationPersistence.store(difficultyIndexKey, Buffer.alloc(0));
   }
 
-  private async deleteNotification(recipient: Buffer, key: CubeKey): Promise<void> {
-    // sanity checks
+  private async deleteNotification(cubeInfo: CubeInfo): Promise<void> {
+    const cube: Cube = cubeInfo.getCube();
+    // does this Cube even have a notification field?
+    const recipient: Buffer = cube.fields.getFirst(CubeFieldType.NOTIFY)?.value;
+    if (!recipient) return;
     if (Settings.RUNTIME_ASSERTIONS &&
       recipient?.length !== NetConstants.NOTIFY_SIZE) {
-      logger.error(`CubeStore.deleteNotification(): Attempt to delete notification for invalid recipient key of size ${recipient?.length}, should be ${NetConstants.NOTIFY_SIZE}; skipping.`);
+      logger.error(`CubeStore.deleteNotification(): Cube ${cubeInfo.keyString} has a notify field of invalid size ${recipient?.length}, should be ${NetConstants.NOTIFY_SIZE}; skipping. This should never happen.`);
       return;
     }
-    // Always delete the notification from memory, as the in-memory store
-    // will always be there, either as primary storage or as a cache.
-    // First, get the notification list for this recipient
-    let inMemoryNotifications: CubeInfo[] =
-      this.notifications.get(keyVariants(recipient).keyString);
-    if (inMemoryNotifications) {  // only need to do anything if there are notifications
-      // Remove the specified notification from the list
-      inMemoryNotifications =
-        inMemoryNotifications.filter((cubeInfo) => !cubeInfo.key.equals(key));
-      // Update the in-memory notification list:
-      if (inMemoryNotifications.length === 0) {
-        // If there are no more notifications for this recipient, delete the record
-        this.notifications.delete(keyVariants(recipient).keyString);
-      } else {
-        // Otherwise, re-store the updated notification list
-        this.notifications.set(keyVariants(recipient).keyString, inMemoryNotifications);
-      }
-    }
+    
+    let dateIndexKey: Buffer = await this.getNotificationDateKey(cube);
+    let difficultyIndexKey: Buffer = await this.getNotificationDifficultyKey(cube);
 
-    // Delete the notification from persistent storage, if persistence is enabled
-    if (this.notificationPersistence) {
-      // Fetch all notifications for this recipient
-      let notificationKeys: CubeKey[] = [];
-      for await (const key of this.getNotificationKeys(recipient)) notificationKeys.push(key);
-      // Remove the specified notification key
-      notificationKeys = notificationKeys.filter((cubeKey) => !cubeKey.equals(key));
-      if (notificationKeys.length === 0) {
-        // if this recipient has no more notifications, delete the record
-        this.notificationPersistence.delete(recipient);
-      } else {
-        // otherwise, re-store the updated notification blob
-        const blob: Buffer = writePersistentNotificationBlob(notificationKeys);
-        this.notificationPersistence.store(recipient, blob);
-      }
-    }
+    // We don't await deletion
+    this.notificationPersistence.delete(dateIndexKey);
+    this.notificationPersistence.delete(difficultyIndexKey);
   }
 
   get getCacheStatistics(): { hits: number, misses: number }
