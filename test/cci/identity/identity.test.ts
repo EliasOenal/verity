@@ -497,8 +497,8 @@ describe('Identity', () => {
       autoConnect: false,
       lightNode: true,
       peerExchange: false,
-      requestInterval: 20,
-      requestTimeout: 1000,
+      requestInterval: 10,
+      requestTimeout: 500,
     };
     let local: NetworkManager;
     let remote: NetworkManager;
