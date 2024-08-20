@@ -341,9 +341,9 @@ export class Cube {
     /**
      * Compiles this Cube into a binary Buffer to be stored or transmitted
      * over the wire. This will also (re-)calculate this cube's hash challenge.
-     * If required, it will also add padding and/or sign the Cube.
+     * It will also sign the Cube if this Cube is of a signature-bearing type.
      * Can either be called explicitly or will be called automatically when
-     * you try top getBinaryData() or getHash().
+     * you call getBinaryData() or getHash().
      **/
     public async compile(): Promise<void> {
         // compile it
@@ -377,7 +377,7 @@ export class Cube {
                         0, signature.start);
 
                     // Verify the signature
-                    if (!this.verifySignature(
+                    if (!CubeUtil.verifySignature(
                         signature.value, dataToVerify, publicKey.value)) {
                             logger.error('Cube: Invalid signature');
                             throw new CubeSignatureError('Cube: Invalid signature');
@@ -388,9 +388,6 @@ export class Cube {
                 throw new CubeSignatureError('Cube: Public key or signature is undefined for MUC');
             }
         }
-    }
-    private verifySignature(sig: Buffer, data: Buffer, pubkey:Buffer): boolean {
-        return sodium.crypto_sign_verify_detached(sig, data, pubkey);
     }
 
     /**
@@ -474,19 +471,19 @@ export class Cube {
     async findValidHash(nonceField: CubeField, abortSignal?: AbortSignal): Promise<Buffer> {
         let nonce: number = 0;
         let hash: Buffer;
-    
+
         const checkAbort = () => {
             if (abortSignal?.aborted) {
                 throw new Error('findValidHash() aborted');
             }
         };
-    
+
         while (true) {
             if (this.binaryData === undefined) {
                 throw new BinaryDataError("findValidHash() Binary data not initialized");
             }
             checkAbort();  // Check for abort signal before starting the hash checking
-    
+
             // Check 1000 hashes before yielding control back to the event loop
             for (let i = 0; i < 1000; i++) {
                 // Write the nonce to binaryData
@@ -500,7 +497,7 @@ export class Cube {
                 nonce++;
             }
             checkAbort();  // Check for abort signal before yielding
-    
+
             // Yield to the event loop to avoid blocking
             await new Promise(resolve => setTimeout(resolve, 0));
         }

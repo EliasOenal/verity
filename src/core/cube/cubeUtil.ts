@@ -1,14 +1,17 @@
 // cubeUtil.ts
+import { Settings } from '../settings';
 import { NetConstants } from '../networking/networkDefinitions';
+
 import { CubeError, CubeKey, CubeType } from './cube.definitions';
 import { Cube } from './cube';
 import { CubeInfo, CubeMeta } from './cubeInfo';
 
 import { logger } from '../logger';
+
 import { Buffer } from 'buffer';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import pkg from 'js-sha3';
-import { Settings } from '../settings';
+import sodium from 'libsodium-wrappers-sumo'
 
 /*
  * Calculate the hash of a buffer using the SHA3-256 algorithm.
@@ -31,6 +34,11 @@ if (isNode) {
     // Use the js-sha3 implementation
     calculateHash = (data: Buffer) => Buffer.from(pkg.sha3_256.arrayBuffer(data));
 }
+
+export function verifySignature(sig: Buffer, data: Buffer, pubkey:Buffer): boolean {
+    return sodium.crypto_sign_verify_detached(sig, data, pubkey);
+}
+
 
 export const UNIX_SECONDS_PER_EPOCH = 5400;
 export const UNIX_MS_PER_EPOCH = 5400000;
