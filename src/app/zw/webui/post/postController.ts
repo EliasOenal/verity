@@ -60,6 +60,7 @@ export class PostController extends VerityController {
   async selectAllPosts(): Promise<void> {
     logger.trace("PostController: Displaying all posts including anonymous ones");
     this.removeAnnotationEngineListeners();
+    this.annotationEngine?.shutdown();
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.cubeStore,
       SubscriptionRequirement.none,  // show all posts
@@ -75,6 +76,7 @@ export class PostController extends VerityController {
   async selectPostsWithAuthors(): Promise<void> {
     logger.trace("PostController: Displaying posts associated with a MUC");
     this.removeAnnotationEngineListeners();
+    this.annotationEngine?.shutdown();
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.cubeStore,
       SubscriptionRequirement.none,
@@ -90,6 +92,7 @@ export class PostController extends VerityController {
   async selectSubscribedInTree(): Promise<void> {
     logger.trace("PostController: Displaying posts from trees with subscribed author activity");
     this.removeAnnotationEngineListeners();
+    this.annotationEngine?.shutdown();
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.cubeStore,
       SubscriptionRequirement.subscribedInTree,
@@ -105,6 +108,7 @@ export class PostController extends VerityController {
   async selectSubscribedReplied(): Promise<void> {
     logger.trace("PostController: Displaying posts from subscribed authors and their preceding posts");
     this.removeAnnotationEngineListeners();
+    this.annotationEngine?.shutdown();
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.cubeStore,
       SubscriptionRequirement.subscribedReply,
@@ -121,6 +125,7 @@ export class PostController extends VerityController {
   async selectWot(): Promise<void> {
     logger.trace("PostController: Displaying posts from subscribed, sub-subscribed and sub-sub-subscribed authors and their preceding posts (WOT3)");
     this.removeAnnotationEngineListeners();
+    this.annotationEngine?.shutdown();
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.cubeStore,
       SubscriptionRequirement.subscribedReply,

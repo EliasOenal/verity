@@ -187,6 +187,10 @@ export class AnnotationEngine extends EventEmitter {
       else return undefined;
   }
 
+  shutdown(): void {
+    this.cubeStore.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.autoAnnotate(cubeInfo));
+  }
+
   // This does not scale well as it forces CubeStore to read every single
   // Cube from persistent storage every time Verity starts.
   // TODO: Provide an option not to crawl (for apps only interested in recent
