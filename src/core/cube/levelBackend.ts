@@ -33,7 +33,7 @@ export class LevelBackend {
         keyEncoding: 'buffer',
         valueEncoding: 'buffer',
       });
-      logger.debug("LevelBackend: Using in-memory LevelDB, data will not be persisted");
+      logger.trace("LevelBackend: Using in-memory LevelDB, data will not be persisted");
     } else {
       // Set database name, add .db file extension for non-browser environments
       if (!isBrowser && !isWebWorker) this.options.dbName += ".db";
@@ -51,7 +51,7 @@ export class LevelBackend {
           maxFileSize: 16 * 1024 * 1024, // 16MB so the amount of files doesn't get out of hand
           maxOpenFiles: 5000, // This should take us to 80GB of data, we should benchmark it at that point
         });
-        logger.debug("LevelBackend: Using persistent LevelDB, data will be persisted");
+        logger.trace("LevelBackend: Using persistent LevelDB, data will be persisted");
       }
       this.ready = new Promise<void>((resolve, reject) => {
       this.db.open().then(() => {
