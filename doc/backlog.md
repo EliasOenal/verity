@@ -76,5 +76,10 @@
 - Implement post groups, e.g. hash tags
 - QR codes for adding / subscribing to local friends
 
+# Release Features for Full Nodes
+- Activate Store pruning
+- Dynamically determine minimum challenge difficulty and enforce it
+- Fix any regularly executed code (e.g. network requests) that scales O(n) with the number of Cubes
+
 # Other global TODOs
 ...?
