@@ -364,28 +364,31 @@ export class Cube {
         }
     }
 
-    private validateCube(): void {
-        const publicKey: CubeField = this._fields.getFirst(CubeFieldType.PUBLIC_KEY);
+    verifySignature(): boolean {
         const signature: CubeField = this._fields.getFirst(CubeFieldType.SIGNATURE);
+        const publicKey: CubeField = this._fields.getFirst(CubeFieldType.PUBLIC_KEY);
+        if (signature === undefined || publicKey === undefined) {
+            logger.trace(`Cube.veritySignature() called on Cube without SIGNATURE and/or PUBLIC_KEY field; returning false.`)
+            return false;
+        }
+        if (this.binaryData === undefined) {
+            logger.trace(`Cube.veritySignature() called on Cube that has not yet been compiled; returning false.`)
+            return false;
+        }
 
-        if (this.cubeType === CubeType.MUC) {
-            if (publicKey && signature) {
-                if (this.binaryData) {
-                    // Slice out data to be verified
-                    // (start of Cube until just before the signature field)
-                    const dataToVerify = this.binaryData.subarray(
-                        0, signature.start);
+        // Slice out data to be verified
+        // (start of Cube until just before the signature field)
+        const dataToVerify = this.binaryData.subarray(0, signature.start);
+        const validity: boolean = CubeUtil.verifySignature(
+            signature.value, dataToVerify, publicKey.value);
+        return validity;
+    }
 
-                    // Verify the signature
-                    if (!CubeUtil.verifySignature(
-                        signature.value, dataToVerify, publicKey.value)) {
-                            logger.error('Cube: Invalid signature');
-                            throw new CubeSignatureError('Cube: Invalid signature');
-                    }
-                }
-            } else {
-                logger.error('Cube: Public key or signature is undefined for MUC');
-                throw new CubeSignatureError('Cube: Public key or signature is undefined for MUC');
+    private validateCube(): void {
+        if (HasSignature[this.cubeType]) {
+            if (!this.verifySignature()) {
+                logger.error('Cube: Invalid signature');
+                throw new CubeSignatureError('Cube: Invalid signature');
             }
         }
     }
