@@ -21,6 +21,7 @@ But still, let's collect some ideas:
 - IoT secure firmware updates
 - Chat (Anonymous, Pseudonymous)
 - Pastebin
+- Usenet
 
 ## User growth strategies
 ### Microblogging
