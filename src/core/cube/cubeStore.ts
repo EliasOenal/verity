@@ -133,8 +133,9 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     );
 
     // Keep weak references of all Cubes for caching
-    if (this.options.cubeCacheEnabled)
+    if (this.options.cubeCacheEnabled) {
       this.cubesWeakRefCache = new WeakValueMap(); // in-memory cache
+    }
 
     // The CubeStore is ready when levelDB is ready.
     this.cubePersistence = new LevelBackend({
@@ -245,7 +246,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       }
       // If this is a MUC, check if we already have a MUC with this key.
       // Replace it with the incoming MUC if it's newer than the one we have.
-      if (cubeInfo.cubeType === CubeType.MUC) {
+      if (cubeInfo.cubeType === CubeType.MUC) {  // TODO add other Cube types
         if (await this.hasCube(cubeInfo.key)) {
           const storedCube: CubeInfo = await this.getCubeInfo(cubeInfo.key);
           const winningCube: CubeMeta = cubeContest(storedCube, cubeInfo);
