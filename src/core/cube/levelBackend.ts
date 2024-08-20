@@ -92,7 +92,7 @@ export class LevelBackend {
       });
   }
 
-  get(key: Buffer): Promise<Buffer> {
+  get(key: Buffer, noLogErr: boolean = false): Promise<Buffer> {
     return this.db.get(key)
       .then(ret => {
         //logger.trace(`LevelBackend.get() fetched ${keyVariants(key).keyString}`);
@@ -100,7 +100,8 @@ export class LevelBackend {
         return ret;
       })
       .catch(error => {
-        logger.debug(`LevelBackend.get(): Cannot find ${keyVariants(key).keyString}, error status ${error.status} ${error.code}, ${error.message}`);
+        if (!noLogErr)
+          logger.trace(`LevelBackend.get(): Cannot find ${keyVariants(key).keyString}, error status ${error.status} ${error.code}, ${error.message}`);
         return undefined;
       });
   }
