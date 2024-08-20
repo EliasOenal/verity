@@ -30,6 +30,7 @@ describe("Identity (MUC storage)", () => {
     cubeStore = new CubeStore({
       inMemoryLevelDB: true,
       requiredDifficulty: 0, // require no hashcash for faster testing
+      family: cciFamily,
     });
   });
 
