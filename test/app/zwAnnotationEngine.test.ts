@@ -2,7 +2,7 @@ import { CubeKey } from "../../src/core/cube/cube.definitions";
 import { Cube } from "../../src/core/cube/cube";
 import { CubeField } from "../../src/core/cube/cubeField";
 import { CubeInfo } from "../../src/core/cube/cubeInfo";
-import { CubeStore, EnableCubePersitence } from "../../src/core/cube/cubeStore";
+import { CubeStore } from "../../src/core/cube/cubeStore";
 
 import { MediaTypes } from "../../src/cci/cube/cciCube.definitions";
 import { cciCube, cciFamily } from "../../src/cci/cube/cciCube";
@@ -33,7 +33,7 @@ describe('ZwAnnotationEngine', () => {
   });
   beforeEach(async () => {
     cubeStore = new CubeStore({
-      enableCubePersistence: EnableCubePersitence.OFF,
+      inMemoryLevelDB: true,
       requiredDifficulty: 0,
       enableCubeRetentionPolicy: false,
     });

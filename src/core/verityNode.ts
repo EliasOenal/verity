@@ -1,4 +1,4 @@
-import { CubeRetrievalInterface, CubeStore, CubeStoreOptions, EnableCubePersitence } from "./cube/cubeStore";
+import { CubeRetrievalInterface, CubeStore, CubeStoreOptions } from "./cube/cubeStore";
 import { SupportedTransports } from "./networking/networkDefinitions";
 import { DummyNetworkManager, NetworkManager, NetworkManagerIf, NetworkManagerOptions } from "./networking/networkManager";
 import { CubeRetriever } from "./networking/cubeRetrieval/cubeRetriever";
@@ -113,7 +113,7 @@ export class DummyVerityNode implements VerityNodeIf {
   readonly shutdownPromise: Promise<void>;
 
   constructor(){
-    this.cubeStore = new CubeStore({enableCubePersistence: EnableCubePersitence.OFF});
+    this.cubeStore = new CubeStore({inMemoryLevelDB: true});
     this.peerDB = new PeerDB();
     this.networkManager = new DummyNetworkManager(this.cubeStore, this.peerDB);
     this.cubeRetriever = new CubeRetriever(this.cubeStore, new RequestScheduler(this.networkManager));

@@ -2,7 +2,7 @@ import { Cube } from "../../../../src/core/cube/cube";
 import { CubeKey, CubeType } from "../../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../../src/core/cube/cubeField";
 import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
-import { CubeStore, CubeStoreOptions, EnableCubePersitence } from "../../../../src/core/cube/cubeStore";
+import { CubeStore, CubeStoreOptions } from "../../../../src/core/cube/cubeStore";
 import { CubeRetriever } from "../../../../src/core/networking/cubeRetrieval/cubeRetriever";
 import { SupportedTransports } from "../../../../src/core/networking/networkDefinitions";
 import { NetworkManager, NetworkManagerOptions } from "../../../../src/core/networking/networkManager";
@@ -18,7 +18,7 @@ let cubeRetriever: CubeRetriever;
 const reducedDifficulty = 0;
 
 const testCubeStoreParams: CubeStoreOptions = {
-  enableCubePersistence: EnableCubePersitence.OFF,
+  inMemoryLevelDB: true,
   enableCubeRetentionPolicy: false,
   requiredDifficulty: 0,
 };

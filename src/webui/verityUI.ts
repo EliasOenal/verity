@@ -1,7 +1,6 @@
 import { SupportedTransports } from '../core/networking/networkDefinitions';
 import { VerityNode, VerityNodeOptions, defaultInitialPeers } from '../core/verityNode';
 import { AddressAbstraction } from '../core/peering/addressing';
-import { EnableCubePersitence } from '../core/cube/cubeStore';
 
 import { cciFamily } from '../cci/cube/cciCube';
 import { Identity, IdentityOptions } from '../cci/identity/identity';
@@ -60,7 +59,6 @@ export class VerityUI implements ControllerContext {
     options.initialPeers ??= defaultInitialPeers,
     options.navItems ??= defaultNavItems;
     options.initialNav ??= defaultInitialNav;
-    options.enableCubePersistence ??= EnableCubePersitence.PRIMARY;
     options.inMemoryLevelDB ??= false;
     options.lightNode ??= true;
     options.useRelaying ??= true;

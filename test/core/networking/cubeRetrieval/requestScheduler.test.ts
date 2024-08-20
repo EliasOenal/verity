@@ -7,7 +7,7 @@ import { Cube } from "../../../../src/core/cube/cube";
 import { EventEmitter } from 'events';
 import { CubeField } from "../../../../src/core/cube/cubeField";
 import { CubeFieldType, CubeKey, CubeType } from "../../../../src/core/cube/cube.definitions";
-import { CubeStore, CubeStoreOptions, EnableCubePersitence } from "../../../../src/core/cube/cubeStore";
+import { CubeStore, CubeStoreOptions } from "../../../../src/core/cube/cubeStore";
 import { getCurrentEpoch, shouldRetainCube, cubeContest } from "../../../../src/core/cube/cubeUtil";
 import { RequestedCube } from "../../../../src/core/networking/cubeRetrieval/requestedCube";
 import { NetworkPeer } from "../../../../src/core/networking/networkPeer";
@@ -36,7 +36,7 @@ class mockNetworkPeer {
 }
 
 const cubeStoreOptions: CubeStoreOptions = {
-  enableCubePersistence: EnableCubePersitence.OFF,
+  inMemoryLevelDB: true,
   requiredDifficulty: reducedDifficulty,
   enableCubeRetentionPolicy: false,
   cubeDbName: 'cubes.test',
@@ -244,6 +244,8 @@ describe('RequestScheduler', () => {
         });
 
         it('should ignore cubes that do not meet the retention policy', async () => {
+          await cubeStore.readyPromise;
+
           // set options for this test
           cubeStore.options.enableCubeRetentionPolicy = true;
 

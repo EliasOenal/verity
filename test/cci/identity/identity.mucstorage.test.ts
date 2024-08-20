@@ -1,5 +1,5 @@
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { CubeStore, EnableCubePersitence } from "../../../src/core/cube/cubeStore";
+import { CubeStore } from "../../../src/core/cube/cubeStore";
 import { Identity, IdentityOptions } from "../../../src/cci/identity/identity";
 import { cciCube, cciFamily } from "../../../src/cci/cube/cciCube";
 
@@ -28,7 +28,7 @@ describe("Identity (MUC storage)", () => {
 
   beforeEach(async () => {
     cubeStore = new CubeStore({
-      enableCubePersistence: EnableCubePersitence.OFF,
+      inMemoryLevelDB: true,
       requiredDifficulty: 0, // require no hashcash for faster testing
     });
   });
