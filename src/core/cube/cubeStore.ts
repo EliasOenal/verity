@@ -226,36 +226,22 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
         }
       }
 
-      // Sometimes we get the same cube twice (e.g. due to network latency).
-      // In that case, do nothing -- no need to invalidate the hash or to
-      // emit an event.
-      if (
-        (await this.hasCube(cubeInfo.key)) &&
-        cubeInfo.cubeType === CubeType.FROZEN
-      ) {
-        logger.debug(
-          `CubeStore.addCube(): skipping frozen Cube ${cubeInfo.keyString} as we already have it.`
-        );
-        return cube;
-      }
       if (cube.getDifficulty() < this.options.requiredDifficulty) {
         logger.debug(
           `CubeStore.addCube(): skipping Cube ${cubeInfo.keyString} due to insufficient difficulty`
         );
         return undefined;
       }
-      // If this is a MUC, check if we already have a MUC with this key.
-      // Replace it with the incoming MUC if it's newer than the one we have.
-      if (cubeInfo.cubeType === CubeType.MUC) {  // TODO add other Cube types
-        if (await this.hasCube(cubeInfo.key)) {
-          const storedCube: CubeInfo = await this.getCubeInfo(cubeInfo.key);
-          const winningCube: CubeMeta = cubeContest(storedCube, cubeInfo);
-          if (winningCube === storedCube) {
-            logger.trace("CubeStorage: Keeping stored MUC over incoming MUC");
-            return storedCube.getCube(); // TODO: it's completely unnecessary to instantiate the potentially dormant Cube here -- maybe change the addCube() signature once again and not return a Cube object after all?
-          } else {
-            logger.trace("CubeStorage: Replacing stored MUC with incoming MUC");
-          }
+
+      // If we already have a Cube of this key, only accept the new one if it
+      // wins a CubeContest™ against the old one
+      const storedCube: CubeInfo = await this.getCubeInfo(cubeInfo.key);
+      if (storedCube !== undefined) {
+        if (cubeContest(storedCube, cubeInfo) === storedCube) {
+          logger.trace(`CubeStorage: Keeping stored ${CubeType[storedCube.cubeType]} over incoming one`);
+          return storedCube.getCube(); // TODO: it's completely unnecessary to instantiate the potentially dormant Cube here -- maybe change the addCube() signature once again and not return a Cube object after all?
+        } else {
+          logger.trace("CubeStorage: Replacing stored MUC with incoming MUC");
         }
       }
 
