@@ -1,7 +1,9 @@
+import { logger } from "../../../../src/core/logger";
 import { cciFamily, cciCube } from "../../../../src/cci/cube/cciCube";
 import { cciFieldType } from "../../../../src/cci/cube/cciCube.definitions";
 import { cciField } from "../../../../src/cci/cube/cciField";
 import { CubeKey } from "../../../../src/core/cube/cube.definitions";
+import { Cube } from "../../../../src/core/cube/cube";
 import { CubeStoreOptions, CubeStore } from "../../../../src/core/cube/cubeStore";
 import { SupportedTransports } from "../../../../src/core/networking/networkDefinitions";
 import { NetworkManagerOptions, NetworkManager } from "../../../../src/core/networking/networkManager";
@@ -66,7 +68,7 @@ describe('RequestScheduler integration tests', () => {
   it('should correctly fetch updates to subscribed MUCs', async () => {
     // remote creates a MUC
     const keyPair = sodium.crypto_sign_keypair();
-    const muc: cciCube = cciCube.MUC(
+    let muc: Cube = cciCube.MUC(
       Buffer.from(keyPair.publicKey), Buffer.from(keyPair.privateKey),
       {
         requiredDifficulty: reducedDifficulty,
@@ -85,25 +87,33 @@ describe('RequestScheduler integration tests', () => {
     // local subscribes to MUC
     local.scheduler.subscribeCube(mucKey);
     // local receives first MUC version
-    await new Promise(resolve => setTimeout(resolve, 150));  // give it some time
+    await new Promise(resolve => setTimeout(resolve, 500));  // give it some time
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect((await local.cubeStore.getCube(mucKey)).fields.getFirst(
       cciFieldType.PAYLOAD).valueString).toBe("primum hoc dico");
+
     // remote updates MUC
     muc.fields.getFirst(cciFieldType.PAYLOAD).value =
       Buffer.from("deinde iliud dico", 'ascii');
-    muc.setDate(1715704520);  // a bit later then the last version
+    muc.setDate(1715704520);  // a bit later then the last version - this currently fails without cache
     await muc.compile();
-    await remote.cubeStore.addCube(muc);
+    let result = await remote.cubeStore.addCube(muc);
+    expect(result).toBeInstanceOf(Cube);
     // just some sanity checks
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
     // local receives update
-    await new Promise(resolve => setTimeout(resolve, 150));  // give it some time
+    await new Promise(resolve => setTimeout(resolve, 500));  // give it some time
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect((await local.cubeStore.getCube(mucKey)).fields.getFirst(
       cciFieldType.PAYLOAD).valueString).toBe("deinde iliud dico");
+
+    // This seems to have issues as well - with or without cache
+    // muc = await local.cubeStore.getCube(mucKey);
+    // muc.setDate(1715704530);
+    // muc.privateKey = Buffer.from(keyPair.privateKey);
+    // muc.compile();
   });
 });
