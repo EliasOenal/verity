@@ -348,7 +348,7 @@ export class Identity {
   keyBackupCube: CubeKey = undefined;
 
   /** List of own posts, in undefined order */
-  posts: Array<CubeKey> = [];
+  posts: Array<CubeKey> = [];  // TODO: make this a set for better scalability
   get postKeyString(): Array<string> {
     return this.posts.map(key => key.toString('hex'));
   }
@@ -852,7 +852,7 @@ export class Identity {
   // TODO: check and limit recursion
   private recursiveParsePostReferences(
       mucOrMucExtension: Cube,
-      alreadyTraversedCubes: string[],
+      alreadyTraversedCubes: string[],  // TODO make this a Set
   ): Promise<void> {
     // do we even have this cube?
     if (!mucOrMucExtension) {
@@ -897,7 +897,7 @@ export class Identity {
             logger.trace(`Identity.recursiveParsePostReferences(): While reconstructing the post list of Identity ${this.keyString} I'll skip post ${postrel.remoteKeyString} as I can't find it.`);
             return recursionResolve();
           }
-          if (this.posts.includes(postInfo.key)) {
+          if (this.posts.some((post) => post.equals(postInfo.key))) {  // we should really make this.posts a set
             // if we'we already parsed this post, skip it
             // (re-checking this here as things might have changed while we
             // waited for the post to get fetched)
