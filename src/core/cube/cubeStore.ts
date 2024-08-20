@@ -25,6 +25,7 @@ export interface CubeStoreOptions {
   notifyDbName?: string,
   notifyDbVersion?: number,
   inMemoryLevelDB?: boolean,
+  cubeCacheEnabled?: boolean,
 
   /**
    * If enabled, do not accept or keep old cubes past their scheduled
@@ -91,7 +92,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
    * cubesWeakRefCache keeps track of the Cubes that have not been garbage collected yet.
    * This improves performance as we don't have to re-parse Cubes that are still in memory.
    */
-  private cubesWeakRefCache: WeakValueMap<string, CubeInfo>;
+  private cubesWeakRefCache: WeakValueMap<string, CubeInfo> | undefined = undefined;
 
   /** Refers to the persistant cube storage database, if available and enabled */
   private cubePersistence: LevelBackend = undefined;
@@ -115,6 +116,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     this.options.family ??= coreCubeFamily;
     this.options.enableCubeRetentionPolicy ??= Settings.CUBE_RETENTION_POLICY;
     this.options.inMemoryLevelDB ??= true;
+    this.options.cubeCacheEnabled ??= true;
 
     // Configure this CubeStore according to the options specified:
     // Do we want to use a Merckle-Patricia-Trie for efficient full node sync?
@@ -131,7 +133,8 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     );
 
     // Keep weak references of all Cubes for caching
-    this.cubesWeakRefCache = new WeakValueMap(); // in-memory cache
+    if (this.options.cubeCacheEnabled)
+      this.cubesWeakRefCache = new WeakValueMap(); // in-memory cache
 
     // The CubeStore is ready when levelDB is ready.
     this.cubePersistence = new LevelBackend({
@@ -256,7 +259,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       }
 
       // keep Cube cached in memory until the garbage collector comes for it
-      this.cubesWeakRefCache.set(cubeInfo.keyString, cubeInfo);
+      this.cubesWeakRefCache?.set(cubeInfo.keyString, cubeInfo);
       // store Cube
       await this.cubePersistence.store(cubeInfo.key, cubeInfo.binaryCube);
       // add cube to the Tree of Wisdom if enabled
@@ -323,7 +326,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   async getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo> {
     const key = keyVariants(keyInput);
     // get from cache if we have it...
-    const cached = this.cubesWeakRefCache.get(key.keyString);
+    const cached = this.cubesWeakRefCache?.get(key.keyString);
     if (cached?.valid)
     {
       this.cacheStatistics.hits++;
@@ -340,7 +343,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
             cube: binaryCube,
             family: this.options.family,
           });
-          this.cubesWeakRefCache.set(key.keyString, cubeInfo); // cache it
+          this.cubesWeakRefCache?.set(key.keyString, cubeInfo); // cache it
           return cubeInfo;
         } catch (err) {
           logger.error(`CubeStore.getCubeInfo(): Could not create CubeInfo for Cube ${key.keyString}: ${err?.toString() ?? err}`);
@@ -608,7 +611,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
    */
   async wipeAll(): Promise<void> {
     // first, wipe the cache
-    this.cubesWeakRefCache.clear();
+    this.cubesWeakRefCache?.clear();
     // then wipe the notification index so nobody we won't have callers
     // retrieving notification keys and then don't finding the associated Cubes
     await this.notificationPersistence?.wipeAll();
