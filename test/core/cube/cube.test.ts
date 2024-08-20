@@ -8,7 +8,7 @@ import { FieldParser } from '../../../src/core/fields/fieldParser';
 
 import { BinaryLengthError, CubeFieldLength, CubeFieldType, CubeSignatureError, CubeType, FieldSizeError, HasNotify, HasSignature, RawcontentFieldType } from '../../../src/core/cube/cube.definitions';
 import { Cube } from '../../../src/core/cube/cube';
-import { calculateHash, countTrailingZeroBits, paddedBuffer } from '../../../src/core/cube/cubeUtil';
+import { calculateHash, countTrailingZeroBits, paddedBuffer, verifySignature } from '../../../src/core/cube/cubeUtil';
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields, CoreFrozenFieldDefinition, CoreMucFieldDefinition, CoreFieldParsers } from '../../../src/core/cube/cubeFields';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
@@ -493,4 +493,70 @@ describe('cube', () => {
       }, 5000);
     });  // MUC tests
   });  // test by Cube type
+
+  describe('consistency tests', () => {
+    test('a MUC should remain valid after updating its date', async () => {
+      // prepare cryptographic keys
+      await sodium.ready;
+      const keyPair = sodium.crypto_sign_keypair();
+      const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+      const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+
+      // sculpts a MUC
+      const muc: Cube = Cube.MUC(
+        publicKey, privateKey, {
+        fields: [
+          CubeField.RawContent(CubeType.MUC,
+            "Melita res publica facta est"),
+          CubeField.Date(156164400),  // republic day
+          ],
+        requiredDifficulty: reducedDifficulty,
+      });
+
+      // verify its signature is valid
+      let binary = await muc.getBinaryData();
+      expect(muc.verifySignature()).toBe(true);
+
+      // update date (this operation is properly encapsulated)
+      muc.setDate(291726000);  // freedom day
+
+      // verify its signature is still valid
+      binary = await muc.getBinaryData();
+      expect(muc.verifySignature()).toBe(true);
+    });
+
+    // This test currently FAILS because a Cube's fields are not properly
+    // encapsulated and thus user code can easily manipulate fields without
+    // the Cube object noticing.
+    test.skip('a MUC should remain valid after updating its content', async () => {
+      // prepare cryptographic keys
+      await sodium.ready;
+      const keyPair = sodium.crypto_sign_keypair();
+      const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+      const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+
+      // sculpts a MUC
+      const muc: Cube = Cube.MUC(
+        publicKey, privateKey, {
+        fields: [
+          CubeField.RawContent(CubeType.MUC,
+            "Melita res publica facta est"),
+          CubeField.Date(156164400),  // republic day
+          ],
+        requiredDifficulty: reducedDifficulty,
+      });
+
+      // verify its signature is valid
+      let binary = await muc.getBinaryData();
+      expect(muc.verifySignature()).toBe(true);
+
+      // update content
+      muc.fields.getFirst(CubeFieldType.MUC_RAWCONTENT).value.write(
+        "Sed militia Britannica adhuc in Melita stat", 'ascii');
+
+      // verify its signature is still valid
+      binary = await muc.getBinaryData();
+      expect(muc.verifySignature()).toBe(true);
+    });
+  })
 });
