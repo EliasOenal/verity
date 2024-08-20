@@ -1,5 +1,5 @@
 import { CubeKey } from '../../../src/core/cube/cube.definitions';
-import { CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
+import { CubeStore, CubeStoreOptions } from '../../../src/core/cube/cubeStore';
 import { Cube } from '../../../src/core/cube/cube'
 
 import { NetConstants, SupportedTransports } from '../../../src/core/networking/networkDefinitions';
@@ -46,7 +46,7 @@ describe('Identity', () => {
       argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
     };
     testCubeStoreParams = {
-      enableCubePersistence: EnableCubePersitence.OFF,
+      inMemoryLevelDB: true,
       enableCubeRetentionPolicy: false,
       requiredDifficulty: 0,
       family: cciFamily,

@@ -2,7 +2,6 @@ import { Cube } from "../../../src/core/cube/cube";
 import { CubeFieldType, CubeType } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
-import { EnableCubePersitence } from "../../../src/core/cube/cubeStore";
 import { NetConstants, SupportedTransports } from "../../../src/core/networking/networkDefinitions";
 import { AddressAbstraction, WebSocketAddress } from "../../../src/core/peering/addressing";
 import { VerityNode, VerityNodeOptions } from "../../../src/core/verityNode";
@@ -10,7 +9,7 @@ import { VerityNode, VerityNodeOptions } from "../../../src/core/verityNode";
 import { Buffer } from 'buffer';
 
 const testOptions: VerityNodeOptions = {
-  enableCubePersistence: EnableCubePersitence.OFF,
+  inMemoryLevelDB: true,
   enableCubeRetentionPolicy: false,
   requiredDifficulty: 0,
   announceToTorrentTrackers: false,
@@ -46,14 +45,14 @@ describe('notification end-to-end tests', () => {
     });
     const sender: VerityNode = new VerityNode({
       ...testOptions,
-      enableCubePersistence: EnableCubePersitence.OFF,
+      inMemoryLevelDB: true,
       lightNode: true,
       initialPeers: [new AddressAbstraction("ws://127.0.0.1:61101")],
     });
     await fullNode2.readyPromise;
     const recipient: VerityNode = new VerityNode({
       ...testOptions,
-      enableCubePersistence: EnableCubePersitence.OFF,
+      inMemoryLevelDB: true,
       lightNode: true,
       initialPeers: [new AddressAbstraction("ws://127.0.0.1:61111")],
     });

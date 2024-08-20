@@ -1,6 +1,6 @@
 import { Settings } from '../../../src/core/settings';
 import { Cube } from '../../../src/core/cube/cube';
-import { CubeStore, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
+import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { CubeType } from '../../../src/core/cube/cube.definitions';
 import { CubeField } from '../../../src/core/cube/cubeField';
 
@@ -10,7 +10,7 @@ describe('CubeStore Retention Policy', () => {
 
     beforeEach(() => {
         cubeStore = new CubeStore({
-            enableCubePersistence: EnableCubePersitence.OFF,
+            inMemoryLevelDB: true,
             requiredDifficulty: Settings.REQUIRED_DIFFICULTY,
             enableCubeRetentionPolicy: true,
         });

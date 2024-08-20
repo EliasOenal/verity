@@ -2,7 +2,7 @@ import { cciFamily, cciCube } from "../../../../src/cci/cube/cciCube";
 import { cciFieldType } from "../../../../src/cci/cube/cciCube.definitions";
 import { cciField } from "../../../../src/cci/cube/cciField";
 import { CubeKey } from "../../../../src/core/cube/cube.definitions";
-import { CubeStoreOptions, EnableCubePersitence, CubeStore } from "../../../../src/core/cube/cubeStore";
+import { CubeStoreOptions, CubeStore } from "../../../../src/core/cube/cubeStore";
 import { SupportedTransports } from "../../../../src/core/networking/networkDefinitions";
 import { NetworkManagerOptions, NetworkManager } from "../../../../src/core/networking/networkManager";
 import { NetworkPeer } from "../../../../src/core/networking/networkPeer";
@@ -16,7 +16,7 @@ const reducedDifficulty = 0; // no hash cash for testing
 
 describe('RequestScheduler integration tests', () => {
   const testCubeStoreParams: CubeStoreOptions = {
-    enableCubePersistence: EnableCubePersitence.OFF,
+    inMemoryLevelDB: true,
     enableCubeRetentionPolicy: false,
     requiredDifficulty: 0,
     family: cciFamily,
@@ -85,7 +85,7 @@ describe('RequestScheduler integration tests', () => {
     // local subscribes to MUC
     local.scheduler.subscribeCube(mucKey);
     // local receives first MUC version
-    await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
+    await new Promise(resolve => setTimeout(resolve, 150));  // give it some time
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect((await local.cubeStore.getCube(mucKey)).fields.getFirst(
@@ -100,7 +100,7 @@ describe('RequestScheduler integration tests', () => {
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
     // local receives update
-    await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
+    await new Promise(resolve => setTimeout(resolve, 150));  // give it some time
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect((await local.cubeStore.getCube(mucKey)).fields.getFirst(

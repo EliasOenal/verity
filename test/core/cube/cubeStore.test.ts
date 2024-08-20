@@ -3,7 +3,7 @@ import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 import { CubeFieldLength, CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
 import { Cube, coreCubeFamily } from '../../../src/core/cube/cube';
-import { CubeIteratorOptions, CubeStore as CubeStore, CubeStoreOptions, EnableCubePersitence } from '../../../src/core/cube/cubeStore';
+import { CubeIteratorOptions, CubeStore as CubeStore, CubeStoreOptions } from '../../../src/core/cube/cubeStore';
 import { CubeField } from '../../../src/core/cube/cubeField';
 
 import { cciField } from '../../../src/cci/cube/cciField';
@@ -67,7 +67,7 @@ describe('cubeStore', () => {
     // minimum if we can.
     beforeEach(() => {
       cubeStore = new CubeStore({
-        enableCubePersistence: EnableCubePersitence.OFF,
+        inMemoryLevelDB: true,
         requiredDifficulty: Settings.REQUIRED_DIFFICULTY,
         enableCubeRetentionPolicy: false,
       });
@@ -124,9 +124,8 @@ describe('cubeStore', () => {
     // So should all other Cube-sculpting tests in other units.
 
     describe.each([
-      { enableCubePersistence: EnableCubePersitence.OFF, },
-      { enableCubePersistence: EnableCubePersitence.BACKUP, },
-      { enableCubePersistence: EnableCubePersitence.PRIMARY, },
+      { inMemoryLevelDB: true, },
+      { inMemoryLevelDB: false, },
     ])('tests run for all three persistence levels', (testOptions) => {
       describe('core level', () => {
         const cubeStoreOptions: CubeStoreOptions = {
@@ -461,7 +460,7 @@ describe('cubeStore', () => {
             expect(await cubeStore.getKeyRange().next()).toBeUndefined;
           });
 
-          if (testOptions.enableCubePersistence !== EnableCubePersitence.OFF) {
+          if (testOptions.inMemoryLevelDB !== true) {
             // This can only happen when using persistent storage.
             // It happened in the past when we updated the Cube format and
             // tried to retrieve old Cubes from the database.

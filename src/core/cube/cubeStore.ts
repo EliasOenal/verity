@@ -19,37 +19,16 @@ import { NetConstants } from "../networking/networkDefinitions";
 // authored by our local user, for example. Indeed, the social media
 // application's Identity implementation relies on having our own posts preserved.
 
-export enum EnableCubePersitence {
-  /** Keep all Cubes in RAM, do not use persistent storage */
-  OFF = 0,
-
-  /** Keep all Cubes in RAM, sync them to persistent storage */
-  BACKUP = 1,
-
-  /** Save and serve Cubes directly to and from persistent storage */
-  PRIMARY = 2,
-}
-
 export interface CubeStoreOptions {
   /**
    * Save cubes to local storage.
    * @default Settings.CUBE_PERSISTANCE
    **/
-  enableCubePersistence?: EnableCubePersitence;
-
   cubeDbName?: string,
   cubeDbVersion?: number,
   notifyDbName?: string,
   notifyDbVersion?: number,
   inMemoryLevelDB?: boolean,
-
-  /**
-   * This option is only relevant if enableCubePersistence is set to PRIMARY.
-   * If true, the CubeStore will keep a negative cache of keys that have been
-   * checked and found to not exist in the database.
-   * @default true
-   */
-  negativeCache?: boolean;
 
   /**
    * If enabled, do not accept or keep old cubes past their scheduled
@@ -117,6 +96,15 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   /** The Tree of Wisdom maps cube keys to their hashes. */
   private treeOfWisdom: TreeOfWisdom = undefined;
 
+  // Cache statistics
+  private cacheStatistics: {
+    hits: number,
+    misses: number,
+  } = {
+    hits: 0,
+    misses: 0,
+  };
+
   constructor(readonly options: CubeStoreOptions) {
     super();
     this.options = options as CubeStoreOptions & LevelBackendOptions;
@@ -124,8 +112,6 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     this.options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
     this.options.family ??= coreCubeFamily;
     this.options.enableCubeRetentionPolicy ??= Settings.CUBE_RETENTION_POLICY;
-    this.options.negativeCache ??= true;
-    this.options.enableCubePersistence ??= EnableCubePersitence.OFF;
 
     // Configure this CubeStore according to the options specified:
     // Do we want to use a Merckle-Patricia-Trie for efficient full node sync?
@@ -140,54 +126,29 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
         resolve(undefined);
       })
     );
-    // Do we want to keep cubes in RAM, or do we want to use persistent storage?
-    if (this.options.enableCubePersistence > EnableCubePersitence.OFF) {
-      // we are using some kind of persistent storage, let's differentiate
-      // the two possible cases:
-      if (this.options.enableCubePersistence >= EnableCubePersitence.PRIMARY) {
-        // persistent storage is primary, in-memory cache is secondary
-        this.inMemory = false;
-        this.cubes = new WeakValueMap(); // in-memory cache
-        this.notifications = new WeakValueMap(); // in-memory cache
-      } else {
-        // in-memory store is primary, persistent storage is backup only
-        this.inMemory = true;
-        this.cubes = new Map();  // primary in-memory storage
-        this.notifications = new Map();  // primary in-memory storage
-      }
-      // When using persistent storage, the CubeStore is ready when the
-      // persistence layer is ready.
-      this.cubePersistence = new LevelBackend({
-        dbName: this.options.cubeDbName ?? Settings.CUBEDB_NAME,
-        dbVersion: this.options.cubeDbVersion ?? Settings.CUBEDB_VERSION,
-        inMemoryLevelDB: this.options.inMemoryLevelDB ?? true,
-      });
-      this.notificationPersistence = new LevelBackend({
-        dbName: this.options.notifyDbName ?? Settings.NOTIFYDB_NAME,
-        dbVersion: this.options.notifyDbVersion ?? Settings.NOTIFYDB_VERSION,
-        inMemoryLevelDB: this.options.inMemoryLevelDB ?? true,
-      });
-      Promise.all(
-        [this.cubePersistence.ready, this.notificationPersistence.ready]
-      ).then(async () => {
-        logger.trace(`cubeStore using persistence Level ${EnableCubePersitence[this.options.enableCubePersistence]} received ready from both LevelDBs`);
-        if (this.options.enableCubePersistence === EnableCubePersitence.BACKUP) {
-          // For CubeStores configured to keep cubes in RAM but still persist
-          // them, we now need to load all Cubes.
-          // In all other cases, we do not and should not.
-          await this.syncPersistentStorage();
-        }
-        this.pruneCubes(); // not await-ing as pruning is non-essential
-        this.emit("ready");
-      });
-    } else {
-      // we are using in-memory storage only
-      this.inMemory = true;
-      this.cubes = new Map();
-      this.notifications = new Map();
-      // In-memory CubeStores are ready immediately.
+
+    // Keep weak references for caching
+    this.cubes = new WeakValueMap(); // in-memory cache
+    this.notifications = new WeakValueMap(); // in-memory cache
+
+    // When using persistent storage, the CubeStore is ready when the
+    // persistence layer is ready.
+    this.cubePersistence = new LevelBackend({
+      dbName: this.options.cubeDbName ?? Settings.CUBEDB_NAME,
+      dbVersion: this.options.cubeDbVersion ?? Settings.CUBEDB_VERSION,
+      inMemoryLevelDB: this.options.inMemoryLevelDB ?? true,
+    });
+    this.notificationPersistence = new LevelBackend({
+      dbName: this.options.notifyDbName ?? Settings.NOTIFYDB_NAME,
+      dbVersion: this.options.notifyDbVersion ?? Settings.NOTIFYDB_VERSION,
+      inMemoryLevelDB: this.options.inMemoryLevelDB ?? true,
+    });
+    Promise.all(
+      [this.cubePersistence.ready, this.notificationPersistence.ready]
+    ).then(async () => {
+      this.pruneCubes(); // not await-ing as pruning is non-essential
       this.emit("ready");
-    }
+    });
   }
 
   /**
@@ -299,9 +260,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       // Store the cube to RAM (or in-memory cache)
       this.cubes.set(cubeInfo.keyString, cubeInfo);
       // save cube to disk (if available and enabled)
-      if (this.cubePersistence) {
-        await this.cubePersistence.store(cubeInfo.key, cubeInfo.binaryCube);
-      }
+      await this.cubePersistence.store(cubeInfo.key, cubeInfo.binaryCube);
       // add cube to the Tree of Wisdom if enabled
       if (this.treeOfWisdom) {
         let hash: Buffer = await cube.getHash();
@@ -358,46 +317,40 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
    * operation is very inefficient -- O(n) -- and should be avoided.
    */
   async getNumberOfStoredCubes(): Promise<number> {
-    if (this.inMemory) return this.cubes.size;
-    else {
-      let count = 0;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      for await (const key of this.getKeyRange({ limit: Infinity })) count++;
-      return count;
-    }
+    let count = 0;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for await (const key of this.getKeyRange({ limit: Infinity })) count++;
+    return count;
   }
 
   async getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo> {
     const key = keyVariants(keyInput);
-    if (this.inMemory) return this.cubes.get(key.keyString);
+    // persistence is primary -- get from cache or fetch from persistence
+    const cached = this.cubes.get(key.keyString);
+    if (cached?.valid)
+    {
+      this.cacheStatistics.hits++;
+      return cached; // positive cache hit
+    } 
     else {
-      // persistence is primary -- get from cache or fetch from persistence
-      const cached = this.cubes.get(key.keyString);
-      if (cached?.valid) return cached; // positive cache hit
-      else if (cached?.valid === false) return undefined; // negative cache hit
-      else {
-        // cache miss
-        const binaryCube: Buffer = await this.cubePersistence.get(key.binaryKey);
-        if (binaryCube !== undefined) {
-          try {  // could fail e.g. on invalid binary data
-            const cubeInfo = new CubeInfo({
-              key: key.binaryKey,
-              cube: binaryCube,
-              family: this.options.family,
-            });
-            this.cubes.set(key.keyString, cubeInfo); // cache it
-            return cubeInfo;
-          } catch (err) {
-            logger.error(`CubeStore.getCubeInfo(): Could not create CubeInfo for Cube ${key.keyString}: ${err?.toString() ?? err}`);
-            return undefined;
-          }
-        } else {
-          if (this.options.negativeCache) {  // populate negative cache
-            const invalidCubeInfo: CubeInfo = new CubeInfo({ key: key.binaryKey });
-            this.cubes.set(key.keyString, invalidCubeInfo);
-          }
+      // cache miss
+      this.cacheStatistics.misses++;
+      const binaryCube: Buffer = await this.cubePersistence.get(key.binaryKey);
+      if (binaryCube !== undefined) {
+        try {  // could fail e.g. on invalid binary data
+          const cubeInfo = new CubeInfo({
+            key: key.binaryKey,
+            cube: binaryCube,
+            family: this.options.family,
+          });
+          this.cubes.set(key.keyString, cubeInfo); // cache it
+          return cubeInfo;
+        } catch (err) {
+          logger.error(`CubeStore.getCubeInfo(): Could not create CubeInfo for Cube ${key.keyString}: ${err?.toString() ?? err}`);
           return undefined;
         }
+      } else {
+        return undefined;
       }
     }
   }
@@ -406,7 +359,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
    * Get a Cube from storage. If the cube is currently dormant, it will
    * automatically get reinstantiated for you.
    * @param key Pass the key of the cube you want in either binary or string form
-   * @param parsers If the requested Cube is domant it will need to be
+   * @param parsers If the requested Cube is dormant it will need to be
    *        re-parsed. The CubeInfo is supposed to know which parser to use,
    *        but you can override it here if you want.
    */
@@ -418,7 +371,6 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     if (cubeInfo) return cubeInfo.getCube(family);
     else return undefined;
   }
-
 
   /**
    * Asynchroneously retrieve multiple succeeding Cube keys.
@@ -447,33 +399,22 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     let first: string = undefined;
     let count: number = 0;
     const limit = options.limit ?? 1000;
-    if (this.inMemory) {
-      for await (const key of this.getInMemoryKeyRange(options)) {
-        if (count >= limit) break;  // respect limit
-        // We will keep track of the first key returned, this is only used
-        // in case wraparound is true.
-        if (first === undefined) first = keyVariants(key).keyString;
-        yield key;
-        // Keep track of number of keys returned, break once limit reached
-        count++;
+
+    for await (const key of this.cubePersistence.getKeyRange(options)) {
+      if (count >= limit) break;  // respect limit
+      // We will keep track of the first key returned, this is only used
+      // in case wraparound is true.
+      if (first === undefined) first = keyVariants(key).keyString;
+      if (options.asString) {
+        yield keyVariants(key).keyString;
       }
-    }
-    else {
-      for await (const key of this.cubePersistence.getKeyRange(options)) {
-        if (count >= limit) break;  // respect limit
-        // We will keep track of the first key returned, this is only used
-        // in case wraparound is true.
-        if (first === undefined) first = keyVariants(key).keyString;
-        if (options.asString) {
-          yield keyVariants(key).keyString;
-        }
-        else {
-          yield keyVariants(key).binaryKey;
-        }
-        // Keep track of number of keys returned, break once limit reached
-        count++;
+      else {
+        yield keyVariants(key).binaryKey;
       }
+      // Keep track of number of keys returned, break once limit reached
+      count++;
     }
+
     if (  // handle wraparound if requested and output limit not reached
       options.wraparound &&
       (!options.limit || count < options.limit) &&
@@ -520,10 +461,6 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   async *getCubeInfoRange(
     options: CubeIteratorOptions = {},
   ): AsyncGenerator<CubeInfo> {
-    // TODO: for better performance, implement fetching CubeInfos directly
-    // for primarily in-memory CubeStores.
-    // For primarily persitent CubeStore I'm not sure if this would be a good idea
-    // as it will circumvent our weak ref cache.
     for await (const key of this.getKeyRange({ ...options, asString: true })) {
       yield await this.getCubeInfo(key);
     }
@@ -540,20 +477,11 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   }
 
   async getKeyAtPosition(position: number): Promise<CubeKey> {
-    if (this.inMemory) {
-      let i = 0;
-      for (const key of this.cubes.keys()) {
-        if (i === position) return CubeKey.from(key, "hex");
-        i++;
-      }
-    } else if (this.cubePersistence) {
-      const key = await this.cubePersistence.getKeyAtPosition(position)
-      if (key)
-        return key;
-      else
-        return undefined;
-    }
-    return undefined;
+    const key = await this.cubePersistence.getKeyAtPosition(position)
+    if (key)
+      return key;
+    else
+      return undefined;
   }
 
   /**
@@ -566,44 +494,18 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     startKey: CubeKey,
     count: number
   ): Promise<CubeMeta[]> {
-    if (this.cubePersistence) {
-      const keys = await this.cubePersistence.getSucceedingKeys(
-        startKey.toString("hex"),
-        count
-      );
-      const cubeInfos: CubeMeta[] = [];
-      for (const key of keys) {
-        const cubeInfo = await this.getCubeInfo(key);
-        if (cubeInfo) {
-          cubeInfos.push(cubeInfo);
-        }
+    const keys = await this.cubePersistence.getSucceedingKeys(
+      startKey.toString("hex"),
+      count
+    );
+    const cubeInfos: CubeMeta[] = [];
+    for (const key of keys) {
+      const cubeInfo = await this.getCubeInfo(key);
+      if (cubeInfo) {
+        cubeInfos.push(cubeInfo);
       }
-      return cubeInfos;
-    } else {
-      // If no persistence, use in-memory storage
-      const cubeInfos: CubeMeta[] = [];
-      let foundStart = false;
-      for (const [key, cubeInfo] of this.cubes) {
-        if (foundStart) {
-          cubeInfos.push(cubeInfo);
-          if (cubeInfos.length === count) {
-            break;
-          }
-        } else if (key === startKey.toString("hex")) {
-          foundStart = true;
-        }
-      }
-      // If we haven't collected enough keys, wrap around to the beginning
-      if (cubeInfos.length < count) {
-        for (const [, cubeInfo] of this.cubes) {
-          cubeInfos.push(cubeInfo);
-          if (cubeInfos.length === count) {
-            break;
-          }
-        }
-      }
-      return cubeInfos;
     }
+    return cubeInfos;
   }
 
   async *getNotificationKeys(recipient: Buffer): AsyncGenerator<CubeKey> {
@@ -612,34 +514,15 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       logger.error(`CubeStore.getNotifications(): Attempt to get notifications for invalid recipient key of size ${recipient?.length}, should be ${NetConstants.NOTIFY_SIZE}; skipping.`);
       return undefined;
     }
-    if (this.inMemory) {
-      // in-memory store is primary
-      const notificationInfos = this.notifications.get(keyVariants(recipient).keyString);
-      if (notificationInfos) for (const cubeInfo of notificationInfos) {
-        yield cubeInfo.key;
-      }
-    } else {  // persistent storage is primary
-      const record: Buffer = await this.notificationPersistence.get(recipient);
-      yield *parsePersistentNotificationBlob(record);
-    }
+    const record: Buffer = await this.notificationPersistence.get(recipient);
+    yield *parsePersistentNotificationBlob(record);
   }
 
   async *getNotificationCubeInfos(recipient: Buffer): AsyncGenerator<CubeInfo> {
-    if (this.inMemory) {
-      // in-memory store is primary --
-      // in-memory store directly stores the notification's CubeInfos
-      const notificationCubeInfos: CubeInfo[] =
-        this.notifications.get(keyVariants(recipient).keyString);
-      if (notificationCubeInfos) for (const cubeInfo of notificationCubeInfos) {
-        yield cubeInfo;
-      }
-    } else {
-      // persistent storage is primary --
-      // persistent storage stores the keys of the notification Cubes,
-      // which we then need to separately fetch from the CubeStore
-      for await (const key of this.getNotificationKeys(recipient)) {
-        yield await this.getCubeInfo(key);
-      }
+    const notificationCubeInfos: CubeInfo[] =
+      this.notifications.get(keyVariants(recipient).keyString);
+    if (notificationCubeInfos) for (const cubeInfo of notificationCubeInfos) {
+      yield cubeInfo;
     }
   }
 
@@ -651,13 +534,10 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
 
   /** @deprecated This method is not efficient -- O(n) */
   async getNumberOfNotificationRecipients(): Promise<number> {
-    if (this.inMemory) return this.notifications.size;
-    else {
-      let count = 0;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      for await (const key of this.notificationPersistence.getKeyRange({ limit: Infinity })) count++;
-      return count;
-    }
+    let count = 0;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for await (const key of this.notificationPersistence.getKeyRange({ limit: Infinity })) count++;
+    return count;
   }
 
   async deleteCube(keyInput: CubeKey | string | CubeInfo): Promise<void> {
@@ -737,45 +617,6 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     this.notifications.clear();
     await this.cubePersistence?.wipeAll();
     await this.notificationPersistence?.wipeAll();
-  }
-
-  // Note that this method does neither handle the limit nor wraparound
-  // options, the caller (getKeyRange) is responsible for that.
-  private async *getInMemoryKeyRange(
-    options: CubeIteratorOptions = {},
-  ): AsyncGenerator<CubeKey | string> {
-    // catch API misuse
-    if (!this.inMemory) throw new ApiMisuseError(
-      "getInMemoryKeyRange() called on a non-in-memory CubeStore");
-
-    // normalize input
-    let gt: string = undefined, gte: string = undefined
-    let lt: string = undefined, lte: string = undefined;
-    if (options.gt) gt = keyVariants(options.gt).keyString;
-    if (options.gte) gte = keyVariants(options.gte).keyString;
-    if (options.lt) lt = keyVariants(options.lt).keyString;
-    if (options.lte) lte = keyVariants(options.lte).keyString;
-
-    // iterate over all keys
-    const iterator = this.cubes.keys();
-    for (let entry = iterator.next(); !entry.done; entry = iterator.next()) {
-      const key = keyVariants(entry.value);
-      if (  // skip any keys not matching the requested ones
-        (gt !== undefined && key.keyString <= gt) ||
-        (gte !== undefined && key.keyString < gte) ||
-        (lt !== undefined && key.keyString >= lt) ||
-        (lte !== undefined && key.keyString > lte)
-      ) {
-        continue;
-      }
-      // Yield result.
-      if (options.asString) {
-        yield key.keyString;
-      }
-      else {
-        yield key.binaryKey;
-      }
-    }
   }
 
   private async addNotification(cubeInfo: CubeInfo): Promise<void> {
@@ -863,22 +704,6 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       }
     }
   }
-
-  /**
-   * Load all persistent cubes into RAM and store all RAM cubes persistently.
-   * This is (only) used for CubeStores that are configured to keep cubes in RAM
-   * but still persist them; in this case, it will be called upon construction.
-   */
-  private async syncPersistentStorage() {
-    if (!this.cubePersistence || !this.inMemory) return;
-    for await (const rawcube of this.cubePersistence.getValueRange({ limit: Infinity })) {
-      await this.addCube(Buffer.from(rawcube));
-    }
-    for (const cubeInfo of this.cubes.values()) {
-      await this.cubePersistence.store(cubeInfo.key, cubeInfo.binaryCube);
-    }
-  }
-
 
   async shutdown(): Promise<void> {
     await Promise.all([

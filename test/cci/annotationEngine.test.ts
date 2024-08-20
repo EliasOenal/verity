@@ -1,5 +1,5 @@
 import { Cube } from '../../src/core/cube/cube';
-import { CubeStore as CubeStore, EnableCubePersitence } from '../../src/core/cube/cubeStore';
+import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
 
 import { cciField } from '../../src/cci/cube/cciField';
 import { cciRelationship, cciRelationshipType } from '../../src/cci/cube/cciRelationship';
@@ -15,7 +15,7 @@ describe('annotationEngine', () => {
 
   beforeEach(() => {
     cubeStore = new CubeStore({
-      enableCubePersistence: EnableCubePersitence.OFF,
+      inMemoryLevelDB: true,
       requiredDifficulty: 0,
       enableCubeRetentionPolicy: false,
     });
