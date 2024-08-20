@@ -471,54 +471,39 @@ export class Cube {
      * For MUCs, it also signs the cube, populating its SIGNATURE field.
      */
     // Non-worker version for browser portability
-    findValidHash(nonceField: CubeField, abortSignal?: AbortSignal): Promise<Buffer> {
-        return new Promise((resolve, reject) => {
-            let nonce: number = 0;
-            let hash: Buffer;
-
-            const checkAbort = () => {
-                if (abortSignal?.aborted) {
-                    reject(new Error('findValidHash() aborted'));
-                    return true;
+    async findValidHash(nonceField: CubeField, abortSignal?: AbortSignal): Promise<Buffer> {
+        let nonce: number = 0;
+        let hash: Buffer;
+    
+        const checkAbort = () => {
+            if (abortSignal?.aborted) {
+                throw new Error('findValidHash() aborted');
+            }
+        };
+    
+        while (true) {
+            if (this.binaryData === undefined) {
+                throw new BinaryDataError("findValidHash() Binary data not initialized");
+            }
+            checkAbort();  // Check for abort signal before starting the hash checking
+    
+            // Check 1000 hashes before yielding control back to the event loop
+            for (let i = 0; i < 1000; i++) {
+                // Write the nonce to binaryData
+                nonceField.value.writeUIntBE(nonce, 0, NetConstants.NONCE_SIZE);
+                // Calculate the hash
+                hash = CubeUtil.calculateHash(this.binaryData);
+                // Check if the hash is valid
+                if (CubeUtil.countTrailingZeroBits(hash) >= this.requiredDifficulty) {
+                    return hash;  // Found valid hash, return it
                 }
-                return false;
-            };
-
-            const checkHash = () => {
-                if (this.binaryData === undefined) {
-                    reject(new BinaryDataError("findValidHash() Binary data not initialized"));
-                    return;
-                }
-
-                // Check for abort signal before starting the hash checking
-                if (checkAbort()) return;
-
-                // Check 1000 hashes before yielding control back to the event loop
-                for (let i = 0; i < 1000; i++) {
-                    // Write the nonce to binaryData
-                    nonceField.value.writeUIntBE(nonce, 0, NetConstants.NONCE_SIZE);
-                    // Calculate the hash
-                    hash = CubeUtil.calculateHash(this.binaryData);
-                    // Check if the hash is valid
-                    if (CubeUtil.countTrailingZeroBits(hash) >= this.requiredDifficulty) {
-                        // logger.trace("Cube: Found valid hash with nonce " + nonce);
-                        resolve(hash);
-                        return;  // This is important! It stops the for loop and the function if a valid hash is found
-                    }
-                    // Increment the nonce
-                    nonce++;
-                }
-
-                // Check for abort signal before rescheduling
-                if (checkAbort()) return;
-
-                // If no valid hash was found after 1000 tries, schedule the next check
-                setTimeout(checkHash, 0);
-            };
-
-            // Start the hash checking
-            checkHash();
-        });
+                nonce++;
+            }
+            checkAbort();  // Check for abort signal before yielding
+    
+            // Yield to the event loop to avoid blocking
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
     }
 
     getDifficulty(): number {
