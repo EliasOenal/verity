@@ -524,7 +524,7 @@ describe('networkManager - libp2p connections', () => {
       manager2.shutdown(),
       manager3.shutdown()
     ]);
-  }, 20000);
+  }, 5000);
 
 
   // This test currently FAILs either due to my fundamental misunderstanding
