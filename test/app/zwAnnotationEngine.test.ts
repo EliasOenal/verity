@@ -50,6 +50,10 @@ describe('ZwAnnotationEngine', () => {
         true);  // allow anonymous posts cause all posts in this group of tests are anonymous
     });
 
+    afterEach(() => {
+      annotationEngine.shutdown();
+    });
+
     describe('reverse relationships', () => {
       it('correctly creates a reverse relationship', async () => {
         const referee: Cube = await makePost("I am the base post", undefined, undefined, reducedDifficulty);

@@ -251,6 +251,14 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     return undefined;
   }
 
+  shutdown(): void {
+    super.shutdown();
+    this.cubeStore.off('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
+    this.cubeStore.off('cubeAdded', (cubeInfo: CubeInfo) => this.learnAuthorsPosts(cubeInfo));
+    this.cubeStore.off('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
+    this.cubeStore.off('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeMakesOthersDisplayable(cubeInfo));
+  }
+
   /** This is the recursive part of cubeAuthor() */
   private async cubeAuthorWithoutAnnotationsRecursion(key: CubeKey, mucOrMucExtension: cciCube, rootmuc: cciCube): Promise<Identity> {
     if (!assertZwCube(mucOrMucExtension)) return undefined;

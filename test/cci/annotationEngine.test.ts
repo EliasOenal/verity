@@ -26,6 +26,10 @@ describe('annotationEngine', () => {
       annotationEngine = await AnnotationEngine.Construct(cubeStore);
     }, 3000);
 
+    afterEach(() => {
+      annotationEngine.shutdown();
+    });
+
     it('correctly creates a reverse relationship', async () => {
       const referee = cciCube.Frozen({requiredDifficulty: reducedDifficulty});
       const referrer = cciCube.Frozen({
@@ -87,6 +91,8 @@ describe('annotationEngine', () => {
 
       expect(annotationEngine.getReverseRelationships(await muc2.getKey()).length).toEqual(0);
       expect(annotationEngine.getReverseRelationships(await continuedin.getKey()).length).toEqual(0);
+
+      annotationEngine.shutdown();
     });
   });
 });
