@@ -487,7 +487,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     count: number
   ): Promise<CubeMeta[]> {
     const keys = await this.cubePersistence.getSucceedingKeys(
-      startKey.toString("hex"),
+      startKey,
       count
     );
     const cubeInfos: CubeMeta[] = [];

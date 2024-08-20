@@ -63,12 +63,25 @@ export class LevelBackend {
     });
   }
 
+  /**
+   * memory-level does not copy the Buffer, so we need to do it here.
+   * Explicitly copy the Buffer to a new Buffer to prevent accidental mutation.
+   */
+  private ifMemoryLevelCopyBuffer(buffer: Buffer): Buffer {
+    if(this.db instanceof MemoryLevel) {
+      return Buffer.from(buffer);
+    }
+    return buffer; // classic-level does not need to copy
+  }
+
   store(key: Buffer, value: Buffer): Promise<void> {
     if (this.db.status !== 'open') {
       logger.warn("LevelBackend: Attempt to store in a closed DB");
       return Promise.resolve();
     }
 
+    value = this.ifMemoryLevelCopyBuffer(value);
+    key = this.ifMemoryLevelCopyBuffer(key);
     return this.db.put(key, value)
       .then(() => {
         logger.trace(`LevelBackend: Successfully stored ${keyVariants(key).keyString}`);
@@ -83,12 +96,20 @@ export class LevelBackend {
     return this.db.get(key)
       .then(ret => {
         //logger.trace(`LevelBackend.get() fetched ${keyVariants(key).keyString}`);
+        ret = this.ifMemoryLevelCopyBuffer(ret);
         return ret;
       })
       .catch(error => {
         logger.debug(`LevelBackend.get(): Cannot find ${keyVariants(key).keyString}, error status ${error.status} ${error.code}, ${error.message}`);
         return undefined;
       });
+  }
+
+  // Helper generator to copy buffers if needed
+  private async *copyBuffers(generator: AsyncGenerator<Buffer>) {
+      for await (const key of generator) {
+          yield this.ifMemoryLevelCopyBuffer(key);
+      }
   }
 
   /**
@@ -100,23 +121,23 @@ export class LevelBackend {
   async *getKeyRange(
       options: CubeIteratorOptions = {},
   ): AsyncGenerator<Buffer> {
-      // normalize input: keys are binary in LevelDB
-      // Note! Unused options must be unset, not set to undefined.
-      // Level just breaks when you set a limit of undefined and returns nothing.
-      const optionsNormalised: KeyIteratorOptions<Buffer> = {};
-      if (options.gt) optionsNormalised.gt = keyVariants(options.gt).binaryKey;
-      if (options.gte) optionsNormalised.gte = keyVariants(options.gte).binaryKey;
-      if (options.lt) optionsNormalised.lt = keyVariants(options.lt).binaryKey;
-      if (options.lte) optionsNormalised.lte = keyVariants(options.lte).binaryKey;
-      optionsNormalised.limit = options.limit ?? 1000;
-      optionsNormalised.reverse = false;
-    if (options.limit > 1000) logger.warn("LevelBackend:getKeys() requesting over 1000 Keys is deprecated. Please fix your application and set a reasonable limit.");
+    // Normalize input: keys are binary in LevelDB
+    const optionsNormalised: KeyIteratorOptions<Buffer> = {};
+    if (options.gt) optionsNormalised.gt = keyVariants(options.gt).binaryKey;
+    if (options.gte) optionsNormalised.gte = keyVariants(options.gte).binaryKey;
+    if (options.lt) optionsNormalised.lt = keyVariants(options.lt).binaryKey;
+    if (options.lte) optionsNormalised.lte = keyVariants(options.lte).binaryKey;
+    optionsNormalised.limit = options.limit ?? 1000;
+    optionsNormalised.reverse = false;
 
-    // return nothing if the DB is not open... not that we have any choice then
-    if (this.db.status != 'open') return undefined;  // "Generator has completed"
+    if (options.limit > 1000) {
+        logger.warn("LevelBackend:getKeys() requesting over 1000 Keys is deprecated. Please fix your application and set a reasonable limit.");
+    }
 
-    // finally, delegate everything this method actually does directly to LevelDB
-    yield* this.db.keys(optionsNormalised);
+    if (this.db.status !== 'open') return undefined;  // "Generator has completed"
+
+    // Use yield* to delegate to the copyBuffers generator
+    yield* this.copyBuffers(this.db.keys(optionsNormalised));
   }
 
   /**
@@ -136,15 +157,18 @@ export class LevelBackend {
    *     completely impractical and block an application for basically forever.
    */
   async *getValueRange(
-      options: ValueIteratorOptions<Buffer, Buffer> = {},
-  ): AsyncGenerator<Buffer> {
+    options: ValueIteratorOptions<Buffer, Buffer> = {},
+): AsyncGenerator<Buffer> {
     options.limit ??= 1000;
-    if (options.limit > 1000) logger.warn("LevelBackend:getValueRange() requesting over 1000 values is deprecated. Please fix your application and set a reasonable limit.");
-    if (this.db.status != 'open') return undefined;  // "Generator has completed"
-    const valGen = this.db.values(options);
-    let val: Buffer;
-    while (val = await valGen.next()) yield val;
-  }
+    if (options.limit > 1000) {
+        logger.warn("LevelBackend:getValueRange() requesting over 1000 values is deprecated. Please fix your application and set a reasonable limit.");
+    }
+
+    if (this.db.status !== 'open') return undefined;  // "Generator has completed"
+
+    // Use yield* to delegate to the copyBuffers generator
+    yield* this.copyBuffers(this.db.values(options));
+}
 
   /**
    * Deletes an entry from persistent storage based on its key.
@@ -184,7 +208,7 @@ export class LevelBackend {
     try {
       for await (const [key] of iterator) {
         if (count === position) {
-          return key;
+          return this.ifMemoryLevelCopyBuffer(key);
         }
         count++;
       }
@@ -204,12 +228,12 @@ export class LevelBackend {
   // TODO: Given that keys are stored sorted in LevelDB, we should be able
   // to get rid of this method and use getKeyRange instead
   // (which should be O(log n) instead of O(n)).
-  async getSucceedingKeys(startKey: string, count: number): Promise<string[]> {
+  async getSucceedingKeys(startKey: Buffer, count: number): Promise<Buffer[]> {
     if (this.db.status !== 'open') {
       throw new levelBackendError("DB is not open");
     }
 
-    const keys: string[] = [];
+    const keys: Buffer[] = [];
     let iterator = this.db.iterator({
       gt: startKey,
       limit: count,
