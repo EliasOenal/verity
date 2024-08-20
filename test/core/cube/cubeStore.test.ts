@@ -129,7 +129,7 @@ describe('cubeStore', () => {
       { inMemoryLevelDB: false, cubeCacheEnabled: true, },
       { inMemoryLevelDB: false, cubeCacheEnabled: false, },
     ])('tests run for both in-memory and persistent stores, both with and without weak cache', (testOptions) => {
-      describe('core level', () => {
+      describe(`core level tests with inMemoryLevelDb:${testOptions.inMemoryLevelDB} and cubeCacheEnabled:${testOptions.cubeCacheEnabled}`, () => {
         const cubeStoreOptions: CubeStoreOptions = {
           requiredDifficulty: reducedDifficulty,
           enableCubeRetentionPolicy: false,
@@ -209,7 +209,7 @@ describe('cubeStore', () => {
             expect(cubesStored).toEqual(20);
           }, 10000);
 
-          it('should update the initial MUC with the updated MUC', async () => {
+          it('should update the initial MUC with a newer MUC of the same key', async () => {
             // Generate a key pair for testing
             await sodium.ready;
             const keyPair = sodium.crypto_sign_keypair();
@@ -254,9 +254,54 @@ describe('cubeStore', () => {
             expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);  // still 1, MUC just updated
 
             // Verify that the first MUC has been updated with the second MUC
-            const retrievedMuc = cubeStore.getCube(key);
-            expect(retrievedMuc).toBeDefined();
-            expect((await retrievedMuc).getDate()).toEqual(1695340001);
+            const retrievedMuc = await cubeStore.getCube(key);
+            expect(retrievedMuc).toBeInstanceOf(Cube);
+            expect(retrievedMuc.getDate()).toEqual(1695340001);
+          }, 10000);
+
+          it('should update the initial MUC with a newer version updated in-place', async () => {
+            // Generate a key pair for testing
+            await sodium.ready;
+            const keyPair = sodium.crypto_sign_keypair();
+            const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+            const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+
+            // Create MUC
+            const muc = Cube.MUC(publicKey, privateKey, {
+              fields: CubeField.RawContent(CubeType.MUC,
+                "Sum cubus usoris mutabilis, signatus a domino meo."),
+              requiredDifficulty: reducedDifficulty
+            });
+            muc.setDate(1695340000);
+            const key = await muc.getKey();
+            let info = await muc.getCubeInfo();
+            expect(muc.getDate()).toEqual(1695340000);
+            expect(info.date).toEqual(1695340000);
+            await cubeStore.addCube(muc);
+            expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);
+            expect((await cubeStore.getCube(key)).getDate()).toEqual(1695340000);
+            expect((await cubeStore.getCubeInfo(key)).date).toEqual(1695340000);
+
+            // update MUC
+            muc.fields.getFirst(CubeFieldType.MUC_RAWCONTENT).value =
+              paddedBuffer(
+                "Actualizatus sum a domino meo, sed clavis mea semper eadem est.",
+                CubeFieldLength[CubeFieldType.MUC_RAWCONTENT]);
+            // Make sure date is ever so slightly newer
+            muc.setDate(1695340001);
+            await muc.compile();
+            info = await muc.getCubeInfo();
+            const keyCompare = await muc.getKey();
+            expect(keyCompare.equals(key)).toBe(true);
+            expect(muc.getDate()).toEqual(1695340001);
+            expect(info.date).toEqual(1695340001);
+            await cubeStore.addCube(muc);
+            expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);  // still 1, MUC just updated
+
+            // Verify that the first MUC has been updated with the second MUC
+            const retrievedMuc = await cubeStore.getCube(key);
+            expect(retrievedMuc).toBeInstanceOf(Cube);
+            expect(retrievedMuc.getDate()).toEqual(1695340001);
           }, 10000);
 
           it('correctly stores and retrieves a binary MUC', async () => {
