@@ -68,7 +68,7 @@ describe("Identity (separate MUC storage test suite for long-running tests)", ()
       expect(id.name).toEqual("Probator Identitatum Repetitus");
       expect(id.profilepic).toBeInstanceOf(Buffer);
       expect(id.keyBackupCube).toBeInstanceOf(Buffer);
-    }, 30000);
+    }, 5000);
 
     // This is a particularly long-running test because it uses the
     // actual default minimum MUC spacing of 5 seconds, and therefore by

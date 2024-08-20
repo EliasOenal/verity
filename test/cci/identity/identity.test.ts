@@ -87,7 +87,7 @@ describe('Identity', () => {
         expect(restoredPostKey).toHaveLength(NetConstants.CUBE_KEY_SIZE*2);  // *2 due to string representation
         expect(testPostKeys).toContain(restoredPostKey);
       }
-    }, 10000);
+    }, 5000);
 
     it('will not fail on circular post references', async() => {
       // Note that unlike regular posts, at least one of those has to be a MUC.
@@ -343,7 +343,7 @@ describe('Identity', () => {
         const restoredother: Identity = await Identity.Construct(cubeStore, othermuc);
         expect(restoredother.name).toEqual("Figurarius " + i + "-tus");
       }
-    }, 10000);
+    }, 5000);
 
     it.todo('will not fail on circular subscription recommendation index cubes');
   });  // describe subscription recommendations
@@ -497,7 +497,7 @@ describe('Identity', () => {
       autoConnect: false,
       lightNode: true,
       peerExchange: false,
-      requestInterval: 100,
+      requestInterval: 20,
       requestTimeout: 1000,
     };
     let local: NetworkManager;
@@ -647,7 +647,7 @@ describe('Identity', () => {
           expect(restoredWot).toContainEqual(testSubs[i]);
         }
       }
-    }, 60000);
+    }, 5000);
   });
 
   describe('local persistant storage', () => {
@@ -707,7 +707,7 @@ describe('Identity', () => {
         expect(restoredId.avatar.scheme).toEqual(AvatarScheme.MULTIAVATAR);
         expect(restoredId.avatar.seedString).toEqual("0102030405");
       }
-    }, 10000000);
+    }, 5000);
   });  // local persistant storage tests
 
   describe('static helpers', () => {

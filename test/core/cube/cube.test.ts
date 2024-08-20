@@ -430,7 +430,7 @@ describe('cube', () => {
 
         expect(coreParsedMuc.fields.getFirst(CubeFieldType.MUC_RAWCONTENT).valueString).toContain(
           "Ego sum cubus usoris mutabilis, peculiare informatiuncula quae a domino meo corrigi potest.");
-      }, 5000000);
+      }, 5000);
 
       it('should reject a binary MUC with invalid signature', async () => {
         // Generate a key pair for testing

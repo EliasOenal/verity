@@ -393,7 +393,7 @@ describe('networkManager - WebSocket connections', () => {
         ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
       expect((othersDuplicateNp.conn as WebSocketConnection).
         ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
-    }, 500000);
+    }, 5000);
 
     it('only accepts incoming connections when enabled', async () => {
       const myPeerDB = new PeerDB();
@@ -583,7 +583,7 @@ describe('networkManager - WebSocket connections', () => {
         const promise2_shutdown = manager2.shutdown();
         const promise3_shutdown = manager3.shutdown();
         await Promise.all([promise1_shutdown, promise2_shutdown, promise3_shutdown]);
-      }, 10000);
+      }, 5000);
 
       it('syncs MUC updates', async () => {
         await sodium.ready;
@@ -690,7 +690,7 @@ describe('networkManager - WebSocket connections', () => {
         const promise1_shutdown = manager1.shutdown();
         const promise2_shutdown = manager2.shutdown();
         await Promise.all([promise1_shutdown, promise2_shutdown]);
-      }, 10000);
+      }, 5000);
 
       it.todo('will not request Cubes already in store');
       it.todo('will not send Cubes that have not been requested');

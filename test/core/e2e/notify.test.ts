@@ -16,7 +16,7 @@ const testOptions: VerityNodeOptions = {
   autoConnect: true,
   peerExchange: false,
   initialPeers: [],
-  requestInterval: 100,  // yes, repeating requests ten times per second totally is a sensible idea!
+  requestInterval: 20,  // yes, repeating requests fifty times per second totally is a sensible idea!
 }
 
 const reducedDifficulty = 0;

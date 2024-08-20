@@ -152,7 +152,7 @@ describe('cubeStore', () => {
           await cubeStore.wipeAll();
           expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
           expect(await cubeStore.getNumberOfNotificationRecipients()).toBe(0);
-        }, 360000);
+        }, 5000);
         afterAll(async () => {
           await cubeStore.shutdown();
         });
@@ -207,7 +207,7 @@ describe('cubeStore', () => {
             };
             const cubesStored: number = await cubeStore.getNumberOfStoredCubes();
             expect(cubesStored).toEqual(20);
-          }, 10000);
+          }, 5000);
 
           it('should update the initial MUC with a newer MUC of the same key', async () => {
             // Generate a key pair for testing
@@ -257,7 +257,7 @@ describe('cubeStore', () => {
             const retrievedMuc = await cubeStore.getCube(key);
             expect(retrievedMuc).toBeInstanceOf(Cube);
             expect(retrievedMuc.getDate()).toEqual(1695340001);
-          }, 10000);
+          }, 5000);
 
           it('should update the initial MUC with a newer version updated in-place', async () => {
             // Generate a key pair for testing
@@ -302,7 +302,7 @@ describe('cubeStore', () => {
             const retrievedMuc = await cubeStore.getCube(key);
             expect(retrievedMuc).toBeInstanceOf(Cube);
             expect(retrievedMuc.getDate()).toEqual(1695340001);
-          }, 10000);
+          }, 5000);
 
           it('correctly stores and retrieves a binary MUC', async () => {
             // Generate a key pair for testing
