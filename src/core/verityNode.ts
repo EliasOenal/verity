@@ -52,7 +52,7 @@ export class VerityNode implements VerityNodeIf {
     // set default options
     options.transports ??= new Map();  // TODO use sensible default
     options.initialPeers ??= defaultInitialPeers;
-    options.inMemoryLevelDB ??= true;
+    options.inMemory ??= true;
 
     this.cubeStore = new CubeStore(options);
     // find a suitable port number for tracker announcement
@@ -113,7 +113,7 @@ export class DummyVerityNode implements VerityNodeIf {
   readonly shutdownPromise: Promise<void>;
 
   constructor(){
-    this.cubeStore = new CubeStore({inMemoryLevelDB: true});
+    this.cubeStore = new CubeStore({inMemory: true});
     this.peerDB = new PeerDB();
     this.networkManager = new DummyNetworkManager(this.cubeStore, this.peerDB);
     this.cubeRetriever = new CubeRetriever(this.cubeStore, new RequestScheduler(this.networkManager));

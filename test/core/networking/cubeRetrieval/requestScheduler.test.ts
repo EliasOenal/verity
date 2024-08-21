@@ -36,7 +36,7 @@ class mockNetworkPeer {
 }
 
 const cubeStoreOptions: CubeStoreOptions = {
-  inMemoryLevelDB: true,
+  inMemory: true,
   requiredDifficulty: reducedDifficulty,
   enableCubeRetentionPolicy: false,
   dbName: 'cubes.test',

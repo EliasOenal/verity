@@ -28,7 +28,7 @@ import sodium from 'libsodium-wrappers-sumo'
 describe('networkManager - libp2p connections', () => {
   const reducedDifficulty = 0;
   const testCubeStoreParams: CubeStoreOptions = {
-    inMemoryLevelDB: true,
+    inMemory: true,
     enableCubeRetentionPolicy: false,
     requiredDifficulty: 0
   }

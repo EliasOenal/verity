@@ -15,8 +15,8 @@ describe('annotationEngine', () => {
 
   beforeEach(async () => {
     cubeStore = new CubeStore({
-      inMemoryLevelDB: true,
-      cubeCacheEnabled: false,
+      inMemory: true,
+      enableCubeCache: false,
       requiredDifficulty: 0,
       enableCubeRetentionPolicy: false,
     });

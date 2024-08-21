@@ -10,7 +10,7 @@ describe('CubeStore Retention Policy', () => {
 
     beforeEach(async () => {
         cubeStore = new CubeStore({
-            inMemoryLevelDB: true,
+            inMemory: true,
             requiredDifficulty: Settings.REQUIRED_DIFFICULTY,
             enableCubeRetentionPolicy: true,
         });

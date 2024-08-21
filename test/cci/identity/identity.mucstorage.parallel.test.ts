@@ -21,8 +21,8 @@ describe("Identity (separate MUC storage test suite for long-running tests)", ()
 
   beforeEach(async () => {
     cubeStore = new CubeStore({
-      inMemoryLevelDB: true,
-      cubeCacheEnabled: false,
+      inMemory: true,
+      enableCubeCache: false,
       requiredDifficulty: 0, // require no hashcash for faster testing
       family: cciFamily,
     });

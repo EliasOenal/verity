@@ -46,8 +46,8 @@ describe('Identity', () => {
       argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
     };
     testCubeStoreParams = {
-      inMemoryLevelDB: true,
-      cubeCacheEnabled: false,
+      inMemory: true,
+      enableCubeCache: false,
       enableCubeRetentionPolicy: false,
       requiredDifficulty: 0,
       family: cciFamily,

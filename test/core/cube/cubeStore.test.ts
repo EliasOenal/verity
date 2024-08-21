@@ -68,11 +68,11 @@ describe('cubeStore', () => {
     // minimum if we can.
     beforeEach(async () => {
       cubeStore = new CubeStore({
-        inMemoryLevelDB: true,
+        inMemory: true,
         requiredDifficulty: Settings.REQUIRED_DIFFICULTY,
         enableCubeRetentionPolicy: false,
       });
-    
+
       await cubeStore.readyPromise;
     });
 

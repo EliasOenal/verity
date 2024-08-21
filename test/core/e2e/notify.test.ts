@@ -9,7 +9,7 @@ import { VerityNode, VerityNodeOptions } from "../../../src/core/verityNode";
 import { Buffer } from 'buffer';
 
 const testOptions: VerityNodeOptions = {
-  inMemoryLevelDB: true,
+  inMemory: true,
   enableCubeRetentionPolicy: false,
   requiredDifficulty: 0,
   announceToTorrentTrackers: false,
@@ -45,14 +45,14 @@ describe('notification end-to-end tests', () => {
     });
     const sender: VerityNode = new VerityNode({
       ...testOptions,
-      inMemoryLevelDB: true,
+      inMemory: true,
       lightNode: true,
       initialPeers: [new AddressAbstraction("ws://127.0.0.1:61101")],
     });
     await fullNode2.readyPromise;
     const recipient: VerityNode = new VerityNode({
       ...testOptions,
-      inMemoryLevelDB: true,
+      inMemory: true,
       lightNode: true,
       initialPeers: [new AddressAbstraction("ws://127.0.0.1:61111")],
     });
