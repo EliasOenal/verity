@@ -20,10 +20,30 @@ import { NetConstants } from "../networking/networkDefinitions";
 // application's Identity implementation relies on having our own posts preserved.
 
 export interface CubeStoreOptions {
+  /**
+   * Set a custom name for the Cube LevelDB database.
+   * On standalone persistant nodes this is the database file name.
+   **/
   dbName?: string,
+
+  /**
+   * Set a custom database scheme version number for the LevelDB database.
+   * This is usually not required, only use if you know what you're doing.
+   */
   dbVersion?: number,
-  inMemoryLevelDB?: boolean,
-  cubeCacheEnabled?: boolean,
+
+  /**
+   * If enabled, Cubes will only be kept in memory and will be lost when
+   * the node shuts down.
+   */
+  inMemory?: boolean,
+
+  /**
+   * If enabled, CubeStore will keep a WeakRef cache of all CubeInfos it
+   * encounters until the garbage collector come to collect them.
+   * This saves unnecessary re-instantiation of Cube objects.
+   */
+  enableCubeCache?: boolean,
 
   /**
    * If enabled, do not accept or keep old cubes past their scheduled
@@ -102,8 +122,8 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     this.options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
     this.options.family ??= coreCubeFamily;
     this.options.enableCubeRetentionPolicy ??= Settings.CUBE_RETENTION_POLICY;
-    this.options.inMemoryLevelDB ??= true;
-    this.options.cubeCacheEnabled ??= true;
+    this.options.inMemory ??= true;
+    this.options.enableCubeCache ??= true;
 
     // Configure this CubeStore according to the options specified:
     // Do we want to use a Merckle-Patricia-Trie for efficient full node sync?
@@ -120,7 +140,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     );
 
     // Keep weak references of all Cubes for caching
-    if (this.options.cubeCacheEnabled) {
+    if (this.options.enableCubeCache) {
       this.cubesWeakRefCache = new WeakValueMap(); // in-memory cache
     }
 
@@ -128,7 +148,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     this.leveldb = new LevelBackend({
       dbName: this.options.dbName ?? Settings.CUBEDB_NAME,
       dbVersion: this.options.dbVersion ?? Settings.CUBEDB_VERSION,
-      inMemoryLevelDB: this.options.inMemoryLevelDB,
+      inMemoryLevelDB: this.options.inMemory,
     });
     Promise.all(
       [this.leveldb.ready]

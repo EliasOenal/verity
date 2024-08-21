@@ -28,8 +28,8 @@ describe("Identity (MUC storage)", () => {
 
   beforeEach(async () => {
     cubeStore = new CubeStore({
-      inMemoryLevelDB: true,
-      cubeCacheEnabled: false,
+      inMemory: true,
+      enableCubeCache: false,
       requiredDifficulty: 0, // require no hashcash for faster testing
       family: cciFamily,
     });

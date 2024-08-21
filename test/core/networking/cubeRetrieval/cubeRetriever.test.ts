@@ -18,7 +18,7 @@ let cubeRetriever: CubeRetriever;
 const reducedDifficulty = 0;
 
 const testCubeStoreParams: CubeStoreOptions = {
-  inMemoryLevelDB: true,
+  inMemory: true,
   enableCubeRetentionPolicy: false,
   requiredDifficulty: 0,
 };

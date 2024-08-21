@@ -59,7 +59,7 @@ export class VerityUI implements ControllerContext {
     options.initialPeers ??= defaultInitialPeers,
     options.navItems ??= defaultNavItems;
     options.initialNav ??= defaultInitialNav;
-    options.inMemoryLevelDB ??= false;
+    options.inMemory ??= false;
     options.lightNode ??= true;
     options.useRelaying ??= true;
     options.family ??= cciFamily;

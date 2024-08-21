@@ -40,7 +40,7 @@ class VerityCmdClient {
     options.lightNode ??= false;
     options.peerExchange ??= true;
     options.announceToTorrentTrackers ??= true;
-    options.inMemoryLevelDB ??= false;
+    options.inMemory ??= false;
 
     if (isNode) {  // Provide debugging hotkeys
       readline.emitKeypressEvents(process.stdin);
@@ -142,7 +142,7 @@ class VerityCmdClient {
             options.announceToTorrentTrackers = tracker;
             options.publicAddress = pubaddr;
             if (nopersist) {
-              options.inMemoryLevelDB = true;
+              options.inMemory = true;
               logger.warn("Note: Persistance has been turned off. All cubes will be gone once you shut down this instance, unless of course they have been transmitted to instances with persistance turned on.");
             }
           }

@@ -41,7 +41,7 @@ const lightNodeMinimalFeatures: NetworkManagerOptions = {  // disable optional f
 describe('networkManager - WebSocket connections', () => {
   const reducedDifficulty = 0;
   const testCubeStoreParams: CubeStoreOptions = {
-    inMemoryLevelDB: true,
+    inMemory: true,
     enableCubeRetentionPolicy: false,
     requiredDifficulty: 0
   }

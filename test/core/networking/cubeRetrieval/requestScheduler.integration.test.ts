@@ -18,7 +18,7 @@ const reducedDifficulty = 0; // no hash cash for testing
 
 describe('RequestScheduler integration tests', () => {
   const testCubeStoreParams: CubeStoreOptions = {
-    inMemoryLevelDB: true,
+    inMemory: true,
     enableCubeRetentionPolicy: false,
     requiredDifficulty: 0,
     family: cciFamily,
