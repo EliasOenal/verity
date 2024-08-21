@@ -1,6 +1,7 @@
 import { SupportedTransports } from "../networkDefinitions";
 import { TransportServer } from "./transportServer";
 import { AddressAbstraction } from "../../peering/addressing";
+import { Settings } from "../../settings";
 
 import EventEmitter from "events";
 
@@ -31,7 +32,7 @@ export abstract class NetworkTransport extends EventEmitter{
 
   constructor() {
     super();
-    this.setMaxListeners(100);
+    this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 5);
   }
 
   /**

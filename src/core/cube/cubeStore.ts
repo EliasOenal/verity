@@ -124,7 +124,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       this.treeOfWisdom = new TreeOfWisdom();
     }
     // Increase maximum listeners: one for each peer and a few for ourselves
-    this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 10);
+    this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 5);
     // provide a nice await-able promise for when this CubeStore is ready
     this.readyPromise = new Promise((resolve) =>
       this.once("ready", () => {
