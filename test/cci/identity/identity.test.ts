@@ -610,6 +610,13 @@ describe('Identity', () => {
         expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(0);
         expect(await remote.cubeStore.getNumberOfStoredCubes()).toBeGreaterThan(
           TESTPOSTCOUNT + TESTSUBCOUNT);
+
+        // We are still getting sporadic failures in this test.
+        // Let's wait a little to be sure everything has been stored correctly
+        // on our virtual remote node.
+        // If this sleep helps, somethings not quite in sync in the database
+        // saving code.
+        await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
       }
 
       { // block on local node
