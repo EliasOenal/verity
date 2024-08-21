@@ -32,6 +32,7 @@ describe("Identity (MUC storage)", () => {
       requiredDifficulty: 0, // require no hashcash for faster testing
       family: cciFamily,
     });
+    await cubeStore.readyPromise;
   });
 
   describe("MUC storage", () => {

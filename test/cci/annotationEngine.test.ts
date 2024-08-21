@@ -13,12 +13,13 @@ describe('annotationEngine', () => {
   let annotationEngine: AnnotationEngine;
   const reducedDifficulty = 0;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     cubeStore = new CubeStore({
       inMemoryLevelDB: true,
       requiredDifficulty: 0,
       enableCubeRetentionPolicy: false,
     });
+    await cubeStore.readyPromise;
   }, 3000);
 
   describe('default settings', () => {

@@ -475,6 +475,7 @@ describe('networkManager - WebSocket connections', () => {
             transports: new Map([[SupportedTransports.ws, 3022]]),
           },
         );
+        await Promise.all([node1.cubeStore.readyPromise, node2.cubeStore.readyPromise]);
         await Promise.all([node1.start(), node2.start()]);
         const cube = Cube.Frozen(
           { fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus automatice transferetur") })
@@ -714,6 +715,7 @@ describe('networkManager - WebSocket connections', () => {
             transports: new Map([[SupportedTransports.ws, 3022]]),
           },
         );
+        await Promise.all([node1.cubeStore.readyPromise, node2.cubeStore.readyPromise]);
         await Promise.all([node1.start(), node2.start()]);
         const cube = Cube.Frozen(
           { fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus per rogatum transferetur") })
@@ -759,6 +761,7 @@ describe('networkManager - WebSocket connections', () => {
             transports: new Map([[SupportedTransports.ws, 3022]]),
           },
         );
+        await Promise.all([node1.cubeStore.readyPromise, node2.cubeStore.readyPromise]);
         await Promise.all([node1.start(), node2.start()]);
         const cube = Cube.Frozen(
           { fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus per rogatum transferetur") })
@@ -799,6 +802,7 @@ describe('networkManager - WebSocket connections', () => {
             transports: new Map([[SupportedTransports.ws, 3024]]),
           },
         );
+        await Promise.all([node1.cubeStore.readyPromise, node2.cubeStore.readyPromise]);
         await Promise.all([node1.start(), node2.start()]);
 
         // sculpt a notification Cube at node1

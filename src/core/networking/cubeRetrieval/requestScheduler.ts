@@ -222,7 +222,7 @@ export class RequestScheduler {
 
         // Do we already have this Cube?
         const storedCube: CubeInfo =
-          await this.networkManager.cubeStore.getCubeInfo(incomingCubeInfo.key);
+          await this.networkManager.cubeStore.getCubeInfo(incomingCubeInfo.key, true);
         // Request Cube if not in cube storage, or if it is in
         // storage but the incoming one wins the CubeContest
         if (storedCube === undefined ||
