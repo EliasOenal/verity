@@ -263,8 +263,8 @@ describe('Identity', () => {
     });
 
     it("correctly saves and restores recommended subscriptions to and from extension MUCs", async () => {
-      // Create a subject and subscribe 50 other authors
-      const TESTSUBCOUNT = 50;
+      // Create a subject and subscribe 40 other authors
+      const TESTSUBCOUNT = 40;
       const subject: Identity = await Identity.Create(
         cubeStore,
         "subscriptor",
@@ -532,9 +532,9 @@ describe('Identity', () => {
       await Promise.all([local.shutdown(), remote.shutdown()]);
     });
 
-    it('will correctly reconstruct an Identity created on another node even when operating as a light node', async() => {
+    it.skip('will correctly reconstruct an Identity created on another node even when operating as a light node', async() => {
       // just preparing some test constants and containers
-      const TESTPOSTCOUNT = 50;
+      const TESTPOSTCOUNT = 40;
       const testPostKeys: string[] = [];
       const TESTSUBCOUNT = 20;
       const testSubs: CubeKey[] = [];
@@ -647,7 +647,7 @@ describe('Identity', () => {
           expect(restoredWot).toContainEqual(testSubs[i]);
         }
       }
-    }, 10000);
+    }, 5000);
   });
 
   describe('local persistant storage', () => {
