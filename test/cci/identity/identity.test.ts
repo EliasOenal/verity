@@ -47,6 +47,7 @@ describe('Identity', () => {
     };
     testCubeStoreParams = {
       inMemoryLevelDB: true,
+      cubeCacheEnabled: false,
       enableCubeRetentionPolicy: false,
       requiredDifficulty: 0,
       family: cciFamily,
@@ -533,7 +534,7 @@ describe('Identity', () => {
       await Promise.all([local.shutdown(), remote.shutdown()]);
     });
 
-    it.skip('will correctly reconstruct an Identity created on another node even when operating as a light node', async() => {
+    it('will correctly reconstruct an Identity created on another node even when operating as a light node', async() => {
       // just preparing some test constants and containers
       const TESTPOSTCOUNT = 40;
       const testPostKeys: string[] = [];

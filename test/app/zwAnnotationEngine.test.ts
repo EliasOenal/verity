@@ -34,6 +34,7 @@ describe('ZwAnnotationEngine', () => {
   beforeEach(async () => {
     cubeStore = new CubeStore({
       inMemoryLevelDB: true,
+      cubeCacheEnabled: false,
       requiredDifficulty: 0,
       enableCubeRetentionPolicy: false,
       family: cciFamily,
