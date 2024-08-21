@@ -253,10 +253,10 @@ export class ZwAnnotationEngine extends AnnotationEngine {
 
   shutdown(): void {
     super.shutdown();
-    this.cubeStore.off('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
-    this.cubeStore.off('cubeAdded', (cubeInfo: CubeInfo) => this.learnAuthorsPosts(cubeInfo));
-    this.cubeStore.off('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
-    this.cubeStore.off('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeMakesOthersDisplayable(cubeInfo));
+    this.cubeStore.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
+    this.cubeStore.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.learnAuthorsPosts(cubeInfo));
+    this.cubeStore.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
+    this.cubeStore.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeMakesOthersDisplayable(cubeInfo));
   }
 
   /** This is the recursive part of cubeAuthor() */
@@ -363,7 +363,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    */
   private async learnAuthorsPosts(mucInfo: CubeInfo): Promise<void> {
     // Is this even a MUC? Otherwise, it's definitely not a valid Identity.
-    if (mucInfo.cubeType !== CubeType.MUC) return;
+    if (mucInfo.cubeType !== CubeType.MUC) return;  // TODO support Notify MUCs
     // are we even interested in this author?
     const muckeystring: string = mucInfo.keyString;
     if (!this.identityMucs.has(muckeystring)) return;

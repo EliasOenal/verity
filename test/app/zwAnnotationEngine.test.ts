@@ -36,6 +36,7 @@ describe('ZwAnnotationEngine', () => {
       inMemoryLevelDB: true,
       requiredDifficulty: 0,
       enableCubeRetentionPolicy: false,
+      family: cciFamily,
     });
     await cubeStore.readyPromise;
   })
@@ -103,12 +104,17 @@ describe('ZwAnnotationEngine', () => {
         const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reducedDifficulty);
 
         const callback = jest.fn();
-        annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
+        annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
         await cubeStore.addCube(root);
 
+        // we need to yield control as ZwAnnotationEngine.emitIfCubeDisplayable()
+        // is async and will therefore be scheduled rather than called immediately
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        expect(callback.mock.calls.length).toBe(1);
         expect(callback.mock.calls).toEqual([
-          [await root.getKey()],
+          [await root.getKeyString()],
         ]);
       }, 5000);
 
@@ -117,14 +123,19 @@ describe('ZwAnnotationEngine', () => {
         const leaf: Cube = await makePost("Hab viel zu tun, bok bok!", await root.getKey(), undefined, reducedDifficulty);
 
         const callback = jest.fn();
-        annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
+        annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
         await cubeStore.addCube(root);
         await cubeStore.addCube(leaf);
 
+        // we need to yield control as ZwAnnotationEngine.emitIfCubeDisplayable()
+        // is async and will therefore be scheduled rather than called immediately
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        expect(callback.mock.calls.length).toBe(2);
         expect(callback.mock.calls).toEqual([
-          [await root.getKey()],
-          [await leaf.getKey()]
+          [await root.getKeyString()],
+          [await leaf.getKeyString()]
         ]);
       }, 5000);
 
@@ -133,9 +144,14 @@ describe('ZwAnnotationEngine', () => {
         const leaf: Cube = await makePost("steht draußen am Balkon", await root.getKey(), undefined, reducedDifficulty);
 
         const callback = jest.fn();
-        annotationEngine.on('cubeDisplayable', (hash) => callback(hash));
+        annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
         await cubeStore.addCube(leaf);
+
+        // we need to yield control as ZwAnnotationEngine.emitIfCubeDisplayable()
+        // is async and will therefore be scheduled rather than called immediately
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         expect(callback).not.toHaveBeenCalled();
       }, 5000);
 
@@ -145,18 +161,21 @@ describe('ZwAnnotationEngine', () => {
         const leaf: Cube = await makePost("hollari, hollari, hollaroooo", await intermediate.getKey(), undefined, reducedDifficulty);
 
         const callback = jest.fn();
-        annotationEngine.on('cubeDisplayable', (hash) => callback(hash)) // list cubes
+        annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
         // add in reverse order:
         await cubeStore.addCube(leaf);
         await cubeStore.addCube(intermediate);
         await cubeStore.addCube(root);
-        await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
+
+        // we need to yield control as ZwAnnotationEngine.emitIfCubeDisplayable()
+        // is async and will therefore be scheduled rather than called immediately
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         expect(callback.mock.calls).toEqual([
-          [await root.getKey()],
-          [await intermediate.getKey()],
-          [await leaf.getKey()]
+          [await root.getKeyString()],
+          [await intermediate.getKeyString()],
+          [await leaf.getKeyString()]
         ]);
       }, 5000);
     });  // basic displayability
@@ -174,18 +193,22 @@ describe('ZwAnnotationEngine', () => {
 
     it('does not mark posts displayable if their Identity is missing', async () => {
       const callback = jest.fn();
-      annotationEngine.on('cubeDisplayable', (key) => callback(key));
+      annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
       const post: Cube = await makePost(
         "Nomen meum secretum est", undefined, undefined, reducedDifficulty);
       await cubeStore.addCube(post);
-      await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
+
+      // we need to yield control as ZwAnnotationEngine.emitIfCubeDisplayable()
+      // is async and will therefore be scheduled rather than called immediately
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       expect(callback).not.toHaveBeenCalled();
     });
 
     it('marks a post displayable if it is received after its Identity', async () => {
       const callback = jest.fn();
-      annotationEngine.on('cubeDisplayable', key => callback(key));
+      annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
       const id: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
@@ -194,15 +217,19 @@ describe('ZwAnnotationEngine', () => {
         "Nomen meum secretum est", undefined, id, reducedDifficulty);
       await id.store();
       await cubeStore.addCube(post);
-      await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
+
+      // we need to yield control as ZwAnnotationEngine.emitIfCubeDisplayable()
+      // is async and will therefore be scheduled rather than called immediately
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       expect(callback.mock.calls).toEqual([
-        [await post.getKey()],
+        [await post.getKeyString()],
       ]);
     });
 
     it('marks a post displayable if it is received before its Identity', async () => {
       const callback = jest.fn();
-      annotationEngine.on('cubeDisplayable', (key) => callback(key));
+      annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
       const id: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
@@ -216,13 +243,13 @@ describe('ZwAnnotationEngine', () => {
       await id.store();  // this makes ZwAnnotationEngine learn the Identity
       await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
       expect(callback.mock.calls).toEqual([
-        [await post.getKey()],
+        [await post.getKeyString()],
       ]);
     });
 
     it('marks a post displayable even if it is received while we still hold an older version of the Identity', async () => {
       const callback = jest.fn();
-      annotationEngine.on('cubeDisplayable', (key) => callback(key));
+      annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
       const id: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
@@ -241,14 +268,14 @@ describe('ZwAnnotationEngine', () => {
       await id.store();
       await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
       expect(callback.mock.calls).toEqual([
-        [await post.getKey()],
+        [await post.getKeyString()],
       ]);
     });
 
     // TODO fix failing test
     it.skip("marks a reply displayable even if we receive the root post's identity late", async() => {
       const callback = jest.fn();
-      annotationEngine.on('cubeDisplayable', (key) => callback(key));
+      annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
       const rootId: Identity = await Identity.Create(
         cubeStore, "usor incitans", "clavis secreta", idTestOptions);
@@ -266,8 +293,8 @@ describe('ZwAnnotationEngine', () => {
       await rootId.store();  // this makes ZwAnnotationEngine learn the root Identity
       await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
       expect(callback.mock.calls).toEqual([
-        [await root.getKey()],
-        [await reply.getKey()],
+        [await root.getKeyString()],
+        [await reply.getKeyString()],
       ]);
     });
 
