@@ -122,8 +122,8 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     this.options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
     this.options.family ??= coreCubeFamily;
     this.options.enableCubeRetentionPolicy ??= Settings.CUBE_RETENTION_POLICY;
-    this.options.inMemory ??= true;
-    this.options.enableCubeCache ??= true;
+    this.options.inMemory ??= Settings.CUBESTORE_IN_MEMORY;
+    this.options.enableCubeCache ??= Settings.CUBE_CACHE;
 
     // Configure this CubeStore according to the options specified:
     // Do we want to use a Merckle-Patricia-Trie for efficient full node sync?
