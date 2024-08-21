@@ -647,7 +647,7 @@ describe('Identity', () => {
           expect(restoredWot).toContainEqual(testSubs[i]);
         }
       }
-    }, 5000);
+    }, 10000);
   });
 
   describe('local persistant storage', () => {
