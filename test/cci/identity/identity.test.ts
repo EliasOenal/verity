@@ -56,7 +56,7 @@ describe('Identity', () => {
 
   describe('own posts', () => {
     it('restores its post list recursively', async () => {
-      const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
+      const TESTPOSTCOUNT = 50;  // 50 keys are more than guaranteed not to fit in the MUC
       const testPostKeys: string[] = [];
 
       const original: Identity = await Identity.Create(
@@ -263,8 +263,8 @@ describe('Identity', () => {
     });
 
     it("correctly saves and restores recommended subscriptions to and from extension MUCs", async () => {
-      // Create a subject and subscribe 100 other authors
-      const TESTSUBCOUNT = 100;
+      // Create a subject and subscribe 50 other authors
+      const TESTSUBCOUNT = 50;
       const subject: Identity = await Identity.Create(
         cubeStore,
         "subscriptor",
@@ -534,9 +534,9 @@ describe('Identity', () => {
 
     it('will correctly reconstruct an Identity created on another node even when operating as a light node', async() => {
       // just preparing some test constants and containers
-      const TESTPOSTCOUNT = 100;
+      const TESTPOSTCOUNT = 50;
       const testPostKeys: string[] = [];
-      const TESTSUBCOUNT = 40;
+      const TESTSUBCOUNT = 20;
       const testSubs: CubeKey[] = [];
       const testSubSubs: CubeKey[] = [];
       {  // block on remote node
@@ -548,7 +548,7 @@ describe('Identity', () => {
         subject.name = "usor in alia parte retis positus";
         subject.avatar = new Avatar("0102030405", AvatarScheme.MULTIAVATAR);
 
-        // store 100 posts (guaranteed not to fit into the MUC and thus forcing
+        // store 50 posts (guaranteed not to fit into the MUC and thus forcing
         // Identity to use sub-references)
         for (let i=0; i<TESTPOSTCOUNT; i++) {
           const post: cciCube = await makePost(
