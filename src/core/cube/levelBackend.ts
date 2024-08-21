@@ -12,10 +12,19 @@ import { MemoryLevel } from 'memory-level';
 import { AbstractLevel } from 'abstract-level';
 import { CubeIteratorOptions } from './cubeStore';
 import { keyVariants } from './cubeUtil';
+import { err } from 'cmd-ts/dist/cjs/Result';
 
 // maybe TODO: If we find random data in the database that doesn't parse as a cube, should we delete it?
 // ... now that we generalized this Class, any deleting of unparseable Cubes
 //     would have to be done in the CubeStore
+
+// Enums for the databases
+export const enum Sublevels{
+  BASE_DB = 0,
+  CUBES = 1,
+  INDEX_TIME = 2,
+  INDEX_DIFF = 3,
+}
 
 export interface LevelBackendOptions {
   dbName: string;
@@ -26,41 +35,85 @@ export interface LevelBackendOptions {
 export class LevelBackend {
   readonly ready: Promise<void>;
   private db: any; // Level or MemoryLevel
+  private dbCubes: any;
+  private dbNotifyIndexTime: any;
+  private dbNotifyIndexDiff: any;
 
   constructor(readonly options: LevelBackendOptions) {
+    let dbOptions: any = undefined;
     if (options.inMemoryLevelDB == true) {
-      this.db = new MemoryLevel<Buffer, Buffer>({
+      dbOptions = {
         keyEncoding: 'buffer',
         valueEncoding: 'buffer',
-      });
+      };
+      this.db = new MemoryLevel<Buffer, Buffer>(dbOptions);
       logger.trace("LevelBackend: Using in-memory LevelDB, data will not be persisted");
     } else {
       // Set database name, add .db file extension for non-browser environments
       if (!isBrowser && !isWebWorker) this.options.dbName += ".db";
+      dbOptions = {
+        keyEncoding: 'buffer',
+        valueEncoding: 'buffer',
+        version: this.options.dbVersion,
+        compression: false, // Cubes are assumed high entropy
+        cacheSize: 128 * 1024 * 1024, // 128MB LRU cache
+        writeBufferSize: 16 * 1024 * 1024, // 16MB write buffer
+        blockRestartInterval: 16, // This compresses keys with common prefixes
+        maxFileSize: 16 * 1024 * 1024, // 16MB so the amount of files doesn't get out of hand
+        maxOpenFiles: 5000, // This should take us to 80GB of data, we should benchmark it at that point
+      };
       // open the database
-      this.db = new Level<Buffer, Buffer>(
-        this.options.dbName,
-        {
-          keyEncoding: 'buffer',
-          valueEncoding: 'buffer',
-          version: options.dbVersion,
-          compression: false, // Cubes are assumed high entropy
-          cacheSize: 128 * 1024 * 1024, // 128MB LRU cache
-          writeBufferSize: 16 * 1024 * 1024, // 16MB write buffer
-          blockRestartInterval: 32, // This compresses keys with common prefixes
-          maxFileSize: 16 * 1024 * 1024, // 16MB so the amount of files doesn't get out of hand
-          maxOpenFiles: 5000, // This should take us to 80GB of data, we should benchmark it at that point
+      this.db = new Level<Buffer, Buffer>(this.options.dbName, dbOptions);
+      logger.trace("LevelBackend: Using persistent LevelDB, data will be persisted");
+    }
+    this.dbCubes = this.db.sublevel('cubes', dbOptions);
+    this.dbNotifyIndexTime = this.db.sublevel('nIdxTim', dbOptions);
+    this.dbNotifyIndexDiff = this.db.sublevel('nIdxDif', dbOptions);
+
+    // Open the main database and all sublevels
+    this.ready = new Promise<void>((resolve, reject) => {
+      this.db.open()
+        .then(() => Promise.all([
+          this.dbCubes.open(),
+          this.dbNotifyIndexDiff.open(),
+          this.dbNotifyIndexTime.open()
+        ]))
+        .then(() => {
+          logger.trace("LevelBackend: DB and sublevels opened successfully");
+          resolve();
+        })
+        .catch((error) => {
+          logger.error("LevelBackend: Could not open DB or sublevels: " + error);
+          reject(error);
         });
-        logger.trace("LevelBackend: Using persistent LevelDB, data will be persisted");
-      }
-      this.ready = new Promise<void>((resolve, reject) => {
-      this.db.open().then(() => {
-        resolve();
-      }).catch((error) => {
-        logger.error("LevelBackend: Could not open DB: " + error);
-        reject(error);
-      });
     });
+  }
+
+  // Resolve enum to sublevel instance
+  private subDB(sublevel: Sublevels): any {
+    let subDB: any = undefined;
+    switch(sublevel) {
+      case Sublevels.BASE_DB:
+        subDB = this.db;
+        break;
+      case Sublevels.CUBES:
+        subDB = this.dbCubes;
+        break;
+      case Sublevels.INDEX_TIME:
+        subDB = this.dbNotifyIndexTime;
+        break;
+      case Sublevels.INDEX_DIFF:
+        subDB = this.dbNotifyIndexDiff;
+        break;
+      default:
+        throw new levelBackendError("Invalid sublevel");
+    }
+    if (subDB.status !== 'open') {
+      // logger.error(new Error().stack);
+      logger.error("LevelBackend: Attempt to use a closed DB: " + sublevel);
+      throw new levelBackendError("DB is not open");
+    }
+    return subDB;
   }
 
   /**
@@ -74,15 +127,11 @@ export class LevelBackend {
     return buffer; // classic-level does not need to copy
   }
 
-  store(key: Buffer, value: Buffer): Promise<void> {
-    if (this.db.status !== 'open') {
-      logger.warn("LevelBackend: Attempt to store in a closed DB");
-      return Promise.resolve();
-    }
-
+  store(sublevel: Sublevels, key: Buffer, value: Buffer): Promise<void> {
+    let subDB = this.subDB(sublevel);
     value = this.ifMemoryLevelCopyBuffer(value);
     key = this.ifMemoryLevelCopyBuffer(key);
-    return this.db.put(key, value)
+    return subDB.put(key, value)
       .then(() => {
         logger.trace(`LevelBackend: Successfully stored ${keyVariants(key).keyString}`);
       })
@@ -92,8 +141,9 @@ export class LevelBackend {
       });
   }
 
-  get(key: Buffer, noLogErr: boolean = false): Promise<Buffer> {
-    return this.db.get(key)
+  get(sublevel: Sublevels, key: Buffer, noLogErr: boolean = false): Promise<Buffer> {
+    let subDB = this.subDB(sublevel);
+    return subDB.get(key)
       .then(ret => {
         //logger.trace(`LevelBackend.get() fetched ${keyVariants(key).keyString}`);
         ret = this.ifMemoryLevelCopyBuffer(ret);
@@ -101,7 +151,10 @@ export class LevelBackend {
       })
       .catch(error => {
         if (!noLogErr)
+        {
+          //logger.trace(new Error().stack);
           logger.trace(`LevelBackend.get(): Cannot find ${keyVariants(key).keyString}, error status ${error.status} ${error.code}, ${error.message}`);
+        }
         return undefined;
       });
   }
@@ -119,7 +172,7 @@ export class LevelBackend {
    * you will just get the first 1000 keys from the database.
    * @param options see getValueRange()
    */
-  async *getKeyRange(
+  async *getKeyRange(sublevel: Sublevels,
       options: CubeIteratorOptions = {},
   ): AsyncGenerator<Buffer> {
     // Normalize input: keys are binary in LevelDB
@@ -135,10 +188,10 @@ export class LevelBackend {
         logger.warn("LevelBackend:getKeys() requesting over 1000 Keys is deprecated. Please fix your application and set a reasonable limit.");
     }
 
-    if (this.db.status !== 'open') return undefined;  // "Generator has completed"
+    let subDB = this.subDB(sublevel);
 
     // Use yield* to delegate to the copyBuffers generator
-    yield* this.copyBuffers(this.db.keys(optionsNormalised));
+    yield* this.copyBuffers(subDB.keys(optionsNormalised));
   }
 
   /**
@@ -157,7 +210,7 @@ export class LevelBackend {
    *     of 1000 to prevent accidental full walks, which can be very slow,
    *     completely impractical and block an application for basically forever.
    */
-  async *getValueRange(
+  async *getValueRange(sublevel: Sublevels,
     options: ValueIteratorOptions<Buffer, Buffer> = {},
 ): AsyncGenerator<Buffer> {
     options.limit ??= 1000;
@@ -165,10 +218,10 @@ export class LevelBackend {
         logger.warn("LevelBackend:getValueRange() requesting over 1000 values is deprecated. Please fix your application and set a reasonable limit.");
     }
 
-    if (this.db.status !== 'open') return undefined;  // "Generator has completed"
+    let subDB = this.subDB(sublevel);
 
     // Use yield* to delegate to the copyBuffers generator
-    yield* this.copyBuffers(this.db.values(options));
+    yield* this.copyBuffers(subDB.values(options));
 }
 
   /**
@@ -176,14 +229,11 @@ export class LevelBackend {
    * @param {string} key The key of the entry to be deleted.
    * @returns {Promise<void>} A promise that resolves when the entry is deleted, or rejects with an error.
    */
-  async delete(key: Buffer): Promise<void> {
-    if (this.db.status !== 'open') {
-      logger.error("LevelBackend: Attempt to delete in a closed DB");
-      throw new levelBackendError("DB is not open");
-    }
+  async delete(sublevel: Sublevels, key: Buffer): Promise<void> {
+    let subDB = this.subDB(sublevel);
 
     try {
-      await this.db.del(key);
+      await subDB.del(key);
       logger.info(`LevelBackend: Successfully deleted entry with key ${keyVariants(key).keyString}`);
     } catch (error) {
       logger.error(`LevelBackend: Failed to delete entry with key ${keyVariants(key).keyString}: ${error}`);
@@ -195,13 +245,11 @@ export class LevelBackend {
    * @param position The position of the key to retrieve.
    * @returns A promise that resolves with the key at the specified position.
    */
-   async getKeyAtPosition(position: number): Promise<Buffer> {
-    if (this.db.status !== 'open') {
-      throw new levelBackendError("DB is not open");
-    }
+   async getKeyAtPosition(sublevel: Sublevels, position: number): Promise<Buffer> {
+    let subDB = this.subDB(sublevel);
 
     let count = 0;
-    const iterator = this.db.iterator({
+    const iterator = subDB.iterator({
       keys: true,
       values: false
     });
@@ -229,13 +277,11 @@ export class LevelBackend {
   // TODO: Given that keys are stored sorted in LevelDB, we should be able
   // to get rid of this method and use getKeyRange instead
   // (which should be O(log n) instead of O(n)).
-  async getSucceedingKeys(startKey: Buffer, count: number): Promise<Buffer[]> {
-    if (this.db.status !== 'open') {
-      throw new levelBackendError("DB is not open");
-    }
+  async getSucceedingKeys(sublevel: Sublevels, startKey: Buffer, count: number): Promise<Buffer[]> {
+    let subDB = this.subDB(sublevel);
 
     const keys: Buffer[] = [];
-    let iterator = this.db.iterator({
+    let iterator = subDB.iterator({
       gt: startKey,
       limit: count,
       keys: true,
@@ -253,7 +299,7 @@ export class LevelBackend {
 
     // If we haven't collected enough keys, wrap around to the beginning
     if (keys.length < count) {
-      iterator = this.db.iterator({
+      iterator = subDB.iterator({
         limit: count - keys.length,
         keys: true,
         values: false
@@ -274,8 +320,9 @@ export class LevelBackend {
   }
 
   /** Deletes everything. Handle with care. */
-  async wipeAll(): Promise<void> {
-    await this.db.clear();
+  async wipeAll(sublevel: Sublevels): Promise<void> {
+    let subDB = this.subDB(sublevel);
+    await subDB.clear();
   }
 
   /**
@@ -306,8 +353,9 @@ export class LevelBackend {
     }
   }
 
-  async shutdown(): Promise<void> {
-    await this.db.close();
+  async shutdown(sublevel: Sublevels): Promise<void> {
+    let subDB = this.subDB(sublevel);
+    await subDB.close();
   }
 }
 

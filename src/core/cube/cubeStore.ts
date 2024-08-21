@@ -2,7 +2,7 @@
 import { ApiMisuseError, Settings } from "../settings";
 import { Cube, coreCubeFamily } from "./cube";
 import { CubeInfo, CubeMeta } from "./cubeInfo";
-import { LevelBackend, LevelBackendOptions } from "./levelBackend";
+import { LevelBackend, LevelBackendOptions, Sublevels } from "./levelBackend";
 import { CubeType, CubeKey, CubeFieldType } from "./cube.definitions";
 import { CubeFamilyDefinition } from "./cubeFields";
 import { cubeContest, shouldRetainCube, getCurrentEpoch, keyVariants } from "./cubeUtil";
@@ -20,10 +20,8 @@ import { NetConstants } from "../networking/networkDefinitions";
 // application's Identity implementation relies on having our own posts preserved.
 
 export interface CubeStoreOptions {
-  cubeDbName?: string,
-  cubeDbVersion?: number,
-  notifyDbName?: string,
-  notifyDbVersion?: number,
+  dbName?: string,
+  dbVersion?: number,
   inMemoryLevelDB?: boolean,
   cubeCacheEnabled?: boolean,
 
@@ -75,16 +73,6 @@ export interface CubeRetrievalInterface {
 }
 
 export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
-  /** Index prefixes for LevelDB notification storage */
-  // We could use sublevels instead - it's about the same thing
-  // Currently we have one for timestamp and one for challenge level
-  private static readonly NOTIFY_INDEX_PREFIX: {
-    timestamp: Buffer,
-    difficulty: Buffer,
-  } = {
-    timestamp: Buffer.from([0x00]),
-    difficulty: Buffer.from([0x01]),
-  }
 
   readyPromise: Promise<undefined>;
 
@@ -95,8 +83,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   private cubesWeakRefCache: WeakValueMap<string, CubeInfo> | undefined = undefined;
 
   /** Refers to the persistant cube storage database, if available and enabled */
-  private cubePersistence: LevelBackend = undefined;
-  private notificationPersistence: LevelBackend = undefined;
+  private leveldb: LevelBackend = undefined;
   /** The Tree of Wisdom maps cube keys to their hashes. */
   private treeOfWisdom: TreeOfWisdom = undefined;
 
@@ -138,18 +125,13 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     }
 
     // The CubeStore is ready when levelDB is ready.
-    this.cubePersistence = new LevelBackend({
-      dbName: this.options.cubeDbName ?? Settings.CUBEDB_NAME,
-      dbVersion: this.options.cubeDbVersion ?? Settings.CUBEDB_VERSION,
-      inMemoryLevelDB: this.options.inMemoryLevelDB,
-    });
-    this.notificationPersistence = new LevelBackend({
-      dbName: this.options.notifyDbName ?? Settings.NOTIFYDB_NAME,
-      dbVersion: this.options.notifyDbVersion ?? Settings.NOTIFYDB_VERSION,
+    this.leveldb = new LevelBackend({
+      dbName: this.options.dbName ?? Settings.CUBEDB_NAME,
+      dbVersion: this.options.dbVersion ?? Settings.CUBEDB_VERSION,
       inMemoryLevelDB: this.options.inMemoryLevelDB,
     });
     Promise.all(
-      [this.cubePersistence.ready, this.notificationPersistence.ready]
+      [this.leveldb.ready]
     ).then(async () => {
       this.pruneCubes(); // not await-ing as pruning is non-essential
       this.emit("ready");
@@ -235,7 +217,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
 
       // If we already have a Cube of this key, only accept the new one if it
       // wins a CubeContest™ against the old one
-      const storedCube: CubeInfo = await this.getCubeInfo(cubeInfo.key);
+      const storedCube: CubeInfo = await this.getCubeInfo(cubeInfo.key, true);
       if (storedCube !== undefined) {
         if (cubeContest(storedCube, cubeInfo) === storedCube) {
           logger.trace(`CubeStorage: Keeping stored ${CubeType[storedCube.cubeType]} over incoming one`);
@@ -248,7 +230,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       // keep Cube cached in memory until the garbage collector comes for it
       this.cubesWeakRefCache?.set(cubeInfo.keyString, cubeInfo);
       // store Cube
-      await this.cubePersistence.store(cubeInfo.key, cubeInfo.binaryCube);
+      await this.leveldb.store(Sublevels.CUBES, cubeInfo.key, cubeInfo.binaryCube);
       // add cube to the Tree of Wisdom if enabled
       if (this.treeOfWisdom) {
         let hash: Buffer = await cube.getHash();
@@ -322,7 +304,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     else {  // cache miss
       // ...  or fetch from persistence
       this.cacheStatistics.misses++;
-      const binaryCube: Buffer = await this.cubePersistence.get(key.binaryKey, noLogErr);
+      const binaryCube: Buffer = await this.leveldb.get(Sublevels.CUBES, key.binaryKey, noLogErr);
       if (binaryCube !== undefined) {
         try {  // could fail e.g. on invalid binary data
           const cubeInfo = new CubeInfo({
@@ -387,7 +369,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     let count: number = 0;
     const limit = options.limit ?? 1000;
 
-    for await (const key of this.cubePersistence.getKeyRange(options)) {
+    for await (const key of this.leveldb.getKeyRange(Sublevels.CUBES, options)) {
       if (count >= limit) break;  // respect limit
       // We will keep track of the first key returned, this is only used
       // in case wraparound is true.
@@ -456,7 +438,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   }
 
   async getKeyAtPosition(position: number): Promise<CubeKey> {
-    const key = await this.cubePersistence.getKeyAtPosition(position)
+    const key = await this.leveldb.getKeyAtPosition(Sublevels.CUBES, position)
     if (key)
       return key;
     else
@@ -473,7 +455,8 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     startKey: CubeKey,
     count: number
   ): Promise<CubeMeta[]> {
-    const keys = await this.cubePersistence.getSucceedingKeys(
+    const keys = await this.leveldb.getSucceedingKeys(
+      Sublevels.CUBES,
       startKey,
       count
     );
@@ -496,13 +479,13 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     // We have CubeStore.NOTIFY_INDEX_PREFIX indices, we iterate the date/timestamp index in this method.
     const maxBuffer = Buffer.alloc(NetConstants.TIMESTAMP_SIZE + NetConstants.CUBE_KEY_SIZE, 0xff);
     const iteratorOptions = {
-      gte: Buffer.concat([CubeStore.NOTIFY_INDEX_PREFIX.timestamp, recipient]),
-      lte: Buffer.concat([CubeStore.NOTIFY_INDEX_PREFIX.timestamp, recipient, maxBuffer]),
+      gte: Buffer.concat([recipient]),
+      lte: Buffer.concat([recipient, maxBuffer]),
     };
 
-    const iterator = this.notificationPersistence.getKeyRange(iteratorOptions);
+    const iterator = this.leveldb.getKeyRange(Sublevels.INDEX_TIME, iteratorOptions);
     for await (const key of iterator) {
-        const cubeKey = key.slice(CubeStore.NOTIFY_INDEX_PREFIX.timestamp.length + recipient.length + NetConstants.TIMESTAMP_SIZE); // Extract the cube key part, skipping recipient and date
+        const cubeKey = key.slice(recipient.length + NetConstants.TIMESTAMP_SIZE); // Extract the cube key part, skipping recipient and date
         const cubeInfo = await this.getCubeInfo(cubeKey);
         if (cubeInfo) {
           yield cubeInfo;
@@ -518,9 +501,10 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
 
   /** @deprecated This method is not efficient -- O(n) */
   async getNumberOfNotificationRecipients(): Promise<number> {
+    logger.warn('CubeStore.getNumberOfNotificationRecipients(): This method is deprecated and should be avoided.');
     let count = 0;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for await (const key of this.notificationPersistence.getKeyRange({ limit: Infinity })) count++;
+    for await (const key of this.leveldb.getKeyRange(Sublevels.INDEX_TIME, { limit: Infinity })) count++;
     return count;
   }
 
@@ -544,11 +528,10 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       CubeFieldType.NOTIFY)?.value;
     if (recipient) await this.deleteNotification(cubeInfo);
 
-
     // delete Cube from all possible kinds of storage
     this.cubesWeakRefCache?.delete(key.keyString);  // in-memory cache
     this.treeOfWisdom?.delete(key.keyString);  // Merkle-Patricia-Trie
-    await this.cubePersistence?.delete(key.binaryKey);  // persistent storage
+    await this.leveldb?.delete(Sublevels.CUBES, key.binaryKey);  // persistent storage
   }
 
   async pruneCubes(): Promise<void> {
@@ -601,9 +584,10 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     this.cubesWeakRefCache?.clear();
     // then wipe the notification index so nobody we won't have callers
     // retrieving notification keys and then don't finding the associated Cubes
-    await this.notificationPersistence?.wipeAll();
+    await this.leveldb?.wipeAll(Sublevels.INDEX_DIFF);
+    await this.leveldb?.wipeAll(Sublevels.INDEX_TIME);
     // finallly, wipe Cube storage
-    await this.cubePersistence?.wipeAll();
+    await this.leveldb?.wipeAll(Sublevels.CUBES);
   }
 
   // Concatenate recipient, timestamp and cube key to create index key #1
@@ -613,7 +597,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     if (!recipient) return undefined;
     let dateBuffer: Buffer = Buffer.alloc(NetConstants.TIMESTAMP_SIZE);
     dateBuffer.writeUIntBE(cube.getDate(), 0, NetConstants.TIMESTAMP_SIZE);
-    return Buffer.concat([CubeStore.NOTIFY_INDEX_PREFIX.timestamp, recipient, dateBuffer, await cube.getKey()]);
+    return Buffer.concat([recipient, dateBuffer, await cube.getKey()]);
   }
 
   // Concatenate recipient, difficulty and cube key to create index key #2
@@ -623,7 +607,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     if (!recipient) return undefined;
     let difficultyBuffer: Buffer = Buffer.alloc(1);
     difficultyBuffer.writeUInt8(cube.getDifficulty());
-    return Buffer.concat([CubeStore.NOTIFY_INDEX_PREFIX.difficulty, recipient, difficultyBuffer, await cube.getKey()]);
+    return Buffer.concat([recipient, difficultyBuffer, await cube.getKey()]);
   }
 
   private async addNotification(cubeInfo: CubeInfo): Promise<void> {
@@ -638,11 +622,11 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     }
 
     let dateIndexKey: Buffer = await this.getNotificationDateKey(cube);
-    if(await this.notificationPersistence.get(dateIndexKey)) return; // already indexed - levelDB is sequentially consistent
+    if(await this.leveldb.get(Sublevels.INDEX_TIME, dateIndexKey)) return; // already indexed - levelDB is sequentially consistent
     let difficultyIndexKey: Buffer = await this.getNotificationDifficultyKey(cube);
     // There may not be a need to await this.
-    await this.notificationPersistence.store(dateIndexKey, Buffer.alloc(0));
-    await this.notificationPersistence.store(difficultyIndexKey, Buffer.alloc(0));
+    await this.leveldb.store(Sublevels.INDEX_TIME, dateIndexKey, Buffer.alloc(0));
+    await this.leveldb.store(Sublevels.INDEX_DIFF, difficultyIndexKey, Buffer.alloc(0));
   }
 
   private async deleteNotification(cubeInfo: CubeInfo): Promise<void> {
@@ -660,8 +644,8 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     let difficultyIndexKey: Buffer = await this.getNotificationDifficultyKey(cube);
 
     // We don't await deletion
-    this.notificationPersistence.delete(dateIndexKey);
-    this.notificationPersistence.delete(difficultyIndexKey);
+    this.leveldb.delete(Sublevels.INDEX_TIME, dateIndexKey);
+    this.leveldb.delete(Sublevels.INDEX_DIFF, difficultyIndexKey);
   }
 
   get getCacheStatistics(): { hits: number, misses: number }
@@ -671,8 +655,10 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
 
   async shutdown(): Promise<void> {
     await Promise.all([
-      this.cubePersistence?.shutdown(),
-      this.notificationPersistence?.shutdown(),
+      this.leveldb?.shutdown(Sublevels.CUBES),
+      this.leveldb?.shutdown(Sublevels.INDEX_DIFF),
+      this.leveldb?.shutdown(Sublevels.INDEX_TIME),
+      this.leveldb?.shutdown(Sublevels.BASE_DB),
     ]);
   }
 }

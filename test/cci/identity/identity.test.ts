@@ -52,6 +52,7 @@ describe('Identity', () => {
       family: cciFamily,
     };
     cubeStore = new CubeStore(testCubeStoreParams);
+    await cubeStore.readyPromise;
   });
 
   describe('own posts', () => {

@@ -8,12 +8,13 @@ describe('CubeStore Retention Policy', () => {
     let cubeStore: CubeStore;
     const reducedDifficulty = 0;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         cubeStore = new CubeStore({
             inMemoryLevelDB: true,
             requiredDifficulty: Settings.REQUIRED_DIFFICULTY,
             enableCubeRetentionPolicy: true,
         });
+        await cubeStore.readyPromise;
     });
 
     it('should reject a cube with a past date', async () => {

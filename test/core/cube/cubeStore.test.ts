@@ -4,6 +4,7 @@ import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubeFieldLength, CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
 import { Cube, coreCubeFamily } from '../../../src/core/cube/cube';
 import { CubeIteratorOptions, CubeStore as CubeStore, CubeStoreOptions } from '../../../src/core/cube/cubeStore';
+import { Sublevels } from 'core/cube/levelBackend';
 import { CubeField } from '../../../src/core/cube/cubeField';
 
 import { cciField } from '../../../src/cci/cube/cciField';
@@ -65,12 +66,14 @@ describe('cubeStore', () => {
   describe('tests at full difficulty', () => {
     // If these tests actually calculate hashcash, let's keep them to an absolute
     // minimum if we can.
-    beforeEach(() => {
+    beforeEach(async () => {
       cubeStore = new CubeStore({
         inMemoryLevelDB: true,
         requiredDifficulty: Settings.REQUIRED_DIFFICULTY,
         enableCubeRetentionPolicy: false,
       });
+    
+      await cubeStore.readyPromise;
     });
 
     it('should add a freshly sculpted cube at full difficulty', async () => {
@@ -133,10 +136,8 @@ describe('cubeStore', () => {
         const cubeStoreOptions: CubeStoreOptions = {
           requiredDifficulty: reducedDifficulty,
           enableCubeRetentionPolicy: false,
-          cubeDbName: 'cubes.test',
-          cubeDbVersion: 1,
-          notifyDbName: 'notifications.test',
-          notifyDbVersion: 1,
+          dbName: 'cubes.test',
+          dbVersion: 1,
           ...testOptions,
         };
         beforeAll(async () => {
@@ -516,11 +517,11 @@ describe('cubeStore', () => {
               const corruptCube: Buffer = Buffer.alloc(NetConstants.CUBE_SIZE, 137);
               const key: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 101);
               // @ts-ignore accessing private member persistence
-              await cubeStore.cubePersistence.store(key.toString('hex'), corruptCube);
+              await cubeStore.leveldb.store(Sublevels.CUBES, key.toString('hex'), corruptCube);
 
               // double-check that the Cube is stored in persistent storage
               // @ts-ignore accessing private member persistence
-              const stored: Buffer = await cubeStore.cubePersistence.get(key.toString('hex'));
+              const stored: Buffer = await cubeStore.leveldb.get(Sublevels.CUBES, key.toString('hex'));
               expect(stored).toEqual(corruptCube);
 
               // expect CubeStore to just return undefined
@@ -632,10 +633,8 @@ describe('cubeStore', () => {
           family: cciFamily,
           requiredDifficulty: reducedDifficulty,
           enableCubeRetentionPolicy: false,
-          cubeDbName: 'cubes.test',
-          cubeDbVersion: 1,
-          notifyDbName: 'notifications.test',
-          notifyDbVersion: 1,
+          dbName: 'cubes.test',
+          dbVersion: 1,
           ...testOptions,
         };
         Object.assign(cubeStoreOptions, testOptions);  // mix in options defined in describe.each

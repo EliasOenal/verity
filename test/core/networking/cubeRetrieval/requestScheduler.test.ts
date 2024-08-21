@@ -39,10 +39,8 @@ const cubeStoreOptions: CubeStoreOptions = {
   inMemoryLevelDB: true,
   requiredDifficulty: reducedDifficulty,
   enableCubeRetentionPolicy: false,
-  cubeDbName: 'cubes.test',
-  cubeDbVersion: 1,
-  notifyDbName: 'notifications.test',
-  notifyDbVersion: 1,
+  dbName: 'cubes.test',
+  dbVersion: 1,
 };
 
 class mockNetworkManager {
@@ -60,7 +58,7 @@ describe('RequestScheduler', () => {
     const testKey2 = Buffer.from("02".repeat(NetConstants.CUBE_KEY_SIZE), 'hex');
     const testKey3 = Buffer.from("03".repeat(NetConstants.CUBE_KEY_SIZE), 'hex');
 
-    beforeEach(() => {
+    beforeEach(async () => {
       // create a scheduler
       scheduler = new RequestScheduler(
         // with a mock NetworkManager
@@ -70,6 +68,7 @@ describe('RequestScheduler', () => {
           requestScaleFactor: 4,
         }
       );
+      await scheduler.networkManager.cubeStore.readyPromise;
       // having a mock peer
       (scheduler.networkManager as unknown as mockNetworkManager).onlinePeers =
         [ new mockNetworkPeer() ];
@@ -218,10 +217,11 @@ describe('RequestScheduler', () => {
         let mockOfferingPeer: jest.Mocked<NetworkPeer>;
         let cubeStore: CubeStore;
 
-        beforeEach(() => {
+        beforeEach(async () => {
           // note: copying cubeStoreOptions here so we can manipulate them
           // within the tests without affecting subsequent tests
           cubeStore = new CubeStore(Object.assign({}, cubeStoreOptions));
+          await cubeStore.readyPromise;
           mockNetworkManager = {
             cubeStore: cubeStore,
             onlinePeers: [],
