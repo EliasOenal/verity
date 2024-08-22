@@ -445,6 +445,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         this._peerDB.removeListener('newPeer',
             (newPeer: Peer) => this.autoConnectPeers());
         this._peerDB.shutdown();
+        this.cubeStore.shutdown();
         const closedPromises: Promise<void>[] = [];
         closedPromises.push(this.closePeers());  // shut down peers
         // shut down transports

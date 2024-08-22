@@ -19,6 +19,7 @@ import { CubeType } from './core/cube/cube.definitions';
 
 let readline: any;
 let cmd;
+
 if (isNode) {
   readline = await import('readline');
   cmd = await import('cmd-ts');
@@ -32,6 +33,7 @@ class VerityCmdClient {
   public node: VerityNode;
   public onlinePromise: Promise<void> = undefined;
   private mucUpdateCounter: number = 0;
+  private onlinePromiseResolve: Function;
 
   constructor(readonly options: VerityCmdClientOptions) {
     // initialise options
@@ -52,14 +54,15 @@ class VerityCmdClient {
         if (str === 'm') this.updateMuc();
         if (str === 'c') this.makeNewCube();
         if (str === 'f') this.insertFile();
+        if (str === 'q') this.shutdown();
+        if (str === 'n') this.makeNewNotificationCube();
       });
     }
 
     if (isNode) {  // we expect this to only ever be run in NodeJS, but just to be safe
       // prepare online promise
-      let onlinePromiseResolve: Function;
       this.onlinePromise = new Promise<void>(
-        (resolve) => {onlinePromiseResolve = resolve});
+        (resolve) => {this.onlinePromiseResolve = resolve});
       // Define command line arguments
       const parse = cmd.command({
         name: "verity",
@@ -147,7 +150,7 @@ class VerityCmdClient {
             }
           }
           this.node = new VerityNode(options);
-          this.node.onlinePromise.then(() => onlinePromiseResolve(undefined));
+          this.node.onlinePromise.then(() => this.onlinePromiseResolve(undefined));
         },
       });
       cmd.run(parse, process.argv.slice(2));
@@ -178,6 +181,20 @@ class VerityCmdClient {
     this.node.cubeStore.addCube(muc);
   }
 
+  /** Just for manual testing: Handler for the 'n' hotkey */
+  public async makeNewNotificationCube() {
+    const notificationKey: Buffer = Buffer.concat([Buffer.from("DEADBEEF", 'hex'), Buffer.alloc(28)]);
+    const contentField = CubeField.RawContent(CubeType.FROZEN_NOTIFY,
+      "DEADBEEF");
+    const notification: Cube = Cube.Frozen({
+      fields: [
+        contentField,
+        CubeField.Notify(notificationKey),
+        ]
+    });
+    this.node.cubeStore.addCube(notification);
+  }
+
   /** Just for manual testing: Handler for the 'c' hotkey */
   public async makeNewCube(message: string = "Hello Verity") {
     const cube = Cube.Frozen({fields: CubeField.RawContent(CubeType.FROZEN, message)});
@@ -203,8 +220,13 @@ class VerityCmdClient {
       logger.error(`Error inserting file: ${error.message}`);
     }
   }
-}
 
+  public async shutdown() {
+    this.onlinePromiseResolve(undefined);
+    this.node.shutdown();
+    logger.info("Shutting down");
+  }
+}
 
 async function main() {
   console.log("\x1b[36m" + vera + "\x1b[0m");
@@ -219,6 +241,9 @@ async function main() {
 
   await client.node.shutdownPromise;
   logger.info("Node shut down");
+
+  await new Promise(resolve => setTimeout(resolve, 500));
+  process.exit(0);
 }
 
 main();

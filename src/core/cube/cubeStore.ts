@@ -642,7 +642,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     }
 
     let dateIndexKey: Buffer = await this.getNotificationDateKey(cube);
-    if(await this.leveldb.get(Sublevels.INDEX_TIME, dateIndexKey)) return; // already indexed - levelDB is sequentially consistent
+    if(await this.leveldb.get(Sublevels.INDEX_TIME, dateIndexKey, true)) return; // already indexed - levelDB is sequentially consistent
     let difficultyIndexKey: Buffer = await this.getNotificationDifficultyKey(cube);
     // There may not be a need to await this.
     await this.leveldb.store(Sublevels.INDEX_TIME, dateIndexKey, Buffer.alloc(0));
