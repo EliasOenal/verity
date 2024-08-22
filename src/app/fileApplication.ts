@@ -5,6 +5,7 @@ import { cciField } from '../cci/cube/cciField';
 import { cciRelationship, cciRelationshipType } from '../cci/cube/cciRelationship';
 import { CubeKey } from '../core/cube/cube.definitions';
 import { cciFieldType } from '../cci/cube/cciCube.definitions';
+import { CubeType } from '../core/cube/cube.definitions';
 
 export class FileApplication {
   private static readonly APPLICATION_IDENTIFIER = 'file';
@@ -52,7 +53,6 @@ export class FileApplication {
     return cubes;
   }
 
-  // TODO: test retrieval of multi cube files
   static async retrieveFile(startCubeKey: CubeKey, cubeStore: { getCube: (key: CubeKey) => Promise<Cube> }): Promise<{ content: Buffer, fileName: string}> {
     let currentCubeKey = startCubeKey;
     const chunks: Buffer[] = [];
@@ -63,6 +63,10 @@ export class FileApplication {
 
       if (!cube) {
         throw new Error('Cube not found');
+      }
+
+      if (cube.cubeType !== CubeType.FROZEN && cube.cubeType !== CubeType.PIC) {
+        throw new Error('File application requires immutable cubes');
       }
 
       const cciCube = cube as cciCube;

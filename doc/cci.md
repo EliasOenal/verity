@@ -78,7 +78,7 @@ to be shortened.
 Currently defined relationship types:
 
 | Code | Name | Description |
-|---------------------------|
+|------|------|-------------|
 | 1 | CONTINUED_IN | The field immediately following has been segmented and is continued in the first field of the same type in the referred Cube. |
 | 2 | EXTENDED_IN | All CCI fields contained in the referred Cube should be interpreted as if they followed the CCI fields in this Cube, preceeding the CCI_END marker if any. |
 | 3 | REPLY_TO | This Cube is a semantic response to the referred Cube. |
@@ -135,9 +135,21 @@ Applications have two ways of suppplementing CCI with custom fields:
 
 # File Application
 
-The file application is a specific implementation leveraging the Common Cube Interface (CCI) to facilitate the transmission and reception of files over the Verity network. <strike>It only supports PIC and PMUC cubes to prevent files from unexpectedly changing.</strike>
+The file application is a specific implementation leveraging the Common Cube Interface (CCI) to facilitate the transmission and reception of files over the Verity network. It only supports PIC and PMUC cubes to prevent files from unexpectedly changing. It populates the `Application`, `Contentname`, `Relates_To` and `Payload` fields to form a simple linked list of Cubes that contain the file data.
 
 **Application Identifier**: `file`
+
+> **Note**: We should detect and reject loops in the linked list. This is a potential DoS vector.
+
+# Chat Application
+
+The chat application implements basic chat room functionality on the Verity network. It works by sending notify Cubes to a notify key that serves as a chat room. The nodes participating in the chat will retrieve the most recent Cubes and render them chronologically sorted. It populates the `Application`, `Relates_To` and `Payload` fields.
+
+Messages are prefixed with "username: " to allow for easy identification of the sender. They optionally may reference their identity MUC using the `MYPOST` field and signatures (using the identity MUC's key) as proof of authorship.
+
+**Application Identifier**: `chat`
+
+> **Note**: Reverse iterating the notify index of a full node would improve performance when fetching the most recent Cubes.
 
 ### Usage
 
