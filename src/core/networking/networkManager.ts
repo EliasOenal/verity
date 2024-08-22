@@ -284,6 +284,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
 
     public async start(): Promise<void> {
         const transportPromises: Promise<void>[] = [];
+        await this._cubeStore.readyPromise;
         for (const [type, transport] of this.transports) {
             try {  // start transports
                 transportPromises.push(transport.start());
