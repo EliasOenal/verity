@@ -69,7 +69,7 @@ describe('networkManager - WebSocket connections', () => {
   });
 
   describe('connection handling', () => {
-    it('should create a NetworkPeer on incoming connection', done => {
+    it('should create a NetworkPeer on incoming connection', async () => {
       const manager = new NetworkManager(
         new CubeStore(testCubeStoreParams),
         new PeerDB(),
@@ -78,7 +78,7 @@ describe('networkManager - WebSocket connections', () => {
           transports: new Map([[SupportedTransports.ws, 3001]]),
         },
       );
-      manager.start();
+      await manager.start();
       // @ts-ignore Checking private attributes
       (manager.transports.get(SupportedTransports.ws).servers[0] as WebSocketServer).server.on('connection', () => {
         expect(manager?.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
@@ -88,7 +88,6 @@ describe('networkManager - WebSocket connections', () => {
       client.on('open', () => {
         client.close();
         manager.shutdown();
-        done();
       });
     }, 3000);
 
