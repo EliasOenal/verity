@@ -7,7 +7,7 @@ import { Cube } from "../../../../src/core/cube/cube";
 import { CubeStoreOptions, CubeStore } from "../../../../src/core/cube/cubeStore";
 import { SupportedTransports } from "../../../../src/core/networking/networkDefinitions";
 import { NetworkManagerOptions, NetworkManager } from "../../../../src/core/networking/networkManager";
-import { NetworkPeer } from "../../../../src/core/networking/networkPeer";
+import { NetworkPeer, NetworkPeerIf } from "../../../../src/core/networking/networkPeer";
 import { WebSocketAddress } from "../../../../src/core/peering/addressing";
 import { Peer } from "../../../../src/core/peering/peer";
 import { PeerDB } from "../../../../src/core/peering/peerDB";
@@ -56,7 +56,7 @@ describe('RequestScheduler integration tests', () => {
       },
     );
     await Promise.all([local.start(), remote.start()]);
-    const np: NetworkPeer =
+    const np: NetworkPeerIf =
       local.connect(new Peer(new WebSocketAddress("localhost", 18202)));
     await np.onlinePromise;
   });

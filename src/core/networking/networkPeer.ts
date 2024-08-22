@@ -18,22 +18,18 @@ import { logger } from '../logger';
 
 import { Buffer } from 'buffer';
 
-export interface PacketStats {
-    count: number,
-    bytes: number
+export class NetworkStats {
+    tx: OneWayNetworkStats = new OneWayNetworkStats();
+    rx: OneWayNetworkStats = new OneWayNetworkStats();
 }
-
-export interface NetworkStats {
-    tx: {
-        sentMessages: number,
-        messageBytes: number,
-        messageTypes: { [key in MessageClass]?: PacketStats }
-    },
-    rx: {
-        receivedMessages: number,
-        messageBytes: number,
-        messageTypes: { [key in MessageClass]?: PacketStats }
-    }
+export class OneWayNetworkStats {
+    messages: number = 0;
+    bytes: number = 0;
+    messageTypes: { [key in MessageClass]?: PacketStats } = {};
+}
+export class PacketStats {
+    count: number = 0;
+    bytes: number = 0;
 }
 
 export interface NetworkPeerOptions {
@@ -67,16 +63,31 @@ class NetworkPeerLifecycleStatus {
     }
 }
 
+export interface NetworkPeerIf extends Peer {
+    stats: NetworkStats;
+    status: NetworkPeerLifecycle;
+    onlinePromise: Promise<NetworkPeer>;
+    online: boolean;
+    conn: TransportConnection,
+
+
+    close(): Promise<void>;
+    sendMessage(msg: NetworkMessage): void;
+    sendMyServerAddress(): void;
+    sendKeyRequests(): void;
+    sendSpecificKeyRequest(mode: KeyRequestMode, keyCount?: number, startKey?: CubeKey): void;
+    sendCubeRequest(keys: Buffer[]): void;
+    sendNotificationRequest(keys: Buffer[]): void;  // maybe deprecated
+    sendPeerRequest(): void;
+}
+
 /**
  * Class representing a network peer, responsible for handling incoming and outgoing messages.
  */
 // TODO: This should arguably encapsulate Peer instead of inheriting from it
-export class NetworkPeer extends Peer {
-    stats: NetworkStats = {
-        tx: { sentMessages: 0, messageBytes: 0, messageTypes: {} },
-        rx: { receivedMessages: 0, messageBytes: 0, messageTypes: {} },
-    }
-    peerRequestTimer?: NodeJS.Timeout = undefined; // Timer for node requests
+export class NetworkPeer extends Peer implements NetworkPeerIf{
+    stats: NetworkStats = new NetworkStats();
+    private peerRequestTimer?: NodeJS.Timeout = undefined; // Timer for node requests
 
     private _status: NetworkPeerLifecycleStatus = new NetworkPeerLifecycleStatus;
     get status(): NetworkPeerLifecycle { return this._status.value }
@@ -85,7 +96,7 @@ export class NetworkPeer extends Peer {
 
     private lastRequestedKey?: CubeKey;
 
-    get lastKey(): CubeKey | undefined {
+    get lastKey(): CubeKey | undefined {  // TODO do we need this?
         return this.lastRequestedKey;
     }
     /**
@@ -97,7 +108,7 @@ export class NetworkPeer extends Peer {
     private _onlinePromise: Promise<NetworkPeer> = new Promise<NetworkPeer>(
         resolve => this.onlinePromiseResolve = resolve);
     get onlinePromise() { return this._onlinePromise; }
-    get online() { return this.status === NetworkPeerLifecycle.ONLINE; }
+    get online(): boolean { return this.status === NetworkPeerLifecycle.ONLINE; }
 
     private unsentPeers: Peer[] = undefined;  // TODO this should probably be a Set instead
 
@@ -201,8 +212,8 @@ export class NetworkPeer extends Peer {
     }
 
     private logRxStats(message: Buffer, messageType: MessageClass): void {
-        this.stats.rx.receivedMessages++;
-        this.stats.rx.messageBytes += message.length;
+        this.stats.rx.messages++;
+        this.stats.rx.bytes += message.length;
         const packetTypeStats = this.stats.rx.messageTypes[messageType] || { count: 0, bytes: 0 };
         packetTypeStats.count++;
         packetTypeStats.bytes += message.length;
@@ -210,8 +221,8 @@ export class NetworkPeer extends Peer {
     }
 
     private logTxStats(message: Buffer, messageType: MessageClass): void {
-        this.stats.tx.sentMessages++;
-        this.stats.tx.messageBytes += message.length;
+        this.stats.tx.messages++;
+        this.stats.tx.bytes += message.length;
         const packetTypeStats = this.stats.tx.messageTypes[messageType] || { count: 0, bytes: 0 };
         packetTypeStats.count++;
         packetTypeStats.bytes += message.length;
@@ -570,7 +581,7 @@ export class NetworkPeer extends Peer {
     // advertise both of them, as non-libp2p enabled nodes will obviously need
     // the former and libp2p-enabled nodes must prefer the latter in order to
     // use libp2p features such as WebRTC brokering.
-    sendMyServerAddress() {
+    sendMyServerAddress(): void {
         let address: AddressAbstraction = undefined;
         // maybe TODO: only send address of same transport type
         for (const [transportType, transport] of this.networkManager.transports) {
@@ -608,7 +619,7 @@ export class NetworkPeer extends Peer {
      * @param keyCount The number of keys to request.
      * @param startKey The key to start from (for SlidingWindow and SequentialStoreSync modes).
      */
-    private sendSpecificKeyRequest(mode: KeyRequestMode, keyCount: number = 1000, startKey?: CubeKey): void {
+    sendSpecificKeyRequest(mode: KeyRequestMode, keyCount: number = 1000, startKey?: CubeKey): void {
         logger.trace(`NetworkPeer ${this.toString()}: sending KeyRequest in ${KeyRequestMode[mode]} mode, requesting ${keyCount} keys, starting from ${startKey?.toString('hex')}`);
         const msg: KeyRequestMessage = new KeyRequestMessage(mode, {
             maxCount: keyCount, startKey: startKey});
@@ -621,7 +632,7 @@ export class NetworkPeer extends Peer {
      * @param mode The mode of the key request.
      * @param lastKey The last key received in the response.
      */
-    updateLastRequestedKey(mode: KeyRequestMode, lastKey: CubeKey): void {
+    private updateLastRequestedKey(mode: KeyRequestMode, lastKey: CubeKey): void {
         if (mode === KeyRequestMode.SlidingWindow) {
             this.lastSlidingWindowKey = lastKey;
 
@@ -748,4 +759,21 @@ export class NetworkPeer extends Peer {
                 }, Settings.NETWORK_TIMEOUT);
         }
     }
+}
+
+
+export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
+    stats: NetworkStats;
+    status: NetworkPeerLifecycle;
+    onlinePromise: Promise<NetworkPeer>;
+    online: boolean;
+    conn: TransportConnection;
+    close(): Promise<void> { return Promise.resolve(); }
+    sendMessage(msg: NetworkMessage): void { }
+    sendMyServerAddress(): void { }
+    sendKeyRequests(): void { }
+    sendSpecificKeyRequest(mode: KeyRequestMode, keyCount?: number, startKey?: CubeKey): void { }
+    sendCubeRequest(keys: Buffer[]): void { }
+    sendNotificationRequest(keys: Buffer[]): void { }
+    sendPeerRequest(): void { }
 }

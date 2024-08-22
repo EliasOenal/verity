@@ -4,17 +4,15 @@ import { NetworkManager, NetworkManagerIf } from "../../../../src/core/networkin
 import { RequestScheduler } from "../../../../src/core/networking/cubeRetrieval/requestScheduler";
 import { Cube } from "../../../../src/core/cube/cube";
 
-import { EventEmitter } from 'events';
 import { CubeField } from "../../../../src/core/cube/cubeField";
 import { CubeFieldType, CubeKey, CubeType } from "../../../../src/core/cube/cube.definitions";
 import { CubeStore, CubeStoreOptions } from "../../../../src/core/cube/cubeStore";
-import { getCurrentEpoch, shouldRetainCube, cubeContest } from "../../../../src/core/cube/cubeUtil";
-import { RequestedCube } from "../../../../src/core/networking/cubeRetrieval/requestedCube";
 import { NetworkPeer } from "../../../../src/core/networking/networkPeer";
 import { unixtime } from "../../../../src/core/helpers/misc";
 
 import { jest } from '@jest/globals'
 import { Settings } from "../../../../src/core/settings";
+import { CubeFilterOptions, KeyRequestMode } from "../../../../src/core/networking/networkMessage";
 
 const reducedDifficulty = 0;
 
@@ -28,8 +26,18 @@ class mockNetworkPeer {
     this.called = "sendKeyRequests";
     this.calls++;
   }
+  sendSpecificKeyRequest(mode: KeyRequestMode, options: CubeFilterOptions) {
+    this.called = "sendSpecificKeyRequest";
+    this.param = [mode, options];
+    this.calls++;
+  }
   sendCubeRequest(param: Array<any>) {
     this.called = "sendCubeRequest";
+    this.param = param;
+    this.calls++;
+  }
+  sendNotificationRequest(param: Array<any>) {
+    this.called = "sendNotificationRequest";
     this.param = param;
     this.calls++;
   }
@@ -110,9 +118,9 @@ describe('RequestScheduler', () => {
     });
 
     describe('requestNotification()', () => {
-      it('should accept and fulfil a Notification request', async () => {
+      it('should accept and fulfil a Notification request in direct Cube request mode', async () => {
         expect((scheduler as any).requestedNotifications.size).toEqual(0);  // spying on private attribute
-        const promise = scheduler.requestNotifications(testKey);
+        const promise = scheduler.requestNotifications(testKey, 0, undefined);
         expect((scheduler as any).requestedNotifications.size).toEqual(1);  // spying on private attribute
 
         // simulate successful network retrieval by adding a matching notification Cube

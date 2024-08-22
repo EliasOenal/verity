@@ -1,4 +1,4 @@
-import { NetworkPeer } from "../../core/networking/networkPeer";
+import { NetworkPeer, NetworkPeerIf } from "../../core/networking/networkPeer";
 import { NetworkManager, NetworkManagerIf } from "../../core/networking/networkManager";
 import { AddressAbstraction } from '../../core/peering/addressing';
 import { Peer } from "../../core/peering/peer";
@@ -71,7 +71,8 @@ export class PeerController extends VerityController {
   displayPeer(peer: Peer): void {
     // TODO change once we refactor NetworkPeer into encapsulating Peer rather
     // than inheriting from it
-    let networkPeer: NetworkPeer = undefined;
+    let networkPeer: NetworkPeerIf = undefined;
+    // TODO do not rely on instanceof, check for something on NetworkPeerIf instead (this should be fixed once we change NetworkPeer from inheriting from peer to being a companion to Peer)
     if (peer instanceof NetworkPeer) networkPeer = peer;
 
     // Peer already displayed?
@@ -140,6 +141,7 @@ export class PeerController extends VerityController {
       return;
     }
     peer.primaryAddressIndex = index;
+    // TODO do not rely on instanceof, check for something on NetworkPeerIf instead (this should be fixed once we change NetworkPeer from inheriting from peer to being a companion to Peer)
     if (peer instanceof NetworkPeer) this.displayPeer(peer);  // redisplay
     else this.undisplayPeer(peer);  // apparently no longer connected
   }
@@ -152,7 +154,8 @@ export class PeerController extends VerityController {
     // if already connected, disconnect first
     const peerIdString = button.getAttribute("data-peerid");  // that's why it's broken for unverified peers
     const peer: Peer = this.peerDB.getPeer(peerIdString);
-    let networkPeer: NetworkPeer = undefined;
+    let networkPeer: NetworkPeerIf = undefined;
+    // TODO do not rely on instanceof, check for something on NetworkPeerIf instead (this should be fixed once we change NetworkPeer from inheriting from peer to being a companion to Peer)
     if (peer instanceof NetworkPeer) networkPeer = peer;  // should always be true
     if (networkPeer) {
       const closePromise = networkPeer.close();
@@ -174,7 +177,8 @@ export class PeerController extends VerityController {
   disconnectPeer(button: HTMLButtonElement): void {
     const peerIdString = button.getAttribute("data-peerid");
     const peer: Peer = this.peerDB.getPeer(peerIdString);
-    let networkPeer: NetworkPeer = undefined;
+    let networkPeer: NetworkPeerIf = undefined;
+    // TODO do not rely on instanceof, check for something on NetworkPeerIf instead (this should be fixed once we change NetworkPeer from inheriting from peer to being a companion to Peer)
     if (peer instanceof NetworkPeer) networkPeer = peer;  // should always be true
     if (networkPeer) {
       const closePromise = networkPeer.close();

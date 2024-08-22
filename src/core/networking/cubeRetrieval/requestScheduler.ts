@@ -10,7 +10,7 @@ import { CubeFieldType, type CubeKey } from '../../cube/cube.definitions';
 import { CubeInfo } from '../../cube/cubeInfo';
 import { cubeContest, getCurrentEpoch, keyVariants, shouldRetainCube } from '../../cube/cubeUtil';
 import type { NetworkManager, NetworkManagerIf } from '../networkManager';
-import type { NetworkPeer } from '../networkPeer';
+import type { NetworkPeer, NetworkPeerIf } from '../networkPeer';
 
 import { logger } from '../../logger';
 
@@ -187,7 +187,7 @@ export class RequestScheduler {
   /**
    * Will be called by NetworkPeers getting offered Cubes by remote nodes
    */
-  async handleCubesOffered(offered: Iterable<CubeInfo>, offeringPeer: NetworkPeer): Promise<void> {
+  async handleCubesOffered(offered: Iterable<CubeInfo>, offeringPeer: NetworkPeerIf): Promise<void> {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
 
@@ -250,7 +250,7 @@ export class RequestScheduler {
     return base + notConn*step;
   }
 
-  private performCubeRequest(peerSelected?: NetworkPeer): void {
+  private performCubeRequest(peerSelected?: NetworkPeerIf): void {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
 
@@ -312,7 +312,7 @@ export class RequestScheduler {
     this.scheduleCubeRequest();
   }
 
-  private performKeyRequest(peerSelected?: NetworkPeer): void {
+  private performKeyRequest(peerSelected?: NetworkPeerIf): void {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
 
