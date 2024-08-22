@@ -3,7 +3,7 @@ import { unixtime } from '../helpers/misc';
 import { CubeKey } from '../cube/cube.definitions';
 
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
-import { NetworkPeer, NetworkStats } from './networkPeer';
+import { NetworkPeer, NetworkPeerIf, NetworkStats } from './networkPeer';
 import { NetworkTransport, TransportParamMap } from './transport/networkTransport';
 import { TransportConnection } from './transport/transportConnection';
 import { createNetworkPeerConnection, createNetworkTransport } from './transport/transportFactory';
@@ -73,14 +73,14 @@ export interface NetworkManagerIf extends EventEmitter {
     cubeStore: CubeStore;
     peerDB: PeerDB;
     onlinePeerCount: number;
-    onlinePeers: NetworkPeer[];
+    onlinePeers: NetworkPeerIf[];
     options: NetworkManagerOptions;
     transports: Map<SupportedTransports, NetworkTransport>;
     scheduler: RequestScheduler;
-    connect(peer: Peer): NetworkPeer;
+    connect(peer: Peer): NetworkPeerIf;
     autoConnectPeers(existingRun?: boolean): void;
-    incomingPeers: NetworkPeer[];
-    outgoingPeers: NetworkPeer[];
+    incomingPeers: NetworkPeerIf[];
+    outgoingPeers: NetworkPeerIf[];
 }
 
 /**
@@ -95,10 +95,12 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
     scheduler: RequestScheduler;
 
     /** List of currently connected peers to which we initiated the connection */
-    outgoingPeers: NetworkPeer[] = [];
+    // TODO improve encapsulation
+    outgoingPeers: NetworkPeerIf[] = [];
 
     /** List of current remote-initiated peer connections */
-    incomingPeers: NetworkPeer[] = [];
+    // TODO improve encapsulation
+    incomingPeers: NetworkPeerIf[] = [];
 
     /** Sliding window of recent keys */
     /* The ideal implementation would likely be a circular buffer, with a hash map.
@@ -108,7 +110,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
      */
     private recentKeysWindow: CubeKey[] = [];
 
-    get onlinePeers(): NetworkPeer[] {
+    get onlinePeers(): NetworkPeerIf[] {
         return this.outgoingPeers.concat(this.incomingPeers).filter(
             peer => peer.online);
         // note: this is not efficient as it creates two copies:
@@ -400,7 +402,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
      * We usually auto-connect peers thorugh connectPeers() instead.
      * @returns A NetworkPeer object
      */
-    connect(peer: Peer): NetworkPeer {
+    connect(peer: Peer): NetworkPeerIf {
         logger.info(`NetworkManager: Connecting to ${peer.toString()}...`);
         // Create a new NetworkPeer and its associated NetworkPeerConnection
         const conn = createNetworkPeerConnection(peer.address, this.transports);
@@ -504,7 +506,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
      * Event handler that will be called once a NetworkPeer is ready for business
      * @returns True if new peer OK, false if new peer to be disconnected
      */
-    handlePeerOnline(peer: NetworkPeer): boolean {
+    handlePeerOnline(peer: NetworkPeerIf): boolean {
         // Verify this peer is valid (just checking if there is an ID for now)
         if (!peer.id) throw new VerityError(`NetworkManager.handlePeerOnline(): Peer ${peer.toString()} cannot be "online" if we don't know its ID. This should never happen.`);
 
@@ -558,7 +560,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
     /**
      * Callback executed when a NetworkPeer connection is closed.
      */
-    handlePeerClosed(peer: NetworkPeer) {
+    handlePeerClosed(peer: NetworkPeerIf) {
         this.incomingPeers = this.incomingPeers.filter(p => p !== peer);
         this.outgoingPeers = this.outgoingPeers.filter(p => p !== peer);
         logger.trace(`NetworkManager: Connection to peer ${peer.toString()} has been closed. My outgoing peers now are: ${this.outgoingPeers} -- my incoming peers now are: ${this.incomingPeers}`);
@@ -571,7 +573,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         this.autoConnectPeers();  // find a replacement peer
     }
 
-    handlePeerUpdated(peer: NetworkPeer) {
+    handlePeerUpdated(peer: NetworkPeerIf) {
         // TODO: Verify this address is in fact reachable, e.g. by making a test
         // connection.
         this.peerDB.markPeerExchangeable(peer);  // this might be a lie
@@ -579,7 +581,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
     }
 
     /** Disconnect and blocklist this peer */
-    closeAndBlockPeer(peer: NetworkPeer): void {
+    closeAndBlockPeer(peer: NetworkPeerIf): void {
         // disconnect
         peer.close();
         // blocklist
@@ -591,7 +593,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
     /**
      * Checks if this peer connection is a duplicate, i.e. if were
      */
-    private closePeerIfDuplicate(peer: NetworkPeer): boolean {
+    private closePeerIfDuplicate(peer: NetworkPeerIf): boolean {
         for (const other of [...this.outgoingPeers, ...this.incomingPeers]) {  // is this efficient or does it copy the array? I don't know, I just watched a YouTube tutorial.
             if (other !== peer) {  // this is required so we don't blocklist this very same connection
                 if (other.id && other.id.equals(peer.id)) {
@@ -603,7 +605,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         return false;
     }
 
-    private handleDuplicatePeer(duplicate: NetworkPeer, original: Peer): void {
+    private handleDuplicatePeer(duplicate: NetworkPeerIf, original: Peer): void {
         logger.info(`NetworkManager: Closing connection ${duplicate.addressString} as duplicate to ${original.toString()}.`)
         duplicate.close();  // disconnect the duplicate
         this._peerDB.removeUnverifiedPeer(duplicate);
@@ -622,16 +624,13 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
     }
 
     getNetStatistics(): NetworkStats {
-        const totalStats: NetworkStats = {
-            tx: { sentMessages: 0, messageBytes: 0, messageTypes: {} },
-            rx: { receivedMessages: 0, messageBytes: 0, messageTypes: {} },
-        };
+        const totalStats: NetworkStats = new NetworkStats();
 
         for (const peer of this.outgoingPeers.concat(this.incomingPeers)) {
-            totalStats.tx.sentMessages += peer.stats.tx.sentMessages;
-            totalStats.tx.messageBytes += peer.stats.tx.messageBytes;
-            totalStats.rx.receivedMessages += peer.stats.rx.receivedMessages;
-            totalStats.rx.messageBytes += peer.stats.rx.messageBytes;
+            totalStats.tx.messages += peer.stats.tx.messages;
+            totalStats.tx.bytes += peer.stats.tx.bytes;
+            totalStats.rx.messages += peer.stats.rx.messages;
+            totalStats.rx.bytes += peer.stats.rx.bytes;
 
             this.consolidateStats(totalStats.tx.messageTypes, peer.stats.tx.messageTypes);
             this.consolidateStats(totalStats.rx.messageTypes, peer.stats.rx.messageTypes);
@@ -662,8 +661,8 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
 
         output += `\nNetwork Total\n`;
         const totalStats = this.getNetStatistics();
-        output += `Total Packets: TX: ${totalStats.tx.sentMessages}, RX: ${totalStats.rx.receivedMessages}\n`;
-        output += `Total Bytes: TX: ${totalStats.tx.messageBytes}, RX: ${totalStats.rx.messageBytes}\n`;
+        output += `Total Packets: TX: ${totalStats.tx.messages}, RX: ${totalStats.rx.messages}\n`;
+        output += `Total Bytes: TX: ${totalStats.tx.bytes}, RX: ${totalStats.rx.bytes}\n`;
         output += `Connected Peers: ${this.outgoingPeers.length + this.incomingPeers.length}\n`;
         output += `Verified Peers: ${Array.from(this._peerDB.peersVerified.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
         output += `Unverified Peers: ${Array.from(this._peerDB.peersUnverified.values()).map(peer => `${peer.ip}:${peer.port}`).join(', ')}\n`;
@@ -688,8 +687,8 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
 
             const stats = peer.stats;
             output += `${peer.toLongString()}`;
-            output += `Packets: TX: ${stats.tx.sentMessages}, RX: ${stats.rx.receivedMessages}\n`;
-            output += `Bytes: TX: ${stats.tx.messageBytes}, RX: ${stats.rx.messageBytes}\n`;
+            output += `Packets: TX: ${stats.tx.messages}, RX: ${stats.rx.messages}\n`;
+            output += `Bytes: TX: ${stats.tx.bytes}, RX: ${stats.rx.bytes}\n`;
             output += 'Packet Types:\n';
 
             for (const type in stats.tx.messageTypes) {
@@ -714,14 +713,14 @@ export class DummyNetworkManager extends EventEmitter implements NetworkManagerI
     }
     transports: Map<SupportedTransports, NetworkTransport>;
     scheduler: RequestScheduler;
-    connect(peer: Peer): NetworkPeer { return undefined }
+    connect(peer: Peer): NetworkPeerIf { return undefined }
     autoConnectPeers(existingRun?: boolean): void {}
-    incomingPeers: NetworkPeer[] = [];
-    outgoingPeers: NetworkPeer[] = [];
-    onlinePeers: NetworkPeer[] = [];
+    incomingPeers: NetworkPeerIf[] = [];
+    outgoingPeers: NetworkPeerIf[] = [];
+    onlinePeers: NetworkPeerIf[] = [];
     start(): Promise<void> { return Promise.resolve(); }
     shutdown(): Promise<void> { return Promise.resolve(); }
-    getNetStatistics(): NetworkStats { return { tx: { sentMessages: 0, messageBytes: 0, messageTypes: {} }, rx: { receivedMessages: 0, messageBytes: 0, messageTypes: {} } }; }
+    getNetStatistics(): NetworkStats { return new NetworkStats(); }
     prettyPrintStats(): Promise<string> { return Promise.resolve(''); }
     online: boolean = false;
     id: Buffer = Buffer.alloc(NetConstants.PEER_ID_SIZE, 42);

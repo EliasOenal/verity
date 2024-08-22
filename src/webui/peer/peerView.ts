@@ -1,5 +1,5 @@
 import { Peer } from "../../core/peering/peer";
-import { NetworkPeer, NetworkPeerLifecycle } from "../../core/networking/networkPeer";
+import { NetworkPeer, NetworkPeerIf, NetworkPeerLifecycle } from "../../core/networking/networkPeer";
 import { logger } from "../../core/logger";
 import { VerityView } from "../verityView";
 import { unixtime } from "../../core/helpers/misc";
@@ -44,7 +44,8 @@ export class PeerView extends VerityView {
     const freshLi = this.newFromTemplate(".verityPeer") as HTMLLIElement;
     // TODO change once we refactor NetworkPeer into encapsulating Peer rather
     // than inheriting from it
-    let networkPeer: NetworkPeer = undefined;
+    let networkPeer: NetworkPeerIf = undefined;
+    // TODO do not rely on instanceof, check for something on NetworkPeerIf instead (this should be fixed once we change NetworkPeer from inheriting from peer to being a companion to Peer)
     if (peer instanceof NetworkPeer) networkPeer = peer;
 
     // logger.trace("PeerView: (Re-)Displaying peer "+ peer.toString());
@@ -90,13 +91,13 @@ export class PeerView extends VerityView {
 
         // Print transmission stats
         const txMsg: HTMLTableCellElement = freshLi.querySelector('.verityPeerTxMsg');
-        txMsg.innerText = networkPeer.stats.tx.sentMessages.toString();
+        txMsg.innerText = networkPeer.stats.tx.messages.toString();
         const txBytes: HTMLTableCellElement = freshLi.querySelector('.verityPeerTxSize');
-        txBytes.innerText = humanFileSize(networkPeer.stats.tx.messageBytes);
+        txBytes.innerText = humanFileSize(networkPeer.stats.tx.bytes);
         const rxMsg: HTMLTableCellElement = freshLi.querySelector('.verityPeerRxMsg');
-        rxMsg.innerText = networkPeer.stats.rx.receivedMessages.toString();
+        rxMsg.innerText = networkPeer.stats.rx.messages.toString();
         const rxBytes: HTMLTableCellElement = freshLi.querySelector('.verityPeerRxSize');
-        rxBytes.innerText = humanFileSize(networkPeer.stats.rx.messageBytes);
+        rxBytes.innerText = humanFileSize(networkPeer.stats.rx.bytes);
 
       } else {  // disconnected peer
         // Print connection status

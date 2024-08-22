@@ -2,7 +2,7 @@ import { Settings } from '../../../src/core/settings';
 
 import { SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
-import { NetworkPeer } from '../../../src/core/networking/networkPeer';
+import { NetworkPeer, NetworkPeerIf } from '../../../src/core/networking/networkPeer';
 import { Libp2pConnection } from '../../../src/core/networking/transport/libp2p/libp2pConnection';
 import { Libp2pTransport } from '../../../src/core/networking/transport/libp2p/libp2pTransport';
 import { AddressAbstraction } from '../../../src/core/peering/addressing';
@@ -96,7 +96,7 @@ describe('networkManager - libp2p connections', () => {
         peerExchange: false,
     });
     await client.start();
-    const clientToServer: NetworkPeer =
+    const clientToServer: NetworkPeerIf =
       client.connect(new Peer('/ip4/127.0.0.1/tcp/17102/ws'));
 
     // node still offline now as connect is obviously async
@@ -105,9 +105,9 @@ describe('networkManager - libp2p connections', () => {
     expect(clientToServer.online).toBeFalsy();
 
     // anticipate incoming connection on server
-    let serverToClient: NetworkPeer;
+    let serverToClient: NetworkPeerIf;
     const serverToClientPromise = new Promise<void>(
-      (resolve) => server.once('incomingPeer', (np: NetworkPeer) => {
+      (resolve) => server.once('incomingPeer', (np: NetworkPeerIf) => {
         serverToClient = np;
         resolve();
     }));

@@ -5,7 +5,7 @@ import { Cube } from '../../../src/core/cube/cube'
 import { NetConstants, SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
 import { CubeRetriever } from '../../../src/core/networking/cubeRetrieval/cubeRetriever';
-import { NetworkPeer } from '../../../src/core/networking/networkPeer';
+import { NetworkPeer, NetworkPeerIf } from '../../../src/core/networking/networkPeer';
 
 import { WebSocketAddress } from '../../../src/core/peering/addressing';
 import { Peer } from '../../../src/core/peering/peer';
@@ -525,7 +525,7 @@ describe('Identity', () => {
         }
       );
       await Promise.all([local.start(), remote.start()]);
-      const np: NetworkPeer =
+      const np: NetworkPeerIf =
         local.connect(new Peer(new WebSocketAddress("localhost", 18102)));
       await np.onlinePromise;
     });

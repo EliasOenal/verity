@@ -2,7 +2,7 @@ import { Settings } from '../../../src/core/settings';
 import { NetConstants, SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 
 import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
-import { NetworkPeer, NetworkPeerLifecycle } from '../../../src/core/networking/networkPeer';
+import { NetworkPeer, NetworkPeerIf, NetworkPeerLifecycle } from '../../../src/core/networking/networkPeer';
 import { WebSocketTransport } from '../../../src/core/networking/transport/webSocket/webSocketTransport';
 import { WebSocketServer } from '../../../src/core/networking/transport/webSocket/webSocketServer';
 import { WebSocketConnection } from '../../../src/core/networking/transport/webSocket/webSocketConnection';
@@ -296,7 +296,7 @@ describe('networkManager - WebSocket connections', () => {
       const iHaveConnected = new Promise((resolve) => myManager.on('peeronline', resolve));
       const otherHasConnected = new Promise((resolve) => otherManager.on('peeronline', resolve));
       const bothHaveConnected = Promise.all([iHaveConnected, otherHasConnected]);
-      const myFirstNp: NetworkPeer =
+      const myFirstNp: NetworkPeerIf =
         myManager.connect(new Peer(new WebSocketAddress('localhost', 7005)));
       await bothHaveConnected;
 
@@ -309,7 +309,7 @@ describe('networkManager - WebSocket connections', () => {
       expect(otherManager.outgoingPeers.length).toEqual(0);
       expect(otherManager.incomingPeers.length).toEqual(1);
       expect(otherManager.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
-      const othersFirstNp: NetworkPeer = otherManager.incomingPeers[0];
+      const othersFirstNp: NetworkPeerIf = otherManager.incomingPeers[0];
       expect(othersFirstNp.id?.equals(myManager.id));
       expect(myPeerDB.peersVerified.size).toEqual(0);  // outgoing peers get exchangeable on verification
       expect(myPeerDB.peersExchangeable.size).toEqual(1);
@@ -335,9 +335,9 @@ describe('networkManager - WebSocket connections', () => {
         myManager.on('peerclosed', resolve));
       const otherNotedDuplicate = new Promise((resolve) =>
         otherManager.on('peerclosed', resolve));
-      const myDuplicateNp: NetworkPeer =
+      const myDuplicateNp: NetworkPeerIf =
         myManager.connect(new Peer(new WebSocketAddress('127.0.0.1', 7005)));
-      let othersDuplicateNp: NetworkPeer;
+      let othersDuplicateNp: NetworkPeerIf;
       otherManager.on("incomingPeer", peer => othersDuplicateNp = peer);
       await iNotedDuplicate;
       logger.error("iNotedDuplicate")

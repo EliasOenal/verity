@@ -1,4 +1,4 @@
-import { NetworkPeer } from "../networkPeer";
+import type { NetworkPeerIf } from "../networkPeer";
 
 /**
  * RequestStrategies determine which connected node we'll ask whenever we
@@ -7,7 +7,7 @@ import { NetworkPeer } from "../networkPeer";
  * Cube out there.
  */
 export abstract class RequestStrategy {
-  select(available: NetworkPeer[]): NetworkPeer {
+  select(available: NetworkPeerIf[]): NetworkPeerIf {
     return undefined;
   }
 }
@@ -17,7 +17,7 @@ export abstract class RequestStrategy {
  * This is the most basic and probably least useful strategy.
  **/
 export class RandomStrategy extends RequestStrategy {
-  select(available: NetworkPeer[]): NetworkPeer {
+  select(available: NetworkPeerIf[]): NetworkPeerIf {
     const index = Math.floor(Math.random()*available.length);
     return available[index];
   }

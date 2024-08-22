@@ -6,7 +6,7 @@ import { CubeStore, CubeStoreOptions } from "../../../../src/core/cube/cubeStore
 import { CubeRetriever } from "../../../../src/core/networking/cubeRetrieval/cubeRetriever";
 import { SupportedTransports } from "../../../../src/core/networking/networkDefinitions";
 import { NetworkManager, NetworkManagerOptions } from "../../../../src/core/networking/networkManager";
-import { NetworkPeer } from "../../../../src/core/networking/networkPeer";
+import { NetworkPeer, NetworkPeerIf } from "../../../../src/core/networking/networkPeer";
 import { WebSocketAddress } from "../../../../src/core/peering/addressing";
 import { Peer } from "../../../../src/core/peering/peer";
 import { PeerDB } from "../../../../src/core/peering/peerDB";
@@ -49,7 +49,7 @@ describe('CubeRetriever', () => {
       },
     );
     await Promise.all([local.start(), remote.start()]);
-    const np: NetworkPeer =
+    const np: NetworkPeerIf =
       local.connect(new Peer(new WebSocketAddress("localhost", 18002)));
     await np.onlinePromise;
   });
