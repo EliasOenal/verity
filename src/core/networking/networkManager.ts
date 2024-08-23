@@ -90,6 +90,19 @@ export interface NetworkManagerIf extends EventEmitter {
  * please call and await start() before actually using it.
  */
 export class NetworkManager extends EventEmitter implements NetworkManagerIf {
+    static SetDefaults(options: NetworkManagerOptions = {}): void {
+        options.newPeerInterval = options?.newPeerInterval ?? Settings.NEW_PEER_INTERVAL;
+        options.connectRetryInterval = options?.connectRetryInterval ?? Settings.CONNECT_RETRY_INTERVAL;
+        options.reconnectInterval = options?.reconnectInterval ?? Settings.RECONNECT_INTERVAL;
+        options.maximumConnections = options?.maximumConnections ?? Settings.MAXIMUM_CONNECTIONS;
+        options.acceptIncomingConnections = options?.acceptIncomingConnections ?? true;
+        options.announceToTorrentTrackers = options?.announceToTorrentTrackers ?? true;
+        options.lightNode = options?.lightNode ?? true;
+        options.autoConnect = options?.autoConnect ?? true;
+        options.peerExchange = options?.peerExchange ?? true;
+        options.recentKeyWindowSize = options?.recentKeyWindowSize ?? Settings.RECENT_KEY_WINDOW_SIZE;
+    }
+
     // Components
     transports: Map<SupportedTransports, NetworkTransport> = new Map();
     scheduler: RequestScheduler;
@@ -181,17 +194,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
             readonly options: NetworkManagerOptions = {},
     ) {
         super();
-        // set overridable options
-        options.newPeerInterval = options?.newPeerInterval ?? Settings.NEW_PEER_INTERVAL;
-        options.connectRetryInterval = options?.connectRetryInterval ?? Settings.CONNECT_RETRY_INTERVAL;
-        options.reconnectInterval = options?.reconnectInterval ?? Settings.RECONNECT_INTERVAL;
-        options.maximumConnections = options?.maximumConnections ?? Settings.MAXIMUM_CONNECTIONS;
-        options.acceptIncomingConnections = options?.acceptIncomingConnections ?? true;
-        options.announceToTorrentTrackers = options?.announceToTorrentTrackers ?? true;
-        options.lightNode = options?.lightNode ?? true;
-        options.autoConnect = options?.autoConnect ?? true;
-        options.peerExchange = options?.peerExchange ?? true;
-        options.recentKeyWindowSize = options?.recentKeyWindowSize ?? Settings.RECENT_KEY_WINDOW_SIZE;
+        NetworkManager.SetDefaults(options);
 
         // Create components
         this.scheduler = new RequestScheduler(this, options);
@@ -709,6 +712,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
 export class DummyNetworkManager extends EventEmitter implements NetworkManagerIf {
     constructor(public cubeStore: CubeStore, public peerDB: PeerDB, transports: TransportParamMap = new Map(), public options: NetworkManagerOptions = {}) {
         super();
+        NetworkManager.SetDefaults(options);
         this.scheduler = new RequestScheduler(this, options);
     }
     transports: Map<SupportedTransports, NetworkTransport>;
@@ -717,7 +721,7 @@ export class DummyNetworkManager extends EventEmitter implements NetworkManagerI
     autoConnectPeers(existingRun?: boolean): void {}
     incomingPeers: NetworkPeerIf[] = [];
     outgoingPeers: NetworkPeerIf[] = [];
-    onlinePeers: NetworkPeerIf[] = [];
+    get onlinePeers(): NetworkPeerIf[] { return this.outgoingPeers.concat(this.incomingPeers).filter(peer => peer.online); }
     start(): Promise<void> { return Promise.resolve(); }
     shutdown(): Promise<void> { return Promise.resolve(); }
     getNetStatistics(): NetworkStats { return new NetworkStats(); }
@@ -725,5 +729,5 @@ export class DummyNetworkManager extends EventEmitter implements NetworkManagerI
     online: boolean = false;
     id: Buffer = Buffer.alloc(NetConstants.PEER_ID_SIZE, 42);
     idString: string = this.id.toString('hex');
-    onlinePeerCount: number = 0;
+    get onlinePeerCount(): number { return this.onlinePeers.length };
 }

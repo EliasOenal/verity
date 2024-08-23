@@ -246,8 +246,8 @@ export class RequestScheduler {
 
     const base = 1/this.options.requestScaleFactor;
     const step = (1-base) / (max-1);
-
-    return base + notConn*step;
+    const res = base + notConn*step;
+    return res;
   }
 
   private performCubeRequest(peerSelected?: NetworkPeerIf): void {

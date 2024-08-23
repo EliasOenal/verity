@@ -1,18 +1,19 @@
 import { Settings } from '../settings';
+import { unixtime } from '../helpers/misc';
+
+import { CubeRequestMessage, CubeResponseMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, NetworkMessage, PeerRequestMessage, PeerResponseMessage, ServerAddressMessage } from './networkMessage';
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { KeyRequestMode } from './networkMessage';
-import { unixtime } from '../helpers/misc';
-import { CubeRequestMessage, CubeResponseMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, NetworkMessage, PeerRequestMessage, PeerResponseMessage, ServerAddressMessage } from './networkMessage';
+import { DummyNetworkManager, NetworkManager, NetworkManagerIf } from "./networkManager";
+import { DummyTransportConnection, TransportConnection } from './transport/transportConnection';
 
+import { CubeKey } from '../cube/cube.definitions';
 import { CubeStore } from '../cube/cubeStore';
 import { CubeInfo, CubeMeta } from '../cube/cubeInfo';
+
 import { WebSocketAddress, AddressAbstraction } from '../peering/addressing';
 import { Peer } from '../peering/peer';
-import { NetworkManager } from "./networkManager";
-import { CubeKey, CubeType } from '../cube/cube.definitions';
-import { cubeContest } from '../cube/cubeUtil';
-import { TransportConnection } from './transport/transportConnection';
-import { getCurrentEpoch, shouldRetainCube } from '../cube/cubeUtil';
+import { PeerDB } from '../peering/peerDB';
 
 import { logger } from '../logger';
 
@@ -66,7 +67,7 @@ class NetworkPeerLifecycleStatus {
 export interface NetworkPeerIf extends Peer {
     stats: NetworkStats;
     status: NetworkPeerLifecycle;
-    onlinePromise: Promise<NetworkPeer>;
+    onlinePromise: Promise<NetworkPeerIf>;
     online: boolean;
     conn: TransportConnection,
 
@@ -765,8 +766,8 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
 export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
     stats: NetworkStats;
     status: NetworkPeerLifecycle;
-    onlinePromise: Promise<NetworkPeer>;
-    online: boolean;
+    onlinePromise: Promise<NetworkPeerIf> = Promise.resolve(this);
+    online: boolean = true;
     conn: TransportConnection;
     close(): Promise<void> { return Promise.resolve(); }
     sendMessage(msg: NetworkMessage): void { }
@@ -776,4 +777,20 @@ export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
     sendCubeRequest(keys: Buffer[]): void { }
     sendNotificationRequest(keys: Buffer[]): void { }
     sendPeerRequest(): void { }
+
+    constructor(
+        networkManager?: NetworkManagerIf,
+        conn?: TransportConnection,
+        cubeStore?: CubeStore,
+        options: NetworkPeerOptions = {},
+    ) {
+        if (conn === undefined) conn = new DummyTransportConnection();
+        if (cubeStore === undefined) cubeStore = new CubeStore({
+            inMemory: true,
+            enableCubeCache: false,
+        });
+        if (networkManager === undefined) networkManager = new DummyNetworkManager(
+            cubeStore, new PeerDB());
+        super(conn.address);
+    }
 }
