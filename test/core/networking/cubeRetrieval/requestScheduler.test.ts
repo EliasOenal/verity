@@ -287,7 +287,7 @@ describe('RequestScheduler', () => {
           const oldCube: Cube = Cube.PIC({
             fields: [
               CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
-              CubeField.Date(unixtime() - 172800),  // sculpted two days ago
+              CubeField.Date(unixtime() - 315360000),  // sculpted ten years ago
             ],
             requiredDifficulty: reducedDifficulty,
           });
@@ -336,7 +336,7 @@ describe('RequestScheduler', () => {
           const oldCube: Cube = Cube.PIC({
             fields: [
               CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
-              CubeField.Date(unixtime() - 172800),  // sculpted two days ago
+              CubeField.Date(unixtime() - 315360000),  // sculpted ten years
             ],
             requiredDifficulty: reducedDifficulty,
           });
