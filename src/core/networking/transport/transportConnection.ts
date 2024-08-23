@@ -1,11 +1,12 @@
 import { Settings, VerityError } from "../../settings";
 import { SupportedTransports } from "../networkDefinitions";
+import { unixtime } from "../../helpers/misc";
+
+import { AddressAbstraction, WebSocketAddress } from "../../peering/addressing";
+import { logger } from "../../logger";
 
 import EventEmitter from "events";
 import { Buffer } from 'buffer';
-import { AddressAbstraction } from "../../peering/addressing";
-import { unixtime } from "../../helpers/misc";
-import { logger } from "../../logger";
 
 export interface TransportConnectionOptions {
   disconnectErrorCount?: number,
@@ -19,6 +20,7 @@ export interface TransportConnectionOptions {
  * @emits "ready" when connection is... you know... ready
  */
 export abstract class TransportConnection extends EventEmitter {
+  // TODO retain options object instead
   readonly disconnectErrorCount: number = undefined;
   readonly disconnectErrorTime: number = undefined;
   private _lastSuccessfulTransmission: number = unixtime();
@@ -89,4 +91,11 @@ export abstract class TransportConnection extends EventEmitter {
 
   // To be overridden by subclass
   get open(): boolean { return false; }
+}
+
+
+export class DummyTransportConnection extends TransportConnection {
+  constructor(address: AddressAbstraction = new AddressAbstraction(new WebSocketAddress("127.0.0.1", 0))) {
+    super(address, undefined);
+  }
 }
