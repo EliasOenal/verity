@@ -4,7 +4,7 @@ import { FieldPosition } from "../../core/fields/baseFields";
 import { CubeField } from "../../core/cube/cubeField";
 import { CubeFields, FieldParserTable } from "../../core/cube/cubeFields";
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
-import { CubeType, FrozenDefaultFields, FrozenPositionalBack, FrozenPositionalFront, MucDefaultFields, MucPositionalBack, MucPositionalFront } from "../../core/cube/cube.definitions";
+import { CubeType, FrozenDefaultFields, FrozenNotifyPositionalBack, FrozenPositionalBack, FrozenPositionalFront, MucDefaultFields, MucNotifyPositionalBack, MucPositionalBack, MucPositionalFront, PicDefaultFields, PicNotifyPositionalBack, PicPositionalBack, PicPositionalFront, PmucDefaultFields, PmucNotifyPositionalBack, PmucPositionalBack, PmucPositionalFront } from "../../core/cube/cube.definitions";
 
 import { cciFieldType, cciFieldLength } from "./cciCube.definitions";
 import { cciField } from "./cciField";
@@ -102,7 +102,40 @@ export const cciFrozenFieldDefinition: FieldDefinition = {
   defaultField: FrozenDefaultFields,
   stopField: cciFieldType.CCI_END,
   remainderField: cciFieldType.REMAINDER,
-}
+};
+export const cciFrozenNotifyFieldDefinition: FieldDefinition = {
+  fieldNames: cciFieldType,
+  fieldLengths: cciFieldLength,
+  positionalFront: FrozenPositionalFront,
+  positionalBack: FrozenNotifyPositionalBack,
+  fieldObjectClass: cciField,
+  fieldsObjectClass: cciFields,
+  defaultField: FrozenDefaultFields,
+  stopField: cciFieldType.CCI_END,
+  remainderField: cciFieldType.REMAINDER,
+};
+export const cciPicFieldDefinition: FieldDefinition = {
+  fieldNames: cciFieldType,
+  fieldLengths: cciFieldLength,
+  positionalFront: PicPositionalFront,
+  positionalBack: PicPositionalBack,
+  fieldObjectClass: cciField,
+  fieldsObjectClass: cciFields,
+  defaultField: PicDefaultFields,
+  stopField: cciFieldType.CCI_END,
+  remainderField: cciFieldType.REMAINDER,
+};
+export const cciPicNotifyFieldDefinition: FieldDefinition = {
+  fieldNames: cciFieldType,
+  fieldLengths: cciFieldLength,
+  positionalFront: PicPositionalFront,
+  positionalBack: PicNotifyPositionalBack,
+  fieldObjectClass: cciField,
+  fieldsObjectClass: cciFields,
+  defaultField: PicDefaultFields,
+  stopField: cciFieldType.CCI_END,
+  remainderField: cciFieldType.REMAINDER,
+};
 export const cciMucFieldDefinition: FieldDefinition = {
   fieldNames: cciFieldType,
   fieldLengths: cciFieldLength,
@@ -113,11 +146,56 @@ export const cciMucFieldDefinition: FieldDefinition = {
   defaultField: MucDefaultFields,
   stopField: cciFieldType.CCI_END,
   remainderField: cciFieldType.REMAINDER,
-}
+};
+export const cciMucNotifyFieldDefinition: FieldDefinition = {
+  fieldNames: cciFieldType,
+  fieldLengths: cciFieldLength,
+  positionalFront: MucPositionalFront,
+  positionalBack: MucNotifyPositionalBack,
+  fieldObjectClass: cciField,
+  fieldsObjectClass: cciFields,
+  defaultField: MucDefaultFields,
+  stopField: cciFieldType.CCI_END,
+  remainderField: cciFieldType.REMAINDER,
+};
+export const cciPmucFieldDefinition: FieldDefinition = {
+  fieldNames: cciFieldType,
+  fieldLengths: cciFieldLength,
+  positionalFront: PmucPositionalFront,
+  positionalBack: PmucPositionalBack,
+  fieldObjectClass: cciField,
+  fieldsObjectClass: cciFields,
+  defaultField: PmucDefaultFields,
+  stopField: cciFieldType.CCI_END,
+  remainderField: cciFieldType.REMAINDER,
+};
+export const cciPmucNotifyFieldDefinition: FieldDefinition = {
+  fieldNames: cciFieldType,
+  fieldLengths: cciFieldLength,
+  positionalFront: PmucPositionalFront,
+  positionalBack: PmucNotifyPositionalBack,
+  fieldObjectClass: cciField,
+  fieldsObjectClass: cciFields,
+  defaultField: PmucDefaultFields,
+  stopField: cciFieldType.CCI_END,
+  remainderField: cciFieldType.REMAINDER,
+};
 export const cciFrozenParser: FieldParser = new FieldParser(cciFrozenFieldDefinition);
+export const cciFrozenNotifyParser: FieldParser = new FieldParser(cciFrozenNotifyFieldDefinition);
+export const cciPicParser: FieldParser = new FieldParser(cciPicFieldDefinition);
+export const cciPicNotifyParser: FieldParser = new FieldParser(cciPicNotifyFieldDefinition);
 export const cciMucParser: FieldParser = new FieldParser(cciMucFieldDefinition);
+export const cciMucNotifyParser: FieldParser = new FieldParser(cciMucNotifyFieldDefinition);
+export const cciPmucParser: FieldParser = new FieldParser(cciPmucFieldDefinition);
+export const cciPmucNotifyParser: FieldParser = new FieldParser(cciPmucNotifyFieldDefinition);
 
 export const cciFieldParsers: FieldParserTable = {
   [CubeType.FROZEN]: cciFrozenParser,
+  [CubeType.FROZEN_NOTIFY]: cciFrozenNotifyParser,
+  [CubeType.PIC]: cciPicParser,
+  [CubeType.PIC_NOTIFY]: cciPicNotifyParser,
   [CubeType.MUC]: cciMucParser,
+  [CubeType.MUC_NOTIFY]: cciMucNotifyParser,
+  [CubeType.PMUC]: cciPmucParser,
+  [CubeType.PMUC_NOTIFY]: cciPmucNotifyParser,
 }
