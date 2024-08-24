@@ -143,9 +143,9 @@ The file application is a specific implementation leveraging the Common Cube Int
 
 # Chat Application
 
-The chat application implements basic chat room functionality on the Verity network. It works by sending notify Cubes to a notify key that serves as a chat room. The nodes participating in the chat will retrieve the most recent Cubes and render them chronologically sorted. It populates the `Application`, `Relates_To` and `Payload` fields.
+The chat application implements basic chat room functionality on the Verity network. It works by sending notify Cubes to a notify key that serves as a chat room. The nodes participating in the chat will retrieve the most recent Cubes and render them chronologically sorted. It populates the `Application`, `Relates_To` and `Payload` and `Username` fields.
 
-Messages are prefixed with "username: " to allow for easy identification of the sender. They optionally may reference their identity MUC using the `MYPOST` field and signatures (using the identity MUC's key) as proof of authorship.
+They optionally may reference their identity MUC using the <strike>`MYPOST`</strike> (TODO: Define new field) field and signatures (using the identity MUC's key) as proof of authorship.
 
 **Application Identifier**: `chat`
 
