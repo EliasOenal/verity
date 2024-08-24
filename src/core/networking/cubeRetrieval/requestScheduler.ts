@@ -1,6 +1,6 @@
 import { Settings } from '../../settings';
 import { NetConstants } from '../networkDefinitions';
-import { KeyRequestMode } from '../networkMessage';
+import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode } from '../networkMessage';
 
 import { RequestStrategy, RandomStrategy } from './requestStrategy';
 import { RequestedCube } from './requestedCube';
@@ -15,6 +15,7 @@ import type { NetworkPeer, NetworkPeerIf } from '../networkPeer';
 import { logger } from '../../logger';
 
 import { Buffer } from 'buffer';  // for browsers
+import { CubeFilter } from '../../../webui/cubeExplorer/cubeExplorerController';
 
 // TODO: only schedule next request after previous request has been *fulfilled*,
 // or after a sensible timeout
@@ -46,11 +47,30 @@ export interface RequestSchedulerOptions {
  * on local application's requests.
  */
 export class RequestScheduler {
+  /** Cubes requested by the user */
   private requestedCubes: Map<string, RequestedCube> = new Map();
+  /** Notifications requested by the user in direct Cube request mode */
   private requestedNotifications: Map<string, RequestedCube> = new Map();
-  private subscribedCubes: CubeKey[] = [];  // TODO use same format as for requestedCubes
-  private cubeRequestTimer: ShortenableTimeout = new ShortenableTimeout(this.performCubeRequest, this);
-  private keyRequestTimer: ShortenableTimeout = new ShortenableTimeout(this.performKeyRequest, this);
+  /** Notifications requested by the user in key request mode */
+  private expectedNotifications: Map<string, RequestedCube> = new Map();
+  /** Cubes (MUC, PMUC) subscribed to by the user */
+  private subscribedCubes: CubeKey[] = [];  // TODO use same format as for requestedCubes, TODO 2.0 implement push notifications
+
+  /** Timer for regularly scheduled CubeRequests */
+  private cubeRequestTimer: ShortenableTimeout = new ShortenableTimeout(this.performAndRescheduleCubeRequest, this);
+  /** Timer for regularly scheduled KeyRequests */
+  private keyRequestTimer: ShortenableTimeout = new ShortenableTimeout(this.performAndRescheduleKeyRequest, this);
+
+  /**
+   * Light nodes don't usually act on KeyResponse messages,
+   * except when they requested them.
+   **/
+  private expectedKeyResponses: Map<NetworkPeerIf, ShortenableTimeout> = new Map();
+
+  /**
+   * Will be set to true when shutdown() is called. From this point forward,
+   * our methods will refuse service on further calls.
+   */
   private _shutdown: boolean = false;
 
   constructor(
@@ -139,15 +159,33 @@ export class RequestScheduler {
     recipientKey: Buffer,
     scheduleIn: number = this.options.interactiveRequestDelay,
     timeout: number = this.options.requestTimeout,
+    directCubeRequest: boolean = false,
   ): Promise<CubeInfo> {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return new Promise<CubeInfo>((resolve, reject) => reject());
-
     const key = keyVariants(recipientKey);  // normalise input
-    const req = new RequestedCube(key.binaryKey, timeout);  // create request
-    this.requestedNotifications.set(key.keyString, req);  // remember request
-    this.scheduleCubeRequest(scheduleIn);  // schedule request
-    return req.promise;  // return result eventually
+
+    if (directCubeRequest) {
+      // Directly send a CubeRequest. This makes sense if we don't have any
+      // notifications for this recipient yet.
+      const req = new RequestedCube(key.binaryKey, timeout);  // create request
+      this.requestedNotifications.set(key.keyString, req);  // remember request
+      this.scheduleCubeRequest(scheduleIn);  // schedule request
+      return req.promise;  // return result eventually
+    } else {
+      // remember this request and create a promise for it
+      const req: RequestedCube = new RequestedCube(key.binaryKey, timeout);
+      this.expectedNotifications.set(key.keyString, req);
+      // Start with a KeyRequest. This makes sense if we already have (a lot of)
+      // notifications for this recipient and want to avoid redownloading them all.
+      const filter: CubeFilterOptions = {
+        notifies: key.binaryKey,
+      }
+      this.performKeyRequest(undefined, filter);
+      // KeyResponse will automatically be handled in handleCubesOffered()
+      return req.promise;
+    }
+
   }
 
 
@@ -210,7 +248,8 @@ export class RequestScheduler {
         // If we're a light node, check if we're even interested in this Cube
         if (this.options.lightNode) {
           if (!(this.requestedCubes.has(incomingCubeInfo.keyString)) &&
-              !(this.subscribedCubes.includes(incomingCubeInfo.key))
+              !(this.subscribedCubes.includes(incomingCubeInfo.key)) &&
+              !(this.expectedKeyResponses.has(offeringPeer))  // whitelisted due to previous filtering KeyRequest
           ){
             continue;
           }
@@ -250,12 +289,22 @@ export class RequestScheduler {
     return res;
   }
 
+  /**
+   * Wrapper around performCubeRequest() which will also schedule the next
+   * request after the usual time.
+   */
+  private performAndRescheduleCubeRequest(peerSelected?: NetworkPeerIf): void {
+    // do not accept any calls if this scheduler has already been shut down
+    if (this._shutdown) return;
+    this.cubeRequestTimer.clear();  // cancel timer calling this exact function
+    this.performCubeRequest(peerSelected);
+    this.scheduleCubeRequest();
+  }
+
   private performCubeRequest(peerSelected?: NetworkPeerIf): void {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
 
-    // cancel timer calling this exact function
-    this.cubeRequestTimer.clear();
     // is there even anything left to request?
     if (this.requestedCubes.size === 0 &&
         this.subscribedCubes.length === 0 &&
@@ -264,7 +313,7 @@ export class RequestScheduler {
       logger.trace(`RequestScheduler.performRequest(): doing nothing as there are no open requests`);
       return;  // nothing to do
     }
-    // select a peer to send request to
+    // select a peer to send request to, unless we were told to use a specific one
     if (peerSelected === undefined) peerSelected =
       this.options.requestStrategy.select(this.networkManager.onlinePeers);
     if (peerSelected !== undefined) {
@@ -306,25 +355,88 @@ export class RequestScheduler {
         peerSelected.sendNotificationRequest(notificationKeys);
       }
     } else {
-      logger.info("RequestScheduler.performRequest(): No matching peer to run request, scheduling next try.")
+      logger.info("RequestScheduler.performRequest(): Could not find a suitable peer; doing nothing.")
     }
-    // schedule next request
-    this.scheduleCubeRequest();
   }
 
-  private performKeyRequest(peerSelected?: NetworkPeerIf): void {
+  /**
+   * Wrapper around performKeyRequest() used for regular / "full node" key
+   * requests. Will reschedule another key request after the usual time.
+   */
+  private performAndRescheduleKeyRequest(peerSelected?: NetworkPeerIf): void {
+    // do not accept any calls if this scheduler has already been shut down
+    if (this._shutdown) return;
+    this.keyRequestTimer.clear();  // cancel timer calling this exact function
+    this.performKeyRequest(peerSelected);
+    this.scheduleKeyRequest();
+  }
+
+  private performKeyRequest(peerSelected?: NetworkPeerIf, options: CubeFilterOptions = {}): void {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
 
-    // cancel timer calling this exact function
-    this.keyRequestTimer.clear();
-    // select a peer to send request to
+    // select a peer to send request to, unless we were told to use a specific one
     if (peerSelected === undefined) peerSelected =
       this.options.requestStrategy.select(this.networkManager.onlinePeers);
     if (peerSelected !== undefined) {
-      peerSelected.sendKeyRequests();
+      if (this.options.lightNode) this.expectKeyResponse(peerSelected);
+
+      // We will now translate the supplied filter options to our crappy
+      // non-orthogonal 1.0 wire format. Non-fulfillable requests will be
+      // ignored. Hopefully we can get rid of this crap one we introduce a
+      // sensible wire format.
+      if (!KeyRequestMessage.filterLegal(options)) {
+        logger.trace('RequestScheduler.performKeyRequest(): Unfulfillable combination of filters; doing nothing.');
+        return;
+      }
+      // do we need to send a specific key request?
+      let mode: KeyRequestMode = undefined;
+      if (options.notifies && (options.timeMin || options.timeMax)) mode = KeyRequestMode.NotificationTimestamp;
+      else if (options.notifies) mode = KeyRequestMode.NotificationChallenge;
+      if (mode !== undefined) {
+        // if so, send the required one
+        peerSelected.sendSpecificKeyRequest(mode, options);
+      }
+      else {
+        // otherwise, let the peer decide which mode(s) to use
+        peerSelected.sendKeyRequests();
+      }
+    } else {
+      logger.debug('RequestScheduler.performKeyRequest(): Could not find a suitable peer; doing nothing.');
     }
-    this.scheduleKeyRequest();
+  }
+
+  /**
+   * If we're a light node, expect a KeyResponse.
+   * (Light nodes don't act on those by default -- this method basically
+   * whitelists KeyResponses from a certain peer on light nodes.)
+   */
+  // maybe TODO: We currently need to always keep the whitelisting all the way
+  // till expiry, even if we receive a reply before that. That's because there
+  // may be multiple expected KeyResponses from this peer and we currently
+  // don't keep count.
+  private expectKeyResponse(
+      from: NetworkPeerIf,
+      timeoutSecs: number = Settings.CUBE_REQUEST_TIMEOUT,  // TODO: this is WRONG; should be Settings.NETWORK_TIMEOUT... but we "temporarily" set this to zero, so it won't work
+  ): void {
+    // do not accept any calls if this scheduler has already been shut down
+    if (this._shutdown) return;
+
+    // this method is only for light nodes
+    if (this.options.lightNode) {
+      // expect the response within timeout
+      const newTimeout = new ShortenableTimeout(() => {
+        this.expectedKeyResponses.delete(from);
+      }, this);
+      newTimeout.set(timeoutSecs);
+      // clear any previous timeout we might have for this peer
+      const previousTimeout: ShortenableTimeout = this.expectedKeyResponses.get(from);
+      if (previousTimeout) previousTimeout.clear();
+      // remember this expected key response
+      this.expectedKeyResponses.set(from, newTimeout);
+    } else {
+      logger.trace('RequestScheduler: expectKeyResponse() called on a full node, which makes no sense. Ignoring.');
+    }
   }
 
   // TODO remove? caller can call requestCube in a loop directly
@@ -349,17 +461,31 @@ export class RequestScheduler {
     if (this._shutdown) return;
 
     // does this fulfil a Cube request?
-    let req: RequestedCube = this.requestedCubes.get(cubeInfo.keyString);
-    // or does it maybe fulfil a notification request?
-    if (!req) {
-      // TODO: do not potentially reactivate Cube, this is very inefficient
-      const recipientKey: Buffer =
-        cubeInfo.getCube().fields.getFirst(CubeFieldType.NOTIFY)?.value;
-      if (recipientKey) req = this.requestedNotifications.get(keyVariants(recipientKey).keyString);
-    }
-    if (req) {
-      req.fulfilled(cubeInfo);
+    const cubeRequest: RequestedCube = this.requestedCubes.get(cubeInfo.keyString);
+    if (cubeRequest) {
+      cubeRequest.fulfilled(cubeInfo);
       this.requestedCubes.delete(cubeInfo.keyString);
+    }
+
+    // does this fulfil a notification request in direct CubeRequest mode?
+    // TODO: do not potentially reactivate Cube, this is very inefficient
+    const recipientKey: Buffer =
+      cubeInfo.getCube().fields.getFirst(CubeFieldType.NOTIFY)?.value;
+    if (recipientKey) {
+      const directNotificationRequest: RequestedCube = this.requestedNotifications.get(keyVariants(recipientKey).keyString);
+      if (directNotificationRequest) {
+        directNotificationRequest.fulfilled(cubeInfo);
+        this.requestedNotifications.delete(cubeInfo.keyString);
+      }
+    }
+
+    // does this fulfill a notification request in KeyRequest mode?
+    if (recipientKey) {
+      const indirectNotificationRequest: RequestedCube = this.expectedNotifications.get(keyVariants(recipientKey).keyString);
+      if (indirectNotificationRequest) {
+        indirectNotificationRequest.fulfilled(cubeInfo);
+        this.expectedNotifications.delete(cubeInfo.keyString);
+      }
     }
   }
 
@@ -371,5 +497,7 @@ export class RequestScheduler {
       this.cubeAddedHandler(cubeInfo));
     for (const [key, req] of this.requestedCubes) req.shutdown();
     for (const [key, req] of this.requestedNotifications) req.shutdown();
+    for (const [key, req] of this.expectedNotifications) req.shutdown();
+    for (const [peer, timeout] of this.expectedKeyResponses) timeout.clear();
   }
 }

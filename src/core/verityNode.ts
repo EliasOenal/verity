@@ -83,11 +83,15 @@ export class VerityNode implements VerityNodeIf {
       new CubeRetriever(this.cubeStore, this.networkManager.scheduler);
 
     // Inform clients when this node will eventually shut down
-    this.shutdownPromise = new Promise(resolve => this.networkManager.once('shutdown', () => {
-      logger.info('NetworkManager has shut down. Exiting...');
-      resolve(undefined);
-    }));
+    this.shutdownPromise = new Promise(resolve => {
+      Promise.all([
+        this.networkManager.shutdownPromise,
+        this.cubeStore.shutdownPromise,
+        this.peerDB.shutdownPromise
+      ]).then(() => resolve(undefined));
+    });
 
+    // Learn initial peers
     for (const initialPeer of options.initialPeers) {
       this.peerDB.learnPeer(new Peer(initialPeer));
     }
@@ -95,6 +99,7 @@ export class VerityNode implements VerityNodeIf {
 
   shutdown(): Promise<void> {
     this.networkManager.shutdown();
+    this.cubeStore.shutdown();
     this.peerDB.shutdown();
     return this.shutdownPromise;
   }
