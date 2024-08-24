@@ -100,7 +100,7 @@ describe('RequestScheduler', () => {
     describe(`requestNotification() as a ${lightNode? 'light node':'full node'}`, () => {
       it('should accept and fulfil a Notification request in direct Cube request mode', async () => {
         expect((scheduler as any).requestedNotifications.size).toEqual(0);  // spying on private attribute
-        const promise: Promise<CubeInfo> = scheduler.requestNotifications(testKey, 0, undefined, /*true*/);
+        const promise: Promise<CubeInfo> = scheduler.requestNotifications(testKey, 0, undefined, true);
         expect((scheduler as any).requestedNotifications.size).toEqual(1);  // spying on private attribute
 
         // simulate successful network retrieval by adding a matching notification Cube

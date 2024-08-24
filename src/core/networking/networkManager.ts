@@ -81,6 +81,7 @@ export interface NetworkManagerIf extends EventEmitter {
     autoConnectPeers(existingRun?: boolean): void;
     incomingPeers: NetworkPeerIf[];
     outgoingPeers: NetworkPeerIf[];
+    shutdownPromise: Promise<void>;
 }
 
 /**
@@ -171,6 +172,10 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
      *  i.e. from which we received a correct hello.
      */
     private _online: boolean = false;
+
+    private shutdownPromiseResolve: () => void;
+    shutdownPromise: Promise<void> =
+        new Promise(resolve => this.shutdownPromiseResolve = resolve);
 
     /** Local ephemeral peer ID, generated at random each start */
     protected _id?: Buffer = undefined;
@@ -451,7 +456,6 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         this._peerDB.removeListener('newPeer',
             (newPeer: Peer) => this.autoConnectPeers());
         this._peerDB.shutdown();
-        this.cubeStore.shutdown();
         const closedPromises: Promise<void>[] = [];
         closedPromises.push(this.closePeers());  // shut down peers
         // shut down transports
@@ -470,7 +474,10 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         // promise a complete shutdown when all components have shut down
         const closedPromise: Promise<void> =
             Promise.all(closedPromises) as unknown as Promise<void>;
-        closedPromise.then(() => this.emit('shutdown'));
+        closedPromise.then(() => {
+            this.emit('shutdown');
+            this.shutdownPromiseResolve();
+        });
         return closedPromise;
     }
 
@@ -715,6 +722,7 @@ export class DummyNetworkManager extends EventEmitter implements NetworkManagerI
         NetworkManager.SetDefaults(options);
         this.scheduler = new RequestScheduler(this, options);
     }
+    shutdownPromise: Promise<void> = Promise.resolve();
     transports: Map<SupportedTransports, NetworkTransport>;
     scheduler: RequestScheduler;
     connect(peer: Peer): NetworkPeerIf { return undefined }

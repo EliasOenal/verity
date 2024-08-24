@@ -116,6 +116,10 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     misses: 0,
   };
 
+  private shutdownPromiseResolve: () => void;
+  shutdownPromise: Promise<void> =
+      new Promise(resolve => this.shutdownPromiseResolve = resolve);
+
   constructor(readonly options: CubeStoreOptions) {
     super();
     // set default options if none specified
@@ -470,18 +474,25 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
    * @param startKey The key to start from (exclusive).
    * @param count The number of CubeInfos to retrieve.
    * @returns An array of CubeInfos succeeding the input key.
+   * @deprecated Given that keys are stored sorted in LevelDB, this method is a duplicate
+   *   of getCubeInfoRange() and we should get rid of it. This will also avoid
+   *   doing about a thousand array pushes each request which is not efficient.
    */
   async getSucceedingCubeInfos(
     startKey: CubeKey,
-    count: number
+    count: number,
+    sublevel: Sublevels = Sublevels.CUBES,
   ): Promise<CubeMeta[]> {
-    const keys = await this.leveldb.getSucceedingKeys(
-      Sublevels.CUBES,
-      startKey,
-      count
-    );
+    const keys = await this.leveldb.getSucceedingKeys(sublevel, startKey, count);
     const cubeInfos: CubeMeta[] = [];
-    for (const key of keys) {
+    for (let key of keys) {
+      if (sublevel !== Sublevels.CUBES) {
+        // HACKHACK... TODO niceify
+        // Only in the CUBES sublevel ("the main DB") is a key actually a Cube key.
+        // All others are just indexing concatenations containing the actual
+        // Cube key at the very end.
+        key = key.subarray(key.length - NetConstants.CUBE_KEY_SIZE);
+      }
       const cubeInfo = await this.getCubeInfo(key);
       if (cubeInfo) {
         cubeInfos.push(cubeInfo);
@@ -673,12 +684,14 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     return this.cacheStatistics;
   }
 
-  async shutdown(): Promise<void> {
-    await Promise.all([
+  shutdown(): Promise<void> {
+    const done: Promise<void> = Promise.all([
       this.leveldb?.shutdown(Sublevels.CUBES),
       this.leveldb?.shutdown(Sublevels.INDEX_DIFF),
       this.leveldb?.shutdown(Sublevels.INDEX_TIME),
       this.leveldb?.shutdown(Sublevels.BASE_DB),
-    ]);
+    ]) as unknown as Promise<void>;
+    done.then(() => this.shutdownPromiseResolve());
+    return done;
   }
 }

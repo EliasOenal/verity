@@ -19,7 +19,7 @@ import { err } from 'cmd-ts/dist/cjs/Result';
 //     would have to be done in the CubeStore
 
 // Enums for the databases
-export const enum Sublevels{
+export enum Sublevels{
   BASE_DB = 0,
   CUBES = 1,
   INDEX_TIME = 2,
@@ -133,11 +133,11 @@ export class LevelBackend {
     key = this.ifMemoryLevelCopyBuffer(key);
     return subDB.put(key, value)
       .then(() => {
-        logger.trace(`LevelBackend: Successfully stored ${keyVariants(key).keyString} in sublevel ${sublevel}`);
+        logger.trace(`LevelBackend: Successfully stored ${keyVariants(key).keyString} in sublevel ${Sublevels[sublevel] ?? sublevel}`);
       })
       .catch((error) => {
-        logger.error(`LevelBackend: Failed to store ${keyVariants(key).keyString} in sublevel ${sublevel}: ${error}`);
-        throw new levelBackendError(`Failed to store ${keyVariants(key).keyString} in sublevel ${sublevel}: ${error}`);
+        logger.error(`LevelBackend: Failed to store ${keyVariants(key).keyString} in sublevel ${Sublevels[sublevel] ?? sublevel}: ${error}`);
+        throw new levelBackendError(`Failed to store ${keyVariants(key).keyString} in sublevel ${Sublevels[sublevel] ?? sublevel}: ${error}`);
       });
   }
 
@@ -153,7 +153,7 @@ export class LevelBackend {
         if (!noLogErr)
         {
           //logger.trace(new Error().stack);
-          logger.trace(`LevelBackend.get(): Cannot find ${keyVariants(key).keyString}, error status ${error.status} ${error.code}, ${error.message}`);
+          logger.trace(`LevelBackend.get(): Cannot find ${keyVariants(key).keyString} in sublevel ${Sublevels[sublevel] ?? sublevel}, error status ${error.status} ${error.code}, ${error.message}`);
         }
         return undefined;
       });
@@ -273,10 +273,10 @@ export class LevelBackend {
    * @param startKey The key to start from (exclusive).
    * @param count The number of keys to retrieve.
    * @returns An array of keys succeeding the input key.
+   * @deprecated Given that keys are stored sorted in LevelDB, this method is a duplicate
+   *   of getKeyRange() and we should get rid of it. This will also avoid
+   *   doing about a thousand array pushes each request which is not efficient.
    */
-  // TODO: Given that keys are stored sorted in LevelDB, we should be able
-  // to get rid of this method and use getKeyRange instead
-  // (which should be O(log n) instead of O(n)).
   async getSucceedingKeys(sublevel: Sublevels, startKey: Buffer, count: number): Promise<Buffer[]> {
     let subDB = this.subDB(sublevel);
 

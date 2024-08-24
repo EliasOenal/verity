@@ -91,6 +91,10 @@ export class PeerDB extends EventEmitter {
      */
     private badPeerRehabilitationChance;
 
+    private shutdownPromiseResolve: () => void;
+    shutdownPromise: Promise<void> =
+        new Promise(resolve => this.shutdownPromiseResolve = resolve);
+
     constructor(
         options: PeerDbOptions = {},
     ){
@@ -104,6 +108,7 @@ export class PeerDB extends EventEmitter {
     public shutdown(): void {
         this.stopAnnounceTimer();
         this.removeAllListeners();
+        this.shutdownPromiseResolve();
     }
 
     isPeerKnown(peer: Peer): boolean {

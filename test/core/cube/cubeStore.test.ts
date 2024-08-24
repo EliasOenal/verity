@@ -4,7 +4,7 @@ import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubeFieldLength, CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
 import { Cube, coreCubeFamily } from '../../../src/core/cube/cube';
 import { CubeIteratorOptions, CubeStore as CubeStore, CubeStoreOptions } from '../../../src/core/cube/cubeStore';
-import { Sublevels } from 'core/cube/levelBackend';
+import { Sublevels } from '../../../src/core/cube/levelBackend';
 import { CubeField } from '../../../src/core/cube/cubeField';
 
 import { cciField } from '../../../src/cci/cube/cciField';

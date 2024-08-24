@@ -1,7 +1,7 @@
 import { Settings } from '../settings';
 import { unixtime } from '../helpers/misc';
 
-import { CubeRequestMessage, CubeResponseMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, NetworkMessage, PeerRequestMessage, PeerResponseMessage, ServerAddressMessage } from './networkMessage';
+import { CubeFilterOptions, CubeRequestMessage, CubeResponseMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, NetworkMessage, PeerRequestMessage, PeerResponseMessage, ServerAddressMessage } from './networkMessage';
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { KeyRequestMode } from './networkMessage';
 import { DummyNetworkManager, NetworkManager, NetworkManagerIf } from "./networkManager";
@@ -18,6 +18,7 @@ import { PeerDB } from '../peering/peerDB';
 import { logger } from '../logger';
 
 import { Buffer } from 'buffer';
+import { Sublevels } from '../cube/levelBackend';
 
 export class NetworkStats {
     tx: OneWayNetworkStats = new OneWayNetworkStats();
@@ -76,7 +77,7 @@ export interface NetworkPeerIf extends Peer {
     sendMessage(msg: NetworkMessage): void;
     sendMyServerAddress(): void;
     sendKeyRequests(): void;
-    sendSpecificKeyRequest(mode: KeyRequestMode, keyCount?: number, startKey?: CubeKey): void;
+    sendSpecificKeyRequest(mode: KeyRequestMode, options?: CubeFilterOptions,): void;
     sendCubeRequest(keys: Buffer[]): void;
     sendNotificationRequest(keys: Buffer[]): void;  // maybe deprecated
     sendPeerRequest(): void;
@@ -394,16 +395,25 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
             logger.trace(`NetworkPeer ${this.toString()}: handleKeyRequest: received KeyRequest in mode ${KeyRequestMode[mode]}, keyCount: ${keyCount}, startKey: ${startKey?.toString('hex')}`);
             switch (mode) {
                 case KeyRequestMode.SlidingWindow:
-                    cubes = await this.handleSlidingWindowKeyRequest(startKey, keyCount);
+                    cubes = await this.handleSlidingWindowKeyRequest(
+                        startKey, keyCount);
                     break;
                 case KeyRequestMode.SequentialStoreSync:
-                    cubes = await this.handleSequentialStoreSyncKeyRequest(startKey, keyCount);
+                    cubes = await this.handleSequentialStoreSyncKeyRequest(
+                        startKey, keyCount, Sublevels.CUBES);
+                    break;
+                case KeyRequestMode.NotificationChallenge:
+                    cubes = await this.handleSequentialStoreSyncKeyRequest(
+                        startKey, keyCount, Sublevels.INDEX_DIFF);
+                    break;
+                case KeyRequestMode.NotificationTimestamp:
+                    cubes = await this.handleSequentialStoreSyncKeyRequest(
+                        startKey, keyCount, Sublevels.INDEX_TIME);
                     break;
                 default:
                     logger.warn(`NetworkPeer ${this.toString()}: Received unknown KeyRequest mode: ${mode}`);
                     return;
             }
-
             const reply: KeyResponseMessage = new KeyResponseMessage(mode, cubes);
             logger.trace(`NetworkPeer ${this.toString()}: handleKeyRequest: sending ${cubes.length} cube keys in ${KeyRequestMode[mode]} mode`);
             this.sendMessage(reply);
@@ -421,9 +431,13 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         return cubeInfos.filter((info): info is CubeInfo => info !== undefined);
     }
 
-    private async handleSequentialStoreSyncKeyRequest(startKey: CubeKey, keyCount: number): Promise<CubeMeta[]> {
+    private async handleSequentialStoreSyncKeyRequest(
+            startKey: CubeKey,
+            keyCount: number,
+            sublevel: Sublevels = Sublevels.CUBES,
+    ): Promise<CubeMeta[]> {
         // This method should be implemented in the CubeStore class
-        return await this.cubeStore.getSucceedingCubeInfos(startKey, keyCount);
+        return await this.cubeStore.getSucceedingCubeInfos(startKey, keyCount, sublevel);
     }
 
     /**
@@ -435,11 +449,6 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
      */
     private async handleKeyResponse(msg: KeyResponseMessage): Promise<void> {
         try {
-            if (this.lightNode) {
-                logger.warn(`${this.toString()}: handleKeyResponse() called but light mode enabled, doing nothing.`)
-                return;
-            }
-
             // Keep track of the last key we've seen from this remote node.
             // This is so we can later continue syncing up to them.
             let lastKey: CubeKey | undefined;
@@ -601,13 +610,13 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
 
     sendKeyRequests(): void {
         if (this.lastSlidingWindowKey === undefined) {
-            this.sendSpecificKeyRequest(KeyRequestMode.SlidingWindow, 1000);
+            this.sendSpecificKeyRequest(KeyRequestMode.SlidingWindow);
         } else {
-            this.sendSpecificKeyRequest(KeyRequestMode.SlidingWindow, 1000, this.lastSlidingWindowKey);
+            this.sendSpecificKeyRequest(KeyRequestMode.SlidingWindow, {startKey: this.lastSlidingWindowKey});
         }
 
         if (this.lastSequentialSyncKey !== undefined) {
-            this.sendSpecificKeyRequest(KeyRequestMode.SequentialStoreSync, 1000, this.lastSequentialSyncKey);
+            this.sendSpecificKeyRequest(KeyRequestMode.SequentialStoreSync, {startKey: this.lastSequentialSyncKey});
         } else {
             // To sync the store we need a starting point
             // Next call we should hopefully have one
@@ -619,11 +628,15 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
      * @param mode The mode of the key request.
      * @param keyCount The number of keys to request.
      * @param startKey The key to start from (for SlidingWindow and SequentialStoreSync modes).
+     *   Note that this is mandatory in SequentialStoreSync mode; not supplying
+     *   may yield undefined results.
      */
-    sendSpecificKeyRequest(mode: KeyRequestMode, keyCount: number = 1000, startKey?: CubeKey): void {
-        logger.trace(`NetworkPeer ${this.toString()}: sending KeyRequest in ${KeyRequestMode[mode]} mode, requesting ${keyCount} keys, starting from ${startKey?.toString('hex')}`);
-        const msg: KeyRequestMessage = new KeyRequestMessage(mode, {
-            maxCount: keyCount, startKey: startKey});
+    sendSpecificKeyRequest(
+            mode: KeyRequestMode,
+            options: CubeFilterOptions = {},
+    ): void {
+        logger.trace(`NetworkPeer ${this.toString()}: sending KeyRequest in ${KeyRequestMode[mode]} mode, requesting ${options.maxCount ?? 'the default number of'} keys, starting from ${options?.startKey?.toString('hex') ?? 'zero'}`);
+        const msg: KeyRequestMessage = new KeyRequestMessage(mode, options);
         this.setTimeout();  // expect a timely reply to this request
         this.sendMessage(msg);
     }
@@ -773,7 +786,7 @@ export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
     sendMessage(msg: NetworkMessage): void { }
     sendMyServerAddress(): void { }
     sendKeyRequests(): void { }
-    sendSpecificKeyRequest(mode: KeyRequestMode, keyCount?: number, startKey?: CubeKey): void { }
+    sendSpecificKeyRequest(mode: KeyRequestMode, options: CubeFilterOptions = {},): void { }
     sendCubeRequest(keys: Buffer[]): void { }
     sendNotificationRequest(keys: Buffer[]): void { }
     sendPeerRequest(): void { }
