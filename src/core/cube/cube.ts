@@ -1,14 +1,14 @@
 // cube.ts
-import { Settings } from '../settings';
+import { ApiMisuseError, Settings } from '../settings';
 import { NetConstants } from '../networking/networkDefinitions';
 
-import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldError, FieldSizeError, HasSignature } from "./cube.definitions";
+import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldError, FieldSizeError, HasNotify, HasSignature, ToggleNotifyType } from "./cube.definitions";
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField } from "./cubeField";
 import { CoreFieldParsers, CubeFamilyDefinition, CubeFields } from './cubeFields';
 
-import { FieldParser } from "../fields/fieldParser";
+import { FieldDefinition, FieldParser } from "../fields/fieldParser";
 
 import { logger } from '../logger';
 
@@ -23,6 +23,79 @@ export interface CubeOptions {
 
 export class Cube {
     /**
+     * Creates a new fully valid Cube of your chosen type.
+     * @param type Which type of Cube would you like?
+     *   Notify/Non-notify variant will be adjusted automatically based on
+     *   whether options.fields contains a NOTIFY field.
+     * @param options - Supply any optional information here.
+     *   This includes your Cube fields as options.fields -- we will supplement
+     *   them with all required boilerplate (i.e. we will create all mandatory
+     *   positional fields like DATE and NONCE, and depending on the Cube type
+     *   maybe something like PUBLIC_KEY or SIGNATURE).
+     * @returns A fully valid, instantly compileable Cube.
+     * @throws {ApiMisuseError} If requesting a signature-bearing smart Cube
+     *   but not supplying a key pair.
+     */
+    static Create(
+        type: CubeType,
+        options: CubeOptions&{publicKey?: Buffer|Uint8Array, privateKey?: Buffer|Uint8Array} = {},
+    ): Cube {
+        // set default options
+        options.family ??= coreCubeFamily;
+        options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
+
+        const fieldDef: FieldDefinition = options.family.parsers[type].fieldDef;
+
+        // normalise input:
+        // - ensure fields is an instance of the family-specified Fields class
+        options.fields = new fieldDef.fieldsObjectClass(options.fields, fieldDef);
+
+        // - on signed types, recognise implicitly supplied public key
+        if (HasSignature[type] && !options.publicKey) {
+            options.publicKey = CubeFields.getFirst(
+                options.fields, CubeFieldType.PUBLIC_KEY)?.value;
+        }
+        // upgrade keys to Buffer if required
+        if (options.publicKey && !(options.publicKey instanceof Buffer)) {
+            options.publicKey = Buffer.from(options.publicKey);
+        }
+        if (options.privateKey && !(options.privateKey instanceof Buffer)) {
+            options.privateKey = Buffer.from(options.privateKey);
+        }
+
+        // validate input: signed types require a key pair
+        if (HasSignature[type]) {
+            if (!options.publicKey || !options.privateKey ||
+                options.publicKey?.length !== NetConstants.PUBLIC_KEY_SIZE) {
+                throw new ApiMisuseError(`Cube.Create(): cannot create a ${CubeType[type]} without a valid public/private key pair`);
+            }
+        }
+
+        // auto-correct supplied CubeType to the notify or non-notify variant if necessary
+        type = CubeFields.CorrectNotifyType(type, options.fields);
+
+        // on signed types, ensure public key field is present
+        if (HasSignature[type]) {
+            (options.fields as CubeFields).ensureFieldInBack(
+                CubeFieldType.PUBLIC_KEY, fieldDef.fieldObjectClass.PublicKey(
+                    options.publicKey));
+        }
+        // supply any default fields that might be missing
+        options.fields = CubeFields.DefaultPositionals(
+            options.family.parsers[type].fieldDef,
+            options?.fields,  // include the user's custom fields, obviously
+        );
+
+        // sculpt Cube
+        const cube: Cube = new options.family.cubeClass(type, options);
+
+        // on signed types, supply private key
+        if (HasSignature[type]) cube.privateKey = options.privateKey as Buffer;
+
+        return cube;  // all done, finally :)
+    }
+
+    /**
      * Creates a new standard or "frozen" cube, or a frozen notify Cube.
      * @param data - Supply your custom fields here. We will supplement them
      * with all required boilerplate (i.e. we will create the TYPE, DATE and
@@ -30,22 +103,7 @@ export class Cube {
      * If data contains a NOTIFY field, the resulting Cube will be a notify Cube.
      */
     static Frozen(options: CubeOptions = {}): Cube {
-        // set options
-        options.family = options?.family ?? coreCubeFamily;
-        options.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
-        // which type of Cube was requested exactly, regular or notify variant?
-        let type: CubeType;
-        if (options.fields &&
-            CubeFields.getFirst(options.fields, CubeFieldType.NOTIFY) !== undefined) {
-            type = CubeType.FROZEN_NOTIFY;
-        } else type = CubeType.FROZEN;
-        // prepare fields
-        options.fields = CubeFields.DefaultPositionals(
-            options.family.parsers[type].fieldDef,
-            options?.fields,  // include the user's custom fields, obviously
-        );
-        const cube: Cube = new options.family.cubeClass(type, options);
-        return cube;
+        return this.Create(CubeType.FROZEN, options);
     }
 
     /**
@@ -59,52 +117,15 @@ export class Cube {
                privateKey: Buffer | Uint8Array,
                options?: CubeOptions,
     ): Cube {
-        // set options
-        if (options === undefined) options = {};
-        options.family = options?.family ?? coreCubeFamily;
-        options.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
-        // which type of Cube was requested exactly, regular or notify variant?
-        let type: CubeType;
-        if (options.fields &&
-            CubeFields.getFirst(options.fields, CubeFieldType.NOTIFY) !== undefined) {
-            type = CubeType.MUC_NOTIFY;
-        } else type = CubeType.MUC;
-        // upgrade keys to Buffer if required
-        if (!(publicKey instanceof Buffer)) publicKey = Buffer.from(publicKey);
-        if (!(privateKey instanceof Buffer)) privateKey = Buffer.from(privateKey);
-        // create field set, then create cube
-        options.fields = CubeFields.Muc(
-            publicKey,
-            options?.fields,  // include the user's custom fields, obviously
-            options.family.parsers[type].fieldDef);
-        const cube: Cube = new options.family.cubeClass(type, options);
-        // supply private key
-        cube.privateKey = privateKey as Buffer;
-        return cube;
+        return this.Create(CubeType.MUC, {...options, publicKey, privateKey});
     }
 
     /**
      * Create a Persistant Immutable Cube, which is a type of smart cube used
      * for data to be made available long-term.
      */
-    // maybe TODO: unify with Frozen as the only line that differs is type selection
     static PIC(options: CubeOptions): Cube {
-        // set options
-        options.family = options?.family ?? coreCubeFamily;
-        options.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
-        // which type of Cube was requested exactly, regular or notify variant?
-        let type: CubeType;
-        if (options.fields &&
-            CubeFields.getFirst(options.fields, CubeFieldType.NOTIFY) !== undefined) {
-            type = CubeType.PIC_NOTIFY;
-        } else type = CubeType.PIC;
-        // prepare fields
-        options.fields = CubeFields.DefaultPositionals(
-            options.family.parsers[type].fieldDef,
-            options?.fields,  // include the user's custom fields, obviously
-        );
-        const cube: Cube = new options.family.cubeClass(type, options);
-        return cube;
+        return this.Create(CubeType.PIC, options);
     }
 
     readonly _cubeType: CubeType;

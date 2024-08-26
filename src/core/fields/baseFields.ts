@@ -147,6 +147,8 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         // input normalisation
         if (fields instanceof BaseField) fields = [fields];
         if (fields instanceof BaseFields) fields = fields.all;
+        // if input is not iterable (incl undefined), return undefined
+        if (!(Symbol.iterator in Object(fields))) return undefined;
         // perform search as requested
         for (const field of fields) {
             if (field.type === type) return field;

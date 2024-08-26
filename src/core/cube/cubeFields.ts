@@ -7,9 +7,29 @@ import type { Cube } from "./cube";
 import { CubeField } from "./cubeField";
 
 import { Buffer } from 'buffer';
-import { CubeFieldType, CubeType, CubeFieldLength, FrozenCorePositionalFront, FrozenPositionalBack, FrozenNotifyCorePositionalFront, FrozenNotifyPositionalBack, PicCorePositionalFront, PicPositionalBack, PicNotifyCorePositionalFront, PicNotifyPositionalBack, MucCorePositionalFront, MucPositionalBack, MucNotifyCorePositionalFront, MucNotifyPositionalBack, PmucCorePositionalFront, PmucPositionalBack, PmucNotifyCorePositionalFront, PmucNotifyPositionalBack, FrozenPositionalFront, MucPositionalFront, FrozenDefaultFields, FrozenNotifyDefaultFields, PicDefaultFields, PicNotifyDefaultFields, MucDefaultFields, MucNotifyDefaultFields, PmucDefaultFields, PmucNotifyDefaultFields } from "./cube.definitions";
+import { CubeFieldType, CubeType, CubeFieldLength, FrozenCorePositionalFront, FrozenPositionalBack, FrozenNotifyCorePositionalFront, FrozenNotifyPositionalBack, PicCorePositionalFront, PicPositionalBack, PicNotifyCorePositionalFront, PicNotifyPositionalBack, MucCorePositionalFront, MucPositionalBack, MucNotifyCorePositionalFront, MucNotifyPositionalBack, PmucCorePositionalFront, PmucPositionalBack, PmucNotifyCorePositionalFront, PmucNotifyPositionalBack, FrozenPositionalFront, MucPositionalFront, FrozenDefaultFields, FrozenNotifyDefaultFields, PicDefaultFields, PicNotifyDefaultFields, MucDefaultFields, MucNotifyDefaultFields, PmucDefaultFields, PmucNotifyDefaultFields, HasNotify, ToggleNotifyType } from "./cube.definitions";
 
 export class CubeFields extends BaseFields {
+  static CorrectNotifyType(type: CubeType, fields: CubeFields | CubeField[] | CubeField) {
+    // normalize input
+    if (fields instanceof CubeFields) fields = fields.all;
+    if (fields instanceof CubeField) fields = [fields];
+    if (!fields) fields = [];
+    // We need to toggle the type if:
+    if ((  // - there's a notify field but the type is non-notification
+          CubeFields.getFirst(fields, CubeFieldType.NOTIFY) !== undefined &&
+          !HasNotify[type]
+        ) || (  // - there's no notify field but the type is notification
+          CubeFields.getFirst(fields, CubeFieldType.NOTIFY) === undefined &&
+          HasNotify[type]
+        )
+    ){
+      return ToggleNotifyType[type];
+    } else {
+        return type;
+    }
+  }
+
   /**
    * Helper function to create a valid frozen cube field set for you.
    * Just supply your payload fields and we'll take care of the rest.

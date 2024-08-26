@@ -150,9 +150,11 @@ export class RequestScheduler {
    * Request all Cubes notifying the specified key from the network.
    * This obviously only makes sense for light nodes as full nodes will always
    * attempt to sync all available Cubes.
-   * @returns A promise resolving to the first notification to this key.
-   *  Caller should check their local CubeStore to find all notifications.
-   *  Promise will reject if no notifications can be retrieved within timeout.
+   * @returns A promise resolving to the first notification to this key. Note:
+   *  - Caller should check their local CubeStore to find all notifications retrieved.
+   *  - A resolved promise does not guarantee that all notifications available
+   *    on the network or even on the node they were requested from have been retrieved.
+   *  - Promise will reject if no new notifications can be retrieved within timeout.
    */
   // maybe TODO: something like an AsyncGenerator as return type would make much more sense
   requestNotifications(
