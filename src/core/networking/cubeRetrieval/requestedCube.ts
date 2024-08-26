@@ -14,24 +14,22 @@ export class RequestedCube {
 
   private timeout: NodeJS.Timeout = undefined;
   private resolve: Function;
-  private reject: Function;
 
   /**
    * @param key Which Cube to request
    * @param timeout A retrieval timeout in milliseconds after which the
-   *        retrieval promise will reject, or 0 for no timeout.
+   *        retrieval promise will resolve to undefined, or 0 for no timeout.
    */
   constructor(
     readonly key: CubeKey,
     timeout = Settings.CUBE_REQUEST_TIMEOUT,
   ) {
-    this.promise = new Promise((resolve, reject) => {
+    this.promise = new Promise((resolve) => {
       this.resolve = resolve;
-      this.reject = reject;
     });
     if (timeout > 0) {
       this.timeout = setTimeout(() => {
-        this.reject(undefined)
+        this.resolve(undefined)
       }, timeout);
     }
   }

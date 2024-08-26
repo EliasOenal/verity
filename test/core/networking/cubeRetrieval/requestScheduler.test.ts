@@ -84,10 +84,9 @@ describe('RequestScheduler', () => {
         expect(scheduler.requestedCubes.size).toEqual(0);
       });
 
-      it('should reject Cube requests after timeout', async () => {
+      it('should return undefined when Cube requests time out', async () => {
         const promise = scheduler.requestCube(testKey, 0, 10);  // I fully expect you to fetch my Cube in 10ms
-        expect(promise).rejects.toBeUndefined();
-        await new Promise(resolve => setTimeout(resolve, 20));  // give it some time
+        expect(promise).resolves.toBeUndefined();
       });
 
       it.todo('should request a Cube from another node if first request fails');
