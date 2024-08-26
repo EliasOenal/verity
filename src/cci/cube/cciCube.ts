@@ -6,13 +6,22 @@ import { CubeError, CubeFieldType, CubeType, FieldError, FieldSizeError } from "
 import { Cube, CubeOptions } from "../../core/cube/cube";
 import { CubeFamilyDefinition } from "../../core/cube/cubeFields";
 
-import sodium, { KeyPair, crypto_kdf_KEYBYTES } from 'libsodium-wrappers-sumo'
-import { Buffer } from 'buffer'
 import { CubeField } from "../../core/cube/cubeField";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 import { cciFieldType } from "./cciCube.definitions";
 
+import sodium, { KeyPair, crypto_kdf_KEYBYTES } from 'libsodium-wrappers-sumo'
+import { Buffer } from 'buffer'
+
 export class cciCube extends Cube {
+  static Create(
+      type: CubeType,
+      options?: CubeOptions & { publicKey?: Buffer | Uint8Array; privateKey?: Buffer | Uint8Array; },
+  ): cciCube {
+    options.family ??= cciFamily;
+    return super.Create(type, options) as cciCube;
+  }
+
   static Frozen(options?: CubeOptions): cciCube {
     if (options === undefined) options = {};
     options.family = options?.family ?? cciFamily;

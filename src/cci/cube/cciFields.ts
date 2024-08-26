@@ -4,7 +4,7 @@ import { FieldPosition } from "../../core/fields/baseFields";
 import { CubeField } from "../../core/cube/cubeField";
 import { CubeFields, FieldParserTable } from "../../core/cube/cubeFields";
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
-import { CubeType, FrozenDefaultFields, FrozenNotifyPositionalBack, FrozenPositionalBack, FrozenPositionalFront, MucDefaultFields, MucNotifyPositionalBack, MucPositionalBack, MucPositionalFront, PicDefaultFields, PicNotifyPositionalBack, PicPositionalBack, PicPositionalFront, PmucDefaultFields, PmucNotifyPositionalBack, PmucPositionalBack, PmucPositionalFront } from "../../core/cube/cube.definitions";
+import { CubeType, FrozenDefaultFields, FrozenNotifyDefaultFields, FrozenNotifyPositionalBack, FrozenPositionalBack, FrozenPositionalFront, MucDefaultFields, MucNotifyDefaultFields, MucNotifyPositionalBack, MucPositionalBack, MucPositionalFront, PicDefaultFields, PicNotifyDefaultFields, PicNotifyPositionalBack, PicPositionalBack, PicPositionalFront, PmucDefaultFields, PmucNotifyDefaultFields, PmucNotifyPositionalBack, PmucPositionalBack, PmucPositionalFront } from "../../core/cube/cube.definitions";
 
 import { cciFieldType, cciFieldLength } from "./cciCube.definitions";
 import { cciField } from "./cciField";
@@ -110,7 +110,7 @@ export const cciFrozenNotifyFieldDefinition: FieldDefinition = {
   positionalBack: FrozenNotifyPositionalBack,
   fieldObjectClass: cciField,
   fieldsObjectClass: cciFields,
-  defaultField: FrozenDefaultFields,
+  defaultField: FrozenNotifyDefaultFields,
   stopField: cciFieldType.CCI_END,
   remainderField: cciFieldType.REMAINDER,
 };
@@ -132,7 +132,7 @@ export const cciPicNotifyFieldDefinition: FieldDefinition = {
   positionalBack: PicNotifyPositionalBack,
   fieldObjectClass: cciField,
   fieldsObjectClass: cciFields,
-  defaultField: PicDefaultFields,
+  defaultField: PicNotifyDefaultFields,
   stopField: cciFieldType.CCI_END,
   remainderField: cciFieldType.REMAINDER,
 };
@@ -154,7 +154,7 @@ export const cciMucNotifyFieldDefinition: FieldDefinition = {
   positionalBack: MucNotifyPositionalBack,
   fieldObjectClass: cciField,
   fieldsObjectClass: cciFields,
-  defaultField: MucDefaultFields,
+  defaultField: MucNotifyDefaultFields,
   stopField: cciFieldType.CCI_END,
   remainderField: cciFieldType.REMAINDER,
 };
@@ -176,7 +176,7 @@ export const cciPmucNotifyFieldDefinition: FieldDefinition = {
   positionalBack: PmucNotifyPositionalBack,
   fieldObjectClass: cciField,
   fieldsObjectClass: cciFields,
-  defaultField: PmucDefaultFields,
+  defaultField: PmucNotifyDefaultFields,
   stopField: cciFieldType.CCI_END,
   remainderField: cciFieldType.REMAINDER,
 };
