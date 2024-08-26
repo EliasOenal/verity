@@ -117,11 +117,11 @@ export function cubeContest(localCube: CubeInfo, incomingCube: CubeInfo): CubeIn
             break;
         case CubeType.PMUC:
         case CubeType.PMUC_NOTIFY:
-        // TODO implement: Highest PMUC_UPDATE_COUNT wins, and if those tie
-        // highest expiration time wins.
-        // However, PMUC_UPDATE_COUNT is not yet available through CubeInfo,
-        // nor is it provided on KeyExchange.
-        throw new CubeError("cubeUtil: Unknown cube type.");
+            // TODO implement: Highest PMUC_UPDATE_COUNT wins, and if those tie
+            // highest expiration time wins.
+            // However, PMUC_UPDATE_COUNT is not yet available through CubeInfo,
+            // nor is it provided on KeyExchange.
+            throw new CubeError("cubeUtil.cubeContest: PMUC not implemented.");
         default:
             throw new CubeError(`cubeUtil.cubeContest(): supplied Cube ${localCube.keyString} has unknown type ${localCube.cubeType}`);
     }
