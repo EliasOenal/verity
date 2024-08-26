@@ -16,8 +16,8 @@ import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
 
-import pkg from 'js-sha3';  // strange standards compliant syntax for importing
 import { ApiMisuseError, Settings } from '../../../src/core/settings';
+import pkg from 'js-sha3';  // strange standards compliant syntax for importing
 const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
 
 
