@@ -8,15 +8,16 @@ import { CubeField } from "./cubeField";
 // Note: To avoid circular references, this file should not include any of the
 // actual implementation files under cube.
 
+/** All available Cube types */
 export enum CubeType {
-  FROZEN = (Settings.CUBE_VERSION << 4) + (0 << 2),
-  FROZEN_NOTIFY = (Settings.CUBE_VERSION << 4) + (0 << 2) + (1 << 0) ,
-  PIC = (Settings.CUBE_VERSION << 4) + (1 << 2),                    // not fully implemented yet
-  PIC_NOTIFY = (Settings.CUBE_VERSION << 4) + (1 << 2) + (1 << 0),  // not fully implemented yet
-  MUC = (Settings.CUBE_VERSION << 4) + (2 << 2),
-  MUC_NOTIFY = (Settings.CUBE_VERSION << 4) + (2 << 2) + (1 << 0),
-  PMUC = (Settings.CUBE_VERSION << 4) + (3 << 2),                   // not implemented yet
-  PMUC_NOTIFY = (Settings.CUBE_VERSION << 4) + (3 << 2) + (1 << 0)  // not implemented yet
+  FROZEN = (Settings.CUBE_VERSION << 4) + (0 << 2),                    // 16
+  FROZEN_NOTIFY = (Settings.CUBE_VERSION << 4) + (0 << 2) + (1 << 0),  // 17
+  PIC = (Settings.CUBE_VERSION << 4) + (1 << 2),                       // 20
+  PIC_NOTIFY = (Settings.CUBE_VERSION << 4) + (1 << 2) + (1 << 0),     // 21
+  MUC = (Settings.CUBE_VERSION << 4) + (2 << 2),                       // 24
+  MUC_NOTIFY = (Settings.CUBE_VERSION << 4) + (2 << 2) + (1 << 0),     // 25
+  PMUC = (Settings.CUBE_VERSION << 4) + (3 << 2),                      // 28
+  PMUC_NOTIFY = (Settings.CUBE_VERSION << 4) + (3 << 2) + (1 << 0)     // 29
 }
 
 /**
@@ -280,6 +281,19 @@ export const RawcontentFieldType: FieldNumericalParam = {
   [CubeType.PMUC]: CubeFieldType.PMUC_RAWCONTENT,
   [CubeType.PMUC_NOTIFY]: CubeFieldType.PMUC_NOTIFY_RAWCONTENT,
 };
+export interface CubeTypeMap { [key: number]: number };
+/** Lookup-table to swap notify and non-notify types */
+export const ToggleNotifyType: CubeTypeMap = {
+  [CubeType.FROZEN]: CubeType.FROZEN_NOTIFY,
+  [CubeType.PIC]: CubeType.PIC_NOTIFY,
+  [CubeType.MUC]: CubeType.MUC_NOTIFY,
+  [CubeType.PMUC]: CubeType.PMUC_NOTIFY,
+  [CubeType.FROZEN_NOTIFY]: CubeType.FROZEN,
+  [CubeType.PIC_NOTIFY]: CubeType.PIC,
+  [CubeType.MUC_NOTIFY]: CubeType.MUC,
+  [CubeType.PMUC_NOTIFY]: CubeType.PMUC,
+}
+
 
 // semantic typedef
 // TAKE CARE! TRAP! TYPESCRIPT IS CRAP! (that rhymes)
@@ -290,7 +304,6 @@ export class CubeKey extends Buffer {}
 
 // Error definitions
 export class CubeError extends VerityError { name = "CubeError" }
-export class CubeApiUsageError extends CubeError { name = "CubeApiUsageError" }
 export class InsufficientDifficulty extends CubeError { name = "InsufficientDifficulty" }
 export class InvalidCubeKey extends CubeError { name = "InvalidCubeKey" }
 

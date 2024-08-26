@@ -7,7 +7,7 @@ import { BaseFields } from '../../../src/core/fields/baseFields';
 import { FieldParser } from '../../../src/core/fields/fieldParser';
 
 import { BinaryLengthError, CubeFieldLength, CubeFieldType, CubeSignatureError, CubeType, FieldSizeError, HasNotify, HasSignature, RawcontentFieldType } from '../../../src/core/cube/cube.definitions';
-import { Cube } from '../../../src/core/cube/cube';
+import { Cube, coreCubeFamily } from '../../../src/core/cube/cube';
 import { calculateHash, countTrailingZeroBits, paddedBuffer, verifySignature } from '../../../src/core/cube/cubeUtil';
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields, CoreFrozenFieldDefinition, CoreMucFieldDefinition, CoreFieldParsers } from '../../../src/core/cube/cubeFields';
@@ -17,6 +17,7 @@ import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
 
 import pkg from 'js-sha3';  // strange standards compliant syntax for importing
+import { ApiMisuseError, Settings } from '../../../src/core/settings';
 const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
 
 
@@ -24,7 +25,7 @@ const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
 // nowhere near fully covered.
 
 describe('cube', () => {
-  const reducedDifficulty = 0;
+  const requiredDifficulty = 0;
 
   // TODO: Update payload field ID. Make tests actually check payload.
   const validBinaryCube = Buffer.from([
@@ -47,6 +48,13 @@ describe('cube', () => {
     0x00, 0x65, 0xba, 0x8e, 0x38,
     0x00, 0x00, 0x00, 0xed  // Nonce passing challenge requirement
   ]);
+
+  let commonKeyPair: sodium.KeyPair;
+
+  beforeAll(async () => {
+    await sodium.ready;
+    commonKeyPair = sodium.crypto_sign_keypair();
+  });
 
   describe('construction', () => {
     it('should construct a cube object from binary data.', () => {
@@ -85,7 +93,7 @@ describe('cube', () => {
       const cube = Cube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN,
           "Hic Cubus maximae magnitudinis est"),
-        requiredDifficulty: reducedDifficulty
+        requiredDifficulty: requiredDifficulty
       });
       const binaryData = await cube.getBinaryData();
       expect(binaryData.length).toEqual(1024);
@@ -133,14 +141,75 @@ describe('cube', () => {
   });  // setters and getters
 
 
-  describe('static methods', () => {
-    it('provides a convience method to sculpt a new fully valid frozen cube', () => {
-      const cube = Cube.Frozen({ fields: CubeField.RawContent(CubeType.FROZEN, "hello Cube") });
+  describe('static Create()', () => {
+    it('correctly sculpts a frozen cube', () => {
+      const cube = Cube.Create(CubeType.FROZEN, {
+        fields: CubeField.RawContent(CubeType.FROZEN, "hello Cube"),
+        requiredDifficulty: requiredDifficulty,
+      });
       expect(cube.fields.all[0].type).toEqual(CubeFieldType.TYPE);
       expect(cube.fields.all[1].type).toEqual(CubeFieldType.FROZEN_RAWCONTENT);
       expect(cube.fields.all[2].type).toEqual(CubeFieldType.DATE);
       expect(cube.fields.all[3].type).toEqual(CubeFieldType.NONCE);
-    }, 3000);
+    });
+
+    it('should throw an error if a signed type is requested without a key pair', () => {
+        const type = CubeType.MUC;
+        expect(() => Cube.Create(type)).toThrow(ApiMisuseError);
+    });
+
+    it('should create a Cube with a signed type when a valid key pair is provided', async () => {
+        const type = CubeType.MUC;
+        const cube = Cube.Create(type, {
+          publicKey: commonKeyPair.publicKey,
+          privateKey: commonKeyPair.privateKey,
+          requiredDifficulty: requiredDifficulty,
+        });
+
+        expect(cube).toBeInstanceOf(Cube);
+        expect(cube.cubeType).toBe(type);
+        expect(cube.fields).toBeInstanceOf(CubeFields);
+        expect(cube.fields.getFirst(CubeFieldType.PUBLIC_KEY)?.value).toEqual(Buffer.from(commonKeyPair.publicKey));
+        expect(cube.privateKey).toEqual(Buffer.from(commonKeyPair.privateKey));
+    });
+
+    it('should normalize publicKey and privateKey to Buffer if they are not already Buffers', () => {
+        const type = CubeType.MUC;
+        const cube = Cube.Create(type, {
+          publicKey: commonKeyPair.publicKey,
+          privateKey: commonKeyPair.privateKey,
+          requiredDifficulty: requiredDifficulty,
+        });
+
+        expect(cube).toBeInstanceOf(Cube);
+        expect(Buffer.isBuffer(cube.publicKey)).toBe(true);
+        expect(Buffer.isBuffer(cube.privateKey)).toBe(true);
+    });
+
+    it('should auto-correct CubeType to a notify-type if a NOTIFY field is present', () => {
+        const type = CubeType.FROZEN;
+        const notifyType = CubeType.FROZEN_NOTIFY;
+        const fields = new CubeField(CubeFieldType.NOTIFY, Buffer.alloc(NetConstants.NOTIFY_SIZE, 42));
+
+        const cube = Cube.Create(type, { fields, requiredDifficulty });
+
+        expect(cube.cubeType).toBe(notifyType);
+    });
+
+    it('should set default family and requiredDifficulty if not provided', () => {
+        const type = CubeType.FROZEN;
+        const cube = Cube.Create(type);
+
+        expect(cube.family).toBe(coreCubeFamily);
+        expect(cube.requiredDifficulty).toBe(Settings.REQUIRED_DIFFICULTY);
+    });
+
+    it('should throw an error if publicKeyis not the correct size for signed types', () => {
+        const type = CubeType.MUC;
+        const publicKey = Buffer.alloc(30);  // incorrect size
+
+        expect(() => Cube.Create(type, { publicKey, privateKey: commonKeyPair.privateKey })).toThrow(ApiMisuseError);
+    });
   });  // static methods
 
 
@@ -148,7 +217,7 @@ describe('cube', () => {
     it('should compile fields correctly even after manipulating them', async () => {
       const cube = Cube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, " "),
-        requiredDifficulty: reducedDifficulty
+        requiredDifficulty: requiredDifficulty
       });
       cube.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).value.write(
         'Ego sum determinavit tarde quid dicere Cubus.', 'ascii');
@@ -165,7 +234,7 @@ describe('cube', () => {
       // sculpt Cube
       const cube = Cube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, "Cubus sum"),
-        requiredDifficulty: reducedDifficulty
+        requiredDifficulty: requiredDifficulty
       });
       await cube.compile();
       // test reactivation of first Cube version
@@ -197,7 +266,7 @@ describe('cube', () => {
     it('should calculate the hash correctly', async () => {
       const cube = Cube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, "Quaeso computa digestum meum"),
-        requiredDifficulty: reducedDifficulty
+        requiredDifficulty: requiredDifficulty
       });
       const key = await cube.getKey();
       expect(key).toBeDefined();
@@ -243,7 +312,6 @@ describe('cube', () => {
           // ... plus a public key field if this is a signed type.
           let publicKey: Buffer, privateKey: Buffer;
           if (HasSignature[type]) {
-            await sodium.ready;
             const keyPair = sodium.crypto_sign_keypair();
             publicKey = Buffer.from(keyPair.publicKey);
             privateKey = Buffer.from(keyPair.privateKey);
@@ -256,7 +324,7 @@ describe('cube', () => {
           // sculpt Cube
           const cube: Cube = new Cube(type, {
             fields: fields,
-            requiredDifficulty: reducedDifficulty,
+            requiredDifficulty: requiredDifficulty,
           });
           // if this is a signed Cube type, supply the private key
           if (HasSignature[type]) cube.privateKey = privateKey;
@@ -301,7 +369,6 @@ describe('cube', () => {
     describe('MUC tests', () => {
       it('should compile and decompile correctly', async () => {
         // Generate a key pair for testing
-        await sodium.ready;
         const keyPair = sodium.crypto_sign_keypair();
         const publicKey: Buffer = Buffer.from(keyPair.publicKey);
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
@@ -310,7 +377,7 @@ describe('cube', () => {
           publicKey, privateKey, {
           fields: CubeField.RawContent(CubeType.MUC,
             "Ego sum cubus usoris mutabilis."),
-          requiredDifficulty: reducedDifficulty
+          requiredDifficulty: requiredDifficulty
         });
         await muc.compile();
         const binaryData = muc.getBinaryDataIfAvailable();
@@ -322,13 +389,12 @@ describe('cube', () => {
 
       it('should correctly generate and validate MUC with manually specified fields', async () => {
         // Generate a key pair for testing
-        await sodium.ready;
         const keyPair = sodium.crypto_sign_keypair();
         const publicKey: Buffer = Buffer.from(keyPair.publicKey);
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
 
         // Create a new MUC with specified TLV fields
-        const muc = new Cube(CubeType.MUC, { requiredDifficulty: reducedDifficulty });
+        const muc = new Cube(CubeType.MUC, { requiredDifficulty: requiredDifficulty });
         muc.privateKey = privateKey;
 
         const fields = new CubeFields([
@@ -353,7 +419,6 @@ describe('cube', () => {
 
       it('should correctly sign a MUC', async () => {
         // Generate a key pair for testing
-        await sodium.ready;
         const keyPair = sodium.crypto_sign_keypair();
         const publicKey: Buffer = Buffer.from(keyPair.publicKey);
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
@@ -362,7 +427,7 @@ describe('cube', () => {
           publicKey, privateKey, {
           fields: CubeField.RawContent(CubeType.MUC,
             "Ego sum cubus usoris mutabilis, semper secure signatus."),
-          requiredDifficulty: reducedDifficulty
+          requiredDifficulty: requiredDifficulty
         });
         const binaryData = await muc.getBinaryData();  // final fully signed binary
         const mucKey: Buffer = await muc.getKey();
@@ -398,7 +463,6 @@ describe('cube', () => {
 
       it('should correctly parse MUC from binary', async () => {
         // Generate a key pair for testing
-        await sodium.ready;
         const keyPair = sodium.crypto_sign_keypair();
         const publicKey: Buffer = Buffer.from(keyPair.publicKey);
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
@@ -407,7 +471,7 @@ describe('cube', () => {
         const muc = Cube.MUC(publicKey, privateKey, {
           fields: CubeField.RawContent(CubeType.MUC,
             "Ego sum cubus usoris mutabilis, peculiare informatiuncula quae a domino meo corrigi potest."),
-          requiredDifficulty: reducedDifficulty
+          requiredDifficulty: requiredDifficulty
         });
         const key = await muc.getKey();
         expect(key).toBeInstanceOf(Buffer);
@@ -434,7 +498,6 @@ describe('cube', () => {
 
       it('should reject a binary MUC with invalid signature', async () => {
         // Generate a key pair for testing
-        await sodium.ready;
         const keyPair = sodium.crypto_sign_keypair();
         const publicKey: Buffer = Buffer.from(keyPair.publicKey);
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
@@ -444,7 +507,7 @@ describe('cube', () => {
           publicKey, privateKey, {
           fields: CubeField.RawContent(CubeType.MUC,
             "Ego sum cubus usoris mutabilis qui male tactus est."),
-          requiredDifficulty: reducedDifficulty
+          requiredDifficulty: requiredDifficulty
         });
         const binaryData = await muc.getBinaryData();  // final fully signed binary
 
@@ -455,8 +518,7 @@ describe('cube', () => {
         expect(() => new Cube(binaryData)).toThrow(CubeSignatureError);
       })
 
-      it("should present a MUC's key even if it's hash is not yet known", async () => {
-        await sodium.ready;
+      it("should present a MUC's key even if it's hash is not yet known", () => {
         const keyPair = sodium.crypto_sign_keypair();
         const publicKey: Buffer = Buffer.from(keyPair.publicKey);
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
@@ -465,14 +527,13 @@ describe('cube', () => {
           publicKey, privateKey, {
           fields: CubeField.RawContent(CubeType.MUC,
             "Signum meum nondum certum est, sed clavis mea semper eadem erit."),
-          requiredDifficulty: reducedDifficulty
+          requiredDifficulty: requiredDifficulty
         });
         expect(muc.getKeyIfAvailable().equals(publicKey)).toBeTruthy();
-        expect((await muc.getKey()).equals(publicKey)).toBeTruthy();
+        expect(muc.getKeyIfAvailable().equals(publicKey)).toBeTruthy();
       })
 
       it('should present a valid hash for a MUC when hash is requested before binary data', async () => {
-        await sodium.ready;
         const keyPair = sodium.crypto_sign_keypair();
         const publicKey: Buffer = Buffer.from(keyPair.publicKey);
         const privateKey: Buffer = Buffer.from(keyPair.privateKey);
@@ -481,7 +542,7 @@ describe('cube', () => {
           publicKey, privateKey, {
           fields: CubeField.RawContent(CubeType.MUC,
             "Gratiose tibi dabo signum meum etiamsi non intersit tibi de mea data binaria."),
-          requiredDifficulty: reducedDifficulty
+          requiredDifficulty: requiredDifficulty
         });
 
         const hash: Buffer = await muc.getHash();
@@ -497,7 +558,6 @@ describe('cube', () => {
   describe('consistency tests', () => {
     test('a MUC should remain valid after updating its date', async () => {
       // prepare cryptographic keys
-      await sodium.ready;
       const keyPair = sodium.crypto_sign_keypair();
       const publicKey: Buffer = Buffer.from(keyPair.publicKey);
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
@@ -510,7 +570,7 @@ describe('cube', () => {
             "Melita res publica facta est"),
           CubeField.Date(156164400),  // republic day
           ],
-        requiredDifficulty: reducedDifficulty,
+        requiredDifficulty: requiredDifficulty,
       });
 
       // verify its signature is valid
@@ -530,7 +590,6 @@ describe('cube', () => {
     // the Cube object noticing.
     test.skip('a MUC should remain valid after updating its content', async () => {
       // prepare cryptographic keys
-      await sodium.ready;
       const keyPair = sodium.crypto_sign_keypair();
       const publicKey: Buffer = Buffer.from(keyPair.publicKey);
       const privateKey: Buffer = Buffer.from(keyPair.privateKey);
@@ -543,7 +602,7 @@ describe('cube', () => {
             "Melita res publica facta est"),
           CubeField.Date(156164400),  // republic day
           ],
-        requiredDifficulty: reducedDifficulty,
+        requiredDifficulty: requiredDifficulty,
       });
 
       // verify its signature is valid
