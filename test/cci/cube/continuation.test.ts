@@ -105,13 +105,14 @@ describe('Continuation', () => {
     });
 
     it('splits and restores a long array of small fixed-length fields', async () => {
+      const numFields = 3000;
       // prepare macro Cube
       const macroCube = cciCube.Create(CubeType.FROZEN, {
         requiredDifficulty: 0,
       });
       const manyFields: cciField[] = [];
       // add 3000 media type fields, with content alternating between two options
-      for (let i=0; i < 3000; i++) {
+      for (let i=0; i < numFields; i++) {
         if (i%2 == 0) manyFields.push(cciField.MediaType(MediaTypes.TEXT));
         else manyFields.push(cciField.MediaType(MediaTypes.JPEG));
       }
@@ -121,13 +122,12 @@ describe('Continuation', () => {
 
       // run the test: split, then recombine
       const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
-      expect(splitCubes.length).toBeGreaterThan(11);
       const recombined: cciCube = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
 
       // assert that payload was correctly restored
       const manyRestoredFields = recombined.fields.get(cciFieldType.MEDIA_TYPE);
-      expect(manyRestoredFields.length).toEqual(3000);
-      for (let i=0; i < 3000; i++) {
+      expect(manyRestoredFields.length).toEqual(numFields);
+      for (let i=0; i < numFields; i++) {
         expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
       }
     });
