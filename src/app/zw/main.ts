@@ -4,6 +4,7 @@ import { isBrowser } from "browser-or-node";
 import { logger } from "../../core/logger";
 import { CubeExplorerController } from "../../webui/cubeExplorer/cubeExplorerController";
 import { FileManagerController } from "../../webui/fileManager/fileManagerController";
+import { ChatController } from "../../webui/chatApp/chatController";
 import type { NavItem } from "../../webui/navigation/navigationDefinitions";
 
 export async function webmain() {
@@ -14,6 +15,7 @@ export async function webmain() {
     {controller: PostController, navAction: PostController.prototype.selectWot, text: "Web of trust", exclusive: true},
     {controller: CubeExplorerController, navAction: CubeExplorerController.prototype.selectAll, text: "Cube Explorer"},
     {controller: FileManagerController, navAction: FileManagerController.prototype.showFileManager, text: "File Manager"},
+    {controller: ChatController, navAction: ChatController.prototype.showChatApp, text: "Chat"},
   ];
   const ui = await VerityUI.Construct({
     navItems: navItems,
