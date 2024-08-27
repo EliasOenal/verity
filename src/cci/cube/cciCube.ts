@@ -18,12 +18,16 @@ export class cciCube extends Cube {
       type: CubeType,
       options: CubeOptions & { publicKey?: Buffer | Uint8Array; privateKey?: Buffer | Uint8Array; } = {},
   ): cciCube {
+    options = Object.assign({}, options);  // copy options to avoid messing up original
     options.family ??= cciFamily;
-    return super.Create(type, options) as cciCube;
+    const cube: cciCube = super.Create(type, options) as cciCube;
+    if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {
+      throw new CubeError("cciCube.Frozen: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
+    }
+    return cube;
   }
 
-  static Frozen(options?: CubeOptions): cciCube {
-    if (options === undefined) options = {};
+  static Frozen(options: CubeOptions): cciCube {
     options.family = options?.family ?? cciFamily;
     const cube: cciCube = super.Frozen(options) as cciCube;
     if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {

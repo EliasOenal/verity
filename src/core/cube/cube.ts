@@ -40,6 +40,7 @@ export class Cube {
         type: CubeType,
         options: CubeOptions&{publicKey?: Buffer|Uint8Array, privateKey?: Buffer|Uint8Array} = {},
     ): Cube {
+        options = Object.assign({}, options);  // copy options to avoid messing up original
         // set default options
         options.family ??= coreCubeFamily;
         options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
@@ -212,7 +213,7 @@ export class Cube {
                 }
                 this.setFields(options.fields as CubeFields);  // set fields
             }  // no fields yet? let's just start out with an empty set then
-            else this._fields = new CubeFields([], this.fieldParser.fieldDef);
+            else this._fields = new this.fieldParser.fieldDef.fieldsObjectClass([], this.fieldParser.fieldDef);
         }
     }
 
