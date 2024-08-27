@@ -29,7 +29,7 @@ describe('notification end-to-end tests', () => {
       inMemory: true,
       lightNode: true,
       transports: new Map([
-        [SupportedTransports.ws, 61103],
+        [SupportedTransports.ws, 61104],
       ]),
     });
     await sender.readyPromise;
@@ -37,7 +37,7 @@ describe('notification end-to-end tests', () => {
       ...testOptions,
       inMemory: true,
       lightNode: true,
-      initialPeers: [new AddressAbstraction("ws://127.0.0.1:61103")],
+      initialPeers: [new AddressAbstraction("ws://127.0.0.1:61104")],
     });
     await recipient.readyPromise;
     await sender.onlinePromise;
@@ -55,7 +55,7 @@ describe('notification end-to-end tests', () => {
 
     // ensure recipient is connected to sender
     expect(recipient.networkManager.onlinePeers[0].address.ip).toEqual("127.0.0.1");
-    expect(recipient.networkManager.onlinePeers[0].address.port).toBe(61103);
+    expect(recipient.networkManager.onlinePeers[0].address.port).toBe(61104);
 
     // sender sculpts a notification Cube for recipient
     const notificationKey: Buffer = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);

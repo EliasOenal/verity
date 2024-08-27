@@ -51,10 +51,22 @@
           -->
           <nav id="leftnavCollapsible" class="collapse navbar-collapse d-sm-block">
             <ul id="verityNavbar" class="navbar-nav my-5">
-              <li class="nav-item" id="verityNav-cubeExplorer.all" style="display: none">
+              <li class="nav-item">
                 <a href="#" class="nav-link"
                   onclick="window.verity.nav.showNew('cubeExplorer', 'all')">
-                    Cube Explorer (this is a demo navigation action)
+                    Cube Explorer
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link"
+                  onclick="window.verity.nav.showNew('fileManager', 'all')">
+                    File Manager
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="#" class="nav-link"
+                  onclick="window.verity.nav.showNew('chatApp', 'all')">
+                    Chat
                 </a>
               </li>
             </ul>
@@ -563,6 +575,30 @@
     </div>
   </template>
   <!-- End of FileManager related templates -->
+
+  <!-- Chat Application related templates -->
+  <template id="verityChatAppTemplate">
+    <div class="verityChatApp">
+      <h2 class="mt-3 mt-sm-5 mb-3">Chat</h2>
+      <div class="verityChatError alert alert-danger" style="display: none;"></div>
+      <div class="input-group mb-3">
+        <input type="text" class="form-control verityUsernameInput" placeholder="Enter your username" required>
+        <button class="btn btn-primary verityUsernameSet" type="button">Set</button>
+      </div>
+      <div class="input-group mb-3">
+        <input type="text" class="form-control verityNotificationKeyInput" placeholder="Enter room name">
+        <button class="btn btn-primary verityNotificationKeySet" type="button">Set</button>
+      </div>
+      <div class="verityChatMessages mb-3"></div>
+      <form class="verityChatForm">
+        <div class="input-group mb-3">
+          <input type="text" class="form-control verityMessageInput" placeholder="Type your message" required>
+          <button type="submit" class="btn btn-primary">Send</button>
+        </div>
+      </form>
+    </div>
+  </template>
+  <!-- End of Chat Application related templates -->
 
 </body>
 </html>

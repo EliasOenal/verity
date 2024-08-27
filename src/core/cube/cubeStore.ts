@@ -84,7 +84,8 @@ export type CubeIteratorOptions = {
   lte?: CubeKey | string,
   limit?: number,
   asString?: boolean,
-  wraparound?: boolean
+  wraparound?: boolean,
+  reverse?: boolean,
 };
 
 export interface CubeRetrievalInterface {
@@ -499,6 +500,57 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       }
     }
     return cubeInfos;
+  }
+
+  /**
+   * Get a specified number of CubeInfos preceding a given input key.
+   * @param startKey The key to start from (exclusive).
+   * @param count The number of CubeInfos to retrieve.
+   * @returns An array of CubeInfos preceding the input key.
+   */
+  async *getNotificationCubesInTimeRange(
+    recipient: Buffer,
+    timeFrom: number,
+    timeTo: number,
+    limit: number = 1000,
+    reverse: boolean = false
+  ): AsyncGenerator<CubeInfo> {
+    if (!recipient || recipient.length !== NetConstants.NOTIFY_SIZE) {
+      logger.error('CubeStore.getNotificationCubesInTimeRange(): Invalid recipient buffer.');
+      return;
+    }
+
+    if (timeFrom > timeTo) {
+      logger.error('CubeStore.getNotificationCubesInTimeRange(): Invalid time range.');
+      return;
+    }
+
+    limit = Math.min(limit, 1000); // Ensure limit doesn't exceed 1000
+
+    const fromBuffer = Buffer.alloc(NetConstants.TIMESTAMP_SIZE);
+    fromBuffer.writeUIntBE(timeFrom, 0, NetConstants.TIMESTAMP_SIZE);
+
+    const toBuffer = Buffer.alloc(NetConstants.TIMESTAMP_SIZE);
+    toBuffer.writeUIntBE(timeTo, 0, NetConstants.TIMESTAMP_SIZE);
+
+    const iteratorOptions: CubeIteratorOptions = {
+      gte: Buffer.concat([recipient, fromBuffer]),
+      lte: Buffer.concat([recipient, toBuffer, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0xff)]),
+      limit: limit,
+      reverse: reverse
+    };
+
+    let count = 0;
+    for await (const key of this.leveldb.getKeyRange(Sublevels.INDEX_TIME, iteratorOptions)) {
+      if (count >= limit) break;
+
+      const cubeKey = key.slice(recipient.length + NetConstants.TIMESTAMP_SIZE);
+      const cube = await this.getCubeInfo(cubeKey);
+      if (cube) {
+        yield cube;
+        count++;
+      }
+    }
   }
 
   async *getNotificationCubeInfos(recipient: Buffer): AsyncGenerator<CubeInfo> {

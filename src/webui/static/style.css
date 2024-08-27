@@ -417,3 +417,35 @@ img.verityEditIdentityAvatar {
 .expandButton.rotate {
   transform: rotate(-90deg);
 }
+
+/* Chat Application styles */
+.verityChatApp {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.verityChatMessages {
+  height: 400px;
+  overflow-y: auto;
+  border: 1px solid;
+  padding: 10px;
+}
+
+.verityChatMessage {
+  margin-bottom: 10px;
+}
+
+.verityMessageTimestamp {
+  color: #6c757d;
+  font-size: 0.8em;
+  margin-right: 5px;
+}
+
+.verityMessageUsername {
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.verityMessageContent {
+  word-break: break-word;
+}

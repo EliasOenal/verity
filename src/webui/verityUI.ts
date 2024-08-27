@@ -64,7 +64,9 @@ export class VerityUI implements ControllerContext {
     options.useRelaying ??= true;
     // Fixme: Rejecting all non-cci Cubes is an odd choice when running as a full node.
     // This currently requests the cubes and then discards them, which is a waste of resources.
-    options.family ??= cciFamily;
+
+    // options.family ??= cciFamily; // Disabled until sync is fixed - this interfered with my frozen notify CCI cubes
+
     // Torrent tracker usage must be enforced off as it's not supported
     // in the browser environment.
     options.announceToTorrentTrackers = false;
