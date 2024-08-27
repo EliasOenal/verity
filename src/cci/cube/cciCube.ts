@@ -16,7 +16,7 @@ import { Buffer } from 'buffer'
 export class cciCube extends Cube {
   static Create(
       type: CubeType,
-      options?: CubeOptions & { publicKey?: Buffer | Uint8Array; privateKey?: Buffer | Uint8Array; },
+      options: CubeOptions & { publicKey?: Buffer | Uint8Array; privateKey?: Buffer | Uint8Array; } = {},
   ): cciCube {
     options.family ??= cciFamily;
     return super.Create(type, options) as cciCube;

@@ -102,12 +102,18 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         return true;
     }
 
-    /** @returns The binary size this fieldset will be once compiled,
-     * i.e. including any TLV field headers.
+    /**
+     * Calculates the binary size of the supplied fields, or of the whole fieldset
+     * if no fields are supplied. Calculated lengths are including any TLV headers.
+     * @param fields The fields to calculate the length of
+     * @returns The size in bytes
      */
-    getByteLength(): number {
+    getByteLength(fields: BaseField | BaseField[] = this.data): number {
+        // normalise input
+        if (fields instanceof BaseField) fields = [fields];
+
         let length = 0;
-        for (const field of this.data) {
+        for (const field of fields) {
             length += FieldParser.getFieldHeaderLength(field.type, this.fieldDefinition);
             length += field.value.length;
         }
