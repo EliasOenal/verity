@@ -12,18 +12,27 @@ on:
 
 jobs:
   build:
+    timeout-minutes: 5
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
+      timeout-minutes: 2
 
     - name: Use Node.js
       uses: actions/setup-node@v4
+      timeout-minutes: 2
       with:
         node-version: 22
 
     - name: Install Dependencies
+      timeout-minutes: 2
       run: npm ci
 
+    - name: Build
+      timeout-minutes: 2
+      run: npm run build
+
     - name: Run Jest Tests
+      timeout-minutes: 3
       run: npm test
