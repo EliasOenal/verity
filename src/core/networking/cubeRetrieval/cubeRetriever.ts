@@ -24,12 +24,6 @@ export class CubeRetriever implements CubeRetrievalInterface {
       timeout: number = undefined, // undefined = will use RequestScheduler's default
   ): Promise<CubeInfo> {
     const local: CubeInfo = await this.cubeStore.getCubeInfo(keyInput);
-    // Note that we unfortunately chose incompatible retrieval interfaces for
-    // CubeStore and RequestScheduler: CubeStore will return undefined for
-    // unavailable Cubes while RequestScheduler will reject the promise.
-    // CubeRetriever follows the CubeStore API and will return undefined
-    // whenever it was not possible to retrieve a Cube within the applicable
-    // timeout (if any).
     if (local !== undefined) return local;
     try {
       const retrieved = await this.requestScheduler.requestCube(
