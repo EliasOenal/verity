@@ -107,7 +107,6 @@ export class Continuation {
       cciFields.DefaultPositionals(macroCube.fieldParser.fieldDef) as cciFields;
     const bytesAvailablePerCube: number = demoFieldset.bytesRemaining(options.cubeSize);
     let numCubes: number = Math.ceil(macroFieldset.getByteLength() / bytesAvailablePerCube);
-    let bytesWasted = 0;
 
     // Prepare continuation references and insert them at the front of the
     // macro fieldset. Once we've sculted the split Cubes we will revisit them
@@ -122,7 +121,6 @@ export class Continuation {
           cciRelationshipType.CONTINUED_IN, Buffer.alloc(
             NetConstants.CUBE_KEY_SIZE, 0));  // dummy key for now
       const refField: cciField = cciField.RelatesTo(rel);
-      bytesWasted += macroFieldset.getByteLength(refField);
       refs.push(refField);
       macroFieldset.insertFieldInFront(refField);  // maybe TODO: use less array copying operations
     }
@@ -139,7 +137,30 @@ export class Continuation {
       // if it turns out we'll need an additional Cube.
       // This can (and in fact often will) happen because the original estimate
       // did not take into account space wasted due to fields not perfectly splittable.
-      // TODO implement
+      const fullCubesRemaining =      // number of Cubes planned minus number
+        refs.length+1 - cubes.length; // of Cubes already used
+      let spaceRemaining =
+        bytesAvailablePerCube * fullCubesRemaining +  // space remaining in unused Cubes
+        cube.fields.bytesRemaining(options.cubeSize); // space remaining in current Cube
+      const fieldsRemaining = macroFieldset.all.slice(i, macroFieldset.all.length);
+      let minBytesRequred = macroFieldset.getByteLength(fieldsRemaining);
+      // do we need to plan for more Cubes?
+      while (spaceRemaining < minBytesRequred) {
+        // add another CONTINUED_IN reference, i.e. plan for an extra Cube
+        const rel: cciRelationship = new cciRelationship(
+          cciRelationshipType.CONTINUED_IN, Buffer.alloc(
+            NetConstants.CUBE_KEY_SIZE, 0));  // dummy key for now
+        const refField: cciField = cciField.RelatesTo(rel);
+        // remember this ref as a planned Cube...
+        refs.push(refField);
+        // ... and add it to our field list, as obviously the reference needs
+        // to be written
+        macroFieldset.all.splice(i, 0, refField);
+        // account for the space we gained by planning for an extra Cube
+        // as well as the space we lost due to the extra reference
+        spaceRemaining += bytesAvailablePerCube;
+        minBytesRequred += macroFieldset.getByteLength(refField);
+      }
 
       const field: cciField = macroFieldset.all[i];
       // If the next field entirely fits in the current cube, just insert it
@@ -179,6 +200,9 @@ export class Continuation {
         // Replace the field on our macro fieldset with the two chunks;
         // this way, chunk2 will automatically be handled on the next iteration.
         macroFieldset.all.splice(i, 1, chunk1, chunk2);
+      } else {
+        // could not place field, need to revisit it in the next iteration
+        i--;
       }
 
       // If we arrive here, there's nothing more we can do to cram more data
