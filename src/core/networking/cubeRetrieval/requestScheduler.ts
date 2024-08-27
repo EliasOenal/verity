@@ -94,7 +94,7 @@ export class RequestScheduler {
    * This obviously only makes sense for light nodes as full nodes will always
    * attempt to sync all available Cubes.
    * @returns A promise resolving to the CubeInfo of the requested Cube.
-   *  Promise will reject if Cube cannot be retrieved within timeout.
+   *  Promise will return undefined if Cube cannot be retrieved within timeout.
    */
   requestCube(
     keyInput: CubeKey | string,
@@ -102,7 +102,7 @@ export class RequestScheduler {
     timeout: number = this.options.requestTimeout
   ): Promise<CubeInfo> {
     // do not accept any calls if this scheduler has already been shut down
-    if (this._shutdown) return new Promise<CubeInfo>((resolve, reject) => reject());
+    if (this._shutdown) return Promise.resolve(undefined);
 
     let alreadyReq: Promise<CubeInfo>;
     if (alreadyReq = this.isAlreadyRequested(keyInput))
@@ -154,7 +154,7 @@ export class RequestScheduler {
    *  - Caller should check their local CubeStore to find all notifications retrieved.
    *  - A resolved promise does not guarantee that all notifications available
    *    on the network or even on the node they were requested from have been retrieved.
-   *  - Promise will reject if no new notifications can be retrieved within timeout.
+   *  - Promise will return undefined if no new notifications can be retrieved within timeout.
    */
   // maybe TODO: something like an AsyncGenerator as return type would make much more sense
   requestNotifications(
@@ -164,7 +164,7 @@ export class RequestScheduler {
     directCubeRequest: boolean = false,
   ): Promise<CubeInfo> {
     // do not accept any calls if this scheduler has already been shut down
-    if (this._shutdown) return new Promise<CubeInfo>((resolve, reject) => reject());
+    if (this._shutdown) return Promise.resolve(undefined);
     const key = keyVariants(recipientKey);  // normalise input
 
     if (directCubeRequest) {
