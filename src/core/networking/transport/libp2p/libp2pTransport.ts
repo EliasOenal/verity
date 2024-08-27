@@ -50,7 +50,7 @@ export class Libp2pTransport extends NetworkTransport {
     for (const listenSpec of listen_param) {
       if (!isNaN(listenSpec as number)) {  // if listen_param is a port number
         this.listen = this.listen.concat([
-          `/ip4/0.0.0.0/tcp/${listen_param}/wss`,  // for relay... or WebSocket via libp2p
+          `/ip4/0.0.0.0/tcp/${listen_param}/ws`,  // for relay... or WebSocket via libp2p
           // `/ip6/::1/tcp/${listen_param}/ws`,  // configuring IPv6 always throws "Listener not ready"... so no IPv6 I guess
           `/ip4/0.0.0.0/udp/${listen_param}/webrtc`,
           // `/ip6/::1/udp/${listen_param}/webrtc`,
