@@ -95,48 +95,33 @@ export class Continuation {
       }
     }
 
-    // Estimate the number of Cubes required. This depends on the amount of
-    // payload available per Cube, which in turn depends on which kind of Cube
-    // we're supposed to sculpt.
-    // Note that this estimate is just that, an estimate: It does not include
-    // the CONTINUED_IN references required, nor can it account for space lost
-    // unused while splitting fields (which will only occur later).
-    // We will however keep track of this additional space needed and add further
-    // CONTINUED_IN references as needed.
+    // Precalculate some numbers that we'll later need to determine how many
+    // Cubes we need.
     const demoFieldset: cciFields =
       cciFields.DefaultPositionals(macroCube.fieldParser.fieldDef) as cciFields;
     const bytesAvailablePerCube: number = demoFieldset.bytesRemaining(options.cubeSize);
-    let numCubes: number = Math.ceil(macroFieldset.getByteLength() / bytesAvailablePerCube);
-
-    // Prepare continuation references and insert them at the front of the
-    // macro fieldset. Once we've sculted the split Cubes we will revisit them
-    // and fill in the next Cube references. We place as much references as we
-    // can right at the beginning of the chain rather than chaining the Cubes
-    // individually. This is to allow light clients to fetch the continuation
-    // Cubes in one go. Note that individually chained Cubes are still valid
-    // and will be processed correctly.
-    const refs: cciField[] = [];
-    for (let i=1; i < numCubes; i++) {  // one less rels than chunks Cubes
-      const rel: cciRelationship = new cciRelationship(
-          cciRelationshipType.CONTINUED_IN, Buffer.alloc(
-            NetConstants.CUBE_KEY_SIZE, 0));  // dummy key for now
-      const refField: cciField = cciField.RelatesTo(rel);
-      refs.push(refField);
-      macroFieldset.insertFieldInFront(refField);  // maybe TODO: use less array copying operations
-    }
 
     // Split the macro fieldset into Cubes:
     // prepare the list of Cubes and initialise the first one
     const cubes: cciCube[] = [ macroCube.family.cubeClass.Create(macroCube.cubeType, options) as cciCube ];
     let cube: cciCube = cubes[0];
+    // Also prepare a list of CONTINUED_IN references to be filled in later.
+    // Note the number of CONTINUED_IN references will always be one less than
+    // the number of Cubes.
+    const refs: cciField[] = [];
 
     // Iterate over the macro fieldset
     for (let i=0; i<macroFieldset.all.length; i++) {
-      // Before we actually look at the next field, recalculate how much more
-      // space we will need and consider adding another CONTINUED_IN reference
-      // if it turns out we'll need an additional Cube.
-      // This can (and in fact often will) happen because the original estimate
-      // did not take into account space wasted due to fields not perfectly splittable.
+      // Prepare continuation references and insert them at the front of the
+      // macro fieldset. Once we've sculted the split Cubes we will revisit them
+      // and fill in the next Cube references. We place as much references as we
+      // can right at the beginning of the chain rather than chaining the Cubes
+      // individually. This is to allow light clients to fetch the continuation
+      // Cubes in one go. Note that individually chained Cubes are still valid
+      // and will be processed correctly.
+      // Note that we recalculate the required number of Cubes as we go as
+      // wasted space due to not perfectly splittable fields may increase
+      // that number over time.
       const fullCubesRemaining =      // number of Cubes planned minus number
         refs.length+1 - cubes.length; // of Cubes already used
       let spaceRemaining =
