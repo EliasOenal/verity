@@ -1,5 +1,5 @@
 import { cciCube } from "../../../src/cci/cube/cciCube";
-import { MediaTypes, cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { MediaTypes, cciAdditionalFieldType, cciFieldLength, cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { cciField } from "../../../src/cci/cube/cciField";
 import { cciFields } from "../../../src/cci/cube/cciFields";
 import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
@@ -111,7 +111,7 @@ describe('Continuation', () => {
         requiredDifficulty: 0,
       });
       const manyFields: cciField[] = [];
-      // add 3000 media type fields, with content alternating between two options
+      // add numFields media type fields, with content alternating between two options
       for (let i=0; i < numFields; i++) {
         if (i%2 == 0) manyFields.push(cciField.MediaType(MediaTypes.TEXT));
         else manyFields.push(cciField.MediaType(MediaTypes.JPEG));
@@ -137,6 +137,61 @@ describe('Continuation', () => {
 
       // assert that payload was correctly restored
       const manyRestoredFields = recombined.fields.get(cciFieldType.MEDIA_TYPE);
+      expect(manyRestoredFields.length).toEqual(numFields);
+      for (let i=0; i < numFields; i++) {
+        expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
+      }
+    });
+
+    it('splits and restores a long array of different fields of different lengths', async () => {
+      const numFields = 100;
+      // prepare macro Cube
+      const macroCube = cciCube.Create(CubeType.FROZEN, {
+        requiredDifficulty: 0,
+      });
+      const manyFields: cciField[] = [];
+      // add many fields
+      for (let i=0; i < numFields; i++) {
+        if (i%4 === 0) {
+          // make every four fields a fixed length one
+          manyFields.push(cciField.MediaType(MediaTypes.TEXT));
+        } else if (i%4 === 1 || i%4 === 2) {
+          // make half of the fields variable length and long, and have them
+          // be adjacent to each other
+          manyFields.push(cciField.Payload(tooLong));
+        } else {
+          // make one in every four fields variable length and short
+          manyFields.push(cciField.Description("Hic cubus stultus est"));
+        }
+      }
+      for (const field of manyFields) {
+        macroCube.fields.insertFieldBeforeBackPositionals(field);
+      }
+
+      // split the Cube
+      const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+
+      // run some tests on the chunks: ensure that the total number of target
+      // fields in the split is correct
+      let targetFieldsInSplit = 0;
+      for (const cube of splitCubes) {
+        targetFieldsInSplit += cube.fields.get([
+          cciFieldType.MEDIA_TYPE,
+          cciFieldType.PAYLOAD,
+          cciFieldType.DESCRIPTION,
+        ]).length;
+      }
+      expect(targetFieldsInSplit).toBeGreaterThan(numFields);  // account for splits
+
+      // recombine the chunks
+      const recombined: cciCube = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+
+      // assert that payload was correctly restored
+      const manyRestoredFields = recombined.fields.get([
+        cciFieldType.MEDIA_TYPE,
+        cciFieldType.PAYLOAD,
+        cciFieldType.DESCRIPTION,
+    ]);
       expect(manyRestoredFields.length).toEqual(numFields);
       for (let i=0; i < numFields; i++) {
         expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
@@ -223,6 +278,50 @@ describe('Continuation', () => {
       expect(cciRelationship.fromField(restoredRelatesTo[3]).type).toEqual(cciRelationshipType.MENTION);
     });
 
-    it.todo('splits and restores random oversized Cubes (fuzzing test)');
+    // for (let fuzzingRepeat=0; fuzzingRepeat<100; fuzzingRepeat++) {
+      it.skip('splits and restores random oversized Cubes (fuzzing test)', async() => {
+        const eligibleFieldTypes: cciAdditionalFieldType[] = [
+          cciFieldType.PAYLOAD,
+          cciFieldType.CONTENTNAME,
+          cciFieldType.DESCRIPTION,
+          cciFieldType.RELATES_TO,
+          cciFieldType.USERNAME,
+          cciFieldType.MEDIA_TYPE,
+          cciFieldType.AVATAR,
+          cciFieldType.PADDING,
+        ];
+        const numFields = Math.floor(Math.random() * 1000);
+
+        // prepare macro Cube
+        const compareFields: cciField[] = [];
+        const macroCube = cciCube.Create(CubeType.FROZEN, {
+          requiredDifficulty: 0,
+        });
+        for (let i=0; i < numFields; i++) {
+          const chosenFieldType: cciAdditionalFieldType = eligibleFieldTypes[Math.floor(Math.random() * eligibleFieldTypes.length)];
+          const length: number = cciFieldLength[chosenFieldType] ?? Math.floor(Math.random() * 3000);
+          const val = Buffer.alloc(length);
+          // fill val with random bytes
+          for (let j = 0; j < length; j++) val[j] = Math.floor(Math.random() * 256);
+          const field = new cciField(chosenFieldType, val);
+          macroCube.fields.insertFieldBeforeBackPositionals(field);
+          compareFields.push(field);
+        }
+
+        // split and recombinethe Cube
+        const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+        const recombined: cciCube = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+
+        // assert that payload was correctly restored
+        const restoredFields = recombined.fields.all;
+        expect(restoredFields.length).toEqual(numFields);
+        // assert that all fields have been restored correctly
+        for (let i = 0; i < numFields; i++) {
+          const field = restoredFields[i];
+          expect(field.type).toEqual(compareFields[i].type);
+          expect(field.value).toEqual(compareFields[i].value);
+        }
+      });
+    // }
   });
 });
