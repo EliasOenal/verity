@@ -234,8 +234,10 @@ export class Continuation {
 
       for (const field of cube.fields.all) {
         // ... and look at each field:
-        // - Excluded fields will be dropped
-        if (options.exclude.includes(field.type)) continue;
+        // - Excluded fields will be dropped, except PADDING which separates
+        //   non-rejoinable adjacent fields
+        if (field.type !== cciFieldType.PADDING &&
+            options.exclude.includes(field.type)) continue;
         // - CONTINUED_IN references will be dropped
         if (field.type === cciFieldType.RELATES_TO) {
           const rel = cciRelationship.fromField(field);
@@ -254,6 +256,13 @@ export class Continuation {
         }
         // - the rest will just be copied to the macro fieldset
         macroCube.fields.appendField(field);
+      }
+    }
+    // in a second pass, remove any PADDING fields
+    for (let i=0; i<macroCube.fields.all.length; i++) {
+      if (macroCube.fields.all[i].type === cciFieldType.PADDING) {
+        macroCube.fields.all.splice(i, 1);
+        i--;
       }
     }
     return macroCube;

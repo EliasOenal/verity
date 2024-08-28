@@ -9,7 +9,7 @@ import { Buffer } from 'buffer';
 
 export enum cciRelationshipType {
   CONTINUED_IN = 1,
-  EXTENDED_IN = 2,
+  // unused = 2,
   REPLY_TO = 3,
   QUOTATION = 4,
   MYPOST = 5,
