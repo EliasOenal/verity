@@ -110,6 +110,9 @@ export class Continuation {
     // the number of Cubes.
     const refs: cciField[] = [];
 
+    let spaceRemaining = bytesAvailablePerCube;  // we start with just one chunk
+    let minBytesRequred = macroFieldset.getByteLength();
+
     // Iterate over the macro fieldset
     for (let i=0; i<macroFieldset.all.length; i++) {
       // Prepare continuation references and insert them at the front of the
@@ -122,13 +125,6 @@ export class Continuation {
       // Note that we recalculate the required number of Cubes as we go as
       // wasted space due to not perfectly splittable fields may increase
       // that number over time.
-      const fullCubesRemaining =      // number of Cubes planned minus number
-        refs.length+1 - cubes.length; // of Cubes already used
-      let spaceRemaining =
-        bytesAvailablePerCube * fullCubesRemaining +  // space remaining in unused Cubes
-        cube.fields.bytesRemaining(options.cubeSize); // space remaining in current Cube
-      const fieldsRemaining = macroFieldset.all.slice(i, macroFieldset.all.length);
-      let minBytesRequred = macroFieldset.getByteLength(fieldsRemaining);
       // do we need to plan for more Cubes?
       const addRefs: cciField[] = [];
       while (spaceRemaining < minBytesRequred) {
@@ -155,6 +151,8 @@ export class Continuation {
       // and be done with it
       if (cube.fields.bytesRemaining(options.cubeSize) >= cube.fields.getByteLength(field)) {
         cube.fields.insertFieldBeforeBackPositionals(field);
+        spaceRemaining -= cube.fields.getByteLength(field);
+        minBytesRequred -= cube.fields.getByteLength(field);
         continue;
       }
 
@@ -185,6 +183,12 @@ export class Continuation {
         );
         // Place the first chunk in the current Cube
         cube.fields.insertFieldBeforeBackPositionals(chunk1);
+        // Update our accounting:
+        // Space remaining is reduced by the size of the first chunk; but
+        // minBytesRequired is only reduces by the amount of payload actually
+        // placed in chunk1. Splitting wastes space!
+        spaceRemaining -= cube.fields.getByteLength(chunk1);
+        minBytesRequred -= chunk1.value.length;
         // Replace the field on our macro fieldset with the two chunks;
         // this way, chunk2 will automatically be handled on the next iteration.
         macroFieldset.all.splice(i, 1, chunk1, chunk2);
@@ -194,8 +198,10 @@ export class Continuation {
       }
 
       // If we arrive here, there's nothing more we can do to cram more data
-      // into the current Cube.
-      // So let's do a Cube rollover!
+      // into the current chunk Cube.
+      // Update our accounting: Any space left in the current Cube is wasted.
+      spaceRemaining -= cube.fields.bytesRemaining(options.cubeSize);
+      // Time for a chunk rollover!
       cube = macroCube.family.cubeClass.Create(macroCube.cubeType, options) as cciCube;
       cubes.push(cube);
       // That's all for now, see you on the next iteration where we will start
