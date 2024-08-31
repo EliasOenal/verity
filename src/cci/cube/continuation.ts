@@ -10,7 +10,7 @@ import { Buffer } from 'buffer'
 import { cciFields } from "./cciFields";
 import { cciRelationship, cciRelationshipType } from "./cciRelationship";
 import { FieldParser } from "../../core/fields/fieldParser";
-import { CubeError } from "../../core/cube/cube.definitions";
+import { CubeError, CubeKey } from "../../core/cube/cube.definitions";
 
 /**
  * Don't split fields if a resulting chunk would be smaller than this amount
@@ -130,6 +130,7 @@ export class Continuation {
       const fieldsRemaining = macroFieldset.all.slice(i, macroFieldset.all.length);
       let minBytesRequred = macroFieldset.getByteLength(fieldsRemaining);
       // do we need to plan for more Cubes?
+      const addRefs: cciField[] = [];
       while (spaceRemaining < minBytesRequred) {
         // add another CONTINUED_IN reference, i.e. plan for an extra Cube
         const rel: cciRelationship = new cciRelationship(
@@ -138,14 +139,16 @@ export class Continuation {
         const refField: cciField = cciField.RelatesTo(rel);
         // remember this ref as a planned Cube...
         refs.push(refField);
-        // ... and add it to our field list, as obviously the reference needs
+        // ... and plan to add it to our field list, as obviously the reference needs
         // to be written
-        macroFieldset.all.splice(i, 0, refField);
+        addRefs.push(refField);
         // account for the space we gained by planning for an extra Cube
         // as well as the space we lost due to the extra reference
         spaceRemaining += bytesAvailablePerCube;
         minBytesRequred += macroFieldset.getByteLength(refField);
       }
+      // insert the planned CONTINUED_IN references
+      macroFieldset.all.splice(i, 0, ...addRefs);
 
       const field: cciField = macroFieldset.all[i];
       // If the next field entirely fits in the current cube, just insert it
@@ -204,8 +207,13 @@ export class Continuation {
       throw new CubeError("Continuation.SplitCube: I messed up my chunking. This should never happen.");
     }
     for (let i=0; i<refs.length; i++) {
-      // TODO deuglify next line
-      refs[i].value = cciField.RelatesTo(new cciRelationship(cciRelationshipType.CONTINUED_IN, await cubes[i+1].getKey())).value;
+      // the first relationship field needs to reference the second Cube, and so on
+      const referredCube: CubeKey = await cubes[i+1].getKey();
+      const correctRef: cciRelationship =
+        new cciRelationship(cciRelationshipType.CONTINUED_IN, referredCube);
+      const compiledRef: cciField = cciField.RelatesTo(correctRef);
+      // fill in the correct ref value to the field we created at the beginning
+      refs[i].value = compiledRef.value;
     }
 
     return cubes;

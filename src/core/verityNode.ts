@@ -101,6 +101,7 @@ export class VerityNode implements VerityNodeIf {
     this.networkManager.shutdown();
     this.cubeStore.shutdown();
     this.peerDB.shutdown();
+    this.cubeRetriever.shutdown();
     return this.shutdownPromise;
   }
 }
