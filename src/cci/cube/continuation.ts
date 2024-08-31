@@ -1,16 +1,23 @@
-import { Cube, CubeOptions } from "../../core/cube/cube";
-import { CubeFamilyDefinition } from "../../core/cube/cubeFields";
+import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
-import { ApiMisuseError, Settings } from "../../core/settings";
+
+import { CubeError, CubeKey } from "../../core/cube/cube.definitions";
+import { Cube, CubeOptions } from "../../core/cube/cube";
+import { FieldParser } from "../../core/fields/fieldParser";
+
 import { cciCube } from "./cciCube";
 import { cciFieldType } from "./cciCube.definitions";
 import { cciField } from "./cciField";
+import { cciRelationship, cciRelationshipType } from "./cciRelationship";
 
 import { Buffer } from 'buffer'
 import { cciFields } from "./cciFields";
-import { cciRelationship, cciRelationshipType } from "./cciRelationship";
-import { FieldParser } from "../../core/fields/fieldParser";
-import { CubeError, CubeKey } from "../../core/cube/cube.definitions";
+
+// HACKHACK: jest does throw strange errors which I don't understand when trying
+// to import this lib properly.
+// We should consider dumping jest and using vitest instead; ESM support in
+// jest is still buggy and keeps causing problems.
+import { DoublyLinkedList, DoublyLinkedListNode } from '../../../node_modules/data-structure-typed/dist/cjs/data-structures/linked-list/doubly-linked-list';
 
 /**
  * Don't split fields if a resulting chunk would be smaller than this amount
@@ -66,7 +73,8 @@ export class Continuation {
     options.cubeSize ??= NetConstants.CUBE_SIZE;
 
     // Pre-process the macro fieldset supplied:
-    const macroFieldset: cciFields = new cciFields([], macroCube.fieldParser.fieldDef);
+    let minBytesRequred = 0;  // will count them in a moment
+    const macroFieldset: DoublyLinkedList<cciField> = new DoublyLinkedList();
     let previousField: cciField = undefined;
     for (const field of macroCube.fields.all) {
       // - Only accept non-excluded fields from supplied macro Cube, i.e. everything
@@ -86,11 +94,13 @@ export class Continuation {
             macroCube.fieldParser.fieldDef.fieldLengths[field.type] === undefined)
         {
           const padding = new cciField(cciFieldType.PADDING, Buffer.alloc(0));
-          macroFieldset.appendField(padding);
+          macroFieldset.push(padding);
+          minBytesRequred += macroCube.fields.getByteLength(padding);
         }
 
         // now finally accept this field into our macro fieldset
-        macroFieldset.appendField(field);  // maybe TODO: use less array copying operations
+        macroFieldset.push(field);  // maybe TODO: use less array copying operations
+        minBytesRequred += macroCube.fields.getByteLength(field);
         previousField = field;
       }
     }
@@ -111,10 +121,10 @@ export class Continuation {
     const refs: cciField[] = [];
 
     let spaceRemaining = bytesAvailablePerCube;  // we start with just one chunk
-    let minBytesRequred = macroFieldset.getByteLength();
 
     // Iterate over the macro fieldset
-    for (let i=0; i<macroFieldset.all.length; i++) {
+    let macroFieldsetNode: DoublyLinkedListNode<cciField> = macroFieldset.head;
+    while (macroFieldsetNode !== undefined) {
       // Prepare continuation references and insert them at the front of the
       // macro fieldset. Once we've sculted the split Cubes we will revisit them
       // and fill in the next Cube references. We place as much references as we
@@ -126,7 +136,7 @@ export class Continuation {
       // wasted space due to not perfectly splittable fields may increase
       // that number over time.
       // do we need to plan for more Cubes?
-      const addRefs: cciField[] = [];
+      let refsAdded = 0;
       while (spaceRemaining < minBytesRequred) {
         // add another CONTINUED_IN reference, i.e. plan for an extra Cube
         const rel: cciRelationship = new cciRelationship(
@@ -135,40 +145,44 @@ export class Continuation {
         const refField: cciField = cciField.RelatesTo(rel);
         // remember this ref as a planned Cube...
         refs.push(refField);
-        // ... and plan to add it to our field list, as obviously the reference needs
-        // to be written
-        addRefs.push(refField);
+        // ... and add it to our field list, as obviously the reference needs
+        // to be written. Keep count of how many of those we added, as we'll
+        // need to backtrack this many nodes in macroFieldset in order not to
+        // skip over anything.
+        macroFieldset.addBefore(macroFieldsetNode, refField);
+        refsAdded++;
         // account for the space we gained by planning for an extra Cube
         // as well as the space we lost due to the extra reference
         spaceRemaining += bytesAvailablePerCube;
-        minBytesRequred += macroFieldset.getByteLength(refField);
+        minBytesRequred += cube.fields.getByteLength(refField);
       }
-      // insert the planned CONTINUED_IN references
-      macroFieldset.all.splice(i, 0, ...addRefs);
+      // if we inserted extra fields, backtrack that many nodes
+      for (let i = 0; i < refsAdded; i++) macroFieldsetNode = macroFieldsetNode.prev;
 
-      const field: cciField = macroFieldset.all[i];
-      // If the next field entirely fits in the current cube, just insert it
-      // and be done with it
-      if (cube.fields.bytesRemaining(options.cubeSize) >= cube.fields.getByteLength(field)) {
+      // Finally, have a look at the current field and decide what to do with it.
+      const field: cciField = macroFieldsetNode.value;
+      const bytesRemaining = cube.fields.bytesRemaining(options.cubeSize);
+
+      // There's three (3) possible cases to consider:
+      if (bytesRemaining >= cube.fields.getByteLength(field)) {
+        // Case 1): If the next field entirely fits in the current cube,
+        // just insert it and be done with it
         cube.fields.insertFieldBeforeBackPositionals(field);
         spaceRemaining -= cube.fields.getByteLength(field);
         minBytesRequred -= cube.fields.getByteLength(field);
-        continue;
-      }
+        // We're done with this field, so let's advance the iterator
+        macroFieldsetNode = macroFieldsetNode.next;
+      } else if (bytesRemaining >= MIN_CHUNK &&
+        macroCube.fieldParser.fieldDef.fieldLengths[field.type] === undefined) {
+        // Case 2): We may be able to split this field into two smaller chunks.
+        // Two conditions must be satisfied to split:
+        // - The remaining space in the Cube must be at least our arbitrarily
+        //   decided minimum chunk size.
+        // - The field must be variable length as fixed length field cannot be
+        //   split (it would break the parser).
 
-      // Field doesn't fit? Let's get to work then!
-      // First we need to find out if we're even going to split this field
-      // or if we'll just roll it over to the next Cube in its entirety.
-      // Two conditions must be satisfied to split:
-      // - The remaining space in the Cube must be at least our arbitrarily
-      //   decided minimum chunk size.
-      // - The field must be variable length as fixed length field cannot be
-      //   split (it would break the parser).
-      const bytesRemaining = cube.fields.bytesRemaining(options.cubeSize);
-      if (bytesRemaining >= MIN_CHUNK &&
-          macroCube.fieldParser.fieldDef.fieldLengths[field.type] === undefined) {
-        // Let's do some splitting!
-        // Determine the exact location of the split point:
+        // If we've entered this block, we've determined that we can split this field,
+        // so let's determine the exact location of the split point:
         const headerSize = FieldParser.getFieldHeaderLength(
           field.type, macroCube.fieldParser.fieldDef);
         const maxValueLength = bytesRemaining - headerSize;
@@ -191,21 +205,23 @@ export class Continuation {
         minBytesRequred -= chunk1.value.length;
         // Replace the field on our macro fieldset with the two chunks;
         // this way, chunk2 will automatically be handled on the next iteration.
-        macroFieldset.all.splice(i, 1, chunk1, chunk2);
+        macroFieldsetNode.value = chunk1;
+        macroFieldset.addAfter(macroFieldsetNode, chunk2);
+        // We're done with this field, so let's advance the iterator
+        macroFieldsetNode = macroFieldsetNode.next;
       } else {
-        // could not place field, need to revisit it in the next iteration
-        i--;
+        // Case 3: We can't split this field, and there's no way we're going
+        // to fit any of it in the current chunk Cube.
+        // Any space left in this chunk Cube will be wasted and we're going
+        // to roll over to the next chunk.
+        // First update our accounting...
+        spaceRemaining -= cube.fields.bytesRemaining(options.cubeSize);
+        // ... and then it's time for a chunk rollover!
+        cube = macroCube.family.cubeClass.Create(macroCube.cubeType, options) as cciCube;
+        cubes.push(cube);
+        // Note that we have not handled this field!
+        // We therefore must not advance the iterator.
       }
-
-      // If we arrive here, there's nothing more we can do to cram more data
-      // into the current chunk Cube.
-      // Update our accounting: Any space left in the current Cube is wasted.
-      spaceRemaining -= cube.fields.bytesRemaining(options.cubeSize);
-      // Time for a chunk rollover!
-      cube = macroCube.family.cubeClass.Create(macroCube.cubeType, options) as cciCube;
-      cubes.push(cube);
-      // That's all for now, see you on the next iteration where we will start
-      // filling up this freshly sculpted chunk Cube :)
     }
 
     // Chunking done. Now fill in the CONTINUED_IN references
