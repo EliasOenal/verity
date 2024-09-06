@@ -63,7 +63,7 @@
     "it-pipe": "^3.0.1",
     "js-sha3": "^0.9.3",
     "level": "^8.0.1",
-    "libp2p": "^1.9.3",
+    "libp2p": "^1.9.4",
     "libsodium-wrappers-sumo": "^0.7.15",
     "memory-level": "^1.0.0",
     "pino": "^9.4.0",
