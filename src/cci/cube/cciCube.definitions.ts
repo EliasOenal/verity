@@ -13,6 +13,11 @@ export enum cciAdditionalFieldType {
   CCI_END = 0x00 << 2,       // 0
   APPLICATION = 0x01 << 2,   // 4
 
+  ENCRYPTED = 0x02 << 2,     // 8
+  CRYPTO_NONCE = 0x03 << 2,  // 12
+  CRYPTO_MAC = 0x04 << 2,    // 16
+  CRYPTO_KEY = 0x05 << 2,    // 20
+
   /**
   * Seed used to derive a new key pair for an extension MUC.
   * Note that this should not actually be public information as it's only needed
@@ -23,7 +28,7 @@ export enum cciAdditionalFieldType {
   * We're pretty confident this does not actually expose any cryptographically
   * sensitive information, but we maybe should encrypt it.
   */
-  SUBKEY_SEED = 0x03 << 2,   // 12
+  SUBKEY_SEED = 0x06 << 2,   // 24
 
   PAYLOAD = 0x10 << 2,       // 64
   CONTENTNAME = 0x11 << 2,   // 68
@@ -61,9 +66,13 @@ export const cciFieldType = {...CubeFieldType, ...cciAdditionalFieldType} as con
 
 export const cciAdditionalFieldLength: FieldNumericalParam = {
   [cciFieldType.CCI_END]: 0,
+  [cciFieldType.ENCRYPTED]: undefined,
+  [cciFieldType.CRYPTO_NONCE]: NetConstants.CRYPTO_NONCE_SIZE,
+  [cciFieldType.CRYPTO_MAC]: NetConstants.CRYPTO_MAC_SIZE,
+  [cciFieldType.CRYPTO_KEY]: NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE,
+  [cciFieldType.SUBKEY_SEED]: undefined,
   [cciFieldType.CONTENTNAME]: undefined,
   [cciFieldType.DESCRIPTION]: undefined,
-  [cciFieldType.SUBKEY_SEED]: undefined,
   [cciFieldType.PAYLOAD]: undefined,
   [cciFieldType.AVATAR]: undefined,
   [cciFieldType.APPLICATION]: undefined,

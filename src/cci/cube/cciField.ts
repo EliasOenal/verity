@@ -17,15 +17,35 @@ export class cciField extends CubeField {
   // line below causes issues due to circular dependency
   // static relationshipType = cciRelationship;
 
-  static SubkeySeed(buf: Buffer | Uint8Array): CubeField {
-    if (!(buf instanceof Buffer)) buf = Buffer.from(buf);
-    return new CubeField(cciFieldType.SUBKEY_SEED, buf as Buffer);
+  static CciEnd() {
+    return new this(cciFieldType.CCI_END, Buffer.alloc(0));
   }
 
   static Application(applicationString: string): cciField {
     const applicationBuf = Buffer.from(applicationString, 'utf-8');
     return new this(
       cciFieldType.APPLICATION, applicationBuf);
+  }
+
+  static Encrypted(encrypted: Buffer): cciField {
+    return new this(cciFieldType.ENCRYPTED, encrypted);
+  }
+
+  static CryptoNonce(nonce: Buffer): cciField {
+    return new this(cciFieldType.CRYPTO_NONCE, nonce);
+  }
+
+  static CryptoMac(mac: Buffer): cciField {
+    return new this(cciFieldType.CRYPTO_MAC, mac);
+  }
+
+  static CryptoKey(encryptedKey: Buffer): cciField {
+    return new this(cciFieldType.CRYPTO_KEY, encryptedKey);
+  }
+
+  static SubkeySeed(buf: Buffer | Uint8Array): CubeField {
+    if (!(buf instanceof Buffer)) buf = Buffer.from(buf);
+    return new CubeField(cciFieldType.SUBKEY_SEED, buf as Buffer);
   }
 
   static ContentName(name: string) {
@@ -65,10 +85,6 @@ export class cciField extends CubeField {
   static Username(name: string): cciField {
     const buf = Buffer.from(name, 'utf-8');
     return new this(cciFieldType.USERNAME, buf);
-  }
-
-  static CciEnd() {
-    return new this(cciFieldType.CCI_END, Buffer.alloc(0));
   }
 
   static *FromRelationships(rels: Iterable<cciRelationship>): Generator<cciField> {
