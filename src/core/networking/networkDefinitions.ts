@@ -32,13 +32,18 @@ export const NetConstants =  {
     CHALLENGE_LEVEL_SIZE: 1,
     PUBLIC_KEY_SIZE: 32,
     SIGNATURE_SIZE: 64,
-    NONCE_SIZE: 4,
+    NONCE_SIZE: 4,  // note this is misleadingly named, it is NOT the size of our cryptographic nonce but the size of the scratchpad used when calculating hash cash
     KEY_REQUEST_MODE_SIZE: 1,
     KEY_COUNT_SIZE: 4,
     ADDRESS_TYPE_SIZE: 1,
     ADDRESS_LENGTH_SIZE: 2,
     NOTIFY_SIZE: 32,  // it will not be possible to change this without breaking a lot of code, as we assume in many places that NOTIFY contains exactly one Cube key
     PMUC_UPDATE_COUNT_SIZE: 4,
+
+    // do we want to move this to CCI?
+    CRYPTO_NONCE_SIZE: 24,
+    CRYPTO_SYMMETRIC_KEY_SIZE: 32,
+    CRYPTO_MAC_SIZE: 16,
 }
 
 export enum SupportedTransports {

@@ -13,6 +13,9 @@ export enum FieldPosition {
 }
 
 /** Nice wrapper around a field array providing some useful methods. */
+// TODO: Abstract this further by introducing a base class not requiring a field
+// definition. Within BaseFields, the field definition is currently *only* used in getByteLength()
+// and in the insert before/after positionals methods.
 export class BaseFields {  // cannot make abstract, FieldParser creates temporary BaseField objects
     /**
      * Creates a new field set with all mandatory positional fields filled in.

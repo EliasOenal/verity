@@ -1,9 +1,9 @@
-import { Settings } from "../../core/settings";
+import { ApiMisuseError, Settings, VerityError } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
 import { CubeError, CubeKey } from "../../core/cube/cube.definitions";
 import { Cube, CubeOptions } from "../../core/cube/cube";
-import { FieldParser } from "../../core/fields/fieldParser";
+import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
 
 import { cciCube } from "./cciCube";
 import { cciFieldType } from "./cciCube.definitions";
@@ -18,6 +18,9 @@ import { cciFields } from "./cciFields";
 // We should consider dumping jest and using vitest instead; ESM support in
 // jest is still buggy and keeps causing problems.
 import { DoublyLinkedList, DoublyLinkedListNode } from '../../../node_modules/data-structure-typed/dist/cjs/data-structures/linked-list/doubly-linked-list';
+import { BaseFields } from "../../core/fields/baseFields";
+
+import sodium from 'libsodium-wrappers-sumo'
 
 /**
  * Don't split fields if a resulting chunk would be smaller than this amount
@@ -297,4 +300,98 @@ export class Continuation {
     }
     return macroCube;
   }
+
+
+  /**
+   * Note: Encryption should take place before splitting
+   * (as encryption adds a header and therefore slightly increases total size).
+   * Note: Caller must await sodium.ready before calling.
+   */
+  // Note: Implementing this here as I'm planning to morph Continuation into a general
+  // content-representing class that will be usually be used by CCI applications
+  // rather than dealing with Cubes directly.
+  // Let's call this a Veritum maybe... a unit of Verity :)
+  // Maybe TODO: use linked list instead of Array to avoid unnecessary copies?
+  static Encrypt(
+      fields: cciFields,
+      privateKey: Buffer|Uint8Array,
+      recipientPublicKey: Buffer|Uint8Array,
+      options: CubeOptions&{ exclude?: number[], mac?: boolean } = {},
+  ): cciFields {
+    // sanity-check input
+    if (recipientPublicKey?.length !== sodium.crypto_box_PUBLICKEYBYTES) {
+      throw new ApiMisuseError(`Encrypt(): recipientPublicKey must be ${sodium.crypto_box_PUBLICKEYBYTES} bytes, got ${recipientPublicKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
+    }
+    if (privateKey?.length !== sodium.crypto_box_SECRETKEYBYTES) {
+      throw new ApiMisuseError(`Encrypt(): privateKey must be ${sodium.crypto_box_SECRETKEYBYTES} bytes, got ${privateKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
+    }
+
+    // set default options
+    options.exclude ??= Continuation.ContinuationDefaultExclusions;
+    options.mac ??= true;
+
+    // Prepare list of fields to encrypt. This is basically all CCI fields,
+    // but not core Cube fields.
+    const toEncrypt: cciFields = new cciFields(undefined, fields.fieldDefinition);
+    // Also prepare the output field set. We will copy all fields not to be
+    // encrypted directly to output and add the encrypted content later.
+    const output: cciFields = new cciFields(undefined, fields.fieldDefinition);
+    for (const field of fields.all) {
+      if (!options.exclude.includes(field.type)) {
+        toEncrypt.appendField(field);
+      } else {
+        // Make a verbatim copy, except for garbage fields PADDING and CCI_END
+        if (field.type !== cciFieldType.PADDING &&
+            field.type === cciFieldType.CCI_END
+        ){
+          output.appendField(field);
+        }
+      }
+    }
+
+    // Create a random nonce and add it to the front of the output field set
+    const nonce: Buffer = Buffer.from(
+      sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES));
+    if (Settings.RUNTIME_ASSERTIONS && nonce.length !== NetConstants.CRYPTO_NONCE_SIZE) {
+      throw new CryptoError(`Libsodium's generated nonce size of ${nonce.length} does not match NetConstants.CRYPTO_NONCE_SIZE === ${NetConstants.CRYPTO_NONCE_SIZE}. This should never happen. Using an incompatible version of libsodium maybe?`);
+    }
+    output.insertFieldAfterFrontPositionals(cciField.CryptoNonce(nonce));
+
+    // Compile the fields to encrypt.
+    // This gives us the binary plaintext that we'll later encrypt.
+    // Note that this intermediate compilation never includes any positional
+    // fields; we therefore construct a new FieldDefinition without
+    // positionals and a corresponding FieldParser.
+    const intermediateFieldDef: FieldDefinition = Object.assign({}, fields.fieldDefinition);
+    intermediateFieldDef.positionalFront = {};
+    intermediateFieldDef.positionalBack = {};
+    const compiler: FieldParser = new FieldParser(intermediateFieldDef);
+    const plaintext: Buffer = compiler.compileFields(toEncrypt);
+
+    // Derive symmetric key
+    const key: Uint8Array = sodium.crypto_box_beforenm(
+      recipientPublicKey, privateKey);
+    if (Settings.RUNTIME_ASSERTIONS &&
+        key.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
+    ){
+      throw new CryptoError(`Libsodium's generated symmetric key size of ${key.length} does not match NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE === ${NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE}. This should never happen. Using an incompatible version of libsodium maybe?`);
+    }
+
+    // Perform encryption
+    // TODO: Support encryption to multiple parties
+    const encryption: sodium.SecretBox = sodium.crypto_secretbox_detached(
+      plaintext, nonce, key);
+
+    // Add the encrypted content to the output field set
+    output.insertFieldAfterFrontPositionals(
+      cciField.Encrypted(Buffer.from(encryption.cipher)));
+    if (options.mac === true) {
+      output.insertFieldAfterFrontPositionals(
+        cciField.CryptoMac(Buffer.from(encryption.mac)));
+    }
+
+    return output;
+  }
 }
+
+export class CryptoError extends VerityError { name = "CryptoError" }
