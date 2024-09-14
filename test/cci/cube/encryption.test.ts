@@ -30,7 +30,6 @@ describe('CCI encryption', () => {
       // Verify result by performing manual decryption:
       // extract cryptographic values
       const ciphertext: Buffer = encrypted.getFirst(cciFieldType.ENCRYPTED).value;
-      const mac: Buffer = encrypted.getFirst(cciFieldType.CRYPTO_MAC).value;
       const nonce: Buffer = encrypted.getFirst(cciFieldType.CRYPTO_NONCE).value;
 
       // manually derive key using the recipient's private key
@@ -39,8 +38,8 @@ describe('CCI encryption', () => {
       const keyAtSender: Uint8Array = sodium.crypto_box_beforenm(recipient.publicKey, sender.privateKey);
       expect(key).toEqual(keyAtSender);
       // manually decrypt
-      const decrypted: Uint8Array = sodium.crypto_secretbox_open_detached(
-        ciphertext, mac, nonce, key);
+      const decrypted: Uint8Array = sodium.crypto_secretbox_open_easy(
+        ciphertext, nonce, key);
 
       expect(Buffer.from(decrypted).toString()).toContain(plaintext);
     });

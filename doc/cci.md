@@ -36,11 +36,11 @@ General partition of type space:
 #### Core CCI fields
 | Type (Hex)  | Length | Field Name             | Description |
 |-------------|--------|------------------------|-------------------------------------------------------------------------------------|
-| 0x00        |      0 | Non-CCI Indicator      | Can only be the first field. Indicates that CCI is not used. For any other position 0x00 indicates end of CCI fields, the parser may stop. Should also be used before any kind of padding. |
+| 0x00        |      0 | Non-CCI Indicator      | Indicates that data following this field is not CCI parseable; CCI parsers should stop parsing here. Should also be used before any kind of padding. |
 | 0x01        |    var | Application Identifier | Unique identifier for the application.                                              |
-| 0x02        |    var | Encrypted content      | One or multiple CCI encrypted CCI fields                                            |
-| 0x03        |     24 | Encryption Nonce       | The nonce used for symmetric encryption; must always be provided alongside encrypted content. |
-| 0x04        |     16 | Encryption MAC         | The MAC used for symmetric encryption; must always be provided alongside encrypted content. |
+| 0x02        |    var | Encrypted content      | Contains encrypted data, which once decrypted should represent CCI-compatible fields. This field may only be used once per Cube or Veritum. |
+| 0x03        |     24 | Encryption Nonce       | The nonce used for symmetric encryption; must always be provided alongside encrypted content. This field may only be used once per Cube or Veritum. |
+| 0x04        |     16 | Encryption MAC         | (Currently UNUSED as libsodium includes the MAC with the ciphertext) The MAC used for symmetric encryption; must always be provided alongside encrypted content. This field may only be used once per Cube or Veritum. |
 | 0x05        |     32 | Encrypted symmetric key| In Cubes directed at multiple recipients, this provides each individual recipient with the key. |
 | 0x06        |    var | MUC/PMUC KDF hint/id   | Clients may store a value aiding in the re-calculation of the MUC/PMUC private key from a master key. (e.g. key derivation using BIP-44 or libsodium's crypto_kdf.) |
 | 0x04 - 0x0F |    TBD | Reserved               | Reserved for future standard fields that might be defined as the CCI evolves.       |

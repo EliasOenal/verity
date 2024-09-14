@@ -316,7 +316,7 @@ export class Continuation {
       fields: cciFields,
       privateKey: Buffer|Uint8Array,
       recipientPublicKey: Buffer|Uint8Array,
-      options: CubeOptions&{ exclude?: number[], mac?: boolean } = {},
+      options: CubeOptions&{ exclude?: number[] } = {},
   ): cciFields {
     // sanity-check input
     if (recipientPublicKey?.length !== sodium.crypto_box_PUBLICKEYBYTES) {
@@ -328,7 +328,6 @@ export class Continuation {
 
     // set default options
     options.exclude ??= Continuation.ContinuationDefaultExclusions;
-    options.mac ??= true;
 
     // Prepare list of fields to encrypt. This is basically all CCI fields,
     // but not core Cube fields.
@@ -379,18 +378,19 @@ export class Continuation {
 
     // Perform encryption
     // TODO: Support encryption to multiple parties
-    const encryption: sodium.SecretBox = sodium.crypto_secretbox_detached(
+    const encryption: Uint8Array = sodium.crypto_secretbox_easy(
       plaintext, nonce, key);
 
     // Add the encrypted content to the output field set
     output.insertFieldAfterFrontPositionals(
-      cciField.Encrypted(Buffer.from(encryption.cipher)));
-    if (options.mac === true) {
-      output.insertFieldAfterFrontPositionals(
-        cciField.CryptoMac(Buffer.from(encryption.mac)));
-    }
+      cciField.Encrypted(Buffer.from(encryption)));
 
     return output;
+  }
+
+
+  static Decrypt(fields: cciFields): cciFields {
+    return undefined;  // TODO implement
   }
 }
 
