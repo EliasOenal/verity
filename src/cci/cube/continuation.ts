@@ -437,9 +437,22 @@ export class Continuation {
     const decryptedFields: cciFields =
       parser.decompileFields(Buffer.from(plaintext)) as cciFields;
 
-    // Replace the encrypted fields with the decrypted fields
+    // Find the index of the ENCRYPTED field
+    const encryptedFieldIndex = fields.all.findIndex(field => field.type === cciFieldType.ENCRYPTED);
+    if (encryptedFieldIndex === -1) {
+      logger.trace("Decrypt(): ENCRYPTED field not found");
+      return fields;
+    }
+
+    // Insert the decrypted fields at the found index
     const output: cciFields = new cciFields(undefined, fields.fieldDefinition);
-    for (const field of fields.all) {
+    for (let i = 0; i < fields.all.length; i++) {
+      if (i === encryptedFieldIndex) {
+        for (const decryptedField of decryptedFields.all) {
+          output.appendField(decryptedField);
+        }
+      }
+      const field = fields.all[i];
       if (field.type !== cciFieldType.ENCRYPTED &&
           field.type !== cciFieldType.CRYPTO_NONCE &&
           field.type !== cciFieldType.CRYPTO_MAC &&
@@ -448,9 +461,6 @@ export class Continuation {
       ){
         output.appendField(field);
       }
-    }
-    for (const field of decryptedFields.all) {
-      output.appendField(field);
     }
 
     return output;

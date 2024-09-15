@@ -129,7 +129,7 @@ describe('CCI encryption', () => {
       expect(decrypted).toEqual(fields);
     });
 
-    it.skip('leaves core fields intact and unencrypted', () => {
+    it('leaves core fields intact and unencrypted', () => {
       const plaintext = "Campi fundamentales non possunt cryptari";
       const fields: cciFields = cciFields.DefaultPositionals(
         cciFrozenFieldDefinition,
