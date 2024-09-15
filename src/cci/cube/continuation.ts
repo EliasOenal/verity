@@ -21,6 +21,7 @@ import { DoublyLinkedList, DoublyLinkedListNode } from '../../../node_modules/da
 import { BaseFields } from "../../core/fields/baseFields";
 
 import sodium from 'libsodium-wrappers-sumo'
+import { logger } from "../../core/logger";
 
 /**
  * Don't split fields if a resulting chunk would be smaller than this amount
@@ -316,7 +317,7 @@ export class Continuation {
       fields: cciFields,
       privateKey: Buffer|Uint8Array,
       recipientPublicKey: Buffer|Uint8Array,
-      options: CubeOptions&{ exclude?: number[] } = {},
+      options: { exclude?: number[] } = {},
   ): cciFields {
     // sanity-check input
     if (recipientPublicKey?.length !== sodium.crypto_box_PUBLICKEYBYTES) {
@@ -341,7 +342,7 @@ export class Continuation {
       } else {
         // Make a verbatim copy, except for garbage fields PADDING and CCI_END
         if (field.type !== cciFieldType.PADDING &&
-            field.type === cciFieldType.CCI_END
+            field.type !== cciFieldType.CCI_END
         ){
           output.appendField(field);
         }
@@ -389,8 +390,70 @@ export class Continuation {
   }
 
 
-  static Decrypt(fields: cciFields): cciFields {
-    return undefined;  // TODO implement
+  /**
+   * @returns The supplied field set with the encrypted content replaced by
+   *   the plaintext fields, or the unchanged field set if decryption fails.
+   */
+  static Decrypt(
+      fields: cciFields,
+      privateKey: Buffer|Uint8Array,
+      senderPublicKey: Buffer|Uint8Array,
+  ): cciFields {
+    // Retrieve crypto fields and validate them
+    const nonce: Buffer = fields.getFirst(cciFieldType.CRYPTO_NONCE)?.value;
+    if (Settings.RUNTIME_ASSERTIONS && nonce?.length !== NetConstants.CRYPTO_NONCE_SIZE) {
+      logger.trace("Decrypt(): Cannot decrypt supplied fields as Nonce is missing or invalid");
+      return fields;
+    }
+    const ciphertext: Buffer = fields.getFirst(cciFieldType.ENCRYPTED)?.value;
+    if (Settings.RUNTIME_ASSERTIONS && !ciphertext?.length) {
+      logger.trace("Decrypt(): Cannot decrypt supplied fields as Ciphertext is missing or invalid");
+      return fields;
+    }
+
+    // Derive symmetric key
+    const key: Uint8Array = sodium.crypto_box_beforenm(
+      senderPublicKey, privateKey);
+    if (Settings.RUNTIME_ASSERTIONS &&
+        key.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
+    ){
+      logger.trace("Decrypt(): Cannot decrypt supplied fields as Symmetric key is missing or invalid");
+      return fields;
+    }
+
+    // Decrypt the ciphertext
+    const plaintext: Uint8Array = sodium.crypto_secretbox_open_easy(
+      ciphertext, nonce, key);
+    if (plaintext === null) {
+      logger.trace("Decrypt(): Decryption failed");
+      return fields;
+    }
+
+    // Parse the decrypted plaintext back into fields
+    const intermediateFieldDef: FieldDefinition = Object.assign({}, fields.fieldDefinition);
+    intermediateFieldDef.positionalFront = {};
+    intermediateFieldDef.positionalBack = {};
+    const parser: FieldParser = new FieldParser(intermediateFieldDef);
+    const decryptedFields: cciFields =
+      parser.decompileFields(Buffer.from(plaintext)) as cciFields;
+
+    // Replace the encrypted fields with the decrypted fields
+    const output: cciFields = new cciFields(undefined, fields.fieldDefinition);
+    for (const field of fields.all) {
+      if (field.type !== cciFieldType.ENCRYPTED &&
+          field.type !== cciFieldType.CRYPTO_NONCE &&
+          field.type !== cciFieldType.CRYPTO_MAC &&
+          field.type !== cciFieldType.CRYPTO_KEY &&
+          field.type !== cciFieldType.CRYPTO_PUBKEY
+      ){
+        output.appendField(field);
+      }
+    }
+    for (const field of decryptedFields.all) {
+      output.appendField(field);
+    }
+
+    return output;
   }
 }
 

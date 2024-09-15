@@ -42,7 +42,8 @@ General partition of type space:
 | 0x03        |     24 | Encryption Nonce       | The nonce used for symmetric encryption; must always be provided alongside encrypted content. This field may only be used once per Cube or Veritum. |
 | 0x04        |     16 | Encryption MAC         | (Currently UNUSED as libsodium includes the MAC with the ciphertext) The MAC used for symmetric encryption; must always be provided alongside encrypted content. This field may only be used once per Cube or Veritum. |
 | 0x05        |     32 | Encrypted symmetric key| In Cubes directed at multiple recipients, this provides each individual recipient with the key. |
-| 0x06        |    var | MUC/PMUC KDF hint/id   | Clients may store a value aiding in the re-calculation of the MUC/PMUC private key from a master key. (e.g. key derivation using BIP-44 or libsodium's crypto_kdf.) |
+| 0x06        |        | Encryption public key  | Sender should supplied their encryption public key if it is not already known to the receiver. |
+| 0x07        |    var | MUC/PMUC KDF hint/id   | Clients may store a value aiding in the re-calculation of the MUC/PMUC private key from a master key. (e.g. key derivation using BIP-44 or libsodium's crypto_kdf.) |
 | 0x04 - 0x0F |    TBD | Reserved               | Reserved for future standard fields that might be defined as the CCI evolves.       |
 
 Standardized fields are defined to establish a universal foundation for payloads, ensuring a consistent and straightforward interpretation across different applications.
