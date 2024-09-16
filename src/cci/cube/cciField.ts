@@ -43,6 +43,10 @@ export class cciField extends CubeField {
     return new this(cciFieldType.CRYPTO_KEY, encryptedKey);
   }
 
+  static CryptoPubkey(pubkey: Buffer): cciField {
+    return new this(cciFieldType.CRYPTO_PUBKEY, pubkey);
+  }
+
   static SubkeySeed(buf: Buffer | Uint8Array): CubeField {
     if (!(buf instanceof Buffer)) buf = Buffer.from(buf);
     return new CubeField(cciFieldType.SUBKEY_SEED, buf as Buffer);
