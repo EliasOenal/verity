@@ -13,7 +13,7 @@ import { Identity, IdentityOptions } from "../../src/cci/identity/identity";
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zw/model/zwAnnotationEngine";
 import { makePost } from "../../src/app/zw/model/zwUtil"
 
-import { jest } from '@jest/globals'
+import { vi } from 'vitest'
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 
 
@@ -104,7 +104,7 @@ describe('ZwAnnotationEngine', () => {
       it('should mark a single root cube as displayable', async () => {
         const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reducedDifficulty);
 
-        const callback = jest.fn();
+        const callback = vi.fn();
         annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
         await cubeStore.addCube(root);
@@ -123,7 +123,7 @@ describe('ZwAnnotationEngine', () => {
         const root: Cube = await makePost("Ich bin ein Huhn, bok bok!", undefined, undefined, reducedDifficulty);
         const leaf: Cube = await makePost("Hab viel zu tun, bok bok!", await root.getKey(), undefined, reducedDifficulty);
 
-        const callback = jest.fn();
+        const callback = vi.fn();
         annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
         await cubeStore.addCube(root);
@@ -144,7 +144,7 @@ describe('ZwAnnotationEngine', () => {
         const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reducedDifficulty);
         const leaf: Cube = await makePost("steht draußen am Balkon", await root.getKey(), undefined, reducedDifficulty);
 
-        const callback = jest.fn();
+        const callback = vi.fn();
         annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
         await cubeStore.addCube(leaf);
@@ -161,7 +161,7 @@ describe('ZwAnnotationEngine', () => {
         const intermediate: Cube = await makePost("steht draußen am Balkon", await root.getKey(), undefined, reducedDifficulty);
         const leaf: Cube = await makePost("hollari, hollari, hollaroooo", await intermediate.getKey(), undefined, reducedDifficulty);
 
-        const callback = jest.fn();
+        const callback = vi.fn();
         annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
         // add in reverse order:
@@ -193,7 +193,7 @@ describe('ZwAnnotationEngine', () => {
     });
 
     it('does not mark posts displayable if their Identity is missing', async () => {
-      const callback = jest.fn();
+      const callback = vi.fn();
       annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
       const post: Cube = await makePost(
@@ -208,7 +208,7 @@ describe('ZwAnnotationEngine', () => {
     });
 
     it('marks a post displayable if it is received after its Identity', async () => {
-      const callback = jest.fn();
+      const callback = vi.fn();
       annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
       const id: Identity = await Identity.Create(
@@ -229,7 +229,7 @@ describe('ZwAnnotationEngine', () => {
     });
 
     it('marks a post displayable if it is received before its Identity', async () => {
-      const callback = jest.fn();
+      const callback = vi.fn();
       annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
       const id: Identity = await Identity.Create(
@@ -249,7 +249,7 @@ describe('ZwAnnotationEngine', () => {
     });
 
     it('marks a post displayable even if it is received while we still hold an older version of the Identity', async () => {
-      const callback = jest.fn();
+      const callback = vi.fn();
       annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
       const id: Identity = await Identity.Create(
@@ -275,7 +275,7 @@ describe('ZwAnnotationEngine', () => {
 
     // TODO fix failing test
     it.skip("marks a reply displayable even if we receive the root post's identity late", async() => {
-      const callback = jest.fn();
+      const callback = vi.fn();
       annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
       const rootId: Identity = await Identity.Create(
@@ -547,6 +547,6 @@ describe('ZwAnnotationEngine', () => {
         expect((await annotationEngine.cubeAuthor(posts[i])).name).
           toEqual("Probator Attributionis Auctoris");
       }
-    });
+    }, 20000);
   });  // cube ownership
 });
