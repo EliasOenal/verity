@@ -3,7 +3,7 @@ import { MediaTypes, cciAdditionalFieldType, cciFieldLength, cciFieldType } from
 import { cciField } from "../../../src/cci/cube/cciField";
 import { cciFields } from "../../../src/cci/cube/cciFields";
 import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
-import { Continuation } from "../../../src/cci/cube/continuation";
+import { Continuation } from "../../../src/cci/veritum/continuation";
 import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
 import { CubeStoreOptions, CubeStore } from "../../../src/core/cube/cubeStore";
 import { CubeRetriever } from "../../../src/core/networking/cubeRetrieval/cubeRetriever";
