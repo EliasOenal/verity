@@ -5,6 +5,7 @@ import { CubeFieldType } from '../../../src/core/cube/cube.definitions';
 import { Decrypt, Encrypt } from '../../../src/cci/veritum/encryption';
 
 import sodium from 'libsodium-wrappers-sumo';
+import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 describe('CCI encryption', () => {
   let sender: sodium.KeyPair;
@@ -27,8 +28,8 @@ describe('CCI encryption', () => {
       // Call tested function
       const encrypted: cciFields = Encrypt(
         fields,
-        sender.privateKey,
-        recipient.publicKey,
+        Buffer.from(sender.privateKey),
+        Buffer.from(recipient.publicKey),
       );
 
       // Verify result by performing manual decryption:
@@ -39,7 +40,7 @@ describe('CCI encryption', () => {
       // manually derive key using the recipient's private key
       const key: Uint8Array = sodium.crypto_box_beforenm(sender.publicKey, recipient.privateKey);
       // for verification, also derive key using the sender's public key
-      const keyAtSender: Uint8Array = sodium.crypto_box_beforenm(recipient.publicKey, sender.privateKey);
+      const keyAtSender: Uint8Array = sodium.crypto_box_beforenm(Buffer.from(recipient.publicKey), sender.privateKey);
       expect(key).toEqual(keyAtSender);
       // manually decrypt
       const decrypted: Uint8Array = sodium.crypto_secretbox_open_easy(
@@ -48,6 +49,7 @@ describe('CCI encryption', () => {
       expect(Buffer.from(decrypted).toString()).toContain(plaintext);
     });
   });
+
 
   describe('Encrypt()-Decrypt() round-trip tests', () => {
     it('correctly encrypts and decrypts a single payload field', () => {
@@ -60,8 +62,8 @@ describe('CCI encryption', () => {
       // Encrypt the fields
       const encrypted: cciFields = Encrypt(
         fields,
-        sender.privateKey,
-        recipient.publicKey,
+        Buffer.from(sender.privateKey),
+        Buffer.from(recipient.publicKey),
       );
 
       // Verify that the encrypted fields contain an encypted content field,
@@ -76,14 +78,15 @@ describe('CCI encryption', () => {
       // Decrypt the fields
       const decrypted: cciFields = Decrypt(
         encrypted,
-        recipient.privateKey,
-        sender.publicKey,
+        Buffer.from(recipient.privateKey),
+        Buffer.from(sender.publicKey),
       );
 
       // Verify that the decrypted fields match the original fields
       expect(decrypted.getFirst(cciFieldType.PAYLOAD).valueString).toEqual(plaintext);
       expect(decrypted).toEqual(fields);
     });
+
 
     it('correctly encrypts and decrypts multiple fields', () => {
       const plaintext = "Omnes campi mei secreti sunt";
@@ -102,8 +105,8 @@ describe('CCI encryption', () => {
       // Encrypt the fields
       const encrypted: cciFields = Encrypt(
         fields,
-        sender.privateKey,
-        recipient.publicKey,
+        Buffer.from(sender.privateKey),
+        Buffer.from(recipient.publicKey),
       );
 
       // Verify that the encrypted fields contain an encypted content field,
@@ -122,13 +125,14 @@ describe('CCI encryption', () => {
       // Decrypt the fields
       const decrypted: cciFields = Decrypt(
         encrypted,
-        recipient.privateKey,
-        sender.publicKey,
+        Buffer.from(recipient.privateKey),
+        Buffer.from(sender.publicKey),
       );
 
       // Verify that the decrypted fields match the original fields
       expect(decrypted).toEqual(fields);
     });
+
 
     it('leaves core fields intact and unencrypted', () => {
       const plaintext = "Campi fundamentales non possunt cryptari";
@@ -145,8 +149,8 @@ describe('CCI encryption', () => {
       // Encrypt the fields
       const encrypted: cciFields = Encrypt(
         fields,
-        sender.privateKey,
-        recipient.publicKey,
+        Buffer.from(sender.privateKey),
+        Buffer.from(recipient.publicKey),
       );
 
       // Verify that the encrypted fields contain an encypted content field
@@ -159,13 +163,155 @@ describe('CCI encryption', () => {
       // Decrypt the fields
       const decrypted: cciFields = Decrypt(
         encrypted,
-        recipient.privateKey,
-        sender.publicKey,
+        Buffer.from(recipient.privateKey),
+        Buffer.from(sender.publicKey),
       );
 
       // Verify that the decrypted fields match the original fields
       expect(decrypted).toEqual(fields);
     });
-  });
+
+
+    it('includes the public key with the encrypted payload if supplied', () => {
+      const plaintext = 'Decodificare facile est, nam clavis publica inclusa est';
+      const fields: cciFields = new cciFields(
+        cciField.Payload(plaintext),
+        cciFrozenFieldDefinition,
+      );
+
+      // Encrypt the fields
+      const encrypted: cciFields = Encrypt(
+        fields,
+        Buffer.from(sender.privateKey),
+        Buffer.from(recipient.publicKey),
+        { includeSenderPubkey: Buffer.from(sender.publicKey) },
+      );
+
+      // Verify that the encrypted fields contain an encypted content field,
+      // a crypto nonce field as well as a public key field, but no payload field
+      expect(encrypted.getFirst(cciFieldType.ENCRYPTED)).toBeTruthy();
+      expect(encrypted.getFirst(cciFieldType.CRYPTO_PUBKEY)).toBeTruthy();
+      expect(encrypted.getFirst(cciFieldType.CRYPTO_NONCE)).toBeTruthy();
+      expect(encrypted.getFirst(cciFieldType.PAYLOAD)).toBeFalsy();
+      // Verify that no field contains the plaintext
+      for (const field of encrypted.all) {
+        expect(field.valueString).not.toContain(plaintext);
+      }
+
+      // Decrypt the fields
+      const decrypted: cciFields = Decrypt(encrypted, Buffer.from(recipient.privateKey));
+
+      // Verify that the decrypted fields match the original fields
+      expect(decrypted.getFirst(cciFieldType.PAYLOAD).valueString).toEqual(plaintext);
+      expect(decrypted).toEqual(fields);
+    });
+  });  // Encrypt()-Decrypt() round-trip tests
+
+
+  describe('Decrypt() edge case tests', () => {
+    it('fails gently if no pubkey provided on decryption', () => {
+      const plaintext = "Cryptographia clavi publicae sine clave publica decriptari nequit"
+      const fields: cciFields = new cciFields(
+        cciField.Payload(plaintext),
+        cciFrozenFieldDefinition,
+      );
+
+      // Encrypt the fields
+      const encrypted: cciFields = Encrypt(
+        fields,
+        Buffer.from(sender.privateKey),
+        Buffer.from(recipient.publicKey),
+      );
+
+      // Attempt decryption
+      const decrypted: cciFields = Decrypt(
+        encrypted,
+        Buffer.from(recipient.privateKey),
+      );
+
+      // Expect fields unchanged, i.e. no decryption performed
+      expect(decrypted).toEqual(encrypted);
+    });
+
+
+    it('fails gently if pubkey is invalid on decryption', () => {
+      const plaintext = "Si clavis publica invalida est, decryptio deficiet"
+      const fields: cciFields = new cciFields(
+        cciField.Payload(plaintext),
+        cciFrozenFieldDefinition,
+      );
+
+      // Encrypt the fields
+      const encrypted: cciFields = Encrypt(
+        fields,
+        Buffer.from(sender.privateKey),
+        Buffer.from(recipient.publicKey),
+      );
+
+      // Fake an invalid pubkey
+      const invalidPubkey = Buffer.alloc(NetConstants.PUBLIC_KEY_SIZE, 0xff);
+      // Attempt decryption
+      const decrypted: cciFields = Decrypt(
+        encrypted,
+        Buffer.from(recipient.privateKey),
+        invalidPubkey
+      );
+
+      // Expect fields unchanged, i.e. no decryption performed
+      expect(decrypted).toEqual(encrypted);
+    });
+
+
+    it('fails gently if no nonce provided on decryption', () => {
+      const plaintext = "Decryptio impossibilis est sine numere unico"
+      const fields: cciFields = new cciFields(
+        cciField.Payload(plaintext),
+        cciFrozenFieldDefinition,
+      );
+
+      // Encrypt the fields
+      const encrypted: cciFields = Encrypt(
+        fields,
+        Buffer.from(sender.privateKey),
+        Buffer.from(recipient.publicKey),
+      );
+
+      // Remove the nonce
+      const nonce = encrypted.getFirst(cciFieldType.CRYPTO_NONCE);
+      encrypted.removeField(nonce);
+
+      // Attempt decryption
+      const decrypted: cciFields = Decrypt(encrypted, Buffer.from(recipient.privateKey));
+
+      // Expect fields unchanged, i.e. no decryption performed
+      expect(decrypted).toEqual(encrypted);
+    });
+
+
+    it('fails gently if nonce is invalid on decryption', () => {
+      const plaintext = "Si numere unico non sit validus, decryptio deficiet"
+      const fields: cciFields = new cciFields(
+        cciField.Payload(plaintext),
+        cciFrozenFieldDefinition,
+      );
+
+      // Encrypt the fields
+      const encrypted: cciFields = Encrypt(
+        fields,
+        Buffer.from(sender.privateKey),
+        Buffer.from(recipient.publicKey),
+      );
+
+      // Temper with nonce
+      const nonce = encrypted.getFirst(cciFieldType.CRYPTO_NONCE);
+      nonce.value.writeUint16BE(31337);
+
+      // Attempt decryption
+      const decrypted: cciFields = Decrypt(encrypted, Buffer.from(recipient.privateKey));
+
+      // Expect fields unchanged, i.e. no decryption performed
+      expect(decrypted).toEqual(encrypted);
+    });
+  });  // Decrypt() edge case tests
 
 });

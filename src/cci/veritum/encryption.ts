@@ -10,7 +10,13 @@ import { logger } from "../../core/logger";
 
 import sodium from 'libsodium-wrappers-sumo'
 
+export interface CciEncryptionOptions {
+  exclude?: number[],
+  includeSenderPubkey?: Buffer,
+}
+
 /**
+ * Encrypts a CCI field set
  * Note: Encryption should take place before splitting
  * (as encryption adds a header and therefore slightly increases total size)
  * and before Cube compilation (as this may introduce padding fields which
@@ -24,9 +30,9 @@ import sodium from 'libsodium-wrappers-sumo'
 // Maybe TODO: use linked list instead of Array to avoid unnecessary copies?
 export function Encrypt(
     fields: cciFields,
-    privateKey: Buffer|Uint8Array,
-    recipientPublicKey: Buffer|Uint8Array,
-    options: { exclude?: number[] } = {},
+    privateKey: Buffer,
+    recipientPublicKey: Buffer,
+    options: CciEncryptionOptions = {},
 ): cciFields {
   // sanity-check input
   if (recipientPublicKey?.length !== sodium.crypto_box_PUBLICKEYBYTES) {
@@ -66,6 +72,12 @@ export function Encrypt(
   }
   output.insertFieldAfterFrontPositionals(cciField.CryptoNonce(nonce));
 
+  // If requested, include the public key with the encrypted message
+  if (options.includeSenderPubkey) {
+    output.insertFieldAfterFrontPositionals(
+      cciField.CryptoPubkey(options.includeSenderPubkey));
+  }
+
   // Compile the fields to encrypt.
   // This gives us the binary plaintext that we'll later encrypt.
   // Note that this intermediate compilation never includes any positional
@@ -100,20 +112,33 @@ export function Encrypt(
 
 
 /**
+ * Decrypts a CCI field set
+ * @param fields - The CCI field set to decrypt
+ * @param privateKey - The recipient's private key.
+ *   Note this must be the *encryption* pubkey, not the "regular" signing one.
+ * @param senderPublicKey - The sender's public key.
+ *   Note this must be the *encryption* pubkey, not the "regular" signing one,
+ *   i.e. this is *not* the sender's Identity key.
+ *   If not supplied, we will attempt to retrieve it from the field set.
+ *   If we can't find it, no decryption will be performed.
  * @returns The supplied field set with the encrypted content replaced by
  *   the plaintext fields, or the unchanged field set if decryption fails.
  */
 export function Decrypt(
     fields: cciFields,
-    privateKey: Buffer|Uint8Array,
-    senderPublicKey: Buffer|Uint8Array,
+    privateKey: Buffer,
+    senderPublicKey?: Buffer,
 ): cciFields {
   // sanity-check input
   if (privateKey?.length !== sodium.crypto_box_SECRETKEYBYTES) {
     throw new ApiMisuseError(`Encrypt(): privateKey must be ${sodium.crypto_box_SECRETKEYBYTES} bytes, got ${privateKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
   }
+  if (senderPublicKey === undefined) {
+    senderPublicKey = fields.getFirst(cciFieldType.CRYPTO_PUBKEY)?.value;
+  }
   if (senderPublicKey?.length !== sodium.crypto_box_PUBLICKEYBYTES) {
-    throw new ApiMisuseError(`Encrypt(): recipientPublicKey must be ${sodium.crypto_box_PUBLICKEYBYTES} bytes, got ${senderPublicKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
+    logger.trace("Decrypt(): Cannot decrypt supplied fields as Public key is missing or invalid");
+    return fields;  // fail gently on any potential outside-world errors
   }
 
   // Retrieve crypto fields and validate them
@@ -139,10 +164,16 @@ export function Decrypt(
   }
 
   // Decrypt the ciphertext
-  const plaintext: Uint8Array = sodium.crypto_secretbox_open_easy(
-    ciphertext, nonce, key);
-  if (plaintext === null) {
-    logger.trace("Decrypt(): Decryption failed");
+
+  let plaintext: Uint8Array;
+  try {
+    plaintext = sodium.crypto_secretbox_open_easy(ciphertext, nonce, key);
+  } catch (err) {
+    logger.trace("Decrypt(): Decryption failed: " + err);
+    return fields;
+  }
+  if (!plaintext) {
+    logger.trace("Decrypt(): Decryption failed for unknown reason");
     return fields;
   }
 
