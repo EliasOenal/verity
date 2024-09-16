@@ -1,17 +1,17 @@
 import { ShortenableTimeout } from "../../../src/core/helpers/shortenableTimeout";
 
-import { jest } from '@jest/globals'
+import { vi } from 'vitest'
 
 describe("ShortenableTimeout", () => {
   let shortenableTimeout: ShortenableTimeout;
 
   beforeEach(() => {
-    shortenableTimeout = new ShortenableTimeout(jest.fn());
+    shortenableTimeout = new ShortenableTimeout(vi.fn());
   });
 
   it("should execute callback after specified delay", (done) => {
     const delay = 100; // 100 milliseconds
-    const callback = jest.fn();
+    const callback = vi.fn();
 
     shortenableTimeout = new ShortenableTimeout(callback);
     shortenableTimeout.set(delay);
@@ -28,7 +28,7 @@ describe("ShortenableTimeout", () => {
     const delay1 = 100;
     const delay2 = 50;
 
-    const callback = jest.fn();
+    const callback = vi.fn();
 
     shortenableTimeout = new ShortenableTimeout(callback);
     shortenableTimeout.set(delay1);
@@ -47,7 +47,7 @@ describe("ShortenableTimeout", () => {
     const delay1 = 100;
     const delay2 = 200;
 
-    const callback = jest.fn();
+    const callback = vi.fn();
 
     shortenableTimeout = new ShortenableTimeout(callback);
     shortenableTimeout.set(delay1);
@@ -66,7 +66,7 @@ describe("ShortenableTimeout", () => {
     const delay1 = 300;
     const delay2 = 200;
 
-    const callback = jest.fn();
+    const callback = vi.fn();
 
     shortenableTimeout = new ShortenableTimeout(callback);
     shortenableTimeout.set(delay1);
@@ -93,7 +93,7 @@ describe("ShortenableTimeout", () => {
 
   it('should set a new timeout if the previous one has already fired', (done) => {
     const delay = 50;
-    const callback = jest.fn();
+    const callback = vi.fn();
 
     shortenableTimeout = new ShortenableTimeout(callback);
     shortenableTimeout.set(delay);
