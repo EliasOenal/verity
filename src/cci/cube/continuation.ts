@@ -399,6 +399,14 @@ export class Continuation {
       privateKey: Buffer|Uint8Array,
       senderPublicKey: Buffer|Uint8Array,
   ): cciFields {
+    // sanity-check input
+    if (privateKey?.length !== sodium.crypto_box_SECRETKEYBYTES) {
+      throw new ApiMisuseError(`Encrypt(): privateKey must be ${sodium.crypto_box_SECRETKEYBYTES} bytes, got ${privateKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
+    }
+    if (senderPublicKey?.length !== sodium.crypto_box_PUBLICKEYBYTES) {
+      throw new ApiMisuseError(`Encrypt(): recipientPublicKey must be ${sodium.crypto_box_PUBLICKEYBYTES} bytes, got ${senderPublicKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
+    }
+
     // Retrieve crypto fields and validate them
     const nonce: Buffer = fields.getFirst(cciFieldType.CRYPTO_NONCE)?.value;
     if (Settings.RUNTIME_ASSERTIONS && nonce?.length !== NetConstants.CRYPTO_NONCE_SIZE) {
