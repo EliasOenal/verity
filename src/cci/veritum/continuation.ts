@@ -17,7 +17,7 @@ import { cciFields } from "../cube/cciFields";
 // to import this lib properly.
 // We should consider dumping jest and using vitest instead; ESM support in
 // jest is still buggy and keeps causing problems.
-import { DoublyLinkedList, DoublyLinkedListNode } from 'data-structure-typed/dist/cjs/data-structures/linked-list/doubly-linked-list';
+import { DoublyLinkedList, DoublyLinkedListNode } from 'data-structure-typed';
 
 /**
  * Don't split fields if a resulting chunk would be smaller than this amount

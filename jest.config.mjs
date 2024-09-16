@@ -2,6 +2,7 @@ export default {
   preset: 'ts-jest/presets/js-with-ts-esm',
   testEnvironment: 'node',
   testTimeout: 15000,
+  testMatch: ["**/jest/**/*.test.ts"],
   runner: 'jest-runner',
   maxWorkers: 8, // Number of parallel processes for running test suites
   modulePathIgnorePatterns: ["<rootDir>/dist/"]
