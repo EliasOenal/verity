@@ -1,9 +1,10 @@
-import sodium from 'libsodium-wrappers-sumo';
 import { cciFields, cciFrozenFieldDefinition } from '../../../src/cci/cube/cciFields';
 import { cciField } from '../../../src/cci/cube/cciField';
-import { Continuation } from '../../../src/cci/cube/continuation';
 import { MediaTypes, cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { CubeFieldType } from '../../../src/core/cube/cube.definitions';
+import { Decrypt, Encrypt } from '../../../src/cci/veritum/encryption';
+
+import sodium from 'libsodium-wrappers-sumo';
 
 describe('CCI encryption', () => {
   let sender: sodium.KeyPair;
@@ -24,7 +25,7 @@ describe('CCI encryption', () => {
       ) as cciFields;
 
       // Call tested function
-      const encrypted: cciFields = Continuation.Encrypt(
+      const encrypted: cciFields = Encrypt(
         fields,
         sender.privateKey,
         recipient.publicKey,
@@ -57,7 +58,7 @@ describe('CCI encryption', () => {
       );
 
       // Encrypt the fields
-      const encrypted: cciFields = Continuation.Encrypt(
+      const encrypted: cciFields = Encrypt(
         fields,
         sender.privateKey,
         recipient.publicKey,
@@ -73,7 +74,7 @@ describe('CCI encryption', () => {
       }
 
       // Decrypt the fields
-      const decrypted: cciFields = Continuation.Decrypt(
+      const decrypted: cciFields = Decrypt(
         encrypted,
         recipient.privateKey,
         sender.publicKey,
@@ -99,7 +100,7 @@ describe('CCI encryption', () => {
       );
 
       // Encrypt the fields
-      const encrypted: cciFields = Continuation.Encrypt(
+      const encrypted: cciFields = Encrypt(
         fields,
         sender.privateKey,
         recipient.publicKey,
@@ -119,7 +120,7 @@ describe('CCI encryption', () => {
       }
 
       // Decrypt the fields
-      const decrypted: cciFields = Continuation.Decrypt(
+      const decrypted: cciFields = Decrypt(
         encrypted,
         recipient.privateKey,
         sender.publicKey,
@@ -142,7 +143,7 @@ describe('CCI encryption', () => {
       expect(fields.getFirst(CubeFieldType.NONCE)).toBeTruthy();
 
       // Encrypt the fields
-      const encrypted: cciFields = Continuation.Encrypt(
+      const encrypted: cciFields = Encrypt(
         fields,
         sender.privateKey,
         recipient.publicKey,
@@ -156,7 +157,7 @@ describe('CCI encryption', () => {
       expect(encrypted.getFirst(CubeFieldType.NONCE)).toBeTruthy();
 
       // Decrypt the fields
-      const decrypted: cciFields = Continuation.Decrypt(
+      const decrypted: cciFields = Decrypt(
         encrypted,
         recipient.privateKey,
         sender.publicKey,
@@ -165,8 +166,6 @@ describe('CCI encryption', () => {
       // Verify that the decrypted fields match the original fields
       expect(decrypted).toEqual(fields);
     });
-
-    it.todo('removes any CCI_END or PADDING fields');
   });
 
 });
