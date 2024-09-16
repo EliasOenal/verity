@@ -3,7 +3,7 @@ import rawPlugin from 'vite-raw-plugin'
 
 export default defineConfig({
   test: {
-    include: ['vitest/**/*.test.ts'],
+    include: ['test/**/*.test.ts'],
     globals: true,
     poolOptions: {
       threads: {

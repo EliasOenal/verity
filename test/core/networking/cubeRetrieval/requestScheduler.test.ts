@@ -10,10 +10,11 @@ import { CubeStore, CubeStoreOptions } from "../../../../src/core/cube/cubeStore
 import { DummyNetworkPeer, NetworkPeer, NetworkPeerIf } from "../../../../src/core/networking/networkPeer";
 import { unixtime } from "../../../../src/core/helpers/misc";
 
-import { jest } from '@jest/globals'
 import { Settings } from "../../../../src/core/settings";
 import { CubeFilterOptions, KeyRequestMode } from "../../../../src/core/networking/networkMessage";
 import { PeerDB } from "../../../../src/core/peering/peerDB";
+
+import { vi } from 'vitest'
 
 const reducedDifficulty = 0;
 
@@ -61,7 +62,7 @@ describe('RequestScheduler', () => {
     });
 
     afterEach(async () => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       await cubeStore.shutdown();
       scheduler.shutdown();
     });
@@ -130,8 +131,8 @@ describe('RequestScheduler', () => {
         // note! we cannot spy on performCubeRequest() directly, because it is
         // not called directly as a method; instead it is called as a callback
         // from within cubeRequestTimer.
-        const performCubeRequest = jest.spyOn((scheduler as any).cubeRequestTimer, 'callback');
-        const sendCubeRequest = jest.spyOn(dummyPeer as any, 'sendCubeRequest');
+        const performCubeRequest = vi.spyOn((scheduler as any).cubeRequestTimer, 'callback');
+        const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
 
         scheduler.requestCube(testKey);
         await new Promise(resolve => setTimeout(resolve, 200));  // give it some time
@@ -151,8 +152,8 @@ describe('RequestScheduler', () => {
 
       it(`should group together multiple Cube requests as a ${lightNode? 'light node':'full node'}`, async() => {
         // prepare spies
-        const performCubeRequest = jest.spyOn((scheduler as any).cubeRequestTimer, 'callback');
-        const sendCubeRequest = jest.spyOn(dummyPeer as any, 'sendCubeRequest');
+        const performCubeRequest = vi.spyOn((scheduler as any).cubeRequestTimer, 'callback');
+        const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
 
         // Make a request. It should not be executed immediately, but
         // instead be grouped together with the next one below.
@@ -191,8 +192,8 @@ describe('RequestScheduler', () => {
         scheduler.options.lightNode = true;
 
         // prepare spies
-        const performCubeRequest = jest.spyOn((scheduler as any).cubeRequestTimer, 'callback');
-        const sendCubeRequest = jest.spyOn(dummyPeer, 'sendCubeRequest');
+        const performCubeRequest = vi.spyOn((scheduler as any).cubeRequestTimer, 'callback');
+        const sendCubeRequest = vi.spyOn(dummyPeer, 'sendCubeRequest');
 
         // make request
         scheduler.subscribeCube(testKey);
@@ -234,8 +235,8 @@ describe('RequestScheduler', () => {
           expect(oldCubeInfo.date).toBe(date);
 
           // prepare to spy on method calls
-          const performCubeRequest = jest.spyOn((scheduler as any).cubeRequestTimer, 'callback');
-          const sendCubeRequest = jest.spyOn(dummyPeer as any, 'sendCubeRequest');
+          const performCubeRequest = vi.spyOn((scheduler as any).cubeRequestTimer, 'callback');
+          const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
 
           // perform test
           await scheduler.handleCubesOffered([oldCubeInfo], dummyPeer);
@@ -268,8 +269,8 @@ describe('RequestScheduler', () => {
           // note: spying on performCubeRequest directly as in this context
           // it is called directly by scheduler.handleCubesOffered() and not
           // scheduled / called back to.
-          const performCubeRequest = jest.spyOn((scheduler as any), 'performCubeRequest');
-          const sendCubeRequest = jest.spyOn(dummyPeer as any, 'sendCubeRequest');
+          const performCubeRequest = vi.spyOn((scheduler as any), 'performCubeRequest');
+          const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
 
           // perform test
           await scheduler.handleCubesOffered([testCubeInfo], dummyPeer);
@@ -308,8 +309,8 @@ describe('RequestScheduler', () => {
           // note: spying on performCubeRequest directly as in this context
           // it is called directly by scheduler.handleCubesOffered() and not
           // scheduled / called back to.
-          const performCubeRequest = jest.spyOn((scheduler as any), 'performCubeRequest');
-          const sendCubeRequest = jest.spyOn(dummyPeer as any, 'sendCubeRequest');
+          const performCubeRequest = vi.spyOn((scheduler as any), 'performCubeRequest');
+          const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
 
           // perform test
           await scheduler.handleCubesOffered([testCubeInfo], dummyPeer);
@@ -342,8 +343,8 @@ describe('RequestScheduler', () => {
           const testCubeInfo = await oldCube.getCubeInfo();
 
           // prepare to spy on method calls
-          const performCubeRequest = jest.spyOn((scheduler as any).cubeRequestTimer, 'callback');
-          const sendCubeRequest = jest.spyOn(dummyPeer as any, 'sendCubeRequest');
+          const performCubeRequest = vi.spyOn((scheduler as any).cubeRequestTimer, 'callback');
+          const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
 
           // perform test
           await scheduler.handleCubesOffered([testCubeInfo], dummyPeer);
