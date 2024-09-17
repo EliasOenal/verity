@@ -126,7 +126,7 @@ describe('Identity', () => {
       const keyB: CubeKey = await postB.getKey();  // implicitly compiles postB
       await cubeStore.addCube(postB);
       // complete circular reference
-      postA.fields.insertFieldBeforeBackPositionals(
+      postA.insertFieldBeforeBackPositionals(
         cciField.RelatesTo(new cciRelationship(
           cciRelationshipType.MYPOST, keyB)));
       await postA.compile();

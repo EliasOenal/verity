@@ -43,6 +43,8 @@ export interface Veritable {
    **/
   fieldsEqual(other: BaseVeritable): boolean;
 
+  get fieldCount(): number;
+
   /**
    * @returns The length in bytes of all of this veritable structure's fields,
    *   including any headers if applicable.
@@ -129,6 +131,8 @@ export class BaseVeritable {
   fieldsEqual(other: BaseVeritable): boolean {
     return this._fields.equals(other._fields);
   }
+
+  get fieldCount(): number { return this._fields.length }
 
   get byteLength(): number { return this._fields.getByteLength() }
 

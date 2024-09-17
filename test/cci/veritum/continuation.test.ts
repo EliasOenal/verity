@@ -23,10 +23,10 @@ describe('Continuation', () => {
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(tooLong);
-      macroCube.fields.insertFieldBeforeBackPositionals(payloadMacrofield);
+      macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
       // just assert our macro Cube looks like what we expect
-      expect(macroCube.fields.all.length).toEqual(4);
+      expect(macroCube.fieldCount).toEqual(4);
       expect(macroCube.fields.all[0].type).toEqual(cciFieldType.TYPE);
       expect(macroCube.fields.all[1].type).toEqual(cciFieldType.PAYLOAD);
       expect(macroCube.fields.all[2].type).toEqual(cciFieldType.DATE);
@@ -37,13 +37,13 @@ describe('Continuation', () => {
 
       expect(splitCubes.length).toEqual(2);
 
-      expect(splitCubes[0].fields.getByteLength()).toEqual(1024);
+      expect(splitCubes[0].getFieldLength()).toEqual(1024);
       expect(splitCubes[0].fields.all[0].type).toEqual(cciFieldType.TYPE);
       expect(splitCubes[0].fields.all[1].type).toEqual(cciFieldType.RELATES_TO);
       expect(splitCubes[0].fields.all[2].type).toEqual(cciFieldType.PAYLOAD);
       expect(splitCubes[0].fields.all[3].type).toEqual(cciFieldType.DATE);
       expect(splitCubes[0].fields.all[4].type).toEqual(cciFieldType.NONCE);
-      expect(splitCubes[0].fields.all.length).toEqual(5);
+      expect(splitCubes[0].fieldCount).toEqual(5);
 
       const expectedFirstChunkPayloadLength = 1024  // Cube size
         - 1  // Type
@@ -77,7 +77,7 @@ describe('Continuation', () => {
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(tooLong);
-      macroCube.fields.insertFieldBeforeBackPositionals(payloadMacrofield);
+      macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
       // run the test: split, then recombine
       const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
@@ -96,7 +96,7 @@ describe('Continuation', () => {
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(farTooLong);
-      macroCube.fields.insertFieldBeforeBackPositionals(payloadMacrofield);
+      macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
       // run the test: split, then recombine
       const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
@@ -133,7 +133,7 @@ describe('Continuation', () => {
         else manyFields.push(cciField.MediaType(MediaTypes.JPEG));
       }
       for (const field of manyFields) {
-        macroCube.fields.insertFieldBeforeBackPositionals(field);
+        macroCube.insertFieldBeforeBackPositionals(field);
       }
 
       // split the Cube
@@ -171,7 +171,7 @@ describe('Continuation', () => {
         manyFields.push(cciField.Description(i.toString()));
       }
       for (const field of manyFields) {
-        macroCube.fields.insertFieldBeforeBackPositionals(field);
+        macroCube.insertFieldBeforeBackPositionals(field);
       }
 
       // split the Cube
@@ -218,7 +218,7 @@ describe('Continuation', () => {
         }
       }
       for (const field of manyFields) {
-        macroCube.fields.insertFieldBeforeBackPositionals(field);
+        macroCube.insertFieldBeforeBackPositionals(field);
       }
 
       // split the Cube
@@ -265,7 +265,7 @@ describe('Continuation', () => {
         cciField.Username("Cubus Stultus"),
       ];
       for (const field of manyFields) {
-        macroCube.fields.insertFieldBeforeBackPositionals(field);
+        macroCube.insertFieldBeforeBackPositionals(field);
       }
 
       // split the Cube
@@ -310,22 +310,22 @@ describe('Continuation', () => {
       const macroCube = cciCube.Create(CubeType.FROZEN, {
         requiredDifficulty: 0,
       });
-      macroCube.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+      macroCube.insertFieldBeforeBackPositionals(cciField.RelatesTo(
         new cciRelationship(cciRelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-      macroCube.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+      macroCube.insertFieldBeforeBackPositionals(cciField.RelatesTo(
         new cciRelationship(cciRelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-      macroCube.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+      macroCube.insertFieldBeforeBackPositionals(cciField.RelatesTo(
         new cciRelationship(cciRelationshipType.MENTION, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-      macroCube.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+      macroCube.insertFieldBeforeBackPositionals(cciField.RelatesTo(
         new cciRelationship(cciRelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-      macroCube.fields.insertFieldBeforeBackPositionals(cciField.Payload(tooLong));
-      macroCube.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+      macroCube.insertFieldBeforeBackPositionals(cciField.Payload(tooLong));
+      macroCube.insertFieldBeforeBackPositionals(cciField.RelatesTo(
         new cciRelationship(cciRelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-      macroCube.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+      macroCube.insertFieldBeforeBackPositionals(cciField.RelatesTo(
         new cciRelationship(cciRelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-      macroCube.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+      macroCube.insertFieldBeforeBackPositionals(cciField.RelatesTo(
         new cciRelationship(cciRelationshipType.MENTION, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-      macroCube.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+      macroCube.insertFieldBeforeBackPositionals(cciField.RelatesTo(
         new cciRelationship(cciRelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
 
       // run the test: split, then recombine
@@ -378,7 +378,7 @@ describe('Continuation', () => {
             for (let j = 0; j < length; j++) val[j] = Math.floor(Math.random() * 256);
           }
           const field = new cciField(chosenFieldType, val);
-          macroCube.fields.insertFieldBeforeBackPositionals(field);
+          macroCube.insertFieldBeforeBackPositionals(field);
           compareFields.push(field);
         }
 
@@ -496,7 +496,7 @@ describe('CubeRetriever Continuation-related features', () => {
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(tooLong);
-      macroCube.fields.insertFieldBeforeBackPositionals(payloadMacrofield);
+      macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
       // split the macro Cube and add all parts to the store
       const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
@@ -523,7 +523,7 @@ describe('CubeRetriever Continuation-related features', () => {
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(tooLong);
-      macroCube.fields.insertFieldBeforeBackPositionals(payloadMacrofield);
+      macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
       // split the macro Cube
       const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
@@ -551,7 +551,7 @@ describe('CubeRetriever Continuation-related features', () => {
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(tooLong);
-      macroCube.fields.insertFieldBeforeBackPositionals(payloadMacrofield);
+      macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
       // split the macro Cube
       const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
@@ -594,7 +594,7 @@ describe('CubeRetriever Continuation-related features', () => {
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(evenLonger);
-      macroCube.fields.insertFieldBeforeBackPositionals(payloadMacrofield);
+      macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
       // split the macro Cube and add all parts to the store
       const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
@@ -623,7 +623,7 @@ describe('CubeRetriever Continuation-related features', () => {
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(farTooLong);
-      macroCube.fields.insertFieldBeforeBackPositionals(payloadMacrofield);
+      macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
       // split the macro Cube
       const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
@@ -654,7 +654,7 @@ describe('CubeRetriever Continuation-related features', () => {
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(farTooLong);
-      macroCube.fields.insertFieldBeforeBackPositionals(payloadMacrofield);
+      macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
       // split the macro Cube and add all parts to the store
       const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});

@@ -340,11 +340,11 @@ describe('cubeStore', () => {
             });
             const spammyBinary: Buffer = await spammyCube.getBinaryData();
             const spamKey: Buffer = await spammyCube.getKey();
-            expect(spammyCube.fields.all.length).toBeGreaterThan(300);  // lots of spam
+            expect(spammyCube.fieldCount).toBeGreaterThan(300);  // lots of spam
             await cubeStore.addCube(spammyBinary);
 
             const restored: Cube = await cubeStore.getCube(spamKey);
-            expect(restored.fields.all.length).toEqual(4);  // spam ignored
+            expect(restored.fieldCount).toEqual(4);  // spam ignored
           });
         });
 

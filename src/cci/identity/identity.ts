@@ -574,32 +574,32 @@ export class Identity {
     });
     // Include application header if requested
     if (this.options.idmucApplicationString) {
-      newMuc.fields.insertFieldBeforeBackPositionals(
+      newMuc.insertFieldBeforeBackPositionals(
         cciField.Application(this.options.idmucApplicationString));
     }
 
     // Write username
     if (this.name) {
-      newMuc.fields.insertFieldBeforeBackPositionals(cciField.Username(this.name));
+      newMuc.insertFieldBeforeBackPositionals(cciField.Username(this.name));
     }
 
     // Write avatar string
     if (this._avatar !== undefined &&
         this.avatar.scheme != AvatarScheme.UNKNOWN &&
         !(this._avatar.equals(this.defaultAvatar()))) {
-          newMuc.fields.insertFieldBeforeBackPositionals(this.avatar.toField());
+          newMuc.insertFieldBeforeBackPositionals(this.avatar.toField());
     }
 
     // Write profile picture reference
     if (this.profilepic) {
-      newMuc.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+      newMuc.insertFieldBeforeBackPositionals(cciField.RelatesTo(
         new cciRelationship(cciRelationshipType.ILLUSTRATION, this.profilepic)
       ));
     }
 
     // Write key backup cube reference (not actually implemented yet)
     if (this.keyBackupCube) {
-      newMuc.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+      newMuc.insertFieldBeforeBackPositionals(cciField.RelatesTo(
         new cciRelationship(cciRelationshipType.KEY_BACKUP_CUBE, this.keyBackupCube)
       ));
     }
@@ -609,7 +609,7 @@ export class Identity {
     // of those here)
     this.writeSubscriptionRecommendations();
     if (this.subscriptionRecommendationIndices.length) {  // any subs at all?
-      newMuc.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+      newMuc.insertFieldBeforeBackPositionals(cciField.RelatesTo(
         new cciRelationship(cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
           this.subscriptionRecommendationIndices[0].getKeyIfAvailable())));
           // note: key is always available as this is a MUC

@@ -39,7 +39,7 @@ export async function makePost(
       cciField.Payload(text),
     ]});
   if (replyto) {  // if this is a reply, refer to the original post
-    cube.fields.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+    cube.insertFieldBeforeBackPositionals(cciField.RelatesTo(
       new cciRelationship(cciRelationshipType.REPLY_TO, replyto)
     ));
   }

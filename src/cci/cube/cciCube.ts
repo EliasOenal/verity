@@ -123,15 +123,15 @@ export class cciCube extends Cube {
   // since the core no longer handles variable length fields at all
   // it has no notion of padding anymore
   public padUp(): boolean {
-    let len = this.fields.getByteLength();  // how large are we now?
+    let len = this.getFieldLength();  // how large are we now?
     if (len > NetConstants.CUBE_SIZE) {  // Cube to large :(
       // is this a recompile and we need to strip out the old padding?
       const paddingFields: Iterable<CubeField> =
-        this.fields.get(cciFieldType.PADDING);
+        this.getFields(cciFieldType.PADDING);
       for (const paddingField of paddingFields) {
         this.fields.removeField(paddingField);
       }
-      len = this.fields.getByteLength();
+      len = this.getFieldLength();
       if (len > NetConstants.CUBE_SIZE) {  // still to large :(
         throw new FieldSizeError(
           `Cannot compile this Cube as it is too large. Current ` +
@@ -140,10 +140,10 @@ export class cciCube extends Cube {
     }
     if (len < NetConstants.CUBE_SIZE) {  // any padding required?
       // start with a 0x00 single byte padding field to indicate end of CCI data
-      this.fields.insertFieldBeforeBackPositionals(cciField.Padding(1));
+      this.insertFieldBeforeBackPositionals(cciField.Padding(1));
       // now add further padding as required
       const paddingRequired = NetConstants.CUBE_SIZE - len - 1;
-      if (paddingRequired) this.fields.insertFieldBeforeBackPositionals(
+      if (paddingRequired) this.insertFieldBeforeBackPositionals(
         cciField.Padding(paddingRequired));
       this.cubeManipulated();
       return true;

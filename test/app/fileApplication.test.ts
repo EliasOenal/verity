@@ -19,16 +19,16 @@ describe('FileApplication', () => {
     const cube = cubes[0];
     expect(cube).toBeInstanceOf(cciCube);
 
-    const applicationField = cube.fields.get(cciFieldType.APPLICATION)[0];
+    const applicationField = cube.getFields(cciFieldType.APPLICATION)[0];
     expect(applicationField.valueString).toBe('file');
 
-    const contentNameField = cube.fields.get(cciFieldType.CONTENTNAME)[0];
+    const contentNameField = cube.getFields(cciFieldType.CONTENTNAME)[0];
     expect(contentNameField.valueString).toBe(fileName);
 
-    const payloadField = cube.fields.get(cciFieldType.PAYLOAD)[0];
+    const payloadField = cube.getFields(cciFieldType.PAYLOAD)[0];
     expect(payloadField.valueString).toBe(content);
 
-    const dateField = cube.fields.get(cciFieldType.DATE)[0];
+    const dateField = cube.getFields(cciFieldType.DATE)[0];
     expect(dateField).toBeDefined();
   });
 
@@ -42,16 +42,16 @@ describe('FileApplication', () => {
     cubes.forEach((cube, index) => {
       expect(cube).toBeInstanceOf(cciCube);
 
-      const applicationField = cube.fields.get(cciFieldType.APPLICATION)[0];
+      const applicationField = cube.getFields(cciFieldType.APPLICATION)[0];
       expect(applicationField.valueString).toBe('file');
 
-      const contentNameField = cube.fields.get(cciFieldType.CONTENTNAME)[0];
+      const contentNameField = cube.getFields(cciFieldType.CONTENTNAME)[0];
       expect(contentNameField.valueString).toBe(fileName);
 
-      const payloadField = cube.fields.get(cciFieldType.PAYLOAD)[0];
+      const payloadField = cube.getFields(cciFieldType.PAYLOAD)[0];
       expect(payloadField.value.length).toBeGreaterThan(0);
 
-      const dateField = cube.fields.get(cciFieldType.DATE)[0];
+      const dateField = cube.getFields(cciFieldType.DATE)[0];
       expect(dateField).toBeDefined();
 
       if (index < cubes.length - 1) {
@@ -65,7 +65,7 @@ describe('FileApplication', () => {
 
     // Check if the total payload size matches the original content size
     const totalPayloadSize = cubes.reduce((sum, cube) => {
-      const payloadField = cube.fields.get(cciFieldType.PAYLOAD)[0];
+      const payloadField = cube.getFields(cciFieldType.PAYLOAD)[0];
       return sum + payloadField.value.length;
     }, 0);
     expect(totalPayloadSize).toBe(content.length);

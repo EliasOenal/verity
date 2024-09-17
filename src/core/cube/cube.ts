@@ -160,7 +160,7 @@ export class Cube extends BaseVeritable implements Veritable {
     private _privateKey: Buffer = undefined;
     get privateKey() { return this._privateKey; }
     public set privateKey (privateKey: Buffer) { this._privateKey = privateKey; }
-    get publicKey() { return this.fields.getFirst(CubeFieldType.PUBLIC_KEY)?.value; }
+    get publicKey() { return this.getFirstField(CubeFieldType.PUBLIC_KEY)?.value; }
 
     /** Instatiate a Cube object based on an existing, binary cube */
     constructor(
@@ -255,11 +255,11 @@ export class Cube extends BaseVeritable implements Veritable {
                 ret = "Invalid or unknown type of Cube";
                 break;
         }
-        ret += ` containing ${this.fields.toString()}`;
+        ret += ` containing ${this._fields.toString()}`;
         return ret;
     }
     toLongString(): string {
-        return this.toString() + '\n' + this.fields.fieldsToLongString();
+        return this.toString() + '\n' + this._fields.fieldsToLongString();
     }
 
     // This is only used (or useful) for locally created cubes.
@@ -281,14 +281,14 @@ export class Cube extends BaseVeritable implements Veritable {
 
     public getDate(): number {
         const dateField: CubeField =
-            this.fields.getFirst(CubeFieldType.DATE);
+            this.getFirstField(CubeFieldType.DATE);
         return dateField.value.readUIntBE(0, NetConstants.TIMESTAMP_SIZE);
     }
 
     public setDate(date: number): void {
         this.cubeManipulated();
         const dateField: CubeField =
-            this.fields.getFirst(CubeFieldType.DATE);
+            this.getFirstField(CubeFieldType.DATE);
         dateField.value.fill(0);
         dateField.value.writeUIntBE(date,  0, NetConstants.TIMESTAMP_SIZE);
     }
@@ -406,7 +406,7 @@ export class Cube extends BaseVeritable implements Veritable {
             throw new BinaryDataError("Cube: Something went horribly wrong, I just wrote a cube of invalid size " + this.binaryData.length);
         }
         // re-set our fields so they share the same memory as our binary data again
-        for (const field of this.fields.all) {
+        for (const field of this._fields.all) {
             const offset =
                 field.start + this.fieldParser.getFieldHeaderLength(field.type);
             field.value = this.binaryData.subarray(offset, offset + field.length);
@@ -491,7 +491,7 @@ export class Cube extends BaseVeritable implements Veritable {
      * do nothing due to the lack of a SIGNATURE field.
      */
     private signBinaryData(): void {
-        const signature: CubeField = this.fields.getFirst(CubeFieldType.SIGNATURE);
+        const signature: CubeField = this.getFirstField(CubeFieldType.SIGNATURE);
         if (!signature) return;  // no signature field, no signature
         if (Settings.RUNTIME_ASSERTIONS) {
             if (!this.binaryData) {

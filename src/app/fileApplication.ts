@@ -27,7 +27,7 @@ export class FileApplication {
       // Chain Cubes if required
       if (cubes.length > 0) {
         const previousCubeKey = await cubes[0].getKey();
-        cube.fields.insertFieldBeforeBackPositionals(
+        cube.insertFieldBeforeBackPositionals(
           cciField.RelatesTo(new cciRelationship(
             cciRelationshipType.CONTINUED_IN, previousCubeKey)));
       }
@@ -38,7 +38,7 @@ export class FileApplication {
         cube.fieldParser.getFieldHeaderLength(cciFieldType.PAYLOAD));
       const startOffset = remainingSize - chunkSize;
       const chunk = fileContent.slice(startOffset, startOffset + chunkSize);
-      cube.fields.insertFieldBeforeBackPositionals(cciField.Payload(chunk));
+      cube.insertFieldBeforeBackPositionals(cciField.Payload(chunk));
 
       cubes.unshift(cube); // Add to the beginning of the array
       remainingSize -= chunkSize;

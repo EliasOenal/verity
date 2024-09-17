@@ -607,7 +607,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     const key = keyVariants(cubeInfo?.key ?? keyInput as CubeKey);
 
     // if there are any notifications indexed to this Cube, delete them first
-    const recipient: Buffer = cubeInfo?.getCube?.()?.fields?.getFirst?.(
+    const recipient: Buffer = cubeInfo?.getCube?.()?.getFirstField?.(
       CubeFieldType.NOTIFY)?.value;
     if (recipient) await this.deleteNotification(cubeInfo);
 
@@ -676,7 +676,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   // Concatenate recipient, timestamp and cube key to create index key #1
   // TODO make static or move to CubeUtil
   private async getNotificationDateKey(cube: Cube): Promise<Buffer> {
-    const recipient: Buffer = cube.fields.getFirst(CubeFieldType.NOTIFY)?.value;
+    const recipient: Buffer = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
     if (!recipient) return undefined;
     let dateBuffer: Buffer = Buffer.alloc(NetConstants.TIMESTAMP_SIZE);
     dateBuffer.writeUIntBE(cube.getDate(), 0, NetConstants.TIMESTAMP_SIZE);
@@ -686,7 +686,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   // Concatenate recipient, difficulty and cube key to create index key #2
   // TODO make static or move to CubeUtil
   private async getNotificationDifficultyKey(cube: Cube): Promise<Buffer> {
-    const recipient: Buffer = cube.fields.getFirst(CubeFieldType.NOTIFY)?.value;
+    const recipient: Buffer = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
     if (!recipient) return undefined;
     let difficultyBuffer: Buffer = Buffer.alloc(1);
     difficultyBuffer.writeUInt8(cube.getDifficulty());
@@ -696,7 +696,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   private async addNotification(cubeInfo: CubeInfo): Promise<void> {
     const cube: Cube = cubeInfo.getCube();
     // does this Cube even have a notification field?
-    const recipient: Buffer = cube.fields.getFirst(CubeFieldType.NOTIFY)?.value;
+    const recipient: Buffer = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
     if (!recipient) return;
     if (Settings.RUNTIME_ASSERTIONS &&
       recipient?.length !== NetConstants.NOTIFY_SIZE) {
@@ -715,7 +715,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   private async deleteNotification(cubeInfo: CubeInfo): Promise<void> {
     const cube: Cube = cubeInfo.getCube();
     // does this Cube even have a notification field?
-    const recipient: Buffer = cube.fields.getFirst(CubeFieldType.NOTIFY)?.value;
+    const recipient: Buffer = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
     if (!recipient) return;
     if (Settings.RUNTIME_ASSERTIONS &&
       recipient?.length !== NetConstants.NOTIFY_SIZE) {
