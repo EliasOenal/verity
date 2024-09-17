@@ -97,10 +97,10 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         return ret;
     }
 
-    equals(other: BaseFields, compareLocation: boolean = false): boolean {
+    equals(other: BaseFields, compareOffsets: boolean = false): boolean {
         if (this.length != other.length) return false;
         for (let i=0; i<this.length; i++) {
-            if (!this.all[i].equals(other.all[i], compareLocation)) return false;
+            if (!this.all[i].equals(other.all[i], compareOffsets)) return false;
         }
         return true;
     }
@@ -213,6 +213,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
 
     public removeField(index: number): void;
     public removeField(field: BaseField): void;
+    public removeField(field: number|BaseField): void;
     public removeField(param: number | BaseField): void {
         let index = undefined;
         // if not called by index, find index
@@ -228,9 +229,11 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         this.data.splice(index, 1);
     }
 
+    // maybe TODO: support inserting at arbitrary index
     public insertField(
             field: BaseField,
-            position: FieldPosition = FieldPosition.BEFORE_BACK_POSITIONALS) {
+            position: FieldPosition = FieldPosition.BEFORE_BACK_POSITIONALS,
+    ): void {
         if (position === FieldPosition.FRONT) {
             this.insertFieldInFront(field);
         } else if (position === FieldPosition.AFTER_FRONT_POSITIONALS) {
@@ -280,8 +283,6 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
     /**
      * Inserts a new field before the *first* existing field of the
      * specified type, or at the very end if no such field exists.
-     * (This is used, in particular, by Cube.setFields() to determine
-     * if any auto-padding needs to be inserted before a signature.)
      */
     public insertFieldBefore(type: number, field: BaseField): void {  // in top-level fields, type must be one of FieldType as defined in cubeDefinitions.ts
         for (let i = 0; i < this.data.length; i++) {
@@ -298,6 +299,9 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
      * Ensures there is a field of the specified type at the very front of this
      * field list. If a field of such type already exists, it is moved to the
      * front. Otherwise, the supplied defaultField will be inserted at the front.
+     * @param defaultField - The default field to use if no field of the specified
+     *   type exists. You may alternatively define a field definition if this
+     *   field definition defines a default field for the specified type.
      */
     public ensureFieldInFront(type: number, defaultField: BaseField | FieldDefinition): void {
         // normalize input
