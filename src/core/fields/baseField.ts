@@ -53,10 +53,10 @@ export class BaseField {
       else this.value = Buffer.from(value, 'utf8');
   }
 
-  equals(other: BaseField, compareLocation: boolean = false) {
+  equals(other: BaseField, compareStartOffset: boolean = false) {
       if (this.type != other.type) return false;
       if (!this.value.equals(other.value)) return false;
-      if (compareLocation && this.start != other.start) return false;
+      if (compareStartOffset && this.start != other.start) return false;
       return true;
   }
 

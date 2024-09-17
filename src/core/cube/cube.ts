@@ -2,7 +2,8 @@
 import { ApiMisuseError, Settings } from '../settings';
 import { NetConstants } from '../networking/networkDefinitions';
 
-import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldError, FieldSizeError, HasNotify, HasSignature, ToggleNotifyType } from "./cube.definitions";
+import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldError, FieldSizeError, HasSignature } from "./cube.definitions";
+import { BaseVeritable, Veritable } from './veritable.definition';
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField } from "./cubeField";
@@ -21,7 +22,7 @@ export interface CubeOptions {
     requiredDifficulty?: number,
 }
 
-export class Cube {
+export class Cube extends BaseVeritable implements Veritable {
     /**
      * Creates a new fully valid Cube of your chosen type.
      * @param type Which type of Cube would you like?
@@ -137,11 +138,17 @@ export class Cube {
 
     readonly requiredDifficulty: number;
 
-    protected _fields: CubeFields;
+    declare protected _fields: CubeFields;
+
+    /** @deprecated Use methods defined in Veritable instead */
     public get fields(): CubeFields {
         // TODO: This is very dangerous as obviously accessing the raw fields
         // could manipulate the Cube. Maybe make CubeFields an
         // EventEmitter and mark the Cube manipulated on change events?
+        return this._fields;
+    }
+    manipulateFields(): CubeFields {
+        this.cubeManipulated();
         return this._fields;
     }
 
@@ -175,6 +182,7 @@ export class Cube {
             param1: Buffer | CubeType,
             options?: CubeOptions)
     {
+        super();
         // set options
         this.family = options?.family ?? coreCubeFamily;
         this.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
