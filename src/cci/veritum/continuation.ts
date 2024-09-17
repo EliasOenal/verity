@@ -95,12 +95,12 @@ export class Continuation {
         {
           const padding = new cciField(cciFieldType.PADDING, Buffer.alloc(0));
           macroFieldset.push(padding);
-          minBytesRequred += macroCube.fields.getByteLength(padding);
+          minBytesRequred += macroCube.getFieldLength(padding);
         }
 
         // now finally accept this field into our macro fieldset
         macroFieldset.push(field);  // maybe TODO: use less array copying operations
-        minBytesRequred += macroCube.fields.getByteLength(field);
+        minBytesRequred += macroCube.getFieldLength(field);
         previousField = field;
       }
     }
@@ -154,7 +154,7 @@ export class Continuation {
         // account for the space we gained by planning for an extra Cube
         // as well as the space we lost due to the extra reference
         spaceRemaining += bytesAvailablePerCube;
-        minBytesRequred += cube.fields.getByteLength(refField);
+        minBytesRequred += cube.getFieldLength(refField);
       }
       // if we inserted extra fields, backtrack that many nodes
       for (let i = 0; i < refsAdded; i++) macroFieldsetNode = macroFieldsetNode.prev;
@@ -164,12 +164,12 @@ export class Continuation {
       const bytesRemaining = cube.fields.bytesRemaining(options.cubeSize);
 
       // There's three (3) possible cases to consider:
-      if (bytesRemaining >= cube.fields.getByteLength(field)) {
+      if (bytesRemaining >= cube.getFieldLength(field)) {
         // Case 1): If the next field entirely fits in the current cube,
         // just insert it and be done with it
-        cube.fields.insertFieldBeforeBackPositionals(field);
-        spaceRemaining -= cube.fields.getByteLength(field);
-        minBytesRequred -= cube.fields.getByteLength(field);
+        cube.insertFieldBeforeBackPositionals(field);
+        spaceRemaining -= cube.getFieldLength(field);
+        minBytesRequred -= cube.getFieldLength(field);
         // We're done with this field, so let's advance the iterator
         macroFieldsetNode = macroFieldsetNode.next;
       } else if (bytesRemaining >= MIN_CHUNK &&
@@ -196,12 +196,12 @@ export class Continuation {
           field.value.subarray(maxValueLength)
         );
         // Place the first chunk in the current Cube
-        cube.fields.insertFieldBeforeBackPositionals(chunk1);
+        cube.insertFieldBeforeBackPositionals(chunk1);
         // Update our accounting:
         // Space remaining is reduced by the size of the first chunk; but
         // minBytesRequired is only reduces by the amount of payload actually
         // placed in chunk1. Splitting wastes space!
-        spaceRemaining -= cube.fields.getByteLength(chunk1);
+        spaceRemaining -= cube.getFieldLength(chunk1);
         minBytesRequred -= chunk1.value.length;
         // Replace the field on our macro fieldset with the two chunks;
         // this way, chunk2 will automatically be handled on the next iteration.
@@ -276,8 +276,8 @@ export class Continuation {
         // - variable length fields of same type directly adjacent to each
         //   other will be merged
         const previousField: cciField =
-          macroCube.fields.all.length > 0 ?
-            macroCube.fields.all[macroCube.fields.all.length-1] :
+          macroCube.fieldCount > 0 ?
+            macroCube.fields.all[macroCube.fieldCount-1] :
             undefined;
         if (previousField !== undefined && field.type === previousField.type &&
             macroCube.fieldParser.fieldDef.fieldLengths[field.type] === undefined) {
@@ -289,7 +289,7 @@ export class Continuation {
       }
     }
     // in a second pass, remove any PADDING fields
-    for (let i=0; i<macroCube.fields.all.length; i++) {
+    for (let i=0; i<macroCube.fieldCount; i++) {
       if (macroCube.fields.all[i].type === cciFieldType.PADDING) {
         macroCube.fields.all.splice(i, 1);
         i--;

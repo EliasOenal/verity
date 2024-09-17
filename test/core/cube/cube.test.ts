@@ -77,7 +77,7 @@ describe('cube', () => {
 
     it('construct a Cube object with no fields by default', () => {
       const cube = new Cube(CubeType.FROZEN);
-      expect(cube.fields.all.length).toEqual(0);
+      expect(cube.fieldCount).toEqual(0);
     }, 3000);
 
     it('should throw an error when binary data is not the correct length', () => {
@@ -113,7 +113,7 @@ describe('cube', () => {
       ], CoreFrozenFieldDefinition);
       cube.setFields(fields);
       expect(cube.fields).toEqual(fields);
-      expect(cube.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).valueString).toContain(
+      expect(cube.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).toContain(
         "Ero celeber Cubus cum compilatus fuero.");
     }, 3000);
 
@@ -169,7 +169,7 @@ describe('cube', () => {
         expect(cube).toBeInstanceOf(Cube);
         expect(cube.cubeType).toBe(type);
         expect(cube.fields).toBeInstanceOf(CubeFields);
-        expect(cube.fields.getFirst(CubeFieldType.PUBLIC_KEY)?.value).toEqual(Buffer.from(commonKeyPair.publicKey));
+        expect(cube.getFirstField(CubeFieldType.PUBLIC_KEY)?.value).toEqual(Buffer.from(commonKeyPair.publicKey));
         expect(cube.privateKey).toEqual(Buffer.from(commonKeyPair.privateKey));
     });
 
@@ -219,7 +219,7 @@ describe('cube', () => {
         fields: CubeField.RawContent(CubeType.FROZEN, " "),
         requiredDifficulty: requiredDifficulty
       });
-      cube.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).value.write(
+      cube.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).value.write(
         'Ego sum determinavit tarde quid dicere Cubus.', 'ascii');
       const binaryData = await cube.getBinaryData();
       expect(binaryData[0]).toEqual(CubeType.FROZEN);
@@ -247,7 +247,7 @@ describe('cube', () => {
           toContain("Cubus sum");
       }
       // manipulate & recompile Cube
-      cube.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).value.write(
+      cube.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).value.write(
         'Determinavit tarde quid dicere Cubus sum', 'ascii');
       await cube.compile();
       // test reactivation of first Cube version
@@ -481,7 +481,7 @@ describe('cube', () => {
 
         const coreParsedMuc = new Cube(binMuc);
         expect(coreParsedMuc).toBeInstanceOf(Cube);
-        expect(coreParsedMuc.fields.all.length).toEqual(6);
+        expect(coreParsedMuc.fieldCount).toEqual(6);
         expect(coreParsedMuc.fields.all[0].type).toEqual(CubeFieldType.TYPE);
         expect(coreParsedMuc.fields.all[1].type).toEqual(CubeFieldType.MUC_RAWCONTENT);
         expect(coreParsedMuc.fields.all[2].type).toEqual(CubeFieldType.PUBLIC_KEY);

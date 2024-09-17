@@ -31,19 +31,19 @@ describe('cciCube', () => {
         fields: cciField.Payload("His cubus plenus est"),
         requiredDifficulty: reducedDifficulty,
       });
-      const freeSpace = NetConstants.CUBE_SIZE - cube.fields.getByteLength();
+      const freeSpace = NetConstants.CUBE_SIZE - cube.getFieldLength();
       const plHl = cube.fieldParser.getFieldHeaderLength(cciFieldType.PAYLOAD);
-      cube.fields.insertFieldBeforeBackPositionals(cciField.Payload(
+      cube.insertFieldBeforeBackPositionals(cciField.Payload(
         Buffer.alloc(freeSpace - plHl)));  // cube now all filled up
-      expect(cube.fields.getByteLength()).toEqual(NetConstants.CUBE_SIZE);
+      expect(cube.getFieldLength()).toEqual(NetConstants.CUBE_SIZE);
 
-      const fieldCountBeforePadding = cube.fields.all.length;
+      const fieldCountBeforePadding = cube.fieldCount;
       const paddingAdded: boolean = cube.padUp();
-      const fieldCountAfterPadding = cube.fields.all.length;
+      const fieldCountAfterPadding = cube.fieldCount;
 
       expect(paddingAdded).toBe(false);
       expect(fieldCountAfterPadding).toEqual(fieldCountBeforePadding);
-      expect(cube.fields.getByteLength()).toEqual(NetConstants.CUBE_SIZE);
+      expect(cube.getFieldLength()).toEqual(NetConstants.CUBE_SIZE);
     });
 
     it('Should add padding starting with 0x00 if required', async() => {
@@ -53,13 +53,13 @@ describe('cciCube', () => {
       const cube = cciCube.Frozen({
         fields: payload, requiredDifficulty: reducedDifficulty});
 
-      const fieldCountBeforePadding = cube.fields.all.length;
+      const fieldCountBeforePadding = cube.fieldCount;
       const paddingAdded = cube.padUp();
-      const fieldCountAfterPadding = cube.fields.all.length;
+      const fieldCountAfterPadding = cube.fieldCount;
 
       expect(paddingAdded).toBe(true);
       expect(fieldCountAfterPadding).toBeGreaterThan(fieldCountBeforePadding);
-      expect(cube.fields.getByteLength()).toEqual(NetConstants.CUBE_SIZE);
+      expect(cube.getFieldLength()).toEqual(NetConstants.CUBE_SIZE);
 
       // now get binary data and ensure padding starts with 0x00
       const binaryCube: Buffer = await cube.getBinaryData();
@@ -77,7 +77,7 @@ describe('cciCube', () => {
           cciField.Payload("Hic cubus nimis multum impluvium continet."),
         ]
       });
-      overlyPadded.fields.insertFieldBeforeBackPositionals(
+      overlyPadded.insertFieldBeforeBackPositionals(
         cciField.Padding(2000)  // are you crazy?!
       );
       const binaryCube: Buffer = await overlyPadded.getBinaryData();
