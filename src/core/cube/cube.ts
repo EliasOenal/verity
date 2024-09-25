@@ -4,14 +4,14 @@ import { NetConstants } from '../networking/networkDefinitions';
 
 import type { Veritable } from './veritable.definition';
 
+import { FieldPosition } from '../fields/baseFields';
 import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldError, FieldSizeError, HasSignature } from "./cube.definitions";
-import { VeritableBaseImplementation } from './veritableBase';
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField } from "./cubeField";
 import { CoreFieldParsers, CubeFamilyDefinition, CubeFields } from './cubeFields';
 
-import type { FieldDefinition } from "../fields/fieldParser";
+import type { FieldDefinition, FieldParser } from "../fields/fieldParser";
 
 import { logger } from '../logger';
 
@@ -28,6 +28,104 @@ export interface CubeCreateOptions extends CubeOptions {
     publicKey?: Buffer,
     privateKey?: Buffer,
 }
+
+export class VeritableBaseImplementation {
+    protected _fields: CubeFields;
+    protected _family: CubeFamilyDefinition;
+    protected _cubeType: CubeType;
+    readonly requiredDifficulty: number;
+
+    constructor(cubeType: CubeType, options: CubeOptions = {}) {
+      this._cubeType = cubeType;
+      this._family = options.family ?? coreCubeFamily;
+      this._fields = this.normalizeFields(options.fields);
+      this.requiredDifficulty = options.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
+    }
+
+    get family(): CubeFamilyDefinition { return this._family }
+    get cubeType(): CubeType { return this._cubeType }
+
+    get fieldParser(): FieldParser {
+      return this.family.parsers[this.cubeType];
+    }
+
+    fieldsEqual(other: VeritableBaseImplementation): boolean {
+      return this._fields.equals(other._fields);
+    }
+
+    get fieldCount(): number { return this._fields.length }
+
+    get byteLength(): number { return this._fields.getByteLength() }
+
+    getFieldLength(fields?: CubeField | CubeField[]): number {
+      return this._fields.getByteLength(fields);
+    }
+
+    getFields(type?: number | number[]): Iterable<CubeField> {
+      return this._fields.get(type);
+    }
+
+    getFirstField(type: Number): CubeField {
+      return this._fields.getFirst(type);
+    }
+
+    sliceFieldsBy(type: Number, includeBefore?: boolean): Iterable<CubeFields> {
+      return this._fields.sliceBy(type, includeBefore);
+    }
+
+    appendField(field: CubeField): void {
+      return this._fields.appendField(field);
+    }
+
+    insertFieldInFront(field: CubeField): void {
+      return this._fields.insertFieldInFront(field);
+    }
+
+    insertFieldAfterFrontPositionals(field: CubeField): void {
+      return this._fields.insertFieldAfterFrontPositionals(field);
+    }
+
+    insertFieldBeforeBackPositionals(field: CubeField): void {
+      return this._fields.insertFieldBeforeBackPositionals(field);
+    }
+
+    insertFieldBefore(type: number, field: CubeField): void {
+      return this._fields.insertFieldBefore(type, field);
+    }
+
+    insertField(field: CubeField, position?: FieldPosition): void {
+      return this._fields.insertField(field, position);
+    }
+    ensureFieldInFront(type: number, defaultField: CubeField | FieldDefinition): void {
+      return this._fields.ensureFieldInFront(type, defaultField);
+    }
+
+    ensureFieldInBack(type: number, defaultField: CubeField | FieldDefinition): void {
+      return this._fields.ensureFieldInBack(type, defaultField);
+    }
+
+    removeField(index: number): void;
+    removeField(field: CubeField): void;
+    removeField(field: number|CubeField): void {
+      return this._fields.removeField(field);
+    }
+
+    /**
+     * Subclasses should override this method to perform any necessary
+     * state changes required due to the fact that the field set may now
+     * be changes by application layer code in an unpredictable way.
+     */
+    manipulateFields(): CubeFields {
+      return this._fields;
+    }
+
+    protected normalizeFields(fields: CubeField | CubeField[] | CubeFields | undefined): CubeFields {
+      if (fields instanceof CubeFields) return fields;
+      else if (fields instanceof CubeField) return new CubeFields([fields], this.fieldParser.fieldDef);
+      else if (Array.isArray(fields)) return new CubeFields(fields, this.fieldParser.fieldDef);
+      else return new CubeFields([], this.fieldParser.fieldDef);
+    }
+  }
 
 export class Cube extends VeritableBaseImplementation implements Veritable {
     /**
