@@ -201,7 +201,6 @@ export class CubeRetriever implements CubeRetrievalInterface {
     // Wait for all Cubes to be retrieved and yield them:
     let chunk: cciCube;
     while ( (chunk = await nextChunkPromise) !== undefined ) {
-      const chunk = await nextChunkPromise;
       if (chunk !== undefined) {
         yield chunk;
         orderedChunks.push(chunk);

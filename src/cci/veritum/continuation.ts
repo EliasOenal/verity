@@ -19,6 +19,7 @@ import { cciFields } from "../cube/cciFields";
 // jest is still buggy and keeps causing problems.
 import { DoublyLinkedList, DoublyLinkedListNode } from 'data-structure-typed';
 import { Veritable } from "../../core/cube/veritable.definition";
+import { Veritum } from "./veritum";
 
 /**
  * Don't split fields if a resulting chunk would be smaller than this amount
@@ -61,24 +62,25 @@ export class Continuation {
    * Just too many fields?
    * Or maybe both?
    * No worries, I'll split them up for you.
-   * @param macroCube An overly large Cube
+   * @param veritum A CCI Veritum or any other veritable (Cube-like) structure
+   *   to be split into Cubes.
    * @param options
    * @returns An array of chunk Cubes
    */
   static async Split(
-      macroCube: Veritable,
+      veritum: Veritable,
       options: CubeOptions&{ exclude?: number[], cubeSize?: number } = {},
   ): Promise<cciCube[]> {
     // set default options
     options.exclude ??= Continuation.ContinuationDefaultExclusions;
     options.cubeSize ??= NetConstants.CUBE_SIZE;
 
-    // Pre-process the macro fieldset supplied:
+    // Pre-process the Veritum supplied:
     let minBytesRequred = 0;  // will count them in a moment
     const macroFieldset: DoublyLinkedList<cciField> = new DoublyLinkedList();
     let previousField: cciField = undefined;
-    for (const field of macroCube.getFields()) {
-      // - Only accept non-excluded fields from supplied macro Cube, i.e. everything
+    for (const field of veritum.getFields()) {
+      // - Only accept non-excluded fields from supplied Veritum, i.e. everything
       //   except non-payload boilerplate. Pre-exisiting CONTINUED_IN relationships
       //   will also be dropped.
       if (!options.exclude.includes(field.type) && (
@@ -92,16 +94,16 @@ export class Continuation {
         // reconstruction.
         if (previousField !== undefined &&
             previousField.type === field.type &&
-            macroCube.fieldParser.fieldDef.fieldLengths[field.type] === undefined)
+            veritum.fieldParser.fieldDef.fieldLengths[field.type] === undefined)
         {
           const padding = new cciField(cciFieldType.PADDING, Buffer.alloc(0));
           macroFieldset.push(padding);
-          minBytesRequred += macroCube.getFieldLength(padding);
+          minBytesRequred += veritum.getFieldLength(padding);
         }
 
         // now finally accept this field into our macro fieldset
         macroFieldset.push(field);  // maybe TODO: use less array copying operations
-        minBytesRequred += macroCube.getFieldLength(field);
+        minBytesRequred += veritum.getFieldLength(field);
         previousField = field;
       }
     }
@@ -109,12 +111,12 @@ export class Continuation {
     // Precalculate some numbers that we'll later need to determine how many
     // Cubes we need.
     const demoFieldset: cciFields =
-      cciFields.DefaultPositionals(macroCube.fieldParser.fieldDef) as cciFields;
+      cciFields.DefaultPositionals(veritum.fieldParser.fieldDef) as cciFields;
     const bytesAvailablePerCube: number = demoFieldset.bytesRemaining(options.cubeSize);
 
     // Split the macro fieldset into Cubes:
     // prepare the list of Cubes and initialise the first one
-    const cubes: cciCube[] = [ macroCube.family.cubeClass.Create(macroCube.cubeType, options) as cciCube ];
+    const cubes: cciCube[] = [ veritum.family.cubeClass.Create(veritum.cubeType, options) as cciCube ];
     let cube: cciCube = cubes[0];
     // Also prepare a list of CONTINUED_IN references to be filled in later.
     // Note the number of CONTINUED_IN references will always be one less than
@@ -174,7 +176,7 @@ export class Continuation {
         // We're done with this field, so let's advance the iterator
         macroFieldsetNode = macroFieldsetNode.next;
       } else if (bytesRemaining >= MIN_CHUNK &&
-        macroCube.fieldParser.fieldDef.fieldLengths[field.type] === undefined) {
+        veritum.fieldParser.fieldDef.fieldLengths[field.type] === undefined) {
         // Case 2): We may be able to split this field into two smaller chunks.
         // Two conditions must be satisfied to split:
         // - The remaining space in the Cube must be at least our arbitrarily
@@ -185,7 +187,7 @@ export class Continuation {
         // If we've entered this block, we've determined that we can split this field,
         // so let's determine the exact location of the split point:
         const headerSize = FieldParser.getFieldHeaderLength(
-          field.type, macroCube.fieldParser.fieldDef);
+          field.type, veritum.fieldParser.fieldDef);
         const maxValueLength = bytesRemaining - headerSize;
         // Split the field into two chunks:
         const chunk1: cciField = new cciField(
@@ -218,7 +220,7 @@ export class Continuation {
         // First update our accounting...
         spaceRemaining -= cube.fields.bytesRemaining(options.cubeSize);
         // ... and then it's time for a chunk rollover!
-        cube = macroCube.family.cubeClass.Create(macroCube.cubeType, options) as cciCube;
+        cube = veritum.family.cubeClass.Create(veritum.cubeType, options) as cciCube;
         cubes.push(cube);
         // Note that we have not handled this field!
         // We therefore must not advance the iterator.
@@ -249,21 +251,21 @@ export class Continuation {
   static Recombine(
     cubes: Iterable<Cube>,
     options: CubeOptions&{ exclude?: number[], cubeSize?: number } = {},
-  ): cciCube {
+  ): Veritum {
     // set default options
     options.exclude ??= Continuation.ContinuationDefaultExclusions;
     options.cubeSize ??= NetConstants.CUBE_SIZE;
 
     // prepare variables
-    let macroCube: cciCube;  // will be initialized late below
+    let veritum: Veritum;  // will be initialized late below
 
     // iterate through all chunk Cubes...
     for (const cube of cubes) {
-      if (macroCube === undefined) {
+      if (veritum === undefined) {
         // late initialisation of macroCube because we base the type of Cube
         // on the first chunk supplied -- and as we accept an iterable we need
         // to be iterating to be able to look at it
-        macroCube = new cube.family.cubeClass(cube.cubeType, options) as cciCube;
+        veritum = new Veritum(cube.cubeType, options);
       }
 
       for (const field of cube.fields.all) {
@@ -280,26 +282,28 @@ export class Continuation {
         // - variable length fields of same type directly adjacent to each
         //   other will be merged
         const previousField: cciField =
-          macroCube.fieldCount > 0 ?
-            macroCube.fields.all[macroCube.fieldCount-1] :
+          veritum.fieldCount > 0 ?
+            // TODO: get rid of unsafe manipulateFields() call
+            veritum.manipulateFields().all[veritum.fieldCount-1] :
             undefined;
         if (previousField !== undefined && field.type === previousField.type &&
-            macroCube.fieldParser.fieldDef.fieldLengths[field.type] === undefined) {
+            veritum.fieldParser.fieldDef.fieldLengths[field.type] === undefined) {
           previousField.value = Buffer.concat([previousField.value, field.value]);
           continue;
         }
         // - the rest will just be copied to the macro fieldset
-        macroCube.fields.appendField(field);
+        veritum.appendField(field);
       }
     }
     // in a second pass, remove any PADDING fields
-    for (let i=0; i<macroCube.fieldCount; i++) {
-      if (macroCube.fields.all[i].type === cciFieldType.PADDING) {
-        macroCube.fields.all.splice(i, 1);
+    for (let i=0; i<veritum.fieldCount; i++) {
+      // TODO: get rid of unsafe manipulateFields() calls
+      if (veritum.manipulateFields().all[i].type === cciFieldType.PADDING) {
+        veritum.manipulateFields().all.splice(i, 1);
         i--;
       }
     }
-    return macroCube;
+    return veritum;
   }
 }
 
