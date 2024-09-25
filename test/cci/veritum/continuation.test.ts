@@ -4,6 +4,7 @@ import { cciField } from "../../../src/cci/cube/cciField";
 import { cciFields } from "../../../src/cci/cube/cciFields";
 import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 import { Continuation } from "../../../src/cci/veritum/continuation";
+import { Veritum } from "../../../src/cci/veritum/veritum";
 import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
 import { CubeStoreOptions, CubeStore } from "../../../src/core/cube/cubeStore";
 import { CubeRetriever } from "../../../src/core/networking/cubeRetrieval/cubeRetriever";
@@ -82,10 +83,11 @@ describe('Continuation', () => {
       // run the test: split, then recombine
       const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
       expect(splitCubes.length).toEqual(2);
-      const recombined: cciCube = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+      const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
 
       // assert that payload was correctly restored
-      expect(recombined.fields.get(cciFieldType.PAYLOAD).length).toEqual(1);
+      // TODO: get rid of manipulateFields() call and direct Array method calls
+      expect(recombined.manipulateFields().get(cciFieldType.PAYLOAD).length).toEqual(1);
       const restoredPayload = recombined.getFirstField(cciFieldType.PAYLOAD);
       expect(restoredPayload.valueString).toEqual(tooLong);
     });
@@ -101,7 +103,7 @@ describe('Continuation', () => {
       // run the test: split, then recombine
       const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
       expect(splitCubes.length).toBeGreaterThan(11);
-      const recombined: cciCube = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+      const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
 
       // assert all CONTINUED_IN relationships are present and in correct order
       let refs: cciRelationship[] = [];
@@ -115,7 +117,8 @@ describe('Continuation', () => {
       }
 
       // assert that payload was correctly restored
-      expect(recombined.fields.get(cciFieldType.PAYLOAD).length).toEqual(1);
+      // TODO: get rid of manipulateFields() call and direct Array method calls
+      expect(recombined.manipulateFields().get(cciFieldType.PAYLOAD).length).toEqual(1);
       const restoredPayload = recombined.getFirstField(cciFieldType.PAYLOAD);
       expect(restoredPayload.valueString).toEqual(farTooLong);
     });
@@ -149,10 +152,11 @@ describe('Continuation', () => {
 
 
       // recombine the chunks
-      const recombined: cciCube = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+      const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
 
       // assert that payload was correctly restored
-      const manyRestoredFields = recombined.fields.get(cciFieldType.MEDIA_TYPE);
+      // TODO: get rid of manipulateFields() call and direct Array method calls
+      const manyRestoredFields = recombined.manipulateFields().get(cciFieldType.MEDIA_TYPE);
       expect(manyRestoredFields.length).toEqual(numFields);
       for (let i=0; i < numFields; i++) {
         expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
@@ -186,10 +190,11 @@ describe('Continuation', () => {
       expect(targetFieldsInSplit).toEqual(numFields);
 
       // recombine the chunks
-      const recombined: cciCube = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+      const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
 
       // assert that payload was correctly restored
-      const manyRestoredFields = recombined.fields.get(cciFieldType.DESCRIPTION);
+      // TODO: get rid of manipulateFields() call and direct Array method calls
+      const manyRestoredFields = recombined.manipulateFields().get(cciFieldType.DESCRIPTION);
       expect(manyRestoredFields.length).toEqual(numFields);
       for (let i=0; i < numFields; i++) {
         expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
@@ -237,14 +242,14 @@ describe('Continuation', () => {
       expect(targetFieldsInSplit).toBeGreaterThan(numFields);  // account for splits
 
       // recombine the chunks
-      const recombined: cciCube = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+      const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
 
       // assert that payload was correctly restored
-      const manyRestoredFields = recombined.fields.get([
+      const manyRestoredFields = Array.from(recombined.getFields([
         cciFieldType.MEDIA_TYPE,
         cciFieldType.PAYLOAD,
         cciFieldType.DESCRIPTION,
-    ]);
+      ]));
       expect(manyRestoredFields.length).toEqual(numFields);
       for (let i=0; i < numFields; i++) {
         expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
@@ -288,17 +293,17 @@ describe('Continuation', () => {
       expect(targetFieldsInSplit).toEqual(manyFields.length);  // account for splits
 
       // recombine the chunks
-      const recombined: cciCube = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+      const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
 
       // assert that payload was correctly restored
-      const manyRestoredFields = recombined.fields.get([
+      const manyRestoredFields = Array.from(recombined.getFields([
         cciFieldType.CONTENTNAME,
         cciFieldType.DESCRIPTION,
         cciFieldType.AVATAR,
         cciFieldType.PAYLOAD,
         cciFieldType.MEDIA_TYPE,
         cciFieldType.USERNAME,
-  ]);
+      ]));
       expect(manyRestoredFields.length).toEqual(manyFields.length);
       for (let i=0; i < manyFields.length; i++) {
         expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
@@ -331,16 +336,18 @@ describe('Continuation', () => {
       // run the test: split, then recombine
       const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
       expect(splitCubes.length).toEqual(2);
-      const recombined: cciCube = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+      const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
 
       // assert that payload was correctly restored
-      expect(recombined.fields.get(cciFieldType.PAYLOAD).length).toEqual(1);
+      // TODO: get rid of manipulateFields() call and direct Array method calls
+      expect(recombined.manipulateFields().get(cciFieldType.PAYLOAD).length).toEqual(1);
       const restoredPayload = recombined.getFirstField(cciFieldType.PAYLOAD);
       expect(restoredPayload.valueString).toEqual(tooLong);
 
       // assert that the number of RELATES_TO fields is the number of
       // non-CONTINUED_IN relationships
-      const restoredRelatesTo = recombined.fields.get(cciFieldType.RELATES_TO);
+      // TODO: get rid of manipulateFields() call and direct Array method calls
+      const restoredRelatesTo = recombined.manipulateFields().get(cciFieldType.RELATES_TO);
       expect(restoredRelatesTo.length).toEqual(4);
       expect(cciRelationship.fromField(restoredRelatesTo[0]).type).toEqual(cciRelationshipType.MYPOST);
       expect(cciRelationship.fromField(restoredRelatesTo[1]).type).toEqual(cciRelationshipType.MENTION);
@@ -384,10 +391,10 @@ describe('Continuation', () => {
 
         // split and recombinethe Cube
         const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
-        const recombined: cciCube = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+        const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
 
         // assert that payload was correctly restored
-        const restoredFields = recombined.fields.all;
+        const restoredFields = recombined.manipulateFields().all;
         expect(restoredFields.length).toEqual(numFields);
         // assert that all fields have been restored correctly
         for (let i = 0; i < numFields; i++) {
@@ -513,7 +520,7 @@ describe('CubeRetriever Continuation-related features', () => {
       expect(chunks.length).toBe(2);
 
       // reassemble the chunks
-      const recombined: cciCube = Continuation.Recombine(chunks, {requiredDifficulty: 0});
+      const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
       expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(tooLong);
     });
 
@@ -540,7 +547,7 @@ describe('CubeRetriever Continuation-related features', () => {
         i++;
       }
       expect(chunks.length).toBe(splitCubes.length);
-      const recombined: cciCube = Continuation.Recombine(chunks, {requiredDifficulty: 0});
+      const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
       expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(tooLong);
     });
 
@@ -584,7 +591,7 @@ describe('CubeRetriever Continuation-related features', () => {
       await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
 
       expect(chunks.length).toBe(2);
-      const recombined: cciCube = Continuation.Recombine(chunks, {requiredDifficulty: 0});
+      const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
       expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(tooLong);
     });
 
@@ -611,7 +618,7 @@ describe('CubeRetriever Continuation-related features', () => {
       expect(chunks.length).toBe(splitCubes.length);
 
       // reassemble the chunks
-      const recombined: cciCube = Continuation.Recombine(chunks, {requiredDifficulty: 0});
+      const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
       expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(evenLonger);
     });
 
@@ -643,7 +650,7 @@ describe('CubeRetriever Continuation-related features', () => {
       expect(chunks.length).toBe(splitCubes.length);
 
       // reassemble the chunks
-      const recombined: cciCube = Continuation.Recombine(chunks, {requiredDifficulty: 0});
+      const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
       expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(farTooLong);
     });
 
@@ -671,7 +678,7 @@ describe('CubeRetriever Continuation-related features', () => {
       expect(chunks.length).toBe(splitCubes.length);
 
       // reassemble the chunks
-      const recombined: cciCube = Continuation.Recombine(chunks, {requiredDifficulty: 0});
+      const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
       expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(farTooLong);
     });
 
