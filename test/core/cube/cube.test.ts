@@ -50,10 +50,13 @@ describe('cube', () => {
   ]);
 
   let commonKeyPair: sodium.KeyPair;
+  let commonPublicKey: Buffer, commonPrivateKey: Buffer;
 
   beforeAll(async () => {
     await sodium.ready;
     commonKeyPair = sodium.crypto_sign_keypair();
+    commonPublicKey = Buffer.from(commonKeyPair.publicKey);
+    commonPrivateKey = Buffer.from(commonKeyPair.privateKey);
   });
 
   describe('construction', () => {
@@ -161,8 +164,8 @@ describe('cube', () => {
     it('should create a Cube with a signed type when a valid key pair is provided', async () => {
         const type = CubeType.MUC;
         const cube = Cube.Create(type, {
-          publicKey: commonKeyPair.publicKey,
-          privateKey: commonKeyPair.privateKey,
+          publicKey: commonPublicKey,
+          privateKey: commonPrivateKey,
           requiredDifficulty: requiredDifficulty,
         });
 
@@ -176,8 +179,8 @@ describe('cube', () => {
     it('should normalize publicKey and privateKey to Buffer if they are not already Buffers', () => {
         const type = CubeType.MUC;
         const cube = Cube.Create(type, {
-          publicKey: commonKeyPair.publicKey,
-          privateKey: commonKeyPair.privateKey,
+          publicKey: commonPublicKey,
+          privateKey: commonPrivateKey,
           requiredDifficulty: requiredDifficulty,
         });
 
@@ -208,7 +211,7 @@ describe('cube', () => {
         const type = CubeType.MUC;
         const publicKey = Buffer.alloc(30);  // incorrect size
 
-        expect(() => Cube.Create(type, { publicKey, privateKey: commonKeyPair.privateKey })).toThrow(ApiMisuseError);
+        expect(() => Cube.Create(type, { publicKey, privateKey: commonPrivateKey })).toThrow(ApiMisuseError);
     });
   });  // static methods
 

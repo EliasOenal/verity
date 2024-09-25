@@ -17,6 +17,7 @@ export enum FieldPosition {
 // definition. Within BaseFields, the field definition is currently *only* used in getByteLength()
 // and in the insert before/after positionals methods.
 export class BaseFields {  // cannot make abstract, FieldParser creates temporary BaseField objects
+
     /**
      * Creates a new field set with all mandatory positional fields filled in.
      * @param fieldDefinition Defines what kinds of fields you want.
@@ -131,12 +132,12 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         // input normalisation
         if (fields instanceof BaseField) fields = [fields];
         if (fields instanceof BaseFields) fields = fields.all;
-        if (!(Array.isArray(type))) type = [type];
+        if (type && !(Array.isArray(type))) type = [type];
 
         if (type) {  // any actual filtering requested?
             const ret = [];
             for (const field of fields) {
-                if (type.includes(field.type)) ret.push(field);
+                if ((type as Array<number>).includes(field.type)) ret.push(field);
             }
             return ret;
         }

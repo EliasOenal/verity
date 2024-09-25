@@ -1,8 +1,9 @@
 import type { BaseField } from "../fields/baseField";
 import type { BaseFields, FieldPosition } from "../fields/baseFields";
-import type { FieldDefinition } from "../fields/fieldParser";
+import type { FieldDefinition, FieldParser } from "../fields/fieldParser";
 import type { CubeKey, CubeType } from "./cube.definitions";
 import type { CubeFamilyDefinition } from "./cubeFields";
+import type { VeritableBaseImplementation } from "./veritableBase";
 
 export interface Veritable {
   //###
@@ -14,6 +15,11 @@ export interface Veritable {
 
   /** The Cube family used, i.e. the local parsing variant used */
   get family(): CubeFamilyDefinition;
+
+  /**
+   * The field parser used to compile this veritable structure.
+   **/
+  get fieldParser(): FieldParser;
 
   /**
    * @returns This veritable structure's key, if available.
@@ -41,7 +47,7 @@ export interface Veritable {
    * @returns True if the other structure has the same fields with the same
    *   values in the same order, false otherwise.
    **/
-  fieldsEqual(other: BaseVeritable): boolean;
+  fieldsEqual(other: Veritable&VeritableBaseImplementation): boolean;
 
   get fieldCount(): number;
 
@@ -124,77 +130,3 @@ export interface Veritable {
    **/
   manipulateFields(): BaseFields;
 };
-
-export class BaseVeritable {
-  protected _fields: BaseFields;
-
-  fieldsEqual(other: BaseVeritable): boolean {
-    return this._fields.equals(other._fields);
-  }
-
-  get fieldCount(): number { return this._fields.length }
-
-  get byteLength(): number { return this._fields.getByteLength() }
-
-  getFieldLength(fields?: BaseField | BaseField[]): number {
-    return this._fields.getByteLength(fields);
-  }
-
-  getFields(type?: number | number[]): Iterable<BaseField> {
-    return this._fields.get(type);
-  }
-
-  getFirstField(type: Number): BaseField {
-    return this._fields.getFirst(type);
-  }
-
-  sliceFieldsBy(type: Number, includeBefore?: boolean): Iterable<BaseFields> {
-    return this._fields.sliceBy(type, includeBefore);
-  }
-
-  appendField(field: BaseField): void {
-    return this._fields.appendField(field);
-  }
-
-  insertFieldInFront(field: BaseField): void {
-    return this._fields.insertFieldInFront(field);
-  }
-
-  insertFieldAfterFrontPositionals(field: BaseField): void {
-    return this._fields.insertFieldAfterFrontPositionals(field);
-  }
-
-  insertFieldBeforeBackPositionals(field: BaseField): void {
-    return this._fields.insertFieldBeforeBackPositionals(field);
-  }
-
-  insertFieldBefore(type: number, field: BaseField): void {
-    return this._fields.insertFieldBefore(type, field);
-  }
-
-  insertField(field: BaseField, position?: FieldPosition): void {
-    return this._fields.insertField(field, position);
-  }
-  ensureFieldInFront(type: number, defaultField: BaseField | FieldDefinition): void {
-    return this._fields.ensureFieldInFront(type, defaultField);
-  }
-
-  ensureFieldInBack(type: number, defaultField: BaseField | FieldDefinition): void {
-    return this._fields.ensureFieldInBack(type, defaultField);
-  }
-
-  removeField(index: number): void;
-  removeField(field: BaseField): void;
-  removeField(field: number|BaseField): void {
-    return this._fields.removeField(field);
-  }
-
-  /**
-   * Subclasses should override this method to perform any necessary
-   * state changes required due to the fact that the field set may now
-   * be changes by application layer code in an unpredictable way.
-   */
-  manipulateFields(): BaseFields {
-    return this._fields;
-  }
-}

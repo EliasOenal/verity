@@ -2,14 +2,16 @@
 import { ApiMisuseError, Settings } from '../settings';
 import { NetConstants } from '../networking/networkDefinitions';
 
+import type { Veritable } from './veritable.definition';
+
 import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldError, FieldSizeError, HasSignature } from "./cube.definitions";
-import { BaseVeritable, Veritable } from './veritable.definition';
+import { VeritableBaseImplementation } from './veritableBase';
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField } from "./cubeField";
 import { CoreFieldParsers, CubeFamilyDefinition, CubeFields } from './cubeFields';
 
-import { FieldDefinition, FieldParser } from "../fields/fieldParser";
+import type { FieldDefinition } from "../fields/fieldParser";
 
 import { logger } from '../logger';
 
@@ -22,7 +24,12 @@ export interface CubeOptions {
     requiredDifficulty?: number,
 }
 
-export class Cube extends BaseVeritable implements Veritable {
+export interface CubeCreateOptions extends CubeOptions {
+    publicKey?: Buffer,
+    privateKey?: Buffer,
+}
+
+export class Cube extends VeritableBaseImplementation implements Veritable {
     /**
      * Creates a new fully valid Cube of your chosen type.
      * @param type Which type of Cube would you like?
@@ -39,7 +46,7 @@ export class Cube extends BaseVeritable implements Veritable {
      */
     static Create(
         type: CubeType,
-        options: CubeOptions&{publicKey?: Buffer|Uint8Array, privateKey?: Buffer|Uint8Array} = {},
+        options: CubeCreateOptions = {},
     ): Cube {
         options = Object.assign({}, options);  // copy options to avoid messing up original
         // set default options
@@ -50,6 +57,7 @@ export class Cube extends BaseVeritable implements Veritable {
 
         // normalise input:
         // - ensure fields is an instance of the family-specified Fields class
+        // maybe TODO: skip the copy if already correct type?
         options.fields = new fieldDef.fieldsObjectClass(options.fields, fieldDef);
 
         // - on signed types, recognise implicitly supplied public key
@@ -115,8 +123,8 @@ export class Cube extends BaseVeritable implements Veritable {
      * with all required boilerplate.
      * If data contains a NOTIFY field, the resulting Cube will be a notify Cube.
      */
-    static MUC(publicKey: Buffer | Uint8Array,
-               privateKey: Buffer | Uint8Array,
+    static MUC(publicKey: Buffer,
+               privateKey: Buffer,
                options?: CubeOptions,
     ): Cube {
         return this.Create(CubeType.MUC, {...options, publicKey, privateKey});
@@ -129,14 +137,6 @@ export class Cube extends BaseVeritable implements Veritable {
     static PIC(options: CubeOptions): Cube {
         return this.Create(CubeType.PIC, options);
     }
-
-    readonly _cubeType: CubeType;
-    get cubeType(): CubeType { return this._cubeType }
-
-    readonly family: CubeFamilyDefinition;
-    readonly fieldParser: FieldParser;
-
-    readonly requiredDifficulty: number;
 
     declare protected _fields: CubeFields;
 
@@ -182,10 +182,7 @@ export class Cube extends BaseVeritable implements Veritable {
             param1: Buffer | CubeType,
             options?: CubeOptions)
     {
-        super();
         // set options
-        this.family = options?.family ?? coreCubeFamily;
-        this.requiredDifficulty = options?.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
         if (param1 instanceof Buffer) {
             // existing cube, usually received from the network
             const binaryData = param1;
@@ -193,13 +190,12 @@ export class Cube extends BaseVeritable implements Veritable {
                 logger.info(`Cube: Cannot reactivate dormant (binary) Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
                 throw new BinaryLengthError(`Cannot reactivate dormant (binary) Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
             }
+            super(CubeUtil.typeFromBinary(binaryData), options);
             this.binaryData = binaryData;  // maybe TODO: why do we even need to keep the binary buffer after parsing?
-            this._cubeType = CubeUtil.typeFromBinary(binaryData);
-            if (!(this._cubeType in CubeType)) {
-                logger.info(`Cube: Cannot reactivate dormant (binary) Cube of unknown type ${this._cubeType}`);
-                throw new CubeError(`Cannot reactivate dormant (binary) Cube of unknown type ${this._cubeType}`)
+            if (!(this.cubeType in CubeType)) {
+                logger.info(`Cube: Cannot reactivate dormant (binary) Cube of unknown type ${this.cubeType}`);
+                throw new CubeError(`Cannot reactivate dormant (binary) Cube of unknown type ${this.cubeType}`)
             }
-            this.fieldParser = this.family.parsers[this._cubeType];
             this._fields = this.fieldParser.decompileFields(this.binaryData) as CubeFields;
             if (!this._fields) {
                 logger.info(`Cube: Could not decompile dormant (binary) Cube`);
@@ -209,8 +205,7 @@ export class Cube extends BaseVeritable implements Veritable {
             this.validateCube();
         } else {
             // sculpt new Cube
-            this._cubeType = param1;
-            this.fieldParser = this.family.parsers[this._cubeType];
+            super(param1, options);
             if (options?.fields) {  // do we have a field set already?
                 if (!(options.fields instanceof CubeFields)) {
                     options.fields =  // upgrade to CubeFields if necessary
@@ -227,7 +222,7 @@ export class Cube extends BaseVeritable implements Veritable {
 
     toString(): string {
         let ret = "";
-        switch (this._cubeType) {
+        switch (this.cubeType) {
             case CubeType.FROZEN:
                 ret = "Frozen Cube";
                 break;

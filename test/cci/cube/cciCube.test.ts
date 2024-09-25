@@ -16,10 +16,13 @@ const reducedDifficulty = 0;
 
 describe('cciCube', () => {
   let commonKeyPair: sodium.KeyPair;
+  let commonPublicKey: Buffer, commonPrivateKey: Buffer;
 
   beforeAll(async () => {
     await sodium.ready;
     commonKeyPair = sodium.crypto_sign_keypair();
+    commonPublicKey = Buffer.from(commonKeyPair.publicKey);
+    commonPrivateKey = Buffer.from(commonKeyPair.privateKey);
   });
 
   describe('method padUp()', () => {
@@ -106,8 +109,8 @@ describe('cciCube', () => {
           const cube: cciCube = cciCube.Create(type, {
             fields: incompleteFieldset,
             requiredDifficulty: reducedDifficulty,
-            publicKey: commonKeyPair.publicKey,    // will be ignored for
-            privateKey: commonKeyPair.privateKey,  // non-signed Cubes
+            publicKey: commonPublicKey,    // will be ignored for
+            privateKey: commonPrivateKey,  // non-signed Cubes
           });
           expect(cube.cubeType).toBe(type);
 
