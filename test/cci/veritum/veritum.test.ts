@@ -89,7 +89,30 @@ describe('Veritum', () => {
   describe('field handling methods', () => {
     describe('field retrieval and analysis methods', () => {
       describe('fieldsEqual()', () => {
-        it.todo('write tests');
+        it('returns true for two Veritum instances with the same fields', () => {
+          const veritum1 = new Veritum(CubeType.FROZEN, { fields: [applicationField, mediaTypeField, payloadField] });
+          const veritum2 = new Veritum(CubeType.FROZEN, { fields: [applicationField, mediaTypeField, payloadField] });
+          expect(veritum1.fieldsEqual(veritum2)).toBe(true);
+        });
+
+        it('returns false for two Veritum instances with different fields', () => {
+          const veritum1 = new Veritum(CubeType.FROZEN, { fields: [applicationField, mediaTypeField, payloadField] });
+          const veritum2 = new Veritum(CubeType.FROZEN, { fields: [applicationField, mediaTypeField] });
+          expect(veritum1.fieldsEqual(veritum2)).toBe(false);
+        });
+
+        it('returns false for two Veritum instances with different field values', () => {
+          const differentPayloadField = cciField.Payload("Different payload");
+          const veritum1 = new Veritum(CubeType.FROZEN, { fields: [applicationField, mediaTypeField, payloadField] });
+          const veritum2 = new Veritum(CubeType.FROZEN, { fields: [applicationField, mediaTypeField, differentPayloadField] });
+          expect(veritum1.fieldsEqual(veritum2)).toBe(false);
+        });
+
+        it('returns true for two Veritum instances with empty fields', () => {
+          const veritum1 = new Veritum(CubeType.FROZEN);
+          const veritum2 = new Veritum(CubeType.FROZEN);
+          expect(veritum1.fieldsEqual(veritum2)).toBe(true);
+        });
       });
 
       describe('fieldCount()', () => {
@@ -129,7 +152,41 @@ describe('Veritum', () => {
       });
 
       describe('getFieldLength()', () => {
-        it.todo('write tests');
+        it('returns the correct length for a single field', () => {
+          const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
+          const expectedLength = payloadField.value.length + veritum.fieldParser.getFieldHeaderLength(payloadField.type);
+          expect(veritum.getFieldLength(payloadField)).toBe(expectedLength);
+        });
+
+        it('returns the correct length for multiple fields', () => {
+          const veritum = new Veritum(CubeType.FROZEN, { fields: [applicationField, mediaTypeField, payloadField] });
+          const expectedApplicationLength = applicationField.value.length + veritum.fieldParser.getFieldHeaderLength(applicationField.type);
+          const expectedMediaTypeLength = mediaTypeField.value.length + veritum.fieldParser.getFieldHeaderLength(mediaTypeField.type);
+          const expectedPayloadLength = payloadField.value.length + veritum.fieldParser.getFieldHeaderLength(payloadField.type);
+          const expectedTotalLength = expectedApplicationLength + expectedMediaTypeLength + expectedPayloadLength;
+
+          expect(veritum.getFieldLength()).toBe(expectedTotalLength);
+          expect(veritum.getFieldLength([applicationField])).toBe(
+            expectedApplicationLength);
+          expect(veritum.getFieldLength([applicationField, payloadField])).toBe(
+            expectedApplicationLength + expectedPayloadLength);
+          expect(veritum.getFieldLength([applicationField, payloadField, mediaTypeField])).toBe(
+            expectedApplicationLength + expectedPayloadLength + expectedMediaTypeLength);
+        });
+
+        it('returns 0 for an empty field set', () => {
+          const emptyVeritum = new Veritum(CubeType.FROZEN);
+          expect(emptyVeritum.getFieldLength()).toBe(0);
+
+          const nonEmptyVeritum = new Veritum(CubeType.FROZEN, {fields: payloadField});
+          expect(emptyVeritum.getFieldLength([])).toBe(0);
+        });
+
+        it('can calculate the length even for fields not currently part of this Veritum', () => {
+          const veritum = new Veritum(CubeType.PMUC);
+          const expectedPayloadLength = payloadField.value.length + veritum.fieldParser.getFieldHeaderLength(payloadField.type);
+          expect(veritum.getFieldLength(payloadField)).toBe(expectedPayloadLength);
+        });
       });
 
       describe('getFields()', () => {
@@ -143,6 +200,8 @@ describe('Veritum', () => {
           expect(fields[1]).toBe(mediaTypeField);
           expect(fields[2]).toBe(payloadField);
         });
+
+        it.todo('fetches all fields of the specified type');
       });
 
       describe('getFirstField()', () => {
