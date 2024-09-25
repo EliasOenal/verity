@@ -745,12 +745,12 @@ export class Identity {
     }
 
     // read name
-    const nameField: cciField = muc.fields.getFirst(cciFieldType.USERNAME);
+    const nameField: cciField = muc.getFirstField(cciFieldType.USERNAME);
     if (nameField) this.name = nameField.value.toString('utf-8');
 
     // read cube references, these being:
     // - avatar seed
-    const avatarSeedField: cciField = muc.fields.getFirst(cciFieldType.AVATAR);
+    const avatarSeedField: cciField = muc.getFirstField(cciFieldType.AVATAR);
     if (avatarSeedField) {
       this._avatar = new Avatar(avatarSeedField);
     }

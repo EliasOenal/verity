@@ -14,7 +14,7 @@ describe('makePost function', () => {
     const post: cciCube = await makePost(text);
     expect(post).toBeInstanceOf(Cube);
     expect(assertZwCube(post)).toBe(true);
-    expect(post.fields.getFirst(cciFieldType.PAYLOAD).value.toString('utf8')).
+    expect(post.getFirstField(cciFieldType.PAYLOAD).value.toString('utf8')).
       toEqual(text);
   });
 
@@ -23,7 +23,7 @@ describe('makePost function', () => {
     const post: cciCube = await makePost(text, Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42));
     expect(post).toBeInstanceOf(Cube);
     expect(assertZwCube(post)).toBe(true);
-    expect(post.fields.getFirst(cciFieldType.PAYLOAD).value.toString('utf8')).
+    expect(post.getFirstField(cciFieldType.PAYLOAD).value.toString('utf8')).
       toEqual(text);
     expect(post.fields.getFirstRelationship(cciRelationshipType.REPLY_TO).remoteKey).
       toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42));

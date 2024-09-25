@@ -86,7 +86,7 @@ describe('Continuation', () => {
 
       // assert that payload was correctly restored
       expect(recombined.fields.get(cciFieldType.PAYLOAD).length).toEqual(1);
-      const restoredPayload = recombined.fields.getFirst(cciFieldType.PAYLOAD);
+      const restoredPayload = recombined.getFirstField(cciFieldType.PAYLOAD);
       expect(restoredPayload.valueString).toEqual(tooLong);
     });
 
@@ -116,7 +116,7 @@ describe('Continuation', () => {
 
       // assert that payload was correctly restored
       expect(recombined.fields.get(cciFieldType.PAYLOAD).length).toEqual(1);
-      const restoredPayload = recombined.fields.getFirst(cciFieldType.PAYLOAD);
+      const restoredPayload = recombined.getFirstField(cciFieldType.PAYLOAD);
       expect(restoredPayload.valueString).toEqual(farTooLong);
     });
 
@@ -335,7 +335,7 @@ describe('Continuation', () => {
 
       // assert that payload was correctly restored
       expect(recombined.fields.get(cciFieldType.PAYLOAD).length).toEqual(1);
-      const restoredPayload = recombined.fields.getFirst(cciFieldType.PAYLOAD);
+      const restoredPayload = recombined.getFirstField(cciFieldType.PAYLOAD);
       expect(restoredPayload.valueString).toEqual(tooLong);
 
       // assert that the number of RELATES_TO fields is the number of
@@ -452,7 +452,7 @@ describe('CubeRetriever Continuation-related features', () => {
       expect(chunks.length).toBe(1);
       expect(chunks[0].getKeyIfAvailable()).toBeDefined();
       expect(chunks[0].getKeyIfAvailable()).toEqual(cube.getKeyIfAvailable());
-      expect(chunks[0].fields.getFirst(cciFieldType.PAYLOAD).valueString).toEqual("Hoc non est cadena continuationis");
+      expect(chunks[0].getFirstField(cciFieldType.PAYLOAD).valueString).toEqual("Hoc non est cadena continuationis");
     });
 
     it('yields a single chunk arriving after the request', async () => {
@@ -487,7 +487,7 @@ describe('CubeRetriever Continuation-related features', () => {
       expect(chunks.length).toBe(1);
       expect(chunks[0].getKeyIfAvailable()).toBeDefined();
       expect(chunks[0].getKeyIfAvailable()).toEqual(cube.getKeyIfAvailable());
-      expect(chunks[0].fields.getFirst(cciFieldType.PAYLOAD).valueString).toEqual("Hoc non est cadena continuationis");
+      expect(chunks[0].getFirstField(cciFieldType.PAYLOAD).valueString).toEqual("Hoc non est cadena continuationis");
     });
 
     it('yields a 2-chunk continuation already in store', async () => {
@@ -514,7 +514,7 @@ describe('CubeRetriever Continuation-related features', () => {
 
       // reassemble the chunks
       const recombined: cciCube = Continuation.Recombine(chunks, {requiredDifficulty: 0});
-      expect(recombined.fields.getFirst(cciFieldType.PAYLOAD).valueString).toEqual(tooLong);
+      expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(tooLong);
     });
 
     it('yields a 2-chunk continuation arriving in correct order after the request', async () => {
@@ -541,7 +541,7 @@ describe('CubeRetriever Continuation-related features', () => {
       }
       expect(chunks.length).toBe(splitCubes.length);
       const recombined: cciCube = Continuation.Recombine(chunks, {requiredDifficulty: 0});
-      expect(recombined.fields.getFirst(cciFieldType.PAYLOAD).valueString).toEqual(tooLong);
+      expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(tooLong);
     });
 
 
@@ -585,7 +585,7 @@ describe('CubeRetriever Continuation-related features', () => {
 
       expect(chunks.length).toBe(2);
       const recombined: cciCube = Continuation.Recombine(chunks, {requiredDifficulty: 0});
-      expect(recombined.fields.getFirst(cciFieldType.PAYLOAD).valueString).toEqual(tooLong);
+      expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(tooLong);
     });
 
     it('yields a three-chunk continuation already in store', async () => {
@@ -612,7 +612,7 @@ describe('CubeRetriever Continuation-related features', () => {
 
       // reassemble the chunks
       const recombined: cciCube = Continuation.Recombine(chunks, {requiredDifficulty: 0});
-      expect(recombined.fields.getFirst(cciFieldType.PAYLOAD).valueString).toEqual(evenLonger);
+      expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(evenLonger);
     });
 
 
@@ -644,7 +644,7 @@ describe('CubeRetriever Continuation-related features', () => {
 
       // reassemble the chunks
       const recombined: cciCube = Continuation.Recombine(chunks, {requiredDifficulty: 0});
-      expect(recombined.fields.getFirst(cciFieldType.PAYLOAD).valueString).toEqual(farTooLong);
+      expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(farTooLong);
     });
 
 
@@ -672,7 +672,7 @@ describe('CubeRetriever Continuation-related features', () => {
 
       // reassemble the chunks
       const recombined: cciCube = Continuation.Recombine(chunks, {requiredDifficulty: 0});
-      expect(recombined.fields.getFirst(cciFieldType.PAYLOAD).valueString).toEqual(farTooLong);
+      expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(farTooLong);
     });
 
     it.todo('yields a random continuation arriving in random order (fuzzing test)');

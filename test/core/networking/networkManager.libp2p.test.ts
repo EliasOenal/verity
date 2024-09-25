@@ -691,7 +691,7 @@ describe('networkManager - libp2p connections', () => {
       await cubeReceivedPromise;
       expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
       expect(cubeReceived).toBeInstanceOf(Cube);
-      expect(cubeReceived.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).
+      expect(cubeReceived.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).
         valueString).toContain(
           "Hic cubus directe ad collegam meum iturus est");
     }
@@ -746,7 +746,7 @@ describe('networkManager - libp2p connections', () => {
 
       expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(2);
       expect(cubeReceived).toBeInstanceOf(Cube);
-      expect(cubeReceived.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).
+      expect(cubeReceived.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).
         valueString).toContain(
           "Gratias collega, cubus tuus aestimatur.");
     }
@@ -898,7 +898,7 @@ describe('networkManager - libp2p connections', () => {
     }
     const recovered: Cube = await browser2.cubeStore.getCube(cubeKey);
     expect(recovered).toBeInstanceOf(Cube);
-    expect(recovered.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).valueString).
+    expect(recovered.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).
       toContain("Hic cubus directe ad collegam meum iturus est");
 
     await browser1.shutdown();

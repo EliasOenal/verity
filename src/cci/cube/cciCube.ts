@@ -101,7 +101,7 @@ export class cciCube extends Cube {
     super(param1, options)
   }
 
-
+  /** @deprecated Use methods defined in Veritable instead */
   public get fields(): cciFields {
     if (Settings.RUNTIME_ASSERTIONS && !(this.assertCci())) {
       throw new FieldError("This CCI Cube does not have CCI fields but " + this._fields.constructor.name);
@@ -129,7 +129,7 @@ export class cciCube extends Cube {
       const paddingFields: Iterable<CubeField> =
         this.getFields(cciFieldType.PADDING);
       for (const paddingField of paddingFields) {
-        this.fields.removeField(paddingField);
+        this.removeField(paddingField);
       }
       len = this.getFieldLength();
       if (len > NetConstants.CUBE_SIZE) {  // still to large :(
