@@ -1,8 +1,7 @@
-import { CubeCreateOptions } from "../../core/cube/cube";
+import { CubeCreateOptions, VeritableBaseImplementation } from "../../core/cube/cube";
 import { HasSignature, type CubeKey, type CubeType } from "../../core/cube/cube.definitions";
 import { keyVariants } from "../../core/cube/cubeUtil";
 import type { Veritable } from "../../core/cube/veritable.definition";
-import { VeritableBaseImplementation } from "../../core/cube/veritableBase";
 import { cciCube, cciFamily } from "../cube/cciCube";
 import { cciFields } from "../cube/cciFields";
 import { Continuation } from "./continuation";

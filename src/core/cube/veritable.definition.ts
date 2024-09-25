@@ -1,9 +1,9 @@
 import type { BaseField } from "../fields/baseField";
 import type { BaseFields, FieldPosition } from "../fields/baseFields";
 import type { FieldDefinition, FieldParser } from "../fields/fieldParser";
+import { VeritableBaseImplementation } from "./cube";
 import type { CubeKey, CubeType } from "./cube.definitions";
 import type { CubeFamilyDefinition } from "./cubeFields";
-import type { VeritableBaseImplementation } from "./veritableBase";
 
 export interface Veritable {
   //###
