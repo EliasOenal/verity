@@ -141,10 +141,10 @@ describe('cciCube', () => {
           // decompile the Cube and check if the content is still the same
           const recontructed: cciCube = new cciCube(binaryData);
           expect(recontructed.cubeType).toBe(type);
-          expect(recontructed.fields.getFirst(cciFieldType.PAYLOAD).valueString).
+          expect(recontructed.getFirstField(cciFieldType.PAYLOAD).valueString).
             toEqual(contentString);
           if (HasNotify[type]) {
-            expect(recontructed.fields.getFirst(CubeFieldType.NOTIFY).value[0]).toEqual(randomNotifyNumber);
+            expect(recontructed.getFirstField(CubeFieldType.NOTIFY).value[0]).toEqual(randomNotifyNumber);
           }
           // double-check hash is still correct
           expect(await recontructed.getHash()).toEqual(expectedHash);

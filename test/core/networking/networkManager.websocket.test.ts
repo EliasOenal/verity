@@ -490,7 +490,7 @@ describe('networkManager - WebSocket connections', () => {
 
         const received: Cube = await node2.cubeStore.getCube(key);
         expect(received).toBeInstanceOf(Cube);
-        expect((await received).fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).valueString).
+        expect((await received).getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).
           toContain("Hic cubus automatice transferetur");
 
         await Promise.all([node1.shutdown(), node2.shutdown()]);
@@ -737,7 +737,7 @@ describe('networkManager - WebSocket connections', () => {
         }
         const received: Cube = await node2.cubeStore.getCube(key);
         expect(received).toBeInstanceOf(Cube);
-        expect((await received).fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).valueString).
+        expect((await received).getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).
           toContain("Hic cubus per rogatum transferetur");
 
         await Promise.all([node1.shutdown(), node2.shutdown()]);

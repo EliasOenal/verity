@@ -90,11 +90,11 @@ describe('RequestScheduler integration tests', () => {
     await new Promise(resolve => setTimeout(resolve, 500));  // give it some time
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
-    expect((await local.cubeStore.getCube(mucKey)).fields.getFirst(
+    expect((await local.cubeStore.getCube(mucKey)).getFirstField(
       cciFieldType.PAYLOAD).valueString).toBe("primum hoc dico");
 
     // remote updates MUC
-    muc.fields.getFirst(cciFieldType.PAYLOAD).value =
+    muc.getFirstField(cciFieldType.PAYLOAD).value =
       Buffer.from("deinde iliud dico", 'ascii');
     muc.setDate(1715704520);  // a bit later then the last version - this currently fails without cache
     await muc.compile();
@@ -107,7 +107,7 @@ describe('RequestScheduler integration tests', () => {
     await new Promise(resolve => setTimeout(resolve, 500));  // give it some time
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
-    expect((await local.cubeStore.getCube(mucKey)).fields.getFirst(
+    expect((await local.cubeStore.getCube(mucKey)).getFirstField(
       cciFieldType.PAYLOAD).valueString).toBe("deinde iliud dico");
 
     // This seems to have issues as well - with or without cache

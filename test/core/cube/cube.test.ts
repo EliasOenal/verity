@@ -354,11 +354,11 @@ describe('cube', () => {
           // decompile the Cube and check if the content is still the same
           const recontructed: Cube = new Cube(binaryData);
           expect(recontructed.cubeType).toBe(type);
-          expect(recontructed.fields.getFirst(RawcontentFieldType[type]).value).
+          expect(recontructed.getFirstField(RawcontentFieldType[type]).value).
             toEqual(paddedBuffer(
               contentString, CubeFieldLength[RawcontentFieldType[type]]));
           if (HasNotify[type]) {
-            expect(recontructed.fields.getFirst(CubeFieldType.NOTIFY).value[0]).toEqual(randomNotifyNumer);
+            expect(recontructed.getFirstField(CubeFieldType.NOTIFY).value[0]).toEqual(randomNotifyNumer);
           }
           // double-check hash is still correct
           expect(await recontructed.getHash()).toEqual(expectedHash);
@@ -434,12 +434,12 @@ describe('cube', () => {
 
         // ensure signature exposed through the Cube object's signature field matches
         // the actualy one in the binary data
-        const sigField = muc.fields.getFirst(CubeFieldType.SIGNATURE);
+        const sigField = muc.getFirstField(CubeFieldType.SIGNATURE);
         const sigFromBinary: Buffer = binaryData.subarray(956, 1020);
         expect(sigField.value.equals(sigFromBinary)).toBeTruthy();
 
         // verify public key has correctly been transferred to field and binary data
-        const pubkeyField = muc.fields.getFirst(CubeFieldType.PUBLIC_KEY);
+        const pubkeyField = muc.getFirstField(CubeFieldType.PUBLIC_KEY);
         expect(pubkeyField.value.equals(
           publicKey)).toBeTruthy();
         expect(binaryData.subarray(
@@ -489,10 +489,10 @@ describe('cube', () => {
         expect(coreParsedMuc.fields.all[4].type).toEqual(CubeFieldType.SIGNATURE);
         expect(coreParsedMuc.fields.all[5].type).toEqual(CubeFieldType.NONCE);
         expect(coreParsedMuc.publicKey.equals(publicKey)).toBeTruthy();
-        expect(coreParsedMuc.fields.getFirst(CubeFieldType.DATE).value.equals(
-          muc.fields.getFirst(CubeFieldType.DATE).value)).toBeTruthy();
+        expect(coreParsedMuc.getFirstField(CubeFieldType.DATE).value.equals(
+          muc.getFirstField(CubeFieldType.DATE).value)).toBeTruthy();
 
-        expect(coreParsedMuc.fields.getFirst(CubeFieldType.MUC_RAWCONTENT).valueString).toContain(
+        expect(coreParsedMuc.getFirstField(CubeFieldType.MUC_RAWCONTENT).valueString).toContain(
           "Ego sum cubus usoris mutabilis, peculiare informatiuncula quae a domino meo corrigi potest.");
       }, 5000);
 
@@ -610,7 +610,7 @@ describe('cube', () => {
       expect(muc.verifySignature()).toBe(true);
 
       // update content
-      muc.fields.getFirst(CubeFieldType.MUC_RAWCONTENT).value.write(
+      muc.getFirstField(CubeFieldType.MUC_RAWCONTENT).value.write(
         "Sed militia Britannica adhuc in Melita stat", 'ascii');
 
       // verify its signature is still valid

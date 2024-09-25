@@ -76,9 +76,9 @@ describe('notification end-to-end tests', () => {
 
     expect(retrieved).toBeInstanceOf(CubeInfo);
     expect(retrieved.key).toEqual(notification.getKeyIfAvailable());
-    expect(retrieved.getCube().fields.getFirst(CubeFieldType.NOTIFY).value).
+    expect(retrieved.getCube().getFirstField(CubeFieldType.NOTIFY).value).
       toEqual(notificationKey);
-    expect(retrieved.getCube().fields.getFirst(CubeFieldType.FROZEN_NOTIFY_RAWCONTENT).value).
+    expect(retrieved.getCube().getFirstField(CubeFieldType.FROZEN_NOTIFY_RAWCONTENT).value).
       toEqual(contentField.value);
 
     // shutdown
@@ -149,9 +149,9 @@ describe('notification end-to-end tests', () => {
       requestNotifications(notificationKey);
     expect(retrieved).toBeInstanceOf(CubeInfo);
     expect(retrieved.key).toEqual(notification.getKeyIfAvailable());
-    expect(retrieved.getCube().fields.getFirst(CubeFieldType.NOTIFY).value).
+    expect(retrieved.getCube().getFirstField(CubeFieldType.NOTIFY).value).
       toEqual(notificationKey);
-    expect(retrieved.getCube().fields.getFirst(CubeFieldType.FROZEN_NOTIFY_RAWCONTENT).value).
+    expect(retrieved.getCube().getFirstField(CubeFieldType.FROZEN_NOTIFY_RAWCONTENT).value).
       toEqual(contentField.value);
 
     // shutdown

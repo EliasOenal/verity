@@ -472,7 +472,7 @@ export class RequestScheduler {
     // does this fulfil a notification request in direct CubeRequest mode?
     // TODO: do not potentially reactivate Cube, this is very inefficient
     const recipientKey: Buffer =
-      cubeInfo.getCube().fields.getFirst(CubeFieldType.NOTIFY)?.value;
+      cubeInfo.getCube().getFirstField(CubeFieldType.NOTIFY)?.value;
     if (recipientKey) {
       const directNotificationRequest: RequestedCube = this.requestedNotifications.get(keyVariants(recipientKey).keyString);
       if (directNotificationRequest) {

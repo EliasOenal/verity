@@ -117,9 +117,9 @@ describe('RequestScheduler', () => {
 
         const result = await promise;
         expect(result.key).toEqual(notification.getKeyIfAvailable());
-        expect(result.getCube().fields.getFirst(
+        expect(result.getCube().getFirstField(
           CubeFieldType.NOTIFY).value).toEqual(testKey);
-        expect(result.getCube().fields.getFirst(
+        expect(result.getCube().getFirstField(
           CubeFieldType.FROZEN_NOTIFY_RAWCONTENT)).toEqual(contentField);
         expect((scheduler as any).requestedCubes.size).toEqual(0);  // spying on private attribute
       });

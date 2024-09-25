@@ -366,7 +366,7 @@ describe('Identity', () => {
       expect(id.name).toEqual("Dominus plurium apparatorum")
       expect(id.avatar.seedString).toEqual("1234567890");
       expect(id.posts.length).toBe(1);
-      expect((await cubeStore.getCube(id.posts[0])).fields.getFirst(
+      expect((await cubeStore.getCube(id.posts[0])).getFirstField(
         cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
           "Hoc est scriptum in computatore domi meae");
 
@@ -377,7 +377,7 @@ describe('Identity', () => {
       expect(secondDeviceId.name).toEqual("Dominus plurium apparatorum")
       expect(secondDeviceId.avatar.seedString).toEqual("1234567890");
       expect(secondDeviceId.posts.length).toBe(1);
-      expect((await cubeStore.getCube(secondDeviceId.posts[0])).fields.getFirst(
+      expect((await cubeStore.getCube(secondDeviceId.posts[0])).getFirstField(
         cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
           "Hoc est scriptum in computatore domi meae");
       // perform changes
@@ -391,10 +391,10 @@ describe('Identity', () => {
       expect(secondDeviceId.name).toEqual("Dominus plurium apparatorum qui nunc iter agit")
       expect(secondDeviceId.avatar.seedString).toEqual("cafebabe42");
       expect(secondDeviceId.posts.length).toBe(2);
-      expect((await cubeStore.getCube(secondDeviceId.posts[1])).fields.getFirst(
+      expect((await cubeStore.getCube(secondDeviceId.posts[1])).getFirstField(
         cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
           "Hoc est scriptum in computatore domi meae");
-      expect((await cubeStore.getCube(secondDeviceId.posts[0])).fields.getFirst(
+      expect((await cubeStore.getCube(secondDeviceId.posts[0])).getFirstField(
         cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
           "Hoc scriptum est in telefono mobili meo");
 
@@ -405,10 +405,10 @@ describe('Identity', () => {
       expect(id.name).toEqual("Dominus plurium apparatorum qui nunc iter agit")
       expect(id.avatar.seedString).toEqual("cafebabe42");
       expect(id.posts.length).toBe(2);
-      expect((await cubeStore.getCube(id.posts[0])).fields.getFirst(
+      expect((await cubeStore.getCube(id.posts[0])).getFirstField(
         cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
           "Hoc est scriptum in computatore domi meae");
-      expect((await cubeStore.getCube(id.posts[1])).fields.getFirst(
+      expect((await cubeStore.getCube(id.posts[1])).getFirstField(
         cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
           "Hoc scriptum est in telefono mobili meo");
     });

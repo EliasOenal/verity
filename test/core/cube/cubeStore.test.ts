@@ -88,7 +88,7 @@ describe('cubeStore', () => {
 
       const restored: Cube = await cubeStore.getCube(key);
       expect(restored).toBeInstanceOf(Cube);
-      expect(restored.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT).
+      expect(restored.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).
         value).toEqual(content);
     });
 
@@ -176,9 +176,9 @@ describe('cubeStore', () => {
 
             const firstRestored: Cube = await cubeStore.getCube(await first.getKey());
             const secondRestored: Cube = await cubeStore.getCube(await second.getKey());
-            expect(firstRestored.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT)
+            expect(firstRestored.getFirstField(CubeFieldType.FROZEN_RAWCONTENT)
               .valueString).toContain("Cubus probationis primus");
-            expect(secondRestored.fields.getFirst(CubeFieldType.FROZEN_RAWCONTENT)
+            expect(secondRestored.getFirstField(CubeFieldType.FROZEN_RAWCONTENT)
               .valueString).toContain("Cubus probationis secundus");
             // ensure we actually restored two different Cubes
             expect(await firstRestored.getKey()).not.toEqual(await secondRestored.getKey());
@@ -284,7 +284,7 @@ describe('cubeStore', () => {
             expect((await cubeStore.getCubeInfo(key)).date).toEqual(1695340000);
 
             // update MUC
-            muc.fields.getFirst(CubeFieldType.MUC_RAWCONTENT).value =
+            muc.getFirstField(CubeFieldType.MUC_RAWCONTENT).value =
               paddedBuffer(
                 "Actualizatus sum a domino meo, sed clavis mea semper eadem est.",
                 CubeFieldLength[CubeFieldType.MUC_RAWCONTENT]);
@@ -327,7 +327,7 @@ describe('cubeStore', () => {
 
             const restoredmuc = cubeStore.getCube(muckey);
             expect(restoredmuc).toBeDefined();
-            const restoredpayload = (await restoredmuc)?.fields.getFirst(CubeFieldType.MUC_RAWCONTENT);
+            const restoredpayload = (await restoredmuc)?.getFirstField(CubeFieldType.MUC_RAWCONTENT);
             expect(restoredpayload).toBeDefined();
             expect(restoredpayload?.valueString).toContain(
               "Etiam post conversionem in binarium et reversionem, idem cubus usoris mutabilis sum.");
@@ -670,14 +670,14 @@ describe('cubeStore', () => {
           expect(restored).toBeTruthy();
           expect(restored).toBeInstanceOf(cciCube);
           expect(restored.fields).toBeInstanceOf(cciFields);
-          expect(restored.fields.getFirst(cciFieldType.APPLICATION).value.toString())
+          expect(restored.getFirstField(cciFieldType.APPLICATION).value.toString())
             .toEqual("Applicatio probandi");
-          expect(restored.fields.getFirst(cciFieldType.MEDIA_TYPE).value.length).toEqual(1);
-          expect(restored.fields.getFirst(cciFieldType.MEDIA_TYPE).value[0]).toEqual(
+          expect(restored.getFirstField(cciFieldType.MEDIA_TYPE).value.length).toEqual(1);
+          expect(restored.getFirstField(cciFieldType.MEDIA_TYPE).value[0]).toEqual(
             MediaTypes.TEXT);
-          expect(restored.fields.getFirst(cciFieldType.USERNAME).value.toString())
+          expect(restored.getFirstField(cciFieldType.USERNAME).value.toString())
             .toEqual("Usor probandi");
-          expect(restored.fields.getFirst(cciFieldType.PAYLOAD).value.toString()).toEqual(
+          expect(restored.getFirstField(cciFieldType.PAYLOAD).value.toString()).toEqual(
             "In hac applicatio probationis, usor probandi creat contentum probandi, ut programma probatorium confirmet omnem testium datam conservatam esse.");
         });
       });

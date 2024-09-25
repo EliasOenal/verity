@@ -70,7 +70,7 @@ describe("Identity (MUC storage)", () => {
       await cubeStore.addCube(post);
       expect(postkey).toBeInstanceOf(Buffer);
       expect(original.posts.length).toEqual(1);
-      expect((await cubeStore.getCube(original.posts[0]) as Cube).fields.getFirst(cciFieldType.PAYLOAD).value.toString('utf-8')).
+      expect((await cubeStore.getCube(original.posts[0]) as Cube).getFirstField(cciFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
 
       // compile ID into MUC
@@ -100,7 +100,7 @@ describe("Identity (MUC storage)", () => {
       expect(restored.avatar.seedString).toEqual("0102030405");
       expect(restored.keyBackupCube[0]).toEqual(0x13);
       expect(restored.posts.length).toEqual(1);
-      expect((await cubeStore.getCube(restored.posts[0]) as Cube).fields.getFirst(
+      expect((await cubeStore.getCube(restored.posts[0]) as Cube).getFirstField(
         cciFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
     }, 5000);
@@ -139,7 +139,7 @@ describe("Identity (MUC storage)", () => {
       expect(restored.avatar.seedString).toEqual("0102030405");
       expect(restored.keyBackupCube[0]).toEqual(0x13);
       expect(restored.posts.length).toEqual(1);
-      expect((await cubeStore.getCube(restored.posts[0]) as Cube).fields.getFirst(cciFieldType.PAYLOAD).value.toString('utf-8')).
+      expect((await cubeStore.getCube(restored.posts[0]) as Cube).getFirstField(cciFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
     }, 5000);
 
@@ -178,7 +178,7 @@ describe("Identity (MUC storage)", () => {
       const id: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       const muc = await id.store();
-      expect(muc.fields.getFirst(cciFieldType.AVATAR)).toBeUndefined();
+      expect(muc.getFirstField(cciFieldType.AVATAR)).toBeUndefined();
     });
   });
 });

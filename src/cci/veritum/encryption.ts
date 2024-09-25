@@ -194,7 +194,7 @@ export function Decrypt(
 
   // Insert the decrypted fields at the found index
   const output: cciFields = new cciFields(undefined, fields.fieldDefinition);
-  for (let i = 0; i < fields.all.length; i++) {
+  for (let i = 0; i < fields.length; i++) {
     if (i === encryptedFieldIndex) {
       for (const decryptedField of decryptedFields.all) {
         output.appendField(decryptedField);
