@@ -1,0 +1,199 @@
+import { cciCube, cciFamily } from "../../../src/cci/cube/cciCube";
+import { MediaTypes, cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { cciField } from "../../../src/cci/cube/cciField";
+import { Veritum } from "../../../src/cci/veritum/veritum";
+import { coreCubeFamily } from "../../../src/core/cube/cube";
+import { CubeType } from "../../../src/core/cube/cube.definitions";
+import { NetConstants } from "../../../src/core/networking/networkDefinitions";
+
+const requiredDifficulty = 0;
+
+describe('Veritum', () => {
+  const applicationField = cciField.Application("contentum probationis non applicationis");
+  const mediaTypeField = cciField.MediaType(MediaTypes.TEXT);
+  const payloadField = cciField.Payload("Hoc veritum probatio est");
+
+  describe('cubeType getter', () => {
+    it('returns the CubeType set on construction', () => {
+      const veritum = new Veritum(CubeType.PMUC_NOTIFY);
+      expect(veritum.cubeType).toBe(CubeType.PMUC_NOTIFY);
+    });
+  });
+
+  describe('family getter', () => {
+    it('returns the family set on construction', () => {
+      const veritum = new Veritum(CubeType.PIC, { family: coreCubeFamily });
+      expect(veritum.family).toBe(coreCubeFamily);
+    });
+
+    it('uses CCI family by default', () => {
+      const veritum = new Veritum(CubeType.MUC);
+      expect(veritum.family).toBe(cciFamily);
+    });
+  });
+
+  describe('fieldParser getter', () => {
+    it('returns the correct field parser for CCI PMUC Veritae', () => {
+      const veritum = new Veritum(CubeType.PMUC);
+      expect(veritum.fieldParser).toBe(cciFamily.parsers[CubeType.PMUC]);
+    });
+  });
+
+  describe('getKeyIfAvailable() and getKeyStringIfAvailable()', () => {
+    it('returns undefined for a non-compiled frozen veritable', () => {
+      const veritum = new Veritum(CubeType.FROZEN, {fields: payloadField});
+      expect(veritum.getKeyIfAvailable()).toBeUndefined();
+      expect(veritum.getKeyStringIfAvailable()).toBeUndefined();
+    });
+
+    it('returns the Cube key for a single-Cube compiled Veritum', async() => {
+      const veritum = new Veritum(CubeType.FROZEN, {
+        fields: payloadField, requiredDifficulty});
+      await veritum.compile();
+      expect(veritum.getKeyIfAvailable()).toBeInstanceOf(Buffer);
+      expect(veritum.getKeyIfAvailable()).toEqual(
+        Array.from(veritum.compiled)[0].getKeyIfAvailable());
+    });
+
+    it.todo("returns the first Cube's key for a multi-Cube compiled Veritum");
+
+    it('returns the public key for a MUC Veritum', () => {
+      const publicKey = Buffer.alloc(NetConstants.PUBLIC_KEY_SIZE, 0x42);
+      const veritum = new Veritum(CubeType.MUC, {fields: payloadField, publicKey});
+      expect(veritum.getKeyIfAvailable()).toBe(publicKey);
+      expect(veritum.getKeyStringIfAvailable()).toEqual(publicKey.toString('hex'));
+    });
+  });
+
+  describe('encrypt()', () => {
+    it.todo('write tests');
+  });
+
+  describe('decrypt()', () => {
+    it.todo('write tests');
+  });
+
+  describe('compile()', () => {
+    it('compiles a short frozen Veritum to a single Frozen Cube', async() => {
+      const veritum = new Veritum(CubeType.FROZEN, {
+        fields: payloadField, requiredDifficulty});
+      const cubesIterable: Iterable<cciCube> = await veritum.compile();
+      expect(cubesIterable).toEqual(veritum.compiled);
+      const compiled: cciCube[] = Array.from(cubesIterable);
+      expect(compiled.length).toBe(1);
+      expect(compiled[0].cubeType).toBe(CubeType.FROZEN);
+      expect(compiled[0].getFirstField(cciFieldType.PAYLOAD)).toEqual(payloadField);
+    });
+  });
+
+  describe('field handling methods', () => {
+    describe('field retrieval and analysis methods', () => {
+      describe('fieldsEqual()', () => {
+        it.todo('write tests');
+      });
+
+      describe('fieldCount()', () => {
+        it('returns the correct number of fields', () => {
+          const veritum = new Veritum(CubeType.FROZEN, {
+            fields: [applicationField, mediaTypeField, payloadField],
+          });
+          expect(veritum.fieldCount).toBe(3);
+        });
+      });
+
+      describe('byteLength()', () => {
+        it('returns the correct byte length for a single field', () => {
+          const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
+          const expectedByteLength =
+            payloadField.value.length +
+            veritum.fieldParser.getFieldHeaderLength(payloadField.type);
+          expect(veritum.byteLength).toBe(expectedByteLength);
+        });
+
+        it('returns the correct byte length for multiple fields', () => {
+          const veritum = new Veritum(CubeType.FROZEN, { fields: [applicationField, mediaTypeField, payloadField] });
+          const expectedByteLength =
+            applicationField.value.length +
+            mediaTypeField.value.length +
+            payloadField.value.length +
+            veritum.fieldParser.getFieldHeaderLength(applicationField.type) +
+            veritum.fieldParser.getFieldHeaderLength(mediaTypeField.type) +
+            veritum.fieldParser.getFieldHeaderLength(payloadField.type);
+          expect(veritum.byteLength).toBe(expectedByteLength);
+        });
+
+        it('returns 0 for an empty field set', () => {
+          const veritum = new Veritum(CubeType.FROZEN);
+          expect(veritum.byteLength).toBe(0);
+        });
+      });
+
+      describe('getFieldLength()', () => {
+        it.todo('write tests');
+      });
+
+      describe('getFields()', () => {
+        it('fetches all fields by default', () => {
+          const veritum = new Veritum(CubeType.FROZEN, {
+            fields: [applicationField, mediaTypeField, payloadField],
+          });
+          const fields = Array.from(veritum.getFields());
+          expect(fields.length).toBe(3);
+          expect(fields[0]).toBe(applicationField);
+          expect(fields[1]).toBe(mediaTypeField);
+          expect(fields[2]).toBe(payloadField);
+        });
+      });
+
+      describe('getFirstField()', () => {
+        it.todo('write tests');
+      });
+
+      describe('sliceFieldsBy()', () => {
+        it.todo('write tests');
+      });
+    });  // field retrieval and analysis methods
+
+    describe('field manipulation methods', () => {
+      describe('appendField()', () => {
+        it.todo('write tests');
+      });
+
+      describe('insertFieldInFront()', () => {
+        it.todo('write tests');
+      });
+
+      describe('insertFieldAfterFrontPositionals()', () => {
+        it.todo('write tests');
+      });
+
+      describe('insertFieldBeforeBackPositionals()', () => {
+        it.todo('write tests');
+      });
+
+      describe('insertFieldBefore()', () => {
+        it.todo('write tests');
+      });
+
+      describe('insertField()', () => {
+        it.todo('write tests');
+      });
+
+      describe('ensureFieldInFront()', () => {
+        it.todo('write tests');
+      });
+
+      describe('ensureFieldInBack()', () => {
+        it.todo('write tests');
+      });
+
+      describe('removeField()', () => {
+        it.todo('write tests');
+      });
+
+      describe('manipulateFields()', () => {
+        it.todo('write tests');
+      });
+    });  // field manipulation methods
+  });  // field handling methods
+});

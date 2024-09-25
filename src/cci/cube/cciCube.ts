@@ -3,7 +3,7 @@ import { cciField } from "./cciField";
 import { cciFields, cciFieldParsers } from "./cciFields";
 import { CubeError, CubeFieldType, CubeType, FieldError, FieldSizeError } from "../../core/cube/cube.definitions";
 
-import { Cube, CubeOptions } from "../../core/cube/cube";
+import { Cube, CubeCreateOptions, CubeOptions } from "../../core/cube/cube";
 import { CubeFamilyDefinition } from "../../core/cube/cubeFields";
 
 import { CubeField } from "../../core/cube/cubeField";
@@ -16,7 +16,7 @@ import { Buffer } from 'buffer'
 export class cciCube extends Cube {
   static Create(
       type: CubeType,
-      options: CubeOptions & { publicKey?: Buffer | Uint8Array; privateKey?: Buffer | Uint8Array; } = {},
+      options: CubeCreateOptions = {},
   ): cciCube {
     options = Object.assign({}, options);  // copy options to avoid messing up original
     options.family ??= cciFamily;
@@ -36,8 +36,8 @@ export class cciCube extends Cube {
     return cube;
   }
   static MUC(
-    publicKey: Buffer | Uint8Array,
-    privateKey: Buffer | Uint8Array,
+    publicKey: Buffer,
+    privateKey: Buffer,
     options?: CubeOptions): cciCube {
     if (options === undefined) options = {};
     options.family = options?.family ?? cciFamily;
@@ -85,7 +85,7 @@ export class cciCube extends Cube {
 
     // Create and return extension MUC
     const extensionMuc: cciCube = cciCube.MUC(
-      keyPair.publicKey, keyPair.privateKey, {
+      Buffer.from(keyPair.publicKey), Buffer.from(keyPair.privateKey), {
       fields: fields,
       family: family,
       requiredDifficulty: required_difficulty

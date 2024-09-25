@@ -18,6 +18,7 @@ import { cciFields } from "../cube/cciFields";
 // We should consider dumping jest and using vitest instead; ESM support in
 // jest is still buggy and keeps causing problems.
 import { DoublyLinkedList, DoublyLinkedListNode } from 'data-structure-typed';
+import { Veritable } from "../../core/cube/veritable.definition";
 
 /**
  * Don't split fields if a resulting chunk would be smaller than this amount
@@ -65,7 +66,7 @@ export class Continuation {
    * @returns An array of chunk Cubes
    */
   static async Split(
-      macroCube: Cube,
+      macroCube: Veritable,
       options: CubeOptions&{ exclude?: number[], cubeSize?: number } = {},
   ): Promise<cciCube[]> {
     // set default options
@@ -76,7 +77,7 @@ export class Continuation {
     let minBytesRequred = 0;  // will count them in a moment
     const macroFieldset: DoublyLinkedList<cciField> = new DoublyLinkedList();
     let previousField: cciField = undefined;
-    for (const field of macroCube.fields.all) {
+    for (const field of macroCube.getFields()) {
       // - Only accept non-excluded fields from supplied macro Cube, i.e. everything
       //   except non-payload boilerplate. Pre-exisiting CONTINUED_IN relationships
       //   will also be dropped.
@@ -224,7 +225,8 @@ export class Continuation {
       }
     }
 
-    // Chunking done. Now fill in the CONTINUED_IN references
+    // Chunking done. Now fill in the CONTINUED_IN references.
+    // This will also compile all chunk Cubes but the first one.
     if (Settings.RUNTIME_ASSERTIONS && (refs.length !== (cubes.length-1))) {
       throw new CubeError("Continuation.SplitCube: I messed up my chunking. This should never happen.");
     }
@@ -237,6 +239,8 @@ export class Continuation {
       // fill in the correct ref value to the field we created at the beginning
       refs[i].value = compiledRef.value;
     }
+    // Compile first chunk Cube for consistency
+    await cubes[0].compile();
 
     return cubes;
   }
