@@ -44,6 +44,7 @@ General partition of type space:
 | 0x05        |     32 | Encrypted symmetric key| In Cubes directed at multiple recipients, this provides each individual recipient with the key. |
 | 0x06        |        | Encryption public key  | Sender should supplied their encryption public key if it is not already known to the receiver. |
 | 0x07        |    var | MUC/PMUC KDF hint/id   | Clients may store a value aiding in the re-calculation of the MUC/PMUC private key from a master key. (e.g. key derivation using BIP-44 or libsodium's crypto_kdf.) |
+| 0x0A        |      6 | Date (CCI)             | A five byte unix timestamp preceeded by a single byte purpose code describing the meaning of this timestamp (see below). |
 | 0x04 - 0x0F |    TBD | Reserved               | Reserved for future standard fields that might be defined as the CCI evolves.       |
 
 Standardized fields are defined to establish a universal foundation for payloads, ensuring a consistent and straightforward interpretation across different applications.
@@ -59,6 +60,24 @@ Standardized fields are defined to establish a universal foundation for payloads
 | 0x15        | Media type (short)     |   1 | Type of content in this Cube's Payload field. This short field contains a single byte code denoting commonly used media types. |
 | 0x16        | User avatar            | var | Describes an auto-generated, guaranteed safe to show avatar for this user |
 | 0x1F        | Reserved (padding)     | var | The reference implementation currently precedes padding by this code. Padding must always follow the 0x00 CCI_END marker, thus this TLV field will be disregarded anyway. |
+
+### CCI date fields
+A five byte unix timestamp preceeded by a single byte purpose code describing
+the meaning of this timestamp.
+
+CCI-compliant PICs should feature a CCI date field with pupose code 1
+(creation time) as the core date field will change whenever the PIC's lifetime
+is extended.
+
+#### Date purpose codes
+| Code | Meaning                                                               |
+|------|-----------------------------------------------------------------------|
+|    1 | Created on                                                            |
+|    2 | Valid from                                                            |
+|    3 | Valid until                                                           |
+|    4 | Expect update on                                                      |
+
+Codes 128 and above are reserved for application-specific usage.
 
 ### CCI media type short codes
 Currently only two defined:
@@ -95,6 +114,7 @@ Currently defined relationship types:
 | 72 | KEY_BACKUP_CUBE | The referred Cube provides a way for its owner to restore it's own private key. This is currently neither used nor specified. |
 | 73 | SUBSCRIPTION_RECOMMENDATION_INDEX | The referred Cube has the same author as this Cube and is advertised as containing SUBSCRIPTION_RECOMMENDATION relationship fields. |
 | 81 | SUBSCRIPTION_RECOMMENDATION | The referred Cube must contain a CCI Identity. This Cube's author recommends content authored by the remote Identity to be displayed, in particular such content further referred to as MYPOST by the remote Identity. |
+
 Codes 128 and above are reserved for application-specific usage.
 
 **Next Cube Reference**: Contains the 32-byte key of the target cube. Facilitates the assembly of content spanning multiple cubes by concatenating the field prior to this field with the first field of the same type in the referenced cube. This may be chained multiple times for content of arbitrary length.
