@@ -44,3 +44,10 @@ export function enumStrings(e: any): string[] {
 export function enumNums(e: any): number[] {
   return Object.values(e).filter((entry) => Number.isFinite(entry)) as number[];
 }
+
+// TODO: remove this once Array.fromAsync is widely supported on every platform
+export async function ArrayFromAsync<T>(it: AsyncIterable<T>): Promise<Array<T>> {
+  const ret: T[] = [];
+  for await (const item of it) ret.push(item);
+  return ret;
+}
