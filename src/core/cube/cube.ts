@@ -29,24 +29,47 @@ export interface CubeCreateOptions extends CubeOptions {
     privateKey?: Buffer,
 }
 
-export class VeritableBaseImplementation {
+export abstract class VeritableBaseImplementation implements Veritable {
     protected _fields: CubeFields;
     protected _family: CubeFamilyDefinition;
     protected _cubeType: CubeType;
     readonly requiredDifficulty: number;
 
     constructor(cubeType: CubeType, options: CubeOptions = {}) {
-      this._cubeType = cubeType;
-      this._family = options.family ?? coreCubeFamily;
-      this._fields = this.normalizeFields(options.fields);
-      this.requiredDifficulty = options.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
+        this._cubeType = cubeType;
+        this._family = options.family ?? coreCubeFamily;
+        this._fields = this.normalizeFields(options.fields);
+        this.requiredDifficulty = options.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
     }
 
     get family(): CubeFamilyDefinition { return this._family }
     get cubeType(): CubeType { return this._cubeType }
 
     get fieldParser(): FieldParser {
-      return this.family.parsers[this.cubeType];
+        return this.family.parsers[this.cubeType];
+    }
+
+    /** Subclass must override */
+    getKeyIfAvailable(): CubeKey {
+        throw new ApiMisuseError("VeritableBaseImplementation subclasses must implement getKeyIfAvailable()");
+    }
+    /** Subclass must override */
+    getKeyStringIfAvailable(): string {
+        throw new ApiMisuseError("VeritableBaseImplementation subclasses must implement getKeyStringIfAvailable()");
+    }
+
+    equals(other: Veritable&VeritableBaseImplementation): boolean {
+        if (
+            this.cubeType === other.cubeType &&
+            this.family === other.family &&
+            this.fieldsEqual(other)
+        ) return true;
+        else return false;
+    }
+
+    /** Subclass should override */
+    compile(): Promise<any> {
+        return Promise.resolve();
     }
 
     fieldsEqual(other: VeritableBaseImplementation): boolean {

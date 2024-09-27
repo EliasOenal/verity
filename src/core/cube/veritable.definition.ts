@@ -29,6 +29,8 @@ export interface Veritable {
   getKeyIfAvailable(): CubeKey;
   getKeyStringIfAvailable(): string;
 
+  equals(other: Veritable&VeritableBaseImplementation): boolean;
+
   /**
    * All veritable structures need to be compiled before they can be
    * published. This method asynchroneously compiles the structure and returns
