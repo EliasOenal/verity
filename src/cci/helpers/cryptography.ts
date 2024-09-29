@@ -1,4 +1,5 @@
 import sodium from 'libsodium-wrappers-sumo'
+import { VerityError } from '../../core/settings';
 
 export interface KeyPair {
   privateKey: Buffer;
@@ -42,3 +43,6 @@ export function deriveEncryptionKeypair(
     publicKey: Buffer.from(rawKeyPair.publicKey),
   }
 }
+
+export class CrpytographyError extends VerityError { name = "EncryptionError" }
+export class KeyMismatchError extends CrpytographyError { name = "KeyMismatchError" }

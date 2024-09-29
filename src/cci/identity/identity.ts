@@ -13,7 +13,7 @@ import { CubeError, CubeKey, CubeType } from '../../core/cube/cube.definitions';
 import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
 
 import { cciFieldType } from '../cube/cciCube.definitions';
-import { KeyPair, deriveSigningKeypair } from '../helpers/cryptography';
+import { KeyMismatchError, KeyPair, deriveEncryptionKeypair, deriveSigningKeypair } from '../helpers/cryptography';
 import { cciField } from '../cube/cciField';
 import { cciFields, cciMucFieldDefinition } from '../cube/cciFields';
 import { cciRelationship, cciRelationshipType } from '../cube/cciRelationship';
@@ -23,10 +23,15 @@ import { ensureCci } from '../cube/cciCubeUtil';
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
 
-const DEFAULT_IDMUC_CONTEXT_STRING = "CCI Identity";
+// Identity defaults
 const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
-const IDMUC_MASTERINDEX = 0;
 const DEFAULT_MIN_MUC_REBUILD_DELAY = 5;  // minimum five seconds between Identity MUC generations unless specified otherwise
+
+// Key derivation defaults
+const DEFAULT_IDMUC_CONTEXT_STRING = "CCI Identity";
+const IDMUC_MASTERINDEX = 0;
+const DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING = "CCI Encrpytion";
+const DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX = 0;
 
 
 export interface IdentityOptions {
@@ -58,7 +63,7 @@ export interface IdentityOptions {
   argonMemoryHardness?: number,
 
   /**
-   * Governs how a local Identity's cryptographic key pair is derived from
+   * Governs how a local Identity's signing key pair is derived from
    * it's master key. This needs to be changed if an application deliberately
    * wants to use Identities separate from and incompatible with regular CCI
    * Identities, allowing a user to have completely separate CCI Identities
@@ -67,6 +72,8 @@ export interface IdentityOptions {
    * Other than that, it is not recommended to change this option.
    */
   idmucContextString?: string,
+
+  idmucEncryptionContextString?: string,
 
   /**
    * The application value used in this Identity's MUCs. Defaults to "ID".
@@ -118,8 +125,8 @@ export interface IdentityOptions {
  *
  * To represent a identities for this application, we use MUCs containing these
  * fields.
- *   - USER_NAME (mandatory, only once): Self-explanatory. UTF-8, maximum 60 bytes.
- *       Note this might be less than 60 chars.
+ *   - USER_NAME (mandatory, only once): Self-explanatory.
+ *       UTF-8, maximum 60 bytes by default. Note this might be less than 60 chars.
  *   - RELATES_TO/USER_PROFILEPIC (only once): (TODO rework)
  *       Links to the first cube of a continuation chain containing
  *       this user's profile picture in JPEG format. Maximum size of three
@@ -171,7 +178,7 @@ export class Identity {
     if (idMuc === undefined) return undefined;
     const identity: Identity =
       await Identity.Construct(cubeStoreOrRetriever, idMuc, options);
-    identity.supplySecrets(masterKey, Buffer.from(keyPair.privateKey));
+    identity.supplyMasterKey(masterKey);
     return identity;
   }
 
@@ -310,9 +317,8 @@ export class Identity {
   readonly cubeRetriever: CubeRetriever | CubeStore;
 
   private _masterKey: Buffer = undefined;
-  get masterKey(): Buffer {
-    return this._masterKey;  // TODO change this as discussed below
-  }
+  get masterKey(): Buffer { return this._masterKey }
+  private _encryptionPrivateKey: Buffer;
 
   /**
    * Subscription recommendations are publically visible subscriptions of other
@@ -377,7 +383,6 @@ export class Identity {
    * Identity.Construct has the exact same signature as this constructor;
    * see there for param documentation.
    */
-  // TODO: Provide option NOT to subscribe to remote MUC changes
   constructor(
       cubeStoreOrRetriever: CubeRetriever | CubeStore,
       mucOrMasterkey: cciCube | Buffer,
@@ -389,10 +394,11 @@ export class Identity {
       this.cubeStore = cubeStoreOrRetriever.cubeStore;
     } else this.cubeStore = cubeStoreOrRetriever;
     // set options
-    if (options.minMucRebuildDelay === undefined) options.minMucRebuildDelay = DEFAULT_MIN_MUC_REBUILD_DELAY;
-    if (options.requiredDifficulty === undefined) options.requiredDifficulty = Settings.REQUIRED_DIFFICULTY;
-    if (options.idmucContextString === undefined) options.idmucContextString = DEFAULT_IDMUC_CONTEXT_STRING;
-    if (options.idmucApplicationString === undefined) options.idmucApplicationString = DEFAULT_IDMUC_APPLICATION_STRING;
+    options.minMucRebuildDelay ??= DEFAULT_MIN_MUC_REBUILD_DELAY;
+    options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
+    options.idmucContextString ??= DEFAULT_IDMUC_CONTEXT_STRING;
+    options.idmucApplicationString ??= DEFAULT_IDMUC_APPLICATION_STRING;
+    options.idmucEncryptionContextString ??= DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING;
 
     // Subscribe to remote Identity updates (i.e. same user using multiple devices)
     if (!(options?.subscribeRemoteChanges === false)) {  // unless explicitly opted out
@@ -418,29 +424,45 @@ export class Identity {
         [],  // TODO: allow to set fields like username directly on construction
         IDMUC_MASTERINDEX, this.options.idmucContextString,
       );
+      this.deriveEncryptionKeys();  // must be called after MUC creation as it sets a MUC field
       this.readyPromiseResolve(this);
     }
   }
 
   /**
-   * Suppose you learn an existing Identity's secrets... somehow...
-   * Use this method to supply them then :)
-   * No validation will be done whatsoever.
-   * (This is used after restoring a locally owned Identity from persistant
-   * storage and it's a bit ugly, but it will do for now.)
+   * Suppose you learn an existing Identity's master key... somehow...
+   * Use this method to supply them it :)
+   * @throws KeyMismatchError - If supplied master key does not match this Identity's key
+   *   (which is supposed to have been derived from the master key).
    */
-  // maybe TODO: allow this to be supplied directly on construction
-  supplySecrets(masterKey: Buffer, privKey: Buffer) {
+  supplyMasterKey(masterKey: Buffer) {
     this._masterKey = masterKey;
-    this._muc.privateKey = privKey;
+    this.deriveEncryptionKeys(true);  // will throw on key mismatch
+    this.deriveSigningKeys(true);  // will throw on key mismatch
   }
 
   get privateKey(): Buffer { return this._muc.privateKey; }
   get publicKey(): Buffer { return this._muc.publicKey; }
-  // Note that there is no setter for keys:
+  // Note that there are no public setters for keys:
   // Setting new keys is equivalent to creating a new Identity
   // (yes, I know you can reset the keys by going directly to the MUC,
   // just be nice and don't do it)
+  private set privateKey(val: Buffer) { this._muc.privateKey = val }
+  private set publicKey(val: Buffer) { this._muc.publicKey = val }
+
+  get encryptionPrivateKey(): Buffer { return this._encryptionPrivateKey }
+  get encryptionPublicKey(): Buffer {
+    return this._muc?.getFirstField(cciFieldType.CRYPTO_PUBKEY)?.value;
+  }
+  private set encryptionPublicKey(val: Buffer) {
+    let field: cciField = this.muc.getFirstField(cciFieldType.CRYPTO_PUBKEY);
+    if (field === undefined) {
+      field = cciField.CryptoPubkey(val);
+      this.muc.insertFieldBeforeBackPositionals(field);
+    } else {
+      field.value = val;
+    }
+  }
 
   /**
    * @member Get this Identity's key, which equals its MUC's cube key,
@@ -636,6 +658,61 @@ export class Identity {
     const def = new Avatar(this.publicKey, DEFAULT_AVATARSCHEME);
     return def;
   }
+
+  /**
+   * Derives this Identity's encryption keys from its master key
+   * @param throwOnMismatch Whether to throw an error if the derived keys do not match
+   */
+  private deriveEncryptionKeys(throwOnMismatch: boolean = true) {
+    // derive key
+    const encryptionKeyPair: KeyPair = deriveEncryptionKeypair(
+      this.masterKey,
+      DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX,
+      this.options.idmucEncryptionContextString
+    );
+    // check for potential mismatches
+    if (throwOnMismatch) {
+      if (this._encryptionPrivateKey &&
+          !this._encryptionPrivateKey.equals(encryptionKeyPair.privateKey)) {
+        throw new KeyMismatchError("Identity.deriveEncryptionKeys(): Deriving the master key does not yield the already supplied encryption private key. At some point, you must have supplied keys that do not match.");
+      }
+      if (this.encryptionPublicKey &&
+          !this.encryptionPublicKey.equals(encryptionKeyPair.publicKey)) {
+        throw new KeyMismatchError("Identity.deriveEncryptionKeys(): Deriving the master key does not yield the already supplied encryption public key. At some point, you must have supplied keys that do not match.");
+      }
+    }
+    // set derived keys
+    this._encryptionPrivateKey = encryptionKeyPair.privateKey;
+    this.encryptionPublicKey = encryptionKeyPair.publicKey;
+  }
+
+  /**
+   * Derives this Identity's signing keys from its master key
+   * @param throwOnMismatch Whether to throw an error if the derived keys do not match
+   */
+  private deriveSigningKeys(throwOnMismatch: boolean = true) {
+    // derive key
+    const signingKeyPair: KeyPair = deriveSigningKeypair(
+      this.masterKey,
+      IDMUC_MASTERINDEX,
+      this.options.idmucContextString
+    );
+    // check for potential mismatches
+    if (throwOnMismatch) {
+      if (this.privateKey &&
+          !this.privateKey.equals(signingKeyPair.privateKey)) {
+        throw new KeyMismatchError("Identity.deriveSigningKeys(): Deriving the master key does not yield the already supplied signing private key. At some point, you must have supplied keys that do not match.");
+      }
+      if (this.publicKey &&
+          !this.publicKey.equals(signingKeyPair.publicKey)) {
+        throw new KeyMismatchError("Identity.deriveSigningKeys(): Deriving the master key does not yield the already supplied signing public key. At some point, you must have supplied keys that do not match.");
+      }
+    }
+    // set derived keys
+    this.privateKey = signingKeyPair.privateKey;
+    this.publicKey = signingKeyPair.publicKey;
+  }
+
 
   private writeSubscriptionRecommendations(): void {
     // TODO: properly calculate available space
