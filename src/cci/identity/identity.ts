@@ -7,12 +7,13 @@ import { logger } from '../../core/logger';
 
 import { Settings, VerityError } from '../../core/settings';
 import { NetConstants } from '../../core/networking/networkDefinitions';
-import { CubeRetrievalInterface, CubeStore } from '../../core/cube/cubeStore';
+import { CubeStore } from '../../core/cube/cubeStore';
 import { CubeInfo } from '../../core/cube/cubeInfo';
 import { CubeError, CubeKey, CubeType } from '../../core/cube/cube.definitions';
 import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
 
 import { cciFieldType } from '../cube/cciCube.definitions';
+import { KeyPair, deriveSigningKeypair } from '../helpers/cryptography';
 import { cciField } from '../cube/cciField';
 import { cciFields, cciMucFieldDefinition } from '../cube/cciFields';
 import { cciRelationship, cciRelationshipType } from '../cube/cciRelationship';
@@ -20,7 +21,7 @@ import { cciCube, cciFamily } from '../cube/cciCube';
 import { ensureCci } from '../cube/cciCubeUtil';
 
 import { Buffer } from 'buffer';
-import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
+import sodium from 'libsodium-wrappers-sumo'
 
 const DEFAULT_IDMUC_CONTEXT_STRING = "CCI Identity";
 const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
@@ -222,13 +223,9 @@ export class Identity {
 
   /** This method may only be called after awaiting sodium.ready. */
   static DeriveKeypair(masterKey: Buffer, options?: IdentityOptions): KeyPair {
-    const contextString: string = options?.idmucContextString ?? DEFAULT_IDMUC_CONTEXT_STRING;
-    const derivedSeed = sodium.crypto_kdf_derive_from_key(
-      sodium.crypto_sign_SEEDBYTES, IDMUC_MASTERINDEX, contextString,
-      masterKey, "uint8array");
-    const keyPair: KeyPair = sodium.crypto_sign_seed_keypair(
-      derivedSeed, "uint8array");
-    return keyPair;
+    const contextString: string =
+      options?.idmucContextString ?? DEFAULT_IDMUC_CONTEXT_STRING;
+    return deriveSigningKeypair(masterKey, IDMUC_MASTERINDEX, contextString);
   }
 
   /** This method may only be called after awaiting sodium.ready. */

@@ -1,7 +1,7 @@
-import { Settings, VerityError } from "../../core/settings";
+import { Settings } from "../../core/settings";
 import { cciField } from "./cciField";
 import { cciFields, cciFieldParsers } from "./cciFields";
-import { CubeError, CubeFieldType, CubeType, FieldError, FieldSizeError } from "../../core/cube/cube.definitions";
+import { CubeError, CubeType, FieldError, FieldSizeError } from "../../core/cube/cube.definitions";
 
 import { Cube, CubeCreateOptions, CubeOptions } from "../../core/cube/cube";
 import { CubeFamilyDefinition } from "../../core/cube/cubeFields";
@@ -10,8 +10,8 @@ import { CubeField } from "../../core/cube/cubeField";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 import { cciFieldType } from "./cciCube.definitions";
 
-import sodium, { KeyPair, crypto_kdf_KEYBYTES } from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer'
+import { KeyPair, deriveSigningKeypair } from "../helpers/cryptography";
 
 export class cciCube extends Cube {
   static Create(
@@ -51,14 +51,14 @@ export class cciCube extends Cube {
   // TODO write unit test
   /** !!! May only be called after awaiting sodium.ready !!! */
   static ExtensionMuc(
-    masterKey: Buffer | Uint8Array,
+    masterKey: Buffer,
     fields: cciFields | cciField[],
     subkeyIndex: number = undefined, context: string = undefined,
     writeSubkeyIndexToCube: boolean = false,
     family: CubeFamilyDefinition = cciFamily,
-    required_difficulty = Settings.REQUIRED_DIFFICULTY
+    requiredDifficulty = Settings.REQUIRED_DIFFICULTY
   ): cciCube {
-    masterKey = Uint8Array.from(masterKey);  // will strangely fail in vitest otherwise
+    // masterKey = Uint8Array.from(masterKey);  // will strangely fail in vitest otherwise
     if (!(fields instanceof cciFields)) {
       fields = new cciFields(cciFields as any, family.parsers[CubeType.MUC].fieldDef);
     }
@@ -68,11 +68,8 @@ export class cciCube extends Cube {
         Math.random() * max);
     }
     if (context === undefined) context = "MUC extension key";
-    const derivedSeed = sodium.crypto_kdf_derive_from_key(
-      sodium.crypto_sign_SEEDBYTES, subkeyIndex, context,
-      masterKey, "uint8array");
-    const keyPair: KeyPair = sodium.crypto_sign_seed_keypair(
-      derivedSeed, "uint8array");
+    const keyPair: KeyPair = deriveSigningKeypair(
+      masterKey, subkeyIndex, context);
 
     if (writeSubkeyIndexToCube) {
       // Write subkey to cube
@@ -85,10 +82,8 @@ export class cciCube extends Cube {
 
     // Create and return extension MUC
     const extensionMuc: cciCube = cciCube.MUC(
-      Buffer.from(keyPair.publicKey), Buffer.from(keyPair.privateKey), {
-      fields: fields,
-      family: family,
-      requiredDifficulty: required_difficulty
+      keyPair.publicKey, keyPair.privateKey, {
+        fields, family, requiredDifficulty
     });
     return extensionMuc;
   }
