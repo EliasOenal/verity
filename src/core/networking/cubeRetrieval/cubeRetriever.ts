@@ -78,7 +78,7 @@ export class CubeRetriever implements CubeRetrievalInterface {
 
       // get further chunk references
       const refs = chunk.fields.getRelationships?.(cciRelationshipType.CONTINUED_IN);
-      for (let refIndexInCube=0; refIndexInCube < refs.length; refIndexInCube++) {
+      for (let refIndexInCube=0; refIndexInCube < refs?.length ?? 0; refIndexInCube++) {
         const ref = refs[refIndexInCube];
 
         // ensure no circular references

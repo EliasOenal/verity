@@ -5,7 +5,9 @@ import type { Veritable } from "../../core/cube/veritable.definition";
 import { cciCube, cciFamily } from "../cube/cciCube";
 import { cciFields } from "../cube/cciFields";
 import { Continuation } from "./continuation";
-import { CciEncryptionOptions, Decrypt, Encrypt } from "./encryption";
+import { CciEncryptionOptions, Decrypt, Encrypt, EncryptionRecipients } from "./encryption";
+
+import { Buffer } from 'buffer';
 
 export class Veritum extends VeritableBaseImplementation implements Veritable{
   protected _compiled: Array<cciCube>;
@@ -52,10 +54,10 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
 
   encrypt(
       privateKey: Buffer,
-      recipientPublicKey: Buffer,
+      recipients: EncryptionRecipients,
       options?: CciEncryptionOptions,
   ): void {
-    this._fields = Encrypt(this._fields, privateKey, recipientPublicKey, options);
+    this._fields = Encrypt(this._fields, privateKey, recipients, options);
   }
 
   decrypt(privateKey: Buffer, senderPublicKey?: Buffer): void {

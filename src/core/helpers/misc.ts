@@ -1,3 +1,5 @@
+import { Buffer } from 'buffer';
+
 export function fibonacci(n: number) {
   let fib = 1, previous = 0, tmp = 0;
   for (let i=0; i<n; i++) {
@@ -50,4 +52,10 @@ export async function ArrayFromAsync<T>(it: AsyncIterable<T>): Promise<Array<T>>
   const ret: T[] = [];
   for await (const item of it) ret.push(item);
   return ret;
+}
+
+export function isIterableButNotBuffer(obj: any): boolean {
+  return obj != null &&
+    typeof obj[Symbol.iterator] === 'function' &&
+    !Buffer.isBuffer(obj);
 }

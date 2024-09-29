@@ -6,10 +6,14 @@ import { cciField } from "../cube/cciField";
 import { cciFields } from "../cube/cciFields";
 import { Continuation, CryptoError } from "./continuation";
 
+import { Identity } from "../identity/identity";
+
 import { logger } from "../../core/logger";
 
 import sodium from 'libsodium-wrappers-sumo'
+import { isIterableButNotBuffer } from "../../core/helpers/misc";
 
+export type EncryptionRecipients = Identity|Iterable<Identity>|Buffer|Iterable<Buffer>;
 export interface CciEncryptionOptions {
   exclude?: number[],
   includeSenderPubkey?: Buffer,
@@ -23,21 +27,17 @@ export interface CciEncryptionOptions {
  * no longer make sense after data length has increased due to encryption).
  * Note: Caller must await sodium.ready before calling.
  */
-// Note: Implementing this here as I'm planning to morph Continuation into a general
-// content-representing class that will be usually be used by CCI applications
-// rather than dealing with Cubes directly.
-// Let's call this a Veritum maybe... a unit of Verity :)
+// TODO: We should offer a way of encryption that's integrated with splitting
+// so that the CONTINUED_IN references can be encrypted as well, those leak
+// a Veritum's size which is rather valuable metadata.
 // Maybe TODO: use linked list instead of Array to avoid unnecessary copies?
 export function Encrypt(
     fields: cciFields,
     privateKey: Buffer,
-    recipientPublicKey: Buffer,
+    recipients: EncryptionRecipients,
     options: CciEncryptionOptions = {},
 ): cciFields {
   // sanity-check input
-  if (recipientPublicKey?.length !== sodium.crypto_box_PUBLICKEYBYTES) {
-    throw new ApiMisuseError(`Encrypt(): recipientPublicKey must be ${sodium.crypto_box_PUBLICKEYBYTES} bytes, got ${recipientPublicKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
-  }
   if (privateKey?.length !== sodium.crypto_box_SECRETKEYBYTES) {
     throw new ApiMisuseError(`Encrypt(): privateKey must be ${sodium.crypto_box_SECRETKEYBYTES} bytes, got ${privateKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
   }
@@ -89,19 +89,30 @@ export function Encrypt(
   const compiler: FieldParser = new FieldParser(intermediateFieldDef);
   const plaintext: Buffer = compiler.compileFields(toEncrypt);
 
-  // Derive symmetric key
-  const key: Uint8Array = sodium.crypto_box_beforenm(
-    recipientPublicKey, privateKey);
+  // Determine symmetric key. There's two cases:
+  // - If there's only a single recipient, we directly derive the key using the
+  // recipient's public key and the sender's private key.
+  // - However, if there are multiple recipients, we chose a random key and
+  //   include an individual encrypted version of it for each recipient.
+  const recipientPubkeys = Array.from(normalizeEncryptionRecipients(recipients));
+  let symmetricPayloadKey: Uint8Array;
+  if (recipientPubkeys.length === 1) {  // that's the easy case :)
+    symmetricPayloadKey = sodium.crypto_box_beforenm(
+      recipientPubkeys[0], privateKey);
+  } else {
+    // TODO implement multi-recipient encryption
+    throw new Error("Sorry, not implemented yet");
+  }
   if (Settings.RUNTIME_ASSERTIONS &&
-      key.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
+      symmetricPayloadKey.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
   ){
-    throw new CryptoError(`Libsodium's generated symmetric key size of ${key.length} does not match NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE === ${NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE}. This should never happen. Using an incompatible version of libsodium maybe?`);
+    throw new CryptoError(`Libsodium's generated symmetric key size of ${symmetricPayloadKey.length} does not match NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE === ${NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE}. This should never happen. Using an incompatible version of libsodium maybe?`);
   }
 
   // Perform encryption
   // TODO: Support encryption to multiple parties
   const encryption: Uint8Array = sodium.crypto_secretbox_easy(
-    plaintext, nonce, key);
+    plaintext, nonce, symmetricPayloadKey);
 
   // Add the encrypted content to the output field set
   output.insertFieldAfterFrontPositionals(
@@ -212,4 +223,20 @@ export function Decrypt(
   }
 
   return output;
+}
+
+function *normalizeEncryptionRecipients(recipients: EncryptionRecipients): Generator<Buffer> {
+  // normalize input
+  if (!isIterableButNotBuffer(recipients)) {
+    recipients = [recipients as Identity];
+  }
+  for (let recipient of recipients as Iterable<Identity|Buffer>) {
+    // further normalize input
+    if (recipient instanceof Identity) recipient = recipient.encryptionPublicKey;
+    // sanity check key
+    if (recipient?.length !== sodium.crypto_box_PUBLICKEYBYTES) {
+      throw new ApiMisuseError(`Encrypt(): recipientPublicKey must be ${sodium.crypto_box_PUBLICKEYBYTES} bytes, got ${recipient?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
+    }
+    yield recipient;
+  }
 }
