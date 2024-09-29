@@ -34,6 +34,48 @@ describe('Veritum', () => {
     };
   })
 
+  describe('construction', () => {
+    describe('copy constructor', () => {
+      it('copies all properties with default options', () => {
+        const originalVeritum = new Veritum(CubeType.FROZEN);
+        const copiedVeritum = new Veritum(originalVeritum);
+
+        expect(copiedVeritum.cubeType).toBe(originalVeritum.cubeType);
+        expect(copiedVeritum.family).toBe(originalVeritum.family);
+        expect(copiedVeritum.fieldParser).toBe(originalVeritum.fieldParser);
+        expect(copiedVeritum.publicKey).toBe(originalVeritum.publicKey);
+        expect(copiedVeritum.privateKey).toBe(originalVeritum.privateKey);
+        expect(copiedVeritum.requiredDifficulty).toBe(originalVeritum.requiredDifficulty);
+      });
+
+      it('copies all fields from the original instance', () => {
+        const originalVeritum = new Veritum(CubeType.FROZEN, { fields: [applicationField, mediaTypeField, payloadField] });
+        const copiedVeritum = new Veritum(originalVeritum);
+
+        expect(copiedVeritum.fieldsEqual(originalVeritum)).toBe(true);
+      });
+
+      it('creates a copy that evaluates as equal to the original', () => {
+        const originalVeritum = new Veritum(CubeType.FROZEN, { fields: [applicationField, mediaTypeField, payloadField] });
+        const copiedVeritum = new Veritum(originalVeritum);
+        expect(copiedVeritum).toEqual(originalVeritum);
+      });
+
+      it('ensures the copied instance is independent of the original', () => {
+        const originalVeritum = new Veritum(CubeType.FROZEN, { fields: [applicationField, mediaTypeField, payloadField] });
+        const copiedVeritum = new Veritum(originalVeritum);
+
+        // Modify the copied instance
+        copiedVeritum.appendField(cciField.ContentName("original had no name"));
+
+        // Ensure the original instance remains unchanged
+        expect(originalVeritum.fieldsEqual(copiedVeritum)).toBe(false);
+        expect(copiedVeritum.getFirstField(cciFieldType.CONTENTNAME)).toBeDefined();
+        expect(originalVeritum.getFirstField(cciFieldType.CONTENTNAME)).toBeUndefined();
+      });
+    });
+  });
+
   describe('cubeType getter', () => {
     it('returns the CubeType set on construction', () => {
       const veritum = new Veritum(CubeType.PMUC_NOTIFY);

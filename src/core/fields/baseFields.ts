@@ -17,6 +17,17 @@ export enum FieldPosition {
 // definition. Within BaseFields, the field definition is currently *only* used in getByteLength()
 // and in the insert before/after positionals methods.
 export class BaseFields {  // cannot make abstract, FieldParser creates temporary BaseField objects
+    static NormalizeFields(
+            fields: BaseField | BaseField[] | BaseFields | undefined,
+            fieldDefinition: FieldDefinition,
+    ): BaseFields {
+        if (fields instanceof BaseFields) return fields;
+        else if (fields instanceof BaseField) return new BaseFields(
+            [fields], fieldDefinition);
+        else if (Array.isArray(fields)) return new BaseFields(
+            fields, fieldDefinition);
+        else return new BaseFields([], fieldDefinition);
+    }
 
     /**
      * Creates a new field set with all mandatory positional fields filled in.
@@ -73,7 +84,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
             data: BaseFields | Array<BaseField> | BaseField | undefined,
             fieldDefinition?: FieldDefinition) {
         if (data instanceof BaseFields) {  // copy constructor
-            this.data = data.data;
+            this.data = Array.from(data.data);
             this.fieldDefinition = data.fieldDefinition ?? fieldDefinition;
         } else {
             if (fieldDefinition === undefined) throw new ApiMisuseError("BaseFields constructor: Cannot create Fields object without a field definition");

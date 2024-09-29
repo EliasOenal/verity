@@ -73,7 +73,7 @@ export abstract class VeritableBaseImplementation implements Veritable {
     }
 
     fieldsEqual(other: VeritableBaseImplementation): boolean {
-      return this._fields.equals(other._fields);
+       return this._fields.equals(other._fields);
     }
 
     get fieldCount(): number { return this._fields.length }
@@ -81,56 +81,56 @@ export abstract class VeritableBaseImplementation implements Veritable {
     get byteLength(): number { return this._fields.getByteLength() }
 
     getFieldLength(fields?: CubeField | CubeField[]): number {
-      return this._fields.getByteLength(fields);
+        return this._fields.getByteLength(fields);
     }
 
     getFields(type?: number | number[]): Iterable<CubeField> {
-      return this._fields.get(type);
+        return this._fields.get(type);
     }
 
     getFirstField(type: Number): CubeField {
-      return this._fields.getFirst(type);
+        return this._fields.getFirst(type);
     }
 
     sliceFieldsBy(type: Number, includeBefore?: boolean): Iterable<CubeFields> {
-      return this._fields.sliceBy(type, includeBefore);
+        return this._fields.sliceBy(type, includeBefore);
     }
 
     appendField(field: CubeField): void {
-      return this._fields.appendField(field);
+        return this._fields.appendField(field);
     }
 
     insertFieldInFront(field: CubeField): void {
-      return this._fields.insertFieldInFront(field);
+        return this._fields.insertFieldInFront(field);
     }
 
     insertFieldAfterFrontPositionals(field: CubeField): void {
-      return this._fields.insertFieldAfterFrontPositionals(field);
+        return this._fields.insertFieldAfterFrontPositionals(field);
     }
 
     insertFieldBeforeBackPositionals(field: CubeField): void {
-      return this._fields.insertFieldBeforeBackPositionals(field);
+        return this._fields.insertFieldBeforeBackPositionals(field);
     }
 
     insertFieldBefore(type: number, field: CubeField): void {
-      return this._fields.insertFieldBefore(type, field);
+        return this._fields.insertFieldBefore(type, field);
     }
 
     insertField(field: CubeField, position?: FieldPosition): void {
-      return this._fields.insertField(field, position);
+        return this._fields.insertField(field, position);
     }
     ensureFieldInFront(type: number, defaultField: CubeField | FieldDefinition): void {
-      return this._fields.ensureFieldInFront(type, defaultField);
+        return this._fields.ensureFieldInFront(type, defaultField);
     }
 
     ensureFieldInBack(type: number, defaultField: CubeField | FieldDefinition): void {
-      return this._fields.ensureFieldInBack(type, defaultField);
+        return this._fields.ensureFieldInBack(type, defaultField);
     }
 
     removeField(index: number): void;
     removeField(field: CubeField): void;
     removeField(field: number|CubeField): void {
-      return this._fields.removeField(field);
+        return this._fields.removeField(field);
     }
 
     /**
@@ -139,14 +139,11 @@ export abstract class VeritableBaseImplementation implements Veritable {
      * be changes by application layer code in an unpredictable way.
      */
     manipulateFields(): CubeFields {
-      return this._fields;
+        return this._fields;
     }
 
     protected normalizeFields(fields: CubeField | CubeField[] | CubeFields | undefined): CubeFields {
-      if (fields instanceof CubeFields) return fields;
-      else if (fields instanceof CubeField) return new CubeFields([fields], this.fieldParser.fieldDef);
-      else if (Array.isArray(fields)) return new CubeFields(fields, this.fieldParser.fieldDef);
-      else return new CubeFields([], this.fieldParser.fieldDef);
+        return CubeFields.NormalizeFields(fields, this.fieldParser.fieldDef);
     }
   }
 

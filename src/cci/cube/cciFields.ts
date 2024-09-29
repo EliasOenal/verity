@@ -33,7 +33,7 @@ export class cciFields extends CubeFields {
   }
 
   constructor(
-      data: Array<cciField> | cciField | undefined,
+      data: cciFields | Array<cciField> | cciField | undefined,
       fieldDefinition: FieldDefinition) {
     super(data, fieldDefinition);
   }

@@ -16,11 +16,29 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   readonly publicKey: Buffer;
   readonly privateKey: Buffer;
 
-  constructor(cubeType: CubeType, options: CubeCreateOptions = {}) {
-    options.family ??= cciFamily;
-    super(cubeType, options);
-    this.publicKey = options.publicKey;
-    this.privateKey = options.privateKey;
+  constructor(cubeType: CubeType, options?: CubeCreateOptions);
+  constructor(copyFrom: Veritum);
+
+  constructor(param1: CubeType|Veritum, options: CubeCreateOptions = {}) {
+    if (param1 instanceof Veritum) {
+      // copy constructor
+      const copyFrom: Veritum = param1;
+      options = {
+        family: copyFrom.family,
+        fields: new cciFields(copyFrom._fields, copyFrom._fields.fieldDefinition),  // shallow copy
+        privateKey: copyFrom.privateKey,
+        publicKey: copyFrom.publicKey,
+        requiredDifficulty: copyFrom.requiredDifficulty,
+      }
+      super(copyFrom.cubeType, options);
+    } else {
+      // creating new Veritum
+      const cubeType = param1;
+      options.family ??= cciFamily;
+      super(cubeType, options);
+      this.publicKey = options.publicKey;
+      this.privateKey = options.privateKey;
+    }
   }
 
   getKeyIfAvailable(): CubeKey {
