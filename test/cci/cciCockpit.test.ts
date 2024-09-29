@@ -26,6 +26,7 @@ describe('cci Cockpit', () => {
 
   beforeEach(async () => {
     node = new DummyVerityNode();
+    await node.readyPromise;
     identity = new Identity(node.cubeStore, masterKey, idTestOptions);
     cockpit = new cciCockpit(node, identity);
   });

@@ -115,7 +115,7 @@ export class DummyVerityNode implements VerityNodeIf {
   readonly cubeRetriever: CubeRetriever;
 
   readonly onlinePromise: Promise<void>;
-  readonly readyPromise: Promise<void>;
+  get readyPromise(): Promise<void> { return this.cubeStore.readyPromise }
   readonly shutdownPromise: Promise<void>;
 
   constructor(){
@@ -124,7 +124,6 @@ export class DummyVerityNode implements VerityNodeIf {
     this.networkManager = new DummyNetworkManager(this.cubeStore, this.peerDB);
     this.cubeRetriever = new CubeRetriever(this.cubeStore, new RequestScheduler(this.networkManager));
     this.onlinePromise = Promise.resolve(undefined);
-    this.readyPromise = Promise.resolve(undefined);
     this.shutdownPromise = Promise.resolve(undefined);
   }
 
