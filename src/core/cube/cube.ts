@@ -280,8 +280,13 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
 
     private _privateKey: Buffer = undefined;
     get privateKey() { return this._privateKey; }
-    public set privateKey (privateKey: Buffer) { this._privateKey = privateKey; }
+    set privateKey (privateKey: Buffer) { this._privateKey = privateKey; }
     get publicKey() { return this.getFirstField(CubeFieldType.PUBLIC_KEY)?.value; }
+    set publicKey(val: Buffer) {
+        const field: CubeField = this.getFirstField(CubeFieldType.PUBLIC_KEY);
+        if (field === undefined) throw new CubeError("Cannot set public key on a Cube without a PUBLIC_KEY field");
+        field.value = val;
+    }
 
     /** Instatiate a Cube object based on an existing, binary cube */
     constructor(

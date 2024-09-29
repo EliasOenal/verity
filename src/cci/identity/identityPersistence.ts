@@ -99,18 +99,15 @@ export class IdentityPersistence {
     for await (const [pubkeyString, masterkeyString] of this.db.iterator()) {
       try {
         const masterKey = Buffer.from(masterkeyString, 'hex');
-        const privkey: Buffer = Buffer.from(
-          Identity.DeriveKeypair(masterKey, this.options).privateKey);
         const muc = ensureCci(
           await cubeStore.getCube(Buffer.from(pubkeyString, 'hex')));
         if (muc === undefined) {
           logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkeyString + " is not present");
           continue;
         }
-        muc.privateKey = privkey;
         const id: Identity = await Identity.Construct(
           cubeStore, muc, this.options);
-        id.supplySecrets(masterKey, privkey);
+        id.supplyMasterKey(masterKey);
         identities.push(id);
       } catch (error) {
         logger.error("IdentityPersistance: Could not parse an identity from DB: " + error);
