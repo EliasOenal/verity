@@ -327,25 +327,61 @@ describe('Veritum', () => {
           expect(fields[2]).toBe(payloadField);
         });
 
-        it.todo('fetches all fields of the specified type');
+        it('fetches a single field if there is only one of the specified type', () => {
+          const veritum = new Veritum(CubeType.FROZEN, {
+            fields: [applicationField, mediaTypeField, payloadField],
+          });
+          const fields = Array.from(veritum.getFields(cciFieldType.PAYLOAD));
+          expect(fields.length).toBe(1);
+          expect(fields[0]).toBe(payloadField);
+        });
+
+        it.todo('fetches all fields of a specified type where multiple exist')
       });
 
       describe('getFirstField()', () => {
-        it.todo('write tests');
+        it('returns the first field of the specified type', () => {
+          const veritum = new Veritum(CubeType.FROZEN, {
+            fields: [applicationField, mediaTypeField, payloadField],
+          });
+          const field = veritum.getFirstField(cciFieldType.PAYLOAD);
+          expect(field).toBe(payloadField);
+        });
+
+        it('returns undefined if no field of the specified type exists', () => {
+          const veritum = new Veritum(CubeType.FROZEN, {
+            fields: [applicationField, mediaTypeField],
+          });
+          const field = veritum.getFirstField(cciFieldType.PAYLOAD);
+          expect(field).toBeUndefined();
+        });
       });
 
       describe('sliceFieldsBy()', () => {
-        it.todo('write tests');
+        it.todo('splits the field set into blocks starting with a field of the specified type');
       });
     });  // field retrieval and analysis methods
 
     describe('field manipulation methods', () => {
       describe('appendField()', () => {
-        it.todo('write tests');
+        it('appends a field to the Veritum', () => {
+          const veritum = new Veritum(CubeType.FROZEN, {
+            fields: [applicationField, mediaTypeField],
+          });
+          veritum.appendField(payloadField);
+          expect(veritum.fieldCount).toBe(3);
+        });
       });
 
       describe('insertFieldInFront()', () => {
-        it.todo('write tests');
+        it('inserts a field in front of the Veritum', () => {
+          const veritum = new Veritum(CubeType.FROZEN, {
+            fields: [mediaTypeField, payloadField],
+          });
+          veritum.insertFieldInFront(applicationField);
+          expect(veritum.fieldCount).toBe(3);
+          expect(veritum.getFields()[0]).toBe(applicationField);
+        });
       });
 
       describe('insertFieldAfterFrontPositionals()', () => {
@@ -357,7 +393,16 @@ describe('Veritum', () => {
       });
 
       describe('insertFieldBefore()', () => {
-        it.todo('write tests');
+        it('inserts a field before another field', () => {
+          const veritum = new Veritum(CubeType.FROZEN, {
+            fields: [applicationField, payloadField],
+          });
+          veritum.insertFieldBefore(cciFieldType.PAYLOAD, mediaTypeField);
+          expect(veritum.fieldCount).toBe(3);
+          expect(veritum.getFields()[0].type).toBe(cciFieldType.APPLICATION);
+          expect(veritum.getFields()[1].type).toBe(cciFieldType.MEDIA_TYPE);
+          expect(veritum.getFields()[2].type).toBe(cciFieldType.PAYLOAD);
+        });
       });
 
       describe('insertField()', () => {
@@ -365,19 +410,53 @@ describe('Veritum', () => {
       });
 
       describe('ensureFieldInFront()', () => {
-        it.todo('write tests');
+        it('adds a field in front if it does not exist', () => {
+          const veritum = new Veritum(CubeType.FROZEN, {
+            fields: [mediaTypeField, payloadField],
+          });
+          veritum.ensureFieldInFront(cciFieldType.APPLICATION, applicationField);
+          expect(veritum.fieldCount).toBe(3);
+          expect(veritum.getFields()[0]).toBe(applicationField);
+        });
+
+        it.todo('does nothing if a field of specified type is already in front');
       });
 
       describe('ensureFieldInBack()', () => {
-        it.todo('write tests');
+        it('adds a field in back if it does not exist', () => {
+          const veritum = new Veritum(CubeType.FROZEN, {
+            fields: [applicationField, mediaTypeField],
+          });
+          veritum.ensureFieldInBack(cciFieldType.PAYLOAD, payloadField);
+          expect(veritum.fieldCount).toBe(3);
+          expect(veritum.getFields()[2]).toBe(payloadField);
+        });
+
+        it.todo('does nothing if a field of specified type is already in back');
       });
 
       describe('removeField()', () => {
-        it.todo('write tests');
+        it('removes a field from the Veritum by value', () => {
+          const veritum = new Veritum(CubeType.FROZEN, {
+            fields: [applicationField, mediaTypeField, payloadField],
+          });
+          veritum.removeField(mediaTypeField);
+          expect(veritum.fieldCount).toBe(2);
+          expect(veritum.getFirstField(cciFieldType.MEDIA_TYPE)).toBeUndefined();
+        });
+
+        it('removes a field from the Veritum by index', () => {
+          const veritum = new Veritum(CubeType.FROZEN, {
+            fields: [applicationField, mediaTypeField, payloadField],
+          });
+          veritum.removeField(1);
+          expect(veritum.fieldCount).toBe(2);
+          expect(veritum.getFirstField(cciFieldType.MEDIA_TYPE)).toBeUndefined();
+        });
       });
 
       describe('manipulateFields()', () => {
-        it.todo('write tests');
+        it.todo('returns an iterable containing all fields');
       });
     });  // field manipulation methods
   });  // field handling methods
