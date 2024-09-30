@@ -46,6 +46,8 @@ export interface SplitOptions extends CubeOptions {
    * @default - A full Cube, i.e. 1024 bytes.
    */
   maxChunkSize?: number,
+
+  chunkTransformationCallback?: (chunk: cciCube) => void;
 }
 
 export function split(buf: Buffer, max: number): Buffer[] {
@@ -247,7 +249,12 @@ export class Continuation {
       }
     }
 
-    // Chunking done. Now fill in the CONTINUED_IN references.
+    // Chunking done.
+    // Call the chunk transformation callback if any (e.g. encryption).
+    if (options.chunkTransformationCallback !== undefined) {
+      for (const chunk of cubes) options.chunkTransformationCallback(chunk);
+    }
+    // Now fill in the CONTINUED_IN references.
     // This will also compile all chunk Cubes but the first one.
     if (Settings.RUNTIME_ASSERTIONS && (refs.length !== (cubes.length-1))) {
       throw new CubeError("Continuation.SplitCube: I messed up my chunking. This should never happen.");
