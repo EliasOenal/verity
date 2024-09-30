@@ -34,11 +34,16 @@ describe('Continuation', () => {
       expect(macroCube.fields.all[3].type).toEqual(cciFieldType.NONCE);
 
       // run the test
-      const splitCubes = await Continuation.Split(macroCube, { requiredDifficulty: 0 });
+      const splitCubes: cciCube[] =
+        await Continuation.Split(macroCube, { requiredDifficulty: 0 });
 
       expect(splitCubes.length).toEqual(2);
 
+      // expect first Cube to be filled to the brim
       expect(splitCubes[0].getFieldLength()).toEqual(1024);
+      expect(splitCubes[0].bytesRemaining()).toBe(0);
+
+      // expect the first chunk to contain all fields
       expect(splitCubes[0].fields.all[0].type).toEqual(cciFieldType.TYPE);
       expect(splitCubes[0].fields.all[1].type).toEqual(cciFieldType.RELATES_TO);
       expect(splitCubes[0].fields.all[2].type).toEqual(cciFieldType.PAYLOAD);
@@ -46,6 +51,7 @@ describe('Continuation', () => {
       expect(splitCubes[0].fields.all[4].type).toEqual(cciFieldType.NONCE);
       expect(splitCubes[0].fieldCount).toEqual(5);
 
+      // expect the payload to have been split at the optimal point
       const expectedFirstChunkPayloadLength = 1024  // Cube size
         - 1  // Type
         - 2  // two byte Payload TLV header (type and length)
@@ -54,11 +60,14 @@ describe('Continuation', () => {
         - 4  // Nonce
       expect(splitCubes[0].fields.all[2].value.length).toEqual(expectedFirstChunkPayloadLength);
 
+      // expect the first chunk to reference the second chunk
       const rel = cciRelationship.fromField(splitCubes[0].fields.all[1]);
       expect(rel.type).toBe(cciRelationshipType.CONTINUED_IN);
       expect(rel.remoteKey).toEqual(await splitCubes[1].getKey());
 
-      // chunks are automatically padded up
+      // Expect the second chunk to contain all positional fields a Cube needs,
+      // plus the second part of the payload. Chunks are automatically padded up,
+      // so expect a CCI_END marker and some padding as well.
       expect(splitCubes[1].fields.all[0].type).toEqual(cciFieldType.TYPE);
       expect(splitCubes[1].fields.all[1].type).toEqual(cciFieldType.PAYLOAD);
       expect(splitCubes[1].fields.all[2].type).toEqual(cciFieldType.CCI_END);
@@ -66,8 +75,41 @@ describe('Continuation', () => {
       expect(splitCubes[1].fields.all[4].type).toEqual(cciFieldType.DATE);
       expect(splitCubes[1].fields.all[5].type).toEqual(cciFieldType.NONCE);
 
+      // Expect the second chunk to contain exactly the amount of payload
+      // that didn't fit the first one.
       expect(splitCubes[1].fields.all[1].value.length).toEqual(
         payloadMacrofield.value.length - expectedFirstChunkPayloadLength);
+    });
+
+
+    it('respects the maximum chunk size', async () => {
+      const veritum = new Veritum(CubeType.FROZEN, {
+        fields: cciField.Payload(tooLong),
+        requiredDifficulty: 0,
+      });
+
+      // run the test
+      const chunks: cciCube[] =
+        await Continuation.Split(veritum, {
+          maxChunkSize: 500,
+          requiredDifficulty: 0,
+        });
+      expect(chunks.length).toEqual(3);
+
+      // Cube are automatically compiled which pads them back up --
+      // so to check for correct chunk size, we first need to remove the
+      // PADDING and CCI_END markers again
+      chunks[0].removeField(chunks[0].getFirstField(cciFieldType.PADDING));
+      chunks[0].removeField(chunks[0].getFirstField(cciFieldType.CCI_END));
+      chunks[1].removeField(chunks[1].getFirstField(cciFieldType.PADDING));
+      chunks[1].removeField(chunks[1].getFirstField(cciFieldType.CCI_END));
+
+      // Expect the first two chunks to be filled exactly up to our
+      // specified limit
+      expect(chunks[0].getFieldLength()).toEqual(500);
+      expect(chunks[0].bytesRemaining()).toEqual(524);
+      expect(chunks[1].getFieldLength()).toEqual(500);
+      expect(chunks[1].bytesRemaining()).toEqual(524);
     });
   });  // manual splitting
 

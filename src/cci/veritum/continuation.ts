@@ -28,6 +28,26 @@ import { Veritum } from "./veritum";
  **/
 const MIN_CHUNK = 10;
 
+export interface SplitOptions extends CubeOptions {
+  /**
+   * Fields to exclude from splitting. Those will not be included in the
+   * resulting chunks.
+   * @default - All core/positional fields, as well as CCI end markers and
+   *   padding fields. When overriding please note that it will usually be
+   *   wise to still include those in your custom exclude list. You can do this
+   *   by copying and amending Continuation.ContinuationDefaultExclusions.
+   **/
+  exclude?: number[],
+
+  /**
+   * The maximum number of bytes to use in each chunk.
+   * You can set this to something smaller than the cube size if you need
+   * to reserve some space in each chunk, e.g. for crypto overhead.
+   * @default - A full Cube, i.e. 1024 bytes.
+   */
+  maxChunkSize?: number,
+}
+
 export function split(buf: Buffer, max: number): Buffer[] {
   const chunks: Buffer[] = [];
   for (let i = 0; i < buf.length; i += max) {
@@ -69,11 +89,11 @@ export class Continuation {
    */
   static async Split(
       veritum: Veritable,
-      options: CubeOptions&{ exclude?: number[], cubeSize?: number } = {},
+      options: SplitOptions = {},
   ): Promise<cciCube[]> {
     // set default options
     options.exclude ??= Continuation.ContinuationDefaultExclusions;
-    options.cubeSize ??= NetConstants.CUBE_SIZE;
+    options.maxChunkSize ??= NetConstants.CUBE_SIZE;
 
     // Pre-process the Veritum supplied:
     let minBytesRequred = 0;  // will count them in a moment
@@ -112,7 +132,7 @@ export class Continuation {
     // Cubes we need.
     const demoFieldset: cciFields =
       cciFields.DefaultPositionals(veritum.fieldParser.fieldDef) as cciFields;
-    const bytesAvailablePerCube: number = demoFieldset.bytesRemaining(options.cubeSize);
+    const bytesAvailablePerCube: number = demoFieldset.bytesRemaining(options.maxChunkSize);
 
     // Split the macro fieldset into Cubes:
     // prepare the list of Cubes and initialise the first one
@@ -164,7 +184,7 @@ export class Continuation {
 
       // Finally, have a look at the current field and decide what to do with it.
       const field: cciField = macroFieldsetNode.value;
-      const bytesRemaining = cube.fields.bytesRemaining(options.cubeSize);
+      const bytesRemaining = cube.fields.bytesRemaining(options.maxChunkSize);
 
       // There's three (3) possible cases to consider:
       if (bytesRemaining >= cube.getFieldLength(field)) {
@@ -218,7 +238,7 @@ export class Continuation {
         // Any space left in this chunk Cube will be wasted and we're going
         // to roll over to the next chunk.
         // First update our accounting...
-        spaceRemaining -= cube.fields.bytesRemaining(options.cubeSize);
+        spaceRemaining -= cube.fields.bytesRemaining(options.maxChunkSize);
         // ... and then it's time for a chunk rollover!
         cube = veritum.family.cubeClass.Create(veritum.cubeType, options) as cciCube;
         cubes.push(cube);
