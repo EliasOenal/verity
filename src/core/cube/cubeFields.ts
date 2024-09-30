@@ -65,6 +65,13 @@ export class CubeFields extends BaseFields {
   bytesRemaining(max: number = NetConstants.CUBE_SIZE): number {
     return max - this.getByteLength();
   }
+
+  static DefaultPositionals(
+    fieldDefinition: FieldDefinition,
+    data: CubeFields | CubeField[] | CubeField | undefined = undefined,
+  ): CubeFields {
+    return super.DefaultPositionals(fieldDefinition, data) as CubeFields;
+  }
 }
 
 /**
