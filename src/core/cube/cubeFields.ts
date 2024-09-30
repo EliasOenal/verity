@@ -61,6 +61,10 @@ export class CubeFields extends BaseFields {
     fieldsObj.ensureFieldInBack(CubeFieldType.PUBLIC_KEY, fieldDefinition.fieldObjectClass.PublicKey(publicKey as Buffer));
     return BaseFields.DefaultPositionals(fieldDefinition, fieldsObj) as CubeFields;
   }
+
+  bytesRemaining(max: number = NetConstants.CUBE_SIZE): number {
+    return max - this.getByteLength();
+  }
 }
 
 /**

@@ -26,7 +26,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
             [fields], fieldDefinition);
         else if (Array.isArray(fields)) return new BaseFields(
             fields, fieldDefinition);
-        else return new BaseFields([], fieldDefinition);
+        else return new fieldDefinition.fieldsObjectClass([], fieldDefinition);
     }
 
     /**
