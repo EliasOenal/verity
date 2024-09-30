@@ -37,7 +37,7 @@ export interface Veritable {
    * a promise to the compile data. The type of compiled data depends on the
    * type of veritable structure.
    */
-  compile(): Promise<any>;
+  compile(options?: any): Promise<any>;
 
   //###
   // Methods regarding fields

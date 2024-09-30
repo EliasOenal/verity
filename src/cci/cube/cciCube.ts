@@ -104,6 +104,8 @@ export class cciCube extends Cube {
     return this._fields as cciFields;
   }
 
+  manipulateFields(): cciFields { return super.manipulateFields() as cciFields; }
+
   assertCci(): boolean {
     if (this._fields instanceof cciFields) return true;
     else return false;

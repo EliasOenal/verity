@@ -28,17 +28,7 @@ import { Veritum } from "./veritum";
  **/
 const MIN_CHUNK = 10;
 
-export interface SplitOptions extends CubeOptions {
-  /**
-   * Fields to exclude from splitting. Those will not be included in the
-   * resulting chunks.
-   * @default - All core/positional fields, as well as CCI end markers and
-   *   padding fields. When overriding please note that it will usually be
-   *   wise to still include those in your custom exclude list. You can do this
-   *   by copying and amending Continuation.ContinuationDefaultExclusions.
-   **/
-  exclude?: number[],
-
+export interface SplitOptions extends RecombineOptions {
   /**
    * The maximum number of bytes to use in each chunk.
    * You can set this to something smaller than the cube size if you need
@@ -48,6 +38,18 @@ export interface SplitOptions extends CubeOptions {
   maxChunkSize?: number,
 
   chunkTransformationCallback?: (chunk: cciCube) => void;
+}
+
+export interface RecombineOptions extends CubeOptions {
+  /**
+   * Fields to exclude from splitting. Those will not be included in the
+   * resulting chunks.
+   * @default - All core/positional fields, as well as CCI end markers and
+   *   padding fields. When overriding please note that it will usually be
+   *   wise to still include those in your custom exclude list. You can do this
+   *   by copying and amending Continuation.ContinuationDefaultExclusions.
+   **/
+  exclude?: number[],
 }
 
 export function split(buf: Buffer, max: number): Buffer[] {
@@ -277,11 +279,10 @@ export class Continuation {
 
   static Recombine(
     cubes: Iterable<Cube>,
-    options: CubeOptions&{ exclude?: number[], cubeSize?: number } = {},
+    options: RecombineOptions = {},
   ): Veritum {
     // set default options
     options.exclude ??= Continuation.ContinuationDefaultExclusions;
-    options.cubeSize ??= NetConstants.CUBE_SIZE;
 
     // prepare variables
     let veritum: Veritum;  // will be initialized late below

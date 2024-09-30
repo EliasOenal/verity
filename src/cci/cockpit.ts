@@ -5,17 +5,9 @@ import { VerityNodeIf } from "../core/verityNode";
 import { cciCube } from "./cube/cciCube";
 import { Identity } from "./identity/identity";
 import { Continuation } from "./veritum/continuation";
-import { Veritum } from "./veritum/veritum";
+import { Veritum, VeritumCompileOptions } from "./veritum/veritum";
 
 import { Buffer } from 'buffer';
-
-export interface MakeVeritumOptions extends CubeCreateOptions {
-  /**
-   * To automatically encrypt a Veritum only intended for a specific recipient
-   * or list of recipients, supply their Identities or encryption public keys here.
-   */
-  recipient?: Identity|Iterable<Identity>|Buffer|Iterable<Buffer>,
-}
 
 export interface GetVeritumOptions {
   /**
@@ -40,23 +32,24 @@ export class cciCockpit {
   }
 
   // maybe TODO: set a default CubeType? PIC maybe?
-  makeVeritum(cubeType: CubeType, options: MakeVeritumOptions = {}): Veritum {
+  makeVeritum(cubeType: CubeType, options: CubeCreateOptions = {}): Veritum {
     options = { ...options };  // copy options to avoid tainting passed object
     if (this.identity) {
       options.publicKey ??= this.identity.publicKey;
       options.privateKey ??= this.identity.privateKey;
     }
     const veritum = new Veritum(cubeType, options);
-    if (options.recipient) {
-      veritum.encrypt(this.identity.encryptionPrivateKey, options.recipient);
-    }
     return veritum;
   }
 
   // maybe TODO: Ensure Cubes have actually been synced to the network?
-  publishVeritum(veritum: Veritum): Promise<void> {
+  publishVeritum(veritum: Veritum, options?: VeritumCompileOptions): Promise<void> {
     return new Promise<void>(resolve => {
-      veritum.compile().then(() => {
+      veritum.compile({
+        ...options,
+        encryptionPrivateKey: options?.encryptionPrivateKey ?? this.identity.encryptionPrivateKey,
+        includeSenderPubkey: options?.includeSenderPubkey ?? this.identity.encryptionPublicKey,
+      }).then(() => {
         const promises: Promise<any>[] = [];
         for (const cube of veritum.compiled) {
           promises.push(this.node.cubeStore.addCube(cube));

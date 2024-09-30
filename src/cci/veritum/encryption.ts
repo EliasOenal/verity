@@ -15,7 +15,7 @@ import { isIterableButNotBuffer } from "../../core/helpers/misc";
 
 export type EncryptionRecipients = Identity|Iterable<Identity>|Buffer|Iterable<Buffer>;
 export interface CciEncryptionOptions {
-  exclude?: number[],
+  excludeFromEncryption?: number[],
   includeSenderPubkey?: Buffer,
 }
 
@@ -43,7 +43,7 @@ export function Encrypt(
   }
 
   // set default options
-  options.exclude ??= Continuation.ContinuationDefaultExclusions;
+  options.excludeFromEncryption ??= Continuation.ContinuationDefaultExclusions;
 
   // Prepare list of fields to encrypt. This is basically all CCI fields,
   // but not core Cube fields.
@@ -52,7 +52,7 @@ export function Encrypt(
   // encrypted directly to output and add the encrypted content later.
   const output: cciFields = new cciFields(undefined, fields.fieldDefinition);
   for (const field of fields.all) {
-    if (!options.exclude.includes(field.type)) {
+    if (!options.excludeFromEncryption.includes(field.type)) {
       toEncrypt.appendField(field);
     } else {
       // Make a verbatim copy, except for garbage fields PADDING and CCI_END
