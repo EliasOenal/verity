@@ -1,14 +1,11 @@
 import { cciCockpit } from "../../src/cci/cockpit";
 import { cciFieldType } from "../../src/cci/cube/cciCube.definitions";
 import { cciField } from "../../src/cci/cube/cciField";
-import { KeyPair } from "../../src/cci/helpers/cryptography";
 import { Identity } from "../../src/cci/identity/identity";
 import { Veritum } from "../../src/cci/veritum/veritum";
 import { CubeType } from "../../src/core/cube/cube.definitions";
 import { NetConstants } from "../../src/core/networking/networkDefinitions";
 import { DummyVerityNode, VerityNodeIf } from "../../src/core/verityNode";
-
-import sodium from 'libsodium-wrappers-sumo'
 
 const masterKeySize = 32;  // must match libsodium's crypto_sign_SEEDBYTES
 const masterKey = Buffer.alloc(masterKeySize, 42);
@@ -67,28 +64,6 @@ describe('cci Cockpit', () => {
       expect(veritum.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
         "Hoc veritum breve sed mutabile est");
     });
-
-    it('can create an encrypted Veritum for a single recipient', () => {
-      const latinBraggery = "Hoc veritum breve et cryptatum est";
-      const veritum = cockpit.makeVeritum(CubeType.FROZEN, {
-        fields: cciField.Payload(latinBraggery),
-        recipient: remote1,
-        requiredDifficulty,
-      });
-      // as this is supposed to be an encrypted Veritum, there must be
-      // an ENCRYPTED field but no PAYLOAD field
-      expect(veritum.getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
-      expect(veritum.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
-      // encrypted Verium must be decryptable by the recipient
-      veritum.decrypt(remote1.encryptionPrivateKey, identity.encryptionPublicKey);
-      // no the PAYLOAD field must be back again and the ENCRYPTED field
-      // must be gone again
-      expect(veritum.getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
-      expect(veritum.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();
-      expect(veritum.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(latinBraggery);
-    });
-
-    it.todo('can create an encrypted Veritum for multiple recipients');
   });
 
   describe('publishVeritum()', () => {
@@ -107,6 +82,31 @@ describe('cci Cockpit', () => {
         expect(cube).toEqual(chunk);
       }
     });
+
+    it('can encrypt the Veritum for a single recipient', async() => {
+      const latinBraggery = "Hoc veritum breve et cryptatum est";
+      const veritum = cockpit.makeVeritum(CubeType.FROZEN, {
+        fields: cciField.Payload(latinBraggery),
+        requiredDifficulty,
+      });
+      await cockpit.publishVeritum(veritum, {
+        encryptionRecipients: remote1,
+      })
+      // the (single) chunk must have an ENCRYPTED field but no PAYLOAD field
+      expect(veritum.compiled[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+      expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+
+      // the encrypted compiled Verium must be decryptable by the recipient
+      const restored = Veritum.FromChunks(veritum.compiled);
+      restored.decrypt(remote1.encryptionPrivateKey, identity.encryptionPublicKey);
+      // now we must be back to a PAYLOAD field but no ENCRYPTED field
+      expect(restored.getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
+      expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();
+      expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(latinBraggery);
+    });
+
+    it.todo('can create an encrypted Veritum for multiple recipients');
+
   });
 
   describe('getVeritum()', () => {
@@ -128,17 +128,24 @@ describe('cci Cockpit', () => {
       expect(restored.equals(veritum)).toBe(true);
     });
 
-    it('automatically decrypts a single-chunk encrypted Veritum by default', async() => {
+    it("automatically decrypts a single-chunk encrypted Veritum if sender's public key is included", async() => {
       // prepare Veritum
       const latinBraggery = "Hoc veritum breve et cryptatum est";
       const veritum = new Veritum(CubeType.FROZEN, {
         fields: cciField.Payload(latinBraggery),
         requiredDifficulty,
       });
-      veritum.encrypt(remote1.encryptionPrivateKey, identity);
-      expect(veritum.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
-      await veritum.compile();
+      await veritum.compile({
+        includeSenderPubkey: remote1.encryptionPublicKey,
+        encryptionPrivateKey: remote1.encryptionPrivateKey,
+        encryptionRecipients: identity,
+      })
+
+      // expect compiled veritum to be encrypted
+      expect(veritum.compiled[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
       expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+
+      // publish Veritum
       await node.cubeStore.addCube(veritum.compiled[0]);
 
       // perform test
@@ -150,19 +157,25 @@ describe('cci Cockpit', () => {
         latinBraggery);
     });
 
-    // TODO figure out why this fails, seems to be an underlying decryption issue
-    it.skip('automatically decrypts a multi-chunk encrypted Veritum by default', async () => {
+    // TODO figure out why this still fails
+    it.skip("automatically decrypts a multi-chunk encrypted Veritum if sender's public key is included", async() => {
       // prepare Veritum
       const veritum = new Veritum(CubeType.FROZEN, {
         fields: cciField.Payload(tooLong),
         requiredDifficulty,
       });
-      veritum.encrypt(remote1.encryptionPrivateKey, identity);
-      expect(veritum.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
-      await veritum.compile();
-      for (const chunk of veritum.compiled) {
-        await node.cubeStore.addCube(chunk);
-      }
+      await veritum.compile({
+        includeSenderPubkey: remote1.encryptionPublicKey,
+        privateKey: remote1.encryptionPrivateKey,
+        encryptionRecipients: identity,
+      })
+
+      // expect compiled veritum to be encrypted
+      expect(veritum.compiled[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+      expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+
+      // publish Veritum
+      for (const chunk of veritum.compiled) await node.cubeStore.addCube(chunk);
 
       // perform test
       const restored: Veritum = await cockpit.getVeritum(
@@ -172,28 +185,6 @@ describe('cci Cockpit', () => {
       expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
         tooLong);
     });
-
-    it('can use an included public key hint for decryption', async() => {
-      // prepare Veritum
-      const latinBraggery = "Hoc veritum breve et cryptatum est";
-      const veritum = new Veritum(CubeType.FROZEN, {
-        fields: cciField.Payload(latinBraggery),
-        requiredDifficulty,
-      });
-      veritum.encrypt(remote1.encryptionPrivateKey, identity,
-        { includeSenderPubkey: remote1.encryptionPublicKey }
-      );
-      expect(veritum.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
-      await veritum.compile();
-      expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
-      await node.cubeStore.addCube(veritum.compiled[0]);
-
-      // perform test
-      const restored: Veritum = await cockpit.getVeritum(veritum.getKeyIfAvailable());
-      expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
-        latinBraggery);
-    });
-
   });
 
 });

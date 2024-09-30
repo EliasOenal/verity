@@ -2,6 +2,7 @@ import { cciCube, cciFamily } from "../../../src/cci/cube/cciCube";
 import { MediaTypes, cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { cciField } from "../../../src/cci/cube/cciField";
 import { KeyPair } from "../../../src/cci/helpers/cryptography";
+import { Continuation } from "../../../src/cci/veritum/continuation";
 import { Veritum } from "../../../src/cci/veritum/veritum";
 import { coreCubeFamily } from "../../../src/core/cube/cube";
 import { CubeType } from "../../../src/core/cube/cube.definitions";
@@ -140,75 +141,122 @@ describe('Veritum', () => {
     });
   });
 
-  describe('encrypt()', () => {
-    it('encrypts fields with default options', () => {
-      const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
-      veritum.encrypt(senderKeyPair.privateKey, recipientKeyPair.publicKey);
-      // there must now be an ENCRYPTED field
-      expect(veritum.getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
-      // there must no longer be a PAYLOAD field (as it's encrypted now)
-      expect(veritum.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
-    });
-
-    it('encrypts fields excluding specific fields', () => {
-      const veritum = new Veritum(CubeType.FROZEN, { fields: [applicationField, payloadField] });
-      veritum.encrypt(senderKeyPair.privateKey, recipientKeyPair.publicKey, { exclude: [cciFieldType.APPLICATION] });
-      // expect the APPLICATION field to be kept
-      expect(veritum.getFirstField(cciFieldType.APPLICATION)).toEqual(applicationField);
-      // expect there to be an ENCRYPTED field
-      expect(veritum.getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
-      // expect encrypted fields not to contain any PAYLOAD field
-      expect(veritum.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
-    });
-
-    it('encrypts fields including sender public key', () => {
-      const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
-      veritum.encrypt(senderKeyPair.privateKey, recipientKeyPair.publicKey,
-        { includeSenderPubkey: senderKeyPair.publicKey });
-      // expect there to be an ENCRYPTED field
-      expect(veritum.getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
-      // expect encrypted fields not to contain any PAYLOAD field
-      expect(veritum.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
-      // expect there to be a CRYPTO_PUBKEY field
-      expect(veritum.getFirstField(cciFieldType.CRYPTO_PUBKEY)).toBeDefined();
-      expect(veritum.getFirstField(cciFieldType.CRYPTO_PUBKEY).value).toEqual(
-        senderKeyPair.publicKey);
-    });
-  });
-
   describe('decrypt()', () => {
-    it('decrypts a single PAYLOAD field', () => {
+    it('decrypts a single PAYLOAD field', async() => {
+      // prepare, encrypt and compile a Veritum
       const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
-      veritum.encrypt(senderKeyPair.privateKey, recipientKeyPair.publicKey);
-      veritum.decrypt(recipientKeyPair.privateKey, senderKeyPair.publicKey);
-      // there must now be a PAYLOAD field
-      expect(veritum.getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
-      // there must no longer be an ENCRYPTED field (as it's decrypted now)
-      expect(veritum.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();
+      await veritum.compile({
+        encryptionRecipients: recipientKeyPair.publicKey,
+        encryptionPrivateKey: senderKeyPair.privateKey,
+        requiredDifficulty,
+      });
+
+      // restore the Veritum from its chunks
+      const restored = Veritum.FromChunks(veritum.compiled);
+      // the restored Veritum does not have a PAYLOAD field, but it does have
+      // an ENCRYPTED field
+      expect(restored.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+      expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+
+      // decrypt the Veritum
+      restored.decrypt(recipientKeyPair.privateKey, senderKeyPair.publicKey);
+      // after decryption, there must now be a PAYLOAD field but
+      // no longer an ENCRYPTED field
+      expect(restored.getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
+      expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();
     });
 
-    it('can use an included public key hint for decryption', () => {
+    it('can use an included public key hint for decryption', async() => {
+      // prepare, encrypt and compile a Veritum
       const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
-      veritum.encrypt(senderKeyPair.privateKey, recipientKeyPair.publicKey,
-        { includeSenderPubkey: senderKeyPair.publicKey });
-      veritum.decrypt(recipientKeyPair.privateKey);
-      // there must now be a PAYLOAD field
-      expect(veritum.getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
-      // there must no longer be an ENCRYPTED field (as it's decrypted now)
-      expect(veritum.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();
+      await veritum.compile({
+        encryptionRecipients: recipientKeyPair.publicKey,
+        encryptionPrivateKey: senderKeyPair.privateKey,
+        includeSenderPubkey: senderKeyPair.publicKey,
+        requiredDifficulty,
+      });
+
+      // restore the Veritum from its chunks
+      const restored = Veritum.FromChunks(veritum.compiled);
+      // the restored Veritum does not have a PAYLOAD field, but it does have
+      // an ENCRYPTED field
+      expect(restored.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+      expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+
+      // decrypt the Veritum
+      restored.decrypt(recipientKeyPair.privateKey);
+      // after decryption, there must now be a PAYLOAD field but
+      // no longer an ENCRYPTED field
+      expect(restored.getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
+      expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();
     });
   });
 
   describe('compile()', () => {
-    it('compiles a short frozen Veritum to a single Frozen Cube', async() => {
-      const veritum = new Veritum(CubeType.FROZEN, {
-        fields: payloadField, requiredDifficulty});
-      const cubesIterable: Iterable<cciCube> = await veritum.compile();
-      expect(cubesIterable).toEqual(veritum.compiled);
-      const compiled: cciCube[] = Array.from(cubesIterable);
-      expect(compiled.length).toBe(1);
-      expect(compiled[0].cubeType).toBe(CubeType.FROZEN);
-      expect(compiled[0].getFirstField(cciFieldType.PAYLOAD)).toEqual(payloadField);
+    describe('splitting', () => {
+      it('compiles a short frozen Veritum to a single Frozen Cube', async() => {
+        const veritum = new Veritum(CubeType.FROZEN, {
+          fields: payloadField, requiredDifficulty});
+        const cubesIterable: Iterable<cciCube> = await veritum.compile();
+        expect(cubesIterable).toEqual(veritum.compiled);
+        const compiled: cciCube[] = Array.from(cubesIterable);
+        expect(compiled.length).toBe(1);
+        expect(compiled[0].cubeType).toBe(CubeType.FROZEN);
+        expect(compiled[0].getFirstField(cciFieldType.PAYLOAD)).toEqual(payloadField);
+      });
+
+      it.todo('compiles a long frozen Veritum to multiple Frozen Cubes');
+    });
+
+    describe('encryption', () => {
+      it('encrypts fields', async() => {
+        const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
+        await veritum.compile({
+          encryptionRecipients: recipientKeyPair.publicKey,
+          encryptionPrivateKey: senderKeyPair.privateKey,
+          requiredDifficulty,
+        });
+        // just check that the Veritum has compiled as expected
+        expect(veritum.compiled).toHaveLength(1);
+        // the resulting (single) chunk Cube must have an ENCRYPTED field
+        expect(veritum.compiled[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+        // it must not however have a PAYLOAD field (as it's encrypted now)
+        expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+      });
+
+      it('encrypts fields excluding specific fields', async() => {
+        const veritum = new Veritum(CubeType.FROZEN, { fields: [applicationField, payloadField] });
+        await veritum.compile({
+          encryptionRecipients: recipientKeyPair.publicKey,
+          encryptionPrivateKey: senderKeyPair.privateKey,
+          requiredDifficulty,
+          excludeFromEncryption: [...Continuation.ContinuationDefaultExclusions, cciFieldType.APPLICATION],
+        });
+        // expect the APPLICATION field to be kept
+        expect(veritum.compiled[0].getFirstField(cciFieldType.APPLICATION)).toEqual(applicationField);
+        // expect there to be an ENCRYPTED field
+        expect(veritum.compiled[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+        // expect encrypted fields not to contain any PAYLOAD field
+        expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+      });
+
+      it('encrypts fields including sender public key', async() => {
+        const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
+        await veritum.compile({
+          encryptionRecipients: recipientKeyPair.publicKey,
+          encryptionPrivateKey: senderKeyPair.privateKey,
+          requiredDifficulty,
+          includeSenderPubkey: senderKeyPair.publicKey,
+        });
+        // expect there to be an ENCRYPTED field
+        expect(veritum.compiled[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+        // expect encrypted fields not to contain any PAYLOAD field
+        expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+        // expect there to be a CRYPTO_PUBKEY field
+        expect(veritum.compiled[0].getFirstField(cciFieldType.CRYPTO_PUBKEY)).toBeDefined();
+        expect(veritum.compiled[0].getFirstField(cciFieldType.CRYPTO_PUBKEY).value).toEqual(
+          senderKeyPair.publicKey);
+      });
     });
   });
 

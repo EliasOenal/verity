@@ -248,7 +248,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
                privateKey: Buffer,
                options?: CubeOptions,
     ): Cube {
-        return this.Create(CubeType.MUC, {...options, publicKey, privateKey});
+        return this.Create(CubeType.MUC, {...options, publicKey, privateKey: privateKey});
     }
 
     /**

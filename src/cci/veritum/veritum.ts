@@ -1,13 +1,32 @@
 import { CubeCreateOptions, VeritableBaseImplementation } from "../../core/cube/cube";
-import { HasSignature, type CubeKey, type CubeType } from "../../core/cube/cube.definitions";
+import { HasSignature, type CubeKey, CubeType } from "../../core/cube/cube.definitions";
 import { keyVariants } from "../../core/cube/cubeUtil";
 import type { Veritable } from "../../core/cube/veritable.definition";
+import { isIterableButNotBuffer } from "../../core/helpers/misc";
+import { NetConstants } from "../../core/networking/networkDefinitions";
+import { ApiMisuseError } from "../../core/settings";
 import { cciCube, cciFamily } from "../cube/cciCube";
+import { cciFieldLength, cciFieldType } from "../cube/cciCube.definitions";
 import { cciFields } from "../cube/cciFields";
-import { Continuation } from "./continuation";
+import { Continuation, RecombineOptions, SplitOptions } from "./continuation";
 import { CciEncryptionOptions, Decrypt, Encrypt, EncryptionRecipients } from "./encryption";
 
 import { Buffer } from 'buffer';
+
+export interface VeritumCompileOptions extends CubeCreateOptions, CciEncryptionOptions {
+  /**
+   * To encrypt a Veritum on compilation, supply your encryption private key here.
+   * Don't forget to also supply the recipient or list of recipients.
+   */
+  encryptionPrivateKey?: Buffer,
+
+  /**
+   * To automatically encrypt a Veritum only intended for a specific recipient
+   * or list of recipients, supply their Identities or encryption public keys here.
+   * Don't forget to also supply the encryptionPrivateKey.
+   */
+  encryptionRecipients?: EncryptionRecipients,
+}
 
 export class Veritum extends VeritableBaseImplementation implements Veritable{
   protected _compiled: Array<cciCube>;
@@ -17,6 +36,10 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
 
   readonly publicKey: Buffer;
   readonly privateKey: Buffer;
+
+  static FromChunks(chunks: Iterable<cciCube>, options?: RecombineOptions): Veritum {
+    return Continuation.Recombine(chunks, options);
+  }
 
   constructor(cubeType: CubeType, options?: CubeCreateOptions);
   constructor(copyFrom: Veritum);
@@ -33,13 +56,15 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
         requiredDifficulty: copyFrom.requiredDifficulty,
       }
       super(copyFrom.cubeType, options);
-    } else {
+    } else if (Object.values(CubeType).includes(param1 as number)) {
       // creating new Veritum
-      const cubeType = param1;
+      const cubeType = param1 as CubeType;
       options.family ??= cciFamily;
       super(cubeType, options);
       this.publicKey = options.publicKey;
       this.privateKey = options.privateKey;
+    } else {
+      throw new ApiMisuseError("Veritum constructor: unknown first parameter");
     }
   }
 
@@ -52,20 +77,45 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     else return this._compiled?.[0]?.getKeyStringIfAvailable();
   }
 
-  encrypt(
-      privateKey: Buffer,
-      recipients: EncryptionRecipients,
-      options?: CciEncryptionOptions,
-  ): void {
-    this._fields = Encrypt(this._fields, privateKey, recipients, options);
-  }
-
   decrypt(privateKey: Buffer, senderPublicKey?: Buffer): void {
     this._fields = Decrypt(this._fields, privateKey, senderPublicKey);
   }
 
-  async compile(): Promise<Iterable<cciCube>> {
-    this._compiled = await Continuation.Split(this);
+  async compile(options: VeritumCompileOptions = {}): Promise<Iterable<cciCube>> {
+    // Did the user request encryption?
+    // If so, we need to reserve some space for crypto overhead.
+    const shallEncrypt: boolean =
+      options.encryptionPrivateKey !== undefined && options.encryptionRecipients !== undefined;
+    let spacePerCube = NetConstants.CUBE_SIZE;
+    if (shallEncrypt) {
+      // reserve some space for additional headers as well as the nonce
+      spacePerCube = spacePerCube -
+        this.fieldParser.getFieldHeaderLength(cciFieldType.ENCRYPTED) -
+        this.fieldParser.getFieldHeaderLength(cciFieldType.NONCE) -
+        cciFieldLength[cciFieldType.NONCE];
+      // obviously, more reserved space is needed if we want to include
+      // the sender's public key
+      if (options.includeSenderPubkey !== undefined) {
+        spacePerCube = spacePerCube -
+          this.fieldParser.getFieldHeaderLength(cciFieldType.CRYPTO_PUBKEY) -
+          cciFieldLength[cciFieldType.CRYPTO_PUBKEY];
+      }
+    }
+    // If encryption was requested, ask split to call us back after each
+    // chunk Cube so we can encrypt it before it is finalised.
+    // Let's prepare this callback.
+    const encryptCallback = (chunk: cciCube) => {
+      const encryptedFields = Encrypt(chunk.manipulateFields(),
+        options.encryptionPrivateKey, options.encryptionRecipients, options);
+      chunk.setFields(encryptedFields);
+    }
+    // Feed this Veritum through the splitter -- this is the main operation
+    // of compiling a Veritum.
+    const splitOptions: SplitOptions = {
+      maxChunkSize: spacePerCube,
+      chunkTransformationCallback: shallEncrypt ? encryptCallback : undefined,
+    }
+    this._compiled = await Continuation.Split(this, splitOptions);
     return this._compiled;
   }
 
