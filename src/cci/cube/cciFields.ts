@@ -61,10 +61,6 @@ export class cciFields extends CubeFields {
     else return undefined;
   }
 
-  bytesRemaining(max: number = NetConstants.CUBE_SIZE): number {
-    return max - this.getByteLength();
-  }
-
   /**
    * Adds additional fields until either supplied fields have been added or
    * there's no space left in the Cube.

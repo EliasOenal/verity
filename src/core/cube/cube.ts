@@ -142,8 +142,11 @@ export abstract class VeritableBaseImplementation implements Veritable {
         return this._fields;
     }
 
-    protected normalizeFields(fields: CubeField | CubeField[] | CubeFields | undefined): CubeFields {
-        return CubeFields.NormalizeFields(fields, this.fieldParser.fieldDef);
+    protected normalizeFields(
+            fields: CubeField | CubeField[] | CubeFields | undefined,
+    ): CubeFields {
+        return CubeFields.NormalizeFields(
+            fields, this.fieldParser.fieldDef) as CubeFields;
     }
   }
 
@@ -212,7 +215,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
         options.fields = CubeFields.DefaultPositionals(
             options.family.parsers[type].fieldDef,
             options?.fields,  // include the user's custom fields, obviously
-        );
+        ) as CubeFields;
 
         // sculpt Cube
         const cube: Cube = new options.family.cubeClass(type, options);
@@ -431,6 +434,10 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
         // All good, set fields
         this.cubeManipulated();
         this._fields = fields;
+    }
+
+    bytesRemaining(max: number = NetConstants.CUBE_SIZE): number {
+        return this._fields.bytesRemaining(max);
     }
 
     // Note: Arguably, it might have been a better idea to make key generation
