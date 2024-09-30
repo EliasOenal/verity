@@ -296,9 +296,21 @@ export class FieldParser {
   private writeTLVHeader(binaryData: Buffer, type: number, length: number, index: number): number {
     if (binaryData === undefined)
       throw new BinaryDataError("Binary data not initialized");
+    // Sanity check: Does the field type fit?
+    // Currently, type is hard coded as 6 bits while length is hard coded
+    // 10 bits -- TODO generalize type and length field sizes
+    if (type > 0xFC) {
+      throw new FieldError(`FieldParser.writeTLVHeader: I was asked to write a field of type ${type}, but type codes can't be larger than 6 bits.`);
+    }
+    // Check if this field type has an implicit length.
+    // If it does not, write both type and length.
     const implicitLength = this.fieldDef.fieldLengths[type];
     if (implicitLength === undefined) {
-      // Write type and length -- TODO generalize type and length field sizes
+      // Sanity check: Does the length fit?
+      if (length > 0x03FF) {
+        throw new FieldError(`FieldParser.writeTLVHeader: I was asked to write a field of length ${length}, but lengths can't be larger than 10 bits.`);
+      }
+      // Write type and length
       binaryData.writeUInt16BE((length & 0x03FF), index);
       binaryData[index] |= (type & 0xFC);
       index += 2;
