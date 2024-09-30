@@ -111,6 +111,37 @@ describe('Continuation', () => {
       expect(chunks[1].getFieldLength()).toEqual(500);
       expect(chunks[1].bytesRemaining()).toEqual(524);
     });
+
+    it('calls the chunk transformation callback', async () => {
+      // prepare veritum
+      const veritum = new Veritum(CubeType.FROZEN, {
+        fields: cciField.Payload(tooLong),
+        requiredDifficulty: 0,
+      });
+
+      // prepare a chunk transformation callback
+      const missingLatinProficiency = "I can't understand you, you have no subtitles!";
+      const transformer: (chunk: cciCube) => void = (chunk: cciCube) => {
+        chunk.insertFieldBeforeBackPositionals(cciField.Description(
+          missingLatinProficiency
+        ));
+      }
+
+      // run Split()
+      const chunks: cciCube[] =
+        await Continuation.Split(veritum, {
+          maxChunkSize: 500,
+          requiredDifficulty: 0,
+          chunkTransformationCallback: transformer,
+        });
+      expect(chunks.length).toEqual(3);
+
+      // Expect each chunk to have been transformed by our callback
+      for (const chunk of chunks) {
+        const addedField = chunk.getFirstField(cciFieldType.DESCRIPTION);
+        expect(addedField?.valueString).toEqual(missingLatinProficiency);
+      }
+    })
   });  // manual splitting
 
   describe('round-trip tests', () => {
