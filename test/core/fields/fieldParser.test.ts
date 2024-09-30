@@ -84,101 +84,117 @@ describe('fieldParser', () => {
       stop = new BaseField(TestFieldType.STOP, stopdata);
     });
 
-    describe('general parsing and TLV field handling', () => {
-      it('correctly parses valid binary data including both positional and TLV fields', () => {
-        const fields: BaseField[] = [];
-        fields.push(version);
-        fields.push(date);
-        fields.push(payload);
-        fields.push(sig);
-        fields.push(nonce);
-        const binaryData = fieldParser.compileFields(fields);
+    describe('general parsing and field handling', () => {
+      describe('compileFields()', () => {
+        it('throws on overly large field type codes', () => {
+          const fields: BaseField[] = [
+            new BaseField(31337, Buffer.from('test')),
+          ];
+          expect(() => fieldParser.compileFields(fields)).toThrow(FieldError);
+        });
 
-        const restored: BaseFields = fieldParser.decompileFields(binaryData);
-        expect(restored.all.length).toEqual(5);
-        expect(restored.all[0].equals(fields[0], true)).toBeTruthy();
-        expect(restored.all[1].equals(fields[1], true)).toBeTruthy();
-        expect(restored.all[2].equals(fields[2], true)).toBeTruthy();
-        expect(restored.all[3].equals(fields[3], true)).toBeTruthy();
-        expect(restored.all[4].equals(fields[4], true)).toBeTruthy();
+        it('throws on overly large field lengths', () => {
+          const fields: BaseField[] = [
+            new BaseField(42, Buffer.alloc(31337)),
+          ];
+          expect(() => fieldParser.compileFields(fields)).toThrow(FieldError);
+        });
       });
+      describe('decompileFields() and round-trip compile/decompile tests', () => {
+        it('correctly parses valid binary data including both positional and TLV fields', () => {
+          const fields: BaseField[] = [];
+          fields.push(version);
+          fields.push(date);
+          fields.push(payload);
+          fields.push(sig);
+          fields.push(nonce);
+          const binaryData = fieldParser.compileFields(fields);
 
-      it('throws on decompiling invalid TLV field by default', () => {
-        const fields: BaseField[] = [];
-        fields.push(version);
-        fields.push(date);
-        fields.push(new BaseField(42, Buffer.alloc(10, 0)));  // note there is no TLV field 42
-        fields.push(sig);
-        fields.push(nonce);
-        // Note: in the current implementation, it's not a problem to compile
-        // an invalid field. We just won't be able to decompile this.
-        // If the implementation ever changes or if we add a sanity check
-        // on compilation (which we maybe should), amend this test.
-        const binaryData = fieldParser.compileFields(fields);
-        expect(() => fieldParser.decompileFields(binaryData)).toThrow(FieldError);
-      });
+          const restored: BaseFields = fieldParser.decompileFields(binaryData);
+          expect(restored.all.length).toEqual(5);
+          expect(restored.all[0].equals(fields[0], true)).toBeTruthy();
+          expect(restored.all[1].equals(fields[1], true)).toBeTruthy();
+          expect(restored.all[2].equals(fields[2], true)).toBeTruthy();
+          expect(restored.all[3].equals(fields[3], true)).toBeTruthy();
+          expect(restored.all[4].equals(fields[4], true)).toBeTruthy();
+        });
 
-      it('does not throw on invalid TLV field if TLV field parsing is disabled', () => {
-        fieldParser.decompileTlv = false;
-        const binaryData = Buffer.from([
-          // Cube version (0) and type (basic "frozen" Cube, 0) (1 byte)
-          0b00000000,
-          // Date (5 bytes)
-          0x00, 0x00, 0x00, 0x00, 0x00,
+        it('throws on decompiling invalid TLV field by default', () => {
+          const fields: BaseField[] = [];
+          fields.push(version);
+          fields.push(date);
+          fields.push(new BaseField(42, Buffer.alloc(10, 0)));  // note there is no TLV field 42
+          fields.push(sig);
+          fields.push(nonce);
+          // Note: in the current implementation, it's not a problem to compile
+          // an invalid field. We just won't be able to decompile this.
+          // If the implementation ever changes or if we add a sanity check
+          // on compilation (which we maybe should), amend this test.
+          const binaryData = fieldParser.compileFields(fields);
+          expect(() => fieldParser.decompileFields(binaryData)).toThrow(FieldError);
+        });
 
-          // Invalid TLV field
-          0xFA,       // no such field ID exists
-          0x0A,       // Length: 10 bytes
-          0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x77, 0x6F, 0x72, // Value: "Hello, wor"
+        it('does not throw on invalid TLV field if TLV field parsing is disabled', () => {
+          fieldParser.decompileTlv = false;
+          const binaryData = Buffer.from([
+            // Cube version (0) and type (basic "frozen" Cube, 0) (1 byte)
+            0b00000000,
+            // Date (5 bytes)
+            0x00, 0x00, 0x00, 0x00, 0x00,
 
-          // Any padding (all zeros for instance) so we end up at 1024 bytes total
-          ...Array.from({ length: 997 }, () => 0x00),
+            // Invalid TLV field
+            0xFA,       // no such field ID exists
+            0x0A,       // Length: 10 bytes
+            0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x77, 0x6F, 0x72, // Value: "Hello, wor"
 
-          0x01, 0x02, 0x03, 0x04, 0x05,  // 5 bytes "signature"
-          0x00, 0x00, 0x37, 0x4D, // Nonce
-        ])
-        const restored: BaseFields = fieldParser.decompileFields(binaryData);
-        expect(restored.all.length).toEqual(4);
-        expect(restored.all[0].value.equals(Buffer.from([0]))).toBeTruthy();
-        expect(restored.all[1].value.equals(Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00]))).toBeTruthy();
-        expect(restored.all[2].value.equals(Buffer.from([0x01, 0x02, 0x03, 0x04, 0x05]))).toBeTruthy();
-        expect(restored.all[3].value.equals(Buffer.from([0x00, 0x00, 0x37, 0x4D]))).toBeTruthy();
-      });
+            // Any padding (all zeros for instance) so we end up at 1024 bytes total
+            ...Array.from({ length: 997 }, () => 0x00),
 
-      it('stops parsing on encountering a stop field', () => {
-        const fields: BaseField[] = [];
-        fields.push(version);
-        fields.push(date);
-        fields.push(payload);
-        fields.push(stop);
-        fields.push(new BaseField(TestFieldType.PAYLOAD, Buffer.from("oh")));
-        fields.push(new BaseField(TestFieldType.PAYLOAD, Buffer.from("lol")));
-        fields.push(new BaseField(TestFieldType.PAYLOAD, Buffer.from("so")));
-        fields.push(new BaseField(TestFieldType.PAYLOAD, Buffer.from("many")));
-        fields.push(new BaseField(TestFieldType.PAYLOAD, Buffer.from("fields")));
-        fields.push(sig);
-        fields.push(nonce);
-        expect(fields.length).toBe(11);  // just sanity-checking
-        const binaryData = fieldParser.compileFields(fields);
+            0x01, 0x02, 0x03, 0x04, 0x05,  // 5 bytes "signature"
+            0x00, 0x00, 0x37, 0x4D, // Nonce
+          ])
+          const restored: BaseFields = fieldParser.decompileFields(binaryData);
+          expect(restored.all.length).toEqual(4);
+          expect(restored.all[0].value.equals(Buffer.from([0]))).toBeTruthy();
+          expect(restored.all[1].value.equals(Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00]))).toBeTruthy();
+          expect(restored.all[2].value.equals(Buffer.from([0x01, 0x02, 0x03, 0x04, 0x05]))).toBeTruthy();
+          expect(restored.all[3].value.equals(Buffer.from([0x00, 0x00, 0x37, 0x4D]))).toBeTruthy();
+        });
 
-        const restored: BaseFields = fieldParser.decompileFields(binaryData);
-        expect(restored.all.length).toEqual(7);  // all but one PAYLOADs removed but one REMAINDER added
-        expect(restored.all[0].equals(fields[0], true)).toBeTruthy();
-        expect(restored.all[1].equals(fields[1], true)).toBeTruthy();
-        expect(restored.all[2].equals(fields[2], true)).toBeTruthy();
-        expect(restored.all[3].equals(fields[3], true)).toBeTruthy();  // stop still parsed
+        it('stops parsing on encountering a stop field', () => {
+          const fields: BaseField[] = [];
+          fields.push(version);
+          fields.push(date);
+          fields.push(payload);
+          fields.push(stop);
+          fields.push(new BaseField(TestFieldType.PAYLOAD, Buffer.from("oh")));
+          fields.push(new BaseField(TestFieldType.PAYLOAD, Buffer.from("lol")));
+          fields.push(new BaseField(TestFieldType.PAYLOAD, Buffer.from("so")));
+          fields.push(new BaseField(TestFieldType.PAYLOAD, Buffer.from("many")));
+          fields.push(new BaseField(TestFieldType.PAYLOAD, Buffer.from("fields")));
+          fields.push(sig);
+          fields.push(nonce);
+          expect(fields.length).toBe(11);  // just sanity-checking
+          const binaryData = fieldParser.compileFields(fields);
 
-        // virtual remainder field inserted which contains all the skipped data
-        expect(restored.all[4].type).toBe(TestFieldType.REMAINDER);
-        expect(restored.all[4].valueString).toContain("oh");
-        expect(restored.all[4].valueString).toContain("lol");
-        expect(restored.all[4].valueString).toContain("so");
-        expect(restored.all[4].valueString).toContain("many");
-        expect(restored.all[4].valueString).toContain("fields");
+          const restored: BaseFields = fieldParser.decompileFields(binaryData);
+          expect(restored.all.length).toEqual(7);  // all but one PAYLOADs removed but one REMAINDER added
+          expect(restored.all[0].equals(fields[0], true)).toBeTruthy();
+          expect(restored.all[1].equals(fields[1], true)).toBeTruthy();
+          expect(restored.all[2].equals(fields[2], true)).toBeTruthy();
+          expect(restored.all[3].equals(fields[3], true)).toBeTruthy();  // stop still parsed
 
-        expect(restored.all[5].equals(fields[9], true)).toBeTruthy();  // back positionals still present
-        expect(restored.all[6].equals(fields[10], true)).toBeTruthy();  // back positionals still present
+          // virtual remainder field inserted which contains all the skipped data
+          expect(restored.all[4].type).toBe(TestFieldType.REMAINDER);
+          expect(restored.all[4].valueString).toContain("oh");
+          expect(restored.all[4].valueString).toContain("lol");
+          expect(restored.all[4].valueString).toContain("so");
+          expect(restored.all[4].valueString).toContain("many");
+          expect(restored.all[4].valueString).toContain("fields");
 
+          expect(restored.all[5].equals(fields[9], true)).toBeTruthy();  // back positionals still present
+          expect(restored.all[6].equals(fields[10], true)).toBeTruthy();  // back positionals still present
+        });
       });
     });
 
