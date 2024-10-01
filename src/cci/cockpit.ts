@@ -21,7 +21,7 @@ export interface GetVeritumOptions {
    * encrypted Veritum or be supplied here.
    * In case of conflict the key supplied here takes precedence.
    */
-  senderPublicKey?: Buffer,
+  senderEncryptionPublicKey?: Buffer,
 }
 
 export class cciCockpit {
@@ -75,7 +75,7 @@ export class cciCockpit {
     const veritum = Continuation.Recombine(chunks);
     // attempt decryption if requested
     if (this.identity && options.autoDecrypt) {
-      veritum.decrypt(this.identity.encryptionPrivateKey, options.senderPublicKey);
+      veritum.decrypt(this.identity.encryptionPrivateKey, options.senderEncryptionPublicKey);
     }
     return veritum;
   }

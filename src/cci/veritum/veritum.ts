@@ -2,7 +2,6 @@ import { CubeCreateOptions, VeritableBaseImplementation } from "../../core/cube/
 import { HasSignature, type CubeKey, CubeType } from "../../core/cube/cube.definitions";
 import { keyVariants } from "../../core/cube/cubeUtil";
 import type { Veritable } from "../../core/cube/veritable.definition";
-import { isIterableButNotBuffer } from "../../core/helpers/misc";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 import { ApiMisuseError } from "../../core/settings";
 import { cciCube, cciFamily } from "../cube/cciCube";
@@ -12,6 +11,7 @@ import { Continuation, RecombineOptions, SplitOptions } from "./continuation";
 import { CciEncryptionOptions, Decrypt, Encrypt, EncryptionRecipients } from "./encryption";
 
 import { Buffer } from 'buffer';
+import sodium from 'libsodium-wrappers-sumo';
 
 export interface VeritumCompileOptions extends CubeCreateOptions, CciEncryptionOptions {
   /**
@@ -88,11 +88,13 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
       options.encryptionPrivateKey !== undefined && options.encryptionRecipients !== undefined;
     let spacePerCube = NetConstants.CUBE_SIZE;
     if (shallEncrypt) {
-      // reserve some space for additional headers as well as the nonce
+      await sodium.ready;
+      // reserve some space for additional headers, the MAC as well as the nonce
       spacePerCube = spacePerCube -
         this.fieldParser.getFieldHeaderLength(cciFieldType.ENCRYPTED) -
         this.fieldParser.getFieldHeaderLength(cciFieldType.NONCE) -
-        cciFieldLength[cciFieldType.NONCE];
+        cciFieldLength[cciFieldType.NONCE] -
+        sodium.crypto_secretbox_MACBYTES;
       // obviously, more reserved space is needed if we want to include
       // the sender's public key
       if (options.includeSenderPubkey !== undefined) {

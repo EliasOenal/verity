@@ -3,16 +3,11 @@ import { IdentityOptions, Identity } from "../../../src/cci/identity/identity";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
+import { idTestOptions, requiredDifficulty } from "../testcci.definitions";
+
 import sodium from "libsodium-wrappers-sumo";
 
 describe("Identity (separate MUC storage test suite for long-running tests)", () => {
-  const reducedDifficulty = 0; // no hash cash for testing
-  const idTestOptions: IdentityOptions = {
-    minMucRebuildDelay: 1, // allow updating Identity MUCs every second
-    requiredDifficulty: reducedDifficulty,
-    argonCpuHardness: 1,  // == crypto_pwhash_OPSLIMIT_MIN (sodium not ready)
-    argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
-  };
   let cubeStore: CubeStore;
 
   beforeAll(async () => {
@@ -80,7 +75,7 @@ describe("Identity (separate MUC storage test suite for long-running tests)", ()
         cubeStore,
         "usor probationis",
         "clavis probationis",
-        { minMucRebuildDelay: 5, requiredDifficulty: reducedDifficulty }
+        { minMucRebuildDelay: 5, requiredDifficulty }
       );
       // Creating a new Identity does build a MUC, although it will never be compiler
       // nor added to the CubeStore.
