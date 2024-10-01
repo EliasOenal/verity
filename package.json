@@ -50,7 +50,7 @@
     "@libp2p/websockets": "^9.0.4",
     "@multiavatar/multiavatar": "^1.0.7",
     "@types/libsodium-wrappers": "^0.7.14",
-    "@types/node": "^22.7.2",
+    "@types/node": "^22.7.4",
     "abstract-level": "^2.0.0",
     "bencodec": "^3.0.1",
     "browser-or-node": "^3.0.0",
