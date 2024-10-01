@@ -90,17 +90,17 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     if (shallEncrypt) {
       await sodium.ready;
       // reserve some space for additional headers, the MAC as well as the nonce
-      spacePerCube = spacePerCube -
-        this.fieldParser.getFieldHeaderLength(cciFieldType.ENCRYPTED) -
-        this.fieldParser.getFieldHeaderLength(cciFieldType.NONCE) -
-        cciFieldLength[cciFieldType.NONCE] -
-        sodium.crypto_secretbox_MACBYTES;
+      const encryptedHeaderSize = this.fieldParser.getFieldHeaderLength(cciFieldType.ENCRYPTED);
+      const nonceHeaderSize = this.fieldParser.getFieldHeaderLength(cciFieldType.CRYPTO_NONCE);
+      const nonceSize = cciFieldLength[cciFieldType.CRYPTO_NONCE];
+      const macSize = sodium.crypto_secretbox_MACBYTES;
+      spacePerCube = spacePerCube - encryptedHeaderSize - nonceHeaderSize - nonceSize - macSize;
       // obviously, more reserved space is needed if we want to include
       // the sender's public key
       if (options.includeSenderPubkey !== undefined) {
-        spacePerCube = spacePerCube -
-          this.fieldParser.getFieldHeaderLength(cciFieldType.CRYPTO_PUBKEY) -
-          cciFieldLength[cciFieldType.CRYPTO_PUBKEY];
+        const pubkeyHeaderSize = this.fieldParser.getFieldHeaderLength(cciFieldType.CRYPTO_PUBKEY);
+        const pubkeySize = cciFieldLength[cciFieldType.CRYPTO_PUBKEY];
+        spacePerCube = spacePerCube - pubkeyHeaderSize - pubkeySize;
       }
     }
     // If encryption was requested, ask split to call us back after each

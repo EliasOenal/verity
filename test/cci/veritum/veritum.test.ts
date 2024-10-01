@@ -286,6 +286,12 @@ describe('Veritum', () => {
         }
 
         const restored = Continuation.Recombine(veritum.compiled);
+        // recombining does not yet decrypt
+        expect(restored.cubeType).toBe(CubeType.FROZEN);
+        expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+        expect(restored.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+        // decrypt it
+        restored.decrypt(recipientKeyPair.privateKey, senderKeyPair.publicKey);
         expect(restored.cubeType).toBe(CubeType.FROZEN);
         expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();
         expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
