@@ -251,26 +251,33 @@ export class Continuation {
       }
     }
 
-    // Chunking done.
-    // Call the chunk transformation callback if any (e.g. encryption).
-    if (options.chunkTransformationCallback !== undefined) {
-      for (const chunk of cubes) options.chunkTransformationCallback(chunk);
-    }
-    // Now fill in the CONTINUED_IN references.
+    // Chunking done. Now fill in the CONTINUED_IN references.
     // This will also compile all chunk Cubes but the first one.
+    // If a chunk transformation callback was specified (e.g. encryption),
+    // call it right before compiling each Cube.
     if (Settings.RUNTIME_ASSERTIONS && (refs.length !== (cubes.length-1))) {
       throw new CubeError("Continuation.SplitCube: I messed up my chunking. This should never happen.");
     }
     for (let i=0; i<refs.length; i++) {
       // the first relationship field needs to reference the second Cube, and so on
-      const referredCube: CubeKey = await cubes[i+1].getKey();
+      const referredCube = cubes[i+1];
+      // we will go ahead and compile the referred Cube -- if there's a chunk
+      // transformation callback, call it now
+      if (options.chunkTransformationCallback !== undefined) {
+        options.chunkTransformationCallback(referredCube);
+      }
+      const referredKey: CubeKey = await referredCube.getKey();  // compiles the Cube
       const correctRef: cciRelationship =
-        new cciRelationship(cciRelationshipType.CONTINUED_IN, referredCube);
+        new cciRelationship(cciRelationshipType.CONTINUED_IN, referredKey);
       const compiledRef: cciField = cciField.RelatesTo(correctRef);
       // fill in the correct ref value to the field we created at the beginning
       refs[i].value = compiledRef.value;
     }
-    // Compile first chunk Cube for consistency
+    // Compile first chunk Cube for consistency.
+    // Of course, also call the chunk transformation callback if there's one.
+    if (options.chunkTransformationCallback !== undefined) {
+      options.chunkTransformationCallback(cubes[0]);
+    }
     await cubes[0].compile();
 
     return cubes;
