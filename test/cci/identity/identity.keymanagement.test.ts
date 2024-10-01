@@ -3,21 +3,9 @@ import { CrpytographyError } from "../../../src/cci/helpers/cryptography";
 import { Identity, IdentityOptions } from "../../../src/cci/identity/identity";
 import { CubeStore, CubeStoreOptions } from "../../../src/core/cube/cubeStore";
 
-import sodium from 'libsodium-wrappers-sumo'
+import { testCubeStoreParams, idTestOptions } from "../testcci.definitions";
 
-const idTestOptions: IdentityOptions = {
-  minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
-  requiredDifficulty: 0,
-  argonCpuHardness: 1,  // == crypto_pwhash_OPSLIMIT_MIN (sodium not ready)
-  argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
-};
-const testCubeStoreParams: CubeStoreOptions = {
-  inMemory: true,
-  enableCubeCache: false,
-  enableCubeRetentionPolicy: false,
-  requiredDifficulty: 0,
-  family: cciFamily,
-};
+import sodium from 'libsodium-wrappers-sumo'
 
 describe('Identity (key management)', () => {
   let cubeStore: CubeStore;

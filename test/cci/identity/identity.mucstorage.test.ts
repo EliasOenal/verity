@@ -10,16 +10,11 @@ import { cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 import { Avatar, AvatarScheme } from "../../../src/cci/identity/avatar";
 import { Cube } from "../../../src/core/cube/cube";
 
+import { idTestOptions, requiredDifficulty } from "../testcci.definitions";
+
 import sodium from "libsodium-wrappers-sumo";
 
 describe("Identity (MUC storage)", () => {
-  const reducedDifficulty = 0; // no hash cash for testing
-  const idTestOptions: IdentityOptions = {
-    minMucRebuildDelay: 1, // allow updating Identity MUCs every second
-    requiredDifficulty: reducedDifficulty,
-    argonCpuHardness: 1,  // == crypto_pwhash_OPSLIMIT_MIN (sodium not ready)
-    argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
-  };
   let cubeStore: CubeStore;
 
   beforeAll(async () => {
@@ -65,7 +60,7 @@ describe("Identity (MUC storage)", () => {
         Buffer.from("0102030405", 'hex'), AvatarScheme.MULTIAVATAR);
 
       const post = await makePost("Habeo res importantes dicere",
-        undefined, original, reducedDifficulty);
+        undefined, original, requiredDifficulty);
       const postkey = await post.getKey();
       await cubeStore.addCube(post);
       expect(postkey).toBeInstanceOf(Buffer);
@@ -114,7 +109,7 @@ describe("Identity (MUC storage)", () => {
       original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
       original.avatar = new Avatar("0102030405", AvatarScheme.MULTIAVATAR);
       original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
-      await cubeStore.addCube(await makePost("Habeo res importantes dicere", undefined, original, reducedDifficulty));
+      await cubeStore.addCube(await makePost("Habeo res importantes dicere", undefined, original, requiredDifficulty));
 
       // compile ID into binary MUC
       const muc = await original.makeMUC();

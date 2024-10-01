@@ -7,19 +7,7 @@ import { CubeType } from "../../src/core/cube/cube.definitions";
 import { NetConstants } from "../../src/core/networking/networkDefinitions";
 import { DummyVerityNode, VerityNodeIf } from "../../src/core/verityNode";
 
-const masterKeySize = 32;  // must match libsodium's crypto_sign_SEEDBYTES
-const masterKey = Buffer.alloc(masterKeySize, 42);
-const remote1MasterKey = Buffer.alloc(masterKeySize, 47);
-const remote2MasterKey = Buffer.alloc(masterKeySize, 11);
-const requiredDifficulty = 0;
-const idTestOptions = {
-  minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
-  requiredDifficulty: requiredDifficulty,
-  argonCpuHardness: 1,  // == crypto_pwhash_OPSLIMIT_MIN (sodium not ready)
-  argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
-};
-
-const tooLong = "Gallia est omnis divisa in partes tres, quarum unam incolunt Belgae, aliam Aquitani, tertiam qui ipsorum lingua Celtae, nostra Galli appellantur. Hi omnes lingua, institutis, legibus inter se differunt. Gallos ab Aquitanis Garumna flumen, a Belgis Matrona et Sequana dividit. Horum omnium fortissimi sunt Belgae, propterea quod a cultu atque humanitate provinciae longissime absunt, minimeque ad eos mercatores saepe commeant atque ea quae ad effeminandos animos pertinent important, proximique sunt Germanis, qui trans Rhenum incolunt, quibuscum continenter bellum gerunt. Qua de causa Helvetii quoque reliquos Gallos virtute praecedunt, quod fere cotidianis proeliis cum Germanis contendunt, cum aut suis finibus eos prohibent aut ipsi in eorum finibus bellum gerunt. Eorum una pars, quam Gallos obtinere dictum est, initium capit a flumine Rhodano, continetur Garumna flumine, Oceano, finibus Belgarum, attingit etiam ab Sequanis et Helvetiis flumen Rhenum, vergit ad septentriones. Belgae ab extremis Galliae finibus oriuntur, pertinent ad inferiorem partem fluminis Rheni, spectant in septentrionem et orientem solem. Aquitania a Garumna flumine ad Pyrenaeos montes et eam partem Oceani quae est ad Hispaniam pertinet; spectat inter occasum solis et septentriones.";
+import { masterKey, idTestOptions, remote1MasterKey, remote2MasterKey, requiredDifficulty, tooLong } from "./testcci.definitions";
 
 describe('cci Cockpit', () => {
   let node: VerityNodeIf;
@@ -151,22 +139,22 @@ describe('cci Cockpit', () => {
       // perform test
       const restored: Veritum = await cockpit.getVeritum(
         veritum.getKeyIfAvailable(),
-        { senderPublicKey: remote1.encryptionPublicKey }
+        { senderEncryptionPublicKey: remote1.encryptionPublicKey }
       );
       expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
         latinBraggery);
     });
 
-    // TODO figure out why this still fails
-    it.skip("automatically decrypts a multi-chunk encrypted Veritum if sender's public key is included", async() => {
+    // fails due to a problem with split-then-encrypt, see lower-level test in Veritum
+    it.skip("automatically decrypts a multi-chunk encrypted Veritum if sender's public key is supplied", async() => {
       // prepare Veritum
       const veritum = new Veritum(CubeType.FROZEN, {
         fields: cciField.Payload(tooLong),
         requiredDifficulty,
       });
       await veritum.compile({
-        includeSenderPubkey: remote1.encryptionPublicKey,
-        privateKey: remote1.encryptionPrivateKey,
+        // includeSenderPubkey: remote1.encryptionPublicKey,
+        encryptionPrivateKey: remote1.encryptionPrivateKey,
         encryptionRecipients: identity,
       })
 
@@ -180,7 +168,7 @@ describe('cci Cockpit', () => {
       // perform test
       const restored: Veritum = await cockpit.getVeritum(
         veritum.getKeyIfAvailable(),
-        { senderPublicKey: remote1.encryptionPublicKey }
+        { senderEncryptionPublicKey: remote1.encryptionPublicKey }
       );
       expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
         tooLong);

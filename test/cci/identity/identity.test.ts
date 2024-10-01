@@ -23,6 +23,8 @@ import { IdentityPersistence } from '../../../src/cci/identity/identityPersisten
 
 import { makePost } from '../../../src/app/zw/model/zwUtil';
 
+import { testCubeStoreParams } from '../testcci.definitions';
+
 import sodium from 'libsodium-wrappers-sumo'
 
 // maybe TODO: Some tests here use "ZW" stuff from the microblogging app
@@ -31,7 +33,6 @@ import sodium from 'libsodium-wrappers-sumo'
 describe('Identity', () => {
   const reducedDifficulty = 0;  // no hash cash for testing
   let idTestOptions: IdentityOptions;
-  let testCubeStoreParams: CubeStoreOptions;
   let cubeStore: CubeStore;
 
   beforeAll(async () => {
@@ -39,18 +40,11 @@ describe('Identity', () => {
   });
 
   beforeEach(async () => {
-    idTestOptions = {
+    idTestOptions = {  // note that those are diferent for some tests further down
       minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
       requiredDifficulty: reducedDifficulty,
       argonCpuHardness: 1,  // == crypto_pwhash_OPSLIMIT_MIN (sodium not ready)
       argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
-    };
-    testCubeStoreParams = {
-      inMemory: true,
-      enableCubeCache: false,
-      enableCubeRetentionPolicy: false,
-      requiredDifficulty: 0,
-      family: cciFamily,
     };
     cubeStore = new CubeStore(testCubeStoreParams);
     await cubeStore.readyPromise;

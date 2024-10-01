@@ -9,6 +9,7 @@ import { CubeType } from "../../../src/core/cube/cube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 import sodium from 'libsodium-wrappers-sumo'
+import { tooLong } from "../testcci.definitions";
 
 const requiredDifficulty = 0;
 
@@ -21,7 +22,6 @@ describe('Veritum', () => {
   let recipientKeyPair: KeyPair;
 
   beforeAll(async () => {
-
     await sodium.ready;
     const uint8senderKeyPair = sodium.crypto_box_keypair();
     senderKeyPair = {
@@ -205,11 +205,21 @@ describe('Veritum', () => {
         expect(compiled[0].getFirstField(cciFieldType.PAYLOAD)).toEqual(payloadField);
       });
 
-      it.todo('compiles a long frozen Veritum to multiple Frozen Cubes');
+      it('compiles a long frozen Veritum to multiple Frozen Cubes', async() => {
+        const veritum = new Veritum(CubeType.FROZEN, {
+          fields: cciField.Payload(tooLong), requiredDifficulty});
+        await veritum.compile({requiredDifficulty});
+        expect(veritum.compiled).toHaveLength(2);
+
+        const restored = Continuation.Recombine(veritum.compiled);
+        expect(restored.cubeType).toBe(CubeType.FROZEN);
+        expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
+          tooLong);
+      });
     });
 
     describe('encryption', () => {
-      it('encrypts fields', async() => {
+      it('encrypts a Veritum having a single payload field', async() => {
         const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
         await veritum.compile({
           encryptionRecipients: recipientKeyPair.publicKey,
@@ -256,6 +266,31 @@ describe('Veritum', () => {
         expect(veritum.compiled[0].getFirstField(cciFieldType.CRYPTO_PUBKEY)).toBeDefined();
         expect(veritum.compiled[0].getFirstField(cciFieldType.CRYPTO_PUBKEY).value).toEqual(
           senderKeyPair.publicKey);
+      });
+
+      // fails due to a problem with split-then-encrypt
+      it.skip('encrypts a two-chunk Veritum', async() => {
+        const veritum = new Veritum(CubeType.FROZEN, {
+          fields: cciField.Payload(tooLong), requiredDifficulty});
+        await veritum.compile({
+          encryptionRecipients: recipientKeyPair.publicKey,
+          encryptionPrivateKey: senderKeyPair.privateKey,
+          requiredDifficulty,
+        });
+        expect(veritum.compiled).toHaveLength(2);
+
+        // expect both chunks to have an ENCRYPTED field but no PAYLOAD field
+        for (const chunk of veritum.compiled) {
+          expect(chunk.getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+          expect(chunk.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+        }
+
+        const restored = Continuation.Recombine(veritum.compiled);
+        expect(restored.cubeType).toBe(CubeType.FROZEN);
+        expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();
+        expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
+          tooLong);
+
       });
     });
   });
