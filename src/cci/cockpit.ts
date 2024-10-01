@@ -5,7 +5,7 @@ import { VerityNodeIf } from "../core/verityNode";
 import { cciCube } from "./cube/cciCube";
 import { Identity } from "./identity/identity";
 import { Continuation } from "./veritum/continuation";
-import { Veritum, VeritumCompileOptions } from "./veritum/veritum";
+import { Veritum, VeritumCompileOptions, VeritumFromChunksOptions } from "./veritum/veritum";
 
 import { Buffer } from 'buffer';
 
@@ -71,12 +71,19 @@ export class cciCockpit {
       this.node.cubeRetriever.getContinuationChunks(key);
     // maybe TODO: get rid of ugly Array conversion?
     const chunks: Iterable<cciCube> = await ArrayFromAsync(chunkGen);
-    // recombine Veritum
-    const veritum = Continuation.Recombine(chunks);
-    // attempt decryption if requested
-    if (this.identity && options.autoDecrypt) {
-      veritum.decrypt(this.identity.encryptionPrivateKey, options.senderEncryptionPublicKey);
+    // If auto-decryption was requested, prepare the necessary params
+    // for decryption
+    let fromChunksOptions: VeritumFromChunksOptions;
+    if (options.autoDecrypt) {
+      fromChunksOptions = {
+        encryptionPrivateKey: this.identity?.encryptionPrivateKey,
+        senderPublicKey: options.senderEncryptionPublicKey,
+      };
+    } else {
+      fromChunksOptions = undefined;
     }
+    // Decompile the Veritum
+    const veritum = Veritum.FromChunks(chunks, fromChunksOptions);
     return veritum;
   }
 }
