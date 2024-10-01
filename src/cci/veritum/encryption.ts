@@ -19,6 +19,10 @@ export interface CciEncryptionOptions {
   includeSenderPubkey?: Buffer,
 }
 
+//###
+// Encryption functions
+//###
+
 /**
  * Encrypts a CCI field set
  * Note: Encryption should take place before splitting
@@ -27,9 +31,6 @@ export interface CciEncryptionOptions {
  * no longer make sense after data length has increased due to encryption).
  * Note: Caller must await sodium.ready before calling.
  */
-// TODO: We should offer a way of encryption that's integrated with splitting
-// so that the CONTINUED_IN references can be encrypted as well, those leak
-// a Veritum's size which is rather valuable metadata.
 // Maybe TODO: use linked list instead of Array to avoid unnecessary copies?
 export function Encrypt(
     fields: cciFields,
@@ -37,20 +38,32 @@ export function Encrypt(
     recipients: EncryptionRecipients,
     options: CciEncryptionOptions = {},
 ): cciFields {
-  // sanity-check input
-  if (privateKey?.length !== sodium.crypto_box_SECRETKEYBYTES) {
-    throw new ApiMisuseError(`Encrypt(): privateKey must be ${sodium.crypto_box_SECRETKEYBYTES} bytes, got ${privateKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
-  }
+  // Also prepare the output field set. We will copy all fields not to be
+  // encrypted directly to output and add the encrypted content later.
+  const output: cciFields = new cciFields(undefined, fields.fieldDefinition);
 
+  const toEncrypt: cciFields = PrepareFieldsForEncryption(fields, output, options);
+  const { symmetricPayloadKey, nonce } = DeriveKeyForEncryption(
+    privateKey, recipients, output, options);
+  const plaintext: Buffer = CompileFieldsForEncryption(toEncrypt);
+  const encryptedField: cciField = PerformEncryption(plaintext, nonce, symmetricPayloadKey);
+  // Add the encrypted content to the output field set
+  output.insertFieldAfterFrontPositionals(encryptedField);
+
+  return output;
+}
+
+export function PrepareFieldsForEncryption(
+    fields: cciFields,
+    output: cciFields,
+    options: CciEncryptionOptions
+): cciFields {
   // set default options
   options.excludeFromEncryption ??= Continuation.ContinuationDefaultExclusions;
 
   // Prepare list of fields to encrypt. This is basically all CCI fields,
   // but not core Cube fields.
   const toEncrypt: cciFields = new cciFields(undefined, fields.fieldDefinition);
-  // Also prepare the output field set. We will copy all fields not to be
-  // encrypted directly to output and add the encrypted content later.
-  const output: cciFields = new cciFields(undefined, fields.fieldDefinition);
   for (const field of fields.all) {
     if (!options.excludeFromEncryption.includes(field.type)) {
       toEncrypt.appendField(field);
@@ -62,6 +75,19 @@ export function Encrypt(
         output.appendField(field);
       }
     }
+  }
+  return toEncrypt;
+}
+
+export function DeriveKeyForEncryption(
+    privateKey: Buffer,
+    recipients: EncryptionRecipients,
+    output: cciFields,
+    options: CciEncryptionOptions,
+) {
+  // sanity-check input
+  if (privateKey?.length !== sodium.crypto_box_SECRETKEYBYTES) {
+    throw new ApiMisuseError(`Encrypt(): privateKey must be ${sodium.crypto_box_SECRETKEYBYTES} bytes, got ${privateKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
   }
 
   // Create a random nonce and add it to the front of the output field set
@@ -78,17 +104,6 @@ export function Encrypt(
       cciField.CryptoPubkey(options.includeSenderPubkey));
   }
 
-  // Compile the fields to encrypt.
-  // This gives us the binary plaintext that we'll later encrypt.
-  // Note that this intermediate compilation never includes any positional
-  // fields; we therefore construct a new FieldDefinition without
-  // positionals and a corresponding FieldParser.
-  const intermediateFieldDef: FieldDefinition = Object.assign({}, fields.fieldDefinition);
-  intermediateFieldDef.positionalFront = {};
-  intermediateFieldDef.positionalBack = {};
-  const compiler: FieldParser = new FieldParser(intermediateFieldDef);
-  const plaintext: Buffer = compiler.compileFields(toEncrypt);
-
   // Determine symmetric key. There's two cases:
   // - If there's only a single recipient, we directly derive the key using the
   // recipient's public key and the sender's private key.
@@ -101,6 +116,7 @@ export function Encrypt(
       recipientPubkeys[0], privateKey);
   } else {
     // TODO implement multi-recipient encryption
+    // TODO split up this function into a key derivation part and an actual encryption part
     throw new Error("Sorry, not implemented yet");
   }
   if (Settings.RUNTIME_ASSERTIONS &&
@@ -109,17 +125,39 @@ export function Encrypt(
     throw new CryptoError(`Libsodium's generated symmetric key size of ${symmetricPayloadKey.length} does not match NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE === ${NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE}. This should never happen. Using an incompatible version of libsodium maybe?`);
   }
 
-  // Perform encryption
-  // TODO: Support encryption to multiple parties
-  const encryption: Uint8Array = sodium.crypto_secretbox_easy(
-    plaintext, nonce, symmetricPayloadKey);
-
-  // Add the encrypted content to the output field set
-  output.insertFieldAfterFrontPositionals(
-    cciField.Encrypted(Buffer.from(encryption)));
-
-  return output;
+  return {symmetricPayloadKey, nonce};
 }
+
+export function CompileFieldsForEncryption(toEncrypt: cciFields): Buffer {
+  // Compile the fields to encrypt.
+  // This gives us the binary plaintext that we'll later encrypt.
+  // Note that this intermediate compilation never includes any positional
+  // fields; we therefore construct a new FieldDefinition without
+  // positionals and a corresponding FieldParser.
+  const intermediateFieldDef: FieldDefinition = Object.assign({}, toEncrypt.fieldDefinition);
+  intermediateFieldDef.positionalFront = {};
+  intermediateFieldDef.positionalBack = {};
+  const compiler: FieldParser = new FieldParser(intermediateFieldDef);
+  const plaintext: Buffer = compiler.compileFields(toEncrypt);
+  return plaintext;
+}
+
+export function PerformEncryption(
+    plaintext: Uint8Array,
+    nonce: Uint8Array,
+    symmetricPayloadKey: Uint8Array,
+): cciField {
+  // Perform encryption
+  const ciphertext: Uint8Array = sodium.crypto_secretbox_easy(
+    plaintext, nonce, symmetricPayloadKey);
+  const encryptedField: cciField = cciField.Encrypted(Buffer.from(ciphertext));
+  return encryptedField;
+}
+
+
+//###
+// Decryption functions
+//###
 
 
 /**
