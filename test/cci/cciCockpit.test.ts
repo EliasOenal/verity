@@ -85,8 +85,10 @@ describe('cci Cockpit', () => {
       expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
 
       // the encrypted compiled Verium must be decryptable by the recipient
-      const restored = Veritum.FromChunks(veritum.compiled);
-      restored.decrypt(remote1.encryptionPrivateKey, identity.encryptionPublicKey);
+      const restored = Veritum.FromChunks(veritum.compiled, {
+        encryptionPrivateKey: remote1.encryptionPrivateKey,
+        senderPublicKey: identity.encryptionPublicKey,
+      });
       // now we must be back to a PAYLOAD field but no ENCRYPTED field
       expect(restored.getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
       expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();

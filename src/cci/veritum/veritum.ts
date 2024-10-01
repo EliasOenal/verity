@@ -28,6 +28,11 @@ export interface VeritumCompileOptions extends CubeCreateOptions, CciEncryptionO
   encryptionRecipients?: EncryptionRecipients,
 }
 
+export interface VeritumFromChunksOptions extends RecombineOptions {
+  encryptionPrivateKey?: Buffer,
+  senderPublicKey?: Buffer,
+}
+
 export class Veritum extends VeritableBaseImplementation implements Veritable{
   protected _compiled: Array<cciCube>;
   get compiled(): Iterable<cciCube> { return this._compiled }
@@ -37,7 +42,18 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   readonly publicKey: Buffer;
   readonly privateKey: Buffer;
 
-  static FromChunks(chunks: Iterable<cciCube>, options?: RecombineOptions): Veritum {
+  static FromChunks(chunks: Iterable<cciCube>, options?: VeritumFromChunksOptions): Veritum {
+    if (options.encryptionPrivateKey) {
+      // attempt chunk decryption
+      for (const chunk of chunks) {
+        const decryptedFields = Decrypt(
+          chunk.manipulateFields(),
+          options.encryptionPrivateKey,
+          options.senderPublicKey
+        );
+        chunk.setFields(decryptedFields);
+      }
+    }
     return Continuation.Recombine(chunks, options);
   }
 
@@ -75,10 +91,6 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   getKeyStringIfAvailable(): string {
     if (HasSignature[this.cubeType]) return keyVariants(this.publicKey).keyString;
     else return this._compiled?.[0]?.getKeyStringIfAvailable();
-  }
-
-  decrypt(privateKey: Buffer, senderPublicKey?: Buffer): void {
-    this._fields = Decrypt(this._fields, privateKey, senderPublicKey);
   }
 
   async compile(options: VeritumCompileOptions = {}): Promise<Iterable<cciCube>> {
