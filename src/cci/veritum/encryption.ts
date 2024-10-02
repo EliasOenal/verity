@@ -99,15 +99,19 @@ if (Settings.RUNTIME_ASSERTIONS && !ciphertext?.length) {
 
 // Derive symmetric key
 let symmetricKey: Uint8Array;
-const encryptedKeyField = fields.getFirst(cciFieldType.CRYPTO_KEY);
-if (encryptedKeyField) {
-  const encryptedKey = encryptedKeyField.value;
-  symmetricKey = sodium.crypto_box_open_easy(encryptedKey, nonce, senderPublicKey, privateKey);
+const encryptedKeyFields = fields.get(cciFieldType.CRYPTO_KEY);
+if (encryptedKeyFields.length > 0) {
+  for (const encryptedKeyField of encryptedKeyFields) {
+    try {
+      symmetricKey = sodium.crypto_box_open_easy(
+        encryptedKeyField.value, nonce, senderPublicKey, privateKey);
+    } catch (err) { continue }
+  }
 } else {
   symmetricKey = sodium.crypto_box_beforenm(senderPublicKey, privateKey);
 }
 if (Settings.RUNTIME_ASSERTIONS &&
-    symmetricKey.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
+    symmetricKey?.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
 ){
   logger.trace("Decrypt(): Cannot decrypt supplied fields as Symmetric key is missing or invalid");
   return fields;
