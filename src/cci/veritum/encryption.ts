@@ -167,7 +167,7 @@ return output;
 //###
 
 
-function EncryptionPrepareFields(
+export function EncryptionPrepareFields(
     fields: cciFields,
     output: cciFields,
     options: CciEncryptionOptions
@@ -193,7 +193,7 @@ function EncryptionPrepareFields(
   return toEncrypt;
 }
 
-function EncryptionDeriveKey(
+export function EncryptionDeriveKey(
     privateKey: Buffer,
     recipients: EncryptionRecipients,
     output: cciFields,
@@ -215,7 +215,7 @@ function EncryptionDeriveKey(
   // recipient's public key and the sender's private key.
   // - However, if there are multiple recipients, we chose a random key and
   //   include an individual encrypted version of it for each recipient.
-  const recipientPubkeys = Array.from(normalizeEncryptionRecipients(recipients));
+  const recipientPubkeys = Array.from(EncryptionNormaliseRecipients(recipients));
   let symmetricPayloadKey: Uint8Array;
   if (recipientPubkeys.length === 1) {  // that's the easy case :)
     symmetricPayloadKey = sodium.crypto_box_beforenm(
@@ -238,7 +238,7 @@ function EncryptionDeriveKey(
  *
  * @param output If specified, write a NONCE field to the output fieldset
  */
-function EncryptionGenerateNonce(output?: cciFields): Buffer {
+export function EncryptionGenerateNonce(output?: cciFields): Buffer {
   // Create a random nonce
   const nonce: Buffer = Buffer.from(
     sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES));
@@ -250,7 +250,7 @@ function EncryptionGenerateNonce(output?: cciFields): Buffer {
   return nonce;
 }
 
-function EncryptionCompileFields(toEncrypt: cciFields): Buffer {
+export function EncryptionCompileFields(toEncrypt: cciFields): Buffer {
   // Compile the fields to encrypt.
   // This gives us the binary plaintext that we'll later encrypt.
   // Note that this intermediate compilation never includes any positional
@@ -264,7 +264,7 @@ function EncryptionCompileFields(toEncrypt: cciFields): Buffer {
   return plaintext;
 }
 
-function EncryptionSymmetricEncrypt(
+export function EncryptionSymmetricEncrypt(
     plaintext: Uint8Array,
     nonce: Uint8Array,
     symmetricPayloadKey: Uint8Array,
@@ -276,7 +276,7 @@ function EncryptionSymmetricEncrypt(
   return encryptedField;
 }
 
-function *normalizeEncryptionRecipients(recipients: EncryptionRecipients): Generator<Buffer> {
+export function *EncryptionNormaliseRecipients(recipients: EncryptionRecipients): Generator<Buffer> {
   // normalize input
   if (!isIterableButNotBuffer(recipients)) {
     recipients = [recipients as Identity];

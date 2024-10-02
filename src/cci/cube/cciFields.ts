@@ -76,7 +76,7 @@ export class cciFields extends CubeFields {
       const spaceRequired = field.length +
         FieldParser.getFieldHeaderLength(field.type, this.fieldDefinition);
       if (spaceRemaining < spaceRequired) break;
-      this.insertField(field, position);
+      this.insertField(position, field);
       inserted++;
     }
     return inserted;

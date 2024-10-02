@@ -199,6 +199,16 @@ describe('baseFields', () => {
         expect(baseFields.all).toEqual([baseField]);
       });
 
+      it('should append multiple fields correctly', () => {
+        const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('experior'));
+        const baseField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('adhuc experior'));
+        const baseField3 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('magis experior'));
+        const baseField4 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('non desinam experiri'));
+        const baseFields = new BaseFields(baseField1, testFieldDefinition);
+        baseFields.appendField(baseField2, baseField3, baseField4);
+        expect(baseFields.all).toEqual([baseField1, baseField2, baseField3, baseField4]);
+      });
+
       it('should insert field in front correctly', () => {
         const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
         const baseField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('testing'));
@@ -207,24 +217,46 @@ describe('baseFields', () => {
         expect(baseFields.all).toEqual([baseField1, baseField2]);
       });
 
+      it('should insert multiple fields in front correctly', () => {
+        const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('experior'));
+        const baseField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('adhuc experior'));
+        const baseField3 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('magis experior'));
+        const baseField4 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('non desinam experiri'));
+        const baseFields = new BaseFields(baseField4, testFieldDefinition);
+        baseFields.insertFieldInFront(baseField1, baseField2, baseField3);
+        expect(baseFields.all).toEqual([baseField1, baseField2, baseField3, baseField4]);
+      });
+
       it('should throw ApiMisuseError when an invalid position is provided', () => {
         const baseField = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
         const baseFields = new BaseFields([], testFieldDefinition);
-        expect(() => baseFields.insertField(baseField, 42 as FieldPosition)).toThrow(ApiMisuseError);
+        expect(() => baseFields.insertField(42 as FieldPosition, baseField)).toThrow(ApiMisuseError);
       });
     });
 
     describe('inserting between positionals', () => {
-      it('should insert field correctly after front positionals', () => {
-        const baseField1 = new BaseField(TestFieldType.VERSION, Buffer.from('test'));
-        const baseField2 = new BaseField(TestFieldType.SIGNATURE, Buffer.from('testing'));
-        const baseFields = new BaseFields([baseField1, baseField2], testFieldDefinition);
+      it('should insert field after front positionals', () => {
+        const frontPositional = new BaseField(TestFieldType.VERSION, Buffer.from('test'));
+        const backPositional = new BaseField(TestFieldType.SIGNATURE, Buffer.from('testing'));
+        const fields = new BaseFields([frontPositional, backPositional], testFieldDefinition);
+
         const newField = new BaseField(3, Buffer.from('new'));
-        baseFields.insertFieldAfterFrontPositionals(newField);
-        expect(baseFields.all).toEqual([baseField1, newField, baseField2]);
+        fields.insertFieldAfterFrontPositionals(newField);
+        expect(fields.all).toEqual([frontPositional, newField, backPositional]);
       });
 
-      it('should insert field correctly before back positionals', () => {
+      it('should insert multiple fields after front positionals', () => {
+        const frontPositional = new BaseField(TestFieldType.VERSION, Buffer.from('experior'));
+        const backPositional = new BaseField(TestFieldType.SIGNATURE, Buffer.from('non desinam experiri'));
+        const fields = new BaseFields([frontPositional, backPositional], testFieldDefinition);
+
+        const newField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('adhuc experior'));
+        const newField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('magis experior'));
+        fields.insertFieldAfterFrontPositionals(newField1, newField2);
+        expect(fields.all).toEqual([frontPositional, newField1, newField2, backPositional]);
+      });
+
+      it('should insert field before back positionals', () => {
         const baseField1 = new BaseField(TestFieldType.VERSION, Buffer.alloc(1));
         const baseField2 = new BaseField(TestFieldType.SIGNATURE, Buffer.from('testing'));
         const baseFields = new BaseFields([baseField1, baseField2], testFieldDefinition);
@@ -233,7 +265,18 @@ describe('baseFields', () => {
         expect(baseFields.all).toEqual([baseField1, newField, baseField2]);
       });
 
-      it('can insert fields between positionals', () => {
+      it('should insert multiple fields before back positionals', () => {
+        const baseField1 = new BaseField(TestFieldType.VERSION, Buffer.from('experior'));
+        const baseField2 = new BaseField(TestFieldType.SIGNATURE, Buffer.from('non desinam experiri'));
+        const baseFields = new BaseFields([baseField1, baseField2], testFieldDefinition);
+
+        const newField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('adhuc experior'));
+        const newField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('magis experior'));
+        baseFields.insertFieldBeforeBackPositionals(newField1, newField2);
+        expect(baseFields.all).toEqual([baseField1, newField1, newField2, baseField2]);
+      });
+
+      it('can insert fields between positionals iteratively', () => {
         const fields = new BaseFields([version, date, nonce], testFieldDefinition);
         expect(fields.length).toEqual(3);
         expect(fields.all[0].type).toEqual(TestFieldType.VERSION);
@@ -302,7 +345,7 @@ describe('baseFields', () => {
       });
     });
 
-    describe('insertFieldBefore field of other type', () => {
+    describe('insertFieldBefore() field of other type', () => {
       it('should insert field correctly before existing field of specified type', () => {
         const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
         const baseField2 = new BaseField(TestFieldType.VERSION, Buffer.alloc(1));
@@ -310,6 +353,16 @@ describe('baseFields', () => {
         const newField = new BaseField(3, Buffer.from('new'));
         baseFields.insertFieldBefore(TestFieldType.VERSION, newField);
         expect(baseFields.all).toEqual([baseField1, newField, baseField2]);
+      });
+
+      it('should insert multiple fields correctly before existing field of specified type', () => {
+        const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('experior'));
+        const baseField2 = new BaseField(TestFieldType.VERSION, Buffer.alloc(1));
+        const baseFields = new BaseFields([baseField1, baseField2], testFieldDefinition);
+        const newField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('adhuc experior'));
+        const newField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('magis experior'));
+        baseFields.insertFieldBefore(TestFieldType.VERSION, newField1, newField2);
+        expect(baseFields.all).toEqual([baseField1, newField1, newField2, baseField2]);
       });
 
       it('should append field correctly if no existing field of specified type', () => {

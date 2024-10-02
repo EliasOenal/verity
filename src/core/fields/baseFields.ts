@@ -4,6 +4,7 @@ import { BaseField } from './baseField';
 
 import { Buffer } from 'buffer';
 import { logger } from '../logger';
+import { isIterableButNotBuffer } from '../helpers/misc';
 
 export enum FieldPosition {
     FRONT,
@@ -215,12 +216,12 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         return slices as this[];
     }
 
-    public appendField(field: BaseField): void {
-        this.data.push(field);
+    public appendField(...fields: BaseField[]): void {
+        this.data.push(...fields);
     }
 
-    public insertFieldInFront(field: BaseField): void {
-        this.data.unshift(field);
+    public insertFieldInFront(...fields: BaseField[]): void {
+        this.data.unshift(...fields);
     }
 
     public removeField(index: number): void;
@@ -243,17 +244,17 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
 
     // maybe TODO: support inserting at arbitrary index
     public insertField(
-            field: BaseField,
             position: FieldPosition = FieldPosition.BEFORE_BACK_POSITIONALS,
+            ...fields: BaseField[]
     ): void {
         if (position === FieldPosition.FRONT) {
-            this.insertFieldInFront(field);
+            this.insertFieldInFront(...fields);
         } else if (position === FieldPosition.AFTER_FRONT_POSITIONALS) {
-            this.insertFieldAfterFrontPositionals(field);
+            this.insertFieldAfterFrontPositionals(...fields);
         } else if (position === FieldPosition.BEFORE_BACK_POSITIONALS) {
-            this.insertFieldBeforeBackPositionals(field);
+            this.insertFieldBeforeBackPositionals(...fields);
         } else if (position === FieldPosition.BACK) {
-            this.appendField(field);
+            this.appendField(...fields);
         } else {
             throw new ApiMisuseError(`BaseFields.inserField: Invalid position value ${position}`);
         }
@@ -264,15 +265,15 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
      *  this.fieldDefinition.
      *  Will insert at the very front if there are no front positionals.
      */
-    public insertFieldAfterFrontPositionals(field: BaseField): void {
+    public insertFieldAfterFrontPositionals(...fields: BaseField[]): void {
         for (let i = 0; i < this.data.length; i++) {
             if (!Object.values(this.fieldDefinition.positionalFront).includes(this.data[i].type)) {
-                this.data.splice(i, 0, field);
+                this.data.splice(i, 0, ...fields);
                 return;
             }
         }
         // apparently, our field set is either empty or consists entirely of front positionals
-        this.insertFieldInFront(field);
+        this.insertFieldInFront(...fields);
     }
 
     /**
@@ -280,31 +281,31 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
      *  this.fieldDefinition.
      *  Will insert at the very back if there are no back positionals.
      */
-    public insertFieldBeforeBackPositionals(field: BaseField): void {
+    public insertFieldBeforeBackPositionals(...fields: BaseField[]): void {
         for (let i = 1; i <= this.data.length; i++) {
             const iType = this.data[this.data.length-i].type;
             if (!Object.values(this.fieldDefinition.positionalBack).includes(iType)) {
-                this.data.splice(this.data.length-i+1, 0, field);
+                this.data.splice(this.data.length-i+1, 0, ...fields);
                 return;
             }
         }
         // apparently, our field set is either empty or consists entirely of back positionals
-        this.appendField(field);
+        this.appendField(...fields);
     }
 
     /**
      * Inserts a new field before the *first* existing field of the
      * specified type, or at the very end if no such field exists.
      */
-    public insertFieldBefore(type: number, field: BaseField): void {  // in top-level fields, type must be one of FieldType as defined in cubeDefinitions.ts
+    public insertFieldBefore(type: number, ...fields: BaseField[]): void {  // in top-level fields, type must be one of FieldType as defined in cubeDefinitions.ts
         for (let i = 0; i < this.data.length; i++) {
             if (this.data[i].type == type) {
-                this.data.splice(i, 0, field)
+                this.data.splice(i, 0, ...fields)
                 return;
             }
         }
         // no such field
-        this.appendField(field);
+        this.appendField(...fields);
     }
 
     /**
