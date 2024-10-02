@@ -20,7 +20,7 @@ export interface CciEncryptionOptions {
 }
 
 //###
-// Encryption functions
+// "Public" functions
 //###
 
 /**
@@ -42,18 +42,132 @@ export function Encrypt(
   // encrypted directly to output and add the encrypted content later.
   const output: cciFields = new cciFields(undefined, fields.fieldDefinition);
 
-  const toEncrypt: cciFields = PrepareFieldsForEncryption(fields, output, options);
-  const { symmetricPayloadKey, nonce } = DeriveKeyForEncryption(
+  const toEncrypt: cciFields = EncryptionPrepareFields(fields, output, options);
+  const symmetricPayloadKey: Uint8Array = EncryptionDeriveKey(
     privateKey, recipients, output, options);
-  const plaintext: Buffer = CompileFieldsForEncryption(toEncrypt);
-  const encryptedField: cciField = PerformEncryption(plaintext, nonce, symmetricPayloadKey);
+  const nonce: Buffer = EncryptionGenerateNonce(output);
+  const plaintext: Buffer = EncryptionCompileFields(toEncrypt);
+  const encryptedField: cciField = EncryptionSymmetricEncrypt(plaintext, nonce, symmetricPayloadKey);
   // Add the encrypted content to the output field set
   output.insertFieldAfterFrontPositionals(encryptedField);
 
   return output;
 }
 
-export function PrepareFieldsForEncryption(
+
+/**
+ * Decrypts a CCI field set
+ * @param fields - The CCI field set to decrypt
+ * @param privateKey - The recipient's private key.
+ *   Note this must be the *encryption* pubkey, not the "regular" signing one.
+ * @param senderPublicKey - The sender's public key.
+ *   Note this must be the *encryption* pubkey, not the "regular" signing one,
+ *   i.e. this is *not* the sender's Identity key.
+ *   If not supplied, we will attempt to retrieve it from the field set.
+ *   If we can't find it, no decryption will be performed.
+ * @returns The supplied field set with the encrypted content replaced by
+ *   the plaintext fields, or the unchanged field set if decryption fails.
+ */
+export function Decrypt(
+  fields: cciFields,
+  privateKey: Buffer,
+  senderPublicKey?: Buffer,
+): cciFields {
+// sanity-check input
+if (privateKey?.length !== sodium.crypto_box_SECRETKEYBYTES) {
+  throw new ApiMisuseError(`Encrypt(): privateKey must be ${sodium.crypto_box_SECRETKEYBYTES} bytes, got ${privateKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
+}
+if (senderPublicKey === undefined) {
+  senderPublicKey = fields.getFirst(cciFieldType.CRYPTO_PUBKEY)?.value;
+}
+if (senderPublicKey?.length !== sodium.crypto_box_PUBLICKEYBYTES) {
+  logger.trace("Decrypt(): Cannot decrypt supplied fields as Public key is missing or invalid");
+  return fields;  // fail gently on any potential outside-world errors
+}
+
+// Retrieve crypto fields and validate them
+const nonce: Buffer = fields.getFirst(cciFieldType.CRYPTO_NONCE)?.value;
+if (Settings.RUNTIME_ASSERTIONS && nonce?.length !== NetConstants.CRYPTO_NONCE_SIZE) {
+  logger.trace("Decrypt(): Cannot decrypt supplied fields as Nonce is missing or invalid");
+  return fields;
+}
+const ciphertext: Buffer = fields.getFirst(cciFieldType.ENCRYPTED)?.value;
+if (Settings.RUNTIME_ASSERTIONS && !ciphertext?.length) {
+  logger.trace("Decrypt(): Cannot decrypt supplied fields as Ciphertext is missing or invalid");
+  return fields;
+}
+
+// Derive symmetric key
+const key: Uint8Array = sodium.crypto_box_beforenm(
+  senderPublicKey, privateKey);
+if (Settings.RUNTIME_ASSERTIONS &&
+    key.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
+){
+  logger.trace("Decrypt(): Cannot decrypt supplied fields as Symmetric key is missing or invalid");
+  return fields;
+}
+
+// Decrypt the ciphertext
+
+let plaintext: Uint8Array;
+try {
+  plaintext = sodium.crypto_secretbox_open_easy(ciphertext, nonce, key);
+} catch (err) {
+  logger.trace("Decrypt(): Decryption failed: " + err);
+  return fields;
+}
+if (!plaintext) {
+  logger.trace("Decrypt(): Decryption failed for unknown reason");
+  return fields;
+}
+
+// Parse the decrypted plaintext back into fields
+const intermediateFieldDef: FieldDefinition = Object.assign({}, fields.fieldDefinition);
+intermediateFieldDef.positionalFront = {};
+intermediateFieldDef.positionalBack = {};
+const parser: FieldParser = new FieldParser(intermediateFieldDef);
+const decryptedFields: cciFields =
+  parser.decompileFields(Buffer.from(plaintext)) as cciFields;
+
+// Find the index of the ENCRYPTED field
+const encryptedFieldIndex = fields.all.findIndex(field => field.type === cciFieldType.ENCRYPTED);
+if (encryptedFieldIndex === -1) {
+  logger.trace("Decrypt(): ENCRYPTED field not found");
+  return fields;
+}
+
+// Insert the decrypted fields at the found index
+const output: cciFields = new cciFields(undefined, fields.fieldDefinition);
+for (let i = 0; i < fields.length; i++) {
+  if (i === encryptedFieldIndex) {
+    for (const decryptedField of decryptedFields.all) {
+      output.appendField(decryptedField);
+    }
+  }
+  const field = fields.all[i];
+  if (field.type !== cciFieldType.ENCRYPTED &&
+      field.type !== cciFieldType.CRYPTO_NONCE &&
+      field.type !== cciFieldType.CRYPTO_MAC &&
+      field.type !== cciFieldType.CRYPTO_KEY &&
+      field.type !== cciFieldType.CRYPTO_PUBKEY
+  ){
+    output.appendField(field);
+  }
+}
+
+return output;
+}
+
+
+
+
+
+//###
+// Encryption-related "private" functions
+//###
+
+
+function EncryptionPrepareFields(
     fields: cciFields,
     output: cciFields,
     options: CciEncryptionOptions
@@ -79,7 +193,7 @@ export function PrepareFieldsForEncryption(
   return toEncrypt;
 }
 
-export function DeriveKeyForEncryption(
+function EncryptionDeriveKey(
     privateKey: Buffer,
     recipients: EncryptionRecipients,
     output: cciFields,
@@ -89,14 +203,6 @@ export function DeriveKeyForEncryption(
   if (privateKey?.length !== sodium.crypto_box_SECRETKEYBYTES) {
     throw new ApiMisuseError(`Encrypt(): privateKey must be ${sodium.crypto_box_SECRETKEYBYTES} bytes, got ${privateKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
   }
-
-  // Create a random nonce and add it to the front of the output field set
-  const nonce: Buffer = Buffer.from(
-    sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES));
-  if (Settings.RUNTIME_ASSERTIONS && nonce.length !== NetConstants.CRYPTO_NONCE_SIZE) {
-    throw new CryptoError(`Libsodium's generated nonce size of ${nonce.length} does not match NetConstants.CRYPTO_NONCE_SIZE === ${NetConstants.CRYPTO_NONCE_SIZE}. This should never happen. Using an incompatible version of libsodium maybe?`);
-  }
-  output.insertFieldAfterFrontPositionals(cciField.CryptoNonce(nonce));
 
   // If requested, include the public key with the encrypted message
   if (options.includeSenderPubkey) {
@@ -125,10 +231,26 @@ export function DeriveKeyForEncryption(
     throw new CryptoError(`Libsodium's generated symmetric key size of ${symmetricPayloadKey.length} does not match NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE === ${NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE}. This should never happen. Using an incompatible version of libsodium maybe?`);
   }
 
-  return {symmetricPayloadKey, nonce};
+  return symmetricPayloadKey;
 }
 
-export function CompileFieldsForEncryption(toEncrypt: cciFields): Buffer {
+/**
+ *
+ * @param output If specified, write a NONCE field to the output fieldset
+ */
+function EncryptionGenerateNonce(output?: cciFields): Buffer {
+  // Create a random nonce
+  const nonce: Buffer = Buffer.from(
+    sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES));
+  if (Settings.RUNTIME_ASSERTIONS && nonce.length !== NetConstants.CRYPTO_NONCE_SIZE) {
+    throw new CryptoError(`Libsodium's generated nonce size of ${nonce.length} does not match NetConstants.CRYPTO_NONCE_SIZE === ${NetConstants.CRYPTO_NONCE_SIZE}. This should never happen. Using an incompatible version of libsodium maybe?`);
+  }
+  // add nonce to the front of the output field set if requested
+  output?.insertFieldAfterFrontPositionals(cciField.CryptoNonce(nonce));
+  return nonce;
+}
+
+function EncryptionCompileFields(toEncrypt: cciFields): Buffer {
   // Compile the fields to encrypt.
   // This gives us the binary plaintext that we'll later encrypt.
   // Note that this intermediate compilation never includes any positional
@@ -142,7 +264,7 @@ export function CompileFieldsForEncryption(toEncrypt: cciFields): Buffer {
   return plaintext;
 }
 
-export function PerformEncryption(
+function EncryptionSymmetricEncrypt(
     plaintext: Uint8Array,
     nonce: Uint8Array,
     symmetricPayloadKey: Uint8Array,
@@ -152,115 +274,6 @@ export function PerformEncryption(
     plaintext, nonce, symmetricPayloadKey);
   const encryptedField: cciField = cciField.Encrypted(Buffer.from(ciphertext));
   return encryptedField;
-}
-
-
-//###
-// Decryption functions
-//###
-
-
-/**
- * Decrypts a CCI field set
- * @param fields - The CCI field set to decrypt
- * @param privateKey - The recipient's private key.
- *   Note this must be the *encryption* pubkey, not the "regular" signing one.
- * @param senderPublicKey - The sender's public key.
- *   Note this must be the *encryption* pubkey, not the "regular" signing one,
- *   i.e. this is *not* the sender's Identity key.
- *   If not supplied, we will attempt to retrieve it from the field set.
- *   If we can't find it, no decryption will be performed.
- * @returns The supplied field set with the encrypted content replaced by
- *   the plaintext fields, or the unchanged field set if decryption fails.
- */
-export function Decrypt(
-    fields: cciFields,
-    privateKey: Buffer,
-    senderPublicKey?: Buffer,
-): cciFields {
-  // sanity-check input
-  if (privateKey?.length !== sodium.crypto_box_SECRETKEYBYTES) {
-    throw new ApiMisuseError(`Encrypt(): privateKey must be ${sodium.crypto_box_SECRETKEYBYTES} bytes, got ${privateKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
-  }
-  if (senderPublicKey === undefined) {
-    senderPublicKey = fields.getFirst(cciFieldType.CRYPTO_PUBKEY)?.value;
-  }
-  if (senderPublicKey?.length !== sodium.crypto_box_PUBLICKEYBYTES) {
-    logger.trace("Decrypt(): Cannot decrypt supplied fields as Public key is missing or invalid");
-    return fields;  // fail gently on any potential outside-world errors
-  }
-
-  // Retrieve crypto fields and validate them
-  const nonce: Buffer = fields.getFirst(cciFieldType.CRYPTO_NONCE)?.value;
-  if (Settings.RUNTIME_ASSERTIONS && nonce?.length !== NetConstants.CRYPTO_NONCE_SIZE) {
-    logger.trace("Decrypt(): Cannot decrypt supplied fields as Nonce is missing or invalid");
-    return fields;
-  }
-  const ciphertext: Buffer = fields.getFirst(cciFieldType.ENCRYPTED)?.value;
-  if (Settings.RUNTIME_ASSERTIONS && !ciphertext?.length) {
-    logger.trace("Decrypt(): Cannot decrypt supplied fields as Ciphertext is missing or invalid");
-    return fields;
-  }
-
-  // Derive symmetric key
-  const key: Uint8Array = sodium.crypto_box_beforenm(
-    senderPublicKey, privateKey);
-  if (Settings.RUNTIME_ASSERTIONS &&
-      key.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
-  ){
-    logger.trace("Decrypt(): Cannot decrypt supplied fields as Symmetric key is missing or invalid");
-    return fields;
-  }
-
-  // Decrypt the ciphertext
-
-  let plaintext: Uint8Array;
-  try {
-    plaintext = sodium.crypto_secretbox_open_easy(ciphertext, nonce, key);
-  } catch (err) {
-    logger.trace("Decrypt(): Decryption failed: " + err);
-    return fields;
-  }
-  if (!plaintext) {
-    logger.trace("Decrypt(): Decryption failed for unknown reason");
-    return fields;
-  }
-
-  // Parse the decrypted plaintext back into fields
-  const intermediateFieldDef: FieldDefinition = Object.assign({}, fields.fieldDefinition);
-  intermediateFieldDef.positionalFront = {};
-  intermediateFieldDef.positionalBack = {};
-  const parser: FieldParser = new FieldParser(intermediateFieldDef);
-  const decryptedFields: cciFields =
-    parser.decompileFields(Buffer.from(plaintext)) as cciFields;
-
-  // Find the index of the ENCRYPTED field
-  const encryptedFieldIndex = fields.all.findIndex(field => field.type === cciFieldType.ENCRYPTED);
-  if (encryptedFieldIndex === -1) {
-    logger.trace("Decrypt(): ENCRYPTED field not found");
-    return fields;
-  }
-
-  // Insert the decrypted fields at the found index
-  const output: cciFields = new cciFields(undefined, fields.fieldDefinition);
-  for (let i = 0; i < fields.length; i++) {
-    if (i === encryptedFieldIndex) {
-      for (const decryptedField of decryptedFields.all) {
-        output.appendField(decryptedField);
-      }
-    }
-    const field = fields.all[i];
-    if (field.type !== cciFieldType.ENCRYPTED &&
-        field.type !== cciFieldType.CRYPTO_NONCE &&
-        field.type !== cciFieldType.CRYPTO_MAC &&
-        field.type !== cciFieldType.CRYPTO_KEY &&
-        field.type !== cciFieldType.CRYPTO_PUBKEY
-    ){
-      output.appendField(field);
-    }
-  }
-
-  return output;
 }
 
 function *normalizeEncryptionRecipients(recipients: EncryptionRecipients): Generator<Buffer> {
@@ -278,3 +291,11 @@ function *normalizeEncryptionRecipients(recipients: EncryptionRecipients): Gener
     yield recipient;
   }
 }
+
+
+
+//###
+// Decryption-related "private" functions
+//###
+
+// TODO split up Decrypt()
