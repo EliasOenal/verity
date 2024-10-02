@@ -99,7 +99,7 @@ export interface Veritable {
    */
   insertFieldBefore(type: number, field: BaseField): void;
 
-  insertField(field: BaseField, position?: FieldPosition): void;
+  insertField(position: FieldPosition, ...fields: BaseField[]): void;
 
   /**
    * Ensures there is a field of the specified type at the very front of this

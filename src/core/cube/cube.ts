@@ -116,8 +116,8 @@ export abstract class VeritableBaseImplementation implements Veritable {
         return this._fields.insertFieldBefore(type, field);
     }
 
-    insertField(field: CubeField, position?: FieldPosition): void {
-        return this._fields.insertField(field, position);
+    insertField(position: FieldPosition, ...fields: CubeField[]): void {
+        return this._fields.insertField(position, ...fields);
     }
     ensureFieldInFront(type: number, defaultField: CubeField | FieldDefinition): void {
         return this._fields.ensureFieldInFront(type, defaultField);
