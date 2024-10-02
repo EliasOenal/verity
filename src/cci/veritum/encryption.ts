@@ -43,9 +43,9 @@ export function Encrypt(
   const output: cciFields = new cciFields(undefined, fields.fieldDefinition);
 
   const toEncrypt: cciFields = EncryptionPrepareFields(fields, output, options);
-  const symmetricPayloadKey: Uint8Array = EncryptionDeriveKey(
-    privateKey, recipients, output, options);
   const nonce: Buffer = EncryptionGenerateNonce(output);
+  const symmetricPayloadKey: Uint8Array = EncryptionDeriveKey(
+    privateKey, recipients, nonce, output, options);
   const plaintext: Buffer = EncryptionCompileFields(toEncrypt);
   const encryptedField: cciField = EncryptionSymmetricEncrypt(plaintext, nonce, symmetricPayloadKey);
   // Add the encrypted content to the output field set
@@ -98,10 +98,16 @@ if (Settings.RUNTIME_ASSERTIONS && !ciphertext?.length) {
 }
 
 // Derive symmetric key
-const key: Uint8Array = sodium.crypto_box_beforenm(
-  senderPublicKey, privateKey);
+let symmetricKey: Uint8Array;
+const encryptedKeyField = fields.getFirst(cciFieldType.CRYPTO_KEY);
+if (encryptedKeyField) {
+  const encryptedKey = encryptedKeyField.value;
+  symmetricKey = sodium.crypto_box_open_easy(encryptedKey, nonce, senderPublicKey, privateKey);
+} else {
+  symmetricKey = sodium.crypto_box_beforenm(senderPublicKey, privateKey);
+}
 if (Settings.RUNTIME_ASSERTIONS &&
-    key.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
+    symmetricKey.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
 ){
   logger.trace("Decrypt(): Cannot decrypt supplied fields as Symmetric key is missing or invalid");
   return fields;
@@ -111,7 +117,7 @@ if (Settings.RUNTIME_ASSERTIONS &&
 
 let plaintext: Uint8Array;
 try {
-  plaintext = sodium.crypto_secretbox_open_easy(ciphertext, nonce, key);
+  plaintext = sodium.crypto_secretbox_open_easy(ciphertext, nonce, symmetricKey);
 } catch (err) {
   logger.trace("Decrypt(): Decryption failed: " + err);
   return fields;
@@ -196,6 +202,7 @@ export function EncryptionPrepareFields(
 export function EncryptionDeriveKey(
     privateKey: Buffer,
     recipients: EncryptionRecipients,
+    nonce: Uint8Array,
     output: cciFields,
     options: CciEncryptionOptions,
 ) {
@@ -217,13 +224,17 @@ export function EncryptionDeriveKey(
   //   include an individual encrypted version of it for each recipient.
   const recipientPubkeys = Array.from(EncryptionNormaliseRecipients(recipients));
   let symmetricPayloadKey: Uint8Array;
-  if (recipientPubkeys.length === 1) {  // that's the easy case :)
+  if (recipientPubkeys.length === 1) {
     symmetricPayloadKey = sodium.crypto_box_beforenm(
       recipientPubkeys[0], privateKey);
   } else {
-    // TODO implement multi-recipient encryption
-    // TODO split up this function into a key derivation part and an actual encryption part
-    throw new Error("Sorry, not implemented yet");
+    // Generate a random symmetric key
+    symmetricPayloadKey = sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES);
+    // Encrypt the symmetric key for each recipient
+    for (const recipientPubKey of recipientPubkeys) {
+      const encryptedKey = sodium.crypto_box_easy(symmetricPayloadKey, nonce, recipientPubKey, privateKey);
+      output.insertFieldAfterFrontPositionals(cciField.CryptoKey(Buffer.from(encryptedKey)));
+    }
   }
   if (Settings.RUNTIME_ASSERTIONS &&
       symmetricPayloadKey.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
