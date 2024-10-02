@@ -80,6 +80,42 @@ describe('Veritum', () => {
           expect(restored.getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
           expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();
         });
+
+        it('decrypts a single payload field directed at three recipients', async() => {
+          // Generate key pairs for three recipients
+          const recipientKeyPairs: KeyPair[] = [];
+          for (let i = 0; i < 3; i++) {
+            const uint8KeyPair = sodium.crypto_box_keypair();
+            recipientKeyPairs.push({
+              publicKey: Buffer.from(uint8KeyPair.publicKey),
+              privateKey: Buffer.from(uint8KeyPair.privateKey),
+            });
+          }
+
+          // Create a Veritum instance with a single payload field
+          const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
+
+          // Compile the Veritum instance with encryption options for the three recipients
+          await veritum.compile({
+            encryptionRecipients: recipientKeyPairs.map(kp => kp.publicKey),
+            encryptionPrivateKey: senderKeyPair.privateKey,
+            requiredDifficulty,
+          });
+
+          // For each of the three recipients, restore the Veritum from
+          // its chunks and decrypt it
+          for (const recipient of recipientKeyPairs) {
+            const restored: Veritum = Veritum.FromChunks(veritum.compiled, {
+              encryptionPrivateKey: recipient.privateKey,
+              senderPublicKey: senderKeyPair.publicKey,
+            });
+            // after decryption, there must now be a PAYLOAD field but
+            // no longer an ENCRYPTED field
+            expect(restored.getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
+            expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();
+            expect(restored.getFirstField(cciFieldType.PAYLOAD)).toEqual(payloadField);
+          }
+        });
       });
     });
 
