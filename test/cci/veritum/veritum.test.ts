@@ -305,6 +305,64 @@ describe('Veritum', () => {
         expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
           payloadString);
       });
+
+      it('encrypts a Veritum having a single payload field for three recipients', async () => {
+        // Generate key pairs for three recipients
+        const recipientKeyPairs: KeyPair[] = [];
+        for (let i = 0; i < 3; i++) {
+          const uint8KeyPair = sodium.crypto_box_keypair();
+          recipientKeyPairs.push({
+            publicKey: Buffer.from(uint8KeyPair.publicKey),
+            privateKey: Buffer.from(uint8KeyPair.privateKey),
+          });
+        }
+
+        // Create a Veritum instance with a single payload field
+        const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
+
+        // Compile the Veritum instance with encryption options for the three recipients
+        await veritum.compile({
+          encryptionRecipients: recipientKeyPairs.map(kp => kp.publicKey),
+          encryptionPrivateKey: senderKeyPair.privateKey,
+          requiredDifficulty,
+        });
+
+        // Verify that the compiled Veritum contains the expected encrypted fields,
+        // but no plaintext payload field
+        expect(veritum.compiled).toHaveLength(1);
+        const compiledChunk = veritum.compiled[0];
+        expect(compiledChunk.getFields(cciFieldType.PAYLOAD)).toHaveLength(0);
+        expect(compiledChunk.getFields(cciFieldType.ENCRYPTED)).toHaveLength(1);
+        expect(compiledChunk.getFields(cciFieldType.CRYPTO_NONCE)).toHaveLength(1);
+        expect(compiledChunk.getFields(cciFieldType.CRYPTO_KEY)).toHaveLength(3);
+
+        const nonce = compiledChunk.getFirstField(cciFieldType.CRYPTO_NONCE).value;
+        const ciphertext = compiledChunk.getFirstField(cciFieldType.ENCRYPTED).value;
+        const encryptedKeyFields: cciField[] = compiledChunk.getFields(cciFieldType.CRYPTO_KEY);
+
+        // Attempt decryption for each of the three recipients
+        for (const recipient of recipientKeyPairs) {
+          // Decrypt using this recipient's private key.
+          // Note that the order of CRYPTO_KEY fields is undefined, i.e.
+          // each recipient must try to decrypt all of them until they find
+          // one that works.
+          let restoredSymmetricKey: Uint8Array;
+          let restoredPlaintext: Uint8Array;
+          for (const encKeyField of encryptedKeyFields) {
+            try {
+              restoredSymmetricKey = sodium.crypto_box_open_easy(
+                encKeyField.value, nonce,
+                senderKeyPair.publicKey, recipient.privateKey);
+            } catch (err) { continue }
+            try {
+              restoredPlaintext = sodium.crypto_secretbox_open_easy(
+                ciphertext, nonce, restoredSymmetricKey);
+            } catch (err) { continue }
+          }
+          expect(Buffer.from(restoredPlaintext).toString('utf-8')).toContain(
+            payloadField.valueString);
+        }
+      });
     });
   });
 

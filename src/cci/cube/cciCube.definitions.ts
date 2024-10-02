@@ -70,7 +70,7 @@ export const cciAdditionalFieldLength: FieldNumericalParam = {
   [cciFieldType.ENCRYPTED]: undefined,
   [cciFieldType.CRYPTO_NONCE]: NetConstants.CRYPTO_NONCE_SIZE,
   [cciFieldType.CRYPTO_MAC]: NetConstants.CRYPTO_MAC_SIZE,
-  [cciFieldType.CRYPTO_KEY]: NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE,
+  [cciFieldType.CRYPTO_KEY]: NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE + NetConstants.CRYPTO_MAC_SIZE,  // maybe TODO: remove MAC?
   [cciFieldType.CRYPTO_PUBKEY]: NetConstants.PUBLIC_KEY_SIZE,
   [cciFieldType.SUBKEY_SEED]: undefined,
   [cciFieldType.CONTENTNAME]: undefined,
