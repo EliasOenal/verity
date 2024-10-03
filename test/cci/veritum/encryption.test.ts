@@ -3,18 +3,45 @@ import { cciField } from '../../../src/cci/cube/cciField';
 import { MediaTypes, cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { CubeFieldType } from '../../../src/core/cube/cube.definitions';
 import { Decrypt, Encrypt } from '../../../src/cci/veritum/encryption';
+import { KeyPair } from '../../../src/cci/helpers/cryptography';
 
 import sodium from 'libsodium-wrappers-sumo';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 describe('CCI encryption', () => {
-  let sender: sodium.KeyPair;
-  let recipient: sodium.KeyPair;
+  let sender: KeyPair;
+  let recipient: KeyPair;
+  let recipient2: KeyPair;
+  let recipient3: KeyPair;
+  let nonRecipient: KeyPair;
 
   beforeAll(async () => {
     await sodium.ready;
-    sender = sodium.crypto_box_keypair();
-    recipient = sodium.crypto_box_keypair();
+    const uint8Sender = sodium.crypto_box_keypair();
+    sender = {
+      publicKey: Buffer.from(uint8Sender.publicKey),
+      privateKey: Buffer.from(uint8Sender.privateKey),
+    };
+    const uint8Recipient = sodium.crypto_box_keypair();
+    recipient = {
+      publicKey: Buffer.from(uint8Recipient.publicKey),
+      privateKey: Buffer.from(uint8Recipient.privateKey),
+    };
+    const uint8Recipient2 = sodium.crypto_box_keypair();
+    recipient2 = {
+      publicKey: Buffer.from(uint8Recipient2.publicKey),
+      privateKey: Buffer.from(uint8Recipient2.privateKey),
+    };
+    const uint8Recipient3 = sodium.crypto_box_keypair();
+    recipient3 = {
+      publicKey: Buffer.from(uint8Recipient3.publicKey),
+      privateKey: Buffer.from(uint8Recipient3.privateKey),
+    };
+    const uint8NonRecipient = sodium.crypto_box_keypair();
+    nonRecipient = {
+      publicKey: Buffer.from(uint8NonRecipient.publicKey),
+      privateKey: Buffer.from(uint8NonRecipient.privateKey),
+    }
   });
 
   describe('basic Encrypt() tests', () => {
@@ -27,10 +54,7 @@ describe('CCI encryption', () => {
 
       // Call tested function
       const encrypted: cciFields = Encrypt(
-        fields,
-        Buffer.from(sender.privateKey),
-        Buffer.from(recipient.publicKey),
-      );
+        fields, sender.privateKey, recipient.publicKey);
 
       // Verify result by performing manual decryption:
       // extract cryptographic values
@@ -38,13 +62,22 @@ describe('CCI encryption', () => {
       const nonce: Buffer = encrypted.getFirst(cciFieldType.CRYPTO_NONCE).value;
 
       // manually derive key using the recipient's private key
-      const key: Uint8Array = sodium.crypto_box_beforenm(sender.publicKey, recipient.privateKey);
+      const key: Uint8Array = sodium.crypto_box_beforenm(
+        sender.publicKey, recipient.privateKey);
       // for verification, also derive key using the sender's public key
-      const keyAtSender: Uint8Array = sodium.crypto_box_beforenm(Buffer.from(recipient.publicKey), sender.privateKey);
+      const keyAtSender: Uint8Array = sodium.crypto_box_beforenm(
+        Buffer.from(recipient.publicKey), sender.privateKey);
       expect(key).toEqual(keyAtSender);
       // manually decrypt
       const decrypted: Uint8Array = sodium.crypto_secretbox_open_easy(
         ciphertext, nonce, key);
+
+      // verify that the ciphertext is not decryptable by a non-recipient
+      const wrongKey: Uint8Array = sodium.crypto_box_beforenm(
+        sender.publicKey, nonRecipient.privateKey);
+      expect(wrongKey).not.toEqual(key);
+      expect(() => sodium.crypto_secretbox_open_easy(
+        ciphertext, nonce, wrongKey)).toThrow();
 
       expect(Buffer.from(decrypted).toString()).toContain(plaintext);
     });
@@ -61,10 +94,7 @@ describe('CCI encryption', () => {
 
       // Encrypt the fields
       const encrypted: cciFields = Encrypt(
-        fields,
-        Buffer.from(sender.privateKey),
-        Buffer.from(recipient.publicKey),
-      );
+        fields, sender.privateKey, recipient.publicKey);
 
       // Verify that the encrypted fields contain an encypted content field,
       // but no payload field
@@ -77,14 +107,61 @@ describe('CCI encryption', () => {
 
       // Decrypt the fields
       const decrypted: cciFields = Decrypt(
-        encrypted,
-        Buffer.from(recipient.privateKey),
-        Buffer.from(sender.publicKey),
-      );
+        encrypted, recipient.privateKey, sender.publicKey);
 
       // Verify that the decrypted fields match the original fields
       expect(decrypted.getFirst(cciFieldType.PAYLOAD).valueString).toEqual(plaintext);
       expect(decrypted).toEqual(fields);
+    });
+
+
+    it.each([2, 3, 10, 100])('correctly encrypts and decrypts for %i recipients', (num) => {
+      // create num keypairs
+      const recipients: KeyPair[] = [];
+      for (let i = 0; i < num; i++) {
+        const uint8Recipient = sodium.crypto_box_keypair();
+        recipients.push({
+          publicKey: Buffer.from(uint8Recipient.publicKey),
+          privateKey: Buffer.from(uint8Recipient.privateKey),
+        });
+      }
+
+      // prepare a message
+      const plaintext = 'Nuntius ad multos destinatarios';
+      const fields: cciFields = new cciFields(
+        cciField.Payload(plaintext),
+        cciFrozenFieldDefinition,
+      );
+
+      // encrypt the message
+      const encrypted: cciFields = Encrypt(fields, sender.privateKey,
+        recipients.map((recipient) => recipient.publicKey),
+      );
+
+      // Verify that the encrypted fields contain an encypted content field,
+      // but no payload field
+      expect(encrypted.getFirst(cciFieldType.ENCRYPTED)).toBeTruthy();
+      expect(encrypted.getFirst(cciFieldType.PAYLOAD)).toBeFalsy();
+
+      // decrypt the message for each recipient
+      for (const recipient of recipients) {
+        // Decrypt the fields
+        const decrypted: cciFields = Decrypt(
+          encrypted, recipient.privateKey, sender.publicKey);
+
+        // verify that the ENCRYPTED field was replaced by a PAYLOAD field
+        expect(decrypted.getFirst(cciFieldType.ENCRYPTED)).toBeFalsy();
+        expect(decrypted.getFirst(cciFieldType.PAYLOAD)).toBeTruthy();
+
+        // Verify that the decrypted fields match the original fields
+        expect(decrypted.getFirst(cciFieldType.PAYLOAD).valueString).toEqual(plaintext);
+        expect(decrypted).toEqual(fields);
+      }
+      // verify that the message is not decryptable by a non-recipient
+      const cannotDecrypt: cciFields = Decrypt(
+        encrypted, nonRecipient.privateKey, sender.publicKey);
+      expect(cannotDecrypt.getFirst(cciFieldType.ENCRYPTED)).toBeTruthy();
+      expect(cannotDecrypt.getFirst(cciFieldType.PAYLOAD)).toBeFalsy();
     });
 
 
