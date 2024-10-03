@@ -313,7 +313,7 @@ describe('Veritum', () => {
       it.each([
         ["two-chunk", 1, tooLong],
         ["three-chunk", 2, evenLonger],
-        ["very long", 10, farTooLong]
+        ["very long", 10, farTooLong],
       ])('encrypts a %s Veritum', async(name, minChunks, payloadString) => {
         const veritum = new Veritum(CubeType.FROZEN, {
           fields: cciField.Payload(payloadString), requiredDifficulty});
