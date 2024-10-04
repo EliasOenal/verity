@@ -12,6 +12,7 @@ import { logger } from "../../core/logger";
 
 import sodium from 'libsodium-wrappers-sumo'
 import { isIterableButNotBuffer } from "../../core/helpers/misc";
+import { cciCube } from "../cube/cciCube";
 
 export type EncryptionRecipients = Identity|Iterable<Identity>|Buffer|Iterable<Buffer>;
 export interface CciEncryptionOptions {
@@ -174,11 +175,9 @@ export function EncryptionDeriveKey(
   } else {
     // Generate a random symmetric key
     symmetricPayloadKey = sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES);
-    // Encrypt the symmetric key for each recipient
-    for (const recipientPubKey of recipientPubkeys) {
-      const encryptedKey = sodium.crypto_box_easy(symmetricPayloadKey, nonce, recipientPubKey, privateKey);
-      output.insertFieldAfterFrontPositionals(cciField.CryptoKey(Buffer.from(encryptedKey)));
-    }
+    const keyDistributionFields = EncryptionMakeKeyDistributionFields(
+      Buffer.from(symmetricPayloadKey), privateKey, recipientPubkeys, nonce);
+    output.insertFieldAfterFrontPositionals(...keyDistributionFields);
   }
   if (Settings.RUNTIME_ASSERTIONS &&
       symmetricPayloadKey.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
@@ -187,6 +186,28 @@ export function EncryptionDeriveKey(
   }
 
   return symmetricPayloadKey;
+}
+
+
+export function EncryptionMakeKeyDistributionFields(
+    symmetricPayloadKey: Buffer,
+    privateKey: Uint8Array,
+    recipientPubkeys: Iterable<Uint8Array>,
+    nonce: Uint8Array,
+): cciField[] {
+  const ret: cciField[] = [];
+  // Encrypt the symmetric key for each recipient
+  for (const recipientPubKey of recipientPubkeys) {
+    const encryptedKey = sodium.crypto_box_easy(symmetricPayloadKey, nonce, recipientPubKey, privateKey);
+    const field = cciField.CryptoKey(Buffer.from(encryptedKey));
+    ret.push(field);
+  }
+  return ret;
+}
+
+
+export function EncryptionMakeKeyDistributionCubes(): cciCube[] {
+  return [];  // TODO implement
 }
 
 /**
