@@ -6,6 +6,7 @@ import { NetConstants } from "../../core/networking/networkDefinitions";
 import { ApiMisuseError } from "../../core/settings";
 import { cciCube, cciFamily } from "../cube/cciCube";
 import { cciFieldLength, cciFieldType } from "../cube/cciCube.definitions";
+import { cciField } from "../cube/cciField";
 import { cciFields } from "../cube/cciFields";
 import { Continuation, RecombineOptions, SplitOptions } from "./continuation";
 import { CciEncryptionOptions, Decrypt, Encrypt, EncryptionRecipients } from "./encryption";
@@ -119,7 +120,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     // chunk Cube so we can encrypt it before it is finalised.
     // Let's prepare this callback.
     const encryptCallback = (chunk: cciCube) => {
-      const encryptedFields = Encrypt(chunk.manipulateFields(),
+      const encryptedFields: cciFields = Encrypt(chunk.manipulateFields(),
         options.encryptionPrivateKey, options.encryptionRecipients, options);
       chunk.setFields(encryptedFields);
     }

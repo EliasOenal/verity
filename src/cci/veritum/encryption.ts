@@ -39,18 +39,44 @@ export function Encrypt(
     recipients: EncryptionRecipients,
     options: CciEncryptionOptions = {},
 ): cciFields {
-  // Also prepare the output field set. We will copy all fields not to be
-  // encrypted directly to output and add the encrypted content later.
-  const output: cciFields = new cciFields(undefined, fields.fieldDefinition);
+  // normalise input
+  const recipientPubkeys = Array.from(EncryptionNormaliseRecipients(recipients));
 
-  const toEncrypt: cciFields = EncryptionPrepareFields(fields, output, options);
-  const nonce: Buffer = EncryptionGenerateNonce(output);
-  const symmetricPayloadKey: Uint8Array = EncryptionDeriveKey(
-    privateKey, recipients, nonce, output, options);
+  // Prepare the fields to encrypt, filtering out excluded fields and garbage
+  const {toEncrypt, output} = EncryptionPrepareFields(fields, options);
+
+  // If requested, include the public key with the encrypted message
+  if (options.includeSenderPubkey) output.insertFieldBeforeBackPositionals(
+    cciField.CryptoPubkey(options.includeSenderPubkey));
+
+  // Roll a random nonce and include it with the encrypted message
+  const nonce: Buffer = EncryptionRandomNonce();
+  EncryptionIncludeNonce(output, nonce);
+
+  // Determine symmetric key. There's two cases:
+  // - If there's only a single recipient, we directly derive the key using the
+  // recipient's public key and the sender's private key.
+  // - However, if there are multiple recipients, we chose a random key and
+  //   include an individual encrypted version of it for each recipient.
+  let symmetricPayloadKey: Buffer;
+  if (recipientPubkeys.length === 1) {
+    symmetricPayloadKey = EncryptionDeriveKey(privateKey, recipientPubkeys[0]);
+  } else {
+    // Generate a random symmetric key
+    symmetricPayloadKey = EncryptionRandomKey();
+    // Make key distribution fields and include them with the encrypted message
+    const keyDistributionFields = EncryptionKeyDistributionFields(
+      symmetricPayloadKey, privateKey, recipientPubkeys, nonce);
+    output.insertFieldBeforeBackPositionals(...keyDistributionFields);
+  }
+
+  // Compile the plaintext fields to a nice flat binary blob that we can encrypt
   const plaintext: Buffer = EncryptionCompileFields(toEncrypt);
+
+  // Finally, perform encryption the encryption
   const encryptedField: cciField = EncryptionSymmetricEncrypt(plaintext, nonce, symmetricPayloadKey);
   // Add the encrypted content to the output field set
-  output.insertFieldAfterFrontPositionals(encryptedField);
+  output.insertFieldBeforeBackPositionals(encryptedField);
 
   return output;
 }
@@ -120,17 +146,18 @@ export function Decrypt(
 
 export function EncryptionPrepareFields(
     fields: cciFields,
-    output: cciFields,
     options: CciEncryptionOptions
-): cciFields {
+): {toEncrypt: cciFields, output: cciFields} {
   // set default options
   options.excludeFromEncryption ??= Continuation.ContinuationDefaultExclusions;
 
   // Prepare list of fields to encrypt. This is basically all CCI fields,
   // but not core Cube fields.
-  const toEncrypt: cciFields = new cciFields(undefined, fields.fieldDefinition);
+  const toEncrypt: cciFields = new cciFields([], fields.fieldDefinition);
+  const output: cciFields = new cciFields([], fields.fieldDefinition);
   for (const field of fields.all) {
     if (!options.excludeFromEncryption.includes(field.type)) {
+      // Add the field to the list of fields to encrypt
       toEncrypt.appendField(field);
     } else {
       // Make a verbatim copy, except for garbage fields PADDING and CCI_END
@@ -141,55 +168,34 @@ export function EncryptionPrepareFields(
       }
     }
   }
-  return toEncrypt;
+  return {toEncrypt, output};
 }
 
 export function EncryptionDeriveKey(
     privateKey: Buffer,
-    recipients: EncryptionRecipients,
-    nonce: Uint8Array,
-    output: cciFields,
-    options: CciEncryptionOptions,
-) {
+    recipientPubkey: Buffer,
+): Buffer {
   // sanity-check input
   if (privateKey?.length !== sodium.crypto_box_SECRETKEYBYTES) {
     throw new ApiMisuseError(`Encrypt(): privateKey must be ${sodium.crypto_box_SECRETKEYBYTES} bytes, got ${privateKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
   }
 
-  // If requested, include the public key with the encrypted message
-  if (options.includeSenderPubkey) {
-    output.insertFieldAfterFrontPositionals(
-      cciField.CryptoPubkey(options.includeSenderPubkey));
-  }
-
-  // Determine symmetric key. There's two cases:
-  // - If there's only a single recipient, we directly derive the key using the
-  // recipient's public key and the sender's private key.
-  // - However, if there are multiple recipients, we chose a random key and
-  //   include an individual encrypted version of it for each recipient.
-  const recipientPubkeys = Array.from(EncryptionNormaliseRecipients(recipients));
-  let symmetricPayloadKey: Uint8Array;
-  if (recipientPubkeys.length === 1) {
-    symmetricPayloadKey = sodium.crypto_box_beforenm(
-      recipientPubkeys[0], privateKey);
-  } else {
-    // Generate a random symmetric key
-    symmetricPayloadKey = sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES);
-    const keyDistributionFields = EncryptionMakeKeyDistributionFields(
-      Buffer.from(symmetricPayloadKey), privateKey, recipientPubkeys, nonce);
-    output.insertFieldAfterFrontPositionals(...keyDistributionFields);
-  }
+  const symmetricPayloadKey: Uint8Array = sodium.crypto_box_beforenm(
+    recipientPubkey, privateKey);
   if (Settings.RUNTIME_ASSERTIONS &&
       symmetricPayloadKey.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
   ){
     throw new CryptoError(`Libsodium's generated symmetric key size of ${symmetricPayloadKey.length} does not match NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE === ${NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE}. This should never happen. Using an incompatible version of libsodium maybe?`);
   }
 
-  return symmetricPayloadKey;
+  return Buffer.from(symmetricPayloadKey);
 }
 
+export function EncryptionRandomKey(): Buffer {
+  return Buffer.from(sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES));
+}
 
-export function EncryptionMakeKeyDistributionFields(
+export function EncryptionKeyDistributionFields(
     symmetricPayloadKey: Buffer,
     privateKey: Uint8Array,
     recipientPubkeys: Iterable<Uint8Array>,
@@ -210,20 +216,22 @@ export function EncryptionMakeKeyDistributionCubes(): cciCube[] {
   return [];  // TODO implement
 }
 
-/**
- *
- * @param output If specified, write a NONCE field to the output fieldset
- */
-export function EncryptionGenerateNonce(output?: cciFields): Buffer {
+export function EncryptionRandomNonce(): Buffer {
   // Create a random nonce
   const nonce: Buffer = Buffer.from(
     sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES));
   if (Settings.RUNTIME_ASSERTIONS && nonce.length !== NetConstants.CRYPTO_NONCE_SIZE) {
     throw new CryptoError(`Libsodium's generated nonce size of ${nonce.length} does not match NetConstants.CRYPTO_NONCE_SIZE === ${NetConstants.CRYPTO_NONCE_SIZE}. This should never happen. Using an incompatible version of libsodium maybe?`);
   }
-  // add nonce to the front of the output field set if requested
-  output?.insertFieldAfterFrontPositionals(cciField.CryptoNonce(nonce));
   return nonce;
+}
+
+export function EncryptionIncludePubkey(output: cciFields, pubkey: Buffer): void {
+  output.insertFieldBeforeBackPositionals(cciField.CryptoPubkey(pubkey));
+}
+
+export function EncryptionIncludeNonce(output: cciFields, nonce: Buffer): void {
+  output.insertFieldBeforeBackPositionals(cciField.CryptoNonce(nonce));
 }
 
 export function EncryptionCompileFields(toEncrypt: cciFields): Buffer {

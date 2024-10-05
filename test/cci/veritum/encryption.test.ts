@@ -53,8 +53,9 @@ describe('CCI encryption', () => {
       ) as cciFields;
 
       // Call tested function
-      const encrypted: cciFields = Encrypt(
-        fields, sender.privateKey, recipient.publicKey);
+      const encrypted: cciFields = new cciFields(Encrypt(
+        fields, sender.privateKey, recipient.publicKey
+      ), cciFrozenFieldDefinition);
 
       // Verify result by performing manual decryption:
       // extract cryptographic values
@@ -93,8 +94,9 @@ describe('CCI encryption', () => {
       );
 
       // Encrypt the fields
-      const encrypted: cciFields = Encrypt(
-        fields, sender.privateKey, recipient.publicKey);
+      const encrypted: cciFields = new cciFields(Encrypt(
+        fields, sender.privateKey, recipient.publicKey
+      ), cciFrozenFieldDefinition);
 
       // Verify that the encrypted fields contain an encypted content field,
       // but no payload field
@@ -134,9 +136,9 @@ describe('CCI encryption', () => {
       );
 
       // encrypt the message
-      const encrypted: cciFields = Encrypt(fields, sender.privateKey,
+      const encrypted: cciFields = new cciFields(Encrypt(fields, sender.privateKey,
         recipients.map((recipient) => recipient.publicKey),
-      );
+      ), cciFrozenFieldDefinition);
 
       // Verify that the encrypted fields contain an encypted content field,
       // but no payload field
@@ -180,11 +182,11 @@ describe('CCI encryption', () => {
       );
 
       // Encrypt the fields
-      const encrypted: cciFields = Encrypt(
+      const encrypted: cciFields = new cciFields(Encrypt(
         fields,
         Buffer.from(sender.privateKey),
         Buffer.from(recipient.publicKey),
-      );
+      ), cciFrozenFieldDefinition);
 
       // Verify that the encrypted fields contain an encypted content field,
       // but no content field
@@ -224,11 +226,11 @@ describe('CCI encryption', () => {
       expect(fields.getFirst(CubeFieldType.NONCE)).toBeTruthy();
 
       // Encrypt the fields
-      const encrypted: cciFields = Encrypt(
+      const encrypted: cciFields = new cciFields(Encrypt(
         fields,
         Buffer.from(sender.privateKey),
         Buffer.from(recipient.publicKey),
-      );
+      ), cciFrozenFieldDefinition);
 
       // Verify that the encrypted fields contain an encypted content field
       expect(encrypted.getFirst(cciFieldType.ENCRYPTED)).toBeTruthy();
@@ -257,12 +259,12 @@ describe('CCI encryption', () => {
       );
 
       // Encrypt the fields
-      const encrypted: cciFields = Encrypt(
+      const encrypted: cciFields = new cciFields(Encrypt(
         fields,
         Buffer.from(sender.privateKey),
         Buffer.from(recipient.publicKey),
         { includeSenderPubkey: Buffer.from(sender.publicKey) },
-      );
+      ), cciFrozenFieldDefinition);
 
       // Verify that the encrypted fields contain an encypted content field,
       // a crypto nonce field as well as a public key field, but no payload field
@@ -294,11 +296,11 @@ describe('CCI encryption', () => {
       );
 
       // Encrypt the fields
-      const encrypted: cciFields = Encrypt(
+      const encrypted: cciFields = new cciFields(Encrypt(
         fields,
         Buffer.from(sender.privateKey),
         Buffer.from(recipient.publicKey),
-      );
+      ), cciFrozenFieldDefinition);
 
       // Attempt decryption
       const decrypted: cciFields = Decrypt(
@@ -319,11 +321,11 @@ describe('CCI encryption', () => {
       );
 
       // Encrypt the fields
-      const encrypted: cciFields = Encrypt(
+      const encrypted: cciFields = new cciFields(Encrypt(
         fields,
         Buffer.from(sender.privateKey),
         Buffer.from(recipient.publicKey),
-      );
+      ), cciFrozenFieldDefinition);
 
       // Fake an invalid pubkey
       const invalidPubkey = Buffer.alloc(NetConstants.PUBLIC_KEY_SIZE, 0xff);
@@ -347,11 +349,11 @@ describe('CCI encryption', () => {
       );
 
       // Encrypt the fields
-      const encrypted: cciFields = Encrypt(
+      const encrypted: cciFields = new cciFields(Encrypt(
         fields,
         Buffer.from(sender.privateKey),
         Buffer.from(recipient.publicKey),
-      );
+      ), cciFrozenFieldDefinition);
 
       // Remove the nonce
       const nonce = encrypted.getFirst(cciFieldType.CRYPTO_NONCE);
@@ -373,11 +375,11 @@ describe('CCI encryption', () => {
       );
 
       // Encrypt the fields
-      const encrypted: cciFields = Encrypt(
+      const encrypted: cciFields = new cciFields(Encrypt(
         fields,
         Buffer.from(sender.privateKey),
         Buffer.from(recipient.publicKey),
-      );
+      ), cciFrozenFieldDefinition);
 
       // Temper with nonce
       const nonce = encrypted.getFirst(cciFieldType.CRYPTO_NONCE);

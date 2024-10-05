@@ -32,6 +32,9 @@ export class cciField extends CubeField {
   }
 
   static CryptoNonce(nonce: Buffer): cciField {
+    if (Settings.RUNTIME_ASSERTIONS && nonce.length !== NetConstants.CRYPTO_NONCE_SIZE) {
+      throw new FieldError(`Supplied nonce size of ${nonce.length} does not match NetConstants.CRYPTO_NONCE_SIZE === ${NetConstants.CRYPTO_NONCE_SIZE}.`);
+    }
     return new this(cciFieldType.CRYPTO_NONCE, nonce);
   }
 
