@@ -184,10 +184,11 @@ should be created uniformly at random.
 For uniformity, it is recommended (but not required) that key distribution Cubes
 follow the following exact field order:
 1) Sender's public key
-2) As many encrypted symmetric key fields as will fit the Cube;
+2) A random nonce
+3) As many encrypted symmetric key fields as will fit the Cube;
    unused encrypted symmetric key fields should contain random data
    indistinguishable from actual encrypted key.
-3) A single INTERPRETS Cube reference encapsulated in an encrypted content field
+4) A single INTERPRETS Cube reference encapsulated in an encrypted content field
    using the key distributed in this Key distribution Cube.
 
 ## Decrypting encrypted Cubes
