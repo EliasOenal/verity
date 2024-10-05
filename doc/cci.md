@@ -160,7 +160,7 @@ Cubes can optionally be encrypted using CCI encryption.
 
 CCI Encryption uses to distinct types of Cube:
 ## Encypted content Cubes
-- Encrypted content Cubes contain an encrypted content field.
+- Encrypted content Cubes contain an encrypted content field and a nonce field.
 - There must only be one encrypted content field per Cube.
 - The encrypted content field contains compiled CCI fields, which will be
   expanded upon decryption.
@@ -173,9 +173,9 @@ For uniformity, it is recommended (but not required) that encrypted content Cube
 consist exclusively of a single encrypted content field.
 
 ## Key distribution Cubes
-Key distribution Cubes contain encrypted symmetric key fields as well as an
-encrypted content field encapsulating an INTERPRETS cube reference field.
-They should also contain the sender's public key.
+Key distribution Cubes contain encrypted symmetric key fields, a nonce field,
+as well as an encrypted content field encapsulating an INTERPRETS cube reference
+field. They should also contain the sender's public key.
 
 Encrypted symmetric key fields contain a shared secret encrypted asymmetrically
 using the sender's public key and the recipient's private key. The shared secret
