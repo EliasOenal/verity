@@ -155,54 +155,11 @@ Verita can consist of one or multiple Cubes and are automatically segmented
 and recombined as needed.
 Verita can optionally be encrypted for one or multiple recipients.
 
+
 # CCI Encryption
-Cubes can optionally be encrypted using CCI encryption.
+Both Verita and single Cubes can optionally be encrypted using
+[CCI Encryption](cciEncryption.md).
 
-CCI Encryption uses two distinct types of Cube:
-## Encypted content Cubes
-- Encrypted content Cubes contain at least an encrypted content field
-  and a nonce field.
-- There must only be one encrypted content field per Cube.
-- The encrypted content field contains compiled CCI fields, which will be
-  expanded upon decryption.
-- It is discouraged but possible to include any other plain text content in
-  encrypted content Cubes, including application identifiers.
-- Encrypted content Cubes should include the sender's public key.
-  In case there already is an established cryptographic session between the
-  sender and the recipient, the public key field can alternatively contain
-  a key hint instead of the actual public key. For uniformity, the key hint
-  should be indistinguishable from random data.
-- While discouraged, encrypted content Cubes may optionally incorporate the
-  information usually found in a key distribution Cube.
-
-For uniformity, it is recommended (but not required) that encrypted content Cubes
-follow the following exact field order:
-1) Sender's public key
-2) A random nonce
-3) An encrypted content field
-
-## Key distribution Cubes
-Key distribution Cubes contain encrypted symmetric key fields, a nonce field,
-as well as an encrypted content field encapsulating an INTERPRETS cube reference
-field. They should also contain the sender's public key.
-
-Encrypted symmetric key fields contain a shared secret encrypted asymmetrically
-using the sender's public key and the recipient's private key. The shared secret
-should be created uniformly at random.
-
-For uniformity, it is recommended (but not required) that key distribution Cubes
-follow the following exact field order:
-1) Sender's public key
-2) A random nonce
-3) As many encrypted symmetric key fields as will fit the Cube;
-   unused encrypted symmetric key fields should contain random data
-   indistinguishable from actual encrypted key.
-4) A single INTERPRETS Cube reference encapsulated in an encrypted content field
-   using the key distributed in this Key distribution Cube.
-
-## Decrypting encrypted Cubes
-There are different ways a recipient can decrypt an encrypted content Cube; it
-is up to the application to decide which way to use.
 
 # Custom Fields
 Applications have two ways of suppplementing CCI with custom fields:
