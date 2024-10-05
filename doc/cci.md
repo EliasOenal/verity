@@ -158,19 +158,28 @@ Verita can optionally be encrypted for one or multiple recipients.
 # CCI Encryption
 Cubes can optionally be encrypted using CCI encryption.
 
-CCI Encryption uses to distinct types of Cube:
+CCI Encryption uses two distinct types of Cube:
 ## Encypted content Cubes
-- Encrypted content Cubes contain an encrypted content field and a nonce field.
+- Encrypted content Cubes contain at least an encrypted content field
+  and a nonce field.
 - There must only be one encrypted content field per Cube.
 - The encrypted content field contains compiled CCI fields, which will be
   expanded upon decryption.
-- It is discouraged but possible to include any plain text content in encrypted
-  content Cubes, including application identifiers.
-- Encrypted content Cubes may optionally incorporate the information usually found
-  in a key distribution Cube.
+- It is discouraged but possible to include any other plain text content in
+  encrypted content Cubes, including application identifiers.
+- Encrypted content Cubes should include the sender's public key.
+  In case there already is an established cryptographic session between the
+  sender and the recipient, the public key field can alternatively contain
+  a key hint instead of the actual public key. For uniformity, the key hint
+  should be indistinguishable from random data.
+- While discouraged, encrypted content Cubes may optionally incorporate the
+  information usually found in a key distribution Cube.
 
 For uniformity, it is recommended (but not required) that encrypted content Cubes
-consist exclusively of a single encrypted content field.
+follow the following exact field order:
+1) Sender's public key
+2) A random nonce
+3) An encrypted content field
 
 ## Key distribution Cubes
 Key distribution Cubes contain encrypted symmetric key fields, a nonce field,
