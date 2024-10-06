@@ -418,9 +418,13 @@ export class Identity {
         this.readyPromiseResolve(this)
     });
     } else {  // create new Identity
-      this._masterKey = mucOrMasterkey;
+      // Input sanitation: Ensure masterKey is fully compatible with Uint8Array.
+      // Without this line, some external (Diary Studies) tests will fail unpredictably,
+      // probably whenever the Buffer was natively created as a Buffer rather
+      // than upgraded from an Uint8Array.
+      this._masterKey = Buffer.from(Uint8Array.from(mucOrMasterkey));
       this._muc = cciCube.ExtensionMuc(
-        mucOrMasterkey,
+        this._masterKey,
         [],  // TODO: allow to set fields like username directly on construction
         IDMUC_MASTERINDEX, this.options.idmucContextString,
       );
