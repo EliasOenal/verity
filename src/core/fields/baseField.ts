@@ -27,7 +27,7 @@ export class BaseField {
     const val: Buffer = Buffer.alloc(fieldDefinition.fieldLengths[type] ?? 0, 0);
     // if a default value is specified in the field definition,
     // copy it into the buffer
-    fieldDefinition.defaultField[type]?.()?.value?.copy?.(val);
+    fieldDefinition.defaultField?.[type]?.()?.value?.copy?.(val);
     return new fieldDefinition.fieldObjectClass(type, val);
   }
 
