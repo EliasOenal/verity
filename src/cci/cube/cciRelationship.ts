@@ -16,6 +16,7 @@ export enum cciRelationshipType {
   MENTION = 6,
 
   REPLACED_BY = 11,
+  INTERPRETS = 12,
 
   // Only used in MUCs:
   ILLUSTRATION = 71,
