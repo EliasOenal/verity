@@ -58,20 +58,24 @@ export class cciCube extends Cube {
     family: CubeFamilyDefinition = cciFamily,
     requiredDifficulty = Settings.REQUIRED_DIFFICULTY
   ): cciCube {
+    // normalise input
     if (!(fields instanceof cciFields)) {
       fields = new cciFields(cciFields as any, family.parsers[CubeType.MUC].fieldDef);
     }
+    // choose a random subkeyIndex if none was provided
     if (subkeyIndex === undefined) {
       const max: number = Math.pow(2, (Settings.MUC_EXTENSION_SEED_SIZE * 8)) - 1;
       subkeyIndex = Math.floor(  // TODO: Use a proper cryptographic function instead
         Math.random() * max);
     }
+    // choose the default context string if none was provided
     if (context === undefined) context = "MUC extension key";
+    // derive this extension MUC's signing key pair
     const keyPair: KeyPair = deriveSigningKeypair(
       masterKey, subkeyIndex, context);
 
+    // If requested, write subkey to cube
     if (writeSubkeyIndexToCube) {
-      // Write subkey to cube
       // Note: While this information is probably not harmful, it's only ever useful
       // to its owner. Maybe we should encrypt it.
       const nonceBuf = Buffer.alloc(Settings.MUC_EXTENSION_SEED_SIZE);
@@ -81,6 +85,9 @@ export class cciCube extends Cube {
 
     // Create and return extension MUC
     const extensionMuc: cciCube = cciCube.MUC(
+      // note that we don't need to upgrade the keys to Buffers here as upstream
+      // will already handle this -- upgrading here would just cause them to
+      // be copied twice
       keyPair.publicKey, keyPair.privateKey, {
         fields, family, requiredDifficulty
     });
