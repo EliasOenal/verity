@@ -48,6 +48,12 @@ export class VerityNode implements VerityNodeIf {
   readonly readyPromise: Promise<void>;
   readonly shutdownPromise: Promise<void>;
 
+  static async Create(options: VerityNodeOptions = {}): Promise<VerityNode> {
+    const v = new VerityNode(options);
+    await v.readyPromise;
+    return v;
+  }
+
   constructor(options: VerityNodeOptions = {}){
     // set default options
     options.transports ??= new Map();  // TODO use sensible default
