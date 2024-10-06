@@ -1,5 +1,6 @@
 import { Buffer } from 'buffer';
 import { FieldDefinition } from './fieldParser';
+import { ApiMisuseError } from '../settings';
 
 /**
  * A field is a data entry in binary TLV data.
@@ -46,11 +47,16 @@ export class BaseField {
    */
   start: number = undefined;
 
-  constructor(type: number, value: Buffer | string, start?: number) {
+  constructor(type: number, value: Buffer | string | String, start?: number) {
       this.type = type;
       this.start = start;
-      if (value instanceof Buffer) this.value = value;
-      else this.value = Buffer.from(value, 'utf8');
+      if (Buffer.isBuffer(value)) {
+        this.value = value;
+      } else if (typeof value === 'string' || value instanceof String) {
+        this.value = Buffer.from(value, 'utf8');
+      } else {
+        throw new ApiMisuseError(`BaseField constructor: supplied value must be either Buffer or string`);
+      }
   }
 
   equals(other: BaseField, compareStartOffset: boolean = false) {
