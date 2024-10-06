@@ -20,12 +20,18 @@ import sodium from 'libsodium-wrappers-sumo'
  * @returns {Buffer} The hash of the data.
  */
 export let calculateHash: (data: Buffer) => Buffer;
-if (isNode) {
+// Try to use the runtime's native crypto module as it will usually have
+// better performance, except on JSDOM.
+// (JSDOM would return the correct hash, but it would be in their own flavour
+// of Buffer which is neither compatible with our Buffers nor based on
+// Uint8Array.)
+if (isNode && !isJsDom) {
   // Dynamically import the crypto module
   import("crypto")
     .then((crypto) => {
-      calculateHash = (data: Buffer) =>
-       crypto.createHash("sha3-256").update(data).digest();
+      calculateHash = (data: Buffer) => {
+       return crypto.createHash("sha3-256").update(data).digest();;
+      }
     })
     .catch((error) => {
       console.error("Failed to load crypto module:", error);
