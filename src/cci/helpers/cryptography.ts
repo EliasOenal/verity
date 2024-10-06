@@ -8,7 +8,7 @@ export interface KeyPair {
 
 /** !!! May only be called after awaiting sodium.ready !!! */
 export function deriveSigningKeypair(
-    masterKey: Buffer,
+    masterKey: Uint8Array,
     subkeyIndex: number,
     context: string,
 ): KeyPair {

@@ -51,14 +51,13 @@ export class cciCube extends Cube {
   // TODO write unit test
   /** !!! May only be called after awaiting sodium.ready !!! */
   static ExtensionMuc(
-    masterKey: Buffer,
+    masterKey: Uint8Array,
     fields: cciFields | cciField[],
     subkeyIndex: number = undefined, context: string = undefined,
     writeSubkeyIndexToCube: boolean = false,
     family: CubeFamilyDefinition = cciFamily,
     requiredDifficulty = Settings.REQUIRED_DIFFICULTY
   ): cciCube {
-    // masterKey = Uint8Array.from(masterKey);  // will strangely fail in vitest otherwise
     if (!(fields instanceof cciFields)) {
       fields = new cciFields(cciFields as any, family.parsers[CubeType.MUC].fieldDef);
     }
