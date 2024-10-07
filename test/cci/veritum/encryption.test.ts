@@ -286,6 +286,27 @@ describe('CCI encryption', () => {
     });
   });  // Encrypt()-Decrypt() round-trip tests
 
+  describe('Encrypt() edge case tests', () => {
+    it('encrypts a minimal PADDING field if no payload provided', () => {
+      // This can be used to perform pure key distribution without sending
+      // an actual message just yet
+      const encrypted: cciFields = Encrypt(
+        new cciFields([], cciFrozenFieldDefinition),
+        Buffer.from(sender.privateKey),
+        Buffer.from(recipient.publicKey),
+        { includeSenderPubkey: Buffer.from(sender.publicKey) },
+      );
+      expect(encrypted.getFirst(cciFieldType.PADDING)).toBeUndefined();
+
+      const decrypted: cciFields = Decrypt(
+        encrypted,
+        Buffer.from(recipient.privateKey)
+      );
+      expect(decrypted.getFirst(cciFieldType.PADDING)).toBeDefined();
+      expect(decrypted.getFirst(cciFieldType.PAYLOAD)).toBeUndefined();
+
+    })
+  });
 
   describe('Decrypt() edge case tests', () => {
     it('fails gently if no pubkey provided on decryption', () => {
@@ -296,11 +317,11 @@ describe('CCI encryption', () => {
       );
 
       // Encrypt the fields
-      const encrypted: cciFields = new cciFields(Encrypt(
+      const encrypted: cciFields = Encrypt(
         fields,
         Buffer.from(sender.privateKey),
         Buffer.from(recipient.publicKey),
-      ), cciFrozenFieldDefinition);
+      );
 
       // Attempt decryption
       const decrypted: cciFields = Decrypt(

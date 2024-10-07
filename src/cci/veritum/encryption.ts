@@ -35,7 +35,6 @@ export interface CciEncryptionOptions {
  * no longer make sense after data length has increased due to encryption).
  * Note: Caller must await sodium.ready before calling.
  */
-// Maybe TODO: use linked list instead of Array to avoid unnecessary copies?
 export function Encrypt(
     fields: cciFields,
     privateKey: Buffer,
@@ -170,6 +169,15 @@ export function EncryptionPrepareFields(
         output.appendField(field);
       }
     }
+  }
+
+  // Handle special case:
+  // It is allowed to send an encrypted message just for the purpose of
+  // exchanging keys; in that case there is no message to encrypt.
+  // In this case, encrypt an empty PADDING field.
+  if (toEncrypt.all.length === 0) {
+    const padding: cciField = new cciField(cciFieldType.PADDING, Buffer.alloc(0));
+    toEncrypt.appendField(padding);
   }
   return {toEncrypt, output};
 }
