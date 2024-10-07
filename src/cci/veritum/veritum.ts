@@ -9,7 +9,8 @@ import { cciFieldLength, cciFieldType } from "../cube/cciCube.definitions";
 import { cciField } from "../cube/cciField";
 import { cciFields } from "../cube/cciFields";
 import { Continuation, RecombineOptions, SplitOptions } from "./continuation";
-import { CciEncryptionOptions, Decrypt, Encrypt, EncryptionRecipients } from "./encryption";
+import { CciEncryptionOptions, Encrypt, EncryptionRecipients } from "./encryption";
+import { Decrypt } from "./decryption";
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo';
