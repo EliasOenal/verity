@@ -2,7 +2,8 @@ import { cciFields, cciFrozenFieldDefinition } from '../../../src/cci/cube/cciFi
 import { cciField } from '../../../src/cci/cube/cciField';
 import { MediaTypes, cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { CubeFieldType } from '../../../src/core/cube/cube.definitions';
-import { Decrypt, Encrypt } from '../../../src/cci/veritum/encryption';
+import { Encrypt } from '../../../src/cci/veritum/encryption';
+import { Decrypt } from '../../../src/cci/veritum/decryption';
 import { KeyPair } from '../../../src/cci/helpers/cryptography';
 
 import sodium from 'libsodium-wrappers-sumo';
