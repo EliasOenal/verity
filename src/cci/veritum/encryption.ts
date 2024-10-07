@@ -20,7 +20,16 @@ import sodium from 'libsodium-wrappers-sumo'
 
 export type EncryptionRecipients = Identity|Iterable<Identity>|Buffer|Iterable<Buffer>;
 export interface CciEncryptionOptions {
+  /**
+   * Excludes the listed field types from encryption, instead keeping them as
+   * plaintext together with the encrypted message.
+   * This is NOT RECOMMENDED as it may cause information leaks.
+   **/
   excludeFromEncryption?: number[],
+
+  /**
+   * Includes the sender's public key in the encrypted message.
+   */
   includeSenderPubkey?: Buffer,
 }
 
