@@ -84,6 +84,7 @@ export function Encrypt(
 }
 
 
+
 /**
  * Decrypts a CCI field set
  * @param fields - The CCI field set to decrypt
@@ -149,7 +150,7 @@ export function Decrypt(
 // Encryption: Data normalisation helpers
 //
 
-export function *EncryptionNormaliseRecipients(recipients: EncryptionRecipients): Generator<Buffer> {
+function *EncryptionNormaliseRecipients(recipients: EncryptionRecipients): Generator<Buffer> {
   // normalize input
   if (!isIterableButNotBuffer(recipients)) {
     recipients = [recipients as Identity];
@@ -170,7 +171,7 @@ export function *EncryptionNormaliseRecipients(recipients: EncryptionRecipients)
 // Encryption: Field helpers
 //
 
-export function EncryptionPrepareFields(
+function EncryptionPrepareFields(
     fields: cciFields,
     options: CciEncryptionOptions
 ): {toEncrypt: cciFields, output: cciFields} {
@@ -207,7 +208,7 @@ export function EncryptionPrepareFields(
 }
 
 
-export function EncryptionCompileFields(toEncrypt: cciFields): Buffer {
+function EncryptionCompileFields(toEncrypt: cciFields): Buffer {
   // Compile the fields to encrypt.
   // This gives us the binary plaintext that we'll later encrypt.
   // Note that this intermediate compilation never includes any positional
@@ -222,7 +223,7 @@ export function EncryptionCompileFields(toEncrypt: cciFields): Buffer {
 }
 
 
-export function EncryptionKeyDistributionFields(
+function EncryptionKeyDistributionFields(
   symmetricPayloadKey: Buffer,
   privateKey: Uint8Array,
   recipientPubkeys: Iterable<Uint8Array>,
@@ -239,7 +240,7 @@ return ret;
 }
 
 
-export function EncryptionMakeKeyDistributionCubes(
+function EncryptionMakeKeyDistributionCubes(
   nonce: Buffer,
   keyDistributionFields: cciField[],
   refersTo: CubeKey,
@@ -318,11 +319,11 @@ return cubes;
 }
 
 
-export function EncryptionIncludePubkey(output: cciFields, pubkey: Buffer): void {
+function EncryptionIncludePubkey(output: cciFields, pubkey: Buffer): void {
   output.insertFieldBeforeBackPositionals(cciField.CryptoPubkey(pubkey));
 }
 
-export function EncryptionIncludeNonce(output: cciFields, nonce: Buffer): void {
+function EncryptionIncludeNonce(output: cciFields, nonce: Buffer): void {
   output.insertFieldBeforeBackPositionals(cciField.CryptoNonce(nonce));
 }
 
@@ -333,7 +334,7 @@ export function EncryptionIncludeNonce(output: cciFields, nonce: Buffer): void {
 // Encryption: Cryptographic primitive helpers
 //
 
-export function EncryptionDeriveKey(
+function EncryptionDeriveKey(
     privateKey: Buffer,
     recipientPubkey: Buffer,
 ): Buffer {
@@ -353,11 +354,11 @@ export function EncryptionDeriveKey(
   return Buffer.from(symmetricPayloadKey);
 }
 
-export function EncryptionRandomKey(): Buffer {
+function EncryptionRandomKey(): Buffer {
   return Buffer.from(sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES));
 }
 
-export function EncryptionRandomNonce(): Buffer {
+function EncryptionRandomNonce(): Buffer {
   // Create a random nonce
   const nonce: Buffer = Buffer.from(
     sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES));
@@ -368,7 +369,7 @@ export function EncryptionRandomNonce(): Buffer {
 }
 
 
-export function EncryptionSymmetricEncrypt(
+function EncryptionSymmetricEncrypt(
     plaintext: Uint8Array,
     nonce: Uint8Array,
     symmetricPayloadKey: Uint8Array,
@@ -389,7 +390,7 @@ export function EncryptionSymmetricEncrypt(
 
 class DecryptionFailed extends VerityError { name = "Decryption failed" }
 
-export function DecryptionRetrieveNonce(fields: cciFields): Buffer {
+function DecryptionRetrieveNonce(fields: cciFields): Buffer {
   const nonce = fields.getFirst(cciFieldType.CRYPTO_NONCE)?.value;
   if (Settings.RUNTIME_ASSERTIONS && nonce?.length !== NetConstants.CRYPTO_NONCE_SIZE) {
     const errStr = "Decrypt(): Cannot decrypt supplied fields as Nonce is missing or invalid"
@@ -399,7 +400,7 @@ export function DecryptionRetrieveNonce(fields: cciFields): Buffer {
   return nonce;
 }
 
-export function DecryptionRetrieveCiphertext(fields: cciFields): Buffer {
+function DecryptionRetrieveCiphertext(fields: cciFields): Buffer {
   const ciphertext: Buffer = fields.getFirst(cciFieldType.ENCRYPTED)?.value;
   if (Settings.RUNTIME_ASSERTIONS && !ciphertext?.length) {
     const errStr = "Decrypt(): Cannot decrypt supplied fields as Ciphertext is missing or invalid";
@@ -409,7 +410,7 @@ export function DecryptionRetrieveCiphertext(fields: cciFields): Buffer {
   return ciphertext;
 }
 
-export function DecryptionDeriveKey(
+function DecryptionDeriveKey(
     privateKey: Buffer,
     senderPublicKey: Buffer,
     nonce: Buffer,
@@ -467,7 +468,7 @@ export function DecryptionDeriveKey(
 }
 
 
-export function DecryptionSymmetricDecrypt(
+function DecryptionSymmetricDecrypt(
     ciphertext: Uint8Array,
     nonce: Uint8Array,
     symmetricKey: Uint8Array,
@@ -488,7 +489,7 @@ export function DecryptionSymmetricDecrypt(
   return Buffer.from(plaintext);
 }
 
-export function DecryptionDecompileFields(
+function DecryptionDecompileFields(
     plaintext: Buffer,
     fieldDefinition: FieldDefinition,
 ): cciFields {
@@ -501,7 +502,7 @@ export function DecryptionDecompileFields(
   return decryptedFields;
 }
 
-export function DecryptionReplaceEncryptedField(
+function DecryptionReplaceEncryptedField(
     fields: cciFields,
     decryptedFields: cciFields,
 ): cciFields {
