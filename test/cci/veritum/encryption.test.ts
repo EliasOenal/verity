@@ -1,13 +1,12 @@
 import { cciFields, cciFrozenFieldDefinition } from '../../../src/cci/cube/cciFields';
 import { cciField } from '../../../src/cci/cube/cciField';
-import { MediaTypes, cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
-import { CubeFieldType } from '../../../src/core/cube/cube.definitions';
+import { cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { Encrypt } from '../../../src/cci/veritum/encryption';
-import { Decrypt } from '../../../src/cci/veritum/decryption';
 import { KeyPair } from '../../../src/cci/helpers/cryptography';
 
 import sodium from 'libsodium-wrappers-sumo';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
+import { Decrypt } from '../../../src/cci/veritum/decryption';
 
 describe('CCI encryption', () => {
   let sender: KeyPair;
@@ -45,8 +44,8 @@ describe('CCI encryption', () => {
     }
   });
 
-  describe('basic Encrypt() tests', () => {
-    describe('test for each encrypted Cube type', () => {
+  describe('manual Encrypt() tests', () => {
+    describe('encrypts a single payload field for each encrypted Cube type', () => {
       it('creates a Continuation Cube', () => {
         // A Continuation Cube only contains encrypted payload.
         // Both symmetric key and nonce are already known by the recipient.
@@ -295,52 +294,122 @@ describe('CCI encryption', () => {
 
       // move to edge cases
       it.todo('throws an error if the amount of recipients does not fit a Cube');
+    });  // encrypts a single payload field for each encrypted Cube type
+
+      it.todo('outputs a minimal field set with a single ENCRYPTION field, ' +
+             'having high entropy even on short inputs');
+  });  // manual Encrypt() tests
+
+
+
+describe('Encrypt()-Decrypt() round-trip tests', () => {
+  let encrypted: cciFields;
+  const secretMessage = 'Nuntius cryptatus secretus est, ne intercipiatur';
+
+  describe('Continuation Cube', () => {
+    let preSharedKey: Buffer;
+    let predefinedNonce: Buffer;
+    beforeAll(() => {
+      const fields: cciFields = cciFields.DefaultPositionals(
+        cciFrozenFieldDefinition,
+        cciField.Payload(secretMessage),
+      ) as cciFields;
+
+      preSharedKey = Buffer.alloc(sodium.crypto_secretbox_KEYBYTES, 1337);
+      predefinedNonce = Buffer.alloc(sodium.crypto_secretbox_NONCEBYTES, 42);
+
+      encrypted = Encrypt(fields, { preSharedKey, predefinedNonce });
     });
 
-    // it('correctly creates a Start-of-Veritum Cube directed at a single recipient', () => {
-    //   const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
-    //   const fields: cciFields = cciFields.DefaultPositionals(
-    //     cciFrozenFieldDefinition,
-    //     cciField.Payload(plaintext),
-    //   ) as cciFields;
+    it('decrypts a Continuation Cube', () => {
+      const decrypted: cciFields = Decrypt(encrypted,
+        { preSharedKey, predefinedNonce });
+      const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
+      expect(payload).toBeDefined();
+      expect(payload.valueString).toEqual(secretMessage);
+    });
+  });  // Continuation Cube
 
-    //   // Call tested function
-    //   const encrypted: cciFields = new cciFields(Encrypt(
-    //     fields, sender.privateKey, recipient.publicKey
-    //   ), cciFrozenFieldDefinition);
+  describe('Start-of-Veritum w/ pre-shared key', () => {
+    let preSharedKey: Buffer;
+    beforeAll(() => {
+      const fields: cciFields = cciFields.DefaultPositionals(
+        cciFrozenFieldDefinition,
+        cciField.Payload(secretMessage),
+      ) as cciFields;
 
-    //   // Verify result by performing manual decryption:
-    //   // extract cryptographic values
-    //   const ciphertext: Buffer = encrypted.getFirst(cciFieldType.ENCRYPTED).value;
-    //   const nonce: Buffer = encrypted.getFirst(cciFieldType.CRYPTO_NONCE).value;
+      preSharedKey = Buffer.alloc(NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE, 1337);
 
-    //   // manually derive key using the recipient's private key
-    //   const key: Uint8Array = sodium.crypto_box_beforenm(
-    //     sender.publicKey, recipient.privateKey);
-    //   // for verification, also derive key using the sender's public key
-    //   const keyAtSender: Uint8Array = sodium.crypto_box_beforenm(
-    //     Buffer.from(recipient.publicKey), sender.privateKey);
-    //   expect(key).toEqual(keyAtSender);
-    //   // manually decrypt
-    //   const decrypted: Uint8Array = sodium.crypto_secretbox_open_easy(
-    //     ciphertext, nonce, key);
+      encrypted = Encrypt(fields, { preSharedKey });
+    });
 
-    //   // verify that the ciphertext is not decryptable by a non-recipient
-    //   const wrongKey: Uint8Array = sodium.crypto_box_beforenm(
-    //     sender.publicKey, nonRecipient.privateKey);
-    //   expect(wrongKey).not.toEqual(key);
-    //   expect(() => sodium.crypto_secretbox_open_easy(
-    //     ciphertext, nonce, wrongKey)).toThrow();
+    it('decrypts a Start-of-Veritum w/ pre-shared key', () => {
+      const decrypted: cciFields = Decrypt(encrypted, { preSharedKey });
+      const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
+      expect(payload).toBeDefined();
+      expect(payload.valueString).toEqual(secretMessage);
+    });
+  });  // Start-of-Veritum w/ pre-shared key
 
-    //   expect(Buffer.from(decrypted).toString()).toContain(plaintext);
-    // });
+  describe('Start-of-Veritum for single recipient', () => {
+    beforeAll(() => {
+      const fields: cciFields = cciFields.DefaultPositionals(
+        cciFrozenFieldDefinition,
+        cciField.Payload(secretMessage),
+      ) as cciFields;
 
-    it.todo('outputs a minimal field set with a single ENCRYPTION field, ' +
-            'having high entropy even on short inputs');
-  });
+      encrypted = Encrypt(fields, {
+        recipients: recipient.publicKey,
+        senderPrivateKey: sender.privateKey,
+        includeSenderPubkey: sender.publicKey,
+      });
+    });
 
+    it('decrypts a Start-of-Veritum for single recipient', () => {
+      const decrypted: cciFields = Decrypt(encrypted,
+        { recipientPrivateKey: recipient.privateKey });
+      expect(decrypted).toBeDefined();
+      const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
+      expect(payload).toBeDefined();
+      expect(payload.valueString).toEqual(secretMessage);
+    });
 
-  // describe('Encrypt()-Decrypt() round-trip tests', () => {
+    it('cannot decrypt Start-of-Veritum for different recipient', () => {
+      const decrypted: cciFields = Decrypt(encrypted,
+        { recipientPrivateKey: recipient2.privateKey });
+      expect(decrypted).toBeUndefined();
+    });
+  });  // Start-of-Veritum for single recipient
+
+  describe('Start-of-Veritum for multiple recipients', () => {
+    beforeAll(() => {
+      const fields: cciFields = cciFields.DefaultPositionals(
+        cciFrozenFieldDefinition,
+        cciField.Payload(secretMessage),
+      ) as cciFields;
+
+      encrypted = Encrypt(fields, {
+        recipients: [recipient.publicKey, recipient2.publicKey, recipient3.publicKey],
+        senderPrivateKey: sender.privateKey,
+        includeSenderPubkey: sender.publicKey,
+      });
+    });
+
+    it('decrypts a Start-of-Veritum for multiple recipients for each recipient', () => {
+      for (const rcpt of [recipient, recipient2, recipient3]) {
+        const decrypted: cciFields = Decrypt(encrypted,
+          { recipientPrivateKey: rcpt.privateKey });
+        expect(decrypted).toBeDefined();
+        const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
+        expect(payload).toBeDefined();
+        expect(payload.valueString).toEqual(secretMessage);
+      }
+    });
+  });  // Start-of-Veritum for single recipient
+
+});  // Encrypt()-Decrypt() round-trip tests
+
+  //   // DELETE
   //   it('correctly encrypts and decrypts a single payload field', () => {
   //     const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
   //     const fields: cciFields = new cciFields(

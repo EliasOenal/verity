@@ -19,7 +19,7 @@ import { logger } from "../../core/logger";
 import sodium from 'libsodium-wrappers-sumo'
 
 export type EncryptionRecipients = Identity|Iterable<Identity>|Buffer|Iterable<Buffer>;
-export interface CciEncryptionOptions {
+export interface CciEncryptionParams {
   /**
    * Excludes the listed field types from encryption, instead keeping them as
    * plaintext together with the encrypted message.
@@ -50,17 +50,13 @@ export interface CciEncryptionOptions {
 
 /**
  * Encrypts a CCI field set
- * Note: Encryption should take place before splitting
- * (as encryption adds a header and therefore slightly increases total size)
- * and before Cube compilation (as this may introduce padding fields which
- * no longer make sense after data length has increased due to encryption).
  * Note: Caller must await sodium.ready before calling.
  */
  // Maybe TODO: Check if supplied combination of option conforms to the CCI
  // Encryption spec, and either refuse or warn if it doesn't.
 export function Encrypt(
     fields: cciFields,
-    options: CciEncryptionOptions = {},
+    options: CciEncryptionParams = {},
 ): cciFields {
   // normalise input
   const recipientPubkeys = Array.from(EncryptionNormaliseRecipients(options.recipients));
@@ -73,6 +69,7 @@ export function Encrypt(
 
   // Include cryptographic metadata in output if requested:
   // Public key
+  // TODO sanitise input
   if (options.includeSenderPubkey) {
     offset = EncryptionAddSubfield(encrypted, options.includeSenderPubkey, offset);
   }
@@ -175,7 +172,7 @@ function *EncryptionNormaliseRecipients(recipients: EncryptionRecipients): Gener
 
 function EncryptionPrepareFields(
     fields: cciFields,
-    options: CciEncryptionOptions
+    options: CciEncryptionParams
 ): {toEncrypt: cciFields, output: cciFields} {
   // set default options
   options.excludeFromEncryption ??= Continuation.ContinuationDefaultExclusions;
@@ -376,7 +373,7 @@ return cubes;
 
 function EncryptionDeriveKey(
     privateKey: Buffer,
-    recipientPubkey: Buffer,
+    publicKey: Buffer,
 ): Buffer {
   // sanity-check input
   if (privateKey?.length !== sodium.crypto_box_SECRETKEYBYTES) {
@@ -384,11 +381,11 @@ function EncryptionDeriveKey(
   }
 
   const symmetricPayloadKey: Uint8Array = sodium.crypto_box_beforenm(
-    recipientPubkey, privateKey);
+    publicKey, privateKey);
   if (Settings.RUNTIME_ASSERTIONS &&
-      symmetricPayloadKey.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
+      symmetricPayloadKey.length !== sodium.crypto_secretbox_KEYBYTES
   ){
-    throw new CryptoError(`Libsodium's generated symmetric key size of ${symmetricPayloadKey.length} does not match NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE === ${NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE}. This should never happen. Using an incompatible version of libsodium maybe?`);
+    throw new CryptoError(`Libsodium's generated symmetric key size of ${symmetricPayloadKey.length} does not match sodium.crypto_secretbox_KEYBYTES === ${sodium.crypto_secretbox_KEYBYTES}. This should never happen.`);
   }
 
   return Buffer.from(symmetricPayloadKey);

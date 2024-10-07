@@ -1,4 +1,4 @@
-import { CubeCreateOptions, VeritableBaseImplementation } from "../../core/cube/cube";
+import { Cube, CubeCreateOptions, VeritableBaseImplementation } from "../../core/cube/cube";
 import { HasSignature, type CubeKey, CubeType } from "../../core/cube/cube.definitions";
 import { keyVariants } from "../../core/cube/cubeUtil";
 import type { Veritable } from "../../core/cube/veritable.definition";
@@ -9,13 +9,14 @@ import { cciFieldLength, cciFieldType } from "../cube/cciCube.definitions";
 import { cciField } from "../cube/cciField";
 import { cciFields } from "../cube/cciFields";
 import { Continuation, RecombineOptions, SplitOptions } from "./continuation";
-import { CciEncryptionOptions, Encrypt, EncryptionRecipients } from "./encryption";
+import { CciEncryptionParams, Encrypt, EncryptionRecipients } from "./encryption";
 import { Decrypt } from "./decryption";
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo';
+import { logger } from "../../core/logger";
 
-export interface VeritumCompileOptions extends CubeCreateOptions, CciEncryptionOptions {
+export interface VeritumCompileOptions extends CubeCreateOptions, CciEncryptionParams {
   /**
    * To encrypt a Veritum on compilation, supply your encryption private key here.
    * Don't forget to also supply the recipient or list of recipients.
@@ -32,7 +33,6 @@ export interface VeritumCompileOptions extends CubeCreateOptions, CciEncryptionO
 
 export interface VeritumFromChunksOptions extends RecombineOptions {
   encryptionPrivateKey?: Buffer,
-  senderPublicKey?: Buffer,
 }
 
 export class Veritum extends VeritableBaseImplementation implements Veritable{
@@ -45,18 +45,30 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   readonly privateKey: Buffer;
 
   static FromChunks(chunks: Iterable<cciCube>, options?: VeritumFromChunksOptions): Veritum {
+    let transformedChunks: Iterable<Cube>|Cube[] = chunks;
     if (options.encryptionPrivateKey) {
+      transformedChunks = [];
       // attempt chunk decryption
       for (const chunk of chunks) {
         const decryptedFields = Decrypt(
           chunk.manipulateFields(),
-          options.encryptionPrivateKey,
-          options.senderPublicKey
+          {recipientPrivateKey: options.encryptionPrivateKey},
         );
-        chunk.setFields(decryptedFields);
+        if (decryptedFields) {
+          const decryptedChunk = new chunk.family.cubeClass(
+          chunk.cubeType, {
+            family: chunk.family,
+            fields: decryptedFields,
+            requiredDifficulty: 0,  // not to be published
+          });
+          (transformedChunks as Cube[]).push(decryptedChunk);
+        } else {
+          logger.trace(`Veritum.FromChunks(): Failed to decrypt chunk ${chunk.getKeyStringIfAvailable()}`);
+          (transformedChunks as Cube[]).push(chunk);
+        }
       }
     }
-    return Continuation.Recombine(chunks, options);
+    return Continuation.Recombine(transformedChunks, options);
   }
 
   constructor(cubeType: CubeType, options?: CubeCreateOptions);
@@ -104,17 +116,16 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     if (shallEncrypt) {
       await sodium.ready;
       // reserve some space for additional headers, the MAC as well as the nonce
+      // TODO reserve more space in case of multiple recipients
       const encryptedHeaderSize = this.fieldParser.getFieldHeaderLength(cciFieldType.ENCRYPTED);
-      const nonceHeaderSize = this.fieldParser.getFieldHeaderLength(cciFieldType.CRYPTO_NONCE);
       const nonceSize = cciFieldLength[cciFieldType.CRYPTO_NONCE];
       const macSize = sodium.crypto_secretbox_MACBYTES;
-      spacePerCube = spacePerCube - encryptedHeaderSize - nonceHeaderSize - nonceSize - macSize;
+      spacePerCube = spacePerCube - encryptedHeaderSize - nonceSize - macSize;
       // obviously, more reserved space is needed if we want to include
       // the sender's public key
       if (options.includeSenderPubkey !== undefined) {
-        const pubkeyHeaderSize = this.fieldParser.getFieldHeaderLength(cciFieldType.CRYPTO_PUBKEY);
         const pubkeySize = cciFieldLength[cciFieldType.CRYPTO_PUBKEY];
-        spacePerCube = spacePerCube - pubkeyHeaderSize - pubkeySize;
+        spacePerCube = spacePerCube - pubkeySize;
       }
     }
     // If encryption was requested, ask split to call us back after each
