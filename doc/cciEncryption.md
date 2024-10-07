@@ -20,8 +20,9 @@ not marked by a header.  These are, in this order:
 All subfields except the MAC-verifiable encrypted payload are optional, however
 only certain combinations of subfields are allowed. Those allowed combinations
 define four different kinds of encrypted Cubes, which are however
-indifferentiable before decryption. The receiver must infer which kind of Cube
-it is handling from context (see [Decryption](#decryption) below).
+indifferentiable before decryption. The receiver will still be able to decrypt
+all four variants by following a simple and specific trial-and-error algorithm
+(see [Decryption](#decryption) below).
 
 In the end, the recipient's goal is to decrypt the encrypted payload contained
 within the ENCRYPTED field. This data contains compiled CCI fields which can
@@ -30,7 +31,7 @@ be expanded upon decryption.
 ## CCI encryption Cube types
 These are the different kinds of encrypted Cubes featuring the following
 unmarked ENCRYPTED sub-fields, listed from the most basic one (containing
-the least amount of subfields) to the most sophisticated one (containing all
+only the encrypted payload) to the most sophisticated one (containing all
 of the subfields described above):
 
 ### Continuation Cubes
@@ -93,6 +94,15 @@ steps, continuing on until the MAC-verifiable payload was decrypted successfully
       field to represent another key distribution slot as well as one encrypted
       RELATES_TO field.
 5) Discard the Cube as not decryptable.
+
+This decryption algorithm has the following properties:
+* Simple and universal, works for any well-formed CCI encrypted message
+* Deterministic, i.e. the receiver can always either decrypt the message,
+  or determine that it is not decryptable.
+* Cheap, as it requires a maximum of one key derivation, and does not require
+  key derivation for well-formed messages based on a known shared secret.
+  It also only requires a number of symmetric operations (decryptions, hashes)
+  in the same order as the number of key distribution slots.
 
 ## Handling large numbers of recipients
 All key distribution information must always be included in the first Cube
