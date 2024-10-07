@@ -5,31 +5,9 @@ Cubes containing CCI encrypted data contain a single ENCRYPTED field
 as their only CCI field, spanning the whole available Cube space and complete
 filled with data indistinguishable from random.
 
-CCI Encryption uses four different kinds of encrypted Cubes, which are
-however indifferentiable before decryption.
-
 The single ENCRYPTED field contains different kinds of encrypted data, which are
-not marked by a header. The receiver must infer which kind of Cube it is
-handling from context (see [Decryption](#decryption) below).
+not marked by a header.  These are, in this order:
 
-In the end, the recipient's goal is to decrypt the encrypted payload contained
-within the ENCRYPTED field. This data contains compiled CCI fields which can
-be expanded upon decryption.
-
-## CCI encryption Cube types
-These are the different kinds of encrypted Cubes featuring the following
-unmarked ENCRYPTED sub-fields:
-
-### Start-of-Veritum Cubes (assuming pre-shared secret)
-1) Random nonce
-2) MAC-verifiable encrypted payload
-
-### Start-of-Veritum Cubes (establishing new shared secret with a single recipient)
-1) Sender's public key, from a randomly generated key pair only to be used once
-2) Random nonce
-3) MAC-verifiable encrypted payload
-
-### Start-of-Veritum Cubes (including key distribution to multiple recipients)
 1) Sender's public key, from a randomly generated key pair only to be used once
 2) Random nonce
 3) Key distribution slot:
@@ -39,8 +17,39 @@ unmarked ENCRYPTED sub-fields:
 4) Any number of further key distribution slots
 5) MAC-verifiable encrypted payload
 
+All subfields except the MAC-verifiable encrypted payload are optional, however
+only certain combinations of subfields are allowed. Those allowed combinations
+define four different kinds of encrypted Cubes, which are however
+indifferentiable before decryption. The receiver must infer which kind of Cube
+it is handling from context (see [Decryption](#decryption) below).
+
+In the end, the recipient's goal is to decrypt the encrypted payload contained
+within the ENCRYPTED field. This data contains compiled CCI fields which can
+be expanded upon decryption.
+
+## CCI encryption Cube types
+These are the different kinds of encrypted Cubes featuring the following
+unmarked ENCRYPTED sub-fields, listed from the most basic one (containing
+the least amount of subfields) to the most sophisticated one (containing all
+of the subfields described above):
+
 ### Continuation Cubes
 1) MAC-verifiable encrypted payload
+
+### Start-of-Veritum Cubes (assuming pre-shared secret)
+1) Random nonce
+2) MAC-verifiable encrypted payload
+
+### Start-of-Veritum Cubes (establishing new shared secret with a single recipient)
+1) Sender's public key
+2) Random nonce
+3) MAC-verifiable encrypted payload
+
+### Start-of-Veritum Cubes (including key distribution to multiple recipients)
+1) Sender's public key
+2) Random nonce
+3) Any number of key distribution slots
+4) MAC-verifiable encrypted payload
 
 ## Decryption
 To decrypt a CCI-encrypted Cube, the recipient should attempt the following
