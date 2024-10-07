@@ -122,7 +122,12 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     // Let's prepare this callback.
     const encryptCallback = (chunk: cciCube) => {
       const encryptedFields: cciFields = Encrypt(chunk.manipulateFields(),
-        options.encryptionPrivateKey, options.encryptionRecipients, options);
+        {
+          ...options,
+          senderPrivateKey: options.encryptionPrivateKey,
+          recipients: options.encryptionRecipients
+        }
+      );
       chunk.setFields(encryptedFields);
     }
     // Feed this Veritum through the splitter -- this is the main operation
