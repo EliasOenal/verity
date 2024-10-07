@@ -15,13 +15,6 @@ export interface GetVeritumOptions {
    * @default true
    */
   autoDecrypt?: boolean,
-
-  /**
-   * For decryption, the sender's public key must either be included in the
-   * encrypted Veritum or be supplied here.
-   * In case of conflict the key supplied here takes precedence.
-   */
-  senderEncryptionPublicKey?: Buffer,
 }
 
 export class cciCockpit {
@@ -77,7 +70,6 @@ export class cciCockpit {
     if (options.autoDecrypt) {
       fromChunksOptions = {
         encryptionPrivateKey: this.identity?.encryptionPrivateKey,
-        senderPublicKey: options.senderEncryptionPublicKey,
       };
     } else {
       fromChunksOptions = undefined;

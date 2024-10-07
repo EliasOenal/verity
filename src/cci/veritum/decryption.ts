@@ -9,11 +9,16 @@ import { cciFields } from "../cube/cciFields";
 
 import sodium from 'libsodium-wrappers-sumo'
 
+export interface CciDecryptionParams {
+  predefinedNonce?: Buffer,
+  preSharedKey?: Buffer,
+  recipientPrivateKey?: Buffer,
+}
+
 
 //###
 // "Public" functions
 //###
-
 
 /**
  * Decrypts a CCI field set
@@ -29,43 +34,20 @@ import sodium from 'libsodium-wrappers-sumo'
  *   the plaintext fields, or the unchanged field set if decryption fails.
  */
 export function Decrypt(
-  fields: cciFields,
-  privateKey: Buffer,
-  senderPublicKey?: Buffer,
+  input: cciFields,
+  params: CciDecryptionParams,
 ): cciFields {
-  try {
-    // Retrieve crypto fields (this also validates them)
-    const nonce: Buffer = DecryptionRetrieveNonce(fields);
-    const ciphertext: Buffer = DecryptionRetrieveCiphertext(fields);
-    const encryptedKeyFields: cciField[] = fields.get(cciFieldType.CRYPTO_KEY);
-    // Only try to fetch the sender's public key from the field set if it wasn't
-    // supplied by the caller.
-    senderPublicKey ??= fields.getFirst(cciFieldType.CRYPTO_PUBKEY)?.value;
-
-    // Derive the symmetric key
-    const symmetricKey: Uint8Array = DecryptionDeriveKey(
-      privateKey, senderPublicKey, nonce, encryptedKeyFields);
-
-    // Decrypt the ciphertext
-    const plaintext: Buffer = DecryptionSymmetricDecrypt(
-      ciphertext, nonce, symmetricKey);
-
-    // Parse the decrypted plaintext back into fields
-    const decryptedFields: cciFields = DecryptionDecompileFields(
-      plaintext, fields.fieldDefinition);
-
-    // Replace the ENCRYPTED field with the decrypted fields
-    const output: cciFields = DecryptionReplaceEncryptedField(
-      fields, decryptedFields);
-    return output;
-  } catch (err) {
-    // A simple decryption failure will be silently ignored.
-    // The rationale behind that is that encrypted messages come in through
-    // the network and can be corrupt in all kinds of ways beyond our control.
-    // All other failures are rethrown to the caller.
-    if (err instanceof DecryptionFailed) return fields;
-    else throw err;
+  // If we suspect we might have a pre-shared key, let's try that first
+  if (params.preSharedKey !== undefined) {
+    const result: cciFields = DecryptWithPresharedKey(
+      input, params.preSharedKey, params.predefinedNonce);
+    if (result !== undefined) return result;
   }
+
+  // Otherwise, try to decrypt with key derivation
+  const result: cciFields =
+    DecryptWithKeyDerivation(input, params.recipientPrivateKey);
+  return result;
 }
 
 
@@ -74,24 +56,112 @@ export function Decrypt(
 // Decryption-related "private" functions
 //###
 
-class DecryptionFailed extends VerityError { name = "Decryption failed" }
+function DecryptWithPresharedKey(
+    input: cciFields,
+    symmetricKey: Uint8Array,
+    nonce?: Uint8Array,
+): cciFields {
+  // Retrieve ENCRYPTED blob
+  const encryptedBlob: Buffer = DecryptionRetrieveEncryptedBlob(input);
+  if (encryptedBlob === undefined) return undefined;
 
-function DecryptionRetrieveNonce(fields: cciFields): Buffer {
-  const nonce = fields.getFirst(cciFieldType.CRYPTO_NONCE)?.value;
-  if (Settings.RUNTIME_ASSERTIONS && nonce?.length !== NetConstants.CRYPTO_NONCE_SIZE) {
-    const errStr = "Decrypt(): Cannot decrypt supplied fields as Nonce is missing or invalid"
-    logger.trace(errStr);
-    throw new DecryptionFailed(errStr);
+  // Try to decrypt as Continuation Cube
+  if (nonce) {
+    const plaintext: Buffer = DecryptionSymmetricDecrypt(
+      encryptedBlob, nonce, symmetricKey);
+    if (plaintext) return PostprocessPlaintext(plaintext, input);
   }
-  return nonce;
+
+  // Try to decrypt as Start-of-Veritum with Preshared Key
+  let offset = 0;
+  // Slice out the nonce
+  nonce = encryptedBlob.subarray(offset,
+    offset += sodium.crypto_box_NONCEBYTES);
+  // Slice out the ciphertext
+  const ciphertext: Buffer = encryptedBlob.subarray(offset, encryptedBlob.length);
+
+  const plaintext: Buffer = DecryptionSymmetricDecrypt(
+    ciphertext, nonce, symmetricKey);
+  if (plaintext !== undefined) return PostprocessPlaintext(plaintext, input);
+  else return undefined;
 }
 
-function DecryptionRetrieveCiphertext(fields: cciFields): Buffer {
+
+function DecryptWithKeyDerivation(
+  input: cciFields,
+  privateKey: Buffer,
+): cciFields {
+  // Retrieve ENCRYPTED blob
+  const encryptedBlob: Buffer = DecryptionRetrieveEncryptedBlob(input);
+  if (encryptedBlob === undefined) return undefined;
+
+  let offset = 0;
+  // Slice out sender's public key
+  const senderPublicKey: Buffer = encryptedBlob.subarray(offset,
+    offset += sodium.crypto_box_PUBLICKEYBYTES);
+  // Slice out the nonce
+  const nonce: Buffer = encryptedBlob.subarray(offset,
+    offset += sodium.crypto_box_NONCEBYTES);
+
+  // Step 1: Try to decrypt this as a Start-of-Veritum directed exclusively
+  // at us, i.e. directly derive payload symmetric key
+  const derivedKey = DecryptionDeriveKey(privateKey, senderPublicKey);
+  if (derivedKey === undefined) return undefined;
+  const ciphertext: Buffer = encryptedBlob.subarray(offset, encryptedBlob.length);
+  const plaintext: Buffer = DecryptionSymmetricDecrypt(
+    ciphertext, nonce, derivedKey);
+  if (plaintext !== undefined) return PostprocessPlaintext(plaintext, input);
+
+  // Step 2: Try to decrypt as multi-recipient, i.e. try to find a key slot
+  // directed at us
+  while (plaintext === undefined &&
+         encryptedBlob.length - offset > sodium.crypto_secretbox_KEYBYTES
+  ){
+    const keyslot: Buffer = encryptedBlob.subarray(offset,
+      offset += sodium.crypto_secretbox_KEYBYTES);
+    const symmetricKey: Uint8Array =
+      DecryptionDecryptKeyslot(keyslot, nonce, derivedKey);
+    let ciphertextOffset = offset;
+    let plaintext: Buffer = undefined;
+    while (plaintext === undefined &&
+           encryptedBlob.length - ciphertextOffset >
+             sodium.crypto_secretbox_KEYBYTES
+    ) {
+      // skip potential further keyslots
+      const ciphertext: Buffer =
+        encryptedBlob.subarray(ciphertextOffset, encryptedBlob.length);
+      ciphertextOffset += sodium.crypto_secretbox_KEYBYTES;
+      plaintext = DecryptionSymmetricDecrypt(
+        ciphertext, nonce, symmetricKey);
+      if (plaintext !== undefined) return PostprocessPlaintext(plaintext, input);
+    }
+  }
+
+  // This Veritum is undecryptable (i.e. intended for us)
+  return undefined;
+}
+
+
+function PostprocessPlaintext(
+  plaintext: Buffer,
+  input: cciFields,
+): cciFields {
+  // Parse the decrypted plaintext back into fields
+  const decryptedFields: cciFields = DecryptionDecompileFields(
+    plaintext, input.fieldDefinition);
+
+  // Replace the ENCRYPTED field with the decrypted fields
+  const output: cciFields = DecryptionReplaceEncryptedField(
+    input, decryptedFields);
+  return output;
+}
+
+function DecryptionRetrieveEncryptedBlob(fields: cciFields): Buffer {
   const ciphertext: Buffer = fields.getFirst(cciFieldType.ENCRYPTED)?.value;
   if (Settings.RUNTIME_ASSERTIONS && !ciphertext?.length) {
     const errStr = "Decrypt(): Cannot decrypt supplied fields as Ciphertext is missing or invalid";
     logger.trace(errStr);
-    throw new DecryptionFailed(errStr);
+    return undefined;
   }
   return ciphertext;
 }
@@ -99,14 +169,13 @@ function DecryptionRetrieveCiphertext(fields: cciFields): Buffer {
 function DecryptionDeriveKey(
     privateKey: Buffer,
     senderPublicKey: Buffer,
-    nonce: Buffer,
-    encryptedKeyFields?: cciField[],
 ): Uint8Array {
-  // sanity-check input
+  // Sanity-check input
   if (privateKey?.length !== sodium.crypto_box_SECRETKEYBYTES) {
     // This is a hard fail -- ApiMisuseError will not be caught by Decrypt()
     // and will propagate through to the caller
-    throw new ApiMisuseError(`Encrypt(): privateKey must be ${sodium.crypto_box_SECRETKEYBYTES} bytes, got ${privateKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
+    logger.warn(`Encrypt(): privateKey must be ${sodium.crypto_box_SECRETKEYBYTES} bytes, got ${privateKey?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
+    return undefined;
   }
   if (senderPublicKey?.length !== sodium.crypto_box_PUBLICKEYBYTES) {
     // This is a soft fail as it could be caused by an invalid message coming
@@ -114,41 +183,38 @@ function DecryptionDeriveKey(
     // raw unencrypted fieldset back to the caller.
     const errStr = "Decrypt(): Cannot decrypt supplied fields as Public key is missing or invalid";
     logger.trace(errStr);
-    throw new DecryptionFailed(errStr);
+    return undefined;
   }
 
-  // There are two possible cases:
-  // - There's only a single recipient:
-  //   In this case, the payload is encrypted directly with the key
-  //   derived from the sender's private key and the recipient's public key.
-  // - There are multiple recipients:
-  //   In this case, the payload is encrypted with the a random key, which
-  //   is supplied in encrypted form.
-  //   The key asymmetrically derived from the sender's private key and
-  //   the recipient's public key is used to decrypt this random key,
-  //   which in turn is used to decrypt the payload.
-  let symmetricKey: Uint8Array;
-  if (encryptedKeyFields?.length > 0) {
-    // Multiple recipients!
-    // From all encrypted key fields provided, find the one that's addressed
-    // to us and decrypt the symmetric key.
-    for (const encryptedKeyField of encryptedKeyFields) {
-      try {
-        symmetricKey = sodium.crypto_box_open_easy(
-          encryptedKeyField.value, nonce, senderPublicKey, privateKey);
-      } catch (err) { continue }
-    }
-  } else {
-    // Single recipient!
-    // Just derive the key and be done with it.
-    symmetricKey = sodium.crypto_box_beforenm(senderPublicKey, privateKey);
-  }
+  // Perform derivation
+  const symmetricKey = sodium.crypto_box_beforenm(senderPublicKey, privateKey);
+
+  // Sanity-check result
   if (Settings.RUNTIME_ASSERTIONS &&
-      symmetricKey?.length !== NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE
+      symmetricKey?.length !== sodium.crypto_secretbox_KEYBYTES
   ){
-    const errStr = "Decrypt(): Cannot decrypt supplied fields as Symmetric key is missing or invalid"
+    const errStr = "Decrypt(): Cannot decrypt supplied fields as we just derived a symmetric key of invalid length";
+    logger.warn(errStr);
+    return undefined;
+  }
+
+  return symmetricKey;
+}
+
+function DecryptionDecryptKeyslot(
+    keyslot: Uint8Array,
+    nonce: Uint8Array,
+    slotKey: Uint8Array,
+): Uint8Array {
+  const symmetricKey: Uint8Array = sodium.crypto_stream_xchacha20_xor(
+    keyslot, nonce, slotKey);
+  // Sanity-check result
+  if (Settings.RUNTIME_ASSERTIONS &&
+    symmetricKey?.length !== sodium.crypto_secretbox_KEYBYTES
+  ){
+    const errStr = "Decrypt(): Cannot decrypt supplied fields as keyslot decryption result is missing or invalid";
     logger.trace(errStr);
-    throw new DecryptionFailed(errStr);
+    return undefined;
   }
   return symmetricKey;
 }
@@ -163,14 +229,7 @@ function DecryptionSymmetricDecrypt(
   try {
     plaintext = sodium.crypto_secretbox_open_easy(ciphertext, nonce, symmetricKey);
   } catch (err) {
-    const errStr = "Decrypt(): Decryption failed: " + err
-    logger.trace(errStr);
-    throw new DecryptionFailed(errStr);
-  }
-  if (!plaintext) {
-    const errStr = "Decrypt(): Decryption failed for unknown reason"
-    logger.trace(errStr);
-    throw new DecryptionFailed(errStr);
+    return undefined;
   }
   return Buffer.from(plaintext);
 }

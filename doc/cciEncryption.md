@@ -18,10 +18,12 @@ not marked by a header.  These are, in this order:
 5) MAC-verifiable encrypted payload
 
 All subfields except the MAC-verifiable encrypted payload are optional, however
-only certain combinations of subfields are allowed. Those allowed combinations
-define four different kinds of encrypted Cubes, which are however
-indifferentiable before decryption. The receiver will still be able to decrypt
-all four variants by following a simple and specific trial-and-error algorithm
+only certain combinations of subfields are allowed.
+
+Those allowed combinations define two groups including a total of four variants
+of encrypted Cubes, which are however indifferentiable before decryption.
+The receiver will still be able to decrypt all four variants by following a
+simple and specific trial-and-error algorithm
 (see [Decryption](#decryption) below).
 
 In the end, the recipient's goal is to decrypt the encrypted payload contained
@@ -34,19 +36,21 @@ unmarked ENCRYPTED sub-fields, listed from the most basic one (containing
 only the encrypted payload) to the most sophisticated one (containing all
 of the subfields described above):
 
-### Continuation Cubes
+### Types expecting a pre-shared key
+#### Continuation Cubes
 1) MAC-verifiable encrypted payload
 
-### Start-of-Veritum Cubes (assuming pre-shared secret)
+#### Start-of-Veritum Cubes (assuming pre-shared secret)
 1) Random nonce
 2) MAC-verifiable encrypted payload
 
-### Start-of-Veritum Cubes (establishing new shared secret with a single recipient)
+### Types performing key agreement
+#### Start-of-Veritum Cubes (establishing new shared secret with a single recipient)
 1) Sender's public key
 2) Random nonce
 3) MAC-verifiable encrypted payload
 
-### Start-of-Veritum Cubes (including key distribution to multiple recipients)
+#### Start-of-Veritum Cubes (including key distribution to multiple recipients)
 1) Sender's public key
 2) Random nonce
 3) Any number of key distribution slots
@@ -149,3 +153,7 @@ a random timestamp within the current UTC calendar; we do not use a sliding
 24h window to avoid a gaussian distribution of timestamps. This blur's each
 message's timestamp and size by mingling it with all other messages sent in
 the same day, which should be enough.
+
+This specification does *not* prevent:
+1) recipients from learning the number other recipients
+2) (I'm sure I forgot something and will add it here some time)
