@@ -145,6 +145,30 @@ export function Decrypt(
 // Encryption-related "private" functions
 //###
 
+//
+// Encryption: Data normalisation helpers
+//
+
+export function *EncryptionNormaliseRecipients(recipients: EncryptionRecipients): Generator<Buffer> {
+  // normalize input
+  if (!isIterableButNotBuffer(recipients)) {
+    recipients = [recipients as Identity];
+  }
+  for (let recipient of recipients as Iterable<Identity|Buffer>) {
+    // further normalize input
+    if (recipient instanceof Identity) recipient = recipient.encryptionPublicKey;
+    // sanity check key
+    if (recipient?.length !== sodium.crypto_box_PUBLICKEYBYTES) {
+      throw new ApiMisuseError(`Encrypt(): recipientPublicKey must be ${sodium.crypto_box_PUBLICKEYBYTES} bytes, got ${recipient?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
+    }
+    yield recipient;
+  }
+}
+
+
+//
+// Encryption: Field helpers
+//
 
 export function EncryptionPrepareFields(
     fields: cciFields,
@@ -182,6 +206,133 @@ export function EncryptionPrepareFields(
   return {toEncrypt, output};
 }
 
+
+export function EncryptionCompileFields(toEncrypt: cciFields): Buffer {
+  // Compile the fields to encrypt.
+  // This gives us the binary plaintext that we'll later encrypt.
+  // Note that this intermediate compilation never includes any positional
+  // fields; we therefore construct a new FieldDefinition without
+  // positionals and a corresponding FieldParser.
+  const intermediateFieldDef: FieldDefinition = Object.assign({}, toEncrypt.fieldDefinition);
+  intermediateFieldDef.positionalFront = {};
+  intermediateFieldDef.positionalBack = {};
+  const compiler: FieldParser = new FieldParser(intermediateFieldDef);
+  const plaintext: Buffer = compiler.compileFields(toEncrypt);
+  return plaintext;
+}
+
+
+export function EncryptionKeyDistributionFields(
+  symmetricPayloadKey: Buffer,
+  privateKey: Uint8Array,
+  recipientPubkeys: Iterable<Uint8Array>,
+  nonce: Uint8Array,
+): cciField[] {
+const ret: cciField[] = [];
+// Encrypt the symmetric key for each recipient
+for (const recipientPubKey of recipientPubkeys) {
+  const encryptedKey = sodium.crypto_box_easy(symmetricPayloadKey, nonce, recipientPubKey, privateKey);
+  const field = cciField.CryptoKey(Buffer.from(encryptedKey));
+  ret.push(field);
+}
+return ret;
+}
+
+
+export function EncryptionMakeKeyDistributionCubes(
+  nonce: Buffer,
+  keyDistributionFields: cciField[],
+  refersTo: CubeKey,
+  senderPublicKey?: Buffer,
+  cubeType: CubeType = CubeType.FROZEN,
+  options: CubeCreateOptions = {},
+): cciCube[] {
+// sanitity-check input if enabled
+if (Settings.RUNTIME_ASSERTIONS) {
+  if (refersTo.length !== NetConstants.CUBE_KEY_SIZE) {
+    throw new CubeRelationshipError(`Invalid refersTo length: ${refersTo.length} != ${NetConstants.CUBE_KEY_SIZE}`);
+  }
+  if (senderPublicKey?.length !== NetConstants.PUBLIC_KEY_SIZE) {
+    throw new CubeRelationshipError(`Invalid senderPublicKey length: ${senderPublicKey?.length} != ${NetConstants.PUBLIC_KEY_SIZE}`);
+  }
+}
+
+// prepare fields to be present in every key distribution Cube
+const pubkeyField = (senderPublicKey !== undefined) ?
+  cciField.CryptoPubkey(senderPublicKey) : undefined;
+const nonceField = cciField.CryptoNonce(nonce);
+const relObj = new cciRelationship(cciRelationshipType.INTERPRETS, refersTo);
+const relField = cciField.RelatesTo(relObj);
+
+// Calculate the amount of key distribution Cubes needed:
+// First, let's find out how many bytes are available for CRYPTO_KEY fields
+// by creating a test Cube containing all fields that are required in each
+// key distribution Cube except the CRYPTO_KEY fields.
+const sizeTester = cciCube.Create(cubeType, {
+  ...options,
+  fields: [
+    ...(pubkeyField? [pubkeyField] : []),
+    nonceField,
+    relField
+  ],
+});
+const bytesPerCube = sizeTester.bytesRemaining();
+
+// Calculate the number of key distribution Cubes needed
+const keyFieldsSize = cciFieldLength[cciFieldType.CRYPTO_KEY] +
+  sizeTester.fieldParser.getFieldHeaderLength(cciFieldType.CRYPTO_KEY);
+const keyFieldsPerCube = Math.floor(bytesPerCube / keyFieldsSize);
+const cubesRequired = Math.ceil(keyDistributionFields.length / keyFieldsPerCube);
+
+// If the amount of key distribution fields does not devide the number of
+// key distribution Cubes evenly, which it usually won't, add extra fake
+// fields for padding.
+// This is to ensure uniformity and avoid leaking the amount of recipients.
+const fieldsProvisioned = keyFieldsPerCube * cubesRequired;
+let paddingRequired = fieldsProvisioned - keyDistributionFields.length;
+while (paddingRequired > 0) {
+  // create a random fake field
+  const randomData = Buffer.from(sodium.randombytes_buf(
+    cciFieldLength[cciFieldType.CRYPTO_KEY]));
+  const paddingField = cciField.CryptoKey(randomData);
+  // insert it at a random location
+  const randomLocation = Math.floor(Math.random() * keyDistributionFields.length);
+  keyDistributionFields.splice(randomLocation, 0, paddingField);
+  paddingRequired--;
+}
+if (Settings.RUNTIME_ASSERTIONS &&
+    keyDistributionFields.length !== fieldsProvisioned) {
+  throw new VerityError("I can't do math");  // TODO remove
+}
+
+// All prepraration done, sculpt the Cubes
+const cubes: cciCube[] = [];
+for (let i = 0; i < cubesRequired; i++) {
+  const cube = cciCube.Create(cubeType, {
+    ...options,
+    fields: keyDistributionFields.slice(i * keyFieldsPerCube, (i + 1) * keyFieldsPerCube),
+  });
+  cubes.push(cube);
+}
+return cubes;
+}
+
+
+export function EncryptionIncludePubkey(output: cciFields, pubkey: Buffer): void {
+  output.insertFieldBeforeBackPositionals(cciField.CryptoPubkey(pubkey));
+}
+
+export function EncryptionIncludeNonce(output: cciFields, nonce: Buffer): void {
+  output.insertFieldBeforeBackPositionals(cciField.CryptoNonce(nonce));
+}
+
+// End of encryption field helpers
+
+
+//
+// Encryption: Cryptographic primitive helpers
+//
+
 export function EncryptionDeriveKey(
     privateKey: Buffer,
     recipientPubkey: Buffer,
@@ -206,101 +357,6 @@ export function EncryptionRandomKey(): Buffer {
   return Buffer.from(sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES));
 }
 
-export function EncryptionKeyDistributionFields(
-    symmetricPayloadKey: Buffer,
-    privateKey: Uint8Array,
-    recipientPubkeys: Iterable<Uint8Array>,
-    nonce: Uint8Array,
-): cciField[] {
-  const ret: cciField[] = [];
-  // Encrypt the symmetric key for each recipient
-  for (const recipientPubKey of recipientPubkeys) {
-    const encryptedKey = sodium.crypto_box_easy(symmetricPayloadKey, nonce, recipientPubKey, privateKey);
-    const field = cciField.CryptoKey(Buffer.from(encryptedKey));
-    ret.push(field);
-  }
-  return ret;
-}
-
-
-export function EncryptionMakeKeyDistributionCubes(
-    nonce: Buffer,
-    keyDistributionFields: cciField[],
-    refersTo: CubeKey,
-    senderPublicKey?: Buffer,
-    cubeType: CubeType = CubeType.FROZEN,
-    options: CubeCreateOptions = {},
-): cciCube[] {
-  // sanitity-check input if enabled
-  if (Settings.RUNTIME_ASSERTIONS) {
-    if (refersTo.length !== NetConstants.CUBE_KEY_SIZE) {
-      throw new CubeRelationshipError(`Invalid refersTo length: ${refersTo.length} != ${NetConstants.CUBE_KEY_SIZE}`);
-    }
-    if (senderPublicKey?.length !== NetConstants.PUBLIC_KEY_SIZE) {
-      throw new CubeRelationshipError(`Invalid senderPublicKey length: ${senderPublicKey?.length} != ${NetConstants.PUBLIC_KEY_SIZE}`);
-    }
-  }
-
-  // prepare fields to be present in every key distribution Cube
-  const pubkeyField = (senderPublicKey !== undefined) ?
-    cciField.CryptoPubkey(senderPublicKey) : undefined;
-  const nonceField = cciField.CryptoNonce(nonce);
-  const relObj = new cciRelationship(cciRelationshipType.INTERPRETS, refersTo);
-  const relField = cciField.RelatesTo(relObj);
-
-  // Calculate the amount of key distribution Cubes needed:
-  // First, let's find out how many bytes are available for CRYPTO_KEY fields
-  // by creating a test Cube containing all fields that are required in each
-  // key distribution Cube except the CRYPTO_KEY fields.
-  const sizeTester = cciCube.Create(cubeType, {
-    ...options,
-    fields: [
-      ...(pubkeyField? [pubkeyField] : []),
-      nonceField,
-      relField
-    ],
-  });
-  const bytesPerCube = sizeTester.bytesRemaining();
-
-  // Calculate the number of key distribution Cubes needed
-  const keyFieldsSize = cciFieldLength[cciFieldType.CRYPTO_KEY] +
-    sizeTester.fieldParser.getFieldHeaderLength(cciFieldType.CRYPTO_KEY);
-  const keyFieldsPerCube = Math.floor(bytesPerCube / keyFieldsSize);
-  const cubesRequired = Math.ceil(keyDistributionFields.length / keyFieldsPerCube);
-
-  // If the amount of key distribution fields does not devide the number of
-  // key distribution Cubes evenly, which it usually won't, add extra fake
-  // fields for padding.
-  // This is to ensure uniformity and avoid leaking the amount of recipients.
-  const fieldsProvisioned = keyFieldsPerCube * cubesRequired;
-  let paddingRequired = fieldsProvisioned - keyDistributionFields.length;
-  while (paddingRequired > 0) {
-    // create a random fake field
-    const randomData = Buffer.from(sodium.randombytes_buf(
-      cciFieldLength[cciFieldType.CRYPTO_KEY]));
-    const paddingField = cciField.CryptoKey(randomData);
-    // insert it at a random location
-    const randomLocation = Math.floor(Math.random() * keyDistributionFields.length);
-    keyDistributionFields.splice(randomLocation, 0, paddingField);
-    paddingRequired--;
-  }
-  if (Settings.RUNTIME_ASSERTIONS &&
-      keyDistributionFields.length !== fieldsProvisioned) {
-    throw new VerityError("I can't do math");  // TODO remove
-  }
-
-  // All prepraration done, sculpt the Cubes
-  const cubes: cciCube[] = [];
-  for (let i = 0; i < cubesRequired; i++) {
-    const cube = cciCube.Create(cubeType, {
-      ...options,
-      fields: keyDistributionFields.slice(i * keyFieldsPerCube, (i + 1) * keyFieldsPerCube),
-    });
-    cubes.push(cube);
-  }
-  return cubes;
-}
-
 export function EncryptionRandomNonce(): Buffer {
   // Create a random nonce
   const nonce: Buffer = Buffer.from(
@@ -311,27 +367,6 @@ export function EncryptionRandomNonce(): Buffer {
   return nonce;
 }
 
-export function EncryptionIncludePubkey(output: cciFields, pubkey: Buffer): void {
-  output.insertFieldBeforeBackPositionals(cciField.CryptoPubkey(pubkey));
-}
-
-export function EncryptionIncludeNonce(output: cciFields, nonce: Buffer): void {
-  output.insertFieldBeforeBackPositionals(cciField.CryptoNonce(nonce));
-}
-
-export function EncryptionCompileFields(toEncrypt: cciFields): Buffer {
-  // Compile the fields to encrypt.
-  // This gives us the binary plaintext that we'll later encrypt.
-  // Note that this intermediate compilation never includes any positional
-  // fields; we therefore construct a new FieldDefinition without
-  // positionals and a corresponding FieldParser.
-  const intermediateFieldDef: FieldDefinition = Object.assign({}, toEncrypt.fieldDefinition);
-  intermediateFieldDef.positionalFront = {};
-  intermediateFieldDef.positionalBack = {};
-  const compiler: FieldParser = new FieldParser(intermediateFieldDef);
-  const plaintext: Buffer = compiler.compileFields(toEncrypt);
-  return plaintext;
-}
 
 export function EncryptionSymmetricEncrypt(
     plaintext: Uint8Array,
@@ -345,22 +380,7 @@ export function EncryptionSymmetricEncrypt(
   return encryptedField;
 }
 
-export function *EncryptionNormaliseRecipients(recipients: EncryptionRecipients): Generator<Buffer> {
-  // normalize input
-  if (!isIterableButNotBuffer(recipients)) {
-    recipients = [recipients as Identity];
-  }
-  for (let recipient of recipients as Iterable<Identity|Buffer>) {
-    // further normalize input
-    if (recipient instanceof Identity) recipient = recipient.encryptionPublicKey;
-    // sanity check key
-    if (recipient?.length !== sodium.crypto_box_PUBLICKEYBYTES) {
-      throw new ApiMisuseError(`Encrypt(): recipientPublicKey must be ${sodium.crypto_box_PUBLICKEYBYTES} bytes, got ${recipient?.length}. Check: Invalid Key supplied? Incompatible libsodium version?`);
-    }
-    yield recipient;
-  }
-}
-
+// End of encryption cryptographic primitive helpers
 
 
 //###
