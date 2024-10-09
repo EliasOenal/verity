@@ -23,6 +23,9 @@ export interface CciDecryptionParams {
 
 /**
  * Decrypts a CCI field set
+ * Do not use this unless you know what you're doing.
+ * Applications will usually just use Veritum.FromChunks() instead which can
+ * automatically handle decryption for you.
  * @param fields - The CCI field set to decrypt
  * @param privateKey - The recipient's private key.
  *   Note this must be the *encryption* pubkey, not the "regular" signing one.

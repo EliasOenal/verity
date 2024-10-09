@@ -43,8 +43,8 @@ describe('Veritum', () => {
           // prepare, encrypt and compile a Veritum
           const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
           await veritum.compile({
-            encryptionRecipients: recipientKeyPair.publicKey,
-            encryptionPrivateKey: senderKeyPair.privateKey,
+            recipients: recipientKeyPair.publicKey,
+            senderPrivateKey: senderKeyPair.privateKey,
             senderPubkey: senderKeyPair.publicKey,
             requiredDifficulty,
           });
@@ -75,8 +75,8 @@ describe('Veritum', () => {
 
           // Compile the Veritum instance with encryption options for the three recipients
           await veritum.compile({
-            encryptionRecipients: recipientKeyPairs.map(kp => kp.publicKey),
-            encryptionPrivateKey: senderKeyPair.privateKey,
+            recipients: recipientKeyPairs.map(kp => kp.publicKey),
+            senderPrivateKey: senderKeyPair.privateKey,
             senderPubkey: senderKeyPair.publicKey,
             requiredDifficulty,
           });
@@ -248,10 +248,10 @@ describe('Veritum', () => {
       it('encrypts a Veritum having a single payload field', async() => {
         const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
         await veritum.compile({
-          encryptionRecipients: recipientKeyPair.publicKey,
-          encryptionPrivateKey: senderKeyPair.privateKey,
-          requiredDifficulty,
+          recipients: recipientKeyPair.publicKey,
+          senderPrivateKey: senderKeyPair.privateKey,
           senderPubkey: senderKeyPair.publicKey,
+          requiredDifficulty,
         });
         // just check that the Veritum has compiled as expected
         expect(veritum.compiled).toHaveLength(1);
@@ -264,8 +264,8 @@ describe('Veritum', () => {
       it('encrypts fields excluding specific fields', async() => {
         const veritum = new Veritum(CubeType.FROZEN, { fields: [applicationField, payloadField] });
         await veritum.compile({
-          encryptionRecipients: recipientKeyPair.publicKey,
-          encryptionPrivateKey: senderKeyPair.privateKey,
+          recipients: recipientKeyPair.publicKey,
+          senderPrivateKey: senderKeyPair.privateKey,
           requiredDifficulty,
           excludeFromEncryption: [...Continuation.ContinuationDefaultExclusions, cciFieldType.APPLICATION],
           senderPubkey: senderKeyPair.publicKey,
@@ -286,8 +286,8 @@ describe('Veritum', () => {
         const veritum = new Veritum(CubeType.FROZEN, {
           fields: cciField.Payload(payloadString), requiredDifficulty});
         await veritum.compile({
-          encryptionRecipients: recipientKeyPair.publicKey,
-          encryptionPrivateKey: senderKeyPair.privateKey,
+          recipients: recipientKeyPair.publicKey,
+          senderPrivateKey: senderKeyPair.privateKey,
           senderPubkey: senderKeyPair.publicKey,
           requiredDifficulty,
         });
@@ -326,8 +326,8 @@ describe('Veritum', () => {
 
         // Compile the Veritum instance with encryption options for the three recipients
         await veritum.compile({
-          encryptionRecipients: recipientKeyPairs.map(kp => kp.publicKey),
-          encryptionPrivateKey: senderKeyPair.privateKey,
+          recipients: recipientKeyPairs.map(kp => kp.publicKey),
+          senderPrivateKey: senderKeyPair.privateKey,
           requiredDifficulty,
           senderPubkey: senderKeyPair.publicKey,
         });
@@ -366,9 +366,9 @@ describe('Veritum', () => {
         const veritum = new Veritum(CubeType.FROZEN, {
           fields: cciField.Payload(payloadString), requiredDifficulty});
         await veritum.compile({
-          encryptionPrivateKey: senderKeyPair.privateKey,
+          senderPrivateKey: senderKeyPair.privateKey,
           senderPubkey: senderKeyPair.publicKey,
-          encryptionRecipients: recipientKeyPairs.map(kp => kp.publicKey),
+          recipients: recipientKeyPairs.map(kp => kp.publicKey),
           requiredDifficulty,
         });
         expect(Array.from(veritum.compiled).length).toBeGreaterThanOrEqual(minChunks);
@@ -395,6 +395,7 @@ describe('Veritum', () => {
 
       it.todo('encrypts a single payload field to more recipients that fit in a Cube');
       it.todo('encrypts a multi-chunk Veritum to more recipients that fit in a Cube');
+      it.todo('uses different nonces for each chunk in a multi-chunk Veritum');
     });
   });
 

@@ -8,31 +8,18 @@ import { cciCube, cciFamily } from "../cube/cciCube";
 import { cciFieldLength, cciFieldType } from "../cube/cciCube.definitions";
 import { cciField } from "../cube/cciField";
 import { cciFields } from "../cube/cciFields";
-import { Continuation, RecombineOptions, SplitOptions } from "./continuation";
-import { CciEncryptionParams, Encrypt, EncryptionOverheadBytes, EncryptionRecipients } from "./encryption";
-import { Decrypt } from "./decryption";
+import { Continuation, RecombineOptions, SplitOptions, SplitState } from "./continuation";
+import { CciEncryptionParams, Encrypt, EncryptionOverheadBytes, EncryptionRecipients, CryptStateOutput, EncryptionPrepareParams, EncryptionHashNonces, EncryptPrePlanned, EncryptionHashNonce } from "./encryption";
+import { CciDecryptionParams, Decrypt } from "./decryption";
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo';
 import { logger } from "../../core/logger";
 
 export interface VeritumCompileOptions extends CubeCreateOptions, CciEncryptionParams {
-  /**
-   * To encrypt a Veritum on compilation, supply your encryption private key here.
-   * Don't forget to also supply the recipient or list of recipients.
-   */
-  encryptionPrivateKey?: Buffer,
-
-  /**
-   * To automatically encrypt a Veritum only intended for a specific recipient
-   * or list of recipients, supply their Identities or encryption public keys here.
-   * Don't forget to also supply the encryptionPrivateKey.
-   */
-  encryptionRecipients?: EncryptionRecipients,
 }
 
-export interface VeritumFromChunksOptions extends RecombineOptions {
-  encryptionPrivateKey?: Buffer,
+export interface VeritumFromChunksOptions extends RecombineOptions, CciDecryptionParams {
 }
 
 export class Veritum extends VeritableBaseImplementation implements Veritable{
@@ -46,14 +33,22 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
 
   static FromChunks(chunks: Iterable<cciCube>, options?: VeritumFromChunksOptions): Veritum {
     let transformedChunks: Iterable<Cube>|Cube[] = chunks;
-    if (options.encryptionPrivateKey) {
+    // If encryption was requested, attempt chunk decryption
+    if (options.preSharedKey || options.recipientPrivateKey) {
       transformedChunks = [];
+      let decryptParams: CciDecryptionParams = { ... options };
       // attempt chunk decryption
       for (const chunk of chunks) {
-        const decryptedFields = Decrypt(
-          chunk.manipulateFields(),
-          {recipientPrivateKey: options.encryptionPrivateKey},
+        const decryptOutput: CryptStateOutput = Decrypt(
+          chunk.manipulateFields(), true, decryptParams,
         );
+        if (decryptOutput?.symmetricKey !== undefined) {
+          // Key agreed on first chunk will be reused on subsequent chunks
+          // and a derived nonce will be used as per the spec
+          decryptParams.preSharedKey = decryptOutput.symmetricKey;
+          decryptParams.predefinedNonce = EncryptionHashNonce(decryptOutput.nonce);
+        }
+        const decryptedFields: cciFields = decryptOutput?.result;
         if (decryptedFields) {
           const decryptedChunk = new chunk.family.cubeClass(
           chunk.cubeType, {
@@ -110,28 +105,67 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   async compile(options: VeritumCompileOptions = {}): Promise<Iterable<cciCube>> {
     // Did the user request encryption?
     // If so, we need to reserve some space for crypto overhead.
+    // TODO clean up encryption code, split out or something
     const shallEncrypt: boolean =
-      options.encryptionPrivateKey !== undefined && options.encryptionRecipients !== undefined;
-    let encryptionOptions: CciEncryptionParams;
-    let spacePerCube = NetConstants.CUBE_SIZE;
+      options.senderPrivateKey !== undefined && options.recipients !== undefined;
+    let encryptionSchemeParams: CciEncryptionParams = undefined;
+    let continuationEncryptionParams: CciEncryptionParams = undefined;
+    let spacePerCube: (chunkIndex: number) => number =
+      () => NetConstants.CUBE_SIZE;
     if (shallEncrypt) {
       await sodium.ready;
-      encryptionOptions = {
-        senderPrivateKey: options.encryptionPrivateKey,
-        recipients: options.encryptionRecipients,
-        includeSenderPubkey: options.includeSenderPubkey,
-        excludeFromEncryption: options.excludeFromEncryption,
+      // Pre-plan the encryption scheme variant
+      encryptionSchemeParams = { ...options };
+      encryptionSchemeParams = EncryptionPrepareParams(encryptionSchemeParams);
+      continuationEncryptionParams = {
+        ...encryptionSchemeParams,
+        nonce: undefined,  // to be defined per chunk below
+        pubkeyHeader: false,
+        nonceHeader: false,
+        keyslotHeader: false,
       }
       // reserve some space for encryption overhead
-      spacePerCube = spacePerCube - EncryptionOverheadBytes(encryptionOptions);
+      const firstChunkSpace = NetConstants.CUBE_SIZE -
+        EncryptionOverheadBytes(encryptionSchemeParams);
+      const continuationChunkSpace = NetConstants.CUBE_SIZE -
+        EncryptionOverheadBytes(continuationEncryptionParams);
+      spacePerCube = (chunkIndex: number) => {
+        if (chunkIndex === 0) {
+          return firstChunkSpace;
+        } else {
+          return continuationChunkSpace;
+        }
+      }
       // TODO: Reserve less space on Continuation chunks
     }
     // If encryption was requested, ask split to call us back after each
     // chunk Cube so we can encrypt it before it is finalised.
     // Let's prepare this callback.
-    const encryptCallback = (chunk: cciCube) => {
-      const encryptedFields: cciFields = Encrypt(
-        chunk.manipulateFields(), encryptionOptions);
+    let nonceList: Buffer[] = [];
+    const encryptCallback = (chunk: cciCube, state: SplitState) => {
+      // Lazy-initialise nonce list
+      if (nonceList.length < state.chunkCount) {
+        nonceList = EncryptionHashNonces(
+          encryptionSchemeParams.nonce, state.chunkCount);
+      }
+      let chunkParams: CciEncryptionParams;
+      // There are two possible states:
+      // - If this the first chunk (which, not that it matters but just so you
+      //   know, is handled *last*), key derivation meta data goes in here
+      // - If this is any other chunk, we use the symmetric session established
+      //   in the first chunk, but crucially supplying a unique nonce.
+      if (state.chunkIndex === 0) {
+        chunkParams = encryptionSchemeParams;
+      } else {
+        chunkParams = {
+          ...continuationEncryptionParams,
+          nonce: nonceList[state.chunkIndex],
+        }
+      }
+      // Perform chunk encryption
+      const encRes: CryptStateOutput = EncryptPrePlanned(
+        chunk.manipulateFields(), chunkParams);
+      const encryptedFields: cciFields = encRes.result;
       chunk.setFields(encryptedFields);
     }
     // Feed this Veritum through the splitter -- this is the main operation

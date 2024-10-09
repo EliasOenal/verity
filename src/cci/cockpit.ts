@@ -40,8 +40,8 @@ export class cciCockpit {
     return new Promise<void>(resolve => {
       veritum.compile({
         ...options,
-        encryptionPrivateKey: options?.encryptionPrivateKey ?? this.identity.encryptionPrivateKey,
-        includeSenderPubkey: options?.includeSenderPubkey ?? this.identity.encryptionPublicKey,
+        senderPrivateKey: options?.senderPrivateKey ?? this.identity.encryptionPrivateKey,
+        senderPubkey: options?.senderPubkey ?? this.identity.encryptionPublicKey,
       }).then(() => {
         const promises: Promise<any>[] = [];
         for (const cube of veritum.compiled) {
@@ -69,7 +69,7 @@ export class cciCockpit {
     let fromChunksOptions: VeritumFromChunksOptions;
     if (options.autoDecrypt) {
       fromChunksOptions = {
-        encryptionPrivateKey: this.identity?.encryptionPrivateKey,
+        recipientPrivateKey: this.identity?.encryptionPrivateKey,
       };
     } else {
       fromChunksOptions = undefined;
