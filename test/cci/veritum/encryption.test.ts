@@ -1,7 +1,7 @@
 import { cciFields, cciFrozenFieldDefinition } from '../../../src/cci/cube/cciFields';
 import { cciField } from '../../../src/cci/cube/cciField';
 import { cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
-import { Encrypt } from '../../../src/cci/veritum/encryption';
+import { Encrypt, EncryptStateOutput } from '../../../src/cci/veritum/encryption';
 import { KeyPair } from '../../../src/cci/helpers/cryptography';
 
 import sodium from 'libsodium-wrappers-sumo';
@@ -610,6 +610,38 @@ describe('Encrypt()-Decrypt() round-trip tests', () => {
   //     expect(decrypted).toEqual(fields);
   //   });
   // });  // Encrypt()-Decrypt() round-trip tests
+
+  describe('Encrypt() state output', () => {
+    it('returns the symmetric key and nonce used', () => {
+        // Make a Start-of-Veritum Cube to a single recipient
+        const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
+        const fields: cciFields = cciFields.DefaultPositionals(
+          cciFrozenFieldDefinition,
+          cciField.Payload(plaintext),
+        ) as cciFields;
+
+        // Call tested function
+        const encryptState: EncryptStateOutput = Encrypt(fields, true, {
+          recipients: recipient.publicKey,
+          senderPrivateKey: sender.privateKey,
+          includeSenderPubkey: sender.publicKey,
+        });
+        const encryptedBinary: Buffer =
+          encryptState.encrypted.getFirst(cciFieldType.ENCRYPTED).value;
+
+        // Perform a manual decryption using the key and nonce returned
+        // Extract sender's pubkey, nonce and ciphertext
+        const ciphertext: Buffer = encryptedBinary.subarray(
+          sodium.crypto_box_PUBLICKEYBYTES + sodium.crypto_secretbox_NONCEBYTES,  // start
+          encryptedBinary.length);  // end
+
+        // Manually decrypt the ENCRYPTED field
+        const restoredBinary: Uint8Array = sodium.crypto_secretbox_open_easy(
+          ciphertext, encryptState.nonce, encryptState.symmetricKey);
+        const restoredStringified = Buffer.from(restoredBinary).toString('utf-8');
+        expect(restoredStringified).toContain(plaintext);
+    });
+  });
 
   describe('Encrypt() edge case tests', () => {
     it('encrypts a minimal PADDING field if no payload provided', () => {
