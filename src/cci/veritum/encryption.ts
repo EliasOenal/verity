@@ -98,35 +98,19 @@ export function Encrypt(
   // sanitise input
   EncryptionValidateParams(params);  // throws if invalid
 
-  // plan cryptographic scheme
+  // select CCI Encryption scheme variant
   params = EncryptionPrepareParams(params);
 
   // Prepare the fields to encrypt, filtering out excluded fields and garbage
   const {toEncrypt, output} = EncryptionPrepareFields(fields, params);
   // Make ENCRYPTED field
-  const encrypted: cciField = EncryptionAddEncryptedField(output);
-  let offset = 0;
-
-  // Include cryptographic metadata in output if requested
-  // Public key
-  if (params.senderPubkey && params.pubkeyHeader) {
-    offset = EncryptionAddSubfield(encrypted, params.senderPubkey, offset);
-  }
-  // Nonce
-  if (params.nonce && params.nonceHeader) {
-    offset = EncryptionAddSubfield(encrypted, params.nonce, offset);
-  }
-  // Key slots
-  if (params.keyslotHeader) {
-    const keyDistributionSlots: Buffer = EncryptionKeyDistributionSlots(
-      params.symmetricKey, params.senderPrivateKey,
-      params.recipients as Array<Buffer>, params.nonce,
-    );
-    offset = EncryptionAddSubfield(encrypted, keyDistributionSlots, offset);
-  }
+  const encryptedField: cciField = EncryptionAddEncryptedField(output);
+  // Write meta information to the encrypted blob as required by the selected
+  // CCI encryption scheme variant4
+  let offset: number = EncryptionWriteMeta(encryptedField.value, params);
 
   // Pad up the plaintext if necessary to fill the whole remaining ENCRYPTED space
-  const spaceAvailable = encrypted.length  // ENCRYPTED field site
+  const spaceAvailable = encryptedField.length  // ENCRYPTED field site
     - offset  // less space already used
     - toEncrypt.getByteLength() // less plaintext size
     - sodium.crypto_secretbox_MACBYTES // less MAC size
@@ -142,10 +126,10 @@ export function Encrypt(
   const ciphertext: Buffer = EncryptionSymmetricEncrypt(
     plaintext, params.nonce, params.symmetricKey);
   // Verify sizes work out
-  if(ciphertext.length != (encrypted.length - offset)) {
-    throw new CryptoError(`Encrypt(): I messed up my calculations, ending up with ${ciphertext.length} bytes of ciphertext but only ${encrypted.length-offset} bytes left for it. This should never happen.`);
+  if(ciphertext.length != (encryptedField.length - offset)) {
+    throw new CryptoError(`Encrypt(): I messed up my calculations, ending up with ${ciphertext.length} bytes of ciphertext but only ${encryptedField.length-offset} bytes left for it. This should never happen.`);
   }
-  offset = EncryptionAddSubfield(encrypted, ciphertext, offset);
+  offset = EncryptionAddSubfield(encryptedField.value, ciphertext, offset);
 
   // TODO randomise timestamp
   // TODO ensure hashcash "nonce" is randomised, e.g. not always larger than the
@@ -187,17 +171,6 @@ export function EncryptionOverheadBytes(
   }
   return overhead;
 }
-
-
-
-
-
-
-
-
-//###
-// Encryption-related "private" functions
-//###
 
 
 /**
@@ -245,6 +218,12 @@ if (!params.symmetricKey) {
 
 return params;
 }
+
+
+
+//###
+// Encryption-related "private" functions
+//###
 
 
 //
@@ -366,19 +345,42 @@ function EncryptionCompileFields(toEncrypt: cciFields): Buffer {
 // End of CCI Field helpers
 
 //
-// Encrypted sub-field helpers
+// Encrypted sub-field functions
 //
+
+function EncryptionWriteMeta(cryptoBlob: Buffer, params: CciEncryptionParams): number {
+  let offset = 0;
+
+  // Include cryptographic metadata in output if requested
+  // Public key
+  if (params.senderPubkey && params.pubkeyHeader) {
+    offset = EncryptionAddSubfield(cryptoBlob, params.senderPubkey, offset);
+  }
+  // Nonce
+  if (params.nonce && params.nonceHeader) {
+    offset = EncryptionAddSubfield(cryptoBlob, params.nonce, offset);
+  }
+  // Key slots
+  if (params.keyslotHeader) {
+    const keyDistributionSlots: Buffer = EncryptionKeyDistributionSlots(
+      params.symmetricKey, params.senderPrivateKey,
+      params.recipients as Array<Buffer>, params.nonce,
+    );
+    offset = EncryptionAddSubfield(cryptoBlob, keyDistributionSlots, offset);
+  }
+  return offset;
+}
 
 /**
  * Adds a headerless encrypted subfield,
  * i.e. just copies data to the target's given offset and return the new offset.
  */
 function EncryptionAddSubfield(
-    output: cciField,
+    cryptoBlob: Buffer,
     data: Buffer,
     offset: number,
 ): number {
-  const written: number = data.copy(output.value, offset);
+  const written: number = data.copy(cryptoBlob, offset);
   return offset + written;
 }
 
