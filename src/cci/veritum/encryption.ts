@@ -3,7 +3,7 @@ import { NetConstants } from "../../core/networking/networkDefinitions";
 import { ApiMisuseError, Settings, VerityError } from "../../core/settings";
 import { cciFieldLength, cciFieldType } from "../cube/cciCube.definitions";
 import { cciField } from "../cube/cciField";
-import { cciFields } from "../cube/cciFields";
+import { cciFields, cciFrozenFieldDefinition } from "../cube/cciFields";
 import { Continuation, CryptoError } from "./continuation";
 
 import { Identity } from "../identity/identity";
@@ -131,6 +131,35 @@ export function Encrypt(
   // plaintext one
 
   return output;
+}
+
+
+export function EncryptionOverheadBytes(
+    options: CciEncryptionParams = {},
+    fieldDefinition: FieldDefinition = cciFrozenFieldDefinition,
+): number {
+  // minimal overhead is the ENCRYPTED field header and the payload MAC
+  let overhead: number =
+    FieldParser.getFieldHeaderLength(cciFieldType.ENCRYPTED, fieldDefinition) +
+    sodium.crypto_secretbox_MACBYTES;
+  // account for nonce if not pre-shared
+  if (options.predefinedNonce === undefined) {
+    overhead += sodium.crypto_secretbox_NONCEBYTES;
+  }
+  // calculate key agreement overhead unless there's a pre-shared key
+  if (options.preSharedKey === undefined) {
+    // account for sender's public key if included
+    if (options.includeSenderPubkey !== undefined) {
+      overhead += sodium.crypto_box_PUBLICKEYBYTES;
+    }
+    // account for key slots if there are multiple recipients
+    const recipientPubkeys =
+      Array.from(EncryptionNormaliseRecipients(options.recipients));
+    if (recipientPubkeys.length > 1) {
+      overhead += recipientPubkeys.length * sodium.crypto_secretbox_KEYBYTES;
+    }
+  }
+  return overhead;
 }
 
 

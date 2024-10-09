@@ -9,7 +9,7 @@ import { cciFieldLength, cciFieldType } from "../cube/cciCube.definitions";
 import { cciField } from "../cube/cciField";
 import { cciFields } from "../cube/cciFields";
 import { Continuation, RecombineOptions, SplitOptions } from "./continuation";
-import { CciEncryptionParams, Encrypt, EncryptionRecipients } from "./encryption";
+import { CciEncryptionParams, Encrypt, EncryptionOverheadBytes, EncryptionRecipients } from "./encryption";
 import { Decrypt } from "./decryption";
 
 import { Buffer } from 'buffer';
@@ -112,33 +112,25 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     // If so, we need to reserve some space for crypto overhead.
     const shallEncrypt: boolean =
       options.encryptionPrivateKey !== undefined && options.encryptionRecipients !== undefined;
+    let encryptionOptions: CciEncryptionParams;
     let spacePerCube = NetConstants.CUBE_SIZE;
     if (shallEncrypt) {
       await sodium.ready;
-      // reserve some space for additional headers, the MAC as well as the nonce
-      // TODO reserve more space in case of multiple recipients
-      const encryptedHeaderSize = this.fieldParser.getFieldHeaderLength(cciFieldType.ENCRYPTED);
-      const nonceSize = cciFieldLength[cciFieldType.CRYPTO_NONCE];
-      const macSize = sodium.crypto_secretbox_MACBYTES;
-      spacePerCube = spacePerCube - encryptedHeaderSize - nonceSize - macSize;
-      // obviously, more reserved space is needed if we want to include
-      // the sender's public key
-      if (options.includeSenderPubkey !== undefined) {
-        const pubkeySize = cciFieldLength[cciFieldType.CRYPTO_PUBKEY];
-        spacePerCube = spacePerCube - pubkeySize;
+      encryptionOptions = {
+        senderPrivateKey: options.encryptionPrivateKey,
+        recipients: options.encryptionRecipients,
+        includeSenderPubkey: options.includeSenderPubkey,
       }
+      // reserve some space for encryption overhead
+      spacePerCube = spacePerCube - EncryptionOverheadBytes(encryptionOptions);
+      // TODO: Reserve less space on Continuation chunks
     }
     // If encryption was requested, ask split to call us back after each
     // chunk Cube so we can encrypt it before it is finalised.
     // Let's prepare this callback.
     const encryptCallback = (chunk: cciCube) => {
-      const encryptedFields: cciFields = Encrypt(chunk.manipulateFields(),
-        {
-          ...options,
-          senderPrivateKey: options.encryptionPrivateKey,
-          recipients: options.encryptionRecipients
-        }
-      );
+      const encryptedFields: cciFields = Encrypt(
+        chunk.manipulateFields(), encryptionOptions);
       chunk.setFields(encryptedFields);
     }
     // Feed this Veritum through the splitter -- this is the main operation
