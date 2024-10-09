@@ -1,6 +1,6 @@
 import { cciFields, cciFrozenFieldDefinition } from '../../../src/cci/cube/cciFields';
 import { cciField } from '../../../src/cci/cube/cciField';
-import { cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { cciFieldType, MediaTypes } from '../../../src/cci/cube/cciCube.definitions';
 import { Encrypt, EncryptStateOutput } from '../../../src/cci/veritum/encryption';
 import { KeyPair } from '../../../src/cci/helpers/cryptography';
 
@@ -8,6 +8,7 @@ import sodium from 'libsodium-wrappers-sumo';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { Decrypt } from '../../../src/cci/veritum/decryption';
 import { ApiMisuseError } from '../../../src/core/settings';
+import { CubeFieldType } from '../../../src/core/cube/cube.definitions';
 
 describe('CCI encryption', () => {
   let sender: KeyPair;
@@ -303,313 +304,215 @@ describe('CCI encryption', () => {
 
 
 
-describe('Encrypt()-Decrypt() round-trip tests', () => {
-  let encrypted: cciFields;
-  const secretMessage = 'Nuntius cryptatus secretus est, ne intercipiatur';
+  describe('Encrypt()-Decrypt() round-trip tests', () => {
+    let encrypted: cciFields;
+    const secretMessage = 'Nuntius cryptatus secretus est, ne intercipiatur';
 
-  describe('Continuation Cube', () => {
-    let preSharedKey: Buffer;
-    let predefinedNonce: Buffer;
-    beforeAll(() => {
-      const fields: cciFields = cciFields.DefaultPositionals(
-        cciFrozenFieldDefinition,
-        cciField.Payload(secretMessage),
-      ) as cciFields;
+    describe('Testing a single payload field for each encryption variant', () => {
+      describe('Continuation Cube', () => {
+        let preSharedKey: Buffer;
+        let predefinedNonce: Buffer;
+        beforeAll(() => {
+          const fields: cciFields = cciFields.DefaultPositionals(
+            cciFrozenFieldDefinition,
+            cciField.Payload(secretMessage),
+          ) as cciFields;
 
-      preSharedKey = Buffer.alloc(sodium.crypto_secretbox_KEYBYTES, 1337);
-      predefinedNonce = Buffer.alloc(sodium.crypto_secretbox_NONCEBYTES, 42);
+          preSharedKey = Buffer.alloc(sodium.crypto_secretbox_KEYBYTES, 1337);
+          predefinedNonce = Buffer.alloc(sodium.crypto_secretbox_NONCEBYTES, 42);
 
-      encrypted = Encrypt(fields, { preSharedKey, predefinedNonce });
-    });
+          encrypted = Encrypt(fields, { preSharedKey, predefinedNonce });
+        });
 
-    it('decrypts a Continuation Cube', () => {
-      const decrypted: cciFields = Decrypt(encrypted,
-        { preSharedKey, predefinedNonce });
-      const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
-      expect(payload).toBeDefined();
-      expect(payload.valueString).toEqual(secretMessage);
-    });
-  });  // Continuation Cube
+        it('decrypts a Continuation Cube', () => {
+          const decrypted: cciFields = Decrypt(encrypted,
+            { preSharedKey, predefinedNonce });
+          const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
+          expect(payload).toBeDefined();
+          expect(payload.valueString).toEqual(secretMessage);
+        });
+      });  // Continuation Cube
 
-  describe('Start-of-Veritum w/ pre-shared key', () => {
-    let preSharedKey: Buffer;
-    beforeAll(() => {
-      const fields: cciFields = cciFields.DefaultPositionals(
-        cciFrozenFieldDefinition,
-        cciField.Payload(secretMessage),
-      ) as cciFields;
+      describe('Start-of-Veritum w/ pre-shared key', () => {
+        let preSharedKey: Buffer;
+        beforeAll(() => {
+          const fields: cciFields = cciFields.DefaultPositionals(
+            cciFrozenFieldDefinition,
+            cciField.Payload(secretMessage),
+          ) as cciFields;
 
-      preSharedKey = Buffer.alloc(NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE, 1337);
+          preSharedKey = Buffer.alloc(NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE, 1337);
 
-      encrypted = Encrypt(fields, { preSharedKey });
-    });
+          encrypted = Encrypt(fields, { preSharedKey });
+        });
 
-    it('decrypts a Start-of-Veritum w/ pre-shared key', () => {
-      const decrypted: cciFields = Decrypt(encrypted, { preSharedKey });
-      const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
-      expect(payload).toBeDefined();
-      expect(payload.valueString).toEqual(secretMessage);
-    });
-  });  // Start-of-Veritum w/ pre-shared key
+        it('decrypts a Start-of-Veritum w/ pre-shared key', () => {
+          const decrypted: cciFields = Decrypt(encrypted, { preSharedKey });
+          const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
+          expect(payload).toBeDefined();
+          expect(payload.valueString).toEqual(secretMessage);
+        });
+      });  // Start-of-Veritum w/ pre-shared key
 
-  describe('Start-of-Veritum for single recipient', () => {
-    beforeAll(() => {
-      const fields: cciFields = cciFields.DefaultPositionals(
-        cciFrozenFieldDefinition,
-        cciField.Payload(secretMessage),
-      ) as cciFields;
+      describe('Start-of-Veritum for single recipient', () => {
+        beforeAll(() => {
+          const fields: cciFields = cciFields.DefaultPositionals(
+            cciFrozenFieldDefinition,
+            cciField.Payload(secretMessage),
+          ) as cciFields;
 
-      encrypted = Encrypt(fields, {
-        recipients: recipient.publicKey,
-        senderPrivateKey: sender.privateKey,
-        includeSenderPubkey: sender.publicKey,
+          encrypted = Encrypt(fields, {
+            recipients: recipient.publicKey,
+            senderPrivateKey: sender.privateKey,
+            includeSenderPubkey: sender.publicKey,
+          });
+        });
+
+        it('decrypts a Start-of-Veritum for single recipient', () => {
+          const decrypted: cciFields = Decrypt(encrypted,
+            { recipientPrivateKey: recipient.privateKey });
+          expect(decrypted).toBeDefined();
+          const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
+          expect(payload).toBeDefined();
+          expect(payload.valueString).toEqual(secretMessage);
+        });
+
+        it('cannot decrypt Start-of-Veritum for different recipient', () => {
+          const decrypted: cciFields = Decrypt(encrypted,
+            { recipientPrivateKey: recipient2.privateKey });
+          expect(decrypted).toBeUndefined();
+        });
+      });  // Start-of-Veritum for single recipient
+
+      describe.each([2, 3, 10, 25])('Start-of-Veritum for %i recipients', (num) => {
+        let recipients: KeyPair[];
+        const secretMessage = "Nuntius ad multos destinatarios";
+
+        beforeAll(() => {
+          // create num keypairs
+          recipients = [];
+          for (let i = 0; i < num; i++) {
+            const uint8Recipient = sodium.crypto_box_keypair();
+            recipients.push({
+              publicKey: Buffer.from(uint8Recipient.publicKey),
+              privateKey: Buffer.from(uint8Recipient.privateKey),
+            });
+          }
+
+          const fields: cciFields = cciFields.DefaultPositionals(
+            cciFrozenFieldDefinition,
+            cciField.Payload(secretMessage),
+          ) as cciFields;
+
+          encrypted = Encrypt(fields, {
+            recipients: recipients.map((recipient) => recipient.publicKey),
+            senderPrivateKey: sender.privateKey,
+            includeSenderPubkey: sender.publicKey,
+          });
+        });
+
+        it('decrypts a Start-of-Veritum for multiple recipients for each recipient', () => {
+          for (const rcpt of recipients) {
+            const decrypted: cciFields = Decrypt(encrypted,
+              { recipientPrivateKey: rcpt.privateKey });
+            expect(decrypted).toBeDefined();
+            const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
+            expect(payload).toBeDefined();
+            expect(payload.valueString).toEqual(secretMessage);
+          }
+        });
+      });  // Start-of-Veritum for multiple recipient
+    });  // Testing a single payload field for each encryption variant
+
+    describe('handling multiple input fields', () => {
+      it('correctly encrypts and decrypts multiple fields', () => {
+        const plaintext = "Omnes campi mei secreti sunt";
+        const plaintext2 = "Sinite me iterare: vere sunt secreta";
+        const fields: cciFields = new cciFields(
+          [
+            cciField.Application("cryptographia"),
+            cciField.ContentName("Nuntius secretus"),
+            cciField.Description("Nuntius cuius contenta non possunt divulgari"),
+            cciField.MediaType(MediaTypes.TEXT),
+            cciField.Payload(plaintext),
+            cciField.Payload(plaintext2),
+          ],
+          cciFrozenFieldDefinition
+        );
+
+        // Encrypt the fields
+        const encrypted: cciFields = Encrypt(fields, {
+          senderPrivateKey: sender.privateKey,
+          recipients: recipient.publicKey,
+          includeSenderPubkey: sender.publicKey,
+        });
+
+        // Verify that the encrypted fields contain an encypted content field,
+        // but no content field
+        expect(encrypted.getFirst(cciFieldType.ENCRYPTED)).toBeTruthy();
+        expect(encrypted.getFirst(cciFieldType.APPLICATION)).toBeFalsy();
+        expect(encrypted.getFirst(cciFieldType.CONTENTNAME)).toBeFalsy();
+        expect(encrypted.getFirst(cciFieldType.DESCRIPTION)).toBeFalsy();
+        expect(encrypted.getFirst(cciFieldType.MEDIA_TYPE)).toBeFalsy();
+        expect(encrypted.getFirst(cciFieldType.PAYLOAD)).toBeFalsy();
+        // Verify that no field contains the plaintext
+        for (const field of encrypted.all) {
+          expect(field.valueString).not.toContain(plaintext);
+        }
+
+        // Decrypt the fields
+        const decrypted: cciFields = Decrypt(encrypted, {
+          recipientPrivateKey: recipient.privateKey,
+        });
+        // Remove encryption-induced padding
+        decrypted.removeField(decrypted.getFirst(cciFieldType.PADDING));
+
+        // Verify that the decrypted fields match the original fields
+        expect(decrypted).toEqual(fields);
       });
-    });
 
-    it('decrypts a Start-of-Veritum for single recipient', () => {
-      const decrypted: cciFields = Decrypt(encrypted,
-        { recipientPrivateKey: recipient.privateKey });
-      expect(decrypted).toBeDefined();
-      const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
-      expect(payload).toBeDefined();
-      expect(payload.valueString).toEqual(secretMessage);
-    });
+      it('leaves core fields intact and unencrypted', () => {
+        const plaintext = "Campi fundamentales non possunt cryptari";
+        const fields: cciFields = cciFields.DefaultPositionals(
+          cciFrozenFieldDefinition,
+          cciField.Payload(plaintext),
+        ) as cciFields;
 
-    it('cannot decrypt Start-of-Veritum for different recipient', () => {
-      const decrypted: cciFields = Decrypt(encrypted,
-        { recipientPrivateKey: recipient2.privateKey });
-      expect(decrypted).toBeUndefined();
-    });
-  });  // Start-of-Veritum for single recipient
+        // Verify that we have a complete set of core fields
+        expect(fields.getFirst(CubeFieldType.TYPE)).toBeTruthy();
+        expect(fields.getFirst(CubeFieldType.DATE)).toBeTruthy();
+        expect(fields.getFirst(CubeFieldType.NONCE)).toBeTruthy();
 
-  describe('Start-of-Veritum for multiple recipients', () => {
-    beforeAll(() => {
-      const fields: cciFields = cciFields.DefaultPositionals(
-        cciFrozenFieldDefinition,
-        cciField.Payload(secretMessage),
-      ) as cciFields;
+        // Encrypt the fields
+        const encrypted: cciFields = Encrypt(fields, {
+          senderPrivateKey: sender.privateKey,
+          recipients: recipient.publicKey,
+          includeSenderPubkey: sender.publicKey,
+        });
 
-      encrypted = Encrypt(fields, {
-        recipients: [recipient.publicKey, recipient2.publicKey, recipient3.publicKey],
-        senderPrivateKey: sender.privateKey,
-        includeSenderPubkey: sender.publicKey,
+        // Verify that the encrypted fields contain an encypted content field
+        expect(encrypted.getFirst(cciFieldType.ENCRYPTED)).toBeTruthy();
+        // Verify that the encrypted fields still contain all the core fields
+        expect(encrypted.getFirst(CubeFieldType.TYPE)).toBeTruthy();
+        expect(encrypted.getFirst(CubeFieldType.DATE)).toBeTruthy();
+        expect(encrypted.getFirst(CubeFieldType.NONCE)).toBeTruthy();
+
+        // Decrypt the fields
+        const decrypted: cciFields = Decrypt(encrypted, {
+          recipientPrivateKey: recipient.privateKey,
+        });
+        // Remove encryption-induced padding
+        decrypted.removeField(decrypted.getFirst(cciFieldType.PADDING));
+
+        // Verify that the decrypted fields match the original fields
+        expect(decrypted).toEqual(fields);
       });
+    });  //  handling multiple input fields
+
+    describe('other Encrypt() features', () => {
+      it.todo('randomised Cube timestamp by default');
     });
-
-    it('decrypts a Start-of-Veritum for multiple recipients for each recipient', () => {
-      for (const rcpt of [recipient, recipient2, recipient3]) {
-        const decrypted: cciFields = Decrypt(encrypted,
-          { recipientPrivateKey: rcpt.privateKey });
-        expect(decrypted).toBeDefined();
-        const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
-        expect(payload).toBeDefined();
-        expect(payload.valueString).toEqual(secretMessage);
-      }
-    });
-  });  // Start-of-Veritum for single recipient
-
-});  // Encrypt()-Decrypt() round-trip tests
-
-  //   // DELETE
-  //   it('correctly encrypts and decrypts a single payload field', () => {
-  //     const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
-  //     const fields: cciFields = new cciFields(
-  //       cciField.Payload(plaintext),
-  //       cciFrozenFieldDefinition,
-  //     );
-
-  //     // Encrypt the fields
-  //     const encrypted: cciFields = new cciFields(Encrypt(
-  //       fields, sender.privateKey, recipient.publicKey
-  //     ), cciFrozenFieldDefinition);
-
-  //     // Verify that the encrypted fields contain an encypted content field,
-  //     // but no payload field
-  //     expect(encrypted.getFirst(cciFieldType.ENCRYPTED)).toBeTruthy();
-  //     expect(encrypted.getFirst(cciFieldType.PAYLOAD)).toBeFalsy();
-  //     // Verify that no field contains the plaintext
-  //     for (const field of encrypted.all) {
-  //       expect(field.valueString).not.toContain(plaintext);
-  //     }
-
-  //     // Decrypt the fields
-  //     const decrypted: cciFields = Decrypt(
-  //       encrypted, recipient.privateKey, sender.publicKey);
-
-  //     // Verify that the decrypted fields match the original fields
-  //     expect(decrypted.getFirst(cciFieldType.PAYLOAD).valueString).toEqual(plaintext);
-  //     expect(decrypted).toEqual(fields);
-  //   });
-
-
-  //   it.each([2, 3, 10, 100])('correctly encrypts and decrypts for %i recipients', (num) => {
-  //     // create num keypairs
-  //     const recipients: KeyPair[] = [];
-  //     for (let i = 0; i < num; i++) {
-  //       const uint8Recipient = sodium.crypto_box_keypair();
-  //       recipients.push({
-  //         publicKey: Buffer.from(uint8Recipient.publicKey),
-  //         privateKey: Buffer.from(uint8Recipient.privateKey),
-  //       });
-  //     }
-
-  //     // prepare a message
-  //     const plaintext = 'Nuntius ad multos destinatarios';
-  //     const fields: cciFields = new cciFields(
-  //       cciField.Payload(plaintext),
-  //       cciFrozenFieldDefinition,
-  //     );
-
-  //     // encrypt the message
-  //     const encrypted: cciFields = new cciFields(Encrypt(fields, sender.privateKey,
-  //       recipients.map((recipient) => recipient.publicKey),
-  //     ), cciFrozenFieldDefinition);
-
-  //     // Verify that the encrypted fields contain an encypted content field,
-  //     // but no payload field
-  //     expect(encrypted.getFirst(cciFieldType.ENCRYPTED)).toBeTruthy();
-  //     expect(encrypted.getFirst(cciFieldType.PAYLOAD)).toBeFalsy();
-
-  //     // decrypt the message for each recipient
-  //     for (const recipient of recipients) {
-  //       // Decrypt the fields
-  //       const decrypted: cciFields = Decrypt(
-  //         encrypted, recipient.privateKey, sender.publicKey);
-
-  //       // verify that the ENCRYPTED field was replaced by a PAYLOAD field
-  //       expect(decrypted.getFirst(cciFieldType.ENCRYPTED)).toBeFalsy();
-  //       expect(decrypted.getFirst(cciFieldType.PAYLOAD)).toBeTruthy();
-
-  //       // Verify that the decrypted fields match the original fields
-  //       expect(decrypted.getFirst(cciFieldType.PAYLOAD).valueString).toEqual(plaintext);
-  //       expect(decrypted).toEqual(fields);
-  //     }
-  //     // verify that the message is not decryptable by a non-recipient
-  //     const cannotDecrypt: cciFields = Decrypt(
-  //       encrypted, nonRecipient.privateKey, sender.publicKey);
-  //     expect(cannotDecrypt.getFirst(cciFieldType.ENCRYPTED)).toBeTruthy();
-  //     expect(cannotDecrypt.getFirst(cciFieldType.PAYLOAD)).toBeFalsy();
-  //   });
-
-
-  //   it('correctly encrypts and decrypts multiple fields', () => {
-  //     const plaintext = "Omnes campi mei secreti sunt";
-  //     const fields: cciFields = new cciFields(
-  //       [
-  //         cciField.Application("cryptographia"),
-  //         cciField.ContentName("Nuntius secretus"),
-  //         cciField.Description("Nuntius cuius contenta non possunt divulgari"),
-  //         cciField.MediaType(MediaTypes.TEXT),
-  //         cciField.Payload(plaintext),
-  //         cciField.Payload("Sinite me iterare: vere sunt secreta"),
-  //       ],
-  //       cciFrozenFieldDefinition
-  //     );
-
-  //     // Encrypt the fields
-  //     const encrypted: cciFields = new cciFields(Encrypt(
-  //       fields,
-  //       Buffer.from(sender.privateKey),
-  //       Buffer.from(recipient.publicKey),
-  //     ), cciFrozenFieldDefinition);
-
-  //     // Verify that the encrypted fields contain an encypted content field,
-  //     // but no content field
-  //     expect(encrypted.getFirst(cciFieldType.ENCRYPTED)).toBeTruthy();
-  //     expect(encrypted.getFirst(cciFieldType.APPLICATION)).toBeFalsy();
-  //     expect(encrypted.getFirst(cciFieldType.CONTENTNAME)).toBeFalsy();
-  //     expect(encrypted.getFirst(cciFieldType.DESCRIPTION)).toBeFalsy();
-  //     expect(encrypted.getFirst(cciFieldType.MEDIA_TYPE)).toBeFalsy();
-  //     expect(encrypted.getFirst(cciFieldType.PAYLOAD)).toBeFalsy();
-  //     // Verify that no field contains the plaintext
-  //     for (const field of encrypted.all) {
-  //       expect(field.valueString).not.toContain(plaintext);
-  //     }
-
-  //     // Decrypt the fields
-  //     const decrypted: cciFields = Decrypt(
-  //       encrypted,
-  //       Buffer.from(recipient.privateKey),
-  //       Buffer.from(sender.publicKey),
-  //     );
-
-  //     // Verify that the decrypted fields match the original fields
-  //     expect(decrypted).toEqual(fields);
-  //   });
-
-
-  //   it('leaves core fields intact and unencrypted', () => {
-  //     const plaintext = "Campi fundamentales non possunt cryptari";
-  //     const fields: cciFields = cciFields.DefaultPositionals(
-  //       cciFrozenFieldDefinition,
-  //       cciField.Payload(plaintext),
-  //     ) as cciFields;
-
-  //     // Verify that we have a complete set of core fields
-  //     expect(fields.getFirst(CubeFieldType.TYPE)).toBeTruthy();
-  //     expect(fields.getFirst(CubeFieldType.DATE)).toBeTruthy();
-  //     expect(fields.getFirst(CubeFieldType.NONCE)).toBeTruthy();
-
-  //     // Encrypt the fields
-  //     const encrypted: cciFields = new cciFields(Encrypt(
-  //       fields,
-  //       Buffer.from(sender.privateKey),
-  //       Buffer.from(recipient.publicKey),
-  //     ), cciFrozenFieldDefinition);
-
-  //     // Verify that the encrypted fields contain an encypted content field
-  //     expect(encrypted.getFirst(cciFieldType.ENCRYPTED)).toBeTruthy();
-  //     // Verify that the encrypted fields still contain all the core fields
-  //     expect(encrypted.getFirst(CubeFieldType.TYPE)).toBeTruthy();
-  //     expect(encrypted.getFirst(CubeFieldType.DATE)).toBeTruthy();
-  //     expect(encrypted.getFirst(CubeFieldType.NONCE)).toBeTruthy();
-
-  //     // Decrypt the fields
-  //     const decrypted: cciFields = Decrypt(
-  //       encrypted,
-  //       Buffer.from(recipient.privateKey),
-  //       Buffer.from(sender.publicKey),
-  //     );
-
-  //     // Verify that the decrypted fields match the original fields
-  //     expect(decrypted).toEqual(fields);
-  //   });
-
-
-  //   it('includes the public key with the encrypted payload if supplied', () => {
-  //     const plaintext = 'Decodificare facile est, nam clavis publica inclusa est';
-  //     const fields: cciFields = new cciFields(
-  //       cciField.Payload(plaintext),
-  //       cciFrozenFieldDefinition,
-  //     );
-
-  //     // Encrypt the fields
-  //     const encrypted: cciFields = new cciFields(Encrypt(
-  //       fields,
-  //       Buffer.from(sender.privateKey),
-  //       Buffer.from(recipient.publicKey),
-  //       { includeSenderPubkey: Buffer.from(sender.publicKey) },
-  //     ), cciFrozenFieldDefinition);
-
-  //     // Verify that the encrypted fields contain an encypted content field,
-  //     // a crypto nonce field as well as a public key field, but no payload field
-  //     expect(encrypted.getFirst(cciFieldType.ENCRYPTED)).toBeTruthy();
-  //     expect(encrypted.getFirst(cciFieldType.CRYPTO_PUBKEY)).toBeTruthy();
-  //     expect(encrypted.getFirst(cciFieldType.CRYPTO_NONCE)).toBeTruthy();
-  //     expect(encrypted.getFirst(cciFieldType.PAYLOAD)).toBeFalsy();
-  //     // Verify that no field contains the plaintext
-  //     for (const field of encrypted.all) {
-  //       expect(field.valueString).not.toContain(plaintext);
-  //     }
-
-  //     // Decrypt the fields
-  //     const decrypted: cciFields = Decrypt(encrypted, Buffer.from(recipient.privateKey));
-
-  //     // Verify that the decrypted fields match the original fields
-  //     expect(decrypted.getFirst(cciFieldType.PAYLOAD).valueString).toEqual(plaintext);
-  //     expect(decrypted).toEqual(fields);
-  //   });
-  // });  // Encrypt()-Decrypt() round-trip tests
+  });  // Encrypt()-Decrypt() round-trip tests
 
   describe('Encrypt() state output', () => {
     it('returns the symmetric key and nonce used', () => {
@@ -679,112 +582,11 @@ describe('Encrypt()-Decrypt() round-trip tests', () => {
         });
       }).toThrow(ApiMisuseError);
     });
+
+    it.todo('will throw if number of recipients too large for a single Cube')
   });
 
   // describe('Decrypt() edge case tests', () => {
-  //   it('fails gently if no pubkey provided on decryption', () => {
-  //     const plaintext = "Cryptographia clavi publicae sine clave publica decriptari nequit"
-  //     const fields: cciFields = new cciFields(
-  //       cciField.Payload(plaintext),
-  //       cciFrozenFieldDefinition,
-  //     );
-
-  //     // Encrypt the fields
-  //     const encrypted: cciFields = Encrypt(
-  //       fields,
-  //       Buffer.from(sender.privateKey),
-  //       Buffer.from(recipient.publicKey),
-  //     );
-
-  //     // Attempt decryption
-  //     const decrypted: cciFields = Decrypt(
-  //       encrypted,
-  //       Buffer.from(recipient.privateKey),
-  //     );
-
-  //     // Expect fields unchanged, i.e. no decryption performed
-  //     expect(decrypted).toEqual(encrypted);
-  //   });
-
-
-  //   it('fails gently if pubkey is invalid on decryption', () => {
-  //     const plaintext = "Si clavis publica invalida est, decryptio deficiet"
-  //     const fields: cciFields = new cciFields(
-  //       cciField.Payload(plaintext),
-  //       cciFrozenFieldDefinition,
-  //     );
-
-  //     // Encrypt the fields
-  //     const encrypted: cciFields = new cciFields(Encrypt(
-  //       fields,
-  //       Buffer.from(sender.privateKey),
-  //       Buffer.from(recipient.publicKey),
-  //     ), cciFrozenFieldDefinition);
-
-  //     // Fake an invalid pubkey
-  //     const invalidPubkey = Buffer.alloc(NetConstants.PUBLIC_KEY_SIZE, 0xff);
-  //     // Attempt decryption
-  //     const decrypted: cciFields = Decrypt(
-  //       encrypted,
-  //       Buffer.from(recipient.privateKey),
-  //       invalidPubkey
-  //     );
-
-  //     // Expect fields unchanged, i.e. no decryption performed
-  //     expect(decrypted).toEqual(encrypted);
-  //   });
-
-
-  //   it('fails gently if no nonce provided on decryption', () => {
-  //     const plaintext = "Decryptio impossibilis est sine numere unico"
-  //     const fields: cciFields = new cciFields(
-  //       cciField.Payload(plaintext),
-  //       cciFrozenFieldDefinition,
-  //     );
-
-  //     // Encrypt the fields
-  //     const encrypted: cciFields = new cciFields(Encrypt(
-  //       fields,
-  //       Buffer.from(sender.privateKey),
-  //       Buffer.from(recipient.publicKey),
-  //     ), cciFrozenFieldDefinition);
-
-  //     // Remove the nonce
-  //     const nonce = encrypted.getFirst(cciFieldType.CRYPTO_NONCE);
-  //     encrypted.removeField(nonce);
-
-  //     // Attempt decryption
-  //     const decrypted: cciFields = Decrypt(encrypted, Buffer.from(recipient.privateKey));
-
-  //     // Expect fields unchanged, i.e. no decryption performed
-  //     expect(decrypted).toEqual(encrypted);
-  //   });
-
-
-  //   it('fails gently if nonce is invalid on decryption', () => {
-  //     const plaintext = "Si numere unico non sit validus, decryptio deficiet"
-  //     const fields: cciFields = new cciFields(
-  //       cciField.Payload(plaintext),
-  //       cciFrozenFieldDefinition,
-  //     );
-
-  //     // Encrypt the fields
-  //     const encrypted: cciFields = new cciFields(Encrypt(
-  //       fields,
-  //       Buffer.from(sender.privateKey),
-  //       Buffer.from(recipient.publicKey),
-  //     ), cciFrozenFieldDefinition);
-
-  //     // Temper with nonce
-  //     const nonce = encrypted.getFirst(cciFieldType.CRYPTO_NONCE);
-  //     nonce.value.writeUint16BE(31337);
-
-  //     // Attempt decryption
-  //     const decrypted: cciFields = Decrypt(encrypted, Buffer.from(recipient.privateKey));
-
-  //     // Expect fields unchanged, i.e. no decryption performed
-  //     expect(decrypted).toEqual(encrypted);
-  //   });
   // });  // Decrypt() edge case tests
 
 });
