@@ -99,14 +99,17 @@ steps, continuing on until the MAC-verifiable payload was decrypted successfully
       RELATES_TO field.
 5) Discard the Cube as not decryptable.
 
+### Properties
 This decryption algorithm has the following properties:
 * Simple and universal, works for any well-formed CCI encrypted message
 * Deterministic, i.e. the receiver can always either decrypt the message,
   or determine that it is not decryptable.
 * Cheap, as it requires a maximum of one key derivation, and does not require
   key derivation for well-formed messages based on a known shared secret.
-  It also only requires a number of symmetric operations (decryptions, hashes)
-  in the same order as the number of key distribution slots.
+  The number of symmetric decryption operations required is O(n²) with n
+  being the number of key distribution slots. This could be reduced to O(n)
+  by restricting the number of key distribution slots to a limited amount of values.
+
 
 ## Handling large numbers of recipients
 All key distribution information must always be included in the first Cube
