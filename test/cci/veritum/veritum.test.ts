@@ -282,7 +282,7 @@ describe('Veritum', () => {
         ["two-chunk", 1, tooLong],
         ["three-chunk", 2, evenLonger],
         ["very long", 10, farTooLong],
-      ])('encrypts a %s Veritum', async(name, minChunks, payloadString) => {
+      ])('encrypts a %s Veritum to a single recipient', async(name, minChunks, payloadString) => {
         const veritum = new Veritum(CubeType.FROZEN, {
           fields: cciField.Payload(payloadString), requiredDifficulty});
         await veritum.compile({
@@ -346,6 +346,55 @@ describe('Veritum', () => {
           expect(restored.getFirstField(cciFieldType.PAYLOAD)).toEqual(payloadField);
         }
       });
+
+      it.each([
+        ["two-chunk", 1, tooLong],
+        ["three-chunk", 2, evenLonger],
+        ["very long", 10, farTooLong],
+      ])('encrypts a %s Veritum to three recipients', async(name, minChunks, payloadString) => {
+        // Generate key pairs for three recipients
+        const recipientKeyPairs: KeyPair[] = [];
+        for (let i = 0; i < 3; i++) {
+          const uint8KeyPair = sodium.crypto_box_keypair();
+          recipientKeyPairs.push({
+            publicKey: Buffer.from(uint8KeyPair.publicKey),
+            privateKey: Buffer.from(uint8KeyPair.privateKey),
+          });
+        }
+
+        // construct the encrypted Veritum
+        const veritum = new Veritum(CubeType.FROZEN, {
+          fields: cciField.Payload(payloadString), requiredDifficulty});
+        await veritum.compile({
+          encryptionPrivateKey: senderKeyPair.privateKey,
+          includeSenderPubkey: senderKeyPair.publicKey,
+          encryptionRecipients: recipientKeyPairs.map(kp => kp.publicKey),
+          requiredDifficulty,
+        });
+        expect(Array.from(veritum.compiled).length).toBeGreaterThanOrEqual(minChunks);
+
+        // expect both chunks to have an ENCRYPTED field, but both PAYLOAD
+        // and RELATES_TO fields are encrypted and therefore invisible
+        for (const chunk of veritum.compiled) {
+          expect(chunk.getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+          expect(chunk.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+          expect(chunk.getFirstField(cciFieldType.RELATES_TO)).toBeUndefined();
+        }
+
+        // verify decryption for all three recipients
+        for (const recipient of recipientKeyPairs) {
+          const restored: Veritum = Veritum.FromChunks(veritum.compiled, {
+            encryptionPrivateKey: recipient.privateKey,
+          });
+          expect(restored.cubeType).toBe(CubeType.FROZEN);
+          expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();
+          expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
+            payloadString);
+        }
+      });
+
+      it.todo('encrypts a single payload field to more recipients that fit in a Cube');
+      it.todo('encrypts a multi-chunk Veritum to more recipients that fit in a Cube');
     });
   });
 
