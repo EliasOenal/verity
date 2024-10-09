@@ -82,9 +82,8 @@ export function Encrypt(
   let offset = 0;
 
   // Include cryptographic metadata in output if requested:
-  // Public key
-  // TODO sanitise input
-  if (options.includeSenderPubkey) {
+  // Public key (but only if we're actually using it)
+  if (options.includeSenderPubkey && !options.preSharedKey) {
     offset = EncryptionAddSubfield(encrypted, options.includeSenderPubkey, offset);
   }
   // Nonce
