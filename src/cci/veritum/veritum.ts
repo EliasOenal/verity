@@ -120,6 +120,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
         senderPrivateKey: options.encryptionPrivateKey,
         recipients: options.encryptionRecipients,
         includeSenderPubkey: options.includeSenderPubkey,
+        excludeFromEncryption: options.excludeFromEncryption,
       }
       // reserve some space for encryption overhead
       spacePerCube = spacePerCube - EncryptionOverheadBytes(encryptionOptions);
