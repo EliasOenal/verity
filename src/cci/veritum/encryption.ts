@@ -30,18 +30,23 @@ export interface CciEncryptionParams {
   /**
    * Includes the sender's public key in the encrypted message.
    */
-  includeSenderPubkey?: Buffer,
+  senderPubkey?: Buffer,
 
   /**
    * If both sender and recipient already know which nonce to use, please
    * provide it here. It will not be included in the output.
    * Otherwise, a random nonce will be rolled and included in the output.
    */
-  predefinedNonce?: Buffer,
+  nonce?: Buffer,
 
-  preSharedKey?: Buffer,
+  symmetricKey?: Buffer,
   senderPrivateKey?: Buffer,
   recipients?: EncryptionRecipients,
+
+  // Header flags
+  pubkeyHeader?: boolean;
+  nonceHeader?: boolean;
+  keyslotHeader?: boolean;
 
   /**
    * We will usually prevent you from encrypting messages in a way that does
@@ -51,8 +56,8 @@ export interface CciEncryptionParams {
   allowNoncompliant?: boolean,
 }
 
-export interface EncryptStateOutput {
-  encrypted: cciFields,
+export interface CryptStateOutput {
+  result: cciFields,
   symmetricKey: Buffer,
   nonce: Buffer,
 }
@@ -79,62 +84,45 @@ export function Encrypt(
     fields: cciFields,
     outputState: true,
     options: CciEncryptionParams,
-): EncryptStateOutput;
+): CryptStateOutput;
 
 export function Encrypt(
     fields: cciFields,
     param2: true|CciEncryptionParams,
     param3?: CciEncryptionParams,
-): cciFields|EncryptStateOutput {
+): cciFields|CryptStateOutput {
   // determine function variant
-  const options: CciEncryptionParams = param2===true? param3 : param2;
+  let params: CciEncryptionParams = param2===true? param3 : param2;
   const outputState: boolean = param2===true? true: false;
 
-  // sanitise and normalise input
-  EncryptionValidateParams(options);  // throws if invalid
-  const recipientPubkeys = Array.from(EncryptionNormaliseRecipients(options.recipients));
+  // sanitise input
+  EncryptionValidateParams(params);  // throws if invalid
+
+  // plan cryptographic scheme
+  params = EncryptionPrepareParams(params);
 
   // Prepare the fields to encrypt, filtering out excluded fields and garbage
-  const {toEncrypt, output} = EncryptionPrepareFields(fields, options);
+  const {toEncrypt, output} = EncryptionPrepareFields(fields, params);
   // Make ENCRYPTED field
   const encrypted: cciField = EncryptionAddEncryptedField(output);
   let offset = 0;
 
-  // Include cryptographic metadata in output if requested:
-  // Public key (but only if we're actually using it)
-  if (options.includeSenderPubkey && !options.preSharedKey) {
-    offset = EncryptionAddSubfield(encrypted, options.includeSenderPubkey, offset);
+  // Include cryptographic metadata in output if requested
+  // Public key
+  if (params.senderPubkey && params.pubkeyHeader) {
+    offset = EncryptionAddSubfield(encrypted, params.senderPubkey, offset);
   }
   // Nonce
-  let nonce: Buffer;
-  if (options.predefinedNonce) nonce = options.predefinedNonce;
-  else {
-    nonce = EncryptionRandomNonce();
-    offset = EncryptionAddSubfield(encrypted, nonce, offset);
+  if (params.nonce && params.nonceHeader) {
+    offset = EncryptionAddSubfield(encrypted, params.nonce, offset);
   }
-  // Determine symmetric key. There's three cases:
-  // 1) There's a pre-shared key, in which case there's nothing to do.
-  // 2) If there's only a single recipient, we directly derive the key using the
-  // recipient's public key and the sender's private key.
-  // 3) However, if there are multiple recipients, we chose a random key and
-  //   include an individual encrypted version of it for each recipient.
-  let symmetricPayloadKey: Buffer;
-  if (options.preSharedKey) symmetricPayloadKey = options.preSharedKey;
-  else {  // actual key derivation
-    // sanitise input
-    if (!recipientPubkeys.length || !options.senderPrivateKey) {
-      throw new ApiMisuseError("Encryption: Must either supply a pre-shared key, or sender's private key and at least one recipient's public key");
-    }
-    if (recipientPubkeys.length === 1) {  // single recipient case
-      symmetricPayloadKey = EncryptionDeriveKey(options.senderPrivateKey, recipientPubkeys[0]);
-    } else {  // multiple recipient case
-      // Generate a random symmetric key
-      symmetricPayloadKey = EncryptionRandomKey();
-      // Make key distribution fields and include them with the encrypted message
-      const keyDistributionSlots: Buffer = EncryptionKeyDistributionSlots(
-        symmetricPayloadKey, options.senderPrivateKey, recipientPubkeys, nonce);
-      offset = EncryptionAddSubfield(encrypted, keyDistributionSlots, offset);
-    }
+  // Key slots
+  if (params.keyslotHeader) {
+    const keyDistributionSlots: Buffer = EncryptionKeyDistributionSlots(
+      params.symmetricKey, params.senderPrivateKey,
+      params.recipients as Array<Buffer>, params.nonce,
+    );
+    offset = EncryptionAddSubfield(encrypted, keyDistributionSlots, offset);
   }
 
   // Pad up the plaintext if necessary to fill the whole remaining ENCRYPTED space
@@ -151,7 +139,8 @@ export function Encrypt(
   const plaintext: Buffer = EncryptionCompileFields(toEncrypt);
 
   // Finally, perform encryption the encryption
-  const ciphertext: Buffer = EncryptionSymmetricEncrypt(plaintext, nonce, symmetricPayloadKey);
+  const ciphertext: Buffer = EncryptionSymmetricEncrypt(
+    plaintext, params.nonce, params.symmetricKey);
   // Verify sizes work out
   if(ciphertext.length != (encrypted.length - offset)) {
     throw new CryptoError(`Encrypt(): I messed up my calculations, ending up with ${ciphertext.length} bytes of ciphertext but only ${encrypted.length-offset} bytes left for it. This should never happen.`);
@@ -163,9 +152,9 @@ export function Encrypt(
   // plaintext one
 
   if (outputState) return {
-    encrypted: output,
-    symmetricKey: symmetricPayloadKey,
-    nonce: nonce,
+    result: output,
+    symmetricKey: params.symmetricKey,
+    nonce: params.nonce,
   };
   else return output;
 }
@@ -180,13 +169,13 @@ export function EncryptionOverheadBytes(
     FieldParser.getFieldHeaderLength(cciFieldType.ENCRYPTED, fieldDefinition) +
     sodium.crypto_secretbox_MACBYTES;
   // account for nonce if not pre-shared
-  if (options.predefinedNonce === undefined) {
+  if (options.nonce === undefined) {
     overhead += sodium.crypto_secretbox_NONCEBYTES;
   }
   // calculate key agreement overhead unless there's a pre-shared key
-  if (options.preSharedKey === undefined) {
+  if (options.symmetricKey === undefined) {
     // account for sender's public key if included
-    if (options.includeSenderPubkey !== undefined) {
+    if (options.senderPubkey !== undefined) {
       overhead += sodium.crypto_box_PUBLICKEYBYTES;
     }
     // account for key slots if there are multiple recipients
@@ -210,6 +199,54 @@ export function EncryptionOverheadBytes(
 // Encryption-related "private" functions
 //###
 
+
+/**
+ * Decide and prepare encryption mode and associated parameters.
+ * This function is not idempotent; unless you know exactly what you're doing,
+ * only call this once per session.
+ */
+export function EncryptionPrepareParams(
+  params: CciEncryptionParams,
+): CciEncryptionParams {
+// normalise input
+params.recipients = Array.from(EncryptionNormaliseRecipients(params.recipients));
+
+// If nonce is not supplied, generate it and flag it as to be included with message
+if (!params.nonce) {
+  params.nonce = EncryptionRandomNonce();
+  params.nonceHeader = true;
+}
+
+// Determine symmetric key. There's three cases:
+// 1) There's a pre-shared key, in which case there's nothing to do.
+// 2) If there's only a single recipient, we directly derive the key using the
+// recipient's public key and the sender's private key.
+// 3) However, if there are multiple recipients, we chose a random key and
+//   include an individual encrypted version of it for each recipient.
+if (!params.symmetricKey) {
+  // sanitise input
+  if (!(params.recipients as Array<Buffer>).length || !params.senderPrivateKey) {
+    throw new ApiMisuseError("Encryption: Must either supply a pre-shared key, or sender's private key and at least one recipient's public key");
+  }
+  // Key agreement taking place -- flag sender's pubkey as required
+  params.pubkeyHeader = true;
+  if ((params.recipients as Array<Buffer>).length === 1) {  // single recipient case
+    params.symmetricKey =
+      EncryptionDeriveKey(params.senderPrivateKey, params.recipients[0]);
+    // No key slots, so mark keyslot header as absent
+    params.keyslotHeader = false;
+  } else {  // multiple recipient case
+    // Generate a random symmetric key
+    params.symmetricKey = EncryptionRandomKey();
+    // Mark key slots as required
+    params.keyslotHeader = true;
+  }
+}
+
+return params;
+}
+
+
 //
 // Encryption: Data sanitation normalisation helpers
 //
@@ -222,15 +259,15 @@ export function EncryptionOverheadBytes(
 function EncryptionValidateParams(params: CciEncryptionParams): true {
   if (params.allowNoncompliant === true) return true;  // I warned them
   // allow pre-shared keys, with or without implicit nonce
-  if (params.preSharedKey?.length === sodium.crypto_secretbox_KEYBYTES &&
-       (params.predefinedNonce === undefined ||
-        params.predefinedNonce.length === sodium.crypto_secretbox_NONCEBYTES)
+  if (params.symmetricKey?.length === sodium.crypto_secretbox_KEYBYTES &&
+       (params.nonce === undefined ||
+        params.nonce.length === sodium.crypto_secretbox_NONCEBYTES)
   ) {
     return true;
   }
   // allow any variant of key agreement
   else if (
-    params.includeSenderPubkey?.length === sodium.crypto_box_PUBLICKEYBYTES &&
+    params.senderPubkey?.length === sodium.crypto_box_PUBLICKEYBYTES &&
     params.senderPrivateKey?.length === sodium.crypto_box_SECRETKEYBYTES &&
     params.recipients !== undefined
   ) {
