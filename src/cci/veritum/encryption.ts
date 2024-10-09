@@ -51,6 +51,12 @@ export interface CciEncryptionParams {
   allowNoncompliant?: boolean,
 }
 
+export interface EncryptStateOutput {
+  encrypted: cciFields,
+  symmetricKey: Buffer,
+  nonce: Buffer,
+}
+
 //###
 // "Public" functions
 //###
@@ -65,12 +71,25 @@ export interface CciEncryptionParams {
  * @throws ApiMisuseError - In case the specified combination of params does
  *   not comply with the CCI Encryption spec
  */
- // Maybe TODO: Check if supplied combination of option conforms to the CCI
- // Encryption spec, and either refuse or warn if it doesn't.
 export function Encrypt(
     fields: cciFields,
-    options: CciEncryptionParams = {},
-): cciFields {
+    options: CciEncryptionParams,
+): cciFields;
+export function Encrypt(
+    fields: cciFields,
+    outputState: true,
+    options: CciEncryptionParams,
+): EncryptStateOutput;
+
+export function Encrypt(
+    fields: cciFields,
+    param2: true|CciEncryptionParams,
+    param3?: CciEncryptionParams,
+): cciFields|EncryptStateOutput {
+  // determine function variant
+  const options: CciEncryptionParams = param2===true? param3 : param2;
+  const outputState: boolean = param2===true? true: false;
+
   // sanitise and normalise input
   EncryptionValidateParams(options);  // throws if invalid
   const recipientPubkeys = Array.from(EncryptionNormaliseRecipients(options.recipients));
@@ -143,7 +162,12 @@ export function Encrypt(
   // TODO ensure hashcash "nonce" is randomised, e.g. not always larger than the
   // plaintext one
 
-  return output;
+  if (outputState) return {
+    encrypted: output,
+    symmetricKey: symmetricPayloadKey,
+    nonce: nonce,
+  };
+  else return output;
 }
 
 
