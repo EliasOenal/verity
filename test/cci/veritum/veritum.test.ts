@@ -45,13 +45,13 @@ describe('Veritum', () => {
           await veritum.compile({
             encryptionRecipients: recipientKeyPair.publicKey,
             encryptionPrivateKey: senderKeyPair.privateKey,
-            includeSenderPubkey: senderKeyPair.publicKey,
+            senderPubkey: senderKeyPair.publicKey,
             requiredDifficulty,
           });
 
           // restore & decrypt the Veritum from its chunks
           const restored: Veritum = Veritum.FromChunks(veritum.compiled, {
-            encryptionPrivateKey: recipientKeyPair.privateKey,
+            recipientPrivateKey: recipientKeyPair.privateKey,
           });
           // after decryption, there must now be a PAYLOAD field but
           // no longer an ENCRYPTED field
@@ -77,7 +77,7 @@ describe('Veritum', () => {
           await veritum.compile({
             encryptionRecipients: recipientKeyPairs.map(kp => kp.publicKey),
             encryptionPrivateKey: senderKeyPair.privateKey,
-            includeSenderPubkey: senderKeyPair.publicKey,
+            senderPubkey: senderKeyPair.publicKey,
             requiredDifficulty,
           });
 
@@ -91,7 +91,7 @@ describe('Veritum', () => {
           // its chunks and decrypt it
           for (const recipient of recipientKeyPairs) {
             const restored: Veritum = Veritum.FromChunks(veritum.compiled, {
-              encryptionPrivateKey: recipient.privateKey,
+              recipientPrivateKey: recipient.privateKey,
             });
             // after decryption, there must now be a PAYLOAD field but
             // no longer an ENCRYPTED field
@@ -251,7 +251,7 @@ describe('Veritum', () => {
           encryptionRecipients: recipientKeyPair.publicKey,
           encryptionPrivateKey: senderKeyPair.privateKey,
           requiredDifficulty,
-          includeSenderPubkey: senderKeyPair.publicKey,
+          senderPubkey: senderKeyPair.publicKey,
         });
         // just check that the Veritum has compiled as expected
         expect(veritum.compiled).toHaveLength(1);
@@ -268,7 +268,7 @@ describe('Veritum', () => {
           encryptionPrivateKey: senderKeyPair.privateKey,
           requiredDifficulty,
           excludeFromEncryption: [...Continuation.ContinuationDefaultExclusions, cciFieldType.APPLICATION],
-          includeSenderPubkey: senderKeyPair.publicKey,
+          senderPubkey: senderKeyPair.publicKey,
         });
         // expect the APPLICATION field to be kept
         expect(veritum.compiled[0].getFirstField(cciFieldType.APPLICATION)).toEqual(applicationField);
@@ -288,7 +288,7 @@ describe('Veritum', () => {
         await veritum.compile({
           encryptionRecipients: recipientKeyPair.publicKey,
           encryptionPrivateKey: senderKeyPair.privateKey,
-          includeSenderPubkey: senderKeyPair.publicKey,
+          senderPubkey: senderKeyPair.publicKey,
           requiredDifficulty,
         });
         expect(Array.from(veritum.compiled).length).toBeGreaterThanOrEqual(minChunks);
@@ -302,7 +302,7 @@ describe('Veritum', () => {
         }
 
         const restored: Veritum = Veritum.FromChunks(veritum.compiled, {
-          encryptionPrivateKey: recipientKeyPair.privateKey,
+          recipientPrivateKey: recipientKeyPair.privateKey,
         });
         expect(restored.cubeType).toBe(CubeType.FROZEN);
         expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();
@@ -329,7 +329,7 @@ describe('Veritum', () => {
           encryptionRecipients: recipientKeyPairs.map(kp => kp.publicKey),
           encryptionPrivateKey: senderKeyPair.privateKey,
           requiredDifficulty,
-          includeSenderPubkey: senderKeyPair.publicKey,
+          senderPubkey: senderKeyPair.publicKey,
         });
 
         // Verify that the compiled Veritum contains the expected encrypted fields,
@@ -342,7 +342,7 @@ describe('Veritum', () => {
         // Attempt decryption for each of the three recipients
         for (const recipient of recipientKeyPairs) {
           const restored = Veritum.FromChunks(veritum.compiled,
-            { encryptionPrivateKey: recipient.privateKey });
+            { recipientPrivateKey: recipient.privateKey });
           expect(restored.getFirstField(cciFieldType.PAYLOAD)).toEqual(payloadField);
         }
       });
@@ -367,7 +367,7 @@ describe('Veritum', () => {
           fields: cciField.Payload(payloadString), requiredDifficulty});
         await veritum.compile({
           encryptionPrivateKey: senderKeyPair.privateKey,
-          includeSenderPubkey: senderKeyPair.publicKey,
+          senderPubkey: senderKeyPair.publicKey,
           encryptionRecipients: recipientKeyPairs.map(kp => kp.publicKey),
           requiredDifficulty,
         });
@@ -384,7 +384,7 @@ describe('Veritum', () => {
         // verify decryption for all three recipients
         for (const recipient of recipientKeyPairs) {
           const restored: Veritum = Veritum.FromChunks(veritum.compiled, {
-            encryptionPrivateKey: recipient.privateKey,
+            recipientPrivateKey: recipient.privateKey,
           });
           expect(restored.cubeType).toBe(CubeType.FROZEN);
           expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();

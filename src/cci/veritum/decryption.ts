@@ -8,6 +8,7 @@ import { cciField } from "../cube/cciField";
 import { cciFields } from "../cube/cciFields";
 
 import sodium from 'libsodium-wrappers-sumo'
+import { CryptStateOutput } from "./encryption";
 
 export interface CciDecryptionParams {
   predefinedNonce?: Buffer,
@@ -34,20 +35,39 @@ export interface CciDecryptionParams {
  *   the plaintext fields, or the unchanged field set if decryption fails.
  */
 export function Decrypt(
+    input: cciFields,
+    params: CciDecryptionParams,
+): cciFields;
+export function Decrypt(
+    input: cciFields,
+    outputState: boolean,
+    params: CciDecryptionParams,
+): CryptStateOutput;
+
+export function Decrypt(
   input: cciFields,
-  params: CciDecryptionParams,
-): cciFields {
+  param2: boolean|CciDecryptionParams,
+  param3?: CciDecryptionParams,
+): cciFields|CryptStateOutput {
+  // determine function variant
+  const params: CciDecryptionParams = param2===true? param3 : param2 as CciDecryptionParams;
+  const outputState: boolean = param2===true? true : false;
+
+  let result: CryptStateOutput = undefined;
+
   // If we suspect we might have a pre-shared key, let's try that first
   if (params.preSharedKey !== undefined) {
-    const result: cciFields = DecryptWithPresharedKey(
+    result = DecryptWithPresharedKey(
       input, params.preSharedKey, params.predefinedNonce);
-    if (result !== undefined) return result;
+  }
+  if (result === undefined) {
+    // Otherwise, try to decrypt with key derivation
+    result = DecryptWithKeyDerivation(input, params.recipientPrivateKey);
   }
 
-  // Otherwise, try to decrypt with key derivation
-  const result: cciFields =
-    DecryptWithKeyDerivation(input, params.recipientPrivateKey);
-  return result;
+  if (result === undefined) return undefined;
+  if (outputState) return result;
+  else return result.result;
 }
 
 
@@ -55,12 +75,11 @@ export function Decrypt(
 //###
 // Decryption-related "private" functions
 //###
-
 function DecryptWithPresharedKey(
     input: cciFields,
-    symmetricKey: Uint8Array,
-    nonce?: Uint8Array,
-): cciFields {
+    symmetricKey: Buffer,
+    nonce: Buffer,
+): CryptStateOutput {
   // Retrieve ENCRYPTED blob
   const encryptedBlob: Buffer = DecryptionRetrieveEncryptedBlob(input);
   if (encryptedBlob === undefined) return undefined;
@@ -69,7 +88,9 @@ function DecryptWithPresharedKey(
   if (nonce) {
     const plaintext: Buffer = DecryptionSymmetricDecrypt(
       encryptedBlob, nonce, symmetricKey);
-    if (plaintext) return PostprocessPlaintext(plaintext, input);
+    if (plaintext) return { nonce, symmetricKey,
+      result: PostprocessPlaintext(plaintext, input),
+    };
   }
 
   // Try to decrypt as Start-of-Veritum with Preshared Key
@@ -82,7 +103,9 @@ function DecryptWithPresharedKey(
 
   const plaintext: Buffer = DecryptionSymmetricDecrypt(
     ciphertext, nonce, symmetricKey);
-  if (plaintext !== undefined) return PostprocessPlaintext(plaintext, input);
+  if (plaintext !== undefined) return { nonce, symmetricKey,
+    result:PostprocessPlaintext(plaintext, input),
+  };
   else return undefined;
 }
 
@@ -90,7 +113,7 @@ function DecryptWithPresharedKey(
 function DecryptWithKeyDerivation(
   input: cciFields,
   privateKey: Buffer,
-): cciFields {
+): CryptStateOutput {
   // Retrieve ENCRYPTED blob
   const encryptedBlob: Buffer = DecryptionRetrieveEncryptedBlob(input);
   if (encryptedBlob === undefined) return undefined;
@@ -105,12 +128,14 @@ function DecryptWithKeyDerivation(
 
   // Step 1: Try to decrypt this as a Start-of-Veritum directed exclusively
   // at us, i.e. directly derive payload symmetric key
-  const derivedKey = DecryptionDeriveKey(privateKey, senderPublicKey);
+  const derivedKey = Buffer.from(DecryptionDeriveKey(privateKey, senderPublicKey));
   if (derivedKey === undefined) return undefined;
   const ciphertext: Buffer = encryptedBlob.subarray(offset, encryptedBlob.length);
   const plaintext: Buffer = DecryptionSymmetricDecrypt(
     ciphertext, nonce, derivedKey);
-  if (plaintext !== undefined) return PostprocessPlaintext(plaintext, input);
+  if (plaintext !== undefined) return { symmetricKey: derivedKey, nonce,
+    result:PostprocessPlaintext(plaintext, input)
+  };
 
   // Step 2: Try to decrypt as multi-recipient, i.e. try to find a key slot
   // directed at us
@@ -119,7 +144,7 @@ function DecryptWithKeyDerivation(
   ){
     const keyslot: Buffer = encryptedBlob.subarray(offset,
       offset += sodium.crypto_secretbox_KEYBYTES);
-    const symmetricKey: Uint8Array =
+    const symmetricKey: Buffer =
       DecryptionDecryptKeyslot(keyslot, nonce, derivedKey);
     let ciphertextOffset = offset;
     let plaintext: Buffer = undefined;
@@ -133,7 +158,9 @@ function DecryptWithKeyDerivation(
       ciphertextOffset += sodium.crypto_secretbox_KEYBYTES;
       plaintext = DecryptionSymmetricDecrypt(
         ciphertext, nonce, symmetricKey);
-      if (plaintext !== undefined) return PostprocessPlaintext(plaintext, input);
+      if (plaintext !== undefined) return { symmetricKey, nonce,
+        result: PostprocessPlaintext(plaintext, input)
+      };
     }
   }
 
@@ -205,9 +232,9 @@ function DecryptionDecryptKeyslot(
     keyslot: Uint8Array,
     nonce: Uint8Array,
     slotKey: Uint8Array,
-): Uint8Array {
-  const symmetricKey: Uint8Array = sodium.crypto_stream_xchacha20_xor(
-    keyslot, nonce, slotKey);
+): Buffer {
+  const symmetricKey: Buffer = Buffer.from(sodium.crypto_stream_xchacha20_xor(
+    keyslot, nonce, slotKey));
   // Sanity-check result
   if (Settings.RUNTIME_ASSERTIONS &&
     symmetricKey?.length !== sodium.crypto_secretbox_KEYBYTES
