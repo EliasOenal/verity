@@ -78,8 +78,8 @@ describe('cci Cockpit', () => {
         requiredDifficulty,
       });
       await cockpit.publishVeritum(veritum, {
-        encryptionRecipients: remote1,
-        includeSenderPubkey: identity.encryptionPublicKey,
+        recipients: remote1,
+        senderPubkey: identity.encryptionPublicKey,
       })
       // the (single) chunk must have an ENCRYPTED field but no PAYLOAD field
       expect(veritum.compiled[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
@@ -87,7 +87,7 @@ describe('cci Cockpit', () => {
 
       // the encrypted compiled Verium must be decryptable by the recipient
       const restored = Veritum.FromChunks(veritum.compiled, {
-        encryptionPrivateKey: remote1.encryptionPrivateKey,
+        recipientPrivateKey: remote1.encryptionPrivateKey,
       });
       // now we must be back to a PAYLOAD field but no ENCRYPTED field
       expect(restored.getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
@@ -126,9 +126,9 @@ describe('cci Cockpit', () => {
         requiredDifficulty,
       });
       await veritum.compile({
-        includeSenderPubkey: remote1.encryptionPublicKey,
-        encryptionPrivateKey: remote1.encryptionPrivateKey,
-        encryptionRecipients: identity,
+        senderPubkey: remote1.encryptionPublicKey,
+        senderPrivateKey: remote1.encryptionPrivateKey,
+        recipients: identity,
       })
 
       // expect compiled veritum to be encrypted
@@ -155,9 +155,9 @@ describe('cci Cockpit', () => {
       });
       await veritum.compile({
         // includeSenderPubkey: remote1.encryptionPublicKey,
-        encryptionPrivateKey: remote1.encryptionPrivateKey,
-        encryptionRecipients: identity,
-        includeSenderPubkey: remote1.encryptionPublicKey
+        senderPrivateKey: remote1.encryptionPrivateKey,
+        recipients: identity,
+        senderPubkey: remote1.encryptionPublicKey
       })
 
       // expect compiled veritum to be encrypted

@@ -89,7 +89,7 @@ describe('Continuation', () => {
       // run the test
       const chunks: cciCube[] =
         await Continuation.Split(veritum, {
-          maxChunkSize: 500,
+          maxChunkSize: () => 500,
           requiredDifficulty: 0,
         });
       expect(chunks.length).toEqual(3);
@@ -128,7 +128,7 @@ describe('Continuation', () => {
       // run Split()
       const chunks: cciCube[] =
         await Continuation.Split(veritum, {
-          maxChunkSize: 500,
+          maxChunkSize: () => 500,
           requiredDifficulty: 0,
           chunkTransformationCallback: transformer,
         });

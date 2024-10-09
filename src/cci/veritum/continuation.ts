@@ -35,9 +35,9 @@ export interface SplitOptions extends RecombineOptions {
    * to reserve some space in each chunk, e.g. for crypto overhead.
    * @default - A full Cube, i.e. 1024 bytes.
    */
-  maxChunkSize?: number,
+  maxChunkSize?: (chunkIndex: number) => number;
 
-  chunkTransformationCallback?: (chunk: cciCube) => void;
+  chunkTransformationCallback?: (chunk: cciCube, splitState: SplitState) => void;
 }
 
 export interface RecombineOptions extends CubeOptions {
@@ -52,13 +52,11 @@ export interface RecombineOptions extends CubeOptions {
   exclude?: number[],
 }
 
-export function split(buf: Buffer, max: number): Buffer[] {
-  const chunks: Buffer[] = [];
-  for (let i = 0; i < buf.length; i += max) {
-    chunks.push(buf.subarray(i, i + max));
-  }
-  return chunks;
+export interface SplitState {
+  chunkIndex: number;
+  chunkCount: number;
 }
+
 
 export class Continuation {
   // Maybe TODO: The current Continuation implementation is pretty much
@@ -97,7 +95,7 @@ export class Continuation {
   ): Promise<cciCube[]> {
     // set default options
     options.exclude ??= Continuation.ContinuationDefaultExclusions;
-    options.maxChunkSize ??= NetConstants.CUBE_SIZE;
+    options.maxChunkSize ??= () => NetConstants.CUBE_SIZE;
 
     // Pre-process the Veritum supplied:
     let minBytesRequred = 0;  // will count them in a moment
@@ -132,22 +130,31 @@ export class Continuation {
       }
     }
 
-    // Precalculate some numbers that we'll later need to determine how many
-    // Cubes we need.
-    const demoFieldset: cciFields =
-      cciFields.DefaultPositionals(veritum.fieldParser.fieldDef) as cciFields;
-    const bytesAvailablePerCube: number = demoFieldset.bytesRemaining(options.maxChunkSize);
 
     // Split the macro fieldset into Cubes:
     // prepare the list of Cubes and initialise the first one
     const cubes: cciCube[] = [ veritum.family.cubeClass.Create(veritum.cubeType, options) as cciCube ];
-    let cube: cciCube = cubes[0];
+    let chunkIndex = 0;
+    let cube: cciCube = cubes[chunkIndex];
+    let maxChunkIndexPlanned = 0;
+
+    // Prepare some data allowing us to figure out how much space we have
+    // available in each chunk Cube.
+    // The caller may restrict the space we are allowed to use for each chunk.
+    // In addition to that, we need to account for core boilerplate fields --
+    // we'll construct a demo fieldset to determine how much space is lost to that.
+    const demoFieldset: cciFields =
+      cciFields.DefaultPositionals(veritum.fieldParser.fieldDef) as cciFields;
+    // We'll begin by figuring out the available space in the first Cube
+    let bytesAvailableThisChunk: number =
+      demoFieldset.bytesRemaining(options.maxChunkSize(chunkIndex));
+
     // Also prepare a list of CONTINUED_IN references to be filled in later.
     // Note the number of CONTINUED_IN references will always be one less than
     // the number of Cubes.
     const refs: cciField[] = [];
 
-    let spaceRemaining = bytesAvailablePerCube;  // we start with just one chunk
+    let spaceRemaining = bytesAvailableThisChunk;  // we start with just one chunk
 
     // Iterate over the macro fieldset
     let macroFieldsetNode: DoublyLinkedListNode<cciField> = macroFieldset.head;
@@ -172,6 +179,7 @@ export class Continuation {
         const refField: cciField = cciField.RelatesTo(rel);
         // remember this ref as a planned Cube...
         refs.push(refField);
+        maxChunkIndexPlanned++;
         // ... and add it to our field list, as obviously the reference needs
         // to be written. Keep count of how many of those we added, as we'll
         // need to backtrack this many nodes in macroFieldset in order not to
@@ -180,7 +188,8 @@ export class Continuation {
         refsAdded++;
         // account for the space we gained by planning for an extra Cube
         // as well as the space we lost due to the extra reference
-        spaceRemaining += bytesAvailablePerCube;
+        spaceRemaining +=
+          demoFieldset.bytesRemaining(options.maxChunkSize(maxChunkIndexPlanned));
         minBytesRequred += cube.getFieldLength(refField);
       }
       // if we inserted extra fields, backtrack that many nodes
@@ -188,7 +197,7 @@ export class Continuation {
 
       // Finally, have a look at the current field and decide what to do with it.
       const field: cciField = macroFieldsetNode.value;
-      const bytesRemaining = cube.fields.bytesRemaining(options.maxChunkSize);
+      const bytesRemaining = cube.fields.bytesRemaining(options.maxChunkSize(chunkIndex));
 
       // There's three (3) possible cases to consider:
       if (bytesRemaining >= cube.getFieldLength(field)) {
@@ -242,10 +251,13 @@ export class Continuation {
         // Any space left in this chunk Cube will be wasted and we're going
         // to roll over to the next chunk.
         // First update our accounting...
-        spaceRemaining -= cube.fields.bytesRemaining(options.maxChunkSize);
+        spaceRemaining -= cube.fields.bytesRemaining(options.maxChunkSize(chunkIndex));
         // ... and then it's time for a chunk rollover!
         cube = veritum.family.cubeClass.Create(veritum.cubeType, options) as cciCube;
         cubes.push(cube);
+        chunkIndex++;
+        bytesAvailableThisChunk =
+          demoFieldset.bytesRemaining(options.maxChunkSize(chunkIndex));
         // Note that we have not handled this field!
         // We therefore must not advance the iterator.
       }
@@ -264,7 +276,9 @@ export class Continuation {
       // we will go ahead and compile the referred Cube -- if there's a chunk
       // transformation callback, call it now
       if (options.chunkTransformationCallback !== undefined) {
-        options.chunkTransformationCallback(referredCube);
+        options.chunkTransformationCallback(referredCube,
+          { chunkIndex: i+1, chunkCount: refs.length }
+        );
       }
       const referredKey: CubeKey = await referredCube.getKey();  // compiles the Cube
       const correctRef: cciRelationship =
@@ -276,7 +290,9 @@ export class Continuation {
     // Compile first chunk Cube for consistency.
     // Of course, also call the chunk transformation callback if there's one.
     if (options.chunkTransformationCallback !== undefined) {
-      options.chunkTransformationCallback(cubes[0]);
+      options.chunkTransformationCallback(cubes[0],
+        { chunkIndex: 0, chunkCount: refs.length }
+      );
     }
     await cubes[0].compile();
 
