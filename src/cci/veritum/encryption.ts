@@ -42,6 +42,13 @@ export interface CciEncryptionParams {
   preSharedKey?: Buffer,
   senderPrivateKey?: Buffer,
   recipients?: EncryptionRecipients,
+
+  /**
+   * We will usually prevent you from encrypting messages in a way that does
+   * not comply with the CCI Encrpytion spec. If you're sure you still want to
+   * do that, set true here. You have been warned.
+   */
+  allowNoncompliant?: boolean,
 }
 
 //###
@@ -51,6 +58,12 @@ export interface CciEncryptionParams {
 /**
  * Encrypts a CCI field set
  * Note: Caller must await sodium.ready before calling.
+ * @param options - The encryption parameters, e.g. a pre-shared key, or your
+ *   private key and some recipient's public key.
+ *   Ensure the combination you supply conforms to the CCI Encryption spec,
+ *   will throw ApiMisuseError otherwise.
+ * @throws ApiMisuseError - In case the specified combination of params does
+ *   not comply with the CCI Encryption spec
  */
  // Maybe TODO: Check if supplied combination of option conforms to the CCI
  // Encryption spec, and either refuse or warn if it doesn't.
@@ -58,7 +71,8 @@ export function Encrypt(
     fields: cciFields,
     options: CciEncryptionParams = {},
 ): cciFields {
-  // normalise input
+  // sanitise and normalise input
+  EncryptionValidateParams(options);  // throws if invalid
   const recipientPubkeys = Array.from(EncryptionNormaliseRecipients(options.recipients));
 
   // Prepare the fields to encrypt, filtering out excluded fields and garbage
@@ -174,8 +188,34 @@ export function EncryptionOverheadBytes(
 //###
 
 //
-// Encryption: Data normalisation helpers
+// Encryption: Data sanitation normalisation helpers
 //
+
+/**
+ * Validates the combination of params.
+ * This is a soft validation, any workable combination will be excepted
+ * and superfluous params will be silently ignored.
+ */
+function EncryptionValidateParams(params: CciEncryptionParams): true {
+  if (params.allowNoncompliant === true) return true;  // I warned them
+  // allow pre-shared keys, with or without implicit nonce
+  if (params.preSharedKey?.length === sodium.crypto_secretbox_KEYBYTES &&
+       (params.predefinedNonce === undefined ||
+        params.predefinedNonce.length === sodium.crypto_secretbox_NONCEBYTES)
+  ) {
+    return true;
+  }
+  // allow any variant of key agreement
+  else if (
+    params.includeSenderPubkey?.length === sodium.crypto_box_PUBLICKEYBYTES &&
+    params.senderPrivateKey?.length === sodium.crypto_box_SECRETKEYBYTES &&
+    params.recipients !== undefined
+  ) {
+    // note: params.recipients will be validated later in EncryptionNormaliseRecipients
+    return true;
+  }
+  else throw new ApiMisuseError(`Encrypt: Invalid combination of parameters`);
+}
 
 function *EncryptionNormaliseRecipients(recipients: EncryptionRecipients): Generator<Buffer> {
   if (!recipients) return;

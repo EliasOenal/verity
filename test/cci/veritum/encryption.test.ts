@@ -7,6 +7,7 @@ import { KeyPair } from '../../../src/cci/helpers/cryptography';
 import sodium from 'libsodium-wrappers-sumo';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { Decrypt } from '../../../src/cci/veritum/decryption';
+import { ApiMisuseError } from '../../../src/core/settings';
 
 describe('CCI encryption', () => {
   let sender: KeyPair;
@@ -610,27 +611,43 @@ describe('Encrypt()-Decrypt() round-trip tests', () => {
   //   });
   // });  // Encrypt()-Decrypt() round-trip tests
 
-  // describe('Encrypt() edge case tests', () => {
-  //   it('encrypts a minimal PADDING field if no payload provided', () => {
-  //     // This can be used to perform pure key distribution without sending
-  //     // an actual message just yet
-  //     const encrypted: cciFields = Encrypt(
-  //       new cciFields([], cciFrozenFieldDefinition),
-  //       Buffer.from(sender.privateKey),
-  //       Buffer.from(recipient.publicKey),
-  //       { includeSenderPubkey: Buffer.from(sender.publicKey) },
-  //     );
-  //     expect(encrypted.getFirst(cciFieldType.PADDING)).toBeUndefined();
+  describe('Encrypt() edge case tests', () => {
+    it('encrypts a minimal PADDING field if no payload provided', () => {
+      // This can be used to perform pure key distribution without sending
+      // an actual message just yet
+      const encrypted: cciFields = Encrypt(
+        new cciFields([], cciFrozenFieldDefinition), {
+        senderPrivateKey:sender.privateKey,
+        recipients: recipient.publicKey,
+        includeSenderPubkey: sender.publicKey,
+      });
+      expect(encrypted.getFirst(cciFieldType.PADDING)).toBeUndefined();
 
-  //     const decrypted: cciFields = Decrypt(
-  //       encrypted,
-  //       Buffer.from(recipient.privateKey)
-  //     );
-  //     expect(decrypted.getFirst(cciFieldType.PADDING)).toBeDefined();
-  //     expect(decrypted.getFirst(cciFieldType.PAYLOAD)).toBeUndefined();
+      const decrypted: cciFields = Decrypt(encrypted, {
+        recipientPrivateKey: recipient.privateKey,
+      });
+      expect(decrypted.getFirst(cciFieldType.PADDING)).toBeDefined();
+      expect(decrypted.getFirst(cciFieldType.PAYLOAD)).toBeUndefined();
+    });
 
-  //   })
-  // });
+    it('will throw on missing sender pubkey', () => {
+      expect(() => {
+        Encrypt(new cciFields([], cciFrozenFieldDefinition), {
+          senderPrivateKey: sender.privateKey,
+          recipients: recipient.publicKey,
+        });
+      }).toThrow(ApiMisuseError);
+    });
+
+    it('will throw on missing sender privkey', () => {
+      expect(() => {
+        Encrypt(new cciFields([], cciFrozenFieldDefinition), {
+          includeSenderPubkey: sender.publicKey,
+          recipients: recipient.publicKey,
+        });
+      }).toThrow(ApiMisuseError);
+    });
+  });
 
   // describe('Decrypt() edge case tests', () => {
   //   it('fails gently if no pubkey provided on decryption', () => {
