@@ -74,7 +74,7 @@ export interface CubeStoreOptions {
    *   application and set it to either cciCubeFamily or your own custom
    *   CubeFamily definition.
    */
-  family?: CubeFamilyDefinition;
+  family?: CubeFamilyDefinition|CubeFamilyDefinition[];
 }
 
 export type CubeIteratorOptions = {
@@ -130,6 +130,9 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     this.options.inMemory ??= Settings.CUBESTORE_IN_MEMORY;
     this.options.enableCubeCache ??= Settings.CUBE_CACHE;
 
+    // normalise options
+    if (!Array.isArray(this.options.family)) this.options.family = [this.options.family];
+
     // Configure this CubeStore according to the options specified:
     // Do we want to use a Merckle-Patricia-Trie for efficient full node sync?
     if (this.options.enableTreeOfWisdom ?? Settings.TREE_OF_WISDOM) {
@@ -171,7 +174,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
    * @returns the Cube object that was added to storage, or undefined if it
    *   was not added
    */
-  async addCube(cube: Buffer,family?: CubeFamilyDefinition): Promise<Cube>;
+  async addCube(cube: Buffer, families?: CubeFamilyDefinition[]): Promise<Cube>;
   /**
    * Add a Cube object to storage.
    * (Note you cannot specify a custom family setting in this variant as the
@@ -185,26 +188,28 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   //  to alleviate load, especially on full nodes.
   async addCube(
     cube_input: Cube | Buffer,
-    family: CubeFamilyDefinition = this.options.family
+    families: CubeFamilyDefinition[] = this.options.family as CubeFamilyDefinition[]
   ): Promise<Cube> {
     try {
       // Cube objects are ephemeral as storing binary data is more efficient.
       // Create cube object if we don't have one yet.
       let binaryCube: Buffer;
-      let cube: Cube;
+      let cube: Cube = undefined;
       if (cube_input instanceof Cube) {
         cube = cube_input;
         binaryCube = await cube_input.getBinaryData();
       } else if (cube_input instanceof Buffer) {
         // cube_input instanceof Buffer
         binaryCube = cube_input;
-        try {
-          cube = new family.cubeClass(binaryCube, { family: family });
-        } catch (err) {
-          logger.info(
-            `CubeStore.addCube: Skipping a dormant (binary) Cube as I could not reactivate it, at least not using this CubeFamily setting: ${err?.toString() ?? err
-            }`
-          );
+        // try to reactivate Cube using one of my supported family settings
+        for (const family of families) {
+          try {
+            cube = new family.cubeClass(binaryCube, { family: family });
+            break;
+          } catch (err) { /* do nothing, just try next one */ }
+        }
+        if (cube === undefined) {
+          logger.info('CubeStore.addCube: Skipping a dormant (binary) Cube as I could not reactivate it using any of my supported CubeFamily settings');
           return undefined;
         }
       } else {
@@ -359,7 +364,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
    */
   async getCube(
     key: CubeKey | string,
-    family: CubeFamilyDefinition = undefined // undefined = will use CubeInfo's default
+    family: CubeFamilyDefinition|CubeFamilyDefinition[] = undefined // undefined = will use CubeInfo's default
   ): Promise<Cube> {
     const cubeInfo: CubeInfo = await this.getCubeInfo(key);
     if (cubeInfo) return cubeInfo.getCube(family);
