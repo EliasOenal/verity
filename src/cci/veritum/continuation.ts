@@ -8,10 +8,10 @@ import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
 import { cciCube } from "../cube/cciCube";
 import { cciFieldType } from "../cube/cciCube.definitions";
 import { cciField } from "../cube/cciField";
+import { cciFields } from "../cube/cciFields";
 import { cciRelationship, cciRelationshipType } from "../cube/cciRelationship";
 
 import { Buffer } from 'buffer'
-import { cciFields } from "../cube/cciFields";
 
 // HACKHACK: jest does throw strange errors which I don't understand when trying
 // to import this lib properly.
