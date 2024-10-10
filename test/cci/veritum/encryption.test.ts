@@ -1,12 +1,12 @@
 import { cciFields, cciFrozenFieldDefinition } from '../../../src/cci/cube/cciFields';
 import { cciField } from '../../../src/cci/cube/cciField';
 import { cciFieldType, MediaTypes } from '../../../src/cci/cube/cciCube.definitions';
-import { Encrypt, CryptStateOutput } from '../../../src/cci/veritum/encryption';
+import { Encrypt, CryptStateOutput } from '../../../src/cci/veritum/chunkEncryption';
 import { KeyPair } from '../../../src/cci/helpers/cryptography';
 
 import sodium from 'libsodium-wrappers-sumo';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
-import { Decrypt } from '../../../src/cci/veritum/decryption';
+import { Decrypt } from '../../../src/cci/veritum/chunkDecryption';
 import { ApiMisuseError } from '../../../src/core/settings';
 import { CubeFieldType } from '../../../src/core/cube/cube.definitions';
 

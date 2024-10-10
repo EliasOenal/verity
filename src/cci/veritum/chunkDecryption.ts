@@ -3,7 +3,7 @@ import { Settings } from "../../core/settings";
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
 import { cciFieldType } from "../cube/cciCube.definitions";
 import { cciFields } from "../cube/cciFields";
-import { CryptStateOutput } from "./encryption";
+import { CryptStateOutput } from "./chunkEncryption";
 
 import { logger } from "../../core/logger";
 
