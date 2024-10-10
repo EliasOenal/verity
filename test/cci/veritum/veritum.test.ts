@@ -393,9 +393,9 @@ describe('Veritum', () => {
         }
       });
 
+      it.todo('uses continuation mode for a multi-chunk Veritum and uses a different nonce in each chunk');
       it.todo('encrypts a single payload field to more recipients that fit in a Cube');
       it.todo('encrypts a multi-chunk Veritum to more recipients that fit in a Cube');
-      it.todo('uses different nonces for each chunk in a multi-chunk Veritum');
     });
   });
 

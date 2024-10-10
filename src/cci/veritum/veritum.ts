@@ -103,50 +103,75 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   }
 
   async compile(options: VeritumCompileOptions = {}): Promise<Iterable<cciCube>> {
-    // Did the user request encryption?
-    // If so, we need to reserve some space for crypto overhead.
-    // TODO clean up encryption code, split out or something
-    const shallEncrypt: boolean =
-      options.senderPrivateKey !== undefined && options.recipients !== undefined;
-    let encryptionSchemeParams: CciEncryptionParams = undefined;
-    let continuationEncryptionParams: CciEncryptionParams = undefined;
-    let spacePerCube: (chunkIndex: number) => number =
-      () => NetConstants.CUBE_SIZE;
-    if (shallEncrypt) {
-      await sodium.ready;
+    await sodium.ready;  // needed in case of encrypted Verita
+    // Prepare an encryption helper in case encryption is requested
+    // (it will not get in the way otherwise)
+    const encryptionHelper = new ChunkEncryptionHelper(options);
+    // Feed this Veritum through the splitter -- this is the main operation
+    // of compiling a Veritum.
+    const splitOptions: SplitOptions = {
+      maxChunkSize: (chunkIndex: number) =>
+        encryptionHelper.spacePerChunk(chunkIndex),
+      chunkTransformationCallback: (chunk: cciCube, splitState: SplitState) =>
+        encryptionHelper.transformChunk(chunk, splitState),
+    }
+    this._compiled = await Continuation.Split(this, splitOptions);
+    return this._compiled;
+  }
+
+}
+
+
+class ChunkEncryptionHelper {
+  readonly shallEncrypt: boolean;
+
+  private encryptionSchemeParams: CciEncryptionParams;
+  private continuationEncryptionParams: CciEncryptionParams;
+  private firstChunkSpace: number;
+  private continuationChunkSpace: number;
+  private nonceList: Buffer[] = [];
+
+  constructor(readonly options: VeritumCompileOptions) {
+    // First, let's find out if the user did even request encryption
+    this.shallEncrypt = this.options.senderPrivateKey !== undefined &&
+                        this.options.recipients !== undefined;
+    if (this.shallEncrypt) {
       // Pre-plan the encryption scheme variant
-      encryptionSchemeParams = { ...options };
-      encryptionSchemeParams = EncryptionPrepareParams(encryptionSchemeParams);
-      continuationEncryptionParams = {
-        ...encryptionSchemeParams,
+      this.encryptionSchemeParams = { ...options };  // copy input opts
+      this.encryptionSchemeParams =  // run scheme planner
+        EncryptionPrepareParams(this.encryptionSchemeParams);
+      this.continuationEncryptionParams = {  // prepare continuation variant
+        ...this.encryptionSchemeParams,
         nonce: undefined,  // to be defined per chunk below
         pubkeyHeader: false,
         nonceHeader: false,
         keyslotHeader: false,
       }
       // reserve some space for encryption overhead
-      const firstChunkSpace = NetConstants.CUBE_SIZE -
-        EncryptionOverheadBytes(encryptionSchemeParams);
-      const continuationChunkSpace = NetConstants.CUBE_SIZE -
-        EncryptionOverheadBytes(continuationEncryptionParams);
-      spacePerCube = (chunkIndex: number) => {
-        if (chunkIndex === 0) {
-          return firstChunkSpace;
-        } else {
-          return continuationChunkSpace;
-        }
+      this.firstChunkSpace = NetConstants.CUBE_SIZE -
+        EncryptionOverheadBytes(this.encryptionSchemeParams);
+      this.continuationChunkSpace = NetConstants.CUBE_SIZE -
+        EncryptionOverheadBytes(this.continuationEncryptionParams);
       }
-      // TODO: Reserve less space on Continuation chunks
     }
-    // If encryption was requested, ask split to call us back after each
-    // chunk Cube so we can encrypt it before it is finalised.
-    // Let's prepare this callback.
-    let nonceList: Buffer[] = [];
-    const encryptCallback = (chunk: cciCube, state: SplitState) => {
+
+  spacePerChunk(chunkIndex: number) {
+    if (this.shallEncrypt) {
+      if (chunkIndex === 0) {
+        return this.firstChunkSpace;
+      } else {
+        return this.continuationChunkSpace;
+      }
+    }
+    else return NetConstants.CUBE_SIZE;
+  }
+
+  transformChunk(chunk: cciCube, state: SplitState) {
+    if (this.shallEncrypt) {  // only act if encryption requested
       // Lazy-initialise nonce list
-      if (nonceList.length < state.chunkCount) {
-        nonceList = EncryptionHashNonces(
-          encryptionSchemeParams.nonce, state.chunkCount);
+      if (this.nonceList.length < state.chunkCount) {
+        this.nonceList = EncryptionHashNonces(
+          this.encryptionSchemeParams.nonce, state.chunkCount);
       }
       let chunkParams: CciEncryptionParams;
       // There are two possible states:
@@ -155,11 +180,11 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
       // - If this is any other chunk, we use the symmetric session established
       //   in the first chunk, but crucially supplying a unique nonce.
       if (state.chunkIndex === 0) {
-        chunkParams = encryptionSchemeParams;
+        chunkParams = this.encryptionSchemeParams;
       } else {
         chunkParams = {
-          ...continuationEncryptionParams,
-          nonce: nonceList[state.chunkIndex],
+          ...this.continuationEncryptionParams,
+          nonce: this.nonceList[state.chunkIndex],
         }
       }
       // Perform chunk encryption
@@ -168,14 +193,5 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
       const encryptedFields: cciFields = encRes.result;
       chunk.setFields(encryptedFields);
     }
-    // Feed this Veritum through the splitter -- this is the main operation
-    // of compiling a Veritum.
-    const splitOptions: SplitOptions = {
-      maxChunkSize: spacePerCube,
-      chunkTransformationCallback: shallEncrypt ? encryptCallback : undefined,
-    }
-    this._compiled = await Continuation.Split(this, splitOptions);
-    return this._compiled;
   }
-
 }
