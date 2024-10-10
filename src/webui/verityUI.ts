@@ -18,6 +18,7 @@ import { IdentityPersistenceOptions } from '../cci/identity/identityPersistence'
 
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { NavItem } from './navigation/navigationDefinitions';
+import { coreCubeFamily } from '../core/cube/cube';
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
@@ -62,10 +63,7 @@ export class VerityUI implements ControllerContext {
     options.inMemory ??= false;
     options.lightNode ??= true;
     options.useRelaying ??= true;
-    // Fixme: Rejecting all non-cci Cubes is an odd choice when running as a full node.
-    // This currently requests the cubes and then discards them, which is a waste of resources.
-
-    // options.family ??= cciFamily; // Disabled until sync is fixed - this interfered with my frozen notify CCI cubes
+    options.family ??= [cciFamily, coreCubeFamily];
 
     // Torrent tracker usage must be enforced off as it's not supported
     // in the browser environment.

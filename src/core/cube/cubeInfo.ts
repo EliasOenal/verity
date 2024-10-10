@@ -49,7 +49,7 @@ export interface CubeInfoOptions {
    * format. If you're using CCI, and we strongly recommend you do, choose
    * cciFieldParsers.
    */
-  family?: CubeFamilyDefinition,
+  family?: CubeFamilyDefinition|CubeFamilyDefinition[];
 }
 
 /**
@@ -122,7 +122,7 @@ export class CubeInfo {
     return this._difficulty;
   }
 
-  readonly family: CubeFamilyDefinition;
+  readonly families: CubeFamilyDefinition[];
 
   /**
    * Application code may store any notes they may have on a Cube here.
@@ -158,7 +158,7 @@ export class CubeInfo {
         throw new ApiMisuseError("CubeInfo can only be constructed for Cubes which know their key, call and await Cube's getKey() first");
       }
       this.objectCache = new WeakRef(options.cube);
-      this.family = options.cube.family;
+      this.families = [options.cube.family];
     } else if (options.cube instanceof Buffer) {
       // dormant Cube
       this.binaryCube = options.cube;
@@ -167,13 +167,19 @@ export class CubeInfo {
       if(!this.key) {
         throw new ApiMisuseError("CubeInfo on dormant Cubes can only be contructed if you supply the Cube key.");
       }
-      this.family = options?.family ?? coreCubeFamily;
+      // Set family, normalising it or using the default if necessary
+      let families = options?.family ?? [coreCubeFamily];
+      if (!Array.isArray(families)) families = [families];
+      this.families = families;
     } else {
       // incomplete Cube
       this.binaryCube = undefined;
-      this.family = options.family ?? coreCubeFamily;
       this._cubeType = options.cubeType;
       this.key = options.key;
+      // Set family, normalising it or using the default if necessary
+      let families = options?.family ?? [coreCubeFamily];
+      if (!Array.isArray(families)) families = [families];
+      this.families = families;
     }
   }
 
@@ -192,12 +198,14 @@ export class CubeInfo {
    * @throws Should not throw.
    */
   getCube(
-      family: CubeFamilyDefinition = this.family,
+      families: CubeFamilyDefinition|CubeFamilyDefinition[] = this.families,
   ): Cube | undefined {
+    // normalise input
+    if (!Array.isArray(families)) families = [families];
     // Keep returning the same Cube object until it gets garbage collected.
     // Can only used cached object when using default parser and Cube class.
     if (this.objectCache) {  // is there anything cached?
-      if (family === this.family) {  // don't use cache unless default parsing
+      if (families[0] === this.families[0]) {  // don't use cache unless default parsing
         const cachedCube: Cube = this.objectCache.deref();
         if (cachedCube) {
           // logger.trace("cubeInfo: Yay! Saving us one instantiation");
@@ -209,17 +217,20 @@ export class CubeInfo {
     }
 
     // Nope, no Cube object cached. Create a new one and remember it.
-    try {
-      const cube = new family.cubeClass(this.binaryCube, {family: family});
-      // Can only cache object when using default Cube family
-      if (family === this.family) {
-        this.objectCache = new WeakRef(cube);
-      }
-      return cube;
-    } catch (err) {
-      logger.error(`${this.toString()}: Could not instantiate Cube: ${err?.toString() ?? err}`);
-      return undefined;
+    // Try to parse binary Cube using our family settings in order of precedence
+    for (const family of families) {
+      try {
+        const cube = new family.cubeClass(this.binaryCube, {family: family});
+        // Can only cache object when using default Cube family
+        if (family === this.families[0]) {
+          this.objectCache = new WeakRef(cube);
+        }
+        return cube;
+      } catch (err) { /* do nothing, just try next one */ }
     }
+    // Still not returned? Looking bad then.
+    logger.error(`${this.toString()}: Could not instantiate Cube using any configured family setting`);
+    return undefined;
   }
 
   toString(): string { return `CubeInfo for ${this.keyString}` }

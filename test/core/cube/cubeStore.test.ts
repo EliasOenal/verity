@@ -630,7 +630,7 @@ describe('cubeStore', () => {
 
       describe('tests involving CCI layer', () => {
         const cubeStoreOptions: CubeStoreOptions = {
-          family: cciFamily,
+          family: [cciFamily, coreCubeFamily],
           requiredDifficulty: reducedDifficulty,
           enableCubeRetentionPolicy: false,
           dbName: 'cubes.test',
@@ -652,7 +652,8 @@ describe('cubeStore', () => {
           await cubeStore.shutdown();
         });
 
-        it("respects the user's Cube parsing settings", async () => {
+        it("stores CCI Cubes by default", async () => {
+          // prepare a CCI Cube
           const cube: cciCube = cciCube.Frozen({
             fields: [
               cciField.Application("Applicatio probandi"),
@@ -661,11 +662,16 @@ describe('cubeStore', () => {
               cciField.Payload("In hac applicatio probationis, usor probandi creat contentum probandi, ut programma probatorium confirmet omnem testium datam conservatam esse."),
             ], requiredDifficulty: reducedDifficulty
           });
+          // compile it to binary -- it's CCI family is now no longer visible
+          // as family is a purely local, parsing-related attribute
           const binaryCube: Buffer = await cube.getBinaryData();
           const key: Buffer = await cube.getKey();
+          // add compiled binary Cube to the store
           const added = await cubeStore.addCube(binaryCube);
           expect(added).toBeTruthy();
 
+          // restore Cube from store --
+          // expect it to restore as CCI Cube as that's our default setting
           const restored: cciCube = await cubeStore.getCube(key) as cciCube;
           expect(restored).toBeTruthy();
           expect(restored).toBeInstanceOf(cciCube);
@@ -679,6 +685,25 @@ describe('cubeStore', () => {
             .toEqual("Usor probandi");
           expect(restored.getFirstField(cciFieldType.PAYLOAD).value.toString()).toEqual(
             "In hac applicatio probationis, usor probandi creat contentum probandi, ut programma probatorium confirmet omnem testium datam conservatam esse.");
+        });
+
+        it('can still store non-CCI Cubes as core Cubes', async () => {
+          // prepare a non-CCI Cube
+          const cube: Cube = Cube.Frozen({ requiredDifficulty: reducedDifficulty });
+          const rawContentField = cube.getFirstField(CubeFieldType.FROZEN_RAWCONTENT);
+          // fill the raw content field with something that's definitely
+          // not CCI-parseable (and notably does not start with 0x00 so the
+          // CCI parser doesn't just stop)
+          rawContentField.value = Buffer.alloc(rawContentField.length, 0x3F);
+          // compile to binary and add to store
+          const binaryCube: Buffer = await cube.getBinaryData();
+          await cubeStore.addCube(binaryCube);
+
+          // restore Cube from store
+          const restored: Cube = await cubeStore.getCube(await cube.getKey());
+          const restoredContent = restored.getFirstField(CubeFieldType.FROZEN_RAWCONTENT);
+          expect(restoredContent.type).toEqual(rawContentField.type);
+          expect(restoredContent.value).toEqual(rawContentField.value);
         });
       });
     });
