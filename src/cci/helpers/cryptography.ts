@@ -1,5 +1,7 @@
-import sodium from 'libsodium-wrappers-sumo'
 import { VerityError } from '../../core/settings';
+
+import { Buffer } from 'buffer'
+import sodium from 'libsodium-wrappers-sumo'
 
 export interface KeyPair {
   privateKey: Buffer;

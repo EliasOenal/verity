@@ -16,6 +16,7 @@ import { CubeCreateOptions } from "../../core/cube/cube";
 
 import { logger } from "../../core/logger";
 
+import { Buffer } from 'buffer'
 import sodium from 'libsodium-wrappers-sumo'
 
 export type EncryptionRecipients = Identity|Iterable<Identity>|Buffer|Iterable<Buffer>;
