@@ -3,11 +3,11 @@ import { NetConstants } from "../networking/networkDefinitions";
 import { BaseFields, FieldPosition } from "../fields/baseFields";
 import { FieldDefinition, FieldParser } from "../fields/fieldParser";
 
-import type { Cube } from "./cube";
+import { coreCubeFamily, type Cube } from "./cube";
 import { CubeField } from "./cubeField";
 
 import { Buffer } from 'buffer';
-import { CubeFieldType, CubeType, CubeFieldLength, FrozenCorePositionalFront, FrozenPositionalBack, FrozenNotifyCorePositionalFront, FrozenNotifyPositionalBack, PicCorePositionalFront, PicPositionalBack, PicNotifyCorePositionalFront, PicNotifyPositionalBack, MucCorePositionalFront, MucPositionalBack, MucNotifyCorePositionalFront, MucNotifyPositionalBack, PmucCorePositionalFront, PmucPositionalBack, PmucNotifyCorePositionalFront, PmucNotifyPositionalBack, FrozenPositionalFront, MucPositionalFront, FrozenDefaultFields, FrozenNotifyDefaultFields, PicDefaultFields, PicNotifyDefaultFields, MucDefaultFields, MucNotifyDefaultFields, PmucDefaultFields, PmucNotifyDefaultFields, HasNotify, ToggleNotifyType } from "./cube.definitions";
+import { CubeFieldType, CubeType, CubeFieldLength, FrozenCorePositionalFront, FrozenPositionalBack, FrozenNotifyCorePositionalFront, FrozenNotifyPositionalBack, PicCorePositionalFront, PicPositionalBack, PicNotifyCorePositionalFront, PicNotifyPositionalBack, MucCorePositionalFront, MucPositionalBack, MucNotifyCorePositionalFront, MucNotifyPositionalBack, PmucCorePositionalFront, PmucPositionalBack, PmucNotifyCorePositionalFront, PmucNotifyPositionalBack, FrozenPositionalFront, MucPositionalFront, FrozenDefaultFields, FrozenNotifyDefaultFields, PicDefaultFields, PicNotifyDefaultFields, MucDefaultFields, MucNotifyDefaultFields, PmucDefaultFields, PmucNotifyDefaultFields, HasNotify, ToggleNotifyType, RawcontentFieldType } from "./cube.definitions";
 
 export class CubeFields extends BaseFields {
   static CorrectNotifyType(type: CubeType, fields: CubeFields | CubeField[] | CubeField) {
@@ -62,16 +62,23 @@ export class CubeFields extends BaseFields {
     return BaseFields.DefaultPositionals(fieldDefinition, fieldsObj) as CubeFields;
   }
 
-  bytesRemaining(max: number = NetConstants.CUBE_SIZE): number {
-    return max - this.getByteLength();
-  }
-
   static DefaultPositionals(
     fieldDefinition: FieldDefinition,
     data: CubeFields | CubeField[] | CubeField | undefined = undefined,
   ): CubeFields {
     return super.DefaultPositionals(fieldDefinition, data) as CubeFields;
   }
+
+  static ContentBytesAvailable(
+      cubeType: CubeType,
+  ): number {
+    return CubeFieldLength[RawcontentFieldType[cubeType]];
+  }
+
+  bytesRemaining(max: number = NetConstants.CUBE_SIZE): number {
+    return max - this.getByteLength();
+  }
+
 }
 
 /**
