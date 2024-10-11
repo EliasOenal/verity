@@ -393,9 +393,47 @@ describe('Veritum', () => {
         }
       });
 
+      it.skip('encrypts a Veritum for more recipients than a single Cube hold key slots', async() => {
+        // make 50 recipients
+        const recipients: KeyPair[] = [];
+        for (let i = 0; i < 40; i++) {
+          const uint8senderKeyPair = sodium.crypto_box_keypair();
+          const keyPair = {
+            publicKey: Buffer.from(uint8senderKeyPair.publicKey),
+            privateKey: Buffer.from(uint8senderKeyPair.privateKey),
+          };
+          recipients.push(keyPair);
+        }
+
+        // Create a Veritum instance with a single payload field
+        const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
+
+        // Compile the Veritum instance with encryption options for the three recipients
+        await veritum.compile({
+          recipients: recipients.map(kp => kp.publicKey),
+          senderPrivateKey: senderKeyPair.privateKey,
+          requiredDifficulty,
+          senderPubkey: senderKeyPair.publicKey,
+        });
+        expect(veritum.compiled[0].getFields(cciFieldType.PAYLOAD)).toBeUndefined();
+        expect(veritum.compiled[0].getFields(cciFieldType.ENCRYPTED)).toBeDefined();
+
+        // Ensure that the Veritum is decryptable by all recipients
+        for (const recipient of recipients) {
+          const restored = Veritum.FromChunks(veritum.compiled, {
+            recipientPrivateKey: recipient.privateKey,
+          });
+          expect(restored.cubeType).toBe(CubeType.FROZEN);
+          expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
+            payloadField.valueString);
+        }
+      });
+
       it.todo('uses continuation mode for a multi-chunk Veritum and uses a different nonce in each chunk');
       it.todo('encrypts a single payload field to more recipients that fit in a Cube');
       it.todo('encrypts a multi-chunk Veritum to more recipients that fit in a Cube');
+      it.todo('calculates the chunk sizes for different Cube types');
+      it.todo('calculates the chunk sizes correctly when including auxialliary non-encrypted data');
     });
   });
 

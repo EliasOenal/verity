@@ -226,22 +226,33 @@ export function EncryptionOverheadBytes(
   // sanity-check: all header must have been planned
   if (options.pubkeyHeader === undefined ||
       options.nonceHeader === undefined ||
-      options.keyslotHeader === undefined) {
+      options.keyslotHeader === undefined ||
+      (options.keyslotHeader && !(options.recipients as Buffer)?.length)) {
     throw new ApiMisuseError("EncryptionOverheadBytes() may only be called after the scheme variant has been defined by EncryptionPrepareParams()");
   }
+  // determine number of key slots required, if any
+  const numKeySlots: number = options.keyslotHeader?
+    (options.recipients as Array<Buffer>).length : 0;
+  // peform calculation
+  return EncryptionOverheadBytesCalc(
+    fieldDefinition, options.pubkeyHeader, options.nonceHeader, numKeySlots);
+}
+
+export function EncryptionOverheadBytesCalc(
+  fieldDefinition: FieldDefinition,
+  pubkeyHeader: boolean,
+  nonceHeader: boolean,
+  keySlots: number,
+): number {
   // minimal overhead is the ENCRYPTED field header and the payload MAC
    let overhead: number =
     FieldParser.getFieldHeaderLength(cciFieldType.ENCRYPTED, fieldDefinition) +
     sodium.crypto_secretbox_MACBYTES;
   // account for additional metadata as planned in params
-  if (options.pubkeyHeader) overhead += sodium.crypto_box_PUBLICKEYBYTES;
-  if (options.nonceHeader) overhead += sodium.crypto_secretbox_NONCEBYTES;
-  if (options.keyslotHeader) {
-    // account for key slots if there are multiple recipients
-    overhead +=
-      (options.recipients as Buffer[]).length *  // recipients already normalised
-      sodium.crypto_secretbox_KEYBYTES;
-  }
+  if (pubkeyHeader) overhead += sodium.crypto_box_PUBLICKEYBYTES;
+  if (nonceHeader) overhead += sodium.crypto_secretbox_NONCEBYTES;
+  // account for key slots if there are multiple recipients
+  overhead += keySlots * sodium.crypto_secretbox_KEYBYTES;
   return overhead;
 }
 
