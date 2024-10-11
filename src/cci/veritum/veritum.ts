@@ -79,7 +79,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     await sodium.ready;  // needed in case of encrypted Verita
     // Prepare an encryption helper in case encryption is requested
     // (it will not get in the way otherwise)
-    const encryptionHelper = new ChunkEncryptionHelper(options);
+    const encryptionHelper = new ChunkEncryptionHelper(this, options);
     // Feed this Veritum through the splitter -- this is the main operation
     // of compiling a Veritum.
     const splitOptions: SplitOptions = {
