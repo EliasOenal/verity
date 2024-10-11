@@ -87,7 +87,7 @@ function DecryptWithPresharedKey(
   const encryptedBlob: Buffer = DecryptionRetrieveEncryptedBlob(input);
   if (encryptedBlob === undefined) return undefined;
 
-  // Try to decrypt as Continuation Cube
+  // Try to decrypt as Continuation Cube (= nonce already known)
   if (nonce) {
     const plaintext: Buffer = DecryptionSymmetricDecrypt(
       encryptedBlob, nonce, symmetricKey);
@@ -97,6 +97,7 @@ function DecryptWithPresharedKey(
   }
 
   // Try to decrypt as Start-of-Veritum with Preshared Key
+  // (= nonce included in encrypted blob)
   let offset = 0;
   // Slice out the nonce
   nonce = encryptedBlob.subarray(offset,
