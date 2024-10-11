@@ -588,7 +588,7 @@ function EncryptionRandomKey(): Buffer {
   return Buffer.from(sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES));
 }
 
-function EncryptionRandomNonce(): Buffer {
+export function EncryptionRandomNonce(): Buffer {
   // Create a random nonce
   const nonce: Buffer = Buffer.from(
     sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES));

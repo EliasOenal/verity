@@ -8,7 +8,7 @@ import { cciFieldLength, cciFieldType } from "../cube/cciCube.definitions";
 import { cciField } from "../cube/cciField";
 import { cciFields } from "../cube/cciFields";
 import { CciDecryptionParams, Decrypt } from "./chunkDecryption";
-import { CciEncryptionParams, EncryptionPrepareParams, EncryptionOverheadBytes, EncryptionHashNonces, CryptStateOutput, EncryptPrePlanned, EncryptionHashNonce, EncryptionOverheadBytesCalc, CryptoError } from "./chunkEncryption";
+import { CciEncryptionParams, EncryptionPrepareParams, EncryptionOverheadBytes, EncryptionHashNonces, CryptStateOutput, EncryptPrePlanned, EncryptionHashNonce, EncryptionOverheadBytesCalc, CryptoError, EncryptionRandomNonce } from "./chunkEncryption";
 import { SplitState } from "./continuation";
 import { VeritumCompileOptions, VeritumFromChunksOptions } from "./veritum";
 
@@ -16,16 +16,18 @@ export class ChunkEncryptionHelper {
   readonly shallEncrypt: boolean;
 
   private encryptionSchemeParams: CciEncryptionParams;
-  private continuationEncryptionParams: CciEncryptionParams;
+  private nonceRedistributionParams: CciEncryptionParams;
+  private continuationParams: CciEncryptionParams;
+
   private firstChunkSpace: number;
   private continuationChunkSpace: number;
+  private nonceRedistSpace: number;
+
   private nonceList: Buffer[] = [];
+  extraKeyDistributionChunks: cciCube[] = [];
 
   /** Number of key distribution chunks */
   private keyDistributionChunkNo: number;
-
-  // TODO simplify
-  private nonceRedistChunkNo: number;
 
   constructor(
       veritable: Veritable,
@@ -38,9 +40,7 @@ export class ChunkEncryptionHelper {
       // Figure out which variant of CCI encryption we will use
       this.planEncryptionScheme();
       // Reserve some space for encryption overhead.
-      this.planKeyDistributionChunks(veritable);
-      this.continuationChunkSpace = NetConstants.CUBE_SIZE -
-        EncryptionOverheadBytes(this.continuationEncryptionParams);
+      this.planChunks(veritable);
       }
     }
 
@@ -48,6 +48,8 @@ export class ChunkEncryptionHelper {
     if (this.shallEncrypt) {
       if (chunkIndex === 0) {
         return this.firstChunkSpace;
+      } else if (chunkIndex === 1 && this.needNonceRedist === true ) {
+        return this.nonceRedistSpace;
       } else {
         return this.continuationChunkSpace;
       }
@@ -68,17 +70,22 @@ export class ChunkEncryptionHelper {
       //   know, is handled *last*), key derivation meta data goes in here
       // - If this is any other chunk, we use the symmetric session established
       //   in the first chunk, but crucially supplying a unique nonce.
-      // TODO allow for multiple key distribution chunks, i.e. transform
-      // a single chunkIndex===0 chunk to multiple chunks
       if (state.chunkIndex === 0) {
-        chunkParams = this.encryptionSchemeParams;  // TODO separate params for individual KDC
+        chunkParams = this.encryptionSchemeParams;
+        // TODO allow for multiple key distribution chunks, i.e. transform
+        // a single chunkIndex===0 chunk to multiple chunks
+      } else if (state.chunkIndex === 1 && this.needNonceRedist === true) {
+        chunkParams = this.nonceRedistributionParams;
       } else {
         chunkParams = {
-          ...this.continuationEncryptionParams,
+          ...this.continuationParams,
           nonce: this.nonceList[state.chunkIndex],
         }
       }
-      // Perform chunk encryption
+      // Perform chunk encryption.
+      // If this is the first (key distribution) chunk, we may need to split it
+      // into several chunks in case there are too many recipients.
+      // TODO
       const encRes: CryptStateOutput = EncryptPrePlanned(
         chunk.manipulateFields(), chunkParams);
       const encryptedFields: cciFields = encRes.result;
@@ -95,17 +102,29 @@ export class ChunkEncryptionHelper {
     this.encryptionSchemeParams = { ...this.options };  // copy input opts
     this.encryptionSchemeParams =  // run scheme planner
       EncryptionPrepareParams(this.encryptionSchemeParams);
-    this.continuationEncryptionParams = {  // prepare continuation variant
+    this.continuationParams = {  // prepare continuation variant
       ...this.encryptionSchemeParams,
       nonce: undefined,  // to be defined per chunk below
       pubkeyHeader: false,
       nonceHeader: false,
       keyslotHeader: false,
     }
+    this.nonceRedistributionParams = {  // prepare nonce redistribution variant
+      ...this.encryptionSchemeParams,
+      nonce: EncryptionRandomNonce(),
+      nonceHeader: true,
+      pubkeyHeader: false,
+      keyslotHeader: false,
+    }
   }
 
   // TODO: Allow for optional non-encrypted auxiliary data, e.g. key hints
-  private planKeyDistributionChunks(veritable: Veritable): void {
+  /**
+   * Determines the amount of key distribution chunks needed and the amount
+   * of space available for payload per chunk.
+   * Must be called after planEncryptionScheme().
+   */
+  private planChunks(veritable: Veritable): void {
     // First, figure out how much space we have in our key distribution
     // chunk versus how much space we need.
     // TODO plan multiple first chunks if need be
@@ -129,20 +148,14 @@ export class ChunkEncryptionHelper {
     // Will we need any key slots, and if so, how many?
     let keySlotCount: number = this.encryptionSchemeParams.keyslotHeader?
       (this.encryptionSchemeParams.recipients as Array<Buffer>).length : 0;
-    let keyDistributionBytesRequired: number =
-      EncryptionOverheadBytesCalc(
-        veritable.family.parsers[veritable.cubeType].fieldDef,  // TODO Veritable should directly provide fieldDef
-        this.encryptionSchemeParams.pubkeyHeader,
-        this.encryptionSchemeParams.nonceHeader,
-        keySlotCount
-      );
-    // Will we need more than one key distribution chunk?
-    this.keyDistributionChunkNo = 1;
-    // If there's not enough space, split the key distribution chunk in
-    // two and check again.
-    while (keyDistributionBytesRequired > maxDistBytesPerKeyChunk && keySlotCount > 1) {
+    let keyDistributionBytesRequired: number = undefined;
+    // Let's find out how many key distribution chunks we'll need.
+    this.keyDistributionChunkNo = 0;  // at least 1, will be incremented below
+    while ( this.keyDistributionChunkNo === 0 ||  // always run once
+      keyDistributionBytesRequired > maxDistBytesPerKeyChunk && keySlotCount > 1
+    ){
       this.keyDistributionChunkNo++;
-      keySlotCount = Math.ceil(keySlotCount / 2);
+      keySlotCount = Math.ceil(keySlotCount / this.keyDistributionChunkNo);
       keyDistributionBytesRequired =
         EncryptionOverheadBytesCalc(
           veritable.family.parsers[veritable.cubeType].fieldDef,  // TODO Veritable should directly provide fieldDef
@@ -160,7 +173,19 @@ export class ChunkEncryptionHelper {
     // positional fields as well as the next chunk reference, this is *not*
     // deducted here. firstChunkSpace only deducts the actual crypto overhead.
     this.firstChunkSpace = NetConstants.CUBE_SIZE - keyDistributionBytesRequired;
+
+    // Determin the amount of space in Continuation chunks
+    this.continuationChunkSpace = NetConstants.CUBE_SIZE -
+      EncryptionOverheadBytes(this.continuationParams);
+
+    // Determine the amount of space in nonce redistribution chunks
+    this.nonceRedistSpace;
   }
+
+  private get needNonceRedist(): boolean {
+    return this.keyDistributionChunkNo > 1;
+  }
+
 }
 
 
