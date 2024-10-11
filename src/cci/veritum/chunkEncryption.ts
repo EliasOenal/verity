@@ -4,7 +4,7 @@ import { ApiMisuseError, Settings, VerityError } from "../../core/settings";
 import { cciFieldLength, cciFieldType } from "../cube/cciCube.definitions";
 import { cciField } from "../cube/cciField";
 import { cciFields, cciFrozenFieldDefinition } from "../cube/cciFields";
-import { Continuation, CryptoError } from "./continuation";
+import { Continuation } from "./continuation";
 
 import { Identity } from "../identity/identity";
 
@@ -199,6 +199,9 @@ export function EncryptPrePlanned(
   const ciphertext: Buffer = EncryptionSymmetricEncrypt(
     plaintext, params.nonce, params.symmetricKey);
   // Verify sizes work out
+  if (ciphertext.length > (encryptedField.length - offset)) {
+    throw new CryptoError(`Encrypt(): Can't fit that much data into a single chunks; got ${ciphertext.length} bytes of ciphertext but I only have ${encryptedField.length-offset} bytes left for it.`);
+  }
   if(ciphertext.length !== (encryptedField.length - offset)) {
     throw new CryptoError(`Encrypt(): I messed up my calculations, ending up with ${ciphertext.length} bytes of ciphertext but only ${encryptedField.length-offset} bytes left for it. This should never happen.`);
   }
@@ -409,6 +412,11 @@ function EncryptionWriteMeta(cryptoBlob: Buffer, params: CciEncryptionParams): n
       params.symmetricKey, params.senderPrivateKey,
       params.recipients as Array<Buffer>, params.nonce,
     );
+    // Verify all slots fit
+    if (keyDistributionSlots.length > (cryptoBlob.length - offset)) {
+      // TODO: figure that out earlier before we do all those asymmetric operations
+      throw new TooManyRecipients("CCI Encryption: Too many recipients; can't fit key distribution slots");
+    }
     offset = EncryptionAddSubfield(cryptoBlob, keyDistributionSlots, offset);
   }
   return offset;
@@ -592,3 +600,7 @@ function EncryptionSymmetricEncrypt(
 }
 
 // End of encryption cryptographic primitive helpers
+
+
+export class CryptoError extends VerityError { name = "CryptoError" }
+export class TooManyRecipients extends CryptoError { name = "TooManyRecipients" }

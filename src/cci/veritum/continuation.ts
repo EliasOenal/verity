@@ -357,5 +357,3 @@ export class Continuation {
     return veritum;
   }
 }
-
-export class CryptoError extends VerityError { name = "CryptoError" }
