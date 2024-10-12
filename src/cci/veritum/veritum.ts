@@ -89,6 +89,13 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
         encryptionHelper.transformChunk(chunk, splitState),
     }
     this._compiled = await Continuation.Split(this, splitOptions);
+    // If this was encrypted to many recipients we may need to add some
+    // supplementary key distribution chunks at the beginning
+    if (encryptionHelper.supplementaryKeyDistributionChunks.length > 0) {
+      this._compiled = encryptionHelper.supplementaryKeyDistributionChunks.
+        concat(this._compiled);
+      // TODO: Handle the fact that those have different keys in an intuitive way
+    }
     return this._compiled;
   }
 
