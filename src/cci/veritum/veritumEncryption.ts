@@ -12,6 +12,8 @@ import { CciEncryptionParams, EncryptionPrepareParams, EncryptionOverheadBytes, 
 import { SplitState } from "./continuation";
 import { VeritumCompileOptions, VeritumFromChunksOptions } from "./veritum";
 
+import sodium from 'libsodium-wrappers-sumo'
+
 export class ChunkEncryptionHelper {
   readonly shallEncrypt: boolean;
 
@@ -24,10 +26,11 @@ export class ChunkEncryptionHelper {
   private nonceRedistSpace: number;
 
   private nonceList: Buffer[] = [];
-  extraKeyDistributionChunks: cciCube[] = [];
+  supplementaryKeyDistributionChunks: cciCube[] = [];
 
   /** Number of key distribution chunks */
   private keyDistributionChunkNo: number;
+  private keySlotsPerChunk: number;
 
   constructor(
       veritable: Veritable,
@@ -71,7 +74,18 @@ export class ChunkEncryptionHelper {
       // - If this is any other chunk, we use the symmetric session established
       //   in the first chunk, but crucially supplying a unique nonce.
       if (state.chunkIndex === 0) {
-        chunkParams = this.encryptionSchemeParams;
+        chunkParams = { ... this.encryptionSchemeParams };
+        if (this.keyDistributionChunkNo > 1) {
+          // If we need more than one key distribution chunk, we need to split
+          // the recipients list. The "original" key distribution chunk gets the
+          // first recipients, while the other chunks get the rest.
+          // TODO randomise
+          chunkParams.recipients = (chunkParams.recipients as Array<Buffer>).
+            slice(0, this.keySlotsPerChunk);
+          // Create as many supplementary key distribution chunks as needed
+          this.makeSupplementaryKeyDistributionChunks(chunk);
+        }
+
         // TODO allow for multiple key distribution chunks, i.e. transform
         // a single chunkIndex===0 chunk to multiple chunks
       } else if (state.chunkIndex === 1 && this.needNonceRedist === true) {
@@ -146,22 +160,22 @@ export class ChunkEncryptionHelper {
         cciFieldType.RELATES_TO
       );
     // Will we need any key slots, and if so, how many?
-    let keySlotCount: number = this.encryptionSchemeParams.keyslotHeader?
+    this.keySlotsPerChunk = this.encryptionSchemeParams.keyslotHeader?
       (this.encryptionSchemeParams.recipients as Array<Buffer>).length : 0;
     let keyDistributionBytesRequired: number = undefined;
     // Let's find out how many key distribution chunks we'll need.
     this.keyDistributionChunkNo = 0;  // at least 1, will be incremented below
     while ( this.keyDistributionChunkNo === 0 ||  // always run once
-      keyDistributionBytesRequired > maxDistBytesPerKeyChunk && keySlotCount > 1
+      keyDistributionBytesRequired > maxDistBytesPerKeyChunk && this.keySlotsPerChunk > 1
     ){
       this.keyDistributionChunkNo++;
-      keySlotCount = Math.ceil(keySlotCount / this.keyDistributionChunkNo);
+      this.keySlotsPerChunk = Math.ceil(this.keySlotsPerChunk / this.keyDistributionChunkNo);
       keyDistributionBytesRequired =
         EncryptionOverheadBytesCalc(
           veritable.family.parsers[veritable.cubeType].fieldDef,  // TODO Veritable should directly provide fieldDef
           this.encryptionSchemeParams.pubkeyHeader,
           this.encryptionSchemeParams.nonceHeader,
-          keySlotCount
+          this.keySlotsPerChunk
         );
     }
     if (keyDistributionBytesRequired > maxDistBytesPerKeyChunk) {
@@ -184,6 +198,30 @@ export class ChunkEncryptionHelper {
 
   private get needNonceRedist(): boolean {
     return this.keyDistributionChunkNo > 1;
+  }
+
+  private makeSupplementaryKeyDistributionChunks(chunk: cciCube): void {
+    for (let i = 1; i < this.keyDistributionChunkNo; i++) {
+      // prepare params
+      const chunkParams: CciEncryptionParams = { ... this.encryptionSchemeParams };
+      // This chunk gets the i-th slice of recipients
+      chunkParams.recipients = (chunkParams.recipients as Array<Buffer>).
+        slice(i*this.keySlotsPerChunk, (i+1)*this.keySlotsPerChunk);
+      // Pad up the recipient list if necessary
+      while ((chunkParams.recipients as Array<Buffer>).length < this.keySlotsPerChunk) {
+        (chunkParams.recipients as Array<Buffer>).push(Buffer.from(
+          sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES)));
+      }
+      // Run the supplementary chunk field set through the encrypter
+      const encRes: CryptStateOutput = EncryptPrePlanned(
+        chunk.manipulateFields(), chunkParams);
+      // Sculpt the supplementary chunk
+      const supplementaryChunk = cciCube.Create(chunk.cubeType, {
+        ...this.options,
+        fields: encRes.result,
+      });
+      this.supplementaryKeyDistributionChunks.push(supplementaryChunk);
+    }
   }
 
 }

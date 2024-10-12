@@ -393,7 +393,7 @@ describe('Veritum', () => {
         }
       });
 
-      it.skip('encrypts a Veritum for more recipients than a single Cube hold key slots', async() => {
+      it('encrypts a Veritum for more recipients than a single Cube hold key slots', async() => {
         // make 50 recipients
         const recipients: KeyPair[] = [];
         for (let i = 0; i < 40; i++) {
@@ -415,8 +415,8 @@ describe('Veritum', () => {
           requiredDifficulty,
           senderPubkey: senderKeyPair.publicKey,
         });
-        expect(veritum.compiled[0].getFields(cciFieldType.PAYLOAD)).toBeUndefined();
-        expect(veritum.compiled[0].getFields(cciFieldType.ENCRYPTED)).toBeDefined();
+        expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+        expect(veritum.compiled[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
 
         // Ensure that the Veritum is decryptable by all recipients
         for (const recipient of recipients) {
