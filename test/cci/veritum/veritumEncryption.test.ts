@@ -357,12 +357,13 @@ describe('CCI Veritum encryption', () => {
           });
           expect(cannotDecrypt.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
         });
-      });
+
+        it.todo('uses different nonces for all chunks, including key distribution chunks');
+      });  // encrypts a multi-chunk Veritum for more recipients than a single Cube holds key slots
     });  // multiple recipients
   });
 
   describe('TODOs', () => {
-    it.todo('encrypts a multi-chunk Veritum to more recipients that fit in a Cube');
     it.todo('calculates the chunk sizes for different Cube types');
     it.todo('calculates the chunk sizes correctly when including auxialliary non-encrypted data');
   });
