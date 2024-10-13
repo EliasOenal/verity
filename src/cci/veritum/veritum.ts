@@ -138,6 +138,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     // Prepare an encryption helper in case encryption is requested
     // (it will not get in the way otherwise)
     const encryptionHelper = new ChunkEncryptionHelper(this, options);
+
     // Feed this Veritum through the splitter -- this is the main operation
     // of compiling a Veritum.
     const splitOptions: SplitOptions = {
@@ -147,7 +148,11 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
         encryptionHelper.transformChunk(chunk, splitState),
     }
     this._compiled = await Continuation.Split(this, splitOptions);
+
+    // In case of encryption, adopt some metadata from the encryption helper
     this._keyChunkNo = encryptionHelper.keyChunkNo;
+    this.recipientKeyChunkMap = encryptionHelper.recipientKeyChunkMap;
+
     // If this was encrypted to many recipients we may need to add some
     // supplementary key distribution chunks at the beginning
     if (encryptionHelper.supplementaryKeyChunks.length > 0) {
