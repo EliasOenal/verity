@@ -32,6 +32,10 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   readonly publicKey: Buffer;
   readonly privateKey: Buffer;
 
+  private _keyChunkNo: number = 0;
+  get keyChunkNo(): number { return this._keyChunkNo }
+  private recipientKeyChunkMap: Map<string, cciCube> = new Map();
+
   static FromChunks(chunks: Iterable<cciCube>, options?: VeritumFromChunksOptions): Veritum {
     // If decryption was requested, let's decrypt the chunks before recombining.
     // Will not get in our way if decryption was not requested.
@@ -66,6 +70,12 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     }
   }
 
+  /**
+   * Note: If this is an encrypted Veritum to a large number of recipients,
+   * this Veritum will have different keys for different groups of recipients.
+   * This method will always just return the first chunk key, which is not
+   * appropriate for all recipients.
+   */
   getKeyIfAvailable(): CubeKey {
     if (HasSignature[this.cubeType]) return this.publicKey;
     else return this._compiled?.[0]?.getKeyIfAvailable();
@@ -73,6 +83,54 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   getKeyStringIfAvailable(): string {
     if (HasSignature[this.cubeType]) return keyVariants(this.publicKey).keyString;
     else return this._compiled?.[0]?.getKeyStringIfAvailable();
+  }
+
+  /**
+   * A Veritum usually has a single key. There's however one special case where
+   * it can have multiple keys: if it's encrypted to many recipients.
+   * In that case, different groups of recipients will know this Veritum
+   * using different keys.
+   * This method will return all of this Veritum's keys.
+   * Note that this is not the same as "all chunk's keys" -- there are usually
+   * still more Chunk keys than Veritum keys even in this special case.
+   * Also note that even though this method does not feature "IfAvailable" in
+   * it's name, it will still only return available keys, which usually means
+   * the Veritum need to be compile()d first.
+   */
+  *getAllKeys(): Generator<CubeKey> {
+    for (let i=0; i<this.keyChunkNo; i++) {
+      if (this._compiled[i] === undefined) {
+        logger.trace(`Veritum.getAllKeys: chunk key ${i} not available, aborting.`);
+        return;
+      }
+      yield this._compiled?.[i]?.getKeyIfAvailable();
+    }
+  }
+  /** String based variant of getAllKeys(), see there. */
+  *getAllKeyString(): Generator<string> {
+    for (const key of this.getAllKeys()) {
+      yield keyVariants(key).keyString;
+    }
+  }
+  getRecipientKeyChunk(recipientInput: Buffer|string): cciCube {
+    const recipient: string = keyVariants(recipientInput).keyString;
+    return this.recipientKeyChunkMap.get(recipient);
+  };
+  /**
+   * Returns the list of chunks in this Veritum for the given recipient,
+   * i.e. only including the key chunk intended for this recipient.
+   * This is only needed in the special case of an encrypted Veritum directed
+   * to a very large number of recipient; in all other cases it will simply
+   * return all chunks.
+   * Note that this the Veritum must be compile()d prior to calling this method.
+   */
+  *getRecipientChunks(recipient: Buffer|string): Generator<cciCube> {
+    const keyChunk: cciCube = this.getRecipientKeyChunk(recipient);
+    if (keyChunk === undefined) return undefined;
+    yield keyChunk;
+    for (let i=this.keyChunkNo; i<this._compiled.length; i++) {
+      yield this._compiled[i];
+    }
   }
 
   async compile(options: VeritumCompileOptions = {}): Promise<Iterable<cciCube>> {
@@ -89,12 +147,17 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
         encryptionHelper.transformChunk(chunk, splitState),
     }
     this._compiled = await Continuation.Split(this, splitOptions);
+    this._keyChunkNo = encryptionHelper.keyChunkNo;
     // If this was encrypted to many recipients we may need to add some
     // supplementary key distribution chunks at the beginning
-    if (encryptionHelper.supplementaryKeyDistributionChunks.length > 0) {
-      this._compiled = encryptionHelper.supplementaryKeyDistributionChunks.
-        concat(this._compiled);
-      // TODO: Handle the fact that those have different keys in an intuitive way
+    if (encryptionHelper.supplementaryKeyChunks.length > 0) {
+      this._compiled.splice(1, 0,
+        ...encryptionHelper.supplementaryKeyChunks);
+      // Compile all supplementary key distribution chunks so that we're
+      // guaranteed to know their keys.
+      for (const chunk of encryptionHelper.supplementaryKeyChunks) {
+        await chunk.compile();  // TODO: parallelise
+      }
     }
     return this._compiled;
   }

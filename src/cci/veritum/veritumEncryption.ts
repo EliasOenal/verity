@@ -1,5 +1,5 @@
-import { Cube } from "../../core/cube/cube";
-import { CubeType } from "../../core/cube/cube.definitions";
+import type { CubeKey } from "../../core/cube/cube.definitions";
+import { keyVariants } from "../../core/cube/cubeUtil";
 import { Veritable } from "../../core/cube/veritable.definition";
 import { logger } from "../../core/logger";
 import { NetConstants } from "../../core/networking/networkDefinitions";
@@ -26,10 +26,11 @@ export class ChunkEncryptionHelper {
   private nonceRedistSpace: number;
 
   private nonceList: Buffer[] = [];
-  supplementaryKeyDistributionChunks: cciCube[] = [];
+  supplementaryKeyChunks: cciCube[] = [];
+  recipientFirstChunkMap: Map<string, cciCube> = new Map();
 
   /** Number of key distribution chunks */
-  private keyDistributionChunkNo: number;
+  keyChunkNo: number;
   private keySlotsPerChunk: number;
 
   constructor(
@@ -47,6 +48,10 @@ export class ChunkEncryptionHelper {
       }
     }
 
+  /**
+   * This is a callback method for the splitter, letting it know how much space
+   * it is allowed to use per chunk.
+   */
   spacePerChunk(chunkIndex: number): number {
     if (this.shallEncrypt) {
       if (chunkIndex === 0) {
@@ -60,6 +65,16 @@ export class ChunkEncryptionHelper {
     else return NetConstants.CUBE_SIZE;
   }
 
+  /**
+   * This is the main method doing the actual encryption.
+   * Note that CCI encryption is implemented as a pluggable callback; this is this
+   * pluggable callback.
+   * You will never need to call this method manually, it should always only be
+   * used as a callback to the chunk splitter.
+   * @param chunk The chunk to encrypt
+   * @param state The splitter's internal state, notably letting us know which
+   *   chunk this is (i.e. the chunk index).
+   */
   transformChunk(chunk: cciCube, state: SplitState): void {
     if (this.shallEncrypt) {  // only act if encryption requested
       // Lazy-initialise nonce list
@@ -74,32 +89,39 @@ export class ChunkEncryptionHelper {
       // - If this is any other chunk, we use the symmetric session established
       //   in the first chunk, but crucially supplying a unique nonce.
       if (state.chunkIndex === 0) {
+        // Handling the key distribution chunks:
         chunkParams = { ... this.encryptionSchemeParams };
-        if (this.keyDistributionChunkNo > 1) {
+        if (this.keyChunkNo > 1) {
           // If we need more than one key distribution chunk, we need to split
           // the recipients list. The "original" key distribution chunk gets the
           // first recipients, while the other chunks get the rest.
           // TODO randomise
           chunkParams.recipients = (chunkParams.recipients as Array<Buffer>).
             slice(0, this.keySlotsPerChunk);
+          // Map out which recipient need to get which first chunk
+          this.mapRecipientFirstChunk(chunkParams.recipients, chunk);
           // Create as many supplementary key distribution chunks as needed
           this.makeSupplementaryKeyDistributionChunks(chunk);
+        } else {
+          // Nothing to do here really, just take note of the fact that there's
+          // no difference in first chunks between recipients.
+          // It's the simple case :)
+          this.mapRecipientFirstChunk(
+            this.encryptionSchemeParams.recipients as Buffer[], chunk);
         }
-
-        // TODO allow for multiple key distribution chunks, i.e. transform
-        // a single chunkIndex===0 chunk to multiple chunks
       } else if (state.chunkIndex === 1 && this.needNonceRedist === true) {
+        // Handling the nonce redistribution chunk, if this is one of
+        // the rare cases in which we need one.
         chunkParams = this.nonceRedistributionParams;
       } else {
+        // This is a boring old continuation chunks.
+        // Just supply the unique derived nonce and that's it.
         chunkParams = {
           ...this.continuationParams,
           nonce: this.nonceList[state.chunkIndex],
         }
       }
-      // Perform chunk encryption.
-      // If this is the first (key distribution) chunk, we may need to split it
-      // into several chunks in case there are too many recipients.
-      // TODO
+      // All prep done, perform chunk encryption.
       const encRes: CryptStateOutput = EncryptPrePlanned(
         chunk.manipulateFields(), chunkParams);
       const encryptedFields: cciFields = encRes.result;
@@ -164,12 +186,12 @@ export class ChunkEncryptionHelper {
       (this.encryptionSchemeParams.recipients as Array<Buffer>).length : 0;
     let keyDistributionBytesRequired: number = undefined;
     // Let's find out how many key distribution chunks we'll need.
-    this.keyDistributionChunkNo = 0;  // at least 1, will be incremented below
-    while ( this.keyDistributionChunkNo === 0 ||  // always run once
+    this.keyChunkNo = 0;  // at least 1, will be incremented below
+    while ( this.keyChunkNo === 0 ||  // always run once
       keyDistributionBytesRequired > maxDistBytesPerKeyChunk && this.keySlotsPerChunk > 1
     ){
-      this.keyDistributionChunkNo++;
-      this.keySlotsPerChunk = Math.ceil(this.keySlotsPerChunk / this.keyDistributionChunkNo);
+      this.keyChunkNo++;
+      this.keySlotsPerChunk = Math.ceil(this.keySlotsPerChunk / this.keyChunkNo);
       keyDistributionBytesRequired =
         EncryptionOverheadBytesCalc(
           veritable.family.parsers[veritable.cubeType].fieldDef,  // TODO Veritable should directly provide fieldDef
@@ -197,11 +219,11 @@ export class ChunkEncryptionHelper {
   }
 
   private get needNonceRedist(): boolean {
-    return this.keyDistributionChunkNo > 1;
+    return this.keyChunkNo > 1;
   }
 
   private makeSupplementaryKeyDistributionChunks(chunk: cciCube): void {
-    for (let i = 1; i < this.keyDistributionChunkNo; i++) {
+    for (let i = 1; i < this.keyChunkNo; i++) {
       // prepare params
       const chunkParams: CciEncryptionParams = { ... this.encryptionSchemeParams };
       // This chunk gets the i-th slice of recipients
@@ -220,10 +242,15 @@ export class ChunkEncryptionHelper {
         ...this.options,
         fields: encRes.result,
       });
-      this.supplementaryKeyDistributionChunks.push(supplementaryChunk);
+      this.supplementaryKeyChunks.push(supplementaryChunk);
     }
   }
 
+  private mapRecipientFirstChunk(recipients: Iterable<Buffer>, chunk: cciCube): void {
+    for (const recipient of recipients) {
+      this.recipientFirstChunkMap.set(keyVariants(recipient).keyString, chunk);
+    }
+  }
 }
 
 

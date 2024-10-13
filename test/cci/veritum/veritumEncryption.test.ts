@@ -1,6 +1,8 @@
+import { cciCube } from "../../../src/cci/cube/cciCube";
 import { cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { cciField } from "../../../src/cci/cube/cciField";
 import { KeyPair } from "../../../src/cci/helpers/cryptography";
+import { Decrypt } from "../../../src/cci/veritum/chunkDecryption";
 import { Continuation } from "../../../src/cci/veritum/continuation";
 import { Veritum } from "../../../src/cci/veritum/veritum";
 import { CubeType } from "../../../src/core/cube/cube.definitions";
@@ -246,40 +248,111 @@ describe('CCI Veritum encryption', () => {
         }
       });
 
-      it('encrypts a Veritum for more recipients than a single Cube hold key slots', async() => {
-        // make 50 recipients
-        const recipients: KeyPair[] = [];
-        for (let i = 0; i < 40; i++) {
-          const uint8senderKeyPair = sodium.crypto_box_keypair();
-          const keyPair = {
-            publicKey: Buffer.from(uint8senderKeyPair.publicKey),
-            privateKey: Buffer.from(uint8senderKeyPair.privateKey),
-          };
-          recipients.push(keyPair);
-        }
+      describe('encrypts a Veritum for more recipients than a single Cube holds key slots', () => {
+        let recipients: KeyPair[] = [];
+        let veritum: Veritum;
 
-        // Create a Veritum instance with a single payload field
-        const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
-
-        // Compile the Veritum instance with encryption options for the three recipients
-        await veritum.compile({
-          recipients: recipients.map(kp => kp.publicKey),
-          senderPrivateKey: senderKeyPair.privateKey,
-          requiredDifficulty,
-          senderPubkey: senderKeyPair.publicKey,
+        beforeAll(() => {
+          // make 50 recipients
+          for (let i = 0; i < 40; i++) {
+            const uint8senderKeyPair = sodium.crypto_box_keypair();
+            const keyPair = {
+              publicKey: Buffer.from(uint8senderKeyPair.publicKey),
+              privateKey: Buffer.from(uint8senderKeyPair.privateKey),
+            };
+            recipients.push(keyPair);
+          }
         });
-        expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
-        expect(veritum.compiled[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+        // Create a Veritum instance with a single payload field
+        veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
 
-        // Ensure that the Veritum is decryptable by all recipients
-        for (const recipient of recipients) {
-          const restored = Veritum.FromChunks(veritum.compiled, {
+        it('encrypts correctly', async () => {
+          // Compile the Veritum instance with encryption options for the three recipients
+          await veritum.compile({
+            recipients: recipients.map(kp => kp.publicKey),
+            senderPrivateKey: senderKeyPair.privateKey,
+            requiredDifficulty,
+            senderPubkey: senderKeyPair.publicKey,
+          });
+          expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+          expect(veritum.compiled[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+
+          // verify this indeed uses more than one key chunk
+          expect(veritum.keyChunkNo).toBeGreaterThan(1);
+        });
+
+        it('is decryptable by all recipients when supplied as a whole', async () => {
+          // Ensure that the Veritum is decryptable by all recipients
+          for (const recipient of recipients) {
+            const restored = Veritum.FromChunks(veritum.compiled, {
+              recipientPrivateKey: recipient.privateKey,
+            });
+            expect(restored.cubeType).toBe(CubeType.FROZEN);
+            expect(restored.getFirstField(cciFieldType.PAYLOAD)?.valueString).toEqual(
+              payloadField.valueString);
+          }
+        });
+
+        // Note: This test performs a lot of asymmetric operations;
+        // we may want to either reduce its impact or skip it in the future.
+        it('supplied the correct key chunk for each recipient', async () => {
+          for (const recipient of recipients) {
+            const keyChunk: cciCube = veritum.getRecipientKeyChunk(recipient.publicKey);
+            // verify this is the correct key chunk by trying to decrypt it
+            expect(keyChunk.getFirstField(cciFieldType.RELATES_TO)).toBeUndefined();
+            const decryptedKeyChunk = Decrypt(keyChunk.manipulateFields(),
+              { recipientPrivateKey: recipient.privateKey });
+            expect(decryptedKeyChunk.getFirst(cciFieldType.RELATES_TO)).toBeDefined();
+          }
+        });
+
+        // Note: This test performs a lot of asymmetric operations;
+        // we may want to either reduce its impact or skip it in the future.
+        it('is decryptable by all recipient if supplied with the correct key chunk', async () => {
+          for (const recipient of recipients) {
+            const myChunks: cciCube[] = Array.from(
+              veritum.getRecipientChunks(recipient.publicKey));
+            const restored: Veritum = Veritum.FromChunks(myChunks, {
+              recipientPrivateKey: recipient.privateKey });
+            expect(restored.getFirstField(cciFieldType.PAYLOAD)?.valueString).toEqual(
+              payloadField.valueString);
+          }
+        });
+
+        it('is not decryptable by a recipient if supplied with the wrong key chunk', () => {
+          // Test by example: The first recipient is not expected to be included
+          // in the last key chunk; therefore, the first recipient should
+          // not be able to decrypt the version of the Veritum including only
+          // the last key chunk.
+          const recipient = recipients[0];
+          const veritumWithCorrectKeyChunk: cciCube[] = [];
+          const veritumWithWrongKeyChunk: cciCube[] = [];
+          let i=0;
+          for (const chunk of veritum.compiled) {
+            if (i === 0) veritumWithCorrectKeyChunk.push(chunk);
+            if (i === veritum.keyChunkNo - 1) veritumWithWrongKeyChunk.push(chunk);
+            if (i > veritum.keyChunkNo) {
+              veritumWithCorrectKeyChunk.push(chunk);
+              veritumWithWrongKeyChunk.push(chunk);
+            }
+            i++;
+          }
+          // verify our test setup:
+          // recipient should be able to decrypt the chain including the
+          // correct key chunk
+          const canDecrypt: Veritum = Veritum.FromChunks(veritumWithCorrectKeyChunk, {
             recipientPrivateKey: recipient.privateKey,
           });
-          expect(restored.cubeType).toBe(CubeType.FROZEN);
-          expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
-            payloadField.valueString);
-        }
+          expect(canDecrypt.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();
+          expect(canDecrypt.getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
+          // but recipient should not be able to decrypt the chain including
+          // the wrong key chunk
+          const cannotDecrypt: Veritum = Veritum.FromChunks(veritumWithWrongKeyChunk, {
+            recipientPrivateKey: recipient.privateKey,
+          });
+          expect(cannotDecrypt.getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+          expect(cannotDecrypt.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+        });
       });
     });  // multiple recipients
   });
