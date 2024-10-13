@@ -13,6 +13,7 @@ import sodium from 'libsodium-wrappers-sumo'
 describe('CCI Veritum encryption', () => {
   const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
   const payloadField = cciField.Payload(plaintext);
+  const longPayloadField = cciField.Payload(tooLong);
   const applicationField = cciField.Application("contentum probationis non applicationis");
 
   describe('encryption-decryption round trip tests', () => {
@@ -248,11 +249,11 @@ describe('CCI Veritum encryption', () => {
         }
       });
 
-      describe('encrypts a Veritum for more recipients than a single Cube holds key slots', () => {
+      describe('encrypts a multi-chunk Veritum for more recipients than a single Cube holds key slots', () => {
         let recipients: KeyPair[] = [];
         let veritum: Veritum;
 
-        beforeAll(() => {
+        beforeAll(async () => {
           // make 50 recipients
           for (let i = 0; i < 40; i++) {
             const uint8senderKeyPair = sodium.crypto_box_keypair();
@@ -262,11 +263,10 @@ describe('CCI Veritum encryption', () => {
             };
             recipients.push(keyPair);
           }
-        });
-        // Create a Veritum instance with a single payload field
-        veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
 
-        it('encrypts correctly', async () => {
+          // Create a Veritum instance with a long payload field
+          veritum = new Veritum(CubeType.FROZEN, { fields: longPayloadField });
+
           // Compile the Veritum instance with encryption options for the three recipients
           await veritum.compile({
             recipients: recipients.map(kp => kp.publicKey),
@@ -274,6 +274,9 @@ describe('CCI Veritum encryption', () => {
             requiredDifficulty,
             senderPubkey: senderKeyPair.publicKey,
           });
+        });
+
+        it('encrypts correctly', async () => {
           expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
           expect(veritum.compiled[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
 
@@ -289,19 +292,21 @@ describe('CCI Veritum encryption', () => {
             });
             expect(restored.cubeType).toBe(CubeType.FROZEN);
             expect(restored.getFirstField(cciFieldType.PAYLOAD)?.valueString).toEqual(
-              payloadField.valueString);
+              tooLong);
           }
         });
 
         // Note: This test performs a lot of asymmetric operations;
         // we may want to either reduce its impact or skip it in the future.
-        it('supplied the correct key chunk for each recipient', async () => {
+        it('can supply the correct key chunk for each recipient', async () => {
           for (const recipient of recipients) {
             const keyChunk: cciCube = veritum.getRecipientKeyChunk(recipient.publicKey);
+            expect(keyChunk).toBeInstanceOf(cciCube);
             // verify this is the correct key chunk by trying to decrypt it
             expect(keyChunk.getFirstField(cciFieldType.RELATES_TO)).toBeUndefined();
             const decryptedKeyChunk = Decrypt(keyChunk.manipulateFields(),
               { recipientPrivateKey: recipient.privateKey });
+            expect(decryptedKeyChunk).toBeDefined();
             expect(decryptedKeyChunk.getFirst(cciFieldType.RELATES_TO)).toBeDefined();
           }
         });
@@ -315,7 +320,7 @@ describe('CCI Veritum encryption', () => {
             const restored: Veritum = Veritum.FromChunks(myChunks, {
               recipientPrivateKey: recipient.privateKey });
             expect(restored.getFirstField(cciFieldType.PAYLOAD)?.valueString).toEqual(
-              payloadField.valueString);
+              tooLong);
           }
         });
 
@@ -350,7 +355,6 @@ describe('CCI Veritum encryption', () => {
           const cannotDecrypt: Veritum = Veritum.FromChunks(veritumWithWrongKeyChunk, {
             recipientPrivateKey: recipient.privateKey,
           });
-          expect(cannotDecrypt.getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
           expect(cannotDecrypt.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
         });
       });

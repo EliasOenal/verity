@@ -9,7 +9,7 @@ import { cciField } from "../cube/cciField";
 import { cciFields } from "../cube/cciFields";
 import { CciDecryptionParams, Decrypt } from "./chunkDecryption";
 import { CciEncryptionParams, EncryptionPrepareParams, EncryptionOverheadBytes, EncryptionHashNonces, CryptStateOutput, EncryptPrePlanned, EncryptionHashNonce, EncryptionOverheadBytesCalc, CryptoError, EncryptionRandomNonce } from "./chunkEncryption";
-import { SplitState } from "./continuation";
+import { Continuation, SplitState } from "./continuation";
 import { VeritumCompileOptions, VeritumFromChunksOptions } from "./veritum";
 
 import sodium from 'libsodium-wrappers-sumo'
@@ -27,7 +27,7 @@ export class ChunkEncryptionHelper {
 
   private nonceList: Buffer[] = [];
   supplementaryKeyChunks: cciCube[] = [];
-  recipientFirstChunkMap: Map<string, cciCube> = new Map();
+  recipientKeyChunkMap: Map<string, cciCube> = new Map();
 
   /** Number of key distribution chunks */
   keyChunkNo: number;
@@ -79,8 +79,7 @@ export class ChunkEncryptionHelper {
     if (this.shallEncrypt) {  // only act if encryption requested
       // Lazy-initialise nonce list
       if (this.nonceList.length < state.chunkCount) {
-        this.nonceList = EncryptionHashNonces(
-          this.encryptionSchemeParams.nonce, state.chunkCount);
+        this.makeNonceList(state.chunkCount);
       }
       let chunkParams: CciEncryptionParams;
       // There are two possible states:
@@ -99,14 +98,14 @@ export class ChunkEncryptionHelper {
           chunkParams.recipients = (chunkParams.recipients as Array<Buffer>).
             slice(0, this.keySlotsPerChunk);
           // Map out which recipient need to get which first chunk
-          this.mapRecipientFirstChunk(chunkParams.recipients, chunk);
+          this.mapRecipientKeyChunk(chunkParams.recipients, chunk);
           // Create as many supplementary key distribution chunks as needed
           this.makeSupplementaryKeyDistributionChunks(chunk);
         } else {
           // Nothing to do here really, just take note of the fact that there's
           // no difference in first chunks between recipients.
           // It's the simple case :)
-          this.mapRecipientFirstChunk(
+          this.mapRecipientKeyChunk(
             this.encryptionSchemeParams.recipients as Buffer[], chunk);
         }
       } else if (state.chunkIndex === 1 && this.needNonceRedist === true) {
@@ -215,9 +214,18 @@ export class ChunkEncryptionHelper {
       EncryptionOverheadBytes(this.continuationParams);
 
     // Determine the amount of space in nonce redistribution chunks
-    this.nonceRedistSpace;
+    this.nonceRedistSpace = NetConstants.CUBE_SIZE -
+      EncryptionOverheadBytes(this.nonceRedistributionParams);
   }
 
+  /**
+   * @returns Whether a special chunk is required after the key distribution
+   *   chunks, setting a new random nonce.
+   *   This is only relevant if there is more than one key distribution chunk;
+   *   in that case, the new random nonce on "chunk 2" allows us to use different
+   *   nonces for each key distribution chunk, thereby prevents non-recipients
+   *   from correlating a Veritum's key distribution chunks by a common nonce.
+   */
   private get needNonceRedist(): boolean {
     return this.keyChunkNo > 1;
   }
@@ -226,6 +234,8 @@ export class ChunkEncryptionHelper {
     for (let i = 1; i < this.keyChunkNo; i++) {
       // prepare params
       const chunkParams: CciEncryptionParams = { ... this.encryptionSchemeParams };
+      // get this supplementary chunk its own unique nonce
+      chunkParams.nonce = EncryptionRandomNonce();
       // This chunk gets the i-th slice of recipients
       chunkParams.recipients = (chunkParams.recipients as Array<Buffer>).
         slice(i*this.keySlotsPerChunk, (i+1)*this.keySlotsPerChunk);
@@ -243,12 +253,26 @@ export class ChunkEncryptionHelper {
         fields: encRes.result,
       });
       this.supplementaryKeyChunks.push(supplementaryChunk);
+      // Map out which recipient needs to get which chunk
+      this.mapRecipientKeyChunk(chunkParams.recipients, supplementaryChunk);
     }
   }
 
-  private mapRecipientFirstChunk(recipients: Iterable<Buffer>, chunk: cciCube): void {
+  private mapRecipientKeyChunk(recipients: Iterable<Buffer>, chunk: cciCube): void {
     for (const recipient of recipients) {
-      this.recipientFirstChunkMap.set(keyVariants(recipient).keyString, chunk);
+      this.recipientKeyChunkMap.set(keyVariants(recipient).keyString, chunk);
+    }
+  }
+
+  private makeNonceList(chunkCount: number): void {
+    if (!this.needNonceRedist) {
+      this.nonceList = EncryptionHashNonces(
+        this.encryptionSchemeParams.nonce, chunkCount);
+    } else {
+      this.nonceList = [
+        this.encryptionSchemeParams.nonce,
+        ...EncryptionHashNonces(this.nonceRedistributionParams.nonce, chunkCount),
+      ];
     }
   }
 }
@@ -292,6 +316,16 @@ export function ChunkDecrypt(
         transformedChunks.push(chunk);
       }
     }
+    // In case of encrypted chunks, we should tell Recombine() to ignore
+    // any remaining ENCRYPTED fields. That can happen if some parts of this
+    // Veritum are not intended for this recipient, i.e. supplementary
+    // key distribution chunks intended for other recipients.
+    // This also means that if decryption fails, the application gets served
+    // an empty Veritum rather than a bunch of useless ciphertext.
+    options.exclude = [
+      ...(options.exclude ?? Continuation.ContinuationDefaultExclusions),
+      cciFieldType.ENCRYPTED,
+    ]
     return transformedChunks;
   } else {
     // If no decryption was requested, do nothing
