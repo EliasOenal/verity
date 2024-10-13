@@ -10,7 +10,7 @@ import { Decrypt } from '../../../src/cci/veritum/chunkDecryption';
 import { ApiMisuseError } from '../../../src/core/settings';
 import { CubeFieldType } from '../../../src/core/cube/cube.definitions';
 
-describe('CCI encryption', () => {
+describe('CCI chunk encryption', () => {
   let sender: KeyPair;
   let recipient: KeyPair;
   let recipient2: KeyPair;
