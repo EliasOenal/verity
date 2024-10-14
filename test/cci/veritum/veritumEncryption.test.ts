@@ -358,6 +358,37 @@ describe('CCI Veritum encryption', () => {
           expect(cannotDecrypt.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
         });
 
+        it('never has duplicate data in its encrypted chunks', () => {
+          // Ensure that no 8 byte (64 bit) string ever gets repeated
+          // throughout the encrypted chunks.
+          // 8 bytes is an aribitrary number large enough to be unlikely to be
+          // repeated by pure chance.
+
+          // First, concatenate all of this Veritum's encrypted fields
+          // into a single blob
+          let blob: Buffer = Buffer.alloc(0);
+          for (const chunk of veritum.compiled) {
+            const encryptedField = chunk.getFirstField(cciFieldType.ENCRYPTED);
+            expect(encryptedField.value).toBeInstanceOf(Buffer);
+            blob = Buffer.concat([blob, encryptedField.value]);
+          }
+
+          // Now ensure each 8 byte chunk is unique throughout the blob
+          let i: number = 0;
+          while (i < blob.length - 8) {
+            const shouldBeUnique = blob.subarray(i, i + 8);
+            let occurences: number = 0;
+            let j: number = 0;
+            while (j < blob.length - 8) {
+              const compareTo = blob.subarray(j, j + 8);
+              if (compareTo.equals(shouldBeUnique)) occurences++;
+              j++;
+            }
+            expect(occurences).toBe(1);
+            i++;
+          }
+        });
+
         it.todo('uses different nonces for all chunks, including key distribution chunks');
       });  // encrypts a multi-chunk Veritum for more recipients than a single Cube holds key slots
     });  // multiple recipients

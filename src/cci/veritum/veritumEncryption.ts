@@ -135,6 +135,19 @@ export class ChunkEncryptionHelper {
    */
   private planEncryptionScheme(): void {
     this.encryptionSchemeParams = { ...this.options };  // copy input opts
+    // Make a new random sender key pair.
+    // This is an ephemeral key only intended to encrypt a single chunk.
+    // No replies to this pubkey are expected; thus we can discard the
+    // keys right after encryption.
+    if (this.encryptionSchemeParams.senderPrivateKey == undefined ||
+        this.encryptionSchemeParams.senderPubkey == undefined
+    ){
+      const keyPair = sodium.crypto_box_keypair();
+      this.encryptionSchemeParams.senderPrivateKey = Buffer.from(keyPair.privateKey);
+      this.encryptionSchemeParams.senderPubkey = Buffer.from(keyPair.publicKey);
+    } else {
+      logger.trace(`veritumEncryption: Caution, using supplied sender keypair. This is discouraged as it can lead to public key reuse, which can allow non-recipients to fingerprint messages.`);
+    }
     this.encryptionSchemeParams =  // run scheme planner
       EncryptionPrepareParams(this.encryptionSchemeParams);
     this.continuationParams = {  // prepare continuation variant
@@ -234,6 +247,10 @@ export class ChunkEncryptionHelper {
     for (let i = 1; i < this.keyChunkNo; i++) {
       // prepare params
       const chunkParams: CciEncryptionParams = { ... this.encryptionSchemeParams };
+      // get this supplementary chunk's own unique pubkey
+      const keyPair = sodium.crypto_box_keypair();
+      chunkParams.senderPrivateKey = Buffer.from(keyPair.privateKey);
+      chunkParams.senderPubkey = Buffer.from(keyPair.publicKey);
       // get this supplementary chunk its own unique nonce
       chunkParams.nonce = EncryptionRandomNonce();
       // This chunk gets the i-th slice of recipients
