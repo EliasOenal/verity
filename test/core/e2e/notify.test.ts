@@ -3,23 +3,12 @@ import { CubeFieldType, CubeType } from "../../../src/core/cube/cube.definitions
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { NetConstants, SupportedTransports } from "../../../src/core/networking/networkDefinitions";
-import { AddressAbstraction, WebSocketAddress } from "../../../src/core/peering/addressing";
-import { VerityNode, VerityNodeOptions } from "../../../src/core/verityNode";
+import { AddressAbstraction } from "../../../src/core/peering/addressing";
+import { VerityNode } from "../../../src/core/verityNode";
+
+import { LineShapedNetwork, requiredDifficulty, testOptions } from "./e2eSetup";
 
 import { Buffer } from 'buffer';
-
-const testOptions: VerityNodeOptions = {
-  inMemory: true,
-  enableCubeRetentionPolicy: false,
-  requiredDifficulty: 0,
-  announceToTorrentTrackers: false,
-  autoConnect: true,
-  peerExchange: false,
-  initialPeers: [],
-  requestInterval: 20,  // yes, repeating requests fifty times per second totally is a sensible idea!
-}
-
-const reducedDifficulty = 0;
 
 describe('notification end-to-end tests', () => {
   test('light nodes can request notifications from other light nodes', async() => {
@@ -66,7 +55,7 @@ describe('notification end-to-end tests', () => {
         contentField,
         CubeField.Notify(notificationKey),
         ],
-      requiredDifficulty: reducedDifficulty,
+      requiredDifficulty,
     });
     await sender.cubeStore.addCube(notification);
 
@@ -89,42 +78,7 @@ describe('notification end-to-end tests', () => {
   });
 
   test('notifications posted by light nodes propagate through the full node network to be retrieved by another light node', async() => {
-    // set up a small line-shaped network:
-    // Sender light node - Full node 1 - Full node 2 - Recipient light node
-    // As peer exchange is off, it should stay line shaped so we properly test
-    // Cube propagation.
-    const fullNode1: VerityNode = new VerityNode({
-      ...testOptions,
-      lightNode: false,
-      transports: new Map([
-        [SupportedTransports.ws, 61101],
-      ]),
-    });
-    await fullNode1.readyPromise;
-    const fullNode2: VerityNode = new VerityNode({
-      ...testOptions,
-      lightNode: false,
-      transports: new Map([
-        [SupportedTransports.ws, 61102],
-      ]),
-      initialPeers: [new AddressAbstraction("ws://127.0.0.1:61101")],
-    });
-    const sender: VerityNode = new VerityNode({
-      ...testOptions,
-      inMemory: true,
-      lightNode: true,
-      initialPeers: [new AddressAbstraction("ws://127.0.0.1:61101")],
-    });
-    await fullNode2.readyPromise;
-    const recipient: VerityNode = new VerityNode({
-      ...testOptions,
-      inMemory: true,
-      lightNode: true,
-      initialPeers: [new AddressAbstraction("ws://127.0.0.1:61102")],
-    });
-    await sender.readyPromise;
-    await recipient.readyPromise;
-
+    const { sender, fullNode1, fullNode2, recipient } = await LineShapedNetwork.Create();
     // sender sculpts a notification Cube for recipient
     const notificationKey: Buffer = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
     const contentField = CubeField.RawContent(CubeType.FROZEN_NOTIFY,
@@ -134,7 +88,7 @@ describe('notification end-to-end tests', () => {
         contentField,
         CubeField.Notify(notificationKey),
         ],
-      requiredDifficulty: reducedDifficulty,
+      requiredDifficulty,
     });
     await sender.cubeStore.addCube(notification);
 
