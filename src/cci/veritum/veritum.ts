@@ -2,7 +2,7 @@ import type { Veritable } from "../../core/cube/veritable.definition";
 import type { CciEncryptionParams, CryptStateOutput, EncryptionHashNonce } from "./chunkEncryption";
 
 import { Cube, CubeCreateOptions, VeritableBaseImplementation } from "../../core/cube/cube";
-import { HasSignature, type CubeKey, CubeType } from "../../core/cube/cube.definitions";
+import { HasSignature, type CubeKey, CubeType, DEFAULT_CUBE_TYPE } from "../../core/cube/cube.definitions";
 import { keyVariants } from "../../core/cube/cubeUtil";
 import { ApiMisuseError } from "../../core/settings";
 
@@ -61,7 +61,8 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     } else {
       // creating new Veritum
       const options: CubeCreateOptions = param1;
-      param1.family ??= cciFamily;
+      options.family ??= cciFamily;
+      options.cubeType ??= DEFAULT_CUBE_TYPE;
       super(options.cubeType, options);
       this.publicKey = options.publicKey;
       this.privateKey = options.privateKey;
