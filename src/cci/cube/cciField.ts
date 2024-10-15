@@ -31,21 +31,6 @@ export class cciField extends CubeField {
     return new this(cciFieldType.ENCRYPTED, encrypted);
   }
 
-  static CryptoNonce(nonce: Buffer): cciField {
-    if (Settings.RUNTIME_ASSERTIONS && nonce.length !== NetConstants.CRYPTO_NONCE_SIZE) {
-      throw new FieldError(`Supplied nonce size of ${nonce.length} does not match NetConstants.CRYPTO_NONCE_SIZE === ${NetConstants.CRYPTO_NONCE_SIZE}.`);
-    }
-    return new this(cciFieldType.CRYPTO_NONCE, nonce);
-  }
-
-  static CryptoMac(mac: Buffer): cciField {
-    return new this(cciFieldType.CRYPTO_MAC, mac);
-  }
-
-  static CryptoKey(encryptedKey: Buffer): cciField {
-    return new this(cciFieldType.CRYPTO_KEY, encryptedKey);
-  }
-
   static CryptoPubkey(pubkey: Buffer): cciField {
     return new this(cciFieldType.CRYPTO_PUBKEY, pubkey);
   }

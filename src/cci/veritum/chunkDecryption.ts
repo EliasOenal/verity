@@ -298,12 +298,7 @@ function DecryptionReplaceEncryptedField(
       }
     }
     const field = fields.all[i];
-    if (field.type !== cciFieldType.ENCRYPTED &&
-        field.type !== cciFieldType.CRYPTO_NONCE &&
-        field.type !== cciFieldType.CRYPTO_MAC &&
-        field.type !== cciFieldType.CRYPTO_KEY &&
-        field.type !== cciFieldType.CRYPTO_PUBKEY
-    ){
+    if (field.type !== cciFieldType.ENCRYPTED){
       output.appendField(field);
     }
   }
