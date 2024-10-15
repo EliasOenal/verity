@@ -14,9 +14,11 @@ export enum cciAdditionalFieldType {
   APPLICATION = 0x01 << 2,   // 4
 
   ENCRYPTED = 0x02 << 2,     // 8
-  CRYPTO_NONCE = 0x03 << 2,  // 12
-  CRYPTO_MAC = 0x04 << 2,    // 16
-  CRYPTO_KEY = 0x05 << 2,    // 20
+  // Those other crypto fields are not currently used.
+  // Let's call the following reserved:
+  // CRYPTO_NONCE = 0x03 << 2,  // 12
+  // CRYPTO_MAC = 0x04 << 2,    // 16
+  // CRYPTO_KEY = 0x05 << 2,    // 20
   CRYPTO_PUBKEY = 0x06 << 2, // 24
 
   /**
@@ -68,9 +70,10 @@ export const cciFieldType = {...CubeFieldType, ...cciAdditionalFieldType} as con
 export const cciAdditionalFieldLength: FieldNumericalParam = {
   [cciFieldType.CCI_END]: 0,
   [cciFieldType.ENCRYPTED]: undefined,
-  [cciFieldType.CRYPTO_NONCE]: NetConstants.CRYPTO_NONCE_SIZE,
-  [cciFieldType.CRYPTO_MAC]: NetConstants.CRYPTO_MAC_SIZE,
-  [cciFieldType.CRYPTO_KEY]: NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE + NetConstants.CRYPTO_MAC_SIZE,  // maybe TODO: remove MAC?
+  // Currently unused&reserved auxilliary crypto fields:
+  // [cciFieldType.CRYPTO_NONCE]: NetConstants.CRYPTO_NONCE_SIZE,
+  // [cciFieldType.CRYPTO_MAC]: NetConstants.CRYPTO_MAC_SIZE,
+  // [cciFieldType.CRYPTO_KEY]: NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE,
   [cciFieldType.CRYPTO_PUBKEY]: NetConstants.PUBLIC_KEY_SIZE,
   [cciFieldType.SUBKEY_SEED]: undefined,
   [cciFieldType.CONTENTNAME]: undefined,
