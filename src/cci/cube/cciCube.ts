@@ -15,19 +15,20 @@ import { KeyPair, deriveSigningKeypair } from "../helpers/cryptography";
 
 export class cciCube extends Cube {
   static Create(
-      type: CubeType,
       options: CubeCreateOptions = {},
   ): cciCube {
     options = Object.assign({}, options);  // copy options to avoid messing up original
     options.family ??= cciFamily;
-    const cube: cciCube = super.Create(type, options) as cciCube;
+    const cube: cciCube = super.Create(options) as cciCube;
     if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {
       throw new CubeError("cciCube.Frozen: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
     }
     return cube;
   }
 
-  static Frozen(options: CubeOptions): cciCube {
+  /** @deprecated Use Create() directly please */
+  static Frozen(options: CubeCreateOptions): cciCube {
+    options.cubeType = CubeType.FROZEN;
     options.family = options?.family ?? cciFamily;
     const cube: cciCube = super.Frozen(options) as cciCube;
     if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {
@@ -35,10 +36,13 @@ export class cciCube extends Cube {
     }
     return cube;
   }
+  /** @deprecated Use Create() directly please */
   static MUC(
-    publicKey: Buffer,
-    privateKey: Buffer,
-    options?: CubeOptions): cciCube {
+      publicKey: Buffer,
+      privateKey: Buffer,
+      options?: CubeCreateOptions,
+  ): cciCube {
+    options.cubeType = CubeType.MUC;
     if (options === undefined) options = {};
     options.family = options?.family ?? cciFamily;
     const cube: cciCube = super.MUC(publicKey, privateKey, options) as cciCube;

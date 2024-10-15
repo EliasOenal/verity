@@ -179,8 +179,9 @@ export class ChunkEncryptionHelper {
     // Calculate available space for first chunk
     // TODO: Offer this calculation deeper in the library and without
     // actually instatiating demo Cubes
-    const demoChunk = cciCube.Create(veritable.cubeType, {
+    const demoChunk = cciCube.Create({
       ...this.options,
+      cubeType: veritable.cubeType,
       fields: cciField.Encrypted(Buffer.alloc(0)),
       requiredDifficulty: 0,  // just a demo Cube
     });
@@ -265,8 +266,9 @@ export class ChunkEncryptionHelper {
       const encRes: CryptStateOutput = EncryptPrePlanned(
         chunk.manipulateFields(), chunkParams);
       // Sculpt the supplementary chunk
-      const supplementaryChunk = cciCube.Create(chunk.cubeType, {
+      const supplementaryChunk = cciCube.Create({
         ...this.options,
+        cubeType: chunk.cubeType,
         fields: encRes.result,
       });
       this.supplementaryKeyChunks.push(supplementaryChunk);

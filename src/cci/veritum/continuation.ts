@@ -1,9 +1,9 @@
-import { ApiMisuseError, Settings, VerityError } from "../../core/settings";
+import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
 import { CubeError, CubeKey } from "../../core/cube/cube.definitions";
 import { Cube, CubeOptions } from "../../core/cube/cube";
-import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
+import { FieldParser } from "../../core/fields/fieldParser";
 
 import { cciCube } from "../cube/cciCube";
 import { cciFieldType } from "../cube/cciCube.definitions";
@@ -96,6 +96,7 @@ export class Continuation {
     // set default options
     options.exclude ??= Continuation.ContinuationDefaultExclusions;
     options.maxChunkSize ??= () => NetConstants.CUBE_SIZE;
+    // enforce consitant options
 
     // Pre-process the Veritum supplied:
     let minBytesRequred = 0;  // will count them in a moment
@@ -133,7 +134,9 @@ export class Continuation {
 
     // Split the macro fieldset into Cubes:
     // prepare the list of Cubes and initialise the first one
-    const cubes: cciCube[] = [ veritum.family.cubeClass.Create(veritum.cubeType, options) as cciCube ];
+    const cubes: cciCube[] = [
+      veritum.family.cubeClass.Create(
+        {...options, cubeType: veritum.cubeType}) as cciCube ];
     let chunkIndex = 0;
     let cube: cciCube = cubes[chunkIndex];
     let maxChunkIndexPlanned = 0;
@@ -253,7 +256,8 @@ export class Continuation {
         // First update our accounting...
         spaceRemaining -= cube.fields.bytesRemaining(options.maxChunkSize(chunkIndex));
         // ... and then it's time for a chunk rollover!
-        cube = veritum.family.cubeClass.Create(veritum.cubeType, options) as cciCube;
+        cube = veritum.family.cubeClass.Create(
+          {...options, cubeType: veritum.cubeType}) as cciCube;
         cubes.push(cube);
         chunkIndex++;
         bytesAvailableThisChunk =
