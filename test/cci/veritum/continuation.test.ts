@@ -82,7 +82,8 @@ describe('Continuation', () => {
 
 
     it('respects the maximum chunk size', async () => {
-      const veritum = new Veritum(CubeType.FROZEN, {
+      const veritum = new Veritum({
+        cubeType: CubeType.FROZEN,
         fields: cciField.Payload(tooLong),
         requiredDifficulty: 0,
       });
@@ -113,7 +114,8 @@ describe('Continuation', () => {
 
     it('calls the chunk transformation callback', async () => {
       // prepare veritum
-      const veritum = new Veritum(CubeType.FROZEN, {
+      const veritum = new Veritum({
+        cubeType: CubeType.FROZEN,
         fields: cciField.Payload(tooLong),
         requiredDifficulty: 0,
       });

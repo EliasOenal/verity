@@ -25,13 +25,13 @@ export class cciCockpit {
   }
 
   // maybe TODO: set a default CubeType? PIC maybe?
-  makeVeritum(cubeType: CubeType, options: CubeCreateOptions = {}): Veritum {
+  makeVeritum(options: CubeCreateOptions = {}): Veritum {
     options = { ...options };  // copy options to avoid tainting passed object
     if (this.identity) {
       options.publicKey ??= this.identity.publicKey;
       options.privateKey ??= this.identity.privateKey;
     }
-    const veritum = new Veritum(cubeType, options);
+    const veritum = new Veritum(options);
     return veritum;
   }
 
