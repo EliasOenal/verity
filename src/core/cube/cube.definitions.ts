@@ -21,6 +21,13 @@ export enum CubeType {
 }
 
 /**
+ * Let's chose a sensible default Cube type for applications developers who
+ * don't quite know what they're doing. PIC most closely resembles
+ * what a non-Verity developer might expect a unit of storage to behave like.
+ **/
+export const DEFAULT_CUBE_TYPE = CubeType.PIC;
+
+/**
  * Core field definitions.
  * These are used for the FieldParser in the core library.
  * Applications will usually supplement this with their own sub-field structure;

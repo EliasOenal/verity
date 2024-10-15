@@ -18,7 +18,8 @@ import { evenLonger, farTooLong, tooLong } from "../testcci.definitions";
 describe('Continuation', () => {
   describe('manual splitting tests', () => {
     it('splits a single oversized payload field into two Cubes', async () => {
-      const macroCube = cciCube.Create(CubeType.FROZEN, {
+      const macroCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(tooLong);
@@ -145,7 +146,8 @@ describe('Continuation', () => {
   describe('round-trip tests', () => {
     it('splits and restores a single overly large payload field requiring two chunks', async () => {
       // prepare macro Cube
-      const macroCube = cciCube.Create(CubeType.FROZEN, {
+      const macroCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(tooLong);
@@ -165,7 +167,8 @@ describe('Continuation', () => {
 
     it('splits and restores a single extremely large payload field requiring more than chunks', async () => {
       // prepare macro Cube
-      const macroCube = cciCube.Create(CubeType.FROZEN, {
+      const macroCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(farTooLong);
@@ -197,7 +200,8 @@ describe('Continuation', () => {
     it('splits and restores a long array of small fixed-length fields', async () => {
       const numFields = 500;
       // prepare macro Cube
-      const macroCube = cciCube.Create(CubeType.FROZEN, {
+      const macroCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         requiredDifficulty: 0,
       });
       const manyFields: cciField[] = [];
@@ -237,7 +241,8 @@ describe('Continuation', () => {
     it('splits and restores a long array of small variable-length fields', async () => {
       const numFields = 500;
       // prepare macro Cube
-      const macroCube = cciCube.Create(CubeType.FROZEN, {
+      const macroCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         requiredDifficulty: 0,
       });
       const manyFields: cciField[] = [];
@@ -275,7 +280,8 @@ describe('Continuation', () => {
     it('splits and restores a long array of different fields of different lengths', async () => {
       const numFields = 100;
       // prepare macro Cube
-      const macroCube = cciCube.Create(CubeType.FROZEN, {
+      const macroCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         requiredDifficulty: 0,
       });
       const manyFields: cciField[] = [];
@@ -329,7 +335,8 @@ describe('Continuation', () => {
 
     it('produces a valid result even if Cube did not need splitting in the first place', async () => {
       // prepare a "macro" Cube that's not actually macro
-      const macroCube = cciCube.Create(CubeType.FROZEN, {
+      const macroCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         requiredDifficulty: 0,
       });
       const manyFields: cciField[] = [
@@ -383,7 +390,8 @@ describe('Continuation', () => {
 
     it('preserves all CCI relationship except CONTINUED_IN', async () => {
       // prepare macro Cube
-      const macroCube = cciCube.Create(CubeType.FROZEN, {
+      const macroCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         requiredDifficulty: 0,
       });
       macroCube.insertFieldBeforeBackPositionals(cciField.RelatesTo(
@@ -441,7 +449,8 @@ describe('Continuation', () => {
 
         // prepare macro Cube
         const compareFields: cciField[] = [];
-        const macroCube = cciCube.Create(CubeType.FROZEN, {
+        const macroCube = cciCube.Create({
+          cubeType: CubeType.FROZEN,
           requiredDifficulty: 0,
         });
         for (let i=0; i < numFields; i++) {
@@ -512,7 +521,8 @@ describe('CubeRetriever Continuation-related features', () => {
   describe('getContinuationChunks()', () => {
     it('yields a single chunk already in store', async () => {
       // prepare test data
-      const cube: cciCube = cciCube.Create(CubeType.FROZEN, {
+      const cube: cciCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         fields: [
           cciField.Payload("Hoc non est cadena continuationis"),
         ],
@@ -535,7 +545,8 @@ describe('CubeRetriever Continuation-related features', () => {
 
     it('yields a single chunk arriving after the request', async () => {
       // prepare test data
-      const cube: cciCube = cciCube.Create(CubeType.FROZEN, {
+      const cube: cciCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         fields: [
           cciField.Payload("Hoc non est cadena continuationis"),
         ],
@@ -570,7 +581,8 @@ describe('CubeRetriever Continuation-related features', () => {
 
     it('yields a 2-chunk continuation already in store', async () => {
       // prepare macro Cube
-      const macroCube = cciCube.Create(CubeType.FROZEN, {
+      const macroCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(tooLong);
@@ -597,7 +609,8 @@ describe('CubeRetriever Continuation-related features', () => {
 
     it('yields a 2-chunk continuation arriving in correct order after the request', async () => {
       // prepare macro Cube
-      const macroCube = cciCube.Create(CubeType.FROZEN, {
+      const macroCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(tooLong);
@@ -625,7 +638,8 @@ describe('CubeRetriever Continuation-related features', () => {
 
     it('yields a 2-chunk continuation arriving in reverse order after the request', async () => {
       // prepare macro Cube
-      const macroCube = cciCube.Create(CubeType.FROZEN, {
+      const macroCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(tooLong);
@@ -668,7 +682,8 @@ describe('CubeRetriever Continuation-related features', () => {
 
     it('yields a three-chunk continuation already in store', async () => {
       // prepare macro Cube
-      const macroCube = cciCube.Create(CubeType.FROZEN, {
+      const macroCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(evenLonger);
@@ -697,7 +712,8 @@ describe('CubeRetriever Continuation-related features', () => {
 
     it('yields a more-than-5-chunk continuation arriving in sequence', async () => {
       // prepare macro Cube
-      const macroCube = cciCube.Create(CubeType.FROZEN, {
+      const macroCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(farTooLong);
@@ -728,7 +744,8 @@ describe('CubeRetriever Continuation-related features', () => {
 
     it('yields a more-than-5-chunk continuation already in store', async () => {
       // prepare macro Cube
-      const macroCube = cciCube.Create(CubeType.FROZEN, {
+      const macroCube = cciCube.Create({
+        cubeType: CubeType.FROZEN,
         requiredDifficulty: 0,
       });
       const payloadMacrofield = cciField.Payload(farTooLong);

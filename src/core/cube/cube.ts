@@ -5,7 +5,7 @@ import { NetConstants } from '../networking/networkDefinitions';
 import type { Veritable } from './veritable.definition';
 
 import { FieldPosition } from '../fields/baseFields';
-import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldError, FieldSizeError, HasSignature } from "./cube.definitions";
+import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasSignature } from "./cube.definitions";
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField } from "./cubeField";
@@ -25,6 +25,7 @@ export interface CubeOptions {
 }
 
 export interface CubeCreateOptions extends CubeOptions {
+    cubeType?: CubeType,
     publicKey?: Buffer,
     privateKey?: Buffer,
 }
@@ -166,15 +167,16 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
      *   but not supplying a key pair.
      */
     static Create(
-        type: CubeType,
         options: CubeCreateOptions = {},
     ): Cube {
         options = Object.assign({}, options);  // copy options to avoid messing up original
         // set default options
+        options.cubeType ??= DEFAULT_CUBE_TYPE;
         options.family ??= coreCubeFamily;
         options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
 
-        const fieldDef: FieldDefinition = options.family.parsers[type].fieldDef;
+        const fieldDef: FieldDefinition =
+            options.family.parsers[options.cubeType].fieldDef;
 
         // normalise input:
         // - ensure fields is an instance of the family-specified Fields class
@@ -182,7 +184,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
         options.fields = new fieldDef.fieldsObjectClass(options.fields, fieldDef);
 
         // - on signed types, recognise implicitly supplied public key
-        if (HasSignature[type] && !options.publicKey) {
+        if (HasSignature[options.cubeType] && !options.publicKey) {
             options.publicKey = CubeFields.getFirst(
                 options.fields, CubeFieldType.PUBLIC_KEY)?.value;
         }
@@ -195,33 +197,34 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
         }
 
         // validate input: signed types require a key pair
-        if (HasSignature[type]) {
+        if (HasSignature[options.cubeType]) {
             if (!options.publicKey || !options.privateKey ||
                 options.publicKey?.length !== NetConstants.PUBLIC_KEY_SIZE) {
-                throw new ApiMisuseError(`Cube.Create(): cannot create a ${CubeType[type]} without a valid public/private key pair`);
+                throw new ApiMisuseError(`Cube.Create(): cannot create a ${CubeType[options.cubeType]} without a valid public/private key pair`);
             }
         }
 
         // auto-correct supplied CubeType to the notify or non-notify variant if necessary
-        type = CubeFields.CorrectNotifyType(type, options.fields);
+        options.cubeType =
+            CubeFields.CorrectNotifyType(options.cubeType, options.fields);
 
         // on signed types, ensure public key field is present
-        if (HasSignature[type]) {
+        if (HasSignature[options.cubeType]) {
             (options.fields as CubeFields).ensureFieldInBack(
                 CubeFieldType.PUBLIC_KEY, fieldDef.fieldObjectClass.PublicKey(
                     options.publicKey));
         }
         // supply any default fields that might be missing
         options.fields = CubeFields.DefaultPositionals(
-            options.family.parsers[type].fieldDef,
+            options.family.parsers[options.cubeType].fieldDef,
             options?.fields,  // include the user's custom fields, obviously
         ) as CubeFields;
 
         // sculpt Cube
-        const cube: Cube = new options.family.cubeClass(type, options);
+        const cube: Cube = new options.family.cubeClass(options.cubeType, options);
 
         // on signed types, supply private key
-        if (HasSignature[type]) cube.privateKey = options.privateKey as Buffer;
+        if (HasSignature[options.cubeType]) cube.privateKey = options.privateKey as Buffer;
 
         return cube;  // all done, finally :)
     }
@@ -232,9 +235,11 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
      * with all required boilerplate (i.e. we will create the TYPE, DATE and
      * NONCE fields for you).
      * If data contains a NOTIFY field, the resulting Cube will be a notify Cube.
+     * @deprecated Use Create() directly please
      */
-    static Frozen(options: CubeOptions = {}): Cube {
-        return this.Create(CubeType.FROZEN, options);
+    static Frozen(options: CubeCreateOptions = {}): Cube {
+        options.cubeType = CubeType.FROZEN;
+        return this.Create(options);
     }
 
     /**
@@ -243,20 +248,26 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
      * @param data Supply your custom fields here. We will supplement them
      * with all required boilerplate.
      * If data contains a NOTIFY field, the resulting Cube will be a notify Cube.
+     * @deprecated Use Create() directly please
      */
     static MUC(publicKey: Buffer,
                privateKey: Buffer,
-               options?: CubeOptions,
+               options: CubeCreateOptions = {},
     ): Cube {
-        return this.Create(CubeType.MUC, {...options, publicKey, privateKey: privateKey});
+        options.cubeType = CubeType.MUC;
+        options.publicKey = publicKey;
+        options.privateKey = privateKey;
+        return this.Create(options);
     }
 
     /**
      * Create a Persistant Immutable Cube, which is a type of smart cube used
      * for data to be made available long-term.
+     * @deprecated Use Create() directly please
      */
-    static PIC(options: CubeOptions): Cube {
-        return this.Create(CubeType.PIC, options);
+    static PIC(options: CubeCreateOptions = {}): Cube {
+        options.cubeType = CubeType.PIC;
+        return this.Create(options);
     }
 
     declare protected _fields: CubeFields;

@@ -146,7 +146,8 @@ describe('cube', () => {
 
   describe('static Create()', () => {
     it('correctly sculpts a frozen cube', () => {
-      const cube = Cube.Create(CubeType.FROZEN, {
+      const cube = Cube.Create({
+        cubeType: CubeType.FROZEN,
         fields: CubeField.RawContent(CubeType.FROZEN, "hello Cube"),
         requiredDifficulty: requiredDifficulty,
       });
@@ -157,13 +158,14 @@ describe('cube', () => {
     });
 
     it('should throw an error if a signed type is requested without a key pair', () => {
-        const type = CubeType.MUC;
-        expect(() => Cube.Create(type)).toThrow(ApiMisuseError);
+        expect(() => Cube.Create({ cubeType: CubeType.MUC })).
+          toThrow(ApiMisuseError);
     });
 
     it('should create a Cube with a signed type when a valid key pair is provided', async () => {
         const type = CubeType.MUC;
-        const cube = Cube.Create(type, {
+        const cube = Cube.Create({
+          cubeType: type,
           publicKey: commonPublicKey,
           privateKey: commonPrivateKey,
           requiredDifficulty: requiredDifficulty,
@@ -178,7 +180,8 @@ describe('cube', () => {
 
     it('should normalize publicKey and privateKey to Buffer if they are not already Buffers', () => {
         const type = CubeType.MUC;
-        const cube = Cube.Create(type, {
+        const cube = Cube.Create({
+          cubeType: type,
           publicKey: commonPublicKey,
           privateKey: commonPrivateKey,
           requiredDifficulty: requiredDifficulty,
@@ -190,28 +193,30 @@ describe('cube', () => {
     });
 
     it('should auto-correct CubeType to a notify-type if a NOTIFY field is present', () => {
-        const type = CubeType.FROZEN;
+        const cubeType = CubeType.FROZEN;
         const notifyType = CubeType.FROZEN_NOTIFY;
         const fields = new CubeField(CubeFieldType.NOTIFY, Buffer.alloc(NetConstants.NOTIFY_SIZE, 42));
 
-        const cube = Cube.Create(type, { fields, requiredDifficulty });
+        const cube = Cube.Create({ cubeType, fields, requiredDifficulty });
 
         expect(cube.cubeType).toBe(notifyType);
     });
 
     it('should set default family and requiredDifficulty if not provided', () => {
-        const type = CubeType.FROZEN;
-        const cube = Cube.Create(type);
+        const cubeType = CubeType.FROZEN;
+        const cube = Cube.Create({cubeType});
 
         expect(cube.family).toBe(coreCubeFamily);
         expect(cube.requiredDifficulty).toBe(Settings.REQUIRED_DIFFICULTY);
     });
 
     it('should throw an error if publicKeyis not the correct size for signed types', () => {
-        const type = CubeType.MUC;
+        const cubeType = CubeType.MUC;
         const publicKey = Buffer.alloc(30);  // incorrect size
 
-        expect(() => Cube.Create(type, { publicKey, privateKey: commonPrivateKey })).toThrow(ApiMisuseError);
+        expect(() => Cube.Create(
+          { cubeType, publicKey, privateKey: commonPrivateKey })).
+          toThrow(ApiMisuseError);
     });
   });  // static methods
 

@@ -106,7 +106,8 @@ describe('cciCube', () => {
             cciField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, randomNotifyNumber)));
 
           // sculpt Cube
-          const cube: cciCube = cciCube.Create(type, {
+          const cube: cciCube = cciCube.Create({
+            cubeType: type,
             fields: incompleteFieldset,
             requiredDifficulty: reducedDifficulty,
             publicKey: commonPublicKey,    // will be ignored for
