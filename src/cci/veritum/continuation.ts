@@ -320,7 +320,7 @@ export class Continuation {
         // late initialisation of macroCube because we base the type of Cube
         // on the first chunk supplied -- and as we accept an iterable we need
         // to be iterating to be able to look at it
-        veritum = new Veritum(cube.cubeType, options);
+        veritum = new Veritum({ ...options, cubeType: cube.cubeType });
       }
 
       for (const field of cube.fields.all) {

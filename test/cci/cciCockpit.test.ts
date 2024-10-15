@@ -31,7 +31,8 @@ describe('cci Cockpit', () => {
 
   describe('makeVeritum()', () => {
     it('can create frozen Verita', () => {
-      const veritum = cockpit.makeVeritum(CubeType.FROZEN, {
+      const veritum = cockpit.makeVeritum({
+        cubeType: CubeType.FROZEN,
         fields: cciField.Payload("Hoc veritum breve et congelatum est"),
         requiredDifficulty: requiredDifficulty,
       });
@@ -42,7 +43,8 @@ describe('cci Cockpit', () => {
 
     // Note / TODO somewhere else: Continuation doesn't actually handle MUC subkey derivation yet
     it('can create MUC Verita', () => {
-      const veritum = cockpit.makeVeritum(CubeType.MUC, {
+      const veritum = cockpit.makeVeritum({
+        cubeType: CubeType.MUC,
         fields: cciField.Payload("Hoc veritum breve sed mutabile est"),
         requiredDifficulty: requiredDifficulty,
       });
@@ -56,7 +58,8 @@ describe('cci Cockpit', () => {
 
   describe('publishVeritum()', () => {
     it('adds all chunks of a multi-Chunk Veritum to the local CubeStore', async() => {
-      const veritum = cockpit.makeVeritum(CubeType.FROZEN, {
+      const veritum = cockpit.makeVeritum({
+        cubeType: CubeType.FROZEN,
         fields: cciField.Payload(tooLong),
         requiredDifficulty: requiredDifficulty,
       });
@@ -73,7 +76,8 @@ describe('cci Cockpit', () => {
 
     it('can encrypt the Veritum for a single recipient', async() => {
       const latinBraggery = "Hoc veritum breve et cryptatum est";
-      const veritum = cockpit.makeVeritum(CubeType.FROZEN, {
+      const veritum = cockpit.makeVeritum({
+        cubeType: CubeType.FROZEN,
         fields: cciField.Payload(latinBraggery),
         requiredDifficulty,
       });
@@ -102,7 +106,8 @@ describe('cci Cockpit', () => {
   describe('getVeritum()', () => {
     it('restores a multi-Chunk frozen Veritum from the local CubeStore', async () => {
       // prepare Veritum
-      const veritum = new Veritum(CubeType.FROZEN, {
+      const veritum = new Veritum({
+        cubeType: CubeType.FROZEN,
         fields: cciField.Payload(tooLong), requiredDifficulty,
       });
       await veritum.compile();
@@ -121,7 +126,8 @@ describe('cci Cockpit', () => {
     it("automatically decrypts a single-chunk encrypted Veritum if sender's public key is included", async() => {
       // prepare Veritum
       const latinBraggery = "Hoc veritum breve et cryptatum est";
-      const veritum = new Veritum(CubeType.FROZEN, {
+      const veritum = new Veritum({
+        cubeType: CubeType.FROZEN,
         fields: cciField.Payload(latinBraggery),
         requiredDifficulty,
       });
@@ -149,7 +155,8 @@ describe('cci Cockpit', () => {
     // fails due to a problem with split-then-encrypt, see lower-level test in Veritum
     it.skip("automatically decrypts a multi-chunk encrypted Veritum if sender's public key is supplied", async() => {
       // prepare Veritum
-      const veritum = new Veritum(CubeType.FROZEN, {
+      const veritum = new Veritum({
+        cubeType: CubeType.FROZEN,
         fields: cciField.Payload(tooLong),
         requiredDifficulty,
       });

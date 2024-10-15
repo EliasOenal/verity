@@ -43,14 +43,14 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     return Continuation.Recombine(transformedChunks, options);
   }
 
-  constructor(cubeType: CubeType, options?: CubeCreateOptions);
+  constructor(options?: CubeCreateOptions);
   constructor(copyFrom: Veritum);
 
-  constructor(param1: CubeType|Veritum, options: CubeCreateOptions = {}) {
+  constructor(param1: CubeCreateOptions|Veritum = {}) {
     if (param1 instanceof Veritum) {
       // copy constructor
       const copyFrom: Veritum = param1;
-      options = {
+      const options = {
         family: copyFrom.family,
         fields: new cciFields(copyFrom._fields, copyFrom._fields.fieldDefinition),  // shallow copy
         privateKey: copyFrom.privateKey,
@@ -58,15 +58,13 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
         requiredDifficulty: copyFrom.requiredDifficulty,
       }
       super(copyFrom.cubeType, options);
-    } else if (Object.values(CubeType).includes(param1 as number)) {
+    } else {
       // creating new Veritum
-      const cubeType = param1 as CubeType;
-      options.family ??= cciFamily;
-      super(cubeType, options);
+      const options: CubeCreateOptions = param1;
+      param1.family ??= cciFamily;
+      super(options.cubeType, options);
       this.publicKey = options.publicKey;
       this.privateKey = options.privateKey;
-    } else {
-      throw new ApiMisuseError("Veritum constructor: unknown first parameter");
     }
   }
 

@@ -159,7 +159,7 @@ export interface IdentityOptions {
  * TODO: Specify maximums to make sure all of that nicely fits into a single MUC.
  */
 export class Identity {
-  /** Tries to load an existing Identity from CubeStore */
+  /** Tries to load an existing Identity from the network or the CubeStore */
   // TODO: Once we have a cube exchange scheduler, schedule the purported
   // Identity MUC for retrieval if we don't have it (this will be necessary for
   // light nodes)

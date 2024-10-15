@@ -37,7 +37,10 @@ describe('CCI Veritum encryption', () => {
     describe('single recipient', () => {
       describe('single chunk', () => {
         it('encrypts a Veritum having a single payload field', async() => {
-          const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
+          const veritum = new Veritum({
+            cubeType: CubeType.FROZEN,
+            fields: payloadField,
+          });
           await veritum.compile({
             recipients: recipientKeyPair.publicKey,
             senderPrivateKey: senderKeyPair.privateKey,
@@ -64,7 +67,10 @@ describe('CCI Veritum encryption', () => {
         });
 
         it('encrypts fields excluding specific fields', async() => {
-          const veritum = new Veritum(CubeType.FROZEN, { fields: [applicationField, payloadField] });
+          const veritum = new Veritum({
+            cubeType: CubeType.FROZEN,
+            fields: [applicationField, payloadField],
+          });
           await veritum.compile({
             recipients: recipientKeyPair.publicKey,
             senderPrivateKey: senderKeyPair.privateKey,
@@ -87,7 +93,8 @@ describe('CCI Veritum encryption', () => {
           ["three-chunk", 3, evenLonger],
           ["very long", 10, farTooLong],
         ])('encrypts a %s Veritum to a single recipient', async(name, minChunks, payloadString) => {
-          const veritum = new Veritum(CubeType.FROZEN, {
+          const veritum = new Veritum({
+            cubeType: CubeType.FROZEN,
             fields: cciField.Payload(payloadString), requiredDifficulty});
           await veritum.compile({
             recipients: recipientKeyPair.publicKey,
@@ -116,8 +123,8 @@ describe('CCI Veritum encryption', () => {
 
         it('uses continuation mode for a multi-chunk Veritum ' +
            'and uses a different nonce in each chunk', async() => {
-          const veritum = new Veritum(CubeType.FROZEN,
-            { fields: cciField.Payload(tooLong) });
+          const veritum = new Veritum(
+            { cubeType: CubeType.FROZEN, fields: cciField.Payload(tooLong) });
           await veritum.compile({
             recipients: recipientKeyPair.publicKey,
             senderPrivateKey: senderKeyPair.privateKey,
@@ -178,7 +185,8 @@ describe('CCI Veritum encryption', () => {
         }
 
         // Create a Veritum instance with a single payload field
-        const veritum = new Veritum(CubeType.FROZEN, { fields: payloadField });
+        const veritum = new Veritum({
+          cubeType: CubeType.FROZEN, fields: payloadField });
 
         // Compile the Veritum instance with encryption options for the three recipients
         await veritum.compile({
@@ -219,8 +227,11 @@ describe('CCI Veritum encryption', () => {
         }
 
         // construct the encrypted Veritum
-        const veritum = new Veritum(CubeType.FROZEN, {
-          fields: cciField.Payload(payloadString), requiredDifficulty});
+        const veritum = new Veritum({
+          cubeType: CubeType.FROZEN,
+          fields: cciField.Payload(payloadString),
+          requiredDifficulty,
+        });
         await veritum.compile({
           senderPrivateKey: senderKeyPair.privateKey,
           senderPubkey: senderKeyPair.publicKey,
@@ -265,7 +276,8 @@ describe('CCI Veritum encryption', () => {
           }
 
           // Create a Veritum instance with a long payload field
-          veritum = new Veritum(CubeType.FROZEN, { fields: longPayloadField });
+          veritum = new Veritum({
+            cubeType: CubeType.FROZEN, fields: longPayloadField });
 
           // Compile the Veritum instance with encryption options for the three recipients
           await veritum.compile({
