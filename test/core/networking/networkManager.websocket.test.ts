@@ -19,7 +19,8 @@ import { PeerDB } from '../../../src/core/peering/peerDB';
 import { logger } from '../../../src/core/logger';
 
 import WebSocket from 'isomorphic-ws';
-import sodium from 'libsodium-wrappers-sumo'
+import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
+import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 
 // Note: Most general functionality concerning NetworkManager, NetworkPeer
 // etc is described within the WebSocket tests while the libp2p tests are more
@@ -782,6 +783,89 @@ describe('networkManager - WebSocket connections', () => {
           await Promise.all([node1.shutdown(), node2.shutdown()]);
         });
       });  // individual Cube retrieval
+
+      describe('Cube subscriptions', () => {
+        let server: NetworkManager, client: NetworkManager;
+        let clientToServer: NetworkPeerIf;
+        let mucKey: CubeKey, mucPrivateKey: Buffer;
+
+        beforeAll(async () => {
+          // Set up two nodes, a "server" and a "client".
+          // Note that both are actually peers and both are light nodes.
+          // Obviously, the client could also choose to use a full node as server.
+          server = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            {
+              ...lightNodeMinimalFeatures,
+              transports: new Map([[SupportedTransports.ws, 3025]]),
+            }
+          );
+          client = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            lightNodeMinimalFeatures,
+          );
+          await Promise.all(
+            [server.cubeStore.readyPromise, client.cubeStore.readyPromise]);
+          await Promise.all([server.start(), client.start()]);
+          // connect client to server
+          const online: Promise<any> = Promise.all([
+            new Promise((resolve) => client.on('peeronline', resolve)),
+            new Promise((resolve) => server.on('peeronline', resolve)),
+          ]);
+          clientToServer = client.connect(new Peer(new WebSocketAddress("127.0.0.1", 3025)));
+          await online;
+          // Prepare a key pair for an updatable Cube, i.e. a MUC
+          await sodium.ready;
+
+          const keyPair = sodium.crypto_sign_keypair();
+          mucKey = Buffer.from(keyPair.publicKey);
+          mucPrivateKey = Buffer.from(keyPair.privateKey);
+          // Sculpt a MUC at the server
+          const content = "Noli oblivisci ad amare et subscribere!";
+          const cube = Cube.Create({
+            cubeType: CubeType.MUC,
+            privateKey: mucPrivateKey,
+            publicKey: mucKey,
+            fields: CubeField.RawContent(CubeType.MUC, content),
+          });
+          mucKey = await cube.getKey();
+          await server.cubeStore.addCube(cube);
+          expect(await server.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+          // Client retrieves the original MUC
+          clientToServer.sendCubeRequest([mucKey]);
+          await client.cubeStore.expectCube(mucKey);
+          expect(await client.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+        });
+
+        it('updates a subscribed Cube', async () => {
+          // client subscribes Cube
+          clientToServer.sendSubscribeCube([mucKey]);
+          const updated: Promise<CubeInfo> = client.cubeStore.expectCube(mucKey);
+
+          // allow for subscription to be processed
+          // TODO: once we have implemented replies, properly await the reply
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // server updates Cube
+          const content =
+            "Gratias tibi ago pro subscripto, noli oblivisci ad campanam pulsare!";
+          const cube = Cube.Create({
+            cubeType: CubeType.MUC,
+            privateKey: mucPrivateKey,
+            publicKey: mucKey,
+            fields: CubeField.RawContent(CubeType.MUC, content),
+          });
+          await server.cubeStore.addCube(cube);
+
+          // client automatically receives update
+          await updated;
+          const receivedUpdate: Cube = await client.cubeStore.getCube(mucKey);
+          expect(receivedUpdate.getFirstField(CubeFieldType.MUC_RAWCONTENT).valueString).
+            toContain(content);
+        });
+      });  // Cube subscriptions
 
       describe('notification retrieval', () => {
         it('should retrieve notifications from other nodes', async () => {

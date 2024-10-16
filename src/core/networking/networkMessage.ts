@@ -52,6 +52,8 @@ export abstract class NetworkMessage extends BaseField {
       return new KeyResponseMessage(value);
     } else if (type === MessageClass.CubeRequest) {
       return new CubeRequestMessage(value);
+    } else if (type === MessageClass.SubscribeCube) {
+      return new CubeRequestMessage(value, type);  // same wire format
     } else if (type === MessageClass.CubeResponse) {
       return new CubeResponseMessage(value);
     } else if (type === MessageClass.MyServerAddress) {
