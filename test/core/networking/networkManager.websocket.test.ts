@@ -697,155 +697,157 @@ describe('networkManager - WebSocket connections', () => {
     });  // as a full node
 
     describe('as a light node', () => {
-      it('exchanges Cubes on request', async () => {
-        const node1 = new NetworkManager(
-          new CubeStore(testCubeStoreParams),
-          new PeerDB(),
-          {
-            ...lightNodeMinimalFeatures,
-            transports: new Map([[SupportedTransports.ws, 3021]]),
-          },
-        );
-        const node2 = new NetworkManager(
-          new CubeStore(testCubeStoreParams),
-          new PeerDB(),
-          {
-            ...lightNodeMinimalFeatures,
-            transports: new Map([[SupportedTransports.ws, 3022]]),
-          },
-        );
-        await Promise.all([node1.cubeStore.readyPromise, node2.cubeStore.readyPromise]);
-        await Promise.all([node1.start(), node2.start()]);
-        const cube = Cube.Frozen(
-          { fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus per rogatum transferetur") })
-        const key = await cube.getKey();
-        await node1.cubeStore.addCube(cube);
+      describe('individual Cube retrieval', () => {
+        it('exchanges Cubes on request', async () => {
+          const node1 = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            {
+              ...lightNodeMinimalFeatures,
+              transports: new Map([[SupportedTransports.ws, 3021]]),
+            },
+          );
+          const node2 = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            {
+              ...lightNodeMinimalFeatures,
+              transports: new Map([[SupportedTransports.ws, 3022]]),
+            },
+          );
+          await Promise.all([node1.cubeStore.readyPromise, node2.cubeStore.readyPromise]);
+          await Promise.all([node1.start(), node2.start()]);
+          const cube = Cube.Frozen(
+            { fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus per rogatum transferetur") })
+          const key = await cube.getKey();
+          await node1.cubeStore.addCube(cube);
 
-        expect(await node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
-        expect(await node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
+          expect(await node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+          expect(await node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
 
-        const node2to1 = await node2.connect(new Peer("127.0.0.1:3021"));
-        await node2to1.onlinePromise;
-        // Request Cube
-        node2to1.sendCubeRequest([key]);
-        // Wait up to three seconds for Cube exchange to happen
-        for (let i = 0; i < 30; i++) {
-          if (await node2.cubeStore.getNumberOfStoredCubes() >= 2) {
-            break;
+          const node2to1 = await node2.connect(new Peer("127.0.0.1:3021"));
+          await node2to1.onlinePromise;
+          // Request Cube
+          node2to1.sendCubeRequest([key]);
+          // Wait up to three seconds for Cube exchange to happen
+          for (let i = 0; i < 30; i++) {
+            if (await node2.cubeStore.getNumberOfStoredCubes() >= 2) {
+              break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        const received: Cube = await node2.cubeStore.getCube(key);
-        expect(received).toBeInstanceOf(Cube);
-        expect((await received).getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).
-          toContain("Hic cubus per rogatum transferetur");
+          const received: Cube = await node2.cubeStore.getCube(key);
+          expect(received).toBeInstanceOf(Cube);
+          expect((await received).getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).
+            toContain("Hic cubus per rogatum transferetur");
 
-        await Promise.all([node1.shutdown(), node2.shutdown()]);
-      });
-
-      it('does not exchange unrequested Cubes', async () => {
-        const node1 = new NetworkManager(
-          new CubeStore(testCubeStoreParams),
-          new PeerDB(),
-          {
-            ...lightNodeMinimalFeatures,
-            transports: new Map([[SupportedTransports.ws, 3021]]),
-          },
-        );
-        const node2 = new NetworkManager(
-          new CubeStore(testCubeStoreParams),
-          new PeerDB(),
-          {
-            ...lightNodeMinimalFeatures,
-            transports: new Map([[SupportedTransports.ws, 3022]]),
-          },
-        );
-        await Promise.all([node1.cubeStore.readyPromise, node2.cubeStore.readyPromise]);
-        await Promise.all([node1.start(), node2.start()]);
-        const cube = Cube.Frozen(
-          { fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus per rogatum transferetur") })
-        const key = await cube.getKey();
-        await node1.cubeStore.addCube(cube);
-
-        expect(await node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
-        expect(await node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
-
-        const node2to1 = await node2.connect(new Peer("127.0.0.1:3021"));
-        await node2to1.onlinePromise;
-
-        // wait a little...
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        // light node: no request, no Cube
-        expect(await node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
-
-        await Promise.all([node1.shutdown(), node2.shutdown()]);
-      });
-    });  // as a light node
-
-    describe('notification retrieval', () => {
-      it('should retrieve notifications from other nodes', async () => {
-        // set up two nodes
-        const node1 = new NetworkManager(
-          new CubeStore(testCubeStoreParams),
-          new PeerDB(),
-          {
-            ...lightNodeMinimalFeatures,
-            transports: new Map([[SupportedTransports.ws, 3023]]),
-          },
-        );
-        const node2 = new NetworkManager(
-          new CubeStore(testCubeStoreParams),
-          new PeerDB(),
-          {
-            ...lightNodeMinimalFeatures,
-            transports: new Map([[SupportedTransports.ws, 3024]]),
-          },
-        );
-        await Promise.all([node1.cubeStore.readyPromise, node2.cubeStore.readyPromise]);
-        await Promise.all([node1.start(), node2.start()]);
-
-        // sculpt a notification Cube at node1
-        const notificationKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
-        const latinSmartassery = "Cubi notificationes ad clavem notificationis referunt";
-        const contentField = CubeField.RawContent(CubeType.FROZEN_NOTIFY, latinSmartassery);
-        const notificationCube = Cube.Frozen({
-          fields: [
-            contentField,
-            CubeField.Notify(notificationKey),
-          ],
-          requiredDifficulty: reducedDifficulty,
+          await Promise.all([node1.shutdown(), node2.shutdown()]);
         });
-        await node1.cubeStore.addCube(notificationCube);
 
-        // connect node2 to node1
-        const node2to1 = node2.connect(new Peer("127.0.0.1:3023"));
-        await node2to1.onlinePromise;
+        it('does not exchange unrequested Cubes', async () => {
+          const node1 = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            {
+              ...lightNodeMinimalFeatures,
+              transports: new Map([[SupportedTransports.ws, 3021]]),
+            },
+          );
+          const node2 = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            {
+              ...lightNodeMinimalFeatures,
+              transports: new Map([[SupportedTransports.ws, 3022]]),
+            },
+          );
+          await Promise.all([node1.cubeStore.readyPromise, node2.cubeStore.readyPromise]);
+          await Promise.all([node1.start(), node2.start()]);
+          const cube = Cube.Frozen(
+            { fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus per rogatum transferetur") })
+          const key = await cube.getKey();
+          await node1.cubeStore.addCube(cube);
 
-        // node2 requests notifications from node1
-        node2to1.sendNotificationRequest([notificationKey]);
-        // Wait up to three seconds for Cube exchange to happen
-        for (let i = 0; i < 30; i++) {
-          if (await node2.cubeStore.getNumberOfStoredCubes() >= 1) {
-            break;
+          expect(await node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+          expect(await node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
+
+          const node2to1 = await node2.connect(new Peer("127.0.0.1:3021"));
+          await node2to1.onlinePromise;
+
+          // wait a little...
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          // light node: no request, no Cube
+          expect(await node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
+
+          await Promise.all([node1.shutdown(), node2.shutdown()]);
+        });
+      });  // individual Cube retrieval
+
+      describe('notification retrieval', () => {
+        it('should retrieve notifications from other nodes', async () => {
+          // set up two nodes
+          const node1 = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            {
+              ...lightNodeMinimalFeatures,
+              transports: new Map([[SupportedTransports.ws, 3023]]),
+            },
+          );
+          const node2 = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            {
+              ...lightNodeMinimalFeatures,
+              transports: new Map([[SupportedTransports.ws, 3024]]),
+            },
+          );
+          await Promise.all([node1.cubeStore.readyPromise, node2.cubeStore.readyPromise]);
+          await Promise.all([node1.start(), node2.start()]);
+
+          // sculpt a notification Cube at node1
+          const notificationKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
+          const latinSmartassery = "Cubi notificationes ad clavem notificationis referunt";
+          const contentField = CubeField.RawContent(CubeType.FROZEN_NOTIFY, latinSmartassery);
+          const notificationCube = Cube.Frozen({
+            fields: [
+              contentField,
+              CubeField.Notify(notificationKey),
+            ],
+            requiredDifficulty: reducedDifficulty,
+          });
+          await node1.cubeStore.addCube(notificationCube);
+
+          // connect node2 to node1
+          const node2to1 = node2.connect(new Peer("127.0.0.1:3023"));
+          await node2to1.onlinePromise;
+
+          // node2 requests notifications from node1
+          node2to1.sendNotificationRequest([notificationKey]);
+          // Wait up to three seconds for Cube exchange to happen
+          for (let i = 0; i < 30; i++) {
+            if (await node2.cubeStore.getNumberOfStoredCubes() >= 1) {
+              break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
 
-        // verify notification has been received correctly
-        const receivedNotifications: Cube[] = [];
-        for await (const cube of node2.cubeStore.getNotificationCubes(notificationKey)) {
-          receivedNotifications.push(cube);
-        }
-        expect(receivedNotifications.length).toEqual(1);
-        expect(await receivedNotifications[0].getKey()).toEqual(await notificationCube.getKey());
-        expect(await receivedNotifications[0].fields.
-          getFirst(CubeFieldType.FROZEN_NOTIFY_RAWCONTENT)).
-            toEqual(contentField);
+          // verify notification has been received correctly
+          const receivedNotifications: Cube[] = [];
+          for await (const cube of node2.cubeStore.getNotificationCubes(notificationKey)) {
+            receivedNotifications.push(cube);
+          }
+          expect(receivedNotifications.length).toEqual(1);
+          expect(await receivedNotifications[0].getKey()).toEqual(await notificationCube.getKey());
+          expect(await receivedNotifications[0].fields.
+            getFirst(CubeFieldType.FROZEN_NOTIFY_RAWCONTENT)).
+              toEqual(contentField);
 
-        // shut down
-        await Promise.all([node1.shutdown(), node2.shutdown()]);
-      });
-    });  // notification retrieval
+          // shut down
+          await Promise.all([node1.shutdown(), node2.shutdown()]);
+        });
+      });  // notification retrieval
+    });  // as a light node
   });  // cube exchange
 
   describe('peer exchange and auto-connect', () => {
