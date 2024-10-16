@@ -131,6 +131,16 @@ alternative to traditional, centralized social networks.
     - **Cube Key Count (4 bytes)**: The number of notification keys following
     - **Recipient key (32 bytes)**: Sender requests all Cubes notifying the specified key
 
+  - `CubeSubscribe`: Requests all *future* Cube updates for the keys supplied.
+    - Message follows the exact same structure as a CubeRequest.
+    - TODO: Provide a way to select a subscription duration
+    - TODO: Provide a way to cancel a subscription before it expires.
+    - TODO: Provide for an efficient way to extend subscription, e.g. using
+      the hash of all Cube keys as a subscription key.
+
+  - `SubscriptionConfirmation`
+    - TODO
+
 # Encryption
 
 ## Cryptographic primitives used

@@ -11,6 +11,7 @@ export enum MessageClass {
     PeerRequest = 0x06,
     PeerResponse = 0x07,
     NotificationRequest = 0x08,
+    SubscribeCube = 0x09,
 }
 
 export const NetConstants =  {

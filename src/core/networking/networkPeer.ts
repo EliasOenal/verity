@@ -19,6 +19,8 @@ import { logger } from '../logger';
 
 import { Buffer } from 'buffer';
 import { Sublevels } from '../cube/levelBackend';
+import { Cube } from '../cube/cube';
+import { keyVariants } from '../cube/cubeUtil';
 
 export class NetworkStats {
     tx: OneWayNetworkStats = new OneWayNetworkStats();
@@ -71,7 +73,7 @@ export interface NetworkPeerIf extends Peer {
     onlinePromise: Promise<NetworkPeerIf>;
     online: boolean;
     conn: TransportConnection,
-
+    cubeSubscriptions: Iterable<string>;
 
     close(): Promise<void>;
     sendMessage(msg: NetworkMessage): void;
@@ -79,6 +81,7 @@ export interface NetworkPeerIf extends Peer {
     sendKeyRequests(): void;
     sendSpecificKeyRequest(mode: KeyRequestMode, options?: CubeFilterOptions,): void;
     sendCubeRequest(keys: Buffer[]): void;
+    sendSubscribeCube(keys: Buffer[]): void;
     sendNotificationRequest(keys: Buffer[]): void;  // maybe deprecated
     sendPeerRequest(): void;
 }
@@ -116,6 +119,9 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
 
     get conn(): TransportConnection { return this._conn }
 
+    private _cubeSubscriptions: Set<string> = new Set();
+    get cubeSubscriptions(): Iterable<string> { return this._cubeSubscriptions.values() }
+
     private networkTimeout: NodeJS.Timeout = undefined;
     private peerExchange: boolean = true;
     private networkTimeoutSecs: number = Settings.NETWORK_TIMEOUT;
@@ -142,9 +148,17 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
 
         // Take note of all other peers I could exchange with this new peer.
         // This is used to ensure we don't exchange the same peers twice.
-        this.unsentPeers = Array.from(this.networkManager.peerDB.peersExchangeable.values());  // TODO: there's really no reason to convert to array here
+        // TODO: Get rid of this as we shouldn't keep a large amount of state
+        //   for each connected peer, it's a DOS vector.
+        //   Also, there's really no reason to convert to array here
+        this.unsentPeers = Array.from(
+            this.networkManager.peerDB.peersExchangeable.values());
         networkManager.peerDB.on(
             'exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
+
+        // Get informed of all Cube updates to handle subscriptions
+        cubeStore.on("cubeAdded", (cubeInfo: CubeInfo) =>
+            this.sendSubscribedCubeUpdate(cubeInfo.getCube()));
 
         // Send HELLO message once connected
         this.setTimeout();  // connection timeout
@@ -156,12 +170,19 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         });
     }
 
+    // maybe rename this to shutdown for consistency... in most of our code,
+    // closing something is a reversible action while shutdown is permanent,
+    // and "closing" a NetworkPeer is permanent; a new NetworkPeer object needs
+    // to be constructed for the next connection
     close(): Promise<void> {
         logger.trace(`NetworkPeer ${this.toString()}: Closing connection.`);
         this._status.advance(NetworkPeerLifecycle.CLOSING);
+
         // Remove all listeners and timers to avoid memory leaks
         this.networkManager.peerDB.removeListener(
             'exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
+        this.cubeStore.removeListener("cubeAdded", (cubeInfo: CubeInfo) =>
+            this.sendSubscribedCubeUpdate(cubeInfo.getCube()));
         clearInterval(this.peerRequestTimer);
         clearTimeout(this.networkTimeout);
 
@@ -283,6 +304,14 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
                         break;
                     } catch (err) {  // we'll mostly ignore errors with this
                         logger.warn(`NetworkPeer ${this.toString()}: Ignoring a CubeRequest because an error occurred processing it: ${err}`);
+                        break;
+                    }
+                case MessageClass.SubscribeCube:
+                    try {  // non-essential feature
+                        this.handleSubscribeCube(msg as CubeRequestMessage);
+                        break;
+                    } catch (err) {  // we'll mostly ignore errors with this
+                        logger.warn(`NetworkPeer ${this.toString()}: Ignoring a CubeSubscribe because an error occurred processing it: ${err}`);
                         break;
                     }
                 case MessageClass.CubeResponse:
@@ -522,6 +551,24 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     }
 
     /**
+     * Handle a CubeSubscribe message.
+     * @param data The CubeSubscribe message, which has the same format as a CubeRequest message
+     */
+    // TODO: Time out subscriptions
+    // TODO: Limit the number of subscriptions
+    // TODO: Send reply once specified
+    private async handleSubscribeCube(msg: CubeRequestMessage): Promise<void> {
+        const requestedKeys: Generator<CubeKey> = msg.cubeKeys();
+        let i=0;
+        for (const key of requestedKeys) {
+            this._cubeSubscriptions.add(keyVariants(key).keyString);
+            i++;
+        }
+        logger.trace(`NetworkPeer ${this.toString()}: handleCubeSub: recorded ${i} cube subscriptions`);
+    }
+
+
+    /**
      * Handle a CubeResponse message.
      * @param msg The CubeResponse message.
      */
@@ -671,6 +718,18 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     }
 
     /**
+     * Send a SubscribeCube message.
+     * @param keys The list of cube keys to subscribe to.
+     */
+    sendSubscribeCube(keys: Buffer[]): void {
+        const msg: CubeRequestMessage =
+            new CubeRequestMessage(keys, MessageClass.SubscribeCube);
+        logger.trace(`NetworkPeer ${this.toString()}: sending SubscribeCube for ${keys.length} cubes`);
+        this.setTimeout();  // expect a timely reply to this request
+        this.sendMessage(msg);
+    }
+
+    /**
      * Send a NotificationRequest message.
      * @param keys The list of notification keys to request.
      */
@@ -763,6 +822,22 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         }
     }
 
+    // TODO: Wait just a tiny little bit after learning a Cube update so that
+    // updates received in short succession get grouped together.
+    // This reduces overhead massively and also keep updates neatly grouped
+    // together for potential further forwarding at the receiving node.
+    private sendSubscribedCubeUpdate(cube: Cube): void {
+        if (this._cubeSubscriptions.has(cube.getKeyStringIfAvailable())) {
+            const binaryCube: Buffer = cube.getBinaryDataIfAvailable();
+            if (binaryCube === undefined) {
+                logger.warn(`NetworkPeer ${this.toString()}.sendSubscribedCubeUpdate(): I was called on an apparently uncompiled Cube. This should not happen. Doing nothing.`);
+                return;
+            }
+            const reply = new CubeResponseMessage([cube.getBinaryDataIfAvailable()]);
+            this.sendMessage(reply);
+        }
+    }
+
     private setTimeout(): void {
         if (this.networkTimeoutSecs) {
             this.networkTimeout = setTimeout(() => {
@@ -780,12 +855,14 @@ export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
     onlinePromise: Promise<NetworkPeerIf> = Promise.resolve(this);
     online: boolean = true;
     conn: TransportConnection;
+    cubeSubscriptions: string[] = [];
     close(): Promise<void> { return Promise.resolve(); }
     sendMessage(msg: NetworkMessage): void { }
     sendMyServerAddress(): void { }
     sendKeyRequests(): void { }
     sendSpecificKeyRequest(mode: KeyRequestMode, options: CubeFilterOptions = {},): void { }
     sendCubeRequest(keys: Buffer[]): void { }
+    sendSubscribeCube(keys: Buffer[]): void { }
     sendNotificationRequest(keys: Buffer[]): void { }
     sendPeerRequest(): void { }
 
