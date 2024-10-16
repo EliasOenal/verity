@@ -662,6 +662,22 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     await checkAndPruneCubes(); // start pruning
   }
 
+  // maybe TODO: add timeout?
+  expectCube(keyInput: CubeKey|string): Promise<CubeInfo> {
+    const key: CubeKey = keyVariants(keyInput).binaryKey;
+    let resolve: (cubeInfo: CubeInfo) => void;
+    const eventHandler = (cubeInfo: CubeInfo) => {
+      if (cubeInfo.key.equals(key)) {
+        this.removeListener('cubeAdded', eventHandler);
+        resolve(cubeInfo);
+      }
+    };
+    return new Promise(actualResolve => {
+      resolve = actualResolve;
+      this.on('cubeAdded', (cubeInfo: CubeInfo) => eventHandler(cubeInfo));
+    });
+  }
+
   /**
    * Ever feel crushed by the weight of all those Cubes on your shoulders?
    * Fancy a more quiet life without Cubes? wipeAll() is the answer.
