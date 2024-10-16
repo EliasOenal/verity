@@ -117,7 +117,6 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     get conn(): TransportConnection { return this._conn }
 
     private networkTimeout: NodeJS.Timeout = undefined;
-    private lightNode: boolean;
     private peerExchange: boolean = true;
     private networkTimeoutSecs: number = Settings.NETWORK_TIMEOUT;
 
@@ -130,7 +129,6 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     {
         super(_conn.address);
         // set opts
-        this.lightNode = options?.lightNode ?? true;
         this.peerExchange = options?.peerExchange ?? true;
         this.networkTimeoutSecs = options?.networkTimeoutSecs ?? Settings.NETWORK_TIMEOUT;
         if (options.extraAddresses) {
