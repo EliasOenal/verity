@@ -19,8 +19,8 @@ export class cciLineShapedNetwork {
     public recipient: cciCockpit,
   ) {}
 
-  static async Create(): Promise<cciLineShapedNetwork> {
-    const core = await LineShapedNetwork.Create();
+  static async Create(fullNode1Port: number, fullNode2Port: number): Promise<cciLineShapedNetwork> {
+    const core = await LineShapedNetwork.Create(fullNode1Port, fullNode2Port);
 
     // make sender
     const senderId: Identity = await Identity.Construct(
