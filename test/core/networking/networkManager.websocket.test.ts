@@ -705,7 +705,7 @@ describe('networkManager - WebSocket connections', () => {
             new PeerDB(),
             {
               ...lightNodeMinimalFeatures,
-              transports: new Map([[SupportedTransports.ws, 3021]]),
+              transports: new Map([[SupportedTransports.ws, 3026]]),
             },
           );
           const node2 = new NetworkManager(
@@ -713,7 +713,7 @@ describe('networkManager - WebSocket connections', () => {
             new PeerDB(),
             {
               ...lightNodeMinimalFeatures,
-              transports: new Map([[SupportedTransports.ws, 3022]]),
+              transports: new Map([[SupportedTransports.ws, 3027]]),
             },
           );
           await Promise.all([node1.cubeStore.readyPromise, node2.cubeStore.readyPromise]);
@@ -726,7 +726,7 @@ describe('networkManager - WebSocket connections', () => {
           expect(await node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
           expect(await node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
 
-          const node2to1 = await node2.connect(new Peer("127.0.0.1:3021"));
+          const node2to1 = await node2.connect(new Peer("127.0.0.1:3026"));
           await node2to1.onlinePromise;
           // Request Cube
           node2to1.sendCubeRequest([key]);
@@ -751,7 +751,7 @@ describe('networkManager - WebSocket connections', () => {
             new PeerDB(),
             {
               ...lightNodeMinimalFeatures,
-              transports: new Map([[SupportedTransports.ws, 3021]]),
+              transports: new Map([[SupportedTransports.ws, 3031]]),
             },
           );
           const node2 = new NetworkManager(
@@ -759,7 +759,7 @@ describe('networkManager - WebSocket connections', () => {
             new PeerDB(),
             {
               ...lightNodeMinimalFeatures,
-              transports: new Map([[SupportedTransports.ws, 3022]]),
+              transports: new Map([[SupportedTransports.ws, 3032]]),
             },
           );
           await Promise.all([node1.cubeStore.readyPromise, node2.cubeStore.readyPromise]);
@@ -772,7 +772,7 @@ describe('networkManager - WebSocket connections', () => {
           expect(await node1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
           expect(await node2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
 
-          const node2to1 = await node2.connect(new Peer("127.0.0.1:3021"));
+          const node2to1 = await node2.connect(new Peer("127.0.0.1:3031"));
           await node2to1.onlinePromise;
 
           // wait a little...
