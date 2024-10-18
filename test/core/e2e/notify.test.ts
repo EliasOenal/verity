@@ -78,7 +78,7 @@ describe('notification end-to-end tests', () => {
   });
 
   test('notifications posted by light nodes propagate through the full node network to be retrieved by another light node', async() => {
-    const { sender, fullNode1, fullNode2, recipient } = await LineShapedNetwork.Create();
+    const { sender, fullNode1, fullNode2, recipient } = await LineShapedNetwork.Create(61101, 61102);
     // sender sculpts a notification Cube for recipient
     const notificationKey: Buffer = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
     const contentField = CubeField.RawContent(CubeType.FROZEN_NOTIFY,

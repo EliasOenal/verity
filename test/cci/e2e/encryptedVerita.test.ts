@@ -12,7 +12,7 @@ describe('Transmission of encrypted Verita', () => {
 
     beforeAll(async () => {
       // Create a simple line-shaped network
-      net = await cciLineShapedNetwork.Create();
+      net = await cciLineShapedNetwork.Create(61201, 61202);
       // Sculpt a simple Veritum for a single recipient
       const veritum: Veritum = net.sender.makeVeritum(
         { fields: cciField.Payload(plaintext) });

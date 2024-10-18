@@ -1,5 +1,5 @@
 import { SupportedTransports } from "../../../src/core/networking/networkDefinitions";
-import { AddressAbstraction } from "../../../src/core/peering/addressing";
+import { AddressAbstraction, WebSocketAddress } from "../../../src/core/peering/addressing";
 import { VerityNodeOptions, VerityNode } from "../../../src/core/verityNode";
 
 export const testOptions: VerityNodeOptions = {
@@ -22,7 +22,7 @@ export class LineShapedNetwork {
     public recipient: VerityNode,
   ) {}
 
-  static async Create(): Promise<LineShapedNetwork> {
+  static async Create(fullNode1Port: number, fullNode2Port: number): Promise<LineShapedNetwork> {
     // set up a small line-shaped network:
     // Sender light node - Full node 1 - Full node 2 - Recipient light node
     // As peer exchange is off, it should stay line shaped so we properly test
@@ -31,7 +31,7 @@ export class LineShapedNetwork {
       ...testOptions,
       lightNode: false,
       transports: new Map([
-        [SupportedTransports.ws, 61101],
+        [SupportedTransports.ws, fullNode1Port],
       ]),
     });
     await fullNode1.readyPromise;
@@ -39,22 +39,25 @@ export class LineShapedNetwork {
       ...testOptions,
       lightNode: false,
       transports: new Map([
-        [SupportedTransports.ws, 61102],
+        [SupportedTransports.ws, fullNode2Port],
       ]),
-      initialPeers: [new AddressAbstraction("ws://127.0.0.1:61101")],
+      initialPeers: [new AddressAbstraction(new WebSocketAddress(
+        "127.0.0.1", fullNode1Port))],
     });
     const sender: VerityNode = new VerityNode({
       ...testOptions,
       inMemory: true,
       lightNode: true,
-      initialPeers: [new AddressAbstraction("ws://127.0.0.1:61101")],
+      initialPeers: [new AddressAbstraction(new WebSocketAddress(
+        "127.0.0.1", fullNode1Port))],
     });
     await fullNode2.readyPromise;
     const recipient: VerityNode = new VerityNode({
       ...testOptions,
       inMemory: true,
       lightNode: true,
-      initialPeers: [new AddressAbstraction("ws://127.0.0.1:61102")],
+      initialPeers: [new AddressAbstraction(new WebSocketAddress(
+        "127.0.0.1", fullNode2Port))],
     });
     await sender.readyPromise;
     await recipient.readyPromise;
