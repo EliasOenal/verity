@@ -55,6 +55,16 @@ export class CubeRetriever implements CubeRetrievalInterface {
     return (await this.getCubeInfo(key, scheduleIn, timeout))?.getCube(family);
   }
 
+  /**
+   * Expects a Cube to be received soon, without actually requesting it.
+   * @param keyInput The key of the Cube to expect
+   * @returns A promise that will resolve to the expected Cube's CubeInfo
+   *   if and when it is eventually received.
+   */
+  expectCube(keyInput: CubeKey | string): Promise<CubeInfo> {
+    return this.cubeStore.expectCube(keyInput);
+  }
+
   // Note: This kind of breaks our layering as Continuation is a CCI feature
   // while the CubeRetriever is a core feature.
   // maybe TODO fix this somehow...?

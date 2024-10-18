@@ -91,6 +91,7 @@ export type CubeIteratorOptions = {
 export interface CubeRetrievalInterface {
   getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo>;
   getCube(key: CubeKey | string, family?: CubeFamilyDefinition): Promise<Cube>;
+  expectCube(keyInput: CubeKey|string): Promise<CubeInfo>;  // maybe TODO: add timeout?
 }
 
 export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
