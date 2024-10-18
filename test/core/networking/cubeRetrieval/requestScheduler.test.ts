@@ -195,19 +195,18 @@ describe('RequestScheduler', () => {
         scheduler.options.lightNode = true;
 
         // prepare spies
-        const performCubeRequest = vi.spyOn((scheduler as any).cubeRequestTimer, 'callback');
-        const sendCubeRequest = vi.spyOn(dummyPeer, 'sendCubeRequest');
+        const sendSubscribeCube = vi.spyOn(dummyPeer, 'sendSubscribeCube');
 
         // make request
         scheduler.subscribeCube(testKey);
-        // @ts-ignore spying on private attribute
-        expect(scheduler.subscribedCubes).toContainEqual(testKey);
+        // expect subscription to be registered
+        expect(scheduler.isAlreadyRequested(testKey)).toBe(true);
+
         await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
 
         // expect request to have been sent
-        expect(performCubeRequest).toHaveBeenCalledTimes(1);
-        expect(sendCubeRequest).toHaveBeenCalledTimes(1);
-        expect(sendCubeRequest.mock.lastCall[0]).toContainEqual(testKey);
+        expect(sendSubscribeCube).toHaveBeenCalledTimes(1);
+        expect(sendSubscribeCube.mock.lastCall[0]).toContainEqual(testKey);
       });
 
       if (!lightNode) it('should ignore Cube requests when running as a full node', () => {  // TODO is this actually something we want to assert?
