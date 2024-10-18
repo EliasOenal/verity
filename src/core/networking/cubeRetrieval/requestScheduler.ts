@@ -54,7 +54,7 @@ export class RequestScheduler {
   /** Notifications requested by the user in key request mode */
   private expectedNotifications: Map<string, RequestedCube> = new Map();
   /** Cubes (MUC, PMUC) subscribed to by the user */
-  private subscribedCubes: CubeKey[] = [];  // TODO use same format as for requestedCubes, TODO 2.0 implement push notifications
+  private subscribedCubes: Map<string, RequestedCube> = new Map();
 
   /** Timer for regularly scheduled CubeRequests */
   private cubeRequestTimer: ShortenableTimeout = new ShortenableTimeout(this.performAndRescheduleCubeRequest, this);
@@ -105,7 +105,7 @@ export class RequestScheduler {
     if (this._shutdown) return Promise.resolve(undefined);
 
     let alreadyReq: Promise<CubeInfo>;
-    if (alreadyReq = this.isAlreadyRequested(keyInput))
+    if (alreadyReq = this.existingRequest(keyInput))
       return alreadyReq;
     const key = keyVariants(keyInput);  // normalise input
     const req = new RequestedCube(key.binaryKey, timeout);  // create request
@@ -127,23 +127,51 @@ export class RequestScheduler {
       keyInput: CubeKey | string,
       scheduleIn: number = this.options.interactiveRequestDelay,
   ): void {
-    // do not accept any calls if this scheduler has already been shut down
+    // Sanity checks:
+    // Do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
-    if (this.options.lightNode) {  // full nodes are implicitly subscribed to everything
-      const key = keyVariants(keyInput);
-      if (this.subscribedCubes.some(subbedKey => subbedKey.equals(key.binaryKey))) {
-        return;  // already subscribed, nothing to do here
-      }
-      this.subscribedCubes.push(key.binaryKey);
-      this.scheduleCubeRequest(scheduleIn);  // schedule request
-    }
+    // Full nodes are implicitly subscribed to everything
+    if (!this.options.lightNode) return;
+    // Normalise input
+    const key = keyVariants(keyInput);
+    // Already subscribed?
+    if (this.subscribedCubes.has(key.keyString)) return;
+
+    // Select a node to subscribe from.
+    // TODO: Select a *sensible* node.
+    //   It should either be a full node or one that has already served us a
+    //   current version of this Cube recently.
+    const peerSelected: NetworkPeerIf =
+      this.options.requestStrategy.select(this.networkManager.onlinePeers);
+
+    // HACKHACK first send a regular CubeRequest
+    peerSelected.sendCubeRequest([key.binaryKey]);
+    // send subscription request
+    // maybe TODO: group multiple subscriptions to the same peer?
+    peerSelected.sendSubscribeCube([key.binaryKey]);
+
+    // Register this subscription
+    // TODO: Once responses are implemented, evaluate response
+    this.subscribedCubes.set(key.keyString, new RequestedCube(
+      key.binaryKey,
+      // TODO use subscription period as reported back by serving node
+      Settings.CUBE_SUBSCRIPTION_PERIOD,
+    ));
+    this.scheduleCubeRequest(scheduleIn);  // schedule request
   }
 
-  isAlreadyRequested(keyInput: CubeKey | string): Promise<CubeInfo> {
-    // TODO support subscribed Cubes
+  isAlreadyRequested(keyInput: CubeKey | string): boolean {
     const key = keyVariants(keyInput);
-    const req = this.requestedCubes.get(key.keyString);
-    return req ? req.promise : undefined;
+    let req = this.requestedCubes.get(key.keyString);
+    if (!req) req = this.subscribedCubes.get(key.keyString);
+    if (req) return true;
+    else return false;
+  }
+
+  existingRequest(keyInput: CubeKey | string): Promise<CubeInfo> {
+    const key = keyVariants(keyInput);
+    let req = this.requestedCubes.get(key.keyString)?.promise;
+    return req;
   }
 
   /**
@@ -250,7 +278,7 @@ export class RequestScheduler {
         // If we're a light node, check if we're even interested in this Cube
         if (this.options.lightNode) {
           if (!(this.requestedCubes.has(incomingCubeInfo.keyString)) &&
-              !(this.subscribedCubes.includes(incomingCubeInfo.key)) &&
+              !(this.subscribedCubes.has(incomingCubeInfo.keyString)) &&
               !(this.expectedKeyResponses.has(offeringPeer))  // whitelisted due to previous filtering KeyRequest
           ){
             continue;  // ignore offered key
@@ -312,7 +340,6 @@ export class RequestScheduler {
 
     // is there even anything left to request?
     if (this.requestedCubes.size === 0 &&
-        this.subscribedCubes.length === 0 &&
         this.requestedNotifications.size === 0
     ) {
       logger.trace(`RequestScheduler.performRequest(): doing nothing as there are no open requests`);
@@ -330,14 +357,6 @@ export class RequestScheduler {
           keys.push(req.key);
           req.requestRunning = true;  // TODO: this must be set back to false if the request fails
         }
-      }
-      for (const key of this.subscribedCubes) {
-        if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
-        // Note: This is COMPLETELY INEFFICIENT BULLSHIT!
-        // It means we're requesting the exact same Cube over and over again.
-        // We need to implement a proper subscription mechanism at the core
-        // networking layer.
-        keys.push(key);
       }
       if (keys.length > 0) {
         logger.trace(`RequestScheduler.performRequest(): requesting ${keys.length} Cubes from ${peerSelected.toString()}`);
@@ -383,31 +402,32 @@ export class RequestScheduler {
     // select a peer to send request to, unless we were told to use a specific one
     if (peerSelected === undefined) peerSelected =
       this.options.requestStrategy.select(this.networkManager.onlinePeers);
-    if (peerSelected !== undefined) {
-      if (this.options.lightNode) this.expectKeyResponse(peerSelected);
-
-      // We will now translate the supplied filter options to our crappy
-      // non-orthogonal 1.0 wire format. Non-fulfillable requests will be
-      // ignored. Hopefully we can get rid of this crap one we introduce a
-      // sensible wire format.
-      if (!KeyRequestMessage.filterLegal(options)) {
-        logger.trace('RequestScheduler.performKeyRequest(): Unfulfillable combination of filters; doing nothing.');
-        return;
-      }
-      // do we need to send a specific key request?
-      let mode: KeyRequestMode = undefined;
-      if (options.notifies && (options.timeMin || options.timeMax)) mode = KeyRequestMode.NotificationTimestamp;
-      else if (options.notifies) mode = KeyRequestMode.NotificationChallenge;
-      if (mode !== undefined) {
-        // if so, send the required one
-        peerSelected.sendSpecificKeyRequest(mode, options);
-      }
-      else {
-        // otherwise, let the peer decide which mode(s) to use
-        peerSelected.sendKeyRequests();
-      }
-    } else {
+    if (peerSelected === undefined) {
       logger.debug('RequestScheduler.performKeyRequest(): Could not find a suitable peer; doing nothing.');
+      return;
+    }
+
+    if (this.options.lightNode) this.expectKeyResponse(peerSelected);
+
+    // We will now translate the supplied filter options to our crappy
+    // non-orthogonal 1.0 wire format. Non-fulfillable requests will be
+    // ignored. Hopefully we can get rid of this crap one we introduce a
+    // sensible wire format.
+    if (!KeyRequestMessage.filterLegal(options)) {
+      logger.trace('RequestScheduler.performKeyRequest(): Unfulfillable combination of filters; doing nothing.');
+      return;
+    }
+    // do we need to send a specific key request?
+    let mode: KeyRequestMode = undefined;
+    if (options.notifies && (options.timeMin || options.timeMax)) mode = KeyRequestMode.NotificationTimestamp;
+    else if (options.notifies) mode = KeyRequestMode.NotificationChallenge;
+    if (mode !== undefined) {
+      // if so, send the required one
+      peerSelected.sendSpecificKeyRequest(mode, options);
+    }
+    else {
+      // otherwise, let the peer decide which mode(s) to use
+      peerSelected.sendKeyRequests();
     }
   }
 

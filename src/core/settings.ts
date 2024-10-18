@@ -47,6 +47,7 @@ export const Settings = {
     CUBE_REQUEST_TIMEOUT: (60 * 1000),
     REQUEST_SCALE_FACTOR: 4,  // make requests n times more often at MAXIMUM_CONNECTION compared to on a single connection
     INTERACTIVE_REQUEST_DELAY: 100,  // when a (presumably) interactive application requests a Cube on a light node, auto-schedule the next request in 100ms -- in other words, keep collecting requests for the next 100ms before actually performing the request
+    CUBE_SUBSCRIPTION_PERIOD: (600 * 1000),  // Cube subscriptions last 10 minues by default. NOTE: Expiry not implemented yet.
 
     // Debugging related:
     RUNTIME_ASSERTIONS: true,
