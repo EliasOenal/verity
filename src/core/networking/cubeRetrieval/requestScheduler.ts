@@ -5,7 +5,7 @@ import { Settings } from '../../settings';
 import { NetConstants } from '../networkDefinitions';
 import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode } from '../networkMessage';
 
-import { RequestStrategy, RandomStrategy } from './requestStrategy';
+import { RequestStrategy, RandomStrategy, BestScoreStrategy } from './requestStrategy';
 import { RequestedCube } from './requestedCube';
 
 import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
@@ -138,11 +138,13 @@ export class RequestScheduler {
     if (this.subscribedCubes.has(key.keyString)) return;
 
     // Select a node to subscribe from.
-    // TODO: Select a *sensible* node.
-    //   It should either be a full node or one that has already served us a
-    //   current version of this Cube recently.
-    const peerSelected: NetworkPeerIf =
-      this.options.requestStrategy.select(this.networkManager.onlinePeers);
+    // TODO: Improve selection strategy.
+    //   For the moment, we're just using the node with the best local score,
+    //   which can be reasonably expected to be a full node.
+    //   We should however verify that the requested node even has the requested
+    //   Cube, and in the long run we should actually prefer light nodes.
+    const strat: RequestStrategy = new BestScoreStrategy();
+    const peerSelected: NetworkPeerIf = strat.select(this.networkManager.onlinePeers);
 
     // HACKHACK first send a regular CubeRequest
     peerSelected.sendCubeRequest([key.binaryKey]);
@@ -157,6 +159,7 @@ export class RequestScheduler {
       // TODO use subscription period as reported back by serving node
       Settings.CUBE_SUBSCRIPTION_PERIOD,
     ));
+    // TODO: renew subscription after it expires
     this.scheduleCubeRequest(scheduleIn);  // schedule request
   }
 
