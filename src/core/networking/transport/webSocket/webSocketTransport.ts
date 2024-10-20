@@ -1,5 +1,6 @@
 import { VerityError } from "../../../settings";
-import { NetworkManager, NetworkManagerOptions } from "../../networkManager";
+import { NetworkManager } from "../../networkManager";
+import { NetworkManagerOptions } from 'core/networking/networkManagerIf';
 import { NetworkTransport } from "../networkTransport";
 import { WebSocketServer } from "./webSocketServer";
 

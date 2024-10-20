@@ -4,8 +4,8 @@ import { unixtime } from '../helpers/misc';
 import { CubeFilterOptions, CubeRequestMessage, CubeResponseMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, NetworkMessage, PeerRequestMessage, PeerResponseMessage, ServerAddressMessage } from './networkMessage';
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { KeyRequestMode } from './networkMessage';
-import { DummyNetworkManager, NetworkManager, NetworkManagerIf } from "./networkManager";
-import { DummyTransportConnection, TransportConnection } from './transport/transportConnection';
+import { NetworkManager } from "./networkManager";
+import { TransportConnection } from './transport/transportConnection';
 
 import { CubeKey } from '../cube/cube.definitions';
 import { CubeStore } from '../cube/cubeStore';
@@ -13,7 +13,6 @@ import { CubeInfo, CubeMeta } from '../cube/cubeInfo';
 
 import { WebSocketAddress, AddressAbstraction } from '../peering/addressing';
 import { Peer } from '../peering/peer';
-import { PeerDB } from '../peering/peerDB';
 
 import { logger } from '../logger';
 
@@ -21,70 +20,7 @@ import { Buffer } from 'buffer';
 import { Sublevels } from '../cube/levelBackend';
 import { Cube } from '../cube/cube';
 import { keyVariants } from '../cube/cubeUtil';
-
-export class NetworkStats {
-    tx: OneWayNetworkStats = new OneWayNetworkStats();
-    rx: OneWayNetworkStats = new OneWayNetworkStats();
-}
-export class OneWayNetworkStats {
-    messages: number = 0;
-    bytes: number = 0;
-    messageTypes: { [key in MessageClass]?: PacketStats } = {};
-}
-export class PacketStats {
-    count: number = 0;
-    bytes: number = 0;
-}
-
-export interface NetworkPeerOptions {
-    extraAddresses?: AddressAbstraction[],
-    lightNode?: boolean,
-    peerExchange?: boolean,
-    networkTimeoutSecs?: number,
-}
-
-export enum NetworkPeerLifecycle {
-    CONNECTING = 1,
-    HANDSHAKING = 2,
-    ONLINE = 3,
-    CLOSING = 4,
-    CLOSED = 5,
-}
-
-class NetworkPeerLifecycleStatus {
-    value: NetworkPeerLifecycle = NetworkPeerLifecycle.CONNECTING;
-    advance(newValue: NetworkPeerLifecycle): boolean {
-        if (newValue > this.value) {
-            this.value = newValue;
-            return true;
-        } else {
-            // This can happen for example if a connection object reports being
-            // ready really late, so that we might even register the Verity-level
-            // handshake as complete first. In this case, we must avoid reducing
-            // our lifecycle status back from ONLINE to HANDSHAKING.
-            return false;
-        }
-    }
-}
-
-export interface NetworkPeerIf extends Peer {
-    stats: NetworkStats;
-    status: NetworkPeerLifecycle;
-    onlinePromise: Promise<NetworkPeerIf>;
-    online: boolean;
-    conn: TransportConnection,
-    cubeSubscriptions: Iterable<string>;
-
-    close(): Promise<void>;
-    sendMessage(msg: NetworkMessage): void;
-    sendMyServerAddress(): void;
-    sendKeyRequests(): void;
-    sendSpecificKeyRequest(mode: KeyRequestMode, options?: CubeFilterOptions,): void;
-    sendCubeRequest(keys: Buffer[]): void;
-    sendSubscribeCube(keys: Buffer[]): void;
-    sendNotificationRequest(keys: Buffer[]): void;  // maybe deprecated
-    sendPeerRequest(): void;
-}
+import { NetworkPeerIf, NetworkPeerLifecycle, NetworkPeerOptions, NetworkStats } from './networkPeerIf';
 
 /**
  * Class representing a network peer, responsible for handling incoming and outgoing messages.
@@ -848,37 +784,18 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     }
 }
 
-
-export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
-    stats: NetworkStats;
-    status: NetworkPeerLifecycle;
-    onlinePromise: Promise<NetworkPeerIf> = Promise.resolve(this);
-    online: boolean = true;
-    conn: TransportConnection;
-    cubeSubscriptions: string[] = [];
-    close(): Promise<void> { return Promise.resolve(); }
-    sendMessage(msg: NetworkMessage): void { }
-    sendMyServerAddress(): void { }
-    sendKeyRequests(): void { }
-    sendSpecificKeyRequest(mode: KeyRequestMode, options: CubeFilterOptions = {},): void { }
-    sendCubeRequest(keys: Buffer[]): void { }
-    sendSubscribeCube(keys: Buffer[]): void { }
-    sendNotificationRequest(keys: Buffer[]): void { }
-    sendPeerRequest(): void { }
-
-    constructor(
-        networkManager?: NetworkManagerIf,
-        conn?: TransportConnection,
-        cubeStore?: CubeStore,
-        options: NetworkPeerOptions = {},
-    ) {
-        if (conn === undefined) conn = new DummyTransportConnection();
-        if (cubeStore === undefined) cubeStore = new CubeStore({
-            inMemory: true,
-            enableCubeCache: false,
-        });
-        if (networkManager === undefined) networkManager = new DummyNetworkManager(
-            cubeStore, new PeerDB());
-        super(conn.address);
+class NetworkPeerLifecycleStatus {
+    value: NetworkPeerLifecycle = NetworkPeerLifecycle.CONNECTING;
+    advance(newValue: NetworkPeerLifecycle): boolean {
+        if (newValue > this.value) {
+            this.value = newValue;
+            return true;
+        } else {
+            // This can happen for example if a connection object reports being
+            // ready really late, so that we might even register the Verity-level
+            // handshake as complete first. In this case, we must avoid reducing
+            // our lifecycle status back from ONLINE to HANDSHAKING.
+            return false;
+        }
     }
 }

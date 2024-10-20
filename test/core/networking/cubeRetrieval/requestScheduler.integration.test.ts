@@ -1,4 +1,5 @@
-import { logger } from "../../../../src/core/logger";
+import type { NetworkPeerIf } from 'core/networking/networkPeerIf';
+
 import { cciFamily, cciCube } from "../../../../src/cci/cube/cciCube";
 import { cciFieldType } from "../../../../src/cci/cube/cciCube.definitions";
 import { cciField } from "../../../../src/cci/cube/cciField";
@@ -6,8 +7,8 @@ import { CubeKey } from "../../../../src/core/cube/cube.definitions";
 import { Cube } from "../../../../src/core/cube/cube";
 import { CubeStoreOptions, CubeStore } from "../../../../src/core/cube/cubeStore";
 import { SupportedTransports } from "../../../../src/core/networking/networkDefinitions";
-import { NetworkManagerOptions, NetworkManager } from "../../../../src/core/networking/networkManager";
-import { NetworkPeer, NetworkPeerIf } from "../../../../src/core/networking/networkPeer";
+import { NetworkManager } from "../../../../src/core/networking/networkManager";
+import { NetworkManagerOptions } from 'core/networking/networkManagerIf';
 import { WebSocketAddress } from "../../../../src/core/peering/addressing";
 import { Peer } from "../../../../src/core/peering/peer";
 import { PeerDB } from "../../../../src/core/peering/peerDB";

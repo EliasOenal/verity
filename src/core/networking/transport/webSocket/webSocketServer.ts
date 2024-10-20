@@ -1,6 +1,6 @@
 import { WebSocketConnection } from "./webSocketConnection";
 
-import { NetworkManagerOptions } from "../../networkManager";
+import { NetworkManagerOptions } from 'core/networking/networkManagerIf';
 import { NetworkTransport } from "../networkTransport";
 import { NetworkPeer } from "../../networkPeer";
 import { TransportServer } from "../transportServer";

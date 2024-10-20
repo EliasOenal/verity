@@ -1,5 +1,7 @@
-import { NetworkPeer, NetworkPeerIf } from "../../core/networking/networkPeer";
-import { NetworkManager, NetworkManagerIf } from "../../core/networking/networkManager";
+import type { NetworkManagerIf } from "../../core/networking/networkManagerIf";
+
+import { NetworkPeer } from "../../core/networking/networkPeer";
+import { NetworkPeerIf } from 'core/networking/networkPeerIf';
 import { AddressAbstraction } from '../../core/peering/addressing';
 import { Peer } from "../../core/peering/peer";
 import { PeerDB } from '../../core/peering/peerDB';
@@ -8,7 +10,6 @@ import { logger } from "../../core/logger";
 import { OnlineView } from "./onlineView";
 import { PeerView } from "./peerView"
 import { ControllerContext, VerityController } from "../verityController";
-import { NavigationController } from "../navigation/navigationController";
 
 export const enum ShallDisplay {
   Connected = 1,

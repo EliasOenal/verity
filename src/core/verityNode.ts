@@ -1,13 +1,13 @@
-import { CubeRetrievalInterface, CubeStore, CubeStoreOptions } from "./cube/cubeStore";
+import { CubeStore, CubeStoreOptions } from "./cube/cubeStore";
 import { SupportedTransports } from "./networking/networkDefinitions";
-import { DummyNetworkManager, NetworkManager, NetworkManagerIf, NetworkManagerOptions } from "./networking/networkManager";
+import { NetworkManager } from "./networking/networkManager";
+import { NetworkManagerIf, NetworkManagerOptions } from './networking/networkManagerIf';
 import { CubeRetriever } from "./networking/cubeRetrieval/cubeRetriever";
 import { AddressAbstraction } from "./peering/addressing";
 import { Peer } from "./peering/peer";
 import { PeerDB } from "./peering/peerDB";
-
-import { logger } from "./logger";
 import { RequestScheduler } from "./networking/cubeRetrieval/requestScheduler";
+import { DummyNetworkManager } from "./networking/testingDummies/networkManagerDummy";
 
 interface InitialisationOptions {
   initialPeers?: AddressAbstraction[],

@@ -1,11 +1,14 @@
+import type { NetworkPeerIf } from 'core/networking/networkPeerIf';
+
 import { CubeKey } from '../../../src/core/cube/cube.definitions';
 import { CubeStore, CubeStoreOptions } from '../../../src/core/cube/cubeStore';
 import { Cube } from '../../../src/core/cube/cube'
 
 import { NetConstants, SupportedTransports } from '../../../src/core/networking/networkDefinitions';
-import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
+import { NetworkManager } from '../../../src/core/networking/networkManager';
+import { NetworkManagerOptions } from 'core/networking/networkManagerIf';
 import { CubeRetriever } from '../../../src/core/networking/cubeRetrieval/cubeRetriever';
-import { NetworkPeer, NetworkPeerIf } from '../../../src/core/networking/networkPeer';
+
 
 import { WebSocketAddress } from '../../../src/core/peering/addressing';
 import { Peer } from '../../../src/core/peering/peer';

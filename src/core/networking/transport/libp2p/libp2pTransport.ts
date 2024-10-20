@@ -1,7 +1,8 @@
 import { Settings, VerityError } from "../../../settings";
 import { Libp2pServer } from "./libp2pServer";
 import { NetworkTransport } from "../networkTransport";
-import { NetworkManager, NetworkManagerOptions } from "../../networkManager";
+import { NetworkManager } from "../../networkManager";
+import { NetworkManagerOptions } from 'core/networking/networkManagerIf';
 import { AddressAbstraction } from "../../../peering/addressing";
 import { logger } from "../../../logger";
 

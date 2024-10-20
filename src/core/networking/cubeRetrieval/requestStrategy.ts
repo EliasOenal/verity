@@ -1,4 +1,4 @@
-import type { NetworkPeerIf } from "../networkPeer";
+import type { NetworkPeerIf } from '../networkPeerIf';
 
 /**
  * RequestStrategies determine which connected node we'll ask whenever we

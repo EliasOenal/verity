@@ -1,7 +1,7 @@
+import type { NetworkManagerIf } from "../../../src/core/networking/networkManagerIf";
 import { cciCube } from "../../../src/cci/cube/cciCube";
 import { MediaTypes, cciAdditionalFieldType, cciFieldLength, cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { cciField } from "../../../src/cci/cube/cciField";
-import { cciFields } from "../../../src/cci/cube/cciFields";
 import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 import { Continuation } from "../../../src/cci/veritum/continuation";
 import { Veritum } from "../../../src/cci/veritum/veritum";
@@ -10,7 +10,7 @@ import { CubeStoreOptions, CubeStore } from "../../../src/core/cube/cubeStore";
 import { CubeRetriever } from "../../../src/core/networking/cubeRetrieval/cubeRetriever";
 import { RequestScheduler } from "../../../src/core/networking/cubeRetrieval/requestScheduler";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { NetworkManagerIf, DummyNetworkManager } from "../../../src/core/networking/networkManager";
+import { DummyNetworkManager } from "../../../src/core/networking/testingDummies/networkManagerDummy";
 import { PeerDB } from "../../../src/core/peering/peerDB";
 
 import { evenLonger, farTooLong, tooLong } from "../testcci.definitions";
