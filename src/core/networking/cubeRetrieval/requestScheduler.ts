@@ -253,12 +253,15 @@ export class RequestScheduler {
               !(this.subscribedCubes.includes(incomingCubeInfo.key)) &&
               !(this.expectedKeyResponses.has(offeringPeer))  // whitelisted due to previous filtering KeyRequest
           ){
-            continue;
+            continue;  // ignore offered key
           }
-          // TODO implement
-          // Slight problem here: An offered key could be in response to
-          // a notification request, be we have currently no way of telling
-          // whether that's the case
+          // Note a curious edge case:
+          // An offered key could be in response to a notification request,
+          // be we have currently no way of telling whether that's the case.
+          // We currently handle this by whitelisting the node we send the
+          // notification key request to (via expectedKeyResponses),
+          // but that effectively means nodes responding to our notification
+          // requests can spam light nodes with random Cubes.
         }
 
         // Do we already have this Cube?
