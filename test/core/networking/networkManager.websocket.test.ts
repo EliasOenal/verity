@@ -1,13 +1,16 @@
 import { Settings } from '../../../src/core/settings';
 import { NetConstants, SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 
-import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
-import { NetworkPeer, NetworkPeerIf, NetworkPeerLifecycle } from '../../../src/core/networking/networkPeer';
+import { NetworkManager } from '../../../src/core/networking/networkManager';
+import { NetworkManagerOptions } from 'core/networking/networkManagerIf';
+import { NetworkPeer } from '../../../src/core/networking/networkPeer';
 import { WebSocketTransport } from '../../../src/core/networking/transport/webSocket/webSocketTransport';
 import { WebSocketServer } from '../../../src/core/networking/transport/webSocket/webSocketServer';
 import { WebSocketConnection } from '../../../src/core/networking/transport/webSocket/webSocketConnection';
+import { NetworkPeerIf, NetworkPeerLifecycle } from '../../../src/core/networking/networkPeerIf';
 
 import { CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { Cube } from '../../../src/core/cube/cube';
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields } from '../../../src/core/cube/cubeFields';
@@ -20,7 +23,6 @@ import { logger } from '../../../src/core/logger';
 
 import WebSocket from 'isomorphic-ws';
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
-import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 
 // Note: Most general functionality concerning NetworkManager, NetworkPeer
 // etc is described within the WebSocket tests while the libp2p tests are more

@@ -1,6 +1,7 @@
 import { AddressError, SupportedTransports } from "../networkDefinitions";
 import { Libp2pTransport } from "./libp2p/libp2pTransport";
-import { NetworkManager, NetworkManagerOptions } from "../networkManager";
+import { NetworkManager } from "../networkManager";
+import { NetworkManagerOptions } from '../networkManagerIf';
 import { TransportParamMap, TransportMap } from "./networkTransport";
 import { WebSocketTransport } from "./webSocket/webSocketTransport";
 import { Libp2pConnection } from "./libp2p/libp2pConnection";

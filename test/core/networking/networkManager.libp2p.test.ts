@@ -1,8 +1,11 @@
+import type { NetworkPeerIf } from 'core/networking/networkPeerIf';
+
 import { Settings } from '../../../src/core/settings';
 
 import { SupportedTransports } from '../../../src/core/networking/networkDefinitions';
-import { NetworkManager, NetworkManagerOptions } from '../../../src/core/networking/networkManager';
-import { NetworkPeer, NetworkPeerIf } from '../../../src/core/networking/networkPeer';
+import { NetworkManager } from '../../../src/core/networking/networkManager';
+import { NetworkManagerOptions } from 'core/networking/networkManagerIf';
+import { NetworkPeer } from '../../../src/core/networking/networkPeer';
 import { Libp2pConnection } from '../../../src/core/networking/transport/libp2p/libp2pConnection';
 import { Libp2pTransport } from '../../../src/core/networking/transport/libp2p/libp2pTransport';
 import { AddressAbstraction } from '../../../src/core/peering/addressing';

@@ -1,5 +1,7 @@
 import { Peer } from "../../core/peering/peer";
-import { NetworkPeer, NetworkPeerIf, NetworkPeerLifecycle } from "../../core/networking/networkPeer";
+import { NetworkPeer } from "../../core/networking/networkPeer";
+import { NetworkPeerLifecycle } from 'core/networking/networkPeerIf';
+import { NetworkPeerIf } from 'core/networking/networkPeerIf';
 import { logger } from "../../core/logger";
 import { VerityView } from "../verityView";
 import { unixtime } from "../../core/helpers/misc";

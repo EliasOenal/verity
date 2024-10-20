@@ -1,3 +1,6 @@
+import type { NetworkPeerIf } from '../networkPeerIf';
+import type { NetworkManagerIf } from '../networkManagerIf';
+
 import { Settings } from '../../settings';
 import { NetConstants } from '../networkDefinitions';
 import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode } from '../networkMessage';
@@ -9,13 +12,10 @@ import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
 import { CubeFieldType, type CubeKey } from '../../cube/cube.definitions';
 import { CubeInfo } from '../../cube/cubeInfo';
 import { cubeContest, getCurrentEpoch, keyVariants, shouldRetainCube } from '../../cube/cubeUtil';
-import type { NetworkManager, NetworkManagerIf } from '../networkManager';
-import type { NetworkPeer, NetworkPeerIf } from '../networkPeer';
 
 import { logger } from '../../logger';
 
 import { Buffer } from 'buffer';  // for browsers
-import { CubeFilter } from '../../../webui/cubeExplorer/cubeExplorerController';
 
 // TODO: only schedule next request after previous request has been *fulfilled*,
 // or after a sensible timeout
@@ -115,7 +115,7 @@ export class RequestScheduler {
   }
 
   /**
-   * Subscribe to a Cube, ensuring you will receive any an all remote updates.
+   * Subscribe to a Cube, ensuring you will receive any and all remote updates.
    * This obviously only makes sense for mutable Cubes, i.e. MUCs.
    * It also obviously only makes sense for light nodes as full nodes will always
    * attempt to sync all available Cubes.

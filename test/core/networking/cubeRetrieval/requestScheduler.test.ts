@@ -1,17 +1,20 @@
+import type { NetworkManagerIf } from "../../../../src/core/networking/networkManagerIf";
+
 import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
 import { NetConstants } from "../../../../src/core/networking/networkDefinitions";
-import { DummyNetworkManager, NetworkManager, NetworkManagerIf } from "../../../../src/core/networking/networkManager";
 import { RequestScheduler } from "../../../../src/core/networking/cubeRetrieval/requestScheduler";
 import { Cube } from "../../../../src/core/cube/cube";
 
 import { CubeField } from "../../../../src/core/cube/cubeField";
 import { CubeFieldType, CubeKey, CubeType } from "../../../../src/core/cube/cube.definitions";
 import { CubeStore, CubeStoreOptions } from "../../../../src/core/cube/cubeStore";
-import { DummyNetworkPeer, NetworkPeer, NetworkPeerIf } from "../../../../src/core/networking/networkPeer";
+import { NetworkPeerIf } from 'core/networking/networkPeerIf';
 import { unixtime } from "../../../../src/core/helpers/misc";
 
+import { DummyNetworkManager } from "../../../../src/core/networking/testingDummies/networkManagerDummy";
+import { DummyNetworkPeer } from '../../../../src/core/networking/testingDummies/networkPeerDummy';
+
 import { Settings } from "../../../../src/core/settings";
-import { CubeFilterOptions, KeyRequestMode } from "../../../../src/core/networking/networkMessage";
 import { PeerDB } from "../../../../src/core/peering/peerDB";
 
 import { vi } from 'vitest'
