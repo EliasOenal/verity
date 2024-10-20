@@ -23,6 +23,7 @@ import { logger } from '../../../src/core/logger';
 
 import WebSocket from 'isomorphic-ws';
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
+import { CubeResponseMessage } from '../../../src/core/networking/networkMessage';
 
 // Note: Most general functionality concerning NetworkManager, NetworkPeer
 // etc is described within the WebSocket tests while the libp2p tests are more
@@ -730,15 +731,9 @@ describe('networkManager - WebSocket connections', () => {
 
           const node2to1 = await node2.connect(new Peer("127.0.0.1:3026"));
           await node2to1.onlinePromise;
+
           // Request Cube
-          node2to1.sendCubeRequest([key]);
-          // Wait up to three seconds for Cube exchange to happen
-          for (let i = 0; i < 30; i++) {
-            if (await node2.cubeStore.getNumberOfStoredCubes() >= 2) {
-              break;
-            }
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
+          await node2.scheduler.requestCube(key, 0);
           const received: Cube = await node2.cubeStore.getCube(key);
           expect(received).toBeInstanceOf(Cube);
           expect((await received).getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).
@@ -784,6 +779,51 @@ describe('networkManager - WebSocket connections', () => {
 
           await Promise.all([node1.shutdown(), node2.shutdown()]);
         });
+
+        it('discards unrequested Cubes', async () => {
+          // set up two nodes and connect them
+          const node1 = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            {
+              ...lightNodeMinimalFeatures,
+              transports: new Map([[SupportedTransports.ws, 3033]]),
+            },
+          );
+          const node2 = new NetworkManager(
+            new CubeStore(testCubeStoreParams),
+            new PeerDB(),
+            {
+              ...lightNodeMinimalFeatures,
+              transports: new Map([[SupportedTransports.ws, 3034]]),
+            },
+          );
+          await Promise.all([node1.cubeStore.readyPromise, node2.cubeStore.readyPromise]);
+          await Promise.all([node1.start(), node2.start()]);
+          const node2to1 = await node2.connect(new Peer("127.0.0.1:3033"));
+          await node2to1.onlinePromise;
+
+          // node 2 sculpts a Cube nobody wants
+          const cube = Cube.Create({
+            cubeType: CubeType.FROZEN,
+            fields: CubeField.RawContent(CubeType.FROZEN, "Nemo hunc Cubum vult"),
+          });
+          await node2.cubeStore.addCube(cube);
+          expect(await node1.cubeStore.getNumberOfStoredCubes()).toEqual(0);
+          expect(await node2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+
+          // node 2 sends Cube to node 1, even though node 1 never requested it
+          node2to1.sendMessage(new CubeResponseMessage([await cube.getBinaryData()]));
+
+          // wait a little...
+          await new Promise(resolve => setTimeout(resolve, 3000));
+
+          // expect node 1 *not* to store the spurious Cube
+          expect(await node1.cubeStore.getNumberOfStoredCubes()).toEqual(0);
+
+          // shut down test nodes
+          await Promise.all([node1.shutdown(), node2.shutdown()]);
+        });
       });  // individual Cube retrieval
 
       describe('Cube subscriptions', () => {
@@ -818,9 +858,9 @@ describe('networkManager - WebSocket connections', () => {
           ]);
           clientToServer = client.connect(new Peer(new WebSocketAddress("127.0.0.1", 3025)));
           await online;
+
           // Prepare a key pair for an updatable Cube, i.e. a MUC
           await sodium.ready;
-
           const keyPair = sodium.crypto_sign_keypair();
           mucKey = Buffer.from(keyPair.publicKey);
           mucPrivateKey = Buffer.from(keyPair.privateKey);
@@ -836,14 +876,14 @@ describe('networkManager - WebSocket connections', () => {
           await server.cubeStore.addCube(cube);
           expect(await server.cubeStore.getNumberOfStoredCubes()).toEqual(1);
           // Client retrieves the original MUC
-          clientToServer.sendCubeRequest([mucKey]);
+          client.scheduler.requestCube(mucKey, 0);
           await client.cubeStore.expectCube(mucKey);
           expect(await client.cubeStore.getNumberOfStoredCubes()).toEqual(1);
         });
 
         it('updates a subscribed Cube', async () => {
           // client subscribes Cube
-          clientToServer.sendSubscribeCube([mucKey]);
+          client.scheduler.subscribeCube(mucKey);
           const updated: Promise<CubeInfo> = client.cubeStore.expectCube(mucKey);
 
           // allow for subscription to be processed
@@ -909,14 +949,7 @@ describe('networkManager - WebSocket connections', () => {
           await node2to1.onlinePromise;
 
           // node2 requests notifications from node1
-          node2to1.sendNotificationRequest([notificationKey]);
-          // Wait up to three seconds for Cube exchange to happen
-          for (let i = 0; i < 30; i++) {
-            if (await node2.cubeStore.getNumberOfStoredCubes() >= 1) {
-              break;
-            }
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
+          await node2.scheduler.requestNotifications(notificationKey);
 
           // verify notification has been received correctly
           const receivedNotifications: Cube[] = [];

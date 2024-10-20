@@ -508,22 +508,21 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
      * Handle a CubeResponse message.
      * @param msg The CubeResponse message.
      */
-    // TODO: If we're a light node, make sure we actually requested those
     private handleCubeResponse(msg: CubeResponseMessage): void {
         const binaryCubes: Generator<Buffer> = msg.binaryCubes();
+        // TODO: do we actually need this batch processing logic here?
+        // cubeStore.addCube() is async, i.e. calls are already just scheduled
+        // and not fired immediately
         const processBatch = async (iterator: Iterator<Buffer>, batchSize: number) => {
             let count = 0;
             for (let i = 0; i < batchSize; i++) {
                 const { value: binaryCube, done } = iterator.next();
                 if (done) break;
                 count++;
-                // Add the cube to the CubeStorage
-                // If this fails, CubeStore will log an error and we will ignore this cube.
-                // Grant this peer local reputation if cube is accepted.
-                // TODO BUGBUG: This currently grants reputation score for duplicates,
-                // which is absolutely contrary to what we want :'D
-                const value = await this.cubeStore.addCube(binaryCube);
-                if (value) { this.scoreReceivedCube(value.getDifficulty()); }
+                // Inform the scheduler of the delivered Cube, who will make an
+                // informed decision on whether to accept it (i.e. discard
+                // non-requested Cubes if we're a light node)
+                this.networkManager.scheduler.handleCubesDelivered([binaryCube], this);
             }
             return count;
         };
