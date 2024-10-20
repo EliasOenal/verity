@@ -22,3 +22,15 @@ export class RandomStrategy extends RequestStrategy {
     return available[index];
   }
 }
+
+export class BestScoreStrategy extends RequestStrategy {
+  select(available: NetworkPeerIf[]): NetworkPeerIf {
+    let best = available[0];
+    for (const peer of available) {
+      if (peer.trustScore > best.trustScore) {
+        best = peer;
+      }
+    }
+    return best;
+  }
+}
