@@ -242,7 +242,7 @@ describe('RequestScheduler', () => {
           const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
 
           // perform test
-          await scheduler.handleCubesOffered([oldCubeInfo], dummyPeer);
+          await scheduler.handleKeysOffered([oldCubeInfo], dummyPeer);
 
           // assertions
           expect(performCubeRequest).not.toHaveBeenCalled();
@@ -276,7 +276,7 @@ describe('RequestScheduler', () => {
           const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
 
           // perform test
-          await scheduler.handleCubesOffered([testCubeInfo], dummyPeer);
+          await scheduler.handleKeysOffered([testCubeInfo], dummyPeer);
 
           // assertions
           expect(scheduler.isAlreadyRequested(testCubeInfo.key)).toBeTruthy();
@@ -316,7 +316,7 @@ describe('RequestScheduler', () => {
           const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
 
           // perform test
-          await scheduler.handleCubesOffered([testCubeInfo], dummyPeer);
+          await scheduler.handleKeysOffered([testCubeInfo], dummyPeer);
 
           // assertions
           expect(scheduler.isAlreadyRequested(testCubeInfo.key)).toBeTruthy();
@@ -350,7 +350,7 @@ describe('RequestScheduler', () => {
           const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
 
           // perform test
-          await scheduler.handleCubesOffered([testCubeInfo], dummyPeer);
+          await scheduler.handleKeysOffered([testCubeInfo], dummyPeer);
 
           // assertions
           expect(scheduler.isAlreadyRequested(testCubeInfo.key)).toBeFalsy();

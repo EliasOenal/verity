@@ -426,7 +426,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
                     yield incomingCubeInfo;
                 }
             }
-            await this.networkManager.scheduler.handleCubesOffered(
+            await this.networkManager.scheduler.handleKeysOffered(
                 keyCallback(), this);
 
 

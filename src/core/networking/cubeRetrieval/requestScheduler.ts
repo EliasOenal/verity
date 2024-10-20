@@ -225,9 +225,9 @@ export class RequestScheduler {
   }
 
   /**
-   * Will be called by NetworkPeers getting offered Cubes by remote nodes
+   * Will be called by NetworkPeers getting offered keys by remote nodes
    */
-  async handleCubesOffered(offered: Iterable<CubeInfo>, offeringPeer: NetworkPeerIf): Promise<void> {
+  async handleKeysOffered(offered: Iterable<CubeInfo>, offeringPeer: NetworkPeerIf): Promise<void> {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
 
