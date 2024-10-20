@@ -11,7 +11,7 @@ import { RequestedCube } from './requestedCube';
 import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
 import { CubeFieldType, type CubeKey } from '../../cube/cube.definitions';
 import { CubeInfo } from '../../cube/cubeInfo';
-import { cubeContest, getCurrentEpoch, keyVariants, shouldRetainCube } from '../../cube/cubeUtil';
+import { activateCube, cubeContest, getCurrentEpoch, keyVariants, shouldRetainCube } from '../../cube/cubeUtil';
 
 import { logger } from '../../logger';
 
@@ -313,6 +313,41 @@ export class RequestScheduler {
     }
     if (cubeRequestRequired) this.performCubeRequest(offeringPeer);
   }
+
+  /**
+   * Will be called by NetworkPeers getting delivered Cubes by remote nodes
+   */
+  async handleCubesDelivered(
+      binaryCubes: Iterable<Buffer>,
+      offeringPeer: NetworkPeerIf,
+  ): Promise<void> {
+    // do not accept any calls if this scheduler has already been shut down
+    if (this._shutdown) return;
+
+    for (const binaryCube of binaryCubes) {
+      // first of all, activate this Cube
+      const cube = this.networkManager.cubeStore.activateCube(binaryCube);
+      if (cube === undefined) continue;  // drop this Cube if it's not valid
+
+      // If we're a light node, check if we're even interested in this Cube
+      if (this.options.lightNode) {
+        // maybe TODO: the key should always be available after reactivation;
+        //   do we want to switch to the non-async key getter?
+        if (!(this.requestedCubes.has(await cube.getKeyString())) &&
+            !(this.subscribedCubes.has(await cube.getKeyString()))
+        ){
+          continue;  // drop this Cube, we're not interested in it
+        }
+      }
+      // Add the cube to the CubeStorage
+      // Grant this peer local reputation if cube is accepted.
+      // TODO BUGBUG: This currently grants reputation score for duplicates,
+      // which is absolutely contrary to what we want :'D
+      const value = await this.networkManager.cubeStore.addCube(binaryCube);
+      if (value) { offeringPeer.scoreReceivedCube(value.getDifficulty()); }
+    }
+  }
+
 
   private calcRequestScaleFactor(): number {
     const conn = this.networkManager.onlinePeerCount;
