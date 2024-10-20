@@ -12,6 +12,7 @@ import { Buffer } from 'buffer';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import pkg from 'js-sha3';
 import sodium from 'libsodium-wrappers-sumo'
+import { CubeFamilyDefinition } from './cubeFields';
 
 /*
  * Calculate the hash of a buffer using the SHA3-256 algorithm.
@@ -256,6 +257,24 @@ export function paddedBuffer(content: string | Buffer = "", length: number): Buf
     content.copy(buf, 0, 0, length);
   }
   return buf;
+}
+
+export function activateCube(
+    binaryCube: Buffer,
+    families: Iterable<CubeFamilyDefinition>,
+): Cube {
+  // try to reactivate Cube using one of my supported family settings
+  let cube: Cube;
+  for (const family of families) {
+    try {
+      cube = new family.cubeClass(binaryCube, { family: family });
+    break;
+    } catch (err) { /* do nothing, just try next one */ }
+  }
+  if (cube === undefined) {
+      logger.info('activateCube(): Could not activate Cube using any of the supplied CubeFamily settings');
+  }
+  return cube;
 }
 
 /**

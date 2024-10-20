@@ -5,7 +5,7 @@ import { CubeInfo, CubeMeta } from "./cubeInfo";
 import { LevelBackend, LevelBackendOptions, Sublevels } from "./levelBackend";
 import { CubeType, CubeKey, CubeFieldType } from "./cube.definitions";
 import { CubeFamilyDefinition } from "./cubeFields";
-import { cubeContest, shouldRetainCube, getCurrentEpoch, keyVariants } from "./cubeUtil";
+import { cubeContest, shouldRetainCube, getCurrentEpoch, keyVariants, activateCube } from "./cubeUtil";
 import { TreeOfWisdom } from "../tow";
 import { logger } from "../logger";
 
@@ -200,23 +200,13 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
         cube = cube_input;
         binaryCube = await cube_input.getBinaryData();
       } else if (cube_input instanceof Buffer) {
-        // cube_input instanceof Buffer
-        binaryCube = cube_input;
-        // try to reactivate Cube using one of my supported family settings
-        for (const family of families) {
-          try {
-            cube = new family.cubeClass(binaryCube, { family: family });
-            break;
-          } catch (err) { /* do nothing, just try next one */ }
-        }
-        if (cube === undefined) {
-          logger.info('CubeStore.addCube: Skipping a dormant (binary) Cube as I could not reactivate it using any of my supported CubeFamily settings');
-          return undefined;
-        }
+        cube = activateCube(cube_input, families);  // will log info on failure
       } else {
         // should never be even possible to happen, and yet, there was this one time when it did
         throw new ApiMisuseError("CubeStore: invalid type supplied to addCube: " + (cube_input as unknown)?.constructor?.name);
       }
+      if (cube === undefined) return undefined;  // cannot add this Cube
+
       // Now create the CubeInfo, which is a meta-object containing some core
       // information about the Cube so we don't have to re-instantiate it all
       // the time.
@@ -677,6 +667,11 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
       resolve = actualResolve;
       this.on('cubeAdded', (cubeInfo: CubeInfo) => eventHandler(cubeInfo));
     });
+  }
+
+  activateCube(binaryCube: Buffer): Cube {
+    return activateCube(
+      binaryCube, this.options.family as Iterable<CubeFamilyDefinition>);
   }
 
   /**
