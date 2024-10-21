@@ -2,11 +2,12 @@ import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
 import { Cube } from "../../../src/core/cube/cube";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { MessageClass, NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { NetworkMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, CubeRequestMessage, CubeResponseMessage, ServerAddressMessage, PeerRequestMessage, PeerResponseMessage, KeyRequestMode } from "../../../src/core/networking/networkMessage";
+import { NetworkMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, CubeRequestMessage, CubeResponseMessage, ServerAddressMessage, PeerRequestMessage, PeerResponseMessage, KeyRequestMode, SubscriptionResponseCode, SubscriptionConfirmationMessage } from "../../../src/core/networking/networkMessage";
 import { AddressAbstraction } from "../../../src/core/peering/addressing";
 import { Peer } from "../../../src/core/peering/peer";
 import { VerityError } from "../../../src/core/settings";
 import { CubeField } from "../../../src/core/cube/cubeField";
+import { calculateHash } from "../../../src/core/cube/cubeUtil";
 
 describe('NetworkMessage', () => {
   describe('fromBinary() static method', () => {
@@ -503,5 +504,111 @@ describe('PeerResponseMessage', () => {
       expect(restoredPeers[1]).toEqual(peer2);
       expect(restoredPeers[2]).toEqual(peer3);
     }
+  });
+});
+
+
+describe('SubscriptionConfirmationMessage', () => {
+  const singleKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+  const multipleKeys = [
+    Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x47),
+    Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x11),
+  ];
+  const singleHash = Buffer.alloc(NetConstants.HASH_SIZE, 0x1337);
+  const multipleHashes = [
+    Buffer.alloc(NetConstants.HASH_SIZE, 0x13),
+    Buffer.alloc(NetConstants.HASH_SIZE, 0x37),
+  ];
+
+  describe('Parsing a received message', () => {
+    it('should parse a message with a single key and single hash', () => {
+      const buffer = Buffer.alloc(
+        1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+      buffer.writeUInt8(SubscriptionResponseCode.SubscriptionConfirmed, 0);
+      singleKey.copy(buffer, 1);
+      singleHash.copy(buffer, 1 + NetConstants.CUBE_KEY_SIZE);
+
+      const message = new SubscriptionConfirmationMessage(buffer);
+      expect(message.responseCode).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
+      expect(message.requestedKeyBlob).toEqual(singleKey);
+      expect(message.cubesHashBlob).toEqual(singleHash);
+    });
+
+    it('should parse a message with multiple keys and multiple hashes', () => {
+      const multiKeyBlob = calculateHash(Buffer.concat(multipleKeys));
+      const multiHashBlob = calculateHash(Buffer.concat(multipleHashes));
+      const buffer = Buffer.alloc(1 + 32 + 32);
+      buffer.writeUInt8(SubscriptionResponseCode.SubscriptionConfirmed, 0);
+      multiKeyBlob.copy(buffer, 1);
+      multiHashBlob.copy(buffer, 1 + 32);
+
+      const message = new SubscriptionConfirmationMessage(buffer);
+      expect(message.responseCode).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
+      expect(message.requestedKeyBlob).toEqual(multiKeyBlob);
+      expect(message.cubesHashBlob).toEqual(multiHashBlob);
+    });
+
+    it('should parse a message without cubesHashBlob', () => {
+      const buffer = Buffer.alloc(1 + 32);
+      buffer.writeUInt8(SubscriptionResponseCode.SubscriptionConfirmed, 0);
+      singleKey.copy(buffer, 1);
+
+      const message = new SubscriptionConfirmationMessage(buffer);
+      expect(message.responseCode).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
+      expect(message.requestedKeyBlob).toEqual(singleKey);
+      expect(message.cubesHashBlob).toBeUndefined()
+    });
+  });  // Parsing a received message
+
+  describe('Constructing a new message locally', () => {
+    it('should construct a message with a single key and single hash', () => {
+      const message = new SubscriptionConfirmationMessage(
+        SubscriptionResponseCode.SubscriptionConfirmed,
+        [singleKey],
+        [singleHash]
+      );
+      expect(message.responseCode).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
+      expect(message.requestedKeyBlob).toEqual(singleKey);
+      expect(message.cubesHashBlob).toEqual(singleHash);
+      // TODO expect message.value to be correct
+    });
+
+    it('should construct a message with multiple keys and multiple hashes', () => {
+      const message = new SubscriptionConfirmationMessage(
+        SubscriptionResponseCode.SubscriptionConfirmed,
+        multipleKeys,
+        multipleHashes
+      );
+      const keyHash = calculateHash(Buffer.concat(multipleKeys));
+      const cubeHash = calculateHash(Buffer.concat(multipleHashes));
+      expect(message.responseCode).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
+      expect(message.requestedKeyBlob).toEqual(keyHash);
+      expect(message.cubesHashBlob).toEqual(cubeHash);
+      // TODO expect message.value to be correct
+    });
+
+    it('should construct a message without cubesHashBlob', () => {
+      const message = new SubscriptionConfirmationMessage(
+        SubscriptionResponseCode.RequestedKeyNotAvailable,
+        [singleKey]
+      );
+      expect(message.responseCode).toEqual(SubscriptionResponseCode.RequestedKeyNotAvailable);
+      expect(message.requestedKeyBlob).toEqual(singleKey);
+      expect(message.cubesHashBlob).toBeUndefined();
+      // TODO expect message.value to be correct
+    });
+  });
+
+  describe('Edge cases and error scenarios', () => {
+    it('should handle an empty buffer', () => {
+      const buffer = Buffer.alloc(0);
+      expect(() => new SubscriptionConfirmationMessage(buffer)).toThrow();
+    });
+
+    it('should handle a buffer with insufficient length', () => {
+      const buffer = Buffer.alloc(1);
+      buffer.writeUInt8(SubscriptionResponseCode.SubscriptionConfirmed, 0);
+      expect(() => new SubscriptionConfirmationMessage(buffer)).toThrow();
+    });
   });
 });

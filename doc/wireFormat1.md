@@ -102,4 +102,21 @@
       the hash of all Cube keys as a subscription key.
 
   - `SubscriptionConfirmation`
-    - TODO
+    - **Response code (1 Byte)**:
+      - `0x01`: Subscription confirmed
+      - `0x02`: Subscriptions not supported
+      - `0x03`: Subscriptions temporarily unavailable
+      - `0x04`: You have reached the maximum number of subscriptions from this node
+      - `0x10`: (At least one) Requested key not available
+    - **Key(s) requested (32 Bytes)**:
+      - In case a single key subscription was requested, the requested key
+      - In case multiple keys were requested, this is the hash of all keys
+        Note: The reponse always refers to a single request message, requests
+        are never grouped by the serving node. This is to allow the requester
+        to clearly identify which request this response refers to.
+    - **Hash(es) of subscribed Cubes (32 Bytes)** (optional):
+      - In case a single key subscription was requested, the hash of the
+        current version of the subscribed cube
+      - In case multiple keys were requested, this is the hash of all
+        subscribed cube's hashes.
+      - This field is omitted if the subscription request is not granted.
