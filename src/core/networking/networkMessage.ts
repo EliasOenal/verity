@@ -658,7 +658,8 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
    */
   constructor(
       param: Buffer | SubscriptionResponseCode,
-      requestedKeys?: Buffer[], subscribedCubesHashes?: Buffer[],
+      requestedKeys?: Buffer[],
+      subscribedCubesHashes?: Buffer[],
   ) {
     if (param instanceof Buffer) {
       // Sanity check input
@@ -708,7 +709,7 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
       // Allocate a buffer for the message
       let length: number = 1 + NetConstants.CUBE_KEY_SIZE;
       if (hashOutput) length += NetConstants.HASH_SIZE;
-      const message = Buffer.alloc(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+      const message = Buffer.alloc(length);
       // Write the response code to the buffer
       message.writeUInt8(responseCode, 0);
       // Copy the requested key to the buffer

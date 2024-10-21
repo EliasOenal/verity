@@ -570,7 +570,16 @@ describe('SubscriptionConfirmationMessage', () => {
       expect(message.responseCode).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
       expect(message.requestedKeyBlob).toEqual(singleKey);
       expect(message.cubesHashBlob).toEqual(singleHash);
-      // TODO expect message.value to be correct
+      // check binary message for correctness
+      const expectedBuffer = Buffer.alloc(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+      expectedBuffer.writeUInt8(SubscriptionResponseCode.SubscriptionConfirmed, 0);
+      singleKey.copy(expectedBuffer, 1);
+      singleHash.copy(expectedBuffer, 1 + NetConstants.CUBE_KEY_SIZE);
+      expect(message.value).toEqual(expectedBuffer);
+      expect(message.value.length).toEqual(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+      expect(message.value.readUInt8(0)).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
+      expect(message.value.subarray(1, 1 + NetConstants.CUBE_KEY_SIZE)).toEqual(singleKey);
+      expect(message.value.subarray(1 + NetConstants.CUBE_KEY_SIZE, 1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE)).toEqual(singleHash);
     });
 
     it('should construct a message with multiple keys and multiple hashes', () => {
@@ -584,6 +593,16 @@ describe('SubscriptionConfirmationMessage', () => {
       expect(message.responseCode).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
       expect(message.requestedKeyBlob).toEqual(keyHash);
       expect(message.cubesHashBlob).toEqual(cubeHash);
+      // check binary message for correctness
+      const expectedBuffer = Buffer.alloc(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+      expectedBuffer.writeUInt8(SubscriptionResponseCode.SubscriptionConfirmed, 0);
+      keyHash.copy(expectedBuffer, 1);
+      cubeHash.copy(expectedBuffer, 1 + NetConstants.CUBE_KEY_SIZE);
+      expect(message.value).toEqual(expectedBuffer);
+      expect(message.value.length).toEqual(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+      expect(message.value.readUInt8(0)).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
+      expect(message.value.subarray(1, 1 + NetConstants.CUBE_KEY_SIZE)).toEqual(keyHash);
+      expect(message.value.subarray(1 + NetConstants.CUBE_KEY_SIZE, 1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE)).toEqual(cubeHash);
       // TODO expect message.value to be correct
     });
 
@@ -595,7 +614,14 @@ describe('SubscriptionConfirmationMessage', () => {
       expect(message.responseCode).toEqual(SubscriptionResponseCode.RequestedKeyNotAvailable);
       expect(message.requestedKeyBlob).toEqual(singleKey);
       expect(message.cubesHashBlob).toBeUndefined();
-      // TODO expect message.value to be correct
+      // check binary message for correctness
+      const expectedBuffer = Buffer.alloc(1 + NetConstants.CUBE_KEY_SIZE);
+      expectedBuffer.writeUInt8(SubscriptionResponseCode.RequestedKeyNotAvailable, 0);
+      singleKey.copy(expectedBuffer, 1);
+      expect(message.value.length).toEqual(1 + NetConstants.CUBE_KEY_SIZE);
+      expect(message.value.readUInt8(0)).toEqual(SubscriptionResponseCode.RequestedKeyNotAvailable);
+      expect(message.value.subarray(1, 1 + NetConstants.CUBE_KEY_SIZE)).toEqual(singleKey);
+      expect(message.value).toEqual(expectedBuffer);
     });
   });
 
