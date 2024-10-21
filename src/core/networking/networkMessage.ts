@@ -5,9 +5,10 @@ import { logger } from "../logger";
 import { AddressAbstraction } from "../peering/addressing";
 import { Peer } from "../peering/peer";
 import { ApiMisuseError, Settings, VerityError } from "../settings";
-import { MessageClass, NetConstants, NetworkError, SupportedTransports } from "./networkDefinitions";
+import { MessageClass, NetConstants, NetworkError, NetworkMessageError, SupportedTransports } from "./networkDefinitions";
 
 import { Buffer } from 'buffer';
+import { calculateHash } from "../cube/cubeUtil";
 
 export interface CubeFilterOptions {
   /** no more than this number of Cubes or records */
@@ -39,6 +40,14 @@ export interface CubeFilterOptions {
    **/
   startKey?: CubeKey,
 }
+
+
+// The following describes our wire format 1.0.
+// All messages are hand-crafted.
+// At some point, we should replace this mess with a new format that makes
+// use of our FieldParser and allows for a more orthogonal approach, allowing
+// parameters such as filters to be used in the same way for different kinds
+// of messages.
 
 export abstract class NetworkMessage extends BaseField {
   static fromBinary(message: Buffer): NetworkMessage {
@@ -593,3 +602,128 @@ export class PeerResponseMessage extends NetworkMessage {
     }
   }
 }
+
+
+export enum SubscriptionResponseCode {
+  SubscriptionConfirmed = 0x01,
+  SubscriptionsNotSupported = 0x02,
+  SubscriptionsTemporarilyUnavailable = 0x03,
+  MaximumSubscriptionsReached = 0x04,
+  RequestedKeyNotAvailable = 0x10,
+}
+
+
+/**
+ * Represents a subscription confirmation message in the network protocol.
+ * This message is sent in response to a subscription request and confirms
+ * whether the subscription was successful or not.
+ */
+export class SubscriptionConfirmationMessage extends NetworkMessage {
+  /**
+   * The response code indicating the status of the subscription request.
+   */
+  readonly responseCode: SubscriptionResponseCode;
+
+  /**
+   * The key(s) for which the subscription was requested.
+   * If multiple keys were requested, this is the hash of all keys.
+   */
+  readonly requestedKeyBlob: Buffer;
+
+  /**
+   * The hash of the subscribed cubes.
+   * If multiple cubes were subscribed, this is the hash of all subscribed cubes' hashes.
+   */
+  readonly cubesHashBlob: Buffer;
+
+  /**
+   * Parse a received SubscriptionConfirmationMessage
+   * @param value - The binary buffer containing the message data.
+   */
+  constructor(value: Buffer);
+
+  /**
+   * Build a new locally originated SubscriptionConfirmationMessage
+   * @param responseCode - The response code indicating the status of the subscription request.
+   * @param requestedKeys - The keys for which the subscription was requested.
+   * @param subscribedCubesHashes - The hashes of the subscribed cubes.
+   */
+  constructor(responseCode: SubscriptionResponseCode, requestedKeys: Buffer[], subscribedCubesHashes?: Buffer[]);
+
+  /**
+   * Constructs a SubscriptionConfirmationMessage.
+   * @param param - Either a binary buffer or a response code.
+   * @param requestedKeys - The keys for which the subscription was requested (if param is a response code).
+   * @param subscribedCubesHashes - The hashes of the subscribed cubes (if param is a response code).
+   */
+  constructor(
+      param: Buffer | SubscriptionResponseCode,
+      requestedKeys?: Buffer[], subscribedCubesHashes?: Buffer[],
+  ) {
+    if (param instanceof Buffer) {
+      // Sanity check input
+      if (param.length < 1 + NetConstants.CUBE_KEY_SIZE) {
+        throw new NetworkMessageError(`SubscriptionConfirmationMessage: Invalid message length ${param.length}, should be >= ${1 + NetConstants.CUBE_KEY_SIZE}`);
+      }
+      // Parse a remotely originated message
+      super(MessageClass.SubscriptionConfirmation, param);
+      // Extract message data
+      this.responseCode = param.readUInt8(0);
+      this.requestedKeyBlob = param.subarray(1, 1 + NetConstants.CUBE_KEY_SIZE);
+      if (param.length > 1 + NetConstants.CUBE_KEY_SIZE) {
+        this.cubesHashBlob = param.subarray(
+        1 + NetConstants.CUBE_KEY_SIZE,
+        1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+      } else {
+        this.cubesHashBlob = undefined;
+      }
+    } else {
+      // Construct a new locally originated message
+      const responseCode = param;
+
+      // Determine contents for the key(s) requested field
+      let keyOutput: Buffer;
+      if (requestedKeys) {
+        if (requestedKeys.length === 1) {
+          // If only one key is requested, use it directly
+          keyOutput = requestedKeys[0];
+        } else {
+          // Otherwise, calculate the hash of all keys
+          keyOutput = calculateHash(Buffer.concat(requestedKeys));
+        }
+      }
+
+      // Determine contents for the hash(es) of subscribed cubes field
+      let hashOutput: Buffer = undefined;
+      if (subscribedCubesHashes) {
+        if (subscribedCubesHashes.length === 1) {
+          // If only one cube hash is provided, use it directly
+          hashOutput = subscribedCubesHashes[0];
+        } else {
+          // otherwise, calculate the hash of all hashes
+          hashOutput = calculateHash(Buffer.concat(subscribedCubesHashes));
+        }
+      }
+
+      // Allocate a buffer for the message
+      let length: number = 1 + NetConstants.CUBE_KEY_SIZE;
+      if (hashOutput) length += NetConstants.HASH_SIZE;
+      const message = Buffer.alloc(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+      // Write the response code to the buffer
+      message.writeUInt8(responseCode, 0);
+      // Copy the requested key to the buffer
+      keyOutput.copy(message, 1);
+      // Copy the subscribed cubes hash to the buffer
+      if (hashOutput) hashOutput.copy(message, 1 + NetConstants.CUBE_KEY_SIZE);
+
+      // Initialize the message with the constructed buffer
+      super(MessageClass.SubscriptionConfirmation, message);
+      // Set the response code, requested key, and subscribed cubes hash
+      this.responseCode = responseCode;
+      this.requestedKeyBlob = keyOutput;
+      this.cubesHashBlob = hashOutput;
+    }
+  }
+}
+
+

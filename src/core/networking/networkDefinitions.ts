@@ -12,6 +12,7 @@ export enum MessageClass {
     PeerResponse = 0x07,
     NotificationRequest = 0x08,
     SubscribeCube = 0x09,
+    SubscriptionConfirmation = 0x0a,
 }
 
 export const NetConstants =  {
@@ -54,4 +55,5 @@ export enum SupportedTransports {
 
 export class NetworkError extends VerityError { name = "NetworkError" }
 export class NetworkPeerError extends NetworkError { name = "NetworkPeerError" }
+export class NetworkMessageError extends NetworkPeerError { name = "NetworkMessageError" }
 export class AddressError extends NetworkError { name = "AddressError" }
