@@ -1,20 +1,20 @@
 import type { CubeStore } from "../../cube/cubeStore";
 import type { Peer } from "../../peering/peer";
 import type { PeerDB } from "../../peering/peerDB";
-import type { NetworkManagerIf, NetworkManagerOptions } from "../networkManagerIf";
+import { SetNetworkManagerDefaults, type NetworkManagerIf, type NetworkManagerOptions } from "../networkManagerIf";
 import type { TransportParamMap, NetworkTransport } from "../transport/networkTransport";
+import type { CubeKey } from "../../cube/cube.definitions";
 
 import { NetworkPeerIf, NetworkStats } from "../networkPeerIf";
 import { RequestScheduler } from "../cubeRetrieval/requestScheduler";
 import { SupportedTransports, NetConstants } from "../networkDefinitions";
-import { NetworkManager } from "../networkManager";
 
 import EventEmitter from "events";
 
 export class DummyNetworkManager extends EventEmitter implements NetworkManagerIf {
   constructor(public cubeStore: CubeStore, public peerDB: PeerDB, transports: TransportParamMap = new Map(), public options: NetworkManagerOptions = {}) {
       super();
-      NetworkManager.SetDefaults(options);
+      SetNetworkManagerDefaults(options);
       this.scheduler = new RequestScheduler(this, options);
   }
   shutdownPromise: Promise<void> = Promise.resolve();
@@ -33,4 +33,12 @@ export class DummyNetworkManager extends EventEmitter implements NetworkManagerI
   id: Buffer = Buffer.alloc(NetConstants.PEER_ID_SIZE, 42);
   idString: string = this.id.toString('hex');
   get onlinePeerCount(): number { return this.onlinePeers.length };
+  handlePeerClosed(peer: NetworkPeerIf): void { }
+  closeAndBlockPeer(peer: NetworkPeerIf): void { }
+  handlePeerOnline(peer: NetworkPeerIf): boolean { return true }
+  getRecentSucceedingKeys(startKey: CubeKey, count: number): CubeKey[] {
+    return [];  // TODO implement sensible default
+  }
+  getRecentKeys(): CubeKey[] { return []; }
+  handlePeerUpdated(peer: NetworkPeerIf): void { }
 }

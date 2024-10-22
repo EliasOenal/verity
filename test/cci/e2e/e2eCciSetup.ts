@@ -4,10 +4,11 @@ import { Identity } from "../../../src/cci/identity/identity";
 import { coreCubeFamily } from "../../../src/core/cube/cube";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { VerityNode, VerityNodeOptions } from "../../../src/core/verityNode";
-import { LineShapedNetwork, testOptions } from "../../core/e2e/e2eSetup";
+import { LineShapedNetwork } from "../../core/e2e/e2eSetup";
+import { testCoreOptions } from "../../core/testcore.definition";
 
 export const cciTestOptions: VerityNodeOptions = {
-  ...testOptions,
+  ...testCoreOptions,
   family: [cciFamily, coreCubeFamily],
 }
 

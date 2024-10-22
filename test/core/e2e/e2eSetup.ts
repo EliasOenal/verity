@@ -1,18 +1,7 @@
 import { SupportedTransports } from "../../../src/core/networking/networkDefinitions";
 import { AddressAbstraction, WebSocketAddress } from "../../../src/core/peering/addressing";
-import { VerityNodeOptions, VerityNode } from "../../../src/core/verityNode";
-
-export const testOptions: VerityNodeOptions = {
-  inMemory: true,
-  enableCubeRetentionPolicy: false,
-  requiredDifficulty: 0,
-  announceToTorrentTrackers: false,
-  autoConnect: true,
-  peerExchange: false,
-  initialPeers: [],
-  requestInterval: 20,  // yes, repeating requests fifty times per second totally is a sensible idea!
-}
-export const requiredDifficulty = 0;
+import { VerityNode } from "../../../src/core/verityNode";
+import { testCoreOptions } from "../testcore.definition";
 
 export class LineShapedNetwork {
   constructor(
@@ -28,7 +17,7 @@ export class LineShapedNetwork {
     // As peer exchange is off, it should stay line shaped so we properly test
     // Cube propagation.
     const fullNode1: VerityNode = new VerityNode({
-      ...testOptions,
+      ...testCoreOptions,
       lightNode: false,
       transports: new Map([
         [SupportedTransports.ws, fullNode1Port],
@@ -36,7 +25,7 @@ export class LineShapedNetwork {
     });
     await fullNode1.readyPromise;
     const fullNode2: VerityNode = new VerityNode({
-      ...testOptions,
+      ...testCoreOptions,
       lightNode: false,
       transports: new Map([
         [SupportedTransports.ws, fullNode2Port],
@@ -45,7 +34,7 @@ export class LineShapedNetwork {
         "127.0.0.1", fullNode1Port))],
     });
     const sender: VerityNode = new VerityNode({
-      ...testOptions,
+      ...testCoreOptions,
       inMemory: true,
       lightNode: true,
       initialPeers: [new AddressAbstraction(new WebSocketAddress(
@@ -53,7 +42,7 @@ export class LineShapedNetwork {
     });
     await fullNode2.readyPromise;
     const recipient: VerityNode = new VerityNode({
-      ...testOptions,
+      ...testCoreOptions,
       inMemory: true,
       lightNode: true,
       initialPeers: [new AddressAbstraction(new WebSocketAddress(
