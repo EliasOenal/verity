@@ -25,7 +25,7 @@ import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
 
 import * as cryptolib from 'crypto';
-import { NetworkManagerIf, NetworkManagerOptions } from './networkManagerIf';
+import { NetworkManagerIf, NetworkManagerOptions, SetNetworkManagerDefaults } from './networkManagerIf';
 let crypto;
 if (isBrowser || isWebWorker) {
     crypto = window.crypto;
@@ -40,19 +40,6 @@ if (isBrowser || isWebWorker) {
  * please call and await start() before actually using it.
  */
 export class NetworkManager extends EventEmitter implements NetworkManagerIf {
-    static SetDefaults(options: NetworkManagerOptions = {}): void {
-        options.newPeerInterval = options?.newPeerInterval ?? Settings.NEW_PEER_INTERVAL;
-        options.connectRetryInterval = options?.connectRetryInterval ?? Settings.CONNECT_RETRY_INTERVAL;
-        options.reconnectInterval = options?.reconnectInterval ?? Settings.RECONNECT_INTERVAL;
-        options.maximumConnections = options?.maximumConnections ?? Settings.MAXIMUM_CONNECTIONS;
-        options.acceptIncomingConnections = options?.acceptIncomingConnections ?? true;
-        options.announceToTorrentTrackers = options?.announceToTorrentTrackers ?? true;
-        options.lightNode = options?.lightNode ?? true;
-        options.autoConnect = options?.autoConnect ?? true;
-        options.peerExchange = options?.peerExchange ?? true;
-        options.recentKeyWindowSize = options?.recentKeyWindowSize ?? Settings.RECENT_KEY_WINDOW_SIZE;
-    }
-
     // Components
     transports: Map<SupportedTransports, NetworkTransport> = new Map();
     scheduler: RequestScheduler;
@@ -148,7 +135,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
             readonly options: NetworkManagerOptions = {},
     ) {
         super();
-        NetworkManager.SetDefaults(options);
+        SetNetworkManagerDefaults(options);
 
         // Create components
         this.scheduler = new RequestScheduler(this, options);
@@ -519,7 +506,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
     /**
      * Callback executed when a NetworkPeer connection is closed.
      */
-    handlePeerClosed(peer: NetworkPeerIf) {
+    handlePeerClosed(peer: NetworkPeerIf): void {
         this.incomingPeers = this.incomingPeers.filter(p => p !== peer);
         this.outgoingPeers = this.outgoingPeers.filter(p => p !== peer);
         logger.trace(`NetworkManager: Connection to peer ${peer.toString()} has been closed. My outgoing peers now are: ${this.outgoingPeers} -- my incoming peers now are: ${this.incomingPeers}`);
@@ -532,7 +519,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         this.autoConnectPeers();  // find a replacement peer
     }
 
-    handlePeerUpdated(peer: NetworkPeerIf) {
+    handlePeerUpdated(peer: NetworkPeerIf): void {
         // TODO: Verify this address is in fact reachable, e.g. by making a test
         // connection.
         this.peerDB.markPeerExchangeable(peer);  // this might be a lie

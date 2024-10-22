@@ -21,6 +21,7 @@ import { Sublevels } from '../cube/levelBackend';
 import { Cube } from '../cube/cube';
 import { keyVariants } from '../cube/cubeUtil';
 import { NetworkPeerIf, NetworkPeerLifecycle, NetworkPeerOptions, NetworkStats } from './networkPeerIf';
+import { NetworkManagerIf } from './networkManagerIf';
 
 /**
  * Class representing a network peer, responsible for handling incoming and outgoing messages.
@@ -63,10 +64,10 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     private networkTimeoutSecs: number = Settings.NETWORK_TIMEOUT;
 
     constructor(
-            private networkManager: NetworkManager,
+            private networkManager: NetworkManagerIf,
             private _conn: TransportConnection,
             private cubeStore: CubeStore,
-            options: NetworkPeerOptions,
+            options: NetworkPeerOptions = {},
         )
     {
         super(_conn.address);

@@ -6,7 +6,8 @@ import { NetConstants, SupportedTransports } from "../../../src/core/networking/
 import { AddressAbstraction } from "../../../src/core/peering/addressing";
 import { VerityNode } from "../../../src/core/verityNode";
 
-import { LineShapedNetwork, requiredDifficulty, testOptions } from "./e2eSetup";
+import { LineShapedNetwork } from "./e2eSetup";
+import { requiredDifficulty, testCoreOptions } from "../testcore.definition";
 
 import { Buffer } from 'buffer';
 
@@ -14,7 +15,7 @@ describe('notification end-to-end tests', () => {
   test('light nodes can request notifications from other light nodes', async() => {
     // set up two light nodes and wait for them to be connected
     const sender: VerityNode = new VerityNode({
-      ...testOptions,
+      ...testCoreOptions,
       inMemory: true,
       lightNode: true,
       transports: new Map([
@@ -23,7 +24,7 @@ describe('notification end-to-end tests', () => {
     });
     await sender.readyPromise;
     const recipient: VerityNode = new VerityNode({
-      ...testOptions,
+      ...testCoreOptions,
       inMemory: true,
       lightNode: true,
       initialPeers: [new AddressAbstraction("ws://127.0.0.1:61104")],

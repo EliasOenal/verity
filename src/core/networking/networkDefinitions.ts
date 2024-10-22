@@ -52,6 +52,7 @@ export const NetConstants =  {
 export enum SupportedTransports {
     ws = 1,
     libp2p = 2,
+    dummy = -1,  // for testing only
 }
 
 export class NetworkError extends VerityError { name = "NetworkError" }
