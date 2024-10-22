@@ -2,7 +2,7 @@ import { Settings, VerityError } from "../../settings";
 import { SupportedTransports } from "../networkDefinitions";
 import { unixtime } from "../../helpers/misc";
 
-import { AddressAbstraction, WebSocketAddress } from "../../peering/addressing";
+import { AddressAbstraction } from "../../peering/addressing";
 import { logger } from "../../logger";
 
 import EventEmitter from "events";
@@ -91,11 +91,4 @@ export abstract class TransportConnection extends EventEmitter {
 
   // To be overridden by subclass
   get open(): boolean { return false; }
-}
-
-
-export class DummyTransportConnection extends TransportConnection {
-  constructor(address: AddressAbstraction = new AddressAbstraction(new WebSocketAddress("127.0.0.1", 0))) {
-    super(address, undefined);
-  }
 }
