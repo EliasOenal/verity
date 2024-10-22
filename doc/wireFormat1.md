@@ -120,3 +120,6 @@
       - In case multiple keys were requested, this is the hash of all
         subscribed cube's hashes.
       - This field is omitted if the subscription request is not granted.
+    - **Subscription duration (2 Bytes)** (optional):
+        Number of seconds this subscription will remain active.
+        This field is omitted if the subscription request is not granted.
