@@ -6,8 +6,9 @@ import type { NetworkManagerIf } from '../networkManagerIf';
 import { CubeStore } from '../../cube/cubeStore';
 import { Peer } from '../../peering/peer';
 import { PeerDB } from '../../peering/peerDB';
-import { TransportConnection, DummyTransportConnection } from '../transport/transportConnection';
+import { TransportConnection } from '../transport/transportConnection';
 import { DummyNetworkManager } from './networkManagerDummy';
+import { DummyTransportConnection } from './DummyTransportConnection';
 
 export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
     stats: NetworkStats;
