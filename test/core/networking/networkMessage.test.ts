@@ -521,101 +521,122 @@ describe('SubscriptionConfirmationMessage', () => {
   ];
 
   describe('Parsing a received message', () => {
-    it('should parse a message with a single key and single hash', () => {
+    it('should parse a positive confirmation for a single key', () => {
       const buffer = Buffer.alloc(
-        1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+        1 + NetConstants.CUBE_KEY_SIZE +
+        NetConstants.HASH_SIZE + NetConstants.TIMESPAN_SIZE);
       buffer.writeUInt8(SubscriptionResponseCode.SubscriptionConfirmed, 0);
       singleKey.copy(buffer, 1);
       singleHash.copy(buffer, 1 + NetConstants.CUBE_KEY_SIZE);
+      buffer.writeUInt16BE(3600, 1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
 
       const message = new SubscriptionConfirmationMessage(buffer);
       expect(message.responseCode).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
       expect(message.requestedKeyBlob).toEqual(singleKey);
       expect(message.cubesHashBlob).toEqual(singleHash);
+      expect(message.subscriptionDuration).toEqual(3600);
     });
 
-    it('should parse a message with multiple keys and multiple hashes', () => {
+    it('should parse positive confirmation for multiple keys', () => {
       const multiKeyBlob = calculateHash(Buffer.concat(multipleKeys));
       const multiHashBlob = calculateHash(Buffer.concat(multipleHashes));
-      const buffer = Buffer.alloc(1 + 32 + 32);
+      const buffer = Buffer.alloc(
+        1 + NetConstants.CUBE_KEY_SIZE +
+        NetConstants.HASH_SIZE + NetConstants.TIMESPAN_SIZE);
       buffer.writeUInt8(SubscriptionResponseCode.SubscriptionConfirmed, 0);
       multiKeyBlob.copy(buffer, 1);
       multiHashBlob.copy(buffer, 1 + 32);
+      buffer.writeUInt16BE(7200, 1 + 32 + 32);
 
       const message = new SubscriptionConfirmationMessage(buffer);
       expect(message.responseCode).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
       expect(message.requestedKeyBlob).toEqual(multiKeyBlob);
       expect(message.cubesHashBlob).toEqual(multiHashBlob);
+      expect(message.subscriptionDuration).toEqual(7200);
     });
 
-    it('should parse a message without cubesHashBlob', () => {
-      const buffer = Buffer.alloc(1 + 32);
-      buffer.writeUInt8(SubscriptionResponseCode.SubscriptionConfirmed, 0);
+    it('should parse a negative confirmation', () => {
+      const buffer = Buffer.alloc(1 + NetConstants.CUBE_KEY_SIZE);
+      buffer.writeUInt8(SubscriptionResponseCode.SubscriptionsNotSupported, 0);
       singleKey.copy(buffer, 1);
 
       const message = new SubscriptionConfirmationMessage(buffer);
-      expect(message.responseCode).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
+      expect(message.responseCode).toEqual(SubscriptionResponseCode.SubscriptionsNotSupported);
       expect(message.requestedKeyBlob).toEqual(singleKey);
       expect(message.cubesHashBlob).toBeUndefined()
+      expect(message.cubesHashBlob).toBeUndefined();
+      expect(message.subscriptionDuration).toBeUndefined();
     });
   });  // Parsing a received message
 
   describe('Constructing a new message locally', () => {
-    it('should construct a message with a single key and single hash', () => {
+    it('should construct a positive confirmation for a single key', () => {
       const message = new SubscriptionConfirmationMessage(
         SubscriptionResponseCode.SubscriptionConfirmed,
         [singleKey],
-        [singleHash]
+        [singleHash],
+        3600
       );
       expect(message.responseCode).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
       expect(message.requestedKeyBlob).toEqual(singleKey);
       expect(message.cubesHashBlob).toEqual(singleHash);
+      expect(message.subscriptionDuration).toEqual(3600);
       // check binary message for correctness
-      const expectedBuffer = Buffer.alloc(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+      const expectedBuffer = Buffer.alloc(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE + NetConstants.TIMESPAN_SIZE);
       expectedBuffer.writeUInt8(SubscriptionResponseCode.SubscriptionConfirmed, 0);
       singleKey.copy(expectedBuffer, 1);
       singleHash.copy(expectedBuffer, 1 + NetConstants.CUBE_KEY_SIZE);
+      expectedBuffer.writeUInt16BE(3600, 1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
       expect(message.value).toEqual(expectedBuffer);
-      expect(message.value.length).toEqual(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+      expect(message.value.length).toEqual(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE + NetConstants.TIMESPAN_SIZE);
       expect(message.value.readUInt8(0)).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
       expect(message.value.subarray(1, 1 + NetConstants.CUBE_KEY_SIZE)).toEqual(singleKey);
       expect(message.value.subarray(1 + NetConstants.CUBE_KEY_SIZE, 1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE)).toEqual(singleHash);
+      expect(message.value.readUInt16BE(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE)).toEqual(3600);
     });
 
-    it('should construct a message with multiple keys and multiple hashes', () => {
+    it('should construct a positive confirmation for multiple keys', () => {
       const message = new SubscriptionConfirmationMessage(
         SubscriptionResponseCode.SubscriptionConfirmed,
         multipleKeys,
-        multipleHashes
+        multipleHashes,
+        7200
       );
       const keyHash = calculateHash(Buffer.concat(multipleKeys));
       const cubeHash = calculateHash(Buffer.concat(multipleHashes));
       expect(message.responseCode).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
       expect(message.requestedKeyBlob).toEqual(keyHash);
       expect(message.cubesHashBlob).toEqual(cubeHash);
+      expect(message.subscriptionDuration).toEqual(7200);
       // check binary message for correctness
-      const expectedBuffer = Buffer.alloc(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+      const expectedBuffer = Buffer.alloc(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE + NetConstants.TIMESPAN_SIZE);
       expectedBuffer.writeUInt8(SubscriptionResponseCode.SubscriptionConfirmed, 0);
       keyHash.copy(expectedBuffer, 1);
       cubeHash.copy(expectedBuffer, 1 + NetConstants.CUBE_KEY_SIZE);
+      expectedBuffer.writeUInt16BE(7200, 1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
       expect(message.value).toEqual(expectedBuffer);
-      expect(message.value.length).toEqual(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+      expect(message.value.length).toEqual(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE + NetConstants.TIMESPAN_SIZE);
       expect(message.value.readUInt8(0)).toEqual(SubscriptionResponseCode.SubscriptionConfirmed);
       expect(message.value.subarray(1, 1 + NetConstants.CUBE_KEY_SIZE)).toEqual(keyHash);
       expect(message.value.subarray(1 + NetConstants.CUBE_KEY_SIZE, 1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE)).toEqual(cubeHash);
       // TODO expect message.value to be correct
+      expect(message.value.readUInt16BE(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE)).toEqual(7200);
     });
 
-    it('should construct a message without cubesHashBlob', () => {
+    it('should construct a negative confirmation', () => {
       const message = new SubscriptionConfirmationMessage(
         SubscriptionResponseCode.RequestedKeyNotAvailable,
-        [singleKey]
+        [singleKey],
       );
       expect(message.responseCode).toEqual(SubscriptionResponseCode.RequestedKeyNotAvailable);
       expect(message.requestedKeyBlob).toEqual(singleKey);
       expect(message.cubesHashBlob).toBeUndefined();
+      expect(message.subscriptionDuration).toBeUndefined();
       // check binary message for correctness
       const expectedBuffer = Buffer.alloc(1 + NetConstants.CUBE_KEY_SIZE);
+      expectedBuffer.writeUInt8(SubscriptionResponseCode.RequestedKeyNotAvailable, 0);
+      singleKey.copy(expectedBuffer, 1);
+      expect(message.value.length).toEqual(1 + NetConstants.CUBE_KEY_SIZE);
       expectedBuffer.writeUInt8(SubscriptionResponseCode.RequestedKeyNotAvailable, 0);
       singleKey.copy(expectedBuffer, 1);
       expect(message.value.length).toEqual(1 + NetConstants.CUBE_KEY_SIZE);

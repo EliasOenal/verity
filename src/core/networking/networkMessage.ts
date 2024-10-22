@@ -637,29 +637,54 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
   readonly cubesHashBlob: Buffer;
 
   /**
+   * The duration of the subscription in seconds.
+   */
+  readonly subscriptionDuration: number;
+
+  /**
    * Parse a received SubscriptionConfirmationMessage
    * @param value - The binary buffer containing the message data.
    */
   constructor(value: Buffer);
 
   /**
-   * Build a new locally originated SubscriptionConfirmationMessage
-   * @param responseCode - The response code indicating the status of the subscription request.
+   * Build a positive locally originated SubscriptionConfirmationMessage,
+   * confirming the subscription.
+   * @param responseCode - Must be SubscriptionResponseCode.SubscriptionConfirmed
    * @param requestedKeys - The keys for which the subscription was requested.
    * @param subscribedCubesHashes - The hashes of the subscribed cubes.
+   * @param subscriptionDuration - The duration of the subscription in seconds.
    */
-  constructor(responseCode: SubscriptionResponseCode, requestedKeys: Buffer[], subscribedCubesHashes?: Buffer[]);
+  constructor(
+    responseCode: SubscriptionResponseCode.SubscriptionConfirmed,
+    requestedKeys: Buffer[],
+    subscribedCubesHashes: Buffer[],
+    subscriptionDuration: number,
+  );
+
+  /**
+   * Build a negative locally originated SubscriptionConfirmationMessage,
+   * indicating that the subscription was not successful.
+   * @param responseCode - The response code indicating the status of the subscription request.
+   * @param requestedKeys - The keys for which the subscription was requested.
+   */
+  constructor(
+    responseCode: SubscriptionResponseCode,
+    requestedKeys: Buffer[],
+  );
 
   /**
    * Constructs a SubscriptionConfirmationMessage.
    * @param param - Either a binary buffer or a response code.
    * @param requestedKeys - The keys for which the subscription was requested (if param is a response code).
    * @param subscribedCubesHashes - The hashes of the subscribed cubes (if param is a response code).
+   * @param subscriptionDuration - The duration of the subscription in seconds (if param is a response code).
    */
   constructor(
       param: Buffer | SubscriptionResponseCode,
       requestedKeys?: Buffer[],
       subscribedCubesHashes?: Buffer[],
+      subscriptionDuration?: number,
   ) {
     if (param instanceof Buffer) {
       // Sanity check input
@@ -675,8 +700,14 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
         this.cubesHashBlob = param.subarray(
         1 + NetConstants.CUBE_KEY_SIZE,
         1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+        if (param.length > 1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE) {
+          this.subscriptionDuration = param.readUInt16BE(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+        } else {
+          this.subscriptionDuration = undefined;
+        }
       } else {
         this.cubesHashBlob = undefined;
+        this.subscriptionDuration = undefined;
       }
     } else {
       // Construct a new locally originated message
@@ -707,8 +738,11 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
       }
 
       // Allocate a buffer for the message
-      let length: number = 1 + NetConstants.CUBE_KEY_SIZE;
-      if (hashOutput) length += NetConstants.HASH_SIZE;
+      const length: number =
+        1 +  // Response code
+        NetConstants.CUBE_KEY_SIZE +
+        (hashOutput !== undefined ? NetConstants.HASH_SIZE : 0) +
+        (subscriptionDuration !== undefined ? NetConstants.TIMESPAN_SIZE : 0);
       const message = Buffer.alloc(length);
       // Write the response code to the buffer
       message.writeUInt8(responseCode, 0);
@@ -716,6 +750,7 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
       keyOutput.copy(message, 1);
       // Copy the subscribed cubes hash to the buffer
       if (hashOutput) hashOutput.copy(message, 1 + NetConstants.CUBE_KEY_SIZE);
+      if (subscriptionDuration) message.writeUInt16BE(subscriptionDuration, 1 + NetConstants.CUBE_KEY_SIZE + (hashOutput ? NetConstants.HASH_SIZE : 0));
 
       // Initialize the message with the constructed buffer
       super(MessageClass.SubscriptionConfirmation, message);
@@ -723,6 +758,7 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
       this.responseCode = responseCode;
       this.requestedKeyBlob = keyOutput;
       this.cubesHashBlob = hashOutput;
+      this.subscriptionDuration = subscriptionDuration;
     }
   }
 }
