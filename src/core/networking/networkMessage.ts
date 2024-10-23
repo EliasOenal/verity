@@ -62,7 +62,7 @@ export abstract class NetworkMessage extends BaseField {
     } else if (type === MessageClass.CubeRequest) {
       return new CubeRequestMessage(value);
     } else if (type === MessageClass.SubscribeCube) {
-      return new CubeRequestMessage(value, type);  // same wire format
+      return new SubscribeCubeMessage(value, type);
     } else if (type === MessageClass.CubeResponse) {
       return new CubeResponseMessage(value);
     } else if (type === MessageClass.MyServerAddress) {
@@ -430,6 +430,8 @@ export class CubeRequestMessage extends NetworkMessage {
     }
   }
 }
+
+export class SubscribeCubeMessage extends CubeRequestMessage {}
 
 export class CubeResponseMessage extends NetworkMessage {
   constructor(value: Buffer);

@@ -1,7 +1,7 @@
 import { Settings } from '../settings';
 import { unixtime } from '../helpers/misc';
 
-import { CubeFilterOptions, CubeRequestMessage, CubeResponseMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, NetworkMessage, PeerRequestMessage, PeerResponseMessage, ServerAddressMessage } from './networkMessage';
+import { CubeFilterOptions, CubeRequestMessage, CubeResponseMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, NetworkMessage, PeerRequestMessage, PeerResponseMessage, ServerAddressMessage, SubscriptionConfirmationMessage, SubscriptionResponseCode } from './networkMessage';
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { KeyRequestMode } from './networkMessage';
 import { NetworkManager } from "./networkManager";
@@ -28,6 +28,27 @@ import { NetworkManagerIf } from './networkManagerIf';
  */
 // TODO: This should arguably encapsulate Peer instead of inheriting from it
 export class NetworkPeer extends Peer implements NetworkPeerIf{
+    // TODO: Use our universal FieldParser instead. This will allow us to
+    // to compile multiple messages into one transmission.
+    // In preparation for this, NetworkMessages are already derived from BaseFields :)
+    private static compileMessage(msg: NetworkMessage): Buffer {
+        const compiled: Buffer = Buffer.alloc(
+            NetConstants.PROTOCOL_VERSION_SIZE +
+            NetConstants.MESSAGE_CLASS_SIZE +
+            msg.value.length);
+        compiled.writeUintBE(
+            NetConstants.PROTOCOL_VERSION,        // value
+            0,                                    // offset
+            NetConstants.PROTOCOL_VERSION_SIZE);  // size
+        compiled.writeUintBE(
+            msg.type,                            // value
+            NetConstants.PROTOCOL_VERSION_SIZE,  // ofset
+            NetConstants.MESSAGE_CLASS_SIZE);    // size
+        msg.value.copy(compiled, NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
+        return compiled;
+    }
+
+
     stats: NetworkStats = new NetworkStats();
     private peerRequestTimer?: NodeJS.Timeout = undefined; // Timer for node requests
 
@@ -57,7 +78,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     get conn(): TransportConnection { return this._conn }
 
     private _cubeSubscriptions: Set<string> = new Set();
-    get cubeSubscriptions(): Iterable<string> { return this._cubeSubscriptions.values() }
+    get cubeSubscriptions(): Iterable<string> { return this._cubeSubscriptions }
 
     private networkTimeout: NodeJS.Timeout = undefined;
     private peerExchange: boolean = true;
@@ -140,28 +161,8 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     }
 
     sendMessage(msg: NetworkMessage): void {
-        const compiled: Buffer = this.compileMessage(msg);
+        const compiled: Buffer = NetworkPeer.compileMessage(msg);
         this.txMessage(compiled);
-    }
-
-    // TODO: Use our universal FieldParser instead. This will allow us to
-    // to compile multiple messages into one transmission.
-    // In preparation for this, NetworkMessages are already derived from BaseFields :)
-    private compileMessage(msg: NetworkMessage): Buffer {
-        const compiled: Buffer = Buffer.alloc(
-            NetConstants.PROTOCOL_VERSION_SIZE +
-            NetConstants.MESSAGE_CLASS_SIZE +
-            msg.value.length);
-        compiled.writeUintBE(
-            NetConstants.PROTOCOL_VERSION,        // value
-            0,                                    // offset
-            NetConstants.PROTOCOL_VERSION_SIZE);  // size
-        compiled.writeUintBE(
-            msg.type,                            // value
-            NetConstants.PROTOCOL_VERSION_SIZE,  // ofset
-            NetConstants.MESSAGE_CLASS_SIZE);    // size
-        msg.value.copy(compiled, NetConstants.PROTOCOL_VERSION_SIZE + NetConstants.MESSAGE_CLASS_SIZE);
-        return compiled;
     }
 
     private txMessage(message: Buffer): void {
@@ -493,15 +494,43 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
      */
     // TODO: Time out subscriptions
     // TODO: Limit the number of subscriptions
-    // TODO: Send reply once specified
     private async handleSubscribeCube(msg: CubeRequestMessage): Promise<void> {
-        const requestedKeys: Generator<CubeKey> = msg.cubeKeys();
+        const requestedKeys: CubeKey[] = Array.from(msg.cubeKeys());
+        // check if we even have all requested Cubes
+        let cubeUnavailable: boolean = false;
+        const currentHashes: Buffer[] = [];
+        for (const key of requestedKeys) {
+            const cubeInfo: CubeInfo = await this.cubeStore.getCubeInfo(key);
+            if (cubeInfo === undefined) {
+                cubeUnavailable = true;
+                break;
+            }
+            currentHashes.push(await cubeInfo.getCube().getHash());
+        }
+        // Can we even fulfil this request?
+        if (cubeUnavailable) {
+            logger.trace(`NetworkPeer ${this.toString()}: handleSubscribeCube(): refusing subscription as we don't have one or more of the requested Cubes`);
+            const reply = new SubscriptionConfirmationMessage(
+                SubscriptionResponseCode.RequestedKeyNotAvailable,
+                requestedKeys);
+            this.sendMessage(reply);
+            return;
+        }
+        // All good, subscription accepted! Register it...
         let i=0;
         for (const key of requestedKeys) {
             this._cubeSubscriptions.add(keyVariants(key).keyString);
             i++;
         }
-        logger.trace(`NetworkPeer ${this.toString()}: handleCubeSub: recorded ${i} cube subscriptions`);
+        logger.trace(`NetworkPeer ${this.toString()}: handleSubscribeCube(): recorded ${i} cube subscriptions`);
+        // ... and send a confirmation
+        const reply = new SubscriptionConfirmationMessage(
+            SubscriptionResponseCode.SubscriptionConfirmed,
+            requestedKeys,
+            currentHashes,
+            Settings.CUBE_SUBSCRIPTION_PERIOD,
+        );
+        this.sendMessage(reply);
     }
 
 

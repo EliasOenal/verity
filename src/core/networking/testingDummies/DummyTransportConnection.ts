@@ -3,7 +3,7 @@ import { SupportedTransports } from "../networkDefinitions";
 import { TransportConnection } from "../transport/transportConnection";
 
 export class DummyTransportConnection extends TransportConnection {
-  sentMessage: Buffer[] = [];
+  sentMessages: Buffer[] = [];
 
   constructor(address: AddressAbstraction = new AddressAbstraction(new WebSocketAddress("127.0.0.1", 0))) {
     super(address, undefined);
@@ -14,5 +14,5 @@ export class DummyTransportConnection extends TransportConnection {
   type(): SupportedTransports { return SupportedTransports.dummy; }
   toString(): string { return "dummy transport connection" }
 
-  send(message: Buffer): void { this.sentMessage.push(message) }
+  send(message: Buffer): void { this.sentMessages.push(message) }
 }
