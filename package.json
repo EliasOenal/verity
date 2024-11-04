@@ -55,7 +55,7 @@
     "bencodec": "^3.0.1",
     "browser-or-node": "^3.0.0",
     "cmd-ts": "^0.13.0",
-    "data-structure-typed": "^1.52.4",
+    "data-structure-typed": "^1.53.1",
     "dompurify": "^3.1.7",
     "events": "^3.3.0",
     "extensionless": "^1.9.9",
