@@ -1,19 +1,18 @@
 import { Settings } from "../../settings";
-import type { CubeKey } from "../../cube/cube.definitions";
-import type { CubeInfo } from "../../cube/cubeInfo";
 
 /**
- * Internal data structure representing a local application's request for a
- * Cube. Contains a promise and its associated resolve and reject functions
+ * Internal data structure representing a local application's network request,
+ * e.g. for a Cube.
+ * Contains a promise and its associated resolve and reject functions
  * so we can let the application know when their request has been fulfilled
  * (or is not fulfillable).
  **/
-export class RequestedCube {
+export class PendingRequest<T> {
   public requestRunning = false;
-  public promise: Promise<CubeInfo>;
+  public promise: Promise<T>;
 
   private timeout: NodeJS.Timeout = undefined;
-  private resolve: Function;
+  private resolve: (value?: T | PromiseLike<T>) => void;
 
   /**
    * @param key Which Cube to request
@@ -21,7 +20,7 @@ export class RequestedCube {
    *        retrieval promise will resolve to undefined, or 0 for no timeout.
    */
   constructor(
-    readonly key: CubeKey,
+    readonly key: Buffer,
     timeout = Settings.CUBE_REQUEST_TIMEOUT,
   ) {
     this.promise = new Promise((resolve) => {
@@ -29,18 +28,18 @@ export class RequestedCube {
     });
     if (timeout > 0) {
       this.timeout = setTimeout(() => {
-        this.resolve(undefined)
+        this.resolve(undefined);
       }, timeout);
     }
   }
 
-  fulfilled(cubeInfo: CubeInfo): void {
+  fulfilled(data: T): void {
     clearTimeout(this.timeout);
-    this.resolve(cubeInfo);
+    this.resolve(data);
   }
 
   shutdown(): void {
     clearTimeout(this.timeout);
-    this.resolve(undefined);  // maybe the proper choice would be rejecting here and catching by the caller
+    this.resolve(undefined);  // Optionally reject here to allow the caller to handle the cancellation
   }
 }

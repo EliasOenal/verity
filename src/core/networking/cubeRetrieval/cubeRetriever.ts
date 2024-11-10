@@ -9,7 +9,7 @@ import { CubeRetrievalInterface, CubeStore } from "../../cube/cubeStore";
 import { keyVariants } from "../../cube/cubeUtil";
 import { logger } from "../../logger";
 import { Settings } from "../../settings";
-import { RequestScheduler } from "./requestScheduler";
+import { CubeRequestOptions, RequestScheduler } from "./requestScheduler";
 
 /**
  * "He may not be Golden, but he'll be your most trusted companion."
@@ -32,14 +32,12 @@ export class CubeRetriever implements CubeRetrievalInterface {
 
   async getCubeInfo(
       keyInput: CubeKey | string,
-      scheduleIn: number = undefined,  // undefined = will use RequestScheduler's default
-      timeout: number = undefined, // undefined = will use RequestScheduler's default
+      options: CubeRequestOptions = undefined,  // undefined = will use RequestScheduler's default
   ): Promise<CubeInfo> {
     const local: CubeInfo = await this.cubeStore.getCubeInfo(keyInput);
     if (local !== undefined) return local;
     try {
-      const retrieved = await this.requestScheduler.requestCube(
-        keyInput, scheduleIn, timeout);
+      const retrieved = await this.requestScheduler.requestCube(keyInput, options);
       return retrieved;
     } catch(error) {
       return undefined;
@@ -49,10 +47,9 @@ export class CubeRetriever implements CubeRetrievalInterface {
   async getCube(
       key: CubeKey | string,
       family: CubeFamilyDefinition = undefined,  // undefined = will use CubeInfo's default
-      scheduleIn: number = undefined,  // undefined = will use RequestScheduler's default
-      timeout: number = undefined,  // undefined = will use RequestScheduler's default
+      options: CubeRequestOptions = undefined,  // undefined = will use RequestScheduler's default
   ): Promise<Cube> {
-    return (await this.getCubeInfo(key, scheduleIn, timeout))?.getCube(family);
+    return (await this.getCubeInfo(key, options))?.getCube(family);
   }
 
   /**
@@ -72,9 +69,11 @@ export class CubeRetriever implements CubeRetrievalInterface {
   async *getContinuationChunks(
       key: CubeKey | string,
       family: CubeFamilyDefinition = undefined,  // undefined = will use CubeInfo's default
-      scheduleIn: number = undefined,  // undefined = will use RequestScheduler's default
-      timeout: number = this.requestScheduler?.options?.requestTimeout ?? Settings.CUBE_REQUEST_TIMEOUT,
+      options: CubeRequestOptions = {},
   ): AsyncGenerator<cciCube> {
+    // set default timeout (other options will use RequestScheduler's default)
+    options.timeout ??= this.requestScheduler?.options?.requestTimeout ?? Settings.CUBE_REQUEST_TIMEOUT;
+
     // First, define some helper functions:
     // chunkRetrieved will be run for, well, every chunk Cube retrieved
     const chunkRetrieved = (chunk: cciCube, resolved: Promise<cciCube>) => {
@@ -96,7 +95,7 @@ export class CubeRetriever implements CubeRetrievalInterface {
 
         // schedule retrieval of referred chunk
         const retrievalPromise = this.getCube(
-          ref.remoteKey, family, scheduleIn, timeout) as Promise<cciCube>;
+          ref.remoteKey, family, options) as Promise<cciCube>;
         retrievalPromise.then((nextChunk) => chunkRetrieved(nextChunk, retrievalPromise));
         currentlyRetrieving.add(retrievalPromise);
       }
@@ -194,12 +193,12 @@ export class CubeRetriever implements CubeRetrievalInterface {
     const timer: NodeJS.Timeout = setTimeout(() => {
       timeoutReached = true;
       nextChunkPromiseResolve(undefined);
-    }, timeout);
+    }, options.timeout);
     this.timers.push(timer);
 
     // Finally, initiate retrievals by retrieving first Cube:
     const firstChunkPromise: Promise<cciCube> =
-      this.getCube(key, family, scheduleIn, timeout) as Promise<cciCube>;
+      this.getCube(key, family, options) as Promise<cciCube>;
     currentlyRetrieving.add(firstChunkPromise);
     let firstChunkKey: CubeKey = undefined;
     firstChunkPromise.then(chunk => {

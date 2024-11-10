@@ -2,16 +2,17 @@ import type { NetworkPeerIf } from '../networkPeerIf';
 import type { NetworkManagerIf } from '../networkManagerIf';
 
 import { Settings } from '../../settings';
-import { NetConstants } from '../networkDefinitions';
-import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode } from '../networkMessage';
+import { NetConstants, NetworkPeerError } from '../networkDefinitions';
+import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode, NetworkMessage, SubscriptionConfirmationMessage } from '../networkMessage';
 
 import { RequestStrategy, RandomStrategy, BestScoreStrategy } from './requestStrategy';
-import { RequestedCube } from './requestedCube';
+import { PendingRequest } from './pendingRequest';
 
 import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
 import { CubeFieldType, type CubeKey } from '../../cube/cube.definitions';
 import { CubeInfo } from '../../cube/cubeInfo';
-import { activateCube, cubeContest, getCurrentEpoch, keyVariants, shouldRetainCube } from '../../cube/cubeUtil';
+import { cubeContest, getCurrentEpoch, keyVariants, shouldRetainCube } from '../../cube/cubeUtil';
+import { Cube } from '../../cube/cube';
 
 import { logger } from '../../logger';
 
@@ -42,19 +43,40 @@ export interface RequestSchedulerOptions {
   interactiveRequestDelay?: number;
 }
 
+export interface CubeRequestOptions {
+  scheduleIn?: number;
+  timeout?: number;
+  requestFrom?: NetworkPeerIf;
+}
+
 /**
  * Queries our connected peers for Cubes, depending on the configuration and
  * on local application's requests.
  */
 export class RequestScheduler {
-  /** Cubes requested by the user */
-  private requestedCubes: Map<string, RequestedCube> = new Map();
+  /**
+   * A map of Cubes requested by the user.
+   * Key: The Cube key,
+   *      or in case of a Cube requested from a specific peer: The peer's
+   *      ID concatenated with the Cube key.
+   * Value: A PendingRequest object containing a promise to resolve to a CubeInfo
+   **/
+  private requestedCubes: Map<string, PendingRequest<CubeInfo>> = new Map();
   /** Notifications requested by the user in direct Cube request mode */
-  private requestedNotifications: Map<string, RequestedCube> = new Map();
+  private requestedNotifications: Map<string, PendingRequest<CubeInfo>> = new Map();
   /** Notifications requested by the user in key request mode */
-  private expectedNotifications: Map<string, RequestedCube> = new Map();
+  private expectedNotifications: Map<string, PendingRequest<CubeInfo>> = new Map();
   /** Cubes (MUC, PMUC) subscribed to by the user */
-  private subscribedCubes: Map<string, RequestedCube> = new Map();
+  private subscribedCubes: Map<string, PendingRequest<CubeInfo>> = new Map();
+
+  /**
+   * A map of responses to Cube subscription requests we are currently waiting for.
+   * Key: String representation of the requested key blob (i.e. the single
+   * requested key, or the hash of all requested keys).
+   * Value: The pending request
+   */
+  private pendingSubscriptionConfirmations:
+    Map<string, PendingRequest<SubscriptionConfirmationMessage>> = new Map();
 
   /** Timer for regularly scheduled CubeRequests */
   private cubeRequestTimer: ShortenableTimeout = new ShortenableTimeout(this.performAndRescheduleCubeRequest, this);
@@ -98,19 +120,56 @@ export class RequestScheduler {
    */
   requestCube(
     keyInput: CubeKey | string,
-    scheduleIn: number = this.options.interactiveRequestDelay,
-    timeout: number = this.options.requestTimeout
+    options: CubeRequestOptions = {},
   ): Promise<CubeInfo> {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return Promise.resolve(undefined);
+    // set defaults options
+    options.scheduleIn ??= this.options.interactiveRequestDelay;
+    options.timeout ??= this.options.requestTimeout;
+    // normalise input
+    const key = keyVariants(keyInput);
+    // sanity checks
+    if (Settings.RUNTIME_ASSERTIONS) {
+      if (options.requestFrom && !options.requestFrom.valid()) {
+        throw new NetworkPeerError("RequestScheduler.requestCube(): Invalid peer selected for Cube request");
+      }
+    }
 
-    let alreadyReq: Promise<CubeInfo>;
-    if (alreadyReq = this.existingRequest(keyInput))
-      return alreadyReq;
-    const key = keyVariants(keyInput);  // normalise input
-    const req = new RequestedCube(key.binaryKey, timeout);  // create request
-    this.requestedCubes.set(key.keyString, req);  // remember request
-    this.scheduleCubeRequest(scheduleIn);  // schedule request
+    // determine how to refer to this pending request: either just by its key,
+    // or by both the peer ID and the Cube key if requested from a specific peer
+    const primaryMapKey: string = options.requestFrom?.idString?
+      // if we're requesting from a specific peer, the combination of
+      // their ID and the Cube key is the primary map key
+      options.requestFrom.idString + key.keyString :
+      key.keyString;
+    const additionalMapKey: string = options.requestFrom?.idString?
+      // if we're requesting from a specific peer, the Cube key alone is a
+      // secondary map key as this request will significantly fulfil any
+      // non-specific requests for this Cube
+      key.keyString :
+      undefined;
+
+    // check if this request is already pending
+    const alreadyReq: Promise<CubeInfo> = this.existingCubeRequest(primaryMapKey);
+    if (alreadyReq) return alreadyReq;
+
+    // create and remember this request
+    const req = new PendingRequest<CubeInfo>(key.binaryKey, options.timeout);
+    this.requestedCubes.set(primaryMapKey, req);
+    if (additionalMapKey && !this.requestedCubes.has(additionalMapKey)) {
+      // never overwrite an existing request
+      this.requestedCubes.set(additionalMapKey, req);
+    }
+
+    if (options.requestFrom !== undefined) {
+      // send direct Cube request to user-selected peer
+      // maybe TODO: schedule and collect Cube requests to user-defined peers?
+      options.requestFrom.sendCubeRequest([key.binaryKey]);
+    } else {
+      // schedule Cube request
+      this.scheduleCubeRequest(options.scheduleIn);
+    }
     return req.promise;  // return result eventually
   }
 
@@ -120,58 +179,164 @@ export class RequestScheduler {
    * It also obviously only makes sense for light nodes as full nodes will always
    * attempt to sync all available Cubes.
    **/
-  // Note: We don't have any actual notion of subscriptions on the core network
-  // layer yet. What this currently does is just re-request the same Cube over
-  // and over again, which is obviously stupid.
-  subscribeCube(
+  // TODO: add option to persist trying to subscribe even if Cube does not exist
+  // TODO implement requestFrom
+  // TODO implement timeout
+  async subscribeCube(
       keyInput: CubeKey | string,
-      scheduleIn: number = this.options.interactiveRequestDelay,
-  ): void {
+      options: CubeRequestOptions = {},
+  ): Promise<void> {  // TODO provide proper return value
     // Sanity checks:
     // Do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
     // Full nodes are implicitly subscribed to everything
     if (!this.options.lightNode) return;
-    // Normalise input
+
+    // Input normalisation:
     const key = keyVariants(keyInput);
     // Already subscribed?
     if (this.subscribedCubes.has(key.keyString)) return;
+    // set defaults options
+    options.scheduleIn ??= this.options.interactiveRequestDelay;
+    options.timeout ??= this.options.requestTimeout;
+
+    // Do we even have this Cube locally?
+    // If we don't have it, does it even exist on the network?
+    let ourCubeInfo: CubeInfo = await this.networkManager.cubeStore.getCubeInfo(key.keyString);
+    if (ourCubeInfo === undefined) {
+      ourCubeInfo = await this.requestCube(key.keyString);
+      if (ourCubeInfo === undefined) {
+        logger.trace(`RequestScheduler.subscribeCube(): Could not find Cube ${key.keyString} locally or remotely`);
+        return;
+      }
+    }
 
     // Select a node to subscribe from.
     // TODO: Improve selection strategy.
     //   For the moment, we're just using the node with the best local score,
     //   which can be reasonably expected to be a full node.
-    //   We should however verify that the requested node even has the requested
-    //   Cube, and in the long run we should actually prefer light nodes.
+    //   In the long run, we should however actually prefer light nodes.
+    let availablePeers: NetworkPeerIf[] = this.networkManager.onlinePeers;
     const strat: RequestStrategy = new BestScoreStrategy();
-    const peerSelected: NetworkPeerIf = strat.select(this.networkManager.onlinePeers);
 
-    // HACKHACK first send a regular CubeRequest
-    peerSelected.sendCubeRequest([key.binaryKey]);
-    // send subscription request
-    // maybe TODO: group multiple subscriptions to the same peer?
-    peerSelected.sendSubscribeCube([key.binaryKey]);
+    let peerSelected: NetworkPeerIf;
+    let subscriptionConfirmed: boolean = false;
+    while (!subscriptionConfirmed && availablePeers.length > 0) {
+      // Peer selection:
+      // Any candidate peers available?
+      if (availablePeers.length === 0) {
+        peerSelected = undefined;
+        break;
+      }
+      // Select a candidate peer
+      peerSelected = strat.select(availablePeers);
+      // Remove selected peer from list of available peers to avoid duplication
+      availablePeers = availablePeers.filter(p => p !== peerSelected);
+
+      // Send subscription request...
+      // maybe TODO optimise: group multiple subscriptions to the same peer?
+      peerSelected.sendSubscribeCube([key.binaryKey]);
+      // ... and await reply
+      const req = new PendingRequest<SubscriptionConfirmationMessage>(
+        key.binaryKey, Settings.NETWORK_TIMEOUT);  // low prio TODO: parametrise timeout
+      this.pendingSubscriptionConfirmations.set(key.keyString, req);
+      const resp: SubscriptionConfirmationMessage = await req.promise;
+      // low prio TODO after wire format 2.0:
+      // send pre-checks to several candidate nodes at once,
+      // then select best one to subscribe to
+
+      // Check response:
+      // 1) Did the remote node even answer?
+      if (resp === undefined) {
+        peerSelected = undefined;
+        continue;
+      }
+      // 2) Does the response quote the requested key?
+      if (!resp.requestedKeyBlob.equals(key.binaryKey)) {
+        peerSelected = undefined;
+        continue;
+      }
+      // 3) Does the remote node have the same version as us?
+      //    If not, request this remote node's version:
+      //    if the remote version is newer, subscribe;
+      //    if the remote version is older, choose other node.
+      if (!resp.cubesHashBlob.equals(await ourCubeInfo.getCube().getHash())) {
+        const remoteCubeInfo: CubeInfo = await this.requestCube(
+          key.keyString, { requestFrom: peerSelected });
+        // disregard this peer if it:
+        // - does not respond or does not have the requested Cube
+        if (remoteCubeInfo === undefined) {
+          peerSelected = undefined;
+          continue;
+        }
+        // - if the remote version is older than ours
+        //   (note: calling cubeContest with reverse params as we want the
+        //   remote to "win" (qualify for subscription) in case of a tie --
+        //   a "tie" is actually the most favourable outcome as it means we
+        //   are in sync with the candidate node)
+        if (cubeContest(remoteCubeInfo, ourCubeInfo) !== remoteCubeInfo) {
+          peerSelected = undefined;
+          continue;
+        }
+      }
+
+      // All looking fine, select this node
+      break;
+
+      // TODO: If node selection fails, schedule a retry, same as for a regular request
+      // (which also has not been implemented yet)
+
+      // TODO optimise: Allow subscribing to multiple Cubes at once.
+      //   If the remote node indicates there's a version mismatch, don't re-request
+      //   all of the Cubes, but try to figure out which one(s) we're missing in log time
+    }
+
+    if (peerSelected === undefined) {
+      logger.trace(`RequestScheduler.subscribeCube(): Could not subscribe to Cube ${key.keyString}`);
+      return undefined;
+    }
 
     // Register this subscription
-    // TODO: Once responses are implemented, evaluate response
-    this.subscribedCubes.set(key.keyString, new RequestedCube(
+    this.subscribedCubes.set(key.keyString, new PendingRequest(
       key.binaryKey,
       // TODO use subscription period as reported back by serving node
       Settings.CUBE_SUBSCRIPTION_PERIOD,
     ));
     // TODO: renew subscription after it expires
-    this.scheduleCubeRequest(scheduleIn);  // schedule request
   }
 
-  isAlreadyRequested(keyInput: CubeKey | string): boolean {
+
+  handleSubscriptionConfirmation(msg: SubscriptionConfirmationMessage): void {
+    // fetch the pending request
+    const keyBlob = keyVariants(msg.requestedKeyBlob);
+    const req: PendingRequest<SubscriptionConfirmationMessage> =
+      this.pendingSubscriptionConfirmations.get(keyBlob.keyString);
+    if (req !== undefined) {
+      // mark the request fulfilled
+      req.fulfilled(msg);
+      // and remove from pending set
+      this.pendingSubscriptionConfirmations.delete(keyBlob.keyString);
+    } else {
+      // no such request -- this is either a bug or the remote node is confused
+      logger.trace(`RequestScheduler.handleSubscriptionConfirmation(): Received confirmation for unknown request with key blob ${keyBlob.keyString}`);
+    }
+  }
+
+  isAlreadyRequested(
+      keyInput: CubeKey | string,
+      includeSubscriptions: boolean = true,
+  ): boolean {
     const key = keyVariants(keyInput);
     let req = this.requestedCubes.get(key.keyString);
-    if (!req) req = this.subscribedCubes.get(key.keyString);
+    if (!req && includeSubscriptions) req = this.subscribedCubes.get(key.keyString);
     if (req) return true;
     else return false;
   }
-
-  existingRequest(keyInput: CubeKey | string): Promise<CubeInfo> {
+  isAlreadySubscribed(keyInput: CubeKey | string): boolean {
+    const key = keyVariants(keyInput);
+    return this.subscribedCubes.has(key.keyString);
+  }
+  existingCubeRequest(keyInput: CubeKey | string): Promise<CubeInfo> {
     const key = keyVariants(keyInput);
     let req = this.requestedCubes.get(key.keyString)?.promise;
     return req;
@@ -201,13 +366,13 @@ export class RequestScheduler {
     if (directCubeRequest) {
       // Directly send a CubeRequest. This makes sense if we don't have any
       // notifications for this recipient yet.
-      const req = new RequestedCube(key.binaryKey, timeout);  // create request
+      const req = new PendingRequest<CubeInfo>(key.binaryKey, timeout);  // create request
       this.requestedNotifications.set(key.keyString, req);  // remember request
       this.scheduleCubeRequest(scheduleIn);  // schedule request
       return req.promise;  // return result eventually
     } else {
       // remember this request and create a promise for it
-      const req: RequestedCube = new RequestedCube(key.binaryKey, timeout);
+      const req = new PendingRequest<CubeInfo>(key.binaryKey, timeout);
       this.expectedNotifications.set(key.keyString, req);
       // Start with a KeyRequest. This makes sense if we already have (a lot of)
       // notifications for this recipient and want to avoid redownloading them all.
@@ -327,14 +492,15 @@ export class RequestScheduler {
     for (const binaryCube of binaryCubes) {
       // first of all, activate this Cube
       const cube = this.networkManager.cubeStore.activateCube(binaryCube);
+      const keyString = await cube.getKeyString();
       if (cube === undefined) continue;  // drop this Cube if it's not valid
 
       // If we're a light node, check if we're even interested in this Cube
       if (this.options.lightNode) {
         // maybe TODO: the key should always be available after reactivation;
         //   do we want to switch to the non-async key getter?
-        if (!(this.requestedCubes.has(await cube.getKeyString())) &&
-            !(this.subscribedCubes.has(await cube.getKeyString()))
+        if (!(this.requestedCubes.has(keyString)) &&
+            !(this.subscribedCubes.has(keyString))
         ){
           continue;  // drop this Cube, we're not interested in it
         }
@@ -343,8 +509,12 @@ export class RequestScheduler {
       // Grant this peer local reputation if cube is accepted.
       // TODO BUGBUG: This currently grants reputation score for duplicates,
       // which is absolutely contrary to what we want :'D
-      const value = await this.networkManager.cubeStore.addCube(binaryCube);
+      const value = await this.networkManager.cubeStore.addCube(binaryCube);  // TODO: use pre-activated version instead
       if (value) { offeringPeer.scoreReceivedCube(value.getDifficulty()); }
+
+      // Check if this delivery fulfils a pending request
+      const keyStrings: string[] = [keyString, offeringPeer.idString + keyString];
+      this.cubeRequestFulfilled(keyStrings, await cube.getCubeInfo());  // maybe TODO: avoid creating duplicate CubeInfo
     }
   }
 
@@ -368,11 +538,11 @@ export class RequestScheduler {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
     this.cubeRequestTimer.clear();  // cancel timer calling this exact function
-    this.performCubeRequest(peerSelected);
-    this.scheduleCubeRequest();
+    const reschedule: boolean = this.performCubeRequest(peerSelected);
+    if (reschedule) this.scheduleCubeRequest();
   }
 
-  private performCubeRequest(peerSelected?: NetworkPeerIf): void {
+  private performCubeRequest(peerSelected?: NetworkPeerIf): boolean {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
 
@@ -381,7 +551,7 @@ export class RequestScheduler {
         this.requestedNotifications.size === 0
     ) {
       logger.trace(`RequestScheduler.performRequest(): doing nothing as there are no open requests`);
-      return;  // nothing to do
+      return false;  // nothing to do
     }
     // select a peer to send request to, unless we were told to use a specific one
     if (peerSelected === undefined) peerSelected =
@@ -419,6 +589,7 @@ export class RequestScheduler {
     } else {
       logger.info("RequestScheduler.performRequest(): Could not find a suitable peer; doing nothing.")
     }
+    return true;
   }
 
   /**
@@ -480,7 +651,7 @@ export class RequestScheduler {
   // don't keep count.
   private expectKeyResponse(
       from: NetworkPeerIf,
-      timeoutSecs: number = Settings.CUBE_REQUEST_TIMEOUT,  // TODO: this is WRONG; should be Settings.NETWORK_TIMEOUT... but we "temporarily" set this to zero, so it won't work
+      timeoutSecs: number = Settings.NETWORK_TIMEOUT,
   ): void {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
@@ -519,23 +690,23 @@ export class RequestScheduler {
     return promises;
   }
 
-  cubeAddedHandler(cubeInfo: CubeInfo) {
-    // no not provide any further callbacks if this scheduler has already been shut down
+  private cubeAddedHandler(cubeInfo: CubeInfo) {
+    // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
 
     // does this fulfil a Cube request?
-    const cubeRequest: RequestedCube = this.requestedCubes.get(cubeInfo.keyString);
-    if (cubeRequest) {
-      cubeRequest.fulfilled(cubeInfo);
-      this.requestedCubes.delete(cubeInfo.keyString);
-    }
+    // note: This is duplicates what we already do in handleCubesDelivered(),
+    //       maybe remove it here? Possible rationale for leaving it in might be
+    //       that it ensures a request gets fulfilled even if a new Cube is
+    //       smuggled in without this scheduler noticing.
+    this.cubeRequestFulfilled([cubeInfo.keyString], cubeInfo);
 
     // does this fulfil a notification request in direct CubeRequest mode?
-    // TODO: do not potentially reactivate Cube, this is very inefficient
+    // TODO: do not potentially reactivate Cube a dormant Cube as it's inefficient
     const recipientKey: Buffer =
       cubeInfo.getCube().getFirstField(CubeFieldType.NOTIFY)?.value;
     if (recipientKey) {
-      const directNotificationRequest: RequestedCube = this.requestedNotifications.get(keyVariants(recipientKey).keyString);
+      const directNotificationRequest: PendingRequest<CubeInfo> = this.requestedNotifications.get(keyVariants(recipientKey).keyString);
       if (directNotificationRequest) {
         directNotificationRequest.fulfilled(cubeInfo);
         this.requestedNotifications.delete(cubeInfo.keyString);
@@ -544,13 +715,26 @@ export class RequestScheduler {
 
     // does this fulfill a notification request in KeyRequest mode?
     if (recipientKey) {
-      const indirectNotificationRequest: RequestedCube = this.expectedNotifications.get(keyVariants(recipientKey).keyString);
+      const indirectNotificationRequest: PendingRequest<CubeInfo> = this.expectedNotifications.get(keyVariants(recipientKey).keyString);
       if (indirectNotificationRequest) {
         indirectNotificationRequest.fulfilled(cubeInfo);
         this.expectedNotifications.delete(cubeInfo.keyString);
       }
     }
   }
+
+  private cubeRequestFulfilled(keyStrings: string[], cubeInfo: CubeInfo): void {
+    for (const keyString of keyStrings) {
+      const req = this.requestedCubes.get(keyString);
+      if (req !== undefined) {
+        // mark the request fulfilled
+        req.fulfilled(cubeInfo);  // maybe TODO: avoid creating duplicate CubeInfo
+        // and remove from pending set
+        this.requestedCubes.delete(keyString);
+      }
+    }
+  }
+
 
   shutdown(): void {
     this._shutdown = true;

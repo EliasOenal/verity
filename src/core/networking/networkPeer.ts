@@ -82,7 +82,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
 
     private networkTimeout: NodeJS.Timeout = undefined;
     private peerExchange: boolean = true;
-    private networkTimeoutSecs: number = Settings.NETWORK_TIMEOUT;
+    private networkTimeoutMillis: number;
 
     constructor(
             private networkManager: NetworkManagerIf,
@@ -94,7 +94,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         super(_conn.address);
         // set opts
         this.peerExchange = options?.peerExchange ?? true;
-        this.networkTimeoutSecs = options?.networkTimeoutSecs ?? Settings.NETWORK_TIMEOUT;
+        this.networkTimeoutMillis = options?.networkTimeoutSecs ?? 0;  // currently deactivated, should be Settings.NETWORK_TIMEOUT;
         if (options.extraAddresses) {
             this.addresses = options.extraAddresses;
             this.addAddress(_conn.address);
@@ -244,6 +244,9 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
                         logger.warn(`NetworkPeer ${this.toString()}: Ignoring a CubeRequest because an error occurred processing it: ${err}`);
                         break;
                     }
+                case MessageClass.CubeResponse:
+                    this.handleCubeResponse(msg as CubeResponseMessage);
+                    break;
                 case MessageClass.SubscribeCube:
                     try {  // non-essential feature
                         this.handleSubscribeCube(msg as CubeRequestMessage);
@@ -252,9 +255,14 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
                         logger.warn(`NetworkPeer ${this.toString()}: Ignoring a CubeSubscribe because an error occurred processing it: ${err}`);
                         break;
                     }
-                case MessageClass.CubeResponse:
-                    this.handleCubeResponse(msg as CubeResponseMessage);
-                    break;
+                case MessageClass.SubscriptionConfirmation:
+                    try {  // non-essential feature
+                        this.handleSubscriptionConfirmation(msg as SubscriptionConfirmationMessage);
+                        break;
+                    } catch (err) {  // we'll mostly ignore errors with this
+                        logger.warn(`NetworkPeer ${this.toString()}: Ignoring a SubscriptionConfirmation because an error occurred processing it: ${err}`);
+                        break;
+                    }
                 case MessageClass.MyServerAddress:
                     try {  // non-essential feature
                         this.handleServerAddress(msg as ServerAddressMessage);
@@ -533,6 +541,10 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         this.sendMessage(reply);
     }
 
+    private handleSubscriptionConfirmation(msg: SubscriptionConfirmationMessage): void {
+        this.networkManager.scheduler.handleSubscriptionConfirmation(msg);
+    }
+
 
     /**
      * Handle a CubeResponse message.
@@ -804,11 +816,11 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     }
 
     private setTimeout(): void {
-        if (this.networkTimeoutSecs) {
+        if (this.networkTimeoutMillis) {
             this.networkTimeout = setTimeout(() => {
                     logger.info(`NetworkPeer ${this.toString()} timed out a request, closing.`);
                     this.close()
-                }, Settings.NETWORK_TIMEOUT);
+                }, this.networkTimeoutMillis);
         }
     }
 }

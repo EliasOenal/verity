@@ -53,29 +53,32 @@ export abstract class NetworkMessage extends BaseField {
   static fromBinary(message: Buffer): NetworkMessage {
     const type: MessageClass = NetworkMessage.MessageClass(message);
     const value: Buffer = message.subarray(NetConstants.MESSAGE_CLASS_SIZE);
-    if (type === MessageClass.Hello) {
-      return new HelloMessage(value);
-    } else if (type === MessageClass.KeyRequest) {
-      return new KeyRequestMessage(value);
-    } else if (type === MessageClass.KeyResponse) {
-      return new KeyResponseMessage(value);
-    } else if (type === MessageClass.CubeRequest) {
-      return new CubeRequestMessage(value);
-    } else if (type === MessageClass.SubscribeCube) {
-      return new SubscribeCubeMessage(value, type);
-    } else if (type === MessageClass.CubeResponse) {
-      return new CubeResponseMessage(value);
-    } else if (type === MessageClass.MyServerAddress) {
-      return new ServerAddressMessage(value);
-    } else if (type === MessageClass.PeerRequest) {
-      return new PeerRequestMessage();
-    } else if (type === MessageClass.PeerResponse) {
-      return new PeerResponseMessage(value);
-    } else if (type === MessageClass.NotificationRequest) {
-      // NotificationRequests are a special kind of CubeRequests
-      return new CubeRequestMessage(value, MessageClass.NotificationRequest);
-    } else {
-      throw new VerityError("NetworkMessage.fromBinary: Cannot parse message of unknown type " + type);
+    switch (type) {
+      case MessageClass.Hello:
+        return new HelloMessage(value);
+      case MessageClass.KeyRequest:
+        return new KeyRequestMessage(value);
+      case MessageClass.KeyResponse:
+        return new KeyResponseMessage(value);
+      case MessageClass.CubeRequest:
+        return new CubeRequestMessage(value);
+      case MessageClass.SubscribeCube:
+        return new SubscribeCubeMessage(value, type);
+      case MessageClass.SubscriptionConfirmation:
+        return new SubscriptionConfirmationMessage(value);
+      case MessageClass.CubeResponse:
+        return new CubeResponseMessage(value);
+      case MessageClass.MyServerAddress:
+        return new ServerAddressMessage(value);
+      case MessageClass.PeerRequest:
+        return new PeerRequestMessage();
+      case MessageClass.PeerResponse:
+        return new PeerResponseMessage(value);
+      case MessageClass.NotificationRequest:
+        // NotificationRequests are a special kind of CubeRequests
+        return new CubeRequestMessage(value, MessageClass.NotificationRequest);
+      default:
+        throw new VerityError("NetworkMessage.fromBinary: Cannot parse message of unknown type " + type);
     }
   }
 
@@ -655,7 +658,7 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
    * @param responseCode - Must be SubscriptionResponseCode.SubscriptionConfirmed
    * @param requestedKeys - The keys for which the subscription was requested.
    * @param subscribedCubesHashes - The hashes of the subscribed cubes.
-   * @param subscriptionDuration - The duration of the subscription in seconds.
+   * @param subscriptionDuration - The duration of the subscription in milliseconds.
    */
   constructor(
     responseCode: SubscriptionResponseCode.SubscriptionConfirmed,
@@ -703,7 +706,7 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
         1 + NetConstants.CUBE_KEY_SIZE,
         1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
         if (param.length > 1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE) {
-          this.subscriptionDuration = param.readUInt16BE(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE);
+          this.subscriptionDuration = param.readUInt16BE(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE) * 1000;
         } else {
           this.subscriptionDuration = undefined;
         }
@@ -752,7 +755,7 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
       keyOutput.copy(message, 1);
       // Copy the subscribed cubes hash to the buffer
       if (hashOutput) hashOutput.copy(message, 1 + NetConstants.CUBE_KEY_SIZE);
-      if (subscriptionDuration) message.writeUInt16BE(subscriptionDuration, 1 + NetConstants.CUBE_KEY_SIZE + (hashOutput ? NetConstants.HASH_SIZE : 0));
+      if (subscriptionDuration) message.writeUInt16BE(subscriptionDuration/1000, 1 + NetConstants.CUBE_KEY_SIZE + (hashOutput ? NetConstants.HASH_SIZE : 0));
 
       // Initialize the message with the constructed buffer
       super(MessageClass.SubscriptionConfirmation, message);

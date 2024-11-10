@@ -4,6 +4,7 @@ import { logger } from "../logger";
 
 import { Multiaddr } from '@multiformats/multiaddr'
 import { unixtime } from "../helpers/misc";
+import { NetConstants } from "../networking/networkDefinitions";
 
 /**
  * Basic representation of a peer without session and networking information.
@@ -96,6 +97,13 @@ export class Peer {
       if (addressEquals) return true;
       else if (this._id && other._id && this._id.equals(other._id)) return true;
       else return false;
+  }
+
+  valid(): boolean {
+    if (this.addresses.length === 0) return false;
+    if (this._id === undefined) return false;
+    if (this._id.length !== NetConstants.PEER_ID_SIZE) return false;
+    return true;
   }
 
   /**
