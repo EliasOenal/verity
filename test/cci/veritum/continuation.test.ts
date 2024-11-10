@@ -627,7 +627,8 @@ describe('CubeRetriever Continuation-related features', () => {
       const chunks: cciCube[] = [];
       cubeStore.addCube(splitCubes[0]);
       let i=1;
-      for await (const chunk of retriever.getContinuationChunks(splitCubes[0].getKeyIfAvailable(), undefined, undefined, 1000000000)) {
+      for await (const chunk of retriever.getContinuationChunks(
+        splitCubes[0].getKeyIfAvailable(), undefined, {timeout: 1000000000})) {
         chunks.push(chunk);
         cubeStore.addCube(splitCubes[i]);
         i++;

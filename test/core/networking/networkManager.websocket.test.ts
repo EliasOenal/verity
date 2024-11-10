@@ -733,7 +733,7 @@ describe('networkManager - WebSocket connections', () => {
           await node2to1.onlinePromise;
 
           // Request Cube
-          await node2.scheduler.requestCube(key, 0);
+          await node2.scheduler.requestCube(key, { scheduleIn: 0 });
           const received: Cube = await node2.cubeStore.getCube(key);
           expect(received).toBeInstanceOf(Cube);
           expect((await received).getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).
@@ -876,7 +876,7 @@ describe('networkManager - WebSocket connections', () => {
           await server.cubeStore.addCube(cube);
           expect(await server.cubeStore.getNumberOfStoredCubes()).toEqual(1);
           // Client retrieves the original MUC
-          client.scheduler.requestCube(mucKey, 0);
+          client.scheduler.requestCube(mucKey, { scheduleIn: 0 });
           await client.cubeStore.expectCube(mucKey);
           expect(await client.cubeStore.getNumberOfStoredCubes()).toEqual(1);
         });
