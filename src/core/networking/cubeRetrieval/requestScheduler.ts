@@ -173,6 +173,24 @@ export class RequestScheduler {
     return req.promise;  // return result eventually
   }
 
+  // TODO remove? caller can call requestCube in a loop directly
+  requestCubes(keys: CubeKey[]): Promise<CubeInfo>[];
+  requestCubes(keys: CubeInfo[]): Promise<CubeInfo>[];
+  requestCubes(keys: Array<CubeKey | CubeInfo>): Promise<CubeInfo>[];
+  requestCubes(
+    requests: Array<CubeKey | CubeInfo>):
+  Promise<CubeInfo> | Promise<CubeInfo>[] {
+    // do not accept any calls if this scheduler has already been shut down
+    if (this._shutdown) return [];
+
+    const promises: Promise<CubeInfo>[] = [];
+    for (const req of requests) {
+      promises.push(this.requestCube(req as CubeKey));  // or as CubeInfo, don't care
+    }
+    return promises;
+  }
+
+
   /**
    * Subscribe to a Cube, ensuring you will receive any and all remote updates.
    * This obviously only makes sense for mutable Cubes, i.e. MUCs.
@@ -519,6 +537,20 @@ export class RequestScheduler {
   }
 
 
+  shutdown(): void {
+    this._shutdown = true;
+    this.cubeRequestTimer.clear();
+    this.keyRequestTimer.clear();
+    this.networkManager.cubeStore.removeListener("cubeAdded", (cubeInfo: CubeInfo) =>
+      this.cubeAddedHandler(cubeInfo));
+    for (const [key, req] of this.requestedCubes) req.shutdown();
+    for (const [key, req] of this.requestedNotifications) req.shutdown();
+    for (const [key, req] of this.expectedNotifications) req.shutdown();
+    for (const [peer, timeout] of this.expectedKeyResponses) timeout.clear();
+  }
+
+
+
   private calcRequestScaleFactor(): number {
     const conn = this.networkManager.onlinePeerCount;
     const max = this.networkManager.options.maximumConnections;
@@ -673,23 +705,6 @@ export class RequestScheduler {
     }
   }
 
-  // TODO remove? caller can call requestCube in a loop directly
-  requestCubes(keys: CubeKey[]): Promise<CubeInfo>[];
-  requestCubes(keys: CubeInfo[]): Promise<CubeInfo>[];
-  requestCubes(keys: Array<CubeKey | CubeInfo>): Promise<CubeInfo>[];
-  requestCubes(
-    requests: Array<CubeKey | CubeInfo>):
-  Promise<CubeInfo> | Promise<CubeInfo>[] {
-    // do not accept any calls if this scheduler has already been shut down
-    if (this._shutdown) return [];
-
-    const promises: Promise<CubeInfo>[] = [];
-    for (const req of requests) {
-      promises.push(this.requestCube(req as CubeKey));  // or as CubeInfo, don't care
-    }
-    return promises;
-  }
-
   private cubeAddedHandler(cubeInfo: CubeInfo) {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
@@ -733,18 +748,5 @@ export class RequestScheduler {
         this.requestedCubes.delete(keyString);
       }
     }
-  }
-
-
-  shutdown(): void {
-    this._shutdown = true;
-    this.cubeRequestTimer.clear();
-    this.keyRequestTimer.clear();
-    this.networkManager.cubeStore.removeListener("cubeAdded", (cubeInfo: CubeInfo) =>
-      this.cubeAddedHandler(cubeInfo));
-    for (const [key, req] of this.requestedCubes) req.shutdown();
-    for (const [key, req] of this.requestedNotifications) req.shutdown();
-    for (const [key, req] of this.expectedNotifications) req.shutdown();
-    for (const [peer, timeout] of this.expectedKeyResponses) timeout.clear();
   }
 }
