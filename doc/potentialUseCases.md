@@ -38,6 +38,11 @@ But still, let's collect some ideas:
   Cons: Consumes resources on our full nodes without providing much in return
   and does not help the public microblogging app in terms of content.
 
+### Application backend
+i.e. how to build a developer base building applications on top of Verity
+
+- Become a supported backend on "no code" AI application generators
+
 ## Monetarisation strategies:
 
 ### Microblogging
@@ -45,7 +50,7 @@ We could try the usual combination of ads, paid featured posts, paid user
 verification; but I'm not too confident in any of them, and all of them basically
 defeat the purpose of a decentralised network.
 
-### Billing data / LoRa access point
+### Billing data / LoRa access point / General application backend
 - Sell keys to users, allow a certain amount of zero-hashcash Cubes per key
   (positions us as a resilient alternative to AWS and all the other cloud
   providers, but impossible to beat them on price for the miniscule amount of
