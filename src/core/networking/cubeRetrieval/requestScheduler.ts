@@ -40,6 +40,7 @@ export interface RequestSchedulerOptions {
   requestInterval?: number;
   requestScaleFactor?: number;
   requestTimeout?: number;
+  requestRetries?: number;
   interactiveRequestDelay?: number;
 }
 
@@ -61,13 +62,13 @@ export class RequestScheduler {
    *      ID concatenated with the Cube key.
    * Value: A PendingRequest object containing a promise to resolve to a CubeInfo
    **/
-  private requestedCubes: Map<string, PendingRequest<CubeInfo>> = new Map();
+  private requestedCubes: Map<string, CubeRequest> = new Map();
   /** Notifications requested by the user in direct Cube request mode */
-  private requestedNotifications: Map<string, PendingRequest<CubeInfo>> = new Map();
+  private requestedNotifications: Map<string, CubeRequest> = new Map();
   /** Notifications requested by the user in key request mode */
-  private expectedNotifications: Map<string, PendingRequest<CubeInfo>> = new Map();
+  private expectedNotifications: Map<string, CubeRequest> = new Map();
   /** Cubes (MUC, PMUC) subscribed to by the user */
-  private subscribedCubes: Map<string, PendingRequest<CubeInfo>> = new Map();
+  private subscribedCubes: Map<string, CubeRequest> = new Map();
 
   /**
    * A map of responses to Cube subscription requests we are currently waiting for.
@@ -76,7 +77,7 @@ export class RequestScheduler {
    * Value: The pending request
    */
   private pendingSubscriptionConfirmations:
-    Map<string, PendingRequest<SubscriptionConfirmationMessage>> = new Map();
+    Map<string, SubscriptionRequest> = new Map();
 
   /** Timer for regularly scheduled CubeRequests */
   private cubeRequestTimer: ShortenableTimeout = new ShortenableTimeout(this.performAndRescheduleCubeRequest, this);
@@ -100,12 +101,12 @@ export class RequestScheduler {
     readonly options: RequestSchedulerOptions = {},
   ){
     // set options
-    options.lightNode = options?.lightNode ?? true;
-    options.requestStrategy = options.requestStrategy ?? new RandomStrategy();
-    options.requestInterval = options?.requestInterval ?? Settings.KEY_REQUEST_TIME;
-    options.requestScaleFactor = options?.requestScaleFactor ?? Settings.REQUEST_SCALE_FACTOR;
-    options.requestTimeout = options?.requestTimeout ?? Settings.CUBE_REQUEST_TIMEOUT;
-    options.interactiveRequestDelay = options?.interactiveRequestDelay ?? Settings.INTERACTIVE_REQUEST_DELAY;
+    options.lightNode ??= true;
+    options.requestStrategy ??= new RandomStrategy();
+    options.requestInterval ??= Settings.KEY_REQUEST_TIME;
+    options.requestScaleFactor ??= Settings.REQUEST_SCALE_FACTOR;
+    options.requestTimeout ??= Settings.CUBE_REQUEST_TIMEOUT;
+    options.interactiveRequestDelay ??= Settings.INTERACTIVE_REQUEST_DELAY;
 
     this.networkManager.cubeStore.on("cubeAdded", (cubeInfo: CubeInfo) =>
       this.cubeAddedHandler(cubeInfo));
@@ -155,7 +156,9 @@ export class RequestScheduler {
     if (alreadyReq) return alreadyReq;
 
     // create and remember this request
-    const req = new PendingRequest<CubeInfo>(key.binaryKey, options.timeout);
+    const req = new CubeRequest(options.timeout, {
+      key: key.binaryKey,
+    });
     this.requestedCubes.set(primaryMapKey, req);
     if (additionalMapKey && !this.requestedCubes.has(additionalMapKey)) {
       // never overwrite an existing request
@@ -255,8 +258,8 @@ export class RequestScheduler {
       // maybe TODO optimise: group multiple subscriptions to the same peer?
       peerSelected.sendSubscribeCube([key.binaryKey]);
       // ... and await reply
-      const req = new PendingRequest<SubscriptionConfirmationMessage>(
-        key.binaryKey, Settings.NETWORK_TIMEOUT);  // low prio TODO: parametrise timeout
+      const req = new SubscriptionRequest(Settings.NETWORK_TIMEOUT, // low prio TODO: parametrise timeout
+        { key: key.binaryKey } );
       this.pendingSubscriptionConfirmations.set(key.keyString, req);
       const resp: SubscriptionConfirmationMessage = await req.promise;
       // low prio TODO after wire format 2.0:
@@ -316,9 +319,8 @@ export class RequestScheduler {
 
     // Register this subscription
     this.subscribedCubes.set(key.keyString, new PendingRequest(
-      key.binaryKey,
-      // TODO use subscription period as reported back by serving node
-      Settings.CUBE_SUBSCRIPTION_PERIOD,
+      Settings.CUBE_SUBSCRIPTION_PERIOD,  // TODO use subscription period as reported back by serving node
+      { key: key.binaryKey },
     ));
     // TODO: renew subscription after it expires
   }
@@ -327,7 +329,7 @@ export class RequestScheduler {
   handleSubscriptionConfirmation(msg: SubscriptionConfirmationMessage): void {
     // fetch the pending request
     const keyBlob = keyVariants(msg.requestedKeyBlob);
-    const req: PendingRequest<SubscriptionConfirmationMessage> =
+    const req: SubscriptionRequest =
       this.pendingSubscriptionConfirmations.get(keyBlob.keyString);
     if (req !== undefined) {
       // mark the request fulfilled
@@ -384,13 +386,17 @@ export class RequestScheduler {
     if (directCubeRequest) {
       // Directly send a CubeRequest. This makes sense if we don't have any
       // notifications for this recipient yet.
-      const req = new PendingRequest<CubeInfo>(key.binaryKey, timeout);  // create request
+      const req = new CubeRequest(timeout, {
+        key: key.binaryKey,
+      });  // create request
       this.requestedNotifications.set(key.keyString, req);  // remember request
       this.scheduleCubeRequest(scheduleIn);  // schedule request
       return req.promise;  // return result eventually
     } else {
       // remember this request and create a promise for it
-      const req = new PendingRequest<CubeInfo>(key.binaryKey, timeout);
+      const req = new CubeRequest(timeout, {
+        key: key.binaryKey,
+      });
       this.expectedNotifications.set(key.keyString, req);
       // Start with a KeyRequest. This makes sense if we already have (a lot of)
       // notifications for this recipient and want to avoid redownloading them all.
@@ -594,7 +600,7 @@ export class RequestScheduler {
       for (const [keystring, req] of this.requestedCubes) {
         if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
         if (!req.requestRunning) {
-          keys.push(req.key);
+          keys.push(req.sup.key);
           req.requestRunning = true;  // TODO: this must be set back to false if the request fails
         }
       }
@@ -610,7 +616,7 @@ export class RequestScheduler {
       for (const [keystring, req] of this.requestedNotifications) {
         if (notificationKeys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
         if (!req.requestRunning) {
-          notificationKeys.push(req.key);
+          notificationKeys.push(req.sup.key);
           req.requestRunning = true;
         }
       }
@@ -721,7 +727,7 @@ export class RequestScheduler {
     const recipientKey: Buffer =
       cubeInfo.getCube().getFirstField(CubeFieldType.NOTIFY)?.value;
     if (recipientKey) {
-      const directNotificationRequest: PendingRequest<CubeInfo> = this.requestedNotifications.get(keyVariants(recipientKey).keyString);
+      const directNotificationRequest: CubeRequest = this.requestedNotifications.get(keyVariants(recipientKey).keyString);
       if (directNotificationRequest) {
         directNotificationRequest.fulfilled(cubeInfo);
         this.requestedNotifications.delete(cubeInfo.keyString);
@@ -730,7 +736,7 @@ export class RequestScheduler {
 
     // does this fulfill a notification request in KeyRequest mode?
     if (recipientKey) {
-      const indirectNotificationRequest: PendingRequest<CubeInfo> = this.expectedNotifications.get(keyVariants(recipientKey).keyString);
+      const indirectNotificationRequest: CubeRequest = this.expectedNotifications.get(keyVariants(recipientKey).keyString);
       if (indirectNotificationRequest) {
         indirectNotificationRequest.fulfilled(cubeInfo);
         this.expectedNotifications.delete(cubeInfo.keyString);
@@ -750,3 +756,13 @@ export class RequestScheduler {
     }
   }
 }
+
+
+export interface CubeRequestSupplemental {
+  key: Buffer,
+}
+export class CubeRequest extends PendingRequest<CubeInfo, CubeRequestSupplemental> {}
+export interface SubscriptionRequestSupplemental {
+  key: Buffer,
+}
+export class SubscriptionRequest extends PendingRequest<SubscriptionConfirmationMessage, SubscriptionRequestSupplemental> {}
