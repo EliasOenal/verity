@@ -612,9 +612,9 @@ export class RequestScheduler {
     const keys: CubeKey[] = [];
     for (const [keystring, req] of this.requestedCubes) {
       if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
-      if (!req.requestRunning) {
+      if (!req.sup.networkRequestRunning) {
         keys.push(req.sup.key);
-        req.requestRunning = true;  // TODO: this must be set back to false if the request fails
+        req.sup.networkRequestRunning = true;  // TODO: this must be set back to false if the request fails, which is not currently done
       }
     }
     if (keys.length > 0) {
@@ -628,9 +628,9 @@ export class RequestScheduler {
     const notificationKeys: Buffer[] = [];
     for (const [keystring, req] of this.requestedNotifications) {
       if (notificationKeys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
-      if (!req.requestRunning) {
+      if (!req.sup.networkRequestRunning) {
         notificationKeys.push(req.sup.key);
-        req.requestRunning = true;
+        req.sup.networkRequestRunning = true;
       }
     }
     if (notificationKeys.length > 0) {
@@ -765,14 +765,31 @@ export class RequestScheduler {
       }
     }
   }
+
+  private cubeRequestRetry(req: CubeRequest): void {
+
+  }
 }
 
 
 export interface CubeRequestSupplemental {
   key: Buffer,
+
+  /**
+   * Indicates whether we have sent out a network request for this request
+   * and are currently awaiting a peer response.
+   * Note that this is a public property, i.e. it is up to the caller to
+   * correctly implement this functionality.
+   */
+  networkRequestRunning?: boolean;
+
+  currentTry?: number,
+  maxTries?: number,
 }
 export class CubeRequest extends PendingRequest<CubeInfo, CubeRequestSupplemental> {}
 export interface SubscriptionRequestSupplemental {
   key: Buffer,
+  currentTry?: number,
+  maxTries?: number,
 }
 export class SubscriptionRequest extends PendingRequest<SubscriptionConfirmationMessage, SubscriptionRequestSupplemental> {}
