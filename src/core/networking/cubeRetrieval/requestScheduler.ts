@@ -12,7 +12,6 @@ import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
 import { CubeFieldType, type CubeKey } from '../../cube/cube.definitions';
 import { CubeInfo } from '../../cube/cubeInfo';
 import { cubeContest, getCurrentEpoch, keyVariants, shouldRetainCube } from '../../cube/cubeUtil';
-import { Cube } from '../../cube/cube';
 
 import { logger } from '../../logger';
 
@@ -24,8 +23,15 @@ import { Buffer } from 'buffer';  // for browsers
 // TODO: Add option to fire a request immediately, within reasonable limits.
 // This is required for interactive applications to perform reasonably on
 // light nodes.
+// While we already support scheduling a request in "0ms", i.e. immediately,
+// this does not guarantee the request will actually be sent immediately as there
+// may already be another request running.
 
 // TODO: non-fulfilled requests must be rescheduled while within timeout
+
+// TODO: this thing has become a bit bloated...
+//   - code review & clean-up
+//   - potentially refactor into smaller units
 
 export interface RequestSchedulerOptions {
   /**
@@ -580,6 +586,9 @@ export class RequestScheduler {
     if (reschedule) this.scheduleCubeRequest();
   }
 
+  /**
+   * @returns True if a request has been performed, false if it has not.
+   */
   private performCubeRequest(peerSelected?: NetworkPeerIf): boolean {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
@@ -594,38 +603,39 @@ export class RequestScheduler {
     // select a peer to send request to, unless we were told to use a specific one
     if (peerSelected === undefined) peerSelected =
       this.options.requestStrategy.select(this.networkManager.onlinePeers);
-    if (peerSelected !== undefined) {
-      // request all Cubes that we're looking for, up the the maximum allowed
-      const keys: CubeKey[] = [];
-      for (const [keystring, req] of this.requestedCubes) {
-        if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
-        if (!req.requestRunning) {
-          keys.push(req.sup.key);
-          req.requestRunning = true;  // TODO: this must be set back to false if the request fails
-        }
-      }
-      if (keys.length > 0) {
-        logger.trace(`RequestScheduler.performRequest(): requesting ${keys.length} Cubes from ${peerSelected.toString()}`);
-        peerSelected.sendCubeRequest(keys);
-      }
-      // Note: The cube response will currently still be directly handled by the
-      // NetworkPeer. This should instead also be controlled by the RequestScheduler.
+    if (peerSelected === undefined) {
+      logger.info("RequestScheduler.performRequest(): Could not find a suitable peer; doing nothing.");
+      return false;
+    }
 
-      // request notifications
-      const notificationKeys: Buffer[] = [];
-      for (const [keystring, req] of this.requestedNotifications) {
-        if (notificationKeys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
-        if (!req.requestRunning) {
-          notificationKeys.push(req.sup.key);
-          req.requestRunning = true;
-        }
+    // request all Cubes that we're looking for, up the the maximum allowed
+    const keys: CubeKey[] = [];
+    for (const [keystring, req] of this.requestedCubes) {
+      if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
+      if (!req.requestRunning) {
+        keys.push(req.sup.key);
+        req.requestRunning = true;  // TODO: this must be set back to false if the request fails
       }
-      if (notificationKeys.length > 0) {
-        logger.trace(`RequestScheduler.performRequest(): requesting notifications to ${notificationKeys.length} notifications keys from ${peerSelected.toString()}`);
-        peerSelected.sendNotificationRequest(notificationKeys);
+    }
+    if (keys.length > 0) {
+      logger.trace(`RequestScheduler.performRequest(): requesting ${keys.length} Cubes from ${peerSelected.toString()}`);
+      peerSelected.sendCubeRequest(keys);
+    }
+    // Note: The cube response will currently still be directly handled by the
+    // NetworkPeer. This should instead also be controlled by the RequestScheduler.
+
+    // request notifications
+    const notificationKeys: Buffer[] = [];
+    for (const [keystring, req] of this.requestedNotifications) {
+      if (notificationKeys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
+      if (!req.requestRunning) {
+        notificationKeys.push(req.sup.key);
+        req.requestRunning = true;
       }
-    } else {
-      logger.info("RequestScheduler.performRequest(): Could not find a suitable peer; doing nothing.")
+    }
+    if (notificationKeys.length > 0) {
+      logger.trace(`RequestScheduler.performRequest(): requesting notifications to ${notificationKeys.length} notifications keys from ${peerSelected.toString()}`);
+      peerSelected.sendNotificationRequest(notificationKeys);
     }
     return true;
   }
