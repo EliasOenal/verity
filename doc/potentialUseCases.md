@@ -22,6 +22,8 @@ But still, let's collect some ideas:
 - Chat (Anonymous, Pseudonymous)
 - Pastebin
 - Usenet
+- JS library to implement guestbooks/chats on static websites
+- Firebase alternative
 
 ## User growth strategies
 ### Microblogging
