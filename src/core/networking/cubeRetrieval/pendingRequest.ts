@@ -8,11 +8,14 @@ import { Settings } from "../../settings";
  * (or is not fulfillable).
  **/
 export class PendingRequest<Value, SupplementalData> {
-  public requestRunning = false;
   public promise: Promise<Value>;
+  private _settled: boolean = false;
+  get settled(): boolean { return this._settled; }
+  private _value: Value = undefined;
+  get value(): Value { return this._value; }
 
   private timeout: NodeJS.Timeout = undefined;
-  private resolve: (value?: Value | PromiseLike<Value>) => void;
+  private promiseResolve: (value?: Value | PromiseLike<Value>) => void;
 
   /**
    * @param timeout A retrieval timeout in milliseconds after which the
@@ -24,7 +27,7 @@ export class PendingRequest<Value, SupplementalData> {
     readonly sup?: SupplementalData,
   ) {
     this.promise = new Promise((resolve) => {
-      this.resolve = resolve;
+      this.promiseResolve = resolve;
     });
     if (timeout > 0) {
       this.timeout = setTimeout(() => {
@@ -34,12 +37,17 @@ export class PendingRequest<Value, SupplementalData> {
   }
 
   fulfilled(data: Value): void {
-    clearTimeout(this.timeout);
     this.resolve(data);
   }
 
   shutdown(): void {
+    this.resolve(undefined);
+  }
+
+  private resolve(value: Value): void {
     clearTimeout(this.timeout);
-    this.resolve(undefined);  // Optionally reject here to allow the caller to handle the cancellation
+    this.promiseResolve(value);
+    this._settled = true;
+    this._value = value;
   }
 }
