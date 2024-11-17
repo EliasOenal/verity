@@ -2,7 +2,7 @@ import type { NetworkManagerIf } from "../../../../src/core/networking/networkMa
 
 import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
 import { NetConstants } from "../../../../src/core/networking/networkDefinitions";
-import { RequestScheduler } from "../../../../src/core/networking/cubeRetrieval/requestScheduler";
+import { CubeRequest, RequestScheduler } from "../../../../src/core/networking/cubeRetrieval/requestScheduler";
 import { Cube } from "../../../../src/core/cube/cube";
 
 import { CubeField } from "../../../../src/core/cube/cubeField";
@@ -17,8 +17,9 @@ import { DummyNetworkPeer } from '../../../../src/core/networking/testingDummies
 import { Settings } from "../../../../src/core/settings";
 import { PeerDB } from "../../../../src/core/peering/peerDB";
 
-import { vi } from 'vitest'
+import { vi, it } from 'vitest'
 import { SubscriptionConfirmationMessage, SubscriptionResponseCode } from "../../../../src/core/networking/networkMessage";
+import { RoundrobinStrategy } from "../../../../src/core/networking/cubeRetrieval/requestStrategy";
 
 const reducedDifficulty = 0;
 
@@ -94,11 +95,6 @@ describe('RequestScheduler', () => {
         expect(promise).resolves.toBeUndefined();
       });
 
-      it.todo('should request a Cube from another node if first request fails');
-      // (must keep track of nodes already requested from I guess)
-
-      it.todo('should never request a Cube from two nodes at once, not even as a full node');
-
       it('can request from a user-defined node', async() => {
         // create some more mock peers
         const dummyPeer2 = new DummyNetworkPeer();
@@ -135,6 +131,98 @@ describe('RequestScheduler', () => {
         expect(reqPeer4).not.toHaveBeenCalled();
         expect(reqPeer5).not.toHaveBeenCalled();
       });
+
+      it.fails('will retry requests if the first request fails', async () => {
+        // test prep:
+        // create some more mock peers
+        const dummyPeer2 = new DummyNetworkPeer();
+        const dummyPeer3 = new DummyNetworkPeer();
+        scheduler.networkManager.outgoingPeers =
+          [dummyPeer, dummyPeer2, dummyPeer3];
+
+        // prepare spy
+        const reqPeer1 = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
+        const reqPeer2 = vi.spyOn(dummyPeer2 as any, 'sendCubeRequest');
+        const reqPeer3 = vi.spyOn(dummyPeer3 as any, 'sendCubeRequest');
+
+        // use round robin peer selection for predictability
+        scheduler.options.requestStrategy = new RoundrobinStrategy();
+
+        // set network timeout to really really short for the first two peers
+        // (for which we will simulate a negative response), but not for the
+        // last one (for which we will simulate a positive response)
+        dummyPeer.options.networkTimeoutMillis = 10;
+        dummyPeer2.options.networkTimeoutMillis = 10;
+        dummyPeer3.options.networkTimeoutMillis = 1000;
+
+        // create a test Cube
+        const cube = testCube();
+        const key: CubeKey = await cube.getKey();
+
+        // perform request
+        const promise = scheduler.requestCube(key, {
+          scheduleIn: 0, timeout: 2000,
+        });
+        // yield control
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // grab request object
+        const req: CubeRequest = scheduler.cubeRequestDetails(key);
+
+        // Verify request round 1:
+        // as we selected the roundrobin strategy, the scheduler will have sent
+        // a request to the first dummy peer
+        expect(req.sup.networkRequestRunning).toBe(dummyPeer);
+        // ensure request was sent to the right peer
+        expect(reqPeer1).toHaveBeenCalledTimes(1);
+        expect(reqPeer2).not.toHaveBeenCalled();
+        expect(reqPeer3).not.toHaveBeenCalled();
+        // simulate empty response
+        scheduler.handleCubesDelivered([], dummyPeer);
+        // yield control
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Verify request round 2:
+        // expect result not yet fulfilled
+        expect(req.settled).toBe(false);
+        expect(req.value).toBe(undefined);
+        // expect request to have been repeated to the next peer
+        expect(req.sup.networkRequestRunning).toBe(dummyPeer2);
+        // ensure request was sent to the right peer
+        expect(reqPeer1).toHaveBeenCalledTimes(1);
+        expect(reqPeer2).toHaveBeenCalledTimes(1);
+        expect(reqPeer3).not.toHaveBeenCalled();
+        // simulate empty response
+        scheduler.handleCubesDelivered([], dummyPeer2);
+        // yield control
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Verify request round 3:
+        // expect result not yet fulfilled
+        expect(req.settled).toBe(false);
+        expect(req.value).toBe(undefined);
+        // expect request to have been repeated to the next peer
+        expect(req.sup.networkRequestRunning).toBe(dummyPeer3);
+        // ensure request was sent to the right peer
+        expect(reqPeer1).toHaveBeenCalledTimes(1);
+        expect(reqPeer2).toHaveBeenCalledTimes(1);
+        expect(reqPeer3).toHaveBeenCalledTimes(1);
+
+        // simulate successful network retrieval
+        const cubeAdded: Promise<any> =
+          scheduler.networkManager.cubeStore.expectCube(key);
+        scheduler.handleCubesDelivered([await cube.getBinaryData()], dummyPeer3);
+        await cubeAdded;
+
+        // expect result to be fulfilled
+        expect(req.settled).toBe(true);
+        expect(req.value.key).toEqual(key);
+      });
+
+      it.todo('should not retry the same node more than once if others are available');
+      // (must keep track of nodes already requested from I guess)
+
+      it.todo('should never request a Cube from two nodes at once, not even as a full node');
 
       it.todo('properly cleans up pending requests');
     });
