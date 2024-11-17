@@ -40,7 +40,7 @@ export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
         private networkManager?: NetworkManagerIf,
         public conn: TransportConnection = undefined,
         private cubeStore?: CubeStore,
-        options: NetworkPeerOptions = {}
+        readonly options: NetworkPeerOptions = {}
     ) {
         if (conn === undefined) conn = new DummyTransportConnection();
         if (cubeStore === undefined) cubeStore = new CubeStore({

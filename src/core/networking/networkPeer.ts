@@ -81,20 +81,18 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     get cubeSubscriptions(): Iterable<string> { return this._cubeSubscriptions }
 
     private networkTimeout: NodeJS.Timeout = undefined;
-    private peerExchange: boolean = true;
-    private networkTimeoutMillis: number;
 
     constructor(
             private networkManager: NetworkManagerIf,
             private _conn: TransportConnection,
             private cubeStore: CubeStore,
-            options: NetworkPeerOptions = {},
+            readonly options: NetworkPeerOptions = {},
         )
     {
         super(_conn.address);
         // set opts
-        this.peerExchange = options?.peerExchange ?? true;
-        this.networkTimeoutMillis = options?.networkTimeoutSecs ?? 0;  // currently deactivated, should be Settings.NETWORK_TIMEOUT;
+        this.options.peerExchange ??= true;
+        this.options.networkTimeoutMillis ??= 0;  // currently deactivated, should be Settings.NETWORK_TIMEOUT;
         if (options.extraAddresses) {
             this.addresses = options.extraAddresses;
             this.addAddress(_conn.address);
@@ -719,7 +717,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     }
 
     sendPeerRequest(): void {
-        if (!this.peerExchange) return;  // don't do anything if opted out
+        if (!this.options.peerExchange) return;  // don't do anything if opted out
         const msg: PeerRequestMessage = new PeerRequestMessage();
         logger.trace(`NetworkPeer ${this.toString()}: sending PeerRequest`);
         // Not setting timeout for this request: A peer not participating in
@@ -816,11 +814,11 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     }
 
     private setTimeout(): void {
-        if (this.networkTimeoutMillis) {
+        if (this.options.networkTimeoutMillis) {
             this.networkTimeout = setTimeout(() => {
                     logger.info(`NetworkPeer ${this.toString()} timed out a request, closing.`);
                     this.close()
-                }, this.networkTimeoutMillis);
+                }, this.options.networkTimeoutMillis);
         }
     }
 }
