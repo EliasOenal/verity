@@ -12,6 +12,7 @@ export interface NetworkPeerIf extends Peer {
     online: boolean;
     conn: TransportConnection;
     cubeSubscriptions: Iterable<string>;
+    options: NetworkPeerOptions;
 
     close(): Promise<void>;
     sendMessage(msg: NetworkMessage): void;
@@ -28,7 +29,7 @@ export interface NetworkPeerOptions {
     extraAddresses?: AddressAbstraction[];
     lightNode?: boolean;
     peerExchange?: boolean;
-    networkTimeoutSecs?: number;
+    networkTimeoutMillis?: number;
 }
 
 export class NetworkStats {
