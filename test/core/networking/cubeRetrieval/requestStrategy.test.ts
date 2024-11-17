@@ -1,4 +1,4 @@
-import { BestScoreStrategy, RandomStrategy } from "../../../../src/core/networking/cubeRetrieval/requestStrategy";
+import { BestScoreStrategy, RandomStrategy, RoundrobinStrategy } from "../../../../src/core/networking/cubeRetrieval/requestStrategy";
 import { NetworkPeerIf } from "../../../../src/core/networking/networkPeerIf";
 import { DummyNetworkPeer } from "../../../../src/core/networking/testingDummies/networkPeerDummy";
 
@@ -44,5 +44,24 @@ describe('RequestScheduler request strategies', () => {
       // check that the selected peer has the highest score
       expect(peer).toBe(peers[9]);
     });
-  });
+  });  // BestScoreStrategy
+
+
+  describe('RoundRobinStrategy', () => {
+    it('should select the next peer', () => {
+      const peers: NetworkPeerIf[] = [];
+      for (let i = 0; i < 10; i++) peers[i] = new DummyNetworkPeer();
+      const strategy = new RoundrobinStrategy();
+      // should select all peers in order
+      for (let i = 0; i < 10; i++) {
+        const peer = strategy.select(peers);
+        expect(peer).toBe(peers[i]);
+      }
+      // should then reset and select all peers in order again
+      for (let i = 0; i < 10; i++) {
+        const peer = strategy.select(peers);
+        expect(peer).toBe(peers[i]);
+      }
+    })
+  });  // RoundRobinStrategy
 });

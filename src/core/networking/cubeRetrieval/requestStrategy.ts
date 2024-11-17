@@ -34,3 +34,12 @@ export class BestScoreStrategy extends RequestStrategy {
     return best;
   }
 }
+
+export class RoundrobinStrategy extends RequestStrategy {
+  private index = -1;
+  select(available: NetworkPeerIf[]): NetworkPeerIf {
+    this.index = (this.index + 1) % available.length;
+    const peer = available[this.index];
+    return peer;
+  }
+}
