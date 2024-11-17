@@ -363,9 +363,18 @@ export class RequestScheduler {
     return this.subscribedCubes.has(key.keyString);
   }
   existingCubeRequest(keyInput: CubeKey | string): Promise<CubeInfo> {
+    return this.cubeRequestDetails(keyInput)?.promise;
+  }
+
+  /**
+   * This method exposes internal status and should usually not be used
+   * by applications.
+   * @returns The PendingRequest object for the specified key, or undefined if
+   *   no such request was made.
+   */
+  cubeRequestDetails(keyInput: CubeKey | string): CubeRequest {
     const key = keyVariants(keyInput);
-    let req = this.requestedCubes.get(key.keyString)?.promise;
-    return req;
+    return this.requestedCubes.get(key.keyString);
   }
 
   /**
@@ -611,10 +620,13 @@ export class RequestScheduler {
     // request all Cubes that we're looking for, up the the maximum allowed
     const keys: CubeKey[] = [];
     for (const [keystring, req] of this.requestedCubes) {
+      // TODO: this may cause the same (unfulfillable) requests over and over
+      //   again until they time out, ignoring any other requests that might
+      //   be queued
       if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
       if (!req.sup.networkRequestRunning) {
         keys.push(req.sup.key);
-        req.sup.networkRequestRunning = true;  // TODO: this must be set back to false if the request fails, which is not currently done
+        req.sup.networkRequestRunning = peerSelected;  // TODO: this must be set back to undefined if the request fails, which is not currently done
       }
     }
     if (keys.length > 0) {
@@ -630,7 +642,7 @@ export class RequestScheduler {
       if (notificationKeys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
       if (!req.sup.networkRequestRunning) {
         notificationKeys.push(req.sup.key);
-        req.sup.networkRequestRunning = true;
+        req.sup.networkRequestRunning = peerSelected;  // TODO: this must be set back to undefined if the request fails, which is not currently done
       }
     }
     if (notificationKeys.length > 0) {
@@ -767,7 +779,6 @@ export class RequestScheduler {
   }
 
   private cubeRequestRetry(req: CubeRequest): void {
-
   }
 }
 
@@ -781,7 +792,7 @@ export interface CubeRequestSupplemental {
    * Note that this is a public property, i.e. it is up to the caller to
    * correctly implement this functionality.
    */
-  networkRequestRunning?: boolean;
+  networkRequestRunning?: NetworkPeerIf | undefined;
 
   currentTry?: number,
   maxTries?: number,
