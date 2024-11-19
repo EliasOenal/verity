@@ -25,6 +25,7 @@ export const Settings = {
     DEFAULT_WS_PORT: 1984,
     DEFAULT_LIBP2P_PORT: 1985,  // this is actually also WebSocket, but libp2p's flavour
     NETWORK_TIMEOUT: (10 * 1000),  // 10 seconds
+    CLOSE_PEER_ON_TIMEOUT: false,  // TODO set this to true eventually
     ANNOUNCEMENT_INTERVAL: (25 * 60 * 1000),  // 25 minutes between Torrent tracker announcements
     NEW_PEER_INTERVAL: (1 * 1000),  // autoconnect a new peer every second
     CONNECT_RETRY_INTERVAL: (1 * 1000),  // Initially retry a failed peer connection after 1 sec

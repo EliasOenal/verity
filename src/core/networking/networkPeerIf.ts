@@ -30,6 +30,7 @@ export interface NetworkPeerOptions {
     lightNode?: boolean;
     peerExchange?: boolean;
     networkTimeoutMillis?: number;
+    closeOnTimeout?: boolean;
 }
 
 export class NetworkStats {

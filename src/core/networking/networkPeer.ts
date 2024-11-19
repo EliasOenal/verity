@@ -92,7 +92,8 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         super(_conn.address);
         // set opts
         this.options.peerExchange ??= true;
-        this.options.networkTimeoutMillis ??= 0;  // currently deactivated, should be Settings.NETWORK_TIMEOUT;
+        this.options.networkTimeoutMillis ??= Settings.NETWORK_TIMEOUT;
+        this.options.closeOnTimeout ??= Settings.CLOSE_PEER_ON_TIMEOUT;
         if (options.extraAddresses) {
             this.addresses = options.extraAddresses;
             this.addAddress(_conn.address);
@@ -814,7 +815,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     }
 
     private setTimeout(): void {
-        if (this.options.networkTimeoutMillis) {
+        if (this.options.closeOnTimeout) {
             this.networkTimeout = setTimeout(() => {
                     logger.info(`NetworkPeer ${this.toString()} timed out a request, closing.`);
                     this.close()
