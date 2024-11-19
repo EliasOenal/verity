@@ -3,10 +3,10 @@ import type { NetworkManagerIf } from '../networkManagerIf';
 
 import { Settings } from '../../settings';
 import { NetConstants, NetworkPeerError } from '../networkDefinitions';
-import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode, NetworkMessage, SubscriptionConfirmationMessage } from '../networkMessage';
+import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode, SubscriptionConfirmationMessage } from '../networkMessage';
 
 import { RequestStrategy, RandomStrategy, BestScoreStrategy } from './requestStrategy';
-import { PendingRequest } from './pendingRequest';
+import { CubeRequest, PendingRequest, SubscriptionRequest } from './pendingRequest';
 
 import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
 import { CubeFieldType, type CubeKey } from '../../cube/cube.definitions';
@@ -324,7 +324,7 @@ export class RequestScheduler {
     }
 
     // Register this subscription
-    this.subscribedCubes.set(key.keyString, new PendingRequest(
+    this.subscribedCubes.set(key.keyString, new CubeRequest(
       Settings.CUBE_SUBSCRIPTION_PERIOD,  // TODO use subscription period as reported back by serving node
       { key: key.binaryKey },
     ));
@@ -478,7 +478,7 @@ export class RequestScheduler {
             incomingCubeInfo.date,
             incomingCubeInfo.difficulty,
             currentEpoch)) {
-          logger.info(`RequestScheduler.handleCubesOffered(): Was offered cube hash outside of retention policy by peer ${offeringPeer.toString()}, ignoring.`);
+          logger.info(`RequestScheduler.handleKeysOffered(): Was offered cube hash outside of retention policy by peer ${offeringPeer.toString()}, ignoring.`);
           continue;
         }
 
@@ -555,6 +555,13 @@ export class RequestScheduler {
       const keyStrings: string[] = [keyString, offeringPeer.idString + keyString];
       this.cubeRequestFulfilled(keyStrings, await cube.getCubeInfo());  // maybe TODO: avoid creating duplicate CubeInfo
     }
+
+    // TODO: In case of an empty (i.e. negative) CubeResponse, we should identify
+    //   the associated requests and mark them as failed, so they can be retried
+    //   at a different peer. However, our crappy 1.0 wire format does not
+    //   include any reference that would allow us to associate this response
+    //   with its original request, and I'm not gonna touch the 1.0 wire format
+    //   again because it's crappy.
   }
 
 
@@ -624,9 +631,11 @@ export class RequestScheduler {
       //   again until they time out, ignoring any other requests that might
       //   be queued
       if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
-      if (!req.sup.networkRequestRunning) {
+      if (!req.networkRequestRunning) {
         keys.push(req.sup.key);
-        req.sup.networkRequestRunning = peerSelected;  // TODO: this must be set back to undefined if the request fails, which is not currently done
+        req.requestSent(peerSelected).then(() => {
+          this.scheduleCubeRequest();  // schedule retry after network timeout
+        });
       }
     }
     if (keys.length > 0) {
@@ -640,9 +649,11 @@ export class RequestScheduler {
     const notificationKeys: Buffer[] = [];
     for (const [keystring, req] of this.requestedNotifications) {
       if (notificationKeys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
-      if (!req.sup.networkRequestRunning) {
+      if (!req.networkRequestRunning) {
         notificationKeys.push(req.sup.key);
-        req.sup.networkRequestRunning = peerSelected;  // TODO: this must be set back to undefined if the request fails, which is not currently done
+        req.requestSent(peerSelected).then(() => {
+          this.scheduleCubeRequest();  // schedule retry after network timeout
+        })
       }
     }
     if (notificationKeys.length > 0) {
@@ -680,7 +691,7 @@ export class RequestScheduler {
 
     // We will now translate the supplied filter options to our crappy
     // non-orthogonal 1.0 wire format. Non-fulfillable requests will be
-    // ignored. Hopefully we can get rid of this crap one we introduce a
+    // ignored. Hopefully we can get rid of this crap once we introduce a
     // sensible wire format.
     if (!KeyRequestMessage.filterLegal(options)) {
       logger.trace('RequestScheduler.performKeyRequest(): Unfulfillable combination of filters; doing nothing.');
@@ -777,30 +788,4 @@ export class RequestScheduler {
       }
     }
   }
-
-  private cubeRequestRetry(req: CubeRequest): void {
-  }
 }
-
-
-export interface CubeRequestSupplemental {
-  key: Buffer,
-
-  /**
-   * Indicates whether we have sent out a network request for this request
-   * and are currently awaiting a peer response.
-   * Note that this is a public property, i.e. it is up to the caller to
-   * correctly implement this functionality.
-   */
-  networkRequestRunning?: NetworkPeerIf | undefined;
-
-  currentTry?: number,
-  maxTries?: number,
-}
-export class CubeRequest extends PendingRequest<CubeInfo, CubeRequestSupplemental> {}
-export interface SubscriptionRequestSupplemental {
-  key: Buffer,
-  currentTry?: number,
-  maxTries?: number,
-}
-export class SubscriptionRequest extends PendingRequest<SubscriptionConfirmationMessage, SubscriptionRequestSupplemental> {}

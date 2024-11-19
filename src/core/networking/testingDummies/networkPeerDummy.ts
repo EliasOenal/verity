@@ -57,4 +57,8 @@ export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
             this._id = Buffer.from(crypto.getRandomValues(new Uint8Array(NetConstants.PEER_ID_SIZE)));
         }
     }
+
+    toString() {
+        return `${this.addressString} (ID#${this._id?.toString('hex')})`;
+    }
 }
