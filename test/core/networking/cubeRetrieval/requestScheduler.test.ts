@@ -224,6 +224,38 @@ describe('RequestScheduler', () => {
         expect(req.value.key).toEqual(key);
       });
 
+      it('will not retry requests after the request itself has timed out', async () => {
+        // prepare cube
+        const cube = testCube();
+        const key: CubeKey = await cube.getKey();
+
+        // prepare spy
+        const reqPeer = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
+
+        // perform request with a very, *very* short timeout
+        const promise = scheduler.requestCube(key, {
+          scheduleIn: 0, timeout: 5,
+        });
+        // make network timeout much longer than request timeout to avoid retries
+        dummyPeer.options.networkTimeoutMillis = 1000;
+
+        // grab request object
+        const req: CubeRequest = scheduler.cubeRequestDetails(key);
+
+        // wait for request to time out
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // expect request to be settled as failed
+        expect(req.settled).toBe(true);
+        expect(req.value).toBe(undefined);
+
+        // assert only a single network request was sent as there was no
+        // time for any retries
+        expect(req.currentTry).toBeDefined();
+        expect(req.lastTry).toBeUndefined();
+        expect(reqPeer).toHaveBeenCalledTimes(1);
+      });
+
       it.todo('should not retry the same node more than once if others are available');
       // (must keep track of nodes already requested from I guess)
 
