@@ -10,6 +10,7 @@ import { TransportConnection } from '../transport/transportConnection';
 import { DummyNetworkManager } from './networkManagerDummy';
 import { DummyTransportConnection } from './DummyTransportConnection';
 import { NetConstants } from '../networkDefinitions';
+import { Settings } from '../../settings';
 
 export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
     stats: NetworkStats;
@@ -56,6 +57,10 @@ export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
         if (this._id === undefined) {
             this._id = Buffer.from(crypto.getRandomValues(new Uint8Array(NetConstants.PEER_ID_SIZE)));
         }
+
+        // set opts
+        this.options.peerExchange ??= true;
+        this.options.networkTimeoutMillis ??= Settings.NETWORK_TIMEOUT;
     }
 
     toString() {
