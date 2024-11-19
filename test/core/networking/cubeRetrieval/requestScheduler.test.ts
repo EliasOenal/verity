@@ -1,27 +1,28 @@
 import type { NetworkManagerIf } from "../../../../src/core/networking/networkManagerIf";
 
-import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
+import { Settings } from "../../../../src/core/settings";
 import { NetConstants } from "../../../../src/core/networking/networkDefinitions";
-import { RequestScheduler } from "../../../../src/core/networking/cubeRetrieval/requestScheduler";
-import { Cube } from "../../../../src/core/cube/cube";
 
-import { CubeField } from "../../../../src/core/cube/cubeField";
-import { CubeFieldType, CubeKey, CubeType } from "../../../../src/core/cube/cube.definitions";
-import { CubeStore, CubeStoreOptions } from "../../../../src/core/cube/cubeStore";
-import { NetworkPeerIf } from 'core/networking/networkPeerIf';
 import { unixtime } from "../../../../src/core/helpers/misc";
+
+import { NetworkPeerIf } from 'core/networking/networkPeerIf';
+import { SubscriptionConfirmationMessage, SubscriptionResponseCode } from "../../../../src/core/networking/networkMessage";
+import { RequestScheduler } from "../../../../src/core/networking/cubeRetrieval/requestScheduler";
+import { RoundrobinStrategy } from "../../../../src/core/networking/cubeRetrieval/requestStrategy";
+import { CubeRequest } from "../../../../src/core/networking/cubeRetrieval/pendingRequest";
 
 import { DummyNetworkManager } from "../../../../src/core/networking/testingDummies/networkManagerDummy";
 import { DummyNetworkPeer } from '../../../../src/core/networking/testingDummies/networkPeerDummy';
 
-import { Settings } from "../../../../src/core/settings";
+import { Cube } from "../../../../src/core/cube/cube";
+import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
+import { CubeField } from "../../../../src/core/cube/cubeField";
+import { CubeFieldType, CubeKey, CubeType } from "../../../../src/core/cube/cube.definitions";
+import { CubeStore, CubeStoreOptions } from "../../../../src/core/cube/cubeStore";
+
 import { PeerDB } from "../../../../src/core/peering/peerDB";
 
 import { vi, it } from 'vitest'
-import { SubscriptionConfirmationMessage, SubscriptionResponseCode } from "../../../../src/core/networking/networkMessage";
-import { RoundrobinStrategy } from "../../../../src/core/networking/cubeRetrieval/requestStrategy";
-import { CubeRequest } from "../../../../src/core/networking/cubeRetrieval/pendingRequest";
-import exp from "constants";
 
 const reducedDifficulty = 0;
 
@@ -256,12 +257,45 @@ describe('RequestScheduler', () => {
         expect(reqPeer).toHaveBeenCalledTimes(1);
       });
 
+      it('properly cleans up fulfilled requests', async () => {
+        // prepare test
+        const cube = testCube();
+        const key: CubeKey = await cube.getKey();
+
+        // perform request
+        const promise = scheduler.requestCube(key, {
+          scheduleIn: 0, timeout: 100,
+        });
+        expect(scheduler.existingCubeRequest(key)).toBeDefined();
+
+        // simulate successful network retrieval
+        scheduler.handleCubesDelivered([await cube.getBinaryData()], dummyPeer);
+        await promise;
+
+        expect(scheduler.existingCubeRequest(key)).toBeUndefined();
+      });
+
+      it('properly cleans up timed out requests', async () => {
+        // prepare test
+        const cube = testCube();
+        const key: CubeKey = await cube.getKey();
+
+        // perform request
+        const promise = scheduler.requestCube(key, {
+          scheduleIn: 0, timeout: 10,
+        });
+        expect(scheduler.existingCubeRequest(key)).toBeDefined();
+
+        // wait for request to time out
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        expect(scheduler.existingCubeRequest(key)).toBeUndefined();
+      });
+
       it.todo('should not retry the same node more than once if others are available');
       // (must keep track of nodes already requested from I guess)
 
       it.todo('should never request a Cube from two nodes at once, not even as a full node');
-
-      it.todo('properly cleans up pending requests');
     });
 
     describe(`requestNotification() as a ${lightNode? 'light node':'full node'}`, () => {

@@ -166,9 +166,13 @@ export class RequestScheduler {
       key: key.binaryKey,
     });
     this.requestedCubes.set(primaryMapKey, req);
+    // clean up the request when it's done
+    req.promise.then(() => this.requestedCubes.delete(primaryMapKey));
+    // also remember this request by its secondary map key if applicable
     if (additionalMapKey && !this.requestedCubes.has(additionalMapKey)) {
       // never overwrite an existing request
       this.requestedCubes.set(additionalMapKey, req);
+      req.promise.then(() => this.requestedCubes.delete(additionalMapKey));
     }
 
     if (options.requestFrom !== undefined) {
@@ -783,8 +787,8 @@ export class RequestScheduler {
       if (req !== undefined) {
         // mark the request fulfilled
         req.fulfilled(cubeInfo);  // maybe TODO: avoid creating duplicate CubeInfo
-        // and remove from pending set
-        this.requestedCubes.delete(keyString);
+        // note: removing the request from requestedCube happens through a
+        //  separate event handler set up in requestCube()
       }
     }
   }
