@@ -1,4 +1,5 @@
 import type { NetworkPeerIf } from 'core/networking/networkPeerIf';
+import type { CubeSubscription } from '../../../../src/core/networking/cubeRetrieval/pendingRequest';
 
 import { cciFamily, cciCube } from "../../../../src/cci/cube/cciCube";
 import { cciFieldType } from "../../../../src/cci/cube/cciCube.definitions";
@@ -6,17 +7,19 @@ import { cciField } from "../../../../src/cci/cube/cciField";
 import { CubeKey } from "../../../../src/core/cube/cube.definitions";
 import { Cube } from "../../../../src/core/cube/cube";
 import { CubeStoreOptions, CubeStore } from "../../../../src/core/cube/cubeStore";
+import { keyVariants } from '../../../../src/core/cube/cubeUtil';
+import { CubeInfo } from '../../../../src/core/cube/cubeInfo';
+
 import { SupportedTransports } from "../../../../src/core/networking/networkDefinitions";
 import { NetworkManager } from "../../../../src/core/networking/networkManager";
 import { NetworkManagerOptions } from 'core/networking/networkManagerIf';
+import { NetworkPeer } from '../../../../src/core/networking/networkPeer';
+
 import { WebSocketAddress } from "../../../../src/core/peering/addressing";
 import { Peer } from "../../../../src/core/peering/peer";
 import { PeerDB } from "../../../../src/core/peering/peerDB";
 
 import sodium from 'libsodium-wrappers-sumo'
-import { NetworkPeer } from '../../../../src/core/networking/networkPeer';
-import { keyVariants } from '../../../../src/core/cube/cubeUtil';
-import { CubeInfo } from '../../../../src/core/cube/cubeInfo';
 
 const reducedDifficulty = 0; // no hash cash for testing
 
@@ -105,7 +108,7 @@ describe('RequestScheduler integration tests', () => {
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
 
     // local subscribes to MUC
-    const subPromise: Promise<void> = local.scheduler.subscribeCube(mucKey);
+    const subPromise: Promise<CubeSubscription> = local.scheduler.subscribeCube(mucKey);
 
     // expect subscription to be fully registered on both ends
     await subPromise;
@@ -168,7 +171,7 @@ describe('RequestScheduler integration tests', () => {
       cciFieldType.PAYLOAD).valueString).toBe("primum hoc dico");
 
     // local subscribes to MUC
-    const subPromise: Promise<void> = local.scheduler.subscribeCube(mucKey);
+    const subPromise: Promise<CubeSubscription> = local.scheduler.subscribeCube(mucKey);
 
     // expect subscription to be fully registered on both ends
     await subPromise;
@@ -226,7 +229,7 @@ describe('RequestScheduler integration tests', () => {
       local.cubeStore.expectCube(mucKey);
 
     // local subscribes to MUC
-    const subPromise: Promise<void> = local.scheduler.subscribeCube(mucKey);
+    const subPromise: Promise<CubeSubscription> = local.scheduler.subscribeCube(mucKey);
 
     // local receives first MUC version
     await localReceivesFirstMucVersion;
