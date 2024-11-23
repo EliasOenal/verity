@@ -58,8 +58,8 @@ export class PendingRequest<Value, SupplementalData> {
 export interface CubeRequestSupplemental {
   key: Buffer,
 
-  currentTry?: number,
-  maxTries?: number,
+  // currentTry?: number,
+  // maxTries?: number,
 }
 
 
@@ -108,6 +108,11 @@ export class CubeRequest extends PendingRequest<CubeInfo, CubeRequestSupplementa
 }
 
 
+/**
+ * A NetworkRequestMonitor observes and tracks the status of a single network
+ * request.
+ * In the context of a CubeRequest for example, it tracks a single try.
+ */
 export class NetworkRequestMonitor {
   private _peer: NetworkPeerIf = undefined;
 
@@ -150,4 +155,15 @@ export interface SubscriptionRequestSupplemental {
   currentTry?: number,
   maxTries?: number,
 }
+/**
+ * A SubscriptionRequest represents a request to subscribe to a Cube.
+ * It does not track the subscription itself. If a SubscriptionRequest is
+ * successful, it will then be replaced by a CubeSubscription.
+ */
 export class SubscriptionRequest extends PendingRequest<SubscriptionConfirmationMessage, SubscriptionRequestSupplemental> {}
+
+export interface CubeSubscriptionSupplemental {
+  key: Buffer,
+  shallRenew?: boolean,
+}
+export class CubeSubscription extends PendingRequest<void, CubeSubscriptionSupplemental> {}

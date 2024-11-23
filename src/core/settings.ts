@@ -46,7 +46,7 @@ export const Settings = {
     KEY_REQUEST_TIME: (10 * 1000),  // run CubeRequests and/or KeyRequests every 10 seconds by default
     NODE_REQUEST_TIME: (10 * 1000),  // asks nodes for their known nodes every 10 seconds (this is still implemented directly in NetworkPeer rather than the RequestScheduler)
     CUBE_REQUEST_TIMEOUT: (60 * 1000),
-    CUBE_REQUEST_RETRIES: 10,
+    // CUBE_REQUEST_RETRIES: 10,  // TODO implement -- will currently repeat indefinitely until a request times out
     REQUEST_SCALE_FACTOR: 4,  // make requests n times more often at MAXIMUM_CONNECTION compared to on a single connection
     INTERACTIVE_REQUEST_DELAY: 100,  // when a (presumably) interactive application requests a Cube on a light node, auto-schedule the next request in 100ms -- in other words, keep collecting requests for the next 100ms before actually performing the request
     CUBE_SUBSCRIPTION_PERIOD: (600 * 1000),  // Cube subscriptions last 10 minues by default. NOTE: Expiry not implemented yet.

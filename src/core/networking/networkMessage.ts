@@ -642,7 +642,7 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
   readonly cubesHashBlob: Buffer;
 
   /**
-   * The duration of the subscription in seconds.
+   * The duration of the subscription in milliseconds.
    */
   readonly subscriptionDuration: number;
 

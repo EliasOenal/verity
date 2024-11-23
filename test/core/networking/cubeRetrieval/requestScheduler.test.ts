@@ -9,7 +9,7 @@ import { NetworkPeerIf } from 'core/networking/networkPeerIf';
 import { SubscriptionConfirmationMessage, SubscriptionResponseCode } from "../../../../src/core/networking/networkMessage";
 import { RequestScheduler } from "../../../../src/core/networking/cubeRetrieval/requestScheduler";
 import { RoundrobinStrategy } from "../../../../src/core/networking/cubeRetrieval/requestStrategy";
-import { CubeRequest } from "../../../../src/core/networking/cubeRetrieval/pendingRequest";
+import { CubeRequest, CubeSubscription } from "../../../../src/core/networking/cubeRetrieval/pendingRequest";
 
 import { DummyNetworkManager } from "../../../../src/core/networking/testingDummies/networkManagerDummy";
 import { DummyNetworkPeer } from '../../../../src/core/networking/testingDummies/networkPeerDummy';
@@ -401,7 +401,7 @@ describe('RequestScheduler', () => {
           const sendSubscribeCube = vi.spyOn(dummyPeer, 'sendSubscribeCube');
 
           // make request
-          const subPromise: Promise<void> = scheduler.subscribeCube(testKey);
+          const subPromise: Promise<CubeSubscription> = scheduler.subscribeCube(testKey);
 
           // mock peer response
           const resp = new SubscriptionConfirmationMessage(
@@ -430,7 +430,7 @@ describe('RequestScheduler', () => {
           const sendSubscribeCube = vi.spyOn(dummyPeer, 'sendSubscribeCube');
 
           // make request
-          const subPromise: Promise<void> = scheduler.subscribeCube(testKey);
+          const subPromise: Promise<CubeSubscription> = scheduler.subscribeCube(testKey);
           await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
 
           // Assert that a CubeRequest has been scheduled first
@@ -466,7 +466,62 @@ describe('RequestScheduler', () => {
         });
       }
 
-      if (!lightNode) it('should ignore Cube requests when running as a full node', () => {  // TODO is this actually something we want to assert?
+      it('will auto-renew a subscription once it times out', async() => {
+        // set up test options
+        scheduler.options.lightNode = true;
+        // prepare test Cube
+        const cube = testCube();
+        const testKey = await cube.getKey();
+        // For this test, we assume that the Cube is already present locally
+        await cubeStore.addCube(cube);
+        // prepare spy
+        const sendSubscribeCube = vi.spyOn(dummyPeer, 'sendSubscribeCube');
+
+        // make request
+        const subPromise: Promise<CubeSubscription> = scheduler.subscribeCube(testKey);
+
+        // mock peer response, and make the subscription period very short
+        const resp = new SubscriptionConfirmationMessage(
+          SubscriptionResponseCode.SubscriptionConfirmed,
+          [testKey], [await cube.getHash()], 100
+        );
+        scheduler.handleSubscriptionConfirmation(resp);
+
+        // expect mock peer to have received one subscription request
+        expect(sendSubscribeCube).toHaveBeenCalledTimes(1);
+        expect(sendSubscribeCube.mock.lastCall[0]).toContainEqual(testKey);
+
+        // expect subscription to be registered
+        const sub: CubeSubscription = await subPromise;
+        expect(sub).toBeInstanceOf(CubeSubscription);
+        expect(scheduler.cubeSubscriptionDetails(testKey)).toBe(sub);
+
+        // wait for subscription to time out
+        await sub.promise;
+
+        // mock peer response to renewal request
+        const renewalResp = new SubscriptionConfirmationMessage(
+          SubscriptionResponseCode.SubscriptionConfirmed,
+          [testKey], [await cube.getHash()], Settings.CUBE_SUBSCRIPTION_PERIOD
+        );
+        scheduler.handleSubscriptionConfirmation(renewalResp);
+
+        // yield control to allow subscription renewal to be processed
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // expect a new subscription to have been created
+        const newSub: CubeSubscription = scheduler.cubeSubscriptionDetails(testKey);
+        expect(newSub).toBeInstanceOf(CubeSubscription);
+        expect(newSub).not.toBe(sub);
+
+        // expect mock peer to now have received a total of two subscription
+        // requests, the original one and the renewal
+        // (mock peer is the only peer in this test)
+        expect(sendSubscribeCube).toHaveBeenCalledTimes(2);
+        expect(sendSubscribeCube.mock.lastCall[0]).toContainEqual(testKey);
+      });
+
+      if (!lightNode) it('should ignore subscription requests when running as a full node', () => {  // TODO is this actually something we want to assert?
         scheduler.options.lightNode = false;
         scheduler.subscribeCube(testKey);
         // @ts-ignore spying on private attribute
