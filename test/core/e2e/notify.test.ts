@@ -16,7 +16,6 @@ describe('notification end-to-end tests', () => {
     // set up two light nodes and wait for them to be connected
     const sender: VerityNode = new VerityNode({
       ...testCoreOptions,
-      inMemory: true,
       lightNode: true,
       transports: new Map([
         [SupportedTransports.ws, 61104],
