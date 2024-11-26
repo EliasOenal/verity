@@ -235,15 +235,19 @@ export class RequestScheduler {
       options: CubeSubscribeOptions = {},
   ): Promise<CubeSubscription> {
     // Sanity checks:
-    // Do not accept any calls if this scheduler has already been shut down
-    if (this._shutdown) return;
+    // Do not accept any calls if this scheduler has already been shut down.
     // Full nodes are implicitly subscribed to everything
-    if (!this.options.lightNode) return;
+    if (this._shutdown ||
+        !this.options.lightNode) {
+      return undefined;
+    }
 
     // Input normalisation:
     const key = keyVariants(keyInput);
     // Already subscribed?
-    if (!options.thisIsARenewal && this.subscribedCubes.has(key.keyString)) return;
+    if (!options.thisIsARenewal && this.subscribedCubes.has(key.keyString)) {
+      return undefined;
+    }
     // set defaults options
     options.scheduleIn ??= this.options.interactiveRequestDelay;
     options.timeout ??= this.options.requestTimeout;
@@ -255,7 +259,7 @@ export class RequestScheduler {
       ourCubeInfo = await this.requestCube(key.keyString);
       if (ourCubeInfo === undefined) {
         logger.trace(`RequestScheduler.subscribeCube(): Could not find Cube ${key.keyString} locally or remotely`);
-        return;
+        return undefined;
       }
     }
 

@@ -4,7 +4,7 @@ import type { CubeStore } from '../cube/cubeStore';
 import type { Peer } from '../peering/peer';
 import type { PeerDB } from '../peering/peerDB';
 import type { SupportedTransports } from './networkDefinitions';
-import type { NetworkStats, NetworkPeerIf } from './networkPeerIf';
+import type { NetworkStats, NetworkPeerIf, NetworkPeerOptions } from './networkPeerIf';
 import type { CubeKey } from '../cube/cube.definitions';
 
 import type { EventEmitter } from 'events';
@@ -39,7 +39,7 @@ export interface NetworkManagerIf extends EventEmitter {
   handlePeerUpdated(peer: NetworkPeerIf): void;
 }
 
-export interface NetworkManagerOwnOptions {
+export interface NetworkManagerOwnOptions extends NetworkPeerOptions {
     /**
      * Specifies which transports shall be enabled.
      * The key of this map is a transport enum while the value contains

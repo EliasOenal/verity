@@ -137,6 +137,20 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         super();
         SetNetworkManagerDefaults(options);
 
+        // set default options
+        this.options.announceToTorrentTrackers ??= Settings.ANNOUNCE_TO_TORRENT_TRACKERS,
+        this.options.autoConnect ??= Settings.AUTO_CONNECT_PEERS,
+        this.options.peerExchange ??= Settings.PEER_EXCHANGE,
+        this.options.newPeerInterval ??= Settings.NEW_PEER_INTERVAL,
+        this.options.connectRetryInterval ??= Settings.CONNECT_RETRY_INTERVAL,
+        this.options.maximumConnections ??= Settings.MAXIMUM_CONNECTIONS,
+        this.options.acceptIncomingConnections ??= Settings.ACCEPT_INCOMING_CONNECTIONS,
+        this.options.recentKeyWindowSize ??= Settings.RECENT_KEY_WINDOW_SIZE,
+        // set default network peer options for them to grab from us
+        this.options.peerExchange ??= Settings.PEER_EXCHANGE,
+        this.options.networkTimeoutMillis ??= Settings.NETWORK_TIMEOUT,
+        this.options.closeOnTimeout ??= Settings.CLOSE_PEER_ON_TIMEOUT,
+
         // Create components
         this.scheduler = new RequestScheduler(this, options);
 
@@ -359,12 +373,8 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
             this,
             conn,
             this.cubeStore,
-            {
-                extraAddresses: peer.addresses,
-                lightNode: this.options.lightNode,
-                peerExchange: this.options.peerExchange,
-            }
-            );
+            { extraAddresses: peer.addresses },
+        );
         networkPeer.lastConnectAttempt = peer.lastConnectAttempt;
         networkPeer.lastSuccessfulConnection = peer.lastSuccessfulConnection;
         networkPeer.connectionAttempts = peer.connectionAttempts;
@@ -427,15 +437,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
             // and also stop including us in their peer exchanges.
             return;
         }
-        const networkPeer = new NetworkPeer(
-            this,
-            conn,
-            this.cubeStore,
-            {
-                lightNode: this.options.lightNode,
-                peerExchange: this.options.peerExchange,
-            }
-        );
+        const networkPeer = new NetworkPeer(this, conn, this.cubeStore);
         this.incomingPeers.push(networkPeer);
         this._peerDB.learnPeer(networkPeer);
         this.emit("incomingPeer", networkPeer);  // used for tests only
