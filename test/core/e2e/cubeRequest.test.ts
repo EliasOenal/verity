@@ -30,19 +30,19 @@ describe('Cube request e2e tests', () => {
         toContain("cubus sum");
     });
 
-    it.skip('can request a Cube before it is published', async () => {
+    it('can request a Cube before it is published', async () => {
       const cube = testCube();
       const key = await cube.getKey();
 
       const req = net.recipient.networkManager.scheduler.requestCube(key);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       await net.sender.cubeStore.addCube(cube);
 
       const received: Cube = (await req).getCube();
       expect(received.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).
         toContain("cubus sum");
-    });
+    }, 20000);
 });
 
 
