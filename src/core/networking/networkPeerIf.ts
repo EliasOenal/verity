@@ -27,7 +27,6 @@ export interface NetworkPeerIf extends Peer {
 
 export interface NetworkPeerOptions {
     extraAddresses?: AddressAbstraction[];
-    lightNode?: boolean;
     peerExchange?: boolean;
     networkTimeoutMillis?: number;
     closeOnTimeout?: boolean;
