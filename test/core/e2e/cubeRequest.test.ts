@@ -8,22 +8,31 @@ import { LineShapedNetwork } from "./e2eSetup";
 
 describe('Cube request e2e tests', () => {
     let net: LineShapedNetwork;
-    let cube: Cube;
-    let key: CubeKey;
 
     beforeEach(async () => {
       // prepare a test network
       net = await LineShapedNetwork.Create(61301, 61302);
     });
 
+    afterEach(async () => {
+      await net.shutdown();
+    });
+
+    it('can request a Cube from the other end of the network', async () => {
+      const cube = testCube();
+      const key = await cube.getKey();
+      await net.sender.cubeStore.addCube(cube);
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      const req = net.recipient.networkManager.scheduler.requestCube(key);
+      const received: Cube = (await req).getCube();
+      expect(received.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).
+        toContain("cubus sum");
+    });
+
     it.skip('can request a Cube before it is published', async () => {
-      const content = "cubus sum";
-      cube = Cube.Create({
-        cubeType: CubeType.FROZEN,
-        fields: CubeField.RawContent(CubeType.FROZEN, content),
-        requiredDifficulty,
-      });
-      key = await cube.getKey();
+      const cube = testCube();
+      const key = await cube.getKey();
 
       const req = net.recipient.networkManager.scheduler.requestCube(key);
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -32,6 +41,18 @@ describe('Cube request e2e tests', () => {
 
       const received: Cube = (await req).getCube();
       expect(received.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).
-        toContain(content);
+        toContain("cubus sum");
     });
 });
+
+
+function testCube(): Cube {
+  const content = "cubus sum";
+  const cube = Cube.Create({
+    cubeType: CubeType.FROZEN,
+    fields: CubeField.RawContent(CubeType.FROZEN, content),
+    requiredDifficulty,
+  });
+
+  return cube;
+}
