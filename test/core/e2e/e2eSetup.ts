@@ -53,4 +53,13 @@ export class LineShapedNetwork {
 
     return new this(sender, fullNode1, fullNode2, recipient);
   }
+
+  shutdown(): Promise<void> {
+    return Promise.all([
+      this.sender.shutdown(),
+      this.fullNode1.shutdown(),
+      this.fullNode2.shutdown(),
+      this.recipient.shutdown(),
+    ]) as unknown as Promise<void>;
+  }
 }
