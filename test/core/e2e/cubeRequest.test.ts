@@ -1,8 +1,6 @@
 import { Cube } from "../../../src/core/cube/cube";
 import { CubeFieldType, CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
-import { CubeFields } from "../../../src/core/cube/cubeFields";
-import { CubeStore } from "../../../src/core/cube/cubeStore";
 import { requiredDifficulty } from "../testcore.definition";
 import { LineShapedNetwork } from "./e2eSetup";
 
@@ -22,7 +20,6 @@ describe('Cube request e2e tests', () => {
       const cube = testCube();
       const key = await cube.getKey();
       await net.sender.cubeStore.addCube(cube);
-      await new Promise(resolve => setTimeout(resolve, 200));
 
       const req = net.recipient.networkManager.scheduler.requestCube(key);
       const received: Cube = (await req).getCube();
