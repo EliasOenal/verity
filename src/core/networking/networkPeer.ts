@@ -94,6 +94,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         this.options.peerExchange ??= networkManager.options.peerExchange;
         this.options.networkTimeoutMillis ??= networkManager.options.networkTimeoutMillis;
         this.options.closeOnTimeout ??= networkManager.options.closeOnTimeout;
+        this.options.cubeSubscriptionPeriod ??= networkManager.options.cubeSubscriptionPeriod;
         if (options.extraAddresses) {
             this.addresses = options.extraAddresses;
             this.addAddress(_conn.address);
@@ -535,7 +536,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
             SubscriptionResponseCode.SubscriptionConfirmed,
             requestedKeys,
             currentHashes,
-            Settings.CUBE_SUBSCRIPTION_PERIOD,
+            this.options.cubeSubscriptionPeriod,
         );
         this.sendMessage(reply);
     }

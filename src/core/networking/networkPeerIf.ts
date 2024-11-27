@@ -30,6 +30,7 @@ export interface NetworkPeerOptions {
     peerExchange?: boolean;
     networkTimeoutMillis?: number;
     closeOnTimeout?: boolean;
+    cubeSubscriptionPeriod?: number;
 }
 
 export class NetworkStats {

@@ -3,6 +3,7 @@ import { CubeFieldType, CubeKey, CubeType } from "../../../src/core/cube/cube.de
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeFields } from "../../../src/core/cube/cubeFields";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
+import { CubeSubscription } from "../../../src/core/networking/cubeRetrieval/pendingRequest";
 import { requiredDifficulty } from "../testcore.definition";
 import { LineShapedNetwork } from "./e2eSetup";
 
@@ -14,6 +15,7 @@ describe('Cube subscription e2e tests', () => {
     let originalMuc: Cube;
     let key: CubeKey;
     let privateKey: Buffer;
+    let initialSubPromise: Promise<CubeSubscription>;
 
     beforeAll(async () => {
       // prepare crypto
@@ -23,12 +25,13 @@ describe('Cube subscription e2e tests', () => {
       privateKey = Buffer.from(keyPair.privateKey);
 
       // prepare a test network
-      net = await LineShapedNetwork.Create(61301, 61302);
+      net = await LineShapedNetwork.Create(61301, 61302, {
+        cubeSubscriptionPeriod: 2000,
+      });
 
       // recipient subscribes to the MUC
-      net.recipient.networkManager.scheduler.subscribeCube(key, {
-        timeout: 10000,
-      });
+      initialSubPromise =
+        net.recipient.networkManager.scheduler.subscribeCube(key);
 
       // sculpt the original MUC at the sender
       originalMuc = Cube.Create({
@@ -75,16 +78,29 @@ describe('Cube subscription e2e tests', () => {
       expect (await waitForMucContent(
         net.recipient.cubeStore, key, 'ab domino meo renovatus sum')).
         toBe(true);
-
-      // wait for update to propagate to recipient
-      // await propagationPromise;
-      // const received: Cube = await net.recipient.cubeStore.getCube(key);
-
-      // expect(received.getFirstField(CubeFieldType.MUC_RAWCONTENT).valueString).
-      //   toContain('ab domino meo renovatus sum');
     });
 
-    it.todo('will auto-renew the subscription after it expires');
+    it('will auto-renew the subscription after it expires', async() => {
+      // wait for the subscription to expire
+      const sub: CubeSubscription = await initialSubPromise;
+      await sub.promise;  // denotes expiry
+
+      // expect subscription to have actually expired
+      expect(sub.settled).toBe(true);
+      const expired =
+        net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
+      expect(expired).toBeUndefined();
+
+      // give it some time for the subscription to renew
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const renewedSub: CubeSubscription =
+        net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
+
+      expect(renewedSub).toBeInstanceOf(CubeSubscription);
+      expect(renewedSub).not.toBe(sub);
+    });
+
+
     it.todo('will not miss any updates happening during the renewal');
     it.todo('will catch up on any missed updates on renewal');
     it.todo('can sync the same MUC both ways');
