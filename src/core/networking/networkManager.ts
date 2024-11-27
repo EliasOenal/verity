@@ -150,6 +150,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         this.options.peerExchange ??= Settings.PEER_EXCHANGE,
         this.options.networkTimeoutMillis ??= Settings.NETWORK_TIMEOUT,
         this.options.closeOnTimeout ??= Settings.CLOSE_PEER_ON_TIMEOUT,
+        this.options.cubeSubscriptionPeriod ??= Settings.CUBE_SUBSCRIPTION_PERIOD;
 
         // Create components
         this.scheduler = new RequestScheduler(this, options);
