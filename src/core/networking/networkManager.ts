@@ -4,7 +4,7 @@ import { CubeKey } from '../cube/cube.definitions';
 
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { NetworkPeer } from './networkPeer';
-import { NetworkStats } from './networkPeerIf';
+import { NetworkPeerOptions, NetworkStats } from './networkPeerIf';
 import { NetworkPeerIf } from './networkPeerIf';
 import { NetworkTransport, TransportParamMap } from './transport/networkTransport';
 import { TransportConnection } from './transport/transportConnection';
@@ -140,7 +140,6 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         // set default options
         this.options.announceToTorrentTrackers ??= Settings.ANNOUNCE_TO_TORRENT_TRACKERS,
         this.options.autoConnect ??= Settings.AUTO_CONNECT_PEERS,
-        this.options.peerExchange ??= Settings.PEER_EXCHANGE,
         this.options.newPeerInterval ??= Settings.NEW_PEER_INTERVAL,
         this.options.connectRetryInterval ??= Settings.CONNECT_RETRY_INTERVAL,
         this.options.maximumConnections ??= Settings.MAXIMUM_CONNECTIONS,
@@ -370,11 +369,13 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         // NetworkPeer. Also doing this if it already is a NetworkPeer.
         // This is ugly. NetworkPeer should encapsulate Peer rather than
         // inheriting from it.
+        const peerOpts: NetworkPeerOptions = Object.assign({}, this.options);
+        peerOpts.extraAddresses = peer.addresses;
         const networkPeer = new NetworkPeer(
             this,
             conn,
             this.cubeStore,
-            { extraAddresses: peer.addresses },
+            peerOpts,
         );
         networkPeer.lastConnectAttempt = peer.lastConnectAttempt;
         networkPeer.lastSuccessfulConnection = peer.lastSuccessfulConnection;
@@ -438,7 +439,9 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
             // and also stop including us in their peer exchanges.
             return;
         }
-        const networkPeer = new NetworkPeer(this, conn, this.cubeStore);
+        const peerOptions: NetworkPeerOptions = Object.assign({}, this.options);
+        const networkPeer = new NetworkPeer(
+            this, conn, this.cubeStore, peerOptions);
         this.incomingPeers.push(networkPeer);
         this._peerDB.learnPeer(networkPeer);
         this.emit("incomingPeer", networkPeer);  // used for tests only
@@ -499,7 +502,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         // Ask peer for node exchange now
         // This is a pure optimisation to enhance startup time; NetworkPeer
         // will periodically ask for it in a short while.
-        if (this.options.peerExchange) peer.sendPeerRequest();
+        if (peer.options.peerExchange) peer.sendPeerRequest();
 
         // Relay the online event to our subscribers
         this.emit('peeronline', peer);

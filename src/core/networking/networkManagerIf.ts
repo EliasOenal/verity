@@ -39,7 +39,7 @@ export interface NetworkManagerIf extends EventEmitter {
   handlePeerUpdated(peer: NetworkPeerIf): void;
 }
 
-export interface NetworkManagerOwnOptions extends NetworkPeerOptions {
+export interface NetworkManagerOwnOptions {
     /**
      * Specifies which transports shall be enabled.
      * The key of this map is a transport enum while the value contains
@@ -55,7 +55,6 @@ export interface NetworkManagerOwnOptions extends NetworkPeerOptions {
      **/
     lightNode?: boolean;
     autoConnect?: boolean;
-    peerExchange?: boolean;
     publicAddress?: string; // TODO: move this to new TransportOptions
     useRelaying?: boolean; // TODO: move this to new TransportOptions
     newPeerInterval?: number;
@@ -67,7 +66,7 @@ export interface NetworkManagerOwnOptions extends NetworkPeerOptions {
 }
 
 export type NetworkManagerOptions =
-    NetworkManagerOwnOptions & RequestSchedulerOptions;
+    NetworkManagerOwnOptions & RequestSchedulerOptions & NetworkPeerOptions;
 
 
 export function SetNetworkManagerDefaults(options: NetworkManagerOptions = {}): void {
@@ -79,6 +78,5 @@ export function SetNetworkManagerDefaults(options: NetworkManagerOptions = {}): 
   options.announceToTorrentTrackers = options?.announceToTorrentTrackers ?? true;
   options.lightNode = options?.lightNode ?? true;
   options.autoConnect = options?.autoConnect ?? true;
-  options.peerExchange = options?.peerExchange ?? true;
   options.recentKeyWindowSize = options?.recentKeyWindowSize ?? Settings.RECENT_KEY_WINDOW_SIZE;
 }

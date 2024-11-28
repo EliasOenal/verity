@@ -97,10 +97,12 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     {
         super(_conn.address);
         // set opts
-        this.options.peerExchange ??= networkManager.options.peerExchange;
-        this.options.networkTimeoutMillis ??= networkManager.options.networkTimeoutMillis;
-        this.options.closeOnTimeout ??= networkManager.options.closeOnTimeout;
-        this.options.cubeSubscriptionPeriod ??= networkManager.options.cubeSubscriptionPeriod;
+        this.options.peerExchange ??= Settings.PEER_EXCHANGE,
+        this.options.networkTimeoutMillis ??= Settings.NETWORK_TIMEOUT,
+        this.options.closeOnTimeout ??= Settings.CLOSE_PEER_ON_TIMEOUT,
+        this.options.cubeSubscriptionPeriod ??= Settings.CUBE_SUBSCRIPTION_PERIOD;
+
+        // set extra addresses, if any
         if (options.extraAddresses) {
             this.addresses = options.extraAddresses;
             this.addAddress(_conn.address);
