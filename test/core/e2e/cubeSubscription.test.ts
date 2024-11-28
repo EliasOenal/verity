@@ -3,14 +3,17 @@ import { CubeFieldType, CubeKey, CubeType } from "../../../src/core/cube/cube.de
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeFields } from "../../../src/core/cube/cubeFields";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
+import { keyVariants } from "../../../src/core/cube/cubeUtil";
 import { CubeSubscription } from "../../../src/core/networking/cubeRetrieval/pendingRequest";
+import { NetworkPeer } from "../../../src/core/networking/networkPeer";
+import { NetworkPeerIf } from "../../../src/core/networking/networkPeerIf";
 import { requiredDifficulty } from "../testcore.definition";
 import { LineShapedNetwork } from "./e2eSetup";
 
 import sodium from 'libsodium-wrappers-sumo';
 
 describe('Cube subscription e2e tests', () => {
-  describe('scenario 1', () => {
+  describe('test group 1', () => {
     let net: LineShapedNetwork;
     let originalMuc: Cube;
     let key: CubeKey;
@@ -26,7 +29,7 @@ describe('Cube subscription e2e tests', () => {
 
       // prepare a test network
       net = await LineShapedNetwork.Create(61301, 61302, {
-        cubeSubscriptionPeriod: 2000,
+        cubeSubscriptionPeriod: 1000,
       });
 
       // recipient subscribes to the MUC
@@ -40,7 +43,7 @@ describe('Cube subscription e2e tests', () => {
         publicKey: key, requiredDifficulty,
         fields: [
           CubeField.RawContent(CubeType.MUC, 'cubus usoris mutabilis sum'),
-          CubeField.Date(1000000),
+          CubeField.Date(1000001),  // acts as version counter
         ],
       });
       await net.sender.cubeStore.addCube(originalMuc);
@@ -54,11 +57,13 @@ describe('Cube subscription e2e tests', () => {
       expect(await net.recipient.cubeStore.getNumberOfStoredCubes()).toBe(0);
     });
 
+
     it('will receive the initial MUC when subscribing', async () => {
       expect (await waitForMucContent(
         net.recipient.cubeStore, key, 'cubus usoris mutabilis sum')).
         toBe(true);
     });
+
 
     it('will receive MUC updates while subscribed', async () => {
       // sender updates the MUC
@@ -68,17 +73,17 @@ describe('Cube subscription e2e tests', () => {
         publicKey: key,
         fields: [
           CubeField.RawContent(CubeType.MUC, 'ab domino meo renovatus sum'),
-          CubeField.Date(1000001),
+          CubeField.Date(1000002),  // acts as version counter
         ],
         requiredDifficulty,
       });
-      // const propagationPromise = net.recipient.cubeStore.expectCube(key);
       await net.sender.cubeStore.addCube(updatedMuc);
 
       expect (await waitForMucContent(
         net.recipient.cubeStore, key, 'ab domino meo renovatus sum')).
         toBe(true);
     });
+
 
     it('will auto-renew the subscription after it expires', async() => {
       // wait for the subscription to expire
@@ -87,6 +92,7 @@ describe('Cube subscription e2e tests', () => {
 
       // expect subscription to have actually expired
       expect(sub.settled).toBe(true);
+      // note: once we implement renewal-before-expiry, amend the next line
       const expired =
         net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
       expect(expired).toBeUndefined();
@@ -96,20 +102,46 @@ describe('Cube subscription e2e tests', () => {
       const renewedSub: CubeSubscription =
         net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
 
+      // expect to have a fresh subscription
       expect(renewedSub).toBeInstanceOf(CubeSubscription);
       expect(renewedSub).not.toBe(sub);
     });
 
 
+    it('will keep receiving updates through the renewed subscription', async() => {
+      // Let's update the MUC at the sender.
+      // sender updates the MUC
+      const updatedMuc = Cube.Create({
+        cubeType: CubeType.MUC,
+        privateKey,
+        publicKey: key,
+        fields: [
+          CubeField.RawContent(CubeType.MUC, 'iterum atque iterum renovari possum'),
+          CubeField.Date(1000003),  // acts as version counter
+        ],
+        requiredDifficulty,
+      });
+      await net.sender.cubeStore.addCube(updatedMuc);
+
+      expect (await waitForMucContent(
+        net.recipient.cubeStore, key, 'iterum atque iterum renovari possum')).
+        toBe(true);
+    });
+
+
+    // TODO: We currently expect there to be a possibility of missed updates
+    // during a subscription renewal. One we fixed that, implement this test.
     it.todo('will not miss any updates happening during the renewal');
     it.todo('will catch up on any missed updates on renewal');
     it.todo('can sync the same MUC both ways');
+
+    it.todo('will stop receiving updates after a subscription is cancelled and expired');
 
     afterAll(async () => {
       await net.shutdown();
     });
 
-  });  // scenario 1
+  });  // test group 1
 
 });
 

@@ -79,6 +79,12 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
 
     private _cubeSubscriptions: Set<string> = new Set();
     get cubeSubscriptions(): Iterable<string> { return this._cubeSubscriptions }
+    addCubeSubscription(key: CubeKey | string): void {
+        this._cubeSubscriptions.add(keyVariants(key).keyString);
+    }
+    cancelCubeSubscription(key: CubeKey | string): void {
+        this._cubeSubscriptions.delete(keyVariants(key).keyString);
+    }
 
     private networkTimeout: NodeJS.Timeout = undefined;
 
@@ -527,7 +533,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         // All good, subscription accepted! Register it...
         let i=0;
         for (const key of requestedKeys) {
-            this._cubeSubscriptions.add(keyVariants(key).keyString);
+            this.addCubeSubscription(key);
             i++;
         }
         logger.trace(`NetworkPeer ${this.toString()}: handleSubscribeCube(): recorded ${i} cube subscriptions`);
