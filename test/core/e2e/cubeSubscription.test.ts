@@ -132,7 +132,66 @@ describe('Cube subscription e2e tests', () => {
     // TODO: We currently expect there to be a possibility of missed updates
     // during a subscription renewal. One we fixed that, implement this test.
     it.todo('will not miss any updates happening during the renewal');
-    it.todo('will catch up on any missed updates on renewal');
+
+    it('will catch up on any missed updates on renewal', async() => {
+      // To simulate a missed update, let's silently cancel the current
+      // subscription on the serving node.
+      // Some sanity-check assertions first though.
+      expect(net.fullNode2.networkManager.incomingPeers.length).toBe(1);
+      const fn2ToRecpt: NetworkPeer =
+        net.fullNode2.networkManager.incomingPeers[0] as NetworkPeer;
+      expect(fn2ToRecpt.cubeSubscriptions).toContain(keyVariants(key).keyString);
+      // Now cancel the subscription
+      fn2ToRecpt.cancelCubeSubscription(key);
+      // Verify the subscription is indeed cancelled
+      expect(fn2ToRecpt.cubeSubscriptions).not.toContain(keyVariants(key).keyString);
+
+      // Have the sender update the MUC once again
+      const updatedMuc = Cube.Create({
+        cubeType: CubeType.MUC,
+        privateKey,
+        publicKey: key,
+        fields: [
+          CubeField.RawContent(CubeType.MUC,
+            'dominus meus taedere debet quod tam saepe me renovat'),
+          CubeField.Date(1000004),  // acts as version counter
+        ],
+        requiredDifficulty,
+      });
+      await net.sender.cubeStore.addCube(updatedMuc);
+
+      // Allow some "propagation time" during which the update should *not*
+      // be delivered to the recipient as we cancelled the subscription
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Wait for subscription expiry
+      const sub: CubeSubscription = await initialSubPromise;
+      await sub.promise;  // denotes expiry
+
+      // Assert the update was indeed missed due to us sabotaging the subscription
+      const lastVersionAtRecipient = await net.recipient.cubeStore.getCube(key);
+      expect(lastVersionAtRecipient.getFirstField(CubeFieldType.MUC_RAWCONTENT).
+        valueString).
+          toContain('iterum atque iterum renovari possum');
+      expect(lastVersionAtRecipient.getFirstField(CubeFieldType.MUC_RAWCONTENT).
+        valueString).
+          not.toContain('dominus meus taedere debet quod tam saepe me renovat');
+
+      // Wait for the subscription to auto-renew
+      // give it some time for the subscription to renew
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const renewedSub: CubeSubscription =
+        net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
+      // expect to have a fresh subscription
+      expect(renewedSub).toBeInstanceOf(CubeSubscription);
+      expect(renewedSub).not.toBe(sub);
+
+      // Assert the missed update was catched up on renewal
+      const nowReceived = await net.recipient.cubeStore.getCube(key);
+      expect(nowReceived.getFirstField(CubeFieldType.MUC_RAWCONTENT).valueString).
+        toContain('dominus meus taedere debet quod tam saepe me renovat');
+    });
+
     it.todo('can sync the same MUC both ways');
 
     it.todo('will stop receiving updates after a subscription is cancelled and expired');
