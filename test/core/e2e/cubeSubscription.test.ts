@@ -133,6 +133,7 @@ describe('Cube subscription e2e tests', () => {
     // during a subscription renewal. One we fixed that, implement this test.
     it.todo('will not miss any updates happening during the renewal');
 
+
     it('will catch up on any missed updates on renewal', async() => {
       // To simulate a missed update, let's silently cancel the current
       // subscription on the serving node.
@@ -192,9 +193,88 @@ describe('Cube subscription e2e tests', () => {
         toContain('dominus meus taedere debet quod tam saepe me renovat');
     });
 
-    it.todo('can sync the same MUC both ways');
 
-    it.todo('will stop receiving updates after a subscription is cancelled and expired');
+    it('can sync the same MUC both ways', async() => {
+      // Plot twist! Recipient actually co-owns the MUC;
+      // sender thus also subscribes to the MUC.
+      const senderSub: CubeSubscription =
+        await net.sender.networkManager.scheduler.subscribeCube(key);
+
+      // Sender updates the MUC once again
+      const senderUpdate = Cube.Create({
+        cubeType: CubeType.MUC,
+        privateKey,
+        publicKey: key,
+        fields: [
+          CubeField.RawContent(CubeType.MUC, 'duos dominos habeo'),
+          CubeField.Date(1000005),  // acts as version counter
+        ],
+        requiredDifficulty,
+      });
+      await net.sender.cubeStore.addCube(senderUpdate);
+
+      // Recipient now also pushes an update,
+      // before having received the sender's latest version.
+      const recipientUpdate = Cube.Create({
+        cubeType: CubeType.MUC,
+        privateKey,
+        publicKey: key,
+        fields: [
+          CubeField.RawContent(CubeType.MUC, 'de potestate mea pugnant'),
+          CubeField.Date(1000006),  // acts as version counter
+        ],
+        requiredDifficulty,
+      });
+      await net.recipient.cubeStore.addCube(recipientUpdate);
+
+      // After some propagation time, sender should have adopted the recipient's
+      // version as it is newer.
+      expect(await waitForMucContent(
+        net.sender.cubeStore, key, 'de potestate mea pugnant')).
+          toBe(true);
+
+      // Allow for some more propagation time
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Recipient on the other hand should have ignored the sender's update
+      // as it is older.
+      expect((await net.recipient.cubeStore.getCube(key)).getFirstField(
+        CubeFieldType.MUC_RAWCONTENT).valueString).
+          toContain('de potestate mea pugnant');
+    });
+
+    it('will stop receiving updates after a subscription is cancelled and expired', async () => {
+      // Fetch the recipient's current MUC version
+      const muc: Cube = await net.recipient.cubeStore.getCube(key);
+      // Fetch current subscription
+      const sub: CubeSubscription =
+        net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
+      // Cancel the subscription
+      net.recipient.networkManager.scheduler.cancelCubeSubscription(key);
+      // Wait for subscription expiry
+      await sub.promise;  // denotes expiry
+
+      // Sender updates the MUC once again
+      const updatedMuc = Cube.Create({
+        cubeType: CubeType.MUC,
+        privateKey,
+        publicKey: key,
+        fields: [
+          CubeField.RawContent(CubeType.MUC, 'nemo hunc nuntium videbit'),
+          CubeField.Date(1000007),  // acts as version counter
+        ],
+        requiredDifficulty,
+      });
+      await net.sender.cubeStore.addCube(updatedMuc);
+
+      // Allow some "propagation time" during which the update should *not*
+      // be delivered to the recipient as we cancelled the subscription
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Assert the recipient still possesses the old version
+      const recipientsLastVersion = await net.recipient.cubeStore.getCube(key);
+      expect(await recipientsLastVersion.getHash()).toEqual(await muc.getHash());
+    });
 
     afterAll(async () => {
       await net.shutdown();

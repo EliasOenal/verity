@@ -382,7 +382,7 @@ export class RequestScheduler {
    * What this currently does is to cancel the renewal once the current
    * subscription period expires.
    */
-  unsubscribeCube(keyInput: CubeKey | string): void {
+  cancelCubeSubscription(keyInput: CubeKey | string): void {
     const key = keyVariants(keyInput);
     const sub: CubeSubscription = this.subscribedCubes.get(key.keyString);
     if (sub !== undefined) sub.sup.shallRenew = false;
