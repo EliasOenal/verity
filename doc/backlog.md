@@ -29,6 +29,8 @@
   through the network the same way as MUC updates. Any Cube may be retracted,
   even frozen ones. This is probably necessary for certain usage scenarios
   to comply with European data protection law.
+  This is also required as the sole deletion feature on networks without
+  automatic Cube pruning.
 - Node communities: Allow Cubes to limit propagation to a certain community of
   nodes, e.g. European nodes run by academic institutions. This is useful
   for certain usage scenarios to comply with European data protection law.
