@@ -1,7 +1,7 @@
 import type { NetworkManagerIf } from "../../core/networking/networkManagerIf";
+import type { NetworkPeerIf } from '../../core/networking/networkPeerIf';
 
 import { NetworkPeer } from "../../core/networking/networkPeer";
-import { NetworkPeerIf } from 'core/networking/networkPeerIf';
 import { AddressAbstraction } from '../../core/peering/addressing';
 import { Peer } from "../../core/peering/peer";
 import { PeerDB } from '../../core/peering/peerDB';
