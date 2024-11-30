@@ -24,6 +24,7 @@ But still, let's collect some ideas:
 - Usenet
 - JS library to implement guestbooks/chats on static websites
 - Firebase alternative
+- Replicated file storage (need to optimise code and probably run a separate network with larger Cube sizes for this to make sense)
 
 ## User growth strategies
 ### Microblogging
