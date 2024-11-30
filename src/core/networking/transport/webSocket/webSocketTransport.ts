@@ -1,6 +1,7 @@
+import type { NetworkManagerOptions } from '../../networkManagerIf';
+
 import { VerityError } from "../../../settings";
-import { NetworkManager } from "../../networkManager";
-import { NetworkManagerOptions } from 'core/networking/networkManagerIf';
+
 import { NetworkTransport } from "../networkTransport";
 import { WebSocketServer } from "./webSocketServer";
 

@@ -1,12 +1,14 @@
+import type { NetworkPeerIf } from '../../core/networking/networkPeerIf';
+import type { PeerController, ShallDisplay } from "./peerController";
+
+import { NetworkPeerLifecycle } from '../../core/networking/networkPeerIf';
 import { Peer } from "../../core/peering/peer";
 import { NetworkPeer } from "../../core/networking/networkPeer";
-import { NetworkPeerLifecycle } from 'core/networking/networkPeerIf';
-import { NetworkPeerIf } from 'core/networking/networkPeerIf';
-import { logger } from "../../core/logger";
 import { VerityView } from "../verityView";
 import { unixtime } from "../../core/helpers/misc";
-import type { PeerController, ShallDisplay } from "./peerController";
 import { humanFileSize } from "../helpers/datetime";
+
+import { logger } from "../../core/logger";
 
 export class PeerView extends VerityView {
   private peerList: HTMLUListElement;

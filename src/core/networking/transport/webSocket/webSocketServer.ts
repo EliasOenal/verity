@@ -1,8 +1,8 @@
+import type { NetworkManagerOptions } from '../../networkManagerIf';
+
 import { WebSocketConnection } from "./webSocketConnection";
 
-import { NetworkManagerOptions } from 'core/networking/networkManagerIf';
 import { NetworkTransport } from "../networkTransport";
-import { NetworkPeer } from "../../networkPeer";
 import { TransportServer } from "../transportServer";
 
 import { AddressAbstraction, WebSocketAddress } from "../../../peering/addressing";
