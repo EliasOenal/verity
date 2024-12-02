@@ -205,6 +205,7 @@ export function shouldRetainCube(key: String, cubeDate: number, challengeLevel: 
 }
 
 export function keyVariants(keyInput: CubeKey | string | String): {keyString: string, binaryKey: CubeKey} {
+    if (!keyInput) return undefined;  // input sanity check
     let keyString: string, binaryKey: CubeKey;
     if (keyInput instanceof Buffer) {
       keyString = keyInput.toString('hex');

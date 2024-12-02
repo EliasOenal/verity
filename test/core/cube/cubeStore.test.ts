@@ -497,6 +497,15 @@ describe('cubeStore', () => {
         });  // edge cases adding Cubes
 
         describe('edge cases retrieving Cubes', () => {
+          it('should return undefined when the requesting a Cube or CubeInfo with a falsy key', async () => {
+            expect(await cubeStore.getCube(undefined)).toBeUndefined;
+            expect(await cubeStore.getCubeInfo(undefined)).toBeUndefined;
+            expect(await cubeStore.getCube('')).toBeUndefined;
+            expect(await cubeStore.getCubeInfo('')).toBeUndefined;
+            expect(await cubeStore.getCube(Buffer.alloc(0))).toBeUndefined;
+            expect(await cubeStore.getCubeInfo(Buffer.alloc(0))).toBeUndefined;
+          });
+
           it('should return undefined when requesting an unavailable Cube', async () => {
             const mockKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42);
             expect(await cubeStore.getCube(mockKey)).toBeUndefined;
