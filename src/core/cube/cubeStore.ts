@@ -314,7 +314,9 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
   }
 
   async getCubeInfo(keyInput: CubeKey | string, noLogErr: boolean = false): Promise<CubeInfo> {
+    // input normalisation
     const key = keyVariants(keyInput);
+    if (key === undefined) return undefined;
     // get from cache if we have it...
     const cached = this.cubesWeakRefCache?.get(key.keyString);
     if (cached?.valid)
