@@ -29,6 +29,7 @@ import { makePost } from '../../../src/app/zw/model/zwUtil';
 import { testCubeStoreParams } from '../testcci.definitions';
 
 import sodium from 'libsodium-wrappers-sumo'
+import { VerityError } from '../../../src/core/settings';
 
 // maybe TODO: Some tests here use "ZW" stuff from the microblogging app
 // which breaks the current layering.
@@ -716,6 +717,80 @@ describe('Identity', () => {
       }
     }, 5000);
   });  // local persistant storage tests
+
+  describe('edge cases', () => {
+    describe('constructing and running an Identity without CubeStore access', () => {
+      let id: Identity;
+
+      // running an Identity without CubeStore access severely limits functionality
+      // and is mainly used for unit testing
+      it('can construct an Identity from scratch and keep information in RAM without CubeStore access', async () => {
+        // create an Identity without CubeStore access
+        id = new Identity(
+          undefined,    // explicitly no CubeStore reference
+          Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42),  // master key
+          idTestOptions,
+        );
+
+        // store some information (in RAM only)
+        id.name = "Probator Identitatum";
+        id.rememberMyPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42));
+        id.rememberMyPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 13));
+        id.rememberMyPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 37));
+        id.avatar = new Avatar("4213374211", AvatarScheme.MULTIAVATAR);
+        id.addSubscriptionRecommendation(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43));
+        id.addSubscriptionRecommendation(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 44));
+        id.addSubscriptionRecommendation(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 45));
+
+        // compile to MUC
+        const muc: cciCube = await id.makeMUC();
+        expect(id.muc).toBe(muc);
+
+        // verify information
+        expect(id.name).toBe("Probator Identitatum");
+        expect(id.posts.length).toBe(3);
+        expect(id.posts).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42));
+        expect(id.posts).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 13));
+        expect(id.posts).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 37));
+        expect(id.avatar.seedString).toBe("4213374211");
+        expect(id.avatar.scheme).toBe(AvatarScheme.MULTIAVATAR);
+        expect(id.subscriptionRecommendations.length).toBe(3);
+        expect(id.subscriptionRecommendations).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43));
+        expect(id.subscriptionRecommendations).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 44));
+        expect(id.subscriptionRecommendations).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 45));
+      });
+
+      it('will parse an Identity MUC on construction but ignore any references to other Cubes', async() => {
+        // note that the previous test is required before running this one!
+        expect(id.muc).toBeInstanceOf(cciCube);
+
+        // restore an Identity from the MUC without providing a CubeStore reference
+        const restored: Identity = new Identity(
+          undefined,    // explicitly no CubeStore reference
+          id.muc,
+          idTestOptions,
+        );
+        await restored.ready;
+
+        // verify information restored from MUC
+        expect(restored.name).toBe("Probator Identitatum");
+        expect(restored.avatar.seedString).toBe("4213374211");
+        expect(restored.avatar.scheme).toBe(AvatarScheme.MULTIAVATAR);
+        // Note: No post references will be present in the restored
+        // Identity as our current implementation wants to fetch them before
+        // adding them to the restored Identity.
+
+        // Note: No subscription recommendations will be present in the restored
+        // Identity as those are currently always store in extension MUCs.
+        // We do not check for this though as a future implementation may and should
+        // store all Identity information in the base MUC as long as it fits.
+      });
+
+      it('will throw an Error when attempting to store the Identity', async () => {
+        await expect(async () => await id.store()).rejects.toThrow(VerityError);
+      });
+    });
+  });
 
   describe('static helpers', () => {
     describe('Create', () => {

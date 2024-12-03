@@ -203,6 +203,11 @@ export class Identity {
    * from the supplied MUC.
    * Usage note: Consider using Identity.retrieve() instead which automatically
    * handles loading existing Identities from local storage.
+   * @param [cubeStoreOrRetriever] Please provide your node's CubeStore or
+   *        CubeRetriever reference here. This param can be explicitly set to
+   *        undefined to run an Identity without CubeStore access; this however
+   *        severely limits functionality and is really only useful for unit
+   *        testing.
    * @param [mucOrMasterkey] Either a cryptographic key pair to create a new
    *        Identity with or a valid existing Identity MUC.
    *        Exisiting Identities can be loaded this way even if you don't have
@@ -307,6 +312,8 @@ export class Identity {
   /**
    * Identity requires CubeStore for loading and parsing Identity extension
    * Cubes as well as storing locally owned Identities.
+   * It can, however, also run in "read-only mode" without a CubeStore reference,
+   * which is mainly used for testing.
    **/
   readonly cubeStore: CubeStore;
   /**
@@ -407,7 +414,7 @@ export class Identity {
       // a destructor-like shutdown procedure.
       // TODO BUGBUG: This does not work as a renewed one-off prevents this object
       // form being garbage collected just as well as a regular subscription does.
-      this.cubeStore.once("cubeAdded",
+      this.cubeStore?.once("cubeAdded",
         cubeInfo => this.mergeRemoteChanges(cubeInfo));
     }
 
@@ -484,8 +491,12 @@ export class Identity {
    * (You could also provide a private cubeStore instead, but why should you?)
    */
   async store():Promise<cciCube>{
+    // sanity checks
+    if (this.cubeStore === undefined) {
+      throw new VerityError("Identity.store(): This Identity is running in read-only mode (i.e. does not have a CubeStore reference), thus store() is not possible.");
+    }
     if (!this.privateKey || !this.masterKey) {
-      throw new VerityError("Identity: Cannot store an Identity whose private and master key I don't have");
+      throw new VerityError("Identity.store(): Cannot store an Identity whose private and master key I don't have");
     }
     logger.trace("Identity: Storing identity " + this.name);
     const muc = await this.makeMUC();
@@ -541,6 +552,10 @@ export class Identity {
 
   // maybe TODO: make this a Generator instead?
   async recursiveWebOfSubscriptions(maxDepth: number = 1, curDepth: number = 0): Promise<CubeKey[]> {
+    // sanity checks
+    if (this.cubeRetriever === undefined) {
+      throw new VerityError("Identity.recursiveWebOfSubscriptions(): This Identity is running in read-only mode (i.e. does not have a CubeStore/CubeRetriever reference), thus recursiveWebOfSubscriptions() is not possible.");
+    }
     let recursiveSubs: CubeKey[] = this.subscriptionRecommendations;
     if (curDepth < maxDepth) {
       for (const sub of this._subscriptionRecommendations) {
@@ -627,7 +642,7 @@ export class Identity {
     }
 
     // Write subscription recommendations
-    // (these will be in there own sub-MUCs and we'll reference the first one
+    // (these will be in their own sub-MUCs and we'll reference the first one
     // of those here)
     this.writeSubscriptionRecommendations();
     if (this.subscriptionRecommendationIndices.length) {  // any subs at all?
@@ -859,7 +874,7 @@ export class Identity {
   // TODO: implement an actual merge
   private mergeRemoteChanges(incoming: CubeInfo): void {
     // renew subscription
-    this.cubeStore.once("cubeAdded",
+    this.cubeStore?.once("cubeAdded",
       cubeInfo => this.mergeRemoteChanges(cubeInfo));
     // check if this is even our MUC
     if (!this.key ||  // can't perform merge if we don't even know our own key
@@ -891,6 +906,11 @@ export class Identity {
       mucOrMucExtension: Cube,
       alreadyTraversedCubes: string[] = []
   ): Promise<void> {
+    // sanity check
+    if (this.cubeRetriever === undefined) {
+      logger.error("Identity.recursiveParseSubscriptionRecommendations(): This Identity is running in read-only mode (i.e. does not have a CubeRetriever reference), thus recursiveParseSubscriptionRecommendations() is not possible.");
+      return;
+    }
     // do we even have this cube?
     if (!mucOrMucExtension) return;
     // have we been here before? avoid endless recursion
@@ -931,6 +951,11 @@ export class Identity {
       mucOrMucExtension: Cube,
       alreadyTraversedCubes: string[],  // TODO make this a Set
   ): Promise<void> {
+    // sanity check
+    if (this.cubeRetriever === undefined) {
+      logger.warn("Identity.recursiveParsePostReferences(): This Identity is running in read-only mode (i.e. does not have a CubeRetriever reference), thus posts will not be parsed.");
+      return;
+    }
     // do we even have this cube?
     if (!mucOrMucExtension) {
       // Nothing to do here, so just return a resolved promise
@@ -969,7 +994,7 @@ export class Identity {
         postPromise.then((postInfo: CubeInfo) => {
           if (!postInfo) {  // skip posts we don't actually have
             // TODO: reconsider whether this is actually a good idea.
-            // A user's post is after all still this user's post even if it happen
+            // A user's post is after all still this user's post even if it happens
             // not to be available at this moment...
             logger.trace(`Identity.recursiveParsePostReferences(): While reconstructing the post list of Identity ${this.keyString} I'll skip post ${postrel.remoteKeyString} as I can't find it.`);
             return recursionResolve();
