@@ -59,29 +59,43 @@
   - PMUC refresh... and whatever else that thing does again
   - whatever I forgot to mention here
 
+### Release Features for Full Nodes
+- Activate Store pruning
+- Dynamically determine minimum challenge difficulty and enforce it
+- Fix any regularly executed code (e.g. network requests) that scales O(n) with the number of Cubes
+
+## API
+### Typescript
+- Provide selective exports of APIs intended for public use, as it customary
+  for JS/TS modules
+
+### Other languages
+- Either provide API bindings, or make Verity Core a microservice which the
+  application can connect to
+
+
 # CCI
-- Implement Cube encryption
-- Implement continuation chains
 
 ## CCI Identity
 - Support umbrella identities linking together a user's profiles over multiple
   Verity apps.
 - Implement merge of remote changes. Problem: How to deal with deletions?
 
+
 # UI Framework
 - Move Verity node to a (shared) WebWorker (comlink)
 
+
 # Microblogging app
+- Make it work again by selectively requesting Cubes rather than walking the
+  whole store.
 - PWA: Rework service worker to auto-update cached assets
 - Show user's profiles and their posts
 - Allow further customization of profiles, e.g. with a short introductory text
 - Implement post groups, e.g. hash tags
 - QR codes for adding / subscribing to local friends
 
-# Release Features for Full Nodes
-- Activate Store pruning
-- Dynamically determine minimum challenge difficulty and enforce it
-- Fix any regularly executed code (e.g. network requests) that scales O(n) with the number of Cubes
+
 
 # Other global TODOs
 ...?
