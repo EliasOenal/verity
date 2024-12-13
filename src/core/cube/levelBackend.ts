@@ -133,7 +133,7 @@ export class LevelBackend {
     key = this.ifMemoryLevelCopyBuffer(key);
     return subDB.put(key, value)
       .then(() => {
-        logger.trace(`LevelBackend: Successfully stored ${keyVariants(key).keyString} in sublevel ${Sublevels[sublevel] ?? sublevel}`);
+        // logger.trace(`LevelBackend: Successfully stored ${keyVariants(key).keyString} in sublevel ${Sublevels[sublevel] ?? sublevel}`);
       })
       .catch((error) => {
         logger.error(`LevelBackend: Failed to store ${keyVariants(key).keyString} in sublevel ${Sublevels[sublevel] ?? sublevel}: ${error}`);
