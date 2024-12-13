@@ -508,8 +508,10 @@ export class RequestScheduler {
       millis = this.options.requestInterval * this.calcRequestScaleFactor();
     }
     if (this.cubeRequestTimer.set(millis)) {
-      logger.trace(`RequestScheduler.scheduleCubeRequest(): scheduled next Cube request in ${millis} ms`);
-    } else logger.trace(`RequestScheduler.scheduleCubeRequest(): I was called to schedule the next request in ${millis}ms, but there's already one scheduled in ${this.cubeRequestTimer.getRemainingTime()}ms`);
+      // logger.trace(`RequestScheduler.scheduleCubeRequest(): scheduled next Cube request in ${millis} ms`);
+    } else {
+      // logger.trace(`RequestScheduler.scheduleCubeRequest(): I was called to schedule the next request in ${millis}ms, but there's already one scheduled in ${this.cubeRequestTimer.getRemainingTime()}ms`);
+    }
     return true;
   }
 
@@ -518,15 +520,17 @@ export class RequestScheduler {
     if (this._shutdown) return false;
 
     if (this.options.lightNode) {
-      logger.trace(`RequestScheduler.scheduleKeyRequest() called as a light node, this is wrong; doing nothing`);
+      logger.info(`RequestScheduler.scheduleKeyRequest() called as a light node, this is wrong; doing nothing`);
       return false;
     }
     if (millis === undefined) {
       millis = this.options.requestInterval * this.calcRequestScaleFactor();
     }
     if (this.keyRequestTimer.set(millis)) {
-      logger.trace(`RequestScheduler.scheduleKeyRequest(): scheduled next key request in ${millis} ms`);
-    } else logger.trace(`RequestScheduler.scheduleKeyRequest(): I was called to schedule the next request in ${millis}ms, but there's already one scheduled in ${this.keyRequestTimer.getRemainingTime()}ms`);
+      // logger.trace(`RequestScheduler.scheduleKeyRequest(): scheduled next key request in ${millis} ms`);
+    } else {
+      // logger.trace(`RequestScheduler.scheduleKeyRequest(): I was called to schedule the next request in ${millis}ms, but there's already one scheduled in ${this.keyRequestTimer.getRemainingTime()}ms`);
+    }
     return true;
   }
 
