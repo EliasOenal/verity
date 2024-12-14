@@ -5,6 +5,7 @@ import type { Identity } from "../cci/identity/identity";
 import { DummyVerityNode, type VerityNode, type VerityNodeIf } from "../core/verityNode";
 import type { CubeStore } from "../core/cube/cubeStore";
 import { DummyNavController, type NavControllerIf, type NavItem } from "./navigation/navigationDefinitions";
+import { CubeRetriever } from "../core/networking/cubeRetrieval/cubeRetriever";
 
 /**
  * The interface a controller's parent object needs to provide;
@@ -44,6 +45,7 @@ export interface VerityControllerOptions {
 export class VerityController {
   public contentAreaView: VerityView = undefined;
   get cubeStore(): CubeStore { return this.parent.node.cubeStore }
+  get cubeRetriever(): CubeRetriever { return this.parent.node.cubeRetriever }
   get identity(): Identity { return this.parent.identity }
 
   constructor(

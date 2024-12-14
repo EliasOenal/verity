@@ -74,12 +74,12 @@ export class IdentityController extends VerityController {
       (form.querySelector(".verityPasswordInput") as HTMLInputElement).value;
     // TODO: enforce some minimum length for both
     let identity: Identity = await Identity.Load(
-      this.cubeStore, username, password, this.options);
+      this.cubeRetriever, username, password, this.options);
     if (identity instanceof Identity) {
       identity.persistance.store(identity);  // don't use identity.store() to avoid MUC rebuild
     } else {
       identity = await Identity.Create(
-        this.cubeStore, username, password, this.options);
+        this.cubeRetriever, username, password, this.options);
       identity.name = username;  // TODO separate username and display name
       identity.store();
     }
@@ -153,7 +153,7 @@ export class IdentityController extends VerityController {
   // Business logic invocation methods
   //***
   async loadLocal(): Promise<boolean> {
-    const idlist: Identity[] = await Identity.Retrieve(this.cubeStore, this.options);
+    const idlist: Identity[] = await Identity.Retrieve(this.cubeRetriever, this.options);
     let identity: Identity = undefined;
     if (idlist?.length) identity = idlist[0];
     this.showLoginStatus();
