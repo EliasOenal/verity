@@ -58,6 +58,9 @@
   - PIC refresh
   - PMUC refresh... and whatever else that thing does again
   - whatever I forgot to mention here
+- Implement mergeable Cubes, either as a common CCI building block or maybe even
+  as their own Cube type.
+  - Main challenge here is how to implement deletions. Maybe using a Lamport clock?
 
 ### Release Features for Full Nodes
 - Activate Store pruning
@@ -79,7 +82,10 @@
 ## CCI Identity
 - Support umbrella identities linking together a user's profiles over multiple
   Verity apps.
-- Implement merge of remote changes. Problem: How to deal with deletions?
+- Implement merge of remote changes.
+  - Problem: How to deal with deletions?
+  - Even better than implementing this in Identity would be to implement it as
+    a common CCI building block, or even as a separate Cube type.
 
 
 # UI Framework
