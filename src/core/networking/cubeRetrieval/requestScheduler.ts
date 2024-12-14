@@ -606,8 +606,8 @@ export class RequestScheduler {
     for (const binaryCube of binaryCubes) {
       // first of all, activate this Cube
       const cube = this.networkManager.cubeStore.activateCube(binaryCube);
-      const keyString = await cube.getKeyString();
       if (cube === undefined) continue;  // drop this Cube if it's not valid
+      const keyString = await cube.getKeyString();
 
       // If we're a light node, check if we're even interested in this Cube
       if (this.options.lightNode) {
