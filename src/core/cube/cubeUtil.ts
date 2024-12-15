@@ -270,7 +270,9 @@ export function activateCube<cubeClass extends Cube>(
     try {
       cube = new family.cubeClass(binaryCube, { family: family });
       break;
-    } catch (err) { /* do nothing, just try next one */ }
+    } catch (err) {
+      undefined; // do nothing, just try next one
+    }
   }
   if (cube === undefined) {
       logger.info('activateCube(): Could not activate Cube using any of the supplied CubeFamily settings');
