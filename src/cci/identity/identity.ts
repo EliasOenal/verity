@@ -289,6 +289,19 @@ export class Identity {
     return true;  // all checks passed
   }
 
+  static KeyOf(identity: Identity|Buffer|string): CubeKey {
+    if (Buffer.isBuffer(identity)) return identity;
+    else if (identity instanceof Identity) return identity.key;
+    else if (typeof identity === 'string') return Buffer.from(identity, 'hex');
+    else throw new TypeError(`Identity.KeyString(): unknown type ${typeof identity}`);
+  }
+  static KeyStringOf(identity: Identity|Buffer|string): string {
+    if (Buffer.isBuffer(identity)) return identity.toString('hex');
+    else if (identity instanceof Identity) return identity.keyString;
+    else if (typeof identity === 'string') return identity;
+    else throw new TypeError(`Identity.KeyStringOf(): unknown type ${typeof identity}`);
+  }
+
   /** @member This Identity's display name */
   name: string = undefined;
 
