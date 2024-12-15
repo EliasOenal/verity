@@ -1,11 +1,12 @@
-import { logger } from '../logger';
-import { Cube, coreCubeFamily } from './cube'
+import { ApiMisuseError } from '../settings';
+
 import { CubeType, CubeKey } from './cube.definitions';
+import { Cube, coreCubeFamily } from './cube'
 import { CubeFamilyDefinition } from './cubeFields';
+import { activateCube, dateFromBinary, typeFromBinary } from './cubeUtil';
 
 import { Buffer } from 'buffer';
-import { ApiMisuseError } from '../settings';
-import { dateFromBinary, typeFromBinary } from './cubeUtil';
+import { logger } from '../logger';
 
 /**
  * @interface CubeMeta is a restricted view on CubeInfo containing metadata only.
@@ -199,7 +200,7 @@ export class CubeInfo {
    */
   getCube(
       families: CubeFamilyDefinition|CubeFamilyDefinition[] = this.families,
-  ): Cube | undefined {
+  ): Cube {
     // normalise input
     if (!Array.isArray(families)) families = [families];
     // Keep returning the same Cube object until it gets garbage collected.
@@ -217,20 +218,21 @@ export class CubeInfo {
     }
 
     // Nope, no Cube object cached. Create a new one and remember it.
-    // Try to parse binary Cube using our family settings in order of precedence
-    for (const family of families) {
-      try {
-        const cube = new family.cubeClass(this.binaryCube, {family: family});
-        // Can only cache object when using default Cube family
-        if (family === this.families[0]) {
-          this.objectCache = new WeakRef(cube);
-        }
-        return cube;
-      } catch (err) { /* do nothing, just try next one */ }
-    }
+    const cube = activateCube(this.binaryCube, families);
+
     // Still not returned? Looking bad then.
-    logger.error(`${this.toString()}: Could not instantiate Cube using any configured family setting`);
-    return undefined;
+    if (cube === undefined) {
+      logger.error(`${this.toString()}: Could not instantiate Cube using any configured family setting`);
+      return undefined;
+    }
+
+    // Let's cache the new Cube object --
+    // however, we can only do that when using the default Cube family
+    if (cube.family === this.families[0]) {
+      this.objectCache = new WeakRef(cube);
+    }
+
+    return cube;
   }
 
   toString(): string { return `CubeInfo for ${this.keyString}` }
