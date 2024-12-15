@@ -269,7 +269,7 @@ export function activateCube(
   for (const family of families) {
     try {
       cube = new family.cubeClass(binaryCube, { family: family });
-    break;
+      break;
     } catch (err) { /* do nothing, just try next one */ }
   }
   if (cube === undefined) {
