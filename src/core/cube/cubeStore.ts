@@ -355,12 +355,12 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
    *        re-parsed. The CubeInfo is supposed to know which parser to use,
    *        but you can override it here if you want.
    */
-  async getCube(
+  async getCube<cubeClass extends Cube>(
     key: CubeKey | string,
     family: CubeFamilyDefinition|CubeFamilyDefinition[] = undefined // undefined = will use CubeInfo's default
-  ): Promise<Cube> {
+  ): Promise<cubeClass> {
     const cubeInfo: CubeInfo = await this.getCubeInfo(key);
-    if (cubeInfo) return cubeInfo.getCube(family);
+    if (cubeInfo) return cubeInfo.getCube<cubeClass>(family);
     else return undefined;
   }
 
