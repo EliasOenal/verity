@@ -198,9 +198,9 @@ export class CubeInfo {
    *  unparseable.
    * @throws Should not throw.
    */
-  getCube(
+  getCube<cubeClass extends Cube>(
       families: CubeFamilyDefinition|CubeFamilyDefinition[] = this.families,
-  ): Cube {
+  ): cubeClass {
     // normalise input
     if (!Array.isArray(families)) families = [families];
     // Keep returning the same Cube object until it gets garbage collected.
@@ -210,7 +210,7 @@ export class CubeInfo {
         const cachedCube: Cube = this.objectCache.deref();
         if (cachedCube) {
           // logger.trace("cubeInfo: Yay! Saving us one instantiation");
-          return this.objectCache.deref();
+          return this.objectCache.deref() as cubeClass;
         }
       } else {
         logger.trace(`${this.toString()}: Re-instantiating Cube instead of using cached instance due to diverging CubeFamily setting`);
@@ -218,7 +218,7 @@ export class CubeInfo {
     }
 
     // Nope, no Cube object cached. Create a new one and remember it.
-    const cube = activateCube(this.binaryCube, families);
+    const cube: cubeClass = activateCube(this.binaryCube, families);
 
     // Still not returned? Looking bad then.
     if (cube === undefined) {

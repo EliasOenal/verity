@@ -260,10 +260,10 @@ export function paddedBuffer(content: string | Buffer = "", length: number): Buf
   return buf;
 }
 
-export function activateCube(
+export function activateCube<cubeClass extends Cube>(
     binaryCube: Buffer,
     families: Iterable<CubeFamilyDefinition>,
-): Cube {
+): cubeClass {
   // try to reactivate Cube using one of my supported family settings
   let cube: Cube;
   for (const family of families) {
@@ -275,7 +275,7 @@ export function activateCube(
   if (cube === undefined) {
       logger.info('activateCube(): Could not activate Cube using any of the supplied CubeFamily settings');
   }
-  return cube;
+  return cube as cubeClass;
 }
 
 /**

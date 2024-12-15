@@ -87,7 +87,7 @@ describe('Identity', () => {
 
       // perform actual test:
       // restore the Identity from the stored MUC
-      const restoredMuc: cciCube = await cubeStore.getCube(idkey) as cciCube;
+      const restoredMuc: cciCube = await cubeStore.getCube(idkey);
       expect(restoredMuc).toBeInstanceOf(cciCube);
       const restored: Identity = await Identity.Construct(cubeStore, restoredMuc)
       expect(restored.posts.length).toEqual(TESTPOSTCOUNT);
