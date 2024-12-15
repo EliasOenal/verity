@@ -56,14 +56,17 @@ describe('Identity', () => {
 
   describe('own posts', () => {
     it('restores its post list recursively', async () => {
+      // test prep:
       const TESTPOSTCOUNT = 50;  // 50 keys are more than guaranteed not to fit in the MUC
       const testPostKeys: string[] = [];
 
+      // create a test Identity
       const original: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       original.name = "Probator memoriae tabellae";
       const idkey = original.publicKey;
 
+      // make some test posts
       for (let i=0; i<TESTPOSTCOUNT; i++) {
         const post: cciCube = await makePost("I got " + (i+1).toString() + " important things to say", undefined, original, reducedDifficulty);
         const key: CubeKey = post.getKeyIfAvailable();
@@ -73,14 +76,20 @@ describe('Identity', () => {
         testPostKeys.push(keyString);
         await cubeStore.addCube(post);
       }
+      // just a few sanity checks to verify the test setup
       expect(original.posts.length).toEqual(TESTPOSTCOUNT);
       expect(testPostKeys.length).toEqual(TESTPOSTCOUNT);
 
+      // store the test Identity
       await original.store();
       const muc: cciCube = original.muc;
       await cubeStore.addCube(muc);
 
-      const restored: Identity = await Identity.Construct(cubeStore, await cubeStore.getCube(idkey) as cciCube)
+      // perform actual test:
+      // restore the Identity from the stored MUC
+      const restoredMuc: cciCube = await cubeStore.getCube(idkey) as cciCube;
+      expect(restoredMuc).toBeInstanceOf(cciCube);
+      const restored: Identity = await Identity.Construct(cubeStore, restoredMuc)
       expect(restored.posts.length).toEqual(TESTPOSTCOUNT);
       for (let i=0; i<restored.posts.length; i++) {
         const restoredPostKey: string = restored.posts[i].toString('hex');
