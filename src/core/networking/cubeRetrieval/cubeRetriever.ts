@@ -44,12 +44,13 @@ export class CubeRetriever implements CubeRetrievalInterface {
     }
   }
 
-  async getCube(
+  async getCube<cubeClass extends Cube>(
       key: CubeKey | string,
       family: CubeFamilyDefinition = undefined,  // undefined = will use CubeInfo's default
       options: CubeRequestOptions = undefined,  // undefined = will use RequestScheduler's default
-  ): Promise<Cube> {
-    return (await this.getCubeInfo(key, options))?.getCube(family);
+  ): Promise<cubeClass> {
+    const cubeInfo = await this.getCubeInfo(key, options);
+    return cubeInfo?.getCube<cubeClass>(family);
   }
 
   /**

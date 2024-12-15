@@ -90,7 +90,7 @@ export type CubeIteratorOptions = {
 
 export interface CubeRetrievalInterface {
   getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo>;
-  getCube(key: CubeKey | string, family?: CubeFamilyDefinition): Promise<Cube>;
+  getCube<cubeClass extends Cube>(key: CubeKey | string, family?: CubeFamilyDefinition): Promise<cubeClass>;
   expectCube(keyInput: CubeKey|string): Promise<CubeInfo>;  // maybe TODO: add timeout?
 }
 
