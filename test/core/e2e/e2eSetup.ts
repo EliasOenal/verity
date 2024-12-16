@@ -3,6 +3,8 @@ import { AddressAbstraction, WebSocketAddress } from "../../../src/core/peering/
 import { VerityNode, VerityNodeOptions } from "../../../src/core/verityNode";
 import { testCoreOptions } from "../testcore.definition";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 export class LineShapedNetwork {
   constructor(
     public sender: VerityNode,

@@ -1,5 +1,7 @@
 import type { NetworkPeerIf } from 'core/networking/networkPeerIf';
 
+import { VerityError } from '../../../src/core/settings';
+
 import { CubeKey } from '../../../src/core/cube/cube.definitions';
 import { CubeStore, CubeStoreOptions } from '../../../src/core/cube/cubeStore';
 import { Cube } from '../../../src/core/cube/cube'
@@ -29,7 +31,7 @@ import { makePost } from '../../../src/app/zw/model/zwUtil';
 import { testCubeStoreParams } from '../testcci.definitions';
 
 import sodium from 'libsodium-wrappers-sumo'
-import { VerityError } from '../../../src/core/settings';
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 // maybe TODO: Some tests here use "ZW" stuff from the microblogging app
 // which breaks the current layering.

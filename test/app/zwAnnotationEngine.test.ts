@@ -13,9 +13,8 @@ import { Identity, IdentityOptions } from "../../src/cci/identity/identity";
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zw/model/zwAnnotationEngine";
 import { makePost } from "../../src/app/zw/model/zwUtil"
 
-import { vi } from 'vitest'
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
-
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe('ZwAnnotationEngine', () => {
   let cubeStore: CubeStore;

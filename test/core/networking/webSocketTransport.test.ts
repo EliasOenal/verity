@@ -3,6 +3,8 @@ import { WebSocketServer } from "../../../src/core/networking/transport/webSocke
 import { WebSocketTransport } from "../../../src/core/networking/transport/webSocket/webSocketTransport";
 import { WebSocketAddress } from "../../../src/core/peering/addressing";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('WebSocket transport', () => {
   it('should transmit messages between client to server', async () => {
     // Manually create a WebSocket server

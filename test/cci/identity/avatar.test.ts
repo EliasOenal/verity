@@ -4,6 +4,8 @@ import { cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { cciField } from "../../../src/cci/cube/cciField";
 import { Avatar, AvatarScheme, AvatarSeedLength, UNKNOWNAVATAR } from "../../../src/cci/identity/avatar";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('Avatar class', () => {
   describe('Constructor', () => {
     it('Should create a random avatar when called with "true"', () => {
@@ -152,13 +154,11 @@ describe('Avatar class', () => {
     it('Should ensure seed has the correct length', () => {
       const avatar = new Avatar(true); // Creating an avatar with a random seed
       const field = avatar.toField();
-      if (field) {
-        const expectedLength = AvatarSeedLength[avatar.scheme] + 1;
-        expect(field.length).toBe(expectedLength);
-        expect(field.value.length).toBe(expectedLength);
-      } else {
-        fail('Unexpected undefined value for cciField.');
-      }
+
+      expect(field).toBeDefined();
+      const expectedLength = AvatarSeedLength[avatar.scheme] + 1;
+      expect(field.length).toBe(expectedLength);
+      expect(field.value.length).toBe(expectedLength);
     });
   });
 

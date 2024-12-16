@@ -22,7 +22,7 @@ import { CubeStore, CubeStoreOptions } from "../../../../src/core/cube/cubeStore
 
 import { PeerDB } from "../../../../src/core/peering/peerDB";
 
-import { vi, it } from 'vitest'
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 const reducedDifficulty = 0;
 

@@ -3,6 +3,8 @@ import { WebSocketAddress } from '../../src/core/peering/addressing';
 import { Peer } from '../../src/core/peering/peer';
 import { PeerDB } from '../../src/core/peering/peerDB';
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe ('PeerDB', () => {
     it.skip('should get peers from multiple trackers', async () => {
         const peerDB: PeerDB = new PeerDB();

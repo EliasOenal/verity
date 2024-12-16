@@ -4,6 +4,8 @@ import { Libp2pTransport } from "../../../src/core/networking/transport/libp2p/l
 
 import { Multiaddr, multiaddr } from '@multiformats/multiaddr'
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('libp2p transport', () => {
   it('should transmit messages between client to server', async () => {
     // Manually create a WebSocket server

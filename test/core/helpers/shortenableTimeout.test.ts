@@ -1,6 +1,6 @@
 import { ShortenableTimeout } from "../../../src/core/helpers/shortenableTimeout";
 
-import { vi } from 'vitest'
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe("ShortenableTimeout", () => {
   let shortenableTimeout: ShortenableTimeout;
@@ -9,7 +9,7 @@ describe("ShortenableTimeout", () => {
     shortenableTimeout = new ShortenableTimeout(vi.fn());
   });
 
-  it("should execute callback after specified delay", (done) => {
+  it("should execute callback after specified delay", () => new Promise<void>(done => {
     const delay = 100; // 100 milliseconds
     const callback = vi.fn();
 
@@ -22,9 +22,9 @@ describe("ShortenableTimeout", () => {
       expect(callback).toHaveBeenCalled();
       done();
     }, delay + 10);
-  });
+  }));
 
-  it("should replace timeout if requested delay is shorter than remaining time", (done) => {
+  it("should replace timeout if requested delay is shorter than remaining time",  () => new Promise<void>(done => {
     const delay1 = 100;
     const delay2 = 50;
 
@@ -41,9 +41,9 @@ describe("ShortenableTimeout", () => {
       expect(callback).toHaveBeenCalledTimes(1);
       done();
     }, delay2 + 10);
-  });
+  }));
 
-  it("should ignore setTimeout request if new delay is longer than previous one", (done) => {
+  it("should ignore setTimeout request if new delay is longer than previous one",  () => new Promise<void>(done => {
     const delay1 = 100;
     const delay2 = 200;
 
@@ -60,9 +60,9 @@ describe("ShortenableTimeout", () => {
       expect(callback).toHaveBeenCalledTimes(1);
       done();
     }, delay1 + 10);
-  });
+  }));
 
-  it("should ignore setTimeout request if new delay is longer than time remaining on the previous one", (done) => {
+  it("should ignore setTimeout request if new delay is longer than time remaining on the previous one",  () => new Promise<void>(done => {
     const delay1 = 300;
     const delay2 = 200;
 
@@ -89,9 +89,9 @@ describe("ShortenableTimeout", () => {
       expect(callback).toHaveBeenCalledTimes(1);
       done();
     }, delay1 + delay2 + 10);
-  });
+  }));
 
-  it('should set a new timeout if the previous one has already fired', (done) => {
+  it('should set a new timeout if the previous one has already fired',  () => new Promise<void>(done => {
     const delay = 50;
     const callback = vi.fn();
 
@@ -110,6 +110,6 @@ describe("ShortenableTimeout", () => {
       expect(callback).toHaveBeenCalledTimes(2);
       done();
     }, 4*delay);
-  });
+  }));
 
 });

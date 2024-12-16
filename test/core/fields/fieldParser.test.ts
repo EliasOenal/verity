@@ -10,6 +10,8 @@ import { cciFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../../s
 import { cciField } from "../../../src/cci/cube/cciField";
 import { cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('fieldParser', () => {
   describe('positional field tests with synthetic field description', () => {
     // any similarities with CubeFieldTypes, living or dead, are purely coincidental

@@ -2,15 +2,15 @@ import { cciCube } from "../../../src/cci/cube/cciCube";
 import { cciFieldLength, cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { cciField } from "../../../src/cci/cube/cciField";
 import { CubeFieldType, CubeType, HasNotify, HasSignature } from "../../../src/core/cube/cube.definitions";
+import { typeFromBinary } from "../../../src/core/cube/cubeUtil";
 import { enumNums } from "../../../src/core/helpers/misc";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
-import sodium from 'libsodium-wrappers-sumo'
-
 import pkg from 'js-sha3';  // strange standards compliant syntax for importing
-import { CubeField } from "../../../src/core/cube/cubeField";
-import { typeFromBinary } from "../../../src/core/cube/cubeUtil";
 const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
+
+import sodium from 'libsodium-wrappers-sumo'
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 const reducedDifficulty = 0;
 

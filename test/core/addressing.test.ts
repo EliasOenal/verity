@@ -1,6 +1,8 @@
 import { SupportedTransports, AddressError } from "../../src/core/networking/networkDefinitions";
 import { AddressAbstraction, WebSocketAddress } from "../../src/core/peering/addressing";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('AddressAbstraction', () => {
   describe('CreateAddress', () => {
     it('should return undefined for empty address', () => {

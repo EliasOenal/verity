@@ -5,6 +5,8 @@ import { Identity } from "../../../src/cci/identity/identity";
 import { Veritum } from "../../../src/cci/veritum/veritum";
 import { cciLineShapedNetwork } from "./e2eCciSetup";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('Transmission of encrypted Verita', () => {
     describe('Publishing and encrypted Veritum for a single recipient', () => {
     let net: cciLineShapedNetwork;

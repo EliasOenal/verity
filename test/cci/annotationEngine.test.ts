@@ -7,6 +7,7 @@ import { cciCube } from '../../src/cci/cube/cciCube';
 import { AnnotationEngine, defaultGetFieldsFunc } from '../../src/cci/annotationEngine';
 
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe('annotationEngine', () => {
   let cubeStore: CubeStore;

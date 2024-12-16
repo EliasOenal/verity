@@ -9,6 +9,8 @@ import { VerityError } from "../../../src/core/settings";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { calculateHash } from "../../../src/core/cube/cubeUtil";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('NetworkMessage', () => {
   describe('fromBinary() static method', () => {
     it('should create a valid Hello message', () => {

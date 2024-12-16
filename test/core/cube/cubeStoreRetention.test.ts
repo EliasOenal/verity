@@ -4,6 +4,8 @@ import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { CubeType } from '../../../src/core/cube/cube.definitions';
 import { CubeField } from '../../../src/core/cube/cubeField';
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('CubeStore Retention Policy', () => {
     let cubeStore: CubeStore;
     const reducedDifficulty = 0;

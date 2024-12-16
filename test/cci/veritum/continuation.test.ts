@@ -15,6 +15,8 @@ import { PeerDB } from "../../../src/core/peering/peerDB";
 
 import { evenLonger, farTooLong, tooLong } from "../testcci.definitions";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('Continuation', () => {
   describe('manual splitting tests', () => {
     it('splits a single oversized payload field into two Cubes', async () => {

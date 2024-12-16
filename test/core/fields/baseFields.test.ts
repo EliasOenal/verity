@@ -6,6 +6,8 @@ import { CoreFrozenFieldDefinition } from "../../../src/core/cube/cubeFields";
 import { CubeFieldType, CubeType } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('baseFields', () => {
   // any similarities with CubeFieldTypes, living or dead, are purely coincidental
   enum TestFieldType {

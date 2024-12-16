@@ -13,6 +13,7 @@ import { Cube } from "../../../src/core/cube/cube";
 import { idTestOptions, requiredDifficulty } from "../testcci.definitions";
 
 import sodium from "libsodium-wrappers-sumo";
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe("Identity (MUC storage)", () => {
   let cubeStore: CubeStore;

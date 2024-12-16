@@ -13,6 +13,8 @@ import { WebSocketAddress } from "../../../../src/core/peering/addressing";
 import { Peer } from "../../../../src/core/peering/peer";
 import { PeerDB } from "../../../../src/core/peering/peerDB";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 let local: NetworkManager;
 let remote: NetworkManager;
 let cubeRetriever: CubeRetriever;

@@ -6,6 +6,8 @@ import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import type { FieldParser } from "../../../src/core/fields/fieldParser";
 import { coreCubeFamily } from "../../../src/core/cube/cube";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('CubeFields compilation and decompilation using rawCubeFamily', () => {
   enumNums(CubeType).forEach((type) => {  // perform the tests for every CubeType
     describe(`CubeType.${CubeType[type]}`, () => {

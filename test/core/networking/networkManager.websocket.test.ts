@@ -25,6 +25,8 @@ import WebSocket from 'isomorphic-ws';
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { CubeResponseMessage } from '../../../src/core/networking/networkMessage';
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 // Note: Most general functionality concerning NetworkManager, NetworkPeer
 // etc is described within the WebSocket tests while the libp2p tests are more
 // focused on asserting the libp2p framework integrates into Verity as expected.

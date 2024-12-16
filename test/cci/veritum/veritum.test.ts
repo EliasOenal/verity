@@ -10,6 +10,8 @@ import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { tooLong } from "../testcci.definitions";
 import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 const requiredDifficulty = 0;
 
 describe('Veritum', () => {

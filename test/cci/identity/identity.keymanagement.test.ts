@@ -6,6 +6,7 @@ import { CubeStore, CubeStoreOptions } from "../../../src/core/cube/cubeStore";
 import { testCubeStoreParams, idTestOptions } from "../testcci.definitions";
 
 import sodium from 'libsodium-wrappers-sumo'
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe('Identity (key management)', () => {
   let cubeStore: CubeStore;
