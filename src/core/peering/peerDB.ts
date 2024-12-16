@@ -1,6 +1,6 @@
-import { AddressError, SupportedTransports } from '../networking/networkDefinitions';
+import { Settings } from '../settings';
+
 import { fibonacci, unixtime } from '../helpers/misc';
-import { Settings, VerityError } from '../settings';
 
 import { WebSocketAddress } from './addressing';
 import { Peer } from './peer';
