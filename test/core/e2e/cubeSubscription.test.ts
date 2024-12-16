@@ -11,6 +11,7 @@ import { requiredDifficulty } from "../testcore.definition";
 import { LineShapedNetwork } from "./e2eSetup";
 
 import sodium from 'libsodium-wrappers-sumo';
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe('Cube subscription e2e tests', () => {
   describe('test group 1', () => {

@@ -6,6 +6,7 @@ import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { idTestOptions, requiredDifficulty } from "../testcci.definitions";
 
 import sodium from "libsodium-wrappers-sumo";
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe("Identity (separate MUC storage test suite for long-running tests)", () => {
   let cubeStore: CubeStore;

@@ -8,6 +8,8 @@ import { cciRelationshipType } from "../../src/cci/cube/cciRelationship";
 
 import { makePost, assertZwCube } from "../../src/app/zw/model/zwUtil";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('makePost function', () => {
   it('should create a basic post', async () => {
     const text = 'Habeo res importantes dicere';

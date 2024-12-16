@@ -3,6 +3,8 @@ import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeFields, CoreFrozenFieldDefinition, CoreMucFieldDefinition } from "../../../src/core/cube/cubeFields";
 import { CubeFieldType, CubeType } from "../../../src/core/cube/cube.definitions";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('CubeFields', () => {
   describe('static creation methods', () => {
     describe('static method Frozen', () => {

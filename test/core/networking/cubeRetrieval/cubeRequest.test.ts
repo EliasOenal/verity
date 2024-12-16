@@ -1,6 +1,8 @@
 import { NetworkRequestMonitor } from "../../../../src/core/networking/cubeRetrieval/pendingRequest";
 import { DummyNetworkPeer } from "../../../../src/core/networking/testingDummies/networkPeerDummy";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('NetworkRequestMonitor', () => {
   it('represents "no request sent" after creation', () => {
     const monitor = new NetworkRequestMonitor();

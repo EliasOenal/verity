@@ -3,6 +3,8 @@ import { CubeFieldLength, CubeFieldType, CubeType, FrozenCorePositionalFront, Fr
 import { enumNums } from "../../../src/core/helpers/misc";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('Cube field definitions', () => {
   describe('field sizes', () => {
     test('field sizes for plain FROZEN Cubes should add up to the total Cube size', () => {

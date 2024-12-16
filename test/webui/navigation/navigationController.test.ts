@@ -4,6 +4,8 @@ import { DummyNavigationView } from "../../../src/webui/navigation/navigationVie
 import { DummyControllerContext, VerityController, VerityControllerOptions } from "../../../src/webui/verityController";
 import { VerityView } from "../../../src/webui/verityView";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 class DummyVerityController extends VerityController {
   constructor(parent: DummyControllerContext, options?: VerityControllerOptions) {
     super(parent);

@@ -20,6 +20,7 @@ import { Peer } from "../../../../src/core/peering/peer";
 import { PeerDB } from "../../../../src/core/peering/peerDB";
 
 import sodium from 'libsodium-wrappers-sumo'
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 const reducedDifficulty = 0; // no hash cash for testing
 

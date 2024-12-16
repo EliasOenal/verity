@@ -1,5 +1,7 @@
 import { BaseField } from "../../../src/core/fields/baseField";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('BaseField', () => {
   it('should initialize correctly with type, value, and start', () => {
     const type = 1;

@@ -10,6 +10,7 @@ import { LineShapedNetwork } from "./e2eSetup";
 import { requiredDifficulty, testCoreOptions } from "../testcore.definition";
 
 import { Buffer } from 'buffer';
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe('notification end-to-end tests', () => {
   test('light nodes can request notifications from other light nodes', async() => {

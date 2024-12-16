@@ -2,6 +2,8 @@ import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { CubeFieldType, CubeType, FieldError } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('CubeField', () => {
   describe('constructor', () => {
     it('should throw an error when constructing with incorrect length', () => {

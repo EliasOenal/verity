@@ -1,6 +1,8 @@
 import { TreeOfWisdom } from "../../src/core/tow";
 import { Buffer } from "buffer";
+
 import * as crypto from "crypto";
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 // Helper function to generate a random 256-bit key in hexadecimal format
 function generateRandomKey(): string {

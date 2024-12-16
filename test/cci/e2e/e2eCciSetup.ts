@@ -7,6 +7,8 @@ import { VerityNode, VerityNodeOptions } from "../../../src/core/verityNode";
 import { LineShapedNetwork } from "../../core/e2e/e2eSetup";
 import { testCoreOptions } from "../../core/testcore.definition";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 export const cciTestOptions: VerityNodeOptions = {
   ...testCoreOptions,
   family: [cciFamily, coreCubeFamily],

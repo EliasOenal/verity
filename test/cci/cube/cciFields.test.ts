@@ -6,6 +6,8 @@ import { cciField } from "../../../src/cci/cube/cciField";
 import { cciFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../../src/cci/cube/cciFields";
 import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('cciFields', () => {
   describe('constructor', () => {
     it('should initialize with empty data if no data provided', () => {

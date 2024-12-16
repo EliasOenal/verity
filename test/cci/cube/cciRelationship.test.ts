@@ -5,6 +5,8 @@ import { cciField } from "../../../src/cci/cube/cciField";
 import { cciFieldParsers, cciFields, cciFrozenFieldDefinition } from "../../../src/cci/cube/cciFields";
 import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('cciRelationship', () => {
   it('create a CCI fields object from its predefined field definition', () => {
     const parserTable = cciFieldParsers;

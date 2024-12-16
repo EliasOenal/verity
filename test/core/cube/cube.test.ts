@@ -1,5 +1,6 @@
 // cube.test.ts
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
+import { ApiMisuseError, Settings } from '../../../src/core/settings';
 
 import { enumNums, unixtime } from '../../../src/core/helpers/misc';
 import { BaseField } from '../../../src/core/fields/baseField';
@@ -13,13 +14,12 @@ import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields, CoreFrozenFieldDefinition, CoreMucFieldDefinition, CoreFieldParsers } from '../../../src/core/cube/cubeFields';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 
-import { Buffer } from 'buffer';
-import sodium from 'libsodium-wrappers-sumo'
-
-import { ApiMisuseError, Settings } from '../../../src/core/settings';
 import pkg from 'js-sha3';  // strange standards compliant syntax for importing
 const { sha3_256 } = pkg;   // commonJS modules as if they were ES6 modules
 
+import { Buffer } from 'buffer';
+import sodium from 'libsodium-wrappers-sumo'
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 // TODO: Add more tests. This is one of our most crucial core classes and it's
 // nowhere near fully covered.

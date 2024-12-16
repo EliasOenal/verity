@@ -5,6 +5,8 @@ import { FieldError } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('cciField', () => {
   describe('constructor', () => {
     it('should construct a cciField for types with no fixed length', () => {

@@ -4,6 +4,8 @@ import { CubeField } from "../../../src/core/cube/cubeField";
 import { requiredDifficulty } from "../testcore.definition";
 import { LineShapedNetwork } from "./e2eSetup";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('Cube request e2e tests', () => {
     let net: LineShapedNetwork;
 

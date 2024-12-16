@@ -2,6 +2,8 @@ import { BestScoreStrategy, RandomStrategy, RoundrobinStrategy } from "../../../
 import { NetworkPeerIf } from "../../../../src/core/networking/networkPeerIf";
 import { DummyNetworkPeer } from "../../../../src/core/networking/testingDummies/networkPeerDummy";
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('RequestScheduler request strategies', () => {
 
   describe('RandomStrategy', () => {

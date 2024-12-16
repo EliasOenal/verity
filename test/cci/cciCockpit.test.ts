@@ -8,6 +8,7 @@ import { NetConstants } from "../../src/core/networking/networkDefinitions";
 import { DummyVerityNode, VerityNodeIf } from "../../src/core/verityNode";
 
 import { masterKey, idTestOptions, remote1MasterKey, remote2MasterKey, requiredDifficulty, tooLong } from "./testcci.definitions";
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe('cci Cockpit', () => {
   let node: VerityNodeIf;

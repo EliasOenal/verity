@@ -8,6 +8,7 @@ import { cciRelationshipType } from '../../src/cci/cube/cciRelationship';
 import { FileApplication } from '../../src/app/fileApplication';
 
 import { Buffer } from 'buffer';
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe('FileApplication', () => {
   test('createFileCubes with small string', async () => {

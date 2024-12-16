@@ -23,6 +23,7 @@ import { logger } from '../../../src/core/logger';
 
 import { multiaddr } from '@multiformats/multiaddr'
 import sodium from 'libsodium-wrappers-sumo'
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 // Note: Most general functionality concerning NetworkManager, NetworkPeer
 // etc is described within the WebSocket tests while the libp2p tests are more

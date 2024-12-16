@@ -1,14 +1,17 @@
+import { NetConstants } from '../../../src/core/networking/networkDefinitions';
+
 import { cciFields, cciFrozenFieldDefinition } from '../../../src/cci/cube/cciFields';
 import { cciField } from '../../../src/cci/cube/cciField';
 import { cciFieldType, MediaTypes } from '../../../src/cci/cube/cciCube.definitions';
 import { Encrypt, CryptStateOutput } from '../../../src/cci/veritum/chunkEncryption';
 import { KeyPair } from '../../../src/cci/helpers/cryptography';
 
-import sodium from 'libsodium-wrappers-sumo';
-import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { Decrypt } from '../../../src/cci/veritum/chunkDecryption';
 import { ApiMisuseError } from '../../../src/core/settings';
 import { CubeFieldType } from '../../../src/core/cube/cube.definitions';
+
+import sodium from 'libsodium-wrappers-sumo';
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe('CCI chunk encryption', () => {
   let sender: KeyPair;

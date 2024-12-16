@@ -9,6 +9,7 @@ import { CubeType } from "../../../src/core/cube/cube.definitions";
 import { requiredDifficulty, tooLong, evenLonger, farTooLong } from "../testcci.definitions";
 
 import sodium from 'libsodium-wrappers-sumo'
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe('CCI Veritum encryption', () => {
   const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
