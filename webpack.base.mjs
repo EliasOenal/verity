@@ -47,6 +47,7 @@ export const commonConfig = {
       // because the `util` package expects there to be a global variable named `process`.
       // Thanks to https://stackoverflow.com/a/65018686/14239942
       process: 'process/browser',
+      Buffer: ['buffer', 'Buffer'],
     }),
     new webpack.IgnorePlugin({
       resourceRegExp: /nodespecific/,
