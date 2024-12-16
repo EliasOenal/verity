@@ -13,6 +13,16 @@ export const commonConfig = {
         exclude: /node_modules/,
       },
       {
+        test: /\.ts?$/,
+        use: {
+          loader: 'ts-loader',
+          options: {
+            allowTsInNodeModules: true, // Allow processing files in node_modules
+          },
+        },
+        include: /node_modules\/verity\/src/, // Only include files in node_modules/verity/src
+      },
+      {
         test: /\.html$/,
         use: 'raw-loader',
         exclude: ["/node_modules/", "/src/webui/static/"],
