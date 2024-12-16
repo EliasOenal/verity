@@ -26,7 +26,7 @@ export function frontendConfig(basepath, libpath=basepath+"/node_modules/verity/
         { from: libpath+'/src/webui/static/manifest.json' },
         { from: libpath+'/src/webui/static/serviceWorker.js' },
         { from: libpath+'/img/vera.svg' },
-        { from: libpath+'/img/unknownuser.svg' },
+        { from: libpath+'/img/Oxygen480-actions-im-invisible-user.svg', to: 'unknownuser.svg' },
         { from: libpath+'/img/bootstrap.bundle.min.js' },
         { from: libpath+'/img/bootstrap.min.css' },
         { from: libpath+'/img/bootstrap-icons.min.css' },
