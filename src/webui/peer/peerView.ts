@@ -161,7 +161,7 @@ export class PeerView extends VerityView {
       // All done, replace the old peerLi with the new one
       peerLi.replaceChildren(...freshLi.children);
     } catch(err) {
-      logger.error("PeerView: Could not display some peer data, did you mess with my DOM elements?! Error was: " + err?.toString() ?? err);
+      logger.error("PeerView: Could not display some peer data, did you mess with my DOM elements?! Error was: " + err?.toString());
     }
   }
 
