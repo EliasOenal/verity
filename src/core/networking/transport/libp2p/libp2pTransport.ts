@@ -82,7 +82,7 @@ export class Libp2pTransport extends NetworkTransport {
       });
       transports.push(webSockets({
         filter: filters.all,  // allow all kinds of connections for testing, effectively disabling sanitizing - maybe TODO remove this?
-        server: httpsServer,
+        https: httpsServer,
       }));
     } else {
       transports.push(webSockets({
