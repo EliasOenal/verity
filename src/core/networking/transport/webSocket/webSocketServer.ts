@@ -37,7 +37,7 @@ export class WebSocketServer extends TransportServer {
       this.server = new WebSocket.Server({ port: this.port });
       const listeningPromise: Promise<void> =
         new Promise<void>(resolve => this.server.on('listening', () => {
-        logger.debug(`WebSocketServer: Server is listening on ${((this.server.address() as AddressInfo).address +":"+(this.server.address() as AddressInfo).port)?? this.server.address().toString()}.`);
+        logger.debug(`WebSocketServer: Server is listening on ${((this.server.address() as AddressInfo).address +":"+(this.server.address() as AddressInfo).port)}.`);
         resolve();
       }));
 
