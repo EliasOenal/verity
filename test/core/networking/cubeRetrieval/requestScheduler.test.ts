@@ -292,6 +292,25 @@ describe('RequestScheduler', () => {
         expect(scheduler.existingCubeRequest(key)).toBeUndefined();
       });
 
+      it('will return undefined if the scheduler is shut down before the Cube is received', async () => {
+        // prepare test
+        const cube = testCube();
+        const key: CubeKey = await cube.getKey();
+
+        // perform request
+        const promise = scheduler.requestCube(key, {
+          scheduleIn: 0, timeout: 1000000,
+        });
+        // allow some time for the request to actually be performed
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // shut down the scheduler
+        scheduler.shutdown();
+
+        const result = await promise;
+        expect(result).toBeUndefined();
+      });
+
       it.todo('should not retry the same node more than once if others are available');
       // (must keep track of nodes already requested from I guess)
 
