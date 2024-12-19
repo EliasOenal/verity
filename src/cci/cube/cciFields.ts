@@ -69,7 +69,8 @@ export class cciFields extends CubeFields {
    */
   insertTillFull(
       fields: Iterable<CubeField>,
-      position: FieldPosition = FieldPosition.BEFORE_BACK_POSITIONALS): number {
+      position: FieldPosition = FieldPosition.BEFORE_BACK_POSITIONALS,
+  ): number {
     let inserted = 0;
     for (const field of fields) {
       const spaceRemaining = this.bytesRemaining();
