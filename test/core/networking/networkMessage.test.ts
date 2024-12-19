@@ -565,9 +565,8 @@ describe('SubscriptionConfirmationMessage', () => {
       const message = new SubscriptionConfirmationMessage(buffer);
       expect(message.responseCode).toEqual(SubscriptionResponseCode.SubscriptionsNotSupported);
       expect(message.requestedKeyBlob).toEqual(singleKey);
-      expect(message.cubesHashBlob).toBeUndefined()
-      expect(message.cubesHashBlob).toBeUndefined();
-      expect(message.subscriptionDuration).toBeUndefined();
+      expect(message.cubesHashBlob.length).toBe(0);
+      expect(message.subscriptionDuration).toBe(0);
     });
   });  // Parsing a received message
 
@@ -632,8 +631,8 @@ describe('SubscriptionConfirmationMessage', () => {
       );
       expect(message.responseCode).toEqual(SubscriptionResponseCode.RequestedKeyNotAvailable);
       expect(message.requestedKeyBlob).toEqual(singleKey);
-      expect(message.cubesHashBlob).toBeUndefined();
-      expect(message.subscriptionDuration).toBeUndefined();
+      expect(message.cubesHashBlob.length).toBe(0);
+      expect(message.subscriptionDuration).toBe(0);
       // check binary message for correctness
       const expectedBuffer = Buffer.alloc(1 + NetConstants.CUBE_KEY_SIZE);
       expectedBuffer.writeUInt8(SubscriptionResponseCode.RequestedKeyNotAvailable, 0);

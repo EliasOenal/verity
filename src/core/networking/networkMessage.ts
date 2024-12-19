@@ -708,13 +708,13 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
         if (param.length > 1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE) {
           this.subscriptionDuration = param.readUInt16BE(1 + NetConstants.CUBE_KEY_SIZE + NetConstants.HASH_SIZE) * 1000;
         } else {
-          this.subscriptionDuration = undefined;
+          this.subscriptionDuration = 0;
         }
       } else {
-        this.cubesHashBlob = undefined;
-        this.subscriptionDuration = undefined;
+        this.cubesHashBlob = Buffer.alloc(0);
+        this.subscriptionDuration = 0;
       }
-    } else {
+    } else if (param in SubscriptionResponseCode) {
       // Construct a new locally originated message
       const responseCode = param;
 
@@ -761,9 +761,11 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
       super(MessageClass.SubscriptionConfirmation, message);
       // Set the response code, requested key, and subscribed cubes hash
       this.responseCode = responseCode;
-      this.requestedKeyBlob = keyOutput;
-      this.cubesHashBlob = hashOutput;
-      this.subscriptionDuration = subscriptionDuration;
+      this.requestedKeyBlob = keyOutput ?? Buffer.alloc(0);
+      this.cubesHashBlob = hashOutput ?? Buffer.alloc(0);
+      this.subscriptionDuration = subscriptionDuration ?? 0;
+    } else {
+      throw new ApiMisuseError(`SubscriptionConfirmationMessage: Invalid parameter type ${typeof param}`);
     }
   }
 }
