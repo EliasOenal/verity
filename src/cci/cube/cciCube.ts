@@ -1,17 +1,21 @@
-import { Settings } from "../../core/settings";
-import { cciField } from "./cciField";
-import { cciFields, cciFieldParsers } from "./cciFields";
-import { CubeError, CubeType, FieldError, FieldSizeError } from "../../core/cube/cube.definitions";
+import type { cciRelationship } from "./cciRelationship";
 
+import { Settings } from "../../core/settings";
+import { NetConstants } from "../../core/networking/networkDefinitions";
+
+import { FieldPosition } from "../../core/fields/baseFields";
+import { CubeError, CubeType, FieldError, FieldSizeError } from "../../core/cube/cube.definitions";
 import { Cube, CubeCreateOptions, CubeOptions } from "../../core/cube/cube";
 import { CubeFamilyDefinition } from "../../core/cube/cubeFields";
-
 import { CubeField } from "../../core/cube/cubeField";
-import { NetConstants } from "../../core/networking/networkDefinitions";
+
+import { cciField } from "./cciField";
+import { cciFields, cciFieldParsers } from "./cciFields";
 import { cciFieldType } from "./cciCube.definitions";
 
-import { Buffer } from 'buffer'
 import { KeyPair, deriveSigningKeypair } from "../helpers/cryptography";
+
+import { Buffer } from 'buffer'
 
 export class cciCube extends Cube {
   static Create(
@@ -98,6 +102,8 @@ export class cciCube extends Cube {
     return extensionMuc;
   }
 
+  declare protected _fields: cciFields;
+
   constructor(
     param1: Buffer | CubeType,
     options: CubeOptions = {},
@@ -164,6 +170,24 @@ export class cciCube extends Cube {
     this.padUp();
     return super.compile();
   }
+
+  //###
+  // Expose field methods
+  //###
+
+  getRelationships(type?: number): Array<cciRelationship> {
+    return this._fields.getRelationships(type);
+  }
+  public getFirstRelationship(type?: number): cciRelationship {
+    return this._fields.getFirstRelationship(type);
+  }
+  insertTillFull(
+    fields: Iterable<CubeField>,
+    position: FieldPosition = FieldPosition.BEFORE_BACK_POSITIONALS,
+  ): number {
+    return this._fields.insertTillFull(fields, position);
+  }
+
 }
 
   // Note: Never move the family definition to another file as it must be
