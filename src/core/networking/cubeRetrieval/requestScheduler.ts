@@ -3,7 +3,7 @@ import type { NetworkManagerIf } from '../networkManagerIf';
 
 import { Settings } from '../../settings';
 import { NetConstants, NetworkPeerError } from '../networkDefinitions';
-import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode, SubscriptionConfirmationMessage } from '../networkMessage';
+import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode, SubscriptionConfirmationMessage, SubscriptionResponseCode } from '../networkMessage';
 
 import { RequestStrategy, RandomStrategy, BestScoreStrategy } from './requestStrategy';
 import { CubeRequest, CubeSubscription, PendingRequest, SubscriptionRequest } from './pendingRequest';
@@ -304,12 +304,18 @@ export class RequestScheduler {
         peerSelected = undefined;
         continue;
       }
-      // 2) Does the response quote the requested key?
+      // 2) Did the remote node confirm the subscripton? Did it state a valid duration?
+      if ((subscriptionResponse.responseCode !== SubscriptionResponseCode.SubscriptionConfirmed) ||
+          (!subscriptionResponse.subscriptionDuration)) {
+        peerSelected = undefined;
+        continue;
+      }
+      // 3) Does the response quote the requested key?
       if (!subscriptionResponse.requestedKeyBlob.equals(key.binaryKey)) {
         peerSelected = undefined;
         continue;
       }
-      // 3) Does the remote node have the same version as us?
+      // 4) Does the remote node have the same version as us?
       //    If not, request this remote node's version:
       //    if the remote version is newer, subscribe;
       //    if the remote version is older, choose other node.

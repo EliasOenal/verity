@@ -122,8 +122,8 @@ describe('NetworkPeer', () => {
           const response = new SubscriptionConfirmationMessage(binaryResponse);
           expect(response.responseCode).toBe(SubscriptionResponseCode.RequestedKeyNotAvailable);
           expect(response.requestedKeyBlob).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42));
-          expect(response.cubesHashBlob).toBeUndefined();
-          expect(response.subscriptionDuration).toBeUndefined();
+          expect(response.cubesHashBlob.length).toBe(0);
+          expect(response.subscriptionDuration).toBe(0);
         });
 
         it('should not register the subscription if the key is not available', async () => {
@@ -186,8 +186,8 @@ describe('NetworkPeer', () => {
             availableKey,
             Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42)
           ])));
-          expect(response.cubesHashBlob).toBeUndefined();
-          expect(response.subscriptionDuration).toBeUndefined();
+          expect(response.cubesHashBlob.length).toBe(0);
+          expect(response.subscriptionDuration).toBe(0);
         });
 
         it('should not register any subscription if any key is not available', async () => {
