@@ -47,7 +47,7 @@ export class WebSocketServer extends TransportServer {
       // with obviously does.
       // Therefore, addresses starting in ":::" are just handled as a special
       // case at the receiving node.
-      if ('publicAddress' in this.options) {
+      if (this.options.publicAddress !== undefined) {
         this.transport.dialableAddress = new AddressAbstraction(
           new WebSocketAddress(this.options.publicAddress, this.port));
       } else {
