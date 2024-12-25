@@ -44,9 +44,9 @@ export interface VerityControllerOptions {
 /** Abstract base class for our controllers */
 export class VerityController {
   public contentAreaView: VerityView = undefined;
-  get cubeStore(): CubeStore { return this.parent.node.cubeStore }
-  get cubeRetriever(): CubeRetriever { return this.parent.node.cubeRetriever }
-  get identity(): Identity { return this.parent.identity }
+  get cubeStore(): CubeStore { return this.parent?.node?.cubeStore }
+  get cubeRetriever(): CubeRetriever { return this.parent?.node?.cubeRetriever }
+  get identity(): Identity { return this.parent?.identity }
 
   constructor(
     readonly parent: ControllerContext,
