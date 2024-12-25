@@ -23,10 +23,12 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
             fieldDefinition: FieldDefinition,
     ): BaseFields {
         if (fields instanceof BaseFields) return fields;
-        else if (fields instanceof BaseField) return new BaseFields(
-            [fields], fieldDefinition);
-        else if (Array.isArray(fields)) return new BaseFields(
-            fields, fieldDefinition);
+        else if (fields instanceof BaseField) {
+            return new fieldDefinition.fieldsObjectClass([fields], fieldDefinition);
+        }
+        else if (Array.isArray(fields)) {
+            return new fieldDefinition.fieldsObjectClass(fields, fieldDefinition);
+        }
         else return new fieldDefinition.fieldsObjectClass([], fieldDefinition);
     }
 
