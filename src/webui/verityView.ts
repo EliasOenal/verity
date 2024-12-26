@@ -122,7 +122,10 @@ export class VerityView {
     if (typeof where === 'string') {
       where = this.renderedView.querySelector(where) as HTMLElement;
     }
-    const alerts: NodeListOf<HTMLElement> = where.querySelectorAll(".verityAlert");
+    // Fetch all alerts within this container...
+    const alerts: Array<HTMLElement> = Array.from(where.querySelectorAll(".verityAlert"));
+    // ... including the container itself, if the container itself is an alert.
+    if (where.matches(".verityAlert")) alerts.unshift(where);
     for (const alert of alerts) {
       alert.classList.remove("verityAlert", "alert");
       for (const alertType of alertTypes) alert.classList.remove("alert-"+alertType);
