@@ -1,5 +1,6 @@
 # Verity Binary Cube Store Specification
-**DRAFT - NOT YET IMPLEMENTED**
+This is a **draft** and has **not yet been implemented**.
+The current implementation exclusively uses LevelDB for Cube storage.
 
 ## Header Structure
 The file header is 1024 bytes long and consists of the following fields, with examples provided for each:
