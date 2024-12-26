@@ -46,15 +46,21 @@ i.e. how to build a developer base building applications on top of Verity
 
 ## Monetarisation strategies:
 
+### General application backend / Billing data collection etc
+- Sell keys to users, allow a certain amount of zero-hashcash Cubes per key.
+  Users may be end-users, application developers or (IoT) device makers.
+  - This positions us as a resilient alternative to AWS and all the other cloud
+    providers, offering both geo-redundancy and full provider-redundancy out of
+    the box.
+  - For this use case, it may be best to run separate public Verity networks
+    with a defined number of full nodes, as this defined the number of
+    replications. Price should obviously scale with the number of replications,
+    as well as with the number of geo-redundant and provider-redundant locations
+  - It may still be hard to beat traditional cloud providers on price,
+    and hard to convince users that we're actually a safer choice than Amazon,
+    Google or Microsoft.
+
 ### Microblogging
 We could try the usual combination of ads, paid featured posts, paid user
 verification; but I'm not too confident in any of them, and all of them basically
 defeat the purpose of a decentralised network.
-
-### Billing data / LoRa access point / General application backend
-- Sell keys to users, allow a certain amount of zero-hashcash Cubes per key
-  (positions us as a resilient alternative to AWS and all the other cloud
-  providers, but impossible to beat them on price for the miniscule amount of
-  data we offer, and hard to convince users we're a safer choice than Amazon)
-- Sell keys to IoT device makers, allow them a certain amount of zero-hashcash
-  Cubes per key.
