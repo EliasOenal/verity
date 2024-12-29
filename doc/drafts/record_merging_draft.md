@@ -1,7 +1,10 @@
 # Record merging draft document
 
+## Definition and Scope
+tbd
+
 ## Technical requirements
-1. Applications need a way to concurrently store and update data from multiple
+1. Applications need a way to concurrently store and update records from multiple
    clients.
 1. Clients manipulating the data may belong to
   - the same user (e.g. multiple devices using the same account, like a user
@@ -65,8 +68,11 @@ applications to use Verity in a way similar to a basic distributed database.
 - This problem is somewhat similar to the readers-writers problem in concurrent
   computing -- but with no but with no central hardware available to resolve it.
 - It's very similar to concurrency control in distributed databases --
-  but with a potentially unknown and unlimited number of instances, making
-  two-phase commit impossible.
+  effectively, this proposal encompasses implementing a distributed database
+  management system on top of Verity.
+  Unlike tradiotional distributed databases, our system has a potentially
+  unknown and unlimited number of instances. This means any kind of locking
+  (an thus traditional two-phase commit) is impossible.
 
 ## Possible solutions
 ### Merge-and-publish using local Redo Logs
@@ -87,11 +93,16 @@ updates.
 - Large risk of publishing loops ("edit wars"),
   both as in large risk of this occurring and as in huge impact for both the
   user and the network when it occurs.
+- Not really an argument, but to my knowledge nobody so far was bold (or stupid?)
+  enough to try to implement a distributed database by shipping consolidated
+  state only. Log shipping is state of the art.
 
 ### Recipient-side merge using separate MUCs for each client
 "Everybody does their own merge": There is no master/mainline MUC.
 A client wanting to read any record must fetch all device MUCs and first perform
 their own, local merge.
+
+This is effectively log shipping.
 
 #### Advantages
 - Easier to implement as each client can just publish changes and be done with it,
@@ -103,7 +114,62 @@ their own, local merge.
   Every time a user logs in on a shared device, deletes their browser cookies or
   just opens a new incognito tab should end up triggiering a separate client
   MUC that would, in its most primitive approach, linger around forever.
+- Reading records more expensive as all client MUCs need to be fetched.
 - How to announce the client MUCs in the first place?
-  We could implement a separate WORM-type merging primitive and track client
-  MUCs in an append-only list, but that just exacerbates the scaling problem
-  in case of a large number of clients.
+  - This primitive (recipient-side merge) cannot in itself solve this problem;
+    we'd require a different and separate primitive just to bootstrap clients
+    to be able to use recipient-side merge.
+  - We could implement a separate WORM-type merging primitive and track client
+    MUCs in an append-only list, but that just exacerbates the scaling problem
+    in case of a large number of clients.
+  - We could also implement the first proposal (merge-and-publish) as a separate
+    primitive just to distribute client MUCs.
+
+
+## Record format draft
+### Cube Type
+Record-based data should always be stored in PMUCs with the PMUC
+version field used as a Lamport clock.
+
+### Records & Lamport clocks
+- A record structure consists of one or more records which can be updated
+  independently of each other.
+
+- Records consist of one or more Cube fields.
+
+- The PMUC version field serves as a Lamport clock for the whole structure.
+  If there is only one record in the structure, the PMUC version will be the
+  only lamport clock.
+
+- The structure may be split into separate records using separate Lamport clocks.
+  A Lamport clock field shall preceeds each record; in other words, all fields
+  following a Lamport clock field will be considered part of the same record
+  until another Lamport clock field is encountered.
+  Clients must still update the global Lamport clock as usual.
+
+- If there are no Lamport clock fields, each field will be considered a separate
+  record.
+
+### Record IDs
+- Records may optionally be identified by a preceeding Record ID field.
+  Record ID fields are variable length.
+
+- Record IDs must be unique per structure. If random IDs are used, applications
+  should choose an ID length sufficient to avoid collisions.
+
+- Records not explicitly identified by a Record ID field will be numbered
+  by their position in the structure, with the first records numbered 1.
+
+- Structures with Record ID collisions are invalid; behaviour is undefined.
+  (TODO define something useful to deal with this case)
+
+### Multi-cube records
+- **Multi cube records are discouraged**; applications should prefer separate record
+  stuructures over multi cube records whenever possible.
+- If multi-cube record structures are used, all cubes should be PMUC and all
+  version fields should always be set to the current Lamport clock.
+- Clients are only allowed to update records after retrieving the current
+  structure in its entirety. This causes obvious problems when one Cube of the
+  structure goes missing for any reason.
+
+## Merging rules
