@@ -372,7 +372,7 @@ export class Identity {
 
   /** List of own posts, in undefined order */
   posts: Array<CubeKey> = [];  // TODO: make this a set for better scalability
-  get postKeyString(): Array<string> {
+  get postKeyString(): Iterable<string> {
     return this.posts.map(key => key.toString('hex'));
   }
 
@@ -528,7 +528,7 @@ export class Identity {
     // sanity checks
     if (!cubeKey) return false;
     try {  // convert key to binary if supplied as string
-      if (!(cubeKey instanceof Buffer)) cubeKey = Buffer.from(cubeKey, 'hex');
+      if (!(cubeKey instanceof Buffer)) cubeKey = Buffer.from(cubeKey as string, 'hex');
     } catch { return false; }  // could fail if supplied key string is invalid
     if (cubeKey.length != NetConstants.CUBE_KEY_SIZE) return false;
 
@@ -539,7 +539,7 @@ export class Identity {
 
   /** Removes a cube key from my post list */
   forgetMyPost(cubeKey: CubeKey | string) {
-    if (!(cubeKey instanceof Buffer)) cubeKey = Buffer.from(cubeKey, 'hex');
+    if (!(cubeKey instanceof Buffer)) cubeKey = Buffer.from(cubeKey as string, 'hex');
     this.posts = this.posts.filter(p => !p.equals(cubeKey as CubeKey));
   }
 
