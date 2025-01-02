@@ -56,7 +56,53 @@ describe('Identity', () => {
     await cubeStore.readyPromise;
   });
 
+  describe('own posts', () => {
+    it('stores and remembers own post references', () => {
+      const id = new Identity(
+        undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
+      expect(id.posts).toHaveLength(0);
+
+      id.rememberMyPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      expect(id.posts).toHaveLength(1);
+      expect(id.posts).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+    });
+
+    // This test currently fails
+    it.skip('remembers only unique posts', () => {
+      const id = new Identity(
+        undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
+      expect(id.posts).toHaveLength(0);
+
+      id.rememberMyPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      id.rememberMyPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      expect(id.posts).toHaveLength(1);
+      expect(id.posts).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+    });
+  });
+
   describe('subscription recommendations', ()  => {
+    it('stores and remembers subscription recommendations', () => {
+      const id = new Identity(
+        undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
+      expect(id.subscriptionRecommendations).toHaveLength(0);
+
+      id.addSubscriptionRecommendation(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      expect(id.subscriptionRecommendations).toHaveLength(1);
+      expect(id.subscriptionRecommendations).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+    });
+
+    // This test currently fails
+    it.skip('remembers only unique subscription recommendations', () => {
+      const id = new Identity(
+        undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
+      expect(id.subscriptionRecommendations).toHaveLength(0);
+
+      id.addSubscriptionRecommendation(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      id.addSubscriptionRecommendation(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      expect(id.subscriptionRecommendations).toHaveLength(1);
+      expect(id.subscriptionRecommendations).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+    });
+
     it('correctly identifies authors as subscribed or not subscribed', async () => {
       const subject: Identity = await Identity.Create(
         cubeStore, "subscriptor", "clavis mea", idTestOptions);
