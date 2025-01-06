@@ -86,7 +86,11 @@ export class WebSocketServer extends TransportServer {
      */
   private handleIncomingPeer(ws: WebSocket) {
     logger.trace(`NetworkManager: Incoming connection from ${(ws as any)._socket.remoteAddress}:${(ws as any)._socket.remotePort}`);
-    const conn = new WebSocketConnection(ws);
-    this.emit("incomingConnection", conn);
+    try {
+      const conn = new WebSocketConnection(ws);
+      this.emit("incomingConnection", conn);
+    } catch(error) {
+      logger.warn(`WebSocketServer.handleIncomingPeer(): Error while handling incoming connection: ${error}`);
+    }
   }
 }
