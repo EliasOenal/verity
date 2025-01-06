@@ -36,9 +36,13 @@ export class Libp2pServer extends TransportServer {
 
   /** @emits "incomingConnection": Libp2pConnection */
   private handleIncoming(incomingStreamData: IncomingStreamData): void {
-    logger.trace(`Libp2pServer: Incoming connection from ${incomingStreamData.connection.remoteAddr.toString()}`);
-    const conn: Libp2pConnection =
-      new Libp2pConnection(incomingStreamData, this.transport);
-    this.emit("incomingConnection", conn);
+    try {
+      logger.trace(`Libp2pServer.handleIncoming(): Incoming connection from ${incomingStreamData.connection.remoteAddr.toString()}`);
+      const conn: Libp2pConnection =
+        new Libp2pConnection(incomingStreamData, this.transport);
+      this.emit("incomingConnection", conn);
+    } catch (error) {
+      logger.warn(`Libp2pServer.handleIncoming(): Error while handling incoming connection: ${error}`);
+    }
   }
 }
