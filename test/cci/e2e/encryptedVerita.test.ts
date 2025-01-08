@@ -8,7 +8,7 @@ import { cciLineShapedNetwork } from "./e2eCciSetup";
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe('Transmission of encrypted Verita', () => {
-    describe('Publishing and encrypted Veritum for a single recipient', () => {
+  describe('Publishing an encrypted Veritum for a single recipient', () => {
     let net: cciLineShapedNetwork;
     const plaintext = "Nuntius secretus quem nemo praeter te legere potest";
 
@@ -43,5 +43,5 @@ describe('Transmission of encrypted Verita', () => {
       expect(retrieved).toBeDefined();
       expect(retrieved.getFirstField(cciFieldType.PAYLOAD).valueString).toBe(plaintext);
     });
-  });
+  });  // Publishing an encrypted Veritum for a single recipient
 });
