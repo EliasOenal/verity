@@ -2,7 +2,7 @@
 
 export function unixtimeToDatetimeLocal(unixtime: number): string {
   if (unixtime === undefined) return "";
-  var date = new Date(unixtime * 1000);
+  const date = new Date(unixtime * 1000);
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
   return date.toISOString().slice(0,16);
 }
