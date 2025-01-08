@@ -103,7 +103,7 @@ export function cubeContest(localCube: CubeInfo, incomingCube: CubeInfo): CubeIn
             const expirationIncomingCube = cubeExpiration(incomingCube);
 
             // Resolve the conflict based on expiration dates
-            if (cubeExpiration(localCube) > cubeExpiration(incomingCube)) {
+            if (expirationLocalCube > expirationIncomingCube) {
                 return localCube;
             } else if (expirationIncomingCube > expirationLocalCube) {
                 return incomingCube;
