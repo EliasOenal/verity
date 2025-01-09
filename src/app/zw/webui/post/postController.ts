@@ -20,6 +20,7 @@ import { logger } from "../../../../core/logger";
 import { Buffer } from 'buffer';
 import { FileApplication } from '../../../fileApplication';
 import DOMPurify from 'dompurify';
+import { keyVariants } from "../../../../core/cube/cubeUtil";
 
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
@@ -212,8 +213,7 @@ export class PostController extends VerityController {
 
   /** Redisplays authorship information for a single post */
   redisplayPostAuthor(key: CubeKey | string) {
-    if (key instanceof Buffer) key = key.toString('hex');
-    const postData: PostData = this.displayedPosts.get(key);
+    const postData: PostData = this.displayedPosts.get(keyVariants(key).keyString);
     if (!postData) return;
     this.findAuthor(postData);  // this (re-)sets data.author and data.authorkey
     this.contentAreaView.redisplayCubeAuthor(postData);
@@ -232,7 +232,7 @@ export class PostController extends VerityController {
     try {
       id = await Identity.Construct(this.cubeStore, muc);
     } catch(error) { return; }
-    for (const post of id.posts) {
+    for (const post of id.getPostKeyStrings()) {
       const cubeInfo: CubeInfo = await this.cubeStore.getCubeInfo(post);
       if (!cubeInfo) continue;
       this.redisplayPostAuthor(cubeInfo.key);
@@ -277,12 +277,12 @@ export class PostController extends VerityController {
     // subscribing or unsubscribing?
     if (subscribeButton.classList.contains("active")) {
       logger.trace("VerityUI: Unsubscribing from " + authorkeystring);
-      this.identity.removeSubscriptionRecommendation(authorkey);
+      this.identity.removePublicSubscription(authorkey);
       subscribeButton.classList.remove("active");
       await this.identity.store();
     } else {
       logger.trace("VerityUI: Subscribing to " + authorkeystring);
-      this.identity.addSubscriptionRecommendation(authorkey);
+      this.identity.addPublicSubscription(authorkey);
       subscribeButton.classList.add("active");
       await this.identity.store();
     }
@@ -304,7 +304,7 @@ export class PostController extends VerityController {
 
       // is this author subscribed?
       if (this.identity) {
-        data.authorsubscribed = this.identity.isSubscribed(authorObject.key);
+        data.authorsubscribed = this.identity.hasPublicSubscription(authorObject.key);
         // or is this even my own post?
         if (authorObject.key.equals(this.identity.publicKey)) data.authorsubscribed = "self";
       } else {

@@ -51,11 +51,11 @@ export async function makePost(
     // previous note was: use fibonacci spacing for post references instead of linear,
     // but only if there are actually enough posts to justify it
     cube.fields.insertTillFull(cciField.FromRelationships(
-      cciRelationship.fromKeys(cciRelationshipType.MYPOST, id.posts)));
+      cciRelationship.fromKeys(cciRelationshipType.MYPOST, id.getPostKeys())));
   }
   await cube.getBinaryData();  // finalize Cube & compile fields
   if (id) {  // unless anonymous, have the Identity remember this new post
-    id.rememberMyPost(await cube.getKey());
+    id.addPost(await cube.getKey());
   }
   return cube;
 }
