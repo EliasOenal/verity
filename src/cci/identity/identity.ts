@@ -1040,7 +1040,11 @@ export class Identity {
         // Parse & remember this post
         const post: Cube = postInfo.getCube();
         if (post === undefined) return;
-        this.addPost(post.getKeyIfAvailable());
+        if (this.addPost(post.getKeyStringIfAvailable())) {
+          logger.trace(`Identity ${this.keyString} recursiveParsePostReferences(): Successfully recovered my post ${post.getKeyStringIfAvailable()}. Continuing recursion.`);
+        } else {
+          logger.trace(`Identity ${this.keyString} recursiveParsePostReferences(): Failed to recover my post ${post.getKeyStringIfAvailable()} even though I fetched the Cube. Still trying to continue the recursive restore.`);
+        }
 
         // Continue recursion:
         // Search for further post references within this post.
