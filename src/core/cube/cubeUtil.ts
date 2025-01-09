@@ -207,12 +207,12 @@ export function shouldRetainCube(key: String, cubeDate: number, challengeLevel: 
 export function keyVariants(keyInput: CubeKey | string | String): {keyString: string, binaryKey: CubeKey} {
     if (!keyInput) return undefined;  // input sanity check
     let keyString: string, binaryKey: CubeKey;
-    if (keyInput instanceof Buffer) {
+    if (Buffer.isBuffer(keyInput)) {
       keyString = keyInput.toString('hex');
       binaryKey = keyInput;
     } else {
       keyString = keyInput.toString();  // this gets rid of any "String" object we might have -- TODO: I'm not sure if this is efficient
-      binaryKey = Buffer.from(keyInput, 'hex');
+      binaryKey = Buffer.from(keyInput as string, 'hex');
     }
     return {keyString: keyString, binaryKey: binaryKey};
 }
