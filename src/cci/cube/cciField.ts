@@ -112,4 +112,11 @@ export class cciField extends CubeField {
     }
     super(type, value, start);
   }
+
+  toString(valEnc: BufferEncoding = 'hex'): string {
+    if (this.type === cciFieldType.RELATES_TO) {
+      return "cciField representing " + cciRelationship.fromField(this).toString();
+    }
+    return `${cciFieldType[this.type] ?? this.type} cciField, value ${this.value.toString(valEnc)}`
+  }
 }
