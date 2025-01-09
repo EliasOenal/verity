@@ -59,6 +59,10 @@ export class cciRelationship {
       this.remoteKey = remoteKey;
   }
 
+  toString(): string {
+    return `${cciRelationshipType[this.type] ?? this.type} rel to ${this.remoteKeyString}`;
+  }
+
   static fromField(field: cciField): cciRelationship {
       const relationship = new cciRelationship();
       if (field.type !== cciFieldType.RELATES_TO) {
