@@ -79,7 +79,7 @@ export class cciFields extends CubeFields {
         FieldParser.getFieldHeaderLength(field.type, this.fieldDefinition);
       if (spaceRemaining < spaceRequired) break;
       this.insertField(position, field);
-      logger.trace(`cciFields.insertTillFull(): Inserted ${field}`);
+      // logger.trace(`cciFields.insertTillFull(): Inserted ${field}`);
       inserted++;
     }
     return inserted;
