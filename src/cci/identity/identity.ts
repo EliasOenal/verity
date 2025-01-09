@@ -690,8 +690,16 @@ export class Identity {
     // reference to older posts within our new posts themselves.
     // We might need to change that again as it basically precludes us from ever
     // de-referencing ("deleting") as post.
+    // TODO BUGBUG: This assumes that posts themselves take care of inserting
+    //   older post references, which no CCI layer primitive currently provides;
+    //   only the ZW app layer makePost() does this!
+    // TODO: get rid of intermediate Array
+    // TODO: find a smarter way to determine reference order than local insertion
+    //   order, as local insertion order is not guaranteed to be stable when it
+    //   has itself been restored from a MUC.
+    const newestPostsFirst: string[] = Array.from(this.getPostKeyStrings()).reverse();
     newMuc.fields.insertTillFull(cciField.FromRelationships(
-      cciRelationship.fromKeys(cciRelationshipType.MYPOST, this.getPostKeyStrings())));
+      cciRelationship.fromKeys(cciRelationshipType.MYPOST, newestPostsFirst)));
 
     await newMuc.getBinaryData();  // compile MUC
     this._muc = newMuc;

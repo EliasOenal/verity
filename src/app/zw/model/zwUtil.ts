@@ -50,8 +50,13 @@ export async function makePost(
     // de-referencing ("deleting") a post.
     // previous note was: use fibonacci spacing for post references instead of linear,
     // but only if there are actually enough posts to justify it
+    // TODO: get rid of intermediate Array
+    // TODO: find a smarter way to determine reference order than local insertion
+    //   order, as local insertion order is not guaranteed to be stable when it
+    //   has itself been restored from a MUC.
+    const newestPostsFirst: string[] = Array.from(id.getPostKeyStrings()).reverse();
     cube.fields.insertTillFull(cciField.FromRelationships(
-      cciRelationship.fromKeys(cciRelationshipType.MYPOST, id.getPostKeys())));
+      cciRelationship.fromKeys(cciRelationshipType.MYPOST, newestPostsFirst)));
   }
   await cube.getBinaryData();  // finalize Cube & compile fields
   if (id) {  // unless anonymous, have the Identity remember this new post
