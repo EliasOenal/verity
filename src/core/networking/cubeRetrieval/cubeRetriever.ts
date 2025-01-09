@@ -189,7 +189,7 @@ export class CubeRetriever implements CubeRetrievalInterface {
       nextChunkPromiseResolve = resolve;
     });
 
-    // The was a timeout, wasn't there?
+    // There was a timeout, wasn't there?
     let timeoutReached: boolean = false;
     const timer: NodeJS.Timeout = setTimeout(() => {
       timeoutReached = true;
