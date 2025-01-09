@@ -61,7 +61,7 @@ describe("Identity (MUC storage)", () => {
           await cubeStore.addCube(post);
         }
         // just a few sanity checks to verify the test setup
-        expect(original.posts.length).toEqual(TESTPOSTCOUNT);
+        expect(original.getPostCount()).toEqual(TESTPOSTCOUNT);
         expect(testPostKeys.length).toEqual(TESTPOSTCOUNT);
 
         // store the test Identity
@@ -74,11 +74,9 @@ describe("Identity (MUC storage)", () => {
         const restoredMuc: cciCube = await cubeStore.getCube(idkey);
         expect(restoredMuc).toBeInstanceOf(cciCube);
         const restored: Identity = await Identity.Construct(cubeStore, restoredMuc)
-        expect(restored.posts.length).toEqual(TESTPOSTCOUNT);
-        for (let i=0; i<restored.posts.length; i++) {
-          const restoredPostKey: string = restored.posts[i].toString('hex');
-          expect(restoredPostKey).toHaveLength(NetConstants.CUBE_KEY_SIZE*2);  // *2 due to string representation
-          expect(testPostKeys).toContain(restoredPostKey);
+        expect(restored.getPostCount()).toEqual(TESTPOSTCOUNT);
+        for (const expectedKey of testPostKeys) {
+          expect(restored.hasPost(expectedKey)).toBeTruthy();
         }
       }, 5000);
 
@@ -148,9 +146,9 @@ describe("Identity (MUC storage)", () => {
         const restored: Identity =
           await Identity.Construct(cubeStore, idMuc, idTestOptions);
         // restored Identity should correctly list two posts, A and B
-        expect(restored.posts).toHaveLength(2);
-        expect(restored.posts).toContainEqual(keyA);
-        expect(restored.posts).toContainEqual(keyB);
+        expect(restored.getPostCount()).toEqual(2);
+        expect(restored.hasPost(keyA)).toBeTruthy();
+        expect(restored.hasPost(keyB)).toBeTruthy();
       });
 
       // recursion depth limit not implemented yet
@@ -190,8 +188,8 @@ describe("Identity (MUC storage)", () => {
         const postkey = await post.getKey();
         await cubeStore.addCube(post);
         expect(postkey).toBeInstanceOf(Buffer);
-        expect(original.posts.length).toEqual(1);
-        expect((await cubeStore.getCube(original.posts[0]) as Cube).getFirstField(cciFieldType.PAYLOAD).value.toString('utf-8')).
+        expect(original.getPostCount()).toEqual(1);
+        expect((await cubeStore.getCube(Array.from(original.getPostKeyStrings())[0]) as Cube).getFirstField(cciFieldType.PAYLOAD).value.toString('utf-8')).
           toEqual("Habeo res importantes dicere");
 
         // compile ID into MUC
@@ -220,8 +218,8 @@ describe("Identity (MUC storage)", () => {
         expect(restored.avatar.scheme).toEqual(AvatarScheme.MULTIAVATAR);
         expect(restored.avatar.seedString).toEqual("0102030405");
         expect(restored.keyBackupCube[0]).toEqual(0x13);
-        expect(restored.posts.length).toEqual(1);
-        expect((await cubeStore.getCube(restored.posts[0]) as Cube).getFirstField(
+        expect(restored.getPostCount()).toEqual(1);
+        expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as Cube).getFirstField(
           cciFieldType.PAYLOAD).value.toString('utf-8')).
           toEqual("Habeo res importantes dicere");
       }, 5000);
@@ -259,8 +257,8 @@ describe("Identity (MUC storage)", () => {
         expect(restored.avatar.scheme).toEqual(AvatarScheme.MULTIAVATAR);
         expect(restored.avatar.seedString).toEqual("0102030405");
         expect(restored.keyBackupCube[0]).toEqual(0x13);
-        expect(restored.posts.length).toEqual(1);
-        expect((await cubeStore.getCube(restored.posts[0]) as Cube).getFirstField(cciFieldType.PAYLOAD).value.toString('utf-8')).
+        expect(restored.getPostCount()).toEqual(1);
+        expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as Cube).getFirstField(cciFieldType.PAYLOAD).value.toString('utf-8')).
           toEqual("Habeo res importantes dicere");
       }, 5000);
 

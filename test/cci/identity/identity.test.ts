@@ -56,27 +56,42 @@ describe('Identity', () => {
     await cubeStore.readyPromise;
   });
 
-  describe('own posts', () => {
+  describe('post-related methods: addPost(), hasPost(), getPostCount(), getPostKeyStrings()', () => {
     it('stores and remembers own post references', () => {
-      const id = new Identity(
-        undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
-      expect(id.posts).toHaveLength(0);
+      // create Identity
+      const idKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41);
+      const id = new Identity(undefined, idKey, idTestOptions);
+      expect(id.getPostCount()).toEqual(0);
 
-      id.rememberMyPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
-      expect(id.posts).toHaveLength(1);
-      expect(id.posts).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      // add a post
+      const postKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337);
+      id.addPost(postKey);
+
+      // check getPostCount()
+      expect(id.getPostCount()).toEqual(1);
+
+      // check hasPost()
+      expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337))).toBeTruthy();
+
+      // check getPostKeyStrings()
+      expect(Array.from(id.getPostKeyStrings())).toHaveLength(1);
+      expect(Array.from(id.getPostKeyStrings())[0]).toEqual(postKey.toString('hex'));
+
+      // check getPostKeys()
+      expect(Array.from(id.getPostKeys())).toHaveLength(1);
+      expect(Array.from(id.getPostKeys())[0]).toEqual(postKey);
     });
 
     // This test currently fails
     it.skip('remembers only unique posts', () => {
       const id = new Identity(
         undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
-      expect(id.posts).toHaveLength(0);
+      expect(id.getPostCount()).toEqual(0);
 
-      id.rememberMyPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
-      id.rememberMyPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
-      expect(id.posts).toHaveLength(1);
-      expect(id.posts).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      expect(id.getPostCount).toEqual(1);
+      expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337))).toBeTruthy();
     });
   });
 
@@ -86,7 +101,7 @@ describe('Identity', () => {
         undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
       expect(id.subscriptionRecommendations).toHaveLength(0);
 
-      id.addSubscriptionRecommendation(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
       expect(id.subscriptionRecommendations).toHaveLength(1);
       expect(id.subscriptionRecommendations).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
     });
@@ -97,8 +112,8 @@ describe('Identity', () => {
         undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
       expect(id.subscriptionRecommendations).toHaveLength(0);
 
-      id.addSubscriptionRecommendation(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
-      id.addSubscriptionRecommendation(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
       expect(id.subscriptionRecommendations).toHaveLength(1);
       expect(id.subscriptionRecommendations).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
     });
@@ -120,7 +135,7 @@ describe('Identity', () => {
         other.muc.setDate(0);  // skip waiting period for the test
         other.store();
         subscribed.push(other.key);
-        subject.addSubscriptionRecommendation(other.key);
+        subject.addPublicSubscription(other.key);
         expect(subject.subscriptionRecommendations[i].equals(other.key)).toBeTruthy();
       }
       for (let i=0; i<TESTSUBCOUNT; i++) {
@@ -134,8 +149,8 @@ describe('Identity', () => {
 
       // verify subscription status
       for (let i=0; i<TESTSUBCOUNT; i++) {
-        expect(subject.isSubscribed(subscribed[i])).toBeTruthy();
-        expect(subject.isSubscribed(nonsubscribed[i])).toBeFalsy();
+        expect(subject.hasPublicSubscription(subscribed[i])).toBeTruthy();
+        expect(subject.hasPublicSubscription(nonsubscribed[i])).toBeFalsy();
       }
     });
 
@@ -151,7 +166,7 @@ describe('Identity', () => {
         other.name = "Figurarius " + i + "-tus";
         other.muc.setDate(0);  // skip waiting period for the test
         other.store();
-        subject.addSubscriptionRecommendation(other.key);
+        subject.addPublicSubscription(other.key);
         expect(subject.subscriptionRecommendations[i].equals(other.key)).toBeTruthy();
       }
       subject.muc.setDate(0);  // hack, just for the test let's not wait 5s for the MUC update
@@ -176,7 +191,7 @@ describe('Identity', () => {
       plusone.name = "Figurarius adiectus"
       plusone.muc.setDate(0);  // accelerate test
       plusone.store();
-      subject.addSubscriptionRecommendation(plusone.key);
+      subject.addPublicSubscription(plusone.key);
       subject.muc.setDate(0);  // accelarate test
       await subject.store();
 
@@ -220,7 +235,7 @@ describe('Identity', () => {
         other.name = "Figurarius " + i + "-tus";
         other.muc.setDate(0); // skip waiting period for the test
         other.store();
-        subject.addSubscriptionRecommendation(other.key);
+        subject.addPublicSubscription(other.key);
         expect(
           subject.subscriptionRecommendations[i].equals(other.key)
         ).toBeTruthy();
@@ -287,66 +302,64 @@ describe('Identity', () => {
   });  // describe subscription recommendations
 
   describe('remote updates', () => {
+    // TODO split into a multiple-test scenario
     it('will preserve posts written, users subscribed to as well as name and avatar changes performed on another device', async() => {
-      // create an Identity
-      const id: Identity = await Identity.Create(
+      // Create an Identity. Let's say the user used their notebook here.
+      const notebookId: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       // make a post and set some user attributes
-      id.name = "Dominus plurium apparatorum";
-      id.avatar = new Avatar("1234567890", AvatarScheme.MULTIAVATAR);
-      await cubeStore.addCube(await makePost(
+      notebookId.name = "Dominus plurium apparatorum";
+      notebookId.avatar = new Avatar("1234567890", AvatarScheme.MULTIAVATAR);
+      const postWrittenOnNotebook: cciCube = await makePost(
         "Hoc est scriptum in computatore domi meae",
-        undefined, id, reducedDifficulty));
-      await id.store();
+        undefined, notebookId, reducedDifficulty);
+      await cubeStore.addCube(postWrittenOnNotebook);
+      await notebookId.store();
       // expect everything to be saved correctly
-      expect(id.name).toEqual("Dominus plurium apparatorum")
-      expect(id.avatar.seedString).toEqual("1234567890");
-      expect(id.posts.length).toBe(1);
-      expect((await cubeStore.getCube(id.posts[0])).getFirstField(
+      expect(notebookId.name).toEqual("Dominus plurium apparatorum")
+      expect(notebookId.avatar.seedString).toEqual("1234567890");
+      expect(notebookId.getPostCount()).toBe(1);
+      const savedPostKey: string = Array.from(notebookId.getPostKeyStrings())[0];
+      expect(savedPostKey).toEqual(postWrittenOnNotebook.getKeyStringIfAvailable());
+      expect((await cubeStore.getCube(savedPostKey)).getFirstField(
         cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
           "Hoc est scriptum in computatore domi meae");
 
-      // re-instantiate same identity
-      const secondDeviceId: Identity = await Identity.Load(
+      // Re-instantiate same identity.
+      // Let's say this is the user logging back in on their phone.
+      const phoneId: Identity = await Identity.Load(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       // expect all data to have loaded correctly
-      expect(secondDeviceId.name).toEqual("Dominus plurium apparatorum")
-      expect(secondDeviceId.avatar.seedString).toEqual("1234567890");
-      expect(secondDeviceId.posts.length).toBe(1);
-      expect((await cubeStore.getCube(secondDeviceId.posts[0])).getFirstField(
-        cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
-          "Hoc est scriptum in computatore domi meae");
-      // perform changes
-      await cubeStore.addCube(await makePost(
+      expect(phoneId.name).toEqual("Dominus plurium apparatorum")
+      expect(phoneId.avatar.seedString).toEqual("1234567890");
+      expect(phoneId.getPostCount()).toBe(1);
+      expect(phoneId.hasPost(postWrittenOnNotebook.getKeyIfAvailable())).toBeTruthy();
+
+      // perform changes on phone
+      const postWrittenOnPhone: cciCube = await makePost(
         "Hoc scriptum est in telefono mobili meo",
-        undefined, secondDeviceId, reducedDifficulty));
-      secondDeviceId.name = "Dominus plurium apparatorum qui nunc iter agit";
-      secondDeviceId.avatar = new Avatar("cafebabe42", AvatarScheme.MULTIAVATAR);
-      await secondDeviceId.store();
+        undefined, phoneId, reducedDifficulty);
+      await cubeStore.addCube(postWrittenOnPhone);
+      phoneId.name = "Dominus plurium apparatorum qui nunc iter agit";
+      phoneId.avatar = new Avatar("cafebabe42", AvatarScheme.MULTIAVATAR);
+      await phoneId.store();
       // expect all changes to be saved correctly
-      expect(secondDeviceId.name).toEqual("Dominus plurium apparatorum qui nunc iter agit")
-      expect(secondDeviceId.avatar.seedString).toEqual("cafebabe42");
-      expect(secondDeviceId.posts.length).toBe(2);
-      expect((await cubeStore.getCube(secondDeviceId.posts[1])).getFirstField(
-        cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
-          "Hoc est scriptum in computatore domi meae");
-      expect((await cubeStore.getCube(secondDeviceId.posts[0])).getFirstField(
-        cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
-          "Hoc scriptum est in telefono mobili meo");
+      expect(phoneId.name).toEqual("Dominus plurium apparatorum qui nunc iter agit")
+      expect(phoneId.avatar.seedString).toEqual("cafebabe42");
+      expect(phoneId.getPostCount()).toBe(2);
+      expect(phoneId.hasPost(postWrittenOnPhone.getKeyIfAvailable())).toBeTruthy();
 
       await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
 
       // expect all changes to have synced to the the first "device"
       // (= original Identity instance)
-      expect(id.name).toEqual("Dominus plurium apparatorum qui nunc iter agit")
-      expect(id.avatar.seedString).toEqual("cafebabe42");
-      expect(id.posts.length).toBe(2);
-      expect((await cubeStore.getCube(id.posts[0])).getFirstField(
-        cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
-          "Hoc est scriptum in computatore domi meae");
-      expect((await cubeStore.getCube(id.posts[1])).getFirstField(
-        cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
-          "Hoc scriptum est in telefono mobili meo");
+      expect(notebookId.name).toEqual("Dominus plurium apparatorum qui nunc iter agit")
+      expect(notebookId.avatar.seedString).toEqual("cafebabe42");
+      expect(notebookId.getPostCount()).toBe(2);
+      // notebook should still have their original post, as well as the one
+      // written on the phone
+      expect(notebookId.hasPost(postWrittenOnNotebook.getKeyIfAvailable())).toBeTruthy();
+      expect(notebookId.hasPost(postWrittenOnPhone.getKeyIfAvailable())).toBeTruthy();
     });
 
     // this still fails as we currently don't actively attempt to merge
@@ -359,12 +372,12 @@ describe('Identity', () => {
       const leftId: Identity =
         await Identity.Construct(cubeStore, masterKey, idTestOptions);
       const commonPostKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1);
-      leftId.rememberMyPost(commonPostKey);
+      leftId.addPost(commonPostKey);
       const leftOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2);
-      leftId.rememberMyPost(leftOnlyKey);
-      expect(leftId.posts).toHaveLength(2);
-      expect(leftId.posts.some(key => key.equals(commonPostKey))).toBeTruthy();
-      expect(leftId.posts.some(key => key.equals(leftOnlyKey))).toBeTruthy();
+      leftId.addPost(leftOnlyKey);
+      expect(leftId.getPostCount()).toEqual(2);
+      expect(leftId.hasPost(commonPostKey)).toBeTruthy();
+      expect(leftId.hasPost(leftOnlyKey)).toBeTruthy();
       const leftMuc: cciCube = await leftId.makeMUC();
       await cubeStore.addCube(leftMuc);
 
@@ -372,21 +385,21 @@ describe('Identity', () => {
       const anotherCubeStore = new CubeStore(testCubeStoreParams);
       const rightId: Identity =
         await Identity.Construct(anotherCubeStore, masterKey, idTestOptions);
-      rightId.rememberMyPost(commonPostKey);
+      rightId.addPost(commonPostKey);
       const rightOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3);
-      rightId.rememberMyPost(rightOnlyKey);
-      expect(rightId.posts).toHaveLength(2);
-      expect(rightId.posts.some(key => key.equals(commonPostKey))).toBeTruthy();
-      expect(rightId.posts.some(key => key.equals(leftOnlyKey))).toBeFalsy();
-      expect(rightId.posts.some(key => key.equals(rightOnlyKey))).toBeTruthy();
+      rightId.addPost(rightOnlyKey);
+      expect(rightId.getPostCount()).toEqual(2);
+      expect(rightId.hasPost(commonPostKey)).toBeTruthy();
+      expect(rightId.hasPost(leftOnlyKey)).toBeFalsy();
+      expect(rightId.hasPost(rightOnlyKey)).toBeTruthy();
       const rightMuc: cciCube = await rightId.makeMUC();
 
       // merge right to left by adding right's MUC to left's CubeStore
       await cubeStore.addCube(rightMuc);
-      expect(leftId.posts).toHaveLength(3);
-      expect(leftId.posts.some(key => key.equals(commonPostKey))).toBeTruthy();
-      expect(leftId.posts.some(key => key.equals(leftOnlyKey))).toBeTruthy();
-      expect(leftId.posts.some(key => key.equals(rightOnlyKey))).toBeTruthy();
+      expect(leftId.getPostCount()).toEqual(3);
+      expect(leftId.hasPost(commonPostKey)).toBeTruthy();
+      expect(leftId.hasPost(leftOnlyKey)).toBeTruthy();
+      expect(leftId.hasPost(rightOnlyKey)).toBeTruthy();
     });
 
     it('should not apply remote changes when explicitly not subscribed', async() => {
@@ -398,12 +411,12 @@ describe('Identity', () => {
       const leftId: Identity =
         await Identity.Construct(cubeStore, masterKey, idTestOptions);
       const commonPostKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1);
-      leftId.rememberMyPost(commonPostKey);
+      leftId.addPost(commonPostKey);
       const leftOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2);
-      leftId.rememberMyPost(leftOnlyKey);
-      expect(leftId.posts).toHaveLength(2);
-      expect(leftId.posts.some(key => key.equals(commonPostKey))).toBeTruthy();
-      expect(leftId.posts.some(key => key.equals(leftOnlyKey))).toBeTruthy();
+      leftId.addPost(leftOnlyKey);
+      expect(leftId.getPostCount()).toEqual(2);
+      expect(leftId.hasPost(commonPostKey)).toBeTruthy();
+      expect(leftId.hasPost(leftOnlyKey)).toBeTruthy();
       const leftMuc: cciCube = await leftId.makeMUC();
       await cubeStore.addCube(leftMuc);
 
@@ -411,21 +424,21 @@ describe('Identity', () => {
       const anotherCubeStore = new CubeStore(testCubeStoreParams);
       const rightId: Identity =
         await Identity.Construct(anotherCubeStore, masterKey, idTestOptions);
-      rightId.rememberMyPost(commonPostKey);
+      rightId.addPost(commonPostKey);
       const rightOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3);
-      rightId.rememberMyPost(rightOnlyKey);
-      expect(rightId.posts).toHaveLength(2);
-      expect(rightId.posts.some(key => key.equals(commonPostKey))).toBeTruthy();
-      expect(rightId.posts.some(key => key.equals(leftOnlyKey))).toBeFalsy();
-      expect(rightId.posts.some(key => key.equals(rightOnlyKey))).toBeTruthy();
+      rightId.addPost(rightOnlyKey);
+      expect(rightId.getPostCount()).toEqual(2);
+      expect(rightId.hasPost(commonPostKey)).toBeTruthy();
+      expect(rightId.hasPost(leftOnlyKey)).toBeFalsy();
+      expect(rightId.hasPost(rightOnlyKey)).toBeTruthy();
       const rightMuc: cciCube = await rightId.makeMUC();
 
       // merge right to left by adding right's MUC to left's CubeStore
       await cubeStore.addCube(rightMuc);
-      expect(leftId.posts).toHaveLength(2);
-      expect(leftId.posts.some(key => key.equals(commonPostKey))).toBeTruthy();
-      expect(leftId.posts.some(key => key.equals(leftOnlyKey))).toBeTruthy();
-      expect(leftId.posts.some(key => key.equals(rightOnlyKey))).toBeFalsy();
+      expect(leftId.getPostCount()).toEqual(2);
+      expect(leftId.hasPost(commonPostKey)).toBeTruthy();
+      expect(leftId.hasPost(leftOnlyKey)).toBeTruthy();
+      expect(leftId.hasPost(rightOnlyKey)).toBeFalsy();
     });
   });
 
@@ -496,13 +509,13 @@ describe('Identity', () => {
           );
           // manually save post to ID rather then through makePost because we will
           // manipulate the date below, and that changes the key
-          subject.forgetMyPost(await post.getKey());
+          subject.removePost(await post.getKey());
           post.setDate(1715279573 + i);  // now you know when this test was written!
-          subject.rememberMyPost(await post.getKey());
+          subject.addPost(await post.getKey());
           await remote.cubeStore.addCube(post);
           testPostKeys.push(await post.getKeyString());
         }
-        expect(subject.posts.length).toEqual(TESTPOSTCOUNT);
+        expect(subject.getPostCount()).toEqual(TESTPOSTCOUNT);
 
         // Build a test web of trust: Subscribe to 40 authors.
         // Each of those is subscribe to an additional author.
@@ -525,14 +538,14 @@ describe('Identity', () => {
           await subsubscribed.store();
 
           // subscribed subscribes to subsubscribed and gets stored
-          subscribed.addSubscriptionRecommendation(subsubscribed.key);
+          subscribed.addPublicSubscription(subsubscribed.key);
           subscribed.muc.setDate(0);  // skip waiting period for the test
           await subscribed.store();
           expect(subscribed.subscriptionRecommendations[0].
             equals(subsubscribed.key)).toBeTruthy();
 
           // subject subscribes to subscribed
-          subject.addSubscriptionRecommendation(subscribed.key);
+          subject.addPublicSubscription(subscribed.key);
           expect(subject.subscriptionRecommendations[i].
             equals(subscribed.key)).toBeTruthy();
         }
@@ -569,10 +582,10 @@ describe('Identity', () => {
           ))).toBe(true);
 
         // verify all posts have been restored correctly
-        expect(restored.posts.length).toBe(TESTPOSTCOUNT);
+        expect(restored.getPostCount()).toBe(TESTPOSTCOUNT);
         expect(testPostKeys.length).toBe(TESTPOSTCOUNT);
-        for (let i=0; i<TESTPOSTCOUNT; i++) {
-          expect(testPostKeys).toContain(restored.posts[i].toString('hex'));
+        for (const expectedKey of testPostKeys) {
+          expect(restored.hasPost(expectedKey)).toBeTruthy();
         }
 
         // verify all subscriptions have been restored correctly
@@ -672,13 +685,13 @@ describe('Identity', () => {
 
         // store some information (in RAM only)
         id.name = "Probator Identitatum";
-        id.rememberMyPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42));
-        id.rememberMyPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 13));
-        id.rememberMyPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 37));
+        id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42));
+        id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 13));
+        id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 37));
         id.avatar = new Avatar("4213374211", AvatarScheme.MULTIAVATAR);
-        id.addSubscriptionRecommendation(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43));
-        id.addSubscriptionRecommendation(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 44));
-        id.addSubscriptionRecommendation(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 45));
+        id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43));
+        id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 44));
+        id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 45));
 
         // compile to MUC
         const muc: cciCube = await id.makeMUC();
@@ -686,10 +699,10 @@ describe('Identity', () => {
 
         // verify information
         expect(id.name).toBe("Probator Identitatum");
-        expect(id.posts.length).toBe(3);
-        expect(id.posts).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42));
-        expect(id.posts).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 13));
-        expect(id.posts).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 37));
+        expect(id.getPostCount()).toBe(3);
+        expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))).toBeTruthy();
+        expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 13))).toBeTruthy();
+        expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 37))).toBeTruthy();
         expect(id.avatar.seedString).toBe("4213374211");
         expect(id.avatar.scheme).toBe(AvatarScheme.MULTIAVATAR);
         expect(id.subscriptionRecommendations.length).toBe(3);
@@ -783,18 +796,18 @@ describe('Identity', () => {
         original.avatar.random();
 
         // make a post
-        expect(original.posts.length).toEqual(0);
+        expect(original.getPostCount()).toEqual(0);
         const post = await makePost("Habeo res importantes dicere",
           undefined, original, reducedDifficulty);
         await cubeStore.addCube(post);
-        expect(original.posts.length).toEqual(1);
+        expect(original.getPostCount()).toEqual(1);
 
         // remember individual values and customizations
         const masterkey = original.masterKey.toString('hex');
         const pubkey = original.muc.publicKey.toString('hex');
         const privkey = original.muc.privateKey.toString('hex');
         const chosenAvatar: string = original.avatar.seedString;
-        const myPostKey: CubeKey = original.posts[0];
+        const myPostKey: CubeKey = original.getPostKeyStrings()[0];
 
         // store Identity
         await original.store();
@@ -809,8 +822,8 @@ describe('Identity', () => {
         expect(restored.muc.publicKey.toString('hex')).toEqual(pubkey);
         expect(restored.muc.privateKey.toString('hex')).toEqual(privkey);
         expect(restored.avatar.seedString).toEqual(chosenAvatar);
-        expect(restored.posts.length).toEqual(1);
-        expect(restored.posts[0]).toEqual(myPostKey);
+        expect(restored.getPostCount()).toEqual(1);
+        expect(restored.getPostKeyStrings()[0]).toEqual(myPostKey);
       });
     });
   });  // static helpers

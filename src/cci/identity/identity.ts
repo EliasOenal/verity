@@ -22,6 +22,7 @@ import { ensureCci } from '../cube/cciCubeUtil';
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
+import { keyVariants } from '../../core/cube/cubeUtil';
 
 // Identity defaults
 const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
@@ -289,12 +290,26 @@ export class Identity {
     return true;  // all checks passed
   }
 
+  /**
+   * This is a normalisation method converting various ways an Identity might
+   * be represented into its binary key.
+   * @param identity - A string or binary Identity key, or the full Identity
+   *   object.
+   * @returns - The identity's binary key.
+   */
   static KeyOf(identity: Identity|Buffer|string): CubeKey {
     if (Buffer.isBuffer(identity)) return identity;
     else if (identity instanceof Identity) return identity.key;
     else if (typeof identity === 'string') return Buffer.from(identity, 'hex');
     else throw new TypeError(`Identity.KeyString(): unknown type ${typeof identity}`);
   }
+  /**
+   * This is a normalisation method converting various ways an Identity might
+   * be represented into its key string.
+   * @param identity - A string or binary Identity key, or the full Identity
+   *   object.
+   * @returns - The identity's key string.
+   */
   static KeyStringOf(identity: Identity|Buffer|string): string {
     if (Buffer.isBuffer(identity)) return identity.toString('hex');
     else if (identity instanceof Identity) return identity.keyString;
@@ -352,6 +367,10 @@ export class Identity {
   get subscriptionRecommendationStrings(): Array<string> {
     return this.subscriptionRecommendations.map(key => key.toString('hex'));
   }
+  hasPublicSubscription(remoteIdentity: CubeKey): boolean {
+    return this.subscriptionRecommendations.some(
+      (subscription: CubeKey) => subscription.equals(remoteIdentity));
+  }
 
   private _subscriptionRecommendationIndices: Array<cciCube> = [];
   get subscriptionRecommendationIndices(): Array<cciCube> {
@@ -371,9 +390,16 @@ export class Identity {
   keyBackupCube: CubeKey = undefined;
 
   /** List of own posts, in undefined order */
-  posts: Array<CubeKey> = [];  // TODO: make this a set for better scalability
-  get postKeyString(): Iterable<string> {
-    return this.posts.map(key => key.toString('hex'));
+  private _posts: Set<string> = new Set();
+  // /** @deprecated Use get*() methods instead please, this is not part of the stable API */
+  // get posts(): Set<string> { return this._posts }
+  *getPostKeys(): Iterable<CubeKey> {
+    for (const key of this._posts) yield keyVariants(key).binaryKey;
+  }
+  getPostKeyStrings(): Iterable<string> { return this._posts.values() }
+  getPostCount(): number { return this._posts.size }
+  hasPost(keyInput: CubeKey | string): boolean {
+    return this._posts.has(keyVariants(keyInput).keyString);
   }
 
   /** When the user tries to rebuild their Identity MUC too often, we'll
@@ -524,26 +550,25 @@ export class Identity {
   }
 
   /** Stores a new cube key a the the beginning of my post list */
-  rememberMyPost(cubeKey: CubeKey | string): boolean {
-    // sanity checks
-    if (!cubeKey) return false;
-    try {  // convert key to binary if supplied as string
-      if (!(cubeKey instanceof Buffer)) cubeKey = Buffer.from(cubeKey as string, 'hex');
-    } catch { return false; }  // could fail if supplied key string is invalid
-    if (cubeKey.length != NetConstants.CUBE_KEY_SIZE) return false;
+  addPost(keyInput: CubeKey | string): boolean {
+    const key = keyVariants(keyInput);  // normalise input
+    // maybe TODO optimise: remove unnecessary conversion to binary in case
+    //   of string input
+    // sanity check
+    if (key?.binaryKey?.length != NetConstants.CUBE_KEY_SIZE) return false;
 
     // everything looks good, let's remember this post
-    this.posts.unshift(cubeKey);
+    this._posts.add(key.keyString);
     return true;
   }
 
   /** Removes a cube key from my post list */
-  forgetMyPost(cubeKey: CubeKey | string) {
-    if (!(cubeKey instanceof Buffer)) cubeKey = Buffer.from(cubeKey as string, 'hex');
-    this.posts = this.posts.filter(p => !p.equals(cubeKey as CubeKey));
+  removePost(keyInput: CubeKey | string) {
+    const key = keyVariants(keyInput);
+    this._posts.delete(key.keyString);
   }
 
-  addSubscriptionRecommendation(remoteIdentity: CubeKey | string) {
+  addPublicSubscription(remoteIdentity: CubeKey | string) {
     if (typeof remoteIdentity === 'string') remoteIdentity = Buffer.from(remoteIdentity, 'hex');
     if (remoteIdentity instanceof Buffer && remoteIdentity.length == NetConstants.CUBE_KEY_SIZE) {
       this._subscriptionRecommendations.push(remoteIdentity);
@@ -552,15 +577,10 @@ export class Identity {
     }
   }
 
-  removeSubscriptionRecommendation(remoteIdentity: CubeKey | string) {
+  removePublicSubscription(remoteIdentity: CubeKey | string) {
     if (typeof remoteIdentity === 'string') remoteIdentity = Buffer.from(remoteIdentity, 'hex');
     this._subscriptionRecommendations = this._subscriptionRecommendations.filter(
       (existing: CubeKey) => !existing.equals(remoteIdentity as Buffer));
-  }
-
-  isSubscribed(remoteIdentity: CubeKey) {
-    return this.subscriptionRecommendations.some(
-      (subscription: CubeKey) => subscription.equals(remoteIdentity));
   }
 
   // maybe TODO: make this a Generator instead?
@@ -671,7 +691,7 @@ export class Identity {
     // We might need to change that again as it basically precludes us from ever
     // de-referencing ("deleting") as post.
     newMuc.fields.insertTillFull(cciField.FromRelationships(
-      cciRelationship.fromKeys(cciRelationshipType.MYPOST, this.posts)));
+      cciRelationship.fromKeys(cciRelationshipType.MYPOST, this.getPostKeyStrings())));
 
     await newMuc.getBinaryData();  // compile MUC
     this._muc = newMuc;
@@ -939,7 +959,7 @@ export class Identity {
     const subs = fields.getRelationships(
       cciRelationshipType.SUBSCRIPTION_RECOMMENDATION);
     for (const sub of subs) {
-      this.addSubscriptionRecommendation(sub.remoteKey);
+      this.addPublicSubscription(sub.remoteKey);
     }
     // recurse through further index cubes, if any:
     const furtherIndices = fields.getRelationships(
@@ -996,7 +1016,7 @@ export class Identity {
     const myPostRels: cciRelationship[] = fields.getRelationships(
       cciRelationshipType.MYPOST);
     for (const postrel of myPostRels) {
-      if (this.posts.includes(postrel.remoteKey)) {
+      if (this.hasPost(postrel.remoteKey)) {
         // if we'we already parsed this post, skip it
         continue;
       }
@@ -1012,7 +1032,7 @@ export class Identity {
             logger.trace(`Identity.recursiveParsePostReferences(): While reconstructing the post list of Identity ${this.keyString} I'll skip post ${postrel.remoteKeyString} as I can't find it.`);
             return recursionResolve();
           }
-          if (this.posts.some((post) => post.equals(postInfo.key))) {  // we should really make this.posts a set
+          if (this.hasPost(postInfo.keyString)) {  // we should really make this.posts a set
             // if we'we already parsed this post, skip it
             // (re-checking this here as things might have changed while we
             // waited for the post to get fetched)
@@ -1021,7 +1041,7 @@ export class Identity {
           // Parse & remember this post
           const post: Cube = postInfo.getCube();
           if (post === undefined) return recursionResolve();
-          this.posts.push(post.getKeyIfAvailable());
+          this.addPost(post.getKeyIfAvailable());
 
           // Continue recursion:
           // Search for further post references within this post.

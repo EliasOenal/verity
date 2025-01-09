@@ -23,7 +23,7 @@ describe('Transmission of encrypted Verita', () => {
         veritum, { recipients: net.recipient.identity });
       // Reference Veritum thorugh Identity MUC --
       // TODO: do that automatically (opt-in or opt-out) through publishVeritum()
-      net.sender.identity.rememberMyPost(veritum.getKeyIfAvailable());
+      net.sender.identity.addPost(veritum.getKeyIfAvailable());
       await net.sender.identity.store();
 
       // give it some time to propagate
@@ -38,8 +38,8 @@ describe('Transmission of encrypted Verita', () => {
         net.recipient.node.cubeRetriever,
         await net.recipient.node.cubeRetriever.getCube(net.sender.identity.key) as cciCube
       );
-      expect(sub.posts).toHaveLength(1);
-      const retrieved: Veritum = await net.recipient.getVeritum(sub.posts[0]);
+      expect(sub.getPostCount()).toEqual(1);
+      const retrieved: Veritum = await net.recipient.getVeritum(sub.getPostKeys()[0]);
       expect(retrieved).toBeDefined();
       expect(retrieved.getFirstField(cciFieldType.PAYLOAD).valueString).toBe(plaintext);
     });
