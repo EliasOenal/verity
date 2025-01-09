@@ -1023,33 +1023,30 @@ export class Identity {
       // fetch referred post
       const postPromise: Promise<CubeInfo> =
         this.cubeRetriever.getCubeInfo(postrel.remoteKey);
-      const recursionPromise: Promise<void> = new Promise(recursionResolve => {
-        postPromise.then((postInfo: CubeInfo) => {
-          if (!postInfo) {  // skip posts we don't actually have
-            // TODO: reconsider whether this is actually a good idea.
-            // A user's post is after all still this user's post even if it happens
-            // not to be available at this moment...
-            logger.trace(`Identity.recursiveParsePostReferences(): While reconstructing the post list of Identity ${this.keyString} I'll skip post ${postrel.remoteKeyString} as I can't find it.`);
-            return recursionResolve();
-          }
-          if (this.hasPost(postInfo.keyString)) {  // we should really make this.posts a set
-            // if we'we already parsed this post, skip it
-            // (re-checking this here as things might have changed while we
-            // waited for the post to get fetched)
-            return recursionResolve();
-          }
-          // Parse & remember this post
-          const post: Cube = postInfo.getCube();
-          if (post === undefined) return recursionResolve();
-          this.addPost(post.getKeyIfAvailable());
+      const recursionPromise: Promise<void> = postPromise.then((postInfo: CubeInfo) => {
+        if (!postInfo) {  // skip posts we don't actually have
+          // TODO: reconsider whether this is actually a good idea.
+          // A user's post is after all still this user's post even if it happens
+          // not to be available at this moment...
+          logger.trace(`Identity.recursiveParsePostReferences(): While reconstructing the post list of Identity ${this.keyString} I skipped a post as I can't find it.`);
+          return;
+        }
+        if (this.hasPost(postInfo.keyString)) {
+          // if we'we already parsed this post, skip it
+          // (re-checking this here as things might have changed while we
+          // waited for the post to get fetched)
+          return;
+        }
+        // Parse & remember this post
+        const post: Cube = postInfo.getCube();
+        if (post === undefined) return;
+        this.addPost(post.getKeyIfAvailable());
 
-          // Continue recursion:
-          // Search for further post references within this post.
-          const recursionDone: Promise<void> =
-            this.recursiveParsePostReferences(post, alreadyTraversedCubes);
-          recursionDone.then(() => recursionResolve());
-        });
-
+        // Continue recursion:
+        // Search for further post references within this post.
+        const recursionDone: Promise<void> =
+          this.recursiveParsePostReferences(post, alreadyTraversedCubes);
+        return recursionDone;
       });
       retPromises.push(recursionPromise);
     }
