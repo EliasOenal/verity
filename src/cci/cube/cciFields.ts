@@ -11,6 +11,7 @@ import { cciField } from "./cciField";
 import { cciRelationship } from "./cciRelationship";
 
 import { Buffer } from 'buffer'
+import { logger } from "../../core/logger";
 
 /**
  * A cciFields object is a wrapper object for the list of fields contained
@@ -78,6 +79,7 @@ export class cciFields extends CubeFields {
         FieldParser.getFieldHeaderLength(field.type, this.fieldDefinition);
       if (spaceRemaining < spaceRequired) break;
       this.insertField(position, field);
+      logger.trace(`cciFields.insertTillFull(): Inserted ${field}`);
       inserted++;
     }
     return inserted;
