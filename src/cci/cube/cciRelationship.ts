@@ -1,11 +1,11 @@
 import { NetConstants } from "../../core/networking/networkDefinitions";
 import { CubeKey } from "../../core/cube/cube.definitions";
+import { keyVariants } from "../../core/cube/cubeUtil";
+
 import { cciFieldType } from "./cciCube.definitions";
 import { cciField } from "./cciField";
 
 import { logger } from "../../core/logger";
-
-import { Buffer } from 'buffer';
 
 export enum cciRelationshipType {
   CONTINUED_IN = 1,
@@ -83,9 +83,7 @@ export class cciRelationship {
       keys: Iterable<CubeKey | string>
   ): Generator<cciRelationship> {
     for (let key of keys) {
-      // convert any string to binary
-      if (!(key instanceof Buffer)) key = Buffer.from(key, 'hex');
-      yield new cciRelationship(type, key);
+      yield new cciRelationship(type, keyVariants(key).binaryKey);
     }
   }
 }
