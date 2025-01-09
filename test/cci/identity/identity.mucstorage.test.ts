@@ -41,7 +41,11 @@ describe("Identity (MUC storage)", () => {
     describe('own posts restore', () => {
       it('restores its post list recursively', async () => {
         // test prep:
-        const TESTPOSTCOUNT = 50;  // 50 keys are more than guaranteed not to fit in the MUC
+        const TESTPOSTCOUNT = 100;
+        // 100 keys are guaranteed to require at least three Cubes.
+        // We must test for at least three Cubes as the second Cube may
+        // (and as of the writing of this comment still is!)
+        // be treated differently than subsequent ones.
         const testPostKeys: string[] = [];
 
         // create a test Identity
