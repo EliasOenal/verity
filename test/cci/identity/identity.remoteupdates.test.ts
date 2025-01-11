@@ -13,6 +13,9 @@ import { testCubeStoreParams } from '../testcci.definitions';
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
+// TODO: Some tests here use "ZW" stuff from the microblogging app
+// which breaks the current layering.
+
 describe('Identity: remote updates', () => {
   const reducedDifficulty = 0;  // no hash cash for testing
   let idTestOptions: IdentityOptions;

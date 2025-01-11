@@ -1,40 +1,18 @@
-import type { NetworkPeerIf } from 'core/networking/networkPeerIf';
-
 import { VerityError } from '../../../src/core/settings';
 
 import { CubeKey } from '../../../src/core/cube/cube.definitions';
-import { CubeStore, CubeStoreOptions } from '../../../src/core/cube/cubeStore';
-import { Cube } from '../../../src/core/cube/cube'
+import { CubeStore } from '../../../src/core/cube/cubeStore';
 
-import { NetConstants, SupportedTransports } from '../../../src/core/networking/networkDefinitions';
-import { NetworkManager } from '../../../src/core/networking/networkManager';
-import { NetworkManagerOptions } from 'core/networking/networkManagerIf';
-import { CubeRetriever } from '../../../src/core/networking/cubeRetrieval/cubeRetriever';
+import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
-
-import { WebSocketAddress } from '../../../src/core/peering/addressing';
-import { Peer } from '../../../src/core/peering/peer';
-import { PeerDB } from '../../../src/core/peering/peerDB';
-
-import { cciFieldType, MediaTypes } from '../../../src/cci/cube/cciCube.definitions';
-import { cciFieldParsers, cciFields } from '../../../src/cci/cube/cciFields';
-import { cciField } from '../../../src/cci/cube/cciField';
-import { cciRelationshipType, cciRelationship } from '../../../src/cci/cube/cciRelationship';
 import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
-
 import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
 import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
-import { IdentityPersistence } from '../../../src/cci/identity/identityPersistence';
-
-import { makePost } from '../../../src/app/zw/model/zwUtil';
 
 import { testCubeStoreParams } from '../testcci.definitions';
 
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-
-// TODO: Some tests here use "ZW" stuff from the microblogging app
-// which breaks the current layering.
 
 describe('Identity: base model tests', () => {
   // This test suite provides basic unit tests regarding Identity's internal
@@ -105,23 +83,23 @@ describe('Identity: base model tests', () => {
     it('stores and remembers subscription recommendations', () => {
       const id = new Identity(
         undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
-      expect(id.subscriptionRecommendations).toHaveLength(0);
+      expect(id.getPublicSubscriptionCount()).toBe(0);
 
       id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
-      expect(id.subscriptionRecommendations).toHaveLength(1);
-      expect(id.subscriptionRecommendations).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      expect(id.getPublicSubscriptionCount()).toBe(1);
+      expect(id.hasPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337))).toBeTruthy();
     });
 
     // This test currently fails
     it.skip('remembers only unique subscription recommendations', () => {
       const id = new Identity(
         undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
-      expect(id.subscriptionRecommendations).toHaveLength(0);
+      expect(id.getPublicSubscriptionCount()).toBe(0);
 
       id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
       id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
-      expect(id.subscriptionRecommendations).toHaveLength(1);
-      expect(id.subscriptionRecommendations).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      expect(id.getPublicSubscriptionCount()).toBe(1);
+      expect(id.hasPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337))).toBeTruthy();
     });
 
     it('correctly identifies authors as subscribed or not subscribed', async () => {
@@ -142,7 +120,7 @@ describe('Identity: base model tests', () => {
         other.store();
         subscribed.push(other.key);
         subject.addPublicSubscription(other.key);
-        expect(subject.subscriptionRecommendations[i].equals(other.key)).toBeTruthy();
+        expect(subject.hasPublicSubscription(other.key)).toBeTruthy();
       }
       for (let i=0; i<TESTSUBCOUNT; i++) {
         const other: Identity = await Identity.Create(
@@ -160,6 +138,12 @@ describe('Identity: base model tests', () => {
       }
     });
   });  // describe subscription recommendations
+
+  describe('recursiveWebOfSubscriptions()', () => {
+    it.todo('returns all of my subscriptions and all of their subscriptions by default');
+    it.todo('can recurse another level if requested')
+    it.todo("does not magically subscribe me to my subscription's subscriptions");
+  });
 
   describe('edge cases', () => {
     describe('constructing and running an Identity without CubeStore access', () => {
@@ -197,10 +181,10 @@ describe('Identity: base model tests', () => {
         expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 37))).toBeTruthy();
         expect(id.avatar.seedString).toBe("4213374211");
         expect(id.avatar.scheme).toBe(AvatarScheme.MULTIAVATAR);
-        expect(id.subscriptionRecommendations.length).toBe(3);
-        expect(id.subscriptionRecommendations).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43));
-        expect(id.subscriptionRecommendations).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 44));
-        expect(id.subscriptionRecommendations).toContainEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 45));
+        expect(id.getPublicSubscriptionCount()).toBe(3);
+        expect(id.hasPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43))).toBeTruthy();
+        expect(id.hasPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 44))).toBeTruthy();
+        expect(id.hasPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 45))).toBeTruthy();
       });
 
       it('will parse an Identity MUC on construction but ignore any references to other Cubes', async() => {

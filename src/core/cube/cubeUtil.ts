@@ -204,7 +204,17 @@ export function shouldRetainCube(key: String, cubeDate: number, challengeLevel: 
     return expirationEpoch >= currentEpoch && cubeDateInEpochs <= currentEpoch;
 }
 
-export function keyVariants(keyInput: CubeKey | string | String): {keyString: string, binaryKey: CubeKey} {
+export interface KeyVariants {
+    keyString: string;
+    binaryKey: CubeKey;
+}
+/**
+ * This is a normalisation helper accepting a Cube key in either its string
+ * or binary representation, and returning an object containing both.
+ */
+// maybe TODO optimise: return an object that lazily performs the conversion in
+//   the getter to avoid unnecessary conversions
+export function keyVariants(keyInput: CubeKey | string | String): KeyVariants {
     if (!keyInput) return undefined;  // input sanity check
     let keyString: string, binaryKey: CubeKey;
     if (Buffer.isBuffer(keyInput)) {
@@ -214,6 +224,13 @@ export function keyVariants(keyInput: CubeKey | string | String): {keyString: st
       keyString = keyInput.toString();  // this gets rid of any "String" object we might have -- TODO: I'm not sure if this is efficient
       binaryKey = Buffer.from(keyInput as string, 'hex');
     }
+    // maybe TODO sanity check
+    // note: even though it may not seem like it, this is a significant API change
+    //   and breaks a whole lot of tests
+    // if (binaryKey.length != NetConstants.CUBE_KEY_SIZE) {
+    //   logger.trace(`keyVariants(): Got invalid key ${keyString} of length ${binaryKey.length} instead of ${NetConstants.CUBE_KEY_SIZE}, returning undefined`);
+    //   return undefined;
+    // }
     return {keyString: keyString, binaryKey: binaryKey};
 }
 

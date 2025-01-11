@@ -97,7 +97,7 @@ export class PostController extends VerityController {
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.cubeStore,
       SubscriptionRequirement.subscribedInTree,
-      await this.cubeStore.getCubeInfos(this.identity.subscriptionRecommendations),  // subscriptions
+      await this.cubeStore.getCubeInfos(this.identity.getPublicSubscriptionStrings()),  // subscriptions
       true,      // auto-learn MUCs (to be able to display authors when available)
       false,     // do not allow anonymous posts
     );

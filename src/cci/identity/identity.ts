@@ -3,6 +3,7 @@ import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
 
 import { unixtime } from '../../core/helpers/misc';
 import { Cube } from '../../core/cube/cube';
+import { KeyVariants, keyVariants } from '../../core/cube/cubeUtil';
 import { logger } from '../../core/logger';
 
 import { Settings, VerityError } from '../../core/settings';
@@ -22,7 +23,6 @@ import { ensureCci } from '../cube/cciCubeUtil';
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
-import { keyVariants } from '../../core/cube/cubeUtil';
 
 // Identity defaults
 const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
@@ -292,29 +292,22 @@ export class Identity {
 
   /**
    * This is a normalisation method converting various ways an Identity might
-   * be represented into its binary key.
+   * be represented into a key.
    * @param identity - A string or binary Identity key, or the full Identity
    *   object.
-   * @returns - The identity's binary key.
+   * @returns - A KeyVariants object containing the key in both its binary
+   *   and string representations.
    */
-  static KeyOf(identity: Identity|Buffer|string): CubeKey {
-    if (Buffer.isBuffer(identity)) return identity;
-    else if (identity instanceof Identity) return identity.key;
-    else if (typeof identity === 'string') return Buffer.from(identity, 'hex');
-    else throw new TypeError(`Identity.KeyString(): unknown type ${typeof identity}`);
+  static KeyVariantsOf(identity: Identity|Buffer|string): KeyVariants {
+    const keyInput: Buffer|string = (identity instanceof Identity) ?
+      identity.key : identity;
+    return keyVariants(keyInput);
   }
-  /**
-   * This is a normalisation method converting various ways an Identity might
-   * be represented into its key string.
-   * @param identity - A string or binary Identity key, or the full Identity
-   *   object.
-   * @returns - The identity's key string.
-   */
+  static KeyOf(identity: Identity|Buffer|string): Buffer {
+    return Identity.KeyVariantsOf(identity)?.binaryKey;
+  }
   static KeyStringOf(identity: Identity|Buffer|string): string {
-    if (Buffer.isBuffer(identity)) return identity.toString('hex');
-    else if (identity instanceof Identity) return identity.keyString;
-    else if (typeof identity === 'string') return identity;
-    else throw new TypeError(`Identity.KeyStringOf(): unknown type ${typeof identity}`);
+    return Identity.KeyVariantsOf(identity)?.keyString;
   }
 
   /** @member This Identity's display name */
@@ -356,20 +349,22 @@ export class Identity {
   private _encryptionPrivateKey: Buffer;
 
   /**
-   * Subscription recommendations are publically visible subscriptions of other
-   * authors. They are also currently the only available type of subscriptions.
+   * Subscriptions of other identities which are publicly visible to other users.
+   * They are also currently the only available type of subscriptions.
    * TODO: Implement private/"secret" subscriptions, too
    */
-  private _subscriptionRecommendations: Array<CubeKey> = [];
-  get subscriptionRecommendations(): Array<CubeKey> {
-    return this._subscriptionRecommendations
-  };
-  get subscriptionRecommendationStrings(): Array<string> {
-    return this.subscriptionRecommendations.map(key => key.toString('hex'));
+  private _publicSubscriptions: Set<string> = new Set();
+  /** @deprecated */
+  // get publicSubscriptions(): Set<string> { return this._publicSubscriptions }
+  *getPublicSubscriptions(): Iterable<CubeKey> {
+    for (const key of this._posts) yield keyVariants(key).binaryKey;
   }
-  hasPublicSubscription(remoteIdentity: CubeKey): boolean {
-    return this.subscriptionRecommendations.some(
-      (subscription: CubeKey) => subscription.equals(remoteIdentity));
+  getPublicSubscriptionStrings(): Iterable<string> {
+    return this._publicSubscriptions.values()
+  }
+  getPublicSubscriptionCount(): number { return this._publicSubscriptions.size }
+  hasPublicSubscription(keyInput: CubeKey | string): boolean {
+    return this._publicSubscriptions.has(keyVariants(keyInput).keyString);
   }
 
   private _subscriptionRecommendationIndices: Array<cciCube> = [];
@@ -568,30 +563,33 @@ export class Identity {
     this._posts.delete(key.keyString);
   }
 
-  addPublicSubscription(remoteIdentity: CubeKey | string) {
-    if (typeof remoteIdentity === 'string') remoteIdentity = Buffer.from(remoteIdentity, 'hex');
-    if (remoteIdentity instanceof Buffer && remoteIdentity.length == NetConstants.CUBE_KEY_SIZE) {
-      this._subscriptionRecommendations.push(remoteIdentity);
+  addPublicSubscription(remoteIdentity: CubeKey | string | Identity) {
+    const key: string = Identity.KeyStringOf(remoteIdentity);
+    if (key) {
+      this._publicSubscriptions.add(key);
     } else {
       logger.warn("Identity: Ignoring subscription request to something that does not at all look like a CubeKey");
     }
   }
 
-  removePublicSubscription(remoteIdentity: CubeKey | string) {
-    if (typeof remoteIdentity === 'string') remoteIdentity = Buffer.from(remoteIdentity, 'hex');
-    this._subscriptionRecommendations = this._subscriptionRecommendations.filter(
-      (existing: CubeKey) => !existing.equals(remoteIdentity as Buffer));
+  removePublicSubscription(remoteIdentity: CubeKey | string | Identity) {
+    const key: string = Identity.KeyStringOf(remoteIdentity);
+    if (key) {
+      this._publicSubscriptions.delete(key);
+    } else {
+      logger.warn("Identity: Ignoring unsubscription request to something that does not at all look like a CubeKey");
+    }
   }
 
   // maybe TODO: make this a Generator instead?
-  async recursiveWebOfSubscriptions(maxDepth: number = 1, curDepth: number = 0): Promise<CubeKey[]> {
+  async recursiveWebOfSubscriptions(maxDepth: number = 1, curDepth: number = 0): Promise<Set<string>> {
     // sanity checks
     if (this.cubeRetriever === undefined) {
       throw new VerityError("Identity.recursiveWebOfSubscriptions(): This Identity is running in read-only mode (i.e. does not have a CubeStore/CubeRetriever reference), thus recursiveWebOfSubscriptions() is not possible.");
     }
-    let recursiveSubs: CubeKey[] = this.subscriptionRecommendations;
+    let recursiveSubs: Set<string> = new Set(this._publicSubscriptions);
     if (curDepth < maxDepth) {
-      for (const sub of this._subscriptionRecommendations) {
+      for (const sub of this._publicSubscriptions) {
         const muc: cciCube = ensureCci(await this.cubeRetriever.getCube(sub));
         if (!muc) continue;
         let id: Identity;
@@ -599,9 +597,9 @@ export class Identity {
           id = await Identity.Construct(this.cubeRetriever, muc);
         } catch(err) { continue; }
         if (!id) continue;
-        recursiveSubs = recursiveSubs.concat(
-          await id.recursiveWebOfSubscriptions(maxDepth, curDepth+1)
-        );
+        recursiveSubs = new Set([...recursiveSubs,
+          ...(await id.recursiveWebOfSubscriptions(maxDepth, curDepth+1))]
+        );  // TODO: use Set.union() instead once it's widely available
       }
     }
     return recursiveSubs;
@@ -794,16 +792,18 @@ export class Identity {
     if (this.options.idmucApplicationString) {
       fields.appendField(cciField.Application(this.options.idmucApplicationString));
     }
-    for (let i=0; i<this.subscriptionRecommendations.length; i++) {
+    // TODO get rid of intermediate Array
+    const subs: string[] = Array.from(this._publicSubscriptions).reverse();
+    for (let i=0; i<subs.length; i++) {
       // write rel
       fields.appendField(cciField.RelatesTo(new cciRelationship(
         cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
-        this.subscriptionRecommendations[i]
+        keyVariants(subs[i]).binaryKey
       )));
 
       // time to roll over to the field set for the next cube?
       if (i % relsPerCube == relsPerCube - 1 ||
-          i == this._subscriptionRecommendations.length - 1) {
+          i == this.getPublicSubscriptionCount() - 1) {
         fieldSets.push(fields);
         fields = new cciFields([], cciMucFieldDefinition);
         if (this.options.idmucApplicationString) {
