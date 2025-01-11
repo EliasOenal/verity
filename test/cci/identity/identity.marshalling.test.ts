@@ -20,6 +20,9 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 
 const reducedDifficulty = 0;  // no hash cash for testing
 
+// TODO: Some tests here use "ZW" stuff from the microblogging app
+// which breaks the current layering.
+
 describe("Identity: mashalling and demarshalling tests", () => {
 // This test suite addresses storing and restoring Identities to/from Cubes,
 // which is obviously the way Identities can travel through the Verity network.
@@ -314,6 +317,7 @@ let cubeStore: CubeStore;
         "clavis mea",
         idTestOptions
       );
+      const subs: Identity[] = [];
       subject.name = "Subscriptor novarum interessantiarum";
       for (let i = 0; i < TESTSUBCOUNT; i++) {
         const other: Identity = await Identity.Create(
@@ -325,10 +329,10 @@ let cubeStore: CubeStore;
         other.name = "Figurarius " + i + "-tus";
         other.muc.setDate(0); // skip waiting period for the test
         other.store();
+        subs.push(other);
         subject.addPublicSubscription(other.key);
         expect(
-          subject.subscriptionRecommendations[i].equals(other.key)
-        ).toBeTruthy();
+          subject.hasPublicSubscription(other.key)).toBeTruthy();
       }
       subject.muc.setDate(0); // hack, just for the test let's not wait 5s for the MUC update
       const muc: cciCube = await subject.store();
@@ -354,14 +358,12 @@ let cubeStore: CubeStore;
         rel.remoteKey
       ) as cciCube;
       expect(firstIndexCube).toBeInstanceOf(cciCube);
-      // First subscription recommendation index contains for subscription recommendation?
+      // First subscription recommendation index contains a subscription recommendation?
       expect(firstIndexCube.fields).toBeInstanceOf(cciFields);
       expect(firstIndexCube.fields.length).toBeGreaterThan(1);
-      expect(
-        firstIndexCube.fields
-          .getFirstRelationship(cciRelationshipType.SUBSCRIPTION_RECOMMENDATION)
-          .remoteKey.equals(subject.subscriptionRecommendations[0])
-      ).toBeTruthy();
+      const subStored: cciRelationship = firstIndexCube.getFirstRelationship(
+        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION);
+      expect(subject.hasPublicSubscription(subStored.remoteKeyString)).toBeTruthy();
 
       // Second subscription recommendation index referred from first one?
       const secondIndexRel: cciRelationship =
@@ -377,14 +379,9 @@ let cubeStore: CubeStore;
       // let's put it all together:
       // all subscription recommendations correctly restored?
       const restored: Identity = await Identity.Construct(cubeStore, muc);
-      expect(restored.subscriptionRecommendations.length).toEqual(TESTSUBCOUNT);
+      expect(restored.getPublicSubscriptionCount()).toEqual(TESTSUBCOUNT);
       for (let i = 0; i < TESTSUBCOUNT; i++) {
-        const othermuc = await cubeStore.getCube(
-          restored.subscriptionRecommendations[i]
-        ) as cciCube;
-        expect(othermuc).toBeInstanceOf(cciCube);
-        const restoredother: Identity = await Identity.Construct(cubeStore, othermuc);
-        expect(restoredother.name).toEqual("Figurarius " + i + "-tus");
+        expect(restored.hasPublicSubscription(subs[i].keyString)).toBeTruthy();
       }
     }, 5000);
 
@@ -401,7 +398,7 @@ let cubeStore: CubeStore;
         other.muc.setDate(0);  // skip waiting period for the test
         other.store();
         subject.addPublicSubscription(other.key);
-        expect(subject.subscriptionRecommendations[i].equals(other.key)).toBeTruthy();
+        expect(subject.hasPublicSubscription(other.key)).toBeTruthy();
       }
       subject.muc.setDate(0);  // hack, just for the test let's not wait 5s for the MUC update
       const muc: cciCube = await subject.store();

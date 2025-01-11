@@ -19,8 +19,12 @@ import { idTestOptions, testCubeStoreParams } from "../testcci.definitions";
 
 import sodium from "libsodium-wrappers-sumo";
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { keyVariants } from "../../../src/core/cube/cubeUtil";
 
 const reducedDifficulty = 0;  // no hash cash for testing
+
+// TODO: Some tests here use "ZW" stuff from the microblogging app
+// which breaks the current layering.
 
 describe('Identity: end-to-end tests', () => {
   // Identity tests regarding actual network communication between different nodes
@@ -126,16 +130,14 @@ describe('Identity: end-to-end tests', () => {
         subscribed.addPublicSubscription(subsubscribed.key);
         subscribed.muc.setDate(0);  // skip waiting period for the test
         await subscribed.store();
-        expect(subscribed.subscriptionRecommendations[0].
-          equals(subsubscribed.key)).toBeTruthy();
+        expect(subscribed.hasPublicSubscription(subsubscribed.key)).toBeTruthy();
 
         // subject subscribes to subscribed
         subject.addPublicSubscription(subscribed.key);
-        expect(subject.subscriptionRecommendations[i].
-          equals(subscribed.key)).toBeTruthy();
+        expect(subject.hasPublicSubscription(subscribed.key)).toBeTruthy();
       }
       // just double-check this worked
-      expect(subject.subscriptionRecommendations.length).toBe(TESTSUBCOUNT);
+      expect(subject.getPublicSubscriptionCount()).toBe(TESTSUBCOUNT);
 
       // store the subject
       subject.muc.setDate(0);  // hack, just for the test let's not wait 5s for the MUC update
@@ -174,16 +176,16 @@ describe('Identity: end-to-end tests', () => {
       }
 
       // verify all subscriptions have been restored correctly
-      expect(restored.subscriptionRecommendations.length).toBe(TESTSUBCOUNT);
+      expect(restored.getPublicSubscriptionCount()).toBe(TESTSUBCOUNT);
       for (let i=0; i<testSubs.length; i++) {
-        expect(restored.subscriptionRecommendations).toContainEqual(testSubs[i]);
+        expect(restored.getPublicSubscriptionCount()).toContainEqual(testSubs[i]);
       }
 
       // verify all indirect subscriptions are correctly recognized as within
       // this user's web of trust
-      const restoredWot: CubeKey[] = await restored.recursiveWebOfSubscriptions(1);
+      const restoredWot: Set<string> = await restored.recursiveWebOfSubscriptions(1);
       for (let i=0; i<testSubSubs.length; i++) {
-        expect(restoredWot).toContainEqual(testSubSubs[i]);
+        expect(restoredWot).toContainEqual(keyVariants(testSubSubs[i]).keyString);
       }
       // direct subscriptions are technically also part of our web of trust,
       // so let's quickly check for those, too
