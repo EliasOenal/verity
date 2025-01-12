@@ -372,7 +372,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
             const keyCount = msg.keyCount || NetConstants.MAX_CUBES_PER_MESSAGE;
             const startKey = msg.startKey;
 
-            let cubes: CubeMeta[];
+            let cubes: CubeInfo[];
             logger.trace(`NetworkPeer ${this.toString()}: handleKeyRequest: received KeyRequest in mode ${KeyRequestMode[mode]}, keyCount: ${keyCount}, startKey: ${startKey?.toString('hex')}`);
             switch (mode) {
                 case KeyRequestMode.SlidingWindow:
@@ -403,7 +403,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         }
     }
 
-    private async handleSlidingWindowKeyRequest(startKey: CubeKey, keyCount: number): Promise<CubeMeta[]> {
+    private async handleSlidingWindowKeyRequest(startKey: CubeKey, keyCount: number): Promise<CubeInfo[]> {
         const recentKeys = startKey
             ? this.networkManager.getRecentSucceedingKeys(startKey, keyCount)
             : this.networkManager.getRecentKeys().slice(0, keyCount);
@@ -416,7 +416,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
             startKey: CubeKey,
             keyCount: number,
             sublevel: Sublevels = Sublevels.CUBES,
-    ): Promise<CubeMeta[]> {
+    ): Promise<CubeInfo[]> {
         // This method should be implemented in the CubeStore class
         return await this.cubeStore.getSucceedingCubeInfos(startKey, keyCount, sublevel);
     }

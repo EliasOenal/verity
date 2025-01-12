@@ -481,9 +481,9 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     startKey: CubeKey,
     count: number,
     sublevel: Sublevels = Sublevels.CUBES,
-  ): Promise<CubeMeta[]> {
+  ): Promise<CubeInfo[]> {
     const keys = await this.leveldb.getSucceedingKeys(sublevel, startKey, count);
-    const cubeInfos: CubeMeta[] = [];
+    const cubeInfos: CubeInfo[] = [];
     for (let key of keys) {
       if (sublevel !== Sublevels.CUBES) {
         // HACKHACK... TODO niceify
