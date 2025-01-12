@@ -291,10 +291,12 @@ export class KeyRequestMessage extends NetworkMessage {
   constructor(buffer: Buffer);
   constructor(mode: KeyRequestMode, options?: CubeFilterOptions);
   constructor(modeOrBuffer: KeyRequestMode|Buffer, options: CubeFilterOptions = {}) {
-    if (modeOrBuffer instanceof Buffer) {
+    if (Buffer.isBuffer(modeOrBuffer)) {
       super(MessageClass.KeyRequest, modeOrBuffer);
-    } else {
+    } else if (modeOrBuffer in KeyRequestMode) {
       super(MessageClass.KeyRequest, KeyRequestMessage.compile(modeOrBuffer, options));
+    } else {
+      throw new ApiMisuseError("KeyRequestMessage constructor: Invalid first parameter, must be Buffer or KeyRequestMode.");
     }
   }
 }
@@ -304,16 +306,16 @@ export class KeyResponseMessage extends NetworkMessage {
   readonly mode: KeyRequestMode;
 
   constructor(value: Buffer);
-  constructor(mode: KeyRequestMode, cubeMetas: CubeMeta[]);
-  constructor(param: Buffer | KeyRequestMode, cubeMetas?: CubeMeta[]) {
-    if (param instanceof Buffer) {
+  constructor(mode: KeyRequestMode, cubeMetas: CubeInfo[]);
+  constructor(param: Buffer | KeyRequestMode, cubeMetas?: CubeInfo[]) {
+    if (Buffer.isBuffer(param)) {
       super(MessageClass.KeyResponse, param);
       this.mode = param.readUInt8(0);
       // ensure number of requests per message does not exceed maximum
       this.keyCount = Math.min(
         this.value.readUIntBE(1, NetConstants.COUNT_SIZE),
         NetConstants.MAX_CUBES_PER_MESSAGE);
-    } else {
+    } else if (param in KeyRequestMode) {
       const mode = param;
       const CUBE_META_WIRE_SIZE =
         NetConstants.CUBE_KEY_SIZE + NetConstants.TIMESTAMP_SIZE +
@@ -345,6 +347,8 @@ export class KeyResponseMessage extends NetworkMessage {
       super(MessageClass.KeyResponse, value);
       this.mode = mode;
       this.keyCount = cubeMetas.length;
+    } else {
+      throw new ApiMisuseError("KeyResponseMessage constructor: Invalid first parameter type, must be Buffer or KeyRequestMode.");
     }
   }
 
@@ -390,14 +394,14 @@ export class CubeRequestMessage extends NetworkMessage {
   constructor(cubeKeys: CubeKey[], messageClass?: MessageClass);
 
   constructor(param: Buffer | CubeKey[], messageClass: MessageClass = MessageClass.CubeRequest) {
-    if (param instanceof Buffer) {
+    if (Buffer.isBuffer(param)) {
       super(messageClass, param);
       // ensure number of requests per message does not exceed maximum
       this.keyCount = Math.min(
         this.value.readUIntBE(0, NetConstants.COUNT_SIZE),
         NetConstants.MAX_CUBES_PER_MESSAGE
       );
-    } else {
+    } else if (Array.isArray(param)) {
       const keys: CubeKey[] = param;
       // ensure number of requests per message does not exceed maximum
       const keyCount = Math.min(
@@ -421,6 +425,8 @@ export class CubeRequestMessage extends NetworkMessage {
       }
       super(messageClass, value);
       this.keyCount = keyCount;
+    } else {
+      throw new ApiMisuseError("CubeRequestMessage constructor: Invalid first parameter type, must be Buffer or CubeKey[].");
     }
   }
 
@@ -441,9 +447,9 @@ export class CubeResponseMessage extends NetworkMessage {
   constructor(binaryCubes: Buffer[]);
 
   constructor(param: Buffer | Buffer[]) {
-    if (param instanceof Buffer) {
+    if (Buffer.isBuffer(param)) {
       super(MessageClass.CubeResponse, param);
-    } else {
+    } else if (Array.isArray(param)) {
       // ensure number of requests per message does not exceed maximum
       const cubeCount = Math.min(
         param.length,
@@ -468,6 +474,8 @@ export class CubeResponseMessage extends NetworkMessage {
         offset += NetConstants.CUBE_SIZE;
       }
       super(MessageClass.CubeResponse, value);
+    } else {
+      throw new ApiMisuseError("CubeResponseMessage constructor: Invalid first parameter type, must be Buffer or Buffer[].");
     }
   }
 
@@ -497,7 +505,7 @@ export class ServerAddressMessage extends NetworkMessage {
   constructor(address: AddressAbstraction);
 
   constructor(param: Buffer | AddressAbstraction) {
-    if (param instanceof Buffer) {
+    if (Buffer.isBuffer(param)) {
       super(MessageClass.MyServerAddress, param);
       // parse address
       let offset = 0;
@@ -510,7 +518,7 @@ export class ServerAddressMessage extends NetworkMessage {
       offset += length;
       // set address
       this.address = AddressAbstraction.CreateAddress(addrString, type);
-    } else {
+    } else if (param instanceof AddressAbstraction) {
       // write message
       const address: AddressAbstraction = param;
       const addressString: string = address.toString();
@@ -528,6 +536,8 @@ export class ServerAddressMessage extends NetworkMessage {
 
       super(MessageClass.MyServerAddress, message);
       this.address = address;
+    } else {
+      throw new ApiMisuseError("ServerAddressMessage constructor: Invalid first parameter type, must be Buffer or AddressAbstraction.");
     }
   }
 }
@@ -544,9 +554,9 @@ export class PeerResponseMessage extends NetworkMessage {
   constructor(peers: Peer[]);
 
   constructor(param: Buffer | Peer[]) {
-    if (param instanceof Buffer) {
+    if (Buffer.isBuffer(param)) {
       super(MessageClass.PeerResponse, param);
-    } else {
+    } else if (Array.isArray(param)) {
       const peers: Peer[] = param;
       // Determine message length
       let msgLength = NetConstants.COUNT_SIZE;  // peer count field
@@ -574,6 +584,8 @@ export class PeerResponseMessage extends NetworkMessage {
       }
       // save message
       super(MessageClass.PeerResponse, message);
+    } else {
+      throw new ApiMisuseError("PeerResponseMessage constructor: Invalid first parameter type, must be Buffer or Peer[].");
     }
   }
 
@@ -691,7 +703,7 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
       subscribedCubesHashes?: Buffer[],
       subscriptionDuration?: number,
   ) {
-    if (param instanceof Buffer) {
+    if (Buffer.isBuffer(param)) {
       // Sanity check input
       if (param.length < 1 + NetConstants.CUBE_KEY_SIZE) {
         throw new NetworkMessageError(`SubscriptionConfirmationMessage: Invalid message length ${param.length}, should be >= ${1 + NetConstants.CUBE_KEY_SIZE}`);
@@ -765,7 +777,7 @@ export class SubscriptionConfirmationMessage extends NetworkMessage {
       this.cubesHashBlob = hashOutput ?? Buffer.alloc(0);
       this.subscriptionDuration = subscriptionDuration ?? 0;
     } else {
-      throw new ApiMisuseError(`SubscriptionConfirmationMessage: Invalid parameter type ${typeof param}`);
+      throw new ApiMisuseError(`SubscriptionConfirmationMessage constructor: Invalid parameter type ${typeof param}, expected Buffer or SubscriptionResponseCode`);
     }
   }
 }
