@@ -8,16 +8,6 @@ import { activateCube, dateFromBinary, typeFromBinary } from './cubeUtil';
 import { Buffer } from 'buffer';
 import { logger } from '../logger';
 
-/**
- * @interface CubeMeta is a restricted view on CubeInfo containing metadata only.
- *            Basically, it's the CubeInfo without the actual Cube :)
-*/
-export interface CubeMeta {
-  key: CubeKey;
-  cubeType: CubeType;
-  date: number;
-  difficulty: number;
-}
 
 export interface CubeInfoOptions {
   /**

@@ -9,7 +9,7 @@ import { TransportConnection } from './transport/transportConnection';
 
 import { CubeKey } from '../cube/cube.definitions';
 import { CubeStore } from '../cube/cubeStore';
-import { CubeInfo, CubeMeta } from '../cube/cubeInfo';
+import { CubeInfo } from '../cube/cubeInfo';
 
 import { WebSocketAddress, AddressAbstraction } from '../peering/addressing';
 import { Peer } from '../peering/peer';

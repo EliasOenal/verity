@@ -1,6 +1,6 @@
 import { BaseField } from "../fields/baseField";
 import { CubeError, CubeKey, CubeType, FieldError } from "../cube/cube.definitions";
-import { CubeInfo, CubeMeta } from "../cube/cubeInfo";
+import { CubeInfo } from "../cube/cubeInfo";
 import { logger } from "../logger";
 import { AddressAbstraction } from "../peering/addressing";
 import { Peer } from "../peering/peer";
