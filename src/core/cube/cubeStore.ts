@@ -1,7 +1,7 @@
 // cubeStore.ts
 import { ApiMisuseError, Settings } from "../settings";
 import { Cube, coreCubeFamily } from "./cube";
-import { CubeInfo, CubeMeta } from "./cubeInfo";
+import { CubeInfo } from "./cubeInfo";
 import { LevelBackend, LevelBackendOptions, Sublevels } from "./levelBackend";
 import { CubeType, CubeKey, CubeFieldType } from "./cube.definitions";
 import { CubeFamilyDefinition } from "./cubeFields";

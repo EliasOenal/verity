@@ -4,7 +4,7 @@ import { NetConstants } from '../networking/networkDefinitions';
 
 import { CubeError, CubeKey, CubeType } from './cube.definitions';
 import { Cube } from './cube';
-import { CubeInfo, CubeMeta } from './cubeInfo';
+import { CubeInfo } from './cubeInfo';
 
 import { logger } from '../logger';
 
@@ -81,7 +81,7 @@ export function cubeLifetime(x: number, e1: number = 0, e2: number = 960, c1: nu
  * @param sculptDate When the Cube was sculpted as a Unix timestamp
  * @returns The Cube's expiry date as a Unix timestamp
  */
-export function cubeExpiration(cubeInfo: CubeMeta): number {
+export function cubeExpiration(cubeInfo: CubeInfo): number {
     return cubeInfo.date + cubeLifetime(cubeInfo.difficulty) * UNIX_SECONDS_PER_EPOCH;
 }
 
