@@ -1,12 +1,13 @@
 import { ApiMisuseError } from '../settings';
 
-import { CubeType, CubeKey } from './cube.definitions';
+import { CubeType, CubeKey, CubeFieldType } from './cube.definitions';
 import { Cube, coreCubeFamily } from './cube'
 import { CubeFamilyDefinition } from './cubeFields';
 import { activateCube, dateFromBinary, typeFromBinary } from './cubeUtil';
 
 import { Buffer } from 'buffer';
 import { logger } from '../logger';
+import { NetConstants } from '../networking/networkDefinitions';
 
 
 export interface CubeInfoOptions {
@@ -28,6 +29,7 @@ export interface CubeInfoOptions {
 
   date?: number;
   difficulty?: number;
+  updatecount?: number;
 
   // TODO update comment to adequately reflect new type CubeFamilyDefinition
   /**
@@ -113,6 +115,22 @@ export class CubeInfo {
     return this._difficulty;
   }
 
+  private _updatecount: number = undefined;
+  /**
+   * Used for PMUCs only, this is the Cube's version counter.
+   * Undefined for all other Cube types.
+   */
+  get updatecount(): number {
+    if (this._updatecount === undefined && (
+        this.cubeType === CubeType.PMUC_NOTIFY || this.cubeType === CubeType.PMUC)) {
+      // If we don't know the count, try to read it from the Cube itself
+      this._updatecount = this.getCube()?.
+        getFirstField?.(CubeFieldType.PMUC_UPDATE_COUNT)?.value?.
+        readUintBE?.(0, NetConstants.PMUC_UPDATE_COUNT_SIZE);
+    }
+    return this._updatecount;
+  }
+
   readonly families: CubeFamilyDefinition[];
 
   /**
@@ -150,11 +168,18 @@ export class CubeInfo {
       }
       this.objectCache = new WeakRef(options.cube);
       this.families = [options.cube.family];
+      this._updatecount = options.cube.getFirstField(
+        CubeFieldType.PMUC_UPDATE_COUNT)?.value?.readUintBE?.(
+        0, NetConstants.PMUC_UPDATE_COUNT_SIZE);
     } else if (options.cube instanceof Buffer) {
       // dormant Cube
       this.binaryCube = options.cube;
       this.key = options.key;
-      this._date = dateFromBinary(this.binaryCube);
+      try {
+        this._date = dateFromBinary(this.binaryCube);
+      } catch (e) {
+        logger.trace(`CubeInfo constructor: Could not parse date from binary Cube, probably invalid?`);
+      }
       if(!this.key) {
         throw new ApiMisuseError("CubeInfo on dormant Cubes can only be contructed if you supply the Cube key.");
       }
@@ -162,6 +187,7 @@ export class CubeInfo {
       let families = options?.family ?? [coreCubeFamily];
       if (!Array.isArray(families)) families = [families];
       this.families = families;
+      this._updatecount = options.updatecount;
     } else {
       // incomplete Cube
       this.binaryCube = undefined;
