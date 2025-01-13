@@ -4,7 +4,6 @@ import { unixtime } from '../helpers/misc';
 import { CubeFilterOptions, CubeRequestMessage, CubeResponseMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, NetworkMessage, PeerRequestMessage, PeerResponseMessage, ServerAddressMessage, SubscriptionConfirmationMessage, SubscriptionResponseCode } from './networkMessage';
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { KeyRequestMode } from './networkMessage';
-import { NetworkManager } from "./networkManager";
 import { TransportConnection } from './transport/transportConnection';
 
 import { CubeKey } from '../cube/cube.definitions';
