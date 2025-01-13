@@ -128,7 +128,25 @@ export function cubeContest(localCube: CubeInfo, incomingCube: CubeInfo): CubeIn
             // highest expiration time wins.
             // However, PMUC_UPDATE_COUNT is not yet available through CubeInfo,
             // nor is it provided on KeyExchange.
-            throw new CubeError("cubeUtil.cubeContest: PMUC not implemented.");
+            const localVersion: number = localCube.updatecount ?? 0;
+            const incomingVersion: number = incomingCube.updatecount ?? 0;
+            if (localVersion > incomingVersion)
+                return localCube;
+            else if (localVersion < incomingVersion)
+                return incomingCube;
+            else {
+                // Same update count, use expiration as tie breaker
+                const localExpiration: number = cubeExpiration(localCube);
+                const incomingExpiration: number = cubeExpiration(incomingCube);
+                if (localExpiration > incomingExpiration)
+                    return localCube;
+                else if (incomingExpiration > localExpiration)
+                    return incomingCube;
+                else {
+                    return localCube;  // Github#579 need better tie breaker rule
+                }
+            }
+            break;
         default:
             throw new CubeError(`cubeUtil.cubeContest(): supplied Cube ${localCube.keyString} has unknown type ${localCube.cubeType}`);
     }

@@ -65,7 +65,7 @@ describe('CubeInfo', () => {
       });
 
       it.todo('tests using PMUC_NOTIFY');
-    });
+    });  // dormant Cubes
 
     describe('active Cubes', () => {
       it('fetches the update count from the Cube', async () => {
@@ -101,6 +101,32 @@ describe('CubeInfo', () => {
           updatecount: 1337,
         });
         expect(cubeInfo.updatecount).toBe(42);
+      });
+    });  // active Cubes
+
+    describe('incomplete Cubes', () => {
+      describe('dormant Cubes', () => {
+        it('knows the update count when actively supplied', () => {
+          const fakeKey: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337);
+          const cubeInfo: CubeInfo = new CubeInfo({
+            key: fakeKey,
+            cubeType: CubeType.PMUC,
+            updatecount: 42,
+          });
+          expect(cubeInfo.updatecount).toBe(42);
+        });
+
+        it('returns undefined when the update count has not been supplied', () => {
+          const fakeKey: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337);
+          const cubeInfo: CubeInfo = new CubeInfo({
+            key: fakeKey,
+            cubeType: CubeType.PMUC,
+            // note missing updatecount
+          });
+          expect(cubeInfo.updatecount).toBe(undefined);
+        });
+
+        it.todo('tests using PMUC_NOTIFY');
       });
     });
   });
