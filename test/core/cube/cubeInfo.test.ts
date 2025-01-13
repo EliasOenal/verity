@@ -12,8 +12,13 @@ import { CubeField } from '../../../src/core/cube/cubeField';
 // objects instead.
 
 describe('CubeInfo', () => {
+  let publicKey: Buffer, privateKey: Buffer;
+
   beforeAll(async () => {
     await sodium.ready;
+    const keyPair = sodium.crypto_sign_keypair();
+    publicKey = Buffer.from(keyPair.publicKey);
+    privateKey = Buffer.from(keyPair.privateKey);
   });
 
   describe('updatecount property', () => {
@@ -31,17 +36,15 @@ describe('CubeInfo', () => {
       });
 
       it('tries to activate the Cube to get the update count', async () => {
-        const keyPair = sodium.crypto_sign_keypair();
         const cube: Cube = Cube.Create({
           cubeType: CubeType.PMUC,
           fields: CubeField.PmucUpdateCount(42),
-          publicKey: Buffer.from(keyPair.publicKey),
-          privateKey: Buffer.from(keyPair.privateKey),
+          publicKey, privateKey,
         });
         const binaryCube: Buffer = await cube.getBinaryData();
 
         const cubeInfo: CubeInfo = new CubeInfo({
-          key: Buffer.from(keyPair.publicKey),
+          key: publicKey,
           cube: binaryCube,
           cubeType: CubeType.PMUC,
           // note missing updatecount
@@ -65,8 +68,40 @@ describe('CubeInfo', () => {
     });
 
     describe('active Cubes', () => {
-      it.todo('fetches the update count from the Cube');
-      it.todo('does not allow to override the update count');
+      it('fetches the update count from the Cube', async () => {
+        const cube: Cube = Cube.Create({
+          cubeType: CubeType.PMUC,
+          fields: CubeField.PmucUpdateCount(42),
+          publicKey, privateKey,
+        });
+        await cube.compile();
+
+        const cubeInfo: CubeInfo = new CubeInfo({
+          key: publicKey,
+          cube: cube,
+          cubeType: CubeType.PMUC,
+          // note missing updatecount
+        });
+        expect(cubeInfo.updatecount).toBe(42);
+      });
+
+      it('does not allow to override the update count', async () => {
+        const cube: Cube = Cube.Create({
+          cubeType: CubeType.PMUC,
+          fields: CubeField.PmucUpdateCount(42),
+          publicKey, privateKey,
+        });
+        await cube.compile();
+
+        const cubeInfo: CubeInfo = new CubeInfo({
+          key: publicKey,
+          cube: cube,
+          cubeType: CubeType.PMUC,
+          // note wrong updatecount supplied; should be ignored
+          updatecount: 1337,
+        });
+        expect(cubeInfo.updatecount).toBe(42);
+      });
     });
   });
 });
