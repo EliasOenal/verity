@@ -49,6 +49,11 @@ export interface CubeFilterOptions {
 // parameters such as filters to be used in the same way for different kinds
 // of messages.
 
+/**
+ * NetworkMessage is the abstract interface for all messages sent over the wire.
+ * Messages are kept in their binary format (Buffer) through the value attribute,
+ * and converted to model data on demand by subclass-specific methods.
+ */
 export abstract class NetworkMessage extends BaseField {
   static fromBinary(message: Buffer): NetworkMessage {
     const type: MessageClass = NetworkMessage.MessageClass(message);

@@ -320,7 +320,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
             options?: CubeOptions)
     {
         // set options
-        if (param1 instanceof Buffer) {
+        if (Buffer.isBuffer(param1)) {
             // existing cube, usually received from the network
             const binaryData = param1;
             if (binaryData.length !== NetConstants.CUBE_SIZE) {
@@ -340,7 +340,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
             }
             this.hash = CubeUtil.calculateHash(binaryData);
             this.validateCube();
-        } else {
+        } else if (param1 in CubeType) {
             // sculpt new Cube
             super(param1, options);
             if (options?.fields) {  // do we have a field set already?
@@ -354,6 +354,8 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
                 this.setFields(options.fields as CubeFields);  // set fields
             }  // no fields yet? let's just start out with an empty set then
             else this._fields = new this.fieldParser.fieldDef.fieldsObjectClass([], this.fieldParser.fieldDef);
+        } else {
+            throw new ApiMisuseError("Cube constructor: first parameter must be Buffer or CubeType");
         }
     }
 

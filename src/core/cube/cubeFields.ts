@@ -41,7 +41,7 @@ export class CubeFields extends BaseFields {
       data: CubeFields | CubeField[] | CubeField = undefined,
       fieldDefinition: FieldDefinition = CoreFrozenFieldDefinition
   ): CubeFields {
-    return BaseFields.DefaultPositionals(fieldDefinition, data) as CubeFields;
+    return this.DefaultPositionals(fieldDefinition, data) as CubeFields;
   }
 
   /**
@@ -59,7 +59,7 @@ export class CubeFields extends BaseFields {
     // HACKHACK, we should get rid of this method anyway
     const fieldsObj: CubeFields = new CubeFields(data, fieldDefinition);
     fieldsObj.ensureFieldInBack(CubeFieldType.PUBLIC_KEY, fieldDefinition.fieldObjectClass.PublicKey(publicKey as Buffer));
-    return BaseFields.DefaultPositionals(fieldDefinition, fieldsObj) as CubeFields;
+    return this.DefaultPositionals(fieldDefinition, fieldsObj) as CubeFields;
   }
 
   static DefaultPositionals(
