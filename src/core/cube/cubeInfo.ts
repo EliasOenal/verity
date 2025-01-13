@@ -197,6 +197,7 @@ export class CubeInfo {
       let families = options?.family ?? [coreCubeFamily];
       if (!Array.isArray(families)) families = [families];
       this.families = families;
+      this._updatecount = options.updatecount;
     }
   }
 
