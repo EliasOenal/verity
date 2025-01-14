@@ -323,8 +323,11 @@ export class KeyResponseMessage extends NetworkMessage {
     } else if (param in KeyRequestMode) {
       const mode = param;
       const CUBE_META_WIRE_SIZE =
-        NetConstants.CUBE_KEY_SIZE + NetConstants.TIMESTAMP_SIZE +
-        NetConstants.CHALLENGE_LEVEL_SIZE + NetConstants.CUBE_TYPE_SIZE;
+        NetConstants.CUBE_TYPE_SIZE +
+        NetConstants.CHALLENGE_LEVEL_SIZE +
+        NetConstants.TIMESTAMP_SIZE +
+        NetConstants.CUBE_KEY_SIZE +
+        NetConstants.PMUC_UPDATE_COUNT_SIZE;
       const value = Buffer.alloc(1 + NetConstants.COUNT_SIZE +
         cubeMetas.length * CUBE_META_WIRE_SIZE);
 
@@ -348,6 +351,9 @@ export class KeyResponseMessage extends NetworkMessage {
 
         cubeMeta.key.copy(value, offset);
         offset += NetConstants.CUBE_KEY_SIZE;
+
+        value.writeUIntBE(cubeMeta.updatecount, offset, NetConstants.PMUC_UPDATE_COUNT_SIZE);
+        offset += NetConstants.PMUC_UPDATE_COUNT_SIZE;
       }
       super(MessageClass.KeyResponse, value);
       this.mode = mode;
@@ -376,11 +382,16 @@ export class KeyResponseMessage extends NetworkMessage {
 
           const key = this.value.subarray(offset, offset + NetConstants.CUBE_KEY_SIZE);
           offset += NetConstants.CUBE_KEY_SIZE;
+
+          const updatecount = this.value.readUIntBE(offset, NetConstants.PMUC_UPDATE_COUNT_SIZE);
+          offset += NetConstants.PMUC_UPDATE_COUNT_SIZE;
+
           const incomingCubeInfo = new CubeInfo({
               key: key,
               date: timestamp,
               difficulty: challengeLevel,
-              cubeType: cubeType
+              cubeType: cubeType,
+              updatecount: updatecount,
           });
           yield incomingCubeInfo;
       }

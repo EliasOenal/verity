@@ -26,6 +26,8 @@ import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { CubeResponseMessage } from '../../../src/core/networking/networkMessage';
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { unixtime } from '../../../src/core/helpers/misc';
+import { cubeContest, cubeExpiration, cubeLifetime } from '../../../src/core/cube/cubeUtil';
 
 // Note: Most general functionality concerning NetworkManager, NetworkPeer
 // etc is described within the WebSocket tests while the libp2p tests are more
@@ -688,6 +690,250 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
         const promise2_shutdown = manager2.shutdown();
         await Promise.all([promise1_shutdown, promise2_shutdown]);
       }, 5000);
+
+
+      describe('syncs PMUC updates', async () => {
+        let manager1: NetworkManager, manager2: NetworkManager;
+        let privateKey: Buffer, publicKey: Buffer;
+        let firstHash: Buffer, secondHash: Buffer, thirdHash: Buffer, fourthHash: Buffer;
+        const firstVersionContent = "Haec est prima versio cubiculi utentis perpetuo mutabilis";
+        const secondVersionContent = "A Creatore meo renovatus sum";
+        const thirdVersionContent = "Haec versio ab altera parte scripta est";
+        const fourthVersionContent = "Si numeri versionis idem sunt, diuturnissima vita vincit"
+        const staleContent = "Versiones obsoletae non accipientur";
+
+        beforeAll(async () => {
+          await sodium.ready;
+          const keyPair = sodium.crypto_sign_keypair();
+          privateKey = Buffer.from(keyPair.privateKey);
+          publicKey = Buffer.from(keyPair.publicKey);
+
+          manager1 = new NetworkManager(
+            new CubeStore(testCubeStoreParams), new PeerDB(),
+            {
+              ...fullNodeMinimalFeatures,
+              transports: new Map([[SupportedTransports.ws, 5003]]),
+            },
+          );
+          manager2 = new NetworkManager(
+            new CubeStore(testCubeStoreParams), new PeerDB(),
+            {
+              ...fullNodeMinimalFeatures,
+              transports: new Map([[SupportedTransports.ws, 5004]]),
+            },
+          );
+
+          // Start both nodes
+          await Promise.all([manager1.start(), manager2.start()]);
+
+          // Connect peer 1 to peer 2
+          manager1.connect(new Peer(new WebSocketAddress('localhost', 5004)));
+          expect(manager1.outgoingPeers[0]).toBeInstanceOf(NetworkPeer);
+          await manager1.outgoingPeers[0].onlinePromise;
+
+          // Create PMUC at peer 1
+          const pmuc = Cube.Create({
+            cubeType: CubeType.PMUC,
+            privateKey, publicKey,
+            fields: [
+              CubeField.RawContent(CubeType.PMUC, firstVersionContent),
+              CubeField.PmucUpdateCount(1),
+              CubeField.Date(1e9),  // only relevant later test
+            ],
+            requiredDifficulty: reducedDifficulty,
+          });
+          await manager1.cubeStore.addCube(pmuc);
+          firstHash = await pmuc.getHash();
+          expect(await manager1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+
+          // sync PMUC from peer 1 to peer 2
+          const expectPmucDelivery: Promise<CubeInfo> =
+            manager2.cubeStore.expectCube(publicKey);
+          manager2.incomingPeers[0].sendKeyRequests();
+          await expectPmucDelivery;
+        });
+
+        it('receives the first version from peer 1 at peer 2', async () => {
+          // check PMUC has been received correctly by peer 2
+          expect(await manager2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+          const rcvd: Cube = await manager2.cubeStore.getCube(publicKey);
+          expect(rcvd).toBeInstanceOf(Cube);
+          expect((await rcvd.getHash()).equals(firstHash)).toBeTruthy();
+          expect(rcvd.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value.
+            readUintBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1);
+          expect(rcvd.getFirstField(CubeFieldType.PMUC_RAWCONTENT).valueString).
+            toContain(firstVersionContent);
+        });
+
+
+        it('will refuse updates of same version number if lifetime is shorter', async () => {
+          // update PMUC at peer 1
+          const pmuc = Cube.Create({
+            cubeType: CubeType.PMUC,
+            privateKey, publicKey,
+            fields: [
+              CubeField.RawContent(CubeType.PMUC, staleContent),
+              CubeField.PmucUpdateCount(1),  // note version conflict
+              CubeField.Date(1e6),  // note this one is older
+            ],
+            requiredDifficulty: reducedDifficulty,
+          });
+          const staleHash: Buffer = await pmuc.getHash();
+          // we need to wipe the old version locally as it obviously wouldn't
+          // even be accepted as an update locally
+          await manager1.cubeStore.wipeAll();
+          await manager1.cubeStore.addCube(pmuc);
+
+          // verify test setup:
+          // expect the stale version to be stored locally
+          expect(await manager1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+          const stored: Cube = await manager1.cubeStore.getCube(publicKey);
+          expect(await stored.getHash()).toEqual(staleHash);
+          expect(stored.getFirstField(CubeFieldType.PMUC_RAWCONTENT).valueString).
+            toContain(staleContent);
+          // expect peer 2 to have another version of the PMUC
+          const previous: Cube = await manager2.cubeStore.getCube(publicKey);
+          expect(previous).toBeInstanceOf(Cube);
+          expect((await previous.getHash()).equals(staleHash)).toBe(false);
+          expect(previous.getFirstField(CubeFieldType.PMUC_RAWCONTENT).valueString)
+            .not.toContain(staleContent);
+          // expect the version currently present at peer 2 to have the same update count
+          expect(previous.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value.
+            readUintBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1);
+          // expect the version currently present at peer 2 to win a Cube contest
+          // against the stale update
+          const previousInfo: CubeInfo = await previous.getCubeInfo();
+          const staleInfo: CubeInfo = await pmuc.getCubeInfo();
+          expect(previousInfo.updatecount).toEqual(staleInfo.updatecount);
+          expect(staleInfo.date).toBeLessThan(previousInfo.date);
+          expect(cubeExpiration(previousInfo)).toBeGreaterThan(cubeExpiration(staleInfo));
+          expect(cubeContest(staleInfo, previousInfo)).toBe(previousInfo);
+
+          // sync PMUC from peer 1 to peer 2
+          manager2.incomingPeers[0].sendKeyRequests();
+          // give it some time -- TODO avoid time based waiting
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          // check MUC has *not* been updated at peer 2
+          expect(await manager2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+          const rcvd: Cube = await manager2.cubeStore.getCube(publicKey);
+          expect(rcvd).toBeInstanceOf(Cube);
+          expect(rcvd.getFirstField(CubeFieldType.PMUC_RAWCONTENT).valueString).
+            not.toContain(staleContent);
+          expect((await rcvd.getHash()).equals(staleHash)).toBeFalsy();
+        });
+
+
+        it('syncs the second version from peer 1 to peer 2', async () => {
+          // update PMUC at peer 1
+          const pmuc = Cube.Create({
+            cubeType: CubeType.PMUC,
+            privateKey, publicKey,
+            fields: [
+              CubeField.RawContent(CubeType.PMUC, secondVersionContent),
+              CubeField.PmucUpdateCount(2),
+              CubeField.Date(1e9),  // only relevant later test
+            ],
+            requiredDifficulty: reducedDifficulty,
+          });
+          await manager1.cubeStore.addCube(pmuc);
+          secondHash = await pmuc.getHash();
+          // expect still just one Cube stored, new version replaces old version
+          expect(await manager1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+
+          // sync PMUC from peer 1 to peer 2, again
+          const expectPmucDelivery: Promise<CubeInfo> =
+            manager2.cubeStore.expectCube(publicKey);
+          manager2.incomingPeers[0].sendKeyRequests();
+          await expectPmucDelivery;
+
+          // check MUC has been updated correctly at peer 2
+          expect(await manager2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+          const rcvd: Cube = await manager2.cubeStore.getCube(publicKey);
+          expect(rcvd).toBeInstanceOf(Cube);
+          expect((await rcvd.getHash()).equals(secondHash)).toBeTruthy();
+          expect(rcvd.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value.
+            readUintBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(2);
+          expect(rcvd.getFirstField(CubeFieldType.PMUC_RAWCONTENT).valueString).
+            toContain(secondVersionContent);
+        });
+
+        it('will sync in reverse direction if version number is higher', async () => {
+          // update PMUC at peer 2
+          const pmuc = Cube.Create({
+            cubeType: CubeType.PMUC,
+            privateKey, publicKey,
+            fields: [
+              CubeField.RawContent(CubeType.PMUC, thirdVersionContent),
+              CubeField.PmucUpdateCount(3),
+              CubeField.Date(1e9),  // only relevant later test
+            ],
+            requiredDifficulty: reducedDifficulty,
+          });
+          await manager2.cubeStore.addCube(pmuc);
+          thirdHash = await pmuc.getHash();
+          // expect still just one Cube stored, new version replaces old version
+          expect(await manager2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+
+          // sync PMUC from peer 2 to peer 1
+          const expectPmucDelivery: Promise<CubeInfo> =
+            manager1.cubeStore.expectCube(publicKey);
+          manager1.outgoingPeers[0].sendKeyRequests();
+          await expectPmucDelivery;
+
+          // check MUC has been updated correctly at peer 1
+          expect(await manager1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+          const rcvd: Cube = await manager1.cubeStore.getCube(publicKey);
+          expect(rcvd).toBeInstanceOf(Cube);
+          expect((await rcvd.getHash()).equals(thirdHash)).toBeTruthy();
+          expect(rcvd.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value.
+            readUintBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(3);
+          expect(rcvd.getFirstField(CubeFieldType.PMUC_RAWCONTENT).valueString).
+            toContain(thirdVersionContent);
+        });
+
+        it('will sync updates of same version number if lifetime is longer', async () => {
+          // update PMUC at peer 1
+          const pmuc = Cube.Create({
+            cubeType: CubeType.PMUC,
+            privateKey, publicKey,
+            fields: [
+              CubeField.RawContent(CubeType.PMUC, fourthVersionContent),
+              CubeField.PmucUpdateCount(3),  // note version conflict
+              CubeField.Date(1e12),  // note this one is newer
+            ],
+            requiredDifficulty: reducedDifficulty,
+          });
+          const expectPmucDelivery: Promise<CubeInfo> =
+            manager2.cubeStore.expectCube(publicKey);
+          await manager1.cubeStore.addCube(pmuc);
+          fourthHash = await pmuc.getHash();
+          // expect still just one Cube stored, new version replaces old version
+          expect(await manager1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+
+          // sync PMUC from peer 1 to peer 2
+          manager2.incomingPeers[0].sendKeyRequests();
+          await expectPmucDelivery;
+
+          // check MUC has been updated correctly at peer 2
+          expect(await manager2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
+          const rcvd: Cube = await manager2.cubeStore.getCube(publicKey);
+          expect(rcvd).toBeInstanceOf(Cube);
+          expect((await rcvd.getHash()).equals(fourthHash)).toBeTruthy();
+          expect(rcvd.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value.
+            readUintBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(3);
+          expect(rcvd.getFirstField(CubeFieldType.PMUC_RAWCONTENT).valueString).
+            toContain(fourthVersionContent);
+        });
+
+        afterAll(async () => {
+          // teardown
+          const promise1_shutdown = manager1.shutdown();
+          const promise2_shutdown = manager2.shutdown();
+          await Promise.all([promise1_shutdown, promise2_shutdown]);
+        });
+      });  // syncs PMUC updates
+
 
       it.todo('will not request Cubes already in store');
       it.todo('will not send Cubes that have not been requested');
