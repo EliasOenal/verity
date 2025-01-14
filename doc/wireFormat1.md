@@ -62,8 +62,10 @@
       - **Cube Type (1 byte)**: The type of the cube (e.g., regular, MUC, IPC).
       - **Challenge Level (1 byte)**: The challenge level the cube adheres to.
       - **Timestamp (5 bytes)**: The timestamp of the cube.
+      - **PMUC update count (4 byte)**
       - **Key (32 bytes)**: The key of the cube.
-      - Proposed extension: **PMUC update count (4 byte)**
+    - Note: This makes a full Cube detail 43 bytes long, which is only a 23.8
+      compression factor compared to a full 1024 byte Cube.
 
   - `CubeRequest`:
     - **Cube Key Count (4 bytes)**: This is an integer indicating the number of cubes being requested.

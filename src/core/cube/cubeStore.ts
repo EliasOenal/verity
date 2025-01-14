@@ -696,6 +696,12 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface, C
     await checkAndPruneCubes(); // start pruning
   }
 
+  /**
+   * For testing mostly: Returns an awaitable Promise enabling you to wait
+   * until a Cube has been added to the store.
+   * @param keyInput - The expected Cube's key
+   * @returns - A Promise resolving to the expected Cube's CubeInfo once received
+   */
   // maybe TODO: add timeout?
   expectCube(keyInput: CubeKey|string): Promise<CubeInfo> {
     const key: CubeKey = keyVariants(keyInput).binaryKey;
