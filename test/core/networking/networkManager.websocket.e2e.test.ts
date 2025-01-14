@@ -44,7 +44,7 @@ const lightNodeMinimalFeatures: NetworkManagerOptions = {  // disable optional f
   peerExchange: false,
 };
 
-describe('networkManager - WebSocket connections', () => {
+describe('networkManager - WebSocket connection end-to-end tests', () => {
   const reducedDifficulty = 0;
   const testCubeStoreParams: CubeStoreOptions = {
     inMemory: true,
