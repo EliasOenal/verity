@@ -641,15 +641,10 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
         expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);
 
         // sync MUC from peer 1 to peer 2
-        expect(manager2.incomingPeers[0]).toBeInstanceOf(NetworkPeer);
+        const expectDelivery1: Promise<CubeInfo> =
+          manager2.cubeStore.expectCube(mucKey);
         manager2.incomingPeers[0].sendKeyRequests();
-        // Verify MUC has been synced. Wait up to three seconds for that to happen.
-        for (let i = 0; i < 30; i++) {
-          if (await cubeStore2.getCube(mucKey)) {
-            break;
-          }
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
+        await expectDelivery1;
 
         // check MUC has been received correctly at peer 2
         expect(await cubeStore2.getNumberOfStoredCubes()).toEqual(1);
@@ -675,14 +670,10 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
         expect(await cubeStore.getNumberOfStoredCubes()).toEqual(1);  // still just one, new MUC version replaces old MUC version
 
         // sync MUC from peer 1 to peer 2, again
+        const expectDelivery2: Promise<CubeInfo> =
+          manager2.cubeStore.expectCube(mucKey);
         manager2.incomingPeers[0].sendKeyRequests();
-        // Verify MUC has been synced. Wait up to three seconds for that to happen.
-        for (let i = 0; i < 30; i++) {
-          if ((await cubeStore2.getCube(mucKey))?.getHashIfAvailable()?.equals(secondMucHash)) {
-            break;
-          }
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
+        await expectDelivery2;
 
         // check MUC has been updated correctly at peer 2
         expect(await cubeStore2.getNumberOfStoredCubes()).toEqual(1);  // still one, MUC has only been updated
