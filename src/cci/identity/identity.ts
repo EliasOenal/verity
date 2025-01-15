@@ -8,7 +8,7 @@ import { logger } from '../../core/logger';
 
 import { Settings, VerityError } from '../../core/settings';
 import { NetConstants } from '../../core/networking/networkDefinitions';
-import { CubeStore } from '../../core/cube/cubeStore';
+import { CubeEmitter, CubeRetrievalInterface, CubeStore } from '../../core/cube/cubeStore';
 import { CubeInfo } from '../../core/cube/cubeInfo';
 import { CubeError, CubeKey, CubeType } from '../../core/cube/cube.definitions';
 import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
