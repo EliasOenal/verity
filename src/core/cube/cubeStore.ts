@@ -88,13 +88,34 @@ export type CubeIteratorOptions = {
   reverse?: boolean,
 };
 
+/**
+ * A generalised interface for objects that can retrieve Cubes.
+ * Examples within the core library include CubeStore and CubeRetriever.
+ */
 export interface CubeRetrievalInterface {
   getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo>;
   getCube<cubeClass extends Cube>(key: CubeKey | string, family?: CubeFamilyDefinition): Promise<cubeClass>;
   expectCube(keyInput: CubeKey|string): Promise<CubeInfo>;  // maybe TODO: add timeout?
 }
 
-export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
+/**
+ * CubeEmitter is a generelised interface for objects that can emit CubeInfos.
+ * They will also keep track of all emitted Cubes.
+ * CubeStore is obviously an example of a CubeEmitter, emitting a CubeInfo
+ * whenever a Cube is added to or updated in store.
+ */
+export interface CubeEmitter extends EventEmitter {
+  on(event: 'cubeAdded', listener: (cubeInfo: CubeInfo) => void): this;
+  emit(event: 'cubeAdded', cubeInfo: CubeInfo): boolean;
+
+  /**
+   * A Generator producing all CubeInfos that have been emitted by this emitter;
+   * or would have been emitted if the emitter existed at the appropriate time.
+   */
+  getAllCubeInfos(): AsyncGenerator<CubeInfo>;
+}
+
+export class CubeStore extends EventEmitter implements CubeRetrievalInterface, CubeEmitter {
 
   readyPromise: Promise<undefined>;
 
@@ -450,14 +471,12 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface {
     }
   }
 
-  // TODO: get rid of this method
-  // Note: This duplicate getAllCubeInfos(), but AsyncGenerators are still a
-  // bit tricky to handle at times.
-  /** @deprecated */
-  async getCubeInfos(keys: Iterable<CubeKey | string>): Promise<CubeInfo[]> {
-    const cubeInfos: CubeInfo[] = [];
-    for (const key of keys) cubeInfos.push(await this.getCubeInfo(key));
-    return cubeInfos;
+  async *getCubeInfos(keys: Iterable<CubeKey | string>): AsyncGenerator<CubeInfo> {
+    for (const key of keys) yield this.getCubeInfo(key);
+  }
+
+  async *getAllCubeInfos(): AsyncGenerator<CubeInfo> {
+    for await (const key of this.getKeyRange()) yield this.getCubeInfo(key);
   }
 
   async getKeyAtPosition(position: number): Promise<CubeKey> {

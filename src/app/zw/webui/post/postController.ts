@@ -21,6 +21,7 @@ import { Buffer } from 'buffer';
 import { FileApplication } from '../../../fileApplication';
 import DOMPurify from 'dompurify';
 import { keyVariants } from "../../../../core/cube/cubeUtil";
+import { ArrayFromAsync } from "../../../../core/helpers/misc";
 
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
@@ -64,6 +65,7 @@ export class PostController extends VerityController {
     this.annotationEngine?.shutdown();
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.cubeStore,
+      this.cubeRetriever,
       SubscriptionRequirement.none,  // show all posts
       [],       // subscriptions don't play a role in this mode
       true,     // auto-learn MUCs to display authorship info if available
@@ -80,6 +82,7 @@ export class PostController extends VerityController {
     this.annotationEngine?.shutdown();
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.cubeStore,
+      this.cubeRetriever,
       SubscriptionRequirement.none,
       [],       // no subscriptions as they don't play a role in this mode
       true,     // auto-learn MUCs (posts associated with any Identity MUC are okay)
@@ -96,8 +99,9 @@ export class PostController extends VerityController {
     this.annotationEngine?.shutdown();
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.cubeStore,
+      this.cubeRetriever,
       SubscriptionRequirement.subscribedInTree,
-      await this.cubeStore.getCubeInfos(this.identity.getPublicSubscriptionStrings()),  // subscriptions
+      await ArrayFromAsync(this.cubeStore.getCubeInfos(this.identity.getPublicSubscriptionStrings())),  // subscriptions
       true,      // auto-learn MUCs (to be able to display authors when available)
       false,     // do not allow anonymous posts
     );
@@ -112,9 +116,10 @@ export class PostController extends VerityController {
     this.annotationEngine?.shutdown();
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.cubeStore,
+      this.cubeRetriever,
       SubscriptionRequirement.subscribedReply,
-      await this.cubeStore.getCubeInfos(
-        await this.identity.recursiveWebOfSubscriptions(0)),  // subscriptions
+      await ArrayFromAsync(this.cubeStore.getCubeInfos(
+        await this.identity.recursiveWebOfSubscriptions(0))),  // subscriptions
       true,      // auto-learn MUCs (to be able to display authors when available)
       false,     // do not allow anonymous posts
     );
@@ -129,9 +134,10 @@ export class PostController extends VerityController {
     this.annotationEngine?.shutdown();
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.cubeStore,
+      this.cubeRetriever,
       SubscriptionRequirement.subscribedReply,
-      await this.cubeStore.getCubeInfos(
-        await this.identity.recursiveWebOfSubscriptions(3)),  // subscriptions
+      await ArrayFromAsync(this.cubeStore.getCubeInfos(
+        await this.identity.recursiveWebOfSubscriptions(3))),  // subscriptions
       true,      // auto-learn MUCs (to be able to display authors when available)
       false,     // do not allow anonymous posts
     );
@@ -151,7 +157,7 @@ export class PostController extends VerityController {
     // logger.trace("CubeDisplay: Redisplaying all cubes");
     // TODO: we need to get rid of this full CubeStore walk
     for await (const cubeInfo of this.cubeStore.getCubeInfoRange({ limit: Infinity })) {
-        if (await this.annotationEngine.isCubeDisplayable(cubeInfo.key)) {
+        if (await this.annotationEngine.isCubeDisplayable(cubeInfo)) {
             await this.displayPost(cubeInfo.key);
         }
     }

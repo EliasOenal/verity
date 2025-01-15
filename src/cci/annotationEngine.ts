@@ -1,6 +1,5 @@
 import { CubeKey } from '../core/cube/cube.definitions';
 import { CubeInfo } from '../core/cube/cubeInfo'
-import { CubeStore } from '../core/cube/cubeStore';
 import { Cube } from '../core/cube/cube';
 
 import { cciFields } from './cube/cciFields';
@@ -13,6 +12,7 @@ import { Buffer } from 'buffer';
 import { Settings } from 'core/settings';
 import { NetConstants } from '../core/networking/networkDefinitions';
 import { logger } from '../core/logger';
+import { CubeEmitter } from '../core/cube/cubeStore';
 
 type RelationshipClassConstructor = new (type: number, remoteKey: CubeKey) => cciRelationship;
 export function defaultGetFieldsFunc(cube: Cube): BaseFields {
@@ -21,7 +21,7 @@ export function defaultGetFieldsFunc(cube: Cube): BaseFields {
 
 export class AnnotationEngine extends EventEmitter {
   static Construct(
-    cubeStore: CubeStore,
+    cubeStore: CubeEmitter,
     getFields: (cube: Cube) => BaseFields = defaultGetFieldsFunc,
     relationshipClass: RelationshipClassConstructor = cciRelationship,
     limitRelationshipTypes: Map<number, number> = undefined
@@ -66,7 +66,7 @@ export class AnnotationEngine extends EventEmitter {
    * is supposed to work on. By default, for top-level Cube fields, it is just an
    * alias to cube.fields.
    */
-      public readonly cubeStore: CubeStore,
+      public readonly cubeEmitter: CubeEmitter,
       public readonly getFields: (cube: Cube) => BaseFields = defaultGetFieldsFunc,
       public readonly relationshipClass: RelationshipClassConstructor = cciRelationship,
 
@@ -82,8 +82,8 @@ export class AnnotationEngine extends EventEmitter {
     {
     super();
     // set CubeStore and subscribe to events
-    this.cubeStore = cubeStore;
-    this.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => this.autoAnnotate(cubeInfo));
+    this.cubeEmitter = cubeEmitter;
+    this.cubeEmitter.on('cubeAdded', (cubeInfo: CubeInfo) => this.autoAnnotate(cubeInfo));
     this.crawlCubeStore();  // we may have missed some events
   }
 
@@ -188,7 +188,7 @@ export class AnnotationEngine extends EventEmitter {
   }
 
   shutdown(): void {
-    this.cubeStore.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.autoAnnotate(cubeInfo));
+    this.cubeEmitter.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.autoAnnotate(cubeInfo));
   }
 
   // This does not scale well as it forces CubeStore to read every single
@@ -198,7 +198,7 @@ export class AnnotationEngine extends EventEmitter {
   // This is a low priority, non-breaking todo which only needs to be addressed
   // once we actually have a userbase.
   protected async crawlCubeStore(): Promise<void> {
-    for await (const cubeInfo of this.cubeStore.getCubeInfoRange({ limit: Infinity})) {
+    for await (const cubeInfo of this.cubeEmitter.getAllCubeInfos()) {
       // TODO: This is not efficient. We should instead fire those off all at
       // once, collect them and later await Promises.all
       await this.crawlCubeStoreEach(cubeInfo);
@@ -206,7 +206,7 @@ export class AnnotationEngine extends EventEmitter {
     this.readyPromiseResolve(this);
   }
 
-  // Split out into it's own method so superclasses have more flexibility
+  // Split out into it's own method so subclasses have more flexibility
   // in mixing in their own code. (Namely, ZwAnnotationEngine uses this.)
   protected async crawlCubeStoreEach(cubeInfo: CubeInfo): Promise<void> {
     this.autoAnnotate(cubeInfo);

@@ -45,6 +45,7 @@ describe('ZwAnnotationEngine', () => {
     beforeEach(async () => {
       annotationEngine = await ZwAnnotationEngine.ZwConstruct(
         cubeStore,
+        cubeStore,
         SubscriptionRequirement.none,
         [],     // no subscriptions as they don't play a role for this group of tests
         true,   // auto-learn MUCs cause why not (not actually used)
@@ -185,6 +186,7 @@ describe('ZwAnnotationEngine', () => {
     beforeEach(async () => {
       annotationEngine = await ZwAnnotationEngine.ZwConstruct(
         cubeStore,
+        cubeStore,
         SubscriptionRequirement.none,
         [],     // no subscriptions as they don't play a role for this group of tests
         true,   // auto-learn MUCs
@@ -307,6 +309,7 @@ describe('ZwAnnotationEngine', () => {
   describe('cube ownership', () => {
     beforeEach(async () => {
       annotationEngine = await ZwAnnotationEngine.ZwConstruct(
+        cubeStore,
         cubeStore,
         SubscriptionRequirement.none,
         [],     // no subscriptions as they don't play a role for this group of tests
