@@ -54,6 +54,38 @@ export async function ArrayFromAsync<T>(it: AsyncIterable<T>): Promise<Array<T>>
   return ret;
 }
 
+/**
+ * Helper function to merge multiple async generators into one.
+ * It accepts any number of async generators and yields all of their values
+ * in the order they are received.
+ */
+export async function* mergeAsyncGenerators<T>(
+  ...generators: AsyncGenerator<T>[]
+): AsyncGenerator<T> {
+  // Array to hold the promises for the next values of each generator
+  const promises = generators.map((gen) => gen.next());
+
+  while (promises.length > 0) {
+    // Wait for any promise to resolve
+    const { value, index } = await Promise.race(
+      promises.map((p, i) =>
+        p.then((result) => ({ value: result, index: i }))
+      )
+    );
+
+    // If the resolved promise is not done, yield its value
+    if (!value.done) {
+      yield value.value;
+      // Replace the resolved promise with the next from the corresponding generator
+      promises[index] = generators[index].next();
+    } else {
+      // If done, remove the corresponding generator and promise
+      promises.splice(index, 1);
+      generators.splice(index, 1);
+    }
+  }
+}
+
 export function isIterableButNotBuffer(obj: any): boolean {
   return obj != null &&
     typeof obj[Symbol.iterator] === 'function' &&
