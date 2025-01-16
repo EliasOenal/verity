@@ -23,6 +23,7 @@ import { ensureCci } from '../cube/cciCubeUtil';
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
+import { EventEmitter } from 'events';
 
 // Identity defaults
 const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
@@ -225,7 +226,7 @@ export class Identity {
    * !!! Identity may only be constructed after awaiting sodium.ready !!!
    **/
   static async Construct(
-    cubeStoreOrRetriever: CubeRetriever | CubeStore,
+    cubeStoreOrRetriever: CubeRetrievalInterface,
     mucOrMasterkey: cciCube | Buffer,
     options?: IdentityOptions,
   ): Promise<Identity> {
@@ -342,7 +343,7 @@ export class Identity {
    * reconstruct Identity data from the network. If this is not required,
    * it will simply work on the local CubeStore instead.
    */
-  readonly cubeRetriever: CubeRetriever | CubeStore;
+  readonly cubeRetriever: CubeRetrievalInterface;
 
   private _masterKey: Buffer = undefined;
   get masterKey(): Buffer { return this._masterKey }
@@ -425,15 +426,17 @@ export class Identity {
    * see there for param documentation.
    */
   constructor(
-      cubeStoreOrRetriever: CubeRetriever | CubeStore,
+      cubeStoreOrRetriever: CubeRetrievalInterface,
       mucOrMasterkey: cciCube | Buffer,
       readonly options: IdentityOptions = {},
   ){
     // remember my CubeStore, and CubeRetriever if applicable
     this.cubeRetriever = cubeStoreOrRetriever;
-    if (cubeStoreOrRetriever instanceof CubeRetriever) {
+    if (cubeStoreOrRetriever instanceof CubeStore) {
+      this.cubeStore = cubeStoreOrRetriever;
+    } else if (cubeStoreOrRetriever instanceof CubeRetriever) {
       this.cubeStore = cubeStoreOrRetriever.cubeStore;
-    } else this.cubeStore = cubeStoreOrRetriever;
+    } else this.cubeStore = undefined;
     // set options
     options.minMucRebuildDelay ??= DEFAULT_MIN_MUC_REBUILD_DELAY;
     options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
