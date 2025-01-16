@@ -23,7 +23,6 @@ import { ensureCci } from '../cube/cciCubeUtil';
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
-import { EventEmitter } from 'events';
 
 // Identity defaults
 const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
@@ -35,6 +34,8 @@ const IDMUC_MASTERINDEX = 0;
 const DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING = "CCI Encrpytion";
 const DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX = 0;
 
+
+// TODO implement shutdown to clean up event subscriptions
 
 export interface IdentityOptions {
   /**
@@ -349,15 +350,32 @@ export class Identity {
   get masterKey(): Buffer { return this._masterKey }
   private _encryptionPrivateKey: Buffer;
 
+  /** @member - The MUC in which this Identity information is stored and published */
+  private _muc: cciCube = undefined;
+
+  /** List of own posts, in undefined order */
+  private _posts: Set<string> = new Set();
+  // /** @deprecated Use get*() methods instead please, this is not part of the stable API */
+  // get posts(): Set<string> { return this._posts }
+  *getPostKeys(): Iterable<CubeKey> {
+    for (const key of this._posts) yield keyVariants(key).binaryKey;
+  }
+  getPostKeyStrings(): Iterable<string> { return this._posts.values() }
+  getPostCount(): number { return this._posts.size }
+  hasPost(keyInput: CubeKey | string): boolean {
+    return this._posts.has(keyVariants(keyInput).keyString);
+  }
+
   /**
    * Subscriptions of other identities which are publicly visible to other users.
    * They are also currently the only available type of subscriptions.
-   * TODO: Implement private/"secret" subscriptions, too
+   * TODO: Implement private/"secret" subscriptions, too.
+   *       Those will need to be stored in a separate, private, encrypted settings MUC.
    */
   private _publicSubscriptions: Set<string> = new Set();
   /** @deprecated */
   // get publicSubscriptions(): Set<string> { return this._publicSubscriptions }
-  *getPublicSubscriptions(): Iterable<CubeKey> {
+  *getPublicSubscriptionKeys(): Iterable<CubeKey> {
     for (const key of this._posts) yield keyVariants(key).binaryKey;
   }
   getPublicSubscriptionStrings(): Iterable<string> {
@@ -373,30 +391,8 @@ export class Identity {
     return this._subscriptionRecommendationIndices;
   }
 
-  /** @member The MUC in which this Identity information is stored and published */
-  private _muc: cciCube = undefined;
-
-  /** @member Points to first cube in the profile picture continuation chain */
+  /** @member - Points to first cube in the profile picture continuation chain */
   profilepic: CubeKey = undefined;
-
-  /**
-   * @member The key of the cube containing our private key encrypted with our password.
-   * Not actually implemented yet.
-   **/
-  keyBackupCube: CubeKey = undefined;
-
-  /** List of own posts, in undefined order */
-  private _posts: Set<string> = new Set();
-  // /** @deprecated Use get*() methods instead please, this is not part of the stable API */
-  // get posts(): Set<string> { return this._posts }
-  *getPostKeys(): Iterable<CubeKey> {
-    for (const key of this._posts) yield keyVariants(key).binaryKey;
-  }
-  getPostKeyStrings(): Iterable<string> { return this._posts.values() }
-  getPostCount(): number { return this._posts.size }
-  hasPost(keyInput: CubeKey | string): boolean {
-    return this._posts.has(keyVariants(keyInput).keyString);
-  }
 
   /** When the user tries to rebuild their Identity MUC too often, we'll
    * remember their request in this promise. Any subsequent Identity changes
@@ -668,13 +664,6 @@ export class Identity {
       ));
     }
 
-    // Write key backup cube reference (not actually implemented yet)
-    if (this.keyBackupCube) {
-      newMuc.insertFieldBeforeBackPositionals(cciField.RelatesTo(
-        new cciRelationship(cciRelationshipType.KEY_BACKUP_CUBE, this.keyBackupCube)
-      ));
-    }
-
     // Write subscription recommendations
     // (these will be in their own sub-MUCs and we'll reference the first one
     // of those here)
@@ -895,11 +884,6 @@ export class Identity {
     const profilePictureRel: cciRelationship = muc.fields.getFirstRelationship(
       cciRelationshipType.ILLUSTRATION);
     if (profilePictureRel) this.profilepic = profilePictureRel.remoteKey;
-
-    // - key backup cube reference
-    const keyBackupCubeRel: cciRelationship = muc.fields.getFirstRelationship(
-      cciRelationshipType.KEY_BACKUP_CUBE);
-    if (keyBackupCubeRel) this.keyBackupCube = keyBackupCubeRel.remoteKey;
 
     // - recursively fetch my-post references
     const postPromise: Promise<void> =

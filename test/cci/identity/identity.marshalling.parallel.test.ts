@@ -43,10 +43,8 @@ describe("Identity (separate MUC storage test suite for long-running tests)", ()
       expect(firstMucHash).toBeInstanceOf(Buffer);
       expect(id.name).toEqual("Probator Identitatum");
       expect(id.profilepic).toBeUndefined();
-      expect(id.keyBackupCube).toBeUndefined();
 
       id.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xda);
-      id.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
       const secondMuc: cciCube = await id.store();
       const secondMucHash: Buffer = secondMuc.getHashIfAvailable();
       expect(secondMuc).toBeInstanceOf(cciCube);
@@ -54,7 +52,6 @@ describe("Identity (separate MUC storage test suite for long-running tests)", ()
       expect(secondMucHash.equals(firstMucHash)).toBeFalsy();
       expect(id.name).toEqual("Probator Identitatum");
       expect(id.profilepic).toBeInstanceOf(Buffer);
-      expect(id.keyBackupCube).toBeInstanceOf(Buffer);
 
       id.name = "Probator Identitatum Repetitus";
       const thirdMuc: cciCube = await id.store();
@@ -65,7 +62,6 @@ describe("Identity (separate MUC storage test suite for long-running tests)", ()
       expect(thirdMucHash.equals(secondMucHash)).toBeFalsy();
       expect(id.name).toEqual("Probator Identitatum Repetitus");
       expect(id.profilepic).toBeInstanceOf(Buffer);
-      expect(id.keyBackupCube).toBeInstanceOf(Buffer);
     }, 5000);
 
     // This is a particularly long-running test because it uses the
