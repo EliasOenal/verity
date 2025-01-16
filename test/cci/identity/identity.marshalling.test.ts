@@ -63,7 +63,6 @@ let cubeStore: CubeStore;
       // populate ID
       original.name = "Probator Identitatum";
       original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
-      original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
       original.avatar = new Avatar(
         Buffer.from("0102030405", 'hex'), AvatarScheme.MULTIAVATAR);
 
@@ -83,8 +82,6 @@ let cubeStore: CubeStore;
       // double check everything's in there
       expect(muc.fields.getFirstRelationship(cciRelationshipType.ILLUSTRATION).remoteKey).
         toEqual(original.profilepic);
-      expect(muc.fields.getFirstRelationship(cciRelationshipType.KEY_BACKUP_CUBE).remoteKey).
-        toEqual(original.keyBackupCube);
       expect(muc.fields.getFirstRelationship(cciRelationshipType.MYPOST).remoteKey).
         toEqual(postkey);
 
@@ -101,7 +98,6 @@ let cubeStore: CubeStore;
       expect(restored.profilepic[0]).toEqual(0xDA);
       expect(restored.avatar.scheme).toEqual(AvatarScheme.MULTIAVATAR);
       expect(restored.avatar.seedString).toEqual("0102030405");
-      expect(restored.keyBackupCube[0]).toEqual(0x13);
       expect(restored.getPostCount()).toEqual(1);
       expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as Cube).getFirstField(
         cciFieldType.PAYLOAD).value.toString('utf-8')).
@@ -116,7 +112,6 @@ let cubeStore: CubeStore;
       original.name = "Probator Identitatum";
       original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
       original.avatar = new Avatar("0102030405", AvatarScheme.MULTIAVATAR);
-      original.keyBackupCube = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0x13);
       await cubeStore.addCube(await makePost("Habeo res importantes dicere", undefined, original, requiredDifficulty));
 
       // compile ID into binary MUC
@@ -140,7 +135,6 @@ let cubeStore: CubeStore;
       expect(restored.profilepic[0]).toEqual(0xDA);
       expect(restored.avatar.scheme).toEqual(AvatarScheme.MULTIAVATAR);
       expect(restored.avatar.seedString).toEqual("0102030405");
-      expect(restored.keyBackupCube[0]).toEqual(0x13);
       expect(restored.getPostCount()).toEqual(1);
       expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as Cube).getFirstField(cciFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
