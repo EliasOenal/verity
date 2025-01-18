@@ -1,6 +1,6 @@
 
 import type { Shuttable } from '../../core/helpers/coreInterfaces';
-import { unixtime } from '../../core/helpers/misc';
+import { mergeAsyncGenerators, unixtime } from '../../core/helpers/misc';
 import { Cube } from '../../core/cube/cube';
 import { KeyVariants, keyVariants } from '../../core/cube/cubeUtil';
 import { logger } from '../../core/logger';
@@ -26,6 +26,7 @@ import { IdentityStore } from './identityStore';
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
+import EventEmitter from 'events';
 
 // Identity defaults
 const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
@@ -164,7 +165,7 @@ export interface IdentityOptions {
  *
  * TODO: Specify maximums to make sure all of that nicely fits into a single MUC.
  */
-export class Identity implements Shuttable {
+export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   /** Tries to load an existing Identity from the network or the CubeStore */
   // TODO: Once we have a cube exchange scheduler, schedule the purported
   // Identity MUC for retrieval if we don't have it (this will be necessary for
@@ -368,6 +369,11 @@ export class Identity implements Shuttable {
   hasPost(keyInput: CubeKey | string): boolean {
     return this._posts.has(keyVariants(keyInput).keyString);
   }
+  async *getPostCubeInfos(): AsyncGenerator<CubeInfo> {
+    for (const post of this.getPostKeyStrings()) {
+      yield this.cubeRetriever.getCubeInfo(post);
+    }
+  }
 
   /**
    * Subscriptions of other identities which are publicly visible to other users.
@@ -388,6 +394,17 @@ export class Identity implements Shuttable {
   hasPublicSubscription(keyInput: CubeKey | string): boolean {
     return this._publicSubscriptions.has(keyVariants(keyInput).keyString);
   }
+  async *getPublicSubscriptionCubeInfos(): AsyncGenerator<CubeInfo> {
+    for (const sub of this.getPublicSubscriptionStrings()) {
+      yield this.cubeRetriever.getCubeInfo(sub);
+    }
+  }
+  async *getPublicSubscriptionIdentities(): AsyncGenerator<Identity> {
+    for (const sub of this.getPublicSubscriptionStrings()) {
+      const retrieved: Identity = await this.identityStore.retrieveIdentity(sub);
+      if (retrieved !== undefined) yield retrieved;
+    }
+  }
 
   private _subscriptionRecommendationIndices: Array<cciCube> = [];
   get subscriptionRecommendationIndices(): Array<cciCube> {
@@ -396,6 +413,10 @@ export class Identity implements Shuttable {
 
   /** @member - Points to first cube in the profile picture continuation chain */
   profilepic: CubeKey = undefined;
+
+  private _subscriptionRecursionDepth: number = 0;
+  get subscriptionRecursionDepth(): number { return this._subscriptionRecursionDepth }
+  set subscriptionRecursionDepth(depth: number) { this._subscriptionRecursionDepth = depth }
 
   /** When the user tries to rebuild their Identity MUC too often, we'll
    * remember their request in this promise. Any subsequent Identity changes
@@ -431,6 +452,7 @@ export class Identity implements Shuttable {
       mucOrMasterkey: cciCube | Buffer,
       readonly options: IdentityOptions = {},
   ){
+    super();
     // remember my CubeStore, and CubeRetriever if applicable
     this.cubeRetriever = cubeStoreOrRetriever;
     if (cubeStoreOrRetriever instanceof CubeStore) {
@@ -591,6 +613,7 @@ export class Identity implements Shuttable {
   }
 
   // maybe TODO: make this a Generator instead?
+  // or maybe TODO get rid of this altogether?
   async recursiveWebOfSubscriptions(maxDepth: number = 1, curDepth: number = 0): Promise<Set<string>> {
     // sanity checks
     if (this.cubeRetriever === undefined) {
@@ -730,6 +753,44 @@ export class Identity implements Shuttable {
       cubeInfo => this.mergeRemoteChanges(cubeInfo));
     return Promise.resolve();
   }
+
+
+  /**
+   * Persuant to the CubeEmitter interface, this Generator yields CubeInfos
+   * for all events that we either have or would have emitted "cubeAdded" for.
+   * Those include:
+   *  - this Identity's MUC
+   *  - all of this Identity's posts
+   *  - all of this Identity's subscriptions
+   *  - once setSubscriptionRecursion() has been called:
+   *    - all of our subscribed Identity's posts
+   *    - all of our subscribed Identity's subscriptions
+   *    - and if setSubscriptionRecursion() was called with a depth > 1, the
+   *      same for all of our indirect subscriptions up to the specified depth
+   */
+  async *getAllCubeInfos(
+      subscriptionRecursionDepth: number = this._subscriptionRecursionDepth,
+  ): AsyncGenerator<CubeInfo> {
+    // yield myself
+    yield this.muc.getCubeInfo();
+
+    // will also yield:
+    // - my posts
+    const posts: AsyncGenerator<CubeInfo> = this.getPostCubeInfos();
+    // - my subscriptions
+    // maybe TODO avoid double fetch (CubeInfos here, Identites below)?
+    const subs: AsyncGenerator<CubeInfo> = this.getPublicSubscriptionCubeInfos();
+    // - recurse through my subscriptions
+    const rGens: AsyncGenerator<CubeInfo>[] = [];
+    if (subscriptionRecursionDepth > 0) {
+      for await (const sub of this.getPublicSubscriptionIdentities()) {
+        rGens.push(sub.getAllCubeInfos(subscriptionRecursionDepth - 1));
+      }
+    }
+    const ret: AsyncGenerator<CubeInfo> = mergeAsyncGenerators(posts, subs, ...rGens);
+    yield* ret;
+  }
+
 
   /**
    * Derives this Identity's encryption keys from its master key

@@ -641,6 +641,7 @@ describe('CubeRetriever Continuation-related features', () => {
     });
 
 
+    // TODO: This test sporadically fails on my machine and I don't know why :(
     it('yields a 2-chunk continuation arriving in reverse order after the request', async () => {
       // prepare macro Cube
       const macroCube = cciCube.Create({

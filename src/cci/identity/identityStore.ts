@@ -61,9 +61,14 @@ export class IdentityStore implements Shuttable {
         return undefined;
       }
       // construct, store and return Identity object
-      const id: Identity = new Identity(this.cubeRetriever, muc, options);
-      this.addIdentity(id);
-      return id;
+      try {
+        const id: Identity = new Identity(this.cubeRetriever, muc, options);
+        this.addIdentity(id);
+        return id;
+      } catch (e) {
+        logger.error(`IdentityStore.retrieveIdentity(): Cannot retrieve non-stored Identity ${key.keyString}: ${e}`);
+        return undefined;
+      }
     } else {
       logger.error(`IdentityStore.getOrCreateIdentity(): Cannot create non-stored Identity ${key.keyString} because I don't have a CubeRetriever.`);
       return undefined;
