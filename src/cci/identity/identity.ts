@@ -1,6 +1,5 @@
-import { IdentityPersistence } from './identityPersistence';
-import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
 
+import type { Shuttable } from '../../core/helpers/coreInterfaces';
 import { unixtime } from '../../core/helpers/misc';
 import { Cube } from '../../core/cube/cube';
 import { KeyVariants, keyVariants } from '../../core/cube/cubeUtil';
@@ -21,9 +20,12 @@ import { cciRelationship, cciRelationshipType } from '../cube/cciRelationship';
 import { cciCube, cciFamily } from '../cube/cciCube';
 import { ensureCci } from '../cube/cciCubeUtil';
 
+import { IdentityPersistence } from './identityPersistence';
+import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
+import { IdentityStore } from './identityStore';
+
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
-import type { Shuttable } from '../../core/helpers/coreInterfaces';
 
 // Identity defaults
 const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
@@ -92,6 +94,8 @@ export interface IdentityOptions {
    * Default: true
    **/
   subscribeRemoteChanges?: boolean;
+
+  identityStore?: IdentityStore;
 }
 
 // TODO: Split out the MUC management code.
@@ -413,6 +417,8 @@ export class Identity implements Shuttable {
    **/
   get ready(): Promise<Identity> { return this._ready }
 
+  get identityStore(): IdentityStore { return this.options.identityStore }
+
   /**
    * This constructor may only be called after awaiting sodium.ready.
    * Consider using Identity.Construct() instead of calling the constructor
@@ -438,6 +444,10 @@ export class Identity implements Shuttable {
     options.idmucContextString ??= DEFAULT_IDMUC_CONTEXT_STRING;
     options.idmucApplicationString ??= DEFAULT_IDMUC_APPLICATION_STRING;
     options.idmucEncryptionContextString ??= DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING;
+    // adopt or initialise Identity store
+    if (options.identityStore === undefined) {
+      options.identityStore = new IdentityStore(this.cubeRetriever);
+    }
 
     // Subscribe to remote Identity updates (i.e. same user using multiple devices)
     if (!(options?.subscribeRemoteChanges === false)) {  // unless explicitly opted out
@@ -463,6 +473,12 @@ export class Identity implements Shuttable {
       );
       this.deriveEncryptionKeys();  // must be called after MUC creation as it sets a MUC field
       this.readyPromiseResolve(this);
+    }
+
+    // ensure we are present in the IdentityStore
+    const added: boolean = options.identityStore.addIdentity(this);
+    if (!added) {
+      logger.error(`Identity constructor ${this.keyString}: Conflicting Identity of same key already present in IdentityStore. This is most likely a bug in application code; please check your Identity management.`);
     }
   }
 

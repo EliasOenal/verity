@@ -7,6 +7,7 @@ import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
 import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
+import { IdentityStore } from '../../../src/cci/identity/identityStore';
 import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
 
 import { testCubeStoreParams } from '../testcci.definitions';
@@ -39,6 +40,15 @@ describe('Identity: base model tests', () => {
     cubeStore = new CubeStore(testCubeStoreParams);
     await cubeStore.readyPromise;
   });
+
+  describe('constructor', () => {
+    it('always has an IdentityStore and is itself present in it', () => {
+      const masterKey: CubeKey = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42);
+      const id = new Identity(undefined, masterKey, idTestOptions);
+      expect(id.identityStore).toBeInstanceOf(IdentityStore);
+      expect(id.identityStore.getIdentity(id.keyString)).toBe(id);
+    });
+  })
 
   describe('post-related methods: addPost(), hasPost(), getPostCount(), getPostKeyStrings()', () => {
     it('stores and remembers own post references', () => {

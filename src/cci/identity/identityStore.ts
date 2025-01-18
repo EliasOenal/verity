@@ -18,12 +18,15 @@ export class IdentityStore implements Shuttable {
    *
    * @param keyInput
    * @param id
+   * @returns true if Identity was added, false if it was not
    */
-  addIdentity(id: Identity): void {
+  addIdentity(id: Identity): boolean {
     if (!this.identityMap.has(id.keyString)) {
       this.identityMap.set(id.keyString, id);
+      return true;
     } else {
       logger.error(`IdentityStore: Cannot add ID ${id.keyString} as I already have it (identical: ${this.identityMap.get(id.keyString) === id})`);
+      return false;
     }
   }
 
