@@ -6,7 +6,7 @@ import { Cube } from '../../core/cube/cube';
 import { KeyVariants, keyVariants } from '../../core/cube/cubeUtil';
 import { logger } from '../../core/logger';
 
-import { Settings, VerityError } from '../../core/settings';
+import { ApiMisuseError, Settings, VerityError } from '../../core/settings';
 import { NetConstants } from '../../core/networking/networkDefinitions';
 import { CubeEmitter, CubeRetrievalInterface, CubeStore } from '../../core/cube/cubeStore';
 import { CubeInfo } from '../../core/cube/cubeInfo';
@@ -23,6 +23,7 @@ import { ensureCci } from '../cube/cciCubeUtil';
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
+import type { Shuttable } from '../../core/helpers/coreInterfaces';
 
 // Identity defaults
 const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
@@ -34,8 +35,6 @@ const IDMUC_MASTERINDEX = 0;
 const DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING = "CCI Encrpytion";
 const DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX = 0;
 
-
-// TODO implement shutdown to clean up event subscriptions
 
 export interface IdentityOptions {
   /**
@@ -161,7 +160,7 @@ export interface IdentityOptions {
  *
  * TODO: Specify maximums to make sure all of that nicely fits into a single MUC.
  */
-export class Identity {
+export class Identity implements Shuttable {
   /** Tries to load an existing Identity from the network or the CubeStore */
   // TODO: Once we have a cube exchange scheduler, schedule the purported
   // Identity MUC for retrieval if we don't have it (this will be necessary for
@@ -416,9 +415,9 @@ export class Identity {
 
   /**
    * This constructor may only be called after awaiting sodium.ready.
-   * Consider using Identity.Construct instead of calling the constructor
+   * Consider using Identity.Construct() instead of calling the constructor
    * directly which will take care of everything for you.
-   * Identity.Construct has the exact same signature as this constructor;
+   * Identity.Construct() has the exact same signature as this constructor;
    * see there for param documentation.
    */
   constructor(
@@ -442,12 +441,7 @@ export class Identity {
 
     // Subscribe to remote Identity updates (i.e. same user using multiple devices)
     if (!(options?.subscribeRemoteChanges === false)) {  // unless explicitly opted out
-      // Note: We're subscribing using once() instead of on() and renew the
-      // subscription manually on each call as this saves us from implementing
-      // a destructor-like shutdown procedure.
-      // TODO BUGBUG: This does not work as a renewed one-off prevents this object
-      // form being garbage collected just as well as a regular subscription does.
-      this.cubeStore?.once("cubeAdded",
+      this.cubeStore?.on("cubeAdded",
         cubeInfo => this.mergeRemoteChanges(cubeInfo));
     }
 
@@ -459,7 +453,7 @@ export class Identity {
     });
     } else {  // create new Identity
       if (Settings.RUNTIME_ASSERTIONS && !(Buffer.isBuffer(mucOrMasterkey))) {
-        throw new TypeError("Identity: Master key must be a Buffer");
+        throw new ApiMisuseError("Identity constructor: Master key must be a Buffer");
       }
       this._masterKey = mucOrMasterkey;
       this._muc = cciCube.ExtensionMuc(
@@ -708,6 +702,19 @@ export class Identity {
     return def;
   }
 
+  // implement Shuttable
+  private _shutdown: boolean = false;
+  get shuttingDown(): boolean { return this._shutdown }
+  private shutdownPromiseResolve: () => void;
+  shutdownPromise: Promise<void> =
+    new Promise(resolve => this.shutdownPromiseResolve = resolve);
+  shutdown(): Promise<void> {
+    this._shutdown = true;
+    this.cubeStore?.removeListener("cubeAdded",
+      cubeInfo => this.mergeRemoteChanges(cubeInfo));
+    return Promise.resolve();
+  }
+
   /**
    * Derives this Identity's encryption keys from its master key
    * @param throwOnMismatch Whether to throw an error if the derived keys do not match
@@ -901,9 +908,6 @@ export class Identity {
 
   // TODO: implement an actual merge
   private mergeRemoteChanges(incoming: CubeInfo): void {
-    // renew subscription
-    this.cubeStore?.once("cubeAdded",
-      cubeInfo => this.mergeRemoteChanges(cubeInfo));
     // check if this is even our MUC
     if (!this.key ||  // can't perform merge if we don't even know our own key
         !(incoming.key?.equals(this.key))) return;
