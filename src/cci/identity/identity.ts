@@ -887,7 +887,8 @@ export class Identity implements Shuttable {
       //   return;
       // }
       if (muc.cubeType != CubeType.MUC) {
-        this.readyPromiseReject(new CubeError("Identity: Supplied Cube is not a MUC"));
+        logger.error("Identity: Supplied Cube is not a MUC");
+        this.readyPromiseResolve(this);
         return;
       }
     }
