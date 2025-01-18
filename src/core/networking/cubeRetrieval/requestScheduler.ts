@@ -16,6 +16,7 @@ import { cubeContest, getCurrentEpoch, keyVariants, shouldRetainCube } from '../
 import { logger } from '../../logger';
 
 import { Buffer } from 'buffer';  // for browsers
+import { Shuttable } from '../../helpers/coreInterfaces';
 
 // TODO: only schedule next request after previous request has been *fulfilled*,
 // or after a sensible timeout
@@ -69,7 +70,7 @@ export interface CubeSubscribeOptions extends CubeRequestOptions {
  * Queries our connected peers for Cubes, depending on the configuration and
  * on local application's requests.
  */
-export class RequestScheduler {
+export class RequestScheduler implements Shuttable {
   /**
    * A map of Cubes requested by the user.
    * Key: The Cube key,
@@ -104,12 +105,6 @@ export class RequestScheduler {
    * except when they requested them.
    **/
   private expectedKeyResponses: Map<NetworkPeerIf, ShortenableTimeout> = new Map();
-
-  /**
-   * Will be set to true when shutdown() is called. From this point forward,
-   * our methods will refuse service on further calls.
-   */
-  private _shutdown: boolean = false;
 
   constructor(
     readonly networkManager: NetworkManagerIf,
@@ -645,9 +640,21 @@ export class RequestScheduler {
     //   again because it's crappy.
   }
 
+  // Implement Shuttable
 
-  shutdown(): void {
+  /**
+   * Will be set to true when shutdown() is called. From this point forward,
+   * our methods will refuse service on further calls.
+   */
+  private _shutdown: boolean = false;
+  get shuttingDown(): boolean { return this._shutdown }
+  private shutdownPromiseResolve: () => void;
+  shutdownPromise: Promise<void> =
+    new Promise(resolve => this.shutdownPromiseResolve = resolve);
+
+  shutdown(): Promise<void> {
     this._shutdown = true;
+    this.shutdownPromiseResolve();
     this.cubeRequestTimer.clear();
     this.keyRequestTimer.clear();
     this.networkManager.cubeStore.removeListener("cubeAdded", (cubeInfo: CubeInfo) =>
@@ -656,6 +663,7 @@ export class RequestScheduler {
     for (const [key, req] of this.requestedNotifications) req.shutdown();
     for (const [key, req] of this.expectedNotifications) req.shutdown();
     for (const [peer, timeout] of this.expectedKeyResponses) timeout.clear();
+    return this.shutdownPromise;
   }
 
 
