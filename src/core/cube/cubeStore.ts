@@ -13,6 +13,7 @@ import { EventEmitter } from "events";
 import { WeakValueMap } from "weakref";
 import { Buffer } from "buffer";
 import { NetConstants } from "../networking/networkDefinitions";
+import { Shuttable } from "../helpers/coreInterfaces";
 
 // TODO: we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes
@@ -115,7 +116,7 @@ export interface CubeEmitter extends EventEmitter {
   getAllCubeInfos(): AsyncGenerator<CubeInfo>;
 }
 
-export class CubeStore extends EventEmitter implements CubeRetrievalInterface, CubeEmitter {
+export class CubeStore extends EventEmitter implements CubeRetrievalInterface, CubeEmitter, Shuttable {
 
   readyPromise: Promise<undefined>;
 
@@ -138,10 +139,6 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface, C
     hits: 0,
     misses: 0,
   };
-
-  private shutdownPromiseResolve: () => void;
-  shutdownPromise: Promise<void> =
-      new Promise(resolve => this.shutdownPromiseResolve = resolve);
 
   constructor(readonly options: CubeStoreOptions) {
     super();
@@ -774,14 +771,20 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface, C
     return this.cacheStatistics;
   }
 
+  // implement Shuttable
+  private _shutdown: boolean = false;
+  get shuttingDown(): boolean { return this._shutdown }
+  private shutdownPromiseResolve: () => void;
+  shutdownPromise: Promise<void> =
+    new Promise(resolve => this.shutdownPromiseResolve = resolve);
   shutdown(): Promise<void> {
-    const done: Promise<void> = Promise.all([
+    this._shutdown = true;
+    Promise.all([
       this.leveldb?.shutdown(Sublevels.CUBES),
       this.leveldb?.shutdown(Sublevels.INDEX_DIFF),
       this.leveldb?.shutdown(Sublevels.INDEX_TIME),
       this.leveldb?.shutdown(Sublevels.BASE_DB),
-    ]) as unknown as Promise<void>;
-    done.then(() => this.shutdownPromiseResolve());
-    return done;
+    ]).then(() => this.shutdownPromiseResolve());
+    return this.shutdownPromise;
   }
 }
