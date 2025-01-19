@@ -416,7 +416,45 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
   private _subscriptionRecursionDepth: number = 0;
   get subscriptionRecursionDepth(): number { return this._subscriptionRecursionDepth }
-  set subscriptionRecursionDepth(depth: number) { this._subscriptionRecursionDepth = depth }
+  async setSubscriptionRecursionDepth(depth: number): Promise<void> {
+    this._subscriptionRecursionDepth = depth;
+    const donePromises: Promise<void>[] = [];
+    for await (const sub of this.getPublicSubscriptionIdentities()) {
+      donePromises.push(this.setSubscriptionRecursionDepthPerSub(sub, depth));
+    }
+    return Promise.all(donePromises).then(() => undefined);
+  }
+  private setSubscriptionRecursionDepthPerSub(sub: Identity, depth: number = this._subscriptionRecursionDepth): Promise<void> {
+    // input sanitisation
+    if (sub === undefined) {
+      logger.warn('Identity.setSubscriptionRecursionDepthPerSub(): param sub is undefined; skipping.');
+      return Promise.resolve();
+    }
+    // If any recursion is requested at all, we will re-emit my subscription's events.
+    // Otherwise, we obviously cancel our re-emissions.
+    if (depth > 0) {
+      sub.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitCubeAdded(cubeInfo));
+    } else {
+      sub.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.emitCubeAdded(cubeInfo));
+    }
+    // Let my subscriptions know the new recursion level, which is obviously
+    // reduces by one as we're descending one level.
+    const nextLevelDepth: number = (depth < 1) ? 0 : depth - 1;
+    return sub.setSubscriptionRecursionDepth(nextLevelDepth);
+  }
+
+  private async emitCubeAdded(input: CubeKey|string|CubeInfo|Promise<CubeInfo>): Promise<void> {
+    if (this.listenerCount('cubeAdded') === 0) return;
+    let cubeInfo: CubeInfo;
+    if (input instanceof CubeInfo) {
+      cubeInfo = input;
+    } else if (input instanceof Promise) {
+      cubeInfo = await input;
+    } else {
+      cubeInfo = await this.cubeRetriever.getCubeInfo(input);
+    }
+    this.emit('cubeAdded', cubeInfo);
+  }
 
   /** When the user tries to rebuild their Identity MUC too often, we'll
    * remember their request in this promise. Any subsequent Identity changes
@@ -493,6 +531,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
         [],  // TODO: allow to set fields like username directly on construction
         IDMUC_MASTERINDEX, this.options.idmucContextString,
       );
+      this.emitCubeAdded(this._muc.getCubeInfo());
       this.deriveEncryptionKeys();  // must be called after MUC creation as it sets a MUC field
       this.readyPromiseResolve(this);
     }
@@ -585,6 +624,9 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
     // everything looks good, let's remember this post
     this._posts.add(key.keyString);
+
+    // emit event
+    this.emitCubeAdded(key.binaryKey);
     return true;
   }
 
@@ -594,12 +636,22 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     this._posts.delete(key.keyString);
   }
 
-  addPublicSubscription(remoteIdentity: CubeKey | string | Identity) {
+  addPublicSubscription(remoteIdentity: CubeKey | string | Identity): Promise<void> {
     const key: string = Identity.KeyStringOf(remoteIdentity);
     if (key) {
       this._publicSubscriptions.add(key);
+      // emit event
+      this.emitCubeAdded(key);
+      // set event recursion depth
+      if (this._subscriptionRecursionDepth > 0) {
+        const subPromise: Promise<Identity> = this.identityStore.retrieveIdentity(key);
+        return subPromise.then((sub: Identity) => {
+          return this.setSubscriptionRecursionDepthPerSub(sub);
+        })
+      } else return Promise.resolve();
     } else {
       logger.warn("Identity: Ignoring subscription request to something that does not at all look like a CubeKey");
+      return Promise.resolve();
     }
   }
 
@@ -725,6 +777,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       cciRelationship.fromKeys(cciRelationshipType.MYPOST, newestPostsFirst)));
 
     await newMuc.getBinaryData();  // compile MUC
+    this.emitCubeAdded(newMuc.getCubeInfo());
     this._muc = newMuc;
 
     makeMucPromiseResolve(newMuc);
