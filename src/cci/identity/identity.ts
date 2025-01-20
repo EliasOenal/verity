@@ -531,7 +531,6 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
         [],  // TODO: allow to set fields like username directly on construction
         IDMUC_MASTERINDEX, this.options.idmucContextString,
       );
-      this.emitCubeAdded(this._muc.getCubeInfo());
       this.deriveEncryptionKeys();  // must be called after MUC creation as it sets a MUC field
       this.readyPromiseResolve(this);
     }
