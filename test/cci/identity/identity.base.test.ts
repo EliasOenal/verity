@@ -147,6 +147,8 @@ describe('Identity: base model tests', () => {
         expect(subject.hasPublicSubscription(nonsubscribed[i])).toBeFalsy();
       }
     });
+
+    it.todo('ensures only a single Identity object is created for each identity');
   });  // describe subscription recommendations
 
   describe('recursiveWebOfSubscriptions()', () => {

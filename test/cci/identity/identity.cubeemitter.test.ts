@@ -18,7 +18,6 @@ describe('Identity: Cube emitter implementation and related methods', () => {
   // as well as the supplemental methods and events providing higher level
   // data in a similar fashion
 
-  const reducedDifficulty = 0;  // no hash cash for testing
   let idTestOptions: IdentityOptions;
   let cubeStore: CubeStore;
   let masterKey: Buffer;
@@ -31,9 +30,9 @@ describe('Identity: Cube emitter implementation and related methods', () => {
   beforeEach(async () => {
     idTestOptions = {  // note that those are diferent for some tests further down
       minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
-      requiredDifficulty: reducedDifficulty,
-      argonCpuHardness: 1,  // == crypto_pwhash_OPSLIMIT_MIN (sodium not ready)
-      argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
+      requiredDifficulty: 0,  // no hash cash for testing
+      argonCpuHardness: sodium.crypto_pwhash_OPSLIMIT_MIN,  // minimum hardness
+      argonMemoryHardness: sodium.crypto_pwhash_MEMLIMIT_MIN,  // minimum hardness
     };
     cubeStore = new CubeStore(testCubeStoreParams);
     await cubeStore.readyPromise;
@@ -42,7 +41,8 @@ describe('Identity: Cube emitter implementation and related methods', () => {
     masterKey = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42);
     id = await Identity.Construct(cubeStore, masterKey, idTestOptions);
     id.name = "protagonista qui illas probationes pro nobis administrabit"
-    await id.store();
+    // await id.store();
+    // await new Promise(resolve => setTimeout(resolve, 1000));
   });
 
   afterEach(async () => {
@@ -244,6 +244,11 @@ describe('Identity: Cube emitter implementation and related methods', () => {
         });
 
         it('yields the Identity\'s own root Cube', async () => {
+          // prepare test:
+          // makeMUC() must have been called at least once for Identity properties
+          // like username to be represented in the Cube
+          await id.makeMUC();
+
           // perform test
           const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos());
 
@@ -471,6 +476,11 @@ describe('Identity: Cube emitter implementation and related methods', () => {
             sub2Sub.getKeyIfAvailable()))).toBeTruthy();
         });
       });  // tests with two levels of recursion
+
+      describe('recursion edge cases', () => {
+        it.todo('will not fail if subscribed to itself');
+        it.todo('will not fail on circular subscriptions');
+      });
     });  // getAllCubeInfos()
   });  // CubeInfo generators
 
@@ -605,7 +615,7 @@ describe('Identity: Cube emitter implementation and related methods', () => {
           });
         });
 
-        describe.skip('events originating from indirectly subscribed Identities', () => {
+        describe('events originating from indirectly subscribed Identities', () => {
           let indirectSub: Identity;
 
           beforeEach(async () => {
@@ -619,7 +629,7 @@ describe('Identity: Cube emitter implementation and related methods', () => {
               idTestOptions,
             );
             indirectSub.name = "Subscriptio indirecta";
-            indirectSub.store();
+            // indirectSub.store();
 
             // Make our direct subscription subscribe to it.
             // This will cause an event originating at our direct subscription
@@ -630,11 +640,11 @@ describe('Identity: Cube emitter implementation and related methods', () => {
             //   id.on('cubeAdded', (cubeInfo: CubeInfo) => resolve(cubeInfo));
             // });
             directSub.addPublicSubscription(indirectSub.key);
-            directSub.store();
+            // directSub.store();
             // await eventPromise;
 
             // set recursion level
-            // await id.setSubscriptionRecursionDepth(1337);  // go DEEP!
+            await id.setSubscriptionRecursionDepth(1337);  // go DEEP!
           });
 
           it('will emit cubeAdded if a new post is added by an indirectly subscribed Identity within the recursion limit', async () => {
@@ -706,9 +716,41 @@ describe('Identity: Cube emitter implementation and related methods', () => {
 
         describe('edge cases', () => {
           describe('circular subscriptions', () => {
-            it.todo('will only emit once if subscribed to itself');
+            it.skip('will only emit once per new post if subscribed to itself', async () => {
+              await id.store();
+              // anticipante the expected event
+              const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
+                id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+                  if (cubeInfo && cubeInfo.key.equals(id.key)) {
+                    resolve(cubeInfo);
+                  }
+                });
+              });
+              // create a second promise for the same event which must never resolve
+              const shouldNotHappen: Promise<CubeInfo> = new Promise((resolve) => {
+                eventPromise.then(() => {
+                  id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+                    if (cubeInfo.key.equals(id.key)) {
+                      resolve(cubeInfo);
+                    }
+                  });
+                })
+              });
+
+              id.addPublicSubscription(id.key);
+              const emitted: CubeInfo = await eventPromise;
+              expect(emitted.key.equals(id.key)).toBeTruthy();
+
+              const timeout: Promise<string> = new Promise((resolve) =>
+                setTimeout(() => {resolve("timeout")}, 1000));
+              const result = Promise.race([timeout, shouldNotHappen]);
+              await result;
+              expect(result).toEqual("timeout");
+            });
+
             it.todo('will only emit once per new post on a directly circular subscriptions');
             it.todo('will only emit once per new post on an indirectly circular subscriptions');
+            it.todo('will only emit once per new subscription if subscribed to itself');
             it.todo('will only emit once per new subscription on a directly circular subscriptions');
             it.todo('will only emit once per new subscription on an indirectly circular subscriptions');
             it.todo('will only emit once per Identity Cube change on a directly circular subscriptions');
