@@ -416,42 +416,66 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
   private _subscriptionRecursionDepth: number = 0;
   get subscriptionRecursionDepth(): number { return this._subscriptionRecursionDepth }
-  async setSubscriptionRecursionDepth(depth: number): Promise<void> {
+  async setSubscriptionRecursionDepth(
+      depth: number,
+      except: Set<string> = new Set(),
+  ): Promise<void> {
+    // prevent infinite recursion
+    if (except.has(this.keyString)) return Promise.resolve();
+    else except.add(this.keyString);
+
     this._subscriptionRecursionDepth = depth;
     const donePromises: Promise<void>[] = [];
     for await (const sub of this.getPublicSubscriptionIdentities()) {
-      donePromises.push(this.setSubscriptionRecursionDepthPerSub(sub, depth));
+      donePromises.push(this.setSubscriptionRecursionDepthPerSub(sub, depth, except));
     }
     return Promise.all(donePromises).then(() => undefined);
   }
-  private setSubscriptionRecursionDepthPerSub(sub: Identity, depth: number = this._subscriptionRecursionDepth): Promise<void> {
+  private setSubscriptionRecursionDepthPerSub(
+      sub: Identity,
+      depth: number = this._subscriptionRecursionDepth,
+      except: Set<string> = new Set(),
+    ): Promise<void> {
     // input sanitisation
     if (sub === undefined) {
       logger.warn('Identity.setSubscriptionRecursionDepthPerSub(): param sub is undefined; skipping.');
       return Promise.resolve();
     }
+    // Prevent infinite recursion.
+    // (Sub will itself add itself to the except set once it has been called.)
+    if (except.has(sub.keyString)) return Promise.resolve();
+
     // If any recursion is requested at all, we will re-emit my subscription's events.
     // Otherwise, we obviously cancel our re-emissions.
+    sub.removeListener('cubeAdded', this.emitCubeAdded.bind(this));
     if (depth > 0) {
-      sub.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitCubeAdded(cubeInfo));
-    } else {
-      sub.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.emitCubeAdded(cubeInfo));
+      sub.on('cubeAdded', this.emitCubeAdded.bind(this));
     }
+
     // Let my subscriptions know the new recursion level, which is obviously
     // reduces by one as we're descending one level.
     const nextLevelDepth: number = (depth < 1) ? 0 : depth - 1;
-    return sub.setSubscriptionRecursionDepth(nextLevelDepth);
+    return sub.setSubscriptionRecursionDepth(nextLevelDepth, except);
   }
 
   private async emitCubeAdded(input: CubeKey|string|CubeInfo|Promise<CubeInfo>): Promise<void> {
+    // only emit if there is a listener
     if (this.listenerCount('cubeAdded') === 0) return;
+
+    // fetch the CubeInfo
     let cubeInfo: CubeInfo;
     if (input instanceof CubeInfo) {
       cubeInfo = input;
     } else if (input instanceof Promise) {
       cubeInfo = await input;
-    } else {
+    } else if (typeof input === 'string' || Buffer.isBuffer(input)) {
       cubeInfo = await this.cubeRetriever.getCubeInfo(input);
+    }
+
+    // assert that we have a CubeInfo -- this also covers invalid input
+    if (cubeInfo === undefined) {
+      logger.warn(`Identity ${this.keyString}.emitCubeAdded() was called for an unavailable CubeInfo; skipping.`);
+      return;
     }
     this.emit('cubeAdded', cubeInfo);
   }
