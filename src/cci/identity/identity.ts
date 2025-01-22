@@ -458,7 +458,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     return sub.setSubscriptionRecursionDepth(nextLevelDepth, except);
   }
 
-  private async emitCubeAdded(input: CubeKey|string|CubeInfo|Promise<CubeInfo>): Promise<void> {
+  private async emitCubeAdded(input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>): Promise<void> {
     // only emit if there is a listener
     if (this.listenerCount('cubeAdded') === 0) return;
 
@@ -466,6 +466,8 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     let cubeInfo: CubeInfo;
     if (input instanceof CubeInfo) {
       cubeInfo = input;
+    } else if (input instanceof Cube) {
+      cubeInfo = await input.getCubeInfo();
     } else if (input instanceof Promise) {
       cubeInfo = await input;
     } else if (typeof input === 'string' || Buffer.isBuffer(input)) {
@@ -800,7 +802,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       cciRelationship.fromKeys(cciRelationshipType.MYPOST, newestPostsFirst)));
 
     await newMuc.getBinaryData();  // compile MUC
-    this.emitCubeAdded(newMuc.getCubeInfo());
+    this.emitCubeAdded(newMuc);
     this._muc = newMuc;
 
     makeMucPromiseResolve(newMuc);
