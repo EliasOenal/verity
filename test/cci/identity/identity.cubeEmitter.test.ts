@@ -326,8 +326,15 @@ describe('Identity: Cube emitter events', () => {
           masterKey = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42);
           id = await Identity.Construct(cubeStore, masterKey, idTestOptions);
           id.name = "protagonista qui illas probationes pro nobis administrabit"
-          // await id.store();
-          // await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Store the Identity and anticipate the associated root Cube event
+          const rootCubePromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo.key.equals(id.key)) resolve(cubeInfo);
+            });
+          })
+          id.store();
+          await rootCubePromise;
         });
 
         afterEach(async () => {
@@ -335,11 +342,10 @@ describe('Identity: Cube emitter events', () => {
         });
 
         it('will only emit once per new post if subscribed to itself', async () => {
-          await id.store();
-          // anticipante the expected event
+          // anticipante the expected new post event
           const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
             id.on('cubeAdded', (cubeInfo: CubeInfo) => {
-              if (cubeInfo && cubeInfo.key.equals(id.key)) {
+              if (cubeInfo?.key && cubeInfo.key.equals(post.getKeyIfAvailable())) {
                 resolve(cubeInfo);
               }
             });
@@ -348,16 +354,27 @@ describe('Identity: Cube emitter events', () => {
           const shouldNotHappen: Promise<CubeInfo> = new Promise((resolve) => {
             eventPromise.then(() => {
               id.on('cubeAdded', (cubeInfo: CubeInfo) => {
-                if (cubeInfo.key.equals(id.key)) {
+                if (cubeInfo?.key && cubeInfo.key.equals(post.getKeyIfAvailable())) {
                   resolve(cubeInfo);
                 }
               });
             })
           });
 
+          // subscribe to self
           id.addPublicSubscription(id.key);
+
+          // make a post
+          const post: cciCube = cciCube.Create({
+            cubeType: CubeType.PIC,
+            requiredDifficulty: 0,
+            fields: cciField.Payload("Nuntius"),
+          });
+          await cubeStore.addCube(post);
+          id.addPost(post.getKeyIfAvailable());
+
           const emitted: CubeInfo = await eventPromise;
-          expect(emitted.key.equals(id.key)).toBeTruthy();
+          expect(emitted.key.equals(post.getKeyIfAvailable())).toBeTruthy();
 
           const timeout: Promise<string> = new Promise((resolve) =>
             setTimeout(() => {resolve("timeout")}, 1000));
