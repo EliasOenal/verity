@@ -194,7 +194,35 @@ describe('Identity: Cube emitter events', () => {
           expect(cubeInfo.getCube().getFirstField(cciFieldType.USERNAME).valueString).toBe("nomen mutatum");
         });
 
-        it.todo('will also emit for a brand new subscription', async () => {
+        it('will also emit for a new post by a brand new subscription', async () => {
+          // create a new Identity and subscribe to it
+          const newSub: Identity = new Identity(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 201),
+            idTestOptions,
+          );
+          newSub.name = "Usor novus";
+          await newSub.store();
+          id.addPublicSubscription(newSub.key);
+
+          // anticipate an event to be emitted for a new post by the new subscription
+          const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo.key.equals(post.getKeyIfAvailable())) resolve(cubeInfo);
+            });
+          });
+
+          // have the newly subscribed-to user make a post
+          const post: cciCube = cciCube.Create({
+            cubeType: CubeType.PIC,
+            requiredDifficulty: 0,
+            fields: cciField.Payload("Nuntius"),
+          });
+          await cubeStore.addCube(post);
+          newSub.addPost(post.getKeyIfAvailable());
+
+          const cubeInfo: CubeInfo = await eventPromise;
+          expect(cubeInfo.key.equals(post.getKeyIfAvailable())).toBeTruthy();
         });
       });  // events originating from directly subscribed Identities
 
@@ -303,10 +331,80 @@ describe('Identity: Cube emitter events', () => {
           expect(cubeInfo.getCube().getFirstField(cciFieldType.USERNAME).valueString).toBe("nomen mutatum");
         });
 
-        it.todo('will also emit for a brand new indirect subscription caused by us subscribing to someone new', async () => {
+        it('will also emit for a new post by a brand new indirect subscription, caused by us subscribing to someone new', async () => {
+          // create a new Identity, who is themselves subscribed to another
+          // new Identity, and subscribe to it
+          const newSub: Identity = new Identity(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 201),
+            idTestOptions,
+          );
+          newSub.name = "Usor novus";
+
+          const newSubSub: Identity = new Identity(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 202),
+            idTestOptions,
+          );
+          newSubSub.name = "Usor novus indirecte subscriptus";
+          await newSubSub.store();
+
+          newSub.addPublicSubscription(newSubSub.key);
+          await newSub.store();
+          id.addPublicSubscription(newSub.key);
+
+          // anticipate an event to be emitted for a new post by the new indirect subscription
+          const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo.key.equals(post.getKeyIfAvailable())) resolve(cubeInfo);
+            });
+          });
+
+          // have the new indirectly-subscribed-to user make a post
+          const post: cciCube = cciCube.Create({
+            cubeType: CubeType.PIC,
+            requiredDifficulty: 0,
+            fields: cciField.Payload("Nuntius"),
+          });
+          await cubeStore.addCube(post);
+          newSubSub.addPost(post.getKeyIfAvailable());
+
+          const cubeInfo: CubeInfo = await eventPromise;
+          expect(cubeInfo.key.equals(post.getKeyIfAvailable())).toBeTruthy();
         });
 
-        it.todo('will also emit for a brand new indirect subscription cause by someone we\'re subscribed to subscribing to someone new', async () => {
+        it('will also emit for a new post by a new indirect subscription, caused by someone we\'re subscribed to subscribing to someone new', async () => {
+          // create a new Identity, who our directly-subscribed-to Identity
+          // will then subscribe to
+          const newSubSub: Identity = new Identity(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 203),
+            idTestOptions,
+          );
+          newSubSub.name = "Usor novus indirecte subscriptus";
+          await newSubSub.store();
+
+          directSub.addPublicSubscription(newSubSub.key);
+          await directSub.store();
+
+          // anticipate an event to be emitted for a new post by the new indirect subscription
+          const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo.key.equals(post.getKeyIfAvailable())) resolve(cubeInfo);
+            });
+          });
+
+          // have the new indirectly-subscribed-to user make a post
+          const post: cciCube = cciCube.Create({
+            cubeType: CubeType.PIC,
+            requiredDifficulty: 0,
+            fields: cciField.Payload("Nuntius"),
+          });
+          await cubeStore.addCube(post);
+          newSubSub.addPost(post.getKeyIfAvailable());
+
+          const cubeInfo: CubeInfo = await eventPromise;
+          expect(cubeInfo.key.equals(post.getKeyIfAvailable())).toBeTruthy();
         });
       });  // events originating from indirectly subscribed Identities
 
@@ -651,30 +749,374 @@ describe('Identity: Cube emitter events', () => {
           expect(result).toEqual("timeout");
         });
 
-        it.todo('will only emit once per new subscription if subscribed to itself');
+
+        it('will only emit once per new subscription if subscribed to itself', async () => {
+          // anticipante the expected new subscription event
+          const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo?.key && cubeInfo.key.equals(subId.key)) {
+                resolve(cubeInfo);
+              }
+            });
+          });
+          // create a second promise for the same event which must never resolve
+          const shouldNotHappen: Promise<CubeInfo> = new Promise((resolve) => {
+            eventPromise.then(() => {
+              id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+                if (cubeInfo?.key && cubeInfo.key.equals(subId.key)) {
+                  resolve(cubeInfo);
+                }
+              });
+            })
+          });
+
+          // subscribe to self
+          id.addPublicSubscription(id.key);
+
+          // create a new Identity to subscribe to
+          const subId: Identity = await Identity.Construct(
+            cubeStore, Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 69), idTestOptions);
+          subId.name = "Subscriptio";
+          await subId.store();
+          id.addPublicSubscription(subId.key);
+
+          const emitted: CubeInfo = await eventPromise;
+          expect(emitted.key.equals(subId.key)).toBeTruthy();
+
+          const timeout: Promise<string> = new Promise((resolve) =>
+            setTimeout(() => {resolve("timeout")}, 1000));
+          const result: string|CubeInfo = await Promise.race([timeout, shouldNotHappen]);
+          expect(result).toEqual("timeout");
+        });
       });  // subscribed to self
 
 
 
       describe('reciprocal subscriptions', () => {
-        it.todo('will only emit once per new post on a directly circular subscriptions');
-        it.todo('will only emit once per new subscription on a directly circular subscriptions');
-        it.todo('will only emit once per Identity Cube change on a directly circular subscriptions');
+        let id1: Identity;
+        let id2: Identity;
+
+        beforeEach(async () => {
+          // prepare two Identities that will subscribe to each other
+          id1 = await Identity.Construct(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42),
+            idTestOptions);
+          id1.name = "Identity 1";
+
+          id2 = await Identity.Construct(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 43),
+            idTestOptions
+          );
+          id2.name = "Identity 2";
+
+          // Create reciprocal subscriptions
+          id1.addPublicSubscription(id2.key);
+          id2.addPublicSubscription(id1.key);
+
+          // Store both identities
+          await Promise.all([id1.store(), id2.store()]);
+
+          // Set quasi-unlimited recursion depth
+          await id1.setSubscriptionRecursionDepth(1337);
+          await id2.setSubscriptionRecursionDepth(1337);
+        });
+
+        afterEach(async () => {
+          await id1.identityStore.shutdown();
+        });
+
+        it('will only emit once per new post on a directly circular subscriptions', async () => {
+          const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id1.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo?.key && cubeInfo.key.equals(post.getKeyIfAvailable())) {
+                resolve(cubeInfo);
+              }
+            });
+          });
+
+          // Create a second promise that should never resolve
+          const shouldNotHappen: Promise<CubeInfo> = new Promise((resolve) => {
+            eventPromise.then(() => {
+              id1.on('cubeAdded', (cubeInfo: CubeInfo) => {
+                if (cubeInfo?.key && cubeInfo.key.equals(post.getKeyIfAvailable())) {
+                  resolve(cubeInfo);
+                }
+              });
+            });
+          });
+
+          // Create and add a post from id2
+          const post: cciCube = cciCube.Create({
+            cubeType: CubeType.PIC,
+            requiredDifficulty: 0,
+            fields: cciField.Payload("Nuntius"),
+          });
+          await cubeStore.addCube(post);
+          id2.addPost(post.getKeyIfAvailable());
+
+          // Verify we get exactly one event
+          const emitted: CubeInfo = await eventPromise;
+          expect(emitted.key.equals(post.getKeyIfAvailable())).toBeTruthy();
+
+          const timeout: Promise<string> = new Promise((resolve) =>
+            setTimeout(() => {resolve("timeout")}, 1000));
+          const result: string|CubeInfo = await Promise.race([timeout, shouldNotHappen]);
+          expect(result).toEqual("timeout");
+        });
+
+        it('will only emit once per new subscription on a directly circular subscriptions', async () => {
+          // Create a new Identity to subscribe to
+          const newId: Identity = await Identity.Construct(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 44),
+            idTestOptions
+          );
+          newId.name = "New Identity";
+          await newId.store();
+
+          const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id1.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo?.key && cubeInfo.key.equals(newId.key)) {
+                resolve(cubeInfo);
+              }
+            });
+          });
+
+          // Create a second promise that should never resolve
+          const shouldNotHappen: Promise<CubeInfo> = new Promise((resolve) => {
+            eventPromise.then(() => {
+              id1.on('cubeAdded', (cubeInfo: CubeInfo) => {
+                if (cubeInfo?.key && cubeInfo.key.equals(newId.key)) {
+                  resolve(cubeInfo);
+                }
+              });
+            });
+          });
+
+          // Add subscription from id2
+          id2.addPublicSubscription(newId.key);
+
+          // Verify we get exactly one event
+          const emitted: CubeInfo = await eventPromise;
+          expect(emitted.key.equals(newId.key)).toBeTruthy();
+
+          const timeout: Promise<string> = new Promise((resolve) =>
+            setTimeout(() => {resolve("timeout")}, 1000));
+          const result: string|CubeInfo = await Promise.race([timeout, shouldNotHappen]);
+          expect(result).toEqual("timeout");
+        });
+
+        it('will only emit once per Identity Cube change on a directly circular subscriptions', async () => {
+          const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id1.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo?.key && cubeInfo.key.equals(id2.key)) {
+                resolve(cubeInfo);
+              }
+            });
+          });
+
+          // Create a second promise that should never resolve
+          const shouldNotHappen: Promise<CubeInfo> = new Promise((resolve) => {
+            eventPromise.then(() => {
+              id1.on('cubeAdded', (cubeInfo: CubeInfo) => {
+                if (cubeInfo?.key && cubeInfo.key.equals(id2.key)) {
+                  resolve(cubeInfo);
+                }
+              });
+            });
+          });
+
+          // Change id2's name
+          id2.name = "Identity 2 Updated";
+          await id2.store();
+
+          // Verify we get exactly one event
+          const emitted: CubeInfo = await eventPromise;
+          expect(emitted.key.equals(id2.key)).toBeTruthy();
+          expect(emitted.getCube().getFirstField(cciFieldType.USERNAME).valueString)
+            .toBe("Identity 2 Updated");
+
+          const timeout: Promise<string> = new Promise((resolve) =>
+            setTimeout(() => {resolve("timeout")}, 1000));
+          const result: string|CubeInfo = await Promise.race([timeout, shouldNotHappen]);
+          expect(result).toEqual("timeout");
+        });
       });
 
 
 
       describe('circular subscriptions', () => {
-        it.todo('will only emit once per new post on an indirectly circular subscriptions');
-        it.todo('will only emit once per new subscription on an indirectly circular subscriptions');
-        it.todo('will only emit once per Identity Cube change on an indirectly circular subscriptions');
+        let id1: Identity;
+        let id2: Identity;
+        let id3: Identity;
+
+        beforeEach(async () => {
+          // Create 3 identities in a circular subscription chain
+          id1 = await Identity.Construct(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42),
+            idTestOptions
+          );
+          id1.name = "Identity 1";
+
+          id2 = await Identity.Construct(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 43),
+            idTestOptions
+          );
+          id2.name = "Identity 2";
+
+          id3 = await Identity.Construct(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 44),
+            idTestOptions
+          );
+          id3.name = "Identity 3";
+
+          // Create circular subscriptions: 1 -> 2 -> 3 -> 1
+          id1.addPublicSubscription(id2.key);
+          id2.addPublicSubscription(id3.key);
+          id3.addPublicSubscription(id1.key);
+
+          // Store all identities
+          await Promise.all([id1.store(), id2.store(), id3.store()]);
+
+          // Set quasi-unlimited recursion depth
+          await id1.setSubscriptionRecursionDepth(1337);
+        });
+
+        afterEach(async () => {
+          await id1.identityStore.shutdown();
+        });
+
+
+        it('will only emit once per new post on an indirectly circular subscriptions', async () => {
+          const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id1.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo?.key && cubeInfo.key.equals(post.getKeyIfAvailable())) {
+                resolve(cubeInfo);
+              }
+            });
+          });
+
+          // Create a second promise that should never resolve
+          const shouldNotHappen: Promise<CubeInfo> = new Promise((resolve) => {
+            eventPromise.then(() => {
+              id1.on('cubeAdded', (cubeInfo: CubeInfo) => {
+                if (cubeInfo?.key && cubeInfo.key.equals(post.getKeyIfAvailable())) {
+                  resolve(cubeInfo);
+                }
+              });
+            });
+          });
+
+          // Create and add a post from id3
+          const post: cciCube = cciCube.Create({
+            cubeType: CubeType.PIC,
+            requiredDifficulty: 0,
+            fields: cciField.Payload("Nuntius"),
+          });
+          await cubeStore.addCube(post);
+          id3.addPost(post.getKeyIfAvailable());
+
+          // Verify we get exactly one event
+          const emitted: CubeInfo = await eventPromise;
+          expect(emitted.key.equals(post.getKeyIfAvailable())).toBeTruthy();
+
+          const timeout: Promise<string> = new Promise((resolve) =>
+            setTimeout(() => {resolve("timeout")}, 1000));
+          const result: string|CubeInfo = await Promise.race([timeout, shouldNotHappen]);
+          expect(result).toEqual("timeout");
+        });
+
+
+        it('will only emit once per new subscription on an indirectly circular subscriptions', async () => {
+          // Create a new Identity to subscribe to
+          const newId: Identity = await Identity.Construct(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 45),
+            idTestOptions
+          );
+          newId.name = "New Identity";
+          await newId.store();
+
+          const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id1.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo?.key && cubeInfo.key.equals(newId.key)) {
+                resolve(cubeInfo);
+              }
+            });
+          });
+
+          // Create a second promise that should never resolve
+          const shouldNotHappen: Promise<CubeInfo> = new Promise((resolve) => {
+            eventPromise.then(() => {
+              id1.on('cubeAdded', (cubeInfo: CubeInfo) => {
+                if (cubeInfo?.key && cubeInfo.key.equals(newId.key)) {
+                  resolve(cubeInfo);
+                }
+              });
+            });
+          });
+
+          // Add subscription from id3
+          id3.addPublicSubscription(newId.key);
+
+          // Verify we get exactly one event
+          const emitted: CubeInfo = await eventPromise;
+          expect(emitted.key.equals(newId.key)).toBeTruthy();
+
+          const timeout: Promise<string> = new Promise((resolve) =>
+            setTimeout(() => {resolve("timeout")}, 1000));
+          const result: string|CubeInfo = await Promise.race([timeout, shouldNotHappen]);
+          expect(result).toEqual("timeout");
+        });
+
+
+        it('will only emit once per Identity Cube change on an indirectly circular subscriptions', async () => {
+          const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id1.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo?.key && cubeInfo.key.equals(id3.key)) {
+                resolve(cubeInfo);
+              }
+            });
+          });
+
+          // Create a second promise that should never resolve
+          const shouldNotHappen: Promise<CubeInfo> = new Promise((resolve) => {
+            eventPromise.then(() => {
+              id1.on('cubeAdded', (cubeInfo: CubeInfo) => {
+                if (cubeInfo?.key && cubeInfo.key.equals(id3.key)) {
+                  resolve(cubeInfo);
+                }
+              });
+            });
+          });
+
+          // Change id3's name
+          id3.name = "Identity 3 Updated";
+          await id3.store();
+
+          // Verify we get exactly one event
+          const emitted: CubeInfo = await eventPromise;
+          expect(emitted.key.equals(id3.key)).toBeTruthy();
+          expect(emitted.getCube().getFirstField(cciFieldType.USERNAME).valueString)
+            .toBe("Identity 3 Updated");
+
+          const timeout: Promise<string> = new Promise((resolve) =>
+            setTimeout(() => {resolve("timeout")}, 1000));
+          const result: string|CubeInfo = await Promise.race([timeout, shouldNotHappen]);
+          expect(result).toEqual("timeout");
+        });
       });
     });
 
 
 
     describe('edge cases', () => {
-      it.todo('will not resolve Cubes if there are no subscribers');
+      it.todo('will not resolve CubeInfos if there are no subscribers');
     });
   });  // cubeAdded event
 });
