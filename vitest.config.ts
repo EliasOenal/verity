@@ -13,11 +13,17 @@ export default defineConfig({
   test: {
     include: ['test/**/*.test.ts'],
     globals: true,
+    pool: 'forks',
     poolOptions: {
+      // uncomment the following line if you want strictly sequential runs for debugging
+      // forks: { singleFork: true, },
       threads: {
         singleThread: true,
       }
     },
+    sequence: { hooks: 'list', },
+    // uncomment the following line to suppress all vitest output,
+    // preventing our own debug output from being overwritten
     // @ts-ignore it's okay, trust me
     // reporters: [silent],
   },
