@@ -38,6 +38,8 @@ describe('Identity: Cube emitter events', () => {
     await cubeStore.shutdown();
   });
 
+
+
   describe('cubeAdded event', () => {
     describe('events originating from this Identity itself', () => {
       let masterKey: Buffer;
@@ -54,6 +56,7 @@ describe('Identity: Cube emitter events', () => {
       afterEach(async () => {
         id.identityStore.shutdown();
       });
+
 
       it('will emit cubeAdded if a new post is added', async () => {
         const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
@@ -103,6 +106,8 @@ describe('Identity: Cube emitter events', () => {
       });
     });
 
+
+
     describe('events originating from other Identities', () => {
       describe('events originating from directly subscribed Identities', () => {
         let masterKey: Buffer;
@@ -135,6 +140,7 @@ describe('Identity: Cube emitter events', () => {
         afterEach(async () => {
           id.identityStore.shutdown();
         });
+
 
         it('will emit cubeAdded if a new post is added by a directly subscribed Identity', async () => {
           const post: cciCube = cciCube.Create({
@@ -191,6 +197,8 @@ describe('Identity: Cube emitter events', () => {
         it.todo('will also emit for a brand new subscription', async () => {
         });
       });  // events originating from directly subscribed Identities
+
+
 
       describe('events originating from indirectly subscribed Identities', () => {
         let masterKey: Buffer;
@@ -302,19 +310,279 @@ describe('Identity: Cube emitter events', () => {
         });
       });  // events originating from indirectly subscribed Identities
 
+
+
       describe('events occurring beyond the recursion limit', () => {
-        it.todo('will not emit cubeAdded if a new post is added by an indirectly subscribed Identity beyond the recursion limit');
-        it.todo('will not emit cubeAdded if a new subscription is added by an indirectly subscribed Identity beyond the recursion limit');
-        it.todo('will not emit cubeAdded if the Identity\'s root Cube is updated by an indirectly subscribed Identity beyond the recursion limit');
+        let masterKey: Buffer;
+        let id: Identity;
+        let directSub: Identity;
+        let indirectSub: Identity;
+
+        beforeEach(async () => {
+          // prepare an Identity
+          masterKey = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42);
+          id = await Identity.Construct(cubeStore, masterKey, idTestOptions);
+          id.name = "protagonista qui illas probationes pro nobis administrabit"
+
+          // Prepare another Identity to subscribe to
+          directSub = new Identity(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 137),
+            idTestOptions,
+          );
+          directSub.name = "Subscriptio directa";
+          // Make our primary Identity subscribe to it.
+          id.addPublicSubscription(directSub.key);
+
+          // Prepare another Identity to subscribe to
+          indirectSub = new Identity(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 138),
+            idTestOptions,
+          );
+          indirectSub.name = "Subscriptio indirecta";
+          // Make our direct subscription subscribe to it.
+          directSub.addPublicSubscription(indirectSub.key);
+
+          // store all Identities
+          await Promise.all([id.store(), directSub.store(), indirectSub.store()]);
+
+          // set recursion level
+          await id.setSubscriptionRecursionDepth(1);
+        });
+
+        afterEach(async () => {
+          id.identityStore.shutdown();
+        });
+
+        it('will not emit cubeAdded if a new post is added by an indirectly subscribed Identity beyond the recursion limit', async () => {
+          const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo.key.equals(post.getKeyIfAvailable())) resolve(cubeInfo);
+            });
+          });
+
+          const post: cciCube = cciCube.Create({
+            cubeType: CubeType.PIC,
+            requiredDifficulty: 0,
+            fields: cciField.Payload("Nuntius"),
+          });
+          await cubeStore.addCube(post);
+          indirectSub.addPost(post.getKeyIfAvailable());
+
+          const timeout: Promise<CubeInfo|string> = new Promise((resolve) => {
+            setTimeout(() => resolve("timeout"), 1000)});
+          const resolved: CubeInfo|string = await Promise.race([eventPromise, timeout]);
+          expect(resolved).toEqual("timeout");
+        });
+
+        it('will not emit cubeAdded if a new subscription is added by an indirectly subscribed Identity beyond the recursion limit', async () => {
+          const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo.key.equals(sub.getKeyIfAvailable())) resolve(cubeInfo);
+            });
+          });
+
+          const sub: cciCube = cciCube.Create({
+            cubeType: CubeType.PIC,
+            requiredDifficulty: 0,
+            fields: cciField.Payload("Subscriptio"),
+          });
+          await cubeStore.addCube(sub);
+          indirectSub.addPublicSubscription(sub.getKeyIfAvailable());
+
+          const timeout: Promise<CubeInfo|string> = new Promise((resolve) => {
+            setTimeout(() => resolve("timeout"), 1000)});
+          const resolved: CubeInfo|string = await Promise.race([eventPromise, timeout]);
+          expect(resolved).toEqual("timeout");
+        });
+
+        it('will not emit cubeAdded if the Identity\'s root Cube is updated by an indirectly subscribed Identity beyond the recursion limit', async () => {
+          const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo.key.equals(indirectSub.key)) resolve(cubeInfo);
+            })
+          });
+
+          indirectSub.name = "nomen mutatum";
+          indirectSub.store();
+
+          const timeout: Promise<CubeInfo|string> = new Promise((resolve) => {
+            setTimeout(() => resolve("timeout"), 1000)});
+          const resolved: CubeInfo|string = await Promise.race([eventPromise, timeout]);
+          expect(resolved).toEqual("timeout");
+        });
       });
+
+
 
       describe('reducing the recursion level', () => {
         // This tests that re-emissions are properly cancelled when reducing
         // the recursion level.
-        it.todo('will stop emitting events for indirect subscriptions after we reduce the recursion level to 1');
-        it.todo('will not stop emitting events for direct subscriptions after we reduce the recursion level to 0');
+
+        let masterKey: Buffer;
+        let id: Identity;
+        let directSub: Identity;
+        let indirectSub: Identity;
+
+        beforeEach(async () => {
+          // prepare an Identity
+          masterKey = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42);
+          id = await Identity.Construct(cubeStore, masterKey, idTestOptions);
+          id.name = "protagonista qui illas probationes pro nobis administrabit"
+
+          // Prepare another Identity to subscribe to
+          directSub = new Identity(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 137),
+            idTestOptions,
+          );
+          directSub.name = "Subscriptio directa";
+          // Make our primary Identity subscribe to it.
+          id.addPublicSubscription(directSub.key);
+
+          // Prepare another Identity to subscribe to
+          indirectSub = new Identity(
+            cubeStore,
+            Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 138),
+            idTestOptions,
+          );
+          indirectSub.name = "Subscriptio indirecta";
+          // Make our direct subscription subscribe to it.
+          directSub.addPublicSubscription(indirectSub.key);
+
+          // store all Identities
+          await Promise.all([id.store(), directSub.store(), indirectSub.store()]);
+
+          // start with a recursion level of 2, to be reduced within each test
+          await id.setSubscriptionRecursionDepth(2);
+        });
+
+        afterEach(async () => {
+          id.identityStore.shutdown();
+        });
+
+        it('will stop emitting events for new posts by indirect subscriptions, but not for direct subscriptions, after we reduce the recursion level to 1', async () => {
+          // reduce the recursion level to 1
+          await id.setSubscriptionRecursionDepth(1);
+
+          // Create a promise anticipating the upcoming new post by
+          // the indirect subscription.
+          // This promise shall never resolve as the event happens beyond
+          // the recursion limit.
+          const indirectPostPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo?.key && cubeInfo.key.equals(indirectPost.getKeyIfAvailable())) {
+                resolve(cubeInfo);
+              }
+            })
+          });
+
+          // add a new post to the indirect subscription
+          const indirectPost: cciCube = cciCube.Create({
+            cubeType: CubeType.PIC,
+            requiredDifficulty: 0,
+            fields: cciField.Payload("Nuntius"),
+          });
+          await cubeStore.addCube(indirectPost);
+          indirectSub.addPost(indirectPost.getKeyIfAvailable());
+
+          // Create a promise anticipating the upcoming new post by
+          // the direct subscription.
+          // This promise is expected to resolve.
+          const directPostPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo?.key && cubeInfo.key.equals(directPost.getKeyIfAvailable())) {
+                resolve(cubeInfo);
+              }
+            })
+          });
+
+          // add a new post to the direct subscription
+          const directPost: cciCube = cciCube.Create({
+            cubeType: CubeType.PIC,
+            requiredDifficulty: 0,
+            fields: cciField.Payload("Nuntius"),
+          });
+          await cubeStore.addCube(directPost);
+          directSub.addPost(directPost.getKeyIfAvailable());
+
+          // Expect the promise representing the new post by the direct
+          // subscription to resolve.
+          const resolved: CubeInfo = await directPostPromise;
+          expect(resolved.key.equals(directPost.getKeyIfAvailable())).toBeTruthy();
+
+          // Expect the promise representing the new post by the indirect
+          // subscription to not resolve.
+          const timeout: Promise<CubeInfo|string> = new Promise((resolve) => {
+            setTimeout(() => resolve("timeout"), 1000)
+          });
+          const resolved2: CubeInfo|string = await Promise.race([indirectPostPromise, timeout]);
+          expect(resolved2).toEqual("timeout");
+        });
+
+        it('will stop emitting for new posts by direct subscriptions, but not for own posts after we reduce the recursion level to 0', async () => {
+          // reduce the recursion level to 0
+          await id.setSubscriptionRecursionDepth(0);
+
+          // Create a promise anticipating the upcoming new post by
+          // the direct subscription.
+          // This promise shall never resolve as the event happens beyond
+          // the recursion limit.
+          const subPostPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo?.key && cubeInfo.key.equals(subPost.getKeyIfAvailable())) {
+                resolve(cubeInfo);
+              }
+            })
+          });
+
+          // add a new post to the subscribed Identity
+          const subPost: cciCube = cciCube.Create({
+            cubeType: CubeType.PIC,
+            requiredDifficulty: 0,
+            fields: cciField.Payload("Nuntius"),
+          });
+          await cubeStore.addCube(subPost);
+          directSub.addPost(subPost.getKeyIfAvailable());
+
+          // Create a promise anticipating the upcoming new post by
+          // the protagonist Identity themself.
+          // This promise is expected to resolve.
+          const ownPostPromise: Promise<CubeInfo> = new Promise((resolve) => {
+            id.on('cubeAdded', (cubeInfo: CubeInfo) => {
+              if (cubeInfo?.key && cubeInfo.key.equals(ownPost.getKeyIfAvailable())) {
+                resolve(cubeInfo);
+              }
+            })
+          });
+
+          // add a new post to the protagonist Identity
+          const ownPost: cciCube = cciCube.Create({
+            cubeType: CubeType.PIC,
+            requiredDifficulty: 0,
+            fields: cciField.Payload("Nuntius"),
+          });
+          await cubeStore.addCube(ownPost);
+          id.addPost(ownPost.getKeyIfAvailable());
+
+          // Expect the promise representing the new post by the protagonist
+          // itself to resolve.
+          const resolved: CubeInfo = await ownPostPromise;
+          expect(resolved.key.equals(ownPost.getKeyIfAvailable())).toBeTruthy();
+
+          // Expect the promise representing the new post by the subscribed
+          // Identity to not resolve.
+          const timeout: Promise<CubeInfo|string> = new Promise((resolve) => {
+            setTimeout(() => resolve("timeout"), 1000)
+          });
+          const resolved2: CubeInfo|string = await Promise.race([subPostPromise, timeout]);
+          expect(resolved2).toEqual("timeout");
+        });
       });
     });
+
+
 
     describe('avoiding endless recursion', () => {
       describe('subscribed to self', () => {
@@ -340,6 +608,7 @@ describe('Identity: Cube emitter events', () => {
         afterEach(async () => {
           id.identityStore.shutdown();
         });
+
 
         it('will only emit once per new post if subscribed to itself', async () => {
           // anticipante the expected new post event
@@ -385,11 +654,15 @@ describe('Identity: Cube emitter events', () => {
         it.todo('will only emit once per new subscription if subscribed to itself');
       });  // subscribed to self
 
+
+
       describe('reciprocal subscriptions', () => {
         it.todo('will only emit once per new post on a directly circular subscriptions');
         it.todo('will only emit once per new subscription on a directly circular subscriptions');
         it.todo('will only emit once per Identity Cube change on a directly circular subscriptions');
       });
+
+
 
       describe('circular subscriptions', () => {
         it.todo('will only emit once per new post on an indirectly circular subscriptions');
@@ -397,6 +670,8 @@ describe('Identity: Cube emitter events', () => {
         it.todo('will only emit once per Identity Cube change on an indirectly circular subscriptions');
       });
     });
+
+
 
     describe('edge cases', () => {
       it.todo('will not resolve Cubes if there are no subscribers');

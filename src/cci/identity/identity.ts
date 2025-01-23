@@ -447,9 +447,9 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
     // If any recursion is requested at all, we will re-emit my subscription's events.
     // Otherwise, we obviously cancel our re-emissions.
-    sub.removeListener('cubeAdded', this.emitCubeAdded.bind(this));
+    sub.removeListener('cubeAdded', this.emitCubeAdded);
     if (depth > 0) {
-      sub.on('cubeAdded', this.emitCubeAdded.bind(this));
+      sub.on('cubeAdded', this.emitCubeAdded);
     }
 
     // Let my subscriptions know the new recursion level, which is obviously
@@ -458,7 +458,9 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     return sub.setSubscriptionRecursionDepth(nextLevelDepth, except);
   }
 
-  private async emitCubeAdded(input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>): Promise<void> {
+  // Note: Must use arrow function syntax to keep this method correctly bound
+  //       for method handler adding and removal.
+  private emitCubeAdded = async (input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>): Promise<void> => {
     // only emit if there is a listener
     if (this.listenerCount('cubeAdded') === 0) return;
 
