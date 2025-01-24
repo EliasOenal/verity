@@ -76,15 +76,14 @@ describe('Identity: base model tests', () => {
       expect(Array.from(id.getPostKeys())[0]).toEqual(postKey);
     });
 
-    // This test currently fails
-    it.skip('remembers only unique posts', () => {
+    it('remembers only unique posts', () => {
       const id = new Identity(
         undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
       expect(id.getPostCount()).toEqual(0);
 
       id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
       id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
-      expect(id.getPostCount).toEqual(1);
+      expect(id.getPostCount()).toEqual(1);
       expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337))).toBeTruthy();
     });
   });
@@ -100,8 +99,7 @@ describe('Identity: base model tests', () => {
       expect(id.hasPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337))).toBeTruthy();
     });
 
-    // This test currently fails
-    it.skip('remembers only unique subscription recommendations', () => {
+    it('remembers only unique subscription recommendations', () => {
       const id = new Identity(
         undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
       expect(id.getPublicSubscriptionCount()).toBe(0);
@@ -148,7 +146,9 @@ describe('Identity: base model tests', () => {
       }
     });
 
-    it.todo('ensures only a single Identity object is created for each identity');
+    it('ensures only a single Identity object is created for each identity', async () => {
+
+    });
   });  // describe subscription recommendations
 
   describe('recursiveWebOfSubscriptions()', () => {
