@@ -853,7 +853,12 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
    */
   async *getAllCubeInfos(
       subscriptionRecursionDepth: number = this._subscriptionRecursionDepth,
+      exclude: Set<string> = new Set(),
   ): AsyncGenerator<CubeInfo> {
+    // First, avoid infinite recursion
+    if (exclude.has(this.keyString)) return;
+    else exclude.add(this.keyString);
+
     // yield myself
     yield this.muc.getCubeInfo();
 
@@ -867,7 +872,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     const rGens: AsyncGenerator<CubeInfo>[] = [];
     if (subscriptionRecursionDepth > 0) {
       for await (const sub of this.getPublicSubscriptionIdentities()) {
-        rGens.push(sub.getAllCubeInfos(subscriptionRecursionDepth - 1));
+        rGens.push(sub.getAllCubeInfos(subscriptionRecursionDepth - 1, exclude));
       }
     }
     const ret: AsyncGenerator<CubeInfo> = mergeAsyncGenerators(posts, subs, ...rGens);
