@@ -1116,7 +1116,31 @@ describe('Identity: Cube emitter events', () => {
 
 
     describe('edge cases', () => {
-      it.todo('will not resolve CubeInfos if there are no subscribers');
+      it('will not create CubeInfos if there are no subscribers', async () => {
+        const masterKey = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42);
+        const id = await Identity.Construct(cubeStore, masterKey, idTestOptions);
+        id.name = "protagonista qui illas probationes pro nobis administrabit"
+
+        // Create a post
+        const post: cciCube = cciCube.Create({
+          cubeType: CubeType.PIC,
+          requiredDifficulty: 0,
+          fields: cciField.Payload("Nuntius"),
+        });
+        await cubeStore.addCube(post);
+
+        // Spy on the CubeStore's getCubeInfo method
+        const getCubeInfoSpy = vi.spyOn(cubeStore, 'getCubeInfo');
+
+        // Add the post without any event listeners
+        id.addPost(post.getKeyIfAvailable());
+
+        // Verify that no CubeInfo was created
+        expect(getCubeInfoSpy).not.toHaveBeenCalled();
+
+        await id.identityStore.shutdown();
+        getCubeInfoSpy.mockRestore();
+      });
     });
   });  // cubeAdded event
 });
