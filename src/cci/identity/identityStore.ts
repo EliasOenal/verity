@@ -47,6 +47,8 @@ export class IdentityStore implements Shuttable {
       keyInput: CubeKey|string,
       options: IdentityOptions = {},
   ): Promise<Identity> {
+    // Input sanitation: Ensure the options object refers to this IdentityStore
+    options.identityStore = this;
     // Identity already in store?
     const stored: Identity = this.getIdentity(keyInput);
     if (stored !== undefined) return stored;

@@ -147,7 +147,48 @@ describe('Identity: base model tests', () => {
     });
 
     it('ensures only a single Identity object is created for each identity', async () => {
+      // test setup:
+      // Create a protagonist id and a subscribed ID.
+      // We call the subscribed ID a prototype because this is not the actual
+      // Identity object our protagonist will see; rather they will restore
+      // their subscribed Identity from CubeStore.
+      // Note: While manually creating Identity objects, we use individual copies of the
+      //   options objects, as the options object contains the IdentityStore instance
+      //   used. Thus reusing the same options object would make this test completely
+      //   pointless, as all Identity objects would always be known to
+      //   everyone from the very beginning.
+      const id: Identity = new Identity(
+        cubeStore, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), Object.assign({}, idTestOptions));
+      const subbedPrototype: Identity = new Identity(
+        cubeStore, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42), Object.assign({}, idTestOptions));
+      await subbedPrototype.store();
+      id.addPublicSubscription(subbedPrototype.key);
 
+      // recreate subscribed Identity
+      const subbed: Identity =
+        await id.getPublicSubscriptionIdentity(subbedPrototype.key);
+      // assert IdentityStore is shared on Identity object creation
+      expect(subbed.identityStore).toBe(id.identityStore)
+
+      // let's have our protagonise subscribe to another new Identity, who in
+      // turn will also subscribe to subbed
+      const anotherSubscriberPrototype: Identity = new Identity(
+        cubeStore, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43), idTestOptions);
+      anotherSubscriberPrototype.addPublicSubscription(subbed.key);
+      await anotherSubscriberPrototype.store();
+      id.addPublicSubscription(anotherSubscriberPrototype.key);
+      const anotherSubscriber: Identity =
+        await id.getPublicSubscriptionIdentity(anotherSubscriberPrototype.key);
+
+      // assert both subscribers to subbed use the same Identity object for subbed
+      const subbed2: Identity =
+        await anotherSubscriber.getPublicSubscriptionIdentity(subbedPrototype.key);
+      expect(subbed2).toBe(subbed);
+
+      // just for comparison: the prototype objects are not the same as their
+      // restored counterparts
+      expect(subbedPrototype).not.toBe(subbed);
+      expect(anotherSubscriberPrototype).not.toBe(anotherSubscriber);
     });
   });  // describe subscription recommendations
 

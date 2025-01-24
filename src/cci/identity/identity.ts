@@ -91,7 +91,7 @@ export interface IdentityOptions {
   /**
    * Whether this Identity should listen for remote updates to itself.
    * This is required whenever the same Identity may be actively used (= edited)
-   * different nodes as otherwise changes won't be synced.
+   * on different nodes as otherwise changes won't be synced.
    * Default: true
    **/
   subscribeRemoteChanges?: boolean;
@@ -404,6 +404,9 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       const retrieved: Identity = await this.identityStore.retrieveIdentity(sub);
       if (retrieved !== undefined) yield retrieved;
     }
+  }
+  getPublicSubscriptionIdentity(keyInput: CubeKey|string): Promise<Identity> {
+    return this.identityStore.retrieveIdentity(keyInput);
   }
 
   private _subscriptionRecommendationIndices: Array<cciCube> = [];
