@@ -369,7 +369,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   hasPost(keyInput: CubeKey | string): boolean {
     return this._posts.has(keyVariants(keyInput).keyString);
   }
-  async *getPostCubeInfos(): AsyncGenerator<CubeInfo> {
+  async *getPostCubeInfos(): AsyncGenerator<CubeInfo, void, undefined> {
     const promises: Promise<CubeInfo>[] = [];
     for (const post of this.getPostKeyStrings()) {
       promises.push(this.cubeRetriever.getCubeInfo(post));
@@ -396,7 +396,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   hasPublicSubscription(keyInput: CubeKey | string): boolean {
     return this._publicSubscriptions.has(keyVariants(keyInput).keyString);
   }
-  async *getPublicSubscriptionCubeInfos(): AsyncGenerator<CubeInfo> {
+  async *getPublicSubscriptionCubeInfos(): AsyncGenerator<CubeInfo, void, undefined> {
     const promises: Promise<CubeInfo>[] = [];
     for (const sub of this.getPublicSubscriptionStrings()) {
       promises.push(this.cubeRetriever.getCubeInfo(sub));
