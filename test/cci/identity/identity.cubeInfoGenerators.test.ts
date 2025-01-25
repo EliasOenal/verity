@@ -389,6 +389,8 @@ describe('Identity: CubeInfo generators', () => {
             sub1Sub.getKeyIfAvailable()))).toBeTruthy();
           expect(cubeInfos.some((cubeInfo: CubeInfo) => cubeInfo.key.equals(
             sub2Sub.getKeyIfAvailable()))).toBeTruthy();
+          // all of the results shall be CubeInfos, no undefined nonsense
+          expect(cubeInfos.every((cubeInfo: CubeInfo) => cubeInfo instanceof CubeInfo)).toBeTruthy();
         });
       });  // tests with single level recursion
 
@@ -468,60 +470,122 @@ describe('Identity: CubeInfo generators', () => {
           // 6. subscribed Identities' subscriptions (2nd level)
           expect(cubeInfos.some((cubeInfo: CubeInfo) => cubeInfo.key.equals(
             sub2Sub.getKeyIfAvailable()))).toBeTruthy();
+          // all of the results shall be CubeInfos, no undefined nonsense
+          expect(cubeInfos.every((cubeInfo: CubeInfo) => cubeInfo instanceof CubeInfo)).toBeTruthy();
         });
       });  // tests with two levels of recursion
 
-      describe('recursion edge cases', () => {
-        it('will not fail if subscribed to itself', async () => {
-          // Subscribe to self
-          id.addPublicSubscription(id.key);
-          await id.store();
+      describe('edge cases', () => {
+        describe('unavailable data', () => {
+          it('will omit unavailable posts', async () => {
+            // add an available and an unavailable post
+            const availablePost = cciCube.Create({
+              cubeType: CubeType.PIC,
+              requiredDifficulty: 0,
+              fields: cciField.Payload("Nuntius"),
+            });
+            await cubeStore.addCube(availablePost);
+            id.addPost(availablePost.getKeyIfAvailable());
 
-          await id.setSubscriptionRecursionDepth(Infinity);  // though shalt not save us
+            const unavailablePostKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 404);
+            id.addPost(unavailablePostKey);
 
-          // Perform test - should complete without throwing
-          const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos());
+            // Perform test
+            const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos());
 
-          // Check results:
-          // Should still get our own cube info
-          expect(cubeInfos.length).toBeLessThan(5);
-          expect(cubeInfos[0].key).toEqual(id.key);
+            // Check results:
+            // Should still get our own cube info
+            expect(cubeInfos.length).toBeLessThan(5);
+            expect(cubeInfos[0].key).toEqual(id.key);
+            expect(cubeInfos.some((cubeInfo: CubeInfo) => cubeInfo.key.equals(
+              availablePost.getKeyIfAvailable()))).toBeTruthy();
+            // all of the results shall be CubeInfos, no undefined nonsense
+            expect(cubeInfos.every((cubeInfo: CubeInfo) => cubeInfo instanceof CubeInfo)).toBeTruthy();
+          });
+
+          it('will omit unavailable subscriptions', async () => {
+            // add an available and an unavailable subscription
+            const availableSub: Identity = new Identity(
+              cubeStore,
+              Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 333),
+              idTestOptions,
+            );
+            await availableSub.store();
+            id.addPublicSubscription(availableSub.key);
+
+            const unavailableSubKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 404);
+            id.addPublicSubscription(unavailableSubKey);
+
+            // Perform test
+            const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos());
+
+            // Check results:
+            // Should still get our own cube info
+            expect(cubeInfos.length).toBeLessThan(5);
+            expect(cubeInfos[0].key).toEqual(id.key);
+            expect(cubeInfos.some((cubeInfo: CubeInfo) => cubeInfo.key.equals(
+              availableSub.key))).toBeTruthy();
+            // all of the results shall be CubeInfos, no undefined nonsense
+            expect(cubeInfos.every((cubeInfo: CubeInfo) => cubeInfo instanceof CubeInfo)).toBeTruthy();
+          });
+
         });
+        describe('recursion edge cases', () => {
+          it('will not fail if subscribed to itself', async () => {
+            // Subscribe to self
+            id.addPublicSubscription(id.key);
+            await id.store();
 
-        it('will not fail on circular subscriptions', async () => {
-          // Create two extra identities
-          const sub1MasterKey: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 43);
-          const sub1: Identity = await Identity.Construct(cubeStore, sub1MasterKey, idTestOptions);
-          sub1.name = "Circle 1";
+            await id.setSubscriptionRecursionDepth(Infinity);  // though shalt not save us
 
-          const sub2MasterKey: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 44);
-          const sub2: Identity = await Identity.Construct(cubeStore, sub2MasterKey, idTestOptions);
-          sub2.name = "Circle 2";
+            // Perform test - should complete without throwing
+            const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos());
 
-          // Create circular subscription: id -> sub1 -> sub2 -> id
-          id.addPublicSubscription(sub1.key);
-          sub1.addPublicSubscription(sub2.key);
-          sub2.addPublicSubscription(id.key);
+            // Check results:
+            // Should still get our own cube info
+            expect(cubeInfos.length).toBeLessThan(5);
+            expect(cubeInfos[0].key).toEqual(id.key);
+            // all of the results shall be CubeInfos, no undefined nonsense
+            expect(cubeInfos.every((cubeInfo: CubeInfo) => cubeInfo instanceof CubeInfo)).toBeTruthy();
+          });
 
-          // Subscribe to one of them
-          id.addPublicSubscription(sub1.key);
+          it('will not fail on circular subscriptions', async () => {
+            // Create two extra identities
+            const sub1MasterKey: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 43);
+            const sub1: Identity = await Identity.Construct(cubeStore, sub1MasterKey, idTestOptions);
+            sub1.name = "Circle 1";
 
-          // Store all identities
-          await sub1.store();
-          await sub2.store();
-          await id.store();
+            const sub2MasterKey: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 44);
+            const sub2: Identity = await Identity.Construct(cubeStore, sub2MasterKey, idTestOptions);
+            sub2.name = "Circle 2";
 
-          await id.setSubscriptionRecursionDepth(Infinity);  // though shalt not save us
+            // Create circular subscription: id -> sub1 -> sub2 -> id
+            id.addPublicSubscription(sub1.key);
+            sub1.addPublicSubscription(sub2.key);
+            sub2.addPublicSubscription(id.key);
 
-          // Perform test
-          const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos());
+            // Subscribe to one of them
+            id.addPublicSubscription(sub1.key);
 
-          // Check results:
-          expect(cubeInfos.length).toBeLessThan(10);
-          expect(cubeInfos[0].key).toEqual(id.key);
-          expect(cubeInfos.some(c => c.key.equals(sub1.key)) ||
-                 cubeInfos.some(c => c.key.equals(sub2.key))).toBeTruthy();
-        });
+            // Store all identities
+            await sub1.store();
+            await sub2.store();
+            await id.store();
+
+            await id.setSubscriptionRecursionDepth(Infinity);  // though shalt not save us
+
+            // Perform test
+            const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos());
+
+            // Check results:
+            expect(cubeInfos.length).toBeLessThan(10);
+            expect(cubeInfos[0].key).toEqual(id.key);
+            expect(cubeInfos.some(c => c.key.equals(sub1.key)) ||
+                  cubeInfos.some(c => c.key.equals(sub2.key))).toBeTruthy();
+            // all of the results shall be CubeInfos, no undefined nonsense
+            expect(cubeInfos.every((cubeInfo: CubeInfo) => cubeInfo instanceof CubeInfo)).toBeTruthy();
+          });
+        });  // recursion edge cases
       });
     });  // getAllCubeInfos()
   });  // CubeInfo generators
