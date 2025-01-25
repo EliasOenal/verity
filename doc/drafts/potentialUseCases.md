@@ -4,10 +4,9 @@ blockchain', it relieves as us of asking the stereotipical question:
 
 But still, let's collect some ideas:
 
+### End-user facing applications
 - ✓ Microblogging
-- Collection of billing data, e.g. from smart meters
-- LoRa access point
-- ✓ Storage of survey results, e.g. Diary Studies
+- ✓ Survey app, e.g. Diary Studies
 - Direct messaging (like email/PM)
 - Imageboards (linking to external content)
 - Decentralized subscriptions/feeds (e.g. Youtube, Odysee, BitChute)
@@ -17,11 +16,16 @@ But still, let's collect some ideas:
 - Personal Blogs
 - Short term static HTML hosting
 - Secure Drop Zones
-- Decentralized Dead Man’s Switch (Application layer service implementing Shamir's secret sharing)
-- IoT secure firmware updates
 - ✓ Chat (Anonymous, Pseudonymous)
 - Pastebin
 - Usenet
+- Kanban boards
+
+### Application backend
+- Collection of billing data, e.g. from smart meters
+- LoRa access point
+- Decentralized Dead Man’s Switch (Application layer service implementing Shamir's secret sharing)
+- IoT secure firmware updates
 - JS library to implement guestbooks/chats on static websites
 - Firebase alternative
 - ✓ Replicated file storage (need to optimise code and probably run a separate network with larger Cube sizes for this to make sense)
