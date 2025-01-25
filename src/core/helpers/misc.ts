@@ -86,6 +86,58 @@ export async function* mergeAsyncGenerators<T>(
   }
 }
 
+/**
+ * Asynchronously yields values from an array of promises as they resolve, in the order they are fulfilled.
+ * Promises resolving to `undefined` are skipped and not yielded.
+ *
+ * @template T - The type of values resolved by the promises.
+ * @param promises - An array of promises that resolve to either a value of type `T` or `undefined`.
+ * @returns An `AsyncGenerator` that yields values of type `T` as soon as their corresponding promises resolve.
+ *
+ * @example
+ * ```typescript
+ * const promises = [
+ *     new Promise<number | undefined>(resolve => setTimeout(() => resolve(1), 300)),
+ *     new Promise<number | undefined>(resolve => setTimeout(() => resolve(undefined), 200)),
+ *     new Promise<number | undefined>(resolve => setTimeout(() => resolve(2), 100)),
+ * ];
+ *
+ * for await (const value of resolveAndYield(promises)) {
+ *     console.log(value); // Logs: 2, then 1
+ * }
+ * ```
+ *
+ * @remarks
+ * - This function uses `Promise.race` to process the promises as they resolve.
+ * - Promises that resolve to `undefined` are ignored and not yielded.
+ * - The function will continue until all promises in the input array are resolved.
+ * - If a promise rejects, the rejection must be handled externally to prevent unhandled promise rejections.
+ *
+ * @throws This function does not handle rejected promises internally. Ensure that you handle rejections in the input promises, e.g., by using `.catch()` before passing them to this function.
+ */
+export async function* resolveAndYield<T>(
+  promises: Promise<T | undefined>[]
+): AsyncGenerator<T, void, undefined> {
+  const pending: Set<Promise<T | undefined>> = new Set(promises); // Set of pending promises
+  const promiseMap: Map<Promise<T | undefined>, Promise<{ value: T | undefined; promise: Promise<T | undefined> }>> = new Map(
+      promises.map(p => [
+          p,
+          p.then(value => ({ value, promise: p }))
+      ])
+  );
+
+  while (pending.size > 0) {
+      const { value, promise } = await Promise.race(promiseMap.values()); // Wait for the first promise to resolve
+
+      pending.delete(promise); // Remove the resolved promise from the set
+      promiseMap.delete(promise); // Remove it from the map
+
+      if (value !== undefined) {
+          yield value; // Yield the resolved value if it's not undefined
+      }
+  }
+}
+
 export function isIterableButNotBuffer(obj: any): boolean {
   return obj != null &&
     typeof obj[Symbol.iterator] === 'function' &&

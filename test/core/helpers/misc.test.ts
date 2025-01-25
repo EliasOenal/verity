@@ -1,4 +1,4 @@
-import { mergeAsyncGenerators } from '../../../src/core/helpers/misc';
+import { mergeAsyncGenerators, resolveAndYield } from '../../../src/core/helpers/misc';
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
@@ -217,5 +217,150 @@ describe('mergeAsyncGenerators', () => {
     }
 
     expect(results).toHaveLength(10000);
+  });
+});  // mergeAsyncGenerators()
+
+
+
+describe("resolveAndYield", () => {
+  it("should yield values in the order the promises resolve", async () => {
+      const promises = [
+          new Promise<number | undefined>(resolve => setTimeout(() => resolve(1), 300)),
+          new Promise<number | undefined>(resolve => setTimeout(() => resolve(undefined), 200)),
+          new Promise<number | undefined>(resolve => setTimeout(() => resolve(2), 100)),
+      ];
+
+      const results: number[] = [];
+      for await (const value of resolveAndYield(promises)) {
+          results.push(value);
+      }
+
+      expect(results).toEqual([2, 1]);
+  });
+
+  it("should handle an empty array of promises", async () => {
+      const promises: Promise<number | undefined>[] = [];
+      const results: number[] = [];
+
+      for await (const value of resolveAndYield(promises)) {
+          results.push(value);
+      }
+
+      expect(results).toEqual([]);
+  });
+
+  it("should not yield undefined values", async () => {
+      const promises = [
+          Promise.resolve(1),
+          Promise.resolve(undefined),
+          Promise.resolve(2),
+      ];
+
+      const results: number[] = [];
+      for await (const value of resolveAndYield(promises)) {
+          results.push(value);
+      }
+
+      expect(results).toEqual([1, 2]);
+  });
+
+  it("should yield results as they arrive, not waiting for long-pending promises", async () => {
+      const start = Date.now();
+
+      const promises = [
+          new Promise<number | undefined>(resolve => setTimeout(() => resolve(1), 100)),
+          new Promise<number | undefined>(resolve => setTimeout(() => resolve(2), 300)),
+          new Promise<number | undefined>(resolve => setTimeout(() => resolve(3), 500)),
+      ];
+
+      const results: { value: number; time: number }[] = [];
+      for await (const value of resolveAndYield(promises)) {
+          results.push({ value, time: Date.now() - start });
+      }
+
+      expect(results.length).toBe(3);
+      expect(results[0].value).toBe(1);
+      expect(results[1].value).toBe(2);
+      expect(results[2].value).toBe(3);
+
+      // Verify that results are yielded approximately at the expected times
+      expect(results[0].time).toBeGreaterThanOrEqual(100);
+      expect(results[0].time).toBeLessThan(200);
+      expect(results[1].time).toBeGreaterThanOrEqual(300);
+      expect(results[1].time).toBeLessThan(400);
+      expect(results[2].time).toBeGreaterThanOrEqual(500);
+      expect(results[2].time).toBeLessThan(600);
+  });
+
+  it("should handle a mix of resolved and pending promises", async () => {
+      const promises = [
+          Promise.resolve(1),
+          new Promise<number | undefined>(resolve => setTimeout(() => resolve(2), 100)),
+          Promise.resolve(undefined),
+          new Promise<number | undefined>(resolve => setTimeout(() => resolve(3), 200)),
+      ];
+
+      const results: number[] = [];
+      for await (const value of resolveAndYield(promises)) {
+          results.push(value);
+      }
+
+      expect(results).toEqual([1, 2, 3]);
+  });
+
+  it("should work with promises that reject (skip rejections)", async () => {
+      const promises = [
+          Promise.resolve(1),
+          Promise.reject(new Error("Failed")),
+          new Promise<number | undefined>(resolve => setTimeout(() => resolve(2), 100)),
+      ];
+
+      const results: number[] = [];
+      const errors: Error[] = [];
+
+      for await (const value of resolveAndYield(
+          promises.map(p =>
+              p.catch(err => {
+                  errors.push(err);
+                  return undefined;
+              })
+          )
+      )) {
+          results.push(value);
+      }
+
+      expect(results).toEqual([1, 2]);
+      expect(errors).toHaveLength(1);
+      expect(errors[0].message).toBe("Failed");
+  });
+
+  it("should handle a large number of promises efficiently", async () => {
+      const promises = Array.from({ length: 1000 }, (_, i) =>
+          new Promise<number | undefined>(resolve => setTimeout(() => resolve(i), Math.random() * 1000))
+      );
+
+      const results: number[] = [];
+      for await (const value of resolveAndYield(promises)) {
+          results.push(value);
+      }
+
+      // Verify that all values were yielded
+      expect(results).toHaveLength(1000);
+      expect(new Set(results).size).toBe(1000); // All unique values
+  });
+
+  it("should handle cases where all promises resolve immediately", async () => {
+      const promises = [
+          Promise.resolve(1),
+          Promise.resolve(2),
+          Promise.resolve(3),
+      ];
+
+      const results: number[] = [];
+      for await (const value of resolveAndYield(promises)) {
+          results.push(value);
+      }
+
+      expect(results).toEqual([1, 2, 3]);
   });
 });
