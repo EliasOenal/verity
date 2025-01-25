@@ -83,7 +83,7 @@ describe('Identity: static functions', () => {
       // make a post
       expect(original.getPostCount()).toEqual(0);
       const post = await makePost("Habeo res importantes dicere",
-        undefined, original, reducedDifficulty);
+        { id: original, requiredDifficulty: reducedDifficulty });
       await cubeStore.addCube(post);
       expect(original.getPostCount()).toEqual(1);
 

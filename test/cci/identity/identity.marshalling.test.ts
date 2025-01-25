@@ -67,7 +67,7 @@ let cubeStore: CubeStore;
         Buffer.from("0102030405", 'hex'), AvatarScheme.MULTIAVATAR);
 
       const post = await makePost("Habeo res importantes dicere",
-        undefined, original, requiredDifficulty);
+        { id: original, requiredDifficulty });
       const postkey = await post.getKey();
       await cubeStore.addCube(post);
       expect(postkey).toBeInstanceOf(Buffer);
@@ -112,7 +112,12 @@ let cubeStore: CubeStore;
       original.name = "Probator Identitatum";
       original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
       original.avatar = new Avatar("0102030405", AvatarScheme.MULTIAVATAR);
-      await cubeStore.addCube(await makePost("Habeo res importantes dicere", undefined, original, requiredDifficulty));
+      await cubeStore.addCube(
+        await makePost("Habeo res importantes dicere", {
+          id: original,
+          requiredDifficulty,
+        }
+      ));
 
       // compile ID into binary MUC
       const muc = await original.makeMUC();
@@ -198,7 +203,13 @@ let cubeStore: CubeStore;
 
       // make some test posts
       for (let i=0; i<TESTPOSTCOUNT; i++) {
-        const post: cciCube = await makePost("I got " + (i+1).toString() + " important things to say", undefined, original, reducedDifficulty);
+        const post: cciCube = await makePost(
+          "I got " + (i+1).toString() + " important things to say",
+          {
+            id: original,
+            requiredDifficulty: reducedDifficulty,
+          }
+        );
         const key: CubeKey = post.getKeyIfAvailable();
         expect(key).toBeDefined();
         const keyString: string = post.getKeyStringIfAvailable();
