@@ -542,8 +542,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
     // Subscribe to remote Identity updates (i.e. same user using multiple devices)
     if (!(options?.subscribeRemoteChanges === false)) {  // unless explicitly opted out
-      this.cubeStore?.on("cubeAdded",
-        cubeInfo => this.mergeRemoteChanges(cubeInfo));
+      this.cubeStore?.on("cubeAdded", this.mergeRemoteChanges);
     }
 
     // are we loading or creating an Identity?
@@ -830,11 +829,17 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   private shutdownPromiseResolve: () => void;
   shutdownPromise: Promise<void> =
     new Promise(resolve => this.shutdownPromiseResolve = resolve);
+
   shutdown(): Promise<void> {
+    // mark myself as shutting down
     this._shutdown = true;
-    this.cubeStore?.removeListener("cubeAdded",
-      cubeInfo => this.mergeRemoteChanges(cubeInfo));
-    return Promise.resolve();
+    // cancel event subscriptions
+    this.cubeStore?.removeListener("cubeAdded", this.mergeRemoteChanges);
+    // remove myself from my IdentityStore
+    this.identityStore?.deleteIdentity(this);
+    // resolve shutdown promise
+    this.shutdownPromiseResolve();
+    return this.shutdownPromise;
   }
 
 
@@ -1073,7 +1078,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   }
 
   // TODO: implement an actual merge
-  private mergeRemoteChanges(incoming: CubeInfo): void {
+  private mergeRemoteChanges = (incoming: CubeInfo): void => {
     // check if this is even our MUC
     if (!this.key ||  // can't perform merge if we don't even know our own key
         !(incoming.key?.equals(this.key))) return;

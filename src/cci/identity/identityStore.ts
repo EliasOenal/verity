@@ -77,17 +77,23 @@ export class IdentityStore implements Shuttable {
     }
   }
 
+  deleteIdentity(input: Identity|CubeKey|string): void {
+    this.identityMap.delete(Identity.KeyStringOf(input));
+  }
+
   // implement Shuttable
   private _shutdown: boolean = false;
   get shuttingDown(): boolean { return this._shutdown }
   private shutdownPromiseResolve: () => void;
   shutdownPromise: Promise<void> =
     new Promise(resolve => this.shutdownPromiseResolve = resolve);
+
   shutdown(): Promise<void> {
-    this._shutdown = true;
+    this._shutdown = true;  // mark myself as shutting down
     this.shutdownPromiseResolve();
     for (const id of this.identityMap.values()) {
-      id.shutdown();
+      id.shutdown();  // shut down all my IDs
+      this.deleteIdentity(id);  // delete all my ID references
     }
     return this.shutdownPromise;
   }

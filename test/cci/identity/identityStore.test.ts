@@ -88,7 +88,7 @@ describe('IdentityStore', () => {
   });
 
   describe('shutdown()', () => {
-    it('shuts down all Identities in store', () => {
+    it('shuts down all Identities in store and removes their references', () => {
       const masterKey: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42);
       const id: Identity = new Identity(cubeStore, masterKey, idTestOptions);
       identityStore.addIdentity(id);
@@ -104,6 +104,9 @@ describe('IdentityStore', () => {
       identityStore.shutdown();
       expect(identityStore.shuttingDown).toBe(true);
       expect(id.shuttingDown).toBe(true);
+
+      expect(identityStore.getIdentity(id.keyString)).toBeUndefined();
+      expect(identityStore.getIdentity(id2.keyString)).toBeUndefined();
     });
   });
 });
