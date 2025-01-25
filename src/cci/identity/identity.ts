@@ -1,6 +1,6 @@
 
 import type { Shuttable } from '../../core/helpers/coreInterfaces';
-import { mergeAsyncGenerators, unixtime } from '../../core/helpers/misc';
+import { mergeAsyncGenerators, resolveAndYield, unixtime } from '../../core/helpers/misc';
 import { Cube } from '../../core/cube/cube';
 import { KeyVariants, keyVariants } from '../../core/cube/cubeUtil';
 import { logger } from '../../core/logger';
@@ -370,9 +370,11 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     return this._posts.has(keyVariants(keyInput).keyString);
   }
   async *getPostCubeInfos(): AsyncGenerator<CubeInfo> {
+    const promises: Promise<CubeInfo>[] = [];
     for (const post of this.getPostKeyStrings()) {
-      yield this.cubeRetriever.getCubeInfo(post);
+      promises.push(this.cubeRetriever.getCubeInfo(post));
     }
+    yield *resolveAndYield(promises);
   }
 
   /**
@@ -395,9 +397,11 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     return this._publicSubscriptions.has(keyVariants(keyInput).keyString);
   }
   async *getPublicSubscriptionCubeInfos(): AsyncGenerator<CubeInfo> {
+    const promises: Promise<CubeInfo>[] = [];
     for (const sub of this.getPublicSubscriptionStrings()) {
-      yield this.cubeRetriever.getCubeInfo(sub);
+      promises.push(this.cubeRetriever.getCubeInfo(sub));
     }
+    yield *resolveAndYield(promises);
   }
   async *getPublicSubscriptionIdentities(): AsyncGenerator<Identity> {
     for (const sub of this.getPublicSubscriptionStrings()) {
