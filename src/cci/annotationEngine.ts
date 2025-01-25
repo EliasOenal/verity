@@ -21,13 +21,13 @@ export function defaultGetFieldsFunc(cube: Cube): BaseFields {
 
 export class AnnotationEngine extends EventEmitter {
   static Construct(
-    cubeStore: CubeEmitter,
+    cubeEmitter: CubeEmitter,
     getFields: (cube: Cube) => BaseFields = defaultGetFieldsFunc,
     relationshipClass: RelationshipClassConstructor = cciRelationship,
     limitRelationshipTypes: Map<number, number> = undefined
   ): Promise<AnnotationEngine> {
     const ae: AnnotationEngine = new this(
-      cubeStore, getFields, relationshipClass, limitRelationshipTypes);
+      cubeEmitter, getFields, relationshipClass, limitRelationshipTypes);
     return ae.ready;
   }
 
