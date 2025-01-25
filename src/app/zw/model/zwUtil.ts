@@ -8,6 +8,7 @@ import { NetConstants } from "../../../core/networking/networkDefinitions";
 
 import { Cube } from "../../../core/cube/cube";
 import { CubeKey, CubeType } from "../../../core/cube/cube.definitions";
+import { CubeStore } from "../../../core/cube/cubeStore";
 
 import { MediaTypes, cciFieldType } from "../../../cci/cube/cciCube.definitions";
 import { cciField } from "../../../cci/cube/cciField";
@@ -25,6 +26,7 @@ export interface MakePostOptions {
   replyto?: CubeKey;
   id?: Identity;
   requiredDifficulty?: number;
+  store?: CubeStore;
 }
 
 /**
@@ -70,6 +72,7 @@ export async function makePost(
   if (options.id) {  // unless anonymous, have the Identity remember this new post
     options.id.addPost(await cube.getKey());
   }
+  if (options.store) await options.store.addCube(cube);
   return cube;
 }
 
