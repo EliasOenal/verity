@@ -30,18 +30,25 @@ describe('Identity: base model tests', () => {
     await sodium.ready;
   });
 
-  beforeEach(async () => {
+  beforeEach(() => {
     idTestOptions = {  // note that those are diferent for some tests further down
       minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
       requiredDifficulty: reducedDifficulty,
       argonCpuHardness: 1,  // == crypto_pwhash_OPSLIMIT_MIN (sodium not ready)
       argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
     };
-    cubeStore = new CubeStore(testCubeStoreParams);
-    await cubeStore.readyPromise;
   });
 
   describe('constructor', () => {
+    beforeEach(async () => {
+      cubeStore = new CubeStore(testCubeStoreParams);
+      await cubeStore.readyPromise;
+    });
+
+    afterEach(async () => {
+      await cubeStore.shutdown();
+    });
+
     it('always has an IdentityStore and is itself present in it', () => {
       const masterKey: CubeKey = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42);
       const id = new Identity(undefined, masterKey, idTestOptions);
@@ -51,6 +58,15 @@ describe('Identity: base model tests', () => {
   })
 
   describe('post-related methods: addPost(), hasPost(), getPostCount(), getPostKeyStrings()', () => {
+    beforeEach(async () => {
+      cubeStore = new CubeStore(testCubeStoreParams);
+      await cubeStore.readyPromise;
+    });
+
+    afterEach(async () => {
+      await cubeStore.shutdown();
+    });
+
     it('stores and remembers own post references', () => {
       // create Identity
       const idKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41);
@@ -89,6 +105,15 @@ describe('Identity: base model tests', () => {
   });
 
   describe('public subscriptons (aka subscription recommendations)', ()  => {
+    beforeEach(async () => {
+      cubeStore = new CubeStore(testCubeStoreParams);
+      await cubeStore.readyPromise;
+    });
+
+    afterEach(async () => {
+      await cubeStore.shutdown();
+    });
+
     it('stores and remembers subscription recommendations', () => {
       const id = new Identity(
         undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
@@ -199,6 +224,15 @@ describe('Identity: base model tests', () => {
   });
 
   describe('edge cases', () => {
+    beforeEach(async () => {
+      cubeStore = new CubeStore(testCubeStoreParams);
+      await cubeStore.readyPromise;
+    });
+
+    afterEach(async () => {
+      await cubeStore.shutdown();
+    });
+
     describe('constructing and running an Identity without CubeStore access', () => {
       let id: Identity;
 
@@ -269,6 +303,45 @@ describe('Identity: base model tests', () => {
       it('will throw an Error when attempting to store the Identity', async () => {
         await expect(async () => await id.store()).rejects.toThrow(VerityError);
       });
+    });  // constructing and running an Identity without CubeStore access
+  });  // edge cases
+
+
+
+  describe('shutdown()', () => {
+    let id: Identity;
+
+    beforeAll(async () => {
+      cubeStore = new CubeStore(testCubeStoreParams);
+      await cubeStore.readyPromise;
+      id = new Identity(cubeStore, Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42), idTestOptions);
+
+      // verify test setup
+      expect(id.identityStore).toBeInstanceOf(IdentityStore);
+      expect(id.identityStore.getIdentity(id.key)).toBe(id);
+
+      // shut down the Identity
+      id.shutdown();
     });
-  });
+
+    afterAll(async () => {
+      await cubeStore.shutdown();
+    });
+
+    it('marks me as shutting down', () => {
+      expect(id.shuttingDown).toBeTruthy();
+    });
+
+    it('resolves my shutdownPromise', async () => {
+      await id.shutdownPromise;
+    });
+
+    it('removes my CubeStore listener', () => {
+      expect(cubeStore.listeners('cubeAdded').length).toBe(0);
+    });
+
+    it('removes me from my IdentityStore', () => {
+      expect(id.identityStore.getIdentity(id.key)).toBeUndefined();
+    });
+  });  // shutdown
 });
