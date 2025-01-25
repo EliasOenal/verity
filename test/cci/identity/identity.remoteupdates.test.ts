@@ -43,7 +43,7 @@ describe('Identity: remote updates', () => {
     notebookId.avatar = new Avatar("1234567890", AvatarScheme.MULTIAVATAR);
     const postWrittenOnNotebook: cciCube = await makePost(
       "Hoc est scriptum in computatore domi meae",
-      undefined, notebookId, reducedDifficulty);
+      { id: notebookId, requiredDifficulty:reducedDifficulty });
     await cubeStore.addCube(postWrittenOnNotebook);
     await notebookId.store();
     // expect everything to be saved correctly
@@ -69,7 +69,7 @@ describe('Identity: remote updates', () => {
     // perform changes on phone
     const postWrittenOnPhone: cciCube = await makePost(
       "Hoc scriptum est in telefono mobili meo",
-      undefined, phoneId, reducedDifficulty);
+      { id: phoneId, requiredDifficulty: reducedDifficulty });
     await cubeStore.addCube(postWrittenOnPhone);
     phoneId.name = "Dominus plurium apparatorum qui nunc iter agit";
     phoneId.avatar = new Avatar("cafebabe42", AvatarScheme.MULTIAVATAR);

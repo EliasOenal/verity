@@ -21,6 +21,12 @@ import { Buffer } from 'buffer';
 
 import { logger } from "../../../core/logger";
 
+export interface MakePostOptions {
+  replyto?: CubeKey;
+  id?: Identity;
+  requiredDifficulty?: number;
+}
+
 /**
  * Creates a new Cube containing a correctly formed text post.
  * Don't forget to add it to your cubeStore!
@@ -29,21 +35,23 @@ import { logger } from "../../../core/logger";
  */
 export async function makePost(
     text: string,
-    replyto?: CubeKey,
-    id?: Identity,
-    requiredDifficulty = Settings.REQUIRED_DIFFICULTY): Promise<cciCube> {
-  const cube: cciCube = cciCube.Frozen({  // prepare Cube
-    family: cciFamily, requiredDifficulty: requiredDifficulty, fields: [
+    options: MakePostOptions = {},
+): Promise<cciCube> {
+  // set default options
+  options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
+  // prepare Cube
+  const cube: cciCube = cciCube.Frozen({
+    family: cciFamily, requiredDifficulty: options.requiredDifficulty, fields: [
       cciField.Application(("ZW")),
       cciField.MediaType(MediaTypes.TEXT),
       cciField.Payload(text),
     ]});
-  if (replyto) {  // if this is a reply, refer to the original post
+  if (options.replyto) {  // if this is a reply, refer to the original post
     cube.insertFieldBeforeBackPositionals(cciField.RelatesTo(
-      new cciRelationship(cciRelationshipType.REPLY_TO, replyto)
+      new cciRelationship(cciRelationshipType.REPLY_TO, options.replyto)
     ));
   }
-  if (id) {  // if this is not an anonymous post, refer my previous posts
+  if (options.id) {  // if this is not an anonymous post, refer my previous posts
     // Note: We currently just include our newest posts in our root MUC, and then include
     // reference to older posts within our new posts themselves.
     // We might need to change that again as it basically precludes us from ever
@@ -54,13 +62,13 @@ export async function makePost(
     // TODO: find a smarter way to determine reference order than local insertion
     //   order, as local insertion order is not guaranteed to be stable when it
     //   has itself been restored from a MUC.
-    const newestPostsFirst: string[] = Array.from(id.getPostKeyStrings()).reverse();
+    const newestPostsFirst: string[] = Array.from(options.id.getPostKeyStrings()).reverse();
     cube.fields.insertTillFull(cciField.FromRelationships(
       cciRelationship.fromKeys(cciRelationshipType.MYPOST, newestPostsFirst)));
   }
   await cube.getBinaryData();  // finalize Cube & compile fields
-  if (id) {  // unless anonymous, have the Identity remember this new post
-    id.addPost(await cube.getKey());
+  if (options.id) {  // unless anonymous, have the Identity remember this new post
+    options.id.addPost(await cube.getKey());
   }
   return cube;
 }

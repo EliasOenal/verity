@@ -58,8 +58,13 @@ describe('ZwAnnotationEngine', () => {
 
     describe('reverse relationships', () => {
       it('correctly creates a reverse relationship', async () => {
-        const referee: Cube = await makePost("I am the base post", undefined, undefined, reducedDifficulty);
-        const referrer = await makePost("I am a reply", await referee.getKey(), undefined, reducedDifficulty);
+        const referee: Cube = await makePost("I am the base post", {
+          requiredDifficulty: reducedDifficulty
+        });
+        const referrer = await makePost("I am a reply", {
+          replyto: await referee.getKey(),
+          requiredDifficulty: reducedDifficulty
+        });
         await cubeStore.addCube(referrer);
 
         const reverserels = annotationEngine.getReverseRelationships(await referee.getKey());
@@ -69,8 +74,13 @@ describe('ZwAnnotationEngine', () => {
       });
 
       it('will not honor more than one REPLY_TO', async () => {
-        const referee: Cube = await makePost("I am the base post", undefined, undefined, reducedDifficulty);
-        const spurious_referee: Cube = await makePost("Huh? I got nothing to do with this", undefined, undefined, reducedDifficulty)
+        const referee: Cube = await makePost("I am the base post", {
+          requiredDifficulty: reducedDifficulty
+        });
+        const spurious_referee: Cube = await makePost(
+          "Huh? I got nothing to do with this", {
+          requiredDifficulty: reducedDifficulty
+        });
 
         // referrer can't be built with makePost because it's deliberately invalid
 
@@ -81,6 +91,7 @@ describe('ZwAnnotationEngine', () => {
             cciField.Payload("I will reply to everybody at one and NO ONE CAN STOP ME AHAHAHAHAHAHAHAHAHAHAHA!!!!!!!!1111"),
             cciField.RelatesTo(
               new cciRelationship(cciRelationshipType.REPLY_TO, await referee.getKey())),
+            // TODO FIXME actually include another REPLY_TO?!?!?!?!?!
           ],
           family: cciFamily, requiredDifficulty: reducedDifficulty});
         referrer.getBinaryData();  // finalize Cube & compile fields
@@ -102,7 +113,9 @@ describe('ZwAnnotationEngine', () => {
 
     describe('basic displayability', () => {
       it('should mark a single root cube as displayable', async () => {
-        const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reducedDifficulty);
+        const root: Cube = await makePost("Mein kleiner grüner Kaktus", {
+          requiredDifficulty: reducedDifficulty
+        });
 
         const callback = vi.fn();
         annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
@@ -120,8 +133,13 @@ describe('ZwAnnotationEngine', () => {
       }, 5000);
 
       it('should mark a cube and a reply received in sync as displayable', async () => {
-        const root: Cube = await makePost("Ich bin ein Huhn, bok bok!", undefined, undefined, reducedDifficulty);
-        const leaf: Cube = await makePost("Hab viel zu tun, bok bok!", await root.getKey(), undefined, reducedDifficulty);
+        const root: Cube = await makePost("Ich bin ein Huhn, bok bok!", {
+          requiredDifficulty: reducedDifficulty
+        });
+        const leaf: Cube = await makePost("Hab viel zu tun, bok bok!", {
+          replyto: await root.getKey(),
+          requiredDifficulty: reducedDifficulty
+        });
 
         const callback = vi.fn();
         annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
@@ -141,8 +159,13 @@ describe('ZwAnnotationEngine', () => {
       }, 5000);
 
       it('should not mark replies as displayable when the original post is unavailable', async () => {
-        const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reducedDifficulty);
-        const leaf: Cube = await makePost("steht draußen am Balkon", await root.getKey(), undefined, reducedDifficulty);
+        const root: Cube = await makePost("Mein kleiner grüner Kaktus", {
+          requiredDifficulty: reducedDifficulty
+        });
+        const leaf: Cube = await makePost("steht draußen am Balkon", {
+          replyto: await root.getKey(),
+          requiredDifficulty: reducedDifficulty
+        });
 
         const callback = vi.fn();
         annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
@@ -157,9 +180,17 @@ describe('ZwAnnotationEngine', () => {
       }, 5000);
 
       it('should mark replies as displayable only once all preceding posts has been received', async () => {
-        const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, undefined, reducedDifficulty);
-        const intermediate: Cube = await makePost("steht draußen am Balkon", await root.getKey(), undefined, reducedDifficulty);
-        const leaf: Cube = await makePost("hollari, hollari, hollaroooo", await intermediate.getKey(), undefined, reducedDifficulty);
+        const root: Cube = await makePost("Mein kleiner grüner Kaktus", {
+          requiredDifficulty: reducedDifficulty
+        });
+        const intermediate: Cube = await makePost("steht draußen am Balkon", {
+          replyto: await root.getKey(),
+          requiredDifficulty: reducedDifficulty
+        });
+        const leaf: Cube = await makePost("hollari, hollari, hollaroooo", {
+          replyto: await intermediate.getKey(),
+          requiredDifficulty: reducedDifficulty
+        });
 
         const callback = vi.fn();
         annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
@@ -197,8 +228,9 @@ describe('ZwAnnotationEngine', () => {
       const callback = vi.fn();
       annotationEngine.on('cubeDisplayable', (key) => callback(key.toString('hex')));
 
-      const post: Cube = await makePost(
-        "Nomen meum secretum est", undefined, undefined, reducedDifficulty);
+      const post: Cube = await makePost("Nomen meum secretum est", {
+        requiredDifficulty: reducedDifficulty
+      });
       await cubeStore.addCube(post);
 
       // we need to yield control as ZwAnnotationEngine.emitIfCubeDisplayable()
@@ -215,8 +247,10 @@ describe('ZwAnnotationEngine', () => {
       const id: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       id.name = "Usor probationis";
-      const post: Cube = await makePost(
-        "Nomen meum secretum est", undefined, id, reducedDifficulty);
+      const post: Cube = await makePost("Nomen meum secretum est", {
+        id: id,
+        requiredDifficulty: reducedDifficulty
+      });
       await id.store();
       await cubeStore.addCube(post);
 
@@ -236,8 +270,10 @@ describe('ZwAnnotationEngine', () => {
       const id: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       id.name = "Usor probationis";
-      const post: Cube = await makePost(
-        "Nomen meum secretum est", undefined, id, reducedDifficulty);
+      const post: Cube = await makePost("Nomen meum secretum est", {
+        id: id,
+        requiredDifficulty: reducedDifficulty
+      });
       await cubeStore.addCube(post);
       await new Promise(resolve => setTimeout(resolve, 100));  // Identity is only learned a little later
       expect(callback).not.toHaveBeenCalled();
@@ -257,9 +293,10 @@ describe('ZwAnnotationEngine', () => {
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       await id.store();  // this makes ZwAnnotationEngine learn the Identity
       id.name = "Usor probationis";
-      const post: Cube = await makePost(
-        "Nomen meum non nosti, sed aliquando cognosces",
-        undefined, id, reducedDifficulty);
+      const post: Cube = await makePost("Nomen meum non nosti, sed aliquando cognosces", {
+        id: id,
+        requiredDifficulty: reducedDifficulty
+      });
       await cubeStore.addCube(post);
       await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
       expect(callback).not.toHaveBeenCalled();
@@ -284,8 +321,15 @@ describe('ZwAnnotationEngine', () => {
       const replyId: Identity = await Identity.Create(
         cubeStore, "usor respondens", "aliud clavis", idTestOptions);
 
-      const root: Cube = await makePost("Mein kleiner grüner Kaktus", undefined, rootId, reducedDifficulty);
-      const reply: Cube = await makePost("steht draußen am Balkon", await root.getKey(), replyId, reducedDifficulty);
+      const root: Cube = await makePost("Mein kleiner grüner Kaktus", {
+        id: rootId,
+        requiredDifficulty: reducedDifficulty
+      });
+      const reply: Cube = await makePost("steht draußen am Balkon", {
+        replyto: await root.getKey(),
+        id: replyId,
+        requiredDifficulty: reducedDifficulty
+      });
       await replyId.store();
       await cubeStore.addCube(root);
       await cubeStore.addCube(reply);
@@ -351,7 +395,10 @@ describe('ZwAnnotationEngine', () => {
       const id: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       id.name = "Probator Attributionis Auctoris";
-      const post: Cube = await makePost("Habeo res importantes dicere", undefined, id, reducedDifficulty);
+      const post: Cube = await makePost("Habeo res importantes dicere", {
+        id: id,
+        requiredDifficulty: reducedDifficulty
+      });
       await cubeStore.addCube(post);
       const postKey = await post.getKey();
       expect(postKey).toBeDefined;
@@ -384,7 +431,10 @@ describe('ZwAnnotationEngine', () => {
 
       // add post and re-store Identity
       const postKey: CubeKey = (await cubeStore.addCube(await makePost(
-          "I got important stuff to say", undefined, id, reducedDifficulty)
+          "I got important stuff to say", {
+            id: id,
+            requiredDifficulty: reducedDifficulty
+          })
         )).getKeyIfAvailable();
       expect(postKey).toBeInstanceOf(Buffer);
       const firstMuc: Cube = await id.store();
@@ -440,7 +490,9 @@ describe('ZwAnnotationEngine', () => {
       // do some other unrelated stuff...
       await new Promise(resolve => setTimeout(resolve, 250));
       // learn a new unrelated post
-      await cubeStore.addCube(await makePost("Lalelu", undefined, undefined, reducedDifficulty));
+      await cubeStore.addCube(await makePost("Lalelu", {
+        requiredDifficulty: reducedDifficulty
+      }));
       await new Promise(resolve => setTimeout(resolve, 250));
       // learn a new unrelated MUC
       const unrelatedKeys: KeyPair = sodium.crypto_sign_keypair();
@@ -469,7 +521,8 @@ describe('ZwAnnotationEngine', () => {
       // do some marginally related stuff...
       await new Promise(resolve => setTimeout(resolve, 250));
       // our user makes a new post
-      await cubeStore.addCube(await makePost("verba mea magna sunt", undefined, id, reducedDifficulty));
+      await cubeStore.addCube(await makePost("verba mea magna sunt", {
+        id, requiredDifficulty: reducedDifficulty}));
       await id.store();
       const idHashAfterOneNewPost = id.muc.getHashIfAvailable();
       await new Promise(resolve => setTimeout(resolve, 250));
@@ -517,7 +570,10 @@ describe('ZwAnnotationEngine', () => {
       const id: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       id.name = "Probator Attributionis Auctoris";
-      const post: Cube = await makePost("I got important stuff to say", undefined, id, reducedDifficulty);
+      const post: Cube = await makePost("I got important stuff to say", {
+        id: id,
+        requiredDifficulty: reducedDifficulty
+      });
       await cubeStore.addCube(post);
       const postKey = (await post.getKey()).toString('hex');
       expect(postKey).toBeDefined;
@@ -538,7 +594,10 @@ describe('ZwAnnotationEngine', () => {
       const posts: CubeKey[] = [];
 
       for (let i=0; i<TESTPOSTCOUNT; i++) {
-        const post: Cube = await makePost("I got important stuff to say", undefined, id, reducedDifficulty);
+        const post: Cube = await makePost("I got important stuff to say", {
+          id: id,
+          requiredDifficulty: reducedDifficulty
+        });
         posts.push(await post.getKey());
         await cubeStore.addCube(post);
       }

@@ -272,7 +272,7 @@ export class PostController extends VerityController {
     window.onTextareaInput(textarea);
     // First create the post, then update the identity, then add the cube.
     // This way the UI directly displays you as the author.
-    const post = await makePost(text, replyto, this.identity);
+    const post = await makePost(text, { replyto: replyto, id: this.identity});
     if (this.identity) await this.identity.store();
     this.cubeStore.addCube(post);
   }

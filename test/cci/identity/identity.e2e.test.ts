@@ -94,7 +94,7 @@ describe('Identity: end-to-end tests', () => {
       for (let i=0; i<TESTPOSTCOUNT; i++) {
         const post: cciCube = await makePost(
           (i+1).toString() + "res importantes diciendas habeo",
-          undefined, subject, reducedDifficulty
+          { id: subject, requiredDifficulty:reducedDifficulty },
         );
         // manually save post to ID rather then through makePost because we will
         // manipulate the date below, and that changes the key
