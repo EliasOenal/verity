@@ -66,11 +66,11 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       for (const mucInfo of subscribedMucs) this.trustMuc(mucInfo);
     }
     if (autoLearnMucs === true) {
-      this.cubeEmitter.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
+      this.cubeEmitter?.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
     }
-    this.cubeEmitter.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnAuthorsPosts(cubeInfo));
-    this.cubeEmitter.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
-    this.cubeEmitter.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeMakesOthersDisplayable(cubeInfo));
+    this.cubeEmitter?.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnAuthorsPosts(cubeInfo));
+    this.cubeEmitter?.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
+    this.cubeEmitter?.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeMakesOthersDisplayable(cubeInfo));
   }
 
   /**
@@ -256,10 +256,10 @@ export class ZwAnnotationEngine extends AnnotationEngine {
 
   shutdown(): void {
     super.shutdown();
-    this.cubeEmitter.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
-    this.cubeEmitter.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.learnAuthorsPosts(cubeInfo));
-    this.cubeEmitter.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
-    this.cubeEmitter.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeMakesOthersDisplayable(cubeInfo));
+    this.cubeEmitter?.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
+    this.cubeEmitter?.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.learnAuthorsPosts(cubeInfo));
+    this.cubeEmitter?.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
+    this.cubeEmitter?.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeMakesOthersDisplayable(cubeInfo));
   }
 
   /** This is the recursive part of cubeAuthor() */
