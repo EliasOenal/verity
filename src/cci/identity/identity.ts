@@ -427,6 +427,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       depth: number,
       except: Set<string> = new Set(),
   ): Promise<void> {
+
     // prevent infinite recursion
     if (except.has(this.keyString)) return Promise.resolve();
     else except.add(this.keyString);
@@ -467,7 +468,10 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
   // Note: Must use arrow function syntax to keep this method correctly bound
   //       for method handler adding and removal.
-  private emitCubeAdded = async (input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>): Promise<void> => {
+  private emitCubeAdded = async (
+      input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>,
+      recursionCount: number = 0,
+  ): Promise<void> => {
     // only emit if there is a listener
     if (this.listenerCount('cubeAdded') === 0) return;
 
@@ -488,7 +492,15 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       logger.warn(`Identity ${this.keyString}.emitCubeAdded() was called for an unavailable CubeInfo; skipping.`);
       return;
     }
-    this.emit('cubeAdded', cubeInfo);
+
+    // prevent endless recursion by keeping track of the recursion count
+    if (recursionCount > this._subscriptionRecursionDepth) {
+      logger.warn(`Identity ${this.keyString}.emitCubeAdded() was called for a CubeInfo with too many levels of recursion; skipping.`);
+      return;
+    }
+    recursionCount++;
+
+    this.emit('cubeAdded', cubeInfo, recursionCount);
   }
 
   /** When the user tries to rebuild their Identity MUC too often, we'll
@@ -697,8 +709,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     }
   }
 
-  // maybe TODO: make this a Generator instead?
-  // or maybe TODO get rid of this altogether?
+  /** @deprecated */
   async recursiveWebOfSubscriptions(maxDepth: number = 1, curDepth: number = 0): Promise<Set<string>> {
     // sanity checks
     if (this.cubeRetriever === undefined) {
