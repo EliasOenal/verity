@@ -683,6 +683,10 @@ describe('Identity: Cube emitter events', () => {
 
 
     describe('avoiding endless recursion', () => {
+      // Note: Those tests will *not* properly fail on endless recursion as the
+      // resulting RangeError is not synchroneously thrown from within the test.
+      // They will appear on console though.
+
       describe('subscribed to self', () => {
         let masterKey: Buffer;
         let id: Identity;
@@ -818,7 +822,8 @@ describe('Identity: Cube emitter events', () => {
           // Store both identities
           await Promise.all([id1.store(), id2.store()]);
 
-          // Set quasi-unlimited recursion depth
+          // Set quasi-unlimited recursion depth.
+          // Do this on both identities to try even harder to provoke issues.
           await id1.setSubscriptionRecursionDepth(1337);
           await id2.setSubscriptionRecursionDepth(1337);
         });
