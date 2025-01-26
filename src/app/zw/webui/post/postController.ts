@@ -59,6 +59,7 @@ export class PostController extends VerityController {
   //***
   // View selection methods
   //***
+  /** @deprecated Neither works on light nodes nor with any kind of efficiency */
   async selectAllPosts(): Promise<void> {
     logger.trace("PostController: Displaying all posts including anonymous ones");
     this.removeAnnotationEngineListeners();
@@ -76,6 +77,7 @@ export class PostController extends VerityController {
     return this.redisplayPosts();
   }
 
+  /** @deprecated Neither works on light nodes nor with any kind of efficiency */
   async selectPostsWithAuthors(): Promise<void> {
     logger.trace("PostController: Displaying posts associated with a MUC");
     this.removeAnnotationEngineListeners();
@@ -93,6 +95,7 @@ export class PostController extends VerityController {
     return this.redisplayPosts();
   }
 
+  /** @deprecated Neither works on light nodes nor with any kind of efficiency */
   async selectSubscribedInTree(): Promise<void> {
     logger.trace("PostController: Displaying posts from trees with subscribed author activity");
     this.removeAnnotationEngineListeners();
@@ -114,14 +117,14 @@ export class PostController extends VerityController {
     logger.trace("PostController: Displaying posts from subscribed authors and their preceding posts");
     this.removeAnnotationEngineListeners();
     this.annotationEngine?.shutdown();
+    await this.identity.setSubscriptionRecursionDepth(1);
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      this.cubeStore,
+      this.identity,
       this.cubeRetriever,
-      SubscriptionRequirement.subscribedReply,
-      await ArrayFromAsync(this.cubeStore.getCubeInfos(
-        await this.identity.recursiveWebOfSubscriptions(0))),  // subscriptions
+      SubscriptionRequirement.none,
+      undefined,
       true,      // auto-learn MUCs (to be able to display authors when available)
-      false,     // do not allow anonymous posts
+      true,     // no need to filter anonymous posts as they won't be fed anyway
     );
     this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
     this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
@@ -132,14 +135,14 @@ export class PostController extends VerityController {
     logger.trace("PostController: Displaying posts from subscribed, sub-subscribed and sub-sub-subscribed authors and their preceding posts (WOT3)");
     this.removeAnnotationEngineListeners();
     this.annotationEngine?.shutdown();
+    await this.identity.setSubscriptionRecursionDepth(3);
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      this.cubeStore,
+      this.identity,
       this.cubeRetriever,
-      SubscriptionRequirement.subscribedReply,
-      await ArrayFromAsync(this.cubeStore.getCubeInfos(
-        await this.identity.recursiveWebOfSubscriptions(3))),  // subscriptions
+      SubscriptionRequirement.none,
+      undefined,
       true,      // auto-learn MUCs (to be able to display authors when available)
-      false,     // do not allow anonymous posts
+      true,     // no need to filter anonymous posts as they won't be fed anyway
     );
     this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
     this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
@@ -156,7 +159,7 @@ export class PostController extends VerityController {
     // redisplay them one by one:
     // logger.trace("CubeDisplay: Redisplaying all cubes");
     // TODO: we need to get rid of this full CubeStore walk
-    for await (const cubeInfo of this.cubeStore.getCubeInfoRange({ limit: Infinity })) {
+    for await (const cubeInfo of this.annotationEngine.cubeEmitter.getAllCubeInfos()) {
         if (await this.annotationEngine.isCubeDisplayable(cubeInfo)) {
             await this.displayPost(cubeInfo.key);
         }
