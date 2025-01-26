@@ -83,7 +83,7 @@ export class AnnotationEngine extends EventEmitter {
     super();
     // set CubeStore and subscribe to events
     this.cubeEmitter = cubeEmitter;
-    this.cubeEmitter.on('cubeAdded', (cubeInfo: CubeInfo) => this.autoAnnotate(cubeInfo));
+    this.cubeEmitter?.on('cubeAdded', (cubeInfo: CubeInfo) => this.autoAnnotate(cubeInfo));
     this.crawlCubeStore();  // we may have missed some events
   }
 
@@ -188,7 +188,7 @@ export class AnnotationEngine extends EventEmitter {
   }
 
   shutdown(): void {
-    this.cubeEmitter.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.autoAnnotate(cubeInfo));
+    this.cubeEmitter?.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.autoAnnotate(cubeInfo));
   }
 
   // This does not scale well as it forces CubeStore to read every single
@@ -198,10 +198,14 @@ export class AnnotationEngine extends EventEmitter {
   // This is a low priority, non-breaking todo which only needs to be addressed
   // once we actually have a userbase.
   protected async crawlCubeStore(): Promise<void> {
-    for await (const cubeInfo of this.cubeEmitter.getAllCubeInfos()) {
-      // TODO: This is not efficient. We should instead fire those off all at
-      // once, collect them and later await Promises.all
-      await this.crawlCubeStoreEach(cubeInfo);
+    if (this.cubeEmitter) {
+      for await (const cubeInfo of this.cubeEmitter.getAllCubeInfos()) {
+        // TODO: This is not efficient. We should instead fire those off all at
+        // once, collect them and later await Promises.all
+        await this.crawlCubeStoreEach(cubeInfo);
+      }
+    } else {
+      logger.warn("AnnotationEngine.crawlCubeStore() called, but cubeEmitter is undefined. This AnnotationEngine will still work, but it will probably be rather useless.");
     }
     this.readyPromiseResolve(this);
   }

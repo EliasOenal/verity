@@ -117,7 +117,7 @@ export class PostController extends VerityController {
     logger.trace("PostController: Displaying posts from subscribed authors and their preceding posts");
     this.removeAnnotationEngineListeners();
     this.annotationEngine?.shutdown();
-    await this.identity.setSubscriptionRecursionDepth(1);
+    await this.identity?.setSubscriptionRecursionDepth(1);
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.identity,
       this.cubeRetriever,
@@ -135,7 +135,7 @@ export class PostController extends VerityController {
     logger.trace("PostController: Displaying posts from subscribed, sub-subscribed and sub-sub-subscribed authors and their preceding posts (WOT3)");
     this.removeAnnotationEngineListeners();
     this.annotationEngine?.shutdown();
-    await this.identity.setSubscriptionRecursionDepth(3);
+    await this.identity?.setSubscriptionRecursionDepth(3);
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.identity,
       this.cubeRetriever,
@@ -159,10 +159,14 @@ export class PostController extends VerityController {
     // redisplay them one by one:
     // logger.trace("CubeDisplay: Redisplaying all cubes");
     // TODO: we need to get rid of this full CubeStore walk
-    for await (const cubeInfo of this.annotationEngine.cubeEmitter.getAllCubeInfos()) {
-        if (await this.annotationEngine.isCubeDisplayable(cubeInfo)) {
-            await this.displayPost(cubeInfo.key);
-        }
+    if (this.annotationEngine?.cubeEmitter) {
+      for await (const cubeInfo of this.annotationEngine.cubeEmitter.getAllCubeInfos()) {
+          if (await this.annotationEngine.isCubeDisplayable(cubeInfo)) {
+              await this.displayPost(cubeInfo.key);
+          }
+      }
+    } else {
+      logger.warn("PostController.redisplayPosts() called, but we either have no AnnotationEngine or it has no cubeEmitter. You will probably not see any posts.");
     }
   }
 
