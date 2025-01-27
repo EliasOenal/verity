@@ -88,6 +88,8 @@ export interface IdentityOptions {
    */
   idmucApplicationString?: string,
 
+  idmucNotificationKey?: CubeKey,
+
   /**
    * Whether this Identity should listen for remote updates to itself.
    * This is required whenever the same Identity may be actively used (= edited)
@@ -763,9 +765,15 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       await new Promise(resolve => setTimeout(resolve, waitFor*1000));
     }
 
+    const initialFields: cciField[] = [];
+    // Write notification key if requested
+    if (this.options.idmucNotificationKey?.length === NetConstants.CUBE_KEY_SIZE) {
+      initialFields.push(cciField.Notify(this.options.idmucNotificationKey));
+    }
+
     const newMuc: cciCube = cciCube.MUC(
       this._muc.publicKey, this._muc.privateKey, {
-        family: cciFamily,
+        fields: initialFields,
         requiredDifficulty: this.options.requiredDifficulty
     });
     // Include application header if requested

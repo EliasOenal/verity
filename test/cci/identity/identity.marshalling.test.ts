@@ -1,5 +1,5 @@
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { CubeKey } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
 import { Cube } from "../../../src/core/cube/cube";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 
@@ -453,5 +453,23 @@ let cubeStore: CubeStore;
 
     it.todo('will not fail on circular subscription recommendation index cubes');
 
+  });  // public subscriptons
+
+  describe('optional fields', () => {
+    it('makes a Notification Cube if requested', async () => {
+      const notificationKey = Buffer.from("1337133713371337133713371337133713371337133713371337133713371337", "hex");
+      const options: IdentityOptions = {
+        ...idTestOptions,
+        idmucNotificationKey: notificationKey,
+      }
+      const id: Identity = new Identity(
+        cubeStore, Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42), options);
+      const muc: cciCube = await id.makeMUC();
+      expect(muc).toBeInstanceOf(cciCube);
+      expect(muc.cubeType).toBe(CubeType.MUC_NOTIFY);
+      expect(muc.getFirstField(cciFieldType.NOTIFY).value.equals(notificationKey)).toBeTruthy();
+    });
+
+    it.todo('includes an APPLICATION field if requested');
   });
 });
