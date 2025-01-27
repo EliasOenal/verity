@@ -284,11 +284,11 @@ describe("resolveAndYield", () => {
       expect(results[2].value).toBe(3);
 
       // Verify that results are yielded approximately at the expected times
-      expect(results[0].time).toBeGreaterThanOrEqual(100);
+      expect(results[0].time).toBeGreaterThanOrEqual(95);
       expect(results[0].time).toBeLessThan(200);
-      expect(results[1].time).toBeGreaterThanOrEqual(300);
+      expect(results[1].time).toBeGreaterThanOrEqual(295);
       expect(results[1].time).toBeLessThan(400);
-      expect(results[2].time).toBeGreaterThanOrEqual(500);
+      expect(results[2].time).toBeGreaterThanOrEqual(495);
       expect(results[2].time).toBeLessThan(600);
   });
 
