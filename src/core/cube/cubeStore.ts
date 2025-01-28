@@ -212,11 +212,9 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface, C
     try {
       // Cube objects are ephemeral as storing binary data is more efficient.
       // Create cube object if we don't have one yet.
-      let binaryCube: Buffer;
       let cube: Cube = undefined;
       if (cube_input instanceof Cube) {
         cube = cube_input;
-        binaryCube = await cube_input.getBinaryData();
       } else if (cube_input instanceof Buffer) {
         cube = activateCube(cube_input, families);  // will log info on failure
       } else {
@@ -234,11 +232,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface, C
       if (this.options.enableCubeRetentionPolicy) {
         // cube valid for current epoch?
         const current: boolean = shouldRetainCube(
-          cubeInfo.keyString,
-          cubeInfo.date,
-          cubeInfo.difficulty,
-          getCurrentEpoch()
-        );
+          cubeInfo.date, cubeInfo.difficulty, getCurrentEpoch());
         if (!current) {
           logger.error(
             `CubeStore: Cube is not valid for current epoch, discarding.`
@@ -648,14 +642,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface, C
         const cubeInfo = await this.getCubeInfo(key);
         if (!cubeInfo) continue;
 
-        if (
-          !shouldRetainCube(
-            cubeInfo.keyString,
-            cubeInfo.date,
-            cubeInfo.difficulty,
-            currentEpoch
-          )
-        ) {
+        if (!shouldRetainCube(cubeInfo.date, cubeInfo.difficulty, currentEpoch)) {
           await this.deleteCube(cubeInfo.keyString);
           logger.trace(`CubeStore.pruneCubes(): Pruned cube ${key}`);
         }

@@ -230,7 +230,7 @@ export function unixTimeToEpoch(unixTime: number): number {
  * @param currentEpoch The current epoch for comparison.
  * @returns {boolean} True if the cube should be retained, false if it should be pruned.
  */
-export function shouldRetainCube(key: String, cubeDate: number, challengeLevel: number, currentEpoch: number): boolean {
+export function shouldRetainCube(cubeDate: number, challengeLevel: number, currentEpoch: number): boolean {
     // Implement further check, we want to retain all cubes sculpted by the user
     // and all cubes sculpted by the user's trusted/subscribed peers
 
