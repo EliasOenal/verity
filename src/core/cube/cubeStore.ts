@@ -274,8 +274,8 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface, C
         this.treeOfWisdom.set(cubeInfo.key.toString("hex"), hash);
       }
 
-      // if this Cube has a notification field, index it
-      await this.addNotification(cubeInfo);
+      // If this Cube has a notification field, index it
+      await this.addNotification(cube);
 
       // inform our application(s) about the new cube
       try {
@@ -715,14 +715,13 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface, C
     return Buffer.concat([recipient, difficultyBuffer, await cube.getKey()]);
   }
 
-  private async addNotification(cubeInfo: CubeInfo): Promise<void> {
-    const cube: Cube = cubeInfo.getCube();
+  private async addNotification(cube: Cube): Promise<void> {
     // does this Cube even have a notification field?
     const recipient: Buffer = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
     if (!recipient) return;
     if (Settings.RUNTIME_ASSERTIONS &&
       recipient?.length !== NetConstants.NOTIFY_SIZE) {
-      logger.error(`CubeStore.addNotification(): Cube ${cubeInfo.keyString} has a notify field of invalid size ${recipient?.length}, should be ${NetConstants.NOTIFY_SIZE}; skipping. This should never happen.`);
+      logger.error(`CubeStore.addNotification(): Cube ${cube.getKeyStringIfAvailable()} has a notify field of invalid size ${recipient?.length}, should be ${NetConstants.NOTIFY_SIZE}; skipping. This should never happen.`);
       return;
     }
 
