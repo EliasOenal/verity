@@ -549,11 +549,8 @@ export class RequestScheduler implements Shuttable {
         // not yet reached its recycling date
         const currentEpoch = getCurrentEpoch(); // Get the current epoch
         if(this.networkManager.cubeStore.options.enableCubeRetentionPolicy &&
-        !shouldRetainCube(
-            incomingCubeInfo.keyString,
-            incomingCubeInfo.date,
-            incomingCubeInfo.difficulty,
-            currentEpoch)) {
+            !shouldRetainCube(
+              incomingCubeInfo.date, incomingCubeInfo.difficulty, currentEpoch)) {
           logger.info(`RequestScheduler.handleKeysOffered(): Was offered cube hash outside of retention policy by peer ${offeringPeer.toString()}, ignoring.`);
           continue;
         }

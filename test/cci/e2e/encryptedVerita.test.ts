@@ -33,6 +33,7 @@ describe('Transmission of encrypted Verita', () => {
       // Reference Veritum thorugh Identity MUC --
       // TODO: do that automatically (opt-in or opt-out) through publishVeritum()
       net.sender.identity.addPost(veritum.getKeyIfAvailable());
+      expect(net.sender.identity.getPostCount()).toBe(1);
       net.sender.identity.store();
       const idPropagated: Promise<CubeInfo> =
         net.fullNode2.cubeStore.expectCube(net.sender.identity.key);
@@ -52,7 +53,7 @@ describe('Transmission of encrypted Verita', () => {
         net.recipient.node.cubeRetriever,
         await net.recipient.node.cubeRetriever.getCube(net.sender.identity.key) as cciCube
       );
-      expect(sub.getPostCount()).toEqual(1);
+      expect(sub.getPostCount()).toEqual(1);  // TODO fix: this sometimes fails
       const key: CubeKey = Array.from(sub.getPostKeys())[0];
       expect(key).toBeDefined();
       const retrieved: Veritum = await net.recipient.getVeritum(key);
