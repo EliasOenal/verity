@@ -133,8 +133,8 @@ describe('cubeStore', () => {
       { inMemoryLevelDB: true, cubeCacheEnabled: false, },
       { inMemoryLevelDB: false, cubeCacheEnabled: true, },
       { inMemoryLevelDB: false, cubeCacheEnabled: false, },
-    ])('tests run for both in-memory and persistent stores, both with and without weak cache', (testOptions) => {
-      describe(`core level tests with inMemoryLevelDb:${testOptions.inMemoryLevelDB} and cubeCacheEnabled:${testOptions.cubeCacheEnabled}`, () => {
+    ])('tests run multiple times with different CubeStore configurations', (testOptions) => {
+      describe(`core level tests with ${testOptions.inMemoryLevelDB? 'in-memory DB' : 'persistent DB'} and ${testOptions.cubeCacheEnabled? 'CubeCache enabled' : 'no Cube cache'}`, () => {
         const cubeStoreOptions: CubeStoreOptions = {
           requiredDifficulty: reducedDifficulty,
           enableCubeRetentionPolicy: false,
@@ -639,7 +639,7 @@ describe('cubeStore', () => {
         });  // NOTIFY tests
       });  // core level tests
 
-      describe('tests involving CCI layer', () => {
+      describe(`tests involving CCI layer with ${testOptions.inMemoryLevelDB? 'in-memory DB' : 'persistent DB'} and ${testOptions.cubeCacheEnabled? 'CubeCache enabled' : 'no Cube cache'}`, () => {
         const cubeStoreOptions: CubeStoreOptions = {
           family: [cciFamily, coreCubeFamily],
           requiredDifficulty: reducedDifficulty,
