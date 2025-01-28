@@ -2,7 +2,7 @@
 import { Settings } from '../settings';
 import { NetConstants } from '../networking/networkDefinitions';
 
-import { CubeError, CubeKey, CubeType } from './cube.definitions';
+import { CubeError, CubeKey, CubeType, NonNotifyCubeType } from './cube.definitions';
 import { Cube } from './cube';
 import { CubeInfo } from './cubeInfo';
 
@@ -86,9 +86,30 @@ export function cubeExpiration(cubeInfo: CubeInfo): number {
 }
 
 export function cubeContest(localCube: CubeInfo, incomingCube: CubeInfo): CubeInfo {
-    if (Settings.RUNTIME_ASSERTIONS && localCube.cubeType !== incomingCube.cubeType) {
-        throw new CubeError(`cubeUtil.cubeContest(): cannot contest Cubes of different types; supplied Cube ${localCube.keyString} has type ${localCube.cubeType} while supplied Cube ${incomingCube.keyString} has type ${incomingCube.keyString}.`);
+    // First, are there actually two contestants? Otherwise we already have a winner.
+    // Note this will return undefined if both localCube and incomingCube are undefined.
+    if (!localCube) return incomingCube;
+    if (!incomingCube) return localCube;
+
+    // Are the contestants of the same type?
+    const localBaseCubeType: CubeType = NonNotifyCubeType(localCube.cubeType);
+    const incomingBaseCubeType: CubeType = NonNotifyCubeType(incomingCube.cubeType);
+    if (localBaseCubeType !== incomingBaseCubeType) {
+        // The contestants are of different types, so the winner is decided
+        // purely based on type: PMUC > MUC > PIC > FROZEN
+        if (localBaseCubeType === CubeType.PMUC) return localCube;
+        if (incomingBaseCubeType === CubeType.PMUC) return incomingCube;
+        if (localBaseCubeType === CubeType.MUC) return localCube;
+        if (incomingBaseCubeType === CubeType.MUC) return incomingCube;
+        if (localBaseCubeType === CubeType.PIC) return localCube;
+        if (incomingBaseCubeType === CubeType.PIC) return incomingCube;
+        if (localBaseCubeType === CubeType.FROZEN) return localCube;
+        if (incomingBaseCubeType === CubeType.FROZEN) return incomingCube;
+        // edge case of both unknown Cube types handled below
     }
+
+    // Contestants are of same type, so the winner is decided based on
+    // type-specific rules.
     switch (localCube.cubeType) {
         case CubeType.FROZEN:
         case CubeType.FROZEN_NOTIFY:
@@ -98,11 +119,10 @@ export function cubeContest(localCube: CubeInfo, incomingCube: CubeInfo): CubeIn
             return localCube;
         case CubeType.PIC:
         case CubeType.PIC_NOTIFY:
-            // Calculate the expiration date of each cube
+            // Longest expiration date wins
             const expirationLocalCube = cubeExpiration(localCube);
             const expirationIncomingCube = cubeExpiration(incomingCube);
 
-            // Resolve the conflict based on expiration dates
             if (expirationLocalCube > expirationIncomingCube) {
                 return localCube;
             } else if (expirationIncomingCube > expirationLocalCube) {

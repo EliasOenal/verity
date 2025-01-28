@@ -300,6 +300,15 @@ export const ToggleNotifyType: CubeTypeMap = {
   [CubeType.MUC_NOTIFY]: CubeType.MUC,
   [CubeType.PMUC_NOTIFY]: CubeType.PMUC,
 }
+export function NotifyCubeType(cubeType: CubeType): CubeType {
+  if (HasNotify[cubeType]) return cubeType;
+  else return ToggleNotifyType[cubeType];
+}
+export function NonNotifyCubeType(cubeType: CubeType): CubeType {
+  if (HasNotify[cubeType]) return ToggleNotifyType[cubeType];
+  else return cubeType;
+}
+
 
 
 // semantic typedef
