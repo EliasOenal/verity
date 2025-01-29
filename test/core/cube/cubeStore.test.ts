@@ -65,6 +65,15 @@ describe('cubeStore', () => {
     0x00, 0x00, 0x00, 0xed  // Nonce passing challenge requirement
   ]);
 
+  let publicKey: Buffer;
+  let privateKey: Buffer;
+
+  beforeAll(async () => {
+    await sodium.ready;
+    const keyPair = sodium.crypto_sign_keypair();
+    publicKey = Buffer.from(keyPair.publicKey);
+    privateKey = Buffer.from(keyPair.privateKey);
+  })
   describe('tests at full difficulty', () => {
     // If these tests actually calculate hashcash, let's keep them to an absolute
     // minimum if we can.
@@ -596,7 +605,7 @@ describe('cubeStore', () => {
             // one sculpted them manually
             const recipientKey1 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 84);
             const cube1 = Cube.Frozen({
-              fields:                 [
+              fields: [
                 CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis"),
                 CubeField.Notify(recipientKey1),
               ],
@@ -636,7 +645,148 @@ describe('cubeStore', () => {
             expect(notificationsForKey2).toHaveLength(1);
             expect(await notificationsForKey2[0].getKey()).toEqual(await cube1.getKey());
           });
-        });  // NOTIFY tests
+
+          it("should not add notification for non-notification Cube", async () => {
+            const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 50);
+
+            // Cube without a NOTIFY field
+            const cube = new Cube(CubeType.FROZEN, {
+              fields: CubeFields.DefaultPositionals(
+                coreCubeFamily.parsers[CubeType.FROZEN].fieldDef,
+                [CubeField.RawContent(CubeType.FROZEN, "No notification here")]
+              ),
+              requiredDifficulty: reducedDifficulty,
+            });
+            await cubeStore.addCube(cube);
+
+            const notifications = [];
+            for await (const notification of cubeStore.getNotificationCubes(recipientKey)) {
+              notifications.push(notification);
+            }
+
+            expect(notifications).toHaveLength(0);
+          });
+
+          it("should remove notification when Cube is replaced with a non-notification Cube", async () => {
+            const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 60);
+
+            // Original notification Cube
+            const cube1: Cube = Cube.Create({
+              cubeType: CubeType.PMUC_NOTIFY,
+              fields: [
+                  CubeField.Notify(recipientKey),
+                  CubeField.RawContent(CubeType.PMUC_NOTIFY, "Original notification"),
+                  CubeField.PmucUpdateCount(1),
+              ],
+              publicKey, privateKey,
+              requiredDifficulty: reducedDifficulty,
+            });
+            await cubeStore.addCube(cube1);
+
+            // Replacing with a non-notification Cube
+            const cube2: Cube = Cube.Create({
+              cubeType: CubeType.PMUC,
+              fields: [
+                CubeField.RawContent(CubeType.PMUC, "Replaced with no notification"),
+                CubeField.PmucUpdateCount(2),
+              ],
+              requiredDifficulty: reducedDifficulty,
+              publicKey, privateKey
+            });
+            await cubeStore.addCube(cube2);
+
+            const notifications = [];
+            for await (const notification of cubeStore.getNotificationCubes(recipientKey)) {
+              notifications.push(notification);
+            }
+
+            expect(notifications).toHaveLength(0);
+          });
+
+          it("should index a notification when a non-notification Cube is replaced by a notification Cube", async () => {
+            const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 84);
+
+            // Initial non-notification Cube
+            const nonNotificationCube = Cube.Create({
+              cubeType: CubeType.PMUC,
+              fields: [
+                CubeField.RawContent(CubeType.PMUC, "Initial non-notification Cube"),
+                CubeField.PmucUpdateCount(1),
+              ],
+              requiredDifficulty: reducedDifficulty,
+              publicKey, privateKey,
+            });
+
+            await cubeStore.addCube(nonNotificationCube);
+
+            // Notification Cube replacing the non-notification Cube
+            const notificationCube = Cube.Create({
+              cubeType: CubeType.PMUC_NOTIFY,
+              fields: [
+                CubeField.Notify(recipientKey),
+                CubeField.RawContent(CubeType.PMUC_NOTIFY, "Replacing with notification Cube"),
+                CubeField.PmucUpdateCount(2),
+              ],
+              requiredDifficulty: reducedDifficulty,
+              publicKey, privateKey,
+            });
+
+            await cubeStore.addCube(notificationCube);
+
+            // Ensure the notification is indexed correctly
+            const notifications = [];
+            for await (const notification of cubeStore.getNotificationCubes(recipientKey)) {
+              notifications.push(notification);
+            }
+
+            expect(notifications).toHaveLength(1);
+            expect(await notifications[0].getKey()).toEqual(await notificationCube.getKey());
+          });
+
+          it("should gracefully ignore invalid notification fields without throwing", async () => {
+            const validRecipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42); // Valid key size
+            const invalidRecipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE - 1, 42); // Invalid key size (too short)
+
+            // Cube with valid notification field
+            const validCube = Cube.Create({
+              cubeType: CubeType.FROZEN_NOTIFY,
+              fields: CubeField.Notify(validRecipientKey),
+              requiredDifficulty: reducedDifficulty,
+            });
+
+            // Cube with invalid notification field
+            // Note the standard Create is too smart and will not allow this;
+            // that's why we're hand-crafting the Cube.
+            const invalidCube = new Cube(CubeType.FROZEN_NOTIFY, {
+              requiredDifficulty: reducedDifficulty,
+              fields: CubeFields.DefaultPositionals(
+                coreCubeFamily.parsers[CubeType.FROZEN_NOTIFY].fieldDef,
+              ),
+            });
+            invalidCube.getFirstField(CubeFieldType.NOTIFY).value = invalidRecipientKey;
+
+            // Add both Cubes
+            await cubeStore.addCube(validCube);
+            await cubeStore.addCube(invalidCube);
+
+            // Ensure only the valid notification is stored
+            const notifications = [];
+            for await (const notification of cubeStore.getNotificationCubes(validRecipientKey)) {
+              notifications.push(notification);
+            }
+
+            expect(notifications).toHaveLength(1); // Only the valid Cube's notification should exist
+            expect(await notifications[0].getKey()).toEqual(await validCube.getKey());
+
+            // Ensure no notifications were stored for the invalid key
+            const invalidNotifications = [];
+            for await (const notification of cubeStore.getNotificationCubes(invalidRecipientKey)) {
+              invalidNotifications.push(notification);
+            }
+            expect(invalidNotifications).toHaveLength(0); // No notification for the invalid key
+          });
+        });  // notification tests
+
       });  // core level tests
 
       describe(`tests involving CCI layer with ${testOptions.inMemoryLevelDB? 'in-memory DB' : 'persistent DB'} and ${testOptions.cubeCacheEnabled? 'CubeCache enabled' : 'no Cube cache'}`, () => {
