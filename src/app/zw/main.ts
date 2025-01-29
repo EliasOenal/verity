@@ -6,6 +6,8 @@ import { CubeExplorerController } from "../../webui/cubeExplorer/cubeExplorerCon
 import { FileManagerController } from "../../webui/fileManager/fileManagerController";
 import { ChatController } from "../../webui/chatApp/chatController";
 import type { NavItem } from "../../webui/navigation/navigationDefinitions";
+import { ZwConfig } from "./model/zwConfig";
+import { keyVariants } from "../../core/cube/cubeUtil";
 
 export async function webmain() {
   const navItems: NavItem[] = [
@@ -21,6 +23,7 @@ export async function webmain() {
     navItems: navItems,
     initialNav: navItems[0],
     lightNode: false,
+    idmucNotificationKey: keyVariants(ZwConfig.NOTIFICATION_KEY).binaryKey,
   });
   await ui.node.shutdownPromise;
 };
