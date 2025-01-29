@@ -3,7 +3,7 @@ import { ApiMisuseError, Settings } from "../settings";
 import { Cube, coreCubeFamily } from "./cube";
 import { CubeInfo } from "./cubeInfo";
 import { LevelBackend, LevelBackendOptions, Sublevels } from "./levelBackend";
-import { CubeType, CubeKey, CubeFieldType } from "./cube.definitions";
+import { CubeType, CubeKey, CubeFieldType, HasNotify } from "./cube.definitions";
 import { CubeFamilyDefinition } from "./cubeFields";
 import { cubeContest, shouldRetainCube, getCurrentEpoch, keyVariants, activateCube } from "./cubeUtil";
 import { TreeOfWisdom } from "../tow";
@@ -274,8 +274,46 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface, C
         this.treeOfWisdom.set(cubeInfo.key.toString("hex"), hash);
       }
 
-      // If this Cube has a notification field, index it
-      await this.addNotification(cube);
+      // Handle notifications:
+      if (HasNotify[cubeInfo.cubeType]) {
+        // If this Cube has a notification field, we need to index it.
+        if (storedCube) {
+          // There's a couple of special cases if this Cube replaces an older version.
+          // Let's fetch both the previous and the current Cube's notifications.
+          const previousCube: Cube = storedCube.getCube();
+          const previousNotification: CubeKey =
+            previousCube.getFirstField(CubeFieldType.NOTIFY)?.value;
+          const newNotification: CubeKey =
+            cube.getFirstField(CubeFieldType.NOTIFY)?.value;
+          // - Easy case first: If the updated Cube has a notification but
+          //   the previous one didn't, index the new one.
+          if (newNotification !== undefined && previousNotification === undefined) {
+            await this.addNotification(cube);
+          }
+          // - If the updated Cube has no notification but the previous one did,
+          //   remove the notification from the index.
+          if (newNotification === undefined && previousNotification !== undefined) {
+            await this.deleteNotification(storedCube);
+          }
+          // - If the updates Cube has a different notification,
+          //   remove the old one and add the new one
+          if (newNotification !== previousNotification) {
+            await this.deleteNotification(storedCube);
+            await this.addNotification(cube);
+          }
+          // - Only case left is if the updated Cube has the same notification
+          //   as the old one, in which case we simply do nothing
+        } else {
+          // That's the easy case. Index a notification, no previous stuff to deal with.
+          await this.addNotification(cube);
+         }
+      } else {
+        // Not a notification Cube, so nothing to index.
+        // If there was a previous version and it had a notification, delete it.
+        if (storedCube && HasNotify[storedCube.cubeType]) {
+          await this.deleteNotification(storedCube);
+        }
+      }
 
       // inform our application(s) about the new cube
       try {
