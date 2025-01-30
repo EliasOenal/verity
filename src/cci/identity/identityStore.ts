@@ -56,8 +56,12 @@ export class IdentityStore implements Shuttable {
     // Identity retrievable?
     const key = keyVariants(keyInput);
     if (this.cubeRetriever) {
-      // fetch Identity's root Cube from the network
+      // Fetch Identity's root Cube from the network
+      // Note: This interrupts the current call, making it possible for a concurrent
+      // call to retrieve and store the same Identity we're trying to fetch.
       const muc: cciCube = await this.cubeRetriever.getCube(key.binaryKey);
+      const stored: Identity = this.getIdentity(keyInput);
+      if (stored !== undefined) return stored;
       if (muc === undefined) {
         logger.trace(`IdentityStore.retrieveIdentity(): Cannot retrieve non-stored Identity ${key.keyString} because I could not retrieve its root Cube.`);
         return undefined;
