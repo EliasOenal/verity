@@ -85,6 +85,32 @@ describe('IdentityStore', () => {
         Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 404)
       )).toBeUndefined();
     });
+
+    it('still returns the Identity in store even if it was only stored while our call was already in progress', async () => {
+      const masterKey: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42);
+      const id: Identity = new Identity(cubeStore, masterKey, idTestOptions);
+      await id.ready;
+
+      // Save the original getCube method
+      const originalGetCube = cubeStore.getCube;
+
+      // Mock the getCube method to introduce a delay and add the identity to the store
+      cubeStore.getCube = vi.fn(async (key: Buffer) => {
+        // Add the identity to the store while the retrieval is in progress
+        identityStore.addIdentity(id);
+        // Simulate a delay to ensure the identity is added before the retrieval completes
+        await new Promise(resolve => setTimeout(resolve, 100));
+        return originalGetCube.call(cubeStore, key);
+      });
+
+      const retrieved: Identity = await identityStore.retrieveIdentity(id.key);
+
+      // Ensure the retrieved identity is the one we added to the store
+      expect(retrieved).toBe(id);
+
+      // Restore the original getCube method
+      cubeStore.getCube = originalGetCube;
+    });
   });
 
   describe('shutdown()', () => {
