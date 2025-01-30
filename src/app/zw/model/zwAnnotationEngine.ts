@@ -367,7 +367,13 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    */
   private async learnAuthorsPosts(mucInfo: CubeInfo): Promise<void> {
     // Is this even a MUC? Otherwise, it's definitely not a valid Identity.
-    if (mucInfo.cubeType !== CubeType.MUC) return;  // TODO support Notify MUCs
+    if (mucInfo.cubeType !== CubeType.MUC &&
+        mucInfo.cubeType !== CubeType.MUC_NOTIFY &&
+        mucInfo.cubeType !== CubeType.PMUC &&
+        mucInfo.cubeType !== CubeType.PMUC_NOTIFY
+    ) {
+      return;
+    }
     // are we even interested in this author?
     const muckeystring: string = mucInfo.keyString;
     if (!this.identityMucs.has(muckeystring)) return;
@@ -400,7 +406,11 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     if (alreadyTraversed.has(muckeystring)) return;  // prevent endless recursion
     // If we either don't have this cube or know it already, do nothing...
     // except if it's a MUC, then it could have changed
-    if (postInfo?.cubeType != CubeType.MUC && this.authorsCubes.has(muckeystring)) {
+    if (postInfo?.cubeType !== CubeType.MUC &&
+        postInfo?.cubeType !== CubeType.MUC_NOTIFY &&
+        postInfo?.cubeType !== CubeType.PMUC &&
+        postInfo?.cubeType !== CubeType.PMUC_NOTIFY &&
+        this.authorsCubes.has(muckeystring)) {
       return;
     }
     // Otherwise, process all MYPOST references.

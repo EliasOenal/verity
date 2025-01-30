@@ -31,7 +31,7 @@ export enum cciAdditionalFieldType {
   * We're pretty confident this does not actually expose any cryptographically
   * sensitive information, but we maybe should encrypt it.
   */
-  SUBKEY_SEED = 0x07 << 2,   // 24
+  SUBKEY_SEED = 0x07 << 2,   // 28
 
   PAYLOAD = 0x10 << 2,       // 64
   CONTENTNAME = 0x11 << 2,   // 68

@@ -114,7 +114,11 @@ export function assertZwCube(cube: Cube): boolean {
 }
 
 export function assertZwMuc(cube: Cube): boolean {
-  if (cube?.cubeType != CubeType.MUC) {
+  if (cube?.cubeType !== CubeType.MUC &&
+      cube?.cubeType !== CubeType.MUC_NOTIFY &&
+      cube?.cubeType !== CubeType.PMUC &&
+      cube?.cubeType !== CubeType.PMUC_NOTIFY
+  ) {
     logger.trace("asserZwMuc: Supplied Cube is not a ZW Muc, as it's not a MUC at all.");
   }
   else return assertZwCube(cube);
