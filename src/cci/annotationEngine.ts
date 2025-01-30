@@ -83,11 +83,11 @@ export class AnnotationEngine extends EventEmitter {
     super();
     // set CubeStore and subscribe to events
     this.cubeEmitter = cubeEmitter;
-    this.cubeEmitter?.on('cubeAdded', (cubeInfo: CubeInfo) => this.autoAnnotate(cubeInfo));
+    this.cubeEmitter?.on('cubeAdded', this.autoAnnotate);
     this.crawlCubeStore();  // we may have missed some events
   }
 
-  autoAnnotate(cubeInfo: CubeInfo): void {
+  autoAnnotate = (cubeInfo: CubeInfo): void => {
     // TODO: Prevent the annotation engine from loading obviously corrupt cubes
     // This is not the right place to catch this. Why do we even have them in the store?
     if ( !cubeInfo || !cubeInfo.binaryCube || cubeInfo.binaryCube.length == 4)
@@ -188,7 +188,7 @@ export class AnnotationEngine extends EventEmitter {
   }
 
   shutdown(): void {
-    this.cubeEmitter?.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.autoAnnotate(cubeInfo));
+    this.cubeEmitter?.removeListener('cubeAdded', this.autoAnnotate);
   }
 
   // This does not scale well as it forces CubeStore to read every single
