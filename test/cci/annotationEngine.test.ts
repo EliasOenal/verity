@@ -33,19 +33,31 @@ describe('annotationEngine', () => {
       annotationEngine.shutdown();
     });
 
-    it('correctly creates a reverse relationship', async () => {
-      const referee = cciCube.Frozen({requiredDifficulty: reducedDifficulty});
-      const referrer = cciCube.Frozen({
-        fields: cciField.RelatesTo(new cciRelationship(
-          cciRelationshipType.CONTINUED_IN, await referee.getKey())),
-        requiredDifficulty: reducedDifficulty
-      });
-      await cubeStore.addCube(referrer);
+    describe('getReverseRelationships()', () => {
+      it('correctly creates a reverse relationship', async () => {
+        const referee = cciCube.Frozen({requiredDifficulty: reducedDifficulty});
+        const referrer = cciCube.Frozen({
+          fields: cciField.RelatesTo(new cciRelationship(
+            cciRelationshipType.CONTINUED_IN, await referee.getKey())),
+          requiredDifficulty: reducedDifficulty
+        });
+        await cubeStore.addCube(referrer);
 
-      const reverserels = annotationEngine.getReverseRelationships(await referee.getKey());
-      expect(reverserels.length).toEqual(1);
-      expect(reverserels[0].type).toEqual(cciRelationshipType.CONTINUED_IN);
-      expect(reverserels[0].remoteKey.toString('hex')).toEqual((await referrer.getKey()).toString('hex'));
+        const reverserels = annotationEngine.getReverseRelationships(await referee.getKey());
+        expect(reverserels.length).toEqual(1);
+        expect(reverserels[0].type).toEqual(cciRelationshipType.CONTINUED_IN);
+        expect(reverserels[0].remoteKey.toString('hex')).toEqual((await referrer.getKey()).toString('hex'));
+      });
+    });
+
+    describe('shutdown()', () => {
+      it('will release all event subscriptions', async () => {
+        // AnnotationEngine holds a single subscription to its CubeEmitter's
+        // "cubeAdded" event
+        expect(cubeStore.listenerCount('cubeAdded')).toBe(1);
+        annotationEngine.shutdown();
+        expect(cubeStore.listenerCount('cubeAdded')).toBe(0);
+      });
     });
   });
 

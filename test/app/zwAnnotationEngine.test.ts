@@ -211,6 +211,20 @@ describe('ZwAnnotationEngine', () => {
         ]);
       }, 5000);
     });  // basic displayability
+
+    describe('shutdown()', () => {
+      it('will release all event subscriptions', async () => {
+        // ZwAnnotationEngine holds:
+        // - a single subscription to its CubeEmitter's "cubeAdded" event
+        //   through its base class AnnotationEngine
+        // - 4 own subscriptions to its CubeEmitter's "cubeAdded" event
+        //   if autoLearnMucs is enabled (3 otherwise)
+        expect(cubeStore.listenerCount('cubeAdded')).toBe(5);
+        annotationEngine.shutdown();
+        expect(cubeStore.listenerCount('cubeAdded')).toBe(0);
+      });
+
+    });
   });  // basic config
 
   describe('Identity-dependent displayability', () => {

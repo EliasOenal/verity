@@ -66,11 +66,11 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       for (const mucInfo of subscribedMucs) this.trustMuc(mucInfo);
     }
     if (autoLearnMucs === true) {
-      this.cubeEmitter?.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
+      this.cubeEmitter?.on('cubeAdded', this.learnMuc);
     }
-    this.cubeEmitter?.on('cubeAdded', (cubeInfo: CubeInfo) => this.learnAuthorsPosts(cubeInfo));
-    this.cubeEmitter?.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
-    this.cubeEmitter?.on('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeMakesOthersDisplayable(cubeInfo));
+    this.cubeEmitter?.on('cubeAdded', this.learnAuthorsPosts);
+    this.cubeEmitter?.on('cubeAdded', this.emitIfCubeDisplayable);
+    this.cubeEmitter?.on('cubeAdded', this.emitIfCubeMakesOthersDisplayable);
   }
 
   /**
@@ -256,10 +256,10 @@ export class ZwAnnotationEngine extends AnnotationEngine {
 
   shutdown(): void {
     super.shutdown();
-    this.cubeEmitter?.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.learnMuc(cubeInfo));
-    this.cubeEmitter?.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.learnAuthorsPosts(cubeInfo));
-    this.cubeEmitter?.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeDisplayable(cubeInfo));
-    this.cubeEmitter?.removeListener('cubeAdded', (cubeInfo: CubeInfo) => this.emitIfCubeMakesOthersDisplayable(cubeInfo));
+    this.cubeEmitter?.removeListener('cubeAdded', this.learnMuc);
+    this.cubeEmitter?.removeListener('cubeAdded', this.learnAuthorsPosts);
+    this.cubeEmitter?.removeListener('cubeAdded', this.emitIfCubeDisplayable);
+    this.cubeEmitter?.removeListener('cubeAdded', this.emitIfCubeMakesOthersDisplayable);
   }
 
   /** This is the recursive part of cubeAuthor() */
@@ -290,9 +290,9 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     return undefined;  // no authorship information found, not even really deep down
   }
 
-  private async emitIfCubeDisplayable(
+  private emitIfCubeDisplayable = async (
       cubeInfo: CubeInfo,
-      mediaType: MediaTypes = MediaTypes.TEXT): Promise<boolean> {
+      mediaType: MediaTypes = MediaTypes.TEXT): Promise<boolean> => {
     const displayable: boolean = await this.isCubeDisplayable(cubeInfo, mediaType);
     if (displayable) {
       // logger.trace(`ZwAnnotationEngine: Marking cube ${key.toString('hex')} displayable.`)
@@ -305,9 +305,9 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   // Note: In case anonymous posts are disallowed, learning authorship
   // information will make a post displayable. This case is not handled here but
   // in learnAuthorsPosts()
-  private async emitIfCubeMakesOthersDisplayable(
+  private emitIfCubeMakesOthersDisplayable = async (
       cubeInfo: CubeInfo | CubeKey,
-      mediaType: MediaTypes = MediaTypes.TEXT): Promise<boolean> {
+      mediaType: MediaTypes = MediaTypes.TEXT): Promise<boolean> => {
     if (!(cubeInfo instanceof CubeInfo)) cubeInfo = await this.cubeRetriever.getCubeInfo(cubeInfo) as CubeInfo;
     let ret: boolean = false;
 
@@ -338,7 +338,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   // TODO move to CCI
   // Note: learnMuc must not be made async, as then we might learn the MUC after
   // they're being evaluated, leading to false negatives
-  private learnMuc(mucInfo: CubeInfo): void {
+  private learnMuc = (mucInfo: CubeInfo): void => {
     if (Identity.ValidateMuc(mucInfo) === true) {
       this.identityMucs.set(mucInfo.key.toString('hex'), mucInfo);
       // logger.trace(`ZwAnnotationEngine: Learned Identity MUC ${key.toString('hex')}, user name ${id.name}`);
@@ -365,7 +365,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    * @emits "authorLearned" with a post CubeInfo if we just learned who the
    *        author of that post is.
    */
-  private async learnAuthorsPosts(mucInfo: CubeInfo): Promise<void> {
+  private learnAuthorsPosts = async (mucInfo: CubeInfo): Promise<void> => {
     // Is this even a MUC? Otherwise, it's definitely not a valid Identity.
     if (mucInfo.cubeType !== CubeType.MUC &&
         mucInfo.cubeType !== CubeType.MUC_NOTIFY &&
