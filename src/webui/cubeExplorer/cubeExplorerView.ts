@@ -135,8 +135,8 @@ export class CubeExplorerView extends VerityView {
         fieldType += " (virtual field containing unparsed data)"
       } else fieldType += ` (code ${(field.type >> 2).toString()} / 0x${(field.type >> 2).toString(16)})`;
       (detailsTable.querySelector(".veritySchematicFieldType") as HTMLElement).innerText = fieldType;
-      (detailsTable.querySelector(".veritySchematicFieldStart") as HTMLElement).innerText = field.start.toString();
-      (detailsTable.querySelector(".veritySchematicFieldLength") as HTMLElement).innerText = field.length.toString();
+      (detailsTable.querySelector(".veritySchematicFieldStart") as HTMLElement).innerText = field.start?.toString();
+      (detailsTable.querySelector(".veritySchematicFieldLength") as HTMLElement).innerText = field.length?.toString();
 
       this.setDecodedFieldContent(field, detailsTable);
       fieldDetailsContainer.appendChild(detailsTable);
