@@ -281,7 +281,13 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
   static ValidateMuc(mucInfo: CubeInfo): boolean {
     // is this even a MUC?
-    if (mucInfo.cubeType != CubeType.MUC) return false;
+    if (mucInfo.cubeType !== CubeType.MUC &&
+        mucInfo.cubeType !== CubeType.MUC_NOTIFY &&
+        mucInfo.cubeType !== CubeType.PMUC &&
+        mucInfo.cubeType !== CubeType.PMUC_NOTIFY
+    ) {
+      return false;
+    }
 
     // Check if this is an Identity MUC by trying to create an Identity object
     // for it.
@@ -1063,7 +1069,11 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       //   this.readyPromiseReject(new CubeError("Identity: Supplied Cube is not as CCI Cube"));
       //   return;
       // }
-      if (muc.cubeType != CubeType.MUC) {
+      if (muc.cubeType !== CubeType.MUC &&
+          muc.cubeType !== CubeType.MUC_NOTIFY &&
+          muc.cubeType !== CubeType.PMUC &&
+          muc.cubeType !== CubeType.PMUC_NOTIFY
+      ) {
         logger.error("Identity: Supplied Cube is not a MUC");
         this.readyPromiseResolve(this);
         return;
