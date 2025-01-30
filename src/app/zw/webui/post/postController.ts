@@ -72,8 +72,8 @@ export class PostController extends VerityController {
       true,     // auto-learn MUCs to display authorship info if available
       true,     // allow anonymous posts
     );
-    this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
-    this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
+    this.annotationEngine.on('cubeDisplayable', this.displayPost);
+    this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
     return this.redisplayPosts();
   }
 
@@ -90,8 +90,8 @@ export class PostController extends VerityController {
       true,     // auto-learn MUCs (posts associated with any Identity MUC are okay)
       false,
     );
-    this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
-    this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
+    this.annotationEngine.on('cubeDisplayable', this.displayPost);
+    this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
     return this.redisplayPosts();
   }
 
@@ -108,8 +108,8 @@ export class PostController extends VerityController {
       true,      // auto-learn MUCs (to be able to display authors when available)
       false,     // do not allow anonymous posts
     );
-    this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
-    this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
+    this.annotationEngine.on('cubeDisplayable', this.displayPost);
+    this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
     return this.redisplayPosts();
   }
 
@@ -126,8 +126,8 @@ export class PostController extends VerityController {
       true,      // auto-learn MUCs (to be able to display authors when available)
       true,     // no need to filter anonymous posts as they won't be fed anyway
     );
-    this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
-    this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
+    this.annotationEngine.on('cubeDisplayable', this.displayPost);
+    this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
     return this.redisplayPosts();
   }
 
@@ -144,8 +144,8 @@ export class PostController extends VerityController {
       true,      // auto-learn MUCs (to be able to display authors when available)
       true,     // no need to filter anonymous posts as they won't be fed anyway
     );
-    this.annotationEngine.on('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
-    this.annotationEngine.on('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
+    this.annotationEngine.on('cubeDisplayable', this.displayPost);
+    this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
     return this.redisplayPosts();
   }
 
@@ -181,7 +181,7 @@ export class PostController extends VerityController {
 
   // Show all new cubes that are displayable.
   // This will handle cubeStore cubeDisplayable events.
-  async displayPost(binarykey: CubeKey): Promise<void> {
+  displayPost = async (binarykey: CubeKey): Promise<void> => {
     // logger.trace(`PostDisplay: Attempting to display post ${binarykey.toString('hex')}`)
     // get Cube
     const cube: cciCube = ensureCci(await this.cubeStore.getCube(binarykey, cciFamily));
@@ -233,7 +233,7 @@ export class PostController extends VerityController {
   }
 
   /** Redisplays authorship information for all of one author's posts */
-  async redisplayAuthor(mucInfo: CubeInfo) {
+  redisplayAuthor = async (mucInfo: CubeInfo) => {
     const muc = ensureCci(mucInfo.getCube(cciFamily));
     if (muc === undefined) {
       logger.trace(`PostController.redisplayAuthor: Cannot get author for post ${mucInfo.keyString} as it does not appear to be a CCI cube`);
@@ -336,8 +336,8 @@ export class PostController extends VerityController {
   // State management methods
   //***
   private removeAnnotationEngineListeners(): void {
-    this.annotationEngine?.removeListener('cubeDisplayable', (binaryKey: CubeKey) => this.displayPost(binaryKey));
-    this.annotationEngine?.removeListener('authorUpdated', (cubeInfo: CubeInfo) => this.redisplayAuthor(cubeInfo));
+    this.annotationEngine?.removeListener('cubeDisplayable', this.displayPost);
+    this.annotationEngine?.removeListener('authorUpdated', this.redisplayAuthor);
   }
 
   private async processImageTags(text: string): Promise<string> {
@@ -401,6 +401,7 @@ export class PostController extends VerityController {
   //***
   shutdown(unshow: boolean = true, callback: boolean = true): Promise<void> {
     this.removeAnnotationEngineListeners();
+    this.annotationEngine?.shutdown();
     return super.shutdown(unshow, callback);
   }
 
