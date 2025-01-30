@@ -361,210 +361,240 @@ describe('ZwAnnotationEngine', () => {
         false);  // do not allow anonymous posts
     });
 
-    it('should remember Identity MUCs', async () => {
-      const id: Identity = await Identity.Create(
-        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
-      id.name = "Probator Annotationem";
-      await id.store();
-      await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
-      expect(annotationEngine.identityMucs.size).toEqual(1);
-      const restored: Identity = await Identity.Construct(cubeStore,
-        annotationEngine.identityMucs.get(id.publicKey.toString('hex'))?.getCube(cciFamily) as cciCube);
-      expect(restored).toBeInstanceOf(Identity);
-      expect(restored.name).toEqual("Probator Annotationem");
-    });
-
-    // Skipped as we currently don't do any meaningful validation on MUCs.
-    // Since we dropped the requirement for Identity MUCs to have a USERNAME
-    // field and also dropped the requirement for them to have a specific
-    // APPLICATION field, there's not much left we can validate.
-    it.skip('should not remember non-Identity MUCs', async () => {
-      const keys: KeyPair = sodium.crypto_sign_keypair();
-      const muc: Cube = Cube.MUC(
-        Buffer.from(keys.publicKey),
-        Buffer.from(keys.privateKey),
-        {
-          fields: cciField.Payload("hoc non est identitatis"),
-          family: cciFamily, requiredDifficulty: reducedDifficulty
-        });
-      await cubeStore.addCube(muc);
-      expect(annotationEngine.identityMucs.size).toEqual(0);
-    });
-
-    it('should identify the author of a post directly referred to from a MUC', async () => {
-      const id: Identity = await Identity.Create(
-        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
-      id.name = "Probator Attributionis Auctoris";
-      const post: Cube = await makePost("Habeo res importantes dicere", {
-        id: id,
-        requiredDifficulty: reducedDifficulty
+    describe('Learning Identity root Cubes', () => {
+      it('should remember Identity MUCs', async () => {
+        const id: Identity = await Identity.Create(
+          cubeStore, "usor probationis", "clavis probationis", idTestOptions);
+        id.name = "Probator Annotationem";
+        await id.store();
+        await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
+        expect(annotationEngine.identityMucs.size).toEqual(1);
+        const restored: Identity = await Identity.Construct(cubeStore,
+          annotationEngine.identityMucs.get(id.publicKey.toString('hex'))?.getCube(cciFamily) as cciCube);
+        expect(restored).toBeInstanceOf(Identity);
+        expect(restored.name).toEqual("Probator Annotationem");
       });
-      await cubeStore.addCube(post);
-      const postKey = await post.getKey();
-      expect(postKey).toBeDefined;
-      await id.store();
-      await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
 
-      const restoredAuthor: Identity = await annotationEngine.cubeAuthor(postKey);
-      expect(restoredAuthor).toBeInstanceOf(Identity);
-      expect(restoredAuthor.name).
-        toEqual("Probator Attributionis Auctoris");
+      // Skipped as we currently don't do any meaningful validation on MUCs.
+      // Since we dropped the requirement for Identity MUCs to have a USERNAME
+      // field and also dropped the requirement for them to have a specific
+      // APPLICATION field, there's not much left we can validate.
+      it.skip('should not remember non-Identity MUCs', async () => {
+        const keys: KeyPair = sodium.crypto_sign_keypair();
+        const muc: Cube = Cube.MUC(
+          Buffer.from(keys.publicKey),
+          Buffer.from(keys.privateKey),
+          {
+            fields: cciField.Payload("hoc non est identitatis"),
+            family: cciFamily, requiredDifficulty: reducedDifficulty
+          });
+        await cubeStore.addCube(muc);
+        expect(annotationEngine.identityMucs.size).toEqual(0);
+      });
     });
 
-    // This test is a bit lengthy and convoluted as I was chasing a Heisenbug
-    // involving the MUC's key suddenly becoming undefined.
-    // It's a pretty thorough test, though, so let's keep it.
-    it('should identify the author multiple times while other stuff takes place', async () => {
-      // create and store identity
-      const id: Identity = await Identity.Create(
-        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
-      id.name = "Probator Attributionis Auctoris";
-      expect(id.muc).toBeInstanceOf(Cube);
-      const preliminaryMuc: Cube = await id.store();
-      expect(preliminaryMuc).toEqual(id.muc);
-      expect(id.muc).toBeInstanceOf(Cube);
-      const idKey = id.muc.getKeyIfAvailable();
-      expect(idKey).toBeInstanceOf(Buffer);
-      const preliminaryIdHash = id.muc.getHashIfAvailable();
-      expect(preliminaryIdHash).toBeInstanceOf(Buffer);
-      expect(preliminaryIdHash.equals(await (await cubeStore.getCube(idKey))?.getHash()!)).toBeTruthy();
+    describe('retrieving authorship', () => {
+      it('should identify the author of a post directly referred to from a MUC', async () => {
+        const id: Identity = await Identity.Create(
+          cubeStore, "usor probationis", "clavis probationis", idTestOptions);
+        id.name = "Probator Attributionis Auctoris";
+        const post: Cube = await makePost("Habeo res importantes dicere", {
+          id: id,
+          requiredDifficulty: reducedDifficulty
+        });
+        await cubeStore.addCube(post);
+        const postKey = await post.getKey();
+        expect(postKey).toBeDefined;
+        await id.store();
+        await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
 
-      // add post and re-store Identity
-      const postKey: CubeKey = (await cubeStore.addCube(await makePost(
-          "I got important stuff to say", {
+        const restoredAuthor: Identity = await annotationEngine.cubeAuthor(postKey);
+        expect(restoredAuthor).toBeInstanceOf(Identity);
+        expect(restoredAuthor.name).
+          toEqual("Probator Attributionis Auctoris");
+      });
+
+      it('should identify the author of a post indirectly referred to through other posts', async () => {
+        const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
+        const id: Identity = await Identity.Create(
+          cubeStore, "usor probationis", "clavis probationis", idTestOptions);
+        id.name = "Probator Attributionis Auctoris";
+        const posts: CubeKey[] = [];
+
+        for (let i=0; i<TESTPOSTCOUNT; i++) {
+          const post: Cube = await makePost("I got important stuff to say", {
             id: id,
             requiredDifficulty: reducedDifficulty
-          })
-        )).getKeyIfAvailable();
-      expect(postKey).toBeInstanceOf(Buffer);
-      const firstMuc: Cube = await id.store();
+          });
+          posts.push(await post.getKey());
+          await cubeStore.addCube(post);
+        }
+        await id.store();
+        await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
 
-      // re-storing the Identity changes it's hash but keeps it's key
-      expect(id.muc).toBeInstanceOf(Cube);
-      expect(firstMuc).toEqual(id.muc);
-      expect((await firstMuc.getHash()).equals(await id.muc.getHash())).toBeTruthy();
-      const secondIdKey = id.muc.getKeyIfAvailable();
-      expect(secondIdKey).toBeInstanceOf(Buffer);
-      expect(idKey.equals(secondIdKey)).toBeTruthy();
-      const firstIdHash = id.muc.getHashIfAvailable();
-      expect(firstIdHash).toBeInstanceOf(Buffer);
-      expect(preliminaryIdHash.equals(firstIdHash)).toBeFalsy();
-      expect(preliminaryIdHash.equals(await (await cubeStore.getCube(idKey))?.getHash()!)).toBeFalsy();
-      expect(firstIdHash.equals(await (await cubeStore.getCube(idKey))?.getHash()!)).toBeTruthy();
+        for (let i=0; i<TESTPOSTCOUNT; i++) {
+          expect((await annotationEngine.cubeAuthor(posts[i])).name).
+            toEqual("Probator Attributionis Auctoris");
+        }
+      }, 20000);
+    });
 
-      // make sure the new post is referenced directly in the MUC
-      let mucRelToPost: any = undefined;
-      for (const rel of id.muc.fields.getRelationships(cciRelationshipType.MYPOST)) {
-        if (rel.remoteKey.equals(postKey)) mucRelToPost = rel;
-      }
-      expect(mucRelToPost).toBeInstanceOf(cciRelationship);
+    describe('edge cases', () => {
+      // This test is a bit lengthy and convoluted as I was chasing a Heisenbug
+      // involving the MUC's key suddenly becoming undefined.
+      // It's a pretty thorough test, though, so let's keep it.
+      it('should identify the author multiple times while other stuff takes place', async () => {
+        // create and store identity
+        const id: Identity = await Identity.Create(
+          cubeStore, "usor probationis", "clavis probationis", idTestOptions);
+        id.name = "Probator Attributionis Auctoris";
+        expect(id.muc).toBeInstanceOf(Cube);
+        const preliminaryMuc: Cube = await id.store();
+        expect(preliminaryMuc).toEqual(id.muc);
+        expect(id.muc).toBeInstanceOf(Cube);
+        const idKey = id.muc.getKeyIfAvailable();
+        expect(idKey).toBeInstanceOf(Buffer);
+        const preliminaryIdHash = id.muc.getHashIfAvailable();
+        expect(preliminaryIdHash).toBeInstanceOf(Buffer);
+        expect(preliminaryIdHash.equals(await (await cubeStore.getCube(idKey))?.getHash()!)).toBeTruthy();
 
-      // Wait for the annotationEngine to take note of the MUC change.
-      // This is event driven, so it may take a short while.
-      // In production use this is not an issue as inter-node Cube sync time
-      // will be orders of magnitude longer anyway.
-      for (let i = 0; i < 30; i++) {
+        // add post and re-store Identity
+        const postKey: CubeKey = (await cubeStore.addCube(await makePost(
+            "I got important stuff to say", {
+              id: id,
+              requiredDifficulty: reducedDifficulty
+            })
+          )).getKeyIfAvailable();
+        expect(postKey).toBeInstanceOf(Buffer);
+        const firstMuc: Cube = await id.store();
+
+        // re-storing the Identity changes it's hash but keeps it's key
+        expect(id.muc).toBeInstanceOf(Cube);
+        expect(firstMuc).toEqual(id.muc);
+        expect((await firstMuc.getHash()).equals(await id.muc.getHash())).toBeTruthy();
+        const secondIdKey = id.muc.getKeyIfAvailable();
+        expect(secondIdKey).toBeInstanceOf(Buffer);
+        expect(idKey.equals(secondIdKey)).toBeTruthy();
+        const firstIdHash = id.muc.getHashIfAvailable();
+        expect(firstIdHash).toBeInstanceOf(Buffer);
+        expect(preliminaryIdHash.equals(firstIdHash)).toBeFalsy();
+        expect(preliminaryIdHash.equals(await (await cubeStore.getCube(idKey))?.getHash()!)).toBeFalsy();
+        expect(firstIdHash.equals(await (await cubeStore.getCube(idKey))?.getHash()!)).toBeTruthy();
+
+        // make sure the new post is referenced directly in the MUC
+        let mucRelToPost: any = undefined;
+        for (const rel of id.muc.fields.getRelationships(cciRelationshipType.MYPOST)) {
+          if (rel.remoteKey.equals(postKey)) mucRelToPost = rel;
+        }
+        expect(mucRelToPost).toBeInstanceOf(cciRelationship);
+
+        // Wait for the annotationEngine to take note of the MUC change.
+        // This is event driven, so it may take a short while.
+        // In production use this is not an issue as inter-node Cube sync time
+        // will be orders of magnitude longer anyway.
+        for (let i = 0; i < 30; i++) {
+          const mucInAnnotationEngine: CubeInfo = annotationEngine.identityMucs.get(idKey.toString('hex'))!;
+          if(mucInAnnotationEngine.getCube()!.getHashIfAvailable().equals(firstIdHash)) break;
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
         const mucInAnnotationEngine: CubeInfo = annotationEngine.identityMucs.get(idKey.toString('hex'))!;
-        if(mucInAnnotationEngine.getCube()!.getHashIfAvailable().equals(firstIdHash)) break;
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      const mucInAnnotationEngine: CubeInfo = annotationEngine.identityMucs.get(idKey.toString('hex'))!;
-      expect(mucInAnnotationEngine).toBeInstanceOf(CubeInfo);
-      expect(mucInAnnotationEngine.key).toBeInstanceOf(Buffer);
-      expect(mucInAnnotationEngine.key.equals(idKey)).toBeTruthy();
-      expect(mucInAnnotationEngine.getCube()!.getKeyIfAvailable()).toEqual(idKey);
+        expect(mucInAnnotationEngine).toBeInstanceOf(CubeInfo);
+        expect(mucInAnnotationEngine.key).toBeInstanceOf(Buffer);
+        expect(mucInAnnotationEngine.key.equals(idKey)).toBeTruthy();
+        expect(mucInAnnotationEngine.getCube()!.getKeyIfAvailable()).toEqual(idKey);
 
-      {  // check 1
-      const restoredAuthor: Identity = await annotationEngine.cubeAuthor(postKey);
-      expect(restoredAuthor).toBeDefined();
-      expect(restoredAuthor.muc).toBeInstanceOf(Cube);
-      expect(restoredAuthor.muc.getKeyIfAvailable()).toBeInstanceOf(Buffer);
-      expect(restoredAuthor.muc.getKeyIfAvailable().equals(id.muc.getKeyIfAvailable())).toBeTruthy();
-      expect(restoredAuthor.muc.getHashIfAvailable()).toBeInstanceOf(Buffer);
-      expect(restoredAuthor.muc.getHashIfAvailable().equals(firstIdHash)).toBeTruthy();
-      expect(restoredAuthor).toBeInstanceOf(Identity);
-      expect(restoredAuthor.name).
-        toEqual("Probator Attributionis Auctoris");
-      }
-
-      // do some other unrelated stuff...
-      await new Promise(resolve => setTimeout(resolve, 250));
-      // learn a new unrelated post
-      await cubeStore.addCube(await makePost("Lalelu", {
-        requiredDifficulty: reducedDifficulty
-      }));
-      await new Promise(resolve => setTimeout(resolve, 250));
-      // learn a new unrelated MUC
-      const unrelatedKeys: KeyPair = sodium.crypto_sign_keypair();
-      await cubeStore.addCube(Cube.MUC(
-        Buffer.from(unrelatedKeys.publicKey),
-        Buffer.from(unrelatedKeys.privateKey),
-        {
-          fields: cciField.Payload("I am some other application's MUC"),
-          family: cciFamily,
-          requiredDifficulty: reducedDifficulty
-        }));
-      await new Promise(resolve => setTimeout(resolve, 250));
-
-      {  // check 2
+        {  // check 1
         const restoredAuthor: Identity = await annotationEngine.cubeAuthor(postKey);
+        expect(restoredAuthor).toBeDefined();
         expect(restoredAuthor.muc).toBeInstanceOf(Cube);
         expect(restoredAuthor.muc.getKeyIfAvailable()).toBeInstanceOf(Buffer);
         expect(restoredAuthor.muc.getKeyIfAvailable().equals(id.muc.getKeyIfAvailable())).toBeTruthy();
         expect(restoredAuthor.muc.getHashIfAvailable()).toBeInstanceOf(Buffer);
         expect(restoredAuthor.muc.getHashIfAvailable().equals(firstIdHash)).toBeTruthy();
+        expect(restoredAuthor).toBeInstanceOf(Identity);
+        expect(restoredAuthor.name).
+          toEqual("Probator Attributionis Auctoris");
+        }
+
+        // do some other unrelated stuff...
+        await new Promise(resolve => setTimeout(resolve, 250));
+        // learn a new unrelated post
+        await cubeStore.addCube(await makePost("Lalelu", {
+          requiredDifficulty: reducedDifficulty
+        }));
+        await new Promise(resolve => setTimeout(resolve, 250));
+        // learn a new unrelated MUC
+        const unrelatedKeys: KeyPair = sodium.crypto_sign_keypair();
+        await cubeStore.addCube(Cube.MUC(
+          Buffer.from(unrelatedKeys.publicKey),
+          Buffer.from(unrelatedKeys.privateKey),
+          {
+            fields: cciField.Payload("I am some other application's MUC"),
+            family: cciFamily,
+            requiredDifficulty: reducedDifficulty
+          }));
+        await new Promise(resolve => setTimeout(resolve, 250));
+
+        {  // check 2
+          const restoredAuthor: Identity = await annotationEngine.cubeAuthor(postKey);
+          expect(restoredAuthor.muc).toBeInstanceOf(Cube);
+          expect(restoredAuthor.muc.getKeyIfAvailable()).toBeInstanceOf(Buffer);
+          expect(restoredAuthor.muc.getKeyIfAvailable().equals(id.muc.getKeyIfAvailable())).toBeTruthy();
+          expect(restoredAuthor.muc.getHashIfAvailable()).toBeInstanceOf(Buffer);
+          expect(restoredAuthor.muc.getHashIfAvailable().equals(firstIdHash)).toBeTruthy();
+            expect(restoredAuthor).toBeInstanceOf(Identity);
+          expect(restoredAuthor.name).
+            toEqual("Probator Attributionis Auctoris");
+        }
+
+        // do some marginally related stuff...
+        await new Promise(resolve => setTimeout(resolve, 250));
+        // our user makes a new post
+        await cubeStore.addCube(await makePost("verba mea magna sunt", {
+          id, requiredDifficulty: reducedDifficulty}));
+        await id.store();
+        const idHashAfterOneNewPost = id.muc.getHashIfAvailable();
+        await new Promise(resolve => setTimeout(resolve, 250));
+
+        {  // check 3
+          const restoredAuthor: Identity = await annotationEngine.cubeAuthor(postKey);
+          expect(restoredAuthor.muc).toBeInstanceOf(Cube);
+          expect(restoredAuthor.muc.getKeyIfAvailable()).toBeInstanceOf(Buffer);
+          expect(restoredAuthor.muc.getKeyIfAvailable().equals(idKey)).toBeTruthy();
+          expect(restoredAuthor.muc.getHashIfAvailable()).toBeInstanceOf(Buffer);
+          expect(restoredAuthor.muc.getHashIfAvailable().equals(idHashAfterOneNewPost)).toBeTruthy();
+          expect(restoredAuthor.muc.getHashIfAvailable().equals(firstIdHash)).toBeFalsy();
           expect(restoredAuthor).toBeInstanceOf(Identity);
-        expect(restoredAuthor.name).
-          toEqual("Probator Attributionis Auctoris");
-      }
+          expect(restoredAuthor.name).
+            toEqual("Probator Attributionis Auctoris");
+        }
 
-      // do some marginally related stuff...
-      await new Promise(resolve => setTimeout(resolve, 250));
-      // our user makes a new post
-      await cubeStore.addCube(await makePost("verba mea magna sunt", {
-        id, requiredDifficulty: reducedDifficulty}));
-      await id.store();
-      const idHashAfterOneNewPost = id.muc.getHashIfAvailable();
-      await new Promise(resolve => setTimeout(resolve, 250));
+        // wait to make sure a new MUC version will be at least a second newer
+        // than the old one, otherwise it will fail the CubeContest
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-      {  // check 3
-        const restoredAuthor: Identity = await annotationEngine.cubeAuthor(postKey);
-        expect(restoredAuthor.muc).toBeInstanceOf(Cube);
-        expect(restoredAuthor.muc.getKeyIfAvailable()).toBeInstanceOf(Buffer);
-        expect(restoredAuthor.muc.getKeyIfAvailable().equals(idKey)).toBeTruthy();
-        expect(restoredAuthor.muc.getHashIfAvailable()).toBeInstanceOf(Buffer);
-        expect(restoredAuthor.muc.getHashIfAvailable().equals(idHashAfterOneNewPost)).toBeTruthy();
-        expect(restoredAuthor.muc.getHashIfAvailable().equals(firstIdHash)).toBeFalsy();
-        expect(restoredAuthor).toBeInstanceOf(Identity);
-        expect(restoredAuthor.name).
-          toEqual("Probator Attributionis Auctoris");
-      }
+        // do something that actually makes a difference...
+        await new Promise(resolve => setTimeout(resolve, 250));
+        // our user changes it's name
+        id.name = "Probator Attributionis Auctoris et Persona Gravissima in Generali";
+        await id.store();
+        await new Promise(resolve => setTimeout(resolve, 250));
+        const idHashAfterNameChange = id.muc.getHashIfAvailable();
 
-      // wait to make sure a new MUC version will be at least a second newer
-      // than the old one, otherwise it will fail the CubeContest
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // do something that actually makes a difference...
-      await new Promise(resolve => setTimeout(resolve, 250));
-      // our user changes it's name
-      id.name = "Probator Attributionis Auctoris et Persona Gravissima in Generali";
-      await id.store();
-      await new Promise(resolve => setTimeout(resolve, 250));
-      const idHashAfterNameChange = id.muc.getHashIfAvailable();
-
-      {  // check 4
-        const restoredAuthor: Identity = await annotationEngine.cubeAuthor(postKey);
-        expect(restoredAuthor.muc).toBeInstanceOf(Cube);
-        expect(restoredAuthor.muc.getKeyIfAvailable()).toBeInstanceOf(Buffer);
-        expect(restoredAuthor.muc.getKeyIfAvailable().equals(idKey)).toBeTruthy();
-        expect(restoredAuthor.muc.getHashIfAvailable()).toBeInstanceOf(Buffer);
-        expect(restoredAuthor.muc.getHashIfAvailable().equals(idHashAfterNameChange)).toBeTruthy();
-        expect(restoredAuthor.muc.getHashIfAvailable().equals(firstIdHash)).toBeFalsy();
-        expect(restoredAuthor).toBeInstanceOf(Identity);
-        expect(restoredAuthor.name).
-          toEqual("Probator Attributionis Auctoris et Persona Gravissima in Generali");
-      }
-    }, 5000);
+        {  // check 4
+          const restoredAuthor: Identity = await annotationEngine.cubeAuthor(postKey);
+          expect(restoredAuthor.muc).toBeInstanceOf(Cube);
+          expect(restoredAuthor.muc.getKeyIfAvailable()).toBeInstanceOf(Buffer);
+          expect(restoredAuthor.muc.getKeyIfAvailable().equals(idKey)).toBeTruthy();
+          expect(restoredAuthor.muc.getHashIfAvailable()).toBeInstanceOf(Buffer);
+          expect(restoredAuthor.muc.getHashIfAvailable().equals(idHashAfterNameChange)).toBeTruthy();
+          expect(restoredAuthor.muc.getHashIfAvailable().equals(firstIdHash)).toBeFalsy();
+          expect(restoredAuthor).toBeInstanceOf(Identity);
+          expect(restoredAuthor.name).
+            toEqual("Probator Attributionis Auctoris et Persona Gravissima in Generali");
+        }
+      }, 5000);
+    });
 
     it('should identify the author of a post after the key was converted to a string', async () => {
       const id: Identity = await Identity.Create(
@@ -585,29 +615,5 @@ describe('ZwAnnotationEngine', () => {
       expect(restoredAuthor.name).
         toEqual("Probator Attributionis Auctoris");
     });
-
-    it('should identify the author of a post indirectly referred to through other posts', async () => {
-      const TESTPOSTCOUNT = 100;  // 100 keys are more than guaranteed not to fit in the MUC
-      const id: Identity = await Identity.Create(
-        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
-      id.name = "Probator Attributionis Auctoris";
-      const posts: CubeKey[] = [];
-
-      for (let i=0; i<TESTPOSTCOUNT; i++) {
-        const post: Cube = await makePost("I got important stuff to say", {
-          id: id,
-          requiredDifficulty: reducedDifficulty
-        });
-        posts.push(await post.getKey());
-        await cubeStore.addCube(post);
-      }
-      await id.store();
-      await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
-
-      for (let i=0; i<TESTPOSTCOUNT; i++) {
-        expect((await annotationEngine.cubeAuthor(posts[i])).name).
-          toEqual("Probator Attributionis Auctoris");
-      }
-    }, 20000);
   });  // cube ownership
 });
