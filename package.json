@@ -56,7 +56,7 @@
     "buffer": "^6.0.3",
     "cmd-ts": "^0.13.0",
     "data-structure-typed": "^2.0.1",
-    "dompurify": "^3.2.3",
+    "dompurify": "^3.2.4",
     "events": "^3.3.0",
     "extensionless": "^1.9.9",
     "isomorphic-ws": "^5.0.0",
