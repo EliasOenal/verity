@@ -60,18 +60,22 @@ export class PostView extends VerityView {
     // Configure reply input field
     const replyform: HTMLFormElement =
       li.getElementsByClassName("verityReplyForm")[0] as HTMLFormElement;
-    const replyfield: HTMLTextAreaElement =
-      li.getElementsByClassName("verityPostInput")[0] as HTMLTextAreaElement;
-    replyfield.setAttribute("maxlength", ZwConfig.MAXIMUM_POST_LENGTH.toString());
-    replyfield.setAttribute("id", `verityReplyInput-${data.keystring}`);
-    replyfield.setAttribute("style", `height: ${replyfield.scrollHeight}px;`);  // for auto-resize
-    // @ts-ignore Typescript does not like us using custom window attributes
-    const replybutton: HTMLButtonElement =
-      li.getElementsByClassName("verityPostButton")[0] as HTMLButtonElement
-    replybutton.setAttribute("id", `replybutton-${data.keystring}`);
-    // disable reply input if necessary
     if (!ZwConfig.ALLOW_ANONYMOUS_POSTS && !this.controller.identity) {
-      this.disableInput(replyform);
+      // remove reply input if reply not possible
+      replyform.remove();
+      // add a bit of extra space instead
+      text.style.marginBottom = "2rem";
+    } else {
+      // set up reply input for this post
+      const replyfield: HTMLTextAreaElement =
+        li.getElementsByClassName("verityPostInput")[0] as HTMLTextAreaElement;
+      replyfield.setAttribute("maxlength", ZwConfig.MAXIMUM_POST_LENGTH.toString());
+      replyfield.setAttribute("id", `verityReplyInput-${data.keystring}`);
+      replyfield.setAttribute("style", `height: ${replyfield.scrollHeight}px;`);  // for auto-resize
+      // @ts-ignore Typescript does not like us using custom window attributes
+      const replybutton: HTMLButtonElement =
+        li.getElementsByClassName("verityPostButton")[0] as HTMLButtonElement
+      replybutton.setAttribute("id", `replybutton-${data.keystring}`);
     }
 
     // Insert sorted by date
