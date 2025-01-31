@@ -410,11 +410,11 @@ img.verityEditIdentityAvatar {
   max-height: 100em;
 }
 
-.expandButton {
+.verityPostExpandButton {
   transition: transform 0.3s ease;
 }
 
-.expandButton.rotate {
+.verityPostExpandButton.rotate {
   transform: rotate(-90deg);
 }
 
