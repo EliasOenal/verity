@@ -21,6 +21,7 @@ export class PostView extends VerityView {
     super(controller, htmlTemplate);
     this.postList = this.renderedView.querySelector(".verityPostList") as HTMLUListElement;
     this.clearAll();
+    if (!this.controller.identity) this.processNotLoggedIn();
     if (show) this.show();
   }
 
@@ -68,6 +69,10 @@ export class PostView extends VerityView {
     const replybutton: HTMLButtonElement =
       li.getElementsByClassName("verityPostButton")[0] as HTMLButtonElement
     replybutton.setAttribute("id", `replybutton-${data.keystring}`);
+    // disable reply input if necessary
+    if (!ZwConfig.ALLOW_ANONYMOUS_POSTS && !this.controller.identity) {
+      this.disableInput(replyform);
+    }
 
     // Insert sorted by date
     let appended: boolean = false;
@@ -146,4 +151,23 @@ export class PostView extends VerityView {
     }
     return replylist;
   }
+
+  processNotLoggedIn(): void {
+    if (!ZwConfig.ALLOW_ANONYMOUS_POSTS) {
+      const newPostForm: HTMLFormElement = this.renderedView.querySelector("#verityNewPostForm");
+      this.disableInput(newPostForm);
+    }
+  }
+
+  private disableInput(form: HTMLFormElement): void {
+    try {
+      const newPostTa: HTMLTextAreaElement = form.querySelector("textarea");
+      newPostTa.disabled = true;
+      newPostTa.value = "Please log in to post";
+      const newPostButton: HTMLButtonElement = form.querySelector("button");
+      newPostButton.disabled = true;
+    } catch(e) {
+      logger.error(`PostView.processNotLoggedIn(): Error manipulating DOM element, invalid template? Error: ${e}`);
+    }
+}
 }
