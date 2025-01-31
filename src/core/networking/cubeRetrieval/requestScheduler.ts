@@ -449,6 +449,7 @@ export class RequestScheduler implements Shuttable {
     const key = keyVariants(keyInput);
     return this.subscribedCubes.get(key.keyString);
   }
+
   /**
    * Request all Cubes notifying the specified key from the network.
    * This obviously only makes sense for light nodes as full nodes will always
@@ -470,23 +471,21 @@ export class RequestScheduler implements Shuttable {
     if (this._shutdown) return Promise.resolve(undefined);
     const key = keyVariants(recipientKey);  // normalise input
 
+    // Create request object
+    const req = new CubeRequest(timeout, { key: key.binaryKey });
+    this.requestedNotifications.set(key.keyString, req);  // remember request
+
+    // Based on what our caller requested, either request notifications Cubes
+    // directly, or indirectly through a KeyRequest.
     if (directCubeRequest) {
       // Directly send a CubeRequest. This makes sense if we don't have any
       // notifications for this recipient yet.
-      const req = new CubeRequest(timeout, {
-        key: key.binaryKey,
-      });  // create request
-      this.requestedNotifications.set(key.keyString, req);  // remember request
       this.scheduleCubeRequest(scheduleIn);  // schedule request
       return req.promise;  // return result eventually
     } else {
-      // remember this request and create a promise for it
-      const req = new CubeRequest(timeout, {
-        key: key.binaryKey,
-      });
-      this.expectedNotifications.set(key.keyString, req);
       // Start with a KeyRequest. This makes sense if we already have (a lot of)
       // notifications for this recipient and want to avoid redownloading them all.
+      this.expectedNotifications.set(key.keyString, req);
       const filter: CubeFilterOptions = {
         notifies: key.binaryKey,
       }
