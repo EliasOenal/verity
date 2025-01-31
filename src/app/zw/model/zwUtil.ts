@@ -123,7 +123,3 @@ export function assertZwMuc(cube: Cube): boolean {
   }
   else return assertZwCube(cube);
 }
-
-// maybe provide a makeMUC() function as well?
-// on the other hand, there will probably no other code creating MUCs
-// besides Identity.makeMUC().

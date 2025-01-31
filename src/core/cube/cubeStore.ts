@@ -114,6 +114,10 @@ export interface CubeEmitter extends EventEmitter {
    * or would have been emitted if the emitter existed at the appropriate time.
    */
   getAllCubeInfos(): AsyncGenerator<CubeInfo>;
+
+  // CubeEmitter may optionally implement Shuttable.
+  // You should thus also call cubeEmitter?.shutdown?.() when you're done with it.
+  shutdown?: () => Promise<void>;
 }
 
 export class CubeStore extends EventEmitter implements CubeRetrievalInterface, CubeEmitter, Shuttable {

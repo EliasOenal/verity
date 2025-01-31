@@ -1,5 +1,8 @@
 import { CubeKey } from "../../../../core/cube/cube.definitions";
 import { CubeInfo } from "../../../../core/cube/cubeInfo";
+import { keyVariants } from "../../../../core/cube/cubeUtil";
+import { CubeEmitter } from "../../../../core/cube/cubeStore";
+import { logger } from "../../../../core/logger";
 
 import { cciFieldType } from "../../../../cci/cube/cciCube.definitions";
 import { cciFields } from "../../../../cci/cube/cciFields";
@@ -9,19 +12,18 @@ import { ensureCci } from "../../../../cci/cube/cciCubeUtil";
 import { Identity } from "../../../../cci/identity/identity";
 import { UNKNOWNAVATAR } from "../../../../cci/identity/avatar";
 
+import { ZwConfig } from "../../model/zwConfig";
+import { NotifyingIdentityEmitter } from "../../model/notifyingIdentityEmitter";
 import { makePost } from "../../model/zwUtil";
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../model/zwAnnotationEngine";
 
-import { PostView } from "./postView";
 import { ControllerContext, VerityController } from "../../../../webui/verityController";
+import { PostView } from "./postView";
 
-import { logger } from "../../../../core/logger";
+import { FileApplication } from '../../../fileApplication';
 
 import { Buffer } from 'buffer';
-import { FileApplication } from '../../../fileApplication';
 import DOMPurify from 'dompurify';
-import { keyVariants } from "../../../../core/cube/cubeUtil";
-import { ArrayFromAsync } from "../../../../core/helpers/misc";
 
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
@@ -48,6 +50,7 @@ export class PostController extends VerityController {
   declare public contentAreaView: PostView;
   private displayedPosts: Map<string, PostData> = new Map();
   private annotationEngine: ZwAnnotationEngine;
+  private reEmitter: CubeEmitter;
 
   constructor(
       parent: ControllerContext,
@@ -62,8 +65,7 @@ export class PostController extends VerityController {
 
   async navSubscribed(): Promise<void> {
     logger.trace("PostController: Displaying posts from subscribed authors and their preceding posts");
-    this.removeAnnotationEngineListeners();
-    this.annotationEngine?.shutdown();
+    this.shutdownComponents();
     await this.identity?.setSubscriptionRecursionDepth(1);
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.identity,
@@ -79,12 +81,31 @@ export class PostController extends VerityController {
   }
 
   async navWot(): Promise<void> {
-    logger.trace("PostController: Displaying posts from subscribed, sub-subscribed and sub-sub-subscribed authors and their preceding posts (WOT3)");
-    this.removeAnnotationEngineListeners();
-    this.annotationEngine?.shutdown();
-    await this.identity?.setSubscriptionRecursionDepth(3);
+    logger.trace("PostController: Displaying posts from my web of trust, up to five levels deep (WOT5)");
+    this.shutdownComponents();
+    await this.identity?.setSubscriptionRecursionDepth(5);
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.identity,
+      this.cubeRetriever,
+      SubscriptionRequirement.none,
+      undefined,
+      true,      // auto-learn MUCs (to be able to display authors when available)
+      true,      // no need to filter anonymous posts as they won't be fed anyway
+    );
+    this.annotationEngine.on('cubeDisplayable', this.displayPost);
+    this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
+    return this.redisplayPosts();
+  }
+
+  async navExplore(): Promise<void> {
+    logger.trace("PostController: Displaying posts from unknown authors based on notifications");
+    this.shutdownComponents();
+    this.identity?.setSubscriptionRecursionDepth(0);  // no need to await
+    this.reEmitter = new NotifyingIdentityEmitter(this.cubeRetriever, this.identity?.options.identityStore);
+    this.cubeRetriever.requestScheduler.requestNotifications(
+      keyVariants(ZwConfig.NOTIFICATION_KEY).binaryKey, 0);
+    this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
+      this.reEmitter,
       this.cubeRetriever,
       SubscriptionRequirement.none,
       undefined,
@@ -99,8 +120,8 @@ export class PostController extends VerityController {
   /** @deprecated Neither works on light nodes nor with any kind of efficiency */
   async navLocalPosts(): Promise<void> {
     logger.trace("PostController: Displaying all posts including anonymous ones");
-    this.removeAnnotationEngineListeners();
-    this.annotationEngine?.shutdown();
+    this.shutdownComponents();
+    this.identity?.setSubscriptionRecursionDepth(0);  // no need to await
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.cubeStore,
       this.cubeRetriever,
@@ -300,11 +321,6 @@ export class PostController extends VerityController {
   //***
   // State management methods
   //***
-  private removeAnnotationEngineListeners(): void {
-    this.annotationEngine?.removeListener('cubeDisplayable', this.displayPost);
-    this.annotationEngine?.removeListener('authorUpdated', this.redisplayAuthor);
-  }
-
   private async processImageTags(text: string): Promise<string> {
     const regex = /\[img\]([a-fA-F0-9]{64})\[\/img\]/g;
     const promises = [];
@@ -364,9 +380,15 @@ export class PostController extends VerityController {
   //***
   // Cleanup methods
   //***
-  shutdown(unshow: boolean = true, callback: boolean = true): Promise<void> {
-    this.removeAnnotationEngineListeners();
+  private shutdownComponents(): void {
+    this.annotationEngine?.removeListener('cubeDisplayable', this.displayPost);
+    this.annotationEngine?.removeListener('authorUpdated', this.redisplayAuthor);
     this.annotationEngine?.shutdown();
+    this.reEmitter?.shutdown?.();
+  }
+
+  shutdown(unshow: boolean = true, callback: boolean = true): Promise<void> {
+    this.shutdownComponents();
     return super.shutdown(unshow, callback);
   }
 
