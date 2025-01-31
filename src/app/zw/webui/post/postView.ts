@@ -92,6 +92,13 @@ export class PostView extends VerityView {
         }
     }
     if (!appended) container.appendChild(li);
+
+    // Hide expand button if post needs no expanding
+    const expandButton: HTMLButtonElement = li.querySelector(".verityPostExpandButton");
+    const postContent: HTMLElement = li.querySelector(".verityPostContent");
+    if (postContent.scrollHeight <= postContent.clientHeight) {
+      expandButton.remove();
+    }
   }
 
   redisplayCubeAuthor(data: PostData): void {
