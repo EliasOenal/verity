@@ -13,8 +13,8 @@ export async function webmain() {
   const navItems: NavItem[] = [
     // {controller: PostController, navAction: PostController.prototype.selectPostsWithAuthors, text: "All posts", exclusive: true},
     // {controller: PostController, navAction: PostController.prototype.selectAllPosts, text: "All posts (incl. anon.)", exclusive: true},
-    {controller: PostController, navAction: PostController.prototype.selectWot, text: "Web of trust", exclusive: true},
-    {controller: PostController, navAction: PostController.prototype.selectSubscribedReplied, text: "Subscribed", exclusive: true},
+    {controller: PostController, navAction: PostController.prototype.navWot, text: "Web of trust", exclusive: true},
+    {controller: PostController, navAction: PostController.prototype.navSubscribed, text: "Subscribed", exclusive: true},
     {controller: CubeExplorerController, navAction: CubeExplorerController.prototype.selectAll, text: "Cube Explorer"},
     {controller: FileManagerController, navAction: FileManagerController.prototype.showFileManager, text: "File Manager"},
     {controller: ChatController, navAction: ChatController.prototype.showChatApp, text: "Chat"},
@@ -22,7 +22,7 @@ export async function webmain() {
   const ui = await VerityUI.Construct({
     navItems: navItems,
     initialNav: navItems[0],
-    lightNode: false,
+    lightNode: true,
     idmucNotificationKey: keyVariants(ZwConfig.NOTIFICATION_KEY).binaryKey,
   });
   await ui.node.shutdownPromise;
