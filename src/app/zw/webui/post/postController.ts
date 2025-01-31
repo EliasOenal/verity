@@ -57,63 +57,10 @@ export class PostController extends VerityController {
   }
 
   //***
-  // View selection methods
+  // Navigation methods
   //***
-  /** @deprecated Neither works on light nodes nor with any kind of efficiency */
-  async selectAllPosts(): Promise<void> {
-    logger.trace("PostController: Displaying all posts including anonymous ones");
-    this.removeAnnotationEngineListeners();
-    this.annotationEngine?.shutdown();
-    this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      this.cubeStore,
-      this.cubeRetriever,
-      SubscriptionRequirement.none,  // show all posts
-      [],       // subscriptions don't play a role in this mode
-      true,     // auto-learn MUCs to display authorship info if available
-      true,     // allow anonymous posts
-    );
-    this.annotationEngine.on('cubeDisplayable', this.displayPost);
-    this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
-    return this.redisplayPosts();
-  }
 
-  /** @deprecated Neither works on light nodes nor with any kind of efficiency */
-  async selectPostsWithAuthors(): Promise<void> {
-    logger.trace("PostController: Displaying posts associated with a MUC");
-    this.removeAnnotationEngineListeners();
-    this.annotationEngine?.shutdown();
-    this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      this.cubeStore,
-      this.cubeRetriever,
-      SubscriptionRequirement.none,
-      [],       // no subscriptions as they don't play a role in this mode
-      true,     // auto-learn MUCs (posts associated with any Identity MUC are okay)
-      false,
-    );
-    this.annotationEngine.on('cubeDisplayable', this.displayPost);
-    this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
-    return this.redisplayPosts();
-  }
-
-  /** @deprecated Neither works on light nodes nor with any kind of efficiency */
-  async selectSubscribedInTree(): Promise<void> {
-    logger.trace("PostController: Displaying posts from trees with subscribed author activity");
-    this.removeAnnotationEngineListeners();
-    this.annotationEngine?.shutdown();
-    this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      this.cubeStore,
-      this.cubeRetriever,
-      SubscriptionRequirement.subscribedInTree,
-      await ArrayFromAsync(this.cubeStore.getCubeInfos(this.identity.getPublicSubscriptionStrings())),  // subscriptions
-      true,      // auto-learn MUCs (to be able to display authors when available)
-      false,     // do not allow anonymous posts
-    );
-    this.annotationEngine.on('cubeDisplayable', this.displayPost);
-    this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
-    return this.redisplayPosts();
-  }
-
-  async selectSubscribedReplied(): Promise<void> {
+  async navSubscribed(): Promise<void> {
     logger.trace("PostController: Displaying posts from subscribed authors and their preceding posts");
     this.removeAnnotationEngineListeners();
     this.annotationEngine?.shutdown();
@@ -124,14 +71,14 @@ export class PostController extends VerityController {
       SubscriptionRequirement.none,
       undefined,
       true,      // auto-learn MUCs (to be able to display authors when available)
-      true,     // no need to filter anonymous posts as they won't be fed anyway
+      true,      // no need to filter anonymous posts as they won't be fed anyway
     );
     this.annotationEngine.on('cubeDisplayable', this.displayPost);
     this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
     return this.redisplayPosts();
   }
 
-  async selectWot(): Promise<void> {
+  async navWot(): Promise<void> {
     logger.trace("PostController: Displaying posts from subscribed, sub-subscribed and sub-sub-subscribed authors and their preceding posts (WOT3)");
     this.removeAnnotationEngineListeners();
     this.annotationEngine?.shutdown();
@@ -142,7 +89,25 @@ export class PostController extends VerityController {
       SubscriptionRequirement.none,
       undefined,
       true,      // auto-learn MUCs (to be able to display authors when available)
-      true,     // no need to filter anonymous posts as they won't be fed anyway
+      true,      // no need to filter anonymous posts as they won't be fed anyway
+    );
+    this.annotationEngine.on('cubeDisplayable', this.displayPost);
+    this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
+    return this.redisplayPosts();
+  }
+
+  /** @deprecated Neither works on light nodes nor with any kind of efficiency */
+  async navLocalPosts(): Promise<void> {
+    logger.trace("PostController: Displaying all posts including anonymous ones");
+    this.removeAnnotationEngineListeners();
+    this.annotationEngine?.shutdown();
+    this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
+      this.cubeStore,
+      this.cubeRetriever,
+      SubscriptionRequirement.none,  // show all posts
+      [],       // subscriptions don't play a role in this mode
+      true,     // auto-learn MUCs to display authorship info if available
+      true,     // allow anonymous posts
     );
     this.annotationEngine.on('cubeDisplayable', this.displayPost);
     this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
