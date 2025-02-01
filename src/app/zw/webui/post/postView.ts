@@ -81,19 +81,22 @@ export class PostView extends VerityView {
     // Insert sorted by date
     let appended: boolean = false;
     for (const child of container.children) {
-        const timestamp: string | null = child.getAttribute("data-timestamp");
-        if (timestamp) {
-            const childdate: number = parseInt(timestamp);
-            if (childdate < data.timestamp) {
-                container.insertBefore(li, child);
-                appended = true;
-                break;
-            }
+      const timestamp: string | null = child.getAttribute("data-timestamp");
+      if (timestamp) {
+        const childdate: number = parseInt(timestamp);
+        if (childdate < data.timestamp) {
+          container.insertBefore(li, child);
+          appended = true;
+          break;
         }
+      }
     }
     if (!appended) container.appendChild(li);
 
     // Hide expand button if post needs no expanding
+    // TODO BUGBUG: This needs to be recalculated on every viewport resize.
+    //   Otherwise, the expand button may stay hidden even though content gets
+    //   truncated after the window is resized.
     const expandButton: HTMLButtonElement = li.querySelector(".verityPostExpandButton");
     const postContent: HTMLElement = li.querySelector(".verityPostContent");
     if (postContent.scrollHeight <= postContent.clientHeight) {
