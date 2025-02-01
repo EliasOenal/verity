@@ -14,6 +14,8 @@ import { testCubeStoreParams } from '../testcci.definitions';
 
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { ArrayFromAsync } from '../../../src/core/helpers/misc';
+import { keyVariants } from '../../../src/core/cube/cubeUtil';
 
 describe('Identity: base model tests', () => {
   // This test suite provides basic unit tests regarding Identity's internal
@@ -114,25 +116,42 @@ describe('Identity: base model tests', () => {
       await cubeStore.shutdown();
     });
 
-    it('stores and remembers subscription recommendations', () => {
+    it('stores subscription recommendations and provides them through Generators', async () => {
       const id = new Identity(
-        undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
+        cubeStore, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
       expect(id.getPublicSubscriptionCount()).toBe(0);
 
-      id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      const subbed = new Identity(
+        cubeStore, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42), idTestOptions);
+      await subbed.store();
+      id.addPublicSubscription(subbed.key);
       expect(id.getPublicSubscriptionCount()).toBe(1);
-      expect(id.hasPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337))).toBeTruthy();
+      expect(id.hasPublicSubscription(subbed.key)).toBeTruthy();
+
+      // test generators
+      const keys: CubeKey[] = Array.from(id.getPublicSubscriptionKeys());
+      expect(keys).toHaveLength(1);
+      expect(keys[0]).toEqual(subbed.key);
+
+      const keyStrings: string[] = Array.from(id.getPublicSubscriptionStrings());
+      expect(keyStrings).toHaveLength(1);
+      expect(keyStrings[0]).toEqual(subbed.keyString);
+
+      const idObjects: Identity[] = await ArrayFromAsync(id.getPublicSubscriptionIdentities());  // TODO WTF?!?!?!
+      expect(idObjects).toHaveLength(1);
+      expect(idObjects[0]).toEqual(subbed);
     });
 
-    it('remembers only unique subscription recommendations', () => {
+    it('remembers only unique subscription recommendations', async () => {
       const id = new Identity(
         undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
       expect(id.getPublicSubscriptionCount()).toBe(0);
 
-      id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
-      id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      const subbedKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337);
+      id.addPublicSubscription(subbedKey);
+      id.addPublicSubscription(subbedKey);
       expect(id.getPublicSubscriptionCount()).toBe(1);
-      expect(id.hasPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337))).toBeTruthy();
+      expect(id.hasPublicSubscription(subbedKey)).toBeTruthy();
     });
 
     it('correctly identifies authors as subscribed or not subscribed', async () => {
