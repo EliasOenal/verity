@@ -395,7 +395,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   /** @deprecated */
   // get publicSubscriptions(): Set<string> { return this._publicSubscriptions }
   *getPublicSubscriptionKeys(): Iterable<CubeKey> {
-    for (const key of this._posts) yield keyVariants(key).binaryKey;
+    for (const key of this._publicSubscriptions) yield keyVariants(key).binaryKey;
   }
   getPublicSubscriptionStrings(): Iterable<string> {
     return this._publicSubscriptions.values()
