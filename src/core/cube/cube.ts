@@ -373,6 +373,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
                 break;
             case CubeType.MUC_NOTIFY:
                 ret = "Notification MUC";
+                break;
             case CubeType.PIC:
                 ret = "PIC";
                 break;
