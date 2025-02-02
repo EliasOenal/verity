@@ -206,6 +206,9 @@ export class PostController extends VerityController {
       }
     }
 
+    // we've awaited stuff, so let's check again: is this post already displayed?
+    if (this.displayedPosts.has(data.keystring)) return;
+
     this.contentAreaView.displayPost(data);  // have the view display the post
     this.displayedPosts.set(data.keystring, data);  // remember the displayed post
   }
