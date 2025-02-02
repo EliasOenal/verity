@@ -52,10 +52,14 @@ export class VerityView {
    * content beforehand, so that show() really only has to show it.
    **/
   show(exclusive: boolean = true) {
+    if (!this.viewArea) {
+      logger.error("VerityView.show(): No view area defined");
+      return;
+    }
     if (exclusive) {
-      this.viewArea?.replaceChildren(this.renderedView);
+      this.viewArea.replaceChildren(this.renderedView);
     } else {
-      this.viewArea?.prepend(this.renderedView);
+      this.viewArea.prepend(this.renderedView);
     }
   }
 
