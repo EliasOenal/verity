@@ -1,11 +1,11 @@
-import { CubeKey } from '../../src/core/cube/cube.definitions';
+import { CubeKey } from '../../../../src/core/cube/cube.definitions';
 
-import { cciFieldType } from '../../src/cci/cube/cciCube.definitions';
-import { cciCube } from '../../src/cci/cube/cciCube';
-import { cciField } from '../../src/cci/cube/cciField';
-import { cciRelationshipType } from '../../src/cci/cube/cciRelationship';
+import { cciFieldType } from '../../../../src/cci/cube/cciCube.definitions';
+import { cciCube } from '../../../../src/cci/cube/cciCube';
+import { cciField } from '../../../../src/cci/cube/cciField';
+import { cciRelationshipType } from '../../../../src/cci/cube/cciRelationship';
 
-import { FileApplication } from '../../src/app/fileApplication';
+import { FileApplication } from '../../../../src/app/fileApplication';
 
 import { Buffer } from 'buffer';
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';

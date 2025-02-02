@@ -1,16 +1,16 @@
-import { Identity } from "../../src/cci/identity/identity";
+import { Identity } from "../../../../src/cci/identity/identity";
 
-import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zw/model/zwAnnotationEngine";
-import { makePost } from "../../src/app/zw/model/zwUtil"
+import { SubscriptionRequirement, ZwAnnotationEngine } from "../../../../src/app/zw/model/zwAnnotationEngine";
+import { makePost } from "../../../../src/app/zw/model/zwUtil"
 
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { CubeStore } from "../../src/core/cube/cubeStore";
+import { CubeStore } from "../../../../src/core/cube/cubeStore";
 
-import { idTestOptions, testCubeStoreParams } from "../cci/testcci.definitions";
-import { Cube } from "../../src/core/cube/cube";
-import { cciCube } from "../../src/cci/cube/cciCube";
-import { CubeInfo } from "../../src/core/cube/cubeInfo";
+import { idTestOptions, testCubeStoreParams } from "../../../cci/testcci.definitions";
+import { Cube } from "../../../../src/core/cube/cube";
+import { cciCube } from "../../../../src/cci/cube/cciCube";
+import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
 
 describe('post displayability', () => {
   // This suite tests that posts are properly marked as displayable,
