@@ -124,11 +124,15 @@ export class DummyVerityNode implements VerityNodeIf {
   get readyPromise(): Promise<void> { return this.cubeStore.readyPromise }
   readonly shutdownPromise: Promise<void>;
 
-  constructor(){
-    this.cubeStore = new CubeStore({inMemory: true});
+  constructor(optionsInput: VerityNodeOptions = {}) {
+    const options = {
+      ... optionsInput,
+      inMemory: true,
+    };
+    this.cubeStore = new CubeStore(options);
     this.peerDB = new PeerDB();
     this.networkManager = new DummyNetworkManager(this.cubeStore, this.peerDB);
-    this.cubeRetriever = new CubeRetriever(this.cubeStore, new RequestScheduler(this.networkManager));
+    this.cubeRetriever = new CubeRetriever(this.cubeStore, new RequestScheduler(this.networkManager, options));
     this.onlinePromise = Promise.resolve(undefined);
     this.shutdownPromise = Promise.resolve(undefined);
   }
