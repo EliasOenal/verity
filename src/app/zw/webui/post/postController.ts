@@ -103,7 +103,7 @@ export class PostController extends VerityController {
     this.identity?.setSubscriptionRecursionDepth(0);  // no need to await
     this.reEmitter = new NotifyingIdentityEmitter(this.cubeRetriever, this.identity?.options.identityStore);
     this.cubeRetriever.requestScheduler.requestNotifications(
-      keyVariants(ZwConfig.NOTIFICATION_KEY).binaryKey, 0);
+      ZwConfig.NOTIFICATION_KEY, 0);
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.reEmitter,
       this.cubeRetriever,

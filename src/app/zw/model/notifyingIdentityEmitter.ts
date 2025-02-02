@@ -28,7 +28,7 @@ export class NotifyingIdentityEmitter extends EventEmitter implements CubeEmitte
     public options: NotifyingIdentityEmitterOptions = {},
   ) {
     // set default options
-    options.notificationKey ??= keyVariants(ZwConfig.NOTIFICATION_KEY).binaryKey;
+    options.notificationKey ??= ZwConfig.NOTIFICATION_KEY;
     options.identityRecursionDepth ??= 5;
 
     super();
