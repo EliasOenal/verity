@@ -3,7 +3,7 @@ import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 
 import { cciCube } from "../../../src/cci/cube/cciCube";
-import { Identity } from "../../../src/cci/identity/identity";
+import { Identity, IdentityOptions } from "../../../src/cci/identity/identity";
 
 import { ZwAnnotationEngine, SubscriptionRequirement } from "../../../src/app/zw/model/zwAnnotationEngine";
 import { makePost } from "../../../src/app/zw/model/zwUtil";
@@ -11,10 +11,18 @@ import { makePost } from "../../../src/app/zw/model/zwUtil";
 import { testCubeStoreParams, idTestOptions } from "../../cci/testcci.definitions";
 
 import sodium from "libsodium-wrappers-sumo";
+import { ZwConfig } from "../../../src/app/zw/model/zwConfig";
+import { NotifyingIdentityEmitter } from "../../../src/app/zw/model/notifyingIdentityEmitter";
+
+export interface TestWorldOptions {
+  subscriptions?: boolean;
+  notifications?: boolean;
+}
 
 export class TestWorld {
   cubeStore: CubeStore;
   private engine: ZwAnnotationEngine;
+  identityOptions: IdentityOptions;
 
   protagonist: Identity;
   directSub: Identity;
@@ -58,11 +66,21 @@ export class TestWorld {
 
   ready: Promise<void>;
 
-  constructor() {
+  constructor(options: TestWorldOptions = {}) {
+    // set default options
+    options.subscriptions ??= true;
+    options.notifications ??= true;
+
+    this.identityOptions = { ...idTestOptions };
+    if (options.notifications) {
+      this.identityOptions.idmucNotificationKey = ZwConfig.NOTIFICATION_KEY;
+    }
+
     this.cubeStore = new CubeStore(testCubeStoreParams);
     this.ready = (async () => {
       await this.cubeStore.readyPromise;
       this.createIdentities();
+      if (options.subscriptions) this.makeSubscriptions();
       await this.makePosts();
       await this.storeIdentities();
     })();
@@ -76,8 +94,21 @@ export class TestWorld {
       this.cubeStore,
       SubscriptionRequirement.subscribedReply,
       undefined,
-      false,
-      true
+      true,  // auto-learn MUCs (to be able to display authors when available)
+      true,  // no need to filter anonymous posts as they won't be fed anyway
+    );
+  }
+
+  /** For unit testing only, not to be used for integration/UI tests */
+  async setExplore(): Promise<void> {
+    const reEmitter = new NotifyingIdentityEmitter(this.cubeStore, this.protagonist.options.identityStore);
+    this.engine = new ZwAnnotationEngine(
+      reEmitter,
+      this.cubeStore,
+      SubscriptionRequirement.none,
+      undefined,
+      true,  // auto-learn MUCs (to be able to display authors when available)
+      true,  // no need to filter anonymous posts as they won't be fed anyway
     );
   }
 
@@ -114,8 +145,9 @@ export class TestWorld {
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 46),
       idTestOptions
     );
+  }
 
-    // make subscriptions
+  private makeSubscriptions() {
     this.protagonist.addPublicSubscription(this.directSub.key);
     this.directSub.addPublicSubscription(this.indirectSub.key);
     this.indirectSub.addPublicSubscription(this.thirdLevelSub.key);
