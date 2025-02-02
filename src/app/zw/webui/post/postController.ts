@@ -90,7 +90,7 @@ export class PostController extends VerityController {
       SubscriptionRequirement.none,
       undefined,
       true,      // auto-learn MUCs (to be able to display authors when available)
-      true,      // no need to filter anonymous posts as they won't be fed anyway
+      true,      // allow anonymous posts as we may learn posts through replies without learning the author
     );
     this.annotationEngine.on('cubeDisplayable', this.displayPost);
     this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
@@ -110,7 +110,7 @@ export class PostController extends VerityController {
       SubscriptionRequirement.none,
       undefined,
       true,      // auto-learn MUCs (to be able to display authors when available)
-      true,      // no need to filter anonymous posts as they won't be fed anyway
+      true,      // allow anonymous posts as we may learn posts through replies without learning the author
     );
     this.annotationEngine.on('cubeDisplayable', this.displayPost);
     this.annotationEngine.on('authorUpdated', this.redisplayAuthor);

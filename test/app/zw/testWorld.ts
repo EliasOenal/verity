@@ -125,31 +125,31 @@ export class TestWorld {
     this.protagonist = new Identity(
       this.cubeStore,
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42),
-      idTestOptions
+      this.identityOptions,
     );
     this.protagonist.name = "protagonist";
     this.directSub = new Identity(
       this.cubeStore,
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 43),
-      idTestOptions
+      this.identityOptions,
     );
     this.directSub.name = "directSub";
     this.indirectSub = new Identity(
       this.cubeStore,
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 44),
-      idTestOptions
+      this.identityOptions,
     );
     this.indirectSub.name = "indirectSub";
     this.thirdLevelSub = new Identity(
       this.cubeStore,
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 45),
-      idTestOptions
+      this.identityOptions,
     );
     this.thirdLevelSub.name = "thirdLevelSub";
     this.unrelatedId = new Identity(
       this.cubeStore,
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 46),
-      idTestOptions
+      this.identityOptions,
     );
     this.unrelatedId.name = "unrelatedId";
   }
