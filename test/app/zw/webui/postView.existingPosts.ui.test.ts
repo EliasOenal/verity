@@ -1,0 +1,163 @@
+// @vitest-environment jsdom
+
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { TestWorld } from '../testWorld';
+import { PostController } from '../../../../src/app/zw/webui/post/postController';
+import { DummyVerityNode, VerityNodeIf, VerityNodeOptions } from '../../../../src/core/verityNode';
+import { DummyNavController } from '../../../../src/webui/navigation/navigationDefinitions';
+import { Veritable } from '../../../../src/core/cube/veritable.definition';
+import { cciFieldType } from '../../../../src/cci/cube/cciCube.definitions';
+import { Identity } from '../../../../src/cci/identity/identity';
+
+import { Buffer } from 'buffer';
+import { cciTestOptions } from '../../../cci/e2e/e2eCciSetup';
+import { loadZwTemplate } from './uiTestSetup';
+
+const testOptions: VerityNodeOptions = {
+  ...cciTestOptions,
+  requestTimeout: 100,
+}
+
+describe('PostView tests regarding displayal of existing posts', () => {
+  beforeAll(async () => {
+    // verify test setup
+    // - uses regular UInt8Array-based Buffers and not whatever crap JSDOM tries to inject
+    const testBuf = Buffer.alloc(10, 42);
+    expect(testBuf).toBeInstanceOf(Uint8Array);
+    expect(Buffer.isBuffer(testBuf)).toBe(true);
+
+    // load HTML/CSS templates
+    await loadZwTemplate();
+  });
+
+  describe('showing the correct posts', () => {
+    describe('My Network (posts based on subscriptions using full WOT)', () => {
+      let w: TestWorld;
+      let controller: PostController;
+
+      beforeAll(async () => {
+        const node: VerityNodeIf = new DummyVerityNode(testOptions);
+        await node.readyPromise;
+        w = new TestWorld({ subscriptions: true, cubeStore: node.cubeStore });
+        await w.ready;
+        controller = new PostController({
+          node,
+          nav: new DummyNavController(),
+          identity: w.protagonist,
+        });
+        await controller.navWot();
+        controller.contentAreaView.show();
+      });
+
+      it('should display my own root posts', async () => {
+        expectDisplayed(w.own, w.protagonist);
+      });
+
+      it("should display my direct subscription's posts", async () => {
+        expectDisplayed(w.directUnreplied, w.directSub);
+      });
+
+      it("should display indirect subscription's posts", async () => {
+        expectDisplayed(w.indirectUnreplied, w.indirectSub);
+        expectDisplayed(w.thirdUnreplied, w.thirdLevelSub);
+      });
+
+      it("should display my own replies to direct subscription's posts", async () => {
+        expectDisplayed(w.directOwn, w.protagonist);
+      });
+
+      it("should display my own replies to indirect subscription's posts", async () => {
+        expectDisplayed(w.indirectOwn, w.protagonist);
+        expectDisplayed(w.thirdOwn, w.protagonist);
+      });
+
+      it("should display my subscription's replies to my own posts", async () => {
+        expectDisplayed(w.ownDirect, w.directSub);
+        expectDisplayed(w.ownIndirect, w.indirectSub);
+        expectDisplayed(w.ownThird, w.thirdLevelSub);
+      });
+
+      it("should display my subscription's replies to my subscription's posts", async () => {
+        expectDisplayed(w.directThird, w.thirdLevelSub);
+      });
+
+      it('should NOT show root posts by non-subscribed users', async () => {
+        expectNotDisplayed(w.unrelatedUnanswered);
+      });
+
+      it('should NOT show replies by non-subscribed users', async () => {
+        expectNotDisplayed(w.ownUnrelatedUnanswered);
+      });
+
+      it('should show posts by non-subscribed users if subscribed users answered them', async () => {
+        // expectDisplayed(w.ownUnrelatedAnswered, w.unrelatedId);
+        // TODO BUGBUG: currently unable to resolve the non-subscribed author;
+        //              will display as unknown user
+        expectDisplayed(w.ownUnrelatedAnswered);
+      });
+
+      it('should show posts by non-subscribed users if I answered them', async () => {
+        // expectDisplayed(w.unrelatedAnsweredByProtagonist, w.unrelatedId);
+        // TODO BUGBUG: currently unable to resolve the non-subscribed author;
+        //              will display as unknown user
+        expectDisplayed(w.unrelatedAnsweredByProtagonist);
+      });
+
+      it("should show my subscription's replies to non-subscribed users", async () => {
+        expectDisplayed(w.unrelatedSub, w.directSub);
+        expectDisplayed(w.ownUnrelatedSub, w.directSub);
+      });
+
+      it("should show my own replies to non-subscribed users", async () => {
+        expectDisplayed(w.unrelatedOwn, w.protagonist);
+      });
+
+      // TODO do we actually want that?
+      it("should NOT display replies to unavailable posts", async () => {
+        expectNotDisplayed(w.subUnavailableIndirect);
+      });
+
+    });  // My Network (posts based on subscriptions using full WOT)
+
+
+    describe.todo('Explore (showcasing unknown authors based on group notifications)');
+  });  // showing the correct posts
+
+  describe('other correctness tests', () => {
+    it.todo('does not show the same post multiple times');
+    it.todo('shows embedded images');
+  });
+
+  describe('displaying post author', () => {
+    it.todo('does not fail if an author Identity has no screen name');
+    it.todo('will truncate overly long screen names');
+  });
+});
+
+
+//###
+// Helper functions
+//###
+
+function expectDisplayed(post: Veritable, author?: Identity) {
+  // fetch post li
+  const postLi: HTMLElement = document.querySelector(`.verityPost[data-cubekey="${post.getKeyStringIfAvailable()}"]`);
+  expect(postLi).not.toBeNull();
+
+  // check post content / text
+  const payload = post.getFirstField(cciFieldType.PAYLOAD).valueString;
+  const content: HTMLParagraphElement = postLi.querySelector(".verityPostContent");
+  expect(content).not.toBeNull();
+  expect(content.textContent).toBe(payload);
+
+  // check post author name
+  const authorField: HTMLElement = postLi.querySelector(".verityCubeAuthor");
+  expect(authorField).not.toBeNull();
+  if (author) expect(authorField.textContent).toBe(author.name);
+}
+
+function expectNotDisplayed(post: Veritable) {
+  // fetch post li
+  const postLi: HTMLElement = document.querySelector(`.verityPost[data-cubekey="${post.getKeyStringIfAvailable()}"]`);
+  expect(postLi).toBeNull();
+}

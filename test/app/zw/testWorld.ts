@@ -1,6 +1,6 @@
 import { Cube } from "../../../src/core/cube/cube";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
-import { CubeStore } from "../../../src/core/cube/cubeStore";
+import { CubeStore, CubeStoreOptions } from "../../../src/core/cube/cubeStore";
 
 import { cciCube } from "../../../src/cci/cube/cciCube";
 import { Identity, IdentityOptions } from "../../../src/cci/identity/identity";
@@ -11,12 +11,14 @@ import { makePost } from "../../../src/app/zw/model/zwUtil";
 import { testCubeStoreParams, idTestOptions } from "../../cci/testcci.definitions";
 
 import sodium from "libsodium-wrappers-sumo";
+import { Buffer } from 'buffer';
 import { ZwConfig } from "../../../src/app/zw/model/zwConfig";
 import { NotifyingIdentityEmitter } from "../../../src/app/zw/model/notifyingIdentityEmitter";
 
 export interface TestWorldOptions {
   subscriptions?: boolean;
   notifications?: boolean;
+  cubeStore?: CubeStore;
 }
 
 export class TestWorld {
@@ -76,7 +78,7 @@ export class TestWorld {
       this.identityOptions.idmucNotificationKey = ZwConfig.NOTIFICATION_KEY;
     }
 
-    this.cubeStore = new CubeStore(testCubeStoreParams);
+    this.cubeStore = options.cubeStore ?? new CubeStore(testCubeStoreParams);
     this.ready = (async () => {
       await this.cubeStore.readyPromise;
       this.createIdentities();
@@ -125,26 +127,31 @@ export class TestWorld {
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42),
       idTestOptions
     );
+    this.protagonist.name = "protagonist";
     this.directSub = new Identity(
       this.cubeStore,
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 43),
       idTestOptions
     );
+    this.directSub.name = "directSub";
     this.indirectSub = new Identity(
       this.cubeStore,
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 44),
       idTestOptions
     );
+    this.indirectSub.name = "indirectSub";
     this.thirdLevelSub = new Identity(
       this.cubeStore,
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 45),
       idTestOptions
     );
+    this.thirdLevelSub.name = "thirdLevelSub";
     this.unrelatedId = new Identity(
       this.cubeStore,
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 46),
       idTestOptions
     );
+    this.unrelatedId.name = "unrelatedId";
   }
 
   private makeSubscriptions() {
