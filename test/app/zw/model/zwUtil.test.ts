@@ -1,12 +1,12 @@
-import { Cube } from "../../src/core/cube/cube";
-import { cciField } from "../../src/cci/cube/cciField";
-import { NetConstants } from "../../src/core/networking/networkDefinitions";
+import { Cube } from "../../../../src/core/cube/cube";
+import { cciField } from "../../../../src/cci/cube/cciField";
+import { NetConstants } from "../../../../src/core/networking/networkDefinitions";
 
-import { cciFieldType } from "../../src/cci/cube/cciCube.definitions";
-import { cciCube } from "../../src/cci/cube/cciCube";
-import { cciRelationshipType } from "../../src/cci/cube/cciRelationship";
+import { cciFieldType } from "../../../../src/cci/cube/cciCube.definitions";
+import { cciCube } from "../../../../src/cci/cube/cciCube";
+import { cciRelationshipType } from "../../../../src/cci/cube/cciRelationship";
 
-import { makePost, assertZwCube } from "../../src/app/zw/model/zwUtil";
+import { makePost, assertZwCube } from "../../../../src/app/zw/model/zwUtil";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 

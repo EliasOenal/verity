@@ -1,17 +1,17 @@
-import { CubeKey } from "../../src/core/cube/cube.definitions";
-import { Cube } from "../../src/core/cube/cube";
-import { CubeField } from "../../src/core/cube/cubeField";
-import { CubeInfo } from "../../src/core/cube/cubeInfo";
-import { CubeStore } from "../../src/core/cube/cubeStore";
+import { CubeKey } from "../../../../src/core/cube/cube.definitions";
+import { Cube } from "../../../../src/core/cube/cube";
+import { CubeField } from "../../../../src/core/cube/cubeField";
+import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
+import { CubeStore } from "../../../../src/core/cube/cubeStore";
 
-import { MediaTypes } from "../../src/cci/cube/cciCube.definitions";
-import { cciCube, cciFamily } from "../../src/cci/cube/cciCube";
-import { cciField} from "../../src/cci/cube/cciField";
-import { cciRelationshipType, cciRelationship } from "../../src/cci/cube/cciRelationship";
-import { Identity, IdentityOptions } from "../../src/cci/identity/identity";
+import { MediaTypes } from "../../../../src/cci/cube/cciCube.definitions";
+import { cciCube, cciFamily } from "../../../../src/cci/cube/cciCube";
+import { cciField} from "../../../../src/cci/cube/cciField";
+import { cciRelationshipType, cciRelationship } from "../../../../src/cci/cube/cciRelationship";
+import { Identity, IdentityOptions } from "../../../../src/cci/identity/identity";
 
-import { SubscriptionRequirement, ZwAnnotationEngine } from "../../src/app/zw/model/zwAnnotationEngine";
-import { makePost } from "../../src/app/zw/model/zwUtil"
+import { SubscriptionRequirement, ZwAnnotationEngine } from "../../../../src/app/zw/model/zwAnnotationEngine";
+import { makePost } from "../../../../src/app/zw/model/zwUtil"
 
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
