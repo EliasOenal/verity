@@ -24,7 +24,7 @@ export async function webmain() {
     navItems: navItems,
     initialNav: navItems[2],
     lightNode: true,
-    idmucNotificationKey: keyVariants(ZwConfig.NOTIFICATION_KEY).binaryKey,
+    idmucNotificationKey: ZwConfig.NOTIFICATION_KEY,
   });
   await ui.node.shutdownPromise;
 };
