@@ -1,6 +1,6 @@
 import { CubeKey, HasNotify, CubeFieldType } from "../../../core/cube/cube.definitions";
 import { CubeInfo } from "../../../core/cube/cubeInfo";
-import { CubeEmitter } from "../../../core/cube/cubeStore";
+import { CubeEmitter, CubeStore } from "../../../core/cube/cubeStore";
 import { keyVariants } from "../../../core/cube/cubeUtil";
 import { Shuttable } from "../../../core/helpers/coreInterfaces";
 import { CubeRetriever } from "../../../core/networking/cubeRetrieval/cubeRetriever";
@@ -21,22 +21,32 @@ export interface NotifyingIdentityEmitterOptions {
 
 export class NotifyingIdentityEmitter extends EventEmitter implements CubeEmitter, Shuttable {
   identities: Map<string, Identity> = new Map();
+  private cubeStore: CubeStore;
+  private cubeRetriever: CubeRetriever;
 
   constructor(
-    readonly cubeRetriever: CubeRetriever,
+    cubeStoreOrRetriever: CubeRetriever|CubeStore,
     readonly identityStore?: IdentityStore,
     public options: NotifyingIdentityEmitterOptions = {},
   ) {
     // set default options
     options.notificationKey ??= ZwConfig.NOTIFICATION_KEY;
     options.identityRecursionDepth ??= 5;
-
     super();
-    if (identityStore === undefined) this.identityStore = new IdentityStore(cubeRetriever);
-    this.cubeRetriever.cubeStore.on('cubeAdded', this.learnIdentity);
-    this.cubeRetriever.requestScheduler.networkManager.on('peeronline', this.requestNotifications);  // need notification subscriptions and auto-retries in RequestScheduler :(
+
+    if (cubeStoreOrRetriever instanceof CubeRetriever) {
+      this.cubeRetriever = cubeStoreOrRetriever;
+      this.cubeStore = cubeStoreOrRetriever.cubeStore;
+    } else {
+      this.cubeRetriever = undefined;
+      this.cubeStore = cubeStoreOrRetriever;
+    }
+
+    if (identityStore === undefined) this.identityStore = new IdentityStore(cubeStoreOrRetriever);
+    this.cubeStore.on('cubeAdded', this.learnIdentity);
+    if (this.cubeRetriever) this.cubeRetriever.requestScheduler.networkManager.on('peeronline', this.requestNotifications);  // need notification subscriptions and auto-retries in RequestScheduler :(
     (async() => {
-      for await (const cubeInfo of this.cubeRetriever.cubeStore.getNotificationCubeInfos(this.options.notificationKey)) {
+      for await (const cubeInfo of this.cubeStore.getNotificationCubeInfos(this.options.notificationKey)) {
         this.learnIdentity(cubeInfo);
       }
     })();
@@ -49,7 +59,7 @@ export class NotifyingIdentityEmitter extends EventEmitter implements CubeEmitte
   }
 
   private requestNotifications = (): void => {
-    this.cubeRetriever.requestScheduler.requestNotifications(this.options.notificationKey);
+    if (this.cubeRetriever) this.cubeRetriever.requestScheduler.requestNotifications(this.options.notificationKey);
   }
 
   private learnIdentity = (cubeInfo: CubeInfo): void => {
@@ -58,7 +68,7 @@ export class NotifyingIdentityEmitter extends EventEmitter implements CubeEmitte
         const cube = cubeInfo.getCube() as cciCube;
         if (isCci(cube) && cube.getFirstField(CubeFieldType.NOTIFY)?.value.equals(this.options.notificationKey)) {
             if (this.identities.has(cube.getKeyStringIfAvailable())) return;
-            const identity = new Identity(this.cubeRetriever, cube, { identityStore: this.identityStore });
+            const identity = new Identity(this.cubeRetriever ?? this.cubeStore, cube, { identityStore: this.identityStore });
             if (identity) {
               if (this.identities.has(identity.keyString)) {
                 identity.shutdown();
@@ -91,8 +101,8 @@ export class NotifyingIdentityEmitter extends EventEmitter implements CubeEmitte
     this._shuttingDown = true;
 
     // remove my subscriptions
-    this.cubeRetriever.cubeStore.removeListener('cubeAdded', this.learnIdentity);
-    this.cubeRetriever.requestScheduler.networkManager.removeListener('peeronline', this.requestNotifications);
+    this.cubeStore.removeListener('cubeAdded', this.learnIdentity);
+    if (this.cubeRetriever) this.cubeRetriever.requestScheduler.networkManager.removeListener('peeronline', this.requestNotifications);
 
     // remove subscriptions from my Identities and shut them down
     for (const identity of this.identities.values()) {
