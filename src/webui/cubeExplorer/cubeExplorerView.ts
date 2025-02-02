@@ -48,11 +48,11 @@ export class CubeExplorerView extends VerityView {
 
   displayStats(processed: number, displayed: number, filtered: number): void {
     (this.renderedView.querySelector(".verityCubeStoreStatCubesProcessed") as HTMLElement)
-      .innerText = processed.toString();
+      .textContent = processed.toString();
     (this.renderedView.querySelector(".verityCubeStoreStatCubesDisplayed") as HTMLElement)
-      .innerText = displayed.toString();
+      .textContent = displayed.toString();
     (this.renderedView.querySelector(".verityCubeStoreStatCubesFiltered") as HTMLElement)
-      .innerText = filtered.toString();
+      .textContent = filtered.toString();
   }
 
   displayCubeSummary(key: string): void {
@@ -94,18 +94,18 @@ export class CubeExplorerView extends VerityView {
     typeWithEmoji = emoji + type;
 
     const summary: HTMLElement = li.querySelector(".verityCubeSummary");
-    summary.innerText = emoji + key;
+    summary.textContent = emoji + key;
 
     // (re-)create Cube details container
     const exploredCube: HTMLElement = li.querySelector(".verityExploredCube");
     const newExploredCube: HTMLElement = this.newFromTemplate(".verityExploredCube");
     exploredCube.replaceChildren(...(Array.from(newExploredCube.children)));
 
-    (li.querySelector(".verityCubeType") as HTMLElement).innerText = typeWithEmoji;
-    (li.querySelector(".verityCubeHash") as HTMLElement).innerText = cube.getHashIfAvailable().toString('hex');
+    (li.querySelector(".verityCubeType") as HTMLElement).textContent = typeWithEmoji;
+    (li.querySelector(".verityCubeHash") as HTMLElement).textContent = cube.getHashIfAvailable().toString('hex');
     const dateText = formatDate(cube.getDate());
-    (li.querySelector(".verityCubeDate") as HTMLElement).innerText = dateText;
-    (li.querySelector(".verityCubeDifficulty") as HTMLElement).innerText = cube.getDifficulty().toString();
+    (li.querySelector(".verityCubeDate") as HTMLElement).textContent = dateText;
+    (li.querySelector(".verityCubeDifficulty") as HTMLElement).textContent = cube.getDifficulty().toString();
 
     const schematicContainer: HTMLElement = li.querySelector(".veritySchematicFields");
     schematicContainer.replaceChildren();
@@ -119,7 +119,7 @@ export class CubeExplorerView extends VerityView {
       schematicField.setAttribute("id", `pills-tab-${key}-${i}`);
       schematicField.setAttribute("data-bs-target", `#pills-${key}-${i}`);
       schematicField.setAttribute("aria-controls", `pills-${key}-${i}`);
-      schematicField.innerText = fieldName ?? (field.type >> 2).toString();
+      schematicField.textContent = fieldName ?? (field.type >> 2).toString();
       schematicContainer.appendChild(schematicField);
 
       const detailsTable: HTMLTableElement = this.newFromTemplate(".veritySchematicFieldDetails") as HTMLTableElement;
@@ -134,9 +134,9 @@ export class CubeExplorerView extends VerityView {
       } else if (cube.fieldParser.fieldDef.remainderField === field.type) {
         fieldType += " (virtual field containing unparsed data)"
       } else fieldType += ` (code ${(field.type >> 2).toString()} / 0x${(field.type >> 2).toString(16)})`;
-      (detailsTable.querySelector(".veritySchematicFieldType") as HTMLElement).innerText = fieldType;
-      (detailsTable.querySelector(".veritySchematicFieldStart") as HTMLElement).innerText = field.start?.toString();
-      (detailsTable.querySelector(".veritySchematicFieldLength") as HTMLElement).innerText = field.length?.toString();
+      (detailsTable.querySelector(".veritySchematicFieldType") as HTMLElement).textContent = fieldType;
+      (detailsTable.querySelector(".veritySchematicFieldStart") as HTMLElement).textContent = field.start?.toString();
+      (detailsTable.querySelector(".veritySchematicFieldLength") as HTMLElement).textContent = field.length?.toString();
 
       this.setDecodedFieldContent(field, detailsTable);
       fieldDetailsContainer.appendChild(detailsTable);
@@ -244,7 +244,7 @@ export class CubeExplorerView extends VerityView {
     const content: string = field.value.toString(  // use specified encoding or default to hex
       EncodingIndex[encodingIndex] as BufferEncoding ?? 'hex');
     (detailsTable.querySelector(".veritySchematicFieldContent") as HTMLElement)
-      .innerText = content;
+      .textContent = content;
     (detailsTable.querySelector(".verityContentEncodingSwitch") as HTMLSelectElement)
       .value = EncodingIndex[encodingIndex];
   }

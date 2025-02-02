@@ -50,7 +50,7 @@ export class PostView extends VerityView {
     this.displayCubeAuthor(data);
     // date
     const dateelem = li.getElementsByClassName("verityPostDate")[0] as HTMLElement;
-    dateelem.innerText = formatDate(data.timestamp)
+    dateelem.textContent = formatDate(data.timestamp)
     // post text
     const text: HTMLParagraphElement =
       li.getElementsByClassName("verityPostContent")[0] as HTMLParagraphElement;
@@ -125,14 +125,14 @@ export class PostView extends VerityView {
     authorelement.setAttribute("id", data.keystring + "-author");
     authorelement.setAttribute("class", "verityCubeAuthor");
     if (data.authorkey) authorelement.setAttribute("title", "MUC key " + data.authorkey);
-    authorelement.innerText = data.author;
+    authorelement.textContent = data.author;
 
     const subscribeButton: HTMLButtonElement =
     data.displayElement.getElementsByClassName("veritySubscribeButton")[0] as HTMLButtonElement;
     if (data.authorkey && data.authorsubscribed !== "none") {
       subscribeButton.setAttribute("data-authorkey", data.authorkey);
       if (data.authorsubscribed === "self") {  // own post
-        subscribeButton.innerText = "You"
+        subscribeButton.textContent = "You"
         subscribeButton.classList.add("active");
         subscribeButton.removeAttribute("onclick");
       }

@@ -65,7 +65,7 @@ function onTextareaInput(textarea) {
   if (textarea.value.length > 0) {
     progressContainer.setAttribute("style", "display: flex;")
     const charsLeft = textarea.getAttribute("maxlength") - byteSize(textarea.value);
-    remainingCharDisplay.innerText = charsLeft;
+    remainingCharDisplay.textContent = charsLeft;
     const percentageLeft =
       (1 - byteSize(textarea.value) / textarea.getAttribute("maxlength")) * 100;
     progressBar.setAttribute("style", `width: ${percentageLeft}%`)

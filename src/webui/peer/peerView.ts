@@ -56,12 +56,12 @@ export class PeerView extends VerityView {
     try {
       // Print & set peer ID on all relevant elements
       const idField: HTMLTableCellElement = freshLi.querySelector('.verityPeerId');
-      idField.innerText = peer.idString ?? "unknown";
+      idField.textContent = peer.idString ?? "unknown";
       freshLi.setAttribute("id", "verityPeer-" + peer.idString);
 
       // Print trust score
       const trustField: HTMLTableCellElement = freshLi.querySelector('.verityPeerScore');
-      trustField.innerText = peer.trustScore.toString();
+      trustField.textContent = peer.trustScore.toString();
 
       // Print peer connection information depending on whether this peer is
       // connected or not (i.e. whether or not it is a NetworkPeer)
@@ -70,44 +70,44 @@ export class PeerView extends VerityView {
         const statusField: HTMLTableCellElement =
           freshLi.querySelector('.verityPeerStatus');
         if (networkPeer.status === NetworkPeerLifecycle.CONNECTING) {
-          statusField.innerText = "Trying to connect...";
+          statusField.textContent = "Trying to connect...";
         } else if (networkPeer.status === NetworkPeerLifecycle.HANDSHAKING) {
-          statusField.innerText = "Handshaking...";
+          statusField.textContent = "Handshaking...";
         } else if (networkPeer.status === NetworkPeerLifecycle.ONLINE) {
           if (networkPeer.conn.errorCount === 0) {
-            statusField.innerText = "OK";
+            statusField.textContent = "OK";
           } else {
-            statusField.innerText = `${networkPeer.conn.errorCount} errors over ${
+            statusField.textContent = `${networkPeer.conn.errorCount} errors over ${
                 unixtime() - networkPeer.conn.lastSuccessfulTransmission
               } seconds`;
           }
         } else if (networkPeer.status === NetworkPeerLifecycle.CLOSING) {
-          statusField.innerText = "Closing connection...";
+          statusField.textContent = "Closing connection...";
         } else if (networkPeer.status === NetworkPeerLifecycle.CLOSED) {
-          statusField.innerText = 'Not connected';
+          statusField.textContent = 'Not connected';
         } else {  // should never happen
-          statusField.innerText = 'Unknown NetworkPeer lifecycle status: ' + networkPeer.status;
+          statusField.textContent = 'Unknown NetworkPeer lifecycle status: ' + networkPeer.status;
         }
 
         // Print connected address
         const connField: HTMLTableCellElement = freshLi.querySelector('.verityPeerConn');
-        connField.innerText = networkPeer.conn.addressString;
+        connField.textContent = networkPeer.conn.addressString;
 
         // Print transmission stats
         const txMsg: HTMLTableCellElement = freshLi.querySelector('.verityPeerTxMsg');
-        txMsg.innerText = networkPeer.stats.tx.messages.toString();
+        txMsg.textContent = networkPeer.stats.tx.messages.toString();
         const txBytes: HTMLTableCellElement = freshLi.querySelector('.verityPeerTxSize');
-        txBytes.innerText = humanFileSize(networkPeer.stats.tx.bytes);
+        txBytes.textContent = humanFileSize(networkPeer.stats.tx.bytes);
         const rxMsg: HTMLTableCellElement = freshLi.querySelector('.verityPeerRxMsg');
-        rxMsg.innerText = networkPeer.stats.rx.messages.toString();
+        rxMsg.textContent = networkPeer.stats.rx.messages.toString();
         const rxBytes: HTMLTableCellElement = freshLi.querySelector('.verityPeerRxSize');
-        rxBytes.innerText = humanFileSize(networkPeer.stats.rx.bytes);
+        rxBytes.textContent = humanFileSize(networkPeer.stats.rx.bytes);
 
       } else {  // disconnected peer
         // Print connection status
         const statusField: HTMLTableCellElement =
           freshLi.querySelector('.verityPeerStatus');
-        statusField.innerText = 'Not connected';
+        statusField.textContent = 'Not connected';
 
         // Remove connected address
         const connRow: HTMLTableRowElement = freshLi.querySelector('.verityPeerConnRow');
@@ -135,7 +135,7 @@ export class PeerView extends VerityView {
         primaryButton.setAttribute("class", "veritySmallButton btn btn-outline-primary");
         if (peer.primaryAddressIndex == i) primaryButton.classList.add("active");
         primaryButton.setAttribute("onclick", "window.verity.peerController.makeAddressPrimary(this)");
-        primaryButton.innerText = "Primary";
+        primaryButton.textContent = "Primary";
         addrLi.appendChild(primaryButton);
         // All done
         addrsList.appendChild(addrLi);
@@ -172,7 +172,7 @@ export class PeerView extends VerityView {
   printMyId(): void {
     const container: HTMLElement = this.renderedView.querySelector('.verityMyId');
     if (!container) logger.error("PeerView: Could not my peer ID, did you mess with my DOM elements?!");
-    container.innerText = this.myId;
+    container.textContent = this.myId;
   }
 
   markNavActive(shallDisplay: ShallDisplay): void {

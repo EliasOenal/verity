@@ -32,7 +32,7 @@ export class LoginStatusView extends VerityView {
     const infoDiv: HTMLElement = this.newFromTemplate(".verityMyIdentityInfo");
     const usernameElem: HTMLElement =
       infoDiv.querySelector(".verityMyIdentityDisplayname") as HTMLElement;
-    usernameElem.innerText = identity.name;
+    usernameElem.textContent = identity.name;
     usernameElem.setAttribute("title", "MUC key " + identity.keyString);
     // show profile pic
     const profilePicElem:  HTMLImageElement = (this.renderedView.querySelector(
