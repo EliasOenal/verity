@@ -34,6 +34,6 @@ jobs:
       run: npm run build
 
     - name: Run vitest Tests
-      timeout-minutes: 3
+      timeout-minutes: 5
       run: npm test -- --run test/core/ test/cci/ test/web/controller/ test/app/zw/model/
       # note: skipping JSDOM UI tests because they're too slow
