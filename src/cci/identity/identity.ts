@@ -598,7 +598,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
   //###
   // #endregion
-  // #region Post getters and Generators
+  // #region Post/Subscription/Cube getters, Generators and Emission
   //###
 
   *getPostKeys(): Iterable<CubeKey> {
@@ -616,11 +616,6 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     }
     yield *resolveAndYield(promises);
   }
-
-  //###
-  // #endregion
-  // #region Public Subscription getters and Generators
-  //###
 
   *getPublicSubscriptionKeys(): Iterable<CubeKey> {
     for (const key of this._publicSubscriptions) yield keyVariants(key).binaryKey;
@@ -647,91 +642,6 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   }
   getPublicSubscriptionIdentity(keyInput: CubeKey|string): Promise<Identity> {
     return this.identityStore.retrieveIdentity(keyInput);
-  }
-
-  //###
-  // #endregion
-  // #region CubeEmitter related methods
-  //###
-
-  async setSubscriptionRecursionDepth(
-      depth: number,
-      except: Set<string> = new Set(),
-  ): Promise<void> {
-
-    // prevent infinite recursion
-    if (except.has(this.keyString)) return Promise.resolve();
-    else except.add(this.keyString);
-
-    this._subscriptionRecursionDepth = depth;
-    const donePromises: Promise<void>[] = [];
-    for await (const sub of this.getPublicSubscriptionIdentities()) {
-      donePromises.push(this.setSubscriptionRecursionDepthPerSub(sub, depth, except));
-    }
-    return Promise.all(donePromises).then(() => undefined);
-  }
-  private setSubscriptionRecursionDepthPerSub(
-      sub: Identity,
-      depth: number = this._subscriptionRecursionDepth,
-      except: Set<string> = new Set(),
-    ): Promise<void> {
-    // input sanitisation
-    if (sub === undefined) {
-      logger.warn('Identity.setSubscriptionRecursionDepthPerSub(): param sub is undefined; skipping.');
-      return Promise.resolve();
-    }
-    // Prevent infinite recursion.
-    // (Sub will itself add itself to the except set once it has been called.)
-    if (except.has(sub.keyString)) return Promise.resolve();
-
-    // If any recursion is requested at all, we will re-emit my subscription's events.
-    // Otherwise, we obviously cancel our re-emissions.
-    sub.removeListener('cubeAdded', this.emitCubeAdded);
-    if (depth > 0) {
-      sub.on('cubeAdded', this.emitCubeAdded);
-    }
-
-    // Let my subscriptions know the new recursion level, which is obviously
-    // reduces by one as we're descending one level.
-    const nextLevelDepth: number = (depth < 1) ? 0 : depth - 1;
-    return sub.setSubscriptionRecursionDepth(nextLevelDepth, except);
-  }
-
-  // Note: Must use arrow function syntax to keep this method correctly bound
-  //       for method handler adding and removal.
-  private emitCubeAdded = async (
-      input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>,
-      recursionCount: number = 0,
-  ): Promise<void> => {
-    // only emit if there is a listener
-    if (this.listenerCount('cubeAdded') === 0) return;
-
-    // fetch the CubeInfo
-    let cubeInfo: CubeInfo;
-    if (input instanceof CubeInfo) {
-      cubeInfo = input;
-    } else if (input instanceof Cube) {
-      cubeInfo = await input.getCubeInfo();
-    } else if (input instanceof Promise) {
-      cubeInfo = await input;
-    } else if (typeof input === 'string' || Buffer.isBuffer(input)) {
-      cubeInfo = await this.cubeRetriever.getCubeInfo(input);
-    }
-
-    // assert that we have a CubeInfo -- this also covers invalid input
-    if (cubeInfo === undefined) {
-      logger.warn(`Identity ${this.keyString}.emitCubeAdded() was called for an unavailable CubeInfo; skipping.`);
-      return;
-    }
-
-    // prevent endless recursion by keeping track of the recursion count
-    if (recursionCount > this._subscriptionRecursionDepth) {
-      logger.warn(`Identity ${this.keyString}.emitCubeAdded() was called for a CubeInfo with too many levels of recursion; skipping.`);
-      return;
-    }
-    recursionCount++;
-
-    this.emit('cubeAdded', cubeInfo, recursionCount);
   }
 
   /**
@@ -773,6 +683,23 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     }
     const ret: AsyncGenerator<CubeInfo> = mergeAsyncGenerators(posts, subs, ...rGens);
     yield* ret;
+  }
+
+  async setSubscriptionRecursionDepth(
+      depth: number,
+      except: Set<string> = new Set(),
+  ): Promise<void> {
+
+    // prevent infinite recursion
+    if (except.has(this.keyString)) return Promise.resolve();
+    else except.add(this.keyString);
+
+    this._subscriptionRecursionDepth = depth;
+    const donePromises: Promise<void>[] = [];
+    for await (const sub of this.getPublicSubscriptionIdentities()) {
+      donePromises.push(this.setSubscriptionRecursionDepthPerSub(sub, depth, except));
+    }
+    return Promise.all(donePromises).then(() => undefined);
   }
 
   //###
@@ -1317,6 +1244,75 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     // set derived keys
     this.privateKey = signingKeyPair.privateKey;
     this.publicKey = signingKeyPair.publicKey;
+  }
+
+  //###
+  // #endregion
+  // #region PRIVATE Post/Subscription/Cube Emission
+  //###
+
+  private setSubscriptionRecursionDepthPerSub(
+    sub: Identity,
+    depth: number = this._subscriptionRecursionDepth,
+    except: Set<string> = new Set(),
+  ): Promise<void> {
+  // input sanitisation
+  if (sub === undefined) {
+    logger.warn('Identity.setSubscriptionRecursionDepthPerSub(): param sub is undefined; skipping.');
+    return Promise.resolve();
+  }
+  // Prevent infinite recursion.
+  // (Sub will itself add itself to the except set once it has been called.)
+  if (except.has(sub.keyString)) return Promise.resolve();
+
+  // If any recursion is requested at all, we will re-emit my subscription's events.
+  // Otherwise, we obviously cancel our re-emissions.
+  sub.removeListener('cubeAdded', this.emitCubeAdded);
+  if (depth > 0) {
+    sub.on('cubeAdded', this.emitCubeAdded);
+  }
+
+  // Let my subscriptions know the new recursion level, which is obviously
+  // reduces by one as we're descending one level.
+  const nextLevelDepth: number = (depth < 1) ? 0 : depth - 1;
+  return sub.setSubscriptionRecursionDepth(nextLevelDepth, except);
+}
+
+  // Note: Must use arrow function syntax to keep this method correctly bound
+  //       for method handler adding and removal.
+  private emitCubeAdded = async (
+      input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>,
+      recursionCount: number = 0,
+  ): Promise<void> => {
+    // only emit if there is a listener
+    if (this.listenerCount('cubeAdded') === 0) return;
+
+    // fetch the CubeInfo
+    let cubeInfo: CubeInfo;
+    if (input instanceof CubeInfo) {
+      cubeInfo = input;
+    } else if (input instanceof Cube) {
+      cubeInfo = await input.getCubeInfo();
+    } else if (input instanceof Promise) {
+      cubeInfo = await input;
+    } else if (typeof input === 'string' || Buffer.isBuffer(input)) {
+      cubeInfo = await this.cubeRetriever.getCubeInfo(input);
+    }
+
+    // assert that we have a CubeInfo -- this also covers invalid input
+    if (cubeInfo === undefined) {
+      logger.warn(`Identity ${this.keyString}.emitCubeAdded() was called for an unavailable CubeInfo; skipping.`);
+      return;
+    }
+
+    // prevent endless recursion by keeping track of the recursion count
+    if (recursionCount > this._subscriptionRecursionDepth) {
+      logger.warn(`Identity ${this.keyString}.emitCubeAdded() was called for a CubeInfo with too many levels of recursion; skipping.`);
+      return;
+    }
+    recursionCount++;
+
+    this.emit('cubeAdded', cubeInfo, recursionCount);
   }
 
   //###
