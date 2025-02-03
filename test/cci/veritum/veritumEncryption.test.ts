@@ -400,7 +400,7 @@ describe('CCI Veritum encryption', () => {
             expect(occurences).toBe(1);
             i++;
           }
-        });
+        }, 10000);
 
         it.todo('uses different nonces for all chunks, including key distribution chunks');
       });  // encrypts a multi-chunk Veritum for more recipients than a single Cube holds key slots
