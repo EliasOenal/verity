@@ -168,10 +168,12 @@ export interface IdentityOptions {
  * TODO: Specify maximums to make sure all of that nicely fits into a single MUC.
  */
 export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
-  /** Tries to load an existing Identity from the network or the CubeStore */
-  // TODO: Once we have a cube exchange scheduler, schedule the purported
-  // Identity MUC for retrieval if we don't have it (this will be necessary for
-  // light nodes)
+
+  //###
+  // #region Static Construction methods
+  //###
+
+  /** @static Tries to load an existing Identity from the network or the CubeStore */
   static async Load(
       cubeStoreOrRetriever: CubeStore | CubeRetriever,
       username: string,
@@ -191,7 +193,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     return identity;
   }
 
-  /** Creates a new Identity for a given username and password combination. */
+  /** @static Creates a new Identity for a given username and password combination. */
   static async Create(
     cubeStoreOrRetriever: CubeStore | CubeRetriever,
     username: string,
@@ -206,7 +208,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   }
 
   /**
-   * Convenient await-able wrapper around the constructor.
+   * @static Convenient await-able wrapper around the constructor.
    * Depending on whether you provide a key pair or an existing Identity MUC,
    * this will either create a brand new Identity or parse an existing one
    * from the supplied MUC.
@@ -242,6 +244,23 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     return id.ready;
   }
 
+  /* @static Retrieves all Identity objects stored in persistant storage. */
+  static async Retrieve(
+    cubeStoreOrRetriever: CubeStore | CubeRetriever,
+    options?: IdentityOptions
+  ): Promise<Identity[]> {
+    await sodium.ready;
+    const persistance: IdentityPersistence =
+      await IdentityPersistence.Construct(options);
+    const ids: Array<Identity> = await persistance.retrieve(cubeStoreOrRetriever);
+    return ids;
+  }
+
+  //###
+  // #endregion
+  // #region Other static methods
+  //###
+
   /** This method may only be called after awaiting sodium.ready. */
   static DeriveKeypair(masterKey: Buffer, options?: IdentityOptions): KeyPair {
     const contextString: string =
@@ -265,18 +284,6 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       argonMemoryHardness,
       sodium.crypto_pwhash_ALG_ARGON2ID13,
       "uint8array"));
-  }
-
-  /// @static Retrieves all Identity objects stored in persistant storage.
-  static async Retrieve(
-      cubeStoreOrRetriever: CubeStore | CubeRetriever,
-      options?: IdentityOptions
-  ): Promise<Identity[]> {
-    await sodium.ready;
-    const persistance: IdentityPersistence =
-      await IdentityPersistence.Construct(options);
-    const ids: Array<Identity> = await persistance.retrieve(cubeStoreOrRetriever);
-    return ids;
   }
 
   static ValidateMuc(mucInfo: CubeInfo): boolean {
@@ -324,6 +331,11 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     return Identity.KeyVariantsOf(identity)?.keyString;
   }
 
+  //###
+  // #endregion
+  // #region Attribute definitions
+  //###
+
   /** @member This Identity's display name */
   name: string = undefined;
 
@@ -359,7 +371,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   readonly cubeRetriever: CubeRetrievalInterface;
 
   private _masterKey: Buffer = undefined;
-  get masterKey(): Buffer { return this._masterKey }
+  get masterKey(): Buffer { return this._masterKey }  // maybe TODO: return copy to improve encapsulation?
   private _encryptionPrivateKey: Buffer;
 
   /** @member - The MUC in which this Identity information is stored and published */
@@ -367,8 +379,228 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
   /** List of own posts, in undefined order */
   private _posts: Set<string> = new Set();
-  // /** @deprecated Use get*() methods instead please, this is not part of the stable API */
-  // get posts(): Set<string> { return this._posts }
+
+  /**
+   * Subscriptions of other identities which are publicly visible to other users.
+   * They are also currently the only available type of subscriptions.
+   * TODO: Implement private/"secret" subscriptions, too.
+   *       Those will need to be stored in a separate, private, encrypted settings MUC.
+   */
+  private _publicSubscriptions: Set<string> = new Set();
+
+  private _subscriptionRecommendationIndices: Array<cciCube> = [];
+  get subscriptionRecommendationIndices(): Array<cciCube> {
+    return this._subscriptionRecommendationIndices;
+  }
+
+  /** @member - Points to first cube in the profile picture continuation chain */
+  profilepic: CubeKey = undefined;
+
+  private _subscriptionRecursionDepth: number = 0;
+  get subscriptionRecursionDepth(): number { return this._subscriptionRecursionDepth }
+
+  /** When the user tries to rebuild their Identity MUC too often, we'll
+   * remember their request in this promise. Any subsequent Identity changes
+   * will then be handles in a single rebuild.
+   */
+  private makeMucPromise: Promise<cciCube> = undefined;
+
+  // Provide a ready promise
+  private readyPromiseResolve: Function;
+  private readyPromiseReject: Function;
+  private _ready: Promise<Identity> = new Promise<Identity>( (resolve, reject) => {
+    this.readyPromiseResolve = resolve; this.readyPromiseReject = reject;
+  });
+  /**
+   * Kindly always await ready before using an Identity, or it might not yet
+   * be fully initialized.
+   **/
+  get ready(): Promise<Identity> { return this._ready }
+
+  get identityStore(): IdentityStore { return this.options.identityStore }
+
+  //###
+  // #endregion
+  // #region Constructor and post-construction initialization methods
+  //###
+
+  /**
+   * This constructor may only be called after awaiting sodium.ready.
+   * Consider using Identity.Construct() instead of calling the constructor
+   * directly which will take care of everything for you.
+   * Identity.Construct() has the exact same signature as this constructor;
+   * see there for param documentation.
+   */
+    constructor(
+      cubeStoreOrRetriever: CubeRetrievalInterface,
+      mucOrMasterkey: cciCube | Buffer,
+      readonly options: IdentityOptions = {},
+  ){
+    super();
+    // remember my CubeStore, and CubeRetriever if applicable
+    this.cubeRetriever = cubeStoreOrRetriever;
+    if (cubeStoreOrRetriever instanceof CubeStore) {
+      this.cubeStore = cubeStoreOrRetriever;
+    } else if (cubeStoreOrRetriever instanceof CubeRetriever) {
+      this.cubeStore = cubeStoreOrRetriever.cubeStore;
+    } else this.cubeStore = undefined;
+    // set options
+    options.minMucRebuildDelay ??= DEFAULT_MIN_MUC_REBUILD_DELAY;
+    options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
+    options.idmucContextString ??= DEFAULT_IDMUC_CONTEXT_STRING;
+    options.idmucApplicationString ??= DEFAULT_IDMUC_APPLICATION_STRING;
+    options.idmucEncryptionContextString ??= DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING;
+    // adopt or initialise Identity store
+    if (options.identityStore === undefined) {
+      options.identityStore = new IdentityStore(this.cubeRetriever);
+    }
+
+    // Subscribe to remote Identity updates (i.e. same user using multiple devices)
+    if (!(options?.subscribeRemoteChanges === false)) {  // unless explicitly opted out
+      this.cubeStore?.on("cubeAdded", this.mergeRemoteChanges);
+    }
+
+    // are we loading or creating an Identity?
+    if (mucOrMasterkey instanceof Cube) {  // checking for the more generic Cube instead of cciCube as this is the more correct branch compared to handling this as a KeyPair (also Cube subclass handling is not completely clean yet throughout our codebase)
+      this.parseMuc(mucOrMasterkey).then(() => {
+        // TODO: this makes little sense outside of synthetic tests, see discussion in parseMuc() jsdoc
+        this.readyPromiseResolve(this)
+    });
+    } else {  // create new Identity
+      if (Settings.RUNTIME_ASSERTIONS && !(Buffer.isBuffer(mucOrMasterkey))) {
+        throw new ApiMisuseError("Identity constructor: Master key must be a Buffer");
+      }
+      this._masterKey = mucOrMasterkey;
+      this._muc = cciCube.ExtensionMuc(
+        this._masterKey,
+        [],  // TODO: allow to set fields like username directly on construction
+        IDMUC_MASTERINDEX, this.options.idmucContextString,
+      );
+      this.deriveEncryptionKeys();  // must be called after MUC creation as it sets a MUC field
+      this.readyPromiseResolve(this);
+    }
+
+    // ensure we are present in the IdentityStore
+    const added: boolean = options.identityStore.addIdentity(this);
+    if (!added) {
+      logger.error(`Identity constructor ${this.keyString}: Conflicting Identity of same key already present in IdentityStore. This is most likely a bug in application code; please check your Identity management.`);
+    }
+  }
+
+  /**
+   * Suppose you learn an existing Identity's master key... somehow...
+   * Use this method to supply them it :)
+   * @throws KeyMismatchError - If supplied master key does not match this Identity's key
+   *   (which is supposed to have been derived from the master key).
+   */
+  supplyMasterKey(masterKey: Buffer) {
+    this._masterKey = masterKey;
+    this.deriveEncryptionKeys(true);  // will throw on key mismatch
+    this.deriveSigningKeys(true);  // will throw on key mismatch
+  }
+
+  private set encryptionPublicKey(val: Buffer) {
+    let field: cciField = this.muc.getFirstField(cciFieldType.CRYPTO_PUBKEY);
+    if (field === undefined) {
+      field = cciField.CryptoPubkey(val);
+      this.muc.insertFieldBeforeBackPositionals(field);
+    } else {
+      field.value = val;
+    }
+  }
+
+  //###
+  // #endregion
+  // #region Key-related getters
+  //###
+
+  get privateKey(): Buffer { return this._muc?.privateKey; }
+  get publicKey(): Buffer { return this._muc?.publicKey; }
+  // Note that there are no public setters for keys:
+  // Setting new keys is equivalent to creating a new Identity
+  // (yes, I know you can reset the keys by going directly to the MUC,
+  // just be nice and don't do it)
+  private set privateKey(val: Buffer) { this._muc.privateKey = val }
+  private set publicKey(val: Buffer) { this._muc.publicKey = val }
+
+  get encryptionPrivateKey(): Buffer { return this._encryptionPrivateKey }
+  get encryptionPublicKey(): Buffer {
+    return this._muc?.getFirstField(cciFieldType.CRYPTO_PUBKEY)?.value;
+  }
+
+  /**
+   * @member Get this Identity's key, which equals its MUC's cube key,
+   * which is its cryptographic public key.
+   * (Yes, I know this is functionally identical with publicKey(), but it's
+   * about the semantics :-P )
+  */
+  get key(): CubeKey { return this._muc?.publicKey; }
+  get keyString(): string { return this._muc?.publicKey?.toString('hex') }
+
+  get muc(): cciCube { return this._muc; }
+
+  //###
+  // #endregion
+  // #region Post and subscription managment
+  //###
+
+  /** Stores a new cube key a the the beginning of my post list */
+  addPost(keyInput: CubeKey | string): boolean {
+    const key = keyVariants(keyInput);  // normalise input
+    // maybe TODO optimise: remove unnecessary conversion to binary in case
+    //   of string input
+    // sanity check
+    if (key?.binaryKey?.length != NetConstants.CUBE_KEY_SIZE) return false;
+
+    // everything looks good, let's remember this post
+    this._posts.add(key.keyString);
+
+    // emit event
+    this.emitCubeAdded(key.binaryKey);
+    return true;
+  }
+
+  /** Removes a cube key from my post list */
+  removePost(keyInput: CubeKey | string) {
+    const key = keyVariants(keyInput);
+    this._posts.delete(key.keyString);
+  }
+
+  addPublicSubscription(remoteIdentity: CubeKey | string | Identity): Promise<void> {
+    const key: string = Identity.KeyStringOf(remoteIdentity);
+    if (key) {
+      this._publicSubscriptions.add(key);
+      // emit event
+      this.emitCubeAdded(key);
+      // set event recursion depth
+      if (this._subscriptionRecursionDepth > 0) {
+        const subPromise: Promise<Identity> = this.identityStore.retrieveIdentity(key);
+        return subPromise.then((sub: Identity) => {
+          return this.setSubscriptionRecursionDepthPerSub(sub);
+        })
+      } else return Promise.resolve();
+    } else {
+      logger.warn("Identity: Ignoring subscription request to something that does not at all look like a CubeKey");
+      return Promise.resolve();
+    }
+  }
+
+  removePublicSubscription(remoteIdentity: CubeKey | string | Identity) {
+    const key: string = Identity.KeyStringOf(remoteIdentity);
+    if (key) {
+      this._publicSubscriptions.delete(key);
+    } else {
+      logger.warn("Identity: Ignoring unsubscription request to something that does not at all look like a CubeKey");
+    }
+  }
+
+
+
+  //###
+  // #endregion
+  // #region Post getters and Generators
+  //###
+
   *getPostKeys(): Iterable<CubeKey> {
     for (const key of this._posts) yield keyVariants(key).binaryKey;
   }
@@ -385,15 +617,11 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     yield *resolveAndYield(promises);
   }
 
-  /**
-   * Subscriptions of other identities which are publicly visible to other users.
-   * They are also currently the only available type of subscriptions.
-   * TODO: Implement private/"secret" subscriptions, too.
-   *       Those will need to be stored in a separate, private, encrypted settings MUC.
-   */
-  private _publicSubscriptions: Set<string> = new Set();
-  /** @deprecated */
-  // get publicSubscriptions(): Set<string> { return this._publicSubscriptions }
+  //###
+  // #endregion
+  // #region Public Subscription getters and Generators
+  //###
+
   *getPublicSubscriptionKeys(): Iterable<CubeKey> {
     for (const key of this._publicSubscriptions) yield keyVariants(key).binaryKey;
   }
@@ -421,16 +649,11 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     return this.identityStore.retrieveIdentity(keyInput);
   }
 
-  private _subscriptionRecommendationIndices: Array<cciCube> = [];
-  get subscriptionRecommendationIndices(): Array<cciCube> {
-    return this._subscriptionRecommendationIndices;
-  }
+  //###
+  // #endregion
+  // #region CubeEmitter related methods
+  //###
 
-  /** @member - Points to first cube in the profile picture continuation chain */
-  profilepic: CubeKey = undefined;
-
-  private _subscriptionRecursionDepth: number = 0;
-  get subscriptionRecursionDepth(): number { return this._subscriptionRecursionDepth }
   async setSubscriptionRecursionDepth(
       depth: number,
       except: Set<string> = new Set(),
@@ -511,136 +734,51 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     this.emit('cubeAdded', cubeInfo, recursionCount);
   }
 
-  /** When the user tries to rebuild their Identity MUC too often, we'll
-   * remember their request in this promise. Any subsequent Identity changes
-   * will then be handles in a single rebuild.
-   */
-  private makeMucPromise: Promise<cciCube> = undefined;
-
-  // Provide a ready promise
-  private readyPromiseResolve: Function;
-  private readyPromiseReject: Function;
-  private _ready: Promise<Identity> = new Promise<Identity>(
-      (resolve, reject) => {
-          this.readyPromiseResolve = resolve;
-          this.readyPromiseReject = reject;
-      });
   /**
-   * Kindly always await ready before using an Identity, or it might not yet
-   * be fully initialized.
-   **/
-  get ready(): Promise<Identity> { return this._ready }
-
-  get identityStore(): IdentityStore { return this.options.identityStore }
-
-  /**
-   * This constructor may only be called after awaiting sodium.ready.
-   * Consider using Identity.Construct() instead of calling the constructor
-   * directly which will take care of everything for you.
-   * Identity.Construct() has the exact same signature as this constructor;
-   * see there for param documentation.
+   * Persuant to the CubeEmitter interface, this Generator yields CubeInfos
+   * for all events that we either have or would have emitted "cubeAdded" for.
+   * Those include:
+   *  - this Identity's MUC
+   *  - all of this Identity's posts
+   *  - all of this Identity's subscriptions
+   *  - once setSubscriptionRecursion() has been called:
+   *    - all of our subscribed Identity's posts
+   *    - all of our subscribed Identity's subscriptions
+   *    - and if setSubscriptionRecursion() was called with a depth > 1, the
+   *      same for all of our indirect subscriptions up to the specified depth
    */
-  constructor(
-      cubeStoreOrRetriever: CubeRetrievalInterface,
-      mucOrMasterkey: cciCube | Buffer,
-      readonly options: IdentityOptions = {},
-  ){
-    super();
-    // remember my CubeStore, and CubeRetriever if applicable
-    this.cubeRetriever = cubeStoreOrRetriever;
-    if (cubeStoreOrRetriever instanceof CubeStore) {
-      this.cubeStore = cubeStoreOrRetriever;
-    } else if (cubeStoreOrRetriever instanceof CubeRetriever) {
-      this.cubeStore = cubeStoreOrRetriever.cubeStore;
-    } else this.cubeStore = undefined;
-    // set options
-    options.minMucRebuildDelay ??= DEFAULT_MIN_MUC_REBUILD_DELAY;
-    options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
-    options.idmucContextString ??= DEFAULT_IDMUC_CONTEXT_STRING;
-    options.idmucApplicationString ??= DEFAULT_IDMUC_APPLICATION_STRING;
-    options.idmucEncryptionContextString ??= DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING;
-    // adopt or initialise Identity store
-    if (options.identityStore === undefined) {
-      options.identityStore = new IdentityStore(this.cubeRetriever);
-    }
+  async *getAllCubeInfos(
+    subscriptionRecursionDepth: number = this._subscriptionRecursionDepth,
+    exclude: Set<string> = new Set(),
+  ): AsyncGenerator<CubeInfo> {
+    // First, avoid infinite recursion
+    if (exclude.has(this.keyString)) return;
+    else exclude.add(this.keyString);
 
-    // Subscribe to remote Identity updates (i.e. same user using multiple devices)
-    if (!(options?.subscribeRemoteChanges === false)) {  // unless explicitly opted out
-      this.cubeStore?.on("cubeAdded", this.mergeRemoteChanges);
-    }
+    // yield myself
+    yield this.muc.getCubeInfo();
 
-    // are we loading or creating an Identity?
-    if (mucOrMasterkey instanceof Cube) {  // checking for the more generic Cube instead of cciCube as this is the more correct branch compared to handling this as a KeyPair (also Cube subclass handling is not completely clean yet throughout our codebase)
-      this.parseMuc(mucOrMasterkey).then(() => {
-        // TODO: this makes little sense outside of synthetic tests, see discussion in parseMuc() jsdoc
-        this.readyPromiseResolve(this)
-    });
-    } else {  // create new Identity
-      if (Settings.RUNTIME_ASSERTIONS && !(Buffer.isBuffer(mucOrMasterkey))) {
-        throw new ApiMisuseError("Identity constructor: Master key must be a Buffer");
+    // will also yield:
+    // - my posts
+    const posts: AsyncGenerator<CubeInfo> = this.getPostCubeInfos();
+    // - my subscriptions
+    // maybe TODO avoid double fetch (CubeInfos here, Identites below)?
+    const subs: AsyncGenerator<CubeInfo> = this.getPublicSubscriptionCubeInfos();
+    // - recurse through my subscriptions
+    const rGens: AsyncGenerator<CubeInfo>[] = [];
+    if (subscriptionRecursionDepth > 0) {
+      for await (const sub of this.getPublicSubscriptionIdentities()) {
+        rGens.push(sub.getAllCubeInfos(subscriptionRecursionDepth - 1, exclude));
       }
-      this._masterKey = mucOrMasterkey;
-      this._muc = cciCube.ExtensionMuc(
-        this._masterKey,
-        [],  // TODO: allow to set fields like username directly on construction
-        IDMUC_MASTERINDEX, this.options.idmucContextString,
-      );
-      this.deriveEncryptionKeys();  // must be called after MUC creation as it sets a MUC field
-      this.readyPromiseResolve(this);
     }
-
-    // ensure we are present in the IdentityStore
-    const added: boolean = options.identityStore.addIdentity(this);
-    if (!added) {
-      logger.error(`Identity constructor ${this.keyString}: Conflicting Identity of same key already present in IdentityStore. This is most likely a bug in application code; please check your Identity management.`);
-    }
+    const ret: AsyncGenerator<CubeInfo> = mergeAsyncGenerators(posts, subs, ...rGens);
+    yield* ret;
   }
 
-  /**
-   * Suppose you learn an existing Identity's master key... somehow...
-   * Use this method to supply them it :)
-   * @throws KeyMismatchError - If supplied master key does not match this Identity's key
-   *   (which is supposed to have been derived from the master key).
-   */
-  supplyMasterKey(masterKey: Buffer) {
-    this._masterKey = masterKey;
-    this.deriveEncryptionKeys(true);  // will throw on key mismatch
-    this.deriveSigningKeys(true);  // will throw on key mismatch
-  }
-
-  get privateKey(): Buffer { return this._muc.privateKey; }
-  get publicKey(): Buffer { return this._muc.publicKey; }
-  // Note that there are no public setters for keys:
-  // Setting new keys is equivalent to creating a new Identity
-  // (yes, I know you can reset the keys by going directly to the MUC,
-  // just be nice and don't do it)
-  private set privateKey(val: Buffer) { this._muc.privateKey = val }
-  private set publicKey(val: Buffer) { this._muc.publicKey = val }
-
-  get encryptionPrivateKey(): Buffer { return this._encryptionPrivateKey }
-  get encryptionPublicKey(): Buffer {
-    return this._muc?.getFirstField(cciFieldType.CRYPTO_PUBKEY)?.value;
-  }
-  private set encryptionPublicKey(val: Buffer) {
-    let field: cciField = this.muc.getFirstField(cciFieldType.CRYPTO_PUBKEY);
-    if (field === undefined) {
-      field = cciField.CryptoPubkey(val);
-      this.muc.insertFieldBeforeBackPositionals(field);
-    } else {
-      field.value = val;
-    }
-  }
-
-  /**
-   * @member Get this Identity's key, which equals its MUC's cube key,
-   * which is its cryptographic public key.
-   * (Yes, I know this is functionally identical with publicKey(), but it's
-   * about the semantics :-P )
-  */
-  get key(): CubeKey { return this._muc?.publicKey; }
-  get keyString(): string { return this._muc?.publicKey?.toString('hex') }
-
-  get muc(): cciCube { return this._muc; }
+  //###
+  // #endregion
+  // #region Marshalling and Demarshalling (public)
+  //###
 
   /**
    * Save this Identity locally by storing it in the local database
@@ -665,80 +803,6 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       await this.persistance.store(this);
     }
     return muc;
-  }
-
-  /** Stores a new cube key a the the beginning of my post list */
-  addPost(keyInput: CubeKey | string): boolean {
-    const key = keyVariants(keyInput);  // normalise input
-    // maybe TODO optimise: remove unnecessary conversion to binary in case
-    //   of string input
-    // sanity check
-    if (key?.binaryKey?.length != NetConstants.CUBE_KEY_SIZE) return false;
-
-    // everything looks good, let's remember this post
-    this._posts.add(key.keyString);
-
-    // emit event
-    this.emitCubeAdded(key.binaryKey);
-    return true;
-  }
-
-  /** Removes a cube key from my post list */
-  removePost(keyInput: CubeKey | string) {
-    const key = keyVariants(keyInput);
-    this._posts.delete(key.keyString);
-  }
-
-  addPublicSubscription(remoteIdentity: CubeKey | string | Identity): Promise<void> {
-    const key: string = Identity.KeyStringOf(remoteIdentity);
-    if (key) {
-      this._publicSubscriptions.add(key);
-      // emit event
-      this.emitCubeAdded(key);
-      // set event recursion depth
-      if (this._subscriptionRecursionDepth > 0) {
-        const subPromise: Promise<Identity> = this.identityStore.retrieveIdentity(key);
-        return subPromise.then((sub: Identity) => {
-          return this.setSubscriptionRecursionDepthPerSub(sub);
-        })
-      } else return Promise.resolve();
-    } else {
-      logger.warn("Identity: Ignoring subscription request to something that does not at all look like a CubeKey");
-      return Promise.resolve();
-    }
-  }
-
-  removePublicSubscription(remoteIdentity: CubeKey | string | Identity) {
-    const key: string = Identity.KeyStringOf(remoteIdentity);
-    if (key) {
-      this._publicSubscriptions.delete(key);
-    } else {
-      logger.warn("Identity: Ignoring unsubscription request to something that does not at all look like a CubeKey");
-    }
-  }
-
-  /** @deprecated */
-  async recursiveWebOfSubscriptions(maxDepth: number = 1, curDepth: number = 0): Promise<Set<string>> {
-    // sanity checks
-    if (this.cubeRetriever === undefined) {
-      throw new VerityError("Identity.recursiveWebOfSubscriptions(): This Identity is running in read-only mode (i.e. does not have a CubeStore/CubeRetriever reference), thus recursiveWebOfSubscriptions() is not possible.");
-    }
-    let recursiveSubs: Set<string> = new Set(this._publicSubscriptions);
-    if (curDepth < maxDepth) {
-      for (const sub of this._publicSubscriptions) {
-        const muc: cciCube = ensureCci(await this.cubeRetriever.getCube(sub));
-        if (!muc) continue;
-        let id: Identity;
-        try {
-          id = await Identity.Construct(this.cubeRetriever, muc);
-        } catch(err) { continue; }
-        if (!id) continue;
-        recursiveSubs = new Set([...recursiveSubs,
-          ...(await id.recursiveWebOfSubscriptions(maxDepth, curDepth+1))]
-        );  // TODO: use Set.union() instead once it's widely available
-      }
-    }
-    return recursiveSubs;
   }
 
   /**
@@ -843,6 +907,11 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     return newMuc;
   }
 
+  //###
+  // #endregion
+  // #region Misc public methods
+  //###
+
   /**
    * Returns this Identity's default Avatar, i.e. the one used as long as
    * the user didn't choose one. It's based on this Identity's public key.
@@ -871,103 +940,34 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     return this.shutdownPromise;
   }
 
-
-  /**
-   * Persuant to the CubeEmitter interface, this Generator yields CubeInfos
-   * for all events that we either have or would have emitted "cubeAdded" for.
-   * Those include:
-   *  - this Identity's MUC
-   *  - all of this Identity's posts
-   *  - all of this Identity's subscriptions
-   *  - once setSubscriptionRecursion() has been called:
-   *    - all of our subscribed Identity's posts
-   *    - all of our subscribed Identity's subscriptions
-   *    - and if setSubscriptionRecursion() was called with a depth > 1, the
-   *      same for all of our indirect subscriptions up to the specified depth
-   */
-  async *getAllCubeInfos(
-      subscriptionRecursionDepth: number = this._subscriptionRecursionDepth,
-      exclude: Set<string> = new Set(),
-  ): AsyncGenerator<CubeInfo> {
-    // First, avoid infinite recursion
-    if (exclude.has(this.keyString)) return;
-    else exclude.add(this.keyString);
-
-    // yield myself
-    yield this.muc.getCubeInfo();
-
-    // will also yield:
-    // - my posts
-    const posts: AsyncGenerator<CubeInfo> = this.getPostCubeInfos();
-    // - my subscriptions
-    // maybe TODO avoid double fetch (CubeInfos here, Identites below)?
-    const subs: AsyncGenerator<CubeInfo> = this.getPublicSubscriptionCubeInfos();
-    // - recurse through my subscriptions
-    const rGens: AsyncGenerator<CubeInfo>[] = [];
-    if (subscriptionRecursionDepth > 0) {
-      for await (const sub of this.getPublicSubscriptionIdentities()) {
-        rGens.push(sub.getAllCubeInfos(subscriptionRecursionDepth - 1, exclude));
+  /** @deprecated Currently unused */
+  async recursiveWebOfSubscriptions(maxDepth: number = 1, curDepth: number = 0): Promise<Set<string>> {
+    // sanity checks
+    if (this.cubeRetriever === undefined) {
+      throw new VerityError("Identity.recursiveWebOfSubscriptions(): This Identity is running in read-only mode (i.e. does not have a CubeStore/CubeRetriever reference), thus recursiveWebOfSubscriptions() is not possible.");
+    }
+    let recursiveSubs: Set<string> = new Set(this._publicSubscriptions);
+    if (curDepth < maxDepth) {
+      for (const sub of this._publicSubscriptions) {
+        const muc: cciCube = ensureCci(await this.cubeRetriever.getCube(sub));
+        if (!muc) continue;
+        let id: Identity;
+        try {
+          id = await Identity.Construct(this.cubeRetriever, muc);
+        } catch(err) { continue; }
+        if (!id) continue;
+        recursiveSubs = new Set([...recursiveSubs,
+          ...(await id.recursiveWebOfSubscriptions(maxDepth, curDepth+1))]
+        );  // TODO: use Set.union() instead once it's widely available
       }
     }
-    const ret: AsyncGenerator<CubeInfo> = mergeAsyncGenerators(posts, subs, ...rGens);
-    yield* ret;
+    return recursiveSubs;
   }
 
-
-  /**
-   * Derives this Identity's encryption keys from its master key
-   * @param throwOnMismatch Whether to throw an error if the derived keys do not match
-   */
-  private deriveEncryptionKeys(throwOnMismatch: boolean = true) {
-    // derive key
-    const encryptionKeyPair: KeyPair = deriveEncryptionKeypair(
-      this.masterKey,
-      DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX,
-      this.options.idmucEncryptionContextString
-    );
-    // check for potential mismatches
-    if (throwOnMismatch) {
-      if (this._encryptionPrivateKey &&
-          !this._encryptionPrivateKey.equals(encryptionKeyPair.privateKey)) {
-        throw new KeyMismatchError("Identity.deriveEncryptionKeys(): Deriving the master key does not yield the already supplied encryption private key. At some point, you must have supplied keys that do not match.");
-      }
-      if (this.encryptionPublicKey &&
-          !this.encryptionPublicKey.equals(encryptionKeyPair.publicKey)) {
-        throw new KeyMismatchError("Identity.deriveEncryptionKeys(): Deriving the master key does not yield the already supplied encryption public key. At some point, you must have supplied keys that do not match.");
-      }
-    }
-    // set derived keys
-    this._encryptionPrivateKey = Buffer.from(encryptionKeyPair.privateKey);
-    this.encryptionPublicKey = Buffer.from(encryptionKeyPair.publicKey);
-  }
-
-  /**
-   * Derives this Identity's signing keys from its master key
-   * @param throwOnMismatch Whether to throw an error if the derived keys do not match
-   */
-  private deriveSigningKeys(throwOnMismatch: boolean = true) {
-    // derive key
-    const signingKeyPair: KeyPair = deriveSigningKeypair(
-      this.masterKey,
-      IDMUC_MASTERINDEX,
-      this.options.idmucContextString
-    );
-    // check for potential mismatches
-    if (throwOnMismatch) {
-      if (this.privateKey &&
-          !this.privateKey.equals(signingKeyPair.privateKey)) {
-        throw new KeyMismatchError("Identity.deriveSigningKeys(): Deriving the master key does not yield the already supplied signing private key. At some point, you must have supplied keys that do not match.");
-      }
-      if (this.publicKey &&
-          !this.publicKey.equals(signingKeyPair.publicKey)) {
-        throw new KeyMismatchError("Identity.deriveSigningKeys(): Deriving the master key does not yield the already supplied signing public key. At some point, you must have supplied keys that do not match.");
-      }
-    }
-    // set derived keys
-    this.privateKey = signingKeyPair.privateKey;
-    this.publicKey = signingKeyPair.publicKey;
-  }
-
+  //###
+  // #endregion
+  // #region PRIVATE marshalling and demarshalling
+  //###
 
   private writeSubscriptionRecommendations(): void {
     // TODO: properly calculate available space
@@ -1259,4 +1259,67 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     }
     return Promise.all(retPromises) as unknown as Promise<void>;  // HACKHACK typecast
   }
+
+  //###
+  // #endregion
+  // #region PRIVATE key management methods
+  //###
+
+  /**
+   * Derives this Identity's encryption keys from its master key
+   * @param throwOnMismatch Whether to throw an error if the derived keys do not match
+   */
+  private deriveEncryptionKeys(throwOnMismatch: boolean = true) {
+    // derive key
+    const encryptionKeyPair: KeyPair = deriveEncryptionKeypair(
+      this.masterKey,
+      DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX,
+      this.options.idmucEncryptionContextString
+    );
+    // check for potential mismatches
+    if (throwOnMismatch) {
+      if (this._encryptionPrivateKey &&
+          !this._encryptionPrivateKey.equals(encryptionKeyPair.privateKey)) {
+        throw new KeyMismatchError("Identity.deriveEncryptionKeys(): Deriving the master key does not yield the already supplied encryption private key. At some point, you must have supplied keys that do not match.");
+      }
+      if (this.encryptionPublicKey &&
+          !this.encryptionPublicKey.equals(encryptionKeyPair.publicKey)) {
+        throw new KeyMismatchError("Identity.deriveEncryptionKeys(): Deriving the master key does not yield the already supplied encryption public key. At some point, you must have supplied keys that do not match.");
+      }
+    }
+    // set derived keys
+    this._encryptionPrivateKey = Buffer.from(encryptionKeyPair.privateKey);
+    this.encryptionPublicKey = Buffer.from(encryptionKeyPair.publicKey);
+  }
+
+  /**
+   * Derives this Identity's signing keys from its master key
+   * @param throwOnMismatch Whether to throw an error if the derived keys do not match
+   */
+  private deriveSigningKeys(throwOnMismatch: boolean = true) {
+    // derive key
+    const signingKeyPair: KeyPair = deriveSigningKeypair(
+      this.masterKey,
+      IDMUC_MASTERINDEX,
+      this.options.idmucContextString
+    );
+    // check for potential mismatches
+    if (throwOnMismatch) {
+      if (this.privateKey &&
+          !this.privateKey.equals(signingKeyPair.privateKey)) {
+        throw new KeyMismatchError("Identity.deriveSigningKeys(): Deriving the master key does not yield the already supplied signing private key. At some point, you must have supplied keys that do not match.");
+      }
+      if (this.publicKey &&
+          !this.publicKey.equals(signingKeyPair.publicKey)) {
+        throw new KeyMismatchError("Identity.deriveSigningKeys(): Deriving the master key does not yield the already supplied signing public key. At some point, you must have supplied keys that do not match.");
+      }
+    }
+    // set derived keys
+    this.privateKey = signingKeyPair.privateKey;
+    this.publicKey = signingKeyPair.publicKey;
+  }
+
+  //###
+  // #endregion
+  //###
 }
