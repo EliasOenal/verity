@@ -1,8 +1,8 @@
-import { NavigationController } from "../../../src/webui/navigation/navigationController";
-import { NavItem, ControllerStackLayer } from "../../../src/webui/navigation/navigationDefinitions";
-import { DummyNavigationView } from "../../../src/webui/navigation/navigationView";
-import { DummyControllerContext, VerityController, VerityControllerOptions } from "../../../src/webui/verityController";
-import { VerityView } from "../../../src/webui/verityView";
+import { NavigationController } from "../../../../src/webui/navigation/navigationController";
+import { NavItem, ControllerStackLayer } from "../../../../src/webui/navigation/navigationDefinitions";
+import { DummyNavigationView } from "../../../../src/webui/navigation/navigationView";
+import { DummyControllerContext, VerityController, VerityControllerOptions } from "../../../../src/webui/verityController";
+import { VerityView } from "../../../../src/webui/verityView";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
