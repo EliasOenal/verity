@@ -1288,6 +1288,13 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     // only emit if there is a listener
     if (this.listenerCount('cubeAdded') === 0) return;
 
+    // prevent endless recursion by keeping track of the recursion count
+    if (recursionCount > this._subscriptionRecursionDepth) {
+      logger.warn(`Identity ${this.keyString}.emitCubeAdded() was called for a CubeInfo with too many levels of recursion; skipping.`);
+      return;
+    }
+    recursionCount++;
+
     // avoid ping-ponging recursion by keeping track of already visited IDs
     if (except?.has?.(this.keyString)) return;
     if (except === undefined) except = new Set();
@@ -1310,13 +1317,6 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       logger.warn(`Identity ${this.keyString}.emitCubeAdded() was called for an unavailable CubeInfo; skipping.`);
       return;
     }
-
-    // prevent endless recursion by keeping track of the recursion count
-    if (recursionCount > this._subscriptionRecursionDepth) {
-      logger.warn(`Identity ${this.keyString}.emitCubeAdded() was called for a CubeInfo with too many levels of recursion; skipping.`);
-      return;
-    }
-    recursionCount++;
 
     this.emit('cubeAdded', cubeInfo, recursionCount, except);
   }
