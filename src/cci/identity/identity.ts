@@ -661,7 +661,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     subscriptionRecursionDepth: number = this._subscriptionRecursionDepth,
     exclude: Set<string> = new Set(),
   ): AsyncGenerator<CubeInfo> {
-    // First, avoid infinite recursion
+    // Avoid ping-ponging recursion by keeping track of already visited IDs
     if (exclude.has(this.keyString)) return;
     else exclude.add(this.keyString);
 
@@ -1283,9 +1283,15 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   private emitCubeAdded = async (
       input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>,
       recursionCount: number = 0,
+      except?: Set<string> ,
   ): Promise<void> => {
     // only emit if there is a listener
     if (this.listenerCount('cubeAdded') === 0) return;
+
+    // avoid ping-ponging recursion by keeping track of already visited IDs
+    if (except?.has?.(this.keyString)) return;
+    if (except === undefined) except = new Set();
+    except.add(this.keyString);
 
     // fetch the CubeInfo
     let cubeInfo: CubeInfo;
@@ -1312,7 +1318,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     }
     recursionCount++;
 
-    this.emit('cubeAdded', cubeInfo, recursionCount);
+    this.emit('cubeAdded', cubeInfo, recursionCount, except);
   }
 
   //###
