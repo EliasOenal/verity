@@ -246,7 +246,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
   /* @static Retrieves all Identity objects stored in persistant storage. */
   static async Retrieve(
-    cubeStoreOrRetriever: CubeStore | CubeRetriever,
+    cubeStoreOrRetriever: CubeRetrievalInterface<any>,
     options?: IdentityOptions
   ): Promise<Identity[]> {
     await sodium.ready;

@@ -1,7 +1,7 @@
 import { Identity, IdentityOptions } from './identity';
 
 import { CubeKey } from '../../core/cube/cube.definitions';
-import { CubeStore } from '../../core/cube/cubeStore';
+import { CubeRetrievalInterface, CubeStore } from '../../core/cube/cubeStore';
 import { ensureCci } from '../cube/cciCubeUtil';
 import { cciFamily } from '../cube/cciCube';
 
@@ -90,7 +90,7 @@ export class IdentityPersistence {
    * be present in the local Cube store.
    * This method will *not* retrieve missing MUCs from the network.
    */
-  async retrieve(cubeStore: CubeStore | CubeRetriever): Promise<Identity[]> {
+  async retrieve(cubeStore: CubeRetrievalInterface<any>): Promise<Identity[]> {
     if (this.db.status != 'open') {
       logger.error("IdentityPersistance: Could not retrieve identity, DB not open");
       return undefined;
