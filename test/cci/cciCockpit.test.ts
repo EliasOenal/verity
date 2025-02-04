@@ -1,3 +1,4 @@
+import { cciNodeIf, DummyCciNode } from "../../src/cci/cciNode";
 import { cciCockpit } from "../../src/cci/cockpit";
 import { cciFieldType } from "../../src/cci/cube/cciCube.definitions";
 import { cciField } from "../../src/cci/cube/cciField";
@@ -5,20 +6,19 @@ import { Identity } from "../../src/cci/identity/identity";
 import { Veritum } from "../../src/cci/veritum/veritum";
 import { CubeType } from "../../src/core/cube/cube.definitions";
 import { NetConstants } from "../../src/core/networking/networkDefinitions";
-import { DummyVerityNode, VerityNodeIf } from "../../src/core/verityNode";
 
 import { masterKey, idTestOptions, remote1MasterKey, remote2MasterKey, requiredDifficulty, tooLong } from "./testcci.definitions";
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe('cci Cockpit', () => {
-  let node: VerityNodeIf;
+  let node: cciNodeIf;
   let identity: Identity;
   let remote1: Identity;
   let remote2: Identity;
   let cockpit: cciCockpit;
 
   beforeEach(async () => {
-    node = new DummyVerityNode();
+    node = new DummyCciNode();
     await node.readyPromise;
     identity = new Identity(node.cubeStore, masterKey, idTestOptions);
     remote1 = new Identity(node.cubeStore, remote1MasterKey, idTestOptions);

@@ -1,10 +1,9 @@
 import { CubeCreateOptions } from "../core/cube/cube";
 import { CubeKey, CubeType } from "../core/cube/cube.definitions";
-import { ArrayFromAsync, isIterableButNotBuffer } from "../core/helpers/misc";
-import { VerityNodeIf } from "../core/verityNode";
+import { ArrayFromAsync } from "../core/helpers/misc";
+import { cciNodeIf } from "./cciNode";
 import { cciCube } from "./cube/cciCube";
 import { Identity } from "./identity/identity";
-import { Continuation } from "./veritum/continuation";
 import { Veritum, VeritumCompileOptions, VeritumFromChunksOptions } from "./veritum/veritum";
 
 import { Buffer } from 'buffer';
@@ -19,7 +18,7 @@ export interface GetVeritumOptions {
 
 export class cciCockpit {
   constructor(
-      public node: VerityNodeIf,
+      public node: cciNodeIf,
       public identity: Identity,
   ) {
   }
@@ -61,7 +60,7 @@ export class cciCockpit {
     options.autoDecrypt ??= true;
     // retrieve chunks
     const chunkGen: AsyncGenerator<cciCube> =
-      this.node.cubeRetriever.getContinuationChunks(key);
+      this.node.veritumRetriever.getContinuationChunks(key);
     // maybe TODO: get rid of ugly Array conversion?
     const chunks: Iterable<cciCube> = await ArrayFromAsync(chunkGen);
     // If auto-decryption was requested, prepare the necessary params
