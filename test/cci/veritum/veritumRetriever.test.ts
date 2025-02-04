@@ -7,7 +7,7 @@ import { Veritum } from '../../../src/cci/veritum/veritum';
 import { VeritumRetriever } from '../../../src/cci/veritum/veritumRetriever';
 import { CubeType, CubeKey } from '../../../src/core/cube/cube.definitions';
 import { CubeStoreOptions, CubeStore } from '../../../src/core/cube/cubeStore';
-import { RequestScheduler } from '../../../src/core/networking/cubeRetrieval/requestScheduler';
+import { CubeRequestOptions, RequestScheduler } from '../../../src/core/networking/cubeRetrieval/requestScheduler';
 import { NetworkManagerIf } from '../../../src/core/networking/networkManagerIf';
 import { DummyNetworkManager } from '../../../src/core/networking/testingDummies/networkManagerDummy';
 import { PeerDB } from '../../../src/core/peering/peerDB';
@@ -23,7 +23,7 @@ describe('VeritumRetriever', () => {
   let cubeStore: CubeStore;
   let networkManager: NetworkManagerIf;
   let scheduler: RequestScheduler;
-  let retriever: VeritumRetriever;
+  let retriever: VeritumRetriever<CubeRequestOptions>;
 
   beforeEach(async () => {
     cubeStore = new CubeStore(cubeStoreOptions);
@@ -149,7 +149,7 @@ describe('VeritumRetriever', () => {
       cubeStore.addCube(splitCubes[0]);
       let i=1;
       for await (const chunk of retriever.getContinuationChunks(
-        splitCubes[0].getKeyIfAvailable(), undefined, {timeout: 1000000000})) {
+        splitCubes[0].getKeyIfAvailable(), {timeout: 1000000000})) {
         chunks.push(chunk);
         cubeStore.addCube(splitCubes[i]);
         i++;

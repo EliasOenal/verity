@@ -210,7 +210,7 @@ export class CubeExplorerController extends VerityController {
   async getCube(key: CubeKey | string): Promise<Cube> {
     let cube: Cube = await this.cubeStore.getCube(key);  // TODO: Add option to parse as something other than this CubeStore's default family
     if (cube === undefined) {  // unparseable, retry as raw
-      cube = await this.cubeStore.getCube(key, coreCubeFamily);
+      cube = await this.cubeStore.getCube(key, {family: coreCubeFamily});
     }
     if (cube === undefined) {
       logger.error("CubeExplorerController.getCube(): Unable to parse Cube " + key);

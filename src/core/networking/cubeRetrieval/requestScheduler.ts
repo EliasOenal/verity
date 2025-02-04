@@ -17,6 +17,7 @@ import { logger } from '../../logger';
 
 import { Buffer } from 'buffer';  // for browsers
 import { Shuttable } from '../../helpers/coreInterfaces';
+import { CubeFamilyDefinition } from '../../cube/cubeFields';
 
 // TODO: only schedule next request after previous request has been *fulfilled*,
 // or after a sensible timeout
@@ -55,6 +56,7 @@ export interface CubeRequestOptions {
   scheduleIn?: number;
   timeout?: number;
   requestFrom?: NetworkPeerIf;
+  family?: CubeFamilyDefinition;
 }
 
 export interface CubeSubscribeOptions extends CubeRequestOptions {

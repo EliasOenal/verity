@@ -13,20 +13,20 @@ import { Shuttable } from "../../core/helpers/coreInterfaces";
 import { Cube } from "../../core/cube/cube";
 import { CubeInfo } from "../../core/cube/cubeInfo";
 
-export class VeritumRetriever implements CubeRetrievalInterface, Shuttable {
+export class VeritumRetriever<GetCubeOptionsT extends CubeRequestOptions> implements CubeRetrievalInterface<GetCubeOptionsT>, Shuttable {
 
   private timers: NodeJS.Timeout[] = [];  // TODO make optional
 
   constructor(
-      public cubeRetriever: CubeRetrievalInterface,
+      public cubeRetriever: CubeRetrievalInterface<GetCubeOptionsT>,
   ) {
   }
 
   getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo> {
     return this.cubeRetriever.getCubeInfo(keyInput);
   }
-  getCube<cubeClass extends Cube>(key: CubeKey | string, family?: CubeFamilyDefinition): Promise<cubeClass> {
-    return this.cubeRetriever.getCube(key, family);
+  getCube<cubeClass extends Cube>(key: CubeKey | string, options?: GetCubeOptionsT): Promise<cubeClass> {
+    return this.cubeRetriever.getCube(key, options);
   }
   expectCube(keyInput: CubeKey | string): Promise<CubeInfo> {
     return this.cubeRetriever.expectCube(keyInput);
@@ -37,8 +37,7 @@ export class VeritumRetriever implements CubeRetrievalInterface, Shuttable {
   //   Or maybe we call this idiomatic and leave it as it is? I don't know.
   async *getContinuationChunks(
     key: CubeKey | string,
-    family: CubeFamilyDefinition = undefined,  // undefined = will use CubeInfo's default
-    options: CubeRequestOptions = {},  // undefined = will use RequestScheduler's default
+    options: CubeRequestOptions|GetCubeOptionsT = {},  // undefined = will use RequestScheduler's default
   ): AsyncGenerator<cciCube> {
     // set default timeout -- TODO: make sure RequestScheduler's options / timeout is passed through in the typical assembly
     options.timeout ??= Settings.CUBE_REQUEST_TIMEOUT;
@@ -64,7 +63,7 @@ export class VeritumRetriever implements CubeRetrievalInterface, Shuttable {
 
         // schedule retrieval of referred chunk
         const retrievalPromise = this.cubeRetriever.getCube(
-          ref.remoteKey, family /*, this.options -- TODO allow options passthrough */) as Promise<cciCube>;
+          ref.remoteKey, options as GetCubeOptionsT) as Promise<cciCube>;
         retrievalPromise.then((nextChunk) => chunkRetrieved(nextChunk, retrievalPromise));
         currentlyRetrieving.add(retrievalPromise);
       }
@@ -167,7 +166,7 @@ export class VeritumRetriever implements CubeRetrievalInterface, Shuttable {
 
     // Finally, initiate retrievals by retrieving first Cube:
     const firstChunkPromise: Promise<cciCube> =
-      this.cubeRetriever.getCube(key, family/*, options -- TODO allow options passthrough */) as Promise<cciCube>;
+      this.cubeRetriever.getCube(key, options as GetCubeOptionsT) as Promise<cciCube>;
     currentlyRetrieving.add(firstChunkPromise);
     let firstChunkKey: CubeKey = undefined;
     firstChunkPromise.then(chunk => {
