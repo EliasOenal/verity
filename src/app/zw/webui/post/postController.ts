@@ -83,6 +83,7 @@ export class PostController extends VerityController {
   async navWot(): Promise<void> {
     logger.trace("PostController: Displaying posts from my web of trust, up to five levels deep (WOT5)");
     this.shutdownComponents();
+    // TODO: - Make subscription recursion depth configurable
     await this.identity?.setSubscriptionRecursionDepth(5);
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.identity,

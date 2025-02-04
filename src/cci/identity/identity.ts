@@ -689,6 +689,9 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       depth: number,
       except: Set<string> = new Set(),
   ): Promise<void> {
+    //  - TODO: Make subscription depth dynamic:
+    //    We'll need a global maximum of in-memory Identites
+    //    at some point. Reduce WOT depth automatically once it is reached.
 
     // prevent infinite recursion
     if (except.has(this.keyString)) return Promise.resolve();
