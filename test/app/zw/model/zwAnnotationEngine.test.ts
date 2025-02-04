@@ -384,7 +384,7 @@ describe('ZwAnnotationEngine', () => {
         await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
         expect(annotationEngine.identityMucs.size).toEqual(1);
         const restored: Identity = await Identity.Construct(cubeStore,
-          annotationEngine.identityMucs.get(id.publicKey.toString('hex'))?.getCube(cciFamily) as cciCube);
+          annotationEngine.identityMucs.get(id.publicKey.toString('hex'))?.getCube() as cciCube);
         expect(restored).toBeInstanceOf(Identity);
         expect(restored.name).toEqual("Probator Annotationem");
       });

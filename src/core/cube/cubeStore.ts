@@ -89,13 +89,17 @@ export type CubeIteratorOptions = {
   reverse?: boolean,
 };
 
+export interface GetCubeOptions {
+  family?: CubeFamilyDefinition|CubeFamilyDefinition[];
+}
+
 /**
  * A generalised interface for objects that can retrieve Cubes.
  * Examples within the core library include CubeStore and CubeRetriever.
  */
-export interface CubeRetrievalInterface {
+export interface CubeRetrievalInterface<OptionsType> {
   getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo>;
-  getCube<cubeClass extends Cube>(key: CubeKey | string, family?: CubeFamilyDefinition): Promise<cubeClass>;
+  getCube<cubeClass extends Cube>(key: CubeKey | string, options?: OptionsType): Promise<cubeClass>;
   expectCube(keyInput: CubeKey|string): Promise<CubeInfo>;  // maybe TODO: add timeout?
 }
 
@@ -120,7 +124,7 @@ export interface CubeEmitter extends EventEmitter {
   shutdown?: () => Promise<void>;
 }
 
-export class CubeStore extends EventEmitter implements CubeRetrievalInterface, CubeEmitter, Shuttable {
+export class CubeStore extends EventEmitter implements CubeRetrievalInterface<GetCubeOptions>, CubeEmitter, Shuttable {
 
   readyPromise: Promise<undefined>;
 
@@ -411,10 +415,10 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface, C
    */
   async getCube<cubeClass extends Cube>(
     key: CubeKey | string,
-    family: CubeFamilyDefinition|CubeFamilyDefinition[] = undefined // undefined = will use CubeInfo's default
+    options: GetCubeOptions = {},
   ): Promise<cubeClass> {
     const cubeInfo: CubeInfo = await this.getCubeInfo(key);
-    if (cubeInfo) return cubeInfo.getCube<cubeClass>(family);
+    if (cubeInfo) return cubeInfo.getCube<cubeClass>(options);
     else return undefined;
   }
 

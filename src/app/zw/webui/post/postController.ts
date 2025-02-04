@@ -171,7 +171,7 @@ export class PostController extends VerityController {
   displayPost = async (binarykey: CubeKey): Promise<void> => {
     // logger.trace(`PostDisplay: Attempting to display post ${binarykey.toString('hex')}`)
     // get Cube
-    const cube: cciCube = ensureCci(await this.cubeStore.getCube(binarykey, cciFamily));
+    const cube: cciCube = ensureCci(await this.cubeStore.getCube(binarykey, {family: cciFamily}));
     if (cube === undefined) return;
     const fields: cciFields = cube.fields;
 
@@ -224,7 +224,7 @@ export class PostController extends VerityController {
 
   /** Redisplays authorship information for all of one author's posts */
   redisplayAuthor = async (mucInfo: CubeInfo) => {
-    const muc = ensureCci(mucInfo.getCube(cciFamily));
+    const muc = ensureCci(mucInfo.getCube({family: cciFamily}));
     if (muc === undefined) {
       logger.trace(`PostController.redisplayAuthor: Cannot get author for post ${mucInfo.keyString} as it does not appear to be a CCI cube`);
       return;  // not CCI or garbage

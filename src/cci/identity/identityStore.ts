@@ -8,9 +8,9 @@ import { Identity, IdentityOptions } from "./identity";
 
 export class IdentityStore implements Shuttable {
   private identityMap: Map<string, Identity> = new Map();
-  private cubeRetriever: CubeRetrievalInterface;
+  private cubeRetriever: CubeRetrievalInterface<any>;
 
-  constructor(cubeRetriever: CubeRetrievalInterface) {
+  constructor(cubeRetriever: CubeRetrievalInterface<any>) {
     this.cubeRetriever = cubeRetriever;
   }
 

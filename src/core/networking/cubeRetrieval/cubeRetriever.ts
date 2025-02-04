@@ -11,7 +11,7 @@ import { CubeRequestOptions, RequestScheduler } from "./requestScheduler";
  * Cube retrieval no matter whether a Cube is already present in the local
  * CubeStore or needs to be requested over the wire.
  */
-export class CubeRetriever implements CubeRetrievalInterface {
+export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions> {
 
   constructor(
     readonly cubeStore: CubeStore,
@@ -35,11 +35,10 @@ export class CubeRetriever implements CubeRetrievalInterface {
 
   async getCube<cubeClass extends Cube>(
       key: CubeKey | string,
-      family: CubeFamilyDefinition = undefined,  // undefined = will use CubeInfo's default
-      options: CubeRequestOptions = undefined,  // undefined = will use RequestScheduler's default
+      options: CubeRequestOptions = undefined,  // undefined = will use RequestScheduler's and CubeInfo's default
   ): Promise<cubeClass> {
     const cubeInfo = await this.getCubeInfo(key, options);
-    return cubeInfo?.getCube<cubeClass>(family);
+    return cubeInfo?.getCube<cubeClass>(options);
   }
 
   /**

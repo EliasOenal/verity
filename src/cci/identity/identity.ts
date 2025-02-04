@@ -235,7 +235,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
    * !!! Identity may only be constructed after awaiting sodium.ready !!!
    **/
   static async Construct(
-    cubeStoreOrRetriever: CubeRetrievalInterface,
+    cubeStoreOrRetriever: CubeRetrievalInterface<any>,
     mucOrMasterkey: cciCube | Buffer,
     options?: IdentityOptions,
   ): Promise<Identity> {
@@ -368,7 +368,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
    * reconstruct Identity data from the network. If this is not required,
    * it will simply work on the local CubeStore instead.
    */
-  readonly cubeRetriever: CubeRetrievalInterface;
+  readonly cubeRetriever: CubeRetrievalInterface<any>;
 
   private _masterKey: Buffer = undefined;
   get masterKey(): Buffer { return this._masterKey }  // maybe TODO: return copy to improve encapsulation?
@@ -432,7 +432,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
    * see there for param documentation.
    */
     constructor(
-      cubeStoreOrRetriever: CubeRetrievalInterface,
+      cubeStoreOrRetriever: CubeRetrievalInterface<any>,
       mucOrMasterkey: cciCube | Buffer,
       readonly options: IdentityOptions = {},
   ){

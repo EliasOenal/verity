@@ -131,7 +131,7 @@ let cubeStore: CubeStore;
       expect(mucadded.getKeyIfAvailable()).toEqual(original.publicKey);
 
       // restore Identity from stored MUC
-      const restoredmuc: Cube = await cubeStore.getCube(await muc.getKey(), cciFamily);
+      const restoredmuc: Cube = await cubeStore.getCube(await muc.getKey());
       expect(restoredmuc).toBeInstanceOf(Cube);
       const restored: Identity = await Identity.Construct(
         cubeStore, restoredmuc as cciCube);
@@ -168,7 +168,7 @@ let cubeStore: CubeStore;
         await cubeStore.addCube(muc);
 
         // reading it back
-        const restoredMuc = await cubeStore.getCube(key, cciFamily) as cciCube;
+        const restoredMuc = await cubeStore.getCube(key) as cciCube;
         expect(restoredMuc).toBeInstanceOf(Cube);
         const restored: Identity = await Identity.Construct(cubeStore, restoredMuc, idTestOptions);
         expect(restored.name).toEqual("Probator condendi repetitionis " + i);

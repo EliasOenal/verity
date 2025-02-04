@@ -91,7 +91,7 @@ export class ChatController extends VerityController {
         const messages = [];
         for await (const cubeInfo of this.cubeStore.getNotificationCubesInTimeRange(this.notificationKey, 0, (Date.now() / 1000) + 100000, 200, true)) {
             try {
-                let cciCube: cciCube = cubeInfo.getCube(cciFamily) as cciCube;
+                let cciCube: cciCube = cubeInfo.getCube({family: cciFamily}) as cciCube;
                 const { username, message } = ChatApplication.parseChatCube(cciCube);
                 messages.push({ username, message, timestamp: new Date(cciCube.getDate() * 1000) });
             } catch (error) {
@@ -101,7 +101,7 @@ export class ChatController extends VerityController {
 
         this.contentAreaView.updateMessages(messages);
     }
-    
+
     async close(unshow?: boolean, callback?: boolean): Promise<void> {
         this.stopAutoRefresh();
         return super.close(unshow, callback);

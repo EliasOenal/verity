@@ -1,13 +1,14 @@
+import { NetConstants } from '../networking/networkDefinitions';
 import { ApiMisuseError } from '../settings';
 
 import { CubeType, CubeKey, CubeFieldType } from './cube.definitions';
 import { Cube, coreCubeFamily } from './cube'
 import { CubeFamilyDefinition } from './cubeFields';
+import { GetCubeOptions } from './cubeStore';
 import { activateCube, dateFromBinary, typeFromBinary } from './cubeUtil';
+import { logger } from '../logger';
 
 import { Buffer } from 'buffer';
-import { logger } from '../logger';
-import { NetConstants } from '../networking/networkDefinitions';
 
 
 export interface CubeInfoOptions {
@@ -216,9 +217,12 @@ export class CubeInfo {
    * @throws Should not throw.
    */
   getCube<cubeClass extends Cube>(
-      families: CubeFamilyDefinition|CubeFamilyDefinition[] = this.families,
+    options: GetCubeOptions = {},
   ): cubeClass {
+    // set default options
+    options.family ??= this.families;
     // normalise input
+    let families = options.family;
     if (!Array.isArray(families)) families = [families];
     // Keep returning the same Cube object until it gets garbage collected.
     // Can only used cached object when using default parser and Cube class.
