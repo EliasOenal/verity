@@ -41,6 +41,9 @@ export interface SplitOptions extends RecombineOptions {
 }
 
 export interface RecombineOptions extends CubeOptions {
+  // TODO these are not really CubeOptions; I can't define fields here.
+  //   All it uses from CubeOptions is CubeType, and even that should probably
+  //   just be derived from the first chunk or something.
   /**
    * Fields to exclude from splitting. Those will not be included in the
    * resulting chunks.
