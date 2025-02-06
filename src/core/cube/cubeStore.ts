@@ -101,6 +101,7 @@ export interface CubeRetrievalInterface<OptionsType> {
   getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo>;
   getCube<cubeClass extends Cube>(key: CubeKey | string, options?: OptionsType): Promise<cubeClass>;
   expectCube(keyInput: CubeKey|string): Promise<CubeInfo>;  // maybe TODO: add timeout?
+  cubeStore: CubeStore;
 }
 
 /**
@@ -147,6 +148,8 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface<Ge
     hits: 0,
     misses: 0,
   };
+
+  get cubeStore(): CubeStore { return this }
 
   constructor(readonly options: CubeStoreOptions) {
     super();

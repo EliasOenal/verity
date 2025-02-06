@@ -178,6 +178,9 @@ describe('Veritum', () => {
         expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
           tooLong);
       });
+
+      it.todo('can split MUCs and PMUCs');
+      it.todo('will split a notification Veritum into a leading notification Cube followed by non-notification Cubes');  // write an e2e test for that, too!
     });  // compile() splitting tests
   });  // compile()
 
