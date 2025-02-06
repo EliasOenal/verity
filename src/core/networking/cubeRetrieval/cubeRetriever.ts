@@ -50,4 +50,6 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
   expectCube(keyInput: CubeKey | string): Promise<CubeInfo> {
     return this.cubeStore.expectCube(keyInput);
   }
+
+  // TODO add retrieval methods for notifications
 }

@@ -1,20 +1,26 @@
 import { Settings } from "../../core/settings";
+import { ArrayFromAsync } from "../../core/helpers/misc";
 import { CubeKey } from "../../core/cube/cube.definitions";
-import { cciCube } from "../cube/cciCube";
-import { CubeFamilyDefinition } from "../../core/cube/cubeFields";
-import { keyVariants } from "../../core/cube/cubeUtil";
-import { CubeRequestOptions } from "../../core/networking/cubeRetrieval/requestScheduler";
-import { CubeRetriever } from "../../core/networking/cubeRetrieval/cubeRetriever";
-import { logger } from "../../core/logger";
-
-import { cciRelationshipType, cciRelationship } from "../cube/cciRelationship";
-import { CubeRetrievalInterface } from "../../core/cube/cubeStore";
 import { Shuttable } from "../../core/helpers/coreInterfaces";
 import { Cube } from "../../core/cube/cube";
 import { CubeInfo } from "../../core/cube/cubeInfo";
+import { keyVariants } from "../../core/cube/cubeUtil";
+import { CubeRequestOptions, RequestScheduler } from "../../core/networking/cubeRetrieval/requestScheduler";
+import { logger } from "../../core/logger";
 
-export class VeritumRetriever<GetCubeOptionsT extends CubeRequestOptions> implements CubeRetrievalInterface<GetCubeOptionsT>, Shuttable {
+import { cciCube } from "../cube/cciCube";
+import { CubeRetrievalInterface, CubeStore } from "../../core/cube/cubeStore";
+import { cciRelationshipType, cciRelationship } from "../cube/cciRelationship";
+import { Veritum } from "./veritum";
 
+export interface VeritumRetrievalInterface<OptionsType> extends CubeRetrievalInterface<OptionsType> {
+  getVeritum(key: CubeKey|string, options?: OptionsType): Promise<Veritum>;
+}
+
+export class VeritumRetriever<GetCubeOptionsT
+  extends CubeRequestOptions>
+  implements VeritumRetrievalInterface<GetCubeOptionsT>, Shuttable
+{
   private timers: NodeJS.Timeout[] = [];  // TODO make optional
 
   constructor(
@@ -31,6 +37,14 @@ export class VeritumRetriever<GetCubeOptionsT extends CubeRequestOptions> implem
   expectCube(keyInput: CubeKey | string): Promise<CubeInfo> {
     return this.cubeRetriever.expectCube(keyInput);
   }
+  get cubeStore(): CubeStore { return this.cubeRetriever.cubeStore }
+
+  async getVeritum(key: CubeKey|string, options?: GetCubeOptionsT): Promise<Veritum> {
+    const chunks: cciCube[] = await ArrayFromAsync(
+      this.getContinuationChunks(key, options));
+    const veritum: Veritum = Veritum.FromChunks(chunks);
+    return veritum;
+  }
 
   // Note: This method basically defines a subclass and instantiates it for every call.
   //   Maybe we should refactor it into an actual class "ChunkRetriever" or something.
@@ -38,15 +52,46 @@ export class VeritumRetriever<GetCubeOptionsT extends CubeRequestOptions> implem
   async *getContinuationChunks(
     key: CubeKey | string,
     options: CubeRequestOptions|GetCubeOptionsT = {},  // undefined = will use RequestScheduler's default
-  ): AsyncGenerator<cciCube> {
-    // set default timeout -- TODO: make sure RequestScheduler's options / timeout is passed through in the typical assembly
-    options.timeout ??= Settings.CUBE_REQUEST_TIMEOUT;
+  ): AsyncGenerator<cciCube, boolean, void> {
+    // set default timeout
+    if (options.timeout === undefined) {
+      // HACKHACK: break through our interfacing to adopt RequestScheduler's
+      // timeout if there is one.
+        const requestScheduler: RequestScheduler = this.cubeRetriever['requestScheduler'];
+      if (requestScheduler !== undefined) {
+        options.timeout = requestScheduler.options.requestTimeout;
+      } else {
+        options.timeout = Settings.CUBE_REQUEST_TIMEOUT;
+      }
+    }
 
-    // First, define some helper functions:
-    // chunkRetrieved will be run for, well, every chunk Cube retrieved
-    const chunkRetrieved = (chunk: cciCube, resolved: Promise<cciCube>) => {
-      if (timeoutReached) return;  // abort if timeout reached
-      if (chunk === undefined) return;  // this is probably a chunk retrieval timeout, maybe TODO handle it?!
+    // Prepare containers for both retrieved chunks and retrieval promises.
+    // Chunks will, obviously, first be added to retrievalPromises once we
+    // learn their key, and to retrieved once we, you know, retrieved them.
+    // Finally, they will be added to orderedChunks once we figured out
+    // where they belong in the chain.
+    const retrieved: Map<string, cciCube> = new Map();
+    const orderedChunks: cciCube[] = [];
+    const currentlyRetrieving: Set<Promise<cciCube>> = new Set();
+
+    // Let's define some helper functions:
+    // This will act as the main body of this AsyncGenerator and be called
+    // recursively for, well, every chunk Cube retrieved.
+    // Note that these calls are not in sync with chunk yielding as chunks
+    // are retrieved in parallel and may arrive out of order.
+    // (Yielding is instead governed by the nextChunkPromise, which gets updated
+    // whenever we happen to receive the next chunk in order.)
+    const chunkRetrieved = (chunk: cciCube, resolved: Promise<cciCube>): void => {
+      if (timeoutReached || chunk === undefined) {
+        // Retrieval failed, either due to timeout or due to missing chunk.
+        // No matter if the failed chunk is the next in order or a completely
+        // different one, this means that retrieval as a whole has failed.
+        // maybe TODO: Allow retrying chunk? Allow partial retrieval?
+        //   (Partial retrieval and retrying sound a bit like we're pretending
+        //    ot be BitTorrent.)
+        nextChunkPromiseResolve?.(undefined);  // note nextChunkPromise is undefined for first chunk
+        return;
+      }
 
       // Cool, we got a new chunk!
       // Let's save it and remove its retrieval promise
@@ -59,13 +104,13 @@ export class VeritumRetriever<GetCubeOptionsT extends CubeRequestOptions> implem
         const ref = refs[refIndexInCube];
 
         // ensure no circular references
-        if (retrieved.has(ref.remoteKeyString)) continue;
+        if (retrieved.has(ref.remoteKeyString)) continue;  // maybe error out instead?
 
         // schedule retrieval of referred chunk
         const retrievalPromise = this.cubeRetriever.getCube(
           ref.remoteKey, options as GetCubeOptionsT) as Promise<cciCube>;
-        retrievalPromise.then((nextChunk) => chunkRetrieved(nextChunk, retrievalPromise));
         currentlyRetrieving.add(retrievalPromise);
+        retrievalPromise.then((nextChunk) => chunkRetrieved(nextChunk, retrievalPromise));
       }
       // Check if this successful retrieval allows us to yield the next chunk.
       resolveNextChunkPromiseIfPossible();
@@ -85,7 +130,7 @@ export class VeritumRetriever<GetCubeOptionsT extends CubeRequestOptions> implem
       const previous: CubeKey = orderedChunks[orderedChunks.length - 1]?.getKeyIfAvailable();
       if (previous === undefined) {
         logger.error(`resolveNextChunkPromiseIfPossible(): previous is undefined, aborting. This should never happen.`);
-        nextChunkPromiseResolve(undefined);
+        nextChunkPromiseResolve(undefined);  // aborts retrieval as a whole
         return;
       }
 
@@ -139,14 +184,10 @@ export class VeritumRetriever<GetCubeOptionsT extends CubeRequestOptions> implem
       resolveNextChunkPromiseIfPossible();
     }
 
-    // Prepare containers for both retrieved chunks and retrieval promises.
-    // Chunks will, obviously, first be added to retrievalPromises once we
-    // learn their key, and to retrieved once we, you know, retrieved them.
-    // Finally, they will be added to orderedChunks once we figured out
-    // where they belong in the chain.
-    const retrieved: Map<string, cciCube> = new Map();
-    const orderedChunks: cciCube[] = [];
-    const currentlyRetrieving: Set<Promise<cciCube>> = new Set();
+    // cleanup
+    const cleanup = (): void => {
+      clearTimeout(timer);
+    }
 
     // While we retrieve all those chunks we'll yield them one by once we
     // happen to retrieve the one that's next in line.
@@ -170,23 +211,28 @@ export class VeritumRetriever<GetCubeOptionsT extends CubeRequestOptions> implem
     currentlyRetrieving.add(firstChunkPromise);
     let firstChunkKey: CubeKey = undefined;
     firstChunkPromise.then(chunk => {
-      chunkRetrieved(chunk as cciCube, firstChunkPromise);
-      firstChunkKey = chunk.getKeyIfAvailable();
+      if (chunk !== undefined) {
+        firstChunkKey = chunk.getKeyIfAvailable();
+        chunkRetrieved(chunk as cciCube, firstChunkPromise);
+      } else {
+        // retrieval failed, either due to timeout or due to unavailable chunk
+        cleanup();
+        return false;
+      }
     });
     nextChunkPromise = firstChunkPromise;
 
     // Wait for all Cubes to be retrieved and yield them:
     let chunk: cciCube;
     while ( (chunk = await nextChunkPromise) !== undefined ) {
-      if (chunk !== undefined) {
-        yield chunk;
-        orderedChunks.push(chunk);
-        newNextChunkPromise(chunk.getKeyIfAvailable());
-      }
+      if (chunk === undefined) return false;  // retrieval failed
+      yield chunk;
+      orderedChunks.push(chunk);
+      newNextChunkPromise(chunk.getKeyIfAvailable());
     }
 
-    // cleanup
-    clearTimeout(timer);
+    cleanup();
+    return true;  // retrieval successful
   }
 
   // implement Shuttable
