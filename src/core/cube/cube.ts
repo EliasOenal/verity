@@ -468,7 +468,9 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
         } else if (this.cubeType === CubeType.PIC ||
                    this.cubeType === CubeType.PIC_NOTIFY) {
             // for PICs, the key is the hash excluding the NONCE and DATE fields
-            if (this.picKey === undefined) await this.generatePicKey();
+            if (this.picKey === undefined) {
+                await this.compile();
+            }
             return this.picKey;
         } else {
             throw new CubeError("CubeType " + this.cubeType + " not implemented");
@@ -552,6 +554,10 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
         }
         this.signBinaryData();  // sign this Cube if applicable
         await this.generateCubeHash();
+        // If this is a PIC, also calculate the PIC key
+        if (this.cubeType === CubeType.PIC || this.cubeType === CubeType.PIC_NOTIFY) {
+            this.generatePicKey();
+        }
         if (Settings.RUNTIME_ASSERTIONS) {
             this.validateCube();
         }
