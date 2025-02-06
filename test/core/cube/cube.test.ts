@@ -141,6 +141,8 @@ describe('cube', () => {
       cube.setDate(date);
       expect(cube.getDate()).toEqual(date);
     }, 3000);
+
+    it.todo('write explicit getKey() unit tests: should return the key correctly for each Cube type, in both compiled and noncompiled state');
   });  // setters and getters
 
 
