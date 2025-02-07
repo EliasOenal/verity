@@ -90,7 +90,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     else return this._compiled?.[0]?.getKeyIfAvailable();
   }
   getKeyStringIfAvailable(): string {
-    if (HasSignature[this.cubeType]) return keyVariants(this.publicKey).keyString;
+    if (HasSignature[this.cubeType]) return keyVariants(this.publicKey)?.keyString;
     else return this._compiled?.[0]?.getKeyStringIfAvailable();
   }
   async getKey(): Promise<CubeKey> {
