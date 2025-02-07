@@ -81,7 +81,7 @@ export class VeritumRetriever<GetCubeOptionsT
     // are retrieved in parallel and may arrive out of order.
     // (Yielding is instead governed by the nextChunkPromise, which gets updated
     // whenever we happen to receive the next chunk in order.)
-    const chunkRetrieved = (chunk: cciCube, resolved: Promise<cciCube>): void => {
+    const chunkRetrieved = (key: CubeKey|string, chunk: cciCube, resolved: Promise<cciCube>): void => {
       if (timeoutReached || chunk === undefined) {
         // Retrieval failed, either due to timeout or due to missing chunk.
         // No matter if the failed chunk is the next in order or a completely
@@ -95,7 +95,7 @@ export class VeritumRetriever<GetCubeOptionsT
 
       // Cool, we got a new chunk!
       // Let's save it and remove its retrieval promise
-      retrieved.set(keyVariants(chunk.getKeyIfAvailable()).keyString, chunk);
+      retrieved.set(keyVariants(key).keyString, chunk);
       currentlyRetrieving.delete(resolved);
 
       // get further chunk references
@@ -110,7 +110,7 @@ export class VeritumRetriever<GetCubeOptionsT
         const retrievalPromise = this.cubeRetriever.getCube(
           ref.remoteKey, options as GetCubeOptionsT) as Promise<cciCube>;
         currentlyRetrieving.add(retrievalPromise);
-        retrievalPromise.then((nextChunk) => chunkRetrieved(nextChunk, retrievalPromise));
+        retrievalPromise.then((nextChunk) => chunkRetrieved(ref.remoteKey, nextChunk, retrievalPromise));
       }
       // Check if this successful retrieval allows us to yield the next chunk.
       resolveNextChunkPromiseIfPossible();
@@ -213,7 +213,7 @@ export class VeritumRetriever<GetCubeOptionsT
     firstChunkPromise.then(chunk => {
       if (chunk !== undefined) {
         firstChunkKey = chunk.getKeyIfAvailable();
-        chunkRetrieved(chunk as cciCube, firstChunkPromise);
+        chunkRetrieved(key, chunk as cciCube, firstChunkPromise);
       } else {
         // retrieval failed, either due to timeout or due to unavailable chunk
         cleanup();
