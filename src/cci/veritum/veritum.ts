@@ -17,6 +17,17 @@ import { logger } from "../../core/logger";
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo';
 
+export interface VeritumCreateOptions extends CubeCreateOptions {
+  /**
+   * You should never need to supply this manually; if you do, make sure you
+   * know what your're doing.
+   * This parameter is used when reconstructing a Veritum from a list of chunks
+   * to supply that list here, so that the resulting Veritum is already in
+   * compiled state.
+   */
+  chunks?: cciCube[];
+}
+
 export interface VeritumCompileOptions extends CubeCreateOptions, CciEncryptionParams {
 }
 
@@ -33,13 +44,17 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   readonly privateKey: Buffer;
 
   private _keyChunkNo: number = 0;
+  /**
+   * For encrypted Verita, this is the amount of encryption key chunks used.
+   * You will probably not need this.
+   **/
   get keyChunkNo(): number { return this._keyChunkNo }
   private recipientKeyChunkMap: Map<string, cciCube> = new Map();
 
   static FromChunks(chunks: Iterable<cciCube>, options?: VeritumFromChunksOptions): Veritum {
     // If decryption was requested, let's decrypt the chunks before recombining.
     // Will not get in our way if decryption was not requested.
-    let transformedChunks: Iterable<Cube>|Cube[] = ChunkDecrypt(chunks, options);
+    let transformedChunks: Iterable<cciCube> = ChunkDecrypt(chunks, options);
     return Continuation.Recombine(transformedChunks, options);
   }
 
@@ -47,16 +62,16 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
    * Static Create method is currently just a wrapper around the Constructor
    * to provide a Cube-compatible API.
    **/
-  static Create(options?: CubeCreateOptions): Veritum;
+  static Create(options?: VeritumCreateOptions): Veritum;
   static Create(copyFrom: Veritum): Veritum;
-  static Create(param1: CubeCreateOptions|Veritum = {}): Veritum {
+  static Create(param1: VeritumCreateOptions|Veritum = {}): Veritum {
     return new Veritum(param1);
   }
 
-  constructor(options?: CubeCreateOptions);
+  constructor(options?: VeritumCreateOptions);
   constructor(copyFrom: Veritum);
 
-  constructor(param1: CubeCreateOptions|Veritum = {}) {
+  constructor(param1: VeritumCreateOptions|Veritum = {}) {
     if (param1 instanceof Veritum) {
       // copy constructor
       const copyFrom: Veritum = param1;
@@ -70,12 +85,13 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
       super(copyFrom.cubeType, options);
     } else {
       // creating new Veritum
-      const options: CubeCreateOptions = param1;
+      const options: VeritumCreateOptions = param1;
       options.family ??= cciFamily;
       options.cubeType ??= DEFAULT_CUBE_TYPE;
       super(options.cubeType, options);
       this.publicKey = options.publicKey;
       this.privateKey = options.privateKey;
+      this._compiled = options.chunks;
     }
   }
 

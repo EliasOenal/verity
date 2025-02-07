@@ -1,7 +1,7 @@
 import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
-import { CubeError, CubeKey } from "../../core/cube/cube.definitions";
+import { CubeError, CubeKey, CubeType } from "../../core/cube/cube.definitions";
 import { Cube, CubeOptions } from "../../core/cube/cube";
 import { FieldParser } from "../../core/fields/fieldParser";
 
@@ -78,6 +78,8 @@ export class Continuation {
     cciFieldType.PMUC_RAWCONTENT, cciFieldType.PMUC_NOTIFY_RAWCONTENT,
     // non-content bearing CCI fields
     cciFieldType.CCI_END, cciFieldType.PADDING,
+    // virtual / pseudo fields
+    cciFieldType.REMAINDER,
   ];
 
   /**
@@ -308,22 +310,24 @@ export class Continuation {
 
 
   static Recombine(
-    cubes: Iterable<Cube>,
+    chunks: Iterable<cciCube>,
     options: RecombineOptions = {},
   ): Veritum {
     // set default options
     options.exclude ??= Continuation.ContinuationDefaultExclusions;
 
     // prepare variables
-    let veritum: Veritum;  // will be initialized late below
+    let cubeType: CubeType;
+    let fields: cciFields;  // will be initialized late below
 
     // iterate through all chunk Cubes...
-    for (const cube of cubes) {
-      if (veritum === undefined) {
-        // late initialisation of macroCube because we base the type of Cube
+    for (const cube of chunks) {
+      if (fields === undefined) {
+        // late initialisation of our macro fields object because we base the type of Cube
         // on the first chunk supplied -- and as we accept an iterable we need
         // to be iterating to be able to look at it
-        veritum = new Veritum({ ...options, cubeType: cube.cubeType });
+        cubeType = cube.cubeType;
+        fields = new cciFields([], cube.fieldParser.fieldDef);
       }
 
       for (const field of cube.fields.all) {
@@ -340,27 +344,35 @@ export class Continuation {
         // - variable length fields of same type directly adjacent to each
         //   other will be merged
         const previousField: cciField =
-          veritum.fieldCount > 0 ?
+          fields.length > 0 ?
             // TODO: get rid of unsafe manipulateFields() call
-            veritum.manipulateFields().all[veritum.fieldCount-1] :
+            fields.all[fields.length-1] :
             undefined;
         if (previousField !== undefined && field.type === previousField.type &&
-            veritum.fieldParser.fieldDef.fieldLengths[field.type] === undefined) {
+            fields.fieldDefinition.fieldLengths[field.type] === undefined) {
           previousField.value = Buffer.concat([previousField.value, field.value]);
           continue;
         }
         // - the rest will just be copied to the macro fieldset
-        veritum.appendField(field);
+        fields.appendField(field);
       }
     }
     // in a second pass, remove any PADDING fields
-    for (let i=0; i<veritum.fieldCount; i++) {
+    for (let i=0; i<fields.length; i++) {
       // TODO: get rid of unsafe manipulateFields() calls
-      if (veritum.manipulateFields().all[i].type === cciFieldType.PADDING) {
-        veritum.manipulateFields().all.splice(i, 1);
+      if (fields.all[i].type === cciFieldType.PADDING) {
+        fields.all.splice(i, 1);
         i--;
       }
     }
+
+    // wrap our reconstructed fields into a Veritum object and return it
+    const veritum = new Veritum({
+      ...options,
+      cubeType: cubeType,
+      fields: fields,
+      chunks: Array.from(chunks),  // maybe TODO optimise: avoid copying potential input Array?
+    });
     return veritum;
   }
 }
