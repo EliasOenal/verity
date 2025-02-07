@@ -29,6 +29,9 @@ export interface Veritable {
   getKeyIfAvailable(): CubeKey;
   getKeyStringIfAvailable(): string;
 
+  getKey(): Promise<CubeKey>;
+  getKeyString(): Promise<string>;
+
   equals(other: Veritable&VeritableBaseImplementation): boolean;
 
   /**

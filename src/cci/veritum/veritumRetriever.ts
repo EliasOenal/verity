@@ -21,7 +21,7 @@ export class VeritumRetriever<GetCubeOptionsT
   extends CubeRequestOptions>
   implements VeritumRetrievalInterface<GetCubeOptionsT>, Shuttable
 {
-  private timers: NodeJS.Timeout[] = [];  // TODO make optional
+  private timers: NodeJS.Timeout[] = [];  // maybe TODO make optional in case of CubeStore backend?
 
   constructor(
       public cubeRetriever: CubeRetrievalInterface<GetCubeOptionsT>,

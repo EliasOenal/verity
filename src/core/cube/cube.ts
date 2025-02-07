@@ -58,6 +58,14 @@ export abstract class VeritableBaseImplementation implements Veritable {
     getKeyStringIfAvailable(): string {
         throw new ApiMisuseError("VeritableBaseImplementation subclasses must implement getKeyStringIfAvailable()");
     }
+    /** Subclass must override */
+    getKey(): Promise<CubeKey> {
+        throw new ApiMisuseError("VeritableBaseImplementation subclasses must implement getKey()");
+    }
+    /** Subclass must override */
+    getKeyString(): Promise<string> {
+        throw new ApiMisuseError("VeritableBaseImplementation subclasses must implement getKeyString()");
+    }
 
     equals(other: Veritable&VeritableBaseImplementation): boolean {
         if (

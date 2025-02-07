@@ -43,6 +43,16 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     return Continuation.Recombine(transformedChunks, options);
   }
 
+  /**
+   * Static Create method is currently just a wrapper around the Constructor
+   * to provide a Cube-compatible API.
+   **/
+  static Create(options?: CubeCreateOptions): Veritum;
+  static Create(copyFrom: Veritum): Veritum;
+  static Create(param1: CubeCreateOptions|Veritum = {}): Veritum {
+    return new Veritum(param1);
+  }
+
   constructor(options?: CubeCreateOptions);
   constructor(copyFrom: Veritum);
 
@@ -82,6 +92,16 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   getKeyStringIfAvailable(): string {
     if (HasSignature[this.cubeType]) return keyVariants(this.publicKey).keyString;
     else return this._compiled?.[0]?.getKeyStringIfAvailable();
+  }
+  async getKey(): Promise<CubeKey> {
+    if (this.getKeyIfAvailable()) return this.getKeyIfAvailable();
+    if (this._compiled?.[0] === undefined) await this.compile();
+    return this.getKeyIfAvailable();
+  }
+  async getKeyString(): Promise<string> {
+    if (this.getKeyStringIfAvailable()) return this.getKeyStringIfAvailable();
+    if (this._compiled?.[0] === undefined) await this.compile();
+    return this.getKeyStringIfAvailable();
   }
 
   /**
