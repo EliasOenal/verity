@@ -7,7 +7,7 @@ import { BaseField } from '../../../src/core/fields/baseField';
 import { BaseFields } from '../../../src/core/fields/baseFields';
 import { FieldParser } from '../../../src/core/fields/fieldParser';
 
-import { BinaryLengthError, CubeFieldLength, CubeFieldType, CubeSignatureError, CubeType, FieldSizeError, HasNotify, HasSignature, RawcontentFieldType } from '../../../src/core/cube/cube.definitions';
+import { BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldSizeError, HasNotify, HasSignature, RawcontentFieldType } from '../../../src/core/cube/cube.definitions';
 import { Cube, coreCubeFamily } from '../../../src/core/cube/cube';
 import { calculateHash, countTrailingZeroBits, paddedBuffer, verifySignature } from '../../../src/core/cube/cubeUtil';
 import { CubeField } from '../../../src/core/cube/cubeField';
@@ -209,7 +209,7 @@ describe('cube', () => {
   });  // static methods
 
 
-  describe('basic compilation', () => {
+  describe('compile()', () => {
     it('should compile fields correctly even after manipulating them', async () => {
       const cube = Cube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, " "),
@@ -217,7 +217,7 @@ describe('cube', () => {
       });
       cube.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).value.write(
         'Ego sum determinavit tarde quid dicere Cubus.', 'ascii');
-      const binaryData = await cube.getBinaryData();
+      const binaryData = await cube.getBinaryData();  // calls compile
       expect(binaryData[0]).toEqual(CubeType.FROZEN);
       const parser = new FieldParser(CoreFrozenFieldDefinition);  // decompileTlv is true
       const recontructed: BaseFields = parser.decompileFields(binaryData);
@@ -287,6 +287,71 @@ describe('cube', () => {
       expect(key[key.length - 1]).toEqual(0);  // == min 8 bits difficulty
     }, 5000);
   });
+
+  describe('consistency tests', () => {
+    test('a MUC should remain valid after updating its date', async () => {
+      // prepare cryptographic keys
+      const keyPair = sodium.crypto_sign_keypair();
+      const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+      const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+
+      // sculpts a MUC
+      const muc: Cube = Cube.MUC(
+        publicKey, privateKey, {
+        fields: [
+          CubeField.RawContent(CubeType.MUC,
+            "Melita res publica facta est"),
+          CubeField.Date(156164400),  // republic day
+          ],
+        requiredDifficulty: requiredDifficulty,
+      });
+
+      // verify its signature is valid
+      let binary = await muc.getBinaryData();
+      expect(muc.verifySignature()).toBe(true);
+
+      // update date (this operation is properly encapsulated)
+      muc.setDate(291726000);  // freedom day
+
+      // Verify its signature is still valid.
+      // This asserts that an automatic recompilation takes place.
+      binary = await muc.getBinaryData();
+      expect(muc.verifySignature()).toBe(true);
+    });
+
+    // This test currently FAILS because a Cube's fields are not properly
+    // encapsulated and thus user code can easily manipulate fields without
+    // the Cube object noticing.
+    test.skip('a MUC should remain valid after updating its content', async () => {
+      // prepare cryptographic keys
+      const keyPair = sodium.crypto_sign_keypair();
+      const publicKey: Buffer = Buffer.from(keyPair.publicKey);
+      const privateKey: Buffer = Buffer.from(keyPair.privateKey);
+
+      // sculpts a MUC
+      const muc: Cube = Cube.MUC(
+        publicKey, privateKey, {
+        fields: [
+          CubeField.RawContent(CubeType.MUC,
+            "Melita res publica facta est"),
+          CubeField.Date(156164400),  // republic day
+          ],
+        requiredDifficulty: requiredDifficulty,
+      });
+
+      // verify its signature is valid
+      let binary = await muc.getBinaryData();
+      expect(muc.verifySignature()).toBe(true);
+
+      // update content
+      muc.getFirstField(CubeFieldType.MUC_RAWCONTENT).value.write(
+        "Sed militia Britannica adhuc in Melita stat", 'ascii');
+
+      // verify its signature is still valid
+      binary = await muc.getBinaryData();
+      expect(muc.verifySignature()).toBe(true);
+    });
+  });  // consistency tests
 
   describe('tests by Cube type', () => {
     describe('compilation and decompilation by Cube type', () => {
@@ -360,7 +425,73 @@ describe('cube', () => {
           expect(await recontructed.getHash()).toEqual(expectedHash);
         }, 3000);
       });  // for each Cube type
-    });  // basic compilation and decompilation by Cube type
+    });  // compilation and decompilation by Cube type
+
+    describe('getKey() by Cube type', () => {
+      enumNums(CubeType).forEach((type) => {  // perform the tests for every CubeType
+        // prepare verification function
+        async function verifyKey(cube: Cube) {
+          // run test
+          const key: CubeKey = await cube.getKey();
+
+          // verify key, depending on the Cube type:
+          if (HasSignature[type]) {
+            // for signed Cubes, the key is the public key
+            expect(key).toEqual(commonPublicKey);
+          }
+          else if (type === CubeType.FROZEN || type === CubeType.FROZEN_NOTIFY) {
+            // for frozen Cubes, the key is the full hash
+            const binaryData = cube.getBinaryDataIfAvailable();
+            expect(binaryData.length).toBe(NetConstants.CUBE_SIZE);
+            const hash: Buffer = Buffer.from(sha3_256.arrayBuffer(binaryData));
+            expect(key).toEqual(hash);
+          } else if (type === CubeType.PIC || type === CubeType.PIC_NOTIFY) {
+            // for PICs, the key is the hash excluding the DATE and NONCE fields
+            const binaryData = cube.getBinaryDataIfAvailable();
+            expect(binaryData.length).toBe(NetConstants.CUBE_SIZE);
+            const keyHashLength: number = NetConstants.CUBE_SIZE -
+              CubeFieldLength[CubeFieldType.DATE] - CubeFieldLength[CubeFieldType.NONCE];
+            const keyHashableBinaryData = binaryData.subarray(0, keyHashLength);
+            const expectedKey = Buffer.from(sha3_256.arrayBuffer(keyHashableBinaryData));
+            expect(key).toEqual(expectedKey);
+          }
+          else throw new CubeError("CubeType " + type + " not implemented");
+        }
+
+        it(`returns the correct key for a freshly sculpted ${CubeType[type]} Cube`, async () => {
+          // sculpt Cube
+          const cube: Cube = Cube.Create({
+            cubeType: type,
+            requiredDifficulty: requiredDifficulty,
+            // supplying keys for signed types only --
+            // will be ignored for non-signed types
+            publicKey: commonPublicKey,
+            privateKey: commonPrivateKey,
+          });
+          // run test
+          await verifyKey(cube);
+        });
+
+        it(`returns the correct key for a ${CubeType[type]} Cube reactivated from binary data`, async () => {
+          // sculpt Cube
+          const cube: Cube = Cube.Create({
+            cubeType: type,
+            requiredDifficulty: requiredDifficulty,
+            // supplying keys for signed types only --
+            // will be ignored for non-signed types
+            publicKey: commonPublicKey,
+            privateKey: commonPrivateKey,
+          });
+          // compile cube
+          const binaryData: Buffer = await cube.getBinaryData();
+          // reactivate Cube
+          const reactivate: Cube = new Cube(binaryData);
+          // run test
+          await verifyKey(reactivate);
+        });
+      });  // forEach Cube type
+    });  // getKey() by Cube type
+
 
     describe('MUC tests', () => {
       it('should compile and decompile correctly', async () => {
@@ -550,68 +681,4 @@ describe('cube', () => {
       }, 5000);
     });  // MUC tests
   });  // test by Cube type
-
-  describe('consistency tests', () => {
-    test('a MUC should remain valid after updating its date', async () => {
-      // prepare cryptographic keys
-      const keyPair = sodium.crypto_sign_keypair();
-      const publicKey: Buffer = Buffer.from(keyPair.publicKey);
-      const privateKey: Buffer = Buffer.from(keyPair.privateKey);
-
-      // sculpts a MUC
-      const muc: Cube = Cube.MUC(
-        publicKey, privateKey, {
-        fields: [
-          CubeField.RawContent(CubeType.MUC,
-            "Melita res publica facta est"),
-          CubeField.Date(156164400),  // republic day
-          ],
-        requiredDifficulty: requiredDifficulty,
-      });
-
-      // verify its signature is valid
-      let binary = await muc.getBinaryData();
-      expect(muc.verifySignature()).toBe(true);
-
-      // update date (this operation is properly encapsulated)
-      muc.setDate(291726000);  // freedom day
-
-      // verify its signature is still valid
-      binary = await muc.getBinaryData();
-      expect(muc.verifySignature()).toBe(true);
-    });
-
-    // This test currently FAILS because a Cube's fields are not properly
-    // encapsulated and thus user code can easily manipulate fields without
-    // the Cube object noticing.
-    test.skip('a MUC should remain valid after updating its content', async () => {
-      // prepare cryptographic keys
-      const keyPair = sodium.crypto_sign_keypair();
-      const publicKey: Buffer = Buffer.from(keyPair.publicKey);
-      const privateKey: Buffer = Buffer.from(keyPair.privateKey);
-
-      // sculpts a MUC
-      const muc: Cube = Cube.MUC(
-        publicKey, privateKey, {
-        fields: [
-          CubeField.RawContent(CubeType.MUC,
-            "Melita res publica facta est"),
-          CubeField.Date(156164400),  // republic day
-          ],
-        requiredDifficulty: requiredDifficulty,
-      });
-
-      // verify its signature is valid
-      let binary = await muc.getBinaryData();
-      expect(muc.verifySignature()).toBe(true);
-
-      // update content
-      muc.getFirstField(CubeFieldType.MUC_RAWCONTENT).value.write(
-        "Sed militia Britannica adhuc in Melita stat", 'ascii');
-
-      // verify its signature is still valid
-      binary = await muc.getBinaryData();
-      expect(muc.verifySignature()).toBe(true);
-    });
-  })
 });
