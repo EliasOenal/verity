@@ -1,7 +1,8 @@
 import { cciCube } from "../../../src/cci/cube/cciCube";
 import { cciFieldLength, cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { cciField } from "../../../src/cci/cube/cciField";
-import { CubeFieldType, CubeType, HasNotify, HasSignature } from "../../../src/core/cube/cube.definitions";
+import { cciFields, cciFrozenFieldDefinition } from "../../../src/cci/cube/cciFields";
+import { CubeFieldType, CubeType, FieldSizeError, HasNotify, HasSignature } from "../../../src/core/cube/cube.definitions";
 import { typeFromBinary } from "../../../src/core/cube/cubeUtil";
 import { enumNums } from "../../../src/core/helpers/misc";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
@@ -25,7 +26,38 @@ describe('cciCube', () => {
     commonPrivateKey = Buffer.from(commonKeyPair.privateKey);
   });
 
-  describe('method padUp()', () => {
+  describe('setFields()', () => {
+    it('should set and get fields correctly', () => {
+      const cube = new cciCube(CubeType.FROZEN);
+      const fields = new cciFields([
+        cciField.Type(CubeType.FROZEN),
+        cciField.Payload("Ero celeber Cubus cum compilatus fuero."),
+        cciField.Date(),
+        cciField.Nonce(),
+      ], cciFrozenFieldDefinition);
+      cube.setFields(fields);
+      expect(cube.fields).toEqual(fields);
+      expect(cube.getFirstField(cciFieldType.PAYLOAD).valueString).toContain(
+        "Ero celeber Cubus cum compilatus fuero.");
+    }, 3000);
+
+    it('should throw an error when there is not enough space for a field value', () => {
+      // Cannot sensibly be tested on the core layer as there's no TLV;
+      // everything is fixed size anyway and will throw way before setFields()
+      // if sizes don't match.
+      // TODO: Move to CCI tests
+      const cube = new cciCube(CubeType.FROZEN);
+      const fields = new cciFields([
+        cciField.Type(CubeType.FROZEN),
+        new cciField(cciFieldType.PAYLOAD, Buffer.alloc(8020)),
+        cciField.Date(),
+        cciField.Nonce()
+      ], cciFrozenFieldDefinition); // Too long for the binary data
+      expect(() => cube.setFields(fields)).toThrow(FieldSizeError);
+    });
+  });
+
+  describe('padUp()', () => {
     // Note: This was moved here from the core tests, but as of the time of
     // writiting of this comment the padUp() method was still implemented in Core.
     it('Should not add padding if not required', async() => {

@@ -106,7 +106,7 @@ describe('cube', () => {
 
   describe('setters and getters', () => {
     it('should set and get fields correctly', () => {
-      const cube = new Cube(CubeType.FROZEN);
+      const cube = new Cube(CubeType.FROZEN, { requiredDifficulty: 0 });
       const fields = new CubeFields([
         CubeField.Type(CubeType.FROZEN),
         CubeField.RawContent(CubeType.FROZEN,
@@ -118,29 +118,15 @@ describe('cube', () => {
       expect(cube.fields).toEqual(fields);
       expect(cube.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).toContain(
         "Ero celeber Cubus cum compilatus fuero.");
-    }, 3000);
-
-    it.skip('should throw an error when there is not enough space for a field value', () => {
-      // Cannot sensibly be tested on the core layer as there's no TLV;
-      // everything is fixed size anyway and will throw way before setFields()
-      // if sizes don't match.
-      // TODO: Move to CCI tests
-      const cube = new Cube(CubeType.FROZEN);
-      const fields = new CubeFields([
-        CubeField.Type(CubeType.FROZEN),
-        new CubeField(CubeFieldType.FROZEN_RAWCONTENT, Buffer.alloc(8020)),
-        CubeField.Date(),
-        CubeField.Nonce()
-      ], CoreFrozenFieldDefinition); // Too long for the binary data
-      expect(() => cube.setFields(fields)).toThrow(FieldSizeError);
-    }, 3000);
+    });
 
     it('should set and get the date correctly', () => {
-      const cube = Cube.Frozen();
+      const cube = Cube.Create({
+        cubeType: CubeType.FROZEN, requiredDifficulty: 0 });
       const date = unixtime();
       cube.setDate(date);
       expect(cube.getDate()).toEqual(date);
-    }, 3000);
+    });
 
     it.todo('write explicit getKey() unit tests: should return the key correctly for each Cube type, in both compiled and noncompiled state');
   });  // setters and getters
