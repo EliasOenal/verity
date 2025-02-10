@@ -2,7 +2,7 @@ import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
 import { CubeError, CubeKey, CubeType } from "../../core/cube/cube.definitions";
-import { Cube, CubeOptions } from "../../core/cube/cube";
+import { Cube, CubeCreateOptions, CubeOptions } from "../../core/cube/cube";
 import { FieldParser } from "../../core/fields/fieldParser";
 
 import { cciCube } from "../cube/cciCube";
@@ -40,7 +40,7 @@ export interface SplitOptions extends RecombineOptions {
   chunkTransformationCallback?: (chunk: cciCube, splitState: SplitState) => void;
 }
 
-export interface RecombineOptions extends CubeOptions {
+export interface RecombineOptions extends CubeCreateOptions {
   // TODO these are not really CubeOptions; I can't define fields here.
   //   All it uses from CubeOptions is CubeType, and even that should probably
   //   just be derived from the first chunk or something.
@@ -372,6 +372,7 @@ export class Continuation {
       cubeType: cubeType,
       fields: fields,
       chunks: Array.from(chunks),  // maybe TODO optimise: avoid copying potential input Array?
+      publicKey: chunks[0].publicKey,  // only relevant for signed types, undefined otherwise
     });
     return veritum;
   }
