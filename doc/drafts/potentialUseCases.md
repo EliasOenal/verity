@@ -29,6 +29,11 @@ But still, let's collect some ideas:
 - JS library to implement guestbooks/chats on static websites
 - Firebase alternative
 - ✓ Replicated file storage (need to optimise code and probably run a separate network with larger Cube sizes for this to make sense)
+- Self-contained hosting, i.e. deployment of your application as a Veritum,
+  which will give you a link to a public entrypoint
+  (e.g. you run "npm run deploy" and you get
+  "https://verity.mt/1337cafebabe1337cafebabe1337cafebabe1337cafebabe1337cafebabe1337")
+  (can offer custom names or domains for monetisation!)
 
 ✓ = Proof of concept / demo app implemented
 
