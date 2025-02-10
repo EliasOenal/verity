@@ -43,11 +43,10 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   get chunks(): Iterable<cciCube> { return this._chunks }
 
   declare protected _fields: cciFields;
+  declare options: VeritumCreateOptions;
 
   get publicKey(): Buffer { return this.options.publicKey }
   get privateKey(): Buffer { return this.options.privateKey }
-
-  options: VeritumCreateOptions;  // TODO preserve options object upstream in VeritableBaseImplementation
 
   private _keyChunkNo: number = 0;
   /**
@@ -82,13 +81,12 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
       // copy constructor
       const copyFrom: Veritum = param1;
       const options = {
-        family: copyFrom.family,
-        fields: new cciFields(copyFrom._fields, copyFrom._fields.fieldDefinition),  // shallow copy
-        privateKey: copyFrom.options?.privateKey,
-        publicKey: copyFrom.options?.publicKey,
-        requiredDifficulty: copyFrom.requiredDifficulty,
+        // We'll keep the original's options
+        ...copyFrom.options,
+        // but we'll make a shallow copy of its fields object.
+        fields: new cciFields(copyFrom._fields, copyFrom._fields.fieldDefinition),
       }
-      super(copyFrom.cubeType, options);
+      super({...options, cubeType: copyFrom.cubeType});
       this.options = options;
       this._chunks = copyFrom._chunks ?? [];
     } else {
@@ -96,7 +94,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
       const options: VeritumCreateOptions = param1;
       options.family ??= cciFamily;
       options.cubeType ??= DEFAULT_CUBE_TYPE;
-      super(options.cubeType, options);
+      super(options);
       this.options = options;
       this._chunks = options.chunks ?? [];
     }

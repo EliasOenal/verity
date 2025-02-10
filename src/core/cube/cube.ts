@@ -32,19 +32,20 @@ export interface CubeCreateOptions extends CubeOptions {
 
 export abstract class VeritableBaseImplementation implements Veritable {
     protected _fields: CubeFields;
-    protected _family: CubeFamilyDefinition;
-    protected _cubeType: CubeType;
-    readonly requiredDifficulty: number;
 
-    constructor(cubeType: CubeType, options: CubeOptions = {}) {
-        this._cubeType = cubeType;
-        this._family = options.family ?? coreCubeFamily;
+    constructor(readonly options: CubeCreateOptions = {}) {
+        // set default options
+        options.cubeType ??= DEFAULT_CUBE_TYPE;
+        options.family ??= coreCubeFamily;
+        options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
+
+        // initialise members
         this._fields = this.normalizeFields(options.fields);
-        this.requiredDifficulty = options.requiredDifficulty ?? Settings.REQUIRED_DIFFICULTY;
     }
 
-    get family(): CubeFamilyDefinition { return this._family }
-    get cubeType(): CubeType { return this._cubeType }
+    get family(): CubeFamilyDefinition { return this.options.family }
+    get cubeType(): CubeType { return this.options.cubeType }
+    get requiredDifficulty(): number { return this.options.requiredDifficulty }
 
     get fieldParser(): FieldParser {
         return this.family.parsers[this.cubeType];
@@ -335,7 +336,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
                 logger.info(`Cube: Cannot reactivate dormant (binary) Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
                 throw new BinaryLengthError(`Cannot reactivate dormant (binary) Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
             }
-            super(CubeUtil.typeFromBinary(binaryData), options);
+            super({...options, cubeType: CubeUtil.typeFromBinary(binaryData)});
             this.binaryData = binaryData;  // maybe TODO: why do we even need to keep the binary buffer after parsing?
             if (!(this.cubeType in CubeType)) {
                 logger.info(`Cube: Cannot reactivate dormant (binary) Cube of unknown type ${this.cubeType}`);
@@ -350,7 +351,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
             this.validateCube();
         } else if (param1 in CubeType) {
             // sculpt new Cube
-            super(param1, options);
+            super({...options, cubeType: param1});
             if (options?.fields) {  // do we have a field set already?
                 if (!(options.fields instanceof CubeFields)) {
                     options.fields =  // upgrade to CubeFields if necessary
