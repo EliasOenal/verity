@@ -27,6 +27,8 @@ import { IdentityStore } from './identityStore';
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
 import EventEmitter from 'events';
+import { Veritum } from '../veritum/veritum';
+import { VeritumRetrievalInterface, VeritumRetriever } from '../veritum/veritumRetriever';
 
 // Identity defaults
 const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
@@ -99,6 +101,17 @@ export interface IdentityOptions {
   subscribeRemoteChanges?: boolean;
 
   identityStore?: IdentityStore;
+}
+
+export enum PostFormat {
+  CubeInfo,
+  Cube,
+  Veritum,
+};
+export interface GetPostsOptions {
+  format?: PostFormat;
+  subscriptionRecursionDepth?: number;
+  recursionExclude?: Set<string>;
 }
 
 // TODO: Split out the MUC management code.
@@ -175,7 +188,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
   /** @static Tries to load an existing Identity from the network or the CubeStore */
   static async Load(
-      cubeStoreOrRetriever: CubeStore | CubeRetriever,
+      cubeStoreOrRetriever: CubeRetrievalInterface<any>,
       username: string,
       password: string,
       options?: IdentityOptions,
@@ -195,7 +208,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
   /** @static Creates a new Identity for a given username and password combination. */
   static async Create(
-    cubeStoreOrRetriever: CubeStore | CubeRetriever,
+    cubeStoreOrRetriever: CubeRetrievalInterface<any>,
     username: string,
     password: string,
     options?: IdentityOptions,
@@ -368,7 +381,8 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
    * reconstruct Identity data from the network. If this is not required,
    * it will simply work on the local CubeStore instead.
    */
-  readonly cubeRetriever: CubeRetrievalInterface<any>;
+  readonly cubeRetriever: CubeRetrievalInterface<any> = undefined;
+  readonly veritumRetriever: VeritumRetrievalInterface<any> = undefined;
 
   private _masterKey: Buffer = undefined;
   get masterKey(): Buffer { return this._masterKey }  // maybe TODO: return copy to improve encapsulation?
@@ -437,13 +451,19 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       readonly options: IdentityOptions = {},
   ){
     super();
-    // remember my CubeStore, and CubeRetriever if applicable
-    this.cubeRetriever = cubeStoreOrRetriever;
-    if (cubeStoreOrRetriever instanceof CubeStore) {
-      this.cubeStore = cubeStoreOrRetriever;
-    } else if (cubeStoreOrRetriever instanceof CubeRetriever) {
+    // Remember my Cube retrieval thingie.
+    // It could be a CubeStore, a CubeRetriever, a VeritumRetriever, or any
+    // custom class implementing the appropriate interface.
+    if (typeof cubeStoreOrRetriever?.['getVeritum'] === 'function') {
+      // we have a VeritumRetriever!
+      this.veritumRetriever = cubeStoreOrRetriever as VeritumRetrievalInterface<any>;
+      this.cubeRetriever = cubeStoreOrRetriever;
       this.cubeStore = cubeStoreOrRetriever.cubeStore;
-    } else this.cubeStore = undefined;
+    } else {
+      this.veritumRetriever = undefined;
+      this.cubeRetriever = cubeStoreOrRetriever;
+      this.cubeStore = cubeStoreOrRetriever?.cubeStore;
+    }
     // set options
     options.minMucRebuildDelay ??= DEFAULT_MIN_MUC_REBUILD_DELAY;
     options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
@@ -601,14 +621,29 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   // #region Post/Subscription/Cube getters, Generators and Emission
   //###
 
+  /**
+   * @yields The keys of all of this user's posts as binary keys.
+   * Note that this is a synchroneous method and there is no recursion option.
+   */
   *getPostKeys(): Iterable<CubeKey> {
     for (const key of this._posts) yield keyVariants(key).binaryKey;
   }
+
+  /**
+   * @returns The keys of all of this user's posts as hex strings.
+   * Note that this is a synchroneous method and there is no recursion option.
+   */
   getPostKeyStrings(): Iterable<string> { return this._posts.values() }
+
+  /** @returns The number of this user's posts */
   getPostCount(): number { return this._posts.size }
+
+  /** @returns Whether or not this user has a post by this key */
   hasPost(keyInput: CubeKey | string): boolean {
     return this._posts.has(keyVariants(keyInput).keyString);
   }
+
+  /** @deprecated */
   async *getPostCubeInfos(): AsyncGenerator<CubeInfo, void, undefined> {
     const promises: Promise<CubeInfo>[] = [];
     for (const post of this.getPostKeyStrings()) {
@@ -617,16 +652,100 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     yield *resolveAndYield(promises);
   }
 
+
+  getPosts(options: { format: PostFormat.Veritum} ): AsyncGenerator<Veritum>;
+  getPosts(options: { format: PostFormat.Cube} ): AsyncGenerator<Cube>;
+  getPosts(options: { format: PostFormat.CubeInfo} ): AsyncGenerator<CubeInfo>;
+  getPosts(options: GetPostsOptions): AsyncGenerator<CubeInfo|Cube|Veritum>;
+  // TODO: Parallelise retrieval. Must probably rewrite as non-async for that.
+  async *getPosts(
+    options: GetPostsOptions = {},
+  ): AsyncGenerator<CubeInfo|Cube|Veritum> {
+    // set default options
+    options.format ??= this.veritumRetriever? PostFormat.Veritum: PostFormat.Cube;
+    options.subscriptionRecursionDepth ??= this.subscriptionRecursionDepth;
+    // note: recursionExclude set created below to avoid unnecessary constructions
+
+    // check if we even have the means to fulfil this request
+    if (this.cubeStore === undefined) {
+      logger.error(`Identity ${this.keyString} getPosts(): This Identity was created without CubeStore or CubeRetriever access, cannot fulfil request.`);
+      return;
+    }
+    if (options.format === PostFormat.Veritum && this.veritumRetriever === undefined) {
+      logger.error(`Identity ${this.keyString} getPosts(): Requested posts as Verity but this Identity was created without a VeritumRetriever reference, cannot fulfil request.`);
+      return;
+    }
+
+    // have we reached maximum recursion depth?
+    if (options.subscriptionRecursionDepth < 0) {
+      logger.trace(`Identity.getPosts(): Recursion depth exceeded for Identity ${this.keyString}; aborting.`);
+      return;
+    }
+    options.subscriptionRecursionDepth--;
+
+    // Avoid ping-ponging recursion by keeping track of already visited IDs
+    options.recursionExclude ??= new Set();
+    if (options.recursionExclude.has(this.keyString)) return;
+    else options.recursionExclude.add(this.keyString);
+
+    // Get all my posts (as retrieval promises)
+    const minePromises: Promise<CubeInfo|Cube|Veritum>[] = [];
+    for (const post of this.getPostKeyStrings()) {
+      let promise: Promise<CubeInfo|Cube|Veritum>;
+      switch(options.format) {
+        case PostFormat.CubeInfo:
+          promise = this.cubeRetriever.getCubeInfo(post);
+        case PostFormat.Cube:
+          promise = this.cubeRetriever.getCube(post);
+          break;
+        case PostFormat.Veritum:
+          promise = this.veritumRetriever.getVeritum(post);
+          break;
+      }
+      if (promise !== undefined) minePromises.push(promise);
+    }
+    // Prepare Generator for my posts
+    const mine: AsyncGenerator<CubeInfo|Cube|Veritum> = resolveAndYield(minePromises);
+
+    // - recurse through my subscriptions
+    const rGens: AsyncGenerator<CubeInfo>[] = [];
+    if (options.subscriptionRecursionDepth > 0) {
+      for await (const sub of this.getPublicSubscriptionIdentities()) {
+        rGens.push(sub.getAllCubeInfos(options.subscriptionRecursionDepth - 1, options.recursionExclude));
+      }
+    }
+    const ret: AsyncGenerator<CubeInfo|Cube|Veritum> = mergeAsyncGenerators(
+      mine, ...rGens);
+    yield* ret;
+  }
+
+  /**
+   * @yields The keys of all other Identities this user has publically
+   * subscribed, as binary keys.
+   * Note that this is a synchroneous method and there is no recursion option.
+   **/
   *getPublicSubscriptionKeys(): Iterable<CubeKey> {
     for (const key of this._publicSubscriptions) yield keyVariants(key).binaryKey;
   }
+
+  /**
+   * @returns The keys of all other Identities this user has publically
+   * subscribed, as hex strings.
+   * Note that this is a synchroneous method and there is no recursion option.
+   **/
   getPublicSubscriptionStrings(): Iterable<string> {
     return this._publicSubscriptions.values()
   }
+
+  /** @returns The amount of other Identities this user has publically subscribed. */
   getPublicSubscriptionCount(): number { return this._publicSubscriptions.size }
-  hasPublicSubscription(keyInput: CubeKey | string): boolean {
-    return this._publicSubscriptions.has(keyVariants(keyInput).keyString);
+
+  /** @returns Whether or not this user has publically subscribed that other Identity */
+  hasPublicSubscription(other: CubeKey | string | Identity): boolean {
+    return this._publicSubscriptions.has(Identity.KeyStringOf(other));
   }
+
+  /** @yields CubeInfo objects for all of this user's public subscriptions. */
   async *getPublicSubscriptionCubeInfos(): AsyncGenerator<CubeInfo, void, undefined> {
     const promises: Promise<CubeInfo>[] = [];
     for (const sub of this.getPublicSubscriptionStrings()) {
@@ -634,12 +753,16 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     }
     yield *resolveAndYield(promises);
   }
+
+  /** @yields Identity objects for all of this user's public subscriptions */
   async *getPublicSubscriptionIdentities(): AsyncGenerator<Identity> {
     for (const sub of this.getPublicSubscriptionStrings()) {
       const retrieved: Identity = await this.identityStore.retrieveIdentity(sub);
       if (retrieved !== undefined) yield retrieved;
     }
   }
+
+  /** @returns An Identity object for the specified subscribed user */
   getPublicSubscriptionIdentity(keyInput: CubeKey|string): Promise<Identity> {
     return this.identityStore.retrieveIdentity(keyInput);
   }
