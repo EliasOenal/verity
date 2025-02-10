@@ -5,7 +5,7 @@ import { NetConstants } from '../networking/networkDefinitions';
 import type { Veritable } from './veritable.definition';
 
 import { FieldPosition } from '../fields/baseFields';
-import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasSignature } from "./cube.definitions";
+import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasSignature, SmartCubeError } from "./cube.definitions";
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField } from "./cubeField";
@@ -477,7 +477,10 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
                    this.cubeType === CubeType.PIC_NOTIFY) {
             // for PICs, the key is the hash excluding the NONCE and DATE fields
             if (this.picKey === undefined) {
-                await this.compile();
+                // PIC key has not been generated yet, do we need to run a
+                // full compilation or is it just the PIC key that's missing?
+                if (this.binaryData === undefined) await this.compile();
+                else this.generatePicKey();
             }
             return this.picKey;
         } else {
@@ -498,7 +501,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
             return this.getHashIfAvailable();
         } else if (this.cubeType === CubeType.PIC ||
                    this.cubeType === CubeType.PIC_NOTIFY) {
-            // for PICs, the key is the hash excluding the NONCE and DATE fields
+            // For PICs, the key is the hash excluding the NONCE and DATE fields.
             return this.picKey;
          } else {
             throw new CubeError("CubeType " + this.cubeType + " not implemented");
@@ -549,9 +552,21 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
      * you call getBinaryData() or getHash().
      **/
     public async compile(): Promise<void> {
+        // pre-compile sanity checks
+        if (Settings.RUNTIME_ASSERTIONS) {
+            const expectedPublicKeyLength = sodium.crypto_sign_PUBLICKEYBYTES;
+            const expectedPrivateKeyLength = sodium.crypto_sign_SECRETKEYBYTES;
+            if (HasSignature[this.cubeType] && (
+                this.publicKey?.length !== expectedPublicKeyLength ||
+                this.privateKey?.length !== expectedPrivateKeyLength
+            )) {
+                throw new SmartCubeError(`Cube.compile(): Cannot compile a ${CubeType[this.cubeType]} without a valid public and private key`);
+            }
+        }
         // compile it
         this.binaryData = this.fieldParser.compileFields(this._fields);
-        if (Settings.RUNTIME_ASSERTIONS && this.binaryData.length != NetConstants.CUBE_SIZE) {
+        // post-compile sanity checks
+        if (Settings.RUNTIME_ASSERTIONS && this.binaryData.length !== NetConstants.CUBE_SIZE) {
             throw new BinaryDataError("Cube: Something went horribly wrong, I just wrote a cube of invalid size " + this.binaryData.length);
         }
         // re-set our fields so they share the same memory as our binary data again
