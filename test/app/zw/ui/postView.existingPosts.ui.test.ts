@@ -12,6 +12,8 @@ import { Identity } from '../../../../src/cci/identity/identity';
 import { Buffer } from 'buffer';
 import { cciTestOptions } from '../../../cci/e2e/e2eCciSetup';
 import { loadZwTemplate } from './uiTestSetup';
+import { CubeKey } from '../../../../src/core/cube/cube.definitions';
+import { keyVariants } from '../../../../src/core/cube/cubeUtil';
 
 const testOptions: VerityNodeOptions = {
   ...cciTestOptions,
@@ -50,35 +52,35 @@ describe('PostView tests regarding displayal of existing posts', () => {
       });
 
       it('should display my own root posts', async () => {
-        expectDisplayed(w.own, w.protagonist);
+        expectDisplayed(w.own, { author: w.protagonist });
       });
 
       it("should display my direct subscription's posts", async () => {
-        expectDisplayed(w.directUnreplied, w.directSub);
+        expectDisplayed(w.directUnreplied, { author: w.directSub });
       });
 
       it("should display indirect subscription's posts", async () => {
-        expectDisplayed(w.indirectUnreplied, w.indirectSub);
-        expectDisplayed(w.thirdUnreplied, w.thirdLevelSub);
+        expectDisplayed(w.indirectUnreplied, { author: w.indirectSub });
+        expectDisplayed(w.thirdUnreplied, { author: w.thirdLevelSub });
       });
 
       it("should display my own replies to direct subscription's posts", async () => {
-        expectDisplayed(w.directOwn, w.protagonist);
+        expectDisplayed(w.directOwn, { author: w.protagonist });
       });
 
       it("should display my own replies to indirect subscription's posts", async () => {
-        expectDisplayed(w.indirectOwn, w.protagonist);
-        expectDisplayed(w.thirdOwn, w.protagonist);
+        expectDisplayed(w.indirectOwn, { author: w.protagonist });
+        expectDisplayed(w.thirdOwn, { author: w.protagonist });
       });
 
       it("should display my subscription's replies to my own posts", async () => {
-        expectDisplayed(w.ownDirect, w.directSub);
-        expectDisplayed(w.ownIndirect, w.indirectSub);
-        expectDisplayed(w.ownThird, w.thirdLevelSub);
+        expectDisplayed(w.ownDirect, { author: w.directSub });
+        expectDisplayed(w.ownIndirect, { author: w.indirectSub });
+        expectDisplayed(w.ownThird, { author: w.thirdLevelSub });
       });
 
       it("should display my subscription's replies to my subscription's posts", async () => {
-        expectDisplayed(w.directThird, w.thirdLevelSub);
+        expectDisplayed(w.directThird, { author: w.thirdLevelSub });
       });
 
       it('should NOT show root posts by non-subscribed users', async () => {
@@ -90,26 +92,26 @@ describe('PostView tests regarding displayal of existing posts', () => {
       });
 
       it('should show posts by non-subscribed users if subscribed users answered them', async () => {
-        // expectDisplayed(w.ownUnrelatedAnswered, w.unrelatedId);
+        // expectDisplayed(w.ownUnrelatedAnswered, { author: w.unrelatedId });
         // TODO BUGBUG: currently unable to resolve the non-subscribed author;
         //              will display as unknown user
         expectDisplayed(w.ownUnrelatedAnswered);
       });
 
       it('should show posts by non-subscribed users if I answered them', async () => {
-        // expectDisplayed(w.unrelatedAnsweredByProtagonist, w.unrelatedId);
+        // expectDisplayed(w.unrelatedAnsweredByProtagonist, { author: w.unrelatedId });
         // TODO BUGBUG: currently unable to resolve the non-subscribed author;
         //              will display as unknown user
         expectDisplayed(w.unrelatedAnsweredByProtagonist);
       });
 
       it("should show my subscription's replies to non-subscribed users", async () => {
-        expectDisplayed(w.unrelatedSub, w.directSub);
-        expectDisplayed(w.ownUnrelatedSub, w.directSub);
+        expectDisplayed(w.unrelatedSub, { author: w.directSub });
+        expectDisplayed(w.ownUnrelatedSub, { author: w.directSub });
       });
 
       it("should show my own replies to non-subscribed users", async () => {
-        expectDisplayed(w.unrelatedOwn, w.protagonist);
+        expectDisplayed(w.unrelatedOwn, { author: w.protagonist });
       });
 
       // TODO do we actually want that?
@@ -117,7 +119,6 @@ describe('PostView tests regarding displayal of existing posts', () => {
         expectNotDisplayed(w.subUnavailableIndirect);
       });
     });  // My Network (posts based on subscriptions using full WOT)
-
 
     describe('Explore (showcasing unknown authors based on group notifications)', () => {
       let w: TestWorld;
@@ -140,66 +141,66 @@ describe('PostView tests regarding displayal of existing posts', () => {
 
       // TODO BUGBUG Fails to display user name and I don't know why
       it.skip('should display my own root posts', async () => {
-        expectDisplayed(w.own, w.protagonist);
+        expectDisplayed(w.own, { author: w.protagonist });
       });
 
       it("should display my direct subscription's posts", async () => {
-        expectDisplayed(w.directUnreplied, w.directSub);
+        expectDisplayed(w.directUnreplied, { author: w.directSub });
       });
 
       it("should display indirect subscription's posts", async () => {
-        expectDisplayed(w.indirectUnreplied, w.indirectSub);
-        expectDisplayed(w.thirdUnreplied, w.thirdLevelSub);
+        expectDisplayed(w.indirectUnreplied, { author: w.indirectSub });
+        expectDisplayed(w.thirdUnreplied, { author: w.thirdLevelSub });
       });
 
       it("should display my own replies to direct subscription's posts", async () => {
-        expectDisplayed(w.directOwn, w.protagonist);
+        expectDisplayed(w.directOwn, { author: w.protagonist });
       });
 
       it("should display my own replies to indirect subscription's posts", async () => {
-        expectDisplayed(w.indirectOwn, w.protagonist);
-        expectDisplayed(w.thirdOwn, w.protagonist);
+        expectDisplayed(w.indirectOwn, { author: w.protagonist });
+        expectDisplayed(w.thirdOwn, { author: w.protagonist });
       });
 
       it("should display my subscription's replies to my own posts", async () => {
-        expectDisplayed(w.ownDirect, w.directSub);
-        expectDisplayed(w.ownIndirect, w.indirectSub);
-        expectDisplayed(w.ownThird, w.thirdLevelSub);
+        expectDisplayed(w.ownDirect, { author: w.directSub });
+        expectDisplayed(w.ownIndirect, { author: w.indirectSub });
+        expectDisplayed(w.ownThird, { author: w.thirdLevelSub });
       });
 
       it("should display my subscription's replies to my subscription's posts", async () => {
-        expectDisplayed(w.directThird, w.thirdLevelSub);
+        expectDisplayed(w.directThird, { author: w.thirdLevelSub });
       });
 
       it('should show root posts by non-subscribed users', async () => {
-        expectDisplayed(w.unrelatedUnanswered, w.unrelatedId);
+        expectDisplayed(w.unrelatedUnanswered, { author: w.unrelatedId });
       });
 
       it('should show replies by non-subscribed users', async () => {
-        expectDisplayed(w.ownUnrelatedUnanswered, w.unrelatedId);
+        expectDisplayed(w.ownUnrelatedUnanswered, { author: w.unrelatedId });
       });
 
       it('should show posts by non-subscribed users if subscribed users answered them', async () => {
-        // expectDisplayed(w.ownUnrelatedAnswered, w.unrelatedId);
+        // expectDisplayed(w.ownUnrelatedAnswered, { author: w.unrelatedId });
         // TODO BUGBUG: currently unable to resolve the non-subscribed author;
         //              will display as unknown user
         expectDisplayed(w.ownUnrelatedAnswered);
       });
 
       it('should show posts by non-subscribed users if I answered them', async () => {
-        // expectDisplayed(w.unrelatedAnsweredByProtagonist, w.unrelatedId);
+        // expectDisplayed(w.unrelatedAnsweredByProtagonist, { author: w.unrelatedId });
         // TODO BUGBUG: currently unable to resolve the non-subscribed author;
         //              will display as unknown user
         expectDisplayed(w.unrelatedAnsweredByProtagonist);
       });
 
       it("should show my subscription's replies to non-subscribed users", async () => {
-        expectDisplayed(w.unrelatedSub, w.directSub);
-        expectDisplayed(w.ownUnrelatedSub, w.directSub);
+        expectDisplayed(w.unrelatedSub, { author: w.directSub });
+        expectDisplayed(w.ownUnrelatedSub, { author: w.directSub });
       });
 
       it("should show my own replies to non-subscribed users", async () => {
-        expectDisplayed(w.unrelatedOwn, w.protagonist);
+        expectDisplayed(w.unrelatedOwn, { author: w.protagonist });
       });
 
       // TODO do we actually want that?
@@ -218,6 +219,7 @@ describe('PostView tests regarding displayal of existing posts', () => {
     it.todo('does not fail if an author Identity has no screen name');
     it.todo('will truncate overly long screen names');
   });
+
 });
 
 
@@ -225,9 +227,23 @@ describe('PostView tests regarding displayal of existing posts', () => {
 // Helper functions
 //###
 
-function expectDisplayed(post: Veritable, author?: Identity) {
+interface ExpectDisplayedOptions {
+  author?: Identity;
+  replyto?: CubeKey|string;
+}
+function expectDisplayed(post: Veritable, options: ExpectDisplayedOptions = {}) {
+  // first, do we need to check if this is a reply?
+  // if it's a reply, it should be nested under the original post
+  let containing: HTMLElement;
+  if (options.replyto) {
+    containing = document.querySelector(`.verityPost[data-cubekey="${keyVariants(options.replyto).keyString}"]`);
+  } else {
+    containing = document.body;
+  }
+
+  expect(containing).not.toBeNull();
   // fetch post li
-  const postLi: HTMLElement = document.querySelector(`.verityPost[data-cubekey="${post.getKeyStringIfAvailable()}"]`);
+  const postLi: HTMLElement = containing.querySelector(`.verityPost[data-cubekey="${post.getKeyStringIfAvailable()}"]`);
   expect(postLi).not.toBeNull();
 
   // check post content / text
@@ -239,7 +255,7 @@ function expectDisplayed(post: Veritable, author?: Identity) {
   // check post author name
   const authorField: HTMLElement = postLi.querySelector(".verityCubeAuthor");
   expect(authorField).not.toBeNull();
-  if (author) expect(authorField.textContent).toBe(author.name);
+  if (options.author) expect(authorField.textContent).toBe(options.author.name);
 }
 
 function expectNotDisplayed(post: Veritable) {
