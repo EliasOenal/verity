@@ -4,12 +4,14 @@ import { cciField } from "../../../src/cci/cube/cciField";
 import { Continuation } from "../../../src/cci/veritum/continuation";
 import { Veritum } from "../../../src/cci/veritum/veritum";
 import { coreCubeFamily } from "../../../src/core/cube/cube";
-import { CubeType } from "../../../src/core/cube/cube.definitions";
+import { CubeType, HasSignature } from "../../../src/core/cube/cube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
+import { enumNums } from "../../../src/core/helpers/misc";
 
-import { tooLong } from "../testcci.definitions";
+import { evenLonger, tooLong } from "../testcci.definitions";
 import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 
+import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 const requiredDifficulty = 0;
@@ -19,12 +21,26 @@ describe('Veritum', () => {
   const mediaTypeField = cciField.MediaType(MediaTypes.TEXT);
   const payloadField = cciField.Payload("Hoc veritum probatio est");
 
+  let publicKey: Buffer;
+  let privateKey: Buffer;
+
+  beforeAll(async () => {
+    await sodium.ready;
+    const keyPair = await sodium.crypto_sign_keypair()
+    publicKey = Buffer.from(keyPair.publicKey);
+    privateKey = Buffer.from(keyPair.privateKey);
+  });
+
   describe('construction', () => {
     describe('FromChunks()', () => {
       // Note: Decryption tests in veritumEncryption.test.ts
       describe('decryption', () => {
         it.todo('write a concise test ensuring this correctly chains Recombine(), which is already well tested');
       });
+
+      it.todo("will adopt the first chunk's date field by default");
+      it.todo("will adopt the first chunk's notification, if any");
+      it.todo("will adopt the first chunk's update count if it is a PMUC");
     });
 
     describe('copy constructor', () => {
@@ -56,7 +72,7 @@ describe('Veritum', () => {
           fields: [applicationField, mediaTypeField, payloadField],
         });
         const copiedVeritum = new Veritum(originalVeritum);
-        expect(copiedVeritum).toEqual(originalVeritum);
+        expect(copiedVeritum.equals(originalVeritum)).toBe(true);
       });
 
       it('ensures the copied instance is independent of the original', () => {
@@ -77,70 +93,159 @@ describe('Veritum', () => {
     });
   });
 
-  describe('cubeType getter', () => {
-    it('returns the CubeType set on construction', () => {
-      const veritum = new Veritum({cubeType: CubeType.PMUC_NOTIFY});
-      expect(veritum.cubeType).toBe(CubeType.PMUC_NOTIFY);
-    });
+  describe('equals()', () => {
+    it.todo('write sensible high level equality function');
   });
 
-  describe('family getter', () => {
-    it('returns the family set on construction', () => {
-      const veritum = new Veritum({ cubeType: CubeType.PIC, family: coreCubeFamily });
-      expect(veritum.family).toBe(coreCubeFamily);
+  describe('getters', () => {
+    describe('cubeType getter', () => {
+      it('returns the CubeType set on construction', () => {
+        const veritum = new Veritum({cubeType: CubeType.PMUC_NOTIFY});
+        expect(veritum.cubeType).toBe(CubeType.PMUC_NOTIFY);
+      });
     });
 
-    it('uses CCI family by default', () => {
-      const veritum = new Veritum({ cubeType: CubeType.MUC });
-      expect(veritum.family).toBe(cciFamily);
-    });
-  });
-
-  describe('fieldParser getter', () => {
-    it('returns the correct field parser for CCI PMUC Veritae', () => {
-      const veritum = new Veritum({ cubeType: CubeType.PMUC });
-      expect(veritum.fieldParser).toBe(cciFamily.parsers[CubeType.PMUC]);
-    });
-  });
-
-  describe('getKeyIfAvailable() and getKeyStringIfAvailable()', () => {
-    it('returns undefined for a non-compiled frozen veritable', () => {
-      const veritum = new Veritum({cubeType: CubeType.FROZEN, fields: payloadField});
-      expect(veritum.getKeyIfAvailable()).toBeUndefined();
-      expect(veritum.getKeyStringIfAvailable()).toBeUndefined();
-    });
-
-    it('returns the Cube key for a single-Cube compiled Veritum', async() => {
-      const veritum = new Veritum({
-        cubeType: CubeType.FROZEN, fields: payloadField, requiredDifficulty});
-      await veritum.compile();
-      expect(veritum.getKeyIfAvailable()).toBeInstanceOf(Buffer);
-      expect(veritum.getKeyIfAvailable()).toEqual(
-        Array.from(veritum.compiled)[0].getKeyIfAvailable());
-    });
-
-    it('returns the first Cube\'s key for a multi-Cube compiled Veritum', async () => {
-      const largePayloadField = cciField.Payload(Buffer.alloc(NetConstants.CUBE_SIZE * 2, 'a'));
-      const veritum = new Veritum({
-        cubeType: CubeType.FROZEN, fields: largePayloadField, requiredDifficulty,
+    describe('family getter', () => {
+      it('returns the family set on construction', () => {
+        const veritum = new Veritum({ cubeType: CubeType.PIC, family: coreCubeFamily });
+        expect(veritum.family).toBe(coreCubeFamily);
       });
 
-      const cubesIterable: Iterable<cciCube> = await veritum.compile();
-      const compiled: cciCube[] = Array.from(cubesIterable);
-
-      expect(compiled.length).toBeGreaterThan(1);
-      const firstCubeKey = await compiled[0].getKey();
-      expect(veritum.getKeyIfAvailable()).toEqual(firstCubeKey);
+      it('uses CCI family by default', () => {
+        const veritum = new Veritum({ cubeType: CubeType.MUC });
+        expect(veritum.family).toBe(cciFamily);
+      });
     });
 
-    it('returns the public key for a MUC Veritum', () => {
-      const publicKey = Buffer.alloc(NetConstants.PUBLIC_KEY_SIZE, 0x42);
-      const veritum = new Veritum({
-        cubeType: CubeType.MUC, fields: payloadField, publicKey});
-      expect(veritum.getKeyIfAvailable()).toBe(publicKey);
-      expect(veritum.getKeyStringIfAvailable()).toEqual(publicKey.toString('hex'));
+    describe('fieldParser getter', () => {
+      it('returns the correct field parser for CCI PMUC Veritae', () => {
+        const veritum = new Veritum({ cubeType: CubeType.PMUC });
+        expect(veritum.fieldParser).toBe(cciFamily.parsers[CubeType.PMUC]);
+      });
     });
-  });
+
+    describe('key getters', () => {
+      enumNums(CubeType).forEach((cubeType) => {
+        [1, 2, 3].forEach((chunkNo) => {
+          let payloadField: cciField;
+          if (chunkNo === 1) payloadField = cciField.Payload("Cubus unicus sum");
+          else if (chunkNo === 2) payloadField = cciField.Payload(tooLong);
+          else payloadField = cciField.Payload(evenLonger);
+          ['non-compiled', 'compiled', 'reactivated'].forEach((state) => {
+            describe(`key getter tests for a ${state} ${chunkNo}-chunk ${CubeType[cubeType]} Veritum`, () => {
+              let veritum: Veritum;
+              let expectedKey: Buffer;
+
+              beforeAll(async () => {
+                // sculpt a new Veritum
+                veritum = new Veritum({
+                  cubeType: cubeType,
+                  fields: payloadField,
+                  publicKey, privateKey, requiredDifficulty,
+                });
+                // do some pre-test processing by state:
+                // - if we are testing compiled Verita, obviously compile it
+                // - if we are testing reactivated Verita, compile it and then
+                //   reconstruct it from the binary chunks
+                if (state === 'compiled') {
+                  await veritum.compile();
+                }
+                if (state === 'reactivated') {
+                  await veritum.compile();
+                  // for the reactivated state test, we also want to check that
+                  // the key does not change after reactivation, so let's take
+                  // note of the key before we proceed
+                  expectedKey = veritum.getKeyIfAvailable();
+                  expect(expectedKey.length).toBe(NetConstants.CUBE_KEY_SIZE);
+                  // collect binary chunks
+                  const binaryChunks: Buffer[] = [];
+                  for (const chunk of veritum.chunks) {
+                    binaryChunks.push(await chunk.getBinaryData());
+                  }
+                  // reactivate the chunks
+                  const reactivatedChunks: cciCube[] = [];
+                  for (const binaryChunk of binaryChunks) {
+                    const reactivatedChunk: cciCube = new cciCube(binaryChunk);
+                    reactivatedChunks.push(reactivatedChunk);
+                  }
+                  // reconstruct the Veritum from the reactivated chunks
+                  veritum = Veritum.FromChunks(reactivatedChunks);
+                }
+              });
+
+              if (state !== 'reactivated') it(`getKeyIfAvailable() returns ${HasSignature[cubeType] ? 'the public key' : 'undefined'} for a ${state} ${chunkNo}-chunk ${CubeType[cubeType]} Veritum`, async () => {
+                // Perform test. The expected result varies based on CubeType.
+                if (HasSignature[cubeType]) {
+                  // For signed types, the key is always available, and always
+                  // the public key.
+                  expect(veritum.getKeyIfAvailable()).toBeInstanceOf(Buffer);
+                  expect(veritum.getKeyIfAvailable()).toEqual(publicKey);
+                  expect(veritum.getKeyStringIfAvailable()).toBeDefined();
+                  expect(veritum.getKeyStringIfAvailable()).toEqual(publicKey.toString('hex'));
+                } else {
+                  // For non-signed Cubes the key is only available after compilation.
+                  // Note that is is not guaranteed to be available after reactivation,
+                  // as it may need to be recalculated.
+                  if (state === 'reactivated') {
+                    // We currently don't make any assertion on that.
+                    // The long term goal would probably to skip any hash calculation
+                    // on reactivation for performance, which would make the the
+                    // return value undefined.
+                    // Currently, we re-hash the whole Cube on reactivation making
+                    // the key available for frozen Cubes, but don't recalculate the
+                    // extra key hash for PICs.
+                  } else if (state === 'compiled') {
+                    expect(veritum.getKeyIfAvailable()).toBeInstanceOf(Buffer);
+                    expect(veritum.getKeyIfAvailable()).toHaveLength(NetConstants.CUBE_KEY_SIZE);
+                    expect(veritum.getKeyIfAvailable()).toEqual(
+                      Array.from(veritum.chunks)[0].getKeyIfAvailable());
+                    expect(veritum.getKeyStringIfAvailable()).toBeDefined();
+                    expect(veritum.getKeyStringIfAvailable()).toHaveLength(NetConstants.CUBE_KEY_SIZE * 2);
+                    expect(veritum.getKeyStringIfAvailable()).toEqual(
+                      Array.from(veritum.chunks)[0].getKeyStringIfAvailable());
+                  } else {
+                    expect(veritum.getKeyIfAvailable()).toBeUndefined();
+                    expect(veritum.getKeyStringIfAvailable()).toBeUndefined();
+                  }
+                }
+              });  // test getKeyIfAvailabel()
+
+              it(`getKey() returns the key for a ${state} ${chunkNo}-chunk ${CubeType[cubeType]} Veritum`, async () => {
+                // Perform test.
+                const result = await veritum.getKey();
+                const resultString = await veritum.getKeyString();
+                // The expected result varies based on CubeType.
+                if (HasSignature[cubeType]) {
+                  // For signed types, the key is always the public key.
+                  expect(result).toBeInstanceOf(Buffer);
+                  expect(result).toEqual(publicKey);
+                  expect(resultString).toBeDefined();
+                  expect(resultString).toEqual(publicKey.toString('hex'));
+                } else {
+                  // For non-signed Cubes the key is hash-based and equals
+                  // the first chunk's key.
+                  // Compilation is triggered automatically if needed.
+                  expect(result).toBeInstanceOf(Buffer);
+                  expect(result).toHaveLength(NetConstants.CUBE_KEY_SIZE);
+                  const firstChunkKey: Buffer = await Array.from(veritum.chunks)[0].getKey();
+                  expect(result).toEqual(firstChunkKey);
+                  expect(resultString).toBeDefined();
+                  expect(resultString).toHaveLength(NetConstants.CUBE_KEY_SIZE * 2);
+                  expect(resultString).toEqual(firstChunkKey.toString('hex'));
+                }
+                // If this Verium was reactivation, compiling and reactivating
+                // should not have changed the key
+                if (state === 'reactivated') {
+                  expect(result).toEqual(expectedKey);
+                  expect(resultString).toEqual(expectedKey.toString('hex'));
+                }
+              });
+            });  // key getter tests for a ${state} ${chunkNo}-chunk ${CubeType[cubeType]} Veritum
+          });  // forEach non-compiled and compiled
+        });  // forEach chunkNo
+      });  // forEach CubeType
+    });  // getKeyIfAvailable() and getKeyStringIfAvailable()
+  });  // getters
 
   describe('compile()', () => {
     // Note: encryption tests are in encryption.test.ts
@@ -150,7 +255,7 @@ describe('Veritum', () => {
         const veritum = new Veritum({
           cubeType: CubeType.FROZEN,fields: payloadField, requiredDifficulty});
         const cubesIterable: Iterable<cciCube> = await veritum.compile();
-        expect(cubesIterable).toEqual(veritum.compiled);
+        expect(cubesIterable).toEqual(veritum.chunks);
         const compiled: cciCube[] = Array.from(cubesIterable);
         expect(compiled.length).toBe(1);
         expect(compiled[0].cubeType).toBe(CubeType.FROZEN);
@@ -161,26 +266,28 @@ describe('Veritum', () => {
         const veritum = new Veritum({
           cubeType: CubeType.FROZEN, fields: cciField.Payload(tooLong), requiredDifficulty});
         await veritum.compile({requiredDifficulty});
-        expect(veritum.compiled).toHaveLength(2);
+        expect(veritum.chunks).toHaveLength(2);
 
         // expect both chunks to contain a (partial) PAYLOAD field
         // and the first chunk to contain a reference to the second
-        expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
-        expect(veritum.compiled[1].getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
-        const refField: cciField = veritum.compiled[0].getFirstField(cciFieldType.RELATES_TO);
+        expect(veritum.chunks[0].getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
+        expect(veritum.chunks[1].getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
+        const refField: cciField = veritum.chunks[0].getFirstField(cciFieldType.RELATES_TO);
         const ref = cciRelationship.fromField(refField);
         expect(ref.type).toEqual(cciRelationshipType.CONTINUED_IN);
         expect(ref.remoteKey).toBeInstanceOf(Buffer);
-        expect(ref.remoteKey).toEqual(veritum.compiled[1].getKeyIfAvailable());
+        expect(ref.remoteKey).toEqual(veritum.chunks[1].getKeyIfAvailable());
 
-        const restored = Continuation.Recombine(veritum.compiled);
+        const restored = Continuation.Recombine(veritum.chunks);
         expect(restored.cubeType).toBe(CubeType.FROZEN);
         expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
           tooLong);
       });
 
       it.todo('can split MUCs and PMUCs');
+      it.todo('automatically sets and updates the PMUC update count');
       it.todo('will split a notification Veritum into a leading notification Cube followed by non-notification Cubes');  // write an e2e test for that, too!
+      it.todo('will ensure all resulting chunks have the same date if not encrypted')
     });  // compile() splitting tests
   });  // compile()
 

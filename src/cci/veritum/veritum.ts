@@ -17,7 +17,7 @@ import { logger } from "../../core/logger";
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo';
 
-export interface VeritumCreateOptions extends CubeCreateOptions {
+export interface VeritumCreateOptions extends VeritumCompileOptions {
   /**
    * You should never need to supply this manually; if you do, make sure you
    * know what your're doing.
@@ -34,14 +34,20 @@ export interface VeritumCompileOptions extends CubeCreateOptions, CciEncryptionP
 export interface VeritumFromChunksOptions extends RecombineOptions, CciDecryptionParams {
 }
 
+// TODO: Provide an own configurable equals() method with sensible defaults
+//   to allow semantic comparisons between Verita as well as between Verita
+//   and Cubes.
+
 export class Veritum extends VeritableBaseImplementation implements Veritable{
-  protected _compiled: Array<cciCube>;
-  get compiled(): Iterable<cciCube> { return this._compiled }
+  private _chunks: cciCube[];
+  get chunks(): Iterable<cciCube> { return this._chunks }
 
   declare protected _fields: cciFields;
 
-  readonly publicKey: Buffer;
-  readonly privateKey: Buffer;
+  get publicKey(): Buffer { return this.options.publicKey }
+  get privateKey(): Buffer { return this.options.privateKey }
+
+  options: VeritumCreateOptions;  // TODO preserve options object upstream in VeritableBaseImplementation
 
   private _keyChunkNo: number = 0;
   /**
@@ -70,7 +76,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
 
   constructor(options?: VeritumCreateOptions);
   constructor(copyFrom: Veritum);
-
+  constructor(param1: VeritumCreateOptions|Veritum);
   constructor(param1: VeritumCreateOptions|Veritum = {}) {
     if (param1 instanceof Veritum) {
       // copy constructor
@@ -78,20 +84,21 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
       const options = {
         family: copyFrom.family,
         fields: new cciFields(copyFrom._fields, copyFrom._fields.fieldDefinition),  // shallow copy
-        privateKey: copyFrom.privateKey,
-        publicKey: copyFrom.publicKey,
+        privateKey: copyFrom.options?.privateKey,
+        publicKey: copyFrom.options?.publicKey,
         requiredDifficulty: copyFrom.requiredDifficulty,
       }
       super(copyFrom.cubeType, options);
+      this.options = options;
+      this._chunks = copyFrom._chunks ?? [];
     } else {
       // creating new Veritum
       const options: VeritumCreateOptions = param1;
       options.family ??= cciFamily;
       options.cubeType ??= DEFAULT_CUBE_TYPE;
       super(options.cubeType, options);
-      this.publicKey = options.publicKey;
-      this.privateKey = options.privateKey;
-      this._compiled = options.chunks;
+      this.options = options;
+      this._chunks = options.chunks ?? [];
     }
   }
 
@@ -103,21 +110,20 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
    */
   getKeyIfAvailable(): CubeKey {
     if (HasSignature[this.cubeType]) return this.publicKey;
-    else return this._compiled?.[0]?.getKeyIfAvailable();
+    else return this._chunks[0]?.getKeyIfAvailable();
   }
   getKeyStringIfAvailable(): string {
-    if (HasSignature[this.cubeType]) return keyVariants(this.publicKey)?.keyString;
-    else return this._compiled?.[0]?.getKeyStringIfAvailable();
+    const key: CubeKey = this.getKeyIfAvailable();
+    return keyVariants(key)?.keyString;
   }
   async getKey(): Promise<CubeKey> {
     if (this.getKeyIfAvailable()) return this.getKeyIfAvailable();
-    if (this._compiled?.[0] === undefined) await this.compile();
-    return this.getKeyIfAvailable();
+    if (this._chunks[0] === undefined) await this.compile();
+    return this._chunks[0]?.getKey();
   }
   async getKeyString(): Promise<string> {
-    if (this.getKeyStringIfAvailable()) return this.getKeyStringIfAvailable();
-    if (this._compiled?.[0] === undefined) await this.compile();
-    return this.getKeyStringIfAvailable();
+    const key: CubeKey = await this.getKey();
+    return keyVariants(key)?.keyString;
   }
 
   /**
@@ -134,11 +140,11 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
    */
   *getAllKeys(): Generator<CubeKey> {
     for (let i=0; i<this.keyChunkNo; i++) {
-      if (this._compiled[i] === undefined) {
+      if (this._chunks[i] === undefined) {
         logger.trace(`Veritum.getAllKeys: chunk key ${i} not available, aborting.`);
         return;
       }
-      yield this._compiled?.[i]?.getKeyIfAvailable();
+      yield this._chunks[i]?.getKeyIfAvailable();
     }
   }
   /** String based variant of getAllKeys(), see there. */
@@ -163,12 +169,12 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     const keyChunk: cciCube = this.getRecipientKeyChunk(recipient);
     if (keyChunk === undefined) return undefined;
     yield keyChunk;
-    for (let i=this.keyChunkNo; i<this._compiled.length; i++) {
-      yield this._compiled[i];
+    for (let i=this.keyChunkNo; i<this._chunks.length; i++) {
+      yield this._chunks[i];
     }
   }
 
-  async compile(options: VeritumCompileOptions = {}): Promise<Iterable<cciCube>> {
+  async compile(options: VeritumCompileOptions = this.options): Promise<Iterable<cciCube>> {
     await sodium.ready;  // needed in case of encrypted Verita
     // Prepare an encryption helper in case encryption is requested
     // (it will not get in the way otherwise)
@@ -177,12 +183,16 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     // Feed this Veritum through the splitter -- this is the main operation
     // of compiling a Veritum.
     const splitOptions: SplitOptions = {
+      cubeType: this.cubeType,
+      publicKey: this.publicKey,
+      privateKey: this.privateKey,
+      requiredDifficulty: this.requiredDifficulty,
       maxChunkSize: (chunkIndex: number) =>
         encryptionHelper.spacePerChunk(chunkIndex),
       chunkTransformationCallback: (chunk: cciCube, splitState: SplitState) =>
         encryptionHelper.transformChunk(chunk, splitState),
     }
-    this._compiled = await Continuation.Split(this, splitOptions);
+    this._chunks = await Continuation.Split(this, splitOptions);
 
     // In case of encryption, adopt some metadata from the encryption helper
     this._keyChunkNo = encryptionHelper.keyChunkNo;
@@ -191,7 +201,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     // If this was encrypted to many recipients we may need to add some
     // supplementary key distribution chunks at the beginning
     if (encryptionHelper.supplementaryKeyChunks.length > 0) {
-      this._compiled.splice(1, 0,
+      this._chunks.splice(1, 0,
         ...encryptionHelper.supplementaryKeyChunks);
       // Compile all supplementary key distribution chunks so that we're
       // guaranteed to know their keys.
@@ -199,7 +209,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
         await chunk.compile();  // TODO: parallelise
       }
     }
-    return this._compiled;
+    return this._chunks;
   }
 
 }

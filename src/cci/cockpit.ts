@@ -43,8 +43,8 @@ export class cciCockpit {
         senderPubkey: options?.senderPubkey ?? this.identity.encryptionPublicKey,
       }).then(() => {
         const promises: Promise<any>[] = [];
-        for (const cube of veritum.compiled) {
-          promises.push(this.node.cubeStore.addCube(cube));
+        for (const chunk of veritum.chunks) {
+          promises.push(this.node.cubeStore.addCube(chunk));
         }
         Promise.all(promises).then(() => resolve());
       });

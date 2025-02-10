@@ -49,14 +49,14 @@ describe('CCI Veritum encryption', () => {
             requiredDifficulty,
           });
           // just check that the Veritum has compiled as expected
-          expect(veritum.compiled).toHaveLength(1);
+          expect(veritum.chunks).toHaveLength(1);
           // the resulting (single) chunk Cube must have an ENCRYPTED field
-          expect(veritum.compiled[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+          expect(veritum.chunks[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
           // it must not however have a PAYLOAD field (as it's encrypted now)
-          expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+          expect(veritum.chunks[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
 
           // restore & decrypt the Veritum from its chunks
-          const restored: Veritum = Veritum.FromChunks(veritum.compiled, {
+          const restored: Veritum = Veritum.FromChunks(veritum.chunks, {
             recipientPrivateKey: recipientKeyPair.privateKey,
           });
           // after decryption, there must now be a PAYLOAD field but
@@ -80,11 +80,11 @@ describe('CCI Veritum encryption', () => {
             senderPubkey: senderKeyPair.publicKey,
           });
           // expect the APPLICATION field to be kept
-          expect(veritum.compiled[0].getFirstField(cciFieldType.APPLICATION)).toEqual(applicationField);
+          expect(veritum.chunks[0].getFirstField(cciFieldType.APPLICATION)).toEqual(applicationField);
           // expect there to be an ENCRYPTED field
-          expect(veritum.compiled[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+          expect(veritum.chunks[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
           // expect encrypted fields not to contain any PAYLOAD field
-          expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+          expect(veritum.chunks[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
         });
       });  // single recipient → single chunk
 
@@ -103,17 +103,17 @@ describe('CCI Veritum encryption', () => {
             senderPubkey: senderKeyPair.publicKey,
             requiredDifficulty,
           });
-          expect(Array.from(veritum.compiled).length).toBeGreaterThanOrEqual(minChunks);
+          expect(Array.from(veritum.chunks).length).toBeGreaterThanOrEqual(minChunks);
 
           // expect both chunks to have an ENCRYPTED field, but both PAYLOAD
           // and RELATES_TO fields are encrypted and therefore invisible
-          for (const chunk of veritum.compiled) {
+          for (const chunk of veritum.chunks) {
             expect(chunk.getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
             expect(chunk.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
             expect(chunk.getFirstField(cciFieldType.RELATES_TO)).toBeUndefined();
           }
 
-          const restored: Veritum = Veritum.FromChunks(veritum.compiled, {
+          const restored: Veritum = Veritum.FromChunks(veritum.chunks, {
             recipientPrivateKey: recipientKeyPair.privateKey,
           });
           expect(restored.cubeType).toBe(CubeType.FROZEN);
@@ -133,11 +133,11 @@ describe('CCI Veritum encryption', () => {
             requiredDifficulty,
           });
           // just check that the Veritum has compiled as expected
-          expect(veritum.compiled).toHaveLength(2);
+          expect(veritum.chunks).toHaveLength(2);
 
           // verify the first chunk decrypts using the ECDH agreed secret and
           // the nonce included
-          const cryptoBlob: Buffer = veritum.compiled[0].getFirstField(
+          const cryptoBlob: Buffer = veritum.chunks[0].getFirstField(
             cciFieldType.ENCRYPTED).value;
           const includedPubkey: Buffer = cryptoBlob.subarray(
             0, sodium.crypto_box_PUBLICKEYBYTES);
@@ -156,7 +156,7 @@ describe('CCI Veritum encryption', () => {
 
           // verify that the second chunk decrypts using the same secret and the
           // hash of the first nonce
-          const ciphertext2: Buffer = veritum.compiled[1].getFirstField(
+          const ciphertext2: Buffer = veritum.chunks[1].getFirstField(
             cciFieldType.ENCRYPTED).value;
           const nonce2: Uint8Array = sodium.crypto_generichash(
             sodium.crypto_secretbox_NONCEBYTES, includedNonce);
@@ -199,14 +199,14 @@ describe('CCI Veritum encryption', () => {
 
         // Verify that the compiled Veritum contains the expected encrypted fields,
         // but no plaintext payload field
-        expect(veritum.compiled).toHaveLength(1);
-        const compiledChunk = veritum.compiled[0];
+        expect(veritum.chunks).toHaveLength(1);
+        const compiledChunk = veritum.chunks[0];
         expect(compiledChunk.getFields(cciFieldType.PAYLOAD)).toHaveLength(0);
         expect(compiledChunk.getFields(cciFieldType.ENCRYPTED)).toHaveLength(1);
 
         // Attempt decryption for each of the three recipients
         for (const recipient of recipientKeyPairs) {
-          const restored = Veritum.FromChunks(veritum.compiled,
+          const restored = Veritum.FromChunks(veritum.chunks,
             { recipientPrivateKey: recipient.privateKey });
           expect(restored.getFirstField(cciFieldType.PAYLOAD)).toEqual(payloadField);
         }
@@ -239,11 +239,11 @@ describe('CCI Veritum encryption', () => {
           recipients: recipientKeyPairs.map(kp => kp.publicKey),
           requiredDifficulty,
         });
-        expect(Array.from(veritum.compiled).length).toBeGreaterThanOrEqual(minChunks);
+        expect(Array.from(veritum.chunks).length).toBeGreaterThanOrEqual(minChunks);
 
         // expect both chunks to have an ENCRYPTED field, but both PAYLOAD
         // and RELATES_TO fields are encrypted and therefore invisible
-        for (const chunk of veritum.compiled) {
+        for (const chunk of veritum.chunks) {
           expect(chunk.getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
           expect(chunk.getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
           expect(chunk.getFirstField(cciFieldType.RELATES_TO)).toBeUndefined();
@@ -251,7 +251,7 @@ describe('CCI Veritum encryption', () => {
 
         // verify decryption for all three recipients
         for (const recipient of recipientKeyPairs) {
-          const restored: Veritum = Veritum.FromChunks(veritum.compiled, {
+          const restored: Veritum = Veritum.FromChunks(veritum.chunks, {
             recipientPrivateKey: recipient.privateKey,
           });
           expect(restored.cubeType).toBe(CubeType.FROZEN);
@@ -290,8 +290,8 @@ describe('CCI Veritum encryption', () => {
         });
 
         it('encrypts correctly', async () => {
-          expect(veritum.compiled[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
-          expect(veritum.compiled[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
+          expect(veritum.chunks[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+          expect(veritum.chunks[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
 
           // verify this indeed uses more than one key chunk
           expect(veritum.keyChunkNo).toBeGreaterThan(1);
@@ -300,7 +300,7 @@ describe('CCI Veritum encryption', () => {
         it('is decryptable by all recipients when supplied as a whole', async () => {
           // Ensure that the Veritum is decryptable by all recipients
           for (const recipient of recipients) {
-            const restored = Veritum.FromChunks(veritum.compiled, {
+            const restored = Veritum.FromChunks(veritum.chunks, {
               recipientPrivateKey: recipient.privateKey,
             });
             expect(restored.cubeType).toBe(CubeType.FROZEN);
@@ -346,7 +346,7 @@ describe('CCI Veritum encryption', () => {
           const veritumWithCorrectKeyChunk: cciCube[] = [];
           const veritumWithWrongKeyChunk: cciCube[] = [];
           let i=0;
-          for (const chunk of veritum.compiled) {
+          for (const chunk of veritum.chunks) {
             if (i === 0) veritumWithCorrectKeyChunk.push(chunk);
             if (i === veritum.keyChunkNo - 1) veritumWithWrongKeyChunk.push(chunk);
             if (i > veritum.keyChunkNo) {
@@ -380,7 +380,7 @@ describe('CCI Veritum encryption', () => {
           // First, concatenate all of this Veritum's encrypted fields
           // into a single blob
           let blob: Buffer = Buffer.alloc(0);
-          for (const chunk of veritum.compiled) {
+          for (const chunk of veritum.chunks) {
             const encryptedField = chunk.getFirstField(cciFieldType.ENCRYPTED);
             expect(encryptedField.value).toBeInstanceOf(Buffer);
             blob = Buffer.concat([blob, encryptedField.value]);
