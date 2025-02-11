@@ -124,8 +124,10 @@ export class PeerDB extends EventEmitter {
         return false;  // not found
     }
 
-    getPeer(id: Buffer | string): Peer {
-        if (id instanceof Buffer) id = id.toString('hex');
+    getPeer(idInput: Buffer | string): Peer {
+        const id: string = idInput instanceof Buffer?
+            idInput.toString('hex') :
+            idInput as string;
         let ret: Peer = undefined;
         ret = this.peersExchangeable.get(id);
         if (ret) return ret;

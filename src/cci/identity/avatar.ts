@@ -72,7 +72,7 @@ export class Avatar {
   get seed(): Buffer { return this._seed }
   set seed(val: string | Buffer) {
     if (!(val instanceof Buffer)) {
-      const valbuf = Buffer.from(val, 'hex');
+      const valbuf = Buffer.from(val as string, 'hex');
       if (Settings.RUNTIME_ASSERTIONS) {
         if (valbuf.toString('hex') != val) {
           throw new ApiMisuseError("Avatar: Seed must be Buffer or hex string");
