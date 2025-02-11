@@ -29,13 +29,13 @@ export class cciLineShapedNetwork {
     const senderId: Identity = await Identity.Construct(
       core.sender.cubeRetriever, Buffer.alloc(
         NetConstants.CUBE_KEY_SIZE, 0x42));
-    const sender: cciCockpit = new cciCockpit(core.sender, senderId);
+    const sender: cciCockpit = new cciCockpit(core.sender, { identity: senderId });
 
     // make recipient
     const recipientId: Identity = await Identity.Construct(
       core.sender.cubeRetriever, Buffer.alloc(
         NetConstants.CUBE_KEY_SIZE, 0x1337));
-    const recipient: cciCockpit = new cciCockpit(core.sender, senderId);
+    const recipient: cciCockpit = new cciCockpit(core.sender,  { identity: senderId });
 
     // bring it all together
     const ret = new this(sender, core.fullNode1, core.fullNode2, recipient);
