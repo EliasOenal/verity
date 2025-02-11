@@ -14,6 +14,8 @@ import { cciTestOptions } from '../../../cci/e2e/e2eCciSetup';
 import { loadZwTemplate } from './uiTestSetup';
 import { CubeKey } from '../../../../src/core/cube/cube.definitions';
 import { keyVariants } from '../../../../src/core/cube/cubeUtil';
+import { cciNodeIf, DummyCciNode } from '../../../../src/cci/cciNode';
+import { cciCockpit } from '../../../../src/cci/cockpit';
 
 const testOptions: VerityNodeOptions = {
   ...cciTestOptions,
@@ -38,7 +40,7 @@ describe('PostView tests regarding displayal of existing posts', () => {
       let controller: PostController;
 
       beforeAll(async () => {
-        const node: VerityNodeIf = new DummyVerityNode(testOptions);
+        const node: cciNodeIf = new DummyCciNode(testOptions);
         await node.readyPromise;
         w = new TestWorld({ subscriptions: true, cubeStore: node.cubeStore });
         await w.ready;
@@ -46,6 +48,7 @@ describe('PostView tests regarding displayal of existing posts', () => {
           node,
           nav: new DummyNavController(),
           identity: w.protagonist,
+          cockpit: new cciCockpit(node, {identity: w.protagonist}),
         });
         await controller.navWot();
         controller.contentAreaView.show();
@@ -125,7 +128,7 @@ describe('PostView tests regarding displayal of existing posts', () => {
       let controller: PostController;
 
       beforeAll(async () => {
-        const node: VerityNodeIf = new DummyVerityNode(testOptions);
+        const node: cciNodeIf = new DummyCciNode(testOptions);
         await node.readyPromise;
         w = new TestWorld({ subscriptions: false, cubeStore: node.cubeStore });
         await w.ready;
@@ -133,6 +136,7 @@ describe('PostView tests regarding displayal of existing posts', () => {
           node,
           nav: new DummyNavController(),
           identity: w.protagonist,
+          cockpit: new cciCockpit(node, {identity: w.protagonist}),
         });
         await controller.navExplore();
         await new Promise((resolve) => setTimeout(resolve, 1000));  // posts will currently often only be learned through emit and not through the getAll-generator :(

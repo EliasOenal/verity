@@ -1,5 +1,5 @@
 import { SupportedTransports } from '../core/networking/networkDefinitions';
-import { VerityNode, VerityNodeOptions, defaultInitialPeers } from '../core/verityNode';
+import { VerityNodeOptions, defaultInitialPeers } from '../core/verityNode';
 import { AddressAbstraction } from '../core/peering/addressing';
 
 import { cciFamily } from '../cci/cube/cciCube';
@@ -19,6 +19,8 @@ import { IdentityPersistenceOptions } from '../cci/identity/identityPersistence'
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { NavItem } from './navigation/navigationDefinitions';
 import { coreCubeFamily } from '../core/cube/cube';
+import { cciNode } from '../cci/cciNode';
+import { cciCockpit } from '../cci/cockpit';
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
@@ -69,7 +71,7 @@ export class VerityUI implements ControllerContext {
     // in the browser environment.
     options.announceToTorrentTrackers = false;
 
-    const node = new VerityNode(options);
+    const node = new cciNode(options);
     await node.readyPromise;
     logger.info("Verity node is ready");
 
@@ -112,19 +114,21 @@ export class VerityUI implements ControllerContext {
 
   get identity(): Identity { return this.identityController.identity; }
 
-  nav: NavigationController = new NavigationController(this);
-  peerController: PeerController;
+  readonly nav: NavigationController = new NavigationController(this);
+  readonly peerController: PeerController;
   identityController: IdentityController;
-  fileManagerController: FileManagerController;
+  readonly fileManagerController: FileManagerController;
+  readonly cockpit: cciCockpit;
 
   get currentController(): VerityController { return this.nav.currentController }
 
   constructor(
-      readonly node: VerityNode,
+      readonly node: cciNode,
       readonly options: VerityOptions = {},
     ){
     this.peerController = new PeerController(this);
     this.fileManagerController = new FileManagerController(this);
+    this.cockpit = new cciCockpit(this.node);
   }
 
   shutdown() {
