@@ -23,7 +23,7 @@ describe('cci Cockpit', () => {
     identity = new Identity(node.cubeStore, masterKey, idTestOptions);
     remote1 = new Identity(node.cubeStore, remote1MasterKey, idTestOptions);
     remote2 = new Identity(node.cubeStore, remote2MasterKey, idTestOptions);
-    cockpit = new cciCockpit(node, identity);
+    cockpit = new cciCockpit(node, {identity: identity});
   });
 
   afterEach(async () => {

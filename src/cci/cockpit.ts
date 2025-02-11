@@ -8,6 +8,10 @@ import { Veritum, VeritumCompileOptions, VeritumFromChunksOptions } from "./veri
 
 import { Buffer } from 'buffer';
 
+export interface cciCockpitOptions {
+  identity?: Identity;
+}
+
 export interface GetVeritumOptions {
   /**
    * Automatically attempt to decrypt the Veritum if decrypted
@@ -19,16 +23,18 @@ export interface GetVeritumOptions {
 export class cciCockpit {
   constructor(
       public node: cciNodeIf,
-      public identity: Identity,
+      readonly options: cciCockpitOptions = {},
   ) {
   }
+
+  get identity(): Identity { return this.options.identity }
 
   // maybe TODO: set a default CubeType? PIC maybe?
   makeVeritum(options: CubeCreateOptions = {}): Veritum {
     options = { ...options };  // copy options to avoid tainting passed object
     if (this.identity) {
-      options.publicKey ??= this.identity.publicKey;
-      options.privateKey ??= this.identity.privateKey;
+      options.publicKey ??= this.identity?.publicKey;
+      options.privateKey ??= this.identity?.privateKey;
     }
     const veritum = new Veritum(options);
     return veritum;
@@ -39,8 +45,8 @@ export class cciCockpit {
     return new Promise<void>(resolve => {
       veritum.compile({
         ...options,
-        senderPrivateKey: options?.senderPrivateKey ?? this.identity.encryptionPrivateKey,
-        senderPubkey: options?.senderPubkey ?? this.identity.encryptionPublicKey,
+        senderPrivateKey: options?.senderPrivateKey ?? this.identity?.encryptionPrivateKey,
+        senderPubkey: options?.senderPubkey ?? this.identity?.encryptionPublicKey,
       }).then(() => {
         const promises: Promise<any>[] = [];
         for (const chunk of veritum.chunks) {
