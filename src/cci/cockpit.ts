@@ -37,8 +37,13 @@ export class cciCockpit {
     else return this.options.identity;
   }
 
-  // maybe TODO: set a default CubeType? PIC maybe?
-  makeVeritum(options: CubeCreateOptions = {}): Veritum {
+  /**
+   * Creates a new Veritum without publishing it;
+   * it can later be published by calling publishVeritum.
+   * Note that you can alternatively create and publish a Veritum in one go
+   * by calling publishVeritum directly.
+   */
+  prepareVeritum(options: CubeCreateOptions = {}): Veritum {
     options = { ...options };  // copy options to avoid tainting passed object
     if (this.identity) {
       // TODO FIXME: use key derivation rather than overwriting the Identity MUC o.Ô
@@ -50,8 +55,27 @@ export class cciCockpit {
     return veritum;
   }
 
+  /**
+   * Publish an existing Veritum.
+   **/
+  publishVeritum(veritum: Veritum, options?: PublishVeritumOptions): Promise<Veritum>;
+  /**
+   * Create and publish a new Veritum.
+   */
+  publishVeritum(options: PublishVeritumOptions): Promise<Veritum>;
+
   // maybe TODO: Ensure Cubes have actually been synced to the network?
-  publishVeritum(veritum: Veritum, options: PublishVeritumOptions = {}): Promise<void> {
+  publishVeritum(param1: Veritum|CubeCreateOptions, param2: PublishVeritumOptions = {}): Promise<Veritum> {
+    let veritum: Veritum;
+    let options: PublishVeritumOptions;
+    if (param1 instanceof Veritum) {
+      veritum = param1;
+      options = param2;
+    } else {
+      veritum = this.prepareVeritum(param1);
+      options = param1;
+    }
+
     // Set default options
     options.addAsPost ??= true;
     // Use this cockpit's identity by default.
@@ -80,7 +104,7 @@ export class cciCockpit {
         promises.push(this.node.cubeStore.addCube(chunk));
       }
       // Return resolved once all chunks have been published
-      return Promise.all(promises).then();
+      return Promise.all(promises).then(() => veritum);
     });
   }
 
