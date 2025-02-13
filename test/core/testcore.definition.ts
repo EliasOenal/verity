@@ -1,6 +1,6 @@
-import { VerityNodeOptions } from "../../src/core/verityNode";
+import { CoreNodeOptions } from "../../src/core/coreNode";
 
-export const testCoreOptions: VerityNodeOptions = {
+export const testCoreOptions: CoreNodeOptions = {
   inMemory: true,
   enableCubeRetentionPolicy: false,
   requiredDifficulty: 0,

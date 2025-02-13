@@ -4,7 +4,7 @@ import { SupportedTransports } from './core/networking/networkDefinitions';
 
 import { Cube } from './core/cube/cube';
 import { CubeField } from './core/cube/cubeField';
-import { VerityNode, VerityNodeOptions, defaultInitialPeers } from "./core/verityNode";
+import { CoreNode, CoreNodeOptions, defaultInitialPeers } from "./core/coreNode";
 import { AddressAbstraction } from './core/peering/addressing';
 
 import { logger } from './core/logger';
@@ -25,12 +25,12 @@ if (isNode) {
   cmd = await import('cmd-ts');
 }
 
-export type VerityCmdClientOptions = VerityNodeOptions & {
+export type VerityCmdClientOptions = CoreNodeOptions & {
   keyPair?: KeyPair
 }
 
 class VerityCmdClient {
-  public node: VerityNode;
+  public node: CoreNode;
   public onlinePromise: Promise<void> = undefined;
   private mucUpdateCounter: number = 0;
   private onlinePromiseResolve: Function;
@@ -149,13 +149,13 @@ class VerityCmdClient {
               logger.warn("Note: Persistance has been turned off. All cubes will be gone once you shut down this instance, unless of course they have been transmitted to instances with persistance turned on.");
             }
           }
-          this.node = new VerityNode(options);
+          this.node = new CoreNode(options);
           this.node.onlinePromise.then(() => this.onlinePromiseResolve(undefined));
         },
       });
       cmd.run(parse, process.argv.slice(2));
     } else {  // if this is not NodeJS, which is really strange indeed
-      this.node = new VerityNode(options);
+      this.node = new CoreNode(options);
       this.onlinePromise = this.node.onlinePromise;
     }
   }

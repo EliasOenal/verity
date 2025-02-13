@@ -1,5 +1,5 @@
 import { SupportedTransports } from '../core/networking/networkDefinitions';
-import { VerityNodeOptions, defaultInitialPeers } from '../core/verityNode';
+import { CoreNodeOptions, defaultInitialPeers } from '../core/coreNode';
 import { AddressAbstraction } from '../core/peering/addressing';
 
 import { cciFamily } from '../cci/cube/cciCube';
@@ -19,7 +19,7 @@ import { IdentityPersistenceOptions } from '../cci/identity/identityPersistence'
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { NavItem } from './navigation/navigationDefinitions';
 import { coreCubeFamily } from '../core/cube/cube';
-import { cciNode } from '../cci/cciNode';
+import { VerityNode } from '../cci/verityNode';
 import { Cockpit } from '../cci/cockpit';
 
 // TODO remove
@@ -36,7 +36,7 @@ export interface VerityUiOptions {
   initialNav?: NavItem;
 };
 
-export type VerityOptions = VerityNodeOptions & VerityUiOptions & IdentityOptions & IdentityPersistenceOptions;
+export type VerityOptions = CoreNodeOptions & VerityUiOptions & IdentityOptions & IdentityPersistenceOptions;
 
 
 // Tell Typescript we're planning to use the custom window.verity attribute
@@ -71,7 +71,7 @@ export class VerityUI implements ControllerContext {
     // in the browser environment.
     options.announceToTorrentTrackers = false;
 
-    const node = new cciNode(options);
+    const node = new VerityNode(options);
     await node.readyPromise;
     logger.info("Verity node is ready");
 
@@ -125,7 +125,7 @@ export class VerityUI implements ControllerContext {
   get currentController(): VerityController { return this.nav.currentController }
 
   constructor(
-      readonly node: cciNode,
+      readonly node: VerityNode,
       readonly options: VerityOptions = {},
     ){
     this.peerController = new PeerController(this);
