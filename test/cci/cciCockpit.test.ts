@@ -41,9 +41,9 @@ describe('cci Cockpit', () => {
         await node.shutdown();
       });
 
-      describe('makeVeritum()', () => {
+      describe('prepareVeritum()', () => {
         it('can create single-chunk frozen Verita', () => {
-          const veritum = cockpit.makeVeritum({
+          const veritum = cockpit.prepareVeritum({
             cubeType: CubeType.FROZEN,
             fields: cciField.Payload("Hoc veritum breve et congelatum est"),
             requiredDifficulty: requiredDifficulty,
@@ -55,7 +55,7 @@ describe('cci Cockpit', () => {
 
         // TODO: Continuation doesn't actually handle MUC subkey derivation yet
         it.skip('can create single-chunk MUC Verita', () => {
-          const veritum = cockpit.makeVeritum({
+          const veritum = cockpit.prepareVeritum({
             cubeType: CubeType.MUC,
             fields: cciField.Payload("Hoc veritum breve sed mutabile est"),
             requiredDifficulty: requiredDifficulty,
@@ -68,13 +68,14 @@ describe('cci Cockpit', () => {
         });
 
         it.todo('write tests for all Cube types, both single and multi chunk');
-      });
+      });  // prepareVeritum()
 
-      describe('publishVeritum()', () => {
+
+      describe('publishVeritum() for existing Verita', () => {
         let veritum: Veritum;
 
         beforeAll(async () => {
-          veritum = cockpit.makeVeritum({
+          veritum = cockpit.prepareVeritum({
             cubeType: CubeType.FROZEN,
             fields: cciField.Payload(tooLong),
             requiredDifficulty: requiredDifficulty,
@@ -98,7 +99,7 @@ describe('cci Cockpit', () => {
 
         if (loggedIn) it('can encrypt the Veritum for a single recipient', async() => {
           const latinBraggery = "Hoc veritum breve et cryptatum est";
-          const veritum = cockpit.makeVeritum({
+          const veritum = cockpit.prepareVeritum({
             cubeType: CubeType.FROZEN,
             fields: cciField.Payload(latinBraggery),
             requiredDifficulty,
@@ -123,6 +124,30 @@ describe('cci Cockpit', () => {
 
         if (loggedIn) it.todo('can create an encrypted Veritum for multiple recipients');
 
+      });  // publishVeritum() for existing Verita
+
+
+      describe('publishVeritum() for new Verita', () => {
+        let veritum: Veritum;
+        const latinBraggary = "Hoc Veritum uno actu scriptum et prolatum est";
+
+        beforeAll(async () => {
+          veritum = await cockpit.publishVeritum({
+            cubeType: CubeType.PIC,
+            fields: cciField.Payload(latinBraggary),
+            requiredDifficulty: requiredDifficulty,
+          });
+        });
+
+        it('adds the Veritum to CubeStore', async() => {
+          const cube = await node.cubeStore.getCube(await veritum.getKey());
+          expect(cube.cubeType).toBe(CubeType.PIC);
+          expect(cube.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(latinBraggary);
+        });
+
+        if (loggedIn) it('stores the Veritum as a post in my Identity by default', async() => {
+          expect(identity.hasPost(await veritum.getKey())).toBe(true);
+        });
       });
 
       describe('getVeritum()', () => {
@@ -203,9 +228,9 @@ describe('cci Cockpit', () => {
           expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
             tooLong);
         });
-      });
+      });  // getVeritum()
 
-    });
-  }
+    });  // block of tests for both logged-in and logged-out users
+  }  // for (const loggedIn of [true, false])
 
 });

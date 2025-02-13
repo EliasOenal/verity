@@ -21,7 +21,7 @@ describe('Transmission of encrypted Verita', () => {
       net = await cciLineShapedNetwork.Create(61201, 61202);
 
       // Sculpt a simple Veritum for a single recipient
-      const veritum: Veritum = net.sender.makeVeritum(
+      const veritum: Veritum = net.sender.prepareVeritum(
         { fields: cciField.Payload(plaintext) });
       // Publish it encrypted solely for the recipient
       await net.sender.publishVeritum(
