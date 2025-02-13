@@ -15,7 +15,7 @@ import { loadZwTemplate } from './uiTestSetup';
 import { CubeKey } from '../../../../src/core/cube/cube.definitions';
 import { keyVariants } from '../../../../src/core/cube/cubeUtil';
 import { cciNodeIf, DummyCciNode } from '../../../../src/cci/cciNode';
-import { cciCockpit } from '../../../../src/cci/cockpit';
+import { Cockpit } from '../../../../src/cci/cockpit';
 
 const testOptions: VerityNodeOptions = {
   ...cciTestOptions,
@@ -48,7 +48,7 @@ describe('PostView tests regarding displayal of existing posts', () => {
           node,
           nav: new DummyNavController(),
           identity: w.protagonist,
-          cockpit: new cciCockpit(node, {identity: w.protagonist}),
+          cockpit: new Cockpit(node, {identity: w.protagonist}),
         });
         await controller.navWot();
         controller.contentAreaView.show();
@@ -136,7 +136,7 @@ describe('PostView tests regarding displayal of existing posts', () => {
           node,
           nav: new DummyNavController(),
           identity: w.protagonist,
-          cockpit: new cciCockpit(node, {identity: w.protagonist}),
+          cockpit: new Cockpit(node, {identity: w.protagonist}),
         });
         await controller.navExplore();
         await new Promise((resolve) => setTimeout(resolve, 1000));  // posts will currently often only be learned through emit and not through the getAll-generator :(

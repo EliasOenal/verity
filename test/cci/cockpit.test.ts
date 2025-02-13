@@ -1,5 +1,5 @@
 import { cciNodeIf, DummyCciNode } from "../../src/cci/cciNode";
-import { cciCockpit } from "../../src/cci/cockpit";
+import { Cockpit } from "../../src/cci/cockpit";
 import { cciFieldType } from "../../src/cci/cube/cciCube.definitions";
 import { cciField } from "../../src/cci/cube/cciField";
 import { Identity } from "../../src/cci/identity/identity";
@@ -19,7 +19,7 @@ describe('cci Cockpit', () => {
       let identity: Identity;
       let remote1: Identity;
       let remote2: Identity;
-      let cockpit: cciCockpit;
+      let cockpit: Cockpit;
 
       beforeAll(async () => {
         node = new DummyCciNode({requiredDifficulty});
@@ -29,7 +29,7 @@ describe('cci Cockpit', () => {
           remote1 = new Identity(node.cubeStore, remote1MasterKey, idTestOptions);
           remote2 = new Identity(node.cubeStore, remote2MasterKey, idTestOptions);
         }
-        cockpit = new cciCockpit(node, {identity: identity});
+        cockpit = new Cockpit(node, {identity: identity});
       });
 
       afterAll(async () => {

@@ -8,7 +8,7 @@ import { Veritum, VeritumCompileOptions, VeritumFromChunksOptions } from "./veri
 
 import { Buffer } from 'buffer';
 
-export interface cciCockpitOptions {
+export interface CockpitOptions {
   identity?: Identity | (() => Identity);
 }
 
@@ -25,10 +25,10 @@ export interface GetVeritumOptions {
   autoDecrypt?: boolean,
 }
 
-export class cciCockpit {
+export class Cockpit {
   constructor(
       public node: cciNodeIf,
-      readonly options: cciCockpitOptions = {},
+      readonly options: CockpitOptions = {},
   ) {
   }
 
