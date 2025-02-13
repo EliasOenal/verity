@@ -10,16 +10,11 @@ import { cciFieldType } from "../cube/cciCube.definitions";
 import { cciField } from "../cube/cciField";
 import { cciFields } from "../cube/cciFields";
 import { cciRelationship, cciRelationshipType } from "../cube/cciRelationship";
-
-import { Buffer } from 'buffer'
-
-// HACKHACK: jest does throw strange errors which I don't understand when trying
-// to import this lib properly.
-// We should consider dumping jest and using vitest instead; ESM support in
-// jest is still buggy and keeps causing problems.
-import { DoublyLinkedList, DoublyLinkedListNode } from 'data-structure-typed';
 import { Veritable } from "../../core/cube/veritable.definition";
 import { Veritum } from "./veritum";
+
+import { Buffer } from 'buffer'
+import { DoublyLinkedList, DoublyLinkedListNode } from 'data-structure-typed/dist/esm';
 
 /**
  * Don't split fields if a resulting chunk would be smaller than this amount
