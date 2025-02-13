@@ -653,6 +653,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   }
 
 
+  getPosts(options?: GetPostsOptions): AsyncGenerator<Veritum>;
   getPosts(options: { format: PostFormat.Veritum} ): AsyncGenerator<Veritum>;
   getPosts(options: { format: PostFormat.Cube} ): AsyncGenerator<Cube>;
   getPosts(options: { format: PostFormat.CubeInfo} ): AsyncGenerator<CubeInfo>;
