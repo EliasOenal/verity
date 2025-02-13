@@ -7,7 +7,7 @@ import type { CubeStore } from "../core/cube/cubeStore";
 import { DummyNavController, type NavControllerIf, type NavItem } from "./navigation/navigationDefinitions";
 import { CubeRetriever } from "../core/networking/cubeRetrieval/cubeRetriever";
 import { cciNodeIf, DummyCciNode } from "../cci/cciNode";
-import { cciCockpit } from "../cci/cockpit";
+import { Cockpit } from "../cci/cockpit";
 
 /**
  * The interface a controller's parent object needs to provide;
@@ -20,7 +20,7 @@ export interface ControllerContext {
    **/
   node: cciNodeIf;
 
-  cockpit: cciCockpit
+  cockpit: Cockpit
 
   /** Optionally, the Identity of the currently logged in user */
   identity?: Identity;
@@ -37,7 +37,7 @@ export class DummyControllerContext implements ControllerContext {
   constructor(
     public readonly node: cciNodeIf = new DummyCciNode(),
     public readonly nav: NavControllerIf = new DummyNavController(),
-    public readonly cockpit: cciCockpit = new cciCockpit(node),
+    public readonly cockpit: Cockpit = new Cockpit(node),
   ) {}
 }
 
@@ -52,7 +52,7 @@ export class VerityController {
   get cubeStore(): CubeStore { return this.parent?.node?.cubeStore }
   get cubeRetriever(): CubeRetriever { return this.parent?.node?.cubeRetriever }
   get identity(): Identity { return this.parent?.identity }
-  get cockpit(): cciCockpit { return this.parent?.cockpit }
+  get cockpit(): Cockpit { return this.parent?.cockpit }
 
   constructor(
     readonly parent: ControllerContext,

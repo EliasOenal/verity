@@ -1,4 +1,4 @@
-import { cciCockpit } from "../../../src/cci/cockpit";
+import { Cockpit } from "../../../src/cci/cockpit";
 import { cciFamily } from "../../../src/cci/cube/cciCube";
 import { Identity } from "../../../src/cci/identity/identity";
 import { coreCubeFamily } from "../../../src/core/cube/cube";
@@ -16,10 +16,10 @@ export const cciTestOptions: VerityNodeOptions = {
 
 export class cciLineShapedNetwork {
   constructor(
-    public sender: cciCockpit,
+    public sender: Cockpit,
     public fullNode1: VerityNode,
     public fullNode2: VerityNode,
-    public recipient: cciCockpit,
+    public recipient: Cockpit,
   ) {}
 
   static async Create(fullNode1Port: number, fullNode2Port: number): Promise<cciLineShapedNetwork> {
@@ -29,13 +29,13 @@ export class cciLineShapedNetwork {
     const senderId: Identity = await Identity.Construct(
       core.sender.cubeRetriever, Buffer.alloc(
         NetConstants.CUBE_KEY_SIZE, 0x42));
-    const sender: cciCockpit = new cciCockpit(core.sender, { identity: senderId });
+    const sender: Cockpit = new Cockpit(core.sender, { identity: senderId });
 
     // make recipient
     const recipientId: Identity = await Identity.Construct(
       core.sender.cubeRetriever, Buffer.alloc(
         NetConstants.CUBE_KEY_SIZE, 0x1337));
-    const recipient: cciCockpit = new cciCockpit(core.sender,  { identity: senderId });
+    const recipient: Cockpit = new Cockpit(core.sender,  { identity: senderId });
 
     // bring it all together
     const ret = new this(sender, core.fullNode1, core.fullNode2, recipient);

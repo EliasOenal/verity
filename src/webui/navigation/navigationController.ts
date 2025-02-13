@@ -264,5 +264,3 @@ export class NavigationController extends VerityController implements NavControl
       currentControllerPromise.then(() => resolve(true)));
   }
 }
-
-export class NoSuchController extends ControllerError { name = "NoSuchController "}

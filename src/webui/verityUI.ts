@@ -20,7 +20,7 @@ import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { NavItem } from './navigation/navigationDefinitions';
 import { coreCubeFamily } from '../core/cube/cube';
 import { cciNode } from '../cci/cciNode';
-import { cciCockpit } from '../cci/cockpit';
+import { Cockpit } from '../cci/cockpit';
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
@@ -120,7 +120,7 @@ export class VerityUI implements ControllerContext {
   readonly peerController: PeerController;
   identityController: IdentityController;
   readonly fileManagerController: FileManagerController;
-  readonly cockpit: cciCockpit;
+  readonly cockpit: Cockpit;
 
   get currentController(): VerityController { return this.nav.currentController }
 
@@ -131,7 +131,7 @@ export class VerityUI implements ControllerContext {
     this.peerController = new PeerController(this);
     this.fileManagerController = new FileManagerController(this);
     this.identityController = new IdentityController(this, options);
-    this.cockpit = new cciCockpit(this.node,
+    this.cockpit = new Cockpit(this.node,
       { identity: () => this.identityController.identity });
   }
 
