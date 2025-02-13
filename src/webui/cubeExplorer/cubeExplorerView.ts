@@ -176,7 +176,7 @@ export class CubeExplorerView extends VerityView {
       logger.warn(`CubeExplorerView.makeCubeAlert(): Could not find message container for Cube ${key}, did you mess with my DOM elements?!`);
       return undefined;
     }
-    return this.makeAlert(messageContainer, type, msg, exclusive);
+    return this.makeAlert(msg, {container: messageContainer, type, exclusive });
   }
 
   setDecodedFieldContent(field: CubeField, detailsTable: HTMLTableElement): void {
@@ -260,7 +260,7 @@ export class CubeExplorerView extends VerityView {
       logger.error("CubeExplorerView.makeAlertBelowCubes(): Could not find message container, did you mess with my DOM elements?!");
       return undefined;
     }
-    this.makeAlert(container, type, msg, exclusive);
+    this.makeAlert(msg, { container, type, exclusive });
   }
 
   displayCubeFilter(filter: CubeFilter): void {

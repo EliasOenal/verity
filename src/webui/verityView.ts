@@ -8,6 +8,12 @@ export const alertTypes =
   ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'] as const;
 export type AlertTypeList = typeof alertTypes[number];
 
+export interface MakeAlertOptions {
+  container?: HTMLElement | string;
+  type?: AlertTypeList;
+  exclusive?: boolean;
+}
+
 /**
  * Abstract base class for our views.
  *
@@ -103,23 +109,51 @@ export class VerityView {
    * @returns The HTMLElement containing the alert
    */
   makeAlert(
-      container: HTMLElement | string | null,
-      type: AlertTypeList,
       msg: string,
-      exclusive: boolean = false,
+      options: MakeAlertOptions = {},
   ): HTMLElement {
-    if (exclusive) this.clearAlerts();
-    if (typeof container === 'string') {
-      container = this.renderedView.querySelector(container) as HTMLElement;
-      if (!container) logger.error(`VerityView.makeAlert(): Container ${container} does not exist. Will create a new one for you, but this will obviously not be part of the DOM.`);
+    // set default options
+    options.type ??= 'warning';
+
+    // If the alert container was supplied as a query string, find the
+    // actual container element.
+    if (typeof options.container === 'string') {
+      const constainerQueryString = options.container;
+      options.container = this.renderedView.querySelector(
+        constainerQueryString) as HTMLElement;
+        if (!options.container) logger.warn(`VerityView.makeAlert(): Container ${constainerQueryString} does not exist. Will create a default one for you.`);
     }
-    if (!container) {
-      container = document.createElement("div");
+    // If no alert container was specified at all (or it was not found),
+    // try to select a default container
+    if (!options.container) {
+      // try to find a default one
+      for (const optString of [".verityMessageTop", ".verityMessageBottom"]) {
+        options.container = this.renderedView.querySelector(optString) as HTMLElement;
+        if (options.container) break;
+      }
     }
-    container.classList.add("verityAlert", "alert", "alert-"+type);
-    container.setAttribute("role", "alert");
-    container.textContent = msg;
-    return container;
+    // If we stil don't have a container, create one.
+    if (!options.container) {
+      options.container = document.createElement("div");
+      // Find a good place to find the container in the DOM:
+      // After the first h1 or h2:
+      const firstHeader: HTMLElement = this.renderedView.querySelector("h1, h2");
+      if (firstHeader) {
+        firstHeader.insertAdjacentElement("afterend", options.container);
+      } else {
+        // Or just at the very beginning of the content area:
+        this.renderedView.insertAdjacentElement("afterbegin", options.container);
+      }
+    }
+
+    // If the alert is supposed to be exclusive, clear all other alerts
+    if (options.exclusive) this.clearAlerts();
+
+    // Finally, create the alert
+    options.container.classList.add("verityAlert", "alert", "alert-"+options.type);
+    options.container.setAttribute("role", "alert");
+    options.container.textContent = msg;
+    return options.container;
   }
 
   clearAlerts(where: HTMLElement | string = this.renderedView): void {
