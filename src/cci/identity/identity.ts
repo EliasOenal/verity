@@ -387,6 +387,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   private _masterKey: Buffer = undefined;
   get masterKey(): Buffer { return this._masterKey }  // maybe TODO: return copy to improve encapsulation?
   private _encryptionPrivateKey: Buffer;
+  private _encryptionPublicKey: Buffer;
 
   /** @member - The MUC in which this Identity information is stored and published */
   private _muc: cciCube = undefined;
@@ -519,16 +520,6 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     this.deriveSigningKeys(true);  // will throw on key mismatch
   }
 
-  private set encryptionPublicKey(val: Buffer) {
-    let field: cciField = this.muc.getFirstField(cciFieldType.CRYPTO_PUBKEY);
-    if (field === undefined) {
-      field = cciField.CryptoPubkey(val);
-      this.muc.insertFieldBeforeBackPositionals(field);
-    } else {
-      field.value = val;
-    }
-  }
-
   //###
   // #endregion
   // #region Key-related getters
@@ -544,9 +535,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   private set publicKey(val: Buffer) { this._muc.publicKey = val }
 
   get encryptionPrivateKey(): Buffer { return this._encryptionPrivateKey }
-  get encryptionPublicKey(): Buffer {
-    return this._muc?.getFirstField(cciFieldType.CRYPTO_PUBKEY)?.value;
-  }
+  get encryptionPublicKey(): Buffer { return this._encryptionPublicKey }
 
   /**
    * @member Get this Identity's key, which equals its MUC's cube key,
@@ -911,6 +900,11 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       newMuc.insertFieldBeforeBackPositionals(cciField.Username(this.name));
     }
 
+    // Write encryption public key
+    if (this.encryptionPublicKey) {
+      newMuc.insertFieldBeforeBackPositionals(cciField.CryptoPubkey(this.encryptionPublicKey));
+    }
+
     // Write avatar string
     if (this._avatar !== undefined &&
         this.avatar.scheme != AvatarScheme.UNKNOWN &&
@@ -1138,6 +1132,13 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     const nameField: cciField = muc.getFirstField(cciFieldType.USERNAME);
     if (nameField) this.name = nameField.value.toString('utf-8');
 
+    // read encryption public key
+    const encryptionPublicKeyField: cciField =
+      muc.getFirstField(cciFieldType.CRYPTO_PUBKEY);
+    if (encryptionPublicKeyField) {
+      this._encryptionPublicKey = encryptionPublicKeyField.value;
+    }
+
     // read cube references, these being:
     // - avatar seed
     const avatarSeedField: cciField = muc.getFirstField(cciFieldType.AVATAR);
@@ -1343,7 +1344,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     }
     // set derived keys
     this._encryptionPrivateKey = Buffer.from(encryptionKeyPair.privateKey);
-    this.encryptionPublicKey = Buffer.from(encryptionKeyPair.publicKey);
+    this._encryptionPublicKey = Buffer.from(encryptionKeyPair.publicKey);
   }
 
   /**

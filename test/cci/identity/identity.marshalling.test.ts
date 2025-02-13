@@ -40,22 +40,6 @@ let cubeStore: CubeStore;
   });
 
   describe('storing and restoring base properties', () => {
-    it('should create an Identity, then store and retrieve it to and from a MUC object', async() => {
-      const original: Identity = await Identity.Create(
-        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
-      original.name = "Probator Identitatum";
-      const muc = await original.makeMUC();
-      expect(muc).toBeInstanceOf(cciCube);
-      const mucadded = await cubeStore.addCube(muc);
-      expect(mucadded.getKeyIfAvailable()).toEqual(original.publicKey);
-
-      const restoredmuc: cciCube = await cubeStore.getCube(await muc.getKey()) as cciCube;
-      expect(restoredmuc).toBeInstanceOf(cciCube);
-      const restored: Identity = await Identity.Construct(cubeStore, restoredmuc);
-      expect(restored).toBeInstanceOf(Identity);
-      expect(restored.name).toEqual("Probator Identitatum");
-    }, 5000);
-
     it('should store and retrieve an Identity to and from a MUC object', async () => {
       const original: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
@@ -102,6 +86,7 @@ let cubeStore: CubeStore;
       expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as Cube).getFirstField(
         cciFieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
+      expect(restored.encryptionPublicKey.equals(original.encryptionPublicKey)).toBeTruthy();
     }, 5000);
 
     it('should store and retrieve an Identity to and from a binary MUC', async () => {
