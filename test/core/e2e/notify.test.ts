@@ -4,7 +4,7 @@ import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { NetConstants, SupportedTransports } from "../../../src/core/networking/networkDefinitions";
 import { AddressAbstraction } from "../../../src/core/peering/addressing";
-import { VerityNode } from "../../../src/core/verityNode";
+import { CoreNode } from "../../../src/core/coreNode";
 
 import { LineShapedNetwork } from "./e2eSetup";
 import { requiredDifficulty, testCoreOptions } from "../testcore.definition";
@@ -15,7 +15,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 describe('notification end-to-end tests', () => {
   test('light nodes can request notifications from other light nodes', async() => {
     // set up two light nodes and wait for them to be connected
-    const sender: VerityNode = new VerityNode({
+    const sender: CoreNode = new CoreNode({
       ...testCoreOptions,
       lightNode: true,
       transports: new Map([
@@ -23,7 +23,7 @@ describe('notification end-to-end tests', () => {
       ]),
     });
     await sender.readyPromise;
-    const recipient: VerityNode = new VerityNode({
+    const recipient: CoreNode = new CoreNode({
       ...testCoreOptions,
       inMemory: true,
       lightNode: true,

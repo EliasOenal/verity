@@ -3,7 +3,7 @@
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 import { TestWorld } from '../testWorld';
 import { PostController } from '../../../../src/app/zw/webui/post/postController';
-import { DummyVerityNode, VerityNodeIf, VerityNodeOptions } from '../../../../src/core/verityNode';
+import { DummyCoreNode, CoreNodeIf, CoreNodeOptions } from '../../../../src/core/coreNode';
 import { DummyNavController } from '../../../../src/webui/navigation/navigationDefinitions';
 import { Veritable } from '../../../../src/core/cube/veritable.definition';
 import { cciFieldType } from '../../../../src/cci/cube/cciCube.definitions';
@@ -14,10 +14,10 @@ import { cciTestOptions } from '../../../cci/e2e/e2eCciSetup';
 import { loadZwTemplate } from './uiTestSetup';
 import { CubeKey } from '../../../../src/core/cube/cube.definitions';
 import { keyVariants } from '../../../../src/core/cube/cubeUtil';
-import { cciNodeIf, DummyCciNode } from '../../../../src/cci/cciNode';
+import { VerityNodeIf, DummyVerityNode } from '../../../../src/cci/verityNode';
 import { Cockpit } from '../../../../src/cci/cockpit';
 
-const testOptions: VerityNodeOptions = {
+const testOptions: CoreNodeOptions = {
   ...cciTestOptions,
   requestTimeout: 100,
 }
@@ -40,7 +40,7 @@ describe('PostView tests regarding displayal of existing posts', () => {
       let controller: PostController;
 
       beforeAll(async () => {
-        const node: cciNodeIf = new DummyCciNode(testOptions);
+        const node: VerityNodeIf = new DummyVerityNode(testOptions);
         await node.readyPromise;
         w = new TestWorld({ subscriptions: true, cubeStore: node.cubeStore });
         await w.ready;
@@ -128,7 +128,7 @@ describe('PostView tests regarding displayal of existing posts', () => {
       let controller: PostController;
 
       beforeAll(async () => {
-        const node: cciNodeIf = new DummyCciNode(testOptions);
+        const node: VerityNodeIf = new DummyVerityNode(testOptions);
         await node.readyPromise;
         w = new TestWorld({ subscriptions: false, cubeStore: node.cubeStore });
         await w.ready;

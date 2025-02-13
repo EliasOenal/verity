@@ -3,13 +3,13 @@ import { cciFamily } from "../../../src/cci/cube/cciCube";
 import { Identity } from "../../../src/cci/identity/identity";
 import { coreCubeFamily } from "../../../src/core/cube/cube";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { VerityNode, VerityNodeOptions } from "../../../src/core/verityNode";
+import { CoreNode, CoreNodeOptions } from "../../../src/core/coreNode";
 import { LineShapedNetwork } from "../../core/e2e/e2eSetup";
 import { testCoreOptions } from "../../core/testcore.definition";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
-export const cciTestOptions: VerityNodeOptions = {
+export const cciTestOptions: CoreNodeOptions = {
   ...testCoreOptions,
   family: [cciFamily, coreCubeFamily],
 }
@@ -17,8 +17,8 @@ export const cciTestOptions: VerityNodeOptions = {
 export class cciLineShapedNetwork {
   constructor(
     public sender: Cockpit,
-    public fullNode1: VerityNode,
-    public fullNode2: VerityNode,
+    public fullNode1: CoreNode,
+    public fullNode2: CoreNode,
     public recipient: Cockpit,
   ) {}
 

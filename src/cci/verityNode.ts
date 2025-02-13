@@ -1,12 +1,15 @@
 import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
-import { DummyVerityNode, VerityNode, VerityNodeIf, VerityNodeOptions } from "../core/verityNode";
+import { DummyCoreNode, CoreNode, CoreNodeIf, CoreNodeOptions } from "../core/coreNode";
 import { VeritumRetriever } from "./veritum/veritumRetriever";
 
-export interface cciNodeIf extends VerityNodeIf {
+export interface VerityNodeIf extends CoreNodeIf {
   veritumRetriever: VeritumRetriever<any>;
 }
 
-export class cciNode extends VerityNode {
+export interface VerityNodeOptions extends CoreNodeOptions {
+}
+
+export class VerityNode extends CoreNode {
   readonly veritumRetriever: VeritumRetriever<CubeRequestOptions>;
 
   constructor(options: VerityNodeOptions = {}){
@@ -23,7 +26,7 @@ export class cciNode extends VerityNode {
 }
 
 /** Dummy for testing only */
-export class DummyCciNode extends DummyVerityNode implements VerityNodeIf {
+export class DummyVerityNode extends DummyCoreNode implements CoreNodeIf {
   readonly veritumRetriever: VeritumRetriever<CubeRequestOptions>;
 
   constructor(options: VerityNodeOptions = {}){

@@ -23,9 +23,9 @@ export const defaultInitialPeers: AddressAbstraction[] = [
   // new AddressAbstraction("158.101.100.95:1984"),
 ];
 
-export type VerityNodeOptions = NetworkManagerOptions & CubeStoreOptions & InitialisationOptions;
+export type CoreNodeOptions = NetworkManagerOptions & CubeStoreOptions & InitialisationOptions;
 
-export interface VerityNodeIf {
+export interface CoreNodeIf {
   readonly cubeStore: CubeStore;
   readonly peerDB: PeerDB;
   readonly networkManager: NetworkManagerIf;
@@ -38,7 +38,7 @@ export interface VerityNodeIf {
   shutdown(): Promise<void>;
 }
 
-export class VerityNode implements VerityNodeIf {
+export class CoreNode implements CoreNodeIf {
   readonly cubeStore: CubeStore;
   readonly peerDB: PeerDB;
   readonly networkManager: NetworkManager;
@@ -48,13 +48,13 @@ export class VerityNode implements VerityNodeIf {
   readonly readyPromise: Promise<void>;
   readonly shutdownPromise: Promise<void>;
 
-  static async Create(options: VerityNodeOptions = {}): Promise<VerityNode> {
-    const v = new VerityNode(options);
+  static async Create(options: CoreNodeOptions = {}): Promise<CoreNode> {
+    const v = new CoreNode(options);
     await v.readyPromise;
     return v;
   }
 
-  constructor(options: VerityNodeOptions = {}){
+  constructor(options: CoreNodeOptions = {}){
     // set default options
     options.transports ??= new Map();  // TODO use sensible default
     options.initialPeers ??= defaultInitialPeers;
@@ -113,7 +113,7 @@ export class VerityNode implements VerityNodeIf {
 
 
 /** Dummy for testing only */
-export class DummyVerityNode implements VerityNodeIf {
+export class DummyCoreNode implements CoreNodeIf {
   readonly cubeStore: CubeStore;
   readonly peerDB: PeerDB;
   readonly networkManager: NetworkManagerIf;
@@ -123,7 +123,7 @@ export class DummyVerityNode implements VerityNodeIf {
   get readyPromise(): Promise<void> { return this.cubeStore.readyPromise }
   readonly shutdownPromise: Promise<void>;
 
-  constructor(optionsInput: VerityNodeOptions = {}) {
+  constructor(optionsInput: CoreNodeOptions = {}) {
     const options = {
       ... optionsInput,
       inMemory: true,

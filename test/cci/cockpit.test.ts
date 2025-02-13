@@ -1,4 +1,4 @@
-import { cciNodeIf, DummyCciNode } from "../../src/cci/cciNode";
+import { VerityNodeIf, DummyVerityNode } from "../../src/cci/verityNode";
 import { Cockpit } from "../../src/cci/cockpit";
 import { cciFieldType } from "../../src/cci/cube/cciCube.definitions";
 import { cciField } from "../../src/cci/cube/cciField";
@@ -15,14 +15,14 @@ describe('cci Cockpit', () => {
   // i.e. both logged-in and logged-out
   for (const loggedIn of [true, false]) {
     describe(`Tests ${loggedIn ? "while logged in, i.e. with an Identity object" : "while logged out, i.e. without an Identity object"}`, () => {
-      let node: cciNodeIf;
+      let node: VerityNodeIf;
       let identity: Identity;
       let remote1: Identity;
       let remote2: Identity;
       let cockpit: Cockpit;
 
       beforeAll(async () => {
-        node = new DummyCciNode({requiredDifficulty});
+        node = new DummyVerityNode({requiredDifficulty});
         await node.readyPromise;
         if (loggedIn) {
           identity = new Identity(node.cubeStore, masterKey, idTestOptions);

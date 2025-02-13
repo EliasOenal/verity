@@ -1,7 +1,7 @@
 import { CubeCreateOptions } from "../core/cube/cube";
 import { CubeKey, CubeType } from "../core/cube/cube.definitions";
 import { ArrayFromAsync } from "../core/helpers/misc";
-import { cciNodeIf } from "./cciNode";
+import { VerityNodeIf } from "./verityNode";
 import { cciCube } from "./cube/cciCube";
 import { Identity } from "./identity/identity";
 import { Veritum, VeritumCompileOptions, VeritumFromChunksOptions } from "./veritum/veritum";
@@ -27,7 +27,7 @@ export interface GetVeritumOptions {
 
 export class Cockpit {
   constructor(
-      public node: cciNodeIf,
+      public node: VerityNodeIf,
       readonly options: CockpitOptions = {},
   ) {
   }
