@@ -86,8 +86,10 @@ export class VerityUI implements ControllerContext {
       ui.nav.makeNavItem(navItem);
     }
 
-    // Prepare user Identity, and then prepare the initial view
-    const identityPromise: Promise<any> = ui.initializeIdentity(ui.options);
+    // Prepare user Identity
+    const identityPromise: Promise<any> = ui.identityController.loadLocal();
+
+    // Now prepare the initial view.
     // If supplied (which the app really should do), perform an initial nav
     // action. Otherwise, the content area will just stay blank.
     let initialViewPromise: Promise<void>;
@@ -128,17 +130,12 @@ export class VerityUI implements ControllerContext {
     ){
     this.peerController = new PeerController(this);
     this.fileManagerController = new FileManagerController(this);
-    this.cockpit = new cciCockpit(this.node);
+    this.identityController = new IdentityController(this, options);
+    this.cockpit = new cciCockpit(this.node,
+      { identity: () => this.identityController.identity });
   }
 
   shutdown() {
     this.node.shutdown();
-  }
-
-  initializeIdentity(
-      options?: IdentityOptions&IdentityPersistenceOptions
-  ): Promise<boolean> {
-    this.identityController = new IdentityController(this, options);
-    return this.identityController.loadLocal();
   }
 }

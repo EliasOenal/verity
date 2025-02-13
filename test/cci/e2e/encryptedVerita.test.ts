@@ -25,13 +25,21 @@ describe('Transmission of encrypted Verita', () => {
         { fields: cciField.Payload(plaintext) });
       // Publish it encrypted solely for the recipient
       await net.sender.publishVeritum(
-        veritum, { recipients: net.recipient.identity });
+        veritum, { recipients: net.recipient.identity, addAsPost: false });
       const key: CubeKey = veritum.getKeyIfAvailable();
       expect(key).toBeDefined();
+      // Note: Creating the veritumPropagated promise here is a bit late, as
+      //   propagation already started while we awaited publishVeritum().
+      //   At least for now however, our convergence time is that bad that
+      //   it still works 🤷
       const veritumPropagated: Promise<CubeInfo> = net.fullNode2.cubeStore.expectCube(key);
 
-      // Reference Veritum thorugh Identity MUC --
-      // TODO: do that automatically (opt-in or opt-out) through publishVeritum()
+      // Reference Veritum thorugh Identity MUC
+      // Note: This is also possible to do automatically through publishVeritum();
+      //   in fact, we just opted out of it above.
+      //   That's because publishVeritum does many things at once, one of those
+      //   is calculate the key. If we use it, we don't manage to create our
+      //   propagation promises in time.
       net.sender.identity.addPost(veritum.getKeyIfAvailable());
       expect(net.sender.identity.getPostCount()).toBe(1);
       net.sender.identity.store();
