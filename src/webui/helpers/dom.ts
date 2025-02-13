@@ -19,6 +19,14 @@ export function setAttributeForAll(
   }
 }
 
+export function disableForm(form: HTMLElement) {
+  setAttributeForAll(form, "input", "disabled", "true");
+  setAttributeForAll(form, "textarea", "disabled", "true");
+  setAttributeForAll(form, "select", "disabled", "true");
+  setAttributeForAll(form, "button", "disabled", "true");
+}
+
+
 function isDocumentDefined(): boolean {
   if (typeof document === 'undefined') {
     logger.error("loadTemplate(): Could not load an HTML template as the global document variable is not defined. If this happens during actual use of the app, something has seriously gone wrong. If this happened at the very beginning of a JSDOM test, it might be normal.");
