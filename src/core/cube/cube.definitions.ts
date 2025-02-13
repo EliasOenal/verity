@@ -25,7 +25,7 @@ export enum CubeType {
  * don't quite know what they're doing. PIC most closely resembles
  * what a non-Verity developer might expect a unit of storage to behave like.
  **/
-export const DEFAULT_CUBE_TYPE = CubeType.PIC;
+export const DEFAULT_CUBE_TYPE = CubeType.FROZEN;
 
 /**
  * Core field definitions.
