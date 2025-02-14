@@ -23,6 +23,12 @@ export const commonConfig = {
         include: /node_modules\/verity\/src/, // Only include files in node_modules/verity/src
       },
       {
+        test: /\.m?js/,
+        resolve: {
+          fullySpecified: false,
+        },
+      },
+      {
         test: /\.html$/,
         use: 'raw-loader',
         exclude: ["/node_modules/", "/src/webui/static/"],
@@ -36,6 +42,7 @@ export const commonConfig = {
   },
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
+    enforceExtension: false,
     fallback: {
       url: resolve('url'),
       fs: false,

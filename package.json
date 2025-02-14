@@ -4,7 +4,15 @@
   "description": "Write something really important sounding here",
   "type": "module",
   "exports": {
-    "./src/": "./src/",
+    ".": {
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./webui": {
+      "default": "./dist/webui/index.js",
+      "types": "./dist/webui/index.d.ts"
+    },
+    "./src": "./src",
     "./webpack.veritycommon.mjs": "./webpack.veritycommon.mjs"
   },
   "scripts": {
