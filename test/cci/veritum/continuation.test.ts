@@ -1,6 +1,6 @@
 import type { NetworkManagerIf } from "../../../src/core/networking/networkManagerIf";
 import { cciCube } from "../../../src/cci/cube/cciCube";
-import { MediaTypes, cciAdditionalFieldType, FieldLength, FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { MediaTypes, FieldLength, FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
 import { Continuation } from "../../../src/cci/veritum/continuation";
@@ -440,7 +440,7 @@ describe('Continuation', () => {
 
     for (let fuzzingRepeat=0; fuzzingRepeat<10; fuzzingRepeat++) {
       it('splits and restores random oversized Cubes (fuzzing test)', async() => {
-        const eligibleFieldTypes: cciAdditionalFieldType[] = [
+        const eligibleFieldTypes: number[] = [
           FieldType.PAYLOAD,
           FieldType.CONTENTNAME,
           FieldType.DESCRIPTION,
@@ -458,7 +458,7 @@ describe('Continuation', () => {
           requiredDifficulty: 0,
         });
         for (let i=0; i < numFields; i++) {
-          const chosenFieldType: cciAdditionalFieldType = eligibleFieldTypes[Math.floor(Math.random() * eligibleFieldTypes.length)];
+          const chosenFieldType: number = eligibleFieldTypes[Math.floor(Math.random() * eligibleFieldTypes.length)];
           const length: number = FieldLength[chosenFieldType] ?? Math.floor(Math.random() * 3000);
           let val: Buffer;
           if (chosenFieldType === FieldType.RELATES_TO) {
