@@ -4,15 +4,13 @@ import { Cube } from '../core/cube/cube';
 
 import { VerityFields } from './cube/verityFields';
 import { Relationship } from './cube/relationship';
+import { BaseFields } from '../core/fields/baseFields';
+import { CubeEmitter } from '../core/cube/cubeStore';
+
+import { logger } from '../core/logger';
 
 import { EventEmitter } from 'events';
-import { BaseFields } from '../core/fields/baseFields';
-
 import { Buffer } from 'buffer';
-import { Settings } from 'core/settings';
-import { NetConstants } from '../core/networking/networkDefinitions';
-import { logger } from '../core/logger';
-import { CubeEmitter } from '../core/cube/cubeStore';
 
 type RelationshipClassConstructor = new (type: number, remoteKey: CubeKey) => Relationship;
 export function defaultGetFieldsFunc(cube: Cube): BaseFields {
