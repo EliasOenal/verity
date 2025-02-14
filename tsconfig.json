@@ -4,7 +4,6 @@
     "module": "ES2022",
     "strict": false,
     "esModuleInterop": true,
-    "baseUrl": "./src",
     "outDir": "./dist",
     "moduleResolution": "Node",
     "lib": ["ES2022", "dom", "dom.iterable"],
@@ -14,17 +13,10 @@
       "./node_modules/@types"
     ],
     "declaration": true,
-    "declarationDir": "./dist/",
+    "declarationDir": "./dist",
     "skipLibCheck": true,
   },
-  "include": [
-    "src/**/*.ts",
-    "test/**/*.ts",
+  "include": ["src",
+    // "test/**/*.ts",
   ],
-  "exclude": [
-    "webspecific",
-    "misc/",
-    "dist/",
-    "node_modules/",
-  ]
 }
