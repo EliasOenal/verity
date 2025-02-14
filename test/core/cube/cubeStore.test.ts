@@ -7,12 +7,12 @@ import { CubeIteratorOptions, CubeStore as CubeStore, CubeStoreOptions } from '.
 import { Sublevels } from '../../../src/core/cube/levelBackend';
 import { CubeField } from '../../../src/core/cube/cubeField';
 
-import { cciField } from '../../../src/cci/cube/cciField';
+import { VerityField } from '../../../src/cci/cube/verityField';
 import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
-import { cciFields } from '../../../src/cci/cube/cciFields';
+import { VerityFields } from '../../../src/cci/cube/verityFields';
 
 import { paddedBuffer } from '../../../src/core/cube/cubeUtil';
-import { MediaTypes, cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { MediaTypes, FieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { CubeFields } from '../../../src/core/cube/cubeFields';
 
 import sodium from 'libsodium-wrappers-sumo'
@@ -346,7 +346,7 @@ describe('cubeStore', () => {
 
           it('should not parse TLV fields by default', async () => {
             const spammyCube = cciCube.Frozen({  // Cube with 300 TLV fields
-              fields: Array.from({ length: 300 }, () => cciField.Payload("!")),
+              fields: Array.from({ length: 300 }, () => VerityField.Payload("!")),
               requiredDifficulty: reducedDifficulty,
             });
             const spammyBinary: Buffer = await spammyCube.getBinaryData();
@@ -817,10 +817,10 @@ describe('cubeStore', () => {
           // prepare a CCI Cube
           const cube: cciCube = cciCube.Frozen({
             fields: [
-              cciField.Application("Applicatio probandi"),
-              cciField.MediaType(MediaTypes.TEXT),
-              cciField.Username("Usor probandi"),
-              cciField.Payload("In hac applicatio probationis, usor probandi creat contentum probandi, ut programma probatorium confirmet omnem testium datam conservatam esse."),
+              VerityField.Application("Applicatio probandi"),
+              VerityField.MediaType(MediaTypes.TEXT),
+              VerityField.Username("Usor probandi"),
+              VerityField.Payload("In hac applicatio probationis, usor probandi creat contentum probandi, ut programma probatorium confirmet omnem testium datam conservatam esse."),
             ], requiredDifficulty: reducedDifficulty
           });
           // compile it to binary -- it's CCI family is now no longer visible
@@ -836,15 +836,15 @@ describe('cubeStore', () => {
           const restored: cciCube = await cubeStore.getCube(key) as cciCube;
           expect(restored).toBeTruthy();
           expect(restored).toBeInstanceOf(cciCube);
-          expect(restored.fields).toBeInstanceOf(cciFields);
-          expect(restored.getFirstField(cciFieldType.APPLICATION).value.toString())
+          expect(restored.fields).toBeInstanceOf(VerityFields);
+          expect(restored.getFirstField(FieldType.APPLICATION).value.toString())
             .toEqual("Applicatio probandi");
-          expect(restored.getFirstField(cciFieldType.MEDIA_TYPE).value.length).toEqual(1);
-          expect(restored.getFirstField(cciFieldType.MEDIA_TYPE).value[0]).toEqual(
+          expect(restored.getFirstField(FieldType.MEDIA_TYPE).value.length).toEqual(1);
+          expect(restored.getFirstField(FieldType.MEDIA_TYPE).value[0]).toEqual(
             MediaTypes.TEXT);
-          expect(restored.getFirstField(cciFieldType.USERNAME).value.toString())
+          expect(restored.getFirstField(FieldType.USERNAME).value.toString())
             .toEqual("Usor probandi");
-          expect(restored.getFirstField(cciFieldType.PAYLOAD).value.toString()).toEqual(
+          expect(restored.getFirstField(FieldType.PAYLOAD).value.toString()).toEqual(
             "In hac applicatio probationis, usor probandi creat contentum probandi, ut programma probatorium confirmet omnem testium datam conservatam esse.");
         });
 

@@ -1,8 +1,8 @@
 import { ApiMisuseError, Settings } from "../../core/settings";
 import { FieldNumericalParam } from "../../core/fields/fieldParser";
 
-import { cciFieldType } from "../cube/cciCube.definitions";
-import { cciField } from "../cube/cciField";
+import { FieldType } from "../cube/cciCube.definitions";
+import { VerityField } from "../cube/verityField";
 
 import { Buffer } from 'buffer';
 import multiavatar from "@multiavatar/multiavatar";
@@ -46,13 +46,13 @@ export class Avatar {
    * Reconstruct an existing avatar based on an avatar CCI field.
    * (This usually means: Show me another user's avatar.)
    */
-  constructor(field: cciField);
+  constructor(field: VerityField);
 
   /** Create an invalid Avatar object representing an unknown avatar. */
   constructor();
 
   constructor(
-      multiParam: Buffer | string | boolean | cciField = undefined,
+      multiParam: Buffer | string | boolean | VerityField = undefined,
       scheme: AvatarScheme = undefined
   ){
     if (multiParam === undefined || multiParam === "") {
@@ -61,7 +61,7 @@ export class Avatar {
     }
     else if (multiParam === true) {  // create random avatar
       this.random(scheme);
-    } else if (multiParam instanceof cciField) {
+    } else if (multiParam instanceof VerityField) {
       this.fromField(multiParam);
     } else {  // re-create deterministic avatar based on specific seed
       this.scheme = scheme;  // set scheme first to enable auto-truncate
@@ -124,8 +124,8 @@ export class Avatar {
   }
 
   /** Replaces this avatar by the one described in the supplied AVATAR cciField */
-  fromField(field: cciField) {
-    if (field.type != cciFieldType.AVATAR) {
+  fromField(field: VerityField) {
+    if (field.type != FieldType.AVATAR) {
       throw new ApiMisuseError("Avatar: Cannot reconstruct avatar from non-avatar field");
     }
     const avatarScheme: AvatarScheme = field.value.readUint8();
@@ -138,12 +138,12 @@ export class Avatar {
     }
   }
 
-  toField(): cciField {
+  toField(): VerityField {
     if (this.scheme === AvatarScheme.UNKNOWN) return undefined;
     const length = AvatarSeedLength[this.scheme] + 1;  // 1: scheme field
     const val: Buffer = Buffer.alloc(length, 0);
     val.writeUInt8(this.scheme);
     val.set(this._seed, 1);
-    return new cciField(cciFieldType.AVATAR, val);
+    return new VerityField(FieldType.AVATAR, val);
   }
 }

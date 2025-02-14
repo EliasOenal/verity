@@ -1,7 +1,7 @@
 import { Buffer } from 'buffer';
 import { cciCube } from '../cci/cube/cciCube';
-import { cciField } from '../cci/cube/cciField';
-import { cciFieldType } from '../cci/cube/cciCube.definitions';
+import { VerityField } from '../cci/cube/verityField';
+import { FieldType } from '../cci/cube/cciCube.definitions';
 import { CubeType } from '../core/cube/cube.definitions';
 import { CubeField } from '../core/cube/cubeField';
 import { logger } from '../core/logger';
@@ -25,10 +25,10 @@ export class ChatApplication {
 
         const cube: Cube = cciCube.Frozen({
             fields: [
-                cciField.Notify(notificationKey),
-                cciField.Application(this.APPLICATION_IDENTIFIER),
-                cciField.Username(username),
-                cciField.Payload(Buffer.from(message, 'utf-8')),
+                VerityField.Notify(notificationKey),
+                VerityField.Application(this.APPLICATION_IDENTIFIER),
+                VerityField.Username(username),
+                VerityField.Payload(Buffer.from(message, 'utf-8')),
             ],
         });
 
@@ -46,24 +46,24 @@ export class ChatApplication {
             throw new Error('Chat application requires frozen notify cubes, passed cube is: ' + cube.cubeType);
         }
 
-        const applicationFields = cube.fields.get(cciFieldType.APPLICATION);
+        const applicationFields = cube.fields.get(FieldType.APPLICATION);
         if (!applicationFields || !applicationFields.some(field => field.valueString === this.APPLICATION_IDENTIFIER)) {
             throw new Error('Not a chat application cube');
         }
 
-        const usernameFields = cube.fields.get(cciFieldType.USERNAME);
+        const usernameFields = cube.fields.get(FieldType.USERNAME);
         if (!usernameFields || usernameFields.length === 0) {
             throw new Error('Username not found in chat cube');
         }
         const username = usernameFields[0].valueString;
 
-        const payloadFields = cube.fields.get(cciFieldType.PAYLOAD);
+        const payloadFields = cube.fields.get(FieldType.PAYLOAD);
         if (!payloadFields || payloadFields.length === 0) {
             throw new Error('Message payload not found in chat cube');
         }
         const message = payloadFields[0].value.toString('utf-8');
 
-        const notifyFields = cube.fields.get(cciFieldType.NOTIFY);
+        const notifyFields = cube.fields.get(FieldType.NOTIFY);
         if (!notifyFields || notifyFields.length === 0) {
             throw new Error('Notification key not found in chat cube');
         }

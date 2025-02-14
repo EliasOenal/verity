@@ -4,8 +4,8 @@ import { keyVariants } from "../../../../core/cube/cubeUtil";
 import { CubeEmitter } from "../../../../core/cube/cubeStore";
 import { logger } from "../../../../core/logger";
 
-import { cciFieldType } from "../../../../cci/cube/cciCube.definitions";
-import { cciFields } from "../../../../cci/cube/cciFields";
+import { FieldType } from "../../../../cci/cube/cciCube.definitions";
+import { VerityFields } from "../../../../cci/cube/verityFields";
 import { cciCube, cciFamily } from "../../../../cci/cube/cciCube";
 import { cciRelationship, cciRelationshipType } from "../../../../cci/cube/cciRelationship";
 import { ensureCci } from "../../../../cci/cube/cciCubeUtil";
@@ -173,14 +173,14 @@ export class PostController extends VerityController {
     // get Cube
     const cube: cciCube = ensureCci(await this.cubeStore.getCube(binarykey, {family: cciFamily}));
     if (cube === undefined) return;
-    const fields: cciFields = cube.fields;
+    const fields: VerityFields = cube.fields;
 
     // gather PostData
     const data: PostData = {};
     data.binarykey = binarykey;
     data.keystring = binarykey.toString('hex');
     data.timestamp = cube.getDate();
-    data.text = fields.getFirst(cciFieldType.PAYLOAD).value.toString();
+    data.text = fields.getFirst(FieldType.PAYLOAD).value.toString();
     data.text = DOMPurify.sanitize(data.text, {
       ALLOWED_TAGS: ['b', 'i', 'u', 's', 'em', 'strong', 'mark', 'sub', 'sup', 'p', 'br', 'ul', 'ol', 'li'],
       ALLOWED_ATTR: []

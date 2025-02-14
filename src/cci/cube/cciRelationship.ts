@@ -2,8 +2,8 @@ import { NetConstants } from "../../core/networking/networkDefinitions";
 import { CubeKey } from "../../core/cube/cube.definitions";
 import { keyVariants } from "../../core/cube/cubeUtil";
 
-import { cciFieldType } from "./cciCube.definitions";
-import { cciField } from "./cciField";
+import { FieldType } from "./cciCube.definitions";
+import { VerityField } from "./verityField";
 
 import { logger } from "../../core/logger";
 
@@ -63,9 +63,9 @@ export class cciRelationship {
     return `${cciRelationshipType[this.type] ?? this.type} rel to ${this.remoteKeyString}`;
   }
 
-  static fromField(field: cciField): cciRelationship {
+  static fromField(field: VerityField): cciRelationship {
       const relationship = new cciRelationship();
-      if (field.type !== cciFieldType.RELATES_TO) {
+      if (field.type !== FieldType.RELATES_TO) {
         logger.error(`cciRelationship.fromField(): Can only construct relationship object from RELATES_TO field, got ${field.type}; returning undefined instead.`);
         return undefined;
       }

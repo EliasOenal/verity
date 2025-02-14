@@ -65,45 +65,45 @@ export enum cciAdditionalFieldType {
   REMAINDER = 40001,         // virtual field only used on decompiling Cubes
                              // to represent data after CCI_END
 }
-export const cciFieldType = {...CubeFieldType, ...cciAdditionalFieldType} as const;
+export const FieldType = {...CubeFieldType, ...cciAdditionalFieldType} as const;
 
 export const cciAdditionalFieldLength: FieldNumericalParam = {
-  [cciFieldType.CCI_END]: 0,
-  [cciFieldType.ENCRYPTED]: undefined,
+  [FieldType.CCI_END]: 0,
+  [FieldType.ENCRYPTED]: undefined,
   // Currently unused&reserved auxilliary crypto fields:
   // [cciFieldType.CRYPTO_NONCE]: NetConstants.CRYPTO_NONCE_SIZE,
   // [cciFieldType.CRYPTO_MAC]: NetConstants.CRYPTO_MAC_SIZE,
   // [cciFieldType.CRYPTO_KEY]: NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE,
-  [cciFieldType.CRYPTO_PUBKEY]: NetConstants.PUBLIC_KEY_SIZE,
-  [cciFieldType.SUBKEY_SEED]: undefined,
-  [cciFieldType.CONTENTNAME]: undefined,
-  [cciFieldType.DESCRIPTION]: undefined,
-  [cciFieldType.PAYLOAD]: undefined,
-  [cciFieldType.AVATAR]: undefined,
-  [cciFieldType.APPLICATION]: undefined,
-  [cciFieldType.MEDIA_TYPE]: 1,
-  [cciFieldType.RELATES_TO]: NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE,
-  [cciFieldType.USERNAME]: undefined,
-  [cciFieldType.PADDING]: undefined,
-  [cciFieldType.CUSTOM1]: undefined,
-  [cciFieldType.CUSTOM2]: undefined,
-  [cciFieldType.CUSTOM3]: undefined,
-  [cciFieldType.CUSTOM4]: undefined,
-  [cciFieldType.CUSTOM5]: undefined,
-  [cciFieldType.CUSTOM6]: undefined,
-  [cciFieldType.CUSTOM7]: undefined,
-  [cciFieldType.CUSTOM8]: undefined,
-  [cciFieldType.CUSTOM9]: undefined,
-  [cciFieldType.CUSTOM10]: undefined,
-  [cciFieldType.CUSTOM11]: undefined,
-  [cciFieldType.CUSTOM12]: undefined,
-  [cciFieldType.CUSTOM13]: undefined,
-  [cciFieldType.CUSTOM14]: undefined,
-  [cciFieldType.CUSTOM15]: undefined,
-  [cciFieldType.CUSTOM16]: undefined,
-  [cciFieldType.REMAINDER]: undefined,
+  [FieldType.CRYPTO_PUBKEY]: NetConstants.PUBLIC_KEY_SIZE,
+  [FieldType.SUBKEY_SEED]: undefined,
+  [FieldType.CONTENTNAME]: undefined,
+  [FieldType.DESCRIPTION]: undefined,
+  [FieldType.PAYLOAD]: undefined,
+  [FieldType.AVATAR]: undefined,
+  [FieldType.APPLICATION]: undefined,
+  [FieldType.MEDIA_TYPE]: 1,
+  [FieldType.RELATES_TO]: NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE,
+  [FieldType.USERNAME]: undefined,
+  [FieldType.PADDING]: undefined,
+  [FieldType.CUSTOM1]: undefined,
+  [FieldType.CUSTOM2]: undefined,
+  [FieldType.CUSTOM3]: undefined,
+  [FieldType.CUSTOM4]: undefined,
+  [FieldType.CUSTOM5]: undefined,
+  [FieldType.CUSTOM6]: undefined,
+  [FieldType.CUSTOM7]: undefined,
+  [FieldType.CUSTOM8]: undefined,
+  [FieldType.CUSTOM9]: undefined,
+  [FieldType.CUSTOM10]: undefined,
+  [FieldType.CUSTOM11]: undefined,
+  [FieldType.CUSTOM12]: undefined,
+  [FieldType.CUSTOM13]: undefined,
+  [FieldType.CUSTOM14]: undefined,
+  [FieldType.CUSTOM15]: undefined,
+  [FieldType.CUSTOM16]: undefined,
+  [FieldType.REMAINDER]: undefined,
 }
-export const cciFieldLength = {...CubeFieldLength, ...cciAdditionalFieldLength};
+export const FieldLength = {...CubeFieldLength, ...cciAdditionalFieldLength};
 
 
 export enum MediaTypes {

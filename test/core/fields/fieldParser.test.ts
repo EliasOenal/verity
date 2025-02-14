@@ -6,9 +6,9 @@ import { BaseFields } from "../../../src/core/fields/baseFields";
 import { BinaryDataError, CubeFieldType, CubeType, FieldError } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeFields } from "../../../src/core/cube/cubeFields";
-import { cciFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../../src/cci/cube/cciFields";
-import { cciField } from "../../../src/cci/cube/cciField";
-import { cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { VerityFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../../src/cci/cube/verityFields";
+import { VerityField } from "../../../src/cci/cube/verityField";
+import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
@@ -282,15 +282,15 @@ describe('fieldParser', () => {
   describe('CCI fields', () => {
     it('should correctly compile and decompile CCI fields', () => {
       const fieldParser: FieldParser = cciFrozenParser;
-      const fields = new cciFields(undefined, cciFrozenFieldDefinition);
+      const fields = new VerityFields(undefined, cciFrozenFieldDefinition);
 
       // define a few fields
       fields.appendField(CubeField.Type(CubeType.FROZEN));
       fields.appendField(
-        cciField.Payload("Mein kleiner grüner Kaktus")
+        VerityField.Payload("Mein kleiner grüner Kaktus")
       );
       fields.appendField(
-        cciField.Payload("steht draußen am Balkon")
+        VerityField.Payload("steht draußen am Balkon")
       );
       fields.appendField(CubeField.Date());
       fields.appendField(CubeField.Nonce());
@@ -301,12 +301,12 @@ describe('fieldParser', () => {
 
       // compare
       expect(restored.length).toEqual(5);
-      expect(restored.get(cciFieldType.PAYLOAD).length).toEqual(2);
+      expect(restored.get(FieldType.PAYLOAD).length).toEqual(2);
       expect(
-        restored.get(cciFieldType.PAYLOAD)[0].value.toString('utf-8')).
+        restored.get(FieldType.PAYLOAD)[0].value.toString('utf-8')).
         toEqual("Mein kleiner grüner Kaktus");
       expect(
-        restored.get(cciFieldType.PAYLOAD)[1].value.toString('utf-8')).
+        restored.get(FieldType.PAYLOAD)[1].value.toString('utf-8')).
         toEqual("steht draußen am Balkon");
     });
 

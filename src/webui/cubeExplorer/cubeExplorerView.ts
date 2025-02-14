@@ -1,4 +1,4 @@
-import { cciFieldType } from "../../cci/cube/cciCube.definitions";
+import { FieldType } from "../../cci/cube/cciCube.definitions";
 import { cciRelationship, cciRelationshipType } from "../../cci/cube/cciRelationship";
 import { Cube } from "../../core/cube/cube";
 import { CubeType } from "../../core/cube/cube.definitions";
@@ -181,7 +181,7 @@ export class CubeExplorerView extends VerityView {
 
   setDecodedFieldContent(field: CubeField, detailsTable: HTMLTableElement): void {
     // can we decode this field type semantically?
-    if (field.type === cciFieldType.RELATES_TO) {
+    if (field.type === FieldType.RELATES_TO) {
       this.setRelFieldContent(field, detailsTable);
     } else {
       // no semantic decoding available, offer basic string and hex decoding instead

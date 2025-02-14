@@ -1,7 +1,7 @@
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 import { cciCube } from '../../../src/cci/cube/cciCube';
-import { cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
-import { cciField } from '../../../src/cci/cube/cciField';
+import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { VerityField } from '../../../src/cci/cube/verityField';
 import { Continuation } from '../../../src/cci/veritum/continuation';
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { VeritumRetriever } from '../../../src/cci/veritum/veritumRetriever';
@@ -51,7 +51,7 @@ describe('VeritumRetriever', () => {
         const cube: cciCube = cciCube.Create({
           cubeType: CubeType.FROZEN,
           fields: [
-            cciField.Payload("Hoc non est cadena continuationis"),
+            VerityField.Payload("Hoc non est cadena continuationis"),
           ],
           requiredDifficulty: 0,
         });
@@ -67,7 +67,7 @@ describe('VeritumRetriever', () => {
         expect(chunks.length).toBe(1);
         expect(chunks[0].getKeyIfAvailable()).toBeDefined();
         expect(chunks[0].getKeyIfAvailable()).toEqual(cube.getKeyIfAvailable());
-        expect(chunks[0].getFirstField(cciFieldType.PAYLOAD).valueString).toEqual("Hoc non est cadena continuationis");
+        expect(chunks[0].getFirstField(FieldType.PAYLOAD).valueString).toEqual("Hoc non est cadena continuationis");
       });
 
       it('yields a 2-chunk continuation already in store', async () => {
@@ -76,7 +76,7 @@ describe('VeritumRetriever', () => {
           cubeType: CubeType.FROZEN,
           requiredDifficulty: 0,
         });
-        const payloadMacrofield = cciField.Payload(tooLong);
+        const payloadMacrofield = VerityField.Payload(tooLong);
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube and add all parts to the store
@@ -95,7 +95,7 @@ describe('VeritumRetriever', () => {
 
         // reassemble the chunks
         const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
-        expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(tooLong);
+        expect(recombined.getFirstField(FieldType.PAYLOAD).valueString).toEqual(tooLong);
       });
 
       it('yields a three-chunk continuation already in store', async () => {
@@ -104,7 +104,7 @@ describe('VeritumRetriever', () => {
           cubeType: CubeType.FROZEN,
           requiredDifficulty: 0,
         });
-        const payloadMacrofield = cciField.Payload(evenLonger);
+        const payloadMacrofield = VerityField.Payload(evenLonger);
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube and add all parts to the store
@@ -123,7 +123,7 @@ describe('VeritumRetriever', () => {
 
         // reassemble the chunks
         const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
-        expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(evenLonger);
+        expect(recombined.getFirstField(FieldType.PAYLOAD).valueString).toEqual(evenLonger);
       });
 
       it('yields a more-than-5-chunk continuation already in store', async () => {
@@ -132,7 +132,7 @@ describe('VeritumRetriever', () => {
           cubeType: CubeType.FROZEN,
           requiredDifficulty: 0,
         });
-        const payloadMacrofield = cciField.Payload(farTooLong);
+        const payloadMacrofield = VerityField.Payload(farTooLong);
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube and add all parts to the store
@@ -151,7 +151,7 @@ describe('VeritumRetriever', () => {
 
         // reassemble the chunks
         const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
-        expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(farTooLong);
+        expect(recombined.getFirstField(FieldType.PAYLOAD).valueString).toEqual(farTooLong);
       });
     });  // chunks already in store
 
@@ -162,7 +162,7 @@ describe('VeritumRetriever', () => {
         const cube: cciCube = cciCube.Create({
           cubeType: CubeType.FROZEN,
           fields: [
-            cciField.Payload("Hoc non est cadena continuationis"),
+            VerityField.Payload("Hoc non est cadena continuationis"),
           ],
           requiredDifficulty: 0,
         });
@@ -190,7 +190,7 @@ describe('VeritumRetriever', () => {
         expect(chunks.length).toBe(1);
         expect(chunks[0].getKeyIfAvailable()).toBeDefined();
         expect(chunks[0].getKeyIfAvailable()).toEqual(cube.getKeyIfAvailable());
-        expect(chunks[0].getFirstField(cciFieldType.PAYLOAD).valueString).toEqual("Hoc non est cadena continuationis");
+        expect(chunks[0].getFirstField(FieldType.PAYLOAD).valueString).toEqual("Hoc non est cadena continuationis");
       });
 
       it('yields a 2-chunk continuation arriving in correct order after the request', async () => {
@@ -199,7 +199,7 @@ describe('VeritumRetriever', () => {
           cubeType: CubeType.FROZEN,
           requiredDifficulty: 0,
         });
-        const payloadMacrofield = cciField.Payload(tooLong);
+        const payloadMacrofield = VerityField.Payload(tooLong);
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube
@@ -219,7 +219,7 @@ describe('VeritumRetriever', () => {
         }
         expect(chunks.length).toBe(splitCubes.length);
         const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
-        expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(tooLong);
+        expect(recombined.getFirstField(FieldType.PAYLOAD).valueString).toEqual(tooLong);
       });
 
       it('yields a more-than-5-chunk continuation arriving in sequence', async () => {
@@ -228,7 +228,7 @@ describe('VeritumRetriever', () => {
           cubeType: CubeType.FROZEN,
           requiredDifficulty: 0,
         });
-        const payloadMacrofield = cciField.Payload(farTooLong);
+        const payloadMacrofield = VerityField.Payload(farTooLong);
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube
@@ -250,7 +250,7 @@ describe('VeritumRetriever', () => {
 
         // reassemble the chunks
         const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
-        expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(farTooLong);
+        expect(recombined.getFirstField(FieldType.PAYLOAD).valueString).toEqual(farTooLong);
       });
 
     });  // chunks arriving in correct order
@@ -264,7 +264,7 @@ describe('VeritumRetriever', () => {
           cubeType: CubeType.FROZEN,
           requiredDifficulty: 0,
         });
-        const payloadMacrofield = cciField.Payload(tooLong);
+        const payloadMacrofield = VerityField.Payload(tooLong);
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube
@@ -299,7 +299,7 @@ describe('VeritumRetriever', () => {
 
         expect(chunks.length).toBe(2);
         const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
-        expect(recombined.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(tooLong);
+        expect(recombined.getFirstField(FieldType.PAYLOAD).valueString).toEqual(tooLong);
       });
     });  // chunks arriving out of order
 
@@ -311,8 +311,8 @@ describe('VeritumRetriever', () => {
           const veritum: Veritum = new Veritum({
             cubeType: CubeType.PIC_NOTIFY,
             fields: [
-              cciField.Payload(farTooLong),
-              cciField.Notify(notificationKey),
+              VerityField.Payload(farTooLong),
+              VerityField.Notify(notificationKey),
             ],
             requiredDifficulty: 0,
           });
@@ -340,7 +340,7 @@ describe('VeritumRetriever', () => {
       const veritum: Veritum = new Veritum({
         cubeType: CubeType.PIC,
         fields: [
-          cciField.Payload(evenLonger),
+          VerityField.Payload(evenLonger),
         ],
         requiredDifficulty: 0,
       });

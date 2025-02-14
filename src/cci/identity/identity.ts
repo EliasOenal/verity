@@ -12,10 +12,10 @@ import { CubeInfo } from '../../core/cube/cubeInfo';
 import { CubeError, CubeKey, CubeType } from '../../core/cube/cube.definitions';
 import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
 
-import { cciFieldType } from '../cube/cciCube.definitions';
+import { FieldType } from '../cube/cciCube.definitions';
 import { KeyMismatchError, KeyPair, deriveEncryptionKeypair, deriveSigningKeypair } from '../helpers/cryptography';
-import { cciField } from '../cube/cciField';
-import { cciFields, cciMucFieldDefinition } from '../cube/cciFields';
+import { VerityField } from '../cube/verityField';
+import { VerityFields, cciMucFieldDefinition } from '../cube/verityFields';
 import { cciRelationship, cciRelationshipType } from '../cube/cciRelationship';
 import { cciCube, cciFamily } from '../cube/cciCube';
 import { ensureCci } from '../cube/cciCubeUtil';
@@ -878,10 +878,10 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       await new Promise(resolve => setTimeout(resolve, waitFor*1000));
     }
 
-    const initialFields: cciField[] = [];
+    const initialFields: VerityField[] = [];
     // Write notification key if requested
     if (this.options.idmucNotificationKey?.length === NetConstants.CUBE_KEY_SIZE) {
-      initialFields.push(cciField.Notify(this.options.idmucNotificationKey));
+      initialFields.push(VerityField.Notify(this.options.idmucNotificationKey));
     }
 
     const newMuc: cciCube = cciCube.MUC(
@@ -892,17 +892,17 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     // Include application header if requested
     if (this.options.idmucApplicationString) {
       newMuc.insertFieldBeforeBackPositionals(
-        cciField.Application(this.options.idmucApplicationString));
+        VerityField.Application(this.options.idmucApplicationString));
     }
 
     // Write username
     if (this.name) {
-      newMuc.insertFieldBeforeBackPositionals(cciField.Username(this.name));
+      newMuc.insertFieldBeforeBackPositionals(VerityField.Username(this.name));
     }
 
     // Write encryption public key
     if (this.encryptionPublicKey) {
-      newMuc.insertFieldBeforeBackPositionals(cciField.CryptoPubkey(this.encryptionPublicKey));
+      newMuc.insertFieldBeforeBackPositionals(VerityField.CryptoPubkey(this.encryptionPublicKey));
     }
 
     // Write avatar string
@@ -914,7 +914,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
     // Write profile picture reference
     if (this.profilepic) {
-      newMuc.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+      newMuc.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
         new cciRelationship(cciRelationshipType.ILLUSTRATION, this.profilepic)
       ));
     }
@@ -924,7 +924,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     // of those here)
     this.writeSubscriptionRecommendations();
     if (this.subscriptionRecommendationIndices.length) {  // any subs at all?
-      newMuc.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+      newMuc.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
         new cciRelationship(cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
           this.subscriptionRecommendationIndices[0].getKeyIfAvailable())));
           // note: key is always available as this is a MUC
@@ -943,7 +943,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     //   order, as local insertion order is not guaranteed to be stable when it
     //   has itself been restored from a MUC.
     const newestPostsFirst: string[] = Array.from(this.getPostKeyStrings()).reverse();
-    newMuc.fields.insertTillFull(cciField.FromRelationships(
+    newMuc.fields.insertTillFull(VerityField.FromRelationships(
       cciRelationship.fromKeys(cciRelationshipType.MYPOST, newestPostsFirst)));
 
     await newMuc.getBinaryData();  // compile MUC
@@ -1033,16 +1033,16 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
     // Prepare index field sets, one for each index cube.
     // The cubes themselves will be sculpted in the next step.
-    const fieldSets: cciFields[] = [];
-    let fields: cciFields = new cciFields([], cciMucFieldDefinition);
+    const fieldSets: VerityFields[] = [];
+    let fields: VerityFields = new VerityFields([], cciMucFieldDefinition);
     if (this.options.idmucApplicationString) {
-      fields.appendField(cciField.Application(this.options.idmucApplicationString));
+      fields.appendField(VerityField.Application(this.options.idmucApplicationString));
     }
     // TODO get rid of intermediate Array
     const subs: string[] = Array.from(this._publicSubscriptions).reverse();
     for (let i=0; i<subs.length; i++) {
       // write rel
-      fields.appendField(cciField.RelatesTo(new cciRelationship(
+      fields.appendField(VerityField.RelatesTo(new cciRelationship(
         cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
         keyVariants(subs[i]).binaryKey
       )));
@@ -1051,9 +1051,9 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       if (i % relsPerCube == relsPerCube - 1 ||
           i == this.getPublicSubscriptionCount() - 1) {
         fieldSets.push(fields);
-        fields = new cciFields([], cciMucFieldDefinition);
+        fields = new VerityFields([], cciMucFieldDefinition);
         if (this.options.idmucApplicationString) {
-          fields.appendField(cciField.Application(this.options.idmucApplicationString));
+          fields.appendField(VerityField.Application(this.options.idmucApplicationString));
         }
       }
     }
@@ -1063,7 +1063,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       fields = fieldSets[i];
       // chain the index cubes together:
       if (i < fieldSets.length - 1 ) {  // last one has no successor, obviously
-        fields.appendField(cciField.RelatesTo(new cciRelationship(
+        fields.appendField(VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
             this.subscriptionRecommendationIndices[i+1].
               getKeyIfAvailable())));  // it's a MUC, the key is always available
@@ -1129,19 +1129,19 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     }
 
     // read name
-    const nameField: cciField = muc.getFirstField(cciFieldType.USERNAME);
+    const nameField: VerityField = muc.getFirstField(FieldType.USERNAME);
     if (nameField) this.name = nameField.value.toString('utf-8');
 
     // read encryption public key
-    const encryptionPublicKeyField: cciField =
-      muc.getFirstField(cciFieldType.CRYPTO_PUBKEY);
+    const encryptionPublicKeyField: VerityField =
+      muc.getFirstField(FieldType.CRYPTO_PUBKEY);
     if (encryptionPublicKeyField) {
       this._encryptionPublicKey = encryptionPublicKeyField.value;
     }
 
     // read cube references, these being:
     // - avatar seed
-    const avatarSeedField: cciField = muc.getFirstField(cciFieldType.AVATAR);
+    const avatarSeedField: VerityField = muc.getFirstField(FieldType.AVATAR);
     if (avatarSeedField) {
       this._avatar = new Avatar(avatarSeedField);
     }
@@ -1210,8 +1210,8 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     else alreadyTraversedCubes.push(thisCubesKeyString);
 
     // parse this index cube
-    if (!(mucOrMucExtension.fields instanceof cciFields)) return;  // no CCI, no rels
-    const fields: cciFields = mucOrMucExtension.fields as cciFields;
+    if (!(mucOrMucExtension.fields instanceof VerityFields)) return;  // no CCI, no rels
+    const fields: VerityFields = mucOrMucExtension.fields as VerityFields;
     if (!fields) return;
     // save the subscriptions recommendations provided:
     const subs = fields.getRelationships(
@@ -1262,10 +1262,10 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     }
     else { alreadyTraversedCubes.push(thisCubesKeyString) }
 
-    if (!(mucOrMucExtension.fields instanceof cciFields)) {
+    if (!(mucOrMucExtension.fields instanceof VerityFields)) {
       return new Promise<void>(resolve => resolve());  // no CCI, no rels
     }
-    const fields: cciFields = mucOrMucExtension.fields as cciFields;
+    const fields: VerityFields = mucOrMucExtension.fields as VerityFields;
     if (!fields) return new Promise<void>(resolve => resolve());
 
     // prepare return promises

@@ -9,9 +9,9 @@ import { Cube, CubeCreateOptions, CubeOptions } from "../../core/cube/cube";
 import { CubeFamilyDefinition } from "../../core/cube/cubeFields";
 import { CubeField } from "../../core/cube/cubeField";
 
-import { cciField } from "./cciField";
-import { cciFields, cciFieldParsers } from "./cciFields";
-import { cciFieldType } from "./cciCube.definitions";
+import { VerityField } from "./verityField";
+import { VerityFields, cciFieldParsers } from "./verityFields";
+import { FieldType } from "./cciCube.definitions";
 
 import { KeyPair, deriveSigningKeypair } from "../helpers/cryptography";
 
@@ -60,15 +60,15 @@ export class cciCube extends Cube {
   /** !!! May only be called after awaiting sodium.ready !!! */
   static ExtensionMuc(
     masterKey: Uint8Array,
-    fields: cciFields | cciField[],
+    fields: VerityFields | VerityField[],
     subkeyIndex: number = undefined, context: string = undefined,
     writeSubkeyIndexToCube: boolean = false,
     family: CubeFamilyDefinition = cciFamily,
     requiredDifficulty = Settings.REQUIRED_DIFFICULTY
   ): cciCube {
     // normalise input
-    if (!(fields instanceof cciFields)) {
-      fields = new cciFields(cciFields as any, family.parsers[CubeType.MUC].fieldDef);
+    if (!(fields instanceof VerityFields)) {
+      fields = new VerityFields(VerityFields as any, family.parsers[CubeType.MUC].fieldDef);
     }
     // choose a random subkeyIndex if none was provided
     if (subkeyIndex === undefined) {
@@ -88,7 +88,7 @@ export class cciCube extends Cube {
       // to its owner. Maybe we should encrypt it.
       const nonceBuf = Buffer.alloc(Settings.MUC_EXTENSION_SEED_SIZE);
       nonceBuf.writeUintBE(subkeyIndex, 0, Settings.MUC_EXTENSION_SEED_SIZE);
-      fields.appendField(cciField.SubkeySeed(Buffer.from(nonceBuf)));
+      fields.appendField(VerityField.SubkeySeed(Buffer.from(nonceBuf)));
     }
 
     // Create and return extension MUC
@@ -102,7 +102,7 @@ export class cciCube extends Cube {
     return extensionMuc;
   }
 
-  declare protected _fields: cciFields;
+  declare protected _fields: VerityFields;
 
   constructor(
     param1: Buffer | CubeType,
@@ -113,17 +113,17 @@ export class cciCube extends Cube {
   }
 
   /** @deprecated Use methods defined in Veritable instead */
-  public get fields(): cciFields {
+  public get fields(): VerityFields {
     if (Settings.RUNTIME_ASSERTIONS && !(this.assertCci())) {
       throw new FieldError("This CCI Cube does not have CCI fields but " + this._fields.constructor.name);
     }
-    return this._fields as cciFields;
+    return this._fields as VerityFields;
   }
 
-  manipulateFields(): cciFields { return super.manipulateFields() as cciFields; }
+  manipulateFields(): VerityFields { return super.manipulateFields() as VerityFields; }
 
   assertCci(): boolean {
-    if (this._fields instanceof cciFields) return true;
+    if (this._fields instanceof VerityFields) return true;
     else return false;
   }
 
@@ -140,7 +140,7 @@ export class cciCube extends Cube {
     if (len > NetConstants.CUBE_SIZE) {  // Cube to large :(
       // is this a recompile and we need to strip out the old padding?
       const paddingFields: Iterable<CubeField> =
-        this.getFields(cciFieldType.PADDING);
+        this.getFields(FieldType.PADDING);
       for (const paddingField of paddingFields) {
         this.removeField(paddingField);
       }
@@ -153,11 +153,11 @@ export class cciCube extends Cube {
     }
     if (len < NetConstants.CUBE_SIZE) {  // any padding required?
       // start with a 0x00 single byte padding field to indicate end of CCI data
-      this.insertFieldBeforeBackPositionals(cciField.Padding(1));
+      this.insertFieldBeforeBackPositionals(VerityField.Padding(1));
       // now add further padding as required
       const paddingRequired = NetConstants.CUBE_SIZE - len - 1;
       if (paddingRequired) this.insertFieldBeforeBackPositionals(
-        cciField.Padding(paddingRequired));
+        VerityField.Padding(paddingRequired));
       this.cubeManipulated();
       return true;
     } else return false;

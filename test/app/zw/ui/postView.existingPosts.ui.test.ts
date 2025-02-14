@@ -6,7 +6,7 @@ import { PostController } from '../../../../src/app/zw/webui/post/postController
 import { DummyCoreNode, CoreNodeIf, CoreNodeOptions } from '../../../../src/core/coreNode';
 import { DummyNavController } from '../../../../src/webui/navigation/navigationDefinitions';
 import { Veritable } from '../../../../src/core/cube/veritable.definition';
-import { cciFieldType } from '../../../../src/cci/cube/cciCube.definitions';
+import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
 import { Identity } from '../../../../src/cci/identity/identity';
 
 import { Buffer } from 'buffer';
@@ -251,7 +251,7 @@ function expectDisplayed(post: Veritable, options: ExpectDisplayedOptions = {}) 
   expect(postLi).not.toBeNull();
 
   // check post content / text
-  const payload = post.getFirstField(cciFieldType.PAYLOAD).valueString;
+  const payload = post.getFirstField(FieldType.PAYLOAD).valueString;
   const content: HTMLParagraphElement = postLi.querySelector(".verityPostContent");
   expect(content).not.toBeNull();
   expect(content.textContent).toBe(payload);

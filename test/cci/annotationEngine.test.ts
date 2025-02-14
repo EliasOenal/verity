@@ -1,7 +1,7 @@
 import { Cube } from '../../src/core/cube/cube';
 import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
 
-import { cciField } from '../../src/cci/cube/cciField';
+import { VerityField } from '../../src/cci/cube/verityField';
 import { cciRelationship, cciRelationshipType } from '../../src/cci/cube/cciRelationship';
 import { cciCube } from '../../src/cci/cube/cciCube';
 import { AnnotationEngine, defaultGetFieldsFunc } from '../../src/cci/annotationEngine';
@@ -37,7 +37,7 @@ describe('annotationEngine', () => {
       it('correctly creates a reverse relationship', async () => {
         const referee = cciCube.Frozen({requiredDifficulty: reducedDifficulty});
         const referrer = cciCube.Frozen({
-          fields: cciField.RelatesTo(new cciRelationship(
+          fields: VerityField.RelatesTo(new cciRelationship(
             cciRelationshipType.CONTINUED_IN, await referee.getKey())),
           requiredDifficulty: reducedDifficulty
         });
@@ -79,18 +79,18 @@ describe('annotationEngine', () => {
       const muc1 = Cube.MUC(Buffer.from(muckeys1.publicKey), Buffer.from(muckeys1.privateKey));
       const muc2 = Cube.MUC(Buffer.from(muckeys2.publicKey), Buffer.from(muckeys2.privateKey));
       const continuedin = cciCube.Frozen({
-        fields: cciField.Payload("Multum habeo dicere"),
+        fields: VerityField.Payload("Multum habeo dicere"),
         requiredDifficulty: reducedDifficulty
       });
 
       // And now the offender themselves:
       const nonconformingCube = cciCube.Frozen({
         fields: [
-          cciField.RelatesTo(new cciRelationship(
+          VerityField.RelatesTo(new cciRelationship(
             cciRelationshipType.MENTION, await muc1.getKey())),
-          cciField.RelatesTo(new cciRelationship(
+          VerityField.RelatesTo(new cciRelationship(
             cciRelationshipType.MENTION, await muc2.getKey())),
-          cciField.RelatesTo(new cciRelationship(
+          VerityField.RelatesTo(new cciRelationship(
             cciRelationshipType.CONTINUED_IN, await continuedin.getKey()))
         ],
         requiredDifficulty: reducedDifficulty

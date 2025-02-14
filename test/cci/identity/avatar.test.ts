@@ -1,7 +1,7 @@
 import { ApiMisuseError } from "../../../src/core/settings";
 
-import { cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
-import { cciField } from "../../../src/cci/cube/cciField";
+import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { VerityField } from "../../../src/cci/cube/verityField";
 import { Avatar, AvatarScheme, AvatarSeedLength, UNKNOWNAVATAR } from "../../../src/cci/identity/avatar";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
@@ -34,7 +34,7 @@ describe('Avatar class', () => {
     });
 
     it('Should create an avatar from a cciField', () => {
-      const field = new cciField(cciFieldType.AVATAR, Buffer.from('01aabbcc', 'hex'));
+      const field = new VerityField(FieldType.AVATAR, Buffer.from('01aabbcc', 'hex'));
       const avatar = new Avatar(field);
       expect(avatar.scheme).toBe(AvatarScheme.MULTIAVATAR);
       expect(avatar.seed.toString('hex')).toEqual('aabbcc');
@@ -47,7 +47,7 @@ describe('Avatar class', () => {
     });
 
     it('Should throw ApiMisuseError when trying to create an avatar from a non-avatar cciField', () => {
-      const field = new cciField(cciFieldType.PAYLOAD, Buffer.from('abc', 'ascii'));
+      const field = new VerityField(FieldType.PAYLOAD, Buffer.from('abc', 'ascii'));
       expect(() => new Avatar(field)).toThrow(ApiMisuseError);
     });
   });
@@ -116,13 +116,13 @@ describe('Avatar class', () => {
 
   describe('FromField method', () => {
     it('Should throw ApiMisuseError when trying to reconstruct from non-avatar field', () => {
-      const field = new cciField(cciFieldType.PAYLOAD, Buffer.from('abc'));
+      const field = new VerityField(FieldType.PAYLOAD, Buffer.from('abc'));
       const avatar = new Avatar();
       expect(() => avatar.fromField(field)).toThrow(ApiMisuseError);
     });
 
     it('Should reconstruct avatar from valid avatar cciField', () => {
-      const field = new cciField(cciFieldType.AVATAR, Buffer.from('01aabbcc', 'hex'));
+      const field = new VerityField(FieldType.AVATAR, Buffer.from('01aabbcc', 'hex'));
       const avatar = new Avatar();
       avatar.fromField(field);
       expect(avatar.scheme).toBe(AvatarScheme.MULTIAVATAR);
@@ -140,7 +140,7 @@ describe('Avatar class', () => {
     it('Should return cciField when scheme is MULTIAVATAR', () => {
       const avatar = new Avatar(true);
       const field = avatar.toField();
-      expect(field.type).toBe(cciFieldType.AVATAR);
+      expect(field.type).toBe(FieldType.AVATAR);
       expect(field.length).toBe(6); // 1 (scheme) + 5 (seed)
       expect(field.value[0]).toEqual(AvatarScheme.MULTIAVATAR);  // scheme
     });

@@ -1,8 +1,8 @@
 
 import { Settings } from "../../core/settings";
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
-import { cciFieldType } from "../cube/cciCube.definitions";
-import { cciFields } from "../cube/cciFields";
+import { FieldType } from "../cube/cciCube.definitions";
+import { VerityFields } from "../cube/verityFields";
 import { CryptStateOutput } from "./chunkEncryption";
 
 import { logger } from "../../core/logger";
@@ -38,20 +38,20 @@ export interface CciDecryptionParams {
  *   the plaintext fields, or the unchanged field set if decryption fails.
  */
 export function Decrypt(
-    input: cciFields,
+    input: VerityFields,
     params: CciDecryptionParams,
-): cciFields;
+): VerityFields;
 export function Decrypt(
-    input: cciFields,
+    input: VerityFields,
     outputState: boolean,
     params: CciDecryptionParams,
 ): CryptStateOutput;
 
 export function Decrypt(
-  input: cciFields,
+  input: VerityFields,
   param2: boolean|CciDecryptionParams,
   param3?: CciDecryptionParams,
-): cciFields|CryptStateOutput {
+): VerityFields|CryptStateOutput {
   // determine function variant
   const params: CciDecryptionParams = param2===true? param3 : param2 as CciDecryptionParams;
   const outputState: boolean = param2===true? true : false;
@@ -79,7 +79,7 @@ export function Decrypt(
 // Decryption-related "private" functions
 //###
 function DecryptWithPresharedKey(
-    input: cciFields,
+    input: VerityFields,
     symmetricKey: Buffer,
     nonce: Buffer,
 ): CryptStateOutput {
@@ -115,7 +115,7 @@ function DecryptWithPresharedKey(
 
 
 function DecryptWithKeyDerivation(
-  input: cciFields,
+  input: VerityFields,
   privateKey: Buffer,
 ): CryptStateOutput {
   // Retrieve ENCRYPTED blob
@@ -175,20 +175,20 @@ function DecryptWithKeyDerivation(
 
 function PostprocessPlaintext(
   plaintext: Buffer,
-  input: cciFields,
-): cciFields {
+  input: VerityFields,
+): VerityFields {
   // Parse the decrypted plaintext back into fields
-  const decryptedFields: cciFields = DecryptionDecompileFields(
+  const decryptedFields: VerityFields = DecryptionDecompileFields(
     plaintext, input.fieldDefinition);
 
   // Replace the ENCRYPTED field with the decrypted fields
-  const output: cciFields = DecryptionReplaceEncryptedField(
+  const output: VerityFields = DecryptionReplaceEncryptedField(
     input, decryptedFields);
   return output;
 }
 
-function DecryptionRetrieveEncryptedBlob(fields: cciFields): Buffer {
-  const ciphertext: Buffer = fields.getFirst(cciFieldType.ENCRYPTED)?.value;
+function DecryptionRetrieveEncryptedBlob(fields: VerityFields): Buffer {
+  const ciphertext: Buffer = fields.getFirst(FieldType.ENCRYPTED)?.value;
   if (Settings.RUNTIME_ASSERTIONS && !ciphertext?.length) {
     const errStr = "Decrypt(): Cannot decrypt supplied fields as Ciphertext is missing or invalid";
     logger.trace(errStr);
@@ -268,29 +268,29 @@ function DecryptionSymmetricDecrypt(
 function DecryptionDecompileFields(
     plaintext: Buffer,
     fieldDefinition: FieldDefinition,
-): cciFields {
+): VerityFields {
   const intermediateFieldDef: FieldDefinition = Object.assign({}, fieldDefinition);
   intermediateFieldDef.positionalFront = {};
   intermediateFieldDef.positionalBack = {};
   const parser: FieldParser = new FieldParser(intermediateFieldDef);
-  const decryptedFields: cciFields =
-    parser.decompileFields(Buffer.from(plaintext)) as cciFields;
+  const decryptedFields: VerityFields =
+    parser.decompileFields(Buffer.from(plaintext)) as VerityFields;
   return decryptedFields;
 }
 
 function DecryptionReplaceEncryptedField(
-    fields: cciFields,
-    decryptedFields: cciFields,
-): cciFields {
+    fields: VerityFields,
+    decryptedFields: VerityFields,
+): VerityFields {
   // Find the index of the ENCRYPTED field
-  const encryptedFieldIndex = fields.all.findIndex(field => field.type === cciFieldType.ENCRYPTED);
+  const encryptedFieldIndex = fields.all.findIndex(field => field.type === FieldType.ENCRYPTED);
   if (encryptedFieldIndex === -1) {
     logger.trace("Decrypt(): ENCRYPTED field not found");
     return fields;
   }
 
   // Insert the decrypted fields at the found index
-  const output: cciFields = new cciFields(undefined, fields.fieldDefinition);
+  const output: VerityFields = new VerityFields(undefined, fields.fieldDefinition);
   for (let i = 0; i < fields.length; i++) {
     if (i === encryptedFieldIndex) {
       for (const decryptedField of decryptedFields.all) {
@@ -298,7 +298,7 @@ function DecryptionReplaceEncryptedField(
       }
     }
     const field = fields.all[i];
-    if (field.type !== cciFieldType.ENCRYPTED){
+    if (field.type !== FieldType.ENCRYPTED){
       output.appendField(field);
     }
   }

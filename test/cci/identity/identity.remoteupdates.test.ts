@@ -2,7 +2,7 @@ import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { cciCube } from '../../../src/cci/cube/cciCube';
-import { cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
 import { IdentityOptions, Identity } from '../../../src/cci/identity/identity';
 
@@ -53,7 +53,7 @@ describe('Identity: remote updates', () => {
     const savedPostKey: string = Array.from(notebookId.getPostKeyStrings())[0];
     expect(savedPostKey).toEqual(postWrittenOnNotebook.getKeyStringIfAvailable());
     expect((await cubeStore.getCube(savedPostKey)).getFirstField(
-      cciFieldType.PAYLOAD).value.toString('utf8')).toEqual(
+      FieldType.PAYLOAD).value.toString('utf8')).toEqual(
         "Hoc est scriptum in computatore domi meae");
 
     // Re-instantiate same identity.

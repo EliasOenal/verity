@@ -1,10 +1,10 @@
 import { Buffer } from 'buffer';
 import { Cube } from '../core/cube/cube';
 import { cciCube } from '../cci/cube/cciCube';
-import { cciField } from '../cci/cube/cciField';
+import { VerityField } from '../cci/cube/verityField';
 import { cciRelationship, cciRelationshipType } from '../cci/cube/cciRelationship';
 import { CubeKey } from '../core/cube/cube.definitions';
-import { cciFieldType } from '../cci/cube/cciCube.definitions';
+import { FieldType } from '../cci/cube/cciCube.definitions';
 import { CubeType } from '../core/cube/cube.definitions';
 
 export class FileApplication {
@@ -20,25 +20,25 @@ export class FileApplication {
     while (remainingSize > 0) {
       // Prepare Cube including boilerplate fields
       const cube = cciCube.Frozen({ fields: [
-        cciField.Application(this.APPLICATION_IDENTIFIER),
-        cciField.ContentName(fileName)
+        VerityField.Application(this.APPLICATION_IDENTIFIER),
+        VerityField.ContentName(fileName)
       ]});
 
       // Chain Cubes if required
       if (cubes.length > 0) {
         const previousCubeKey = await cubes[0].getKey();
         cube.insertFieldBeforeBackPositionals(
-          cciField.RelatesTo(new cciRelationship(
+          VerityField.RelatesTo(new cciRelationship(
             cciRelationshipType.CONTINUED_IN, previousCubeKey)));
       }
 
       // Add payload
       const chunkSize = Math.min(remainingSize,
         cube.fields.bytesRemaining() -
-        cube.fieldParser.getFieldHeaderLength(cciFieldType.PAYLOAD));
+        cube.fieldParser.getFieldHeaderLength(FieldType.PAYLOAD));
       const startOffset = remainingSize - chunkSize;
       const chunk = fileContent.slice(startOffset, startOffset + chunkSize);
-      cube.insertFieldBeforeBackPositionals(cciField.Payload(chunk));
+      cube.insertFieldBeforeBackPositionals(VerityField.Payload(chunk));
 
       cubes.unshift(cube); // Add to the beginning of the array
       remainingSize -= chunkSize;
@@ -71,18 +71,18 @@ export class FileApplication {
 
       const cciCube = cube as cciCube;
 
-      const applicationFields = cciCube.fields.get(cciFieldType.APPLICATION);
+      const applicationFields = cciCube.fields.get(FieldType.APPLICATION);
       if (!applicationFields || !applicationFields.some(field => field.valueString === this.APPLICATION_IDENTIFIER)) {
         throw new Error('Not a file application cube');
       }
 
-      const payloadFields = cciCube.fields.get(cciFieldType.PAYLOAD);
+      const payloadFields = cciCube.fields.get(FieldType.PAYLOAD);
       if (payloadFields && payloadFields.length > 0) {
         chunks.push(payloadFields[0].value);
       }
 
       if (!fileName) {
-        const fileNameFields = cciCube.fields.get(cciFieldType.CONTENTNAME);
+        const fileNameFields = cciCube.fields.get(FieldType.CONTENTNAME);
         if (fileNameFields && fileNameFields.length > 0) {
           fileName = fileNameFields[0].valueString;
         }

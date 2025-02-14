@@ -2,7 +2,7 @@ import { CubeKey } from '../core/cube/cube.definitions';
 import { CubeInfo } from '../core/cube/cubeInfo'
 import { Cube } from '../core/cube/cube';
 
-import { cciFields } from './cube/cciFields';
+import { VerityFields } from './cube/verityFields';
 import { cciRelationship } from './cube/cciRelationship';
 
 import { EventEmitter } from 'events';
@@ -100,8 +100,8 @@ export class AnnotationEngine extends EventEmitter {
     const cube: Cube = cubeInfo.getCube();  // TODO: CCI CubeInfos should learn what kind of Cube they represent much earlier in the process
 
     // does this Cube even have a valid field structure?
-    const fields: cciFields = this.getFields(cube) as cciFields;
-    if (!(fields instanceof cciFields)) return;  // no CCI, no rels, no annotations
+    const fields: VerityFields = this.getFields(cube) as VerityFields;
+    if (!(fields instanceof VerityFields)) return;  // no CCI, no rels, no annotations
 
     // Keep track of how many relationships of each type this cube has
     const relsPerType: Map<number, number> = new Map();

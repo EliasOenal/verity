@@ -2,8 +2,8 @@ import type { CubeKey } from "../../../src/core/cube/cube.definitions";
 import type { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import type { cciCube } from "../../../src/cci/cube/cciCube";
 
-import { cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
-import { cciField } from "../../../src/cci/cube/cciField";
+import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { VerityField } from "../../../src/cci/cube/verityField";
 import { Identity } from "../../../src/cci/identity/identity";
 import { Veritum } from "../../../src/cci/veritum/veritum";
 
@@ -22,7 +22,7 @@ describe('Transmission of encrypted Verita', () => {
 
       // Sculpt a simple Veritum for a single recipient
       const veritum: Veritum = net.sender.prepareVeritum(
-        { fields: cciField.Payload(plaintext) });
+        { fields: VerityField.Payload(plaintext) });
       // Publish it encrypted solely for the recipient
       await net.sender.publishVeritum(
         veritum, { recipients: net.recipient.identity, addAsPost: false });
@@ -66,7 +66,7 @@ describe('Transmission of encrypted Verita', () => {
       expect(key).toBeDefined();
       const retrieved: Veritum = await net.recipient.getVeritum(key);
       expect(retrieved).toBeDefined();
-      expect(retrieved.getFirstField(cciFieldType.PAYLOAD).valueString).toBe(plaintext);
+      expect(retrieved.getFirstField(FieldType.PAYLOAD).valueString).toBe(plaintext);
     });
   });  // Publishing an encrypted Veritum for a single recipient
 });

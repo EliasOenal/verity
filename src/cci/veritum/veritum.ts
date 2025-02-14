@@ -7,7 +7,7 @@ import { keyVariants } from "../../core/cube/cubeUtil";
 import { ApiMisuseError } from "../../core/settings";
 
 import { cciCube, cciFamily } from "../cube/cciCube";
-import { cciFields } from "../cube/cciFields";
+import { VerityFields } from "../cube/verityFields";
 import { Continuation, RecombineOptions, SplitOptions, SplitState } from "./continuation";
 import { CciDecryptionParams, Decrypt } from "./chunkDecryption";
 import { ChunkDecrypt, ChunkEncryptionHelper } from "./veritumEncryption";
@@ -42,7 +42,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   private _chunks: cciCube[];
   get chunks(): Iterable<cciCube> { return this._chunks }
 
-  declare protected _fields: cciFields;
+  declare protected _fields: VerityFields;
   declare options: VeritumCreateOptions;
 
   get publicKey(): Buffer { return this.options.publicKey }
@@ -84,7 +84,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
         // We'll keep the original's options
         ...copyFrom.options,
         // but we'll make a shallow copy of its fields object.
-        fields: new cciFields(copyFrom._fields, copyFrom._fields.fieldDefinition),
+        fields: new VerityFields(copyFrom._fields, copyFrom._fields.fieldDefinition),
       }
       super({...options, cubeType: copyFrom.cubeType});
       this.options = options;

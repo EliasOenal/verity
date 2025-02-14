@@ -3,7 +3,7 @@ import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { evenLonger, testCubeStoreParams } from '../testcci.definitions';
 import { cciCube } from '../../../src/cci/cube/cciCube';
 import { CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
-import { cciField } from '../../../src/cci/cube/cciField';
+import { VerityField } from '../../../src/cci/cube/verityField';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
@@ -11,7 +11,7 @@ import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 import { VeritumRetriever } from '../../../src/cci/veritum/veritumRetriever';
-import { cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
 
 describe('Identity: getPosts generator; own posts only (no recursion)', () => {
@@ -58,7 +58,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     // // - a frozen single Cube post
     singleFrozen = cciCube.Create({
       cubeType: CubeType.FROZEN,
-      fields: cciField.Payload("Commentarius ex uno cubo factus"),
+      fields: VerityField.Payload("Commentarius ex uno cubo factus"),
       requiredDifficulty: 0,
     });
     await cubeStore.addCube(singleFrozen);
@@ -69,8 +69,8 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     singleFrozenNotify = cciCube.Create({
       cubeType: CubeType.FROZEN_NOTIFY,
       fields: [
-        cciField.Payload("Commentarius ex uno cubo factus cum nuntio"),
-        cciField.Notify(notificationKey1),
+        VerityField.Payload("Commentarius ex uno cubo factus cum nuntio"),
+        VerityField.Notify(notificationKey1),
       ],
       requiredDifficulty: 0,
     });
@@ -80,7 +80,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     // - a PIC single Cube post
     singlePic = cciCube.Create({
       cubeType: CubeType.PIC,
-      fields: cciField.Payload("Commentarius ex cubo immutabili perpetuo factus"),
+      fields: VerityField.Payload("Commentarius ex cubo immutabili perpetuo factus"),
       requiredDifficulty: 0,
     });
     await cubeStore.addCube(singlePic);
@@ -91,8 +91,8 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     singlePicNotify = cciCube.Create({
       cubeType: CubeType.PIC_NOTIFY,
       fields: [
-        cciField.Payload("Commentarius ex cubo immutabili perpetuo factus cum nuntio"),
-        cciField.Notify(notificationKey2),
+        VerityField.Payload("Commentarius ex cubo immutabili perpetuo factus cum nuntio"),
+        VerityField.Notify(notificationKey2),
       ],
       requiredDifficulty: 0,
     });
@@ -103,7 +103,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     // - a MUC single Cube post
     singleMuc = cciCube.Create({
       cubeType: CubeType.MUC,
-      fields: cciField.Payload("Commentarius ex cubo usoris mutabili factus"),
+      fields: VerityField.Payload("Commentarius ex cubo usoris mutabili factus"),
       requiredDifficulty: 0,
       privateKey: Buffer.from(singleMucKeys.privateKey),
       publicKey: Buffer.from(singleMucKeys.publicKey),
@@ -117,8 +117,8 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     singleMucNotify = cciCube.Create({
       cubeType: CubeType.MUC_NOTIFY,
       fields: [
-        cciField.Payload("Commentarius ex cubo usoris mutabili factus cum nuntio"),
-        cciField.Notify(notificationKey3),
+        VerityField.Payload("Commentarius ex cubo usoris mutabili factus cum nuntio"),
+        VerityField.Notify(notificationKey3),
       ],
       requiredDifficulty: 0,
       privateKey: Buffer.from(singleMucNotifyKeys.privateKey),
@@ -132,8 +132,8 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     singlePmuc = cciCube.Create({
       cubeType: CubeType.PMUC,
       fields: [
-        cciField.Payload("Commentarius ex cubo usoris mutabili perpetuo factus"),
-        cciField.PmucUpdateCount(1337),
+        VerityField.Payload("Commentarius ex cubo usoris mutabili perpetuo factus"),
+        VerityField.PmucUpdateCount(1337),
       ],
       requiredDifficulty: 0,
       privateKey: Buffer.from(singlePmucKeys.privateKey),
@@ -148,8 +148,8 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     singlePmucNotify = cciCube.Create({
       cubeType: CubeType.PMUC_NOTIFY,
       fields: [
-        cciField.Payload("Commentarius ex cubo usoris mutabili perpetuo factus cum nuntio"),
-        cciField.Notify(notificationKey4),
+        VerityField.Payload("Commentarius ex cubo usoris mutabili perpetuo factus cum nuntio"),
+        VerityField.Notify(notificationKey4),
       ],
       requiredDifficulty: 0,
       privateKey: Buffer.from(singlePmucNotifyKeys.privateKey),
@@ -161,7 +161,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     // - a multi Cube frozen veritum
     multiFrozen = Veritum.Create({
       cubeType: CubeType.FROZEN,
-      fields: cciField.Payload(evenLonger),
+      fields: VerityField.Payload(evenLonger),
       requiredDifficulty: 0,
     });
     await multiFrozen.compile();
@@ -171,7 +171,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     // - a multi Cube frozen PIC
     multiPic = Veritum.Create({
       cubeType: CubeType.PIC,
-      fields: cciField.Payload(evenLonger),
+      fields: VerityField.Payload(evenLonger),
       requiredDifficulty: 0,
     });
     await multiPic.compile();
@@ -327,8 +327,8 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
 function postEquals(a: Veritable, b: Veritable) {
   expect(a).toBeDefined();
   expect(b).toBeDefined();
-  const payloadA = a.getFirstField(cciFieldType.PAYLOAD);
-  const payloadB = b.getFirstField(cciFieldType.PAYLOAD);
+  const payloadA = a.getFirstField(FieldType.PAYLOAD);
+  const payloadB = b.getFirstField(FieldType.PAYLOAD);
   expect(payloadA.valueString).toEqual(payloadB.valueString);
   // TODO once we have proper comparisons, we should also compare things like date,
   //   notification, or update count in case of PMUC

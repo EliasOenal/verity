@@ -1,9 +1,9 @@
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 import { ApiMisuseError, Settings, VerityError } from "../../core/settings";
-import { cciFieldLength, cciFieldType } from "../cube/cciCube.definitions";
-import { cciField } from "../cube/cciField";
-import { cciFields, cciFrozenFieldDefinition } from "../cube/cciFields";
+import { FieldLength, FieldType } from "../cube/cciCube.definitions";
+import { VerityField } from "../cube/verityField";
+import { VerityFields, cciFrozenFieldDefinition } from "../cube/verityFields";
 import { Continuation } from "./continuation";
 
 import { Identity } from "../identity/identity";
@@ -56,7 +56,7 @@ export interface CciEncryptionParams {
 }
 
 export interface CryptStateOutput {
-  result: cciFields,
+  result: VerityFields,
   symmetricKey: Buffer,
   nonce: Buffer,
 }
@@ -79,20 +79,20 @@ export interface CryptStateOutput {
  *   not comply with the CCI Encryption spec
  */
 export function Encrypt(
-    fields: cciFields,
+    fields: VerityFields,
     params: CciEncryptionParams,
-): cciFields;
+): VerityFields;
 export function Encrypt(
-    fields: cciFields,
+    fields: VerityFields,
     outputState: true,
     params: CciEncryptionParams,
 ): CryptStateOutput;
 
 export function Encrypt(
-    fields: cciFields,
+    fields: VerityFields,
     param2: true|CciEncryptionParams,
     param3?: CciEncryptionParams,
-): cciFields|CryptStateOutput {
+): VerityFields|CryptStateOutput {
   // determine function variant
   let params: CciEncryptionParams = param2===true? param3 : param2;
   const outputState: boolean = param2===true? true: false;
@@ -165,13 +165,13 @@ export function EncryptionPrepareParams(
  * instead.
  */
 export function EncryptPrePlanned(
-  fields: cciFields,
+  fields: VerityFields,
   params: CciEncryptionParams,
 ): CryptStateOutput {
   // Prepare the fields to encrypt, filtering out excluded fields and garbage
   const {toEncrypt, output} = EncryptionPrepareFields(fields, params);
   // Make ENCRYPTED field
-  const encryptedField: cciField = EncryptionAddEncryptedField(output);
+  const encryptedField: VerityField = EncryptionAddEncryptedField(output);
   // Write meta information to the encrypted blob as required by the selected
   // CCI encryption scheme variant4
   let offset: number = EncryptionWriteMeta(encryptedField.value, params);
@@ -182,7 +182,7 @@ export function EncryptPrePlanned(
     - toEncrypt.getByteLength() // less plaintext size
     - sodium.crypto_secretbox_MACBYTES // less MAC size
   if (spaceAvailable > 0) {
-    const padding: cciField = cciField.Padding(spaceAvailable);  // TODO BUGBUG this may use a CCI end marker which may propagate through and clash with application logic
+    const padding: VerityField = VerityField.Padding(spaceAvailable);  // TODO BUGBUG this may use a CCI end marker which may propagate through and clash with application logic
     toEncrypt.insertFieldBeforeBackPositionals(padding);
   }
 
@@ -240,7 +240,7 @@ export function EncryptionOverheadBytesCalc(
 ): number {
   // minimal overhead is the ENCRYPTED field header and the payload MAC
    let overhead: number =
-    FieldParser.getFieldHeaderLength(cciFieldType.ENCRYPTED, fieldDefinition) +
+    FieldParser.getFieldHeaderLength(FieldType.ENCRYPTED, fieldDefinition) +
     sodium.crypto_secretbox_MACBYTES;
   // account for additional metadata as planned in params
   if (pubkeyHeader) overhead += sodium.crypto_box_PUBLICKEYBYTES;
@@ -330,16 +330,16 @@ function *EncryptionNormaliseRecipients(recipients: EncryptionRecipients): Gener
 //
 
 function EncryptionPrepareFields(
-    fields: cciFields,
+    fields: VerityFields,
     options: CciEncryptionParams
-): {toEncrypt: cciFields, output: cciFields} {
+): {toEncrypt: VerityFields, output: VerityFields} {
   // set default options
   options.excludeFromEncryption ??= Continuation.ContinuationDefaultExclusions;
 
   // Prepare list of fields to encrypt. This is basically all CCI fields,
   // but not core Cube fields.
-  const toEncrypt: cciFields = new cciFields([], fields.fieldDefinition);
-  const output: cciFields = new cciFields([], fields.fieldDefinition);
+  const toEncrypt: VerityFields = new VerityFields([], fields.fieldDefinition);
+  const output: VerityFields = new VerityFields([], fields.fieldDefinition);
   for (const field of fields.all) {
     if (!options.excludeFromEncryption.includes(field.type)) {
       // Add the field to the list of fields to encrypt
@@ -348,8 +348,8 @@ function EncryptionPrepareFields(
       // Make a verbatim copy, except for garbage fields PADDING and CCI_END.
       // Using the default exclusion list, this ensures all mandatory core fields
       // are adopted from the unencrypted input.
-      if (field.type !== cciFieldType.PADDING &&
-          field.type !== cciFieldType.CCI_END
+      if (field.type !== FieldType.PADDING &&
+          field.type !== FieldType.CCI_END
       ){
         output.appendField(field);
       }
@@ -360,7 +360,7 @@ function EncryptionPrepareFields(
   // exchanging keys; in that case there is no message to encrypt.
   // In this case, encrypt an empty PADDING field.
   if (toEncrypt.all.length === 0) {
-    const padding: cciField = new cciField(cciFieldType.PADDING, Buffer.alloc(0));
+    const padding: VerityField = new VerityField(FieldType.PADDING, Buffer.alloc(0));
     toEncrypt.appendField(padding);
   }
 
@@ -369,17 +369,17 @@ function EncryptionPrepareFields(
 
 
 /** Add the ENCRYPTED field to the output message, using up all available space */
-function EncryptionAddEncryptedField(output: cciFields): cciField {
+function EncryptionAddEncryptedField(output: VerityFields): VerityField {
   const size: number = output.bytesRemaining() -
     FieldParser.getFieldHeaderLength(
-      cciFieldType.ENCRYPTED, output.fieldDefinition);
-  const field: cciField = cciField.Encrypted(Buffer.alloc(size));
+      FieldType.ENCRYPTED, output.fieldDefinition);
+  const field: VerityField = VerityField.Encrypted(Buffer.alloc(size));
   output.insertFieldAfterFrontPositionals(field);
   return field;
 }
 
 
-function EncryptionCompileFields(toEncrypt: cciFields): Buffer {
+function EncryptionCompileFields(toEncrypt: VerityFields): Buffer {
   // Compile the fields to encrypt.
   // This gives us the binary plaintext that we'll later encrypt.
   // Note that this intermediate compilation never includes any positional

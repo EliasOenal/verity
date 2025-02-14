@@ -1,8 +1,8 @@
 import { CubeKey } from '../../../../src/core/cube/cube.definitions';
 
-import { cciFieldType } from '../../../../src/cci/cube/cciCube.definitions';
+import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
 import { cciCube } from '../../../../src/cci/cube/cciCube';
-import { cciField } from '../../../../src/cci/cube/cciField';
+import { VerityField } from '../../../../src/cci/cube/verityField';
 import { cciRelationshipType } from '../../../../src/cci/cube/cciRelationship';
 
 import { FileApplication } from '../../../../src/app/fileApplication';
@@ -20,16 +20,16 @@ describe('FileApplication', () => {
     const cube = cubes[0];
     expect(cube).toBeInstanceOf(cciCube);
 
-    const applicationField = cube.getFields(cciFieldType.APPLICATION)[0];
+    const applicationField = cube.getFields(FieldType.APPLICATION)[0];
     expect(applicationField.valueString).toBe('file');
 
-    const contentNameField = cube.getFields(cciFieldType.CONTENTNAME)[0];
+    const contentNameField = cube.getFields(FieldType.CONTENTNAME)[0];
     expect(contentNameField.valueString).toBe(fileName);
 
-    const payloadField = cube.getFields(cciFieldType.PAYLOAD)[0];
+    const payloadField = cube.getFields(FieldType.PAYLOAD)[0];
     expect(payloadField.valueString).toBe(content);
 
-    const dateField = cube.getFields(cciFieldType.DATE)[0];
+    const dateField = cube.getFields(FieldType.DATE)[0];
     expect(dateField).toBeDefined();
   });
 
@@ -43,16 +43,16 @@ describe('FileApplication', () => {
     cubes.forEach((cube, index) => {
       expect(cube).toBeInstanceOf(cciCube);
 
-      const applicationField = cube.getFields(cciFieldType.APPLICATION)[0];
+      const applicationField = cube.getFields(FieldType.APPLICATION)[0];
       expect(applicationField.valueString).toBe('file');
 
-      const contentNameField = cube.getFields(cciFieldType.CONTENTNAME)[0];
+      const contentNameField = cube.getFields(FieldType.CONTENTNAME)[0];
       expect(contentNameField.valueString).toBe(fileName);
 
-      const payloadField = cube.getFields(cciFieldType.PAYLOAD)[0];
+      const payloadField = cube.getFields(FieldType.PAYLOAD)[0];
       expect(payloadField.value.length).toBeGreaterThan(0);
 
-      const dateField = cube.getFields(cciFieldType.DATE)[0];
+      const dateField = cube.getFields(FieldType.DATE)[0];
       expect(dateField).toBeDefined();
 
       if (index < cubes.length - 1) {
@@ -66,7 +66,7 @@ describe('FileApplication', () => {
 
     // Check if the total payload size matches the original content size
     const totalPayloadSize = cubes.reduce((sum, cube) => {
-      const payloadField = cube.getFields(cciFieldType.PAYLOAD)[0];
+      const payloadField = cube.getFields(FieldType.PAYLOAD)[0];
       return sum + payloadField.value.length;
     }, 0);
     expect(totalPayloadSize).toBe(content.length);
@@ -99,7 +99,7 @@ describe('FileApplication', () => {
 
     test('retrieveFile with non-file application cube', async () => {
       const invalidCube = cciCube.Frozen({
-        fields: cciField.Application('not-file')
+        fields: VerityField.Application('not-file')
       });
 
       const mockCubeStore = {

@@ -10,9 +10,9 @@ import { Cube } from "../../../core/cube/cube";
 import { CubeKey, CubeType } from "../../../core/cube/cube.definitions";
 import { CubeStore } from "../../../core/cube/cubeStore";
 
-import { MediaTypes, cciFieldType } from "../../../cci/cube/cciCube.definitions";
-import { cciField } from "../../../cci/cube/cciField";
-import { cciFields, cciFrozenFieldDefinition } from "../../../cci/cube/cciFields";
+import { MediaTypes, FieldType } from "../../../cci/cube/cciCube.definitions";
+import { VerityField } from "../../../cci/cube/verityField";
+import { VerityFields, cciFrozenFieldDefinition } from "../../../cci/cube/verityFields";
 import { cciRelationship, cciRelationshipType } from "../../../cci/cube/cciRelationship";
 import { cciCube, cciFamily } from "../../../cci/cube/cciCube";
 import { Identity } from "../../../cci/identity/identity";
@@ -44,12 +44,12 @@ export async function makePost(
   // prepare Cube
   const cube: cciCube = cciCube.Frozen({
     family: cciFamily, requiredDifficulty: options.requiredDifficulty, fields: [
-      cciField.Application(("ZW")),
-      cciField.MediaType(MediaTypes.TEXT),
-      cciField.Payload(text),
+      VerityField.Application(("ZW")),
+      VerityField.MediaType(MediaTypes.TEXT),
+      VerityField.Payload(text),
     ]});
   if (options.replyto) {  // if this is a reply, refer to the original post
-    cube.insertFieldBeforeBackPositionals(cciField.RelatesTo(
+    cube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
       new cciRelationship(cciRelationshipType.REPLY_TO, options.replyto)
     ));
   }
@@ -65,7 +65,7 @@ export async function makePost(
     //   order, as local insertion order is not guaranteed to be stable when it
     //   has itself been restored from a MUC.
     const newestPostsFirst: string[] = Array.from(options.id.getPostKeyStrings()).reverse();
-    cube.fields.insertTillFull(cciField.FromRelationships(
+    cube.fields.insertTillFull(VerityField.FromRelationships(
       cciRelationship.fromKeys(cciRelationshipType.MYPOST, newestPostsFirst)));
   }
   await cube.getBinaryData();  // finalize Cube & compile fields
@@ -79,12 +79,12 @@ export async function makePost(
 // TODO: Not using this just yet as there's this teeny tiny issue of multi-byte chars
 // (Max lenght is currently defined as a conservatively eyeballed 600 chars in zwConfig)
 export const maxPostSize: number =  // calculate maximum posts size by creating a mock post
-  cciFields.Frozen([
-    cciField.RelatesTo(  // need space for one ref if this is a reply
+  VerityFields.Frozen([
+    VerityField.RelatesTo(  // need space for one ref if this is a reply
       new cciRelationship(cciRelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))),
-    cciField.RelatesTo(  // need space for at least one reference to my older posts
+    VerityField.RelatesTo(  // need space for at least one reference to my older posts
       new cciRelationship(cciRelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))),
-    cciField.RelatesTo(  // make that two for good measure
+    VerityField.RelatesTo(  // make that two for good measure
       new cciRelationship(cciRelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))),
   ], cciFrozenFieldDefinition).bytesRemaining();
 
@@ -93,12 +93,12 @@ export function assertZwCube(cube: Cube): boolean {
     logger.trace("assertZwCube: Supplied object is not a CCI Cube");
     return false;
   }
-  const fields: cciFields = cube?.fields as cciFields;
-  if (!(fields instanceof cciFields)) {
+  const fields: VerityFields = cube?.fields as VerityFields;
+  if (!(fields instanceof VerityFields)) {
     logger.trace("assertZwCube: Supplied Cube's fields object is not a cciFields object");
     return false;
   }
-  const applicationField = fields.getFirst(cciFieldType.APPLICATION);
+  const applicationField = fields.getFirst(FieldType.APPLICATION);
   if (!applicationField) {
     logger.trace("assertZwCube: Supplied cube does not have an application field");
     return false;
