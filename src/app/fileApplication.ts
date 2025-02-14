@@ -2,7 +2,7 @@ import { Buffer } from 'buffer';
 import { Cube } from '../core/cube/cube';
 import { cciCube } from '../cci/cube/cciCube';
 import { VerityField } from '../cci/cube/verityField';
-import { cciRelationship, cciRelationshipType } from '../cci/cube/cciRelationship';
+import { Relationship, RelationshipType } from '../cci/cube/relationship';
 import { CubeKey } from '../core/cube/cube.definitions';
 import { FieldType } from '../cci/cube/cciCube.definitions';
 import { CubeType } from '../core/cube/cube.definitions';
@@ -28,8 +28,8 @@ export class FileApplication {
       if (cubes.length > 0) {
         const previousCubeKey = await cubes[0].getKey();
         cube.insertFieldBeforeBackPositionals(
-          VerityField.RelatesTo(new cciRelationship(
-            cciRelationshipType.CONTINUED_IN, previousCubeKey)));
+          VerityField.RelatesTo(new Relationship(
+            RelationshipType.CONTINUED_IN, previousCubeKey)));
       }
 
       // Add payload
@@ -88,7 +88,7 @@ export class FileApplication {
         }
       }
 
-      const continuationRel = cciCube.fields.getFirstRelationship(cciRelationshipType.CONTINUED_IN);
+      const continuationRel = cciCube.fields.getFirstRelationship(RelationshipType.CONTINUED_IN);
       currentCubeKey = continuationRel ? continuationRel.remoteKey : null;
     }
 

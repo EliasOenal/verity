@@ -4,7 +4,7 @@ import { NetConstants } from "../../../../src/core/networking/networkDefinitions
 
 import { FieldType } from "../../../../src/cci/cube/cciCube.definitions";
 import { cciCube } from "../../../../src/cci/cube/cciCube";
-import { cciRelationshipType } from "../../../../src/cci/cube/cciRelationship";
+import { RelationshipType } from "../../../../src/cci/cube/relationship";
 
 import { makePost, assertZwCube } from "../../../../src/app/zw/model/zwUtil";
 
@@ -30,7 +30,7 @@ describe('makePost function', () => {
     expect(assertZwCube(post)).toBe(true);
     expect(post.getFirstField(FieldType.PAYLOAD).value.toString('utf8')).
       toEqual(text);
-    expect(post.fields.getFirstRelationship(cciRelationshipType.REPLY_TO).remoteKey).
+    expect(post.fields.getFirstRelationship(RelationshipType.REPLY_TO).remoteKey).
       toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42));
   });
 

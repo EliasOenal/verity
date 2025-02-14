@@ -3,7 +3,7 @@ import { CubeInfo } from '../core/cube/cubeInfo'
 import { Cube } from '../core/cube/cube';
 
 import { VerityFields } from './cube/verityFields';
-import { cciRelationship } from './cube/cciRelationship';
+import { Relationship } from './cube/relationship';
 
 import { EventEmitter } from 'events';
 import { BaseFields } from '../core/fields/baseFields';
@@ -14,7 +14,7 @@ import { NetConstants } from '../core/networking/networkDefinitions';
 import { logger } from '../core/logger';
 import { CubeEmitter } from '../core/cube/cubeStore';
 
-type RelationshipClassConstructor = new (type: number, remoteKey: CubeKey) => cciRelationship;
+type RelationshipClassConstructor = new (type: number, remoteKey: CubeKey) => Relationship;
 export function defaultGetFieldsFunc(cube: Cube): BaseFields {
   return cube?.fields;
 }
@@ -23,7 +23,7 @@ export class AnnotationEngine extends EventEmitter {
   static Construct(
     cubeEmitter: CubeEmitter,
     getFields: (cube: Cube) => BaseFields = defaultGetFieldsFunc,
-    relationshipClass: RelationshipClassConstructor = cciRelationship,
+    relationshipClass: RelationshipClassConstructor = Relationship,
     limitRelationshipTypes: Map<number, number> = undefined
   ): Promise<AnnotationEngine> {
     const ae: AnnotationEngine = new this(
@@ -42,7 +42,7 @@ export class AnnotationEngine extends EventEmitter {
    * reverseRelations stores a List of reverse relationships (that's the map's value)
    * for every Cube we know (the map's key is the stringified Cube key).
    */
-  reverseRelationships: Map<string, Array<cciRelationship>> = new Map();  // using string representation of CubeKey as maps don't work well with Buffers
+  reverseRelationships: Map<string, Array<Relationship>> = new Map();  // using string representation of CubeKey as maps don't work well with Buffers
 
   // Provide a ready promise
   private readyPromiseResolve: Function;
@@ -68,7 +68,7 @@ export class AnnotationEngine extends EventEmitter {
    */
       public readonly cubeEmitter: CubeEmitter,
       public readonly getFields: (cube: Cube) => BaseFields = defaultGetFieldsFunc,
-      public readonly relationshipClass: RelationshipClassConstructor = cciRelationship,
+      public readonly relationshipClass: RelationshipClassConstructor = Relationship,
 
       /**
    * A map mapping a numeric RelationshipType to the maximum number of Relationships
@@ -134,7 +134,7 @@ export class AnnotationEngine extends EventEmitter {
 
       // Now add a reverse relationship for the remote Cube, but only if
       // that's actually something we didn't know before:
-      const alreadyKnown: Array<cciRelationship> =
+      const alreadyKnown: Array<Relationship> =
         this.getReverseRelationships(remoteCubeRels, relationship.type, cubeInfo.key);
       if (alreadyKnown.length === 0) {
         remoteCubeRels.push(
@@ -153,9 +153,9 @@ export class AnnotationEngine extends EventEmitter {
    * @returns An array of reversed relationship objects.
    */
   getReverseRelationships(
-      cubeKey: CubeKey | string | Array<cciRelationship>,
+      cubeKey: CubeKey | string | Array<Relationship>,
       type?: number,  // e.g. one of CubeRelationshipType
-      remoteKey?: CubeKey): Array<cciRelationship> {
+      remoteKey?: CubeKey): Array<Relationship> {
     let reverseRelationshipArray;
     if (cubeKey instanceof Array) {
       reverseRelationshipArray = cubeKey;
@@ -178,9 +178,9 @@ export class AnnotationEngine extends EventEmitter {
   }
 
   getFirstReverseRelationship(
-    cubeKey: CubeKey | string | Array<cciRelationship>,
+    cubeKey: CubeKey | string | Array<Relationship>,
     type?: number,  // e.g. one of CubeRelationshipType
-    remoteKey?: CubeKey): cciRelationship {
+    remoteKey?: CubeKey): Relationship {
       // note this is not efficient, but the list of reverse relationships will be small
       const rels = this.getReverseRelationships(cubeKey, type, remoteKey);
       if (rels.length) return rels[0];

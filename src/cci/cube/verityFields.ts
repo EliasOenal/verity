@@ -8,7 +8,7 @@ import { CubeType, FrozenDefaultFields, FrozenNotifyDefaultFields, FrozenNotifyP
 
 import { FieldType, FieldLength } from "./cciCube.definitions";
 import { VerityField } from "./verityField";
-import { cciRelationship } from "./cciRelationship";
+import { Relationship } from "./relationship";
 
 import { Buffer } from 'buffer'
 import { logger } from "../../core/logger";
@@ -44,20 +44,20 @@ export class VerityFields extends CubeFields {
   * @param [type] If specified, only get relationships of the specified type.
   * @return An array of Relationship objects, which may be empty.
   */
-  public getRelationships(type?: number): Array<cciRelationship> {
+  public getRelationships(type?: number): Array<Relationship> {
     const relationshipfields = this.get(FieldType.RELATES_TO);
     const ret = [];
     for (const relationshipfield of relationshipfields) {
-      const relationship: cciRelationship =
-        cciRelationship.fromField(relationshipfield);
+      const relationship: Relationship =
+        Relationship.fromField(relationshipfield);
       if (type === undefined || relationship.type === type) ret.push(relationship);
     }
     return ret;
   }
 
 
-  public getFirstRelationship(type?: number): cciRelationship {
-    const rels: Array<cciRelationship> = this.getRelationships(type);
+  public getFirstRelationship(type?: number): Relationship {
+    const rels: Array<Relationship> = this.getRelationships(type);
     if (rels.length) return rels[0];
     else return undefined;
   }

@@ -5,7 +5,7 @@ import { FieldError } from "../../core/cube/cube.definitions";
 import { CubeField } from "../../core/cube/cubeField";
 
 import { FieldType, MediaTypes, FieldLength } from "./cciCube.definitions";
-import { cciRelationship } from "./cciRelationship";
+import { Relationship } from "./relationship";
 
 import { Buffer } from 'buffer'
 
@@ -48,7 +48,7 @@ export class VerityField extends CubeField {
     return new this(FieldType.DESCRIPTION, desc);
   }
 
-  static RelatesTo(rel: cciRelationship) {
+  static RelatesTo(rel: Relationship) {
     const value: Buffer = Buffer.alloc(
         NetConstants.RELATIONSHIP_TYPE_SIZE +
         NetConstants.CUBE_KEY_SIZE);
@@ -79,7 +79,7 @@ export class VerityField extends CubeField {
     return new this(FieldType.USERNAME, buf);
   }
 
-  static *FromRelationships(rels: Iterable<cciRelationship>): Generator<VerityField> {
+  static *FromRelationships(rels: Iterable<Relationship>): Generator<VerityField> {
     for (const rel of rels) yield VerityField.RelatesTo(rel);
   }
 
@@ -115,7 +115,7 @@ export class VerityField extends CubeField {
 
   toString(valEnc: BufferEncoding = 'hex'): string {
     if (this.type === FieldType.RELATES_TO) {
-      return "cciField representing " + cciRelationship.fromField(this).toString();
+      return "cciField representing " + Relationship.fromField(this).toString();
     }
     return `${FieldType[this.type] ?? this.type} cciField, value ${this.value.toString(valEnc)}`
   }

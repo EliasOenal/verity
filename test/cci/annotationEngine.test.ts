@@ -2,7 +2,7 @@ import { Cube } from '../../src/core/cube/cube';
 import { CubeStore as CubeStore } from '../../src/core/cube/cubeStore';
 
 import { VerityField } from '../../src/cci/cube/verityField';
-import { cciRelationship, cciRelationshipType } from '../../src/cci/cube/cciRelationship';
+import { Relationship, RelationshipType } from '../../src/cci/cube/relationship';
 import { cciCube } from '../../src/cci/cube/cciCube';
 import { AnnotationEngine, defaultGetFieldsFunc } from '../../src/cci/annotationEngine';
 
@@ -37,15 +37,15 @@ describe('annotationEngine', () => {
       it('correctly creates a reverse relationship', async () => {
         const referee = cciCube.Frozen({requiredDifficulty: reducedDifficulty});
         const referrer = cciCube.Frozen({
-          fields: VerityField.RelatesTo(new cciRelationship(
-            cciRelationshipType.CONTINUED_IN, await referee.getKey())),
+          fields: VerityField.RelatesTo(new Relationship(
+            RelationshipType.CONTINUED_IN, await referee.getKey())),
           requiredDifficulty: reducedDifficulty
         });
         await cubeStore.addCube(referrer);
 
         const reverserels = annotationEngine.getReverseRelationships(await referee.getKey());
         expect(reverserels.length).toEqual(1);
-        expect(reverserels[0].type).toEqual(cciRelationshipType.CONTINUED_IN);
+        expect(reverserels[0].type).toEqual(RelationshipType.CONTINUED_IN);
         expect(reverserels[0].remoteKey.toString('hex')).toEqual((await referrer.getKey()).toString('hex'));
       });
     });
@@ -65,10 +65,10 @@ describe('annotationEngine', () => {
     it('does only create the annotations requested', async () => {
       // Let's say we only want to annotate a MENTION reference, and no more than a single one
       const annotationSpec = new Map([
-        [cciRelationshipType.MENTION, 1]
+        [RelationshipType.MENTION, 1]
       ]);
       const annotationEngine: AnnotationEngine = await AnnotationEngine.Construct(
-        cubeStore, defaultGetFieldsFunc, cciRelationship, annotationSpec);
+        cubeStore, defaultGetFieldsFunc, Relationship, annotationSpec);
 
       // Let's create a non-conforming Cube that MENTIONs two MUCs and defines a
       // CONTINUED_IN relationship as well.
@@ -86,12 +86,12 @@ describe('annotationEngine', () => {
       // And now the offender themselves:
       const nonconformingCube = cciCube.Frozen({
         fields: [
-          VerityField.RelatesTo(new cciRelationship(
-            cciRelationshipType.MENTION, await muc1.getKey())),
-          VerityField.RelatesTo(new cciRelationship(
-            cciRelationshipType.MENTION, await muc2.getKey())),
-          VerityField.RelatesTo(new cciRelationship(
-            cciRelationshipType.CONTINUED_IN, await continuedin.getKey()))
+          VerityField.RelatesTo(new Relationship(
+            RelationshipType.MENTION, await muc1.getKey())),
+          VerityField.RelatesTo(new Relationship(
+            RelationshipType.MENTION, await muc2.getKey())),
+          VerityField.RelatesTo(new Relationship(
+            RelationshipType.CONTINUED_IN, await continuedin.getKey()))
         ],
         requiredDifficulty: reducedDifficulty
       });
@@ -101,7 +101,7 @@ describe('annotationEngine', () => {
       expect(annotationEngine.reverseRelationships.size).toEqual(1);
       expect(annotationEngine.getReverseRelationships(await muc1.getKey()).length).toEqual(1);
       const onlyReverseRelStored = annotationEngine.getReverseRelationships(await muc1.getKey())[0];
-      expect(onlyReverseRelStored.type).toEqual(cciRelationshipType.MENTION);
+      expect(onlyReverseRelStored.type).toEqual(RelationshipType.MENTION);
       expect(onlyReverseRelStored.remoteKey.equals(await nonconformingCube.getKey())).toBeTruthy();
 
       expect(annotationEngine.getReverseRelationships(await muc2.getKey()).length).toEqual(0);

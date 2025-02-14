@@ -6,7 +6,7 @@ import { MediaTypes, FieldType, FieldLength } from "../../../cci/cube/cciCube.de
 import { VerityFields } from "../../../cci/cube/verityFields";
 import { AnnotationEngine, defaultGetFieldsFunc } from "../../../cci/annotationEngine";
 import { Identity } from "../../../cci/identity/identity";
-import { cciRelationshipLimits, cciRelationship, cciRelationshipType } from "../../../cci/cube/cciRelationship";
+import { RelationshipLimits, Relationship, RelationshipType } from "../../../cci/cube/relationship";
 import { cciCube, cciFamily } from "../../../cci/cube/cciCube";
 import { ensureCci } from "../../../cci/cube/cciCubeUtil";
 
@@ -39,7 +39,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     subscribedMucs: CubeInfo[] = undefined,
     autoLearnMucs: boolean = true,
     allowAnonymous: boolean = false,
-    limitRelationshipTypes: Map<number, number> = cciRelationshipLimits,
+    limitRelationshipTypes: Map<number, number> = RelationshipLimits,
   ): Promise<ZwAnnotationEngine> {
     const ae: ZwAnnotationEngine = new ZwAnnotationEngine(
       cubeEmitter, cubeRetriever, subscriptionRequirement, subscribedMucs, autoLearnMucs,
@@ -59,9 +59,9 @@ export class ZwAnnotationEngine extends AnnotationEngine {
       subscribedMucs: CubeInfo[] = undefined,
       private autoLearnMucs: boolean = true,
       private allowAnonymous: boolean = false,
-      limitRelationshipTypes: Map<number, number> = cciRelationshipLimits,
+      limitRelationshipTypes: Map<number, number> = RelationshipLimits,
     ) {
-    super(cubeEmitter, defaultGetFieldsFunc, cciRelationship, limitRelationshipTypes);
+    super(cubeEmitter, defaultGetFieldsFunc, Relationship, limitRelationshipTypes);
     if (subscribedMucs) {
       for (const mucInfo of subscribedMucs) this.trustMuc(mucInfo);
     }
@@ -137,8 +137,8 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     // are we a reply?
     // if we are, we can only be displayed if we have the original post,
     // and the original post is displayable too
-    const reply_to: cciRelationship =
-      fields.getFirstRelationship(cciRelationshipType.REPLY_TO);
+    const reply_to: Relationship =
+      fields.getFirstRelationship(RelationshipType.REPLY_TO);
     if (reply_to) {
       // logger.trace("annotationEngine: Checking for displayability of a reply")
       const basePost: CubeInfo = await this.cubeRetriever.getCubeInfo(reply_to.remoteKey);
@@ -173,17 +173,17 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     alreadyTraversed.push(key.toString('hex'));
 
     // check down the tree to find posts a subscribed author has replied to
-    let toCheck: cciRelationship[];
+    let toCheck: Relationship[];
     toCheck =
-      this.getReverseRelationships(key, cciRelationshipType.REPLY_TO);
+      this.getReverseRelationships(key, RelationshipType.REPLY_TO);
     // if specified authorship requirements are lax enough, also check
     // up the tree to find replies to a subscribed author's posts
     if (this.subscriptionRequirement <= SubscriptionRequirement.subscribedInTree) {
       const cube: Cube = await this.cubeRetriever.getCube(key);
       if (!assertZwCube(cube)) return false;
       const fields: VerityFields = cube.fields as VerityFields;
-      const replies: cciRelationship[] = fields.
-        getRelationships(cciRelationshipType.REPLY_TO);
+      const replies: Relationship[] = fields.
+        getRelationships(RelationshipType.REPLY_TO);
       if (replies) toCheck = toCheck.concat(replies);
     }
     for (const other of toCheck) {
@@ -199,7 +199,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
    * by this engine.
    */
   async cubeAuthor(key: CubeKey): Promise<Identity> {
-    const parentrel = this.getFirstReverseRelationship(key, cciRelationshipType.MYPOST);
+    const parentrel = this.getFirstReverseRelationship(key, RelationshipType.MYPOST);
     // logger.trace(`ZwAnnotationEngine: Looking for the author of ${key.toString('hex')} whose parent is ${parentrel?.remoteKey?.toString('hex')}`);
     if (!parentrel) return undefined;
     const parentkey = parentrel.remoteKey;
@@ -266,7 +266,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   private async cubeAuthorWithoutAnnotationsRecursion(key: CubeKey, mucOrMucExtension: cciCube, rootmuc: cciCube): Promise<Identity> {
     if (!assertZwCube(mucOrMucExtension)) return undefined;
     const fields: VerityFields = mucOrMucExtension.fields;
-    const postrels: Array<cciRelationship> = fields.getRelationships(cciRelationshipType.MYPOST);
+    const postrels: Array<Relationship> = fields.getRelationships(RelationshipType.MYPOST);
     if (!postrels) return undefined;  // not a valid MUC or MUC extension cube
 
     // logger.trace("ZwAnnotationEngine: Searching for author of cube " + key.toString('hex') + " in subcube " + mucOrMucExtension.getKeyIfAvailable()?.toString('hex') + " extending MUC " + rootmuc.getKeyIfAvailable()?.toString('hex'));
@@ -315,9 +315,9 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     if (await this.isCubeDisplayable(cubeInfo, mediaType)) {
       // In a base-reply relationship, I as a base can only make my reply
       // displayable if I am displayable myself.
-      const replies: Array<cciRelationship> = this.getReverseRelationships(
+      const replies: Array<Relationship> = this.getReverseRelationships(
         cubeInfo.key,
-        cciRelationshipType.REPLY_TO);
+        RelationshipType.REPLY_TO);
       for (const reply of replies) {
         const replyInfo: CubeInfo = await this.cubeRetriever.getCubeInfo(reply.remoteKey);
         if (replyInfo === undefined) continue;
@@ -420,7 +420,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     const cube: Cube = postInfo.getCube();
     if (!assertZwCube(cube)) return;
     const fields: VerityFields = this.getFields(cube) as VerityFields;
-    const postRefs: cciRelationship[] = fields.getRelationships(cciRelationshipType.MYPOST);
+    const postRefs: Relationship[] = fields.getRelationships(RelationshipType.MYPOST);
     for (const postRef of postRefs) {
       const postkeystring: string = postRef.remoteKey.toString('hex');
       // If we don't know the referred post already, learn it and

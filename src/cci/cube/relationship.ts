@@ -7,7 +7,7 @@ import { VerityField } from "./verityField";
 
 import { logger } from "../../core/logger";
 
-export enum cciRelationshipType {
+export enum RelationshipType {
   CONTINUED_IN = 1,
   // unused = 2,
   REPLY_TO = 3,
@@ -29,24 +29,24 @@ export enum cciRelationshipType {
   // codes 128 and above are reserved for app-specific usage
 }
 
-export const cciRelationshipLimits: Map<cciRelationshipType, number> = new Map([
-  [cciRelationshipType.CONTINUED_IN, 1],
-  [cciRelationshipType.MENTION, undefined],
-  [cciRelationshipType.REPLY_TO, 1],
-  [cciRelationshipType.QUOTATION, undefined],
-  [cciRelationshipType.MYPOST, undefined],
-  [cciRelationshipType.ILLUSTRATION, 1],
-  [cciRelationshipType.KEY_BACKUP_CUBE, undefined],
-  [cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX, undefined],
-  [cciRelationshipType.SUBSCRIPTION_RECOMMENDATION, undefined]
+export const RelationshipLimits: Map<RelationshipType, number> = new Map([
+  [RelationshipType.CONTINUED_IN, 1],
+  [RelationshipType.MENTION, undefined],
+  [RelationshipType.REPLY_TO, 1],
+  [RelationshipType.QUOTATION, undefined],
+  [RelationshipType.MYPOST, undefined],
+  [RelationshipType.ILLUSTRATION, 1],
+  [RelationshipType.KEY_BACKUP_CUBE, undefined],
+  [RelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX, undefined],
+  [RelationshipType.SUBSCRIPTION_RECOMMENDATION, undefined]
 ]);
 
 /**
  * Represents a relationship between two Cubes
  */
-export class cciRelationship {
+export class Relationship {
   /** Described the kind of relationship */
-  type: cciRelationshipType;
+  type: RelationshipType;
   remoteKey: CubeKey;
 
   get remoteKeyString(): string {
@@ -54,17 +54,17 @@ export class cciRelationship {
     else return this.remoteKey.toString('hex');
   }
 
-  constructor(type: cciRelationshipType = undefined, remoteKey: CubeKey = undefined) {
+  constructor(type: RelationshipType = undefined, remoteKey: CubeKey = undefined) {
       this.type = type;
       this.remoteKey = remoteKey;
   }
 
   toString(): string {
-    return `${cciRelationshipType[this.type] ?? this.type} rel to ${this.remoteKeyString}`;
+    return `${RelationshipType[this.type] ?? this.type} rel to ${this.remoteKeyString}`;
   }
 
-  static fromField(field: VerityField): cciRelationship {
-      const relationship = new cciRelationship();
+  static fromField(field: VerityField): Relationship {
+      const relationship = new Relationship();
       if (field.type !== FieldType.RELATES_TO) {
         logger.error(`cciRelationship.fromField(): Can only construct relationship object from RELATES_TO field, got ${field.type}; returning undefined instead.`);
         return undefined;
@@ -83,11 +83,11 @@ export class cciRelationship {
   }
 
   static *fromKeys(
-      type: cciRelationshipType,
+      type: RelationshipType,
       keys: Iterable<CubeKey | string>
-  ): Generator<cciRelationship> {
+  ): Generator<Relationship> {
     for (let key of keys) {
-      yield new cciRelationship(type, keyVariants(key).binaryKey);
+      yield new Relationship(type, keyVariants(key).binaryKey);
     }
   }
 }

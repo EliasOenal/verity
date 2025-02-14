@@ -2,7 +2,7 @@ import type { NetworkManagerIf } from "../../../src/core/networking/networkManag
 import { cciCube } from "../../../src/cci/cube/cciCube";
 import { MediaTypes, cciAdditionalFieldType, FieldLength, FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
-import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
+import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
 import { Continuation } from "../../../src/cci/veritum/continuation";
 import { Veritum } from "../../../src/cci/veritum/veritum";
 import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
@@ -62,8 +62,8 @@ describe('Continuation', () => {
       expect(splitCubes[0].fields.all[2].value.length).toEqual(expectedFirstChunkPayloadLength);
 
       // expect the first chunk to reference the second chunk
-      const rel = cciRelationship.fromField(splitCubes[0].fields.all[1]);
-      expect(rel.type).toBe(cciRelationshipType.CONTINUED_IN);
+      const rel = Relationship.fromField(splitCubes[0].fields.all[1]);
+      expect(rel.type).toBe(RelationshipType.CONTINUED_IN);
       expect(rel.remoteKey).toEqual(await splitCubes[1].getKey());
 
       // Expect the second chunk to contain all positional fields a Cube needs,
@@ -184,13 +184,13 @@ describe('Continuation', () => {
       const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
 
       // assert all CONTINUED_IN relationships are present and in correct order
-      let refs: cciRelationship[] = [];
+      let refs: Relationship[] = [];
       for (const cube of splitCubes) {
-        refs = [...refs, ...cube.fields.getRelationships(cciRelationshipType.CONTINUED_IN)];
+        refs = [...refs, ...cube.fields.getRelationships(RelationshipType.CONTINUED_IN)];
       }
       expect(refs.length).toBe(splitCubes.length - 1);
       for (let i=0; i < refs.length; i++) {
-        expect(refs[i].type).toEqual(cciRelationshipType.CONTINUED_IN);
+        expect(refs[i].type).toEqual(RelationshipType.CONTINUED_IN);
         expect(refs[i].remoteKey).toEqual(await splitCubes[i+1].getKey());
       }
 
@@ -399,22 +399,22 @@ describe('Continuation', () => {
         requiredDifficulty: 0,
       });
       macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new cciRelationship(cciRelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
       macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new cciRelationship(cciRelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
       macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new cciRelationship(cciRelationshipType.MENTION, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        new Relationship(RelationshipType.MENTION, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
       macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new cciRelationship(cciRelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
       macroCube.insertFieldBeforeBackPositionals(VerityField.Payload(tooLong));
       macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new cciRelationship(cciRelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
       macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new cciRelationship(cciRelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
       macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new cciRelationship(cciRelationshipType.MENTION, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        new Relationship(RelationshipType.MENTION, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
       macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new cciRelationship(cciRelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
 
       // run the test: split, then recombine
       const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
@@ -432,10 +432,10 @@ describe('Continuation', () => {
       // TODO: get rid of manipulateFields() call and direct Array method calls
       const restoredRelatesTo = recombined.manipulateFields().get(FieldType.RELATES_TO);
       expect(restoredRelatesTo.length).toEqual(4);
-      expect(cciRelationship.fromField(restoredRelatesTo[0]).type).toEqual(cciRelationshipType.MYPOST);
-      expect(cciRelationship.fromField(restoredRelatesTo[1]).type).toEqual(cciRelationshipType.MENTION);
-      expect(cciRelationship.fromField(restoredRelatesTo[2]).type).toEqual(cciRelationshipType.MYPOST);
-      expect(cciRelationship.fromField(restoredRelatesTo[3]).type).toEqual(cciRelationshipType.MENTION);
+      expect(Relationship.fromField(restoredRelatesTo[0]).type).toEqual(RelationshipType.MYPOST);
+      expect(Relationship.fromField(restoredRelatesTo[1]).type).toEqual(RelationshipType.MENTION);
+      expect(Relationship.fromField(restoredRelatesTo[2]).type).toEqual(RelationshipType.MYPOST);
+      expect(Relationship.fromField(restoredRelatesTo[3]).type).toEqual(RelationshipType.MENTION);
     });
 
     for (let fuzzingRepeat=0; fuzzingRepeat<10; fuzzingRepeat++) {
@@ -462,7 +462,7 @@ describe('Continuation', () => {
           const length: number = FieldLength[chosenFieldType] ?? Math.floor(Math.random() * 3000);
           let val: Buffer;
           if (chosenFieldType === FieldType.RELATES_TO) {
-            val = VerityField.RelatesTo(new cciRelationship(cciRelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))).value;
+            val = VerityField.RelatesTo(new Relationship(RelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))).value;
           } else {
             val = Buffer.alloc(length);
             // fill val with random bytes

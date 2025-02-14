@@ -16,7 +16,7 @@ import { FieldType } from '../cube/cciCube.definitions';
 import { KeyMismatchError, KeyPair, deriveEncryptionKeypair, deriveSigningKeypair } from '../helpers/cryptography';
 import { VerityField } from '../cube/verityField';
 import { VerityFields, cciMucFieldDefinition } from '../cube/verityFields';
-import { cciRelationship, cciRelationshipType } from '../cube/cciRelationship';
+import { Relationship, RelationshipType } from '../cube/relationship';
 import { cciCube, cciFamily } from '../cube/cciCube';
 import { ensureCci } from '../cube/cciCubeUtil';
 
@@ -915,7 +915,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     // Write profile picture reference
     if (this.profilepic) {
       newMuc.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new cciRelationship(cciRelationshipType.ILLUSTRATION, this.profilepic)
+        new Relationship(RelationshipType.ILLUSTRATION, this.profilepic)
       ));
     }
 
@@ -925,7 +925,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     this.writeSubscriptionRecommendations();
     if (this.subscriptionRecommendationIndices.length) {  // any subs at all?
       newMuc.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new cciRelationship(cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
+        new Relationship(RelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
           this.subscriptionRecommendationIndices[0].getKeyIfAvailable())));
           // note: key is always available as this is a MUC
     }
@@ -944,7 +944,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     //   has itself been restored from a MUC.
     const newestPostsFirst: string[] = Array.from(this.getPostKeyStrings()).reverse();
     newMuc.fields.insertTillFull(VerityField.FromRelationships(
-      cciRelationship.fromKeys(cciRelationshipType.MYPOST, newestPostsFirst)));
+      Relationship.fromKeys(RelationshipType.MYPOST, newestPostsFirst)));
 
     await newMuc.getBinaryData();  // compile MUC
     this.emitCubeAdded(newMuc);
@@ -1042,8 +1042,8 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     const subs: string[] = Array.from(this._publicSubscriptions).reverse();
     for (let i=0; i<subs.length; i++) {
       // write rel
-      fields.appendField(VerityField.RelatesTo(new cciRelationship(
-        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
+      fields.appendField(VerityField.RelatesTo(new Relationship(
+        RelationshipType.SUBSCRIPTION_RECOMMENDATION,
         keyVariants(subs[i]).binaryKey
       )));
 
@@ -1063,8 +1063,8 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       fields = fieldSets[i];
       // chain the index cubes together:
       if (i < fieldSets.length - 1 ) {  // last one has no successor, obviously
-        fields.appendField(VerityField.RelatesTo(new cciRelationship(
-          cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
+        fields.appendField(VerityField.RelatesTo(new Relationship(
+          RelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
             this.subscriptionRecommendationIndices[i+1].
               getKeyIfAvailable())));  // it's a MUC, the key is always available
       }
@@ -1147,8 +1147,8 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     }
 
     // - profile picture reference
-    const profilePictureRel: cciRelationship = muc.fields.getFirstRelationship(
-      cciRelationshipType.ILLUSTRATION);
+    const profilePictureRel: Relationship = muc.fields.getFirstRelationship(
+      RelationshipType.ILLUSTRATION);
     if (profilePictureRel) this.profilepic = profilePictureRel.remoteKey;
 
     // - recursively fetch my-post references
@@ -1215,13 +1215,13 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     if (!fields) return;
     // save the subscriptions recommendations provided:
     const subs = fields.getRelationships(
-      cciRelationshipType.SUBSCRIPTION_RECOMMENDATION);
+      RelationshipType.SUBSCRIPTION_RECOMMENDATION);
     for (const sub of subs) {
       this.addPublicSubscription(sub.remoteKey);
     }
     // recurse through further index cubes, if any:
     const furtherIndices = fields.getRelationships(
-      cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX);
+      RelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX);
     for (const furtherIndex of furtherIndices) {
       const furtherCube: Cube = await this.cubeRetriever.getCube(furtherIndex.remoteKey);
       if (furtherCube) {
@@ -1271,8 +1271,8 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     // prepare return promises
     const retPromises: Promise<void>[] = [];
 
-    const myPostRels: cciRelationship[] = fields.getRelationships(
-      cciRelationshipType.MYPOST);
+    const myPostRels: Relationship[] = fields.getRelationships(
+      RelationshipType.MYPOST);
     for (const postrel of myPostRels) {
       if (this.hasPost(postrel.remoteKey)) {
         // if we'we already parsed this post, skip it

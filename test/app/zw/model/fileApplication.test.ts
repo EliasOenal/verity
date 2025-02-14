@@ -3,7 +3,7 @@ import { CubeKey } from '../../../../src/core/cube/cube.definitions';
 import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
 import { cciCube } from '../../../../src/cci/cube/cciCube';
 import { VerityField } from '../../../../src/cci/cube/verityField';
-import { cciRelationshipType } from '../../../../src/cci/cube/cciRelationship';
+import { RelationshipType } from '../../../../src/cci/cube/relationship';
 
 import { FileApplication } from '../../../../src/app/fileApplication';
 
@@ -56,10 +56,10 @@ describe('FileApplication', () => {
       expect(dateField).toBeDefined();
 
       if (index < cubes.length - 1) {
-        const continuationRel = cube.fields.getFirstRelationship(cciRelationshipType.CONTINUED_IN);
+        const continuationRel = cube.fields.getFirstRelationship(RelationshipType.CONTINUED_IN);
         expect(continuationRel).toBeDefined();
       } else {
-        const continuationRel = cube.fields.getFirstRelationship(cciRelationshipType.CONTINUED_IN);
+        const continuationRel = cube.fields.getFirstRelationship(RelationshipType.CONTINUED_IN);
         expect(continuationRel).toBeUndefined();
       }
     });

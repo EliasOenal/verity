@@ -8,7 +8,7 @@ import { VerityField } from "../../../src/cci/cube/verityField";
 import { cciCube, cciFamily } from "../../../src/cci/cube/cciCube";
 import { Identity, IdentityOptions } from "../../../src/cci/identity/identity";
 import { cciFieldParsers, VerityFields } from "../../../src/cci/cube/verityFields";
-import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
+import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
 import { Avatar, AvatarScheme } from "../../../src/cci/identity/avatar";
 
 import { makePost } from "../../../src/app/zw/model/zwUtil";
@@ -64,9 +64,9 @@ let cubeStore: CubeStore;
       expect(muc).toBeInstanceOf(cciCube);
 
       // double check everything's in there
-      expect(muc.fields.getFirstRelationship(cciRelationshipType.ILLUSTRATION).remoteKey).
+      expect(muc.fields.getFirstRelationship(RelationshipType.ILLUSTRATION).remoteKey).
         toEqual(original.profilepic);
-      expect(muc.fields.getFirstRelationship(cciRelationshipType.MYPOST).remoteKey).
+      expect(muc.fields.getFirstRelationship(RelationshipType.MYPOST).remoteKey).
         toEqual(postkey);
 
       // Store the MUC
@@ -250,16 +250,16 @@ let cubeStore: CubeStore;
           VerityField.Application(("Test")),
           VerityField.MediaType(MediaTypes.TEXT),
           VerityField.Payload("Hoc est ordinarius tabulae mentionem"),
-          VerityField.RelatesTo(new cciRelationship(
-            cciRelationshipType.MYPOST, keyA)),
+          VerityField.RelatesTo(new Relationship(
+            RelationshipType.MYPOST, keyA)),
         ]
       });
       const keyB: CubeKey = await postB.getKey();  // implicitly compiles postB
       await cubeStore.addCube(postB);
       // complete circular reference
       postA.insertFieldBeforeBackPositionals(
-        VerityField.RelatesTo(new cciRelationship(
-          cciRelationshipType.MYPOST, keyB)));
+        VerityField.RelatesTo(new Relationship(
+          RelationshipType.MYPOST, keyB)));
       await postA.compile();
       await cubeStore.addCube(postA);
       // Now craft an Identity MUC referring to postB
@@ -271,19 +271,19 @@ let cubeStore: CubeStore;
         fields: [
           VerityField.Application("ID"),
           VerityField.Username("Usor confusus"),
-          VerityField.RelatesTo(new cciRelationship(
-            cciRelationshipType.MYPOST, keyB)),
+          VerityField.RelatesTo(new Relationship(
+            RelationshipType.MYPOST, keyB)),
         ]
       });
       await idMuc.compile();
       await cubeStore.addCube(idMuc);
       // verify we have indeed created a circular reference
       expect(idMuc.fields.getFirstRelationship(
-        cciRelationshipType.MYPOST).remoteKey).toEqual(keyB);
+        RelationshipType.MYPOST).remoteKey).toEqual(keyB);
       expect(postB.fields.getFirstRelationship(
-        cciRelationshipType.MYPOST).remoteKey).toEqual(keyA);
+        RelationshipType.MYPOST).remoteKey).toEqual(keyA);
       expect(postA.fields.getFirstRelationship(
-        cciRelationshipType.MYPOST).remoteKey).toEqual(keyB);
+        RelationshipType.MYPOST).remoteKey).toEqual(keyB);
       // now try an Identity restore from this MUC
       const restored: Identity =
         await Identity.Construct(cubeStore, idMuc, idTestOptions);
@@ -334,8 +334,8 @@ let cubeStore: CubeStore;
       // First subscription recommendation index saved in MUC?
       const fields: VerityFields = recovered_muc.fields as VerityFields;
       expect(fields).toBeInstanceOf(VerityFields);
-      const rel: cciRelationship = fields.getFirstRelationship(
-        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX
+      const rel: Relationship = fields.getFirstRelationship(
+        RelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX
       );
       expect(rel.remoteKey).toBeInstanceOf(Buffer);
       expect(
@@ -351,16 +351,16 @@ let cubeStore: CubeStore;
       // First subscription recommendation index contains a subscription recommendation?
       expect(firstIndexCube.fields).toBeInstanceOf(VerityFields);
       expect(firstIndexCube.fields.length).toBeGreaterThan(1);
-      const subStored: cciRelationship = firstIndexCube.getFirstRelationship(
-        cciRelationshipType.SUBSCRIPTION_RECOMMENDATION);
+      const subStored: Relationship = firstIndexCube.getFirstRelationship(
+        RelationshipType.SUBSCRIPTION_RECOMMENDATION);
       expect(subject.hasPublicSubscription(subStored.remoteKeyString)).toBeTruthy();
 
       // Second subscription recommendation index referred from first one?
-      const secondIndexRel: cciRelationship =
+      const secondIndexRel: Relationship =
         firstIndexCube.fields.getFirstRelationship(
-          cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX
+          RelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX
         );
-      expect(secondIndexRel).toBeInstanceOf(cciRelationship);
+      expect(secondIndexRel).toBeInstanceOf(Relationship);
       const secondIndexCube: cciCube = await cubeStore.getCube(
         secondIndexRel.remoteKey
       ) as cciCube;

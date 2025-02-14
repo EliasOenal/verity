@@ -1,5 +1,5 @@
 import { FieldType } from "../../cci/cube/cciCube.definitions";
-import { cciRelationship, cciRelationshipType } from "../../cci/cube/cciRelationship";
+import { Relationship, RelationshipType } from "../../cci/cube/relationship";
 import { Cube } from "../../core/cube/cube";
 import { CubeType } from "../../core/cube/cube.definitions";
 import { CubeField } from "../../core/cube/cubeField";
@@ -193,11 +193,11 @@ export class CubeExplorerView extends VerityView {
       field: CubeField,
       detailsTable: HTMLTableElement
   ): void {
-    const rel: cciRelationship = cciRelationship.fromField(field);
+    const rel: Relationship = Relationship.fromField(field);
     // do we know the name of this relationship type?
     let relTypeString: string;
-    if (rel.type in cciRelationshipType) {
-      relTypeString = `${cciRelationshipType[rel.type]} (code ${rel.type} / 0x${rel.type.toString(16)})`
+    if (rel.type in RelationshipType) {
+      relTypeString = `${RelationshipType[rel.type]} (code ${rel.type} / 0x${rel.type.toString(16)})`
     } else relTypeString = rel.type.toString();
     // prepare view: Relationship type row
     const typeRow: HTMLTableRowElement = document.createElement('tr');
