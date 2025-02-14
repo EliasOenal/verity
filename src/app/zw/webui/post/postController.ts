@@ -7,7 +7,7 @@ import { logger } from "../../../../core/logger";
 import { FieldType } from "../../../../cci/cube/cciCube.definitions";
 import { VerityFields } from "../../../../cci/cube/verityFields";
 import { cciCube, cciFamily } from "../../../../cci/cube/cciCube";
-import { cciRelationship, cciRelationshipType } from "../../../../cci/cube/cciRelationship";
+import { Relationship, RelationshipType } from "../../../../cci/cube/relationship";
 import { ensureCci } from "../../../../cci/cube/cciCubeUtil";
 import { Identity } from "../../../../cci/identity/identity";
 import { UNKNOWNAVATAR } from "../../../../cci/identity/avatar";
@@ -192,7 +192,7 @@ export class PostController extends VerityController {
     if (this.displayedPosts.has(data.keystring)) return;
 
     // is this a reply?
-    const reply: cciRelationship = fields.getFirstRelationship(cciRelationshipType.REPLY_TO);
+    const reply: Relationship = fields.getFirstRelationship(RelationshipType.REPLY_TO);
     if (reply !== undefined) {  // yes
       const superiorPostKey: CubeKey = reply.remoteKey;
       data.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));

@@ -10,7 +10,7 @@ import { logger } from "../../core/logger";
 
 import { cciCube } from "../cube/cciCube";
 import { CubeRetrievalInterface, CubeStore } from "../../core/cube/cubeStore";
-import { cciRelationshipType, cciRelationship } from "../cube/cciRelationship";
+import { RelationshipType, Relationship } from "../cube/relationship";
 import { Veritum } from "./veritum";
 
 export interface VeritumRetrievalInterface<OptionsType> extends CubeRetrievalInterface<OptionsType> {
@@ -99,7 +99,7 @@ export class VeritumRetriever<GetCubeOptionsT
       currentlyRetrieving.delete(resolved);
 
       // get further chunk references
-      const refs = chunk.getRelationships?.(cciRelationshipType.CONTINUED_IN);
+      const refs = chunk.getRelationships?.(RelationshipType.CONTINUED_IN);
       for (let refIndexInCube=0; refIndexInCube < refs?.length; refIndexInCube++) {
         const ref = refs[refIndexInCube];
 
@@ -139,11 +139,11 @@ export class VeritumRetriever<GetCubeOptionsT
       // maybe TODO: if necessary, this can be optimised by keeping a separate
       // list and amending it as chunks are retrieved rather than recalculating
       // it each time
-      const refs: cciRelationship[] = [];
+      const refs: Relationship[] = [];
       for (const chunk of orderedChunks) {
         // maybe TODO get rid of this potentially enormous amount of array
         // operations, see above
-        refs.push(...chunk.getRelationships?.(cciRelationshipType.CONTINUED_IN));
+        refs.push(...chunk.getRelationships?.(RelationshipType.CONTINUED_IN));
       }
       // Find the previously yielded chunk's key in that list -- the key of
       // the chunk to be yielded next is obviously the one that follows it.

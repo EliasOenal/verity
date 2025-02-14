@@ -13,7 +13,7 @@ import { CubeStore } from "../../../core/cube/cubeStore";
 import { MediaTypes, FieldType } from "../../../cci/cube/cciCube.definitions";
 import { VerityField } from "../../../cci/cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition } from "../../../cci/cube/verityFields";
-import { cciRelationship, cciRelationshipType } from "../../../cci/cube/cciRelationship";
+import { Relationship, RelationshipType } from "../../../cci/cube/relationship";
 import { cciCube, cciFamily } from "../../../cci/cube/cciCube";
 import { Identity } from "../../../cci/identity/identity";
 import { isCci } from "../../../cci/cube/cciCubeUtil";
@@ -50,7 +50,7 @@ export async function makePost(
     ]});
   if (options.replyto) {  // if this is a reply, refer to the original post
     cube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-      new cciRelationship(cciRelationshipType.REPLY_TO, options.replyto)
+      new Relationship(RelationshipType.REPLY_TO, options.replyto)
     ));
   }
   if (options.id) {  // if this is not an anonymous post, refer my previous posts
@@ -66,7 +66,7 @@ export async function makePost(
     //   has itself been restored from a MUC.
     const newestPostsFirst: string[] = Array.from(options.id.getPostKeyStrings()).reverse();
     cube.fields.insertTillFull(VerityField.FromRelationships(
-      cciRelationship.fromKeys(cciRelationshipType.MYPOST, newestPostsFirst)));
+      Relationship.fromKeys(RelationshipType.MYPOST, newestPostsFirst)));
   }
   await cube.getBinaryData();  // finalize Cube & compile fields
   if (options.id) {  // unless anonymous, have the Identity remember this new post
@@ -81,11 +81,11 @@ export async function makePost(
 export const maxPostSize: number =  // calculate maximum posts size by creating a mock post
   VerityFields.Frozen([
     VerityField.RelatesTo(  // need space for one ref if this is a reply
-      new cciRelationship(cciRelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))),
+      new Relationship(RelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))),
     VerityField.RelatesTo(  // need space for at least one reference to my older posts
-      new cciRelationship(cciRelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))),
+      new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))),
     VerityField.RelatesTo(  // make that two for good measure
-      new cciRelationship(cciRelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))),
+      new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))),
   ], cciFrozenFieldDefinition).bytesRemaining();
 
 export function assertZwCube(cube: Cube): boolean {

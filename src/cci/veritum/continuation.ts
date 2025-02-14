@@ -9,7 +9,7 @@ import { cciCube } from "../cube/cciCube";
 import { FieldType } from "../cube/cciCube.definitions";
 import { VerityField } from "../cube/verityField";
 import { VerityFields } from "../cube/verityFields";
-import { cciRelationship, cciRelationshipType } from "../cube/cciRelationship";
+import { Relationship, RelationshipType } from "../cube/relationship";
 import { Veritable } from "../../core/cube/veritable.definition";
 import { Veritum } from "./veritum";
 
@@ -108,7 +108,7 @@ export class Continuation {
       //   will also be dropped.
       if (!options.exclude.includes(field.type) && (
             field.type !== FieldType.RELATES_TO ||
-            cciRelationship.fromField(field).type !== cciRelationshipType.CONTINUED_IN
+            Relationship.fromField(field).type !== RelationshipType.CONTINUED_IN
           )
       ){
         // Handle edge case: if this is a variable length field and the previous
@@ -176,8 +176,8 @@ export class Continuation {
       let refsAdded = 0;
       while (spaceRemaining < minBytesRequred) {
         // add another CONTINUED_IN reference, i.e. plan for an extra Cube
-        const rel: cciRelationship = new cciRelationship(
-          cciRelationshipType.CONTINUED_IN, Buffer.alloc(
+        const rel: Relationship = new Relationship(
+          RelationshipType.CONTINUED_IN, Buffer.alloc(
             NetConstants.CUBE_KEY_SIZE, 0));  // dummy key for now
         const refField: VerityField = VerityField.RelatesTo(rel);
         // remember this ref as a planned Cube...
@@ -285,8 +285,8 @@ export class Continuation {
         );
       }
       const referredKey: CubeKey = await referredCube.getKey();  // compiles the Cube
-      const correctRef: cciRelationship =
-        new cciRelationship(cciRelationshipType.CONTINUED_IN, referredKey);
+      const correctRef: Relationship =
+        new Relationship(RelationshipType.CONTINUED_IN, referredKey);
       const compiledRef: VerityField = VerityField.RelatesTo(correctRef);
       // fill in the correct ref value to the field we created at the beginning
       refs[i].value = compiledRef.value;
@@ -333,8 +333,8 @@ export class Continuation {
             options.exclude.includes(field.type)) continue;
         // - CONTINUED_IN references will be dropped
         if (field.type === FieldType.RELATES_TO) {
-          const rel = cciRelationship.fromField(field);
-          if (rel.type === cciRelationshipType.CONTINUED_IN) continue;
+          const rel = Relationship.fromField(field);
+          if (rel.type === RelationshipType.CONTINUED_IN) continue;
         }
         // - variable length fields of same type directly adjacent to each
         //   other will be merged

@@ -1,4 +1,4 @@
-import type { cciRelationship } from "./cciRelationship";
+import type { Relationship } from "./relationship";
 
 import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
@@ -175,10 +175,10 @@ export class cciCube extends Cube {
   // Expose field methods
   //###
 
-  getRelationships(type?: number): Array<cciRelationship> {
+  getRelationships(type?: number): Array<Relationship> {
     return this._fields.getRelationships(type);
   }
-  public getFirstRelationship(type?: number): cciRelationship {
+  public getFirstRelationship(type?: number): Relationship {
     return this._fields.getFirstRelationship(type);
   }
   insertTillFull(

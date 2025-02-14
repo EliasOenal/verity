@@ -7,7 +7,7 @@ import { CubeStore } from "../../../../src/core/cube/cubeStore";
 import { MediaTypes } from "../../../../src/cci/cube/cciCube.definitions";
 import { cciCube, cciFamily } from "../../../../src/cci/cube/cciCube";
 import { VerityField} from "../../../../src/cci/cube/verityField";
-import { cciRelationshipType, cciRelationship } from "../../../../src/cci/cube/cciRelationship";
+import { RelationshipType, Relationship } from "../../../../src/cci/cube/relationship";
 import { Identity, IdentityOptions } from "../../../../src/cci/identity/identity";
 
 import { SubscriptionRequirement, ZwAnnotationEngine } from "../../../../src/app/zw/model/zwAnnotationEngine";
@@ -69,7 +69,7 @@ describe('ZwAnnotationEngine', () => {
 
         const reverserels = annotationEngine.getReverseRelationships(await referee.getKey());
         expect(reverserels.length).toEqual(1);
-        expect(reverserels[0].type).toEqual(cciRelationshipType.REPLY_TO);
+        expect(reverserels[0].type).toEqual(RelationshipType.REPLY_TO);
         expect(reverserels[0].remoteKey.toString('hex')).toEqual((await referrer.getKey()).toString('hex'));
       });
 
@@ -90,7 +90,7 @@ describe('ZwAnnotationEngine', () => {
             VerityField.MediaType(MediaTypes.TEXT),
             VerityField.Payload("I will reply to everybody at one and NO ONE CAN STOP ME AHAHAHAHAHAHAHAHAHAHAHA!!!!!!!!1111"),
             VerityField.RelatesTo(
-              new cciRelationship(cciRelationshipType.REPLY_TO, await referee.getKey())),
+              new Relationship(RelationshipType.REPLY_TO, await referee.getKey())),
             // TODO FIXME actually include another REPLY_TO?!?!?!?!?!
           ],
           family: cciFamily, requiredDifficulty: reducedDifficulty});
@@ -101,7 +101,7 @@ describe('ZwAnnotationEngine', () => {
         // expect reverse relationship referrer ← referee to be annotated as the
         // first REPLY_TO will be honored
         expect(reverserels.length).toEqual(1);
-        expect(reverserels[0].type).toEqual(cciRelationshipType.REPLY_TO);
+        expect(reverserels[0].type).toEqual(RelationshipType.REPLY_TO);
         expect(reverserels[0].remoteKey.toString('hex')).toEqual((await referrer.getKey()).toString('hex'));
 
         // expect spurious referee not to be annotated as a spurious REPLY_TO
@@ -497,10 +497,10 @@ describe('ZwAnnotationEngine', () => {
 
         // make sure the new post is referenced directly in the MUC
         let mucRelToPost: any = undefined;
-        for (const rel of id.muc.fields.getRelationships(cciRelationshipType.MYPOST)) {
+        for (const rel of id.muc.fields.getRelationships(RelationshipType.MYPOST)) {
           if (rel.remoteKey.equals(postKey)) mucRelToPost = rel;
         }
-        expect(mucRelToPost).toBeInstanceOf(cciRelationship);
+        expect(mucRelToPost).toBeInstanceOf(Relationship);
 
         // Wait for the annotationEngine to take note of the MUC change.
         // This is event driven, so it may take a short while.

@@ -9,7 +9,7 @@ import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { enumNums } from "../../../src/core/helpers/misc";
 
 import { evenLonger, tooLong } from "../testcci.definitions";
-import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
+import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
 
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
@@ -273,8 +273,8 @@ describe('Veritum', () => {
         expect(veritum.chunks[0].getFirstField(FieldType.PAYLOAD)).toBeDefined();
         expect(veritum.chunks[1].getFirstField(FieldType.PAYLOAD)).toBeDefined();
         const refField: VerityField = veritum.chunks[0].getFirstField(FieldType.RELATES_TO);
-        const ref = cciRelationship.fromField(refField);
-        expect(ref.type).toEqual(cciRelationshipType.CONTINUED_IN);
+        const ref = Relationship.fromField(refField);
+        expect(ref.type).toEqual(RelationshipType.CONTINUED_IN);
         expect(ref.remoteKey).toBeInstanceOf(Buffer);
         expect(ref.remoteKey).toEqual(veritum.chunks[1].getKeyIfAvailable());
 
