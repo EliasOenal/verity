@@ -1,4 +1,4 @@
-import { cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
@@ -7,7 +7,7 @@ import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
 import { cciCube } from '../../../src/cci/cube/cciCube';
-import { cciField } from '../../../src/cci/cube/cciField';
+import { VerityField } from '../../../src/cci/cube/verityField';
 
 import { testCubeStoreParams } from '../testcci.definitions';
 
@@ -58,7 +58,7 @@ describe('Identity: CubeInfo generators', () => {
         const post1: cciCube = cciCube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
-          fields: cciField.Payload("Nuntius primus"),
+          fields: VerityField.Payload("Nuntius primus"),
         });
         await cubeStore.addCube(post1);
         id.addPost(post1.getKeyIfAvailable());
@@ -66,7 +66,7 @@ describe('Identity: CubeInfo generators', () => {
         const post2: cciCube = cciCube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
-          fields: cciField.Payload("Nuntius secundus"),
+          fields: VerityField.Payload("Nuntius secundus"),
         });
         await cubeStore.addCube(post2);
         id.addPost(post2.getKeyIfAvailable());
@@ -78,8 +78,8 @@ describe('Identity: CubeInfo generators', () => {
         expect(postInfos.length).toBe(2);
         expect(postInfos[0].key).toEqual(post1.getKeyIfAvailable());
         expect(postInfos[1].key).toEqual(post2.getKeyIfAvailable());
-        expect(postInfos[0].getCube().getFirstField(cciFieldType.PAYLOAD).valueString).toBe("Nuntius primus");
-        expect(postInfos[1].getCube().getFirstField(cciFieldType.PAYLOAD).valueString).toBe("Nuntius secundus");
+        expect(postInfos[0].getCube().getFirstField(FieldType.PAYLOAD).valueString).toBe("Nuntius primus");
+        expect(postInfos[1].getCube().getFirstField(FieldType.PAYLOAD).valueString).toBe("Nuntius secundus");
       });
 
       it('yields nothing if there are no posts', async () => {
@@ -95,7 +95,7 @@ describe('Identity: CubeInfo generators', () => {
         const post1: cciCube = cciCube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
-          fields: cciField.Payload("Nuntius primus"),
+          fields: VerityField.Payload("Nuntius primus"),
         });
         // note we missed adding this post to the CubeStore
         id.addPost(post1.getKeyIfAvailable());
@@ -103,7 +103,7 @@ describe('Identity: CubeInfo generators', () => {
         const post2: cciCube = cciCube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
-          fields: cciField.Payload("Nuntius secundus"),
+          fields: VerityField.Payload("Nuntius secundus"),
         });
         await cubeStore.addCube(post2);
         id.addPost(post2.getKeyIfAvailable());
@@ -114,7 +114,7 @@ describe('Identity: CubeInfo generators', () => {
         // check results
         expect(postInfos.length).toBe(1);
         expect(postInfos[0].key).toEqual(post2.getKeyIfAvailable());
-        expect(postInfos[0].getCube().getFirstField(cciFieldType.PAYLOAD).valueString).toBe("Nuntius secundus");
+        expect(postInfos[0].getCube().getFirstField(FieldType.PAYLOAD).valueString).toBe("Nuntius secundus");
       });
     });
 
@@ -124,7 +124,7 @@ describe('Identity: CubeInfo generators', () => {
         const sub1: cciCube = cciCube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
-          fields: cciField.Payload("Subscriptio prima"),
+          fields: VerityField.Payload("Subscriptio prima"),
         });
         await cubeStore.addCube(sub1);
         id.addPublicSubscription(sub1.getKeyIfAvailable());
@@ -132,7 +132,7 @@ describe('Identity: CubeInfo generators', () => {
         const sub2: cciCube = cciCube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
-          fields: cciField.Payload("Subscriptio secunda"),
+          fields: VerityField.Payload("Subscriptio secunda"),
         });
         await cubeStore.addCube(sub2);
         id.addPublicSubscription(sub2.getKeyIfAvailable());
@@ -144,8 +144,8 @@ describe('Identity: CubeInfo generators', () => {
         expect(subInfos.length).toBe(2);
         expect(subInfos[0].key).toEqual(sub1.getKeyIfAvailable());
         expect(subInfos[1].key).toEqual(sub2.getKeyIfAvailable());
-        expect(subInfos[0].getCube().getFirstField(cciFieldType.PAYLOAD).valueString).toBe("Subscriptio prima");
-        expect(subInfos[1].getCube().getFirstField(cciFieldType.PAYLOAD).valueString).toBe("Subscriptio secunda");
+        expect(subInfos[0].getCube().getFirstField(FieldType.PAYLOAD).valueString).toBe("Subscriptio prima");
+        expect(subInfos[1].getCube().getFirstField(FieldType.PAYLOAD).valueString).toBe("Subscriptio secunda");
       });
 
       it('yields nothing if there are no subscriptions', async () => {
@@ -161,7 +161,7 @@ describe('Identity: CubeInfo generators', () => {
         const sub1: cciCube = cciCube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
-          fields: cciField.Payload("Subscriptio prima"),
+          fields: VerityField.Payload("Subscriptio prima"),
         });
         // note we missed adding this post to the CubeStore
         id.addPublicSubscription(sub1.getKeyIfAvailable());
@@ -169,7 +169,7 @@ describe('Identity: CubeInfo generators', () => {
         const sub2: cciCube = cciCube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
-          fields: cciField.Payload("Subscriptio secunda"),
+          fields: VerityField.Payload("Subscriptio secunda"),
         });
         await cubeStore.addCube(sub2);
         id.addPublicSubscription(sub2.getKeyIfAvailable());
@@ -180,7 +180,7 @@ describe('Identity: CubeInfo generators', () => {
         // check results
         expect(subInfos.length).toBe(1);
         expect(subInfos[0].key).toEqual(sub2.getKeyIfAvailable());
-        expect(subInfos[0].getCube().getFirstField(cciFieldType.PAYLOAD).valueString).toBe("Subscriptio secunda");
+        expect(subInfos[0].getCube().getFirstField(FieldType.PAYLOAD).valueString).toBe("Subscriptio secunda");
       });
     });
 
@@ -255,7 +255,7 @@ describe('Identity: CubeInfo generators', () => {
           // check results
           expect(cubeInfos.length).toBe(1);
           expect(cubeInfos[0].key).toEqual(id.key);
-          expect(cubeInfos[0].getCube().getFirstField(cciFieldType.USERNAME).valueString).toBe(id.name);
+          expect(cubeInfos[0].getCube().getFirstField(FieldType.USERNAME).valueString).toBe(id.name);
         });
 
         it('yield the Identity\'s own posts and subscriptions', async () => {
@@ -263,7 +263,7 @@ describe('Identity: CubeInfo generators', () => {
           const post1: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius primus"),
+            fields: VerityField.Payload("Nuntius primus"),
           });
           await cubeStore.addCube(post1);
           id.addPost(post1.getKeyIfAvailable());
@@ -271,7 +271,7 @@ describe('Identity: CubeInfo generators', () => {
           const post2: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius secundus"),
+            fields: VerityField.Payload("Nuntius secundus"),
           });
           await cubeStore.addCube(post2);
           id.addPost(post2.getKeyIfAvailable());
@@ -314,7 +314,7 @@ describe('Identity: CubeInfo generators', () => {
           const post: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius primus"),
+            fields: VerityField.Payload("Nuntius primus"),
           });
           await cubeStore.addCube(post);
           id.addPost(post.getKeyIfAvailable());
@@ -336,7 +336,7 @@ describe('Identity: CubeInfo generators', () => {
           const sub1Post: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius primus"),
+            fields: VerityField.Payload("Nuntius primus"),
           });
           await cubeStore.addCube(sub1Post);
           sub1.addPost(sub1Post.getKeyIfAvailable());
@@ -344,7 +344,7 @@ describe('Identity: CubeInfo generators', () => {
           const sub1Sub: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Subscriptio prima"),
+            fields: VerityField.Payload("Subscriptio prima"),
           });
           await cubeStore.addCube(sub1Sub);
           sub1.addPublicSubscription(sub1Sub.getKeyIfAvailable());
@@ -352,7 +352,7 @@ describe('Identity: CubeInfo generators', () => {
           const sub2Post: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius secundus"),
+            fields: VerityField.Payload("Nuntius secundus"),
           });
           await cubeStore.addCube(sub2Post);
           sub2.addPost(sub2Post.getKeyIfAvailable());
@@ -360,7 +360,7 @@ describe('Identity: CubeInfo generators', () => {
           const sub2Sub: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Subscriptio secunda"),
+            fields: VerityField.Payload("Subscriptio secunda"),
           });
           await cubeStore.addCube(sub2Sub);
           sub2.addPublicSubscription(sub2Sub.getKeyIfAvailable());
@@ -416,7 +416,7 @@ describe('Identity: CubeInfo generators', () => {
           const sub1Post: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius primus"),
+            fields: VerityField.Payload("Nuntius primus"),
           });
           await cubeStore.addCube(sub1Post);
           sub1.addPost(sub1Post.getKeyIfAvailable());
@@ -424,7 +424,7 @@ describe('Identity: CubeInfo generators', () => {
           const sub1Sub: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Subscriptio prima"),
+            fields: VerityField.Payload("Subscriptio prima"),
           });
           await cubeStore.addCube(sub1Sub);
           sub1.addPublicSubscription(sub1Sub.getKeyIfAvailable());
@@ -432,7 +432,7 @@ describe('Identity: CubeInfo generators', () => {
           const sub2Post: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius secundus"),
+            fields: VerityField.Payload("Nuntius secundus"),
           });
           await cubeStore.addCube(sub2Post);
           sub2.addPost(sub2Post.getKeyIfAvailable());
@@ -440,7 +440,7 @@ describe('Identity: CubeInfo generators', () => {
           const sub2Sub: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Subscriptio secunda"),
+            fields: VerityField.Payload("Subscriptio secunda"),
           });
           await cubeStore.addCube(sub2Sub);
           sub2.addPublicSubscription(sub2Sub.getKeyIfAvailable());
@@ -482,7 +482,7 @@ describe('Identity: CubeInfo generators', () => {
             const availablePost = cciCube.Create({
               cubeType: CubeType.PIC,
               requiredDifficulty: 0,
-              fields: cciField.Payload("Nuntius"),
+              fields: VerityField.Payload("Nuntius"),
             });
             await cubeStore.addCube(availablePost);
             id.addPost(availablePost.getKeyIfAvailable());

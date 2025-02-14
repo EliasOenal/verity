@@ -3,11 +3,11 @@ import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
 import { Cube } from "../../../src/core/cube/cube";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 
-import { cciFieldType, MediaTypes } from "../../../src/cci/cube/cciCube.definitions";
-import { cciField } from "../../../src/cci/cube/cciField";
+import { FieldType, MediaTypes } from "../../../src/cci/cube/cciCube.definitions";
+import { VerityField } from "../../../src/cci/cube/verityField";
 import { cciCube, cciFamily } from "../../../src/cci/cube/cciCube";
 import { Identity, IdentityOptions } from "../../../src/cci/identity/identity";
-import { cciFieldParsers, cciFields } from "../../../src/cci/cube/cciFields";
+import { cciFieldParsers, VerityFields } from "../../../src/cci/cube/verityFields";
 import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 import { Avatar, AvatarScheme } from "../../../src/cci/identity/avatar";
 
@@ -56,7 +56,7 @@ let cubeStore: CubeStore;
       await cubeStore.addCube(post);
       expect(postkey).toBeInstanceOf(Buffer);
       expect(original.getPostCount()).toEqual(1);
-      expect((await cubeStore.getCube(Array.from(original.getPostKeyStrings())[0]) as Cube).getFirstField(cciFieldType.PAYLOAD).value.toString('utf-8')).
+      expect((await cubeStore.getCube(Array.from(original.getPostKeyStrings())[0]) as Cube).getFirstField(FieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
 
       // compile ID into MUC
@@ -84,7 +84,7 @@ let cubeStore: CubeStore;
       expect(restored.avatar.seedString).toEqual("0102030405");
       expect(restored.getPostCount()).toEqual(1);
       expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as Cube).getFirstField(
-        cciFieldType.PAYLOAD).value.toString('utf-8')).
+        FieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
       expect(restored.encryptionPublicKey.equals(original.encryptionPublicKey)).toBeTruthy();
     }, 5000);
@@ -126,7 +126,7 @@ let cubeStore: CubeStore;
       expect(restored.avatar.scheme).toEqual(AvatarScheme.MULTIAVATAR);
       expect(restored.avatar.seedString).toEqual("0102030405");
       expect(restored.getPostCount()).toEqual(1);
-      expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as Cube).getFirstField(cciFieldType.PAYLOAD).value.toString('utf-8')).
+      expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as Cube).getFirstField(FieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
     }, 5000);
 
@@ -165,7 +165,7 @@ let cubeStore: CubeStore;
       const id: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       const muc = await id.store();
-      expect(muc.getFirstField(cciFieldType.AVATAR)).toBeUndefined();
+      expect(muc.getFirstField(FieldType.AVATAR)).toBeUndefined();
     });
   });
 
@@ -236,9 +236,9 @@ let cubeStore: CubeStore;
       const postA: cciCube = cciCube.MUC(postPubKey, postPrivKey, {
         requiredDifficulty: reducedDifficulty,
         fields: [
-          cciField.Application(("Test")),
-          cciField.MediaType(MediaTypes.TEXT),
-          cciField.Payload("Per mentionem ad aliam tabulam, circulum mentionis creo"),
+          VerityField.Application(("Test")),
+          VerityField.MediaType(MediaTypes.TEXT),
+          VerityField.Payload("Per mentionem ad aliam tabulam, circulum mentionis creo"),
           // post reference can only be added later as we don't know the key yet
         ]
       });
@@ -247,10 +247,10 @@ let cubeStore: CubeStore;
       const postB: cciCube = cciCube.Frozen({
         requiredDifficulty: reducedDifficulty,
         fields: [
-          cciField.Application(("Test")),
-          cciField.MediaType(MediaTypes.TEXT),
-          cciField.Payload("Hoc est ordinarius tabulae mentionem"),
-          cciField.RelatesTo(new cciRelationship(
+          VerityField.Application(("Test")),
+          VerityField.MediaType(MediaTypes.TEXT),
+          VerityField.Payload("Hoc est ordinarius tabulae mentionem"),
+          VerityField.RelatesTo(new cciRelationship(
             cciRelationshipType.MYPOST, keyA)),
         ]
       });
@@ -258,7 +258,7 @@ let cubeStore: CubeStore;
       await cubeStore.addCube(postB);
       // complete circular reference
       postA.insertFieldBeforeBackPositionals(
-        cciField.RelatesTo(new cciRelationship(
+        VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.MYPOST, keyB)));
       await postA.compile();
       await cubeStore.addCube(postA);
@@ -269,9 +269,9 @@ let cubeStore: CubeStore;
       const idMuc: cciCube = cciCube.MUC(idPubKey, idPrivKey, {
         requiredDifficulty: reducedDifficulty,
         fields: [
-          cciField.Application("ID"),
-          cciField.Username("Usor confusus"),
-          cciField.RelatesTo(new cciRelationship(
+          VerityField.Application("ID"),
+          VerityField.Username("Usor confusus"),
+          VerityField.RelatesTo(new cciRelationship(
             cciRelationshipType.MYPOST, keyB)),
         ]
       });
@@ -332,8 +332,8 @@ let cubeStore: CubeStore;
       expect(recovered_muc).toBeInstanceOf(cciCube);
 
       // First subscription recommendation index saved in MUC?
-      const fields: cciFields = recovered_muc.fields as cciFields;
-      expect(fields).toBeInstanceOf(cciFields);
+      const fields: VerityFields = recovered_muc.fields as VerityFields;
+      expect(fields).toBeInstanceOf(VerityFields);
       const rel: cciRelationship = fields.getFirstRelationship(
         cciRelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX
       );
@@ -349,7 +349,7 @@ let cubeStore: CubeStore;
       ) as cciCube;
       expect(firstIndexCube).toBeInstanceOf(cciCube);
       // First subscription recommendation index contains a subscription recommendation?
-      expect(firstIndexCube.fields).toBeInstanceOf(cciFields);
+      expect(firstIndexCube.fields).toBeInstanceOf(VerityFields);
       expect(firstIndexCube.fields.length).toBeGreaterThan(1);
       const subStored: cciRelationship = firstIndexCube.getFirstRelationship(
         cciRelationshipType.SUBSCRIPTION_RECOMMENDATION);
@@ -452,7 +452,7 @@ let cubeStore: CubeStore;
       const muc: cciCube = await id.makeMUC();
       expect(muc).toBeInstanceOf(cciCube);
       expect(muc.cubeType).toBe(CubeType.MUC_NOTIFY);
-      expect(muc.getFirstField(cciFieldType.NOTIFY).value.equals(notificationKey)).toBeTruthy();
+      expect(muc.getFirstField(FieldType.NOTIFY).value.equals(notificationKey)).toBeTruthy();
     });
 
     it.todo('includes an APPLICATION field if requested');

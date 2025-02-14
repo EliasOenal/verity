@@ -1,6 +1,6 @@
 import { cciCube, cciFamily } from "../../../src/cci/cube/cciCube";
-import { MediaTypes, cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
-import { cciField } from "../../../src/cci/cube/cciField";
+import { MediaTypes, FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { VerityField } from "../../../src/cci/cube/verityField";
 import { Continuation } from "../../../src/cci/veritum/continuation";
 import { Veritum } from "../../../src/cci/veritum/veritum";
 import { coreCubeFamily } from "../../../src/core/cube/cube";
@@ -17,9 +17,9 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 const requiredDifficulty = 0;
 
 describe('Veritum', () => {
-  const applicationField = cciField.Application("contentum probationis non applicationis");
-  const mediaTypeField = cciField.MediaType(MediaTypes.TEXT);
-  const payloadField = cciField.Payload("Hoc veritum probatio est");
+  const applicationField = VerityField.Application("contentum probationis non applicationis");
+  const mediaTypeField = VerityField.MediaType(MediaTypes.TEXT);
+  const payloadField = VerityField.Payload("Hoc veritum probatio est");
 
   let publicKey: Buffer;
   let privateKey: Buffer;
@@ -83,12 +83,12 @@ describe('Veritum', () => {
         const copiedVeritum = new Veritum(originalVeritum);
 
         // Modify the copied instance
-        copiedVeritum.appendField(cciField.ContentName("original had no name"));
+        copiedVeritum.appendField(VerityField.ContentName("original had no name"));
 
         // Ensure the original instance remains unchanged
         expect(originalVeritum.fieldsEqual(copiedVeritum)).toBe(false);
-        expect(copiedVeritum.getFirstField(cciFieldType.CONTENTNAME)).toBeDefined();
-        expect(originalVeritum.getFirstField(cciFieldType.CONTENTNAME)).toBeUndefined();
+        expect(copiedVeritum.getFirstField(FieldType.CONTENTNAME)).toBeDefined();
+        expect(originalVeritum.getFirstField(FieldType.CONTENTNAME)).toBeUndefined();
       });
     });
   });
@@ -127,10 +127,10 @@ describe('Veritum', () => {
     describe('key getters', () => {
       enumNums(CubeType).forEach((cubeType) => {
         [1, 2, 3].forEach((chunkNo) => {
-          let payloadField: cciField;
-          if (chunkNo === 1) payloadField = cciField.Payload("Cubus unicus sum");
-          else if (chunkNo === 2) payloadField = cciField.Payload(tooLong);
-          else payloadField = cciField.Payload(evenLonger);
+          let payloadField: VerityField;
+          if (chunkNo === 1) payloadField = VerityField.Payload("Cubus unicus sum");
+          else if (chunkNo === 2) payloadField = VerityField.Payload(tooLong);
+          else payloadField = VerityField.Payload(evenLonger);
           ['non-compiled', 'compiled', 'reactivated'].forEach((state) => {
             describe(`key getter tests for a ${state} ${chunkNo}-chunk ${CubeType[cubeType]} Veritum`, () => {
               let veritum: Veritum;
@@ -259,20 +259,20 @@ describe('Veritum', () => {
         const compiled: cciCube[] = Array.from(cubesIterable);
         expect(compiled.length).toBe(1);
         expect(compiled[0].cubeType).toBe(CubeType.FROZEN);
-        expect(compiled[0].getFirstField(cciFieldType.PAYLOAD)).toEqual(payloadField);
+        expect(compiled[0].getFirstField(FieldType.PAYLOAD)).toEqual(payloadField);
       });
 
       it('compiles a long frozen Veritum to multiple Frozen Cubes', async() => {
         const veritum = new Veritum({
-          cubeType: CubeType.FROZEN, fields: cciField.Payload(tooLong), requiredDifficulty});
+          cubeType: CubeType.FROZEN, fields: VerityField.Payload(tooLong), requiredDifficulty});
         await veritum.compile({requiredDifficulty});
         expect(veritum.chunks).toHaveLength(2);
 
         // expect both chunks to contain a (partial) PAYLOAD field
         // and the first chunk to contain a reference to the second
-        expect(veritum.chunks[0].getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
-        expect(veritum.chunks[1].getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
-        const refField: cciField = veritum.chunks[0].getFirstField(cciFieldType.RELATES_TO);
+        expect(veritum.chunks[0].getFirstField(FieldType.PAYLOAD)).toBeDefined();
+        expect(veritum.chunks[1].getFirstField(FieldType.PAYLOAD)).toBeDefined();
+        const refField: VerityField = veritum.chunks[0].getFirstField(FieldType.RELATES_TO);
         const ref = cciRelationship.fromField(refField);
         expect(ref.type).toEqual(cciRelationshipType.CONTINUED_IN);
         expect(ref.remoteKey).toBeInstanceOf(Buffer);
@@ -280,7 +280,7 @@ describe('Veritum', () => {
 
         const restored = Continuation.Recombine(veritum.chunks);
         expect(restored.cubeType).toBe(CubeType.FROZEN);
-        expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
+        expect(restored.getFirstField(FieldType.PAYLOAD).valueString).toEqual(
           tooLong);
       });
 
@@ -319,7 +319,7 @@ describe('Veritum', () => {
         });
 
         it('returns false for two Veritum instances with different field values', () => {
-          const differentPayloadField = cciField.Payload("Different payload");
+          const differentPayloadField = VerityField.Payload("Different payload");
           const veritum1 = new Veritum({
             cubeType: CubeType.FROZEN,
             fields: [applicationField, mediaTypeField, payloadField],
@@ -448,7 +448,7 @@ describe('Veritum', () => {
             cubeType: CubeType.FROZEN,
             fields: [applicationField, mediaTypeField, payloadField],
           });
-          const fields = Array.from(veritum.getFields(cciFieldType.PAYLOAD));
+          const fields = Array.from(veritum.getFields(FieldType.PAYLOAD));
           expect(fields.length).toBe(1);
           expect(fields[0]).toBe(payloadField);
         });
@@ -462,7 +462,7 @@ describe('Veritum', () => {
             cubeType: CubeType.FROZEN,
             fields: [applicationField, mediaTypeField, payloadField],
           });
-          const field = veritum.getFirstField(cciFieldType.PAYLOAD);
+          const field = veritum.getFirstField(FieldType.PAYLOAD);
           expect(field).toBe(payloadField);
         });
 
@@ -471,7 +471,7 @@ describe('Veritum', () => {
             cubeType: CubeType.FROZEN,
             fields: [applicationField, mediaTypeField],
           });
-          const field = veritum.getFirstField(cciFieldType.PAYLOAD);
+          const field = veritum.getFirstField(FieldType.PAYLOAD);
           expect(field).toBeUndefined();
         });
       });
@@ -519,11 +519,11 @@ describe('Veritum', () => {
             cubeType: CubeType.FROZEN,
             fields: [applicationField, payloadField],
           });
-          veritum.insertFieldBefore(cciFieldType.PAYLOAD, mediaTypeField);
+          veritum.insertFieldBefore(FieldType.PAYLOAD, mediaTypeField);
           expect(veritum.fieldCount).toBe(3);
-          expect(veritum.getFields()[0].type).toBe(cciFieldType.APPLICATION);
-          expect(veritum.getFields()[1].type).toBe(cciFieldType.MEDIA_TYPE);
-          expect(veritum.getFields()[2].type).toBe(cciFieldType.PAYLOAD);
+          expect(veritum.getFields()[0].type).toBe(FieldType.APPLICATION);
+          expect(veritum.getFields()[1].type).toBe(FieldType.MEDIA_TYPE);
+          expect(veritum.getFields()[2].type).toBe(FieldType.PAYLOAD);
         });
       });
 
@@ -537,7 +537,7 @@ describe('Veritum', () => {
             cubeType: CubeType.FROZEN,
             fields: [mediaTypeField, payloadField],
           });
-          veritum.ensureFieldInFront(cciFieldType.APPLICATION, applicationField);
+          veritum.ensureFieldInFront(FieldType.APPLICATION, applicationField);
           expect(veritum.fieldCount).toBe(3);
           expect(veritum.getFields()[0]).toBe(applicationField);
         });
@@ -551,7 +551,7 @@ describe('Veritum', () => {
             cubeType: CubeType.FROZEN,
             fields: [applicationField, mediaTypeField],
           });
-          veritum.ensureFieldInBack(cciFieldType.PAYLOAD, payloadField);
+          veritum.ensureFieldInBack(FieldType.PAYLOAD, payloadField);
           expect(veritum.fieldCount).toBe(3);
           expect(veritum.getFields()[2]).toBe(payloadField);
         });
@@ -567,7 +567,7 @@ describe('Veritum', () => {
           });
           veritum.removeField(mediaTypeField);
           expect(veritum.fieldCount).toBe(2);
-          expect(veritum.getFirstField(cciFieldType.MEDIA_TYPE)).toBeUndefined();
+          expect(veritum.getFirstField(FieldType.MEDIA_TYPE)).toBeUndefined();
         });
 
         it('removes a field from the Veritum by index', () => {
@@ -577,7 +577,7 @@ describe('Veritum', () => {
           });
           veritum.removeField(1);
           expect(veritum.fieldCount).toBe(2);
-          expect(veritum.getFirstField(cciFieldType.MEDIA_TYPE)).toBeUndefined();
+          expect(veritum.getFirstField(FieldType.MEDIA_TYPE)).toBeUndefined();
         });
       });
 

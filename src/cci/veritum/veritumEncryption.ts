@@ -4,9 +4,9 @@ import { Veritable } from "../../core/cube/veritable.definition";
 import { logger } from "../../core/logger";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 import { cciCube } from "../cube/cciCube";
-import { cciFieldLength, cciFieldType } from "../cube/cciCube.definitions";
-import { cciField } from "../cube/cciField";
-import { cciFields } from "../cube/cciFields";
+import { FieldLength, FieldType } from "../cube/cciCube.definitions";
+import { VerityField } from "../cube/verityField";
+import { VerityFields } from "../cube/verityFields";
 import { CciDecryptionParams, Decrypt } from "./chunkDecryption";
 import { CciEncryptionParams, EncryptionPrepareParams, EncryptionOverheadBytes, EncryptionHashNonces, CryptStateOutput, EncryptPrePlanned, EncryptionHashNonce, EncryptionOverheadBytesCalc, CryptoError, EncryptionRandomNonce } from "./chunkEncryption";
 import { Continuation, SplitState } from "./continuation";
@@ -123,7 +123,7 @@ export class ChunkEncryptionHelper {
       // All prep done, perform chunk encryption.
       const encRes: CryptStateOutput = EncryptPrePlanned(
         chunk.manipulateFields(), chunkParams);
-      const encryptedFields: cciFields = encRes.result;
+      const encryptedFields: VerityFields = encRes.result;
       chunk.setFields(encryptedFields);
     }
   }
@@ -182,7 +182,7 @@ export class ChunkEncryptionHelper {
     const demoChunk = cciCube.Create({
       ...this.options,
       cubeType: veritable.cubeType,
-      fields: cciField.Encrypted(Buffer.alloc(0)),
+      fields: VerityField.Encrypted(Buffer.alloc(0)),
       requiredDifficulty: 0,  // just a demo Cube
     });
 
@@ -190,9 +190,9 @@ export class ChunkEncryptionHelper {
     // Besides key distribution information, the chunk must at least be able to
     // fit a reference to the next chunk
     const maxDistBytesPerKeyChunk: number = bytesPerKeyChunk -
-      cciFieldLength[cciFieldType.RELATES_TO] -
+      FieldLength[FieldType.RELATES_TO] -
       veritable.family.parsers[veritable.cubeType].getFieldHeaderLength(
-        cciFieldType.RELATES_TO
+        FieldType.RELATES_TO
       );
     // Will we need any key slots, and if so, how many?
     this.keySlotsPerChunk = this.encryptionSchemeParams.keyslotHeader?
@@ -317,7 +317,7 @@ export function ChunkDecrypt(
         decryptParams.preSharedKey = decryptOutput.symmetricKey;
         decryptParams.predefinedNonce = EncryptionHashNonce(decryptOutput.nonce);
       }
-      const decryptedFields: cciFields = decryptOutput?.result;
+      const decryptedFields: VerityFields = decryptOutput?.result;
       if (decryptedFields) {  // if decryption successful
         const decryptedChunk = new chunk.family.cubeClass(
         chunk.cubeType, {
@@ -343,7 +343,7 @@ export function ChunkDecrypt(
     // an empty Veritum rather than a bunch of useless ciphertext.
     options.exclude = [
       ...(options.exclude ?? Continuation.ContinuationDefaultExclusions),
-      cciFieldType.ENCRYPTED,
+      FieldType.ENCRYPTED,
     ]
     return transformedChunks;
   } else {

@@ -6,7 +6,7 @@ import { CubeStore } from "../../../../src/core/cube/cubeStore";
 
 import { MediaTypes } from "../../../../src/cci/cube/cciCube.definitions";
 import { cciCube, cciFamily } from "../../../../src/cci/cube/cciCube";
-import { cciField} from "../../../../src/cci/cube/cciField";
+import { VerityField} from "../../../../src/cci/cube/verityField";
 import { cciRelationshipType, cciRelationship } from "../../../../src/cci/cube/cciRelationship";
 import { Identity, IdentityOptions } from "../../../../src/cci/identity/identity";
 
@@ -86,10 +86,10 @@ describe('ZwAnnotationEngine', () => {
 
         const referrer: cciCube = cciCube.Frozen({
           fields: [
-            cciField.Application("ZW"),
-            cciField.MediaType(MediaTypes.TEXT),
-            cciField.Payload("I will reply to everybody at one and NO ONE CAN STOP ME AHAHAHAHAHAHAHAHAHAHAHA!!!!!!!!1111"),
-            cciField.RelatesTo(
+            VerityField.Application("ZW"),
+            VerityField.MediaType(MediaTypes.TEXT),
+            VerityField.Payload("I will reply to everybody at one and NO ONE CAN STOP ME AHAHAHAHAHAHAHAHAHAHAHA!!!!!!!!1111"),
+            VerityField.RelatesTo(
               new cciRelationship(cciRelationshipType.REPLY_TO, await referee.getKey())),
             // TODO FIXME actually include another REPLY_TO?!?!?!?!?!
           ],
@@ -399,7 +399,7 @@ describe('ZwAnnotationEngine', () => {
           Buffer.from(keys.publicKey),
           Buffer.from(keys.privateKey),
           {
-            fields: cciField.Payload("hoc non est identitatis"),
+            fields: VerityField.Payload("hoc non est identitatis"),
             family: cciFamily, requiredDifficulty: reducedDifficulty
           });
         await cubeStore.addCube(muc);
@@ -543,7 +543,7 @@ describe('ZwAnnotationEngine', () => {
           Buffer.from(unrelatedKeys.publicKey),
           Buffer.from(unrelatedKeys.privateKey),
           {
-            fields: cciField.Payload("I am some other application's MUC"),
+            fields: VerityField.Payload("I am some other application's MUC"),
             family: cciFamily,
             requiredDifficulty: reducedDifficulty
           }));

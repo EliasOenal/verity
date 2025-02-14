@@ -6,35 +6,35 @@ import { CubeFields, FieldParserTable } from "../../core/cube/cubeFields";
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
 import { CubeType, FrozenDefaultFields, FrozenNotifyDefaultFields, FrozenNotifyPositionalBack, FrozenPositionalBack, FrozenPositionalFront, MucDefaultFields, MucNotifyDefaultFields, MucNotifyPositionalBack, MucPositionalBack, MucPositionalFront, PicDefaultFields, PicNotifyDefaultFields, PicNotifyPositionalBack, PicPositionalBack, PicPositionalFront, PmucDefaultFields, PmucNotifyDefaultFields, PmucNotifyPositionalBack, PmucPositionalBack, PmucPositionalFront } from "../../core/cube/cube.definitions";
 
-import { cciFieldType, cciFieldLength } from "./cciCube.definitions";
-import { cciField } from "./cciField";
+import { FieldType, FieldLength } from "./cciCube.definitions";
+import { VerityField } from "./verityField";
 import { cciRelationship } from "./cciRelationship";
 
 import { Buffer } from 'buffer'
 import { logger } from "../../core/logger";
 
 /**
- * A cciFields object is a wrapper object for the list of fields contained
- * in a CCI-compliant Cube.
+ * A VerityFields object is a wrapper object for the list of fields contained
+ * in a Veritum or CCI-compliant Cube.
  */
-export class cciFields extends CubeFields {
+export class VerityFields extends CubeFields {
   static Frozen(
     data: CubeFields | CubeField[] | CubeField = [],
     fieldDefinition: FieldDefinition = cciFrozenFieldDefinition
-  ): cciFields {
-    return super.Frozen(data, fieldDefinition) as cciFields;
+  ): VerityFields {
+    return super.Frozen(data, fieldDefinition) as VerityFields;
   }
 
   static Muc(
     publicKey: Buffer | Uint8Array,
     data: CubeFields | CubeField[] | CubeField = [],
     fieldDefinition: FieldDefinition = cciMucFieldDefinition
-  ): cciFields {
-    return super.Muc(publicKey, data, fieldDefinition) as cciFields;
+  ): VerityFields {
+    return super.Muc(publicKey, data, fieldDefinition) as VerityFields;
   }
 
   constructor(
-      data: cciFields | Array<cciField> | cciField | undefined,
+      data: VerityFields | Array<VerityField> | VerityField | undefined,
       fieldDefinition: FieldDefinition) {
     super(data, fieldDefinition);
   }
@@ -45,7 +45,7 @@ export class cciFields extends CubeFields {
   * @return An array of Relationship objects, which may be empty.
   */
   public getRelationships(type?: number): Array<cciRelationship> {
-    const relationshipfields = this.get(cciFieldType.RELATES_TO);
+    const relationshipfields = this.get(FieldType.RELATES_TO);
     const ret = [];
     for (const relationshipfield of relationshipfields) {
       const relationship: cciRelationship =
@@ -92,92 +92,92 @@ export class cciFields extends CubeFields {
 // For the same reason, cciFamily is defined in the same file as cciCube.
 // Javascript is crazy.
 export const cciFrozenFieldDefinition: FieldDefinition = {
-  fieldNames: cciFieldType,
-  fieldLengths: cciFieldLength,
+  fieldNames: FieldType,
+  fieldLengths: FieldLength,
   positionalFront: FrozenPositionalFront,
   positionalBack: FrozenPositionalBack,
-  fieldObjectClass: cciField,
-  fieldsObjectClass: cciFields,
+  fieldObjectClass: VerityField,
+  fieldsObjectClass: VerityFields,
   defaultField: FrozenDefaultFields,
-  stopField: cciFieldType.CCI_END,
-  remainderField: cciFieldType.REMAINDER,
+  stopField: FieldType.CCI_END,
+  remainderField: FieldType.REMAINDER,
 };
 export const cciFrozenNotifyFieldDefinition: FieldDefinition = {
-  fieldNames: cciFieldType,
-  fieldLengths: cciFieldLength,
+  fieldNames: FieldType,
+  fieldLengths: FieldLength,
   positionalFront: FrozenPositionalFront,
   positionalBack: FrozenNotifyPositionalBack,
-  fieldObjectClass: cciField,
-  fieldsObjectClass: cciFields,
+  fieldObjectClass: VerityField,
+  fieldsObjectClass: VerityFields,
   defaultField: FrozenNotifyDefaultFields,
-  stopField: cciFieldType.CCI_END,
-  remainderField: cciFieldType.REMAINDER,
+  stopField: FieldType.CCI_END,
+  remainderField: FieldType.REMAINDER,
 };
 export const cciPicFieldDefinition: FieldDefinition = {
-  fieldNames: cciFieldType,
-  fieldLengths: cciFieldLength,
+  fieldNames: FieldType,
+  fieldLengths: FieldLength,
   positionalFront: PicPositionalFront,
   positionalBack: PicPositionalBack,
-  fieldObjectClass: cciField,
-  fieldsObjectClass: cciFields,
+  fieldObjectClass: VerityField,
+  fieldsObjectClass: VerityFields,
   defaultField: PicDefaultFields,
-  stopField: cciFieldType.CCI_END,
-  remainderField: cciFieldType.REMAINDER,
+  stopField: FieldType.CCI_END,
+  remainderField: FieldType.REMAINDER,
 };
 export const cciPicNotifyFieldDefinition: FieldDefinition = {
-  fieldNames: cciFieldType,
-  fieldLengths: cciFieldLength,
+  fieldNames: FieldType,
+  fieldLengths: FieldLength,
   positionalFront: PicPositionalFront,
   positionalBack: PicNotifyPositionalBack,
-  fieldObjectClass: cciField,
-  fieldsObjectClass: cciFields,
+  fieldObjectClass: VerityField,
+  fieldsObjectClass: VerityFields,
   defaultField: PicNotifyDefaultFields,
-  stopField: cciFieldType.CCI_END,
-  remainderField: cciFieldType.REMAINDER,
+  stopField: FieldType.CCI_END,
+  remainderField: FieldType.REMAINDER,
 };
 export const cciMucFieldDefinition: FieldDefinition = {
-  fieldNames: cciFieldType,
-  fieldLengths: cciFieldLength,
+  fieldNames: FieldType,
+  fieldLengths: FieldLength,
   positionalFront: MucPositionalFront,
   positionalBack: MucPositionalBack,
-  fieldObjectClass: cciField,
-  fieldsObjectClass: cciFields,
+  fieldObjectClass: VerityField,
+  fieldsObjectClass: VerityFields,
   defaultField: MucDefaultFields,
-  stopField: cciFieldType.CCI_END,
-  remainderField: cciFieldType.REMAINDER,
+  stopField: FieldType.CCI_END,
+  remainderField: FieldType.REMAINDER,
 };
 export const cciMucNotifyFieldDefinition: FieldDefinition = {
-  fieldNames: cciFieldType,
-  fieldLengths: cciFieldLength,
+  fieldNames: FieldType,
+  fieldLengths: FieldLength,
   positionalFront: MucPositionalFront,
   positionalBack: MucNotifyPositionalBack,
-  fieldObjectClass: cciField,
-  fieldsObjectClass: cciFields,
+  fieldObjectClass: VerityField,
+  fieldsObjectClass: VerityFields,
   defaultField: MucNotifyDefaultFields,
-  stopField: cciFieldType.CCI_END,
-  remainderField: cciFieldType.REMAINDER,
+  stopField: FieldType.CCI_END,
+  remainderField: FieldType.REMAINDER,
 };
 export const cciPmucFieldDefinition: FieldDefinition = {
-  fieldNames: cciFieldType,
-  fieldLengths: cciFieldLength,
+  fieldNames: FieldType,
+  fieldLengths: FieldLength,
   positionalFront: PmucPositionalFront,
   positionalBack: PmucPositionalBack,
-  fieldObjectClass: cciField,
-  fieldsObjectClass: cciFields,
+  fieldObjectClass: VerityField,
+  fieldsObjectClass: VerityFields,
   defaultField: PmucDefaultFields,
-  stopField: cciFieldType.CCI_END,
-  remainderField: cciFieldType.REMAINDER,
+  stopField: FieldType.CCI_END,
+  remainderField: FieldType.REMAINDER,
 };
 export const cciPmucNotifyFieldDefinition: FieldDefinition = {
-  fieldNames: cciFieldType,
-  fieldLengths: cciFieldLength,
+  fieldNames: FieldType,
+  fieldLengths: FieldLength,
   positionalFront: PmucPositionalFront,
   positionalBack: PmucNotifyPositionalBack,
-  fieldObjectClass: cciField,
-  fieldsObjectClass: cciFields,
+  fieldObjectClass: VerityField,
+  fieldsObjectClass: VerityFields,
   defaultField: PmucNotifyDefaultFields,
-  stopField: cciFieldType.CCI_END,
-  remainderField: cciFieldType.REMAINDER,
+  stopField: FieldType.CCI_END,
+  remainderField: FieldType.REMAINDER,
 };
 export const cciFrozenParser: FieldParser = new FieldParser(cciFrozenFieldDefinition);
 export const cciFrozenNotifyParser: FieldParser = new FieldParser(cciFrozenNotifyFieldDefinition);

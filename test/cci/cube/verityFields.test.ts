@@ -1,24 +1,24 @@
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
-import { cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { cciCube } from "../../../src/cci/cube/cciCube";
-import { cciField } from "../../../src/cci/cube/cciField";
-import { cciFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../../src/cci/cube/cciFields";
+import { VerityField } from "../../../src/cci/cube/verityField";
+import { VerityFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../../src/cci/cube/verityFields";
 import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
-describe('cciFields', () => {
+describe('VerityFields', () => {
   describe('constructor', () => {
     it('should initialize with empty data if no data provided', () => {
-      const fields = new cciFields(undefined, cciFrozenFieldDefinition);
+      const fields = new VerityFields(undefined, cciFrozenFieldDefinition);
       expect(fields.length).toBe(0);
       expect(fields.getByteLength()).toBe(0);
     });
 
     it('should initialize with provided data', () => {
-      const data = [new cciField(1, Buffer.from('value1')), new cciField(2, Buffer.from('value2'))];
-      const fields = new cciFields(data, cciFrozenFieldDefinition);
+      const data = [new VerityField(1, Buffer.from('value1')), new VerityField(2, Buffer.from('value2'))];
+      const fields = new VerityFields(data, cciFrozenFieldDefinition);
       expect(fields.length).toBe(2);
     });
   });
@@ -34,103 +34,103 @@ describe('cciFields', () => {
       const custom3 = 'qui hoc legit stultus est';
       const username = 'usus applicationis valde peculiaris';
 
-      const fields = cciFields.Frozen([
-        cciField.Application(application),
-        cciField.ContentName(contentName),
-        new cciField(cciFieldType.CUSTOM1, custom1),
-        cciField.RelatesTo(new cciRelationship(
+      const fields = VerityFields.Frozen([
+        VerityField.Application(application),
+        VerityField.ContentName(contentName),
+        new VerityField(FieldType.CUSTOM1, custom1),
+        VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
-        new cciField(cciFieldType.CUSTOM2, custom2),
-        cciField.Username(username),
-        new cciField(cciFieldType.CUSTOM3, custom3),
+        new VerityField(FieldType.CUSTOM2, custom2),
+        VerityField.Username(username),
+        new VerityField(FieldType.CUSTOM3, custom3),
       ]);
 
       expect(fields.length).toBeGreaterThan(7);
       expect(fields.getByteLength()).toBeGreaterThan(120);
-      expect(fields.getFirst(cciFieldType.APPLICATION).valueString).toBe(application);
-      expect(fields.getFirst(cciFieldType.CONTENTNAME).valueString).toBe(contentName);
-      expect(fields.getFirst(cciFieldType.CUSTOM1).valueString).toBe(custom1);
-      expect(fields.getFirst(cciFieldType.CUSTOM2).value).toEqual(custom2);
-      expect(fields.getFirst(cciFieldType.USERNAME).valueString).toBe(username);
-      expect(fields.getFirst(cciFieldType.CUSTOM3).valueString).toBe(custom3);
+      expect(fields.getFirst(FieldType.APPLICATION).valueString).toBe(application);
+      expect(fields.getFirst(FieldType.CONTENTNAME).valueString).toBe(contentName);
+      expect(fields.getFirst(FieldType.CUSTOM1).valueString).toBe(custom1);
+      expect(fields.getFirst(FieldType.CUSTOM2).value).toEqual(custom2);
+      expect(fields.getFirst(FieldType.USERNAME).valueString).toBe(username);
+      expect(fields.getFirst(FieldType.CUSTOM3).valueString).toBe(custom3);
 
       const compiled: Buffer = cciFrozenParser.compileFields(fields);
       expect(compiled).toBeInstanceOf(Buffer);
       expect(compiled.length).toBe(fields.getByteLength());
 
-      const restored: cciFields = cciFrozenParser.decompileFields(compiled) as cciFields;
+      const restored: VerityFields = cciFrozenParser.decompileFields(compiled) as VerityFields;
       expect(restored.length).toBe(fields.length);
       expect(restored.getByteLength()).toBe(fields.getByteLength());
-      expect(restored.getFirst(cciFieldType.APPLICATION).valueString).toBe(application);
-      expect(restored.getFirst(cciFieldType.CONTENTNAME).valueString).toBe(contentName);
-      expect(restored.getFirst(cciFieldType.CUSTOM1).valueString).toBe(custom1);
-      expect(restored.getFirst(cciFieldType.CUSTOM2).value).toEqual(custom2);
-      expect(restored.getFirst(cciFieldType.USERNAME).valueString).toBe(username);
-      expect(restored.getFirst(cciFieldType.CUSTOM3).valueString).toBe(custom3);
+      expect(restored.getFirst(FieldType.APPLICATION).valueString).toBe(application);
+      expect(restored.getFirst(FieldType.CONTENTNAME).valueString).toBe(contentName);
+      expect(restored.getFirst(FieldType.CUSTOM1).valueString).toBe(custom1);
+      expect(restored.getFirst(FieldType.CUSTOM2).value).toEqual(custom2);
+      expect(restored.getFirst(FieldType.USERNAME).valueString).toBe(username);
+      expect(restored.getFirst(FieldType.CUSTOM3).valueString).toBe(custom3);
     });
   });
 
   describe('getRelationships', () => {
     it('should return empty array if no relationships found', () => {
-      const fields = new cciFields(undefined, cciFrozenFieldDefinition);
+      const fields = new VerityFields(undefined, cciFrozenFieldDefinition);
       expect(fields.getRelationships()).toEqual([]);
     });
 
     it('should return relationships of specified type if provided', () => {
       const rels = [
-        cciField.RelatesTo(new cciRelationship(
+        VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.MYPOST,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
-        cciField.RelatesTo(new cciRelationship(
+        VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
-        cciField.RelatesTo(new cciRelationship(
+        VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.MYPOST,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(43))),
-        cciField.RelatesTo(new cciRelationship(
+        VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(138))),
       ];
-      const fields = new cciFields(rels, cciFrozenFieldDefinition);
+      const fields = new VerityFields(rels, cciFrozenFieldDefinition);
       expect(fields.getRelationships(cciRelationshipType.MYPOST).length).toBe(2);
     });
 
     it('should return all relationships if type not provided', () => {
       const rels = [
-        cciField.RelatesTo(new cciRelationship(
+        VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.MYPOST,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
-        cciField.RelatesTo(new cciRelationship(
+        VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
-        cciField.RelatesTo(new cciRelationship(
+        VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.MYPOST,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(43))),
-        cciField.RelatesTo(new cciRelationship(
+        VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(138))),
       ];
-      const fields = new cciFields(rels, cciFrozenFieldDefinition);
+      const fields = new VerityFields(rels, cciFrozenFieldDefinition);
       expect(fields.getRelationships().length).toBe(4);
     });
   });
 
   describe('getFirstRelationship', () => {
     it('should return undefined if no relationships found', () => {
-      const fields = new cciFields(undefined, cciFrozenFieldDefinition);
+      const fields = new VerityFields(undefined, cciFrozenFieldDefinition);
       expect(fields.getFirstRelationship()).toBeUndefined();
     });
 
     it('should return first relationship of specified type if provided', () => {
       const rels = [
-        cciField.RelatesTo(new cciRelationship(
+        VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.MYPOST,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
-        cciField.RelatesTo(new cciRelationship(
+        VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
       ];
-      const fields = new cciFields(rels, cciFrozenFieldDefinition);
+      const fields = new VerityFields(rels, cciFrozenFieldDefinition);
       expect(fields.getFirstRelationship(
         cciRelationshipType.SUBSCRIPTION_RECOMMENDATION).type).toBe(
           cciRelationshipType.SUBSCRIPTION_RECOMMENDATION);
@@ -141,14 +141,14 @@ describe('cciFields', () => {
 
     it('should return first relationship if type not provided', () => {
       const rels = [
-        cciField.RelatesTo(new cciRelationship(
+        VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.MYPOST,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
-        cciField.RelatesTo(new cciRelationship(
+        VerityField.RelatesTo(new cciRelationship(
           cciRelationshipType.SUBSCRIPTION_RECOMMENDATION,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
       ];
-      const fields = new cciFields(rels, cciFrozenFieldDefinition);
+      const fields = new VerityFields(rels, cciFrozenFieldDefinition);
       expect(fields.getFirstRelationship().type).toBe(
         cciRelationshipType.MYPOST);
       expect(fields.getFirstRelationship().remoteKey).toEqual(
@@ -157,11 +157,11 @@ describe('cciFields', () => {
 
     it('correctly sets and retrieves a reply_to relationship field in a full stack test', async () => {
       const root: cciCube = cciCube.Frozen(
-        { fields: cciField.Payload(Buffer.alloc(200)) });
+        { fields: VerityField.Payload(Buffer.alloc(200)) });
       const leaf: cciCube = cciCube.Frozen({
         fields: [
-          cciField.Payload(Buffer.alloc(200)),
-          cciField.RelatesTo(new cciRelationship(
+          VerityField.Payload(Buffer.alloc(200)),
+          VerityField.RelatesTo(new cciRelationship(
             cciRelationshipType.REPLY_TO, (await root.getKey())))
         ]
       });
@@ -175,9 +175,9 @@ describe('cciFields', () => {
 
   describe('insertTillFull', () => {
     it('should insert fields until cube is full', () => {
-      const fields = new cciFields([], cciFrozenFieldDefinition);
+      const fields = new VerityFields([], cciFrozenFieldDefinition);
       const latinBraggery = "Nullo campo iterari in aeternum potest";
-      const field = cciField.Payload(latinBraggery);
+      const field = VerityField.Payload(latinBraggery);
       const spaceAvailable = NetConstants.CUBE_SIZE;
       const spacePerField = NetConstants.FIELD_TYPE_SIZE + NetConstants.FIELD_LENGTH_SIZE + latinBraggery.length;
       const fittingFieldCount = Math.floor(spaceAvailable / spacePerField);

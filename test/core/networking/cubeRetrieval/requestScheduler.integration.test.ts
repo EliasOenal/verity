@@ -2,8 +2,8 @@ import type { NetworkPeerIf } from 'core/networking/networkPeerIf';
 import type { CubeSubscription } from '../../../../src/core/networking/cubeRetrieval/pendingRequest';
 
 import { cciFamily, cciCube } from "../../../../src/cci/cube/cciCube";
-import { cciFieldType } from "../../../../src/cci/cube/cciCube.definitions";
-import { cciField } from "../../../../src/cci/cube/cciField";
+import { FieldType } from "../../../../src/cci/cube/cciCube.definitions";
+import { VerityField } from "../../../../src/cci/cube/verityField";
 import { CubeKey } from "../../../../src/core/cube/cube.definitions";
 import { Cube } from "../../../../src/core/cube/cube";
 import { CubeStoreOptions, CubeStore } from "../../../../src/core/cube/cubeStore";
@@ -92,8 +92,8 @@ describe('RequestScheduler integration tests', () => {
       {
         requiredDifficulty: reducedDifficulty,
         fields: [
-          cciField.ContentName("Hic cubus usoris mutabilis valde mutabilis est"),
-          cciField.Payload("primum hoc dico"),
+          VerityField.ContentName("Hic cubus usoris mutabilis valde mutabilis est"),
+          VerityField.Payload("primum hoc dico"),
         ]
       }
     );
@@ -117,7 +117,7 @@ describe('RequestScheduler integration tests', () => {
     expect(remoteToLocal.cubeSubscriptions).toContain(keyVariants(mucKey).keyString);
 
     // remote updates MUC
-    muc.getFirstField(cciFieldType.PAYLOAD).value =
+    muc.getFirstField(FieldType.PAYLOAD).value =
       Buffer.from("deinde iliud dico", 'ascii');
     muc.setDate(1715704520);  // a bit later than the last version
     await muc.compile();
@@ -132,7 +132,7 @@ describe('RequestScheduler integration tests', () => {
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect((await local.cubeStore.getCube(mucKey)).getFirstField(
-      cciFieldType.PAYLOAD).valueString).toBe("deinde iliud dico");
+      FieldType.PAYLOAD).valueString).toBe("deinde iliud dico");
   });
 
 
@@ -150,8 +150,8 @@ describe('RequestScheduler integration tests', () => {
       {
         requiredDifficulty: reducedDifficulty,
         fields: [
-          cciField.ContentName("Hic cubus usoris mutabilis valde mutabilis est"),
-          cciField.Payload("primum hoc dico"),
+          VerityField.ContentName("Hic cubus usoris mutabilis valde mutabilis est"),
+          VerityField.Payload("primum hoc dico"),
         ]
       }
     );
@@ -169,7 +169,7 @@ describe('RequestScheduler integration tests', () => {
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect((await local.cubeStore.getCube(mucKey)).getFirstField(
-      cciFieldType.PAYLOAD).valueString).toBe("primum hoc dico");
+      FieldType.PAYLOAD).valueString).toBe("primum hoc dico");
 
     // local subscribes to MUC
     const subPromise: Promise<CubeSubscription> = local.scheduler.subscribeCube(mucKey);
@@ -180,7 +180,7 @@ describe('RequestScheduler integration tests', () => {
     expect(remoteToLocal.cubeSubscriptions).toContain(keyVariants(mucKey).keyString);
 
     // remote updates MUC
-    muc.getFirstField(cciFieldType.PAYLOAD).value =
+    muc.getFirstField(FieldType.PAYLOAD).value =
       Buffer.from("deinde iliud dico", 'ascii');
     muc.setDate(1715704520);  // a bit later than the last version
     await muc.compile();
@@ -195,7 +195,7 @@ describe('RequestScheduler integration tests', () => {
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect((await local.cubeStore.getCube(mucKey)).getFirstField(
-      cciFieldType.PAYLOAD).valueString).toBe("deinde iliud dico");
+      FieldType.PAYLOAD).valueString).toBe("deinde iliud dico");
   });
 
 
@@ -213,8 +213,8 @@ describe('RequestScheduler integration tests', () => {
       {
         requiredDifficulty: reducedDifficulty,
         fields: [
-          cciField.ContentName("Hic cubus usoris mutabilis valde mutabilis est"),
-          cciField.Payload("primum hoc dico"),
+          VerityField.ContentName("Hic cubus usoris mutabilis valde mutabilis est"),
+          VerityField.Payload("primum hoc dico"),
         ]
       }
     );
@@ -237,7 +237,7 @@ describe('RequestScheduler integration tests', () => {
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect((await local.cubeStore.getCube(mucKey)).getFirstField(
-      cciFieldType.PAYLOAD).valueString).toBe("primum hoc dico");
+      FieldType.PAYLOAD).valueString).toBe("primum hoc dico");
 
     // expect subscription to be fully registered on both ends
     await subPromise;
@@ -245,7 +245,7 @@ describe('RequestScheduler integration tests', () => {
     expect(remoteToLocal.cubeSubscriptions).toContain(keyVariants(mucKey).keyString);
 
     // remote updates MUC
-    muc.getFirstField(cciFieldType.PAYLOAD).value =
+    muc.getFirstField(FieldType.PAYLOAD).value =
       Buffer.from("deinde iliud dico", 'ascii');
     muc.setDate(1715704520);  // a bit later than the last version
     await muc.compile();
@@ -260,6 +260,6 @@ describe('RequestScheduler integration tests', () => {
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect((await local.cubeStore.getCube(mucKey)).getFirstField(
-      cciFieldType.PAYLOAD).valueString).toBe("deinde iliud dico");
+      FieldType.PAYLOAD).valueString).toBe("deinde iliud dico");
   });
 });

@@ -2,8 +2,8 @@ import { CubeKey, CubeType } from "../../../core/cube/cube.definitions";
 import { Cube } from "../../../core/cube/cube";
 import { CubeInfo } from "../../../core/cube/cubeInfo";
 
-import { MediaTypes, cciFieldType, cciFieldLength } from "../../../cci/cube/cciCube.definitions";
-import { cciFields } from "../../../cci/cube/cciFields";
+import { MediaTypes, FieldType, FieldLength } from "../../../cci/cube/cciCube.definitions";
+import { VerityFields } from "../../../cci/cube/verityFields";
 import { AnnotationEngine, defaultGetFieldsFunc } from "../../../cci/annotationEngine";
 import { Identity } from "../../../cci/identity/identity";
 import { cciRelationshipLimits, cciRelationship, cciRelationshipType } from "../../../cci/cube/cciRelationship";
@@ -102,16 +102,16 @@ export class ZwAnnotationEngine extends AnnotationEngine {
 
     // is this even a valid ZwCube?
     if (!assertZwCube(cube)) return false;
-    const fields: cciFields = this.getFields(cube) as cciFields;
+    const fields: VerityFields = this.getFields(cube) as VerityFields;
 
     // does this have a Payload field and does it contain something??
-    const payload = fields?.getFirst(cciFieldType.PAYLOAD);
+    const payload = fields?.getFirst(FieldType.PAYLOAD);
     if (!payload || !payload.length) return false;
 
     // does it have the correct media type?
-    const typefield = fields.getFirst(cciFieldType.MEDIA_TYPE);
+    const typefield = fields.getFirst(FieldType.MEDIA_TYPE);
     if (!typefield) return false;
-    if (mediaType !== typefield.value.readUIntBE(0, cciFieldLength[cciFieldType.MEDIA_TYPE])) {
+    if (mediaType !== typefield.value.readUIntBE(0, FieldLength[FieldType.MEDIA_TYPE])) {
       return false;
     }
 
@@ -181,7 +181,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     if (this.subscriptionRequirement <= SubscriptionRequirement.subscribedInTree) {
       const cube: Cube = await this.cubeRetriever.getCube(key);
       if (!assertZwCube(cube)) return false;
-      const fields: cciFields = cube.fields as cciFields;
+      const fields: VerityFields = cube.fields as VerityFields;
       const replies: cciRelationship[] = fields.
         getRelationships(cciRelationshipType.REPLY_TO);
       if (replies) toCheck = toCheck.concat(replies);
@@ -265,7 +265,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
   /** This is the recursive part of cubeAuthor() */
   private async cubeAuthorWithoutAnnotationsRecursion(key: CubeKey, mucOrMucExtension: cciCube, rootmuc: cciCube): Promise<Identity> {
     if (!assertZwCube(mucOrMucExtension)) return undefined;
-    const fields: cciFields = mucOrMucExtension.fields;
+    const fields: VerityFields = mucOrMucExtension.fields;
     const postrels: Array<cciRelationship> = fields.getRelationships(cciRelationshipType.MYPOST);
     if (!postrels) return undefined;  // not a valid MUC or MUC extension cube
 
@@ -419,7 +419,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
     alreadyTraversed.add(muckeystring);
     const cube: Cube = postInfo.getCube();
     if (!assertZwCube(cube)) return;
-    const fields: cciFields = this.getFields(cube) as cciFields;
+    const fields: VerityFields = this.getFields(cube) as VerityFields;
     const postRefs: cciRelationship[] = fields.getRelationships(cciRelationshipType.MYPOST);
     for (const postRef of postRefs) {
       const postkeystring: string = postRef.remoteKey.toString('hex');

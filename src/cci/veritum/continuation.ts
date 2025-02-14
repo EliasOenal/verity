@@ -6,9 +6,9 @@ import { Cube, CubeCreateOptions, CubeOptions } from "../../core/cube/cube";
 import { FieldParser } from "../../core/fields/fieldParser";
 
 import { cciCube } from "../cube/cciCube";
-import { cciFieldType } from "../cube/cciCube.definitions";
-import { cciField } from "../cube/cciField";
-import { cciFields } from "../cube/cciFields";
+import { FieldType } from "../cube/cciCube.definitions";
+import { VerityField } from "../cube/verityField";
+import { VerityFields } from "../cube/verityFields";
 import { cciRelationship, cciRelationshipType } from "../cube/cciRelationship";
 import { Veritable } from "../../core/cube/veritable.definition";
 import { Veritum } from "./veritum";
@@ -63,18 +63,18 @@ export class Continuation {
 
   static readonly ContinuationDefaultExclusions: number[] = [
     // Cube positionals
-    cciFieldType.TYPE, cciFieldType.NOTIFY, cciFieldType.PMUC_UPDATE_COUNT,
-    cciFieldType.PUBLIC_KEY, cciFieldType.DATE, cciFieldType.SIGNATURE,
-    cciFieldType.NONCE,
+    FieldType.TYPE, FieldType.NOTIFY, FieldType.PMUC_UPDATE_COUNT,
+    FieldType.PUBLIC_KEY, FieldType.DATE, FieldType.SIGNATURE,
+    FieldType.NONCE,
     // raw / non-CCI content fields
-    cciFieldType.FROZEN_RAWCONTENT, cciFieldType.FROZEN_NOTIFY_RAWCONTENT,
-    cciFieldType.PIC_RAWCONTENT, cciFieldType.PIC_NOTIFY_RAWCONTENT,
-    cciFieldType.MUC_RAWCONTENT, cciFieldType.MUC_NOTIFY_RAWCONTENT,
-    cciFieldType.PMUC_RAWCONTENT, cciFieldType.PMUC_NOTIFY_RAWCONTENT,
+    FieldType.FROZEN_RAWCONTENT, FieldType.FROZEN_NOTIFY_RAWCONTENT,
+    FieldType.PIC_RAWCONTENT, FieldType.PIC_NOTIFY_RAWCONTENT,
+    FieldType.MUC_RAWCONTENT, FieldType.MUC_NOTIFY_RAWCONTENT,
+    FieldType.PMUC_RAWCONTENT, FieldType.PMUC_NOTIFY_RAWCONTENT,
     // non-content bearing CCI fields
-    cciFieldType.CCI_END, cciFieldType.PADDING,
+    FieldType.CCI_END, FieldType.PADDING,
     // virtual / pseudo fields
-    cciFieldType.REMAINDER,
+    FieldType.REMAINDER,
   ];
 
   /**
@@ -100,14 +100,14 @@ export class Continuation {
 
     // Pre-process the Veritum supplied:
     let minBytesRequred = 0;  // will count them in a moment
-    const macroFieldset: DoublyLinkedList<cciField> = new DoublyLinkedList();
-    let previousField: cciField = undefined;
+    const macroFieldset: DoublyLinkedList<VerityField> = new DoublyLinkedList();
+    let previousField: VerityField = undefined;
     for (const field of veritum.getFields()) {
       // - Only accept non-excluded fields from supplied Veritum, i.e. everything
       //   except non-payload boilerplate. Pre-exisiting CONTINUED_IN relationships
       //   will also be dropped.
       if (!options.exclude.includes(field.type) && (
-            field.type !== cciFieldType.RELATES_TO ||
+            field.type !== FieldType.RELATES_TO ||
             cciRelationship.fromField(field).type !== cciRelationshipType.CONTINUED_IN
           )
       ){
@@ -119,7 +119,7 @@ export class Continuation {
             previousField.type === field.type &&
             veritum.fieldParser.fieldDef.fieldLengths[field.type] === undefined)
         {
-          const padding = new cciField(cciFieldType.PADDING, Buffer.alloc(0));
+          const padding = new VerityField(FieldType.PADDING, Buffer.alloc(0));
           macroFieldset.push(padding);
           minBytesRequred += veritum.getFieldLength(padding);
         }
@@ -146,8 +146,8 @@ export class Continuation {
     // The caller may restrict the space we are allowed to use for each chunk.
     // In addition to that, we need to account for core boilerplate fields --
     // we'll construct a demo fieldset to determine how much space is lost to that.
-    const demoFieldset: cciFields =
-      cciFields.DefaultPositionals(veritum.fieldParser.fieldDef) as cciFields;
+    const demoFieldset: VerityFields =
+      VerityFields.DefaultPositionals(veritum.fieldParser.fieldDef) as VerityFields;
     // We'll begin by figuring out the available space in the first Cube
     let bytesAvailableThisChunk: number =
       demoFieldset.bytesRemaining(options.maxChunkSize(chunkIndex));
@@ -155,12 +155,12 @@ export class Continuation {
     // Also prepare a list of CONTINUED_IN references to be filled in later.
     // Note the number of CONTINUED_IN references will always be one less than
     // the number of Cubes.
-    const refs: cciField[] = [];
+    const refs: VerityField[] = [];
 
     let spaceRemaining = bytesAvailableThisChunk;  // we start with just one chunk
 
     // Iterate over the macro fieldset
-    let macroFieldsetNode: DoublyLinkedListNode<cciField> = macroFieldset.head;
+    let macroFieldsetNode: DoublyLinkedListNode<VerityField> = macroFieldset.head;
     while (macroFieldsetNode !== undefined) {
       // Prepare continuation references and insert them at the front of the
       // macro fieldset. Once we've sculted the split Cubes we will revisit them
@@ -179,7 +179,7 @@ export class Continuation {
         const rel: cciRelationship = new cciRelationship(
           cciRelationshipType.CONTINUED_IN, Buffer.alloc(
             NetConstants.CUBE_KEY_SIZE, 0));  // dummy key for now
-        const refField: cciField = cciField.RelatesTo(rel);
+        const refField: VerityField = VerityField.RelatesTo(rel);
         // remember this ref as a planned Cube...
         refs.push(refField);
         maxChunkIndexPlanned++;
@@ -199,7 +199,7 @@ export class Continuation {
       for (let i = 0; i < refsAdded; i++) macroFieldsetNode = macroFieldsetNode.prev;
 
       // Finally, have a look at the current field and decide what to do with it.
-      const field: cciField = macroFieldsetNode.value;
+      const field: VerityField = macroFieldsetNode.value;
       const bytesRemaining = cube.fields.bytesRemaining(options.maxChunkSize(chunkIndex));
 
       // There's three (3) possible cases to consider:
@@ -226,11 +226,11 @@ export class Continuation {
           field.type, veritum.fieldParser.fieldDef);
         const maxValueLength = bytesRemaining - headerSize;
         // Split the field into two chunks:
-        const chunk1: cciField = new cciField(
+        const chunk1: VerityField = new VerityField(
           field.type,
           field.value.subarray(0, maxValueLength)
         );
-        const chunk2: cciField = new cciField(
+        const chunk2: VerityField = new VerityField(
           field.type,
           field.value.subarray(maxValueLength)
         );
@@ -287,7 +287,7 @@ export class Continuation {
       const referredKey: CubeKey = await referredCube.getKey();  // compiles the Cube
       const correctRef: cciRelationship =
         new cciRelationship(cciRelationshipType.CONTINUED_IN, referredKey);
-      const compiledRef: cciField = cciField.RelatesTo(correctRef);
+      const compiledRef: VerityField = VerityField.RelatesTo(correctRef);
       // fill in the correct ref value to the field we created at the beginning
       refs[i].value = compiledRef.value;
     }
@@ -313,7 +313,7 @@ export class Continuation {
 
     // prepare variables
     let cubeType: CubeType;
-    let fields: cciFields;  // will be initialized late below
+    let fields: VerityFields;  // will be initialized late below
 
     // iterate through all chunk Cubes...
     for (const cube of chunks) {
@@ -322,23 +322,23 @@ export class Continuation {
         // on the first chunk supplied -- and as we accept an iterable we need
         // to be iterating to be able to look at it
         cubeType = cube.cubeType;
-        fields = new cciFields([], cube.fieldParser.fieldDef);
+        fields = new VerityFields([], cube.fieldParser.fieldDef);
       }
 
       for (const field of cube.fields.all) {
         // ... and look at each field:
         // - Excluded fields will be dropped, except PADDING which separates
         //   non-rejoinable adjacent fields
-        if (field.type !== cciFieldType.PADDING &&
+        if (field.type !== FieldType.PADDING &&
             options.exclude.includes(field.type)) continue;
         // - CONTINUED_IN references will be dropped
-        if (field.type === cciFieldType.RELATES_TO) {
+        if (field.type === FieldType.RELATES_TO) {
           const rel = cciRelationship.fromField(field);
           if (rel.type === cciRelationshipType.CONTINUED_IN) continue;
         }
         // - variable length fields of same type directly adjacent to each
         //   other will be merged
-        const previousField: cciField =
+        const previousField: VerityField =
           fields.length > 0 ?
             // TODO: get rid of unsafe manipulateFields() call
             fields.all[fields.length-1] :
@@ -355,7 +355,7 @@ export class Continuation {
     // in a second pass, remove any PADDING fields
     for (let i=0; i<fields.length; i++) {
       // TODO: get rid of unsafe manipulateFields() calls
-      if (fields.all[i].type === cciFieldType.PADDING) {
+      if (fields.all[i].type === FieldType.PADDING) {
         fields.all.splice(i, 1);
         i--;
       }

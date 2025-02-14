@@ -4,8 +4,8 @@ import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
 import { cciCube } from '../../../src/cci/cube/cciCube';
-import { cciField } from '../../../src/cci/cube/cciField';
-import { cciFieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { VerityField } from '../../../src/cci/cube/verityField';
+import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 
 import { testCubeStoreParams } from '../testcci.definitions';
 
@@ -66,7 +66,7 @@ describe('Identity: Cube emitter events', () => {
         const post: cciCube = cciCube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
-          fields: cciField.Payload("Nuntius"),
+          fields: VerityField.Payload("Nuntius"),
         });
         await cubeStore.addCube(post);
         id.addPost(post.getKeyIfAvailable());
@@ -83,7 +83,7 @@ describe('Identity: Cube emitter events', () => {
         const sub: cciCube = cciCube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
-          fields: cciField.Payload("Subscriptio"),
+          fields: VerityField.Payload("Subscriptio"),
         });
         await cubeStore.addCube(sub);
         id.addPublicSubscription(sub.getKeyIfAvailable());
@@ -102,7 +102,7 @@ describe('Identity: Cube emitter events', () => {
 
         const cubeInfo: CubeInfo = await eventPromise;
         expect(cubeInfo.key.equals(id.key)).toBeTruthy();
-        expect(cubeInfo.getCube().getFirstField(cciFieldType.USERNAME).valueString).toBe("nomen mutatum");
+        expect(cubeInfo.getCube().getFirstField(FieldType.USERNAME).valueString).toBe("nomen mutatum");
       });
     });
 
@@ -146,7 +146,7 @@ describe('Identity: Cube emitter events', () => {
           const post: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius"),
           });
           await cubeStore.addCube(post);
           const eventPromise: Promise<CubeInfo> = new Promise((resolve) => {
@@ -170,7 +170,7 @@ describe('Identity: Cube emitter events', () => {
           const sub: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Subscriptio"),
+            fields: VerityField.Payload("Subscriptio"),
           });
           await cubeStore.addCube(sub);
           directSub.addPublicSubscription(sub.getKeyIfAvailable());
@@ -191,7 +191,7 @@ describe('Identity: Cube emitter events', () => {
 
           const cubeInfo: CubeInfo = await eventPromise;
           expect(cubeInfo.key.equals(directSub.key)).toBeTruthy();
-          expect(cubeInfo.getCube().getFirstField(cciFieldType.USERNAME).valueString).toBe("nomen mutatum");
+          expect(cubeInfo.getCube().getFirstField(FieldType.USERNAME).valueString).toBe("nomen mutatum");
         });
 
         it('will also emit for a new post by a brand new subscription', async () => {
@@ -216,7 +216,7 @@ describe('Identity: Cube emitter events', () => {
           const post: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius"),
           });
           await cubeStore.addCube(post);
           newSub.addPost(post.getKeyIfAvailable());
@@ -288,7 +288,7 @@ describe('Identity: Cube emitter events', () => {
           const post: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius"),
           });
           await cubeStore.addCube(post);
           indirectSub.addPost(post.getKeyIfAvailable());
@@ -307,7 +307,7 @@ describe('Identity: Cube emitter events', () => {
           const sub: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Subscriptio"),
+            fields: VerityField.Payload("Subscriptio"),
           });
           await cubeStore.addCube(sub);
           indirectSub.addPublicSubscription(sub.getKeyIfAvailable());
@@ -328,7 +328,7 @@ describe('Identity: Cube emitter events', () => {
 
           const cubeInfo: CubeInfo = await eventPromise;
           expect(cubeInfo.key.equals(indirectSub.key)).toBeTruthy();
-          expect(cubeInfo.getCube().getFirstField(cciFieldType.USERNAME).valueString).toBe("nomen mutatum");
+          expect(cubeInfo.getCube().getFirstField(FieldType.USERNAME).valueString).toBe("nomen mutatum");
         });
 
         it('will also emit for a new post by a brand new indirect subscription, caused by us subscribing to someone new', async () => {
@@ -364,7 +364,7 @@ describe('Identity: Cube emitter events', () => {
           const post: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius"),
           });
           await cubeStore.addCube(post);
           newSubSub.addPost(post.getKeyIfAvailable());
@@ -398,7 +398,7 @@ describe('Identity: Cube emitter events', () => {
           const post: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius"),
           });
           await cubeStore.addCube(post);
           newSubSub.addPost(post.getKeyIfAvailable());
@@ -463,7 +463,7 @@ describe('Identity: Cube emitter events', () => {
           const post: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius"),
           });
           await cubeStore.addCube(post);
           indirectSub.addPost(post.getKeyIfAvailable());
@@ -484,7 +484,7 @@ describe('Identity: Cube emitter events', () => {
           const sub: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Subscriptio"),
+            fields: VerityField.Payload("Subscriptio"),
           });
           await cubeStore.addCube(sub);
           indirectSub.addPublicSubscription(sub.getKeyIfAvailable());
@@ -580,7 +580,7 @@ describe('Identity: Cube emitter events', () => {
           const indirectPost: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius"),
           });
           await cubeStore.addCube(indirectPost);
           indirectSub.addPost(indirectPost.getKeyIfAvailable());
@@ -600,7 +600,7 @@ describe('Identity: Cube emitter events', () => {
           const directPost: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius"),
           });
           await cubeStore.addCube(directPost);
           directSub.addPost(directPost.getKeyIfAvailable());
@@ -639,7 +639,7 @@ describe('Identity: Cube emitter events', () => {
           const subPost: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius"),
           });
           await cubeStore.addCube(subPost);
           directSub.addPost(subPost.getKeyIfAvailable());
@@ -659,7 +659,7 @@ describe('Identity: Cube emitter events', () => {
           const ownPost: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius"),
           });
           await cubeStore.addCube(ownPost);
           id.addPost(ownPost.getKeyIfAvailable());
@@ -739,7 +739,7 @@ describe('Identity: Cube emitter events', () => {
           const post: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius"),
           });
           await cubeStore.addCube(post);
           id.addPost(post.getKeyIfAvailable());
@@ -856,7 +856,7 @@ describe('Identity: Cube emitter events', () => {
           const post: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius"),
           });
           await cubeStore.addCube(post);
           id2.addPost(post.getKeyIfAvailable());
@@ -940,7 +940,7 @@ describe('Identity: Cube emitter events', () => {
           // Verify we get exactly one event
           const emitted: CubeInfo = await eventPromise;
           expect(emitted.key.equals(id2.key)).toBeTruthy();
-          expect(emitted.getCube().getFirstField(cciFieldType.USERNAME).valueString)
+          expect(emitted.getCube().getFirstField(FieldType.USERNAME).valueString)
             .toBe("Identity 2 Updated");
 
           const timeout: Promise<string> = new Promise((resolve) =>
@@ -1021,7 +1021,7 @@ describe('Identity: Cube emitter events', () => {
           const post: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: cciField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius"),
           });
           await cubeStore.addCube(post);
           id3.addPost(post.getKeyIfAvailable());
@@ -1107,7 +1107,7 @@ describe('Identity: Cube emitter events', () => {
           // Verify we get exactly one event
           const emitted: CubeInfo = await eventPromise;
           expect(emitted.key.equals(id3.key)).toBeTruthy();
-          expect(emitted.getCube().getFirstField(cciFieldType.USERNAME).valueString)
+          expect(emitted.getCube().getFirstField(FieldType.USERNAME).valueString)
             .toBe("Identity 3 Updated");
 
           const timeout: Promise<string> = new Promise((resolve) =>
@@ -1130,7 +1130,7 @@ describe('Identity: Cube emitter events', () => {
         const post: cciCube = cciCube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
-          fields: cciField.Payload("Nuntius"),
+          fields: VerityField.Payload("Nuntius"),
         });
         await cubeStore.addCube(post);
 

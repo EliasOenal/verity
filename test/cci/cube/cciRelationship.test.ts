@@ -1,8 +1,8 @@
 import { CubeType, WrongFieldType } from "../../../src/core/cube/cube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
-import { cciField } from "../../../src/cci/cube/cciField";
-import { cciFieldParsers, cciFields, cciFrozenFieldDefinition } from "../../../src/cci/cube/cciFields";
+import { VerityField } from "../../../src/cci/cube/verityField";
+import { cciFieldParsers, VerityFields, cciFrozenFieldDefinition } from "../../../src/cci/cube/verityFields";
 import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
@@ -14,38 +14,38 @@ describe('cciRelationship', () => {
     const fieldDef = cciFrozenParser.fieldDef;
     const fieldsClass = fieldDef.fieldsObjectClass;
     const fields = new fieldsClass(undefined, fieldDef);
-    expect(fields instanceof cciFields).toBeTruthy();
+    expect(fields instanceof VerityFields).toBeTruthy();
   });
 
   it('marshalls and demarshalls relationsships to and from fields', () => {
-    const fields = new cciFields([
-      cciField.Type(CubeType.FROZEN),
-      cciField.Payload("Ego sum cubus bene connexus cum multis relationibus ad alios cubos."),
-      cciField.RelatesTo(new cciRelationship(
+    const fields = new VerityFields([
+      VerityField.Type(CubeType.FROZEN),
+      VerityField.Payload("Ego sum cubus bene connexus cum multis relationibus ad alios cubos."),
+      VerityField.RelatesTo(new cciRelationship(
         cciRelationshipType.REPLY_TO,
         Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1))),
-      cciField.RelatesTo(new cciRelationship(
+      VerityField.RelatesTo(new cciRelationship(
         cciRelationshipType.REPLY_TO,
         Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2))),
-      cciField.RelatesTo(new cciRelationship(
+      VerityField.RelatesTo(new cciRelationship(
         cciRelationshipType.MENTION,
         Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(11))),
-      cciField.RelatesTo(new cciRelationship(
+      VerityField.RelatesTo(new cciRelationship(
         cciRelationshipType.REPLY_TO,
         Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3))),
-      cciField.Payload("Cubus insolitus sum."),
-      cciField.RelatesTo(new cciRelationship(
+      VerityField.Payload("Cubus insolitus sum."),
+      VerityField.RelatesTo(new cciRelationship(
         cciRelationshipType.MYPOST,
         Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(21))),
-      cciField.RelatesTo(new cciRelationship(
+      VerityField.RelatesTo(new cciRelationship(
         cciRelationshipType.REPLY_TO,
         Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(4))),
-      cciField.Date(),
-      cciField.Nonce(),
+      VerityField.Date(),
+      VerityField.Nonce(),
     ],
     cciFrozenFieldDefinition);
 
-    expect(fields instanceof cciFields).toBeTruthy();
+    expect(fields instanceof VerityFields).toBeTruthy();
     expect(fields.getRelationships().length).toEqual(6);
     expect(fields.getRelationships()[0]).toBeInstanceOf(cciRelationship);
 
@@ -82,7 +82,7 @@ describe('cciRelationship', () => {
   });
 
   it('returns undefined when trying to demarshal a non-relationship field', () => {
-    const field = cciField.Payload("Hoc non est relationem.");
+    const field = VerityField.Payload("Hoc non est relationem.");
     expect(cciRelationship.fromField(field)).toBeUndefined();
   });
 });

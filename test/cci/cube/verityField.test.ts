@@ -1,5 +1,5 @@
-import { cciFieldType, MediaTypes } from "../../../src/cci/cube/cciCube.definitions";
-import { cciField } from "../../../src/cci/cube/cciField";
+import { FieldType, MediaTypes } from "../../../src/cci/cube/cciCube.definitions";
+import { VerityField } from "../../../src/cci/cube/verityField";
 import { cciRelationship, cciRelationshipType } from "../../../src/cci/cube/cciRelationship";
 import { FieldError } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
@@ -7,55 +7,55 @@ import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
-describe('cciField', () => {
+describe('VerityField', () => {
   describe('constructor', () => {
     it('should construct a cciField for types with no fixed length', () => {
-      const type = cciFieldType.APPLICATION;
+      const type = FieldType.APPLICATION;
       const value = Buffer.alloc(10); // Arbitrary buffer length for APPLICATION
-      expect(() => new cciField(type, value)).not.toThrow();
+      expect(() => new VerityField(type, value)).not.toThrow();
     });
 
     it('should construct a cciField with fixed length', () => {
-      const type = cciFieldType.MEDIA_TYPE;
+      const type = FieldType.MEDIA_TYPE;
       const value = Buffer.alloc(1);
-      expect(() => new cciField(type, value)).not.toThrow();
+      expect(() => new VerityField(type, value)).not.toThrow();
     });
 
     it('should throw error for invalid length', () => {
-      const type = cciFieldType.MEDIA_TYPE;
+      const type = FieldType.MEDIA_TYPE;
       const value = Buffer.alloc(20); // Arbitrary buffer length not matching MEDIA_TYPE
-      expect(() => new cciField(type, value)).toThrow(FieldError);
+      expect(() => new VerityField(type, value)).toThrow(FieldError);
     });
 
     it('should construct a cciField with length defined by relationship', () => {
-      const type = cciFieldType.RELATES_TO;
+      const type = FieldType.RELATES_TO;
       const value = Buffer.alloc(NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE);
-      expect(() => new cciField(type, value)).not.toThrow();
+      expect(() => new VerityField(type, value)).not.toThrow();
     });
   });
 
   describe('simple static creation methods', () => {
     it('should create SubkeySeed cciField', () => {
       const buf = Buffer.alloc(10);
-      const field = cciField.SubkeySeed(buf);
+      const field = VerityField.SubkeySeed(buf);
       expect(field instanceof CubeField).toBe(true);
-      expect(field.type).toBe(cciFieldType.SUBKEY_SEED);
+      expect(field.type).toBe(FieldType.SUBKEY_SEED);
       expect(field.value).toEqual(buf);
     });
 
     it('should create Application cciField', () => {
       const applicationString = 'Test Application';
-      const field = cciField.Application(applicationString);
-      expect(field instanceof cciField).toBe(true);
-      expect(field.type).toBe(cciFieldType.APPLICATION);
+      const field = VerityField.Application(applicationString);
+      expect(field instanceof VerityField).toBe(true);
+      expect(field.type).toBe(FieldType.APPLICATION);
       expect(field.value.toString('utf-8')).toBe(applicationString);
     });
 
     it('should create RelatesTo cciField', () => {
       const rel = new cciRelationship(cciRelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42));
-      const field = cciField.RelatesTo(rel);
-      expect(field instanceof cciField).toBe(true);
-      expect(field.type).toBe(cciFieldType.RELATES_TO);
+      const field = VerityField.RelatesTo(rel);
+      expect(field instanceof VerityField).toBe(true);
+      expect(field.type).toBe(FieldType.RELATES_TO);
       const restoredRel = cciRelationship.fromField(field);
       expect(restoredRel.type).toBe(cciRelationshipType.MYPOST);
       expect(restoredRel.remoteKey).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42));
@@ -63,38 +63,38 @@ describe('cciField', () => {
 
     it('should create Payload cciField', () => {
       const payload = 'Test payload';
-      const field = cciField.Payload(payload);
-      expect(field instanceof cciField).toBe(true);
-      expect(field.type).toBe(cciFieldType.PAYLOAD);
+      const field = VerityField.Payload(payload);
+      expect(field instanceof VerityField).toBe(true);
+      expect(field.type).toBe(FieldType.PAYLOAD);
       expect(field.value.toString()).toBe(payload);
     });
 
     it('should create MediaType cciField', () => {
       const type = MediaTypes.TEXT;
-      const field = cciField.MediaType(type);
-      expect(field instanceof cciField).toBe(true);
-      expect(field.type).toBe(cciFieldType.MEDIA_TYPE);
+      const field = VerityField.MediaType(type);
+      expect(field instanceof VerityField).toBe(true);
+      expect(field.type).toBe(FieldType.MEDIA_TYPE);
       expect(field.value).toEqual(Buffer.alloc(1).fill(type));
     });
 
     it('should create Username cciField', () => {
       const name = 'TestUser';
-      const field = cciField.Username(name);
-      expect(field instanceof cciField).toBe(true);
-      expect(field.type).toBe(cciFieldType.USERNAME);
+      const field = VerityField.Username(name);
+      expect(field instanceof VerityField).toBe(true);
+      expect(field.type).toBe(FieldType.USERNAME);
       expect(field.value.toString('utf-8')).toBe(name);
     });
 
     it('should create a Padding field', () => {
       const length = 10; // Example length
-      const field = cciField.Padding(length);
-      expect(field.type).toBe(cciFieldType.PADDING);
+      const field = VerityField.Padding(length);
+      expect(field.type).toBe(FieldType.PADDING);
       expect(field.value.length).toBe(length - 2); // Assuming 2 is the header length
     });
 
     it('should create a CCI_END marker', () => {
-      const field = cciField.Padding(1);
-      expect(field.type).toBe(cciFieldType.CCI_END);
+      const field = VerityField.Padding(1);
+      expect(field.type).toBe(FieldType.CCI_END);
       expect(field.value.length).toBe(0);
     });
   });
@@ -102,8 +102,8 @@ describe('cciField', () => {
   describe('static FromRelationships generator', () => {
     it('should generate fields from relationships', () => {
       const rels = [new cciRelationship(cciRelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))];
-      const gen = cciField.FromRelationships(rels);
-      expect(gen.next().value instanceof cciField).toBe(true);
+      const gen = VerityField.FromRelationships(rels);
+      expect(gen.next().value instanceof VerityField).toBe(true);
     });
   });
 });

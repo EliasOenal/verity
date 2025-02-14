@@ -1,8 +1,8 @@
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
-import { cciFields, cciFrozenFieldDefinition } from '../../../src/cci/cube/cciFields';
-import { cciField } from '../../../src/cci/cube/cciField';
-import { cciFieldType, MediaTypes } from '../../../src/cci/cube/cciCube.definitions';
+import { VerityFields, cciFrozenFieldDefinition } from '../../../src/cci/cube/verityFields';
+import { VerityField } from '../../../src/cci/cube/verityField';
+import { FieldType, MediaTypes } from '../../../src/cci/cube/cciCube.definitions';
 import { Encrypt, CryptStateOutput } from '../../../src/cci/veritum/chunkEncryption';
 import { KeyPair } from '../../../src/cci/helpers/cryptography';
 
@@ -55,34 +55,34 @@ describe('CCI chunk encryption', () => {
         // A Continuation Cube only contains encrypted payload.
         // Both symmetric key and nonce are already known by the recipient.
         const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
-        const fields: cciFields = cciFields.DefaultPositionals(
+        const fields: VerityFields = VerityFields.DefaultPositionals(
           cciFrozenFieldDefinition,
-          cciField.Payload(plaintext),
-        ) as cciFields;
+          VerityField.Payload(plaintext),
+        ) as VerityFields;
 
         const preSharedKey = Buffer.alloc(NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE, 1337);
         const predefinedNonce = Buffer.alloc(NetConstants.CRYPTO_NONCE_SIZE, 42);
 
         // Call tested function
-        const encrypted: cciFields = Encrypt(fields,
+        const encrypted: VerityFields = Encrypt(fields,
           { symmetricKey: preSharedKey, nonce: predefinedNonce });
 
         // Check that the result contains only a single ENCRYPTED field
         // apart from a Frozen Cube's positionals.
         expect(encrypted.length).toBe(4);
-        expect(encrypted.all[0].type).toBe(cciFieldType.TYPE);
-        expect(encrypted.all[1].type).toBe(cciFieldType.ENCRYPTED);
-        expect(encrypted.all[2].type).toBe(cciFieldType.DATE);
-        expect(encrypted.all[3].type).toBe(cciFieldType.NONCE);
+        expect(encrypted.all[0].type).toBe(FieldType.TYPE);
+        expect(encrypted.all[1].type).toBe(FieldType.ENCRYPTED);
+        expect(encrypted.all[2].type).toBe(FieldType.DATE);
+        expect(encrypted.all[3].type).toBe(FieldType.NONCE);
 
         // Expect the resulting field set to fill a Cube exactly
         expect(encrypted.getByteLength()).toBe(NetConstants.CUBE_SIZE);
 
         // Ensure the plaintext is not visible in the encrypted data
-        expect(encrypted.getFirst(cciFieldType.ENCRYPTED).valueString).
+        expect(encrypted.getFirst(FieldType.ENCRYPTED).valueString).
           not.toContain(plaintext);
 
-        const ciphertext: Buffer = encrypted.getFirst(cciFieldType.ENCRYPTED).value;
+        const ciphertext: Buffer = encrypted.getFirst(FieldType.ENCRYPTED).value;
 
         // Manually decrypt the ENCRYPTED field
         const restoredBinary = sodium.crypto_secretbox_open_easy(
@@ -96,31 +96,31 @@ describe('CCI chunk encryption', () => {
         // alongside the encrypted payload.
         // Both parties are assumed to already have a shared key.
         const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
-        const fields: cciFields = cciFields.DefaultPositionals(
+        const fields: VerityFields = VerityFields.DefaultPositionals(
           cciFrozenFieldDefinition,
-          cciField.Payload(plaintext),
-        ) as cciFields;
+          VerityField.Payload(plaintext),
+        ) as VerityFields;
 
         const preSharedKey = Buffer.alloc(NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE, 1337);
 
         // Call tested function
-        const encryptedFieldset: cciFields = Encrypt(fields, { symmetricKey: preSharedKey });
+        const encryptedFieldset: VerityFields = Encrypt(fields, { symmetricKey: preSharedKey });
         const encryptedBinary: Buffer =
-          encryptedFieldset.getFirst(cciFieldType.ENCRYPTED).value;
+          encryptedFieldset.getFirst(FieldType.ENCRYPTED).value;
 
         // Check that the result contains only a single ENCRYPTED field
         // apart from a Frozen Cube's positionals.
         expect(encryptedFieldset.length).toBe(4);
-        expect(encryptedFieldset.all[0].type).toBe(cciFieldType.TYPE);
-        expect(encryptedFieldset.all[1].type).toBe(cciFieldType.ENCRYPTED);
-        expect(encryptedFieldset.all[2].type).toBe(cciFieldType.DATE);
-        expect(encryptedFieldset.all[3].type).toBe(cciFieldType.NONCE);
+        expect(encryptedFieldset.all[0].type).toBe(FieldType.TYPE);
+        expect(encryptedFieldset.all[1].type).toBe(FieldType.ENCRYPTED);
+        expect(encryptedFieldset.all[2].type).toBe(FieldType.DATE);
+        expect(encryptedFieldset.all[3].type).toBe(FieldType.NONCE);
 
         // Expect the resulting field set to fill a Cube exactly
         expect(encryptedFieldset.getByteLength()).toBe(NetConstants.CUBE_SIZE);
 
         // Ensure the plaintext is not visible in the encrypted data
-        expect(encryptedFieldset.getFirst(cciFieldType.ENCRYPTED).valueString).
+        expect(encryptedFieldset.getFirst(FieldType.ENCRYPTED).valueString).
           not.toContain(plaintext);
 
         // Prepare manual decryption:
@@ -145,33 +145,33 @@ describe('CCI chunk encryption', () => {
         // Using this derived key and the nonce following next in the blob
         // the recipient can decrypt the payload.
         const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
-        const fields: cciFields = cciFields.DefaultPositionals(
+        const fields: VerityFields = VerityFields.DefaultPositionals(
           cciFrozenFieldDefinition,
-          cciField.Payload(plaintext),
-        ) as cciFields;
+          VerityField.Payload(plaintext),
+        ) as VerityFields;
 
         // Call tested function
-        const encryptedFieldset: cciFields = Encrypt(fields, {
+        const encryptedFieldset: VerityFields = Encrypt(fields, {
           recipients: recipient.publicKey,
           senderPrivateKey: sender.privateKey,
           senderPubkey: sender.publicKey,
         });
         const encryptedBinary: Buffer =
-          encryptedFieldset.getFirst(cciFieldType.ENCRYPTED).value;
+          encryptedFieldset.getFirst(FieldType.ENCRYPTED).value;
 
         // Check that the result contains only a single ENCRYPTED field
         // apart from a Frozen Cube's positionals.
         expect(encryptedFieldset.length).toBe(4);
-        expect(encryptedFieldset.all[0].type).toBe(cciFieldType.TYPE);
-        expect(encryptedFieldset.all[1].type).toBe(cciFieldType.ENCRYPTED);
-        expect(encryptedFieldset.all[2].type).toBe(cciFieldType.DATE);
-        expect(encryptedFieldset.all[3].type).toBe(cciFieldType.NONCE);
+        expect(encryptedFieldset.all[0].type).toBe(FieldType.TYPE);
+        expect(encryptedFieldset.all[1].type).toBe(FieldType.ENCRYPTED);
+        expect(encryptedFieldset.all[2].type).toBe(FieldType.DATE);
+        expect(encryptedFieldset.all[3].type).toBe(FieldType.NONCE);
 
         // Expect the resulting field set to fill a Cube exactly
         expect(encryptedFieldset.getByteLength()).toBe(NetConstants.CUBE_SIZE);
 
         // Ensure the plaintext is not visible in the encrypted data
-        expect(encryptedFieldset.getFirst(cciFieldType.ENCRYPTED).valueString).
+        expect(encryptedFieldset.getFirst(FieldType.ENCRYPTED).valueString).
           not.toContain(plaintext);
 
         // Prepare manual decryption:
@@ -202,33 +202,33 @@ describe('CCI chunk encryption', () => {
         // Using this derived key and the nonce following next in the blob
         // the recipient can decrypt the payload.
         const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
-        const fields: cciFields = cciFields.DefaultPositionals(
+        const fields: VerityFields = VerityFields.DefaultPositionals(
           cciFrozenFieldDefinition,
-          cciField.Payload(plaintext),
-        ) as cciFields;
+          VerityField.Payload(plaintext),
+        ) as VerityFields;
 
         // Call tested function
-        const encryptedFieldset: cciFields = Encrypt(fields, {
+        const encryptedFieldset: VerityFields = Encrypt(fields, {
           recipients: [recipient.publicKey, recipient2.publicKey],
           senderPrivateKey: sender.privateKey,
           senderPubkey: sender.publicKey,
         });
         const encryptedBinary: Buffer =
-          encryptedFieldset.getFirst(cciFieldType.ENCRYPTED).value;
+          encryptedFieldset.getFirst(FieldType.ENCRYPTED).value;
 
         // Check that the result contains only a single ENCRYPTED field
         // apart from a Frozen Cube's positionals.
         expect(encryptedFieldset.length).toBe(4);
-        expect(encryptedFieldset.all[0].type).toBe(cciFieldType.TYPE);
-        expect(encryptedFieldset.all[1].type).toBe(cciFieldType.ENCRYPTED);
-        expect(encryptedFieldset.all[2].type).toBe(cciFieldType.DATE);
-        expect(encryptedFieldset.all[3].type).toBe(cciFieldType.NONCE);
+        expect(encryptedFieldset.all[0].type).toBe(FieldType.TYPE);
+        expect(encryptedFieldset.all[1].type).toBe(FieldType.ENCRYPTED);
+        expect(encryptedFieldset.all[2].type).toBe(FieldType.DATE);
+        expect(encryptedFieldset.all[3].type).toBe(FieldType.NONCE);
 
         // Expect the resulting field set to fill a Cube exactly
         expect(encryptedFieldset.getByteLength()).toBe(NetConstants.CUBE_SIZE);
 
         // Ensure the plaintext is not visible in the encrypted data
-        expect(encryptedFieldset.getFirst(cciFieldType.ENCRYPTED).valueString).
+        expect(encryptedFieldset.getFirst(FieldType.ENCRYPTED).valueString).
           not.toContain(plaintext);
 
         // Prepare manual decryption:
@@ -308,7 +308,7 @@ describe('CCI chunk encryption', () => {
 
 
   describe('Encrypt()-Decrypt() round-trip tests', () => {
-    let encrypted: cciFields;
+    let encrypted: VerityFields;
     const secretMessage = 'Nuntius cryptatus secretus est, ne intercipiatur';
 
     describe('Testing a single payload field for each encryption variant', () => {
@@ -316,10 +316,10 @@ describe('CCI chunk encryption', () => {
         let preSharedKey: Buffer;
         let predefinedNonce: Buffer;
         beforeAll(() => {
-          const fields: cciFields = cciFields.DefaultPositionals(
+          const fields: VerityFields = VerityFields.DefaultPositionals(
             cciFrozenFieldDefinition,
-            cciField.Payload(secretMessage),
-          ) as cciFields;
+            VerityField.Payload(secretMessage),
+          ) as VerityFields;
 
           preSharedKey = Buffer.alloc(sodium.crypto_secretbox_KEYBYTES, 1337);
           predefinedNonce = Buffer.alloc(sodium.crypto_secretbox_NONCEBYTES, 42);
@@ -328,9 +328,9 @@ describe('CCI chunk encryption', () => {
         });
 
         it('decrypts a Continuation Cube', () => {
-          const decrypted: cciFields = Decrypt(encrypted,
+          const decrypted: VerityFields = Decrypt(encrypted,
             { preSharedKey, predefinedNonce });
-          const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
+          const payload = decrypted.getFirst(FieldType.PAYLOAD);
           expect(payload).toBeDefined();
           expect(payload.valueString).toEqual(secretMessage);
         });
@@ -339,10 +339,10 @@ describe('CCI chunk encryption', () => {
       describe('Start-of-Veritum w/ pre-shared key', () => {
         let preSharedKey: Buffer;
         beforeAll(() => {
-          const fields: cciFields = cciFields.DefaultPositionals(
+          const fields: VerityFields = VerityFields.DefaultPositionals(
             cciFrozenFieldDefinition,
-            cciField.Payload(secretMessage),
-          ) as cciFields;
+            VerityField.Payload(secretMessage),
+          ) as VerityFields;
 
           preSharedKey = Buffer.alloc(NetConstants.CRYPTO_SYMMETRIC_KEY_SIZE, 1337);
 
@@ -350,8 +350,8 @@ describe('CCI chunk encryption', () => {
         });
 
         it('decrypts a Start-of-Veritum w/ pre-shared key', () => {
-          const decrypted: cciFields = Decrypt(encrypted, { preSharedKey });
-          const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
+          const decrypted: VerityFields = Decrypt(encrypted, { preSharedKey });
+          const payload = decrypted.getFirst(FieldType.PAYLOAD);
           expect(payload).toBeDefined();
           expect(payload.valueString).toEqual(secretMessage);
         });
@@ -359,10 +359,10 @@ describe('CCI chunk encryption', () => {
 
       describe('Start-of-Veritum for single recipient', () => {
         beforeAll(() => {
-          const fields: cciFields = cciFields.DefaultPositionals(
+          const fields: VerityFields = VerityFields.DefaultPositionals(
             cciFrozenFieldDefinition,
-            cciField.Payload(secretMessage),
-          ) as cciFields;
+            VerityField.Payload(secretMessage),
+          ) as VerityFields;
 
           encrypted = Encrypt(fields, {
             recipients: recipient.publicKey,
@@ -372,16 +372,16 @@ describe('CCI chunk encryption', () => {
         });
 
         it('decrypts a Start-of-Veritum for single recipient', () => {
-          const decrypted: cciFields = Decrypt(encrypted,
+          const decrypted: VerityFields = Decrypt(encrypted,
             { recipientPrivateKey: recipient.privateKey });
           expect(decrypted).toBeDefined();
-          const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
+          const payload = decrypted.getFirst(FieldType.PAYLOAD);
           expect(payload).toBeDefined();
           expect(payload.valueString).toEqual(secretMessage);
         });
 
         it('cannot decrypt Start-of-Veritum for different recipient', () => {
-          const decrypted: cciFields = Decrypt(encrypted,
+          const decrypted: VerityFields = Decrypt(encrypted,
             { recipientPrivateKey: recipient2.privateKey });
           expect(decrypted).toBeUndefined();
         });
@@ -402,10 +402,10 @@ describe('CCI chunk encryption', () => {
             });
           }
 
-          const fields: cciFields = cciFields.DefaultPositionals(
+          const fields: VerityFields = VerityFields.DefaultPositionals(
             cciFrozenFieldDefinition,
-            cciField.Payload(secretMessage),
-          ) as cciFields;
+            VerityField.Payload(secretMessage),
+          ) as VerityFields;
 
           encrypted = Encrypt(fields, {
             recipients: recipients.map((recipient) => recipient.publicKey),
@@ -416,10 +416,10 @@ describe('CCI chunk encryption', () => {
 
         it('decrypts a Start-of-Veritum for multiple recipients for each recipient', () => {
           for (const rcpt of recipients) {
-            const decrypted: cciFields = Decrypt(encrypted,
+            const decrypted: VerityFields = Decrypt(encrypted,
               { recipientPrivateKey: rcpt.privateKey });
             expect(decrypted).toBeDefined();
-            const payload = decrypted.getFirst(cciFieldType.PAYLOAD);
+            const payload = decrypted.getFirst(FieldType.PAYLOAD);
             expect(payload).toBeDefined();
             expect(payload.valueString).toEqual(secretMessage);
           }
@@ -431,20 +431,20 @@ describe('CCI chunk encryption', () => {
       it('correctly encrypts and decrypts multiple fields', () => {
         const plaintext = "Omnes campi mei secreti sunt";
         const plaintext2 = "Sinite me iterare: vere sunt secreta";
-        const fields: cciFields = new cciFields(
+        const fields: VerityFields = new VerityFields(
           [
-            cciField.Application("cryptographia"),
-            cciField.ContentName("Nuntius secretus"),
-            cciField.Description("Nuntius cuius contenta non possunt divulgari"),
-            cciField.MediaType(MediaTypes.TEXT),
-            cciField.Payload(plaintext),
-            cciField.Payload(plaintext2),
+            VerityField.Application("cryptographia"),
+            VerityField.ContentName("Nuntius secretus"),
+            VerityField.Description("Nuntius cuius contenta non possunt divulgari"),
+            VerityField.MediaType(MediaTypes.TEXT),
+            VerityField.Payload(plaintext),
+            VerityField.Payload(plaintext2),
           ],
           cciFrozenFieldDefinition
         );
 
         // Encrypt the fields
-        const encrypted: cciFields = Encrypt(fields, {
+        const encrypted: VerityFields = Encrypt(fields, {
           senderPrivateKey: sender.privateKey,
           recipients: recipient.publicKey,
           senderPubkey: sender.publicKey,
@@ -452,23 +452,23 @@ describe('CCI chunk encryption', () => {
 
         // Verify that the encrypted fields contain an encypted content field,
         // but no content field
-        expect(encrypted.getFirst(cciFieldType.ENCRYPTED)).toBeTruthy();
-        expect(encrypted.getFirst(cciFieldType.APPLICATION)).toBeFalsy();
-        expect(encrypted.getFirst(cciFieldType.CONTENTNAME)).toBeFalsy();
-        expect(encrypted.getFirst(cciFieldType.DESCRIPTION)).toBeFalsy();
-        expect(encrypted.getFirst(cciFieldType.MEDIA_TYPE)).toBeFalsy();
-        expect(encrypted.getFirst(cciFieldType.PAYLOAD)).toBeFalsy();
+        expect(encrypted.getFirst(FieldType.ENCRYPTED)).toBeTruthy();
+        expect(encrypted.getFirst(FieldType.APPLICATION)).toBeFalsy();
+        expect(encrypted.getFirst(FieldType.CONTENTNAME)).toBeFalsy();
+        expect(encrypted.getFirst(FieldType.DESCRIPTION)).toBeFalsy();
+        expect(encrypted.getFirst(FieldType.MEDIA_TYPE)).toBeFalsy();
+        expect(encrypted.getFirst(FieldType.PAYLOAD)).toBeFalsy();
         // Verify that no field contains the plaintext
         for (const field of encrypted.all) {
           expect(field.valueString).not.toContain(plaintext);
         }
 
         // Decrypt the fields
-        const decrypted: cciFields = Decrypt(encrypted, {
+        const decrypted: VerityFields = Decrypt(encrypted, {
           recipientPrivateKey: recipient.privateKey,
         });
         // Remove encryption-induced padding
-        decrypted.removeField(decrypted.getFirst(cciFieldType.PADDING));
+        decrypted.removeField(decrypted.getFirst(FieldType.PADDING));
 
         // Verify that the decrypted fields match the original fields
         expect(decrypted).toEqual(fields);
@@ -476,10 +476,10 @@ describe('CCI chunk encryption', () => {
 
       it('leaves core fields intact and unencrypted', () => {
         const plaintext = "Campi fundamentales non possunt cryptari";
-        const fields: cciFields = cciFields.DefaultPositionals(
+        const fields: VerityFields = VerityFields.DefaultPositionals(
           cciFrozenFieldDefinition,
-          cciField.Payload(plaintext),
-        ) as cciFields;
+          VerityField.Payload(plaintext),
+        ) as VerityFields;
 
         // Verify that we have a complete set of core fields
         expect(fields.getFirst(CubeFieldType.TYPE)).toBeTruthy();
@@ -487,25 +487,25 @@ describe('CCI chunk encryption', () => {
         expect(fields.getFirst(CubeFieldType.NONCE)).toBeTruthy();
 
         // Encrypt the fields
-        const encrypted: cciFields = Encrypt(fields, {
+        const encrypted: VerityFields = Encrypt(fields, {
           senderPrivateKey: sender.privateKey,
           recipients: recipient.publicKey,
           senderPubkey: sender.publicKey,
         });
 
         // Verify that the encrypted fields contain an encypted content field
-        expect(encrypted.getFirst(cciFieldType.ENCRYPTED)).toBeTruthy();
+        expect(encrypted.getFirst(FieldType.ENCRYPTED)).toBeTruthy();
         // Verify that the encrypted fields still contain all the core fields
         expect(encrypted.getFirst(CubeFieldType.TYPE)).toBeTruthy();
         expect(encrypted.getFirst(CubeFieldType.DATE)).toBeTruthy();
         expect(encrypted.getFirst(CubeFieldType.NONCE)).toBeTruthy();
 
         // Decrypt the fields
-        const decrypted: cciFields = Decrypt(encrypted, {
+        const decrypted: VerityFields = Decrypt(encrypted, {
           recipientPrivateKey: recipient.privateKey,
         });
         // Remove encryption-induced padding
-        decrypted.removeField(decrypted.getFirst(cciFieldType.PADDING));
+        decrypted.removeField(decrypted.getFirst(FieldType.PADDING));
 
         // Verify that the decrypted fields match the original fields
         expect(decrypted).toEqual(fields);
@@ -521,10 +521,10 @@ describe('CCI chunk encryption', () => {
     it('returns the symmetric key and nonce used', () => {
       // Make a Start-of-Veritum Cube to a single recipient
       const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
-      const fields: cciFields = cciFields.DefaultPositionals(
+      const fields: VerityFields = VerityFields.DefaultPositionals(
         cciFrozenFieldDefinition,
-        cciField.Payload(plaintext),
-      ) as cciFields;
+        VerityField.Payload(plaintext),
+      ) as VerityFields;
 
       // Call tested function
       const encryptState: CryptStateOutput = Encrypt(fields, true, {
@@ -533,7 +533,7 @@ describe('CCI chunk encryption', () => {
         senderPubkey: sender.publicKey,
       });
       const encryptedBinary: Buffer =
-        encryptState.result.getFirst(cciFieldType.ENCRYPTED).value;
+        encryptState.result.getFirst(FieldType.ENCRYPTED).value;
 
       // Perform a manual decryption using the key and nonce returned
       // Extract sender's pubkey, nonce and ciphertext
@@ -553,24 +553,24 @@ describe('CCI chunk encryption', () => {
     it('encrypts a minimal PADDING field if no payload provided', () => {
       // This can be used to perform pure key distribution without sending
       // an actual message just yet
-      const encrypted: cciFields = Encrypt(
-        new cciFields([], cciFrozenFieldDefinition), {
+      const encrypted: VerityFields = Encrypt(
+        new VerityFields([], cciFrozenFieldDefinition), {
         senderPrivateKey:sender.privateKey,
         recipients: recipient.publicKey,
         senderPubkey: sender.publicKey,
       });
-      expect(encrypted.getFirst(cciFieldType.PADDING)).toBeUndefined();
+      expect(encrypted.getFirst(FieldType.PADDING)).toBeUndefined();
 
-      const decrypted: cciFields = Decrypt(encrypted, {
+      const decrypted: VerityFields = Decrypt(encrypted, {
         recipientPrivateKey: recipient.privateKey,
       });
-      expect(decrypted.getFirst(cciFieldType.PADDING)).toBeDefined();
-      expect(decrypted.getFirst(cciFieldType.PAYLOAD)).toBeUndefined();
+      expect(decrypted.getFirst(FieldType.PADDING)).toBeDefined();
+      expect(decrypted.getFirst(FieldType.PAYLOAD)).toBeUndefined();
     });
 
     it('will throw on missing sender pubkey', () => {
       expect(() => {
-        Encrypt(new cciFields([], cciFrozenFieldDefinition), {
+        Encrypt(new VerityFields([], cciFrozenFieldDefinition), {
           senderPrivateKey: sender.privateKey,
           recipients: recipient.publicKey,
         });
@@ -579,7 +579,7 @@ describe('CCI chunk encryption', () => {
 
     it('will throw on missing sender privkey', () => {
       expect(() => {
-        Encrypt(new cciFields([], cciFrozenFieldDefinition), {
+        Encrypt(new VerityFields([], cciFrozenFieldDefinition), {
           senderPubkey: sender.publicKey,
           recipients: recipient.publicKey,
         });

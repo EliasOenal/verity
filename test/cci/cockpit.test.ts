@@ -1,7 +1,7 @@
 import { VerityNodeIf, DummyVerityNode } from "../../src/cci/verityNode";
 import { Cockpit } from "../../src/cci/cockpit";
-import { cciFieldType } from "../../src/cci/cube/cciCube.definitions";
-import { cciField } from "../../src/cci/cube/cciField";
+import { FieldType } from "../../src/cci/cube/cciCube.definitions";
+import { VerityField } from "../../src/cci/cube/verityField";
 import { Identity } from "../../src/cci/identity/identity";
 import { Veritum } from "../../src/cci/veritum/veritum";
 import { CubeType } from "../../src/core/cube/cube.definitions";
@@ -45,11 +45,11 @@ describe('cci Cockpit', () => {
         it('can create single-chunk frozen Verita', () => {
           const veritum = cockpit.prepareVeritum({
             cubeType: CubeType.FROZEN,
-            fields: cciField.Payload("Hoc veritum breve et congelatum est"),
+            fields: VerityField.Payload("Hoc veritum breve et congelatum est"),
             requiredDifficulty: requiredDifficulty,
           });
           expect(veritum.cubeType).toBe(CubeType.FROZEN);
-          expect(veritum.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
+          expect(veritum.getFirstField(FieldType.PAYLOAD).valueString).toEqual(
             "Hoc veritum breve et congelatum est");
         });
 
@@ -57,13 +57,13 @@ describe('cci Cockpit', () => {
         it.skip('can create single-chunk MUC Verita', () => {
           const veritum = cockpit.prepareVeritum({
             cubeType: CubeType.MUC,
-            fields: cciField.Payload("Hoc veritum breve sed mutabile est"),
+            fields: VerityField.Payload("Hoc veritum breve sed mutabile est"),
             requiredDifficulty: requiredDifficulty,
           });
           expect(veritum.cubeType).toBe(CubeType.MUC);
           expect(veritum.publicKey).toBe(identity.key);
           expect(veritum.privateKey).toBe(identity.privateKey);
-          expect(veritum.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
+          expect(veritum.getFirstField(FieldType.PAYLOAD).valueString).toEqual(
             "Hoc veritum breve sed mutabile est");
         });
 
@@ -77,7 +77,7 @@ describe('cci Cockpit', () => {
         beforeAll(async () => {
           veritum = cockpit.prepareVeritum({
             cubeType: CubeType.FROZEN,
-            fields: cciField.Payload(tooLong),
+            fields: VerityField.Payload(tooLong),
             requiredDifficulty: requiredDifficulty,
           });
           await cockpit.publishVeritum(veritum);
@@ -101,7 +101,7 @@ describe('cci Cockpit', () => {
           const latinBraggery = "Hoc veritum breve et cryptatum est";
           const veritum = cockpit.prepareVeritum({
             cubeType: CubeType.FROZEN,
-            fields: cciField.Payload(latinBraggery),
+            fields: VerityField.Payload(latinBraggery),
             requiredDifficulty,
           });
           await cockpit.publishVeritum(veritum, {
@@ -109,17 +109,17 @@ describe('cci Cockpit', () => {
             senderPubkey: identity.encryptionPublicKey,
           })
           // the (single) chunk must have an ENCRYPTED field but no PAYLOAD field
-          expect(veritum.chunks[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
-          expect(veritum.chunks[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+          expect(veritum.chunks[0].getFirstField(FieldType.ENCRYPTED)).toBeDefined();
+          expect(veritum.chunks[0].getFirstField(FieldType.PAYLOAD)).toBeUndefined();
 
           // the encrypted compiled Verium must be decryptable by the recipient
           const restored = Veritum.FromChunks(veritum.chunks, {
             recipientPrivateKey: remote1.encryptionPrivateKey,
           });
           // now we must be back to a PAYLOAD field but no ENCRYPTED field
-          expect(restored.getFirstField(cciFieldType.PAYLOAD)).toBeDefined();
-          expect(restored.getFirstField(cciFieldType.ENCRYPTED)).toBeUndefined();
-          expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(latinBraggery);
+          expect(restored.getFirstField(FieldType.PAYLOAD)).toBeDefined();
+          expect(restored.getFirstField(FieldType.ENCRYPTED)).toBeUndefined();
+          expect(restored.getFirstField(FieldType.PAYLOAD).valueString).toEqual(latinBraggery);
         });
 
         if (loggedIn) it.todo('can create an encrypted Veritum for multiple recipients');
@@ -134,7 +134,7 @@ describe('cci Cockpit', () => {
         beforeAll(async () => {
           veritum = await cockpit.publishVeritum({
             cubeType: CubeType.PIC,
-            fields: cciField.Payload(latinBraggary),
+            fields: VerityField.Payload(latinBraggary),
             requiredDifficulty: requiredDifficulty,
           });
         });
@@ -142,7 +142,7 @@ describe('cci Cockpit', () => {
         it('adds the Veritum to CubeStore', async() => {
           const cube = await node.cubeStore.getCube(await veritum.getKey());
           expect(cube.cubeType).toBe(CubeType.PIC);
-          expect(cube.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(latinBraggary);
+          expect(cube.getFirstField(FieldType.PAYLOAD).valueString).toEqual(latinBraggary);
         });
 
         if (loggedIn) it('stores the Veritum as a post in my Identity by default', async() => {
@@ -155,7 +155,7 @@ describe('cci Cockpit', () => {
           // prepare Veritum
           const veritum = new Veritum({
             cubeType: CubeType.FROZEN,
-            fields: cciField.Payload(tooLong), requiredDifficulty,
+            fields: VerityField.Payload(tooLong), requiredDifficulty,
           });
           await veritum.compile();
           expect(Array.from(veritum.chunks).length).toBeGreaterThan(1);
@@ -175,7 +175,7 @@ describe('cci Cockpit', () => {
           const latinBraggery = "Hoc veritum breve et cryptatum est";
           const veritum = new Veritum({
             cubeType: CubeType.FROZEN,
-            fields: cciField.Payload(latinBraggery),
+            fields: VerityField.Payload(latinBraggery),
             requiredDifficulty,
           });
           await veritum.compile({
@@ -185,8 +185,8 @@ describe('cci Cockpit', () => {
           })
 
           // expect compiled veritum to be encrypted
-          expect(veritum.chunks[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
-          expect(veritum.chunks[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+          expect(veritum.chunks[0].getFirstField(FieldType.ENCRYPTED)).toBeDefined();
+          expect(veritum.chunks[0].getFirstField(FieldType.PAYLOAD)).toBeUndefined();
 
           // publish Veritum
           await node.cubeStore.addCube(veritum.chunks[0]);
@@ -195,7 +195,7 @@ describe('cci Cockpit', () => {
           const restored: Veritum = await cockpit.getVeritum(
             veritum.getKeyIfAvailable()
           );
-          expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
+          expect(restored.getFirstField(FieldType.PAYLOAD).valueString).toEqual(
             latinBraggery);
         });
 
@@ -204,7 +204,7 @@ describe('cci Cockpit', () => {
           // prepare Veritum
           const veritum = new Veritum({
             cubeType: CubeType.FROZEN,
-            fields: cciField.Payload(tooLong),
+            fields: VerityField.Payload(tooLong),
             requiredDifficulty,
           });
           await veritum.compile({
@@ -215,8 +215,8 @@ describe('cci Cockpit', () => {
           })
 
           // expect compiled veritum to be encrypted
-          expect(veritum.chunks[0].getFirstField(cciFieldType.ENCRYPTED)).toBeDefined();
-          expect(veritum.chunks[0].getFirstField(cciFieldType.PAYLOAD)).toBeUndefined();
+          expect(veritum.chunks[0].getFirstField(FieldType.ENCRYPTED)).toBeDefined();
+          expect(veritum.chunks[0].getFirstField(FieldType.PAYLOAD)).toBeUndefined();
 
           // publish Veritum
           for (const chunk of veritum.chunks) await node.cubeStore.addCube(chunk);
@@ -225,7 +225,7 @@ describe('cci Cockpit', () => {
           const restored: Veritum = await cockpit.getVeritum(
             veritum.getKeyIfAvailable()
           );
-          expect(restored.getFirstField(cciFieldType.PAYLOAD).valueString).toEqual(
+          expect(restored.getFirstField(FieldType.PAYLOAD).valueString).toEqual(
             tooLong);
         });
       });  // getVeritum()

@@ -1,7 +1,7 @@
 import { cciCube } from "../../../src/cci/cube/cciCube";
-import { cciFieldLength, cciFieldType } from "../../../src/cci/cube/cciCube.definitions";
-import { cciField } from "../../../src/cci/cube/cciField";
-import { cciFields, cciFrozenFieldDefinition } from "../../../src/cci/cube/cciFields";
+import { FieldLength, FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { VerityField } from "../../../src/cci/cube/verityField";
+import { VerityFields, cciFrozenFieldDefinition } from "../../../src/cci/cube/verityFields";
 import { CubeFieldType, CubeType, FieldSizeError, HasNotify, HasSignature } from "../../../src/core/cube/cube.definitions";
 import { typeFromBinary } from "../../../src/core/cube/cubeUtil";
 import { enumNums } from "../../../src/core/helpers/misc";
@@ -29,15 +29,15 @@ describe('cciCube', () => {
   describe('setFields()', () => {
     it('should set and get fields correctly', () => {
       const cube = new cciCube(CubeType.FROZEN);
-      const fields = new cciFields([
-        cciField.Type(CubeType.FROZEN),
-        cciField.Payload("Ero celeber Cubus cum compilatus fuero."),
-        cciField.Date(),
-        cciField.Nonce(),
+      const fields = new VerityFields([
+        VerityField.Type(CubeType.FROZEN),
+        VerityField.Payload("Ero celeber Cubus cum compilatus fuero."),
+        VerityField.Date(),
+        VerityField.Nonce(),
       ], cciFrozenFieldDefinition);
       cube.setFields(fields);
       expect(cube.fields).toEqual(fields);
-      expect(cube.getFirstField(cciFieldType.PAYLOAD).valueString).toContain(
+      expect(cube.getFirstField(FieldType.PAYLOAD).valueString).toContain(
         "Ero celeber Cubus cum compilatus fuero.");
     }, 3000);
 
@@ -47,11 +47,11 @@ describe('cciCube', () => {
       // if sizes don't match.
       // TODO: Move to CCI tests
       const cube = new cciCube(CubeType.FROZEN);
-      const fields = new cciFields([
-        cciField.Type(CubeType.FROZEN),
-        new cciField(cciFieldType.PAYLOAD, Buffer.alloc(8020)),
-        cciField.Date(),
-        cciField.Nonce()
+      const fields = new VerityFields([
+        VerityField.Type(CubeType.FROZEN),
+        new VerityField(FieldType.PAYLOAD, Buffer.alloc(8020)),
+        VerityField.Date(),
+        VerityField.Nonce()
       ], cciFrozenFieldDefinition); // Too long for the binary data
       expect(() => cube.setFields(fields)).toThrow(FieldSizeError);
     });
@@ -63,12 +63,12 @@ describe('cciCube', () => {
     it('Should not add padding if not required', async() => {
       // Create a Cube with fields whose total length is equal to the cube size
       const cube = cciCube.Frozen({
-        fields: cciField.Payload("His cubus plenus est"),
+        fields: VerityField.Payload("His cubus plenus est"),
         requiredDifficulty: reducedDifficulty,
       });
       const freeSpace = NetConstants.CUBE_SIZE - cube.getFieldLength();
-      const plHl = cube.fieldParser.getFieldHeaderLength(cciFieldType.PAYLOAD);
-      cube.insertFieldBeforeBackPositionals(cciField.Payload(
+      const plHl = cube.fieldParser.getFieldHeaderLength(FieldType.PAYLOAD);
+      cube.insertFieldBeforeBackPositionals(VerityField.Payload(
         Buffer.alloc(freeSpace - plHl)));  // cube now all filled up
       expect(cube.getFieldLength()).toEqual(NetConstants.CUBE_SIZE);
 
@@ -83,7 +83,7 @@ describe('cciCube', () => {
 
     it('Should add padding starting with 0x00 if required', async() => {
       // Create a Cube with fields whose total length is equal to the cube size
-      const payload = cciField.Payload(
+      const payload = VerityField.Payload(
         "Hic cubus nimis parvus, ideo supplendus est.");
       const cube = cciCube.Frozen({
         fields: payload, requiredDifficulty: reducedDifficulty});
@@ -100,7 +100,7 @@ describe('cciCube', () => {
       const binaryCube: Buffer = await cube.getBinaryData();
       const expectEndMarkerAt =
         payload.start +
-        cube.fieldParser.getFieldHeaderLength(cciFieldType.PAYLOAD) +
+        cube.fieldParser.getFieldHeaderLength(FieldType.PAYLOAD) +
         payload.length;
       expect(binaryCube[expectEndMarkerAt]).toEqual(0x00);
     });
@@ -109,11 +109,11 @@ describe('cciCube', () => {
       const overlyPadded: cciCube = cciCube.Frozen({
         requiredDifficulty: reducedDifficulty,
         fields: [
-          cciField.Payload("Hic cubus nimis multum impluvium continet."),
+          VerityField.Payload("Hic cubus nimis multum impluvium continet."),
         ]
       });
       overlyPadded.insertFieldBeforeBackPositionals(
-        cciField.Padding(2000)  // are you crazy?!
+        VerityField.Padding(2000)  // are you crazy?!
       );
       const binaryCube: Buffer = await overlyPadded.getBinaryData();
       expect(binaryCube).toHaveLength(NetConstants.CUBE_SIZE);
@@ -131,11 +131,11 @@ describe('cciCube', () => {
           const randomNotifyNumber = Math.floor(Math.random() * 255);
 
           // prepare some fields: One PAYLOAD...
-          const incompleteFieldset: cciField[] =
-            [cciField.Payload(contentString)];
+          const incompleteFieldset: VerityField[] =
+            [VerityField.Payload(contentString)];
           // ... plus a Notify field if this is a Notify type ...
           if (HasNotify[type]) incompleteFieldset.push(
-            cciField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, randomNotifyNumber)));
+            VerityField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, randomNotifyNumber)));
 
           // sculpt Cube
           const cube: cciCube = cciCube.Create({
@@ -167,8 +167,8 @@ describe('cciCube', () => {
           } else if (type === CubeType.PIC || type === CubeType.PIC_NOTIFY) {
             // for PICs, the key is the hash excluding the DATE and NONCE fields
             const keyHashLength =
-              cciFieldLength[cciFieldType.TYPE] +
-              cciFieldLength[cciFieldType.PIC_RAWCONTENT];  // we don't actually use RAWCONTENT fields in CCI, but the length calculation is still correct
+              FieldLength[FieldType.TYPE] +
+              FieldLength[FieldType.PIC_RAWCONTENT];  // we don't actually use RAWCONTENT fields in CCI, but the length calculation is still correct
             const keyHashableBinaryData = binaryData.subarray(0, keyHashLength);
             const expectedKey = Buffer.from(sha3_256.arrayBuffer(keyHashableBinaryData));
             expect(key).toEqual(expectedKey);
@@ -177,7 +177,7 @@ describe('cciCube', () => {
           // decompile the Cube and check if the content is still the same
           const recontructed: cciCube = new cciCube(binaryData);
           expect(recontructed.cubeType).toBe(type);
-          expect(recontructed.getFirstField(cciFieldType.PAYLOAD).valueString).
+          expect(recontructed.getFirstField(FieldType.PAYLOAD).valueString).
             toEqual(contentString);
           if (HasNotify[type]) {
             expect(recontructed.getFirstField(CubeFieldType.NOTIFY).value[0]).toEqual(randomNotifyNumber);
