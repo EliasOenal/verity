@@ -241,14 +241,14 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     it('restores a post made from a single frozen Cube', () => {
-      const singleFrozenRestored: Veritum =
-        posts.find(post => post.getKeyStringIfAvailable() === singleFrozen.getKeyStringIfAvailable());
+      const singleFrozenRestored: Veritum = posts.find(
+        post => post.getKeyStringIfAvailable() === singleFrozen.getKeyStringIfAvailable())!;
       postEquals(singleFrozen, singleFrozenRestored);
     });
 
     it('restores a post made from a single frozen Cube with notification', () => {
-      const singleFrozenNotifyRestored: Veritum =
-        posts.find(post => post.getKeyStringIfAvailable() === singleFrozenNotify.getKeyStringIfAvailable());
+      const singleFrozenNotifyRestored: Veritum = posts.find(
+        post => post.getKeyStringIfAvailable() === singleFrozenNotify.getKeyStringIfAvailable())!;
       postEquals(singleFrozenNotify, singleFrozenNotifyRestored);
     });
 
@@ -262,50 +262,50 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
           break;
         }
       }
-      postEquals(singlePic, singlePicRestored);
+      postEquals(singlePic, singlePicRestored!);
     });
 
     it('restores a post made from a single PIC with notification', () => {
-      const singlePicNotifyRestored: Veritum =
-        posts.find(post => post.getKeyStringIfAvailable() === singlePicNotify.getKeyStringIfAvailable());
+      const singlePicNotifyRestored: Veritum = posts.find(
+        post => post.getKeyStringIfAvailable() === singlePicNotify.getKeyStringIfAvailable())!;
       postEquals(singlePicNotify, singlePicNotifyRestored);
     });
 
     it('restores a post made from a single MUC', () => {
-      const singleMucRestored: Veritum =
-        posts.find(post => post.getKeyStringIfAvailable() === singleMuc.getKeyStringIfAvailable());
+      const singleMucRestored: Veritum = posts.find(
+        post => post.getKeyStringIfAvailable() === singleMuc.getKeyStringIfAvailable())!;
       postEquals(singleMuc, singleMucRestored);
     });
 
     it('restores a post made from a single MUC with notification', () => {
-      const singleMucNotifyRestored: Veritum =
-        posts.find(post => post.getKeyStringIfAvailable() === singleMucNotify.getKeyStringIfAvailable());
+      const singleMucNotifyRestored: Veritum = posts.find(
+        post => post.getKeyStringIfAvailable() === singleMucNotify.getKeyStringIfAvailable())!;
       postEquals(singleMucNotify, singleMucNotifyRestored);
     });
 
     // TODO FIXME: PMUC Veritum handling still buggy
     it.skip('restores a post made from a single PMUC', () => {
-      const singlePmucRestored: Veritum =
-        posts.find(post => post.getKeyStringIfAvailable() === singlePmuc.getKeyStringIfAvailable());
+      const singlePmucRestored: Veritum = posts.find(
+        post => post.getKeyStringIfAvailable() === singlePmuc.getKeyStringIfAvailable())!;
       postEquals(singlePmuc, singlePmucRestored);
     });
 
     it('restores a post made from a single PMUC with notification', () => {
-      const singlePmucNotifyRestored: Veritum =
-        posts.find(post => post.getKeyStringIfAvailable() === singlePmucNotify.getKeyStringIfAvailable());
+      const singlePmucNotifyRestored: Veritum = posts.find(
+        post => post.getKeyStringIfAvailable() === singlePmucNotify.getKeyStringIfAvailable())!;
       postEquals(singlePmucNotify, singlePmucNotifyRestored);
     });
 
     it('restores a frozen multi Cube post', () => {
-      const multiFrozenRestored: Veritum =
-        posts.find(post => post.getKeyStringIfAvailable() === multiFrozen.getKeyStringIfAvailable());
+      const multiFrozenRestored: Veritum = posts.find(
+        post => post.getKeyStringIfAvailable() === multiFrozen.getKeyStringIfAvailable())!;
       postEquals(multiFrozen, multiFrozenRestored);
     });
 
     // TODO FIXME: PIC Veritum handling still buggy
     it.skip('restores a PIC multi Cube post', () => {
-      const multiPicRestored: Veritum =
-        posts.find(post => post.getKeyStringIfAvailable() === multiPic.getKeyStringIfAvailable());
+      const multiPicRestored: Veritum = posts.find(
+        post => post.getKeyStringIfAvailable() === multiPic.getKeyStringIfAvailable())!;
       postEquals(multiPic, multiPicRestored);
     });
   });
