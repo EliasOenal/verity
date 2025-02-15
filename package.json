@@ -5,12 +5,12 @@
   "type": "module",
   "exports": {
     ".": {
-      "default": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./webui": {
-      "default": "./dist/webui/index.js",
-      "types": "./dist/webui/index.d.ts"
+      "types": "./dist/webui/index.d.ts",
+      "default": "./dist/webui/index.js"
     },
     "./src": "./src",
     "./webpack.veritycommon.mjs": "./webpack.veritycommon.mjs"
