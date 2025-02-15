@@ -78,6 +78,7 @@ export class Cockpit {
     options.identity = this.identity;
 
     // Compile the Veritum
+    // TODO BUGBUG should not recompile the Veritum if already compiled (may change key!)
     return veritum.compile({
       ...options,
       senderPrivateKey: options?.senderPrivateKey ?? options.identity?.encryptionPrivateKey,
