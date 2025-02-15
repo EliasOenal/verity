@@ -5,8 +5,10 @@ import { VerityNodeIf } from "./verityNode";
 import { cciCube } from "./cube/cciCube";
 import { Identity } from "./identity/identity";
 import { Veritum, VeritumCompileOptions, VeritumFromChunksOptions } from "./veritum/veritum";
+import { GetVeritumOptions } from "./veritum/veritumRetriever";
 
 import { Buffer } from 'buffer';
+import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
 
 export interface CockpitOptions {
   identity?: Identity | (() => Identity);
@@ -15,14 +17,6 @@ export interface CockpitOptions {
 export interface PublishVeritumOptions extends VeritumCompileOptions {
   addAsPost?: boolean;
   identity?: Identity;
-}
-
-export interface GetVeritumOptions {
-  /**
-   * Automatically attempt to decrypt the Veritum if decrypted
-   * @default true
-   */
-  autoDecrypt?: boolean,
 }
 
 export class Cockpit {
@@ -108,30 +102,17 @@ export class Cockpit {
     });
   }
 
-  async getVeritum(
+  getVeritum(
       key: CubeKey,
-      options: GetVeritumOptions = {},
+      options: CubeRequestOptions & GetVeritumOptions = {},
   ): Promise<Veritum> {
-    // set default options
-    options = { ...options };  // copy options to avoid tainting passed object
-    options.autoDecrypt ??= true;
-    // retrieve chunks
-    const chunkGen: AsyncGenerator<cciCube> =
-      this.node.veritumRetriever.getContinuationChunks(key);
-    // maybe TODO: get rid of ugly Array conversion?
-    const chunks: Iterable<cciCube> = await ArrayFromAsync(chunkGen);
-    // If auto-decryption was requested, prepare the necessary params
-    // for decryption
-    let fromChunksOptions: VeritumFromChunksOptions;
-    if (options.autoDecrypt) {
-      fromChunksOptions = {
-        recipientPrivateKey: this.identity?.encryptionPrivateKey,
-      };
-    } else {
-      fromChunksOptions = undefined;
-    }
-    // Decompile the Veritum
-    const veritum = Veritum.FromChunks(chunks, fromChunksOptions);
-    return veritum;
+    const veritumPromise: Promise<Veritum> =
+      this.node.veritumRetriever.getVeritum(key,
+        {
+          ...options,
+          recipient: this.identity,
+        }
+    );
+    return veritumPromise;
   }
 }

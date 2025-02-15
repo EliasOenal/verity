@@ -1,4 +1,4 @@
-import { Settings } from "../../core/settings";
+import { ApiMisuseError, Settings } from "../../core/settings";
 import { ArrayFromAsync } from "../../core/helpers/misc";
 import { CubeKey } from "../../core/cube/cube.definitions";
 import { Shuttable } from "../../core/helpers/coreInterfaces";
@@ -11,14 +11,22 @@ import { logger } from "../../core/logger";
 import { cciCube } from "../cube/cciCube";
 import { CubeRetrievalInterface, CubeStore } from "../../core/cube/cubeStore";
 import { RelationshipType, Relationship } from "../cube/relationship";
-import { Veritum } from "./veritum";
+import { Veritum, VeritumFromChunksOptions } from "./veritum";
+import { Identity } from "../identity/identity";
 
-export interface VeritumRetrievalInterface<OptionsType> extends CubeRetrievalInterface<OptionsType> {
+export interface VeritumRetrievalInterface<OptionsType = any> extends CubeRetrievalInterface<OptionsType> {
   getVeritum(key: CubeKey|string, options?: OptionsType): Promise<Veritum>;
 }
 
-export class VeritumRetriever<GetCubeOptionsT
-  extends CubeRequestOptions>
+export interface GetVeritumOptions {
+  /**
+   * Automatically attempt to decrypt the Veritum if it is encrypted
+   */
+  recipient?: Identity|Buffer;
+}
+
+export class VeritumRetriever
+  <GetCubeOptionsT extends CubeRequestOptions = CubeRequestOptions>
   implements VeritumRetrievalInterface<GetCubeOptionsT>, Shuttable
 {
   private timers: NodeJS.Timeout[] = [];  // maybe TODO make optional in case of CubeStore backend?
@@ -39,10 +47,33 @@ export class VeritumRetriever<GetCubeOptionsT
   }
   get cubeStore(): CubeStore { return this.cubeRetriever.cubeStore }
 
-  async getVeritum(key: CubeKey|string, options?: GetCubeOptionsT): Promise<Veritum> {
+  async getVeritum(key: CubeKey|string, options?: GetCubeOptionsT&GetVeritumOptions): Promise<Veritum> {
     const chunks: cciCube[] = await ArrayFromAsync(
       this.getContinuationChunks(key, options));
-    const veritum: Veritum = Veritum.FromChunks(chunks);
+    // maybe TODO: get rid of ugly Array conversion?
+
+    // If auto-decryption was requested, prepare the necessary params
+    // for decryption
+    let recipientPrivateKey: Buffer = undefined;
+    if (options?.recipient) {
+      if (options.recipient instanceof Identity) {
+        recipientPrivateKey = options.recipient.encryptionPrivateKey;
+      } else if (Buffer.isBuffer(options.recipient)) {
+        recipientPrivateKey = options.recipient;
+      } else {
+        logger.error("VeritumRetriever.getVeritum(): Invalid param for options.recipient, must be a Buffer containing a private key or an Identity object");
+      }
+    }
+
+    // Decompile the Veritum
+    const fromChunksOptions: VeritumFromChunksOptions = options?
+      {
+        ...options,
+        recipientPrivateKey,
+      } :
+      { recipientPrivateKey }
+    ;
+    const veritum: Veritum = Veritum.FromChunks(chunks, fromChunksOptions);
     return veritum;
   }
 
@@ -53,6 +84,8 @@ export class VeritumRetriever<GetCubeOptionsT
     key: CubeKey | string,
     options: CubeRequestOptions|GetCubeOptionsT = {},  // undefined = will use RequestScheduler's default
   ): AsyncGenerator<cciCube, boolean, void> {
+    // copy options object to avoid side effects
+    options = {...options};
     // set default timeout
     if (options.timeout === undefined) {
       // HACKHACK: break through our interfacing to adopt RequestScheduler's
