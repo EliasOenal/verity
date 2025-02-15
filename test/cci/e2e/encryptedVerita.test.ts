@@ -28,11 +28,14 @@ describe('Transmission of encrypted Verita', () => {
         veritum, { recipients: net.recipient.identity, addAsPost: false });
       const key: CubeKey = veritum.getKeyIfAvailable();
       expect(key).toBeDefined();
+
       // Note: Creating the veritumPropagated promise here is a bit late, as
       //   propagation already started while we awaited publishVeritum().
-      //   At least for now however, our convergence time is that bad that
-      //   it still works 🤷
-      const veritumPropagated: Promise<CubeInfo> = net.fullNode2.cubeStore.expectCube(key);
+      //   To compensate, let's create a competing Promise that will resolve
+      //   if it has already propagated.
+      const veritumWillPropagate: Promise<CubeInfo> = net.fullNode2.cubeStore.expectCube(key);
+      const veritumAlreadyArrived: CubeInfo = await net.fullNode2.cubeStore.getCubeInfo(key);
+      const veritumPropagated = veritumAlreadyArrived ? Promise.resolve() : veritumWillPropagate;
 
       // Reference Veritum thorugh Identity MUC
       // Note: This is also possible to do automatically through publishVeritum();
