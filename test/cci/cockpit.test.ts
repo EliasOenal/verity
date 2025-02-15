@@ -166,7 +166,7 @@ describe('cci Cockpit', () => {
           for (const chunk of veritum.chunks) await node.cubeStore.addCube(chunk);
 
           // perform test
-          const restored: Veritum = await cockpit.getVeritum(veritum.getKeyIfAvailable());
+          const restored: Veritum = await cockpit.getVeritum(key);
           expect(restored.equals(veritum)).toBe(true);
         });
 
