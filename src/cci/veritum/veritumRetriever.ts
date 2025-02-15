@@ -174,9 +174,10 @@ export class VeritumRetriever
       // it each time
       const refs: Relationship[] = [];
       for (const chunk of orderedChunks) {
+        const newRefs = chunk.getRelationships?.(RelationshipType.CONTINUED_IN);
+        if (Array.isArray(newRefs)) refs.push(...newRefs);
         // maybe TODO get rid of this potentially enormous amount of array
         // operations, see above
-        refs.push(...chunk.getRelationships?.(RelationshipType.CONTINUED_IN));
       }
       // Find the previously yielded chunk's key in that list -- the key of
       // the chunk to be yielded next is obviously the one that follows it.
