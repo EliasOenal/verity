@@ -104,8 +104,27 @@ export class cciCube extends Cube {
 
   declare protected _fields: VerityFields;
 
+  /** Reactivate an existing, binary cube */
   constructor(
-    param1: Buffer | CubeType,
+    binaryData: Buffer,
+    options?: CubeOptions);
+  /**
+   * Sculpt a new bare Cube, starting out without any fields.
+   * This is only useful if for some reason you need full control even over
+   * mandatory boilerplate fields. Consider using Cube.Frozen or Cube.MUC
+   * instead, which will sculpt a fully valid frozen Cube or MUC, respectively.
+   **/
+  constructor(
+      cubeType: CubeType,
+      options?: CubeOptions);
+  /** Copy constructor: Copy an existing Cube */
+  constructor(copyFrom: cciCube);
+  // Repeat implementation as declaration as calls must strictly match a
+  // declaration, not the implementation (which is stupid)
+  constructor(param1: Buffer | CubeType | cciCube, option?: CubeOptions);
+
+  constructor(
+    param1: Buffer | CubeType | cciCube,
     options: CubeOptions = {},
   ) {
     options.family = options.family ?? cciFamily;
