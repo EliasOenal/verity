@@ -71,11 +71,14 @@ export class CubeField extends BaseField {
     return new this(CubeFieldType.PMUC_UPDATE_COUNT, buf);
   }
 
-  constructor(type: number, value: Buffer | string, start?: number) {
-    if (Settings.RUNTIME_ASSERTIONS && CubeFieldLength[type] !== undefined &&
-        value.length !== CubeFieldLength[type]) {
-      throw new FieldError(`Cannot construct CubeField of type ${type} with length ${value.length}, spec prescribes length of ${CubeFieldLength[type]}`);
+  constructor(type: number, value: Buffer | string | String, start?: number);
+  constructor(copyFrom: CubeField);
+  constructor(param1: number|CubeField, value?: Buffer | string, start?: number);
+  constructor(param1: number|CubeField, value?: Buffer | string, start?: number) {
+    if (Settings.RUNTIME_ASSERTIONS && typeof param1 === 'number' && CubeFieldLength[param1] !== undefined &&
+        value.length !== CubeFieldLength[param1]) {
+      throw new FieldError(`Cannot construct CubeField of type ${param1} with length ${value.length}, spec prescribes length of ${CubeFieldLength[param1]}`);
     }
-    super(type, value, start);
+    super(param1, value, start);
   }
 }

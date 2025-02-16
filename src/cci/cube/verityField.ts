@@ -102,15 +102,17 @@ export class VerityField extends CubeField {
   }
 
 
-  constructor(type: number, value: Buffer | string, start?: number) {
-    // Note: cciFieldLength is currently just an alias for CubeFieldLength,
-    // making this check completely redundant. However, we will want to properly
-    // separate them at some point, and then it won't be.
-    if (Settings.RUNTIME_ASSERTIONS && FieldLength[type] !== undefined &&
-        value.length !== FieldLength[type]) {
-      throw new FieldError(`Cannot construct cciField of type ${type} with length ${value.length}, spec prescribes length of ${FieldLength[type]}`);
+  constructor(type: number, value: Buffer | string | String, start?: number);
+  constructor(copyFrom: VerityField);
+  constructor(param1: number|VerityField, value?: Buffer | string, start?: number);
+  constructor(param1: number|CubeField, value?: Buffer | string, start?: number) {
+    // Note: This currently runs the check twice, once here and once at the
+    //   core Cube field level. This is unneccessary, but it's not an expensive check either.
+    if (Settings.RUNTIME_ASSERTIONS && typeof param1 === 'number' && FieldLength[param1] !== undefined &&
+        value.length !== FieldLength[param1]) {
+      throw new FieldError(`Cannot construct VerityField of type ${param1} with length ${value.length}, spec prescribes length of ${FieldLength[param1]}`);
     }
-    super(type, value, start);
+    super(param1, value, start);
   }
 
   toString(valEnc: BufferEncoding = 'hex'): string {

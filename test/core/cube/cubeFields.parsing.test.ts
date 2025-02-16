@@ -96,8 +96,8 @@ describe('CubeFields compilation and decompilation using rawCubeFamily', () => {
       test('should correctly handle RAW_CONTENT field', () => {
         const decompiledFields = parser.decompileFields(binaryData);
         const rawContentType = RawcontentFieldType[type];
-        const originalRawContent = cubeFields.getFirst(rawContentType);
-        const decompiledRawContent = decompiledFields.getFirst(rawContentType);
+        const originalRawContent = cubeFields.getFirst(rawContentType!);
+        const decompiledRawContent = decompiledFields.getFirst(rawContentType!);
         expect(decompiledRawContent.value.toString()).toBe(originalRawContent.value.toString());
       });
 
