@@ -59,7 +59,7 @@ describe('cube', () => {
     commonPrivateKey = Buffer.from(commonKeyPair.privateKey);
   });
 
-  describe('construction', () => {
+  describe('constructor (from scratch)', () => {
     it('should construct a cube object from binary data.', () => {
       expect(() => validBinaryCube.length === 1024).toBeTruthy();
       const cube = new Cube(validBinaryCube);
@@ -101,7 +101,41 @@ describe('cube', () => {
       const binaryData = await cube.getBinaryData();
       expect(binaryData.length).toEqual(1024);
     }, 3000);
-  });  // construction
+  });  // constructor (from scratch)
+
+  describe('copy constructor', () => {
+    it('should copy a Cube object', async () => {
+      // TODO make test for each Cube type and for both compiled and uncompiled state
+      const cube = Cube.Create({
+        cubeType: CubeType.FROZEN,
+        fields: CubeField.RawContent(CubeType.FROZEN,
+          "Hic Cubus maximae magnitudinis est"),
+        requiredDifficulty: requiredDifficulty
+      });
+      await cube.compile();
+
+      const copy = new Cube(cube);
+
+      expect(copy).not.toBe(cube);
+
+      expect(copy.getBinaryDataIfAvailable()).toBeInstanceOf(Buffer);
+      expect(copy.getBinaryDataIfAvailable()).not.toBe(cube.getBinaryDataIfAvailable());
+      expect(copy.getBinaryDataIfAvailable()).toEqual(cube.getBinaryDataIfAvailable());
+
+      expect(copy.getKeyIfAvailable()).toBeInstanceOf(Buffer);
+      expect(copy.getKeyIfAvailable()).not.toBe(cube.getKeyIfAvailable());
+      expect(copy.getKeyIfAvailable()).toEqual(cube.getKeyIfAvailable());
+
+      const origFields: CubeField[] = Array.from(cube.getFields());
+      const copyFields: CubeField[] = Array.from(copy.getFields());
+      expect(origFields).not.toBe(copyFields);
+      expect(origFields.length).toBe(copyFields.length);
+      for (let i = 0; i < origFields.length; i++) {
+        expect(origFields[i]).not.toBe(copyFields[i]);
+        expect(origFields[i].value).toEqual(copyFields[i].value);
+      }
+    }, 3000);
+  });
 
 
   describe('setters and getters', () => {

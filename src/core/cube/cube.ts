@@ -32,15 +32,31 @@ export interface CubeCreateOptions extends CubeOptions {
 
 export abstract class VeritableBaseImplementation implements Veritable {
     protected _fields: CubeFields;
+    readonly options: CubeCreateOptions;
 
-    constructor(readonly options: CubeCreateOptions = {}) {
-        // set default options
-        options.cubeType ??= DEFAULT_CUBE_TYPE;
-        options.family ??= coreCubeFamily;
-        options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
 
-        // initialise members
-        this._fields = this.normalizeFields(options.fields);
+    constructor(options: CubeCreateOptions);
+    constructor(copyFrom: VeritableBaseImplementation);
+    constructor(param1?: CubeCreateOptions|VeritableBaseImplementation);
+    constructor(param1: CubeCreateOptions|VeritableBaseImplementation = {}) {
+        if (param1 instanceof VeritableBaseImplementation) {
+            // copy constructor:
+            // copy options object
+            if (param1.options) this.options = {...param1.options};
+            // copy-construct fields
+            const fieldsType = (param1._fields.constructor) as typeof CubeFields;
+            this._fields = new fieldsType(param1._fields);
+        } else {
+            // construction from scratch
+            this.options = param1;
+            // set default options
+            this.options.cubeType ??= DEFAULT_CUBE_TYPE;
+            this.options.family ??= coreCubeFamily;
+            this.options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
+
+            // initialise members
+            this._fields = this.normalizeFields(this.options.fields);
+            }
     }
 
     get family(): CubeFamilyDefinition { return this.options.family }
@@ -308,7 +324,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
         field.value = val;
     }
 
-    /** Instatiate a Cube object based on an existing, binary cube */
+    /** Reactivate an existing, binary cube */
     constructor(
         binaryData: Buffer,
         options?: CubeOptions);
@@ -321,16 +337,32 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
     constructor(
         cubeType: CubeType,
         options?: CubeOptions);
+    /** Copy constructor: Copy an existing Cube */
+    constructor(copyFrom: Cube);
     // Repeat implementation as declaration as calls must strictly match a
     // declaration, not the implementation (which is stupid)
-    constructor(param1: Buffer | CubeType, option?: CubeOptions);
+    constructor(param1: Buffer | CubeType | Cube, option?: CubeOptions);
     constructor(
-            param1: Buffer | CubeType,
+            param1: Buffer | CubeType | Cube,
             options?: CubeOptions)
     {
-        // set options
-        if (Buffer.isBuffer(param1)) {
-            // existing cube, usually received from the network
+        if (param1 instanceof Cube) {
+            // copy constructor
+            super(param1);  // superclass will take care of fields and stuff
+            // copy binary data
+            this.binaryData = param1.binaryData?
+                Buffer.from(param1.binaryData) : undefined;
+            // copy pic key
+            this.picKey = param1.picKey?
+                Buffer.from(param1.picKey) : undefined;
+            // copy hash
+            this.hash = param1.hash?
+                Buffer.from(param1.hash) : undefined;
+            // copy private key
+            this._privateKey = param1.privateKey?
+                Buffer.from(param1.privateKey) : undefined;
+        } else if (Buffer.isBuffer(param1)) {
+            // reactivate an existing cube from binary, usually received from the network
             const binaryData = param1;
             if (binaryData.length !== NetConstants.CUBE_SIZE) {
                 logger.info(`Cube: Cannot reactivate dormant (binary) Cube of size ${binaryData.length}, must be ${NetConstants.CUBE_SIZE}`);
