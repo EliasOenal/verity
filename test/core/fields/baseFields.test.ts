@@ -75,7 +75,7 @@ describe('baseFields', () => {
     payload2 = new BaseField(TestFieldType.PAYLOAD, payloaddata2);
   });
 
-  describe('initialization', () => {
+  describe('constructor (construction from scratch)', () => {
     it('should initialize correctly with data and fieldDefinition', () => {
       const data = [new BaseField(1, Buffer.from('test'))];
       const baseFields = new BaseFields(data, testFieldDefinition);
@@ -85,6 +85,27 @@ describe('baseFields', () => {
 
     it('should throw ApiMisuseError when fieldDefinition is not provided', () => {
       expect(() => new BaseFields([])).toThrow(ApiMisuseError);
+    });
+  });
+
+  describe('copy constructor', () => {
+    it('creates a deep copy of the fields', () => {
+      const data = [new BaseField(1, Buffer.from('test')), new BaseField(2, Buffer.from('test2'))];
+      const baseFields = new BaseFields(data, testFieldDefinition);
+      const baseFieldsCopy = new BaseFields(baseFields);
+
+      expect(baseFieldsCopy.fieldDefinition).not.toBe(baseFields.fieldDefinition);
+      expect(baseFieldsCopy.fieldDefinition).toEqual(baseFields.fieldDefinition);
+
+      expect(baseFieldsCopy.all).not.toBe(baseFields.all);
+      expect(baseFieldsCopy.all.length).toBe(baseFields.all.length);
+      for (let i = 0; i < baseFieldsCopy.all.length; i++) {
+        expect(baseFieldsCopy.all[i]).not.toBe(baseFields.all[i]);
+        expect(baseFieldsCopy.all[i]).toEqual(baseFields.all[i]);
+      }
+    });
+
+    it('copied the field definition', () => {
     });
   });
 
