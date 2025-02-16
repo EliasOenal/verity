@@ -47,15 +47,26 @@ export class BaseField {
    */
   start: number = undefined;
 
-  constructor(type: number, value: Buffer | string | String, start?: number) {
-      this.type = type;
-      this.start = start;
-      if (Buffer.isBuffer(value)) {
-        this.value = value;
-      } else if (typeof value === 'string' || value instanceof String) {
-        this.value = Buffer.from(value, 'utf8');
+  constructor(type: number, value: Buffer | string | String, start?: number);
+  constructor(copyFrom: BaseField);
+  constructor(param1: number|BaseField, value?: Buffer | string | String, start?: number);
+  constructor(param1: number|BaseField, value?: Buffer | string | String, start?: number) {
+      if (param1 instanceof BaseField) {
+        // copy constructor
+        this.type = param1.type;  // primitive type, plain assignment is okay
+        this.start = param1.start;  // primitive type, plain assignment is okay
+        this.value = Buffer.from(param1.value);  // deep copy
       } else {
-        throw new ApiMisuseError(`BaseField constructor: supplied value must be either Buffer or string`);
+        // construction from scratch
+        this.type = param1;
+        this.start = start;
+        if (Buffer.isBuffer(value)) {
+          this.value = value;
+        } else if (typeof value === 'string' || value instanceof String) {
+          this.value = Buffer.from(value, 'utf8');
+        } else {
+          throw new ApiMisuseError(`BaseField constructor: supplied value must be either Buffer or string`);
+        }
       }
   }
 
