@@ -87,8 +87,16 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
             data: BaseFields | Array<BaseField> | BaseField | undefined,
             fieldDefinition?: FieldDefinition) {
         if (data instanceof BaseFields) {  // copy constructor
-            this.data = Array.from(data.data);
-            this.fieldDefinition = data.fieldDefinition ?? fieldDefinition;
+            // copy-construct fields
+            this.data = [];
+            for (const field of data.data) {
+                const fieldType = field.constructor as typeof BaseField;
+                this.data.push(new fieldType(field));
+            }
+            // copy field definition
+            if (data.fieldDefinition) this.fieldDefinition = {...data.fieldDefinition};
+            else if (fieldDefinition) this.fieldDefinition = {...fieldDefinition};
+            else throw new ApiMisuseError("BaseFields constructor: Cannot copy-construct Fields object without a field definition");
         } else {
             if (fieldDefinition === undefined) throw new ApiMisuseError("BaseFields constructor: Cannot create Fields object without a field definition");
             this.fieldDefinition = fieldDefinition;
