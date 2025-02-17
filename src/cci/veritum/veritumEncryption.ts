@@ -309,7 +309,7 @@ export function ChunkDecrypt(
     for (const chunk of chunks) {
       // Attempt to decrypt this chunk
       const decryptOutput: CryptStateOutput = Decrypt(
-        chunk.manipulateFields(), true, decryptParams,
+        chunk.fields, true, decryptParams,
       );
       if (decryptOutput?.symmetricKey !== undefined) {
         // Key agreed on first chunk will be reused on subsequent chunks

@@ -124,8 +124,12 @@ export class Continuation {
           minBytesRequred += veritum.getFieldLength(padding);
         }
 
-        // now finally accept this field into our macro fieldset
-        macroFieldset.push(field);  // maybe TODO: use less array copying operations
+        // Now finally accept this field into our macro fieldset.
+        // We will also make a copy of the field to avoid messing with the
+        // original data.
+        const copy: VerityField =
+          new veritum.fieldParser.fieldDef.fieldObjectClass(field);
+        macroFieldset.push(copy);  // maybe TODO: use less array copying operations
         minBytesRequred += veritum.getFieldLength(field);
         previousField = field;
       }
@@ -349,7 +353,9 @@ export class Continuation {
           continue;
         }
         // - the rest will just be copied to the macro fieldset
-        fields.appendField(field);
+        const fieldType = field.constructor as typeof VerityField;
+        const copy: VerityField = new fieldType(field);
+        fields.appendField(copy);
       }
     }
     // in a second pass, remove any PADDING fields

@@ -69,7 +69,7 @@ describe('Transmission of encrypted Verita', () => {
       expect(key).toBeDefined();
       const retrieved: Veritum = await net.recipient.getVeritum(key);
       expect(retrieved).toBeDefined();
-      expect(retrieved.getFirstField(FieldType.PAYLOAD).valueString).toBe(plaintext);
+      expect(retrieved.getFirstField(FieldType.PAYLOAD).valueString).toBe(plaintext);  // TODO fix: this sometimes fails
     });
   });  // Publishing an encrypted Veritum for a single recipient
 });
