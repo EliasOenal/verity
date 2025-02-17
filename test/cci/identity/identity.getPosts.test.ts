@@ -34,6 +34,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
   let singlePmucNotify: cciCube;
   let multiFrozen: Veritum;
   let multiPic: Veritum;
+  let singleFrozenEncrypted: Veritum;
 
   beforeAll(async () => {
     await sodium.ready;
@@ -55,7 +56,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     id.name = "protagonista qui illas probationes pro nobis administrabit"
 
     // Add some posts:
-    // // - a frozen single Cube post
+    // - a frozen single Cube post
     singleFrozen = cciCube.Create({
       cubeType: CubeType.FROZEN,
       fields: VerityField.Payload("Commentarius ex uno cubo factus"),
@@ -181,6 +182,19 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     // - multi cube MUCs/PMUCs and notification Verita would have been nice,
     //   but they're still buggy :(
 
+    // encryption test posts:
+    // - a single Cube frozen Veritum, encrypted to self
+    singleFrozenEncrypted = Veritum.Create({
+      cubeType: CubeType.FROZEN,
+      fields: VerityField.Payload("Hoc veritum mihi privatum ac cryptatum est."),
+      requiredDifficulty: 0,
+    });
+    await singleFrozenEncrypted.compile({
+      recipients: id,
+    });
+    for (const chunk of singleFrozenEncrypted.chunks) await cubeStore.addCube(chunk);
+    id.addPost(await singleFrozenEncrypted.getKey());
+
     await id.store();
   });
 
@@ -201,6 +215,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       expect(id.getPostKeyStrings()).toContain(singlePmucNotify.getKeyStringIfAvailable());
       expect(id.getPostKeyStrings()).toContain(multiFrozen.getKeyStringIfAvailable());
       expect(id.getPostKeyStrings()).toContain(multiPic.getKeyStringIfAvailable());
+      expect(id.getPostKeyStrings()).toContain(singleFrozenEncrypted.getKeyStringIfAvailable());
     });
 
     it('has all post keys present in CubeStore', async () => {
@@ -216,6 +231,18 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
         await cubeStore.hasCube(chunk.getKeyStringIfAvailable())).toBeTruthy();
       for (const chunk of multiPic.chunks) expect(
         await cubeStore.hasCube(chunk.getKeyStringIfAvailable())).toBeTruthy();
+      for (const chunk of singleFrozenEncrypted.chunks) expect(
+        await cubeStore.hasCube(chunk.getKeyStringIfAvailable())).toBeTruthy();
+    });
+
+    it('has actually encrypted the encrypted post', async () => {
+      const singleEncryptedRestored: cciCube =
+        await cubeStore.getCube(singleFrozenEncrypted.getKeyStringIfAvailable());
+      expect(singleEncryptedRestored).toBeDefined();
+      const payload = singleEncryptedRestored.getFirstField(FieldType.PAYLOAD);
+      expect(payload).not.toBeDefined();  // no plaintext field
+      expect(singleEncryptedRestored.getBinaryDataIfAvailable().toString('utf-8'))
+        .not.toContain("veritum");  // plaintext word not present
     });
   });  // verify test setup
 
@@ -307,6 +334,13 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       const multiPicRestored: Veritum = posts.find(
         post => post.getKeyStringIfAvailable() === multiPic.getKeyStringIfAvailable())!;
       postEquals(multiPic, multiPicRestored);
+    });
+
+    it('restores a frozen single Cube encrypted post', () => {
+      const singleFrozenEncryptedRestored: Veritum = posts.find(
+        post => post.getKeyStringIfAvailable() === singleFrozenEncrypted.getKeyStringIfAvailable())!;
+      // post is encrypted to self and should get decrypted automatically
+      postEquals(singleFrozenEncrypted, singleFrozenEncryptedRestored);
     });
   });
 

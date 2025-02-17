@@ -689,7 +689,9 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
           promise = this.cubeRetriever.getCube(post);
           break;
         case PostFormat.Veritum:
-          promise = this.veritumRetriever.getVeritum(post);
+          promise = this.veritumRetriever.getVeritum(post, {
+            recipient: this,
+          });
           break;
       }
       if (promise !== undefined) minePromises.push(promise);
