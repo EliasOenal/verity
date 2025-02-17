@@ -63,11 +63,11 @@ export class Cockpit {
     let veritum: Veritum;
     let options: PublishVeritumOptions;
     if (param1 instanceof Veritum) {
+      options = {...param2};
       veritum = param1;
-      options = param2;
     } else {
-      veritum = this.prepareVeritum(param1);
-      options = param1;
+      options = {...param1};
+      veritum = this.prepareVeritum(options);
     }
 
     // Set default options
@@ -79,11 +79,7 @@ export class Cockpit {
 
     // Compile the Veritum
     // TODO BUGBUG should not recompile the Veritum if already compiled (may change key!)
-    return veritum.compile({
-      ...options,
-      senderPrivateKey: options?.senderPrivateKey ?? options.identity?.encryptionPrivateKey,
-      senderPubkey: options?.senderPubkey ?? options.identity?.encryptionPublicKey,
-    }).then(() => {
+    return veritum.compile(options).then(() => {
       const promises: Promise<any>[] = [];
       // If the user is logged in (and did not opt out), store this as a post
       if (options.identity && options.addAsPost) {
