@@ -3,6 +3,7 @@ import { keyVariants } from "../../core/cube/cubeUtil";
 import { Veritable } from "../../core/cube/veritable.definition";
 import { logger } from "../../core/logger";
 import { NetConstants } from "../../core/networking/networkDefinitions";
+import { ApiMisuseError } from "../../core/settings";
 import { cciCube } from "../cube/cciCube";
 import { FieldLength, FieldType } from "../cube/cciCube.definitions";
 import { VerityField } from "../cube/verityField";
@@ -14,6 +15,11 @@ import { VeritumCompileOptions, VeritumFromChunksOptions } from "./veritum";
 
 import sodium from 'libsodium-wrappers-sumo'
 
+/**
+ * The ChunkEncryption helper is, as the name suggest, a helper that prepares
+ * a (potentially multi-chunk and/or multi-recipient) Veritum for chunk-by-chunk
+ * encryption. In case of multiple recipients it handles key distribution.
+ */
 export class ChunkEncryptionHelper {
   readonly shallEncrypt: boolean;
 
@@ -38,8 +44,7 @@ export class ChunkEncryptionHelper {
       readonly options: VeritumCompileOptions,  // TODO veritable should be able to incorporate options
   ){
     // First, let's find out if the user did even request encryption
-    this.shallEncrypt = this.options.senderPrivateKey !== undefined &&
-                        this.options.recipients !== undefined;
+    this.shallEncrypt = this.options.recipients !== undefined;
     if (this.shallEncrypt) {
       // Figure out which variant of CCI encryption we will use
       this.planEncryptionScheme();
@@ -139,14 +144,14 @@ export class ChunkEncryptionHelper {
     // This is an ephemeral key only intended to encrypt a single chunk.
     // No replies to this pubkey are expected; thus we can discard the
     // keys right after encryption.
-    if (this.encryptionSchemeParams.senderPrivateKey == undefined ||
+    if (this.encryptionSchemeParams.senderPrivateKey == undefined &&
         this.encryptionSchemeParams.senderPubkey == undefined
     ){
       const keyPair = sodium.crypto_box_keypair();
       this.encryptionSchemeParams.senderPrivateKey = Buffer.from(keyPair.privateKey);
       this.encryptionSchemeParams.senderPubkey = Buffer.from(keyPair.publicKey);
     } else {
-      logger.trace(`veritumEncryption: Caution, using supplied sender keypair. This is discouraged as it can lead to public key reuse, which can allow non-recipients to fingerprint messages.`);
+      logger.warn(`veritumEncryption: Caution, using supplied sender keypair. This is discouraged as it can lead to public key reuse, which can allow non-recipients to infer message metadata.`);
     }
     this.encryptionSchemeParams =  // run scheme planner
       EncryptionPrepareParams(this.encryptionSchemeParams);
