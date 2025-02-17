@@ -288,23 +288,29 @@ export function EncryptionHashNonce(nonce: Buffer): Buffer {
  * and superfluous params will be silently ignored.
  */
 function EncryptionValidateParams(params: CciEncryptionParams): true {
+  // expected key lengths:
+  const symmetricKeyLength: number = sodium.crypto_secretbox_KEYBYTES;
+  const nonceLength: number = sodium.crypto_secretbox_NONCEBYTES;
+  const publicKeyLength: number = sodium.crypto_box_PUBLICKEYBYTES;
+  const privateKeyLength: number = sodium.crypto_box_SECRETKEYBYTES;
+
   // allow pre-shared keys, with or without implicit nonce
-  if (params.symmetricKey?.length === sodium.crypto_secretbox_KEYBYTES &&
+  if (params.symmetricKey?.length === symmetricKeyLength &&
        (params.nonce === undefined ||
-        params.nonce.length === sodium.crypto_secretbox_NONCEBYTES)
+        params.nonce.length === nonceLength)
   ) {
     return true;
   }
   // allow any variant of key agreement
   else if (
-    params.senderPubkey?.length === sodium.crypto_box_PUBLICKEYBYTES &&
-    params.senderPrivateKey?.length === sodium.crypto_box_SECRETKEYBYTES &&
+    params.senderPubkey?.length === publicKeyLength &&
+    params.senderPrivateKey?.length === privateKeyLength &&
     params.recipients !== undefined
   ) {
     // note: params.recipients will be validated later in EncryptionNormaliseRecipients
     return true;
   }
-  else throw new ApiMisuseError(`Encrypt: Invalid combination of parameters`);
+  else throw new ApiMisuseError(`Encrypt: Invalid combination of parameters or invalid key lengths. Double check you supplied both sender's public and private key as well as recipient's public key, and that you supplied encryption keys and not signing keys please.`);
 }
 
 function *EncryptionNormaliseRecipients(recipients: EncryptionRecipients): Generator<Buffer> {
