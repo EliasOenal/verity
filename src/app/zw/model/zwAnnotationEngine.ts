@@ -1,6 +1,9 @@
 import { CubeKey, CubeType } from "../../../core/cube/cube.definitions";
 import { Cube } from "../../../core/cube/cube";
+import { CubeEmitter, CubeRetrievalInterface, CubeStore } from "../../../core/cube/cubeStore";
 import { CubeInfo } from "../../../core/cube/cubeInfo";
+import { keyVariants } from "../../../core/cube/cubeUtil";
+import { logger } from "../../../core/logger";
 
 import { MediaTypes, FieldType, FieldLength } from "../../../cci/cube/cciCube.definitions";
 import { VerityFields } from "../../../cci/cube/verityFields";
@@ -12,12 +15,7 @@ import { ensureCci } from "../../../cci/cube/cciCubeUtil";
 
 import { assertZwCube } from "./zwUtil";
 
-import { logger } from "../../../core/logger";
-
 import { Buffer } from 'buffer';
-import { CubeEmitter, CubeRetrievalInterface, CubeStore } from "../../../core/cube/cubeStore";
-import { keyVariants } from "../../../core/cube/cubeUtil";
-import { CubeRetriever } from "../../../core/networking/cubeRetrieval/cubeRetriever";
 
 // TODO: Split post selection and associated criteria out of here, moving it to
 // a new class ContentSelector. Instead of purely binary criteria, assign them
@@ -34,7 +32,7 @@ export enum SubscriptionRequirement {
 export class ZwAnnotationEngine extends AnnotationEngine {
   static ZwConstruct(
     cubeEmitter: CubeEmitter,
-    cubeRetriever: CubeRetriever|CubeStore,
+    cubeRetriever: CubeRetrievalInterface,
     subscriptionRequirement: SubscriptionRequirement = SubscriptionRequirement.none,
     subscribedMucs: CubeInfo[] = undefined,
     autoLearnMucs: boolean = true,
@@ -54,7 +52,7 @@ export class ZwAnnotationEngine extends AnnotationEngine {
 
   constructor(
       cubeEmitter: CubeEmitter,
-      private cubeRetriever: CubeRetriever|CubeStore,
+      private cubeRetriever: CubeRetrievalInterface,
       private subscriptionRequirement: SubscriptionRequirement = SubscriptionRequirement.none,
       subscribedMucs: CubeInfo[] = undefined,
       private autoLearnMucs: boolean = true,

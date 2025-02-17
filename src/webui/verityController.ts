@@ -3,11 +3,13 @@ import { UiError } from "./webUiDefinitions";
 
 import type { Identity } from "../cci/identity/identity";
 import { DummyCoreNode, type CoreNode, type CoreNodeIf } from "../core/coreNode";
-import type { CubeStore } from "../core/cube/cubeStore";
+import type { CubeRetrievalInterface, CubeStore } from "../core/cube/cubeStore";
 import { DummyNavController, type NavControllerIf, type NavItem } from "./navigation/navigationDefinitions";
 import { CubeRetriever } from "../core/networking/cubeRetrieval/cubeRetriever";
 import { VerityNodeIf, DummyVerityNode } from "../cci/verityNode";
 import { Cockpit } from "../cci/cockpit";
+import { VeritumRetrievalInterface, VeritumRetriever } from "../cci/veritum/veritumRetriever";
+import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
 
 /**
  * The interface a controller's parent object needs to provide;
@@ -50,7 +52,8 @@ export interface VerityControllerOptions {
 export class VerityController {
   public contentAreaView: VerityView = undefined;
   get cubeStore(): CubeStore { return this.parent?.node?.cubeStore }
-  get cubeRetriever(): CubeRetriever { return this.parent?.node?.cubeRetriever }
+  get veritumRetriever(): VeritumRetrievalInterface<CubeRequestOptions> { return this.parent?.node?.veritumRetriever }
+  get cubeRetriever(): CubeRetriever | CubeRetrievalInterface<CubeRequestOptions> { return this.parent?.node?.cubeRetriever }
   get identity(): Identity { return this.parent?.identity }
   get cockpit(): Cockpit { return this.parent?.cockpit }
 

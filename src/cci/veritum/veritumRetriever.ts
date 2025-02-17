@@ -14,7 +14,7 @@ import { RelationshipType, Relationship } from "../cube/relationship";
 import { Veritum, VeritumFromChunksOptions } from "./veritum";
 import { Identity } from "../identity/identity";
 
-export interface VeritumRetrievalInterface<OptionsType = any> extends CubeRetrievalInterface<OptionsType> {
+export interface VeritumRetrievalInterface<OptionsType = CubeRequestOptions> extends CubeRetrievalInterface<OptionsType> {
   getVeritum(key: CubeKey|string, options?: OptionsType): Promise<Veritum>;
 }
 
