@@ -310,7 +310,7 @@ function EncryptionValidateParams(params: CciEncryptionParams): true {
     // note: params.recipients will be validated later in EncryptionNormaliseRecipients
     return true;
   }
-  else throw new ApiMisuseError(`Encrypt: Invalid combination of parameters or invalid key lengths. Double check you supplied both sender's public and private key as well as recipient's public key, and that you supplied encryption keys and not signing keys please.`);
+  else throw new ApiMisuseError(`Encrypt: Invalid combination of parameters or invalid key lengths. Double check you supplied the recipient's public key, and that the key you supplied is an encryption key and not a signing key. Note that you should usually not supply any sender keys as we prefer ephemeral ones; if you still insist, double-check you supplied both public and private key and that they're valid.`);
 }
 
 function *EncryptionNormaliseRecipients(recipients: EncryptionRecipients): Generator<Buffer> {
