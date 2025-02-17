@@ -2,9 +2,9 @@ import { cciCube, cciFamily } from "../../../src/cci/cube/cciCube";
 import { MediaTypes, FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Continuation } from "../../../src/cci/veritum/continuation";
-import { Veritum } from "../../../src/cci/veritum/veritum";
+import { Veritum, VeritumFromChunksOptions } from "../../../src/cci/veritum/veritum";
 import { coreCubeFamily } from "../../../src/core/cube/cube";
-import { CubeType, HasSignature } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, CubeType, HasNotify, HasSignature } from "../../../src/core/cube/cube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { enumNums } from "../../../src/core/helpers/misc";
 
@@ -33,14 +33,129 @@ describe('Veritum', () => {
 
   describe('construction', () => {
     describe('FromChunks()', () => {
+      describe('reconstructing unencrypted Verita', () => {
+        for (const chunkNo of [1, 2, 3]) {
+          for (const cubeType of enumNums(CubeType)) {
+
+            // TODO BUGBUG FIXME multi-chunk singed Verita still don't work
+            if (HasSignature[cubeType] && chunkNo > 1) continue;
+
+            for (const supplyKey of [true, false]) {
+              describe(`${supplyKey ? 'but still supplying a decryption key' : 'not supplying a decryption key (i.e. the normal way)'} a key`, () => {
+
+                describe(`${chunkNo}-chunk ${CubeType[cubeType]} Veritum`, () => {
+                  let text: string;
+                  let veritum: Veritum;
+                  let veritumKey: CubeKey;
+                  let veritumFields: VerityField[];
+                  let veritumChunks: cciCube[];
+
+                  const notify = VerityField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42));
+
+                  let reconstructed: Veritum;
+
+                  beforeAll(async () => {
+                    // prepare fields
+                    text = `Haec veritum ${chunkNo}-chunk generis ${CubeType[cubeType]} non est encryptum.`
+                    const payload = VerityField.Payload(text);
+
+                    // sculpt unencrypted test Veritum
+                    veritum = new Veritum({
+                      cubeType: cubeType,
+                      fields: HasNotify[cubeType] ? [payload, notify] : [payload],
+                      publicKey, privateKey, requiredDifficulty: 0,
+                    });
+
+                    // grow Veritum to the desired number of chunks
+                    while (veritum.getFieldLength() < (chunkNo -1) * NetConstants.CUBE_SIZE) {
+                      veritum.insertFieldBeforeBackPositionals(payload);
+                    }
+                    expect(veritum.getFieldLength() >= (chunkNo - 1) * NetConstants.CUBE_SIZE).toBeTruthy();
+                    expect(veritum.getFieldLength() < chunkNo * NetConstants.CUBE_SIZE).toBeTruthy();
+
+                    // compile Veritum and remember key
+                    await veritum.compile();
+                    veritumKey = veritum.getKeyIfAvailable();
+                    expect(veritumKey.length).toBe(NetConstants.CUBE_KEY_SIZE);
+
+                    // keep a copy of the Veritum's fields and chunks before running the test
+                    veritumFields = [];
+                    for (const field of veritum.getFields()) {
+                      veritumFields.push(new VerityField(field));
+                    }
+                    veritumChunks = [];
+                    for (const chunk of veritum.chunks) {
+                      veritumChunks.push(new cciCube(chunk));
+                    }
+                    // Run test.
+                    // We will be extra mean and still pass a decryption private key
+                    // even though there is nothing to decrypt.
+                    let options: VeritumFromChunksOptions;
+                    if (supplyKey) {
+                      options = { recipientPrivateKey: privateKey };
+                    } else {
+                      options = {};
+                    }
+                    reconstructed = Veritum.FromChunks(veritum.chunks, options);
+                  });
+
+                  it('does not change the original Veritum or its chunks', () => {
+                    expect(veritum.getKeyIfAvailable()).toEqual(veritumKey);
+
+                    const fieldsAfter: VerityField[] = Array.from(veritum.getFields());
+                    expect(fieldsAfter.length).toBe(veritumFields.length);
+                    for (let i = 0; i < veritumFields.length; i++) {
+                      expect(fieldsAfter[i]).not.toBe(veritumFields[i]);
+                      expect(fieldsAfter[i].equals(veritumFields[i])).toBeTruthy();
+                    }
+
+                    const chunksAfter: cciCube[] = Array.from(veritum.chunks);
+                    expect(chunksAfter.length).toBe(veritumChunks.length);
+                    for (let i = 0; i < veritumChunks.length; i++) {
+                      expect(chunksAfter[i]).not.toBe(veritumChunks[i]);
+                      expect(chunksAfter[i].equals(veritumChunks[i])).toBeTruthy();
+                    }
+
+                    if (HasSignature[cubeType]) {
+                      expect(reconstructed.publicKey).toBeInstanceOf(Buffer);
+                      expect(reconstructed.publicKey).not.toBe(publicKey);
+                      expect(reconstructed.publicKey).toEqual(publicKey);
+                    }
+                  });
+
+                  it("the reconstructed Veritum should have the original Veritum's key", () => {
+                    expect(reconstructed.getKeyIfAvailable()).toBeInstanceOf(Buffer);
+                    expect(reconstructed.getKeyIfAvailable()).toEqual(veritumKey);
+                  });
+
+                  it("should have reconstructed the original Veritum's payload", () => {
+                    expect(reconstructed.getFirstField(FieldType.PAYLOAD).valueString).toEqual(text);
+                  });
+
+
+                  if (HasSignature[cubeType]) it('will adopt the first chunk\'s public key', () => {
+                    expect(reconstructed.publicKey).toBeInstanceOf(Buffer);
+                    expect(reconstructed.publicKey).toEqual(veritum.chunks[0].publicKey);
+                  });
+
+                  if (HasNotify[cubeType]) it.todo("will adopt the first chunk's notification");
+                  it.todo("will adopt the first chunk's date field by default");
+                  if (cubeType === CubeType.PMUC || cubeType === CubeType.PMUC_NOTIFY) it.todo("will adopt the first chunk's update count if it is a PMUC");
+                });  // feeding an unencrypted Veritum
+              });  // supplying / not supplying a decryption key
+            }  // for supplyKey of [true, false]
+          }
+        }
+      });  // reconstructing unencrypted Verita
+
+
       // Note: Decryption tests in veritumEncryption.test.ts
-      describe('decryption', () => {
+      describe('reconstructing encrypted Verita', () => {
         it.todo('write a concise test ensuring this correctly chains Recombine(), which is already well tested');
       });
 
-      it.todo("will adopt the first chunk's date field by default");
-      it.todo("will adopt the first chunk's notification, if any");
-      it.todo("will adopt the first chunk's update count if it is a PMUC");
+
+
     });
 
     describe('copy constructor', () => {
@@ -259,7 +374,7 @@ describe('Veritum', () => {
         const compiled: cciCube[] = Array.from(cubesIterable);
         expect(compiled.length).toBe(1);
         expect(compiled[0].cubeType).toBe(CubeType.FROZEN);
-        expect(compiled[0].getFirstField(FieldType.PAYLOAD)).toEqual(payloadField);
+        expect(compiled[0].getFirstField(FieldType.PAYLOAD).equals(payloadField)).toBeTruthy();
       });
 
       it('compiles a long frozen Veritum to multiple Frozen Cubes', async() => {

@@ -80,7 +80,7 @@ describe('CCI Veritum encryption', () => {
             senderPubkey: senderKeyPair.publicKey,
           });
           // expect the APPLICATION field to be kept
-          expect(veritum.chunks[0].getFirstField(FieldType.APPLICATION)).toEqual(applicationField);
+          expect(veritum.chunks[0].getFirstField(FieldType.APPLICATION).equals(applicationField)).toBeTruthy();
           // expect there to be an ENCRYPTED field
           expect(veritum.chunks[0].getFirstField(FieldType.ENCRYPTED)).toBeDefined();
           // expect encrypted fields not to contain any PAYLOAD field
@@ -208,7 +208,7 @@ describe('CCI Veritum encryption', () => {
         for (const recipient of recipientKeyPairs) {
           const restored = Veritum.FromChunks(veritum.chunks,
             { recipientPrivateKey: recipient.privateKey });
-          expect(restored.getFirstField(FieldType.PAYLOAD)).toEqual(payloadField);
+          expect(restored.getFirstField(FieldType.PAYLOAD).equals(payloadField)).toBeTruthy();
         }
       });
 
