@@ -60,7 +60,12 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     // If decryption was requested, let's decrypt the chunks before recombining.
     // Will not get in our way if decryption was not requested.
     let transformedChunks: Iterable<cciCube> = ChunkDecrypt(chunks, options);
-    return Continuation.Recombine(transformedChunks, options);
+    const recombined: Veritum = Continuation.Recombine(transformedChunks, options);
+    // In case of an encrypted Veritum, the original chunks rather than the
+    // transformed (decrypted) chunks should be retained. In case of non-signed
+    // Verita, this defined the Veritum's key.
+    recombined._chunks = Array.from(chunks);
+    return recombined;
   }
 
   /**
@@ -172,8 +177,12 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     }
   }
 
-  async compile(options: VeritumCompileOptions = this.options): Promise<Iterable<cciCube>> {
+  async compile(optionsInput: VeritumCompileOptions = {}): Promise<Iterable<cciCube>> {
     await sodium.ready;  // needed in case of encrypted Verita
+    const options: VeritumCompileOptions = {
+      ...this.options,
+      ...optionsInput,
+    }
     // Prepare an encryption helper in case encryption is requested
     // (it will not get in the way otherwise)
     const encryptionHelper = new ChunkEncryptionHelper(this, options);

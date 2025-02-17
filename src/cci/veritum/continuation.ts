@@ -372,7 +372,16 @@ export class Continuation {
       ...options,
       cubeType: cubeType,
       fields: fields,
-      chunks: Array.from(chunks),  // maybe TODO optimise: avoid copying potential input Array?
+
+      // Have the reconstructed Veritum retain its original chunks so it stays
+      // in compiled state and knows its key.
+      // maybe TODO optimise: avoid copying potential input Array?
+      // TODO: make retaining chunks optional as it increases memory consuption
+      //  by a factor of 3 (decrypted fields, encrypted fields, raw encrypted binary blob) --
+      //  not retaining the chunks will basically yield an uncompiled Veritum,
+      //  which as it's in uncompiled state may not know its key
+      chunks: Array.from(chunks),
+
       publicKey: chunks[0].publicKey,  // only relevant for signed types, undefined otherwise
     });
     return veritum;
