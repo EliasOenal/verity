@@ -97,7 +97,7 @@ export interface GetCubeOptions {
  * A generalised interface for objects that can retrieve Cubes.
  * Examples within the core library include CubeStore and CubeRetriever.
  */
-export interface CubeRetrievalInterface<OptionsType> {
+export interface CubeRetrievalInterface<OptionsType = GetCubeOptions> {
   getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo>;
   getCube<cubeClass extends Cube>(key: CubeKey | string, options?: OptionsType): Promise<cubeClass>;
   expectCube(keyInput: CubeKey|string): Promise<CubeInfo>;  // maybe TODO: add timeout?
