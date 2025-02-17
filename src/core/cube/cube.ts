@@ -87,7 +87,11 @@ export abstract class VeritableBaseImplementation implements Veritable {
     equals(other: Veritable&VeritableBaseImplementation): boolean {
         if (
             this.cubeType === other.cubeType &&
-            this.family === other.family &&
+            // this.family === other.family &&  // this is wrong as it compares object addresses, not contents
+            (
+                !this.getKeyIfAvailable() && !other.getKeyIfAvailable() ||
+                this.getKeyIfAvailable().equals(other.getKeyIfAvailable())
+            ) &&
             this.fieldsEqual(other)
         ) return true;
         else return false;
