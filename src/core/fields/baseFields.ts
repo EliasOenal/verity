@@ -121,9 +121,13 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
     }
 
     equals(other: BaseFields, compareOffsets: boolean = false): boolean {
-        if (this.length != other.length) return false;
+        if (this.length != other.length) {
+            return false;
+        }
         for (let i=0; i<this.length; i++) {
-            if (!this.all[i].equals(other.all[i], compareOffsets)) return false;
+            if (!this.all[i].equals(other.all[i], compareOffsets)) {
+                return false;
+            }
         }
         return true;
     }
