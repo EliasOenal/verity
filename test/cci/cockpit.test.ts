@@ -106,7 +106,6 @@ describe('cci Cockpit', () => {
           });
           await cockpit.publishVeritum(veritum, {
             recipients: remote1,
-            senderPubkey: identity.encryptionPublicKey,
           })
           // the (single) chunk must have an ENCRYPTED field but no PAYLOAD field
           expect(veritum.chunks[0].getFirstField(FieldType.ENCRYPTED)).toBeDefined();
