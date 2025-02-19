@@ -52,8 +52,8 @@ export class VerityUI implements ControllerContext {
    */
   static async Construct(options: VerityOptions): Promise<VerityUI> {
     logger.info('Starting web node');
-    const veraStartupAnim =  new VeraAnimationController();
-    veraStartupAnim.start();
+    const vera = new VeraAnimationController();
+    vera.start();
 
     await sodium.ready;
 
@@ -77,6 +77,7 @@ export class VerityUI implements ControllerContext {
 
     // Construct UI and link it to window.verity
     const ui: VerityUI = new VerityUI(node, options);
+    ui.vera = vera;
     window.verity = ui;
     // Shut node down cleanly when user exits
     window.onbeforeunload = function(){ window.verity.shutdown() }
@@ -110,7 +111,7 @@ export class VerityUI implements ControllerContext {
     ui.identityController.loginStatusView.show();  // display Identity status
     ui.peerController.onlineView.show();
     ui.currentController?.contentAreaView?.show();  // display initial nav
-    veraStartupAnim.stop();
+    vera.stop();
     return ui;
   }
 
@@ -121,6 +122,7 @@ export class VerityUI implements ControllerContext {
   identityController: IdentityController;
   readonly fileManagerController: FileManagerController;
   readonly cockpit: Cockpit;
+  public vera: VeraAnimationController;
 
   get currentController(): VerityController { return this.nav.currentController }
 
