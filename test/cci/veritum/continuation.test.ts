@@ -148,345 +148,353 @@ describe('Continuation', () => {
   });  // manual splitting
 
   describe('round-trip tests', () => {
-    it('splits and restores a single overly large payload field requiring two chunks', async () => {
-      // prepare macro Cube
-      const macroCube = cciCube.Create({
-        cubeType: CubeType.FROZEN,
-        requiredDifficulty: 0,
-      });
-      const payloadMacrofield = VerityField.Payload(tooLong);
-      macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
-
-      // run the test: split, then recombine
-      const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
-      expect(splitCubes.length).toEqual(2);
-      const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
-
-      // assert that payload was correctly restored
-      // TODO: get rid of manipulateFields() call and direct Array method calls
-      expect(recombined.manipulateFields().get(FieldType.PAYLOAD).length).toEqual(1);
-      const restoredPayload = recombined.getFirstField(FieldType.PAYLOAD);
-      expect(restoredPayload.valueString).toEqual(tooLong);
-    });
-
-    it('splits and restores a single extremely large payload field requiring more than chunks', async () => {
-      // prepare macro Cube
-      const macroCube = cciCube.Create({
-        cubeType: CubeType.FROZEN,
-        requiredDifficulty: 0,
-      });
-      const payloadMacrofield = VerityField.Payload(farTooLong);
-      macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
-
-      // run the test: split, then recombine
-      const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
-      expect(splitCubes.length).toBeGreaterThan(11);
-      const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
-
-      // assert all CONTINUED_IN relationships are present and in correct order
-      let refs: Relationship[] = [];
-      for (const cube of splitCubes) {
-        refs = [...refs, ...cube.fields.getRelationships(RelationshipType.CONTINUED_IN)];
-      }
-      expect(refs.length).toBe(splitCubes.length - 1);
-      for (let i=0; i < refs.length; i++) {
-        expect(refs[i].type).toEqual(RelationshipType.CONTINUED_IN);
-        expect(refs[i].remoteKey).toEqual(await splitCubes[i+1].getKey());
-      }
-
-      // assert that payload was correctly restored
-      // TODO: get rid of manipulateFields() call and direct Array method calls
-      expect(recombined.manipulateFields().get(FieldType.PAYLOAD).length).toEqual(1);
-      const restoredPayload = recombined.getFirstField(FieldType.PAYLOAD);
-      expect(restoredPayload.valueString).toEqual(farTooLong);
-    });
-
-    it('splits and restores a long array of small fixed-length fields', async () => {
-      const numFields = 500;
-      // prepare macro Cube
-      const macroCube = cciCube.Create({
-        cubeType: CubeType.FROZEN,
-        requiredDifficulty: 0,
-      });
-      const manyFields: VerityField[] = [];
-      // add numFields media type fields, with content alternating between two options
-      for (let i=0; i < numFields; i++) {
-        if (i%2 == 0) manyFields.push(VerityField.MediaType(MediaTypes.TEXT));
-        else manyFields.push(VerityField.MediaType(MediaTypes.JPEG));
-      }
-      for (const field of manyFields) {
-        macroCube.insertFieldBeforeBackPositionals(field);
-      }
-
-      // split the Cube
-      const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
-
-      // run some tests on the chunks: ensure that the total number of target
-      // fields in the split is correct
-      let targetFieldsInSplit = 0;
-      for (const cube of splitCubes) {
-        targetFieldsInSplit += cube.fields.get(FieldType.MEDIA_TYPE).length;
-      }
-      expect(targetFieldsInSplit).toEqual(numFields);
-
-
-      // recombine the chunks
-      const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
-
-      // assert that payload was correctly restored
-      // TODO: get rid of manipulateFields() call and direct Array method calls
-      const manyRestoredFields = recombined.manipulateFields().get(FieldType.MEDIA_TYPE);
-      expect(manyRestoredFields.length).toEqual(numFields);
-      for (let i=0; i < numFields; i++) {
-        expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
-      }
-    });
-
-    it('splits and restores a long array of small variable-length fields', async () => {
-      const numFields = 500;
-      // prepare macro Cube
-      const macroCube = cciCube.Create({
-        cubeType: CubeType.FROZEN,
-        requiredDifficulty: 0,
-      });
-      const manyFields: VerityField[] = [];
-      // add 3000 DESCRIPTION fields, using a running number as content
-      for (let i=0; i < numFields; i++) {
-        manyFields.push(VerityField.Description(i.toString()));
-      }
-      for (const field of manyFields) {
-        macroCube.insertFieldBeforeBackPositionals(field);
-      }
-
-      // split the Cube
-      const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
-
-      // run some tests on the chunks: ensure that the total number of target
-      // fields in the split is correct
-      let targetFieldsInSplit = 0;
-      for (const cube of splitCubes) {
-        targetFieldsInSplit += cube.fields.get(FieldType.DESCRIPTION).length;
-      }
-      expect(targetFieldsInSplit).toEqual(numFields);
-
-      // recombine the chunks
-      const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
-
-      // assert that payload was correctly restored
-      // TODO: get rid of manipulateFields() call and direct Array method calls
-      const manyRestoredFields = recombined.manipulateFields().get(FieldType.DESCRIPTION);
-      expect(manyRestoredFields.length).toEqual(numFields);
-      for (let i=0; i < numFields; i++) {
-        expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
-      }
-    });
-
-    it('splits and restores a long array of different fields of different lengths', async () => {
-      const numFields = 100;
-      // prepare macro Cube
-      const macroCube = cciCube.Create({
-        cubeType: CubeType.FROZEN,
-        requiredDifficulty: 0,
-      });
-      const manyFields: VerityField[] = [];
-      // add many fields
-      for (let i=0; i < numFields; i++) {
-        if (i%4 === 0) {
-          // make every four fields a fixed length one
-          manyFields.push(VerityField.MediaType(MediaTypes.TEXT));
-        } else if (i%4 === 1 || i%4 === 2) {
-          // make half of the fields variable length and long, and have them
-          // be adjacent to each other
-          manyFields.push(VerityField.Payload(tooLong));
-        } else {
-          // make one in every four fields variable length and short
-          manyFields.push(VerityField.Description("Hic cubus stultus est"));
-        }
-      }
-      for (const field of manyFields) {
-        macroCube.insertFieldBeforeBackPositionals(field);
-      }
-
-      // split the Cube
-      const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
-
-      // run some tests on the chunks: ensure that the total number of target
-      // fields in the split is correct
-      let targetFieldsInSplit = 0;
-      for (const cube of splitCubes) {
-        targetFieldsInSplit += cube.fields.get([
-          FieldType.MEDIA_TYPE,
-          FieldType.PAYLOAD,
-          FieldType.DESCRIPTION,
-        ]).length;
-      }
-      expect(targetFieldsInSplit).toBeGreaterThan(numFields);  // account for splits
-
-      // recombine the chunks
-      const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
-
-      // assert that payload was correctly restored
-      const manyRestoredFields = Array.from(recombined.getFields([
-        FieldType.MEDIA_TYPE,
-        FieldType.PAYLOAD,
-        FieldType.DESCRIPTION,
-      ]));
-      expect(manyRestoredFields.length).toEqual(numFields);
-      for (let i=0; i < numFields; i++) {
-        expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
-      }
-    });
-
-    it('produces a valid result even if Cube did not need splitting in the first place', async () => {
-      // prepare a "macro" Cube that's not actually macro
-      const macroCube = cciCube.Create({
-        cubeType: CubeType.FROZEN,
-        requiredDifficulty: 0,
-      });
-      const manyFields: VerityField[] = [
-        VerityField.ContentName("Cubus Stultus"),
-        VerityField.Description("Hic cubus stultus est"),
-        new VerityField(FieldType.AVATAR, Buffer.alloc(0)),
-        VerityField.Payload("Hic cubus adhuc stultus est"),
-        VerityField.MediaType(MediaTypes.TEXT),
-        VerityField.Username("Cubus Stultus"),
-      ];
-      for (const field of manyFields) {
-        macroCube.insertFieldBeforeBackPositionals(field);
-      }
-
-      // split the Cube
-      const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
-      expect(splitCubes.length).toBe(1);
-
-      // run some tests on the chunks: ensure that the total number of target
-      // fields in the split is correct
-      let targetFieldsInSplit = 0;
-      for (const cube of splitCubes) {
-        targetFieldsInSplit += cube.fields.get([
-          FieldType.CONTENTNAME,
-          FieldType.DESCRIPTION,
-          FieldType.AVATAR,
-          FieldType.PAYLOAD,
-          FieldType.MEDIA_TYPE,
-          FieldType.USERNAME,
-        ]).length;
-      }
-      expect(targetFieldsInSplit).toEqual(manyFields.length);  // account for splits
-
-      // recombine the chunks
-      const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
-
-      // assert that payload was correctly restored
-      const manyRestoredFields = Array.from(recombined.getFields([
-        FieldType.CONTENTNAME,
-        FieldType.DESCRIPTION,
-        FieldType.AVATAR,
-        FieldType.PAYLOAD,
-        FieldType.MEDIA_TYPE,
-        FieldType.USERNAME,
-      ]));
-      expect(manyRestoredFields.length).toEqual(manyFields.length);
-      for (let i=0; i < manyFields.length; i++) {
-        expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
-      }
-    });
-
-    it('preserves all CCI relationship except CONTINUED_IN', async () => {
-      // prepare macro Cube
-      const macroCube = cciCube.Create({
-        cubeType: CubeType.FROZEN,
-        requiredDifficulty: 0,
-      });
-      macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-      macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-      macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new Relationship(RelationshipType.MENTION, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-      macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-      macroCube.insertFieldBeforeBackPositionals(VerityField.Payload(tooLong));
-      macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-      macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-      macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new Relationship(RelationshipType.MENTION, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-      macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-        new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
-
-      // run the test: split, then recombine
-      const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
-      expect(splitCubes.length).toEqual(2);
-      const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
-
-      // assert that payload was correctly restored
-      // TODO: get rid of manipulateFields() call and direct Array method calls
-      expect(recombined.manipulateFields().get(FieldType.PAYLOAD).length).toEqual(1);
-      const restoredPayload = recombined.getFirstField(FieldType.PAYLOAD);
-      expect(restoredPayload.valueString).toEqual(tooLong);
-
-      // assert that the number of RELATES_TO fields is the number of
-      // non-CONTINUED_IN relationships
-      // TODO: get rid of manipulateFields() call and direct Array method calls
-      const restoredRelatesTo = recombined.manipulateFields().get(FieldType.RELATES_TO);
-      expect(restoredRelatesTo.length).toEqual(4);
-      expect(Relationship.fromField(restoredRelatesTo[0]).type).toEqual(RelationshipType.MYPOST);
-      expect(Relationship.fromField(restoredRelatesTo[1]).type).toEqual(RelationshipType.MENTION);
-      expect(Relationship.fromField(restoredRelatesTo[2]).type).toEqual(RelationshipType.MYPOST);
-      expect(Relationship.fromField(restoredRelatesTo[3]).type).toEqual(RelationshipType.MENTION);
-    });
-
-    for (let fuzzingRepeat=0; fuzzingRepeat<10; fuzzingRepeat++) {
-      it('splits and restores random oversized Cubes (fuzzing test)', async() => {
-        const eligibleFieldTypes: number[] = [
-          FieldType.PAYLOAD,
-          FieldType.CONTENTNAME,
-          FieldType.DESCRIPTION,
-          FieldType.RELATES_TO,
-          FieldType.USERNAME,
-          FieldType.MEDIA_TYPE,
-          FieldType.AVATAR,
-        ];
-        const numFields = Math.floor(Math.random() * 100);
-
+    describe('splitting a single large field', () => {
+      it('splits and restores a single overly large payload field requiring two chunks', async () => {
         // prepare macro Cube
-        const compareFields: VerityField[] = [];
         const macroCube = cciCube.Create({
           cubeType: CubeType.FROZEN,
           requiredDifficulty: 0,
         });
-        for (let i=0; i < numFields; i++) {
-          const chosenFieldType: number = eligibleFieldTypes[Math.floor(Math.random() * eligibleFieldTypes.length)];
-          const length: number = FieldLength[chosenFieldType] ?? Math.floor(Math.random() * 3000);
-          let val: Buffer;
-          if (chosenFieldType === FieldType.RELATES_TO) {
-            val = VerityField.RelatesTo(new Relationship(RelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))).value;
-          } else {
-            val = Buffer.alloc(length);
-            // fill val with random bytes
-            for (let j = 0; j < length; j++) val[j] = Math.floor(Math.random() * 256);
-          }
-          const field = new VerityField(chosenFieldType, val);
-          macroCube.insertFieldBeforeBackPositionals(field);
-          compareFields.push(field);
-        }
+        const payloadMacrofield = VerityField.Payload(tooLong);
+        macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
-        // split and recombinethe Cube
+        // run the test: split, then recombine
         const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+        expect(splitCubes.length).toEqual(2);
         const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
 
         // assert that payload was correctly restored
-        const restoredFields = recombined.manipulateFields().all;
-        expect(restoredFields.length).toEqual(numFields);
-        // assert that all fields have been restored correctly
-        for (let i = 0; i < numFields; i++) {
-          const field = restoredFields[i];
-          expect(field.type).toEqual(compareFields[i].type);
-          expect(field.value).toEqual(compareFields[i].value);
+        // TODO: get rid of manipulateFields() call and direct Array method calls
+        expect(recombined.manipulateFields().get(FieldType.PAYLOAD).length).toEqual(1);
+        const restoredPayload = recombined.getFirstField(FieldType.PAYLOAD);
+        expect(restoredPayload.valueString).toEqual(tooLong);
+      });
+
+      it('splits and restores a single extremely large payload field requiring more than chunks', async () => {
+        // prepare macro Cube
+        const macroCube = cciCube.Create({
+          cubeType: CubeType.FROZEN,
+          requiredDifficulty: 0,
+        });
+        const payloadMacrofield = VerityField.Payload(farTooLong);
+        macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
+
+        // run the test: split, then recombine
+        const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+        expect(splitCubes.length).toBeGreaterThan(11);
+        const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+
+        // assert all CONTINUED_IN relationships are present and in correct order
+        let refs: Relationship[] = [];
+        for (const cube of splitCubes) {
+          refs = [...refs, ...cube.fields.getRelationships(RelationshipType.CONTINUED_IN)];
+        }
+        expect(refs.length).toBe(splitCubes.length - 1);
+        for (let i=0; i < refs.length; i++) {
+          expect(refs[i].type).toEqual(RelationshipType.CONTINUED_IN);
+          expect(refs[i].remoteKey).toEqual(await splitCubes[i+1].getKey());
+        }
+
+        // assert that payload was correctly restored
+        // TODO: get rid of manipulateFields() call and direct Array method calls
+        expect(recombined.manipulateFields().get(FieldType.PAYLOAD).length).toEqual(1);
+        const restoredPayload = recombined.getFirstField(FieldType.PAYLOAD);
+        expect(restoredPayload.valueString).toEqual(farTooLong);
+      });
+    });
+
+    describe('splitting an array of multiple fields', () => {
+      it('splits and restores a long array of small fixed-length fields', async () => {
+        const numFields = 500;
+        // prepare macro Cube
+        const macroCube = cciCube.Create({
+          cubeType: CubeType.FROZEN,
+          requiredDifficulty: 0,
+        });
+        const manyFields: VerityField[] = [];
+        // add numFields media type fields, with content alternating between two options
+        for (let i=0; i < numFields; i++) {
+          if (i%2 == 0) manyFields.push(VerityField.MediaType(MediaTypes.TEXT));
+          else manyFields.push(VerityField.MediaType(MediaTypes.JPEG));
+        }
+        for (const field of manyFields) {
+          macroCube.insertFieldBeforeBackPositionals(field);
+        }
+
+        // split the Cube
+        const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+
+        // run some tests on the chunks: ensure that the total number of target
+        // fields in the split is correct
+        let targetFieldsInSplit = 0;
+        for (const cube of splitCubes) {
+          targetFieldsInSplit += cube.fields.get(FieldType.MEDIA_TYPE).length;
+        }
+        expect(targetFieldsInSplit).toEqual(numFields);
+
+
+        // recombine the chunks
+        const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+
+        // assert that payload was correctly restored
+        // TODO: get rid of manipulateFields() call and direct Array method calls
+        const manyRestoredFields = recombined.manipulateFields().get(FieldType.MEDIA_TYPE);
+        expect(manyRestoredFields.length).toEqual(numFields);
+        for (let i=0; i < numFields; i++) {
+          expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
         }
       });
-    }
+
+      it('splits and restores a long array of small variable-length fields', async () => {
+        const numFields = 500;
+        // prepare macro Cube
+        const macroCube = cciCube.Create({
+          cubeType: CubeType.FROZEN,
+          requiredDifficulty: 0,
+        });
+        const manyFields: VerityField[] = [];
+        // add 3000 DESCRIPTION fields, using a running number as content
+        for (let i=0; i < numFields; i++) {
+          manyFields.push(VerityField.Description(i.toString()));
+        }
+        for (const field of manyFields) {
+          macroCube.insertFieldBeforeBackPositionals(field);
+        }
+
+        // split the Cube
+        const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+
+        // run some tests on the chunks: ensure that the total number of target
+        // fields in the split is correct
+        let targetFieldsInSplit = 0;
+        for (const cube of splitCubes) {
+          targetFieldsInSplit += cube.fields.get(FieldType.DESCRIPTION).length;
+        }
+        expect(targetFieldsInSplit).toEqual(numFields);
+
+        // recombine the chunks
+        const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+
+        // assert that payload was correctly restored
+        // TODO: get rid of manipulateFields() call and direct Array method calls
+        const manyRestoredFields = recombined.manipulateFields().get(FieldType.DESCRIPTION);
+        expect(manyRestoredFields.length).toEqual(numFields);
+        for (let i=0; i < numFields; i++) {
+          expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
+        }
+      });
+
+      it('splits and restores a long array of different fields of different lengths', async () => {
+        const numFields = 100;
+        // prepare macro Cube
+        const macroCube = cciCube.Create({
+          cubeType: CubeType.FROZEN,
+          requiredDifficulty: 0,
+        });
+        const manyFields: VerityField[] = [];
+        // add many fields
+        for (let i=0; i < numFields; i++) {
+          if (i%4 === 0) {
+            // make every four fields a fixed length one
+            manyFields.push(VerityField.MediaType(MediaTypes.TEXT));
+          } else if (i%4 === 1 || i%4 === 2) {
+            // make half of the fields variable length and long, and have them
+            // be adjacent to each other
+            manyFields.push(VerityField.Payload(tooLong));
+          } else {
+            // make one in every four fields variable length and short
+            manyFields.push(VerityField.Description("Hic cubus stultus est"));
+          }
+        }
+        for (const field of manyFields) {
+          macroCube.insertFieldBeforeBackPositionals(field);
+        }
+
+        // split the Cube
+        const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+
+        // run some tests on the chunks: ensure that the total number of target
+        // fields in the split is correct
+        let targetFieldsInSplit = 0;
+        for (const cube of splitCubes) {
+          targetFieldsInSplit += cube.fields.get([
+            FieldType.MEDIA_TYPE,
+            FieldType.PAYLOAD,
+            FieldType.DESCRIPTION,
+          ]).length;
+        }
+        expect(targetFieldsInSplit).toBeGreaterThan(numFields);  // account for splits
+
+        // recombine the chunks
+        const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+
+        // assert that payload was correctly restored
+        const manyRestoredFields = Array.from(recombined.getFields([
+          FieldType.MEDIA_TYPE,
+          FieldType.PAYLOAD,
+          FieldType.DESCRIPTION,
+        ]));
+        expect(manyRestoredFields.length).toEqual(numFields);
+        for (let i=0; i < numFields; i++) {
+          expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
+        }
+      });
+
+      it('preserves all CCI relationship except CONTINUED_IN', async () => {
+        // prepare macro Cube
+        const macroCube = cciCube.Create({
+          cubeType: CubeType.FROZEN,
+          requiredDifficulty: 0,
+        });
+        macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
+          new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
+          new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
+          new Relationship(RelationshipType.MENTION, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
+          new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        macroCube.insertFieldBeforeBackPositionals(VerityField.Payload(tooLong));
+        macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
+          new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
+          new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
+          new Relationship(RelationshipType.MENTION, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+        macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
+          new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+
+        // run the test: split, then recombine
+        const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+        expect(splitCubes.length).toEqual(2);
+        const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+
+        // assert that payload was correctly restored
+        // TODO: get rid of manipulateFields() call and direct Array method calls
+        expect(recombined.manipulateFields().get(FieldType.PAYLOAD).length).toEqual(1);
+        const restoredPayload = recombined.getFirstField(FieldType.PAYLOAD);
+        expect(restoredPayload.valueString).toEqual(tooLong);
+
+        // assert that the number of RELATES_TO fields is the number of
+        // non-CONTINUED_IN relationships
+        // TODO: get rid of manipulateFields() call and direct Array method calls
+        const restoredRelatesTo = recombined.manipulateFields().get(FieldType.RELATES_TO);
+        expect(restoredRelatesTo.length).toEqual(4);
+        expect(Relationship.fromField(restoredRelatesTo[0]).type).toEqual(RelationshipType.MYPOST);
+        expect(Relationship.fromField(restoredRelatesTo[1]).type).toEqual(RelationshipType.MENTION);
+        expect(Relationship.fromField(restoredRelatesTo[2]).type).toEqual(RelationshipType.MYPOST);
+        expect(Relationship.fromField(restoredRelatesTo[3]).type).toEqual(RelationshipType.MENTION);
+      });
+    });
+
+    describe('edge cases', () => {
+      it('produces a valid result even if Cube did not need splitting in the first place', async () => {
+        // prepare a "macro" Cube that's not actually macro
+        const macroCube = cciCube.Create({
+          cubeType: CubeType.FROZEN,
+          requiredDifficulty: 0,
+        });
+        const manyFields: VerityField[] = [
+          VerityField.ContentName("Cubus Stultus"),
+          VerityField.Description("Hic cubus stultus est"),
+          new VerityField(FieldType.AVATAR, Buffer.alloc(0)),
+          VerityField.Payload("Hic cubus adhuc stultus est"),
+          VerityField.MediaType(MediaTypes.TEXT),
+          VerityField.Username("Cubus Stultus"),
+        ];
+        for (const field of manyFields) {
+          macroCube.insertFieldBeforeBackPositionals(field);
+        }
+
+        // split the Cube
+        const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+        expect(splitCubes.length).toBe(1);
+
+        // run some tests on the chunks: ensure that the total number of target
+        // fields in the split is correct
+        let targetFieldsInSplit = 0;
+        for (const cube of splitCubes) {
+          targetFieldsInSplit += cube.fields.get([
+            FieldType.CONTENTNAME,
+            FieldType.DESCRIPTION,
+            FieldType.AVATAR,
+            FieldType.PAYLOAD,
+            FieldType.MEDIA_TYPE,
+            FieldType.USERNAME,
+          ]).length;
+        }
+        expect(targetFieldsInSplit).toEqual(manyFields.length);  // account for splits
+
+        // recombine the chunks
+        const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+
+        // assert that payload was correctly restored
+        const manyRestoredFields = Array.from(recombined.getFields([
+          FieldType.CONTENTNAME,
+          FieldType.DESCRIPTION,
+          FieldType.AVATAR,
+          FieldType.PAYLOAD,
+          FieldType.MEDIA_TYPE,
+          FieldType.USERNAME,
+        ]));
+        expect(manyRestoredFields.length).toEqual(manyFields.length);
+        for (let i=0; i < manyFields.length; i++) {
+          expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
+        }
+      });
+    });
+
+    describe('fuzzing tests', () => {
+      for (let fuzzingRepeat=0; fuzzingRepeat<10; fuzzingRepeat++) {
+        it('splits and restores random oversized Cubes (fuzzing test)', async() => {
+          const eligibleFieldTypes: number[] = [
+            FieldType.PAYLOAD,
+            FieldType.CONTENTNAME,
+            FieldType.DESCRIPTION,
+            FieldType.RELATES_TO,
+            FieldType.USERNAME,
+            FieldType.MEDIA_TYPE,
+            FieldType.AVATAR,
+          ];
+          const numFields = Math.floor(Math.random() * 100);
+
+          // prepare macro Cube
+          const compareFields: VerityField[] = [];
+          const macroCube = cciCube.Create({
+            cubeType: CubeType.FROZEN,
+            requiredDifficulty: 0,
+          });
+          for (let i=0; i < numFields; i++) {
+            const chosenFieldType: number = eligibleFieldTypes[Math.floor(Math.random() * eligibleFieldTypes.length)];
+            const length: number = FieldLength[chosenFieldType] ?? Math.floor(Math.random() * 3000);
+            let val: Buffer;
+            if (chosenFieldType === FieldType.RELATES_TO) {
+              val = VerityField.RelatesTo(new Relationship(RelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))).value;
+            } else {
+              val = Buffer.alloc(length);
+              // fill val with random bytes
+              for (let j = 0; j < length; j++) val[j] = Math.floor(Math.random() * 256);
+            }
+            const field = new VerityField(chosenFieldType, val);
+            macroCube.insertFieldBeforeBackPositionals(field);
+            compareFields.push(field);
+          }
+
+          // split and recombinethe Cube
+          const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+          const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+
+          // assert that payload was correctly restored
+          const restoredFields = recombined.manipulateFields().all;
+          expect(restoredFields.length).toEqual(numFields);
+          // assert that all fields have been restored correctly
+          for (let i = 0; i < numFields; i++) {
+            const field = restoredFields[i];
+            expect(field.type).toEqual(compareFields[i].type);
+            expect(field.value).toEqual(compareFields[i].value);
+          }
+        });
+      }
+    });
   });
 });
