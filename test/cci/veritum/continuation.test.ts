@@ -472,6 +472,33 @@ describe('Continuation', () => {
           expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
         }
       });
+
+      it('will correctly split Veritables containing multiple copies of the same variable size field object', async () => {
+        const veritum = new Veritum();
+        const text = "Campus importantis cuius Veritum saepius repetit"
+        const field = VerityField.Payload(text);
+        for (let i=0; i<30; i++) {
+          veritum.insertFieldBeforeBackPositionals(field);
+        }
+
+        // verify test setup
+        const preTestFields = Array.from(veritum.getFields(FieldType.PAYLOAD))
+        expect(preTestFields).toHaveLength(30);
+        for (const field of preTestFields) {
+          expect(field.valueString).toEqual(text);
+        }
+
+        // split and recombine
+        const splitCubes: cciCube[] = await Continuation.Split(veritum, {requiredDifficulty: 0});
+        const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+
+        // verify result
+        const postTestFields = Array.from(veritum.getFields(FieldType.PAYLOAD))
+        expect(postTestFields).toHaveLength(30);
+        for (const field of postTestFields) {
+          expect(field.valueString).toEqual(text);
+        }
+      });
     });
 
     describe('fuzzing tests', () => {
