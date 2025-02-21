@@ -253,7 +253,7 @@ describe('Continuation', () => {
           requiredDifficulty: 0,
         });
         const manyFields: VerityField[] = [];
-        // add 3000 DESCRIPTION fields, using a running number as content
+        // add many DESCRIPTION fields, using a running number as content
         for (let i=0; i < numFields; i++) {
           manyFields.push(VerityField.Description(i.toString()));
         }
@@ -264,11 +264,15 @@ describe('Continuation', () => {
         // split the Cube
         const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
 
-        // run some tests on the chunks: ensure that the total number of target
-        // fields in the split is correct
+        // Run some tests on the chunks: ensure that the total number of target
+        // fields in the split is correct.
+        // Note: In this test, the number of split fields in the chunks must be
+        // equal to the number of input fields, as the test fields we created are
+        // very small an thus ineligible for intra-field splitting.
         let targetFieldsInSplit = 0;
         for (const cube of splitCubes) {
-          targetFieldsInSplit += cube.fields.get(FieldType.DESCRIPTION).length;
+          targetFieldsInSplit +=
+            Array.from(cube.getFields(FieldType.DESCRIPTION)).length;
         }
         expect(targetFieldsInSplit).toEqual(numFields);
 
@@ -276,8 +280,8 @@ describe('Continuation', () => {
         const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
 
         // assert that payload was correctly restored
-        // TODO: get rid of manipulateFields() call and direct Array method calls
-        const manyRestoredFields = recombined.manipulateFields().get(FieldType.DESCRIPTION);
+        const manyRestoredFields: VerityField[] =
+          Array.from(recombined.getFields(FieldType.DESCRIPTION));
         expect(manyRestoredFields.length).toEqual(numFields);
         for (let i=0; i < numFields; i++) {
           expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
@@ -337,6 +341,32 @@ describe('Continuation', () => {
         expect(manyRestoredFields.length).toEqual(numFields);
         for (let i=0; i < numFields; i++) {
           expect(manyRestoredFields[i].value).toEqual(manyFields[i].value);
+        }
+      });
+
+      it('splits and restores two chunks worth of medium sized variable-length fields', async () => {
+        // Craft a Vertium that should require two Cubes
+        const veritum = new Veritum();
+        for (let i=0; i<10; i++) {
+          const text = `Hoc est ${i}-um experimentale campus. Valde gravem informationem continet, nec amittendam nec cum aliis campis confundendam.`
+          const field = VerityField.Payload(text);
+          veritum.appendField(field);
+        }
+
+        // split the Cube
+        const splitCubes: cciCube[] = await Continuation.Split(veritum, {requiredDifficulty: 0});
+        expect(splitCubes).toHaveLength(2);
+
+        // recombine
+        const recombined: Veritum = Continuation.Recombine(splitCubes, {requiredDifficulty: 0});
+
+        // assert correctness
+        const payloadFields: VerityField[] = Array.from(recombined.getFields(FieldType.PAYLOAD));
+        expect(payloadFields).toHaveLength(10);
+
+        for (let i=0; i<10; i++) {
+          const field = payloadFields[i];
+          expect(field.valueString).toEqual(`Hoc est ${i}-um experimentale campus. Valde gravem informationem continet, nec amittendam nec cum aliis campis confundendam.`);
         }
       });
 
