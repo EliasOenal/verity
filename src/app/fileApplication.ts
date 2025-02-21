@@ -1,11 +1,14 @@
-import { Buffer } from 'buffer';
-import { Cube } from '../core/cube/cube';
-import { cciCube } from '../cci/cube/cciCube';
-import { VerityField } from '../cci/cube/verityField';
-import { Relationship, RelationshipType } from '../cci/cube/relationship';
-import { CubeKey } from '../core/cube/cube.definitions';
-import { FieldType } from '../cci/cube/cciCube.definitions';
+import type { CubeRetrievalInterface } from '../core/cube/cubeStore';
+import type { CubeKey } from '../core/cube/cube.definitions';
+
 import { CubeType } from '../core/cube/cube.definitions';
+
+import { FieldType } from '../cci/cube/cciCube.definitions';
+import { VerityField } from '../cci/cube/verityField';
+import { cciCube } from '../cci/cube/cciCube';
+import { Relationship, RelationshipType } from '../cci/cube/relationship';
+
+import { Buffer } from 'buffer';
 
 export class FileApplication {
   private static readonly APPLICATION_IDENTIFIER = 'file';
@@ -53,13 +56,13 @@ export class FileApplication {
     return cubes;
   }
 
-  static async retrieveFile(startCubeKey: CubeKey, cubeStore: { getCube: (key: CubeKey) => Promise<Cube> }): Promise<{ content: Buffer, fileName: string}> {
+  static async retrieveFile(startCubeKey: CubeKey, cubeRetriever: CubeRetrievalInterface): Promise<{ content: Buffer, fileName: string}> {
     let currentCubeKey = startCubeKey;
     const chunks: Buffer[] = [];
     let fileName: string;
 
     while (currentCubeKey) {
-      const cube = await cubeStore.getCube(currentCubeKey);
+      const cube = await cubeRetriever.getCube(currentCubeKey);
 
       if (!cube) {
         throw new Error('Cube not found');

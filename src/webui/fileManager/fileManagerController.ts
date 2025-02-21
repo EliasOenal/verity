@@ -47,7 +47,7 @@ export class FileManagerController extends VerityController {
   async downloadFile(key: string): Promise<void> {
     try {
       const cubeKey = Buffer.from(key, 'hex') as CubeKey;
-      const { content, fileName } = await FileApplication.retrieveFile(cubeKey, this.cubeStore);
+      const { content, fileName } = await FileApplication.retrieveFile(cubeKey, this.cubeRetriever);
 
       const blob = new Blob([content], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
@@ -71,7 +71,7 @@ export class FileManagerController extends VerityController {
   async inspectFile(key: string): Promise<void> {
     try {
       const cubeKey = Buffer.from(key, 'hex') as CubeKey;
-      const { content, fileName } = await FileApplication.retrieveFile(cubeKey, this.cubeStore);
+      const { content, fileName } = await FileApplication.retrieveFile(cubeKey, this.cubeRetriever);
 
       let imageUrl: string | undefined;
       if (this.isImage(fileName)) {

@@ -347,7 +347,7 @@ export class PostController extends VerityController {
 
   private async getImageDataUrl(cubeKey: string): Promise<string | null> {
     try {
-      const { content, fileName } = await FileApplication.retrieveFile(Buffer.from(cubeKey, 'hex'), this.cubeStore);
+      const { content, fileName } = await FileApplication.retrieveFile(Buffer.from(cubeKey, 'hex'), this.cubeRetriever);
       const base64 = Buffer.from(content).toString('base64');
       const mimeType = this.getMimeType(fileName);
       return `data:${mimeType};base64,${base64}`;
