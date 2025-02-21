@@ -42,17 +42,17 @@ describe('Veritum', () => {
       for (const chunkNo of [1, 2, 3]) {
         for (const cubeType of enumNums(CubeType)) {
 
-          // TODO BUGBUG FIXME multi-chunk singed Verita still don't work
+          // TODO BUGBUG FIXME multi-chunk signed Verita still don't work
           if (HasSignature[cubeType] && chunkNo > 1) continue;
 
           for (const encrypt of [true, false]) for (const supplyKey of [true, false]) {
             const readable: boolean = !encrypt || (encrypt && supplyKey);
 
-            let describeText: string = "BUGBUG invalid state";
+            let describeText: string = "this should never display or there's a bug in the test setup";
             if (!encrypt && !supplyKey) describeText = "reconstructing plaintext Verita";
             if (!encrypt && supplyKey) describeText = "reconstructing plaintext Verita, supplying a spurious decryption key";
             if (encrypt && !supplyKey) describeText = "trying to reconstruct encrypted Verita without a decryption key";
-            if (encrypt && supplyKey) describeText = "reconstructing decrypted Verita";
+            if (encrypt && supplyKey) describeText = "reconstructing encrypted Verita";
             describe(describeText, () => {
 
               describe(`${chunkNo}-chunk ${CubeType[cubeType]} Veritum`, () => {
@@ -163,7 +163,7 @@ describe('Veritum', () => {
                 });
 
                 if (readable) it("should have reconstructed the original Veritum's payload", () => {
-                  expect(reconstructed.getFirstField(FieldType.PAYLOAD).valueString).toContain(text);  // TODO make this toEqual once we fixed the repeated field concatenation bug
+                  expect(reconstructed.getFirstField(FieldType.PAYLOAD).valueString).toEqual(text);
                 });
                 else it("cannot reconstruct the original Veritum's payload", () => {
                   expect(reconstructed.getFirstField(FieldType.PAYLOAD)).toBeUndefined();

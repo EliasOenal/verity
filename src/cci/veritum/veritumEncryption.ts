@@ -16,9 +16,35 @@ import { VeritumCompileOptions, VeritumFromChunksOptions } from "./veritum";
 import sodium from 'libsodium-wrappers-sumo'
 
 /**
+ * Compared to ContinuationDefaultExclusions, note the lack of PADDING.
+ * This is because padding is used in continuation chains to indicate that
+ * two adjacent variable-length fields of the same type should *not* be joined.
+ * As Veritum encryption is split-then-encrypt, padding field must not be
+ * dropped at the encryption stage.
+ **/
+const VeritumEncryptionExclusions: number[] = [
+  // Cube positionals
+  FieldType.TYPE, FieldType.NOTIFY, FieldType.PMUC_UPDATE_COUNT,
+  FieldType.PUBLIC_KEY, FieldType.DATE, FieldType.SIGNATURE,
+  FieldType.NONCE,
+  // raw / non-CCI content fields
+  FieldType.FROZEN_RAWCONTENT, FieldType.FROZEN_NOTIFY_RAWCONTENT,
+  FieldType.PIC_RAWCONTENT, FieldType.PIC_NOTIFY_RAWCONTENT,
+  FieldType.MUC_RAWCONTENT, FieldType.MUC_NOTIFY_RAWCONTENT,
+  FieldType.PMUC_RAWCONTENT, FieldType.PMUC_NOTIFY_RAWCONTENT,
+  // non-content bearing CCI fields
+  FieldType.CCI_END,
+  // virtual / pseudo fields
+  FieldType.REMAINDER,
+] as const;
+
+/**
  * The ChunkEncryption helper is, as the name suggest, a helper that prepares
  * a (potentially multi-chunk and/or multi-recipient) Veritum for chunk-by-chunk
  * encryption. In case of multiple recipients it handles key distribution.
+ * Note that actual input padding fields will still be stripped by default,
+ * as, again, Veritum encryption is split-then-encrypt, and the splitter's
+ * default exlusions to include PADDING.
  */
 export class ChunkEncryptionHelper {
   readonly shallEncrypt: boolean;
@@ -139,7 +165,11 @@ export class ChunkEncryptionHelper {
    * to include with the ciphertext.
    */
   private planEncryptionScheme(): void {
-    this.encryptionSchemeParams = { ...this.options };  // copy input opts
+    // copy input opts
+    this.encryptionSchemeParams = { ...this.options };
+    // Set default exclusions
+    this.encryptionSchemeParams.excludeFromEncryption ??= VeritumEncryptionExclusions;
+
     // Make a new random sender key pair.
     // This is an ephemeral key only intended to encrypt a single chunk.
     // No replies to this pubkey are expected; thus we can discard the
