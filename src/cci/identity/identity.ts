@@ -29,6 +29,7 @@ import sodium from 'libsodium-wrappers-sumo'
 import EventEmitter from 'events';
 import { Veritum } from '../veritum/veritum';
 import { VeritumRetrievalInterface, VeritumRetriever } from '../veritum/veritumRetriever';
+import { CubeRequestOptions } from '../../core/networking/cubeRetrieval/requestScheduler';
 
 // Identity defaults
 const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
@@ -191,14 +192,14 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       cubeStoreOrRetriever: CubeRetrievalInterface<any>,
       username: string,
       password: string,
-      options?: IdentityOptions,
+      options?: IdentityOptions&CubeRequestOptions,
   ): Promise<Identity | undefined> {
     await sodium.ready;
     const masterKey: Buffer = Identity.DeriveMasterKey(username, password,
       options?.argonCpuHardness, options?.argonMemoryHardness);
     const keyPair: KeyPair = Identity.DeriveKeypair(masterKey, options);
     const idMuc: cciCube = ensureCci(await cubeStoreOrRetriever.getCube(
-      Buffer.from(keyPair.publicKey)));
+      Buffer.from(keyPair.publicKey), options));
     if (idMuc === undefined) return undefined;
     const identity: Identity =
       await Identity.Construct(cubeStoreOrRetriever, idMuc, options);

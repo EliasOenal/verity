@@ -74,15 +74,19 @@ export class IdentityController extends VerityController {
       (form.querySelector(".verityPasswordInput") as HTMLInputElement).value;
     // TODO: enforce some minimum length for both
     let identity: Identity = await Identity.Load(
-      this.veritumRetriever, username, password, this.options);
-    if (identity instanceof Identity) {
-      identity.persistance.store(identity);  // don't use identity.store() to avoid MUC rebuild
-    } else {
+      this.veritumRetriever, username, password, {
+        ...this.options,
+        // Block app for up to one second trying to fetch existing Identity.
+        // If not successful, Identity will be constructed empty and may later
+        // adopt the existing root Cube as it arrives.
+        timeout: 1000,
+    });
+    if (identity === undefined) {
       identity = await Identity.Create(
         this.veritumRetriever, username, password, this.options);
       identity.name = username;  // TODO separate username and display name
-      identity.store();
     }
+    identity.persistance.store(identity);  // don't use identity.store() to avoid MUC rebuild
     // @ts-ignore Typescript does not know the PasswordCredential DOM API
     // TODO: This just doesn't work in Chrome.
     // And Firefox is smart enough to offer autocomplete without it anyway.
