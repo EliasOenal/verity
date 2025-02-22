@@ -93,6 +93,20 @@ export class Continuation {
       veritum: Veritable,
       options: SplitOptions = {},
   ): Promise<cciCube[]> {
+    // define variables
+    const cubes: cciCube[] = [];
+    let chunkIndex = -1;
+    let cube: cciCube = cubes[chunkIndex];
+    let maxChunkIndexPlanned = 0;
+
+    // define helper function
+    const sculptNextChunk: () => void = () => {
+      cube = veritum.family.cubeClass.Create(
+        {...options, cubeType: veritum.cubeType}) as cciCube;
+      cubes.push(cube);
+      chunkIndex++;
+    }
+
     // set default options
     options.exclude ??= Continuation.ContinuationDefaultExclusions;
     options.maxChunkSize ??= () => NetConstants.CUBE_SIZE;
@@ -137,14 +151,7 @@ export class Continuation {
 
 
     // Split the macro fieldset into Cubes:
-    // prepare the list of Cubes and initialise the first one
-    const cubes: cciCube[] = [
-      veritum.family.cubeClass.Create(
-        {...options, cubeType: veritum.cubeType}) as cciCube ];
-    let chunkIndex = 0;
-    let cube: cciCube = cubes[chunkIndex];
-    let maxChunkIndexPlanned = 0;
-
+    sculptNextChunk();  // start by creating the first chunk
     // Prepare some data allowing us to figure out how much space we have
     // available in each chunk Cube.
     // The caller may restrict the space we are allowed to use for each chunk.
@@ -260,10 +267,7 @@ export class Continuation {
         // First update our accounting...
         spaceRemaining -= cube.fields.bytesRemaining(options.maxChunkSize(chunkIndex));
         // ... and then it's time for a chunk rollover!
-        cube = veritum.family.cubeClass.Create(
-          {...options, cubeType: veritum.cubeType}) as cciCube;
-        cubes.push(cube);
-        chunkIndex++;
+        sculptNextChunk();
         bytesAvailableThisChunk =
           demoFieldset.bytesRemaining(options.maxChunkSize(chunkIndex));
         // Note that we have not handled this field!
