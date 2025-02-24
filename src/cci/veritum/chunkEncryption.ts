@@ -4,7 +4,7 @@ import { ApiMisuseError, Settings, VerityError } from "../../core/settings";
 import { FieldLength, FieldType } from "../cube/cciCube.definitions";
 import { VerityField } from "../cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition } from "../cube/verityFields";
-import { Continuation } from "./continuation";
+import { ContinuationDefaultExclusions } from "./continuation";
 
 import { Identity } from "../identity/identity";
 
@@ -340,7 +340,7 @@ function EncryptionPrepareFields(
     options: CciEncryptionParams
 ): {toEncrypt: VerityFields, output: VerityFields} {
   // set default options
-  options.excludeFromEncryption ??= Continuation.ContinuationDefaultExclusions;
+  options.excludeFromEncryption ??= ContinuationDefaultExclusions;
 
   // Prepare list of fields to encrypt. This is basically all CCI fields,
   // but not core Cube fields.

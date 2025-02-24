@@ -1,7 +1,7 @@
 import { cciCube, cciFamily } from "../../../src/cci/cube/cciCube";
 import { MediaTypes, FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
-import { Continuation } from "../../../src/cci/veritum/continuation";
+import { Recombine } from "../../../src/cci/veritum/continuation";
 import { Veritum, VeritumFromChunksOptions } from "../../../src/cci/veritum/veritum";
 import { coreCubeFamily } from "../../../src/core/cube/cube";
 import { CubeKey, CubeType, HasNotify, HasSignature } from "../../../src/core/cube/cube.definitions";
@@ -179,7 +179,7 @@ describe('Veritum', () => {
                 it.todo("will adopt the first chunk's date field by default");
                 if (cubeType === CubeType.PMUC || cubeType === CubeType.PMUC_NOTIFY) it.todo("will adopt the first chunk's update count if it is a PMUC");
               });  // feeding an unencrypted Veritum
-            });  // supplying / not supplying a decryption key
+            });  // describe combination of options
           }  // for encrypt & supplyKey of [true, false]
         }
       }
@@ -420,7 +420,7 @@ describe('Veritum', () => {
         expect(ref.remoteKey).toBeInstanceOf(Buffer);
         expect(ref.remoteKey).toEqual(veritum.chunks[1].getKeyIfAvailable());
 
-        const restored = Continuation.Recombine(veritum.chunks);
+        const restored = Recombine(veritum.chunks);
         expect(restored.cubeType).toBe(CubeType.FROZEN);
         expect(restored.getFirstField(FieldType.PAYLOAD).valueString).toEqual(
           tooLong);

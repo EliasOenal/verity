@@ -3,7 +3,7 @@ import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { KeyPair } from "../../../src/cci/helpers/cryptography";
 import { Decrypt } from "../../../src/cci/veritum/chunkDecryption";
-import { Continuation } from "../../../src/cci/veritum/continuation";
+import { ContinuationDefaultExclusions } from "../../../src/cci/veritum/continuation";
 import { Veritum } from "../../../src/cci/veritum/veritum";
 import { CubeType } from "../../../src/core/cube/cube.definitions";
 import { requiredDifficulty, tooLong, evenLonger, farTooLong } from "../testcci.definitions";
@@ -76,7 +76,7 @@ describe('CCI Veritum encryption', () => {
             recipients: recipientKeyPair.publicKey,
             senderPrivateKey: senderKeyPair.privateKey,
             requiredDifficulty,
-            excludeFromEncryption: [...Continuation.ContinuationDefaultExclusions, FieldType.APPLICATION],
+            excludeFromEncryption: [...ContinuationDefaultExclusions, FieldType.APPLICATION],
             senderPubkey: senderKeyPair.publicKey,
           });
           // expect the APPLICATION field to be kept

@@ -2,7 +2,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 import { cciCube } from '../../../src/cci/cube/cciCube';
 import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { VerityField } from '../../../src/cci/cube/verityField';
-import { Continuation } from '../../../src/cci/veritum/continuation';
+import { Recombine, Split } from '../../../src/cci/veritum/continuation';
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { VeritumRetriever } from '../../../src/cci/veritum/veritumRetriever';
 import { CubeType, CubeKey } from '../../../src/core/cube/cube.definitions';
@@ -80,7 +80,7 @@ describe('VeritumRetriever', () => {
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube and add all parts to the store
-        const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+        const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
         expect(splitCubes.length).toBe(2);
         for (const cube of splitCubes) {
           await cubeStore.addCube(cube);
@@ -94,7 +94,7 @@ describe('VeritumRetriever', () => {
         expect(chunks.length).toBe(2);
 
         // reassemble the chunks
-        const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
+        const recombined: Veritum = Recombine(chunks, {requiredDifficulty: 0});
         expect(recombined.getFirstField(FieldType.PAYLOAD).valueString).toEqual(tooLong);
       });
 
@@ -108,7 +108,7 @@ describe('VeritumRetriever', () => {
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube and add all parts to the store
-        const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+        const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
         expect(splitCubes.length).toBe(3);
         for (const cube of splitCubes) {
           await cubeStore.addCube(cube);
@@ -122,7 +122,7 @@ describe('VeritumRetriever', () => {
         expect(chunks.length).toBe(splitCubes.length);
 
         // reassemble the chunks
-        const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
+        const recombined: Veritum = Recombine(chunks, {requiredDifficulty: 0});
         expect(recombined.getFirstField(FieldType.PAYLOAD).valueString).toEqual(evenLonger);
       });
 
@@ -136,7 +136,7 @@ describe('VeritumRetriever', () => {
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube and add all parts to the store
-        const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+        const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
         expect(splitCubes.length).toBeGreaterThan(5);
         for (const cube of splitCubes) {
           await cubeStore.addCube(cube);
@@ -150,7 +150,7 @@ describe('VeritumRetriever', () => {
         expect(chunks.length).toBe(splitCubes.length);
 
         // reassemble the chunks
-        const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
+        const recombined: Veritum = Recombine(chunks, {requiredDifficulty: 0});
         expect(recombined.getFirstField(FieldType.PAYLOAD).valueString).toEqual(farTooLong);
       });
     });  // chunks already in store
@@ -203,7 +203,7 @@ describe('VeritumRetriever', () => {
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube
-        const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+        const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
         expect(splitCubes.length).toBe(2);
         const continuationKey: CubeKey = await splitCubes[0].getKey();
 
@@ -218,7 +218,7 @@ describe('VeritumRetriever', () => {
           i++;
         }
         expect(chunks.length).toBe(splitCubes.length);
-        const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
+        const recombined: Veritum = Recombine(chunks, {requiredDifficulty: 0});
         expect(recombined.getFirstField(FieldType.PAYLOAD).valueString).toEqual(tooLong);
       });
 
@@ -232,7 +232,7 @@ describe('VeritumRetriever', () => {
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube
-        const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+        const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
         expect(splitCubes.length).toBeGreaterThan(5);
         const continuationKey: CubeKey = await splitCubes[0].getKey();
 
@@ -249,7 +249,7 @@ describe('VeritumRetriever', () => {
         expect(chunks.length).toBe(splitCubes.length);
 
         // reassemble the chunks
-        const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
+        const recombined: Veritum = Recombine(chunks, {requiredDifficulty: 0});
         expect(recombined.getFirstField(FieldType.PAYLOAD).valueString).toEqual(farTooLong);
       });
 
@@ -268,7 +268,7 @@ describe('VeritumRetriever', () => {
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube
-        const splitCubes: cciCube[] = await Continuation.Split(macroCube, {requiredDifficulty: 0});
+        const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
         expect(splitCubes.length).toBe(2);
         const continuationKey: CubeKey = await splitCubes[0].getKey();
 
@@ -298,7 +298,7 @@ describe('VeritumRetriever', () => {
         await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
 
         expect(chunks.length).toBe(2);
-        const recombined: Veritum = Continuation.Recombine(chunks, {requiredDifficulty: 0});
+        const recombined: Veritum = Recombine(chunks, {requiredDifficulty: 0});
         expect(recombined.getFirstField(FieldType.PAYLOAD).valueString).toEqual(tooLong);
       });
     });  // chunks arriving out of order

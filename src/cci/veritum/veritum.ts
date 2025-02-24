@@ -8,7 +8,7 @@ import { ApiMisuseError } from "../../core/settings";
 
 import { cciCube, cciFamily } from "../cube/cciCube";
 import { VerityFields } from "../cube/verityFields";
-import { Continuation, RecombineOptions, SplitOptions, SplitState } from "./continuation";
+import { Split, Recombine, RecombineOptions, SplitOptions, SplitState } from "./continuation";
 import { CciDecryptionParams, Decrypt } from "./chunkDecryption";
 import { ChunkDecrypt, ChunkEncryptionHelper } from "./veritumEncryption";
 
@@ -60,7 +60,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     // If decryption was requested, let's decrypt the chunks before recombining.
     // Will not get in our way if decryption was not requested.
     let transformedChunks: Iterable<cciCube> = ChunkDecrypt(chunks, options);
-    const recombined: Veritum = Continuation.Recombine(transformedChunks, options);
+    const recombined: Veritum = Recombine(transformedChunks, options);
     // In case of an encrypted Veritum, the original chunks rather than the
     // transformed (decrypted) chunks should be retained. In case of non-signed
     // Verita, this defined the Veritum's key.
@@ -199,7 +199,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
       chunkTransformationCallback: (chunk: cciCube, splitState: SplitState) =>
         encryptionHelper.transformChunk(chunk, splitState),
     }
-    this._chunks = await Continuation.Split(this, splitOptions);
+    this._chunks = await Split(this, splitOptions);
 
     // In case of encryption, adopt some metadata from the encryption helper
     this._keyChunkNo = encryptionHelper.keyChunkNo;
