@@ -15,6 +15,7 @@ import { Veritum } from "./veritum";
 
 import { Buffer } from 'buffer'
 import { DoublyLinkedList, DoublyLinkedListNode } from 'data-structure-typed/dist/esm';
+import { logger } from "../../core/logger";
 
 /**
  * Don't split fields if a resulting chunk would be smaller than this amount
@@ -41,21 +42,6 @@ export interface SplitOptions extends RecombineOptions {
    * @returns
    */
   chunkTransformationCallback?: (chunk: cciCube, state: ChunkFinalisationState) => void;
-
-  /**
-   * If mentioned in this map, Split() will copy the first input field of the
-   * specified type to the n-th chunk, as represented by the mapped value.
-   * Note that chunk numbers start at 0.
-   * The special mapped value -1 will copy the field to all chunks.
-   * By default, we use this to:
-   * -
-   * - ensure all chunks have the same date
-   *   (note: this is only relevant for plaintext Verita as we will be default
-   *   randomise the date on each chunk for encrypted Verita)
-   * - theoretically, to preserve the PMUC update count, be we currently don't
-   *   even support signed multi-chunk Verita
-   */
-  mapFieldToChunk?: Map<number, number>;
 }
 
 export interface RecombineOptions extends CubeCreateOptions {
@@ -75,6 +61,24 @@ export interface RecombineOptions extends CubeCreateOptions {
    *   by copying and amending Continuation.ContinuationDefaultExclusions.
    **/
   exclude?: number[],
+
+  /**
+   * If mentioned in this map, Split() will copy the first input field of the
+   * specified type to the n-th chunk, as represented by the mapped value.
+   * Recombine() will do the reverse.
+   * - Note that chunk numbers start at 0.
+   * - The special mapped value -1 will cause Split() to copy the field to all chunks,
+   *   and Recombine() to retain the field from the first chunk.
+   * - Note that field mapping is a separate operation independent from regular
+   *   splitting. You will want to ensure any mapped fields are also excluded.
+   * By default, we use this feature to:
+   * - ensure all chunks have the same date
+   *   (note: this is only relevant for plaintext Verita as we will be default
+   *   randomise the date on each chunk for encrypted Verita)
+   * - theoretically, to preserve the PMUC update count, be we currently don't
+   *   even support signed multi-chunk Verita
+   */
+  mapFieldToChunk?: Map<number, number>;
 }
 
 interface SplitState {
@@ -91,7 +95,7 @@ export const ContinuationDefaultExclusions: number[] = [
   // Cube positionals
   FieldType.TYPE, FieldType.NOTIFY, FieldType.PMUC_UPDATE_COUNT,
   FieldType.PUBLIC_KEY, FieldType.DATE, FieldType.SIGNATURE,
-  FieldType.NONCE,
+  FieldType.NONCE, FieldType.PMUC_UPDATE_COUNT,
   // raw / non-CCI content fields
   FieldType.FROZEN_RAWCONTENT, FieldType.FROZEN_NOTIFY_RAWCONTENT,
   FieldType.PIC_RAWCONTENT, FieldType.PIC_NOTIFY_RAWCONTENT,
@@ -461,6 +465,11 @@ export function Recombine(
 ): Veritum {
   // set default options
   options.exclude ??= ContinuationDefaultExclusions;
+  options.mapFieldToChunk ??= DefaultMapFieldToChunk;
+
+  // Normalise input chunks to Array
+  // maybe TODO optimise: avoid this?
+  chunks = Array.from(chunks);
 
   // prepare variables
   let cubeType: CubeType;
@@ -514,6 +523,30 @@ export function Recombine(
     }
   }
 
+  // In addition to regular recombination, perform any reverse field-to-chunk
+  // mapping if requested
+  if (options.mapFieldToChunk) {
+    for (let [fieldType, targetIndex] of options.mapFieldToChunk) {
+      // handle special case: fields mapped to every chunk will be restored
+      // from the first chunk
+      if (targetIndex === -1) targetIndex = 0;
+      // fetch mapped field
+      const chunk: cciCube = chunks[targetIndex];
+      if (!chunk) {
+        logger.warn(`Recombine(): I was asked to map a ${FieldType[fieldType]} field from chunk ${targetIndex} to the restored Veritum, but this chunk does not exist; skipping this field.`);
+        continue;
+      }
+      const field: VerityField = chunk.getFirstField(fieldType);
+      if (!field) {
+        // Note: Not printing a warning as this case is normal, e.g. any
+        //   non-notification Veritum will not have a NOTIFY field,
+        //   but NOTIFY is still in the map by default.
+        continue;
+      }
+      fields.insertFieldInFront(field);
+    }
+  }
+
   // wrap our reconstructed fields into a Veritum object and return it
   const veritum = new Veritum({
     ...options,
@@ -522,12 +555,11 @@ export function Recombine(
 
     // Have the reconstructed Veritum retain its original chunks so it stays
     // in compiled state and knows its key.
-    // maybe TODO optimise: avoid copying potential input Array?
     // TODO: make retaining chunks optional as it increases memory consuption
     //  by a factor of 3 (decrypted fields, encrypted fields, raw encrypted binary blob) --
     //  not retaining the chunks will basically yield an uncompiled Veritum,
     //  which as it's in uncompiled state may not know its key
-    chunks: Array.from(chunks),
+    chunks: chunks as cciCube[],
 
     publicKey: chunks[0].publicKey,  // only relevant for signed types, undefined otherwise
   });
