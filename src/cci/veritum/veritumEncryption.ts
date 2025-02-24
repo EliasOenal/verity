@@ -10,7 +10,7 @@ import { VerityField } from "../cube/verityField";
 import { VerityFields } from "../cube/verityFields";
 import { CciDecryptionParams, Decrypt } from "./chunkDecryption";
 import { CciEncryptionParams, EncryptionPrepareParams, EncryptionOverheadBytes, EncryptionHashNonces, CryptStateOutput, EncryptPrePlanned, EncryptionHashNonce, EncryptionOverheadBytesCalc, CryptoError, EncryptionRandomNonce } from "./chunkEncryption";
-import { ContinuationDefaultExclusions, Split, SplitState } from "./continuation";
+import { ContinuationDefaultExclusions, Split, ChunkFinalisationState } from "./continuation";
 import { VeritumCompileOptions, VeritumFromChunksOptions } from "./veritum";
 
 import sodium from 'libsodium-wrappers-sumo'
@@ -106,7 +106,7 @@ export class ChunkEncryptionHelper {
    * @param state The splitter's internal state, notably letting us know which
    *   chunk this is (i.e. the chunk index).
    */
-  transformChunk(chunk: cciCube, state: SplitState): void {
+  transformChunk(chunk: cciCube, state: ChunkFinalisationState): void {
     if (this.shallEncrypt) {  // only act if encryption requested
       // Lazy-initialise nonce list
       if (this.nonceList.length < state.chunkCount) {

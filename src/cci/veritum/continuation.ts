@@ -32,7 +32,7 @@ export interface SplitOptions extends RecombineOptions {
    */
   maxChunkSize?: (chunkIndex: number) => number;
 
-  chunkTransformationCallback?: (chunk: cciCube, splitState: SplitState) => void;
+  chunkTransformationCallback?: (chunk: cciCube, splitState: ChunkFinalisationState) => void;
 }
 
 export interface RecombineOptions extends CubeCreateOptions {
@@ -54,7 +54,12 @@ export interface RecombineOptions extends CubeCreateOptions {
   exclude?: number[],
 }
 
-export interface SplitState {
+interface SplitState {
+  spaceRemaining: number,
+  macroFieldsetNode: DoublyLinkedListNode<VerityField>,
+}
+
+export interface ChunkFinalisationState {
   chunkIndex: number;
   chunkCount: number;
 }
@@ -121,6 +126,15 @@ export async function Split(
 // Maybe TODO: The current Continuation implementation is pretty much
 // unusable for mutable Cubes as it does not try to minimise the number
 // of changed Cubes.
+/**
+ * Internal helper class instantiated to split a single input Veritum.
+ *
+ * A bit of internal nomenclature:
+ * - We call the stuff the caller asks us to split the "input Veritum"
+ * - The result of a split are the "chunk Cubes"
+ * - Once we've figured out which fields of the input Veritum actually should be
+ *   included in the chunk Cubes, we call this the "macro fieldset"
+ */
 class Splitter {
   // input members
   private veritum: Veritable;
@@ -134,6 +148,8 @@ class Splitter {
   // splitting related members
   private chunkIndex = -1;
   readonly cubes: cciCube[] = [];
+  private demoFieldset: VerityFields;
+
   /**
    * A list of "empty" CONTINUED_IN references created by split(),
    * to be filled in later by finalise().
@@ -151,6 +167,7 @@ class Splitter {
     options.exclude ??= ContinuationDefaultExclusions;
     options.maxChunkSize ??= () => NetConstants.CUBE_SIZE;
   }
+
 
   /**
    * Pre-process the Veritum supplied, i.e. plan the upcoming split.
@@ -193,131 +210,111 @@ class Splitter {
     }
   }
 
+
   /**
    * Perform the split.
    * This is the second step of the splitting process.
    */
   split(): void {
-    // Split the macro fieldset into Cubes:
-    let cube = this.sculptNextChunk();  // start by creating the first chunk
+    // Split the macro fieldset into chunk Cubes:
+    let chunk = this.sculptNextChunk();  // start by creating the first chunk
     // Prepare some data allowing us to figure out how much space we have
     // available in each chunk Cube.
     // The caller may restrict the space we are allowed to use for each chunk.
     // In addition to that, we need to account for core boilerplate fields --
     // we'll construct a demo fieldset to determine how much space is lost to that.
-    const demoFieldset: VerityFields =
-      VerityFields.DefaultPositionals(this.veritum.fieldParser.fieldDef) as VerityFields;
+    this.demoFieldset = VerityFields.DefaultPositionals(
+      this.veritum.fieldParser.fieldDef) as VerityFields;
     // We'll begin by figuring out the available space in the first Cube
     let bytesAvailableThisChunk: number =
-      demoFieldset.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
+      this.demoFieldset.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
 
-    let spaceRemaining = bytesAvailableThisChunk;  // we start with just one chunk
+    // Prepare the split by initialising our state:
+    // - We obviously start at the first input fields, and
+    // - we start by planning just a single chunk Cube
+    //   (we'll calculate this properly in a moment)
+    const state: SplitState = {
+      macroFieldsetNode: this.macroFieldset.head,
+      spaceRemaining: bytesAvailableThisChunk,
+    }
 
-    // Iterate over the macro fieldset
-    let macroFieldsetNode: DoublyLinkedListNode<VerityField> = this.macroFieldset.head;
-    while (macroFieldsetNode !== undefined) {
-      // Prepare continuation references and insert them at the front of the
-      // macro fieldset. Once we've sculted the split Cubes we will revisit them
-      // and fill in the next Cube references. We place as much references as we
-      // can right at the beginning of the chain rather than chaining the Cubes
-      // individually. This is to allow light clients to fetch the continuation
-      // Cubes in one go. Note that individually chained Cubes are still valid
-      // and will be processed correctly.
-      // Note that we recalculate the required number of Cubes as we go as
-      // wasted space due to not perfectly splittable fields may increase
-      // that number over time.
-      // do we need to plan for more Cubes?
-      let refsAdded = 0;
-      while (spaceRemaining < this.minBytesRequred) {
-        // add another CONTINUED_IN reference, i.e. plan for an extra Cube
-        const rel: Relationship = new Relationship(
-          RelationshipType.CONTINUED_IN, Buffer.alloc(
-            NetConstants.CUBE_KEY_SIZE, 0));  // dummy key for now
-        const refField: VerityField = VerityField.RelatesTo(rel);
-        // remember this ref as a planned Cube...
-        this.refs.push(refField);
-        this.maxChunkIndexPlanned++;
-        // ... and add it to our field list, as obviously the reference needs
-        // to be written. Keep count of how many of those we added, as we'll
-        // need to backtrack this many nodes in macroFieldset in order not to
-        // skip over anything.
-        this.macroFieldset.addBefore(macroFieldsetNode, refField);
-        refsAdded++;
-        // account for the space we gained by planning for an extra Cube
-        // as well as the space we lost due to the extra reference
-        spaceRemaining +=
-          demoFieldset.bytesRemaining(this.options.maxChunkSize(this.maxChunkIndexPlanned));
-        this.minBytesRequred += cube.getFieldLength(refField);
-      }
-      // if we inserted extra fields, backtrack that many nodes
-      for (let i = 0; i < refsAdded; i++) macroFieldsetNode = macroFieldsetNode.prev;
+    // Iterate over the input fieldset
+    while (state.macroFieldsetNode !== undefined) {
+      // First, let's calculate how many chunk Cubes we'll need in total.
+      // Note that we do this inside the loop as the space required may increase
+      // as we split fields, due to splitting overhead.
+      this.planChunks(state);
 
       // Finally, have a look at the current field and decide what to do with it.
-      const field: VerityField = macroFieldsetNode.value;
-      const bytesRemaining = cube.fields.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
+      const field: VerityField = state.macroFieldsetNode.value;
+      const bytesRemaining = chunk.fields.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
 
       // There's three (3) possible cases to consider:
-      if (bytesRemaining >= cube.getFieldLength(field)) {
-        // Case 1): If the next field entirely fits in the current cube,
-        // just insert it and be done with it
-        cube.insertFieldBeforeBackPositionals(field);
-        spaceRemaining -= cube.getFieldLength(field);
-        this.minBytesRequred -= cube.getFieldLength(field);
+      // Case 1): If the next field entirely fits in the current cube,
+      // just insert it and be done with it
+      if (bytesRemaining >= chunk.getFieldLength(field)) {
+        chunk.insertFieldBeforeBackPositionals(field);
+        state.spaceRemaining -= chunk.getFieldLength(field);
+        this.minBytesRequred -= chunk.getFieldLength(field);
         // We're done with this field, so let's advance the iterator
-        macroFieldsetNode = macroFieldsetNode.next;
-      } else if (bytesRemaining >= MIN_CHUNK &&
-        this.veritum.fieldParser.fieldDef.fieldLengths[field.type] === undefined) {
-        // Case 2): We may be able to split this field into two smaller chunks.
-        // Two conditions must be satisfied to split:
-        // - The remaining space in the Cube must be at least our arbitrarily
-        //   decided minimum chunk size.
-        // - The field must be variable length as fixed length field cannot be
-        //   split (it would break the parser).
+        state.macroFieldsetNode = state.macroFieldsetNode.next;
+      }
 
+      // Case 2): We may be able to split this field into two smaller chunks.
+      // Two conditions must be satisfied to split:
+      // - The remaining space in the Cube must be at least our arbitrarily
+      //   decided minimum chunk size.
+      // - The field must be variable length as fixed length field cannot be
+      //   split (it would break the parser).
+      else if (bytesRemaining >= MIN_CHUNK &&
+        this.veritum.fieldParser.fieldDef.fieldLengths[field.type] === undefined) {
         // If we've entered this block, we've determined that we can split this field,
         // so let's determine the exact location of the split point:
         const headerSize = FieldParser.getFieldHeaderLength(
           field.type, this.veritum.fieldParser.fieldDef);
         const maxValueLength = bytesRemaining - headerSize;
         // Split the field into two chunks:
-        const chunk1: VerityField = new VerityField(
+        const fieldPartial1: VerityField = new VerityField(
           field.type,
           field.value.subarray(0, maxValueLength)
         );
-        const chunk2: VerityField = new VerityField(
+        const fieldPartial2: VerityField = new VerityField(
           field.type,
           field.value.subarray(maxValueLength)
         );
         // Place the first chunk in the current Cube
-        cube.insertFieldBeforeBackPositionals(chunk1);
+        chunk.insertFieldBeforeBackPositionals(fieldPartial1);
         // Update our accounting:
         // Space remaining is reduced by the size of the first chunk; but
         // minBytesRequired is only reduces by the amount of payload actually
         // placed in chunk1. Splitting wastes space!
-        spaceRemaining -= cube.getFieldLength(chunk1);
-        this.minBytesRequred -= chunk1.value.length;
+        state.spaceRemaining -= chunk.getFieldLength(fieldPartial1);
+        this.minBytesRequred -= fieldPartial1.value.length;
         // Replace the field on our macro fieldset with the two chunks;
         // this way, chunk2 will automatically be handled on the next iteration.
-        macroFieldsetNode.value = chunk1;
-        this.macroFieldset.addAfter(macroFieldsetNode, chunk2);
+        state.macroFieldsetNode.value = fieldPartial1;
+        this.macroFieldset.addAfter(state.macroFieldsetNode, fieldPartial2);
         // We're done with this field, so let's advance the iterator
-        macroFieldsetNode = macroFieldsetNode.next;
-      } else {
-        // Case 3: We can't split this field, and there's no way we're going
-        // to fit any of it in the current chunk Cube.
-        // Any space left in this chunk Cube will be wasted and we're going
-        // to roll over to the next chunk.
+        state.macroFieldsetNode = state.macroFieldsetNode.next;
+      }
+
+      // Case 3: We can't split this field, and there's no way we're going
+      // to fit any of it in the current chunk Cube.
+      // Any space left in this chunk Cube will be wasted and we're going
+      // to roll over to the next chunk.
+      else {
         // First update our accounting...
-        spaceRemaining -= cube.fields.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
+        state.spaceRemaining -= chunk.fields.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
         // ... and then it's time for a chunk rollover!
-        cube = this.sculptNextChunk();
+        chunk = this.sculptNextChunk();
         bytesAvailableThisChunk =
-          demoFieldset.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
+          this.demoFieldset.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
         // Note that we have not handled this field!
         // We therefore must not advance the iterator.
       }
     }
   }
+
 
   /**
    * Compile the split chunks and fill in the CONTINUED_IN references.
@@ -358,6 +355,7 @@ class Splitter {
     await this.cubes[0].compile();
   }
 
+
   /**
    * This is a split() partial.
    * It is performs the chunk rollover, i.e. sculpts the next chunk.
@@ -371,7 +369,61 @@ class Splitter {
     this.chunkIndex++;
     return cube;
   }
+
+
+  /**
+   * This is a split() partial.
+   * It prepares continuation references and insert them into the macro fieldset.
+   * - Note that these references start out "empty" as we don't know the chunk
+   *   Cube's keys yet -- the correct next chunk references will later be filled
+   *   in by finalise().
+   * - We place as much references as we can right at the beginning of the chain
+   *   rather than chaining the Cubes
+   *   individually. This is to allow light clients to fetch the continuation
+   *   Cubes in one go.
+   *   Note that individually chained Cubes are still valid
+   *   and will be processed correctly.
+   * - Note that this function gets re-called for every input field.
+   *   This is to recalculate the required number of chunks, as
+   *   wasted space due to not perfectly splittable fields may increase
+   *   required chunk count.
+   * @param state - The current split state, i.e. local variable used and
+   *   updated as we itereate over macro fields.
+   * @returns The updated split state
+   */
+  private planChunks(state: SplitState): void {
+    let refsAdded = 0;
+    // do we need more space?
+    while (state.spaceRemaining < this.minBytesRequred) {
+      // more space needed!
+      // add another CONTINUED_IN reference, i.e. plan for an extra Cube
+      const rel: Relationship = new Relationship(
+        RelationshipType.CONTINUED_IN, Buffer.alloc(
+          NetConstants.CUBE_KEY_SIZE, 0));  // dummy key for now
+      const refField: VerityField = VerityField.RelatesTo(rel);
+      // remember this ref as a planned Cube...
+      this.refs.push(refField);
+      this.maxChunkIndexPlanned++;
+      // ... and add it to our field list, as obviously the reference needs
+      // to be written. Keep count of how many of those we added, as we'll
+      // need to backtrack this many nodes in macroFieldset in order not to
+      // skip over anything.
+      this.macroFieldset.addBefore(state.macroFieldsetNode, refField);
+      refsAdded++;
+      // account for the space we gained by planning for an extra Cube
+      // as well as the space we lost due to the extra reference
+      state.spaceRemaining +=
+        this.demoFieldset.bytesRemaining(this.options.maxChunkSize(this.maxChunkIndexPlanned));
+      this.minBytesRequred += this.veritum.getFieldLength(refField);
+    }
+    // if we inserted extra fields, backtrack that many nodes
+    // so that the extra field will actually get processed
+    for (let i = 0; i < refsAdded; i++) {
+      state.macroFieldsetNode = state.macroFieldsetNode.prev;
+    }
+  }
 }
+
 
 
 export function Recombine(

@@ -8,7 +8,7 @@ import { ApiMisuseError } from "../../core/settings";
 
 import { cciCube, cciFamily } from "../cube/cciCube";
 import { VerityFields } from "../cube/verityFields";
-import { Split, Recombine, RecombineOptions, SplitOptions, SplitState } from "./continuation";
+import { Split, Recombine, RecombineOptions, SplitOptions, ChunkFinalisationState } from "./continuation";
 import { CciDecryptionParams, Decrypt } from "./chunkDecryption";
 import { ChunkDecrypt, ChunkEncryptionHelper } from "./veritumEncryption";
 
@@ -196,7 +196,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
       requiredDifficulty: this.requiredDifficulty,
       maxChunkSize: (chunkIndex: number) =>
         encryptionHelper.spacePerChunk(chunkIndex),
-      chunkTransformationCallback: (chunk: cciCube, splitState: SplitState) =>
+      chunkTransformationCallback: (chunk: cciCube, splitState: ChunkFinalisationState) =>
         encryptionHelper.transformChunk(chunk, splitState),
     }
     this._chunks = await Split(this, splitOptions);
