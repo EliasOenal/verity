@@ -33,9 +33,10 @@ describe('Continuation', () => {
 
   describe('manual splitting tests', () => {
     describe('splitting a single oversized payload field into two Cubes', async () => {
-      let macroCube: cciCube;
+      let veritum: Veritum;
       let splitCubes: cciCube[];
       let payloadMacrofield: VerityField;
+      const date = 148302000;  // viva Malta repubblika!
 
       const expectedFirstChunkPayloadLength = 1024  // Cube size
       - 1  // Type
@@ -45,22 +46,24 @@ describe('Continuation', () => {
       - 4  // Nonce
 
       beforeAll(async () => {
-        macroCube = cciCube.Create({
+        veritum = new Veritum({
           cubeType: CubeType.FROZEN,
           requiredDifficulty: 0,
+          fields: [
+            VerityField.Date(date),
+          ]
         });
         payloadMacrofield = VerityField.Payload(tooLong);
-        macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
+        veritum.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // just assert our macro Cube looks like what we expect
-        expect(macroCube.fieldCount).toEqual(4);
-        expect(macroCube.fields.all[0].type).toEqual(FieldType.TYPE);
-        expect(macroCube.fields.all[1].type).toEqual(FieldType.PAYLOAD);
-        expect(macroCube.fields.all[2].type).toEqual(FieldType.DATE);
-        expect(macroCube.fields.all[3].type).toEqual(FieldType.NONCE);
+        const fields = Array.from(veritum.getFields());
+        expect(veritum.fieldCount).toEqual(2);
+        expect(fields[0].type).toEqual(FieldType.DATE);
+        expect(fields[1].type).toEqual(FieldType.PAYLOAD);
 
         // run the test
-        splitCubes = await Split(macroCube, { requiredDifficulty: 0 });
+        splitCubes = await Split(veritum, { requiredDifficulty: 0 });
       });
 
       it('splits the input into two chunk Cubes', () => {
@@ -110,10 +113,14 @@ describe('Continuation', () => {
           payloadMacrofield.value.length - expectedFirstChunkPayloadLength);
       });
 
+      it("retains the input Veritum's date in both chunks", () => {
+        expect(splitCubes[0].getDate()).toEqual(date);
+        expect(splitCubes[1].getDate()).toEqual(date);
+      });
     });
 
 
-    it('respects the maximum chunk size', async () => {
+    it('respects a caller-supplied maximum chunk size', async () => {
       const veritum = new Veritum({
         cubeType: CubeType.FROZEN,
         fields: VerityField.Payload(tooLong),
