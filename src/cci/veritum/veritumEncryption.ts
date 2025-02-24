@@ -10,7 +10,7 @@ import { VerityField } from "../cube/verityField";
 import { VerityFields } from "../cube/verityFields";
 import { CciDecryptionParams, Decrypt } from "./chunkDecryption";
 import { CciEncryptionParams, EncryptionPrepareParams, EncryptionOverheadBytes, EncryptionHashNonces, CryptStateOutput, EncryptPrePlanned, EncryptionHashNonce, EncryptionOverheadBytesCalc, CryptoError, EncryptionRandomNonce } from "./chunkEncryption";
-import { Continuation, SplitState } from "./continuation";
+import { ContinuationDefaultExclusions, Split, SplitState } from "./continuation";
 import { VeritumCompileOptions, VeritumFromChunksOptions } from "./veritum";
 
 import sodium from 'libsodium-wrappers-sumo'
@@ -377,7 +377,7 @@ export function ChunkDecrypt(
     // This also means that if decryption fails, the application gets served
     // an empty Veritum rather than a bunch of useless ciphertext.
     options.exclude = [
-      ...(options.exclude ?? Continuation.ContinuationDefaultExclusions),
+      ...(options.exclude ?? ContinuationDefaultExclusions),
       FieldType.ENCRYPTED,
     ]
     return transformedChunks;

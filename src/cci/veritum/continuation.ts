@@ -42,6 +42,10 @@ export interface RecombineOptions extends CubeCreateOptions {
   /**
    * Fields to exclude from splitting. Those will not be included in the
    * resulting chunks.
+   * It is not recommended to override the default settings except to add
+   * further exclusion.
+   * If you do, be sure to know what you're doing.
+   * Otherwise be prepared for errors thrown or unexpected results.
    * @default - All core/positional fields, as well as CCI end markers and
    *   padding fields. When overriding please note that it will usually be
    *   wise to still include those in your custom exclude list. You can do this
@@ -55,72 +59,111 @@ export interface SplitState {
   chunkCount: number;
 }
 
+export const ContinuationDefaultExclusions: number[] = [
+  // Cube positionals
+  FieldType.TYPE, FieldType.NOTIFY, FieldType.PMUC_UPDATE_COUNT,
+  FieldType.PUBLIC_KEY, FieldType.DATE, FieldType.SIGNATURE,
+  FieldType.NONCE,
+  // raw / non-CCI content fields
+  FieldType.FROZEN_RAWCONTENT, FieldType.FROZEN_NOTIFY_RAWCONTENT,
+  FieldType.PIC_RAWCONTENT, FieldType.PIC_NOTIFY_RAWCONTENT,
+  FieldType.MUC_RAWCONTENT, FieldType.MUC_NOTIFY_RAWCONTENT,
+  FieldType.PMUC_RAWCONTENT, FieldType.PMUC_NOTIFY_RAWCONTENT,
+  // non-content bearing CCI fields
+  FieldType.CCI_END, FieldType.PADDING,
+  // virtual / pseudo fields
+  FieldType.REMAINDER,
+] as const;
 
-export class Continuation {
-  // Maybe TODO: The current Continuation implementation is pretty much
-  // unusable for mutable Cubes as it does not try to minimise the number
-  // of changed Cubes.
+/**
+ * If mentioned in this map, Split() will copy the first input field of the
+ * specified type to the n-th chunk, as represented by the mapped value.
+ * The special mapped value -1 will copy the field to all chunks.
+ * By default, we use this to:
+ * -
+ * - ensure all chunks have the same date
+ *   (note: this is only relevant for plaintext Verita as we will be default
+ *   randomise the date on each chunk for encrypted Verita)
+ * - theoretically, to preserve the PMUC update count, be we currently don't
+ *   even support signed multi-chunk Verita
+ */
+export const MapFieldToChunk: Map<number, number> = new Map([
+  [FieldType.DATE, -1],
+  [FieldType.NOTIFY, 1],
+  [FieldType.PMUC_UPDATE_COUNT, 1],
+]);
 
-  static readonly ContinuationDefaultExclusions: number[] = [
-    // Cube positionals
-    FieldType.TYPE, FieldType.NOTIFY, FieldType.PMUC_UPDATE_COUNT,
-    FieldType.PUBLIC_KEY, FieldType.DATE, FieldType.SIGNATURE,
-    FieldType.NONCE,
-    // raw / non-CCI content fields
-    FieldType.FROZEN_RAWCONTENT, FieldType.FROZEN_NOTIFY_RAWCONTENT,
-    FieldType.PIC_RAWCONTENT, FieldType.PIC_NOTIFY_RAWCONTENT,
-    FieldType.MUC_RAWCONTENT, FieldType.MUC_NOTIFY_RAWCONTENT,
-    FieldType.PMUC_RAWCONTENT, FieldType.PMUC_NOTIFY_RAWCONTENT,
-    // non-content bearing CCI fields
-    FieldType.CCI_END, FieldType.PADDING,
-    // virtual / pseudo fields
-    FieldType.REMAINDER,
-  ];
 
+/**
+ * Hi, I'm Split()!
+ * Got a Cube that's too large?
+ * Field that's longer than the cube size?
+ * Just too many fields?
+ * Or maybe both?
+ * No worries, I'll split them up for you.
+ * @param veritum A CCI Veritum or any other veritable (Cube-like) structure
+ *   to be split into Cubes.
+ * @param options
+ * @returns An array of chunk Cubes
+ */
+export async function Split(
+  veritum: Veritable,
+  options?: SplitOptions,
+): Promise<cciCube[]> {
+  const splitter = new Splitter(veritum, options);
+  splitter.preProcess();
+  splitter.split();
+  await splitter.finalise();
+  return splitter.cubes;
+}
+
+
+// Maybe TODO: The current Continuation implementation is pretty much
+// unusable for mutable Cubes as it does not try to minimise the number
+// of changed Cubes.
+class Splitter {
+  // input members
+  private veritum: Veritable;
+  private options: SplitOptions = {};
+  private macroFieldset: DoublyLinkedList<VerityField>
+
+  // pre-processing related members
+  private minBytesRequred = 0;  // will get counted in preProcess()
+  private maxChunkIndexPlanned = 0;
+
+  // splitting related members
+  private chunkIndex = -1;
+  readonly cubes: cciCube[] = [];
   /**
-   * Hi, I'm Split()!
-   * Got a Cube that's too large?
-   * Field that's longer than the cube size?
-   * Just too many fields?
-   * Or maybe both?
-   * No worries, I'll split them up for you.
-   * @param veritum A CCI Veritum or any other veritable (Cube-like) structure
-   *   to be split into Cubes.
-   * @param options
-   * @returns An array of chunk Cubes
+   * A list of "empty" CONTINUED_IN references created by split(),
+   * to be filled in later by finalise().
+   * Note the number of CONTINUED_IN references will always be one less than
+   * the number of Cubes.
    */
-  static async Split(
-      veritum: Veritable,
-      options: SplitOptions = {},
-  ): Promise<cciCube[]> {
-    // define variables
-    const cubes: cciCube[] = [];
-    let chunkIndex = -1;
-    let cube: cciCube = cubes[chunkIndex];
-    let maxChunkIndexPlanned = 0;
+  private refs: VerityField[] = [];
 
-    // define helper function
-    const sculptNextChunk: () => void = () => {
-      cube = veritum.family.cubeClass.Create(
-        {...options, cubeType: veritum.cubeType}) as cciCube;
-      cubes.push(cube);
-      chunkIndex++;
-    }
+
+  constructor(veritum: Veritable, options: SplitOptions = {}) {
+    this.veritum = veritum;
+    this.options = options;
 
     // set default options
-    options.exclude ??= Continuation.ContinuationDefaultExclusions;
+    options.exclude ??= ContinuationDefaultExclusions;
     options.maxChunkSize ??= () => NetConstants.CUBE_SIZE;
-    // enforce consitant options
+  }
 
-    // Pre-process the Veritum supplied:
-    let minBytesRequred = 0;  // will count them in a moment
-    const macroFieldset: DoublyLinkedList<VerityField> = new DoublyLinkedList();
+  /**
+   * Pre-process the Veritum supplied, i.e. plan the upcoming split.
+   * This is the first step of the splitting process.
+   **/
+  preProcess(): void {
+    this.macroFieldset = new DoublyLinkedList();
     let previousField: VerityField = undefined;
-    for (const field of veritum.getFields()) {
+    for (const field of this.veritum.getFields()) {
       // - Only accept non-excluded fields from supplied Veritum, i.e. everything
       //   except non-payload boilerplate. Pre-exisiting CONTINUED_IN relationships
       //   will also be dropped.
-      if (!options.exclude.includes(field.type) && (
+      if (!this.options.exclude.includes(field.type) && (
             field.type !== FieldType.RELATES_TO ||
             Relationship.fromField(field).type !== RelationshipType.CONTINUED_IN
           )
@@ -131,47 +174,47 @@ export class Continuation {
         // reconstruction.
         if (previousField !== undefined &&
             previousField.type === field.type &&
-            veritum.fieldParser.fieldDef.fieldLengths[field.type] === undefined)
+            this.veritum.fieldParser.fieldDef.fieldLengths[field.type] === undefined)
         {
           const padding = new VerityField(FieldType.PADDING, Buffer.alloc(0));
-          macroFieldset.push(padding);
-          minBytesRequred += veritum.getFieldLength(padding);
+          this.macroFieldset.push(padding);
+          this.minBytesRequred += this.veritum.getFieldLength(padding);
         }
 
         // Now finally accept this field into our macro fieldset.
         // We will also make a copy of the field to avoid messing with the
         // original data.
         const copy: VerityField =
-          new veritum.fieldParser.fieldDef.fieldObjectClass(field);
-        macroFieldset.push(copy);  // maybe TODO: use less array copying operations
-        minBytesRequred += veritum.getFieldLength(field);
+          new this.veritum.fieldParser.fieldDef.fieldObjectClass(field);
+        this.macroFieldset.push(copy);
+        this.minBytesRequred += this.veritum.getFieldLength(field);
         previousField = field;
       }
     }
+  }
 
-
+  /**
+   * Perform the split.
+   * This is the second step of the splitting process.
+   */
+  split(): void {
     // Split the macro fieldset into Cubes:
-    sculptNextChunk();  // start by creating the first chunk
+    let cube = this.sculptNextChunk();  // start by creating the first chunk
     // Prepare some data allowing us to figure out how much space we have
     // available in each chunk Cube.
     // The caller may restrict the space we are allowed to use for each chunk.
     // In addition to that, we need to account for core boilerplate fields --
     // we'll construct a demo fieldset to determine how much space is lost to that.
     const demoFieldset: VerityFields =
-      VerityFields.DefaultPositionals(veritum.fieldParser.fieldDef) as VerityFields;
+      VerityFields.DefaultPositionals(this.veritum.fieldParser.fieldDef) as VerityFields;
     // We'll begin by figuring out the available space in the first Cube
     let bytesAvailableThisChunk: number =
-      demoFieldset.bytesRemaining(options.maxChunkSize(chunkIndex));
-
-    // Also prepare a list of CONTINUED_IN references to be filled in later.
-    // Note the number of CONTINUED_IN references will always be one less than
-    // the number of Cubes.
-    const refs: VerityField[] = [];
+      demoFieldset.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
 
     let spaceRemaining = bytesAvailableThisChunk;  // we start with just one chunk
 
     // Iterate over the macro fieldset
-    let macroFieldsetNode: DoublyLinkedListNode<VerityField> = macroFieldset.head;
+    let macroFieldsetNode: DoublyLinkedListNode<VerityField> = this.macroFieldset.head;
     while (macroFieldsetNode !== undefined) {
       // Prepare continuation references and insert them at the front of the
       // macro fieldset. Once we've sculted the split Cubes we will revisit them
@@ -185,33 +228,33 @@ export class Continuation {
       // that number over time.
       // do we need to plan for more Cubes?
       let refsAdded = 0;
-      while (spaceRemaining < minBytesRequred) {
+      while (spaceRemaining < this.minBytesRequred) {
         // add another CONTINUED_IN reference, i.e. plan for an extra Cube
         const rel: Relationship = new Relationship(
           RelationshipType.CONTINUED_IN, Buffer.alloc(
             NetConstants.CUBE_KEY_SIZE, 0));  // dummy key for now
         const refField: VerityField = VerityField.RelatesTo(rel);
         // remember this ref as a planned Cube...
-        refs.push(refField);
-        maxChunkIndexPlanned++;
+        this.refs.push(refField);
+        this.maxChunkIndexPlanned++;
         // ... and add it to our field list, as obviously the reference needs
         // to be written. Keep count of how many of those we added, as we'll
         // need to backtrack this many nodes in macroFieldset in order not to
         // skip over anything.
-        macroFieldset.addBefore(macroFieldsetNode, refField);
+        this.macroFieldset.addBefore(macroFieldsetNode, refField);
         refsAdded++;
         // account for the space we gained by planning for an extra Cube
         // as well as the space we lost due to the extra reference
         spaceRemaining +=
-          demoFieldset.bytesRemaining(options.maxChunkSize(maxChunkIndexPlanned));
-        minBytesRequred += cube.getFieldLength(refField);
+          demoFieldset.bytesRemaining(this.options.maxChunkSize(this.maxChunkIndexPlanned));
+        this.minBytesRequred += cube.getFieldLength(refField);
       }
       // if we inserted extra fields, backtrack that many nodes
       for (let i = 0; i < refsAdded; i++) macroFieldsetNode = macroFieldsetNode.prev;
 
       // Finally, have a look at the current field and decide what to do with it.
       const field: VerityField = macroFieldsetNode.value;
-      const bytesRemaining = cube.fields.bytesRemaining(options.maxChunkSize(chunkIndex));
+      const bytesRemaining = cube.fields.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
 
       // There's three (3) possible cases to consider:
       if (bytesRemaining >= cube.getFieldLength(field)) {
@@ -219,11 +262,11 @@ export class Continuation {
         // just insert it and be done with it
         cube.insertFieldBeforeBackPositionals(field);
         spaceRemaining -= cube.getFieldLength(field);
-        minBytesRequred -= cube.getFieldLength(field);
+        this.minBytesRequred -= cube.getFieldLength(field);
         // We're done with this field, so let's advance the iterator
         macroFieldsetNode = macroFieldsetNode.next;
       } else if (bytesRemaining >= MIN_CHUNK &&
-        veritum.fieldParser.fieldDef.fieldLengths[field.type] === undefined) {
+        this.veritum.fieldParser.fieldDef.fieldLengths[field.type] === undefined) {
         // Case 2): We may be able to split this field into two smaller chunks.
         // Two conditions must be satisfied to split:
         // - The remaining space in the Cube must be at least our arbitrarily
@@ -234,7 +277,7 @@ export class Continuation {
         // If we've entered this block, we've determined that we can split this field,
         // so let's determine the exact location of the split point:
         const headerSize = FieldParser.getFieldHeaderLength(
-          field.type, veritum.fieldParser.fieldDef);
+          field.type, this.veritum.fieldParser.fieldDef);
         const maxValueLength = bytesRemaining - headerSize;
         // Split the field into two chunks:
         const chunk1: VerityField = new VerityField(
@@ -252,11 +295,11 @@ export class Continuation {
         // minBytesRequired is only reduces by the amount of payload actually
         // placed in chunk1. Splitting wastes space!
         spaceRemaining -= cube.getFieldLength(chunk1);
-        minBytesRequred -= chunk1.value.length;
+        this.minBytesRequred -= chunk1.value.length;
         // Replace the field on our macro fieldset with the two chunks;
         // this way, chunk2 will automatically be handled on the next iteration.
         macroFieldsetNode.value = chunk1;
-        macroFieldset.addAfter(macroFieldsetNode, chunk2);
+        this.macroFieldset.addAfter(macroFieldsetNode, chunk2);
         // We're done with this field, so let's advance the iterator
         macroFieldsetNode = macroFieldsetNode.next;
       } else {
@@ -265,31 +308,37 @@ export class Continuation {
         // Any space left in this chunk Cube will be wasted and we're going
         // to roll over to the next chunk.
         // First update our accounting...
-        spaceRemaining -= cube.fields.bytesRemaining(options.maxChunkSize(chunkIndex));
+        spaceRemaining -= cube.fields.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
         // ... and then it's time for a chunk rollover!
-        sculptNextChunk();
+        cube = this.sculptNextChunk();
         bytesAvailableThisChunk =
-          demoFieldset.bytesRemaining(options.maxChunkSize(chunkIndex));
+          demoFieldset.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
         // Note that we have not handled this field!
         // We therefore must not advance the iterator.
       }
     }
+  }
 
+  /**
+   * Compile the split chunks and fill in the CONTINUED_IN references.
+   * This is the third and final step of the splitting process.
+   */
+  async finalise(): Promise<void> {
     // Chunking done. Now fill in the CONTINUED_IN references.
     // This will also compile all chunk Cubes but the first one.
     // If a chunk transformation callback was specified (e.g. encryption),
     // call it right before compiling each Cube.
-    if (Settings.RUNTIME_ASSERTIONS && (refs.length !== (cubes.length-1))) {
+    if (Settings.RUNTIME_ASSERTIONS && (this.refs.length !== (this.cubes.length-1))) {
       throw new CubeError("Continuation.SplitCube: I messed up my chunking. This should never happen.");
     }
-    for (let i=0; i<refs.length; i++) {
+    for (let i=0; i<this.refs.length; i++) {
       // the first relationship field needs to reference the second Cube, and so on
-      const referredCube = cubes[i+1];
+      const referredCube = this.cubes[i+1];
       // we will go ahead and compile the referred Cube -- if there's a chunk
       // transformation callback, call it now
-      if (options.chunkTransformationCallback !== undefined) {
-        options.chunkTransformationCallback(referredCube,
-          { chunkIndex: i+1, chunkCount: refs.length }
+      if (this.options.chunkTransformationCallback !== undefined) {
+        this.options.chunkTransformationCallback(referredCube,
+          { chunkIndex: i+1, chunkCount: this.refs.length }
         );
       }
       const referredKey: CubeKey = await referredCube.getKey();  // compiles the Cube
@@ -297,97 +346,109 @@ export class Continuation {
         new Relationship(RelationshipType.CONTINUED_IN, referredKey);
       const compiledRef: VerityField = VerityField.RelatesTo(correctRef);
       // fill in the correct ref value to the field we created at the beginning
-      refs[i].value = compiledRef.value;
+      this.refs[i].value = compiledRef.value;
     }
     // Compile first chunk Cube for consistency.
     // Of course, also call the chunk transformation callback if there's one.
-    if (options.chunkTransformationCallback !== undefined) {
-      options.chunkTransformationCallback(cubes[0],
-        { chunkIndex: 0, chunkCount: refs.length }
+    if (this.options.chunkTransformationCallback !== undefined) {
+      this.options.chunkTransformationCallback(this.cubes[0],
+        { chunkIndex: 0, chunkCount: this.refs.length }
       );
     }
-    await cubes[0].compile();
-
-    return cubes;
+    await this.cubes[0].compile();
   }
 
-
-  static Recombine(
-    chunks: Iterable<cciCube>,
-    options: RecombineOptions = {},
-  ): Veritum {
-    // set default options
-    options.exclude ??= Continuation.ContinuationDefaultExclusions;
-
-    // prepare variables
-    let cubeType: CubeType;
-    let fields: VerityFields;  // will be initialized late below
-
-    // iterate through all chunk Cubes...
-    for (const cube of chunks) {
-      if (fields === undefined) {
-        // late initialisation of our macro fields object because we base the type of Cube
-        // on the first chunk supplied -- and as we accept an iterable we need
-        // to be iterating to be able to look at it
-        cubeType = cube.cubeType;
-        fields = new VerityFields([], cube.fieldParser.fieldDef);
-      }
-
-      for (const field of cube.fields.all) {
-        // ... and look at each field:
-        // - Excluded fields will be dropped, except PADDING which separates
-        //   non-rejoinable adjacent fields
-        if (field.type !== FieldType.PADDING &&
-            options.exclude.includes(field.type)) continue;
-        // - CONTINUED_IN references will be dropped
-        if (field.type === FieldType.RELATES_TO) {
-          const rel = Relationship.fromField(field);
-          if (rel.type === RelationshipType.CONTINUED_IN) continue;
-        }
-        // - variable length fields of same type directly adjacent to each
-        //   other will be merged
-        const previousField: VerityField =
-          fields.length > 0 ?
-            // TODO: get rid of unsafe manipulateFields() call
-            fields.all[fields.length-1] :
-            undefined;
-        if (previousField !== undefined && field.type === previousField.type &&
-            fields.fieldDefinition.fieldLengths[field.type] === undefined) {
-          previousField.value = Buffer.concat([previousField.value, field.value]);
-          continue;
-        }
-        // - the rest will just be copied to the macro fieldset
-        const fieldType = field.constructor as typeof VerityField;
-        const copy: VerityField = new fieldType(field);
-        fields.appendField(copy);
-      }
-    }
-    // in a second pass, remove any PADDING fields
-    for (let i=0; i<fields.length; i++) {
-      // TODO: get rid of unsafe manipulateFields() calls
-      if (fields.all[i].type === FieldType.PADDING) {
-        fields.all.splice(i, 1);
-        i--;
-      }
-    }
-
-    // wrap our reconstructed fields into a Veritum object and return it
-    const veritum = new Veritum({
-      ...options,
-      cubeType: cubeType,
-      fields: fields,
-
-      // Have the reconstructed Veritum retain its original chunks so it stays
-      // in compiled state and knows its key.
-      // maybe TODO optimise: avoid copying potential input Array?
-      // TODO: make retaining chunks optional as it increases memory consuption
-      //  by a factor of 3 (decrypted fields, encrypted fields, raw encrypted binary blob) --
-      //  not retaining the chunks will basically yield an uncompiled Veritum,
-      //  which as it's in uncompiled state may not know its key
-      chunks: Array.from(chunks),
-
-      publicKey: chunks[0].publicKey,  // only relevant for signed types, undefined otherwise
-    });
-    return veritum;
+  /**
+   * This is a split() partial.
+   * It is performs the chunk rollover, i.e. sculpts the next chunk.
+   * It's called at the very beginning of the splitting process, and whenever
+   * we've filled up the previous chunk.
+   */
+  private sculptNextChunk(): cciCube {
+    const cube = this.veritum.family.cubeClass.Create(
+      {...this.options, cubeType: this.veritum.cubeType}) as cciCube;
+    this.cubes.push(cube);
+    this.chunkIndex++;
+    return cube;
   }
+}
+
+
+export function Recombine(
+  chunks: Iterable<cciCube>,
+  options: RecombineOptions = {},
+): Veritum {
+  // set default options
+  options.exclude ??= ContinuationDefaultExclusions;
+
+  // prepare variables
+  let cubeType: CubeType;
+  let fields: VerityFields;  // will be initialized late below
+
+  // iterate through all chunk Cubes...
+  for (const cube of chunks) {
+    if (fields === undefined) {
+      // late initialisation of our macro fields object because we base the type of Cube
+      // on the first chunk supplied -- and as we accept an iterable we need
+      // to be iterating to be able to look at it
+      cubeType = cube.cubeType;
+      fields = new VerityFields([], cube.fieldParser.fieldDef);
+    }
+
+    for (const field of cube.fields.all) {
+      // ... and look at each field:
+      // - Excluded fields will be dropped, except PADDING which separates
+      //   non-rejoinable adjacent fields
+      if (field.type !== FieldType.PADDING &&
+          options.exclude.includes(field.type)) continue;
+      // - CONTINUED_IN references will be dropped
+      if (field.type === FieldType.RELATES_TO) {
+        const rel = Relationship.fromField(field);
+        if (rel.type === RelationshipType.CONTINUED_IN) continue;
+      }
+      // - variable length fields of same type directly adjacent to each
+      //   other will be merged
+      const previousField: VerityField =
+        fields.length > 0 ?
+          // TODO: get rid of unsafe manipulateFields() call
+          fields.all[fields.length-1] :
+          undefined;
+      if (previousField !== undefined && field.type === previousField.type &&
+          fields.fieldDefinition.fieldLengths[field.type] === undefined) {
+        previousField.value = Buffer.concat([previousField.value, field.value]);
+        continue;
+      }
+      // - the rest will just be copied to the macro fieldset
+      const fieldType = field.constructor as typeof VerityField;
+      const copy: VerityField = new fieldType(field);
+      fields.appendField(copy);
+    }
+  }
+  // in a second pass, remove any PADDING fields
+  for (let i=0; i<fields.length; i++) {
+    // TODO: get rid of unsafe manipulateFields() calls
+    if (fields.all[i].type === FieldType.PADDING) {
+      fields.all.splice(i, 1);
+      i--;
+    }
+  }
+
+  // wrap our reconstructed fields into a Veritum object and return it
+  const veritum = new Veritum({
+    ...options,
+    cubeType: cubeType,
+    fields: fields,
+
+    // Have the reconstructed Veritum retain its original chunks so it stays
+    // in compiled state and knows its key.
+    // maybe TODO optimise: avoid copying potential input Array?
+    // TODO: make retaining chunks optional as it increases memory consuption
+    //  by a factor of 3 (decrypted fields, encrypted fields, raw encrypted binary blob) --
+    //  not retaining the chunks will basically yield an uncompiled Veritum,
+    //  which as it's in uncompiled state may not know its key
+    chunks: Array.from(chunks),
+
+    publicKey: chunks[0].publicKey,  // only relevant for signed types, undefined otherwise
+  });
+  return veritum;
 }
