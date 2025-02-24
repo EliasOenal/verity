@@ -5,7 +5,7 @@ import { NetConstants } from '../networking/networkDefinitions';
 import type { Veritable } from './veritable.definition';
 
 import { FieldPosition } from '../fields/baseFields';
-import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasSignature, SmartCubeError } from "./cube.definitions";
+import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasNotify, HasSignature, SmartCubeError, ToggleNotifyType } from "./cube.definitions";
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField } from "./cubeField";
@@ -17,6 +17,7 @@ import { logger } from '../logger';
 
 import sodium from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
+import { FieldType } from '../../cci/cube/cciCube.definitions';
 
 export interface CubeOptions {
     fields?: CubeFields | CubeField[] | CubeField,
@@ -56,7 +57,13 @@ export abstract class VeritableBaseImplementation implements Veritable {
 
             // initialise members
             this._fields = this.normalizeFields(this.options.fields);
+
+            // ensure Cube type is of a notification variant if there is a
+            // NOTIFY field
+            if (this._fields.getFirst(FieldType.NOTIFY) && !HasNotify[this.options.cubeType]) {
+                this.options.cubeType = ToggleNotifyType[this.options.cubeType];
             }
+        }
     }
 
     get family(): CubeFamilyDefinition { return this.options.family }

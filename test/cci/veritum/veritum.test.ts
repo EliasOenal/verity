@@ -4,7 +4,7 @@ import { VerityField } from "../../../src/cci/cube/verityField";
 import { Recombine } from "../../../src/cci/veritum/continuation";
 import { Veritum, VeritumFromChunksOptions } from "../../../src/cci/veritum/veritum";
 import { coreCubeFamily } from "../../../src/core/cube/cube";
-import { CubeKey, CubeType, HasNotify, HasSignature } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, CubeType, DEFAULT_CUBE_TYPE, HasNotify, HasSignature } from "../../../src/core/cube/cube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { enumNums } from "../../../src/core/helpers/misc";
 
@@ -13,6 +13,7 @@ import { Relationship, RelationshipType } from "../../../src/cci/cube/relationsh
 
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { Settings } from "../../../src/core/settings";
 
 const requiredDifficulty = 0;
 
@@ -20,6 +21,7 @@ describe('Veritum', () => {
   const applicationField = VerityField.Application("contentum probationis non applicationis");
   const mediaTypeField = VerityField.MediaType(MediaTypes.TEXT);
   const payloadField = VerityField.Payload("Hoc veritum probatio est");
+  const notificationField = VerityField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x69));
 
   let publicKey: Buffer;
   let privateKey: Buffer;
@@ -231,6 +233,74 @@ describe('Veritum', () => {
         expect(originalVeritum.fieldsEqual(copiedVeritum)).toBe(false);
         expect(copiedVeritum.getFirstField(FieldType.CONTENTNAME)).toBeDefined();
         expect(originalVeritum.getFirstField(FieldType.CONTENTNAME)).toBeUndefined();
+      });
+    });
+
+    describe('from scratch', () => {
+      it('creates a Veritum with default options', () => {
+        const veritum = new Veritum();
+
+        expect(veritum.cubeType).toBe(DEFAULT_CUBE_TYPE);
+        expect(veritum.family).toBe(cciFamily);
+        expect(veritum.fieldCount).toBe(0);
+        expect(veritum.publicKey).toBeUndefined();
+        expect(veritum.privateKey).toBeUndefined();
+        expect(veritum.requiredDifficulty).toBe(Settings.REQUIRED_DIFFICULTY);
+      });
+
+      it('creates a Veritum with specified cube type', () => {
+        const veritum = new Veritum({ cubeType: CubeType.PMUC });
+
+        expect(veritum.cubeType).toBe(CubeType.PMUC);
+        expect(veritum.family).toBe(cciFamily);
+      });
+
+      it('creates a Veritum with initial fields', () => {
+        const veritum = new Veritum({
+          fields: [applicationField, payloadField]
+        });
+
+        expect(veritum.fieldCount).toBe(2);
+        expect(veritum.getFirstField(FieldType.APPLICATION)).toEqual(applicationField);
+        expect(veritum.getFirstField(FieldType.PAYLOAD)).toEqual(payloadField);
+      });
+
+      it('creates a Veritum with public/private key pair', () => {
+        const veritum = new Veritum({
+          cubeType: CubeType.MUC,
+          publicKey,
+          privateKey
+        });
+
+        expect(veritum.publicKey).toEqual(publicKey);
+        expect(veritum.privateKey).toEqual(privateKey);
+      });
+
+      it('can set a custom minimum difficulty', () => {
+        const veritum = new Veritum({
+          cubeType: CubeType.FROZEN,
+          requiredDifficulty: 5
+        });
+
+        expect(veritum.requiredDifficulty).toBe(5);
+      });
+
+      it('can set a custom parsing family', () => {
+        const veritum = new Veritum({
+          family: coreCubeFamily
+        });
+
+        expect(veritum.family).toBe(coreCubeFamily);
+      });
+
+      it('will correct a non-notification Cube type to a notification type if a NOTIFY field is supplied', () => {
+        const veritum = new Veritum({
+          cubeType: CubeType.PIC,
+          fields: [notificationField],
+        });
+        expect(veritum.fieldCount).toBe(1);
+        expect(veritum.getFirstField(FieldType.NOTIFY).equals(notificationField)).toBe(true);
+        expect(veritum.cubeType).toBe(CubeType.PIC_NOTIFY);
       });
     });
   });
