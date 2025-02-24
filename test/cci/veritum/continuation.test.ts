@@ -23,6 +23,7 @@ import sodium from 'libsodium-wrappers-sumo'
 describe('Continuation', () => {
   let privateKey: Buffer, publicKey: Buffer;
   const notificationKey: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 333);
+  const date = 148302000;  // viva Malta repubblika!
 
   beforeAll(async () => {
     await sodium.ready;
@@ -36,7 +37,6 @@ describe('Continuation', () => {
       let veritum: Veritum;
       let splitCubes: cciCube[];
       let payloadMacrofield: VerityField;
-      const date = 148302000;  // viva Malta repubblika!
 
       const expectedFirstChunkPayloadLength = 1024  // Cube size
       - 1  // Type
@@ -76,16 +76,16 @@ describe('Continuation', () => {
       });
 
       it('expect the first chunk to contain all fields', () => {
-      expect(splitCubes[0].fields.all[0].type).toEqual(FieldType.TYPE);
-      expect(splitCubes[0].fields.all[1].type).toEqual(FieldType.RELATES_TO);
-      expect(splitCubes[0].fields.all[2].type).toEqual(FieldType.PAYLOAD);
-      expect(splitCubes[0].fields.all[3].type).toEqual(FieldType.DATE);
-      expect(splitCubes[0].fields.all[4].type).toEqual(FieldType.NONCE);
-      expect(splitCubes[0].fieldCount).toEqual(5);
+        expect(splitCubes[0].fields.all[0].type).toEqual(FieldType.TYPE);
+        expect(splitCubes[0].fields.all[1].type).toEqual(FieldType.RELATES_TO);
+        expect(splitCubes[0].fields.all[2].type).toEqual(FieldType.PAYLOAD);
+        expect(splitCubes[0].fields.all[3].type).toEqual(FieldType.DATE);
+        expect(splitCubes[0].fields.all[4].type).toEqual(FieldType.NONCE);
+        expect(splitCubes[0].fieldCount).toEqual(5);
       });
 
       it('expect the payload to have been split at the optimal point', () => {
-      expect(splitCubes[0].fields.all[2].value.length).toEqual(expectedFirstChunkPayloadLength);
+        expect(splitCubes[0].fields.all[2].value.length).toEqual(expectedFirstChunkPayloadLength);
       });
 
       it('expect the first chunk to reference the second chunk', () => {
@@ -193,35 +193,53 @@ describe('Continuation', () => {
       //   signed types
 
       describe('splitting a single large field', () => {
-        it('splits and restores a single overly large payload field requiring two chunks', async () => {
-          // prepare macro Cube
-          const macroCube = cciCube.Create({
-            cubeType: cubeType,
-            requiredDifficulty: 0,
-            publicKey, privateKey,
-            fields: HasNotify[cubeType] ? VerityField.Notify(notificationKey) : undefined,
+        describe('split and restore a single overly large payload field requiring two chunks', () => {
+          let veritum: Veritum;
+          let recombined: Veritum;
+          // let notifyKey: Buffer;
+
+          beforeAll(async () => {
+            // prepare fields
+            const payloadMacrofield = VerityField.Payload(tooLong);
+            const dateField = VerityField.Date(date);
+            const notifyField = VerityField.Notify(notificationKey);
+
+            const fields: VerityField[] = [payloadMacrofield, dateField];
+            if (HasNotify[cubeType]) fields.push(notifyField);
+
+            // prepare the input Veritum
+            veritum = new Veritum({
+              cubeType: cubeType,
+              requiredDifficulty: 0,
+              publicKey, privateKey,
+              fields: fields,
+            });
+
+            // run the test: split, then recombine
+            const splitCubes: cciCube[] = await Split(veritum, {requiredDifficulty: 0});
+            expect(splitCubes.length).toEqual(2);
+            recombined = Recombine(splitCubes, {requiredDifficulty: 0});
           });
-          const payloadMacrofield = VerityField.Payload(tooLong);
-          macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
-          // run the test: split, then recombine
-          const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
-          expect(splitCubes.length).toEqual(2);
-          const recombined: Veritum = Recombine(splitCubes, {requiredDifficulty: 0});
+          it('correctly restored the PAYLOAD', () => {
+            expect(Array.from(recombined.getFields(FieldType.PAYLOAD))).toHaveLength(1);
+            const restoredPayload = recombined.getFirstField(FieldType.PAYLOAD);
+            expect(restoredPayload.valueString).toEqual(tooLong);
+          });
 
-          // assert that payload was correctly restored
-          expect(Array.from(recombined.getFields(FieldType.PAYLOAD))).toHaveLength(1);
-          const restoredPayload = recombined.getFirstField(FieldType.PAYLOAD);
-          expect(restoredPayload.valueString).toEqual(tooLong);
+          it('correclty restores the DATE', () => {
+            expect(recombined.getFirstField(FieldType.DATE).value)
+              .toEqual(veritum.getFirstField(FieldType.DATE).value);
+          });
 
-          // assert that NOTIFY was correctly restored, if any
-          const notification = recombined.getFirstField(FieldType.NOTIFY);
-          if (HasNotify[cubeType]) {
-            // expect(notification.value.equals(notificationKey)).toBe(true);
-          } else {
-            // expect(notification).toBe(undefined);
-          }
-        });
+          if (HasNotify[cubeType]) it('correctly restores the NOTIFY field', () => {
+            const notification = recombined.getFirstField(FieldType.NOTIFY);
+            expect(notification.value.equals(notificationKey)).toBe(true);
+          });
+          else it('does not create any spurious NOTIFY field', () => {
+            expect(recombined.getFirstField(FieldType.NOTIFY)).toBeUndefined();
+          });
+        });  // split and restore a single overly large payload field requiring two chunks
 
         it('splits and restores a single extremely large payload field requiring more than two chunks', async () => {
           // prepare macro Cube
@@ -580,16 +598,16 @@ describe('Continuation', () => {
               FieldType.MEDIA_TYPE,
               FieldType.AVATAR,
             ];
-            const numFields = Math.floor(Math.random() * 100);
+            const numCciFields = Math.floor(Math.random() * 100);
 
             // prepare macro Cube
-            const compareFields: VerityField[] = [];
-            const macroCube = cciCube.Create({
+            const veritum = new Veritum({
               cubeType: cubeType,
               requiredDifficulty: 0,
               publicKey, privateKey,
+              fields: VerityField.Date(date),
             });
-            for (let i=0; i < numFields; i++) {
+            for (let i=0; i < numCciFields; i++) {
               const chosenFieldType: number = eligibleFieldTypes[Math.floor(Math.random() * eligibleFieldTypes.length)];
               const length: number = FieldLength[chosenFieldType] ?? Math.floor(Math.random() * 3000);
               let val: Buffer;
@@ -601,22 +619,20 @@ describe('Continuation', () => {
                 for (let j = 0; j < length; j++) val[j] = Math.floor(Math.random() * 256);
               }
               const field = new VerityField(chosenFieldType, val);
-              macroCube.insertFieldBeforeBackPositionals(field);
-              compareFields.push(field);
+              veritum.insertFieldBeforeBackPositionals(field);
             }
+            const originalFields = Array.from(veritum.getFields());
 
-            // split and recombinethe Cube
-            const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
+            // split and recombine the Veritum
+            const splitCubes: cciCube[] = await Split(veritum, {requiredDifficulty: 0});
             const recombined: Veritum = Recombine(splitCubes, {requiredDifficulty: 0});
 
             // assert that payload was correctly restored
-            const restoredFields = recombined.manipulateFields().all;
-            expect(restoredFields.length).toEqual(numFields);
+            const restoredFields = Array.from(recombined.getFields());
+            expect(restoredFields.length).toEqual(veritum.fieldCount);
             // assert that all fields have been restored correctly
-            for (let i = 0; i < numFields; i++) {
-              const field = restoredFields[i];
-              expect(field.type).toEqual(compareFields[i].type);
-              expect(field.value).toEqual(compareFields[i].value);
+            for (let i = 0; i < veritum.fieldCount; i++) {
+              expect(restoredFields[i].equals(originalFields[i])).toBe(true);
             }
           });
         }
