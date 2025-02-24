@@ -32,67 +32,84 @@ describe('Continuation', () => {
   });
 
   describe('manual splitting tests', () => {
-    it('splits a single oversized payload field into two Cubes', async () => {
-      const macroCube = cciCube.Create({
-        cubeType: CubeType.FROZEN,
-        requiredDifficulty: 0,
+    describe('splitting a single oversized payload field into two Cubes', async () => {
+      let macroCube: cciCube;
+      let splitCubes: cciCube[];
+      let payloadMacrofield: VerityField;
+
+      const expectedFirstChunkPayloadLength = 1024  // Cube size
+      - 1  // Type
+      - 2  // two byte Payload TLV header (type and length)
+      - 34 // RELATES_TO/CONTINUED_IN (1 byte type and 33 byte value)
+      - 5  // Date
+      - 4  // Nonce
+
+      beforeAll(async () => {
+        macroCube = cciCube.Create({
+          cubeType: CubeType.FROZEN,
+          requiredDifficulty: 0,
+        });
+        payloadMacrofield = VerityField.Payload(tooLong);
+        macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
+
+        // just assert our macro Cube looks like what we expect
+        expect(macroCube.fieldCount).toEqual(4);
+        expect(macroCube.fields.all[0].type).toEqual(FieldType.TYPE);
+        expect(macroCube.fields.all[1].type).toEqual(FieldType.PAYLOAD);
+        expect(macroCube.fields.all[2].type).toEqual(FieldType.DATE);
+        expect(macroCube.fields.all[3].type).toEqual(FieldType.NONCE);
+
+        // run the test
+        splitCubes = await Split(macroCube, { requiredDifficulty: 0 });
       });
-      const payloadMacrofield = VerityField.Payload(tooLong);
-      macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
-      // just assert our macro Cube looks like what we expect
-      expect(macroCube.fieldCount).toEqual(4);
-      expect(macroCube.fields.all[0].type).toEqual(FieldType.TYPE);
-      expect(macroCube.fields.all[1].type).toEqual(FieldType.PAYLOAD);
-      expect(macroCube.fields.all[2].type).toEqual(FieldType.DATE);
-      expect(macroCube.fields.all[3].type).toEqual(FieldType.NONCE);
+      it('splits the input into two chunk Cubes', () => {
+        expect(splitCubes.length).toEqual(2);
+      });
 
-      // run the test
-      const splitCubes: cciCube[] =
-        await Split(macroCube, { requiredDifficulty: 0 });
+      it('fills the first Cube to the brim', () => {
+        expect(splitCubes[0].getFieldLength()).toEqual(1024);
+        expect(splitCubes[0].bytesRemaining()).toBe(0);
+      });
 
-      expect(splitCubes.length).toEqual(2);
-
-      // expect first Cube to be filled to the brim
-      expect(splitCubes[0].getFieldLength()).toEqual(1024);
-      expect(splitCubes[0].bytesRemaining()).toBe(0);
-
-      // expect the first chunk to contain all fields
+      it('expect the first chunk to contain all fields', () => {
       expect(splitCubes[0].fields.all[0].type).toEqual(FieldType.TYPE);
       expect(splitCubes[0].fields.all[1].type).toEqual(FieldType.RELATES_TO);
       expect(splitCubes[0].fields.all[2].type).toEqual(FieldType.PAYLOAD);
       expect(splitCubes[0].fields.all[3].type).toEqual(FieldType.DATE);
       expect(splitCubes[0].fields.all[4].type).toEqual(FieldType.NONCE);
       expect(splitCubes[0].fieldCount).toEqual(5);
+      });
 
-      // expect the payload to have been split at the optimal point
-      const expectedFirstChunkPayloadLength = 1024  // Cube size
-        - 1  // Type
-        - 2  // two byte Payload TLV header (type and length)
-        - 34 // RELATES_TO/CONTINUED_IN (1 byte type and 33 byte value)
-        - 5  // Date
-        - 4  // Nonce
+      it('expect the payload to have been split at the optimal point', () => {
       expect(splitCubes[0].fields.all[2].value.length).toEqual(expectedFirstChunkPayloadLength);
+      });
 
-      // expect the first chunk to reference the second chunk
-      const rel = Relationship.fromField(splitCubes[0].fields.all[1]);
-      expect(rel.type).toBe(RelationshipType.CONTINUED_IN);
-      expect(rel.remoteKey).toEqual(await splitCubes[1].getKey());
+      it('expect the first chunk to reference the second chunk', () => {
+        const rel = Relationship.fromField(splitCubes[0].fields.all[1]);
+        expect(rel.type).toBe(RelationshipType.CONTINUED_IN);
+        expect(rel.remoteKey).toEqual(splitCubes[1].getKeyIfAvailable());
+      });
 
-      // Expect the second chunk to contain all positional fields a Cube needs,
-      // plus the second part of the payload. Chunks are automatically padded up,
-      // so expect a CCI_END marker and some padding as well.
-      expect(splitCubes[1].fields.all[0].type).toEqual(FieldType.TYPE);
-      expect(splitCubes[1].fields.all[1].type).toEqual(FieldType.PAYLOAD);
-      expect(splitCubes[1].fields.all[2].type).toEqual(FieldType.CCI_END);
-      expect(splitCubes[1].fields.all[3].type).toEqual(FieldType.PADDING);
-      expect(splitCubes[1].fields.all[4].type).toEqual(FieldType.DATE);
-      expect(splitCubes[1].fields.all[5].type).toEqual(FieldType.NONCE);
+      it('creates all required fields for the second chunk', () => {
+        // Expect the second chunk to contain all positional fields a Cube needs,
+        // plus the second part of the payload. Chunks are automatically padded up,
+        // so expect a CCI_END marker and some padding as well.
+        expect(splitCubes[1].fields.all[0].type).toEqual(FieldType.TYPE);
+        expect(splitCubes[1].fields.all[1].type).toEqual(FieldType.PAYLOAD);
+        expect(splitCubes[1].fields.all[2].type).toEqual(FieldType.CCI_END);
+        expect(splitCubes[1].fields.all[3].type).toEqual(FieldType.PADDING);
+        expect(splitCubes[1].fields.all[4].type).toEqual(FieldType.DATE);
+        expect(splitCubes[1].fields.all[5].type).toEqual(FieldType.NONCE);
+      });
 
-      // Expect the second chunk to contain exactly the amount of payload
-      // that didn't fit the first one.
-      expect(splitCubes[1].fields.all[1].value.length).toEqual(
-        payloadMacrofield.value.length - expectedFirstChunkPayloadLength);
+      it('puts the correct amount of payload in the second chunk', () => {
+        // Expect the second chunk to contain exactly the amount of payload
+        // that didn't fit the first one.
+        expect(splitCubes[1].fields.all[1].value.length).toEqual(
+          payloadMacrofield.value.length - expectedFirstChunkPayloadLength);
+      });
+
     });
 
 
