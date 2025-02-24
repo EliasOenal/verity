@@ -32,7 +32,30 @@ export interface SplitOptions extends RecombineOptions {
    */
   maxChunkSize?: (chunkIndex: number) => number;
 
-  chunkTransformationCallback?: (chunk: cciCube, splitState: ChunkFinalisationState) => void;
+  /**
+   * Optionally, a callback that will be called while each chunk is getting
+   * finalised.
+   * @param chunk - The chunk being finalised
+   * @param state - The current finalisation state, including the running number
+   *   of the current chunk as well as the total number of chunk Cubes.
+   * @returns
+   */
+  chunkTransformationCallback?: (chunk: cciCube, state: ChunkFinalisationState) => void;
+
+  /**
+   * If mentioned in this map, Split() will copy the first input field of the
+   * specified type to the n-th chunk, as represented by the mapped value.
+   * Note that chunk numbers start at 0.
+   * The special mapped value -1 will copy the field to all chunks.
+   * By default, we use this to:
+   * -
+   * - ensure all chunks have the same date
+   *   (note: this is only relevant for plaintext Verita as we will be default
+   *   randomise the date on each chunk for encrypted Verita)
+   * - theoretically, to preserve the PMUC update count, be we currently don't
+   *   even support signed multi-chunk Verita
+   */
+  mapFieldToChunk?: Map<number, number>;
 }
 
 export interface RecombineOptions extends CubeCreateOptions {
@@ -80,22 +103,10 @@ export const ContinuationDefaultExclusions: number[] = [
   FieldType.REMAINDER,
 ] as const;
 
-/**
- * If mentioned in this map, Split() will copy the first input field of the
- * specified type to the n-th chunk, as represented by the mapped value.
- * The special mapped value -1 will copy the field to all chunks.
- * By default, we use this to:
- * -
- * - ensure all chunks have the same date
- *   (note: this is only relevant for plaintext Verita as we will be default
- *   randomise the date on each chunk for encrypted Verita)
- * - theoretically, to preserve the PMUC update count, be we currently don't
- *   even support signed multi-chunk Verita
- */
-export const MapFieldToChunk: Map<number, number> = new Map([
+const DefaultMapFieldToChunk: Map<number, number> = new Map([
   [FieldType.DATE, -1],
   [FieldType.NOTIFY, 1],
-  [FieldType.PMUC_UPDATE_COUNT, 1],
+  [FieldType.PMUC_UPDATE_COUNT, 0],
 ]);
 
 
@@ -166,6 +177,7 @@ class Splitter {
     // set default options
     options.exclude ??= ContinuationDefaultExclusions;
     options.maxChunkSize ??= () => NetConstants.CUBE_SIZE;
+    options.mapFieldToChunk ??= DefaultMapFieldToChunk;
   }
 
 
@@ -363,10 +375,27 @@ class Splitter {
    * we've filled up the previous chunk.
    */
   private sculptNextChunk(): cciCube {
-    const cube = this.veritum.family.cubeClass.Create(
-      {...this.options, cubeType: this.veritum.cubeType}) as cciCube;
-    this.cubes.push(cube);
+    // First, update the running number
     this.chunkIndex++;
+
+    // Did caller ask us to map any fields statically to certain chunks?
+    const mappedFields: VerityField[] = [];
+    if (this.options.mapFieldToChunk) {
+      for (const [fieldType, targetIndex] of this.options.mapFieldToChunk) {
+        if (targetIndex === this.chunkIndex || targetIndex === -1) {
+          const field: VerityField = this.veritum.getFirstField(fieldType);
+          if (field) mappedFields.push(field);
+        }
+      }
+    }
+
+    // Finally, sculpt the chunk Cube
+    const cube = this.veritum.family.cubeClass.Create({
+      ...this.options,
+      cubeType: this.veritum.cubeType,
+      fields: mappedFields,
+    }) as cciCube;
+    this.cubes.push(cube);
     return cube;
   }
 
