@@ -21,6 +21,11 @@ export interface Veritable {
    **/
   get fieldParser(): FieldParser;
 
+  /** The public key of this veritable structure, or undefined if n/a */
+  get publicKey(): Buffer;
+  /** The private key of this veritable structure, or undefined if n/a */
+  get privateKey(): Buffer;
+
   /**
    * @returns This veritable structure's key, if available.
    *   Notably, depending on the type of structure the key may not be

@@ -44,7 +44,7 @@ describe('Veritum', () => {
       for (const chunkNo of [1, 2, 3]) {
         for (const cubeType of enumNums(CubeType)) {
 
-          // TODO BUGBUG FIXME multi-chunk signed Verita still don't work
+          // multi-chunk signed Verita not implemented, see Github#634
           if (HasSignature[cubeType] && chunkNo > 1) continue;
 
           for (const encrypt of [true, false]) for (const supplyKey of [true, false]) {

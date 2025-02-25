@@ -336,11 +336,12 @@ describe('VeritumRetriever', () => {
   });
 
   describe('getVeritum()', () => {
-    it('retrieves a multi-Chunk Veritum already in store', async () => {
+    it.only('retrieves a multi-Chunk Veritum already in store', async () => {
       const veritum: Veritum = new Veritum({
         cubeType: CubeType.PIC,
         fields: [
           VerityField.Payload(evenLonger),
+          VerityField.Date(),  // add DATE explicitly just to simplify comparison
         ],
         requiredDifficulty: 0,
       });

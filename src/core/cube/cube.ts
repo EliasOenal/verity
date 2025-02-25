@@ -74,6 +74,10 @@ export abstract class VeritableBaseImplementation implements Veritable {
         return this.family.parsers[this.cubeType];
     }
 
+    get publicKey(): Buffer { return this.options.publicKey }
+    get privateKey(): Buffer { return this.options.privateKey }
+
+
     /** Subclass must override */
     getKeyIfAvailable(): CubeKey {
         throw new ApiMisuseError("VeritableBaseImplementation subclasses must implement getKeyIfAvailable()");
