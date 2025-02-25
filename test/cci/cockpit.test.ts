@@ -154,7 +154,11 @@ describe('cci Cockpit', () => {
           // prepare Veritum
           const veritum = new Veritum({
             cubeType: CubeType.FROZEN,
-            fields: VerityField.Payload(tooLong), requiredDifficulty,
+            fields: [
+              VerityField.Payload(tooLong),
+              VerityField.Date(),  // add DATE explicitly just to simplify comparison
+            ],
+            requiredDifficulty,
           });
           await veritum.compile();
           expect(Array.from(veritum.chunks).length).toBeGreaterThan(1);

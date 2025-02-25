@@ -1,7 +1,7 @@
 import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
-import { CubeError, CubeKey, CubeType } from "../../core/cube/cube.definitions";
+import { CubeError, CubeKey, CubeType, HasNotify, ToggleNotifyType } from "../../core/cube/cube.definitions";
 import { Cube, CubeCreateOptions, CubeOptions } from "../../core/cube/cube";
 import { FieldParser } from "../../core/fields/fieldParser";
 
@@ -153,6 +153,7 @@ export async function Split(
 class Splitter {
   // input members
   private veritum: Veritable;
+  private cubeType: CubeType;
   private options: SplitOptions = {};
   private macroFieldset: DoublyLinkedList<VerityField>
 
@@ -163,7 +164,7 @@ class Splitter {
   // splitting related members
   private chunkIndex = -1;
   readonly cubes: cciCube[] = [];
-  private demoFieldset: VerityFields;
+  private demoChunk: Cube;
 
   /**
    * A list of "empty" CONTINUED_IN references created by split(),
@@ -175,13 +176,34 @@ class Splitter {
 
 
   constructor(veritum: Veritable, options: SplitOptions = {}) {
+    // set member attributes
     this.veritum = veritum;
+    this.cubeType = veritum.cubeType;
     this.options = options;
 
     // set default options
     options.exclude ??= ContinuationDefaultExclusions;
     options.maxChunkSize ??= () => NetConstants.CUBE_SIZE;
     options.mapFieldToChunk ??= DefaultMapFieldToChunk;
+
+    // Handle a special case:
+    // If the input Veritum is of a notification type, use its base
+    // (non-notification) variant instead.
+    // If we are actually going to set a notification on one or more chunks,
+    // these chunks will automatically be switched back to notification types
+    // (by VeritableBaseImplementation based on the fact that a NOTIFY field is present)
+    if (HasNotify[this.cubeType]) this.cubeType = ToggleNotifyType[this.cubeType];
+
+    // Construct a demo chunk which will be used to help determine the
+    // available space per chunk.
+    // this.demoFieldset = VerityFields.DefaultPositionals(
+    //   this.veritum.fieldParser.fieldDef) as VerityFields;
+    this.demoChunk = this.veritum.family.cubeClass.Create({
+      cubeType: this.cubeType,
+      requiredDifficulty: 0,
+      publicKey: this.veritum.publicKey,
+      privateKey: this.veritum.privateKey,
+    })
   }
 
 
@@ -228,22 +250,18 @@ class Splitter {
 
 
   /**
-   * Perform the split.
+   * Perform the actual splitting of the macro fieldset into chunk Cubes,
    * This is the second step of the splitting process.
    */
   split(): void {
-    // Split the macro fieldset into chunk Cubes:
-    let chunk = this.sculptNextChunk();  // start by creating the first chunk
-    // Prepare some data allowing us to figure out how much space we have
-    // available in each chunk Cube.
-    // The caller may restrict the space we are allowed to use for each chunk.
-    // In addition to that, we need to account for core boilerplate fields --
-    // we'll construct a demo fieldset to determine how much space is lost to that.
-    this.demoFieldset = VerityFields.DefaultPositionals(
-      this.veritum.fieldParser.fieldDef) as VerityFields;
-    // We'll begin by figuring out the available space in the first Cube
+    // start by creating the first chunk
+    let chunk = this.sculptNextChunk();
+    // Let's figure out how much space we have available in the first Chunk.
+    // Our demo chunk will help us do that.
+    // Additionally, the caller may restrict the space we are allowed to use
+    // for each chunk.
     let bytesAvailableThisChunk: number =
-      this.demoFieldset.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
+      this.demoChunk.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
 
     // Prepare the split by initialising our state:
     // - We obviously start at the first input fields, and
@@ -324,7 +342,7 @@ class Splitter {
         // ... and then it's time for a chunk rollover!
         chunk = this.sculptNextChunk();
         bytesAvailableThisChunk =
-          this.demoFieldset.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
+          this.demoChunk.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
         // Note that we have not handled this field!
         // We therefore must not advance the iterator.
       }
@@ -386,6 +404,8 @@ class Splitter {
     const mappedFields: VerityField[] = [];
     if (this.options.mapFieldToChunk) {
       for (const [fieldType, targetIndex] of this.options.mapFieldToChunk) {
+        // Map this field if we were asked to map it to this very chunk,
+        // or if we were asked to map it to every chunk (denoted by -1)
         if (targetIndex === this.chunkIndex || targetIndex === -1) {
           const field: VerityField = this.veritum.getFirstField(fieldType);
           if (field) mappedFields.push(field);
@@ -396,7 +416,7 @@ class Splitter {
     // Finally, sculpt the chunk Cube
     const cube = this.veritum.family.cubeClass.Create({
       ...this.options,
-      cubeType: this.veritum.cubeType,
+      cubeType: this.cubeType,
       fields: mappedFields,
     }) as cciCube;
     this.cubes.push(cube);
@@ -446,7 +466,7 @@ class Splitter {
       // account for the space we gained by planning for an extra Cube
       // as well as the space we lost due to the extra reference
       state.spaceRemaining +=
-        this.demoFieldset.bytesRemaining(this.options.maxChunkSize(this.maxChunkIndexPlanned));
+        this.demoChunk.bytesRemaining(this.options.maxChunkSize(this.maxChunkIndexPlanned));
       this.minBytesRequred += this.veritum.getFieldLength(refField);
     }
     // if we inserted extra fields, backtrack that many nodes
