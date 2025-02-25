@@ -100,8 +100,18 @@ export abstract class VeritableBaseImplementation implements Veritable {
             this.cubeType === other.cubeType &&
             // this.family === other.family &&  // this is wrong as it compares object addresses, not contents
             (
+                // Compare key according to the following rules:
+                // - Two Verita with the same key can be equal
+                // - Two Verita who both don't know their key
+                //   (e.g. due to both being uncompiled) can be equal
+                // - Verita with different keys are NOT equal
+                // - If one Veritum knows its key and the other doesn't,
+                //   they are NOT equal
                 !this.getKeyIfAvailable() && !other.getKeyIfAvailable() ||
-                this.getKeyIfAvailable().equals(other.getKeyIfAvailable())
+                (
+                    other.getKeyIfAvailable() &&
+                    this.getKeyIfAvailable()?.equals?.(other.getKeyIfAvailable())
+                )
             ) &&
             this.fieldsEqual(other)
         ) return true;
