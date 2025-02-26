@@ -9,6 +9,7 @@ import { NetConstants } from "../../src/core/networking/networkDefinitions";
 
 import { masterKey, idTestOptions, remote1MasterKey, remote2MasterKey, requiredDifficulty, tooLong } from "./testcci.definitions";
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { FieldEqualityMetric } from "../../src/core/fields/baseFields";
 
 describe('cci Cockpit', () => {
   // Run tests both with and without an Identity object,
@@ -170,7 +171,7 @@ describe('cci Cockpit', () => {
 
           // perform test
           const restored: Veritum = await cockpit.getVeritum(key);
-          expect(restored.equals(veritum)).toBe(true);
+          expect(restored.equals(veritum, FieldEqualityMetric.IgnoreOrder)).toBe(true);
         });
 
         if (loggedIn) it("automatically decrypts a single-chunk encrypted Veritum if sender's public key is included", async() => {

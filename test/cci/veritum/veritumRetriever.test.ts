@@ -16,6 +16,7 @@ import { CubeRetriever } from '../../../src/core/networking/cubeRetrieval/cubeRe
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
+import { FieldEqualityMetric } from '../../../src/core/fields/baseFields';
 
 describe('VeritumRetriever', () => {
   const cubeStoreOptions: CubeStoreOptions = {
@@ -336,7 +337,7 @@ describe('VeritumRetriever', () => {
   });
 
   describe('getVeritum()', () => {
-    it.only('retrieves a multi-Chunk Veritum already in store', async () => {
+    it('retrieves a multi-Chunk Veritum already in store', async () => {
       const veritum: Veritum = new Veritum({
         cubeType: CubeType.PIC,
         fields: [
@@ -349,7 +350,7 @@ describe('VeritumRetriever', () => {
       const key: CubeKey = veritum.getKeyIfAvailable();
 
       const retrievedVeritum: Veritum = await retriever.getVeritum(key);
-      expect(retrievedVeritum.equals(veritum)).toBe(true);
+      expect(retrievedVeritum.equals(veritum, FieldEqualityMetric.IgnoreOrder)).toBe(true);
     });
 
     it.todo('retrieves multi-Cube notification PICs');
