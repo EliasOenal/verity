@@ -4,6 +4,7 @@ import { CubeFields, CoreFrozenFieldDefinition, CoreMucFieldDefinition, CorePmuc
 import { CubeFieldType, CubeType } from "../../../src/core/cube/cube.definitions";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { FieldEqualityMetric } from "../../../src/core/fields/baseFields";
 
 describe('CubeFields', () => {
   describe('static methods', () => {
@@ -21,7 +22,7 @@ describe('CubeFields', () => {
         it('should be idempotent', () => {
           const origFields = CubeFields.Frozen();
           const doubleFields = CubeFields.Frozen(origFields);
-          expect(origFields.equals(doubleFields, true)).toBeTruthy();
+          expect(origFields.equals(doubleFields, FieldEqualityMetric.OrderedSameOffset)).toBeTruthy();
         });
 
         it('should upgrade an incomplete field set', () => {
@@ -62,7 +63,7 @@ describe('CubeFields', () => {
           const mockKey = Buffer.alloc(NetConstants.PUBLIC_KEY_SIZE).fill(42);
           const origFields = CubeFields.DefaultPositionals(CoreMucFieldDefinition, CubeField.PublicKey(mockKey));
           const doubleFields = CubeFields.DefaultPositionals(CoreMucFieldDefinition, [CubeField.PublicKey(mockKey), ...origFields.all]);
-          expect(origFields.equals(doubleFields, true)).toBeTruthy();
+          expect(origFields.equals(doubleFields, FieldEqualityMetric.OrderedSameOffset)).toBeTruthy();
         });
 
         it('can upgrade an incomplete field set to a MUC field set', () => {
