@@ -19,6 +19,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 import { enumNums } from "../../../src/core/helpers/misc";
 
 import sodium from 'libsodium-wrappers-sumo'
+import { FieldEqualityMetric } from "../../../src/core/fields/baseFields";
 
 describe('Continuation', () => {
   let privateKey: Buffer, publicKey: Buffer;
@@ -36,7 +37,7 @@ describe('Continuation', () => {
     describe('splitting a single oversized payload field into two Cubes', async () => {
       let veritum: Veritum;
       let splitCubes: cciCube[];
-      let payloadMacrofield: VerityField;
+      let payloadMacrofield: VerityField = VerityField.Payload(tooLong);
 
       const expectedFirstChunkPayloadLength = 1024  // Cube size
       - 1  // Type
@@ -51,10 +52,9 @@ describe('Continuation', () => {
           requiredDifficulty: 0,
           fields: [
             VerityField.Date(date),
+            payloadMacrofield,
           ]
         });
-        payloadMacrofield = VerityField.Payload(tooLong);
-        veritum.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // just assert our macro Cube looks like what we expect
         const fields = Array.from(veritum.getFields());
@@ -204,7 +204,7 @@ describe('Continuation', () => {
             const dateField = VerityField.Date(date);
             const notifyField = VerityField.Notify(notificationKey);
 
-            const fields: VerityField[] = [payloadMacrofield, dateField];
+            const fields: VerityField[] = [dateField, payloadMacrofield];
             if (HasNotify[cubeType]) fields.push(notifyField);
 
             // prepare the input Veritum
@@ -238,6 +238,12 @@ describe('Continuation', () => {
           });
           else it('does not create any spurious NOTIFY field', () => {
             expect(recombined.getFirstField(FieldType.NOTIFY)).toBeUndefined();
+          });
+
+          it("restored veritum's fields and original's fields compare as equal", () => {
+            // Note that we don't compare the Verita itself as they have different
+            // compilation status
+            expect(recombined.fieldsEqual(veritum, FieldEqualityMetric.IgnoreOrder)).toBe(true);
           });
         });  // split and restore a single overly large payload field requiring two chunks
 
