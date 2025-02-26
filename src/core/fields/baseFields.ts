@@ -13,6 +13,23 @@ export enum FieldPosition {
     BACK
 }
 
+/**
+ * Metric to apply when comparing two fields using equals():
+ *   - IgnoreOrder will compare two fieldsets as equal if they have the same
+ *     fields with the same content, even if they are in a different order.
+ *   - Ordered will compare two fieldsets as equal if they have the same
+ *     order, even if they do not have the same start offset.
+ *     This is the default behaviour as it allows to compare compiled and
+ *     uncompiled fieldsets.
+ *   - OrderedSameOffset will compare two fieldsets as equal if they have the
+ *     same order and the same start offset.
+ */
+export enum FieldEqualityMetric {
+    IgnoreOrder,
+    Ordered,
+    OrderedSameOffset,
+}
+
 /** Nice wrapper around a field array providing some useful methods. */
 // TODO: Abstract this further by introducing a base class not requiring a field
 // definition. Within BaseFields, the field definition is currently *only* used in getByteLength()
@@ -120,12 +137,44 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         return ret;
     }
 
-    equals(other: BaseFields, compareOffsets: boolean = false): boolean {
+    equals(other: BaseFields, metric: FieldEqualityMetric = FieldEqualityMetric.Ordered): boolean {
+        switch (metric) {
+            case FieldEqualityMetric.IgnoreOrder:
+                return this.equalsUnordered(other);
+            case FieldEqualityMetric.Ordered:
+                return this.equalsOrdered(other);
+            case FieldEqualityMetric.OrderedSameOffset:
+                return this.equalsOrdered(other, true);
+        }
+    }
+
+    equalsOrdered(other: BaseFields, compareOffsets: boolean = false): boolean {
         if (this.length != other.length) {
             return false;
         }
         for (let i=0; i<this.length; i++) {
             if (!this.all[i].equals(other.all[i], compareOffsets)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    equalsUnordered(other: BaseFields): boolean {
+        if (this.length != other.length) {
+            return false;
+        }
+        // compare each of my field...
+        for (let i=0; i<this.length; i++) {
+            // ... trying to find an equal field in other
+            let fieldEqual = false;
+            for (let j=0; j<other.length; j++) {
+                if (this.all[i].equals(other.all[j])) {
+                    fieldEqual = true;
+                    break;
+                }
+            }
+            if (!fieldEqual) {
                 return false;
             }
         }

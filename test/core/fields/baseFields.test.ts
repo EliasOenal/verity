@@ -1,6 +1,6 @@
 import { ApiMisuseError } from "../../../src/core/settings";
 import { BaseField } from "../../../src/core/fields/baseField";
-import { BaseFields, FieldPosition } from "../../../src/core/fields/baseFields";
+import { BaseFields, FieldEqualityMetric, FieldPosition } from "../../../src/core/fields/baseFields";
 import { FieldNumericalParam, PositionalFields, FieldDefinition, FieldParser } from "../../../src/core/fields/fieldParser";
 import { CoreFrozenFieldDefinition } from "../../../src/core/cube/cubeFields";
 import { CubeFieldType, CubeType } from "../../../src/core/cube/cube.definitions";
@@ -189,27 +189,66 @@ describe('baseFields', () => {
   });
 
   describe('equals', () => {
-    it('should return true when comparing two identical BaseFields instances', () => {
-      const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
-      const baseField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
-      const baseFields1 = new BaseFields([baseField1], testFieldDefinition);
-      const baseFields2 = new BaseFields([baseField2], testFieldDefinition);
-      expect(baseFields1.equals(baseFields2)).toBe(true);
+    describe('using default metric (Ordered)', () => {
+      it('should return true when comparing two identical BaseFields instances', () => {
+        const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
+        const baseField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
+        const baseFields1 = new BaseFields([baseField1], testFieldDefinition);
+        const baseFields2 = new BaseFields([baseField2], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2)).toBe(true);
+      });
+
+      it('should return false when comparing two different BaseFields instances', () => {
+        const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
+        const baseField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test2'));
+        const baseFields1 = new BaseFields([baseField1], testFieldDefinition);
+        const baseFields2 = new BaseFields([baseField2], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2)).toBe(false);
+      });
+
+      it('should return false when comparing BaseFields instances with different lengths', () => {
+        const baseField = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
+        const baseFields1 = new BaseFields([baseField], testFieldDefinition);
+        const baseFields2 = new BaseFields([], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2)).toBe(false);
+      });
     });
 
-    it('should return false when comparing two different BaseFields instances', () => {
-      const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
-      const baseField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test2'));
-      const baseFields1 = new BaseFields([baseField1], testFieldDefinition);
-      const baseFields2 = new BaseFields([baseField2], testFieldDefinition);
-      expect(baseFields1.equals(baseFields2)).toBe(false);
+    describe('using metric OrderedSameOffset', () => {
+      it('should return true when comparing BaseFields instances with same order and offset', () => {
+        const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'), 0);
+        const baseField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'), 0);
+        const baseFields1 = new BaseFields([baseField1], testFieldDefinition);
+        const baseFields2 = new BaseFields([baseField2], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2, FieldEqualityMetric.OrderedSameOffset)).toBe(true);
+      });
+
+      it('should return false when comparing BaseFields instances with same order but different offsets', () => {
+        const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'), 0);
+        const baseField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'), 1);
+        const baseFields1 = new BaseFields([baseField1], testFieldDefinition);
+        const baseFields2 = new BaseFields([baseField2], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2, FieldEqualityMetric.OrderedSameOffset)).toBe(false);
+      });
     });
 
-    it('should return false when comparing BaseFields instances with different lengths', () => {
-      const baseField = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
-      const baseFields1 = new BaseFields([baseField], testFieldDefinition);
-      const baseFields2 = new BaseFields([], testFieldDefinition);
-      expect(baseFields1.equals(baseFields2)).toBe(false);
+    describe('using metric IgnoreOrder', () => {
+      it('should return true when comparing BaseFields instances with same fields in different order', () => {
+        const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
+        const baseField2 = new BaseField(TestFieldType.NONCE, Buffer.from('other field'));
+        const baseFields1 = new BaseFields([baseField1, baseField2], testFieldDefinition);
+        const baseFields2 = new BaseFields([baseField2, baseField1], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2, FieldEqualityMetric.IgnoreOrder)).toBe(true);
+      });
+
+      it('should return false when comparing BaseFields instances with different fields', () => {
+        const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
+        const baseField2 = new BaseField(TestFieldType.NONCE, Buffer.from('other field'));
+        const baseField3 = new BaseField(TestFieldType.SIGNATURE, Buffer.from('yet another field'));
+        const baseFields1 = new BaseFields([baseField1, baseField2], testFieldDefinition);
+        const baseFields2 = new BaseFields([baseField1, baseField3], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2, FieldEqualityMetric.IgnoreOrder)).toBe(false);
+      });
     });
   });
 
