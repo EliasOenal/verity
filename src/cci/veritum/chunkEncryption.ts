@@ -18,27 +18,44 @@ export interface CciEncryptionParams {
   /**
    * Excludes the listed field types from encryption, instead keeping them as
    * plaintext together with the encrypted message.
-   * This is NOT RECOMMENDED as it may cause information leaks.
+   * May be used for example to split a single message into a private and public
+   * part, or for custom key distribution schemes.
+   * This is generally NOT RECOMMENDED as it may cause information leaks.
+   * Only use this if you know what you're doing please.
    **/
   excludeFromEncryption?: number[],
 
   /**
-   * Includes the sender's public key in the encrypted message.
-   */
-  senderPubkey?: Buffer,
-
-  /**
+   * @deprecated
    * If both sender and recipient already know which nonce to use, please
    * provide it here. It will not be included in the output.
    * Otherwise, a random nonce will be rolled and included in the output.
+   * Marked as deprecated as it can very easily lead to insecure use.
    */
   nonce?: Buffer,
 
+  /**
+   * If you already have a shared secret with the recipient (and you're positive
+   * that the recipient thinks so as well), you can supply it here to re-use
+   * this shared secret rather than generating a new one. Saves some CPU load.
+   * Only use this if you know what you're doing please.
+   */
   symmetricKey?: Buffer,
 
   /**
-   * To encrypt a Veritum on compilation, supply your encryption private key here.
-   * Don't forget to also supply the recipient or list of recipients.
+   * @deprecated
+   * If for some reason you want to encrypt your Veritum using a specific sender
+   * key, please provide the public part here.
+   * Marked as deprecated as we prefer using ephemeral sender keys which are
+   * auto-generated one layer up at the VeritumEncryption stage.
+   */
+  senderPubkey?: Buffer,
+  /**
+   * @deprecated
+   * If for some reason you want to encrypt your Veritum using a specific sender
+   * key, please provide the private part here.
+   * Marked as deprecated as we prefer using ephemeral sender keys which are
+   * auto-generated one layer up at the VeritumEncryption stage.
    */
   senderPrivateKey?: Buffer,
 
@@ -217,7 +234,7 @@ export function EncryptionOverheadBytes(
   options: CciEncryptionParams = {},
   fieldDefinition: FieldDefinition = cciFrozenFieldDefinition,
 ): number {
-  // sanity-check: all header must have been planned
+  // sanity-check: all headers must have been planned
   if (options.pubkeyHeader === undefined ||
       options.nonceHeader === undefined ||
       options.keyslotHeader === undefined ||
