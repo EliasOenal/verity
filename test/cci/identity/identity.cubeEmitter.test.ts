@@ -580,7 +580,7 @@ describe('Identity: Cube emitter events', () => {
           const indirectPost: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: VerityField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius ab aliquo cui indirecte subscripsi"),
           });
           await cubeStore.addCube(indirectPost);
           indirectSub.addPost(indirectPost.getKeyIfAvailable());
@@ -600,7 +600,7 @@ describe('Identity: Cube emitter events', () => {
           const directPost: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: VerityField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius meus proprius"),
           });
           await cubeStore.addCube(directPost);
           directSub.addPost(directPost.getKeyIfAvailable());
@@ -639,7 +639,7 @@ describe('Identity: Cube emitter events', () => {
           const subPost: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: VerityField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius ab amico meo directo subscripto"),
           });
           await cubeStore.addCube(subPost);
           directSub.addPost(subPost.getKeyIfAvailable());
@@ -659,7 +659,7 @@ describe('Identity: Cube emitter events', () => {
           const ownPost: cciCube = cciCube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
-            fields: VerityField.Payload("Nuntius"),
+            fields: VerityField.Payload("Nuntius meus proprius"),
           });
           await cubeStore.addCube(ownPost);
           id.addPost(ownPost.getKeyIfAvailable());

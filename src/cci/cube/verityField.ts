@@ -87,14 +87,16 @@ export class VerityField extends CubeField {
    * Will return a PADDING field if requested length is > 1 or the special
    * PADDING_SINGLEBYTE field for the length==1 edge case.
   */
-  static Padding(length: number): VerityField {
+  static Padding(length: number, random: boolean = false): VerityField {
     let field: VerityField;
     if (length > 1) {
-      const random_bytes = new Uint8Array(length-2);
-      for (let i = 0; i < length - 2; i++) {  // maybe TODO: 2 is the header length of a variable size field and we should usually get this value from the field parser rather than littering literals throughout the code
-        random_bytes[i] = Math.floor(Math.random() * 256);
+      const padding_bytes = Buffer.alloc(length-2, 0);
+      if (random) {
+        for (let i = 0; i < length - 2; i++) {  // maybe TODO: 2 is the header length of a variable size field and we should usually get this value from the field parser rather than littering literals throughout the code
+          padding_bytes[i] = Math.floor(Math.random() * 256);
+        }
       }
-      field = new this(FieldType.PADDING, Buffer.from(random_bytes));
+      field = new this(FieldType.PADDING, padding_bytes);
     } else {
       field = new this(FieldType.CCI_END, Buffer.alloc(0));
     }

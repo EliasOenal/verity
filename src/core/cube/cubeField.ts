@@ -21,14 +21,12 @@ export class CubeField extends BaseField {
     return new this(CubeFieldType.DATE, dateFieldBuf);
   }
 
-  static Nonce(): CubeField {
-    const random_bytes = new Uint8Array(NetConstants.NONCE_SIZE);
-    for (let i = 0; i < NetConstants.NONCE_SIZE; i++) {
-      random_bytes[i] = Math.floor(Math.random() * 256);
+  static Nonce(random: boolean = false): CubeField {
+    const content = Buffer.alloc(NetConstants.NONCE_SIZE, 0);
+    if (random) for (let i = 0; i < NetConstants.NONCE_SIZE; i++) {
+      content[i] = Math.floor(Math.random() * 256);
     }
-    return new this(
-      CubeFieldType.NONCE,
-      Buffer.from(random_bytes));
+    return new this(CubeFieldType.NONCE, content);
   }
 
   static PublicKey(publicKey?: Buffer): CubeField {
