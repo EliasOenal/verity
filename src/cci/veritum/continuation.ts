@@ -8,7 +8,7 @@ import { FieldParser } from "../../core/fields/fieldParser";
 import { cciCube } from "../cube/cciCube";
 import { FieldType } from "../cube/cciCube.definitions";
 import { VerityField } from "../cube/verityField";
-import { VerityFields } from "../cube/verityFields";
+import { cciFrozenFieldDefinition, VerityFields } from "../cube/verityFields";
 import { Relationship, RelationshipType } from "../cube/relationship";
 import { Veritable } from "../../core/cube/veritable.definition";
 import { Veritum } from "./veritum";
@@ -534,6 +534,10 @@ export function Recombine(
       fields.appendField(copy);
     }
   }
+  // handle edge case: don't fail on empty chunk list
+  if (cubeType === undefined) cubeType = CubeType.FROZEN;
+  if (fields === undefined) fields = new VerityFields([], cciFrozenFieldDefinition);
+
   // in a second pass, remove any PADDING fields
   for (let i=0; i<fields.length; i++) {
     // TODO: get rid of unsafe manipulateFields() calls
@@ -581,7 +585,7 @@ export function Recombine(
     //  which as it's in uncompiled state may not know its key
     chunks: chunks as cciCube[],
 
-    publicKey: chunks[0].publicKey,  // only relevant for signed types, undefined otherwise
+    publicKey: chunks?.[0]?.publicKey,  // only relevant for signed types, undefined otherwise
   });
   return veritum;
 }

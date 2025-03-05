@@ -33,7 +33,7 @@ describe('Continuation', () => {
     privateKey = Buffer.from(keyPair.privateKey);
   });
 
-  describe('manual splitting tests', () => {
+  describe('manual Split() tests', () => {
     describe('splitting a single oversized payload field into two Cubes', async () => {
       let veritum: Veritum;
       let splitCubes: cciCube[];
@@ -186,7 +186,7 @@ describe('Continuation', () => {
 
   for (const cubeType of enumNums(CubeType)) {
     if (HasSignature[cubeType]) continue;  // signed Continuation not yet supported
-    describe(`round-trip tests using ${CubeType[cubeType]} Cubes`, () => {
+    describe(`round-trip Split()-Recombine() tests using ${CubeType[cubeType]} Cubes`, () => {
       // note: we may want to remove this loop in the future as we have very similar
       //   tests one layer higher at the Veritum level and repeating those tests
       //   for all Cube types is kind of expensive, especially for multi-chunk
@@ -645,4 +645,14 @@ describe('Continuation', () => {
       });
     });
   }  // round-trip tests (for each Cube type)
+
+
+  describe('Recombine() edge cases', () => {
+    it('returns an empty frozen Veritum when supplied no Chunks', () => {
+      const recombined: Veritum = Recombine([]);
+      expect(recombined).toBeInstanceOf(Veritum);
+      expect(Array.from(recombined.getFields()).length).toBe(0);
+      expect(recombined.cubeType).toBe(CubeType.FROZEN);
+    });
+  });
 });
