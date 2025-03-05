@@ -20,7 +20,7 @@ describe('Transmission of encrypted Verita', () => {
       // Create a simple line-shaped network
       net = await cciLineShapedNetwork.Create(61201, 61202);
 
-      // Sculpt a simple Veritum for a single recipient
+      // Sculpt a simple Veritum
       const veritum: Veritum = net.sender.prepareVeritum(
         { fields: VerityField.Payload(plaintext) });
       // Publish it encrypted solely for the recipient
@@ -68,7 +68,12 @@ describe('Transmission of encrypted Verita', () => {
       const key: CubeKey = Array.from(sub.getPostKeys())[0];
       expect(key).toBeDefined();
       const retrieved: Veritum = await net.recipient.getVeritum(key);
+      // expect Veritum received
       expect(retrieved).toBeDefined();
+      // expect Veritum decrypted
+      expect(retrieved.getFirstField(FieldType.ENCRYPTED)).not.toBeDefined();
+      expect(retrieved.getFirstField(FieldType.PAYLOAD)).toBeDefined();
+      // expect plaintext to be restored correctly
       expect(retrieved.getFirstField(FieldType.PAYLOAD).valueString).toBe(plaintext);  // TODO fix: this sometimes fails
     });
   });  // Publishing an encrypted Veritum for a single recipient
