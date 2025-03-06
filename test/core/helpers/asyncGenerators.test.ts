@@ -1,4 +1,5 @@
-import { mergeAsyncGenerators, resolveAndYield } from '../../../src/core/helpers/misc';
+import EventEmitter from 'events';
+import { eventsToGenerator, mergeAsyncGenerators, resolveAndYield } from '../../../src/core/helpers/asyncGenerators';
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
@@ -30,7 +31,7 @@ describe('mergeAsyncGenerators', () => {
 
   it('should handle empty array of generators', async () => {
     const merged = mergeAsyncGenerators();
-    const results = [];
+    const results: any[] = [];
 
     for await (const value of merged) {
       results.push(value);
@@ -363,4 +364,168 @@ describe("resolveAndYield", () => {
 
       expect(results).toEqual([1, 2, 3]);
   });
+});
+
+
+describe('eventsToGenerator()', () => {
+  describe('yielding correct values', () => {
+    it('yields events in the order they are emitted', async () => {
+      const emitter = new EventEmitter();
+
+      const generator = eventsToGenerator([
+        { emitter: emitter, event: 'event' },
+      ]);
+
+      // Emit events -- but only after a short while as eventsToGenerator()
+      // is not listening yet.
+      setTimeout(() => {
+        emitter.emit('event', 'data1');
+        emitter.emit('event', 'data2');
+        emitter.emit('event', 'data3');
+        emitter.emit('event', 'data4');
+        emitter.emit('event', 'data5');
+        emitter.emit('event', 'data6');
+        emitter.emit('event', 'data7');
+        emitter.emit('event', 'data8');
+        emitter.emit('event', 'data9');
+      }, 100);
+
+      // Test event yielding with for...of loop
+      const results: any[] = [];
+      for await (const event of generator) {
+        results.push(event);
+        if (results.length === 9) break;
+      }
+
+      expect(results[0]).toEqual('data1');
+      expect(results[1]).toEqual('data2');
+      expect(results[2]).toEqual('data3');
+      expect(results[3]).toEqual('data4');
+      expect(results[4]).toEqual('data5');
+      expect(results[5]).toEqual('data6');
+      expect(results[6]).toEqual('data7');
+      expect(results[7]).toEqual('data8');
+      expect(results[8]).toEqual('data9');
+    });
+
+    it('handles multiple emitters and events properly', async () => {
+      const emitter1 = new EventEmitter();
+      const emitter2 = new EventEmitter();
+      const emitter3 = new EventEmitter();
+
+      const generator = eventsToGenerator([
+        { emitter: emitter1, event: 'event1' },
+        { emitter: emitter2, event: 'event2' },
+        { emitter: emitter3, event: 'event3' }
+      ]);
+
+      setTimeout(() => {
+        emitter1.emit('event1', 'data1');
+        emitter2.emit('event2', 'data2');
+        emitter3.emit('event3', 'data3');
+      }, 100);
+
+      const results: any[] = [];
+      for await (const event of generator) {
+        results.push(event);
+        if (results.length === 3) break;
+      }
+
+      expect(results[0]).toEqual('data1');
+      expect(results[1]).toEqual('data2');
+      expect(results[2]).toEqual('data3');
+    });
+
+    it('yields undefined if event is emitted with undefined data', async () => {
+      const emitter = new EventEmitter();
+      const generator = eventsToGenerator([{ emitter, event: 'event' }]);
+
+      setTimeout(() => {
+        emitter.emit('event', undefined);
+      }, 100);
+
+      const { value, done } = await generator.next();
+      expect(value).toBeUndefined();
+
+      // Terminate the generator to clean up the listener.
+      await generator.return(undefined);
+    });
+  });  // yielding correct values
+
+  describe('termination', () => {
+    it('cleans up listeners when the generator is done', async () => {
+      const emitter = new EventEmitter();
+      const generator = eventsToGenerator([{ emitter, event: 'event1' }]);
+
+      // Add a spy to track listener removal
+      const removeListenerSpy = vi.spyOn(emitter, 'removeListener');
+
+      // Emit an event and consume it
+      setTimeout(() => {
+        emitter.emit('event1', 'data1');
+      }, 100);
+      const results: any[] = [];
+      for await (const event of generator) {
+        results.push(event);
+        if (results.length === 1) break;  // closes the generator
+      }
+
+      // Check that removeListener was called
+      expect(removeListenerSpy).toHaveBeenCalledTimes(1);
+      expect(removeListenerSpy).toHaveBeenCalledWith('event1', expect.any(Function));
+    });
+
+
+    it('can terminate the generator externally', async () => {
+      const emitter = new EventEmitter();
+
+      const generator = eventsToGenerator([
+        { emitter: emitter, event: 'event' },
+      ]);
+
+      // Emit events -- but only after a short while as eventsToGenerator()
+      // is not listening yet.
+      setTimeout(() => {
+        emitter.emit('event', 'data1');
+        emitter.emit('event', 'data2');
+        emitter.emit('event', 'data3');
+      }, 100);
+
+      // Test event yielding with for...of loop
+      // Do this from within another, idenpendently scheduled async function
+      const results: any[] = [];
+      (async() => {
+        for await (const event of generator) {
+          results.push(event);
+          // note no break, without external intervention this is an endless loop
+        }
+      })();
+
+      // after another 100ms, terminate the generator
+      await new Promise(resolve => setTimeout(resolve, 200));
+      generator.return(undefined);
+      expect(results.length).toBe(3);
+      expect(results[0]).toEqual('data1');
+      expect(results[1]).toEqual('data2');
+      expect(results[2]).toEqual('data3');
+    });
+  });  // termination
+
+  describe('edge cases', () => {
+    it('handles empty emitter array gracefully', async () => {
+      const generator = eventsToGenerator([]);
+
+      // Terminate the generator after a short delay since no events will ever be emitted.
+      setTimeout(() => {
+        generator.return(undefined);
+      }, 100);
+
+      const results: any[] = [];
+      for await (const event of generator) {
+        results.push(event);
+      }
+
+      expect(results).toEqual([]);
+    });
+  });  // edge cases
 });
