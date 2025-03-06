@@ -63,14 +63,16 @@ export async function* mergeAsyncGenerators<T>(
   ...generators: AsyncGenerator<T>[]
 ): AsyncGenerator<T> {
   // Array to hold the promises for the next values of each generator
-  const promises = generators.map((gen) => gen.next());
+  const promises: Promise<IteratorResult<T>>[] =
+    generators.map(gen => gen.next());
 
   while (promises.length > 0) {
     // Wait for any promise to resolve
-    const { value, index } = await Promise.race(
-      promises.map((p, i) =>
-        p.then((result) => ({ value: result, index: i }))
-      )
+    const { value, index }: { value: IteratorResult<T>; index: number } =
+      await Promise.race(
+        promises.map((p, i) =>
+          p.then((result) => ({ value: result, index: i }))
+        )
     );
 
     // If the resolved promise is not done, yield its value

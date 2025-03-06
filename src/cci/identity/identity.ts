@@ -111,8 +111,28 @@ export enum PostFormat {
 };
 export interface GetPostsOptions {
   format?: PostFormat;
+
+  /**
+   * When fetching not just own posts but also posts by subscribed authors,
+   * this is the maximum recursion depth, i.e. the maximum level of indirect
+   * subscriptions.
+   * Set to 0 to only retrieve this Identity's own posts.
+   */
   subscriptionRecursionDepth?: number;
+
+  /**
+   * A set of Identity key strings to exclude when retrieving not just own posts
+   * but also posts by subscribed authors.
+   */
   recursionExclude?: Set<string>;
+
+  /**
+   * If true, the generator will not exit when all existing data has been yielded.
+   * Instead, it will keep running indefinetely, yielding values as new data
+   * becomes available.
+   * The caller must call return() on the generator to exit it.
+   */
+  subscribe?: boolean;
 }
 
 // TODO: Split out the MUC management code.
