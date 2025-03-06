@@ -648,7 +648,6 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   getPosts(options: { format: PostFormat.Cube} ): AsyncGenerator<Cube>;
   getPosts(options: { format: PostFormat.CubeInfo} ): AsyncGenerator<CubeInfo>;
   getPosts(options: GetPostsOptions): AsyncGenerator<CubeInfo|Cube|Veritum>;
-  // TODO: Parallelise retrieval. Must probably rewrite as non-async for that.
   async *getPosts(
     options: GetPostsOptions = {},
   ): AsyncGenerator<CubeInfo|Cube|Veritum> {
@@ -701,10 +700,13 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     const mine: AsyncGenerator<CubeInfo|Cube|Veritum> = resolveAndYield(minePromises);
 
     // - recurse through my subscriptions
-    const rGens: AsyncGenerator<CubeInfo>[] = [];
+    const rGens: AsyncGenerator<CubeInfo|Cube|Veritum>[] = [];
     if (options.subscriptionRecursionDepth > 0) {
-      for await (const sub of this.getPublicSubscriptionIdentities()) {
-        rGens.push(sub.getAllCubeInfos(options.subscriptionRecursionDepth - 1, options.recursionExclude));
+      for (const subKey of this.getPublicSubscriptionStrings()) {
+        rGens.push(this.getPublicSubscriptionPosts(subKey, {
+          ...options,
+          subscriptionRecursionDepth: options.subscriptionRecursionDepth - 1,
+        }));
       }
     }
     const ret: AsyncGenerator<CubeInfo|Cube|Veritum> = mergeAsyncGenerators(
@@ -755,10 +757,27 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     }
   }
 
-  /** @returns An Identity object for the specified subscribed user */
+  /**
+   * @returns An Identity object for the specified subscribed user
+   * Note that this actually also works for non-subscribed users;
+   * Note that the returned Identity is no necessarily fully ready yet;
+   * caller should await the returned Identity's ready promise if required.
+   **/
   getPublicSubscriptionIdentity(keyInput: CubeKey|string): Promise<Identity> {
     return this.identityStore.retrieveIdentity(keyInput);
   }
+
+  /**
+   * Retrieves the posts by a specific subscribed Identity.
+   * Note that this actually also works for non-subscribed users.
+   */
+  async *getPublicSubscriptionPosts(keyInput: CubeKey|string, options?: GetPostsOptions): AsyncGenerator<Veritum> {
+    const identity: Identity = await this.getPublicSubscriptionIdentity(keyInput);
+    if (identity !== undefined) {
+      yield* identity.getPosts(options);
+    }
+  }
+
 
   /**
    * Persuant to the CubeEmitter interface, this Generator yields CubeInfos
