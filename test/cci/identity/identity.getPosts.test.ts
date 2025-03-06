@@ -87,7 +87,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     await cubeStore.addCube(singlePic);
     id.addPost(await singlePic.getKey());
 
-    // // - a PIC single Cube post with notification
+    // - a PIC single Cube post with notification
     const notificationKey2: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
     singlePicNotify = cciCube.Create({
       cubeType: CubeType.PIC_NOTIFY,

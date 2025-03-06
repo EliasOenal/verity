@@ -14,6 +14,7 @@ import sodium from "libsodium-wrappers-sumo";
 import { Buffer } from 'buffer';
 import { ZwConfig } from "../../../src/app/zw/model/zwConfig";
 import { NotifyingIdentityEmitter } from "../../../src/app/zw/model/notifyingIdentityEmitter";
+import { VeritumRetriever } from "../../../src/cci/veritum/veritumRetriever";
 
 export interface TestWorldOptions {
   subscriptions?: boolean;
@@ -23,6 +24,7 @@ export interface TestWorldOptions {
 
 export class TestWorld {
   cubeStore: CubeStore;
+  retriever: VeritumRetriever;
   private engine: ZwAnnotationEngine;
   identityOptions: IdentityOptions;
 
@@ -79,6 +81,8 @@ export class TestWorld {
     }
 
     this.cubeStore = options.cubeStore ?? new CubeStore(testCubeStoreParams);
+    this.retriever = new VeritumRetriever(this.cubeStore);
+
     this.ready = (async () => {
       await this.cubeStore.readyPromise;
       this.createIdentities();
@@ -123,31 +127,31 @@ export class TestWorld {
   private createIdentities() {
     // Create Identities
     this.protagonist = new Identity(
-      this.cubeStore,
+      this.retriever,
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42),
       this.identityOptions,
     );
     this.protagonist.name = "protagonist";
     this.directSub = new Identity(
-      this.cubeStore,
+      this.retriever,
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 43),
       this.identityOptions,
     );
     this.directSub.name = "directSub";
     this.indirectSub = new Identity(
-      this.cubeStore,
+      this.retriever,
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 44),
       this.identityOptions,
     );
     this.indirectSub.name = "indirectSub";
     this.thirdLevelSub = new Identity(
-      this.cubeStore,
+      this.retriever,
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 45),
       this.identityOptions,
     );
     this.thirdLevelSub.name = "thirdLevelSub";
     this.unrelatedId = new Identity(
-      this.cubeStore,
+      this.retriever,
       Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 46),
       this.identityOptions,
     );
