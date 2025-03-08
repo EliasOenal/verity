@@ -14,6 +14,7 @@ import { WeakValueMap } from "weakref";
 import { Buffer } from "buffer";
 import { NetConstants } from "../networking/networkDefinitions";
 import { Shuttable } from "../helpers/coreInterfaces";
+import { TypedEmitter } from "../helpers/misc";
 
 // TODO: we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes
@@ -104,16 +105,17 @@ export interface CubeRetrievalInterface<OptionsType = GetCubeOptions> {
   cubeStore: CubeStore;
 }
 
+interface CubeEmitterEvents extends Record<string, (...args: any[]) => void> {
+  cubeAdded: (cubeInfo: CubeInfo) => void;
+}
+
 /**
  * CubeEmitter is a generelised interface for objects that can emit CubeInfos.
  * They will also keep track of all emitted Cubes.
  * CubeStore is obviously an example of a CubeEmitter, emitting a CubeInfo
  * whenever a Cube is added to or updated in store.
  */
-export interface CubeEmitter extends EventEmitter {
-  on(event: 'cubeAdded', listener: (cubeInfo: CubeInfo) => void): this;
-  emit(event: 'cubeAdded', cubeInfo: CubeInfo): boolean;
-
+export interface CubeEmitter extends TypedEmitter<CubeEmitterEvents> {
   /**
    * A Generator producing all CubeInfos that have been emitted by this emitter;
    * or would have been emitted if the emitter existed at the appropriate time.

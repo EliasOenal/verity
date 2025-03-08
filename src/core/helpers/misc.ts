@@ -1,4 +1,5 @@
 import { Buffer } from 'buffer';
+import EventEmitter from 'events';
 
 export function fibonacci(n: number) {
   let fib = 1, previous = 0, tmp = 0;
@@ -58,4 +59,26 @@ export function isIterableButNotBuffer(obj: any): boolean {
   return obj != null &&
     typeof obj[Symbol.iterator] === 'function' &&
     !Buffer.isBuffer(obj);
+}
+
+
+// Enforce that event mappings have function values
+type EventMap = Record<string, (...args: any[]) => void>;
+
+export class TypedEmitter<T extends EventMap> extends EventEmitter {
+  emit<K extends keyof T & (string | symbol)>(event: K, ...args: Parameters<T[K]>): boolean {
+    return super.emit(event, ...args);
+  }
+
+  on<K extends keyof T & (string | symbol)>(event: K, listener: T[K]): this {
+    return super.on(event, listener);
+  }
+
+  once<K extends keyof T & (string | symbol)>(event: K, listener: T[K]): this {
+    return super.once(event, listener);
+  }
+
+  removeListener<K extends keyof T & (string | symbol)>(event: K, listener: T[K]): this {
+    return super.removeListener(event, listener);
+  }
 }
