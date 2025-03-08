@@ -487,9 +487,12 @@ export function Recombine(
   options.exclude ??= ContinuationDefaultExclusions;
   options.mapFieldToChunk ??= DefaultMapFieldToChunk;
 
+  // Input sanitation and normalisation
+  if (!chunks) return undefined;
   // Normalise input chunks to Array
   // maybe TODO optimise: avoid this?
   chunks = Array.from(chunks);
+  if ((chunks as cciCube[]).length === 0) return undefined;
 
   // prepare variables
   let cubeType: CubeType;
@@ -534,9 +537,6 @@ export function Recombine(
       fields.appendField(copy);
     }
   }
-  // handle edge case: don't fail on empty chunk list
-  if (cubeType === undefined) cubeType = CubeType.FROZEN;
-  if (fields === undefined) fields = new VerityFields([], cciFrozenFieldDefinition);
 
   // in a second pass, remove any PADDING fields
   for (let i=0; i<fields.length; i++) {

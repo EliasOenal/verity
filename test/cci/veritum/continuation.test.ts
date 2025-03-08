@@ -648,11 +648,9 @@ describe('Continuation', () => {
 
 
   describe('Recombine() edge cases', () => {
-    it('returns an empty frozen Veritum when supplied no Chunks', () => {
+    it('returns undefined when supplied no Chunks', () => {
       const recombined: Veritum = Recombine([]);
-      expect(recombined).toBeInstanceOf(Veritum);
-      expect(Array.from(recombined.getFields()).length).toBe(0);
-      expect(recombined.cubeType).toBe(CubeType.FROZEN);
+      expect(recombined).toBeUndefined();
     });
   });
 });

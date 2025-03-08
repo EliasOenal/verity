@@ -64,7 +64,10 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     // In case of an encrypted Veritum, the original chunks rather than the
     // transformed (decrypted) chunks should be retained. In case of non-signed
     // Verita, this defined the Veritum's key.
-    recombined._chunks = Array.from(chunks);
+    if (recombined) {
+      // note that recombined could be undefined if its chunks could not be recombined
+      recombined._chunks = Array.from(chunks);
+    }
     return recombined;
   }
 
