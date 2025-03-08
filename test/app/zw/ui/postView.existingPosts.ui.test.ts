@@ -43,7 +43,7 @@ describe('PostView tests regarding displayal of existing posts', () => {
         const node: VerityNodeIf = new DummyVerityNode(testOptions);
         await node.readyPromise;
         w = new TestWorld({ subscriptions: true, cubeStore: node.cubeStore });
-        await w.ready;
+        await w.setup();
         controller = new PostController({
           node,
           nav: new DummyNavController(),
@@ -131,7 +131,7 @@ describe('PostView tests regarding displayal of existing posts', () => {
         const node: VerityNodeIf = new DummyVerityNode(testOptions);
         await node.readyPromise;
         w = new TestWorld({ subscriptions: false, cubeStore: node.cubeStore });
-        await w.ready;
+        await w.setup();
         controller = new PostController({
           node,
           nav: new DummyNavController(),
@@ -240,30 +240,30 @@ function expectDisplayed(post: Veritable, options: ExpectDisplayedOptions = {}) 
   // if it's a reply, it should be nested under the original post
   let containing: HTMLElement;
   if (options.replyto) {
-    containing = document.querySelector(`.verityPost[data-cubekey="${keyVariants(options.replyto).keyString}"]`);
+    containing = document.querySelector(`.verityPost[data-cubekey="${keyVariants(options.replyto).keyString}"]`)!;
   } else {
     containing = document.body;
   }
 
   expect(containing).not.toBeNull();
   // fetch post li
-  const postLi: HTMLElement = containing.querySelector(`.verityPost[data-cubekey="${post.getKeyStringIfAvailable()}"]`);
+  const postLi: HTMLElement = containing.querySelector(`.verityPost[data-cubekey="${post.getKeyStringIfAvailable()}"]`)!;
   expect(postLi).not.toBeNull();
 
   // check post content / text
   const payload = post.getFirstField(FieldType.PAYLOAD).valueString;
-  const content: HTMLParagraphElement = postLi.querySelector(".verityPostContent");
+  const content: HTMLParagraphElement = postLi.querySelector(".verityPostContent")!;
   expect(content).not.toBeNull();
   expect(content.textContent).toBe(payload);
 
   // check post author name
-  const authorField: HTMLElement = postLi.querySelector(".verityCubeAuthor");
+  const authorField: HTMLElement = postLi.querySelector(".verityCubeAuthor")!;
   expect(authorField).not.toBeNull();
   if (options.author) expect(authorField.textContent).toBe(options.author.name);
 }
 
 function expectNotDisplayed(post: Veritable) {
   // fetch post li
-  const postLi: HTMLElement = document.querySelector(`.verityPost[data-cubekey="${post.getKeyStringIfAvailable()}"]`);
+  const postLi: HTMLElement = document.querySelector(`.verityPost[data-cubekey="${post.getKeyStringIfAvailable()}"]`)!;
   expect(postLi).toBe(null);
 }

@@ -12,7 +12,7 @@ import { testCubeStoreParams } from '../testcci.definitions';
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
-describe('Identity: Cube emitter events', () => {
+describe('Identity: emitting cubeAdded events', () => {
   // This test suite handles Identity's impelementation of the CubeEmitter interface,
   // in particular the emission of cubeAdded events.
 

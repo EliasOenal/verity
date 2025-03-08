@@ -18,7 +18,7 @@ describe('post displayability', () => {
     let w: TestWorld;
     beforeAll(async () => {
       w = new TestWorld({ subscriptions: true });
-      await w.ready;
+      await w.setup();
     });
 
     test('expect all Identity MUCs in store', async () => {
@@ -90,7 +90,7 @@ describe('post displayability', () => {
     let w: TestWorld;
     beforeAll(async () => {
       w = new TestWorld({ subscriptions: true });
-      await w.ready;
+      await w.setup();
       await w.setFullWot();
     });
 
@@ -167,7 +167,7 @@ describe('post displayability', () => {
     let w: TestWorld;
     beforeAll(async () => {
       w = new TestWorld({ subscriptions: false });
-      await w.ready;
+      await w.setup();
       await w.setExplore();
     });
 

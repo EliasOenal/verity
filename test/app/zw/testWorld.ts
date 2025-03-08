@@ -68,28 +68,26 @@ export class TestWorld {
   subUnavailable: Cube;
   subUnavailableIndirect: Cube;
 
-  ready: Promise<void>;
-
-  constructor(options: TestWorldOptions = {}) {
+  constructor(private options: TestWorldOptions = {}) {
     // set default options
-    options.subscriptions ??= true;
-    options.notifications ??= true;
+    this.options.subscriptions ??= true;
+    this.options.notifications ??= true;
 
     this.identityOptions = { ...idTestOptions };
-    if (options.notifications) {
+    if (this.options.notifications) {
       this.identityOptions.idmucNotificationKey = ZwConfig.NOTIFICATION_KEY;
     }
 
     this.cubeStore = options.cubeStore ?? new CubeStore(testCubeStoreParams);
     this.retriever = new VeritumRetriever(this.cubeStore);
+  }
 
-    this.ready = (async () => {
-      await this.cubeStore.readyPromise;
-      this.createIdentities();
-      if (options.subscriptions) this.makeSubscriptions();
-      await this.makePosts();
-      await this.storeIdentities();
-    })();
+  async setup(): Promise<void> {
+    await this.cubeStore.readyPromise;
+    this.createIdentities();
+    if (this.options.subscriptions) this.makeSubscriptions();
+    await this.makePosts();
+    await this.storeIdentities();
   }
 
   /** For unit testing only, not to be used for integration/UI tests */
