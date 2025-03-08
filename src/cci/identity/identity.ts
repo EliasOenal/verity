@@ -1,6 +1,7 @@
 
 import type { Shuttable } from '../../core/helpers/coreInterfaces';
-import { mergeAsyncGenerators, resolveAndYield, unixtime } from '../../core/helpers/misc';
+import { unixtime } from '../../core/helpers/misc';
+import { mergeAsyncGenerators, resolveAndYield } from '../../core/helpers/asyncGenerators';
 import { Cube } from '../../core/cube/cube';
 import { KeyVariants, keyVariants } from '../../core/cube/cubeUtil';
 import { logger } from '../../core/logger';
@@ -109,6 +110,13 @@ export enum PostFormat {
   Cube,
   Veritum,
 };
+
+export const PostFormatEventMap = {
+  [PostFormat.CubeInfo]: 'cubeAdded',  // TODO change, or drop CubeInfo emissions altogether
+  [PostFormat.Cube]: 'cubeAdded',
+  [PostFormat.Veritum]: 'postAdded',
+} as const;
+
 export interface GetPostsOptions {
   format?: PostFormat;
 
@@ -148,6 +156,8 @@ export interface GetPostsOptions {
 // synced back from another node.
 // Maybe a Lamport clock? Did I mention that I like Lamport clocks? :)
 // (turns out a simple Lamport clock isn't enough :( )
+
+// TODO add type declarations documenting which Events Identity may emit
 
 /**
  * !!! May only be used after awaiting sodium.ready !!!
@@ -404,6 +414,9 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
    */
   readonly cubeRetriever: CubeRetrievalInterface<any> = undefined;
   readonly veritumRetriever: VeritumRetrievalInterface<any> = undefined;
+  get retriever(): CubeRetrievalInterface {
+    return this.veritumRetriever ?? this.cubeRetriever ?? this.cubeStore;
+  }
 
   private _masterKey: Buffer = undefined;
   get masterKey(): Buffer { return this._masterKey }  // maybe TODO: return copy to improve encapsulation?
@@ -716,10 +729,11 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       }
       if (promise !== undefined) minePromises.push(promise);
     }
+
     // Prepare Generator for my posts
     const mine: AsyncGenerator<CubeInfo|Cube|Veritum> = resolveAndYield(minePromises);
 
-    // - recurse through my subscriptions
+    // Prepare Generators for my subscription's posts
     const rGens: AsyncGenerator<CubeInfo|Cube|Veritum>[] = [];
     if (options.subscriptionRecursionDepth > 0) {
       for (const subKey of this.getPublicSubscriptionStrings()) {
@@ -729,9 +743,15 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
         }));
       }
     }
+
+    // Merge all those generators
     const ret: AsyncGenerator<CubeInfo|Cube|Veritum> = mergeAsyncGenerators(
       mine, ...rGens);
+
+    // Yield all the (existing) posts that we've just prepared
     yield* ret;
+
+    // TODO: In subscription mode, keep going and yield new data as it arrives
   }
 
   /**
@@ -841,7 +861,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   }
 
   async setSubscriptionRecursionDepth(
-      depth: number,
+      depth: number = this._subscriptionRecursionDepth,
       except: Set<string> = new Set(),
   ): Promise<void> {
     //  - TODO: Make subscription depth dynamic:
@@ -1437,9 +1457,15 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
   // If any recursion is requested at all, we will re-emit my subscription's events.
   // Otherwise, we obviously cancel our re-emissions.
-  sub.removeListener('cubeAdded', this.emitCubeAdded);
   if (depth > 0) {
-    sub.on('cubeAdded', this.emitCubeAdded);
+    if (!sub.listeners('cubeAdded').includes(this.doEmitCubeAdded)) {
+      sub.on('cubeAdded', this.doEmitCubeAdded);
+    }
+    // if (!sub.listeners('postAdded').includes(this.emitCubeAdded)) {
+    //   sub.on('postAdded', this.emitCubeAdded);
+    // }
+  } else {
+    sub.removeListener('cubeAdded', this.doEmitCubeAdded);
   }
 
   // Let my subscriptions know the new recursion level, which is obviously
@@ -1448,39 +1474,12 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   return sub.setSubscriptionRecursionDepth(nextLevelDepth, except);
 }
 
-  // Note: Must use arrow function syntax to keep this method correctly bound
-  //       for method handler adding and removal.
-  private emitCubeAdded = async (
+  private async emitCubeAdded(
       input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>,
-      recursionCount: number = 0,
-      except?: Set<string> ,
-  ): Promise<void> => {
-    // only emit if there is a listener
-    if (this.listenerCount('cubeAdded') === 0) return;
+  ): Promise<void> {
+    if (!this.shouldIEmit('cubeAdded')) return;
 
-    // prevent endless recursion by keeping track of the recursion count
-    if (recursionCount > this._subscriptionRecursionDepth) {
-      logger.warn(`Identity ${this.keyString}.emitCubeAdded() was called for a CubeInfo with too many levels of recursion; skipping.`);
-      return;
-    }
-    recursionCount++;
-
-    // avoid ping-ponging recursion by keeping track of already visited IDs
-    if (except?.has?.(this.keyString)) return;
-    if (except === undefined) except = new Set();
-    except.add(this.keyString);
-
-    // fetch the CubeInfo
-    let cubeInfo: CubeInfo;
-    if (input instanceof CubeInfo) {
-      cubeInfo = input;
-    } else if (input instanceof Cube) {
-      cubeInfo = await input.getCubeInfo();
-    } else if (input instanceof Promise) {
-      cubeInfo = await input;
-    } else if (typeof input === 'string' || Buffer.isBuffer(input)) {
-      cubeInfo = await this.cubeRetriever.getCubeInfo(input);
-    }
+    const cubeInfo = await this.retrieveCubeInfo(input);
 
     // assert that we have a CubeInfo -- this also covers invalid input
     if (cubeInfo === undefined) {
@@ -1488,7 +1487,62 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       return;
     }
 
-    this.emit('cubeAdded', cubeInfo, recursionCount, except);
+    this.doEmitCubeAdded(cubeInfo);
+  }
+
+  private retrieveCubeInfo(input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>): Promise<CubeInfo> {
+    if (input instanceof CubeInfo) {
+      return Promise.resolve(input);
+    } else if (input instanceof Cube) {
+      return input.getCubeInfo();
+    } else if (input instanceof Promise) {
+      return input;
+    } else if (typeof input === 'string' || Buffer.isBuffer(input)) {
+      return this.retriever?.getCubeInfo?.(input) ?? Promise.resolve(undefined);  // TODO implement dummy retriever
+    }
+  }
+
+  // Note: Must use arrow function syntax to keep this method correctly bound
+  //       for method handler adding and removal.
+  private doEmitCubeAdded = (
+    payload: CubeInfo,
+    recursionCount: number = 0,
+    except: Set<string> = new Set(),
+  ): void => {
+    if (this.shouldIEmit('cubeAdded', recursionCount, except)) {
+      this.doEmit('cubeAdded', payload, recursionCount, except);
+    }
+  }
+
+  private shouldIEmit(
+    eventName: string,
+    recursionCount: number = 0,
+    except?: Set<string>,
+  ): boolean {
+    // only emit if there is a listener
+    if (this.listenerCount(eventName) === 0) return false;
+
+    // prevent endless recursion by keeping track of the recursion count
+    if (recursionCount > this._subscriptionRecursionDepth) {
+      logger.warn(`Identity ${this.keyString}.emitCubeAdded() was called for a CubeInfo with too many levels of recursion; skipping.`);
+      return false;
+    }
+
+    // avoid ping-ponging recursion by keeping track of already visited IDs
+    if (except?.has?.(this.keyString)) return false;
+
+    return true;
+  }
+
+  private doEmit(
+    eventName: string,
+    payload: any,
+    recursionCount: number = 0,
+    except: Set<string>,
+  ): void {
+    recursionCount++;
+    except.add(this.keyString);
+    this.emit(eventName, payload, recursionCount, except);
   }
 
   //###
