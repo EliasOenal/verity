@@ -122,7 +122,7 @@ export class TestWorld {
     return this.engine.isCubeDisplayable(post);
   }
 
-  private createIdentities() {
+  createIdentities() {
     // Create Identities
     this.protagonist = new Identity(
       this.retriever,
@@ -156,7 +156,7 @@ export class TestWorld {
     this.unrelatedId.name = "unrelatedId";
   }
 
-  private makeSubscriptions() {
+  makeSubscriptions() {
     this.protagonist.addPublicSubscription(this.directSub.key);
     this.directSub.addPublicSubscription(this.indirectSub.key);
     this.indirectSub.addPublicSubscription(this.thirdLevelSub.key);
@@ -164,7 +164,7 @@ export class TestWorld {
     this.indirectSub.addPublicSubscription(this.protagonist.key);
   }
 
-  private async makePosts() {
+  async makePosts() {
     // make posts:
     // - own post
     this.own = await makePost("Own post",
