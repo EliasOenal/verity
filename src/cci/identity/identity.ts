@@ -598,8 +598,9 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     // everything looks good, let's remember this post
     this._posts.add(key.keyString);
 
-    // emit event
+    // emit events
     this.emitCubeAdded(key.binaryKey);
+    this.emitPostAdded(key.binaryKey);
     return true;
   }
 
@@ -1043,6 +1044,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     this._shutdown = true;
     // cancel event subscriptions
     this.cubeStore?.removeListener("cubeAdded", this.mergeRemoteChanges);
+    // TODO cancel subscriptions with my subscribed Identites
     // remove myself from my IdentityStore
     this.identityStore?.deleteIdentity(this);
     // resolve shutdown promise
@@ -1461,11 +1463,12 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     if (!sub.listeners('cubeAdded').includes(this.doEmitCubeAdded)) {
       sub.on('cubeAdded', this.doEmitCubeAdded);
     }
-    // if (!sub.listeners('postAdded').includes(this.emitCubeAdded)) {
-    //   sub.on('postAdded', this.emitCubeAdded);
-    // }
+    if (!sub.listeners('postAdded').includes(this.emitCubeAdded)) {
+      sub.on('postAdded', this.doEmitPostAdded);
+    }
   } else {
     sub.removeListener('cubeAdded', this.doEmitCubeAdded);
+    sub.removeListener('postAdded', this.doEmitPostAdded);
   }
 
   // Let my subscriptions know the new recursion level, which is obviously
@@ -1477,9 +1480,8 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   private async emitCubeAdded(
       input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>,
   ): Promise<void> {
-    if (!this.shouldIEmit('cubeAdded')) return;
-
-    const cubeInfo = await this.retrieveCubeInfo(input);
+    if (!this.shouldIEmit('cubeAdded')) return;  // should I even emit?
+    const cubeInfo = await this.retrieveCubeInfo(input);  // normalise input
 
     // assert that we have a CubeInfo -- this also covers invalid input
     if (cubeInfo === undefined) {
@@ -1487,7 +1489,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       return;
     }
 
-    this.doEmitCubeAdded(cubeInfo);
+    this.doEmitCubeAdded(cubeInfo);  // okay, emit!
   }
 
   private retrieveCubeInfo(input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>): Promise<CubeInfo> {
@@ -1504,6 +1506,7 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
   // Note: Must use arrow function syntax to keep this method correctly bound
   //       for method handler adding and removal.
+  //       This method is also used for recursive re-emissions
   private doEmitCubeAdded = (
     payload: CubeInfo,
     recursionCount: number = 0,
@@ -1513,6 +1516,31 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       this.doEmit('cubeAdded', payload, recursionCount, except);
     }
   }
+
+  private async emitPostAdded(key: CubeKey): Promise<void> {
+    if (!this.shouldIEmit('postAdded')) return;  // should I even emit?
+    const veritum = await this.veritumRetriever?.getVeritum?.(key);
+    if (veritum === undefined) {
+      logger.warn(`Identity ${this.keyString}.emitPostAdded() was called for an unavailable post; skipping.`);
+      return;
+    }
+    this.doEmitPostAdded(veritum);  // okay, emit!
+  }
+
+
+  // Note: Must use arrow function syntax to keep this method correctly bound
+  //       for method handler adding and removal.
+  //       This method is also used for recursive re-emissions
+  private doEmitPostAdded = (
+    post: Veritum,
+    recursionCount: number = 0,
+    except: Set<string> = new Set(),
+  ): void => {
+    if (this.shouldIEmit('postAdded', recursionCount, except)) {
+      this.doEmit('postAdded', post, recursionCount, except);
+    }
+  }
+
 
   private shouldIEmit(
     eventName: string,
