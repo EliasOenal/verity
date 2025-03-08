@@ -20,7 +20,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
 
     beforeAll(async () => {
       w = new TestWorld({ subscriptions: true, notifications: false });
-      await w.ready;
+      await w.setup();
       posts = await ArrayFromAsync(w.protagonist.getPosts({
         format: PostFormat.Veritum,
         subscriptionRecursionDepth: 1337,  // GO DEEP!
