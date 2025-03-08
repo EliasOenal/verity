@@ -91,6 +91,7 @@ export async function* resolveAndYield<T>(
 
 /**
  * An async generator that listens to multiple event emitters and yields events as they occur.
+ * It's basically an adapter from events to await for ... of.
  *
  * @param emitters - An array of objects containing an EventEmitter and the event name to listen for.
  * @returns An async generator yielding objects with event names and their corresponding data.
