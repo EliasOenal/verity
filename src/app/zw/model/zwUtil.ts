@@ -69,10 +69,10 @@ export async function makePost(
       Relationship.fromKeys(RelationshipType.MYPOST, newestPostsFirst)));
   }
   await cube.getBinaryData();  // finalize Cube & compile fields
+  if (options.store) await options.store.addCube(cube);
   if (options.id) {  // unless anonymous, have the Identity remember this new post
     options.id.addPost(await cube.getKey());
   }
-  if (options.store) await options.store.addCube(cube);
   return cube;
 }
 
