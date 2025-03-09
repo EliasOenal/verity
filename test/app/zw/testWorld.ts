@@ -28,45 +28,13 @@ export class TestWorld {
   private engine: ZwAnnotationEngine;
   identityOptions: IdentityOptions;
 
+  posts: TestWordPostSet[] = [];
+
   protagonist: Identity;
   directSub: Identity;
   indirectSub: Identity;
   thirdLevelSub: Identity;
   unrelatedId: Identity;
-
-  own: Cube;
-  ownDirect: Cube;
-  ownIndirect: Cube;
-  ownThird: Cube;
-  ownUnrelatedUnanswered: Cube;
-  ownUnrelatedAnswered: Cube;
-  ownUnrelatedSub: Cube;
-
-  directUnreplied: Cube;
-
-  directReplied: Cube;
-  directOwn: Cube;
-  directThird: Cube;
-
-  indirectUnreplied: Cube;
-
-  indirectReplied: Cube;
-  indirectOwn: Cube;
-
-  thirdUnreplied: Cube;
-  thirdReplied: Cube;
-  thirdOwn: Cube;
-
-  unrelatedUnanswered: Cube;
-
-  unrelatedAnsweredBySub: Cube;
-  unrelatedSub: Cube;
-
-  unrelatedAnsweredByProtagonist: Cube;
-  unrelatedOwn: Cube;
-
-  subUnavailable: Cube;
-  subUnavailableIndirect: Cube;
 
   constructor(private options: TestWorldOptions = {}) {
     // set default options
@@ -86,7 +54,8 @@ export class TestWorld {
     await this.cubeStore.readyPromise;
     this.createIdentities();
     if (this.options.subscriptions) this.makeSubscriptions();
-    await this.makePosts();
+    this.posts = [new TestWordPostSet(this, "")];
+    await this.posts[0].makePosts();
     await this.storeIdentities();
   }
 
@@ -164,86 +133,6 @@ export class TestWorld {
     this.indirectSub.addPublicSubscription(this.protagonist.key);
   }
 
-  async makePosts() {
-    // make posts:
-    // - own post
-    this.own = await makePost("Own post",
-      { id: this.protagonist, requiredDifficulty: 0, store: this.cubeStore });
-    // - reply to own post by direct sub
-    this.ownDirect = await makePost("Reply to own post by direct sub",
-      { id: this.directSub, requiredDifficulty: 0, replyto: await this.own.getKey(), store: this.cubeStore });
-    // - reply to own post by indirect sub
-    this.ownIndirect = await makePost("Reply to own post by indirect sub",
-      { id: this.indirectSub, requiredDifficulty: 0, replyto: await this.own.getKey(), store: this.cubeStore });
-    // - reply to own post by third level sub
-    this.ownThird = await makePost("Reply to own post by third level sub",
-      { id: this.thirdLevelSub, requiredDifficulty: 0, replyto: await this.own.getKey(), store: this.cubeStore });
-    // - reply to own post by unrelated which will stay unanswered
-    this.ownUnrelatedUnanswered = await makePost("Reply to own post by unrelated which will stay unanswered",
-      { id: this.unrelatedId, requiredDifficulty: 0, replyto: await this.own.getKey(), store: this.cubeStore });
-    // - reply to own post by unrelated which will be answered by sub
-    this.ownUnrelatedAnswered = await makePost("Reply to own post by unrelated which will be answered by sub",
-      { id: this.unrelatedId, requiredDifficulty: 0, replyto: await this.own.getKey(), store: this.cubeStore });
-    // - sub's reply to unrelated's reply to own post
-    this.ownUnrelatedSub = await makePost("Sub's reply to unrelated's reply to own post",
-      { id: this.directSub, requiredDifficulty: 0, replyto: await this.ownUnrelatedAnswered.getKey(), store: this.cubeStore });
-
-    // - posts by direct sub
-    this.directUnreplied = await makePost("Post by direct sub",
-      { id: this.directSub, requiredDifficulty: 0, store: this.cubeStore });
-    this.directReplied = await makePost("Post by direct sub",
-      { id: this.directSub, requiredDifficulty: 0, store: this.cubeStore });
-    // - own reply
-    this.directOwn = await makePost("Reply by protagonist",
-      { id: this.protagonist, requiredDifficulty: 0, replyto: await this.directReplied.getKey(), store: this.cubeStore });
-    // - reply by third level sub
-    this.directThird = await makePost("Reply by third level sub",
-      { id: this.thirdLevelSub, requiredDifficulty: 0, replyto: await this.directReplied.getKey(), store: this.cubeStore });
-
-    // - posts by indirect sub
-    this.indirectUnreplied = await makePost("Post by indirect sub",
-      { id: this.indirectSub, requiredDifficulty: 0, store: this.cubeStore });
-    this.indirectReplied = await makePost("Post by indirect sub",
-      { id: this.indirectSub, requiredDifficulty: 0, store: this.cubeStore });
-    // - own reply
-    this.indirectOwn = await makePost("Reply by protagonist",
-      { id: this.protagonist, requiredDifficulty: 0, replyto: await this.indirectReplied.getKey(), store: this.cubeStore });
-
-    // - posts by third level sub
-    this.thirdUnreplied = await makePost("Post by third level sub",
-      { id: this.thirdLevelSub, requiredDifficulty: 0, store: this.cubeStore });
-    this.thirdReplied = await makePost("Post by third level sub",
-      { id: this.thirdLevelSub, requiredDifficulty: 0, store: this.cubeStore });
-    // - own reply
-    this.thirdOwn = await makePost("Reply by protagonist",
-      { id: this.protagonist, requiredDifficulty: 0, replyto: await this.thirdReplied.getKey(), store: this.cubeStore });
-
-    // - post by unrelated which will stay unanswered
-    this.unrelatedUnanswered = await makePost("Post by unrelated which will stay unanswered",
-      { id: this.unrelatedId, requiredDifficulty: 0, store: this.cubeStore });
-
-    // - post by unrelated which will be answered by sub
-    this.unrelatedAnsweredBySub = await makePost("Post by unrelated which will be answered by sub",
-      { id: this.unrelatedId, requiredDifficulty: 0, store: this.cubeStore });
-    // - sub's reply to unrelated
-    this.unrelatedSub = await makePost("Sub's reply to unrelated",
-      { id: this.directSub, requiredDifficulty: 0, replyto: await this.unrelatedAnsweredBySub.getKey(), store: this.cubeStore });
-
-    // - post by unrelated which will have reply by protagonist
-    this.unrelatedAnsweredByProtagonist = await makePost("Post by unrelated which will have reply by protagonist",
-      { id: this.unrelatedId, requiredDifficulty: 0, store: this.cubeStore });
-    // - protagonist's reply
-    this.unrelatedOwn = await makePost("Protagonist's reply",
-      { id: this.protagonist, requiredDifficulty: 0, replyto: await this.unrelatedAnsweredByProtagonist.getKey(), store: this.cubeStore });
-
-    // - unavailable post by direct sub (note missing CubeStore reference)
-    this.subUnavailable = await makePost("Unavailable post by direct sub",
-      { id: this.directSub, requiredDifficulty: 0 });
-    // - indirect's reply to unavailable post
-    this.subUnavailableIndirect = await makePost("Indirect's reply to unavailable post",
-      { id: this.indirectSub, requiredDifficulty: 0, replyto: await this.subUnavailable.getKey(), store: this.cubeStore });
-  }
-
   private storeIdentities(): Promise<void> {
     const promises: Promise<cciCube>[] = [];
     // store Identities
@@ -254,5 +143,127 @@ export class TestWorld {
     promises.push(this.unrelatedId.store());
 
     return Promise.all(promises).then();
+  }
+}
+
+export class TestWordPostSet {
+  own: Cube;
+  ownDirect: Cube;
+  ownIndirect: Cube;
+  ownThird: Cube;
+  ownUnrelatedUnanswered: Cube;
+  ownUnrelatedAnswered: Cube;
+  ownUnrelatedSub: Cube;
+
+  directUnreplied: Cube;
+
+  directReplied: Cube;
+  directOwn: Cube;
+  directThird: Cube;
+
+  indirectUnreplied: Cube;
+
+  indirectReplied: Cube;
+  indirectOwn: Cube;
+
+  thirdUnreplied: Cube;
+  thirdReplied: Cube;
+  thirdOwn: Cube;
+
+  unrelatedUnanswered: Cube;
+
+  unrelatedAnsweredBySub: Cube;
+  unrelatedSub: Cube;
+
+  unrelatedAnsweredByProtagonist: Cube;
+  unrelatedOwn: Cube;
+
+  subUnavailable: Cube;
+  subUnavailableIndirect: Cube;
+
+  constructor(
+    private w: TestWorld,
+    readonly suffix: string = "",
+  ) {
+  }
+
+  async makePosts() {
+    // make posts:
+    // - own post
+    this.own = await makePost("Own post" + this.suffix,
+      { id: this.w.protagonist, requiredDifficulty: 0, store: this.w.cubeStore });
+    // - reply to own post by direct sub
+    this.ownDirect = await makePost("Reply to own post by direct sub" + this.suffix,
+      { id: this.w.directSub, requiredDifficulty: 0, replyto: await this.own.getKey(), store: this.w.cubeStore });
+    // - reply to own post by indirect sub
+    this.ownIndirect = await makePost("Reply to own post by indirect sub" + this.suffix,
+      { id: this.w.indirectSub, requiredDifficulty: 0, replyto: await this.own.getKey(), store: this.w.cubeStore });
+    // - reply to own post by third level sub
+    this.ownThird = await makePost("Reply to own post by third level sub" + this.suffix,
+      { id: this.w.thirdLevelSub, requiredDifficulty: 0, replyto: await this.own.getKey(), store: this.w.cubeStore });
+    // - reply to own post by unrelated which will stay unanswered
+    this.ownUnrelatedUnanswered = await makePost("Reply to own post by unrelated which will stay unanswered" + this.suffix,
+      { id: this.w.unrelatedId, requiredDifficulty: 0, replyto: await this.own.getKey(), store: this.w.cubeStore });
+    // - reply to own post by unrelated which will be answered by sub
+    this.ownUnrelatedAnswered = await makePost("Reply to own post by unrelated which will be answered by sub" + this.suffix,
+      { id: this.w.unrelatedId, requiredDifficulty: 0, replyto: await this.own.getKey(), store: this.w.cubeStore });
+    // - sub's reply to unrelated's reply to own post
+    this.ownUnrelatedSub = await makePost("Sub's reply to unrelated's reply to own post" + this.suffix,
+      { id: this.w.directSub, requiredDifficulty: 0, replyto: await this.ownUnrelatedAnswered.getKey(), store: this.w.cubeStore });
+
+    // - posts by direct sub
+    this.directUnreplied = await makePost("Post by direct sub" + this.suffix,
+      { id: this.w.directSub, requiredDifficulty: 0, store: this.w.cubeStore });
+    this.directReplied = await makePost("Post by direct sub" + this.suffix,
+      { id: this.w.directSub, requiredDifficulty: 0, store: this.w.cubeStore });
+    // - own reply
+    this.directOwn = await makePost("Reply by protagonist" + this.suffix,
+      { id: this.w.protagonist, requiredDifficulty: 0, replyto: await this.directReplied.getKey(), store: this.w.cubeStore });
+    // - reply by third level sub
+    this.directThird = await makePost("Reply by third level sub" + this.suffix,
+      { id: this.w.thirdLevelSub, requiredDifficulty: 0, replyto: await this.directReplied.getKey(), store: this.w.cubeStore });
+
+    // - posts by indirect sub
+    this.indirectUnreplied = await makePost("Post by indirect sub" + this.suffix,
+      { id: this.w.indirectSub, requiredDifficulty: 0, store: this.w.cubeStore });
+    this.indirectReplied = await makePost("Post by indirect sub" + this.suffix,
+      { id: this.w.indirectSub, requiredDifficulty: 0, store: this.w.cubeStore });
+    // - own reply
+    this.indirectOwn = await makePost("Reply by protagonist" + this.suffix,
+      { id: this.w.protagonist, requiredDifficulty: 0, replyto: await this.indirectReplied.getKey(), store: this.w.cubeStore });
+
+    // - posts by third level sub
+    this.thirdUnreplied = await makePost("Post by third level sub" + this.suffix,
+      { id: this.w.thirdLevelSub, requiredDifficulty: 0, store: this.w.cubeStore });
+    this.thirdReplied = await makePost("Post by third level sub" + this.suffix,
+      { id: this.w.thirdLevelSub, requiredDifficulty: 0, store: this.w.cubeStore });
+    // - own reply
+    this.thirdOwn = await makePost("Reply by protagonist" + this.suffix,
+      { id: this.w.protagonist, requiredDifficulty: 0, replyto: await this.thirdReplied.getKey(), store: this.w.cubeStore });
+
+    // - post by unrelated which will stay unanswered
+    this.unrelatedUnanswered = await makePost("Post by unrelated which will stay unanswered" + this.suffix,
+      { id: this.w.unrelatedId, requiredDifficulty: 0, store: this.w.cubeStore });
+
+    // - post by unrelated which will be answered by sub
+    this.unrelatedAnsweredBySub = await makePost("Post by unrelated which will be answered by sub" + this.suffix,
+      { id: this.w.unrelatedId, requiredDifficulty: 0, store: this.w.cubeStore });
+    // - sub's reply to unrelated
+    this.unrelatedSub = await makePost("Sub's reply to unrelated" + this.suffix,
+      { id: this.w.directSub, requiredDifficulty: 0, replyto: await this.unrelatedAnsweredBySub.getKey(), store: this.w.cubeStore });
+
+    // - post by unrelated which will have reply by protagonist
+    this.unrelatedAnsweredByProtagonist = await makePost("Post by unrelated which will have reply by protagonist" + this.suffix,
+      { id: this.w.unrelatedId, requiredDifficulty: 0, store: this.w.cubeStore });
+    // - protagonist's reply
+    this.unrelatedOwn = await makePost("Protagonist's reply" + this.suffix,
+      { id: this.w.protagonist, requiredDifficulty: 0, replyto: await this.unrelatedAnsweredByProtagonist.getKey(), store: this.w.cubeStore });
+
+    // - unavailable post by direct sub (note missing CubeStore reference)
+    this.subUnavailable = await makePost("Unavailable post by direct sub" + this.suffix,
+      { id: this.w.directSub, requiredDifficulty: 0 });
+    // - indirect's reply to unavailable post
+    this.subUnavailableIndirect = await makePost("Indirect's reply to unavailable post" + this.suffix,
+      { id: this.w.indirectSub, requiredDifficulty: 0, replyto: await this.subUnavailable.getKey(), store: this.w.cubeStore });
   }
 }
