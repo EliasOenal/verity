@@ -24,10 +24,17 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
         w = new TestWorld({ subscriptions: true, notifications: false });
         await w.setup();
         await w.protagonist.setSubscriptionRecursionDepth(lvl);
-        posts = await ArrayFromAsync(w.protagonist.getPosts({
-          format: PostFormat.Veritum,
-          subscribe: true,
-        }));
+
+        posts = [];
+        (async() => {
+          for await (const post of w.protagonist.getPosts({
+            format: PostFormat.Veritum,
+            subscribe: true,
+          })) {
+            posts.push(post);
+          }
+        })();
+        await new Promise((resolve) => setTimeout(resolve, 100));  // TODO nicify
       });
 
       function testPostBunch(n: number = 0) {
@@ -134,10 +141,11 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
         testPostBunch(0);
       });
 
-      describe.skip('subscription mode (i.e. posts arriving while the Generator is already runnning)', () => {
+      describe('subscription mode (i.e. posts arriving while the Generator is already runnning)', () => {
         beforeAll(async () => {
           w.posts.push(new TestWordPostSet(w, "; second run"));
           await w.posts[1].makePosts();
+          await new Promise(resolve => setTimeout(resolve, 100));
         });
 
         testPostBunch(1);
