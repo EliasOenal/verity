@@ -1,7 +1,7 @@
 
 import type { Shuttable } from '../../core/helpers/coreInterfaces';
 import { unixtime } from '../../core/helpers/misc';
-import { mergeAsyncGenerators, resolveAndYield } from '../../core/helpers/asyncGenerators';
+import { eventsToGenerator, mergeAsyncGenerators, resolveAndYield } from '../../core/helpers/asyncGenerators';
 import { Cube } from '../../core/cube/cube';
 import { KeyVariants, keyVariants } from '../../core/cube/cubeUtil';
 import { logger } from '../../core/logger';
@@ -729,13 +729,19 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     }
 
     // Merge all those generators
-    const ret: AsyncGenerator<CubeInfo|Cube|Veritum> = mergeAsyncGenerators(
-      mine, ...rGens);
+    let ret: AsyncGenerator<CubeInfo|Cube|Veritum>;
 
-    // Yield all the (existing) posts that we've just prepared
+
+    // In subscription mode, keep going and yield new data as it arrives
+    if (options.subscribe) {
+      const subGen: AsyncGenerator<Veritum> = eventsToGenerator([{emitter: this, event: 'postAdded'}]);
+      ret = mergeAsyncGenerators(mine, ...rGens, subGen);
+    } else {
+      ret = mergeAsyncGenerators(mine, ...rGens);
+    }
+
+    // Yield everything that we've just prepared
     yield* ret;
-
-    // TODO: In subscription mode, keep going and yield new data as it arrives
   }
 
   /**
