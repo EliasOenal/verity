@@ -28,64 +28,64 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
     });
 
     it('should include my own root posts', () => {
-      expect(hasPost(posts, w.own)).toBe(true);
+      expect(hasPost(posts, w.posts[0].own)).toBe(true);
     });
 
     it("should include my direct subscription's posts", () => {
-      expect(hasPost(posts, w.directUnreplied)).toBe(true);
+      expect(hasPost(posts, w.posts[0].directUnreplied)).toBe(true);
     });
 
     it("should include indirect subscription's posts", () => {
-      expect(hasPost(posts, w.indirectUnreplied)).toBe(true);
-      expect(hasPost(posts, w.thirdUnreplied)).toBe(true);
+      expect(hasPost(posts, w.posts[0].indirectUnreplied)).toBe(true);
+      expect(hasPost(posts, w.posts[0].thirdUnreplied)).toBe(true);
     });
 
     it("should include my own replies to direct subscription's posts", async () => {
-      expect(hasPost(posts, w.directOwn)).toBe(true);
+      expect(hasPost(posts, w.posts[0].directOwn)).toBe(true);
     });
 
     it("should include my own replies to indirect subscription's posts", async () => {
-      expect(hasPost(posts, w.indirectOwn)).toBe(true);
-      expect(hasPost(posts, w.thirdOwn)).toBe(true);
+      expect(hasPost(posts, w.posts[0].indirectOwn)).toBe(true);
+      expect(hasPost(posts, w.posts[0].thirdOwn)).toBe(true);
     });
 
     it("should include my subscription's replies to my own posts", async () => {
-      expect(hasPost(posts, w.ownDirect)).toBe(true);
-      expect(hasPost(posts, w.ownIndirect)).toBe(true);
-      expect(hasPost(posts, w.ownThird)).toBe(true);
+      expect(hasPost(posts, w.posts[0].ownDirect)).toBe(true);
+      expect(hasPost(posts, w.posts[0].ownIndirect)).toBe(true);
+      expect(hasPost(posts, w.posts[0].ownThird)).toBe(true);
     });
 
     it("should include my subscription's replies to my subscription's posts", async () => {
-      expect(hasPost(posts, w.directThird)).toBe(true);
+      expect(hasPost(posts, w.posts[0].directThird)).toBe(true);
     });
 
     it('should NOT include root posts by non-subscribed users', async () => {
-      expect(hasPost(posts, w.unrelatedUnanswered)).toBe(false);
+      expect(hasPost(posts, w.posts[0].unrelatedUnanswered)).toBe(false);
     });
 
     it('should NOT include replies by non-subscribed users', async () => {
-      expect(hasPost(posts, w.ownUnrelatedUnanswered)).toBe(false);
+      expect(hasPost(posts, w.posts[0].ownUnrelatedUnanswered)).toBe(false);
     });
 
     it('should NOT include posts by non-subscribed users even if subscribed users answered them', async () => {
-      expect(hasPost(posts, w.ownUnrelatedAnswered)).toBe(false);
+      expect(hasPost(posts, w.posts[0].ownUnrelatedAnswered)).toBe(false);
     });
 
     it('should NOT include posts by non-subscribed users even if I answered them', async () => {
-      expect(hasPost(posts, w.unrelatedAnsweredByProtagonist)).toBe(false);
+      expect(hasPost(posts, w.posts[0].unrelatedAnsweredByProtagonist)).toBe(false);
     });
 
     it("should include my subscription's replies to non-subscribed users", async () => {
-      expect(hasPost(posts, w.unrelatedSub)).toBe(true);
-      expect(hasPost(posts, w.ownUnrelatedSub)).toBe(true);
+      expect(hasPost(posts, w.posts[0].unrelatedSub)).toBe(true);
+      expect(hasPost(posts, w.posts[0].ownUnrelatedSub)).toBe(true);
     });
 
     it("should include my own replies to non-subscribed users", async () => {
-      expect(hasPost(posts, w.unrelatedOwn)).toBe(true);
+      expect(hasPost(posts, w.posts[0].unrelatedOwn)).toBe(true);
     });
 
     it("should include replies to unavailable posts", async () => {
-      expect(hasPost(posts, w.subUnavailableIndirect)).toBe(true);
+      expect(hasPost(posts, w.posts[0].subUnavailableIndirect)).toBe(true);
     });
   });
 });
