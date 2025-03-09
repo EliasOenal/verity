@@ -705,7 +705,6 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       logger.trace(`Identity.getPosts(): Recursion depth exceeded for Identity ${this.keyString}; aborting.`);
       return;
     }
-    options.subscriptionRecursionDepth--;
 
     // Avoid ping-ponging recursion by keeping track of already visited IDs
     options.recursionExclude ??= new Set();
