@@ -121,14 +121,6 @@ export interface GetPostsOptions {
   format?: PostFormat;
 
   /**
-   * When fetching not just own posts but also posts by subscribed authors,
-   * this is the maximum recursion depth, i.e. the maximum level of indirect
-   * subscriptions.
-   * Set to 0 to only retrieve this Identity's own posts.
-   */
-  subscriptionRecursionDepth?: number;
-
-  /**
    * A set of Identity key strings to exclude when retrieving not just own posts
    * but also posts by subscribed authors.
    */
@@ -687,7 +679,6 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   ): AsyncGenerator<CubeInfo|Cube|Veritum> {
     // set default options
     options.format ??= this.veritumRetriever? PostFormat.Veritum: PostFormat.Cube;
-    options.subscriptionRecursionDepth ??= this.subscriptionRecursionDepth;
     // note: recursionExclude set created below to avoid unnecessary constructions
 
     // check if we even have the means to fulfil this request
@@ -697,12 +688,6 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     }
     if (options.format === PostFormat.Veritum && this.veritumRetriever === undefined) {
       logger.error(`Identity ${this.keyString} getPosts(): Requested posts as Verity but this Identity was created without a VeritumRetriever reference, cannot fulfil request.`);
-      return;
-    }
-
-    // have we reached maximum recursion depth?
-    if (options.subscriptionRecursionDepth < 0) {
-      logger.trace(`Identity.getPosts(): Recursion depth exceeded for Identity ${this.keyString}; aborting.`);
       return;
     }
 
@@ -735,11 +720,10 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
     // Prepare Generators for my subscription's posts
     const rGens: AsyncGenerator<CubeInfo|Cube|Veritum>[] = [];
-    if (options.subscriptionRecursionDepth > 0) {
+    if (this.subscriptionRecursionDepth > 0) {
       for (const subKey of this.getPublicSubscriptionStrings()) {
         rGens.push(this.getPublicSubscriptionPosts(subKey, {
           ...options,
-          subscriptionRecursionDepth: options.subscriptionRecursionDepth - 1,
         }));
       }
     }
@@ -860,6 +844,21 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     yield* ret;
   }
 
+  /**
+   * Defines the behaviour of getPosts() as well as event emissions from this
+   * Identity object.
+   * If set to 0, which is the default,
+   * this Identity object will only fetch posts for itself.
+   * If set to 1, this Identity object will fetch posts for itself and
+   * all of its directly subscribed Identites.
+   * If set to 2, this Identity object will fetch posts for itself and
+   * all of its directly subscribed Identites and their subscriptions;
+   * and so on to build a web of trust of whatever depth is specified.
+   * Note that by using this method, this Identity object takes ownership of all
+   * other Identity objects it is linked to and will in turn set their
+   * subscription recursion depth to an appropriate (lower) value.
+   * @default 0, i.e. own posts only
+   */
   async setSubscriptionRecursionDepth(
       depth: number = this._subscriptionRecursionDepth,
       except: Set<string> = new Set(),
