@@ -1,6 +1,6 @@
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
-import { PostFormat } from '../../../src/cci/identity/identity';
+import { Identity, PostFormat } from '../../../src/cci/identity/identity';
 
 // TODO: Don't use test setups from ZW for CCI components, it breaks our layering
 import { TestWordPostSet, TestWorld } from '../../app/zw/testWorld';
@@ -152,4 +152,32 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       });
     });  // for each recursion level
   });  // Veritum output format
+
+  describe('edge cases', () => {
+    // BUGBUG FIXME This currently does not work as soon as recursion is involved,
+    //   because recursion means there's always the parent object as a subscriber,
+    //   thus resolution will always take place because there is a subscriber :(
+    it.skip('will not retrieve Verita if there are no subscribers', async () => {
+      // prepare test
+      const w: TestWorld = new TestWorld();
+      w.createIdentities();
+      w.protagonist.setSubscriptionRecursionDepth(1337);  // GO DEEP!
+      w.makeSubscriptions();
+
+      // Spy on the CubeStore's getCubeInfo method
+      const getVeritumSpy = vi.spyOn(w.retriever, 'getVeritum');
+
+      // Make posts
+      w.posts = [new TestWordPostSet(w, "")];
+      await w.posts[0].makePosts();
+
+      // assert that no Verita were retrieved
+      expect(getVeritumSpy).not.toHaveBeenCalled();
+
+      // cleanup
+      await w.protagonist.identityStore.shutdown();
+      getVeritumSpy.mockRestore();
+    });
+  });
+
 });
