@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { TestWorld } from '../testWorld';
+import { TestWordPostSet, TestWorld } from '../testWorld';
 import { PostController } from '../../../../src/app/zw/webui/post/postController';
 import { DummyCoreNode, CoreNodeIf, CoreNodeOptions } from '../../../../src/core/coreNode';
 import { DummyNavController } from '../../../../src/webui/navigation/navigationDefinitions';
@@ -60,82 +60,102 @@ describe('PostView tests regarding displayal of existing posts', () => {
           controller.contentAreaView.show();
         });
 
-        it('should display my own root posts', async () => {
-          if (subscriptionBased) expectDisplayed(w.posts[0].own, { author: w.protagonist });
-          else {
-            // TODO BUGBUG Fails to display my own user name in explore mode and I don't know why
-            expectDisplayed(w.posts[0].own);
-          }
+        function testSuite(n: number) {
+          it('should display my own root posts', async () => {
+            if (subscriptionBased) expectDisplayed(w.posts[n].own, { author: w.protagonist });
+            else {
+              // TODO BUGBUG Fails to display my own user name in explore mode and I don't know why
+              expectDisplayed(w.posts[n].own);
+            }
+          });
+
+          it("should display my direct subscription's posts", async () => {
+            expectDisplayed(w.posts[n].directUnreplied, { author: w.directSub });
+          });
+
+          it("should display indirect subscription's posts", async () => {
+            expectDisplayed(w.posts[n].indirectUnreplied, { author: w.indirectSub });
+            expectDisplayed(w.posts[n].thirdUnreplied, { author: w.thirdLevelSub });
+          });
+
+          it("should display my own replies to direct subscription's posts", async () => {
+            expectDisplayed(w.posts[n].directOwn, { author: w.protagonist });
+          });
+
+          it("should display my own replies to indirect subscription's posts", async () => {
+            expectDisplayed(w.posts[n].indirectOwn, { author: w.protagonist });
+            expectDisplayed(w.posts[n].thirdOwn, { author: w.protagonist });
+          });
+
+          it("should display my subscription's replies to my own posts", async () => {
+            expectDisplayed(w.posts[n].ownDirect, { author: w.directSub });
+            expectDisplayed(w.posts[n].ownIndirect, { author: w.indirectSub });
+            expectDisplayed(w.posts[n].ownThird, { author: w.thirdLevelSub });
+          });
+
+          it("should display my subscription's replies to my subscription's posts", async () => {
+            expectDisplayed(w.posts[n].directThird, { author: w.thirdLevelSub });
+          });
+
+          if (subscriptionBased) it('should NOT show root posts by non-subscribed users', async () => {
+            expectNotDisplayed(w.posts[n].unrelatedUnanswered);
+          });
+          else it('should show root posts by non-subscribed users', async () => {
+            expectDisplayed(w.posts[n].unrelatedUnanswered, { author: w.unrelatedId });
+          });
+
+          if (subscriptionBased)it('should NOT show replies by non-subscribed users', async () => {
+            expectNotDisplayed(w.posts[n].ownUnrelatedUnanswered);
+          });
+          else it('should show replies by non-subscribed users', async () => {
+            expectDisplayed(w.posts[n].ownUnrelatedUnanswered, { author: w.unrelatedId });
+          });
+
+          it('should show posts by non-subscribed users if subscribed users answered them', async () => {
+            // expectDisplayed(w.ownUnrelatedAnswered, { author: w.unrelatedId });
+            // TODO BUGBUG: currently unable to resolve the non-subscribed author;
+            //              will display as unknown user
+            expectDisplayed(w.posts[n].ownUnrelatedAnswered);
+          });
+
+          it('should show posts by non-subscribed users if I answered them', async () => {
+            // expectDisplayed(w.unrelatedAnsweredByProtagonist, { author: w.unrelatedId });
+            // TODO BUGBUG: currently unable to resolve the non-subscribed author;
+            //              will display as unknown user
+            expectDisplayed(w.posts[n].unrelatedAnsweredByProtagonist);
+          });
+
+          it("should show my subscription's replies to non-subscribed users", async () => {
+            expectDisplayed(w.posts[n].unrelatedSub, { author: w.directSub });
+            expectDisplayed(w.posts[n].ownUnrelatedSub, { author: w.directSub });
+          });
+
+          it("should show my own replies to non-subscribed users", async () => {
+            expectDisplayed(w.posts[n].unrelatedOwn, { author: w.protagonist });
+          });
+
+          // TODO do we actually want that?
+          it("should NOT display replies to unavailable posts", async () => {
+            expectNotDisplayed(w.posts[n].subUnavailableIndirect);
+          });
+        }  // function testSuite
+
+        describe('pre-existing posts', () => {
+          testSuite(0);
         });
 
-        it("should display my direct subscription's posts", async () => {
-          expectDisplayed(w.posts[0].directUnreplied, { author: w.directSub });
-        });
+        // Currently fails to display user names in some cases and I don't know why
+        describe.skip('posts arriving after the view has been built', () => {
+          beforeAll(async () => {
+            // make a second set of posts appear
+            w.posts.push(new TestWordPostSet(w, " (second set of posts)"));
+            await w.posts[1].makePosts();
+            await w.storeIdentities();
 
-        it("should display indirect subscription's posts", async () => {
-          expectDisplayed(w.posts[0].indirectUnreplied, { author: w.indirectSub });
-          expectDisplayed(w.posts[0].thirdUnreplied, { author: w.thirdLevelSub });
-        });
+            await new Promise(resolve => setTimeout(resolve, 1000));  // give it some time
+          });
 
-        it("should display my own replies to direct subscription's posts", async () => {
-          expectDisplayed(w.posts[0].directOwn, { author: w.protagonist });
-        });
-
-        it("should display my own replies to indirect subscription's posts", async () => {
-          expectDisplayed(w.posts[0].indirectOwn, { author: w.protagonist });
-          expectDisplayed(w.posts[0].thirdOwn, { author: w.protagonist });
-        });
-
-        it("should display my subscription's replies to my own posts", async () => {
-          expectDisplayed(w.posts[0].ownDirect, { author: w.directSub });
-          expectDisplayed(w.posts[0].ownIndirect, { author: w.indirectSub });
-          expectDisplayed(w.posts[0].ownThird, { author: w.thirdLevelSub });
-        });
-
-        it("should display my subscription's replies to my subscription's posts", async () => {
-          expectDisplayed(w.posts[0].directThird, { author: w.thirdLevelSub });
-        });
-
-        if (subscriptionBased) it('should NOT show root posts by non-subscribed users', async () => {
-          expectNotDisplayed(w.posts[0].unrelatedUnanswered);
-        });
-        else it('should show root posts by non-subscribed users', async () => {
-          expectDisplayed(w.posts[0].unrelatedUnanswered, { author: w.unrelatedId });
-        });
-
-        if (subscriptionBased)it('should NOT show replies by non-subscribed users', async () => {
-          expectNotDisplayed(w.posts[0].ownUnrelatedUnanswered);
-        });
-        else it('should show replies by non-subscribed users', async () => {
-          expectDisplayed(w.posts[0].ownUnrelatedUnanswered, { author: w.unrelatedId });
-        });
-
-        it('should show posts by non-subscribed users if subscribed users answered them', async () => {
-          // expectDisplayed(w.ownUnrelatedAnswered, { author: w.unrelatedId });
-          // TODO BUGBUG: currently unable to resolve the non-subscribed author;
-          //              will display as unknown user
-          expectDisplayed(w.posts[0].ownUnrelatedAnswered);
-        });
-
-        it('should show posts by non-subscribed users if I answered them', async () => {
-          // expectDisplayed(w.unrelatedAnsweredByProtagonist, { author: w.unrelatedId });
-          // TODO BUGBUG: currently unable to resolve the non-subscribed author;
-          //              will display as unknown user
-          expectDisplayed(w.posts[0].unrelatedAnsweredByProtagonist);
-        });
-
-        it("should show my subscription's replies to non-subscribed users", async () => {
-          expectDisplayed(w.posts[0].unrelatedSub, { author: w.directSub });
-          expectDisplayed(w.posts[0].ownUnrelatedSub, { author: w.directSub });
-        });
-
-        it("should show my own replies to non-subscribed users", async () => {
-          expectDisplayed(w.posts[0].unrelatedOwn, { author: w.protagonist });
-        });
-
-        // TODO do we actually want that?
-        it("should NOT display replies to unavailable posts", async () => {
-          expectNotDisplayed(w.posts[0].subUnavailableIndirect);
+          testSuite(1);
         });
       });  // describe retrieval mode (explore or my network)
     }  // for (const explore of [true, false])

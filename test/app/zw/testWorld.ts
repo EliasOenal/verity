@@ -133,7 +133,7 @@ export class TestWorld {
     this.indirectSub.addPublicSubscription(this.protagonist.key);
   }
 
-  private storeIdentities(): Promise<void> {
+  storeIdentities(): Promise<void> {
     const promises: Promise<cciCube>[] = [];
     // store Identities
     promises.push(this.protagonist.store());
