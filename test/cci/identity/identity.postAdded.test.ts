@@ -1,4 +1,5 @@
-import { IdentityOptions, PostFormat } from '../../../src/cci/identity/identity';
+import { Identity, IdentityOptions, PostFormat, PostInfo } from '../../../src/cci/identity/identity';
+import { Veritum } from '../../../src/cci/veritum/veritum';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
@@ -8,8 +9,11 @@ import { testCubeStoreParams } from '../testcci.definitions';
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
-function hasPost(list: Veritable[], post: Veritable): boolean {
-  if (list.some(item => item.getKeyStringIfAvailable() === post.getKeyStringIfAvailable())) return true;
+function hasPost(list: PostInfo<Veritum>[], post: Veritable, author?: Identity): boolean {
+  if (list.some(item => (
+    item.post.getKeyStringIfAvailable() === post.getKeyStringIfAvailable() &&
+    (author? item.author.keyString === author.keyString : true)
+  ))) return true;
   else return false;
 }
 
@@ -39,9 +43,10 @@ describe('Identity: emitting postAdded events', () => {
   for (const lvl of [0, 1, 2, 3, 1337]) {
     describe(`recursion level ${lvl} correctness`, () => {
       let w: TestWorld;
-      let posts: Veritable[];
+      let posts: PostInfo<Veritum>[];
 
-      const handler = (post: Veritable) => posts.push(post);
+      const handler: (postInfo: PostInfo<Veritum>) => void =
+        (postInfo: PostInfo<Veritum>) => posts.push(postInfo);
 
       beforeAll(async () => {
         // prepare test data
@@ -67,62 +72,62 @@ describe('Identity: emitting postAdded events', () => {
       });
 
       it('should emit my own root posts', () => {
-        expect(hasPost(posts, w.posts[0].own)).toBe(true);
+        expect(hasPost(posts, w.posts[0].own, w.protagonist)).toBe(true);
       });
 
       if (lvl > 0) it("should emit my 1st level subscription's posts", () => {
-        expect(hasPost(posts, w.posts[0].directUnreplied)).toBe(true);
+        expect(hasPost(posts, w.posts[0].directUnreplied, w.directSub)).toBe(true);
       });
       else it("should NOT emit my 1st level subscription's posts", () => {
         expect(hasPost(posts, w.posts[0].directUnreplied)).toBe(false);
       });
 
       if (lvl > 1) it("should emit my 2nd level subscription's root posts", () => {
-        expect(hasPost(posts, w.posts[0].indirectUnreplied)).toBe(true);
+        expect(hasPost(posts, w.posts[0].indirectUnreplied, w.indirectSub)).toBe(true);
       });
       else it("should NOT emit my 2nd level subscription's root posts", () => {
         expect(hasPost(posts, w.posts[0].indirectUnreplied)).toBe(false);
       });
 
       if (lvl > 2) it("should emit my 3rd level subscription's root posts", () => {
-        expect(hasPost(posts, w.posts[0].thirdUnreplied)).toBe(true);
+        expect(hasPost(posts, w.posts[0].thirdUnreplied, w.thirdLevelSub)).toBe(true);
       });
       else it("should NOT emit my 3rd level subscription's root posts", () => {
-        expect(hasPost(posts, w.posts[0].thirdUnreplied)).toBe(false);
+        expect(hasPost(posts, w.posts[0].thirdUnreplied, w.thirdLevelSub)).toBe(false);
       });
 
       it("should emit my own replies to direct subscription's posts", async () => {
-        expect(hasPost(posts, w.posts[0].directOwn)).toBe(true);
+        expect(hasPost(posts, w.posts[0].directOwn, w.protagonist)).toBe(true);
       });
 
       it("should emit my own replies to indirect subscription's posts", async () => {
-        expect(hasPost(posts, w.posts[0].indirectOwn)).toBe(true);
-        expect(hasPost(posts, w.posts[0].thirdOwn)).toBe(true);
+        expect(hasPost(posts, w.posts[0].indirectOwn, w.protagonist)).toBe(true);
+        expect(hasPost(posts, w.posts[0].thirdOwn, w.protagonist)).toBe(true);
       });
 
       if (lvl > 0) it("should emit my direct subscription's replies to my own posts", async () => {
-        expect(hasPost(posts, w.posts[0].ownDirect)).toBe(true);
+        expect(hasPost(posts, w.posts[0].ownDirect, w.directSub)).toBe(true);
       });
       else it("should NOT emit my direct subscription's replies to my own posts", async () => {
         expect(hasPost(posts, w.posts[0].ownDirect)).toBe(false);
       });
 
       if (lvl > 1) it("should emit my 2nd level subscription's replies to my own posts", async () => {
-        expect(hasPost(posts, w.posts[0].ownIndirect)).toBe(true);
+        expect(hasPost(posts, w.posts[0].ownIndirect, w.indirectSub)).toBe(true);
       });
       else it("should NOT emit my 2nd level subscription's replies to my own posts", async () => {
         expect(hasPost(posts, w.posts[0].ownIndirect)).toBe(false);
       });
 
       if (lvl > 2) it("should emit my 3rd level subscription's replies to my own posts", async () => {
-        expect(hasPost(posts, w.posts[0].ownThird)).toBe(true);
+        expect(hasPost(posts, w.posts[0].ownThird, w.thirdLevelSub)).toBe(true);
       });
       else it("should NOT emit my 3rd level subscription's replies to my own posts", async () => {
         expect(hasPost(posts, w.posts[0].ownThird)).toBe(false);
       });
 
       if (lvl > 2) it("should include 3rd level replies to my 1st level subscription's posts", async () => {
-        expect(hasPost(posts, w.posts[0].directThird)).toBe(true);
+        expect(hasPost(posts, w.posts[0].directThird, w.thirdLevelSub)).toBe(true);
       });
       else it("should NOT include 3rd level replies to my 1st level subscription's posts", async () => {
         expect(hasPost(posts, w.posts[0].directThird)).toBe(false);
@@ -145,8 +150,8 @@ describe('Identity: emitting postAdded events', () => {
       });
 
       if (lvl > 0) it("should include my 1st level subscription's replies to non-subscribed users", async () => {
-        expect(hasPost(posts, w.posts[0].unrelatedSub)).toBe(true);
-        expect(hasPost(posts, w.posts[0].ownUnrelatedSub)).toBe(true);
+        expect(hasPost(posts, w.posts[0].unrelatedSub, w.directSub)).toBe(true);
+        expect(hasPost(posts, w.posts[0].ownUnrelatedSub, w.directSub)).toBe(true);
       });
       else it("should NOT include my 1st level subscription's replies to non-subscribed users", async () => {
         expect(hasPost(posts, w.posts[0].unrelatedSub)).toBe(false);
@@ -154,11 +159,11 @@ describe('Identity: emitting postAdded events', () => {
       });
 
       it("should include my own replies to non-subscribed users", async () => {
-        expect(hasPost(posts, w.posts[0].unrelatedOwn)).toBe(true);
+        expect(hasPost(posts, w.posts[0].unrelatedOwn, w.protagonist)).toBe(true);
       });
 
       if (lvl > 1) it("should include my 2nd level sub's replies to unavailable posts", async () => {
-        expect(hasPost(posts, w.posts[0].subUnavailableIndirect)).toBe(true);
+        expect(hasPost(posts, w.posts[0].subUnavailableIndirect, w.indirectSub)).toBe(true);
       });
       else it("should NOT include my 2nd level sub's replies to unavailable posts", async () => {
         expect(hasPost(posts, w.posts[0].subUnavailableIndirect)).toBe(false);

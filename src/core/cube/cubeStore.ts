@@ -105,7 +105,7 @@ export interface CubeRetrievalInterface<OptionsType = GetCubeOptions> {
   cubeStore: CubeStore;
 }
 
-interface CubeEmitterEvents extends Record<string, (...args: any[]) => void> {
+export interface CubeEmitterEvents extends Record<string, (...args: any[]) => void> {
   cubeAdded: (cubeInfo: CubeInfo) => void;
 }
 
