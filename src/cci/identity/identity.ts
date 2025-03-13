@@ -1,6 +1,6 @@
 
 import type { Shuttable } from '../../core/helpers/coreInterfaces';
-import { unixtime } from '../../core/helpers/misc';
+import { TypedEmitter, unixtime } from '../../core/helpers/misc';
 import { eventsToGenerator, mergeAsyncGenerators, resolveAndYield } from '../../core/helpers/asyncGenerators';
 import { Cube } from '../../core/cube/cube';
 import { KeyVariants, keyVariants } from '../../core/cube/cubeUtil';
@@ -8,7 +8,7 @@ import { logger } from '../../core/logger';
 
 import { ApiMisuseError, Settings, VerityError } from '../../core/settings';
 import { NetConstants } from '../../core/networking/networkDefinitions';
-import { CubeEmitter, CubeRetrievalInterface, CubeStore } from '../../core/cube/cubeStore';
+import { CubeEmitter, CubeEmitterEvents, CubeRetrievalInterface, CubeStore } from '../../core/cube/cubeStore';
 import { CubeInfo } from '../../core/cube/cubeInfo';
 import { CubeError, CubeKey, CubeType } from '../../core/cube/cube.definitions';
 import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
@@ -107,22 +107,50 @@ export interface IdentityOptions {
 
 export enum PostFormat {
   CubeInfo,
-  Cube,
   Veritum,
 };
 
 export const PostFormatEventMap = {
-  [PostFormat.CubeInfo]: 'cubeAdded',  // TODO change, or drop CubeInfo emissions altogether
-  [PostFormat.Cube]: 'cubeAdded',
+  [PostFormat.CubeInfo]: 'cubeAdded',
   [PostFormat.Veritum]: 'postAdded',
 } as const;
 
+export interface PostInfo<postFormat> {
+  post: postFormat;
+  author: Identity;
+}
+
 export interface GetPostsOptions {
+  /**
+   * Select in which way you'd like your posts yielded, either as the full post
+   * Veritum or as a compact CubeInfo object.
+   * Note:
+   *  - Using the default Veritum format implies that all posts need to be
+   *    retrieved over the wire in full, while using the CubeInfo format only
+   *    retrieves the first chunk.
+   *  - Therefore, a post yielded using the CubeInfo format does not guarantee
+   *    that the full post is actually retrievable from the network.
+   *  - If posts in your application may be very large
+   *    (e.g. representing large files), you may wish to use the CubeInfo format.
+   * @default Veritum, allowing callers to directly process (e.g. display)
+   *   the yielded posts. The goal behind this is having the default API as
+   *   intuitive as possible.
+   */
   format?: PostFormat;
+
+  /**
+   * If true, return a PostInfo object containing the post in the specified
+   * format as well as metadata, such as author.
+   * @default false, allowing callers to directly process (e.g. display)
+   *   the yielded posts. The goal behind this is having the default API as
+   *   intuitive as possible.
+   */
+  postInfo?: boolean;
 
   /**
    * A set of Identity key strings to exclude when retrieving not just own posts
    * but also posts by subscribed authors.
+   * You will usually not need this.
    */
   recursionExclude?: Set<string>;
 
@@ -130,9 +158,14 @@ export interface GetPostsOptions {
    * If true, the generator will not exit when all existing data has been yielded.
    * Instead, it will keep running indefinetely, yielding values as new data
    * becomes available.
-   * The caller must call return() on the generator to exit it.
+   * TODO provide a way to terminate the generator
    */
   subscribe?: boolean;
+}
+
+
+interface IdentityEvents extends CubeEmitterEvents {
+  postAdded: (postInfo: PostInfo<Veritum>) => void;
 }
 
 // TODO: Split out the MUC management code.
@@ -203,7 +236,7 @@ export interface GetPostsOptions {
  *
  * TODO: Specify maximums to make sure all of that nicely fits into a single MUC.
  */
-export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
+export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitter, Shuttable {
 
   //###
   // #region Static Construction methods
@@ -670,15 +703,16 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
 
 
   getPosts(options?: GetPostsOptions): AsyncGenerator<Veritum>;
-  getPosts(options: { format: PostFormat.Veritum} ): AsyncGenerator<Veritum>;
-  getPosts(options: { format: PostFormat.Cube} ): AsyncGenerator<Cube>;
-  getPosts(options: { format: PostFormat.CubeInfo} ): AsyncGenerator<CubeInfo>;
-  getPosts(options: GetPostsOptions): AsyncGenerator<CubeInfo|Cube|Veritum>;
+  getPosts(options: { format: PostFormat.Veritum, postInfo: false|undefined } ): AsyncGenerator<Veritum>;
+  getPosts(options: { format: PostFormat.CubeInfo, postInfo: false|undefined } ): AsyncGenerator<CubeInfo>;
+  getPosts(options: { format: PostFormat.Veritum, postInfo: true } ): AsyncGenerator<PostInfo<Veritum>>;
+  getPosts(options: { format: PostFormat.CubeInfo, postInfo: true } ): AsyncGenerator<PostInfo<CubeInfo>>;
+  getPosts(options: GetPostsOptions): AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>;
   async *getPosts(
     options: GetPostsOptions = {},
-  ): AsyncGenerator<CubeInfo|Cube|Veritum> {
+  ): AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>> {
     // set default options
-    options.format ??= this.veritumRetriever? PostFormat.Veritum: PostFormat.Cube;
+    options.format ??= this.veritumRetriever? PostFormat.Veritum: PostFormat.CubeInfo;
     // note: recursionExclude set created below to avoid unnecessary constructions
 
     // check if we even have the means to fulfil this request
@@ -697,26 +731,35 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
     else options.recursionExclude.add(this.keyString);
 
     // Get all my posts (as retrieval promises)
-    const minePromises: Promise<CubeInfo|Cube|Veritum>[] = [];
+    const minePromises: Promise<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>[] = [];
     for (const post of this.getPostKeyStrings()) {
       let promise: Promise<CubeInfo|Cube|Veritum>;
       switch(options.format) {
         case PostFormat.CubeInfo:
           promise = this.cubeRetriever.getCubeInfo(post);
-        case PostFormat.Cube:
-          promise = this.cubeRetriever.getCube(post);
-          break;
         case PostFormat.Veritum:
           promise = this.veritumRetriever.getVeritum(post, {
             recipient: this,
           });
           break;
       }
-      if (promise !== undefined) minePromises.push(promise);
+      if (promise !== undefined) {
+        if (options.postInfo) {
+          minePromises.push(promise.then(payload => {
+            return {
+              post: payload,
+              author: this,
+            }
+          }));
+        } else {
+          minePromises.push(promise);
+        }
+      }
     }
 
     // Prepare Generator for my posts
-    const mine: AsyncGenerator<CubeInfo|Cube|Veritum> = resolveAndYield(minePromises);
+    const mine: AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>> =
+      resolveAndYield(minePromises);
 
     // Prepare Generators for my subscription's posts
     const rGens: AsyncGenerator<CubeInfo|Cube|Veritum>[] = [];
@@ -724,17 +767,25 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       for (const subKey of this.getPublicSubscriptionStrings()) {
         rGens.push(this.getPublicSubscriptionPosts(subKey, {
           ...options,
+          subscribe: false,  // subscription mode is always handled through events
         }));
       }
     }
 
     // Merge all those generators
-    let ret: AsyncGenerator<CubeInfo|Cube|Veritum>;
-
+    let ret: AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>;
 
     // In subscription mode, keep going and yield new data as it arrives
+    // TODO BUGBUG respect output format
+
+    const extractPost = (postInfo: PostInfo<any>) => postInfo.post;
+
     if (options.subscribe) {
-      const subGen: AsyncGenerator<Veritum> = eventsToGenerator([{emitter: this, event: 'postAdded'}]);
+      const subGen: AsyncGenerator<Veritum> =
+        eventsToGenerator(
+          [{emitter: this, event: 'postAdded'}],
+          (!options.postInfo? extractPost : undefined),
+      );
       ret = mergeAsyncGenerators(mine, ...rGens, subGen);
     } else {
       ret = mergeAsyncGenerators(mine, ...rGens);
@@ -1528,7 +1579,10 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
       logger.warn(`Identity ${this.keyString}.emitPostAdded() was called for an unavailable post; skipping.`);
       return;
     }
-    this.doEmitPostAdded(veritum);  // okay, emit!
+    this.doEmitPostAdded({
+      post: veritum,
+      author: this,
+    });  // okay, emit!
   }
 
 
@@ -1536,12 +1590,12 @@ export class Identity extends EventEmitter implements CubeEmitter, Shuttable {
   //       for method handler adding and removal.
   //       This method is also used for recursive re-emissions
   private doEmitPostAdded = (
-    post: Veritum,
+    postInfo: PostInfo<Veritum>,
     recursionCount: number = 0,
     except: Set<string> = new Set(),
   ): void => {
     if (this.shouldIEmit('postAdded', recursionCount, except)) {
-      this.doEmit('postAdded', post, recursionCount, except);
+      this.doEmit('postAdded', postInfo, recursionCount, except);
     }
   }
 
