@@ -94,21 +94,23 @@ export async function* resolveAndYield<T>(
  * It's basically an adapter from events to await for ... of.
  *
  * @param emitters - An array of objects containing an EventEmitter and the event name to listen for.
- * @returns An async generator yielding objects with event names and their corresponding data.
+ * @param transform - An optional function that transforms each emitted event before yielding.
+ * @returns An async generator yielding transformed or original event data.
  */
-export async function* eventsToGenerator(
-  emitters: { emitter: EventEmitter; event: string }[]
-): AsyncGenerator<any> {
+export async function* eventsToGenerator<Emitted, Transformed = Emitted>(
+  emitters: { emitter: EventEmitter; event: string }[],
+  transform?: (data: Emitted) => Transformed
+): AsyncGenerator<Transformed> {
   // Sanity check: If no emitters are provided, exit immediately.
   if (emitters.length === 0) {
     return;
   }
 
-  const queue: any[] = [];
+  const queue: Emitted[] = [];
   let resolveQueue: (() => void) | null = null;
 
   // Event handler factory that pushes data into the queue
-  const createHandler = (event: string) => (data: any): void => {
+  const createHandler = (event: string) => (data: Emitted): void => {
     queue.push(data);
     if (resolveQueue) {
       resolveQueue();
@@ -128,7 +130,8 @@ export async function* eventsToGenerator(
         await new Promise<void>((resolve) => (resolveQueue = resolve));
       }
       while (queue.length > 0) {
-        yield queue.shift()!;
+        const data = queue.shift()!;
+        yield transform ? transform(data) : data as unknown as Transformed;
       }
     }
   } finally {
