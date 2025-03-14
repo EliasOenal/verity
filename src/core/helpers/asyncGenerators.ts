@@ -124,20 +124,31 @@ export async function* eventsToGenerator<Emitted, Transformed = Emitted>(
     return () => emitter.removeListener(event, listener);
   });
 
+  // All preparations done!
   try {
+    // Run the main loop:
     while (true) {
+      // If there is currently nothing ready to yield, wait for the next
+      // Promise to resolve.
       if (queue.length === 0) {
         await new Promise<void>((resolve) => (resolveQueue = resolve));
       }
+      // But if there is something ready, yield it now.
       while (queue.length > 0) {
-        const data = queue.shift()!;
-        yield transform ? transform(data) : data as unknown as Transformed;
+        // Fetch something from the queue of data ready to yield
+        let data: Emitted|Transformed = queue.shift()!;
+        // If requested by the caller, run a transformation on the data
+        if (transform) data = transform(data);
+        yield data as any;  // typecast: data will either be Emitted or Transformed
       }
     }
   } finally {
+    // We're finished! Just do some cleanup work:
+    // - Resolve the last pending Promise, if any -- TODO: why?
     if (resolveQueue) {
       resolveQueue();
     }
+    // - Unsubscribe all event listeners
     for (const unsubscribe of unsubscribeFns) {
       unsubscribe();
     }
