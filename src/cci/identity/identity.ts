@@ -701,12 +701,10 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
     yield *resolveAndYield(promises);
   }
 
-
-  getPosts(options?: GetPostsOptions): AsyncGenerator<Veritum>;
-  getPosts(options: { format: PostFormat.Veritum, postInfo: false|undefined } ): AsyncGenerator<Veritum>;
-  getPosts(options: { format: PostFormat.CubeInfo, postInfo: false|undefined } ): AsyncGenerator<CubeInfo>;
-  getPosts(options: { format: PostFormat.Veritum, postInfo: true } ): AsyncGenerator<PostInfo<Veritum>>;
-  getPosts(options: { format: PostFormat.CubeInfo, postInfo: true } ): AsyncGenerator<PostInfo<CubeInfo>>;
+  getPosts(options: { format: PostFormat.Veritum, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<Veritum>>;
+  getPosts(options: { format: PostFormat.CubeInfo, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<CubeInfo>>;
+  getPosts(options: { format: PostFormat.Veritum, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<Veritum>;
+  getPosts(options: { format: PostFormat.CubeInfo, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<CubeInfo>;
   getPosts(options: GetPostsOptions): AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>;
   async *getPosts(
     options: GetPostsOptions = {},
@@ -746,6 +744,7 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
       if (promise !== undefined) {
         if (options.postInfo) {
           minePromises.push(promise.then(payload => {
+            if (payload === undefined) return undefined;
             return {
               post: payload,
               author: this,
@@ -762,7 +761,7 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
       resolveAndYield(minePromises);
 
     // Prepare Generators for my subscription's posts
-    const rGens: AsyncGenerator<CubeInfo|Cube|Veritum>[] = [];
+    const rGens: AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>[] = [];
     if (this.subscriptionRecursionDepth > 0) {
       for (const subKey of this.getPublicSubscriptionStrings()) {
         rGens.push(this.getPublicSubscriptionPosts(subKey, {
@@ -848,11 +847,16 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
     return this.identityStore.retrieveIdentity(keyInput);
   }
 
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: PostFormat.Veritum, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<Veritum>>;
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: PostFormat.CubeInfo, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<CubeInfo>>;
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: PostFormat.Veritum, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<Veritum>;
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: PostFormat.CubeInfo, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<CubeInfo>;
   /**
    * Retrieves the posts by a specific subscribed Identity.
    * Note that this actually also works for non-subscribed users.
    */
-  async *getPublicSubscriptionPosts(keyInput: CubeKey|string, options?: GetPostsOptions): AsyncGenerator<Veritum> {
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options?: GetPostsOptions): AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>;
+  async *getPublicSubscriptionPosts(keyInput: CubeKey|string, options?: GetPostsOptions): AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>> {
     const identity: Identity = await this.getPublicSubscriptionIdentity(keyInput);
     if (identity !== undefined) {
       yield* identity.getPosts(options);

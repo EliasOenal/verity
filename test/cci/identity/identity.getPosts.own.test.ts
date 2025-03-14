@@ -15,9 +15,15 @@ import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
 
 describe('Identity: getPosts generator; own posts only (no recursion)', () => {
-  // This test suite handles Identity's impelementation of the CubeEmitter interface,
-  // in particular the getAllCubeInfos() generator and related, more specialised
-  // and Identity-specific CubeInfo generators.
+  // Tests regarding the retrieval of an Identity's own posts using the
+  // getPosts() generator.
+  // These tests include testing multi-Cube Verita restoration and tests
+  // across different Cube types.
+  // It does not test
+  // - recursion (i.e. retrieving posts by subscribed Identities),
+  // - the PostInfo format, or
+  // - subscription mode (continues retrieval of posts as they arrive) --
+  // all of these are handled in identity.getPosts.recursive.test.ts.
 
   let idTestOptions: IdentityOptions;
   let cubeStore: CubeStore;
@@ -353,7 +359,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
   });
 
   describe('edge cases', () => {
-    it.todo('will return undefined if a chunk is missing');
+    it.todo('will not yield a post if a chunk is missing');
     it.todo('will return available Verita quickly even if others take a long time to retrieve');
   });
 });
