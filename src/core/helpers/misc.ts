@@ -63,9 +63,9 @@ export function isIterableButNotBuffer(obj: any): boolean {
 
 
 // Enforce that event mappings have function values
-type EventMap = Record<string, (...args: any[]) => void>;
+export type TypedEmitterEventMap = Record<string, (...args: any[]) => void>;
 
-export class TypedEmitter<T extends EventMap> extends EventEmitter {
+export class TypedEmitter<T extends TypedEmitterEventMap> extends EventEmitter {
   emit<K extends keyof T & (string | symbol)>(event: K, ...args: Parameters<T[K]>): boolean {
     return super.emit(event, ...args);
   }
