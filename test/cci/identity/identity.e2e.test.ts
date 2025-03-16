@@ -158,8 +158,8 @@ describe('Identity: end-to-end tests', () => {
 
     { // block on local node
       // now let's restore the subject on a different node
-      const restored: Identity = await Identity.Load(cubeRetriever,
-        "user remotus", "clavis secreta", idTestOptions);
+      const restored: Identity = (await Identity.Load(cubeRetriever,
+        "user remotus", "clavis secreta", idTestOptions))!;
 
       // verify all basic properties have been restored correctly
       expect(restored.name).toBe("usor in alia parte retis positus");

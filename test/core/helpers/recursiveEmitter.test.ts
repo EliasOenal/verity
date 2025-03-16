@@ -168,7 +168,7 @@ describe("RecursiveEmitter", () => {
       const parent = new TestEmitter([child]);
       // Set maxRecursiveDepth to 1 so that grandchild should be skipped.
       const record: RecursiveEmitterRecord = { emitter: parent, event: "limitTest" };
-      const recursiveEmitter = new RecursiveEmitter([record], 1);
+      const recursiveEmitter = new RecursiveEmitter([record], { depth: 1 });
       await recursiveEmitter.ready;
 
       const listener = vi.fn();

@@ -31,10 +31,13 @@ import EventEmitter from 'events';
 import { Veritum } from '../veritum/veritum';
 import { VeritumRetrievalInterface, VeritumRetriever } from '../veritum/veritumRetriever';
 import { CubeRequestOptions } from '../../core/networking/cubeRetrieval/requestScheduler';
+import { RecursiveEmitter } from '../../core/helpers/recursiveEmitter';
 
 // Identity defaults
+// TODO move to settings
 const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
 const DEFAULT_MIN_MUC_REBUILD_DELAY = 5;  // minimum five seconds between Identity MUC generations unless specified otherwise
+const DEFAULT_SUBSCRIPTION_RECURSION_DEPTH = 10;
 
 // Key derivation defaults
 const DEFAULT_IDMUC_CONTEXT_STRING = "CCI Identity";
@@ -148,19 +151,36 @@ export interface GetPostsOptions {
   postInfo?: boolean;
 
   /**
-   * A set of Identity key strings to exclude when retrieving not just own posts
-   * but also posts by subscribed authors.
-   * You will usually not need this.
-   */
-  recursionExclude?: Set<string>;
-
-  /**
    * If true, the generator will not exit when all existing data has been yielded.
    * Instead, it will keep running indefinetely, yielding values as new data
    * becomes available.
    * TODO provide a way to terminate the generator
    */
   subscribe?: boolean;
+
+  /**
+   * When set to a number greater than 0, getPosts() will not only fetch this
+   * Identity's own posts but also posts by subscribed authors.
+   * This number is the maximum recursion depth, i.e. the maximum level of
+   * indirect subscriptions.
+   * Defaults to 0, i.e. only retrieves this Identity's own posts.
+   */
+  depth?: number;
+
+  /**
+   * A set of Identity key strings to exclude when retrieving not just own posts
+   * but also posts by subscribed authors.
+   * Note: This options only applies to retrieving pre-existing posts, not to
+   *       new posts in subscription mode.
+   * You will usually not need this.
+   */
+  recursionExclude?: Set<string>;
+
+}
+
+export interface GetRecursiveEmitterOptions {
+  depth?: number,
+  event?: string,
 }
 
 
@@ -248,7 +268,7 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
       username: string,
       password: string,
       options?: IdentityOptions&CubeRequestOptions,
-  ): Promise<Identity | undefined> {
+  ): Promise<Identity> {
     await sodium.ready;
     const masterKey: Buffer = Identity.DeriveMasterKey(username, password,
       options?.argonCpuHardness, options?.argonMemoryHardness);
@@ -470,9 +490,6 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
   /** @member - Points to first cube in the profile picture continuation chain */
   profilepic: CubeKey = undefined;
 
-  private _subscriptionRecursionDepth: number = 0;
-  get subscriptionRecursionDepth(): number { return this._subscriptionRecursionDepth }
-
   /** When the user tries to rebuild their Identity MUC too often, we'll
    * remember their request in this promise. Any subsequent Identity changes
    * will then be handles in a single rebuild.
@@ -641,13 +658,11 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
       this._publicSubscriptions.add(key);
       // emit event
       this.emitCubeAdded(key);
-      // set event recursion depth
-      if (this._subscriptionRecursionDepth > 0) {
-        const subPromise: Promise<Identity> = this.identityStore.retrieveIdentity(key);
-        return subPromise.then((sub: Identity) => {
-          return this.setSubscriptionRecursionDepthPerSub(sub);
-        })
-      } else return Promise.resolve();
+
+      // TODO: ensure that any existing RecursiveEmitters as well as any
+      //   getPosts() generators are updated to emit/yield from the new sub
+
+      return Promise.resolve();
     } else {
       logger.warn("Identity: Ignoring subscription request to something that does not at all look like a CubeKey");
       return Promise.resolve();
@@ -701,17 +716,17 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
     yield *resolveAndYield(promises);
   }
 
-  getPosts(options: { format: PostFormat.Veritum, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<Veritum>>;
-  getPosts(options: { format: PostFormat.CubeInfo, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<CubeInfo>>;
-  getPosts(options: { format: PostFormat.Veritum, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<Veritum>;
-  getPosts(options: { format: PostFormat.CubeInfo, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<CubeInfo>;
+  getPosts(options: { format: PostFormat.Veritum, postInfo: true, subscribe?: boolean, depth?: number } ): AsyncGenerator<PostInfo<Veritum>>;
+  getPosts(options: { format: PostFormat.CubeInfo, postInfo: true, subscribe?: boolean, depth?: number } ): AsyncGenerator<PostInfo<CubeInfo>>;
+  getPosts(options: { format: PostFormat.Veritum, postInfo?: false, subscribe?: boolean, depth?: number } ): AsyncGenerator<Veritum>;
+  getPosts(options: { format: PostFormat.CubeInfo, postInfo?: false, subscribe?: boolean, depth?: number } ): AsyncGenerator<CubeInfo>;
   getPosts(options: GetPostsOptions): AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>;
   async *getPosts(
     options: GetPostsOptions = {},
   ): AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>> {
     // set default options
     options.format ??= this.veritumRetriever? PostFormat.Veritum: PostFormat.CubeInfo;
-    // note: recursionExclude set created below to avoid unnecessary constructions
+    options.depth ??= 0;
 
     // check if we even have the means to fulfil this request
     if (this.cubeStore === undefined) {
@@ -762,10 +777,11 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
 
     // Prepare Generators for my subscription's posts
     const rGens: AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>[] = [];
-    if (this.subscriptionRecursionDepth > 0) {
+    if (options.depth > 0) {
       for (const subKey of this.getPublicSubscriptionStrings()) {
         rGens.push(this.getPublicSubscriptionPosts(subKey, {
           ...options,
+          depth: options.depth - 1,
           subscribe: false,  // subscription mode is always handled through events
         }));
       }
@@ -780,9 +796,10 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
     const extractPost = (postInfo: PostInfo<any>) => postInfo.post;
 
     if (options.subscribe) {
+      const emitter = this.getRecursiveEmitter({ event: 'postAdded', depth: options.depth });
       const subGen: AsyncGenerator<Veritum> =
         eventsToGenerator(
-          [{emitter: this, event: 'postAdded'}],
+          [{emitter: emitter, event: 'postAdded'}],
           (!options.postInfo? extractPost : undefined),
       );
       ret = mergeAsyncGenerators(mine, ...rGens, subGen);
@@ -836,6 +853,8 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
       if (retrieved !== undefined) yield retrieved;
     }
   }
+  // Alias to satisfy the RecursiveEmitterConstituent interface
+  getSubemitters = this.getPublicSubscriptionIdentities;
 
   /**
    * @returns An Identity object for the specified subscribed user
@@ -878,7 +897,7 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
    *      same for all of our indirect subscriptions up to the specified depth
    */
   async *getAllCubeInfos(
-    subscriptionRecursionDepth: number = this._subscriptionRecursionDepth,
+    subscriptionRecursionDepth: number = 0,
     exclude: Set<string> = new Set(),
   ): AsyncGenerator<CubeInfo> {
     // Avoid ping-ponging recursion by keeping track of already visited IDs
@@ -906,38 +925,19 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
   }
 
   /**
-   * Defines the behaviour of getPosts() as well as event emissions from this
-   * Identity object.
-   * If set to 0, which is the default,
-   * this Identity object will only fetch posts for itself.
-   * If set to 1, this Identity object will fetch posts for itself and
-   * all of its directly subscribed Identites.
-   * If set to 2, this Identity object will fetch posts for itself and
-   * all of its directly subscribed Identites and their subscriptions;
-   * and so on to build a web of trust of whatever depth is specified.
-   * Note that by using this method, this Identity object takes ownership of all
-   * other Identity objects it is linked to and will in turn set their
-   * subscription recursion depth to an appropriate (lower) value.
-   * @default 0, i.e. own posts only
+   * Returns a recursive emitter that will re-emit events from this Identity
+   * as well as any of this Identity's subscriptions.
+   * By default, it will emit posts through the postAdded event.
    */
-  async setSubscriptionRecursionDepth(
-      depth: number = this._subscriptionRecursionDepth,
-      except: Set<string> = new Set(),
-  ): Promise<void> {
-    //  - TODO: Make subscription depth dynamic:
-    //    We'll need a global maximum of in-memory Identites
-    //    at some point. Reduce WOT depth automatically once it is reached.
+  getRecursiveEmitter(options: GetRecursiveEmitterOptions = {}) {
+    // set default options
+    options.depth ??= DEFAULT_SUBSCRIPTION_RECURSION_DEPTH;
+    options.event ??= 'postAdded';
 
-    // prevent infinite recursion
-    if (except.has(this.keyString)) return Promise.resolve();
-    else except.add(this.keyString);
-
-    this._subscriptionRecursionDepth = depth;
-    const donePromises: Promise<void>[] = [];
-    for await (const sub of this.getPublicSubscriptionIdentities()) {
-      donePromises.push(this.setSubscriptionRecursionDepthPerSub(sub, depth, except));
-    }
-    return Promise.all(donePromises).then(() => undefined);
+    return new RecursiveEmitter(
+      [{emitter: this, event: options.event}],
+      { depth: options.depth },
+    );
   }
 
   //###
@@ -1502,40 +1502,6 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
   // #region PRIVATE Post/Subscription/Cube Emission
   //###
 
-  private setSubscriptionRecursionDepthPerSub(
-    sub: Identity,
-    depth: number = this._subscriptionRecursionDepth,
-    except: Set<string> = new Set(),
-  ): Promise<void> {
-  // input sanitisation
-  if (sub === undefined) {
-    logger.warn('Identity.setSubscriptionRecursionDepthPerSub(): param sub is undefined; skipping.');
-    return Promise.resolve();
-  }
-  // Prevent infinite recursion.
-  // (Sub will itself add itself to the except set once it has been called.)
-  if (except.has(sub.keyString)) return Promise.resolve();
-
-  // If any recursion is requested at all, we will re-emit my subscription's events.
-  // Otherwise, we obviously cancel our re-emissions.
-  if (depth > 0) {
-    if (!sub.listeners('cubeAdded').includes(this.doEmitCubeAdded)) {
-      sub.on('cubeAdded', this.doEmitCubeAdded);
-    }
-    if (!sub.listeners('postAdded').includes(this.emitCubeAdded)) {
-      sub.on('postAdded', this.doEmitPostAdded);
-    }
-  } else {
-    sub.removeListener('cubeAdded', this.doEmitCubeAdded);
-    sub.removeListener('postAdded', this.doEmitPostAdded);
-  }
-
-  // Let my subscriptions know the new recursion level, which is obviously
-  // reduces by one as we're descending one level.
-  const nextLevelDepth: number = (depth < 1) ? 0 : depth - 1;
-  return sub.setSubscriptionRecursionDepth(nextLevelDepth, except);
-}
-
   private async emitCubeAdded(
       input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>,
   ): Promise<void> {
@@ -1548,7 +1514,9 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
       return;
     }
 
-    this.doEmitCubeAdded(cubeInfo);  // okay, emit!
+    if (this.shouldIEmit('cubeAdded')) {
+      this.emit('cubeAdded', cubeInfo);
+    }
   }
 
   private retrieveCubeInfo(input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>): Promise<CubeInfo> {
@@ -1563,19 +1531,6 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
     }
   }
 
-  // Note: Must use arrow function syntax to keep this method correctly bound
-  //       for method handler adding and removal.
-  //       This method is also used for recursive re-emissions
-  private doEmitCubeAdded = (
-    payload: CubeInfo,
-    recursionCount: number = 0,
-    except: Set<string> = new Set(),
-  ): void => {
-    if (this.shouldIEmit('cubeAdded', recursionCount, except)) {
-      this.doEmit('cubeAdded', payload, recursionCount, except);
-    }
-  }
-
   private async emitPostAdded(key: CubeKey): Promise<void> {
     if (!this.shouldIEmit('postAdded')) return;  // should I even emit?
     const veritum = await this.veritumRetriever?.getVeritum?.(key);
@@ -1583,57 +1538,22 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
       logger.warn(`Identity ${this.keyString}.emitPostAdded() was called for an unavailable post; skipping.`);
       return;
     }
-    this.doEmitPostAdded({
-      post: veritum,
-      author: this,
-    });  // okay, emit!
-  }
-
-
-  // Note: Must use arrow function syntax to keep this method correctly bound
-  //       for method handler adding and removal.
-  //       This method is also used for recursive re-emissions
-  private doEmitPostAdded = (
-    postInfo: PostInfo<Veritum>,
-    recursionCount: number = 0,
-    except: Set<string> = new Set(),
-  ): void => {
-    if (this.shouldIEmit('postAdded', recursionCount, except)) {
-      this.doEmit('postAdded', postInfo, recursionCount, except);
+    if (this.shouldIEmit('postAdded')) {
+      this.emit('postAdded', {
+        post: veritum,
+        author: this,
+      });
     }
   }
-
 
   private shouldIEmit(
     eventName: string,
-    recursionCount: number = 0,
-    except?: Set<string>,
   ): boolean {
     // only emit if there is a listener
     if (this.listenerCount(eventName) === 0) return false;
-
-    // prevent endless recursion by keeping track of the recursion count
-    if (recursionCount > this._subscriptionRecursionDepth) {
-      logger.warn(`Identity ${this.keyString}.emitCubeAdded() was called for a CubeInfo with too many levels of recursion; skipping.`);
-      return false;
-    }
-
-    // avoid ping-ponging recursion by keeping track of already visited IDs
-    if (except?.has?.(this.keyString)) return false;
-
-    return true;
+    else return true;
   }
 
-  private doEmit(
-    eventName: string,
-    payload: any,
-    recursionCount: number = 0,
-    except: Set<string>,
-  ): void {
-    recursionCount++;
-    except.add(this.keyString);
-    this.emit(eventName, payload, recursionCount, except);
-  }
 
   //###
   // #endregion
