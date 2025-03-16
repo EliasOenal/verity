@@ -239,10 +239,6 @@ describe('Identity: CubeInfo generators', () => {
 
     describe('getAllCubeInfos()', () => {
       describe('tests without recursion', () => {
-        beforeEach(async () => {
-          await id.setSubscriptionRecursionDepth(0);
-        });
-
         it('yields the Identity\'s own root Cube', async () => {
           // prepare test:
           // makeMUC() must have been called at least once for Identity properties
@@ -305,10 +301,6 @@ describe('Identity: CubeInfo generators', () => {
       });  // tests without recursion
 
       describe('tests with single level recursion', () => {
-        beforeEach(async () => {
-          await id.setSubscriptionRecursionDepth(1);
-        });
-
         it('yields the Identity\'s own stuff as well as all of the above for its two subscribed Identities', async () => {
           // make a post
           const post: cciCube = cciCube.Create({
@@ -366,7 +358,7 @@ describe('Identity: CubeInfo generators', () => {
           sub2.addPublicSubscription(sub2Sub.getKeyIfAvailable());
 
           // perform test
-          const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos());
+          const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos(1));
 
           // check results:
           // 1. the Identity itself
@@ -395,10 +387,6 @@ describe('Identity: CubeInfo generators', () => {
       });  // tests with single level recursion
 
       describe('tests with two levels of recursion', () => {
-        beforeEach(async () => {
-          await id.setSubscriptionRecursionDepth(2);
-        })
-
         it('yields our subscribed Identities\' posts and subscriptions, as well as their subscribed Identities\' posts and subscriptions, except unavailable ones', async () => {
           // make an Identity to subscribe to
           const sub1MasterKey: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 43);
@@ -450,7 +438,7 @@ describe('Identity: CubeInfo generators', () => {
           await id.store();
 
           // perform test
-          const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos());
+          const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos(2));
 
           // check results:
           // 1. the Identity itself
@@ -536,10 +524,10 @@ describe('Identity: CubeInfo generators', () => {
             id.addPublicSubscription(id.key);
             await id.store();
 
-            await id.setSubscriptionRecursionDepth(Infinity);  // though shalt not save us
-
             // Perform test - should complete without throwing
-            const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos());
+            const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos(
+              Infinity,  // though shalt not save us
+            ));
 
             // Check results:
             // Should still get our own cube info
@@ -572,10 +560,10 @@ describe('Identity: CubeInfo generators', () => {
             await sub2.store();
             await id.store();
 
-            await id.setSubscriptionRecursionDepth(Infinity);  // though shalt not save us
-
             // Perform test
-            const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos());
+            const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos(
+              Infinity,  // though shalt not save us
+            ));
 
             // Check results:
             expect(cubeInfos.length).toBeLessThan(10);

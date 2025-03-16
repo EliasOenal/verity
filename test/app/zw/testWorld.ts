@@ -1,6 +1,6 @@
 import { Cube } from "../../../src/core/cube/cube";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
-import { CubeStore, CubeStoreOptions } from "../../../src/core/cube/cubeStore";
+import { CubeEmitter, CubeStore, CubeStoreOptions } from "../../../src/core/cube/cubeStore";
 
 import { cciCube } from "../../../src/cci/cube/cciCube";
 import { Identity, IdentityOptions } from "../../../src/cci/identity/identity";
@@ -61,9 +61,11 @@ export class TestWorld {
 
   /** For unit testing only, not to be used for integration/UI tests */
   async setFullWot(): Promise<void> {
-    await this.protagonist.setSubscriptionRecursionDepth(1337); // go DEEP!
+    const emitter = this.protagonist.getRecursiveEmitter({event: "cubeAdded", depth: 1337 });
+    const protagonist = this.protagonist;
+    emitter['getAllCubeInfos'] = async function*(...args) { yield* protagonist.getAllCubeInfos(...args) }  // HACKHACK
     this.engine = new ZwAnnotationEngine(
-      this.protagonist,
+      emitter as unknown as CubeEmitter,  // HACKHACK
       this.cubeStore,
       SubscriptionRequirement.subscribedReply,
       undefined,

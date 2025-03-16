@@ -70,8 +70,8 @@ export class NotifyingIdentityEmitter extends EventEmitter implements CubeEmitte
                 return;
               }
               this.identities.set(identity.keyString, identity);
-              identity.setSubscriptionRecursionDepth(this.options.identityRecursionDepth);
-              identity.on('cubeAdded', this.reEmit);
+              const emitter = identity.getRecursiveEmitter({event: 'cubeAdded', depth: this.options.identityRecursionDepth });
+              emitter.on('cubeAdded', this.reEmit);
               // initial emit
               (async() => {
                 for await (const cubeInfo of identity.getAllCubeInfos()) {

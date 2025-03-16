@@ -1,3 +1,4 @@
+import { RecursiveEmitter } from '../../../src/core/helpers/recursiveEmitter';
 import { Identity, IdentityOptions, PostFormat, PostInfo } from '../../../src/cci/identity/identity';
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
@@ -44,6 +45,7 @@ describe('Identity: emitting postAdded events', () => {
     describe(`recursion level ${lvl} correctness`, () => {
       let w: TestWorld;
       let posts: PostInfo<Veritum>[];
+      let emitter: RecursiveEmitter;
 
       const handler: (postInfo: PostInfo<Veritum>) => void =
         (postInfo: PostInfo<Veritum>) => posts.push(postInfo);
@@ -55,11 +57,11 @@ describe('Identity: emitting postAdded events', () => {
         w.makeSubscriptions();
 
         // set recursion level
-        w.protagonist.setSubscriptionRecursionDepth(lvl);
+        emitter = w.protagonist.getRecursiveEmitter({ depth: lvl });
 
         // set up test listener
         posts = [];
-        w.protagonist.on('postAdded', handler);
+        emitter.on('postAdded', handler);
 
         // run test
         w.posts = [new TestWordPostSet(w, "")];
@@ -67,7 +69,8 @@ describe('Identity: emitting postAdded events', () => {
       });
 
       afterAll(async () => {
-        w.protagonist.removeListener('postAdded', handler);
+        emitter.removeListener('postAdded', handler);
+        await emitter.shutdown();
         await w.protagonist.identityStore.shutdown();
       });
 
@@ -173,11 +176,28 @@ describe('Identity: emitting postAdded events', () => {
 
   describe.todo('reducing the recursion level');
 
+  describe.todo('will automatically emit posts from newly added subscriptions');
+
   describe('feature auto-disable', () => {
-    it.todo('will not resolve posts if there are no subscribers');
-    // TODO FIXME: even when recursion level > 0 no post retrieval should take place
-    //   if there are no subscribers; this currently does not work because
-    //   the root Identity is always subscribed on recursion level > 0
-    //   even if it has no subscribers itself :-/
+    it('will not retrieve Verita if there are no subscribers', async () => {
+      // prepare test
+      const w: TestWorld = new TestWorld();
+      w.createIdentities();
+      w.makeSubscriptions();
+
+      // Spy on the CubeStore's getCubeInfo method
+      const getVeritumSpy = vi.spyOn(w.retriever, 'getVeritum');
+
+      // Make posts
+      w.posts = [new TestWordPostSet(w, "")];
+      await w.posts[0].makePosts();
+
+      // assert that no Verita were retrieved
+      expect(getVeritumSpy).not.toHaveBeenCalled();
+
+      // cleanup
+      await w.protagonist.identityStore.shutdown();
+      getVeritumSpy.mockRestore();
+    });
   });
 });

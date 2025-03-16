@@ -32,11 +32,11 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
         // prepare test setup
         w = new TestWorld({ subscriptions: true, notifications: false });
         await w.setup();
-        await w.protagonist.setSubscriptionRecursionDepth(lvl);
 
         // run tests using direct post output, i.e. no PostInfos
         (async() => {
           for await (const post of w.protagonist.getPosts({
+            depth: lvl,
             format: PostFormat.Veritum,
             postInfo: false,
             subscribe: true,
@@ -48,6 +48,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
         // run tests using PostInfo output
         (async() => {
           for await (const postInfo of w.protagonist.getPosts({
+            depth: lvl,
             format: PostFormat.Veritum,
             postInfo: true,
             subscribe: true,
@@ -188,30 +189,10 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
   });  // Veritum post format
 
   describe('edge cases', () => {
-    // BUGBUG FIXME This currently does not work as soon as recursion is involved,
-    //   because recursion means there's always the parent object as a subscriber,
-    //   thus resolution will always take place because there is a subscriber :(
-    it.skip('will not retrieve Verita if there are no subscribers', async () => {
-      // prepare test
-      const w: TestWorld = new TestWorld();
-      w.createIdentities();
-      w.protagonist.setSubscriptionRecursionDepth(1337);  // GO DEEP!
-      w.makeSubscriptions();
-
-      // Spy on the CubeStore's getCubeInfo method
-      const getVeritumSpy = vi.spyOn(w.retriever, 'getVeritum');
-
-      // Make posts
-      w.posts = [new TestWordPostSet(w, "")];
-      await w.posts[0].makePosts();
-
-      // assert that no Verita were retrieved
-      expect(getVeritumSpy).not.toHaveBeenCalled();
-
-      // cleanup
-      await w.protagonist.identityStore.shutdown();
-      getVeritumSpy.mockRestore();
-    });
+    it.todo('write more tests');
   });
 
+  // features currently not implemented
+  it.todo('will automatically yield existing posts from newly added subscriptions');
+  it.todo('will automatically yield new posts from newly added subscriptions');
 });

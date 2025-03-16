@@ -66,9 +66,12 @@ export class PostController extends VerityController {
   async navSubscribed(): Promise<void> {
     logger.trace("PostController: Displaying posts from subscribed authors and their preceding posts");
     this.shutdownComponents();
-    await this.identity?.setSubscriptionRecursionDepth(1);
+
+    const emitter = this.identity.getRecursiveEmitter({event: "cubeAdded", depth: 1 });
+    const identity = this.identity;
+    emitter['getAllCubeInfos'] = async function*() { yield* identity.getAllCubeInfos() }  // HACKHACK
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      this.identity,
+      emitter as unknown as NotifyingIdentityEmitter,  // HACKHACK
       this.cubeRetriever,
       SubscriptionRequirement.none,
       undefined,
@@ -83,10 +86,13 @@ export class PostController extends VerityController {
   async navWot(): Promise<void> {
     logger.trace("PostController: Displaying posts from my web of trust, up to five levels deep (WOT5)");
     this.shutdownComponents();
+
     // TODO: - Make subscription recursion depth configurable
-    await this.identity?.setSubscriptionRecursionDepth(5);
+    const emitter = this.identity.getRecursiveEmitter({event: "cubeAdded", depth: 5 });
+    const identity = this.identity;
+    emitter['getAllCubeInfos'] = async function*() { yield* identity.getAllCubeInfos(5) }  // HACKHACK
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      this.identity,
+      emitter as unknown as CubeEmitter,  // HACKHACK
       this.cubeRetriever,
       SubscriptionRequirement.none,
       undefined,
@@ -101,7 +107,7 @@ export class PostController extends VerityController {
   async navExplore(): Promise<void> {
     logger.trace("PostController: Displaying posts from unknown authors based on notifications");
     this.shutdownComponents();
-    this.identity?.setSubscriptionRecursionDepth(0);  // no need to await
+
     this.reEmitter = new NotifyingIdentityEmitter(this.cubeRetriever, this.identity?.options.identityStore);
     if ('requestScheduler' in this.cubeRetriever) {  // HACKHACK
       this.cubeRetriever.requestScheduler.requestNotifications(
@@ -124,7 +130,6 @@ export class PostController extends VerityController {
   async navLocalPosts(): Promise<void> {
     logger.trace("PostController: Displaying all posts including anonymous ones");
     this.shutdownComponents();
-    this.identity?.setSubscriptionRecursionDepth(0);  // no need to await
     this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
       this.cubeStore,
       this.cubeRetriever,
