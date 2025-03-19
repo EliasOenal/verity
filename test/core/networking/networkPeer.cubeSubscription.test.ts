@@ -23,7 +23,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 // in NetworkManager, which are almost end-to-end tests involving actual
 // network communiation.
 
-describe('NetworkPeer', () => {
+describe('NetworkPeer CubeSubscription tests', () => {
   let peer: NetworkPeer;
   let networkManager: NetworkManagerIf;
   let cubeStore: CubeStore;
