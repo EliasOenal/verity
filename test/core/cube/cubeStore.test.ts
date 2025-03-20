@@ -89,7 +89,7 @@ describe('cubeStore', () => {
 
     it('should add a freshly sculpted cube at full difficulty', async () => {
       expect(await cubeStore.getNumberOfStoredCubes()).toEqual(0);
-      const content = paddedBuffer("Ego sum cubus recens sculputus.", CubeFieldLength[CubeFieldType.FROZEN_RAWCONTENT]);
+      const content = paddedBuffer("Ego sum cubus recens sculputus.", CubeFieldLength[CubeFieldType.FROZEN_RAWCONTENT]!);
       const cube = Cube.Frozen({
         fields: new CubeField(CubeFieldType.FROZEN_RAWCONTENT, content),
       });
@@ -298,7 +298,7 @@ describe('cubeStore', () => {
             muc.getFirstField(CubeFieldType.MUC_RAWCONTENT).value =
               paddedBuffer(
                 "Actualizatus sum a domino meo, sed clavis mea semper eadem est.",
-                CubeFieldLength[CubeFieldType.MUC_RAWCONTENT]);
+                CubeFieldLength[CubeFieldType.MUC_RAWCONTENT]!);
             // Make sure date is ever so slightly newer
             muc.setDate(1695340001);
             await muc.compile();
@@ -367,7 +367,7 @@ describe('cubeStore', () => {
             keys.sort(Buffer.compare);
 
             const options: CubeIteratorOptions = { gt: keys[3], lt: keys[7] };
-            const resultKeys = [];
+            const resultKeys: CubeKey[] = [];
 
             for await (const key of cubeStore.getKeyRange(options)) {
               resultKeys.push(key);
@@ -383,7 +383,7 @@ describe('cubeStore', () => {
             keys.sort(Buffer.compare);
 
             const options: CubeIteratorOptions = { gte: keys[3], lte: keys[7] };
-            const resultKeys = [];
+            const resultKeys: CubeKey[] = [];
 
             for await (const key of cubeStore.getKeyRange(options)) {
               resultKeys.push(key);
@@ -400,7 +400,7 @@ describe('cubeStore', () => {
             const keys = await populateStore(10);
             const options: CubeIteratorOptions = { limit: 3 };
 
-            const resultKeys = [];
+            const resultKeys: CubeKey[] = [];
             for await (const key of cubeStore.getKeyRange(options)) {
               resultKeys.push(key);
             }
@@ -412,7 +412,7 @@ describe('cubeStore', () => {
             keys.sort(Buffer.compare);
 
             const options: CubeIteratorOptions = { gte: keys[3], lte: keys[7], limit: 2 };
-            const resultKeys = [];
+            const resultKeys: CubeKey[] = [];
 
             for await (const key of cubeStore.getKeyRange(options)) {
               resultKeys.push(key);
@@ -429,7 +429,7 @@ describe('cubeStore', () => {
             keys.sort(Buffer.compare);
 
             const options: CubeIteratorOptions = { gte: keys[7], wraparound: true, limit: 5 };
-            const resultKeys = [];
+            const resultKeys: CubeKey[] = [];
 
             for await (const key of cubeStore.getKeyRange(options)) {
               resultKeys.push(key);
@@ -449,7 +449,7 @@ describe('cubeStore', () => {
             keys.sort(Buffer.compare);
 
             const options: CubeIteratorOptions = { gt: keys[3], wraparound: true };
-            const resultKeys = [];
+            const resultKeys: CubeKey[] = [];
 
             for await (const key of cubeStore.getKeyRange(options)) {
               resultKeys.push(key);
@@ -467,7 +467,7 @@ describe('cubeStore', () => {
             keys.sort(Buffer.compare);
 
             const options: CubeIteratorOptions = { asString: true };
-            const resultKeys = [];
+            const resultKeys: CubeKey[] = [];
 
             for await (const key of cubeStore.getKeyRange(options)) {
               resultKeys.push(key);
@@ -483,7 +483,7 @@ describe('cubeStore', () => {
           it('should return no keys if the limit is set to 0', async () => {
             const keys = await populateStore(5);
             const options: CubeIteratorOptions = { limit: 0 };
-            const resultKeys = [];
+            const resultKeys: CubeKey[] = [];
             for await (const key of cubeStore.getKeyRange(options)) {
               resultKeys.push(key);
             }
@@ -509,8 +509,8 @@ describe('cubeStore', () => {
 
         describe('edge cases retrieving Cubes', () => {
           it('should return undefined when the requesting a Cube or CubeInfo with a falsy key', async () => {
-            expect(await cubeStore.getCube(undefined)).toBeUndefined;
-            expect(await cubeStore.getCubeInfo(undefined)).toBeUndefined;
+            expect(await cubeStore.getCube(undefined!)).toBeUndefined;
+            expect(await cubeStore.getCubeInfo(undefined!)).toBeUndefined;
             expect(await cubeStore.getCube('')).toBeUndefined;
             expect(await cubeStore.getCubeInfo('')).toBeUndefined;
             expect(await cubeStore.getCube(Buffer.alloc(0))).toBeUndefined;
@@ -685,7 +685,7 @@ describe('cubeStore', () => {
             });
             await cubeStore.addCube(cube);
 
-            const notifications = [];
+            const notifications: Cube[] = [];
             for await (const notification of cubeStore.getNotificationCubes(recipientKey)) {
               notifications.push(notification);
             }
@@ -721,7 +721,7 @@ describe('cubeStore', () => {
             });
             await cubeStore.addCube(cube2);
 
-            const notifications = [];
+            const notifications: Cube[] = [];
             for await (const notification of cubeStore.getNotificationCubes(recipientKey)) {
               notifications.push(notification);
             }
@@ -760,7 +760,7 @@ describe('cubeStore', () => {
             await cubeStore.addCube(notificationCube);
 
             // Ensure the notification is indexed correctly
-            const notifications = [];
+            const notifications: Cube[] = [];
             for await (const notification of cubeStore.getNotificationCubes(recipientKey)) {
               notifications.push(notification);
             }
@@ -796,7 +796,7 @@ describe('cubeStore', () => {
             await cubeStore.addCube(invalidCube);
 
             // Ensure only the valid notification is stored
-            const notifications = [];
+            const notifications: Cube[] = [];
             for await (const notification of cubeStore.getNotificationCubes(validRecipientKey)) {
               notifications.push(notification);
             }
@@ -805,7 +805,7 @@ describe('cubeStore', () => {
             expect(await notifications[0].getKey()).toEqual(await validCube.getKey());
 
             // Ensure no notifications were stored for the invalid key
-            const invalidNotifications = [];
+            const invalidNotifications: Cube[] = [];
             for await (const notification of cubeStore.getNotificationCubes(invalidRecipientKey)) {
               invalidNotifications.push(notification);
             }
