@@ -108,8 +108,8 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         }
 
         // set events
-        this._conn.on("messageReceived", msg => this.handleMessage(msg));
-        this._conn.once("closed", () => this.close());
+        this._conn.on("messageReceived", this.handleMessage);
+        this._conn.once("closed", this.close);
 
         // Take note of all other peers I could exchange with this new peer.
         // This is used to ensure we don't exchange the same peers twice.
@@ -118,12 +118,10 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         //   Also, there's really no reason to convert to array here
         this.unsentPeers = Array.from(
             this.networkManager.peerDB.peersExchangeable.values());
-        networkManager.peerDB.on(
-            'exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
+        networkManager.peerDB.on('exchangeablePeer', this.learnExchangeablePeer);
 
         // Get informed of all Cube updates to handle subscriptions
-        cubeStore.on("cubeAdded", (cubeInfo: CubeInfo) =>
-            this.sendSubscribedCubeUpdate(cubeInfo.getCube()));
+        cubeStore.on("cubeAdded", this.sendSubscribedCubeUpdate);
 
         // Send HELLO message once connected
         this.setTimeout();  // connection timeout
@@ -139,17 +137,21 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     // closing something is a reversible action while shutdown is permanent,
     // and "closing" a NetworkPeer is permanent; a new NetworkPeer object needs
     // to be constructed for the next connection
-    close(): Promise<void> {
+    // NOTE: must use arrow syntax to have this event handler pre-bound;
+    //  otherwise, event subscription will not properly cancel on close
+    close: () => Promise<void> = () => {
         logger.trace(`NetworkPeer ${this.toString()}: Closing connection.`);
         this._status.advance(NetworkPeerLifecycle.CLOSING);
 
-        // Remove all listeners and timers to avoid memory leaks
-        this.networkManager.peerDB.removeListener(
-            'exchangeablePeer', (peer: Peer) => this.learnExchangeablePeer(peer));
-        this.cubeStore.removeListener("cubeAdded", (cubeInfo: CubeInfo) =>
-            this.sendSubscribedCubeUpdate(cubeInfo.getCube()));
+        // Clear all timers
         clearInterval(this.peerRequestTimer);
         clearTimeout(this.networkTimeout);
+
+        // Remove all event listeners
+        this._conn.removeListener("messageReceived", this.handleMessage);
+        this.networkManager.peerDB.removeListener(
+            'exchangeablePeer', this.learnExchangeablePeer);
+        this.cubeStore.removeListener("cubeAdded", this.sendSubscribedCubeUpdate);
 
         // Close our connection object.
         // Note: this means conn.close() gets called twice when closure
@@ -199,7 +201,9 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
      * Handle an incoming message.
      * @param message The incoming message as a Buffer.
      */
-    private handleMessage(message: Buffer): void {
+    // NOTE: must use arrow syntax to have this event handler pre-bound;
+    //  otherwise, event subscription will not properly cancel on close
+    private handleMessage: (message: Buffer) => void = message => {
         if (this.status >= NetworkPeerLifecycle.CLOSING) {
             // This NetworkPeer has already been closed;
             // not handling any further messages.
@@ -800,7 +804,9 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         }
     }
 
-    private learnExchangeablePeer(peer: Peer): void {
+    // NOTE: must use arrow syntax to have this event handler pre-bound;
+    //  otherwise, event subscription will not properly cancel on close
+    private learnExchangeablePeer: (peer: Peer) => void = peer => {
         if (!this.equals(peer)) {  // but don't share a peer with itself
             this.unsentPeers.push(peer);
         }
@@ -810,7 +816,10 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     // updates received in short succession get grouped together.
     // This reduces overhead massively and also keep updates neatly grouped
     // together for potential further forwarding at the receiving node.
-    private sendSubscribedCubeUpdate(cube: Cube): void {
+    // NOTE: must use arrow syntax to have this event handler pre-bound;
+    //  otherwise, event subscription will not properly cancel on close
+    private sendSubscribedCubeUpdate: (cubeInfo: CubeInfo) => void = cubeInfo => {
+        const cube: Cube = cubeInfo.getCube();
         if (this._cubeSubscriptions.has(cube.getKeyStringIfAvailable())) {
             const binaryCube: Buffer = cube.getBinaryDataIfAvailable();
             if (binaryCube === undefined) {
