@@ -599,6 +599,32 @@ describe('cubeStore', () => {
             expect(notificationKeys).toHaveLength(0);
           });
 
+          it('should emit notificationAdded events', async () => {
+            // prepare event handler
+            const notifyCubeEmitted: Cube[] = [];
+            const handler = (cube: Cube) => notifyCubeEmitted.push(cube);
+            cubeStore.on("notificationAdded", (cube: Cube) => handler(cube));
+
+            // sculpt a notification Cube --
+            // this test will use the convenience helpers while the previous
+            // one sculpted them manually
+            const recipientKey1 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 84);
+            const cube1 = Cube.Frozen({
+              fields: [
+                CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis"),
+                CubeField.Notify(recipientKey1),
+              ],
+              requiredDifficulty: reducedDifficulty,
+            })
+            await cubeStore.addCube(cube1);
+
+            // check that the notification was emitted
+            expect(notifyCubeEmitted).toContainEqual(cube1);
+
+            // clean up event handler
+            cubeStore.removeListener("notificationAdded", handler);
+          });
+
           it('should only return notifications for notified addresses', async () => {
             // sculpt a notification Cube --
             // this test will use the convenience helpers while the previous
