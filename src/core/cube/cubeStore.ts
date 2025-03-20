@@ -449,6 +449,8 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface<Ge
    *     no further guarantee about the order of keys returned.
    * Note that the reverse option is currently unsupported!
    */
+  getKeyRange(options?: CubeIteratorOptions & { asString: true}): AsyncGenerator<string>;
+  getKeyRange(options?: CubeIteratorOptions): AsyncGenerator<CubeKey>;
   async *getKeyRange(
     options: CubeIteratorOptions = {},
   ): AsyncGenerator<CubeKey | string> {
