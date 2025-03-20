@@ -107,6 +107,7 @@ export interface CubeRetrievalInterface<OptionsType = GetCubeOptions> {
 
 export interface CubeEmitterEvents extends Record<string, (...args: any[]) => void> {
   cubeAdded: (cubeInfo: CubeInfo) => void;
+  notificationAdded: (cube: Cube) => void;
 }
 
 /**
@@ -788,6 +789,7 @@ export class CubeStore extends EventEmitter implements CubeRetrievalInterface<Ge
     // There may not be a need to await this.
     await this.leveldb.store(Sublevels.INDEX_TIME, dateIndexKey, Buffer.alloc(0));
     await this.leveldb.store(Sublevels.INDEX_DIFF, difficultyIndexKey, Buffer.alloc(0));
+    this.emit('notificationAdded', cube);
   }
 
   private async deleteNotification(cubeInfo: CubeInfo): Promise<void> {
