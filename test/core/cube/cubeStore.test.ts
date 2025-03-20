@@ -601,9 +601,13 @@ describe('cubeStore', () => {
 
           it('should emit notificationAdded events', async () => {
             // prepare event handler
-            const notifyCubeEmitted: Cube[] = [];
-            const handler = (cube: Cube) => notifyCubeEmitted.push(cube);
-            cubeStore.on("notificationAdded", (cube: Cube) => handler(cube));
+            const notifyKeysEmitted: CubeKey[] = [];
+            const notifyCubesEmitted: Cube[] = [];
+            const handler = (key: CubeKey, cube: Cube) => {
+              notifyKeysEmitted.push(key);
+              notifyCubesEmitted.push(cube)
+            }
+            cubeStore.on("notificationAdded", handler);
 
             // sculpt a notification Cube --
             // this test will use the convenience helpers while the previous
@@ -619,7 +623,10 @@ describe('cubeStore', () => {
             await cubeStore.addCube(cube1);
 
             // check that the notification was emitted
-            expect(notifyCubeEmitted).toContainEqual(cube1);
+            expect(notifyKeysEmitted.length).toBe(1);
+            expect(notifyKeysEmitted[0].equals(recipientKey1)).toBe(true);
+            expect(notifyCubesEmitted.length).toBe(1);
+            expect(notifyCubesEmitted[0].equals(cube1)).toBe(true);
 
             // clean up event handler
             cubeStore.removeListener("notificationAdded", handler);
