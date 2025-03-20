@@ -18,12 +18,6 @@ import { requiredDifficulty, testCoreOptions } from "../testcore.definition";
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
-// TODO: write a proper, complete set of unit tests
-// We did not write actual unit tests for NetworkPeer in the beginning as we
-// didn't have/use a proper mocking framework. Instead, we relied on our tests
-// in NetworkManager, which are almost end-to-end tests involving actual
-// network communiation.
-
 describe('NetworkPeer CubeSubscription tests', () => {
   let peer: NetworkPeer;
   let networkManager: NetworkManagerIf;
