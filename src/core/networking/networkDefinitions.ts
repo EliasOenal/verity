@@ -13,6 +13,7 @@ export enum MessageClass {
     NotificationRequest = 0x08,
     SubscribeCube = 0x09,
     SubscriptionConfirmation = 0x0a,
+    SubscribeNotifications = 0x0b,
 }
 
 export const NetConstants =  {
