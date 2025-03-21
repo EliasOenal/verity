@@ -12,6 +12,9 @@
   - `0x06`: `NodeRequest`
   - `0x07`: `NodeResponse`
   - `0x08`: `NotificationCubeRequest` (brand new and already basically deprecated)
+  - `0x09`: `SubscribeCube`
+  - `0x0a`: `SubscriptionConfirmation`
+  - `0x0b`: `SubscribeNotifications`
 
   Each of these message classes will have different data payloads:
   - `Hello`:
@@ -96,7 +99,7 @@
     - **Cube Key Count (4 bytes)**: The number of notification keys following
     - **Recipient key (32 bytes)**: Sender requests all Cubes notifying the specified key
 
-  - `CubeSubscribe`: Requests all *future* Cube updates for the keys supplied.
+  - `SubscribeCube`: Requests all *future* Cube updates for the keys supplied.
     - Message follows the exact same structure as a CubeRequest.
     - TODO: Provide a way to select a subscription duration
     - TODO: Provide a way to cancel a subscription before it expires.
@@ -110,6 +113,9 @@
       - `0x03`: Subscriptions temporarily unavailable
       - `0x04`: You have reached the maximum number of subscriptions from this node
       - `0x10`: (At least one) Requested key not available
+                (for Cube subscriptions only, notification subscriptions are
+                supported even if there are no current notifications)
+
     - **Key(s) requested (32 Bytes)**:
       - In case a single key subscription was requested, the requested key
       - In case multiple keys were requested, this is the hash of all keys
@@ -121,7 +127,17 @@
         current version of the subscribed cube
       - In case multiple keys were requested, this is the hash of all
         subscribed cube's hashes.
+      - In case of a notification subscription, this field may be the
+        empty-string-hash to indicate the serving peer currently does not have
+        any notifications to this address; or all zero to indicate that the
+        serving peer does not want to calculate the hash, e.g. due to a high
+        number of existing notifications.
+        Implementation note: Currently always zeroed for notification subscriptions.
       - This field is omitted if the subscription request is not granted.
     - **Subscription duration (2 Bytes)** (optional):
         Number of seconds this subscription will remain active.
         This field is omitted if the subscription request is not granted.
+
+  - `SubscribeNotifications`: Requests all *future* notifications for the keys supplied.
+    - Message follows the exact same structure as a CubeRequest.
+    - see `SubscribeCube` above for further information / TODOs

@@ -85,6 +85,15 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         this._cubeSubscriptions.delete(keyVariants(key).keyString);
     }
 
+    private _notificationSubscriptions: Set<string> = new Set();
+    get notificationSubscriptions(): Iterable<string> { return this._notificationSubscriptions }
+    addNotificationSubscription(key: CubeKey | string): void {
+        this._notificationSubscriptions.add(keyVariants(key).keyString);
+    }
+    cancelNotificationSubscription(key: CubeKey | string): void {
+        this._notificationSubscriptions.delete(keyVariants(key).keyString);
+    }
+
     private networkTimeout: NodeJS.Timeout = undefined;
 
     constructor(
@@ -122,6 +131,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
 
         // Get informed of all Cube updates to handle subscriptions
         cubeStore.on("cubeAdded", this.sendSubscribedCubeUpdate);
+        cubeStore.on("notificationAdded", this.sendNotificationUpdate);
 
         // Send HELLO message once connected
         this.setTimeout();  // connection timeout
@@ -152,6 +162,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         this.networkManager.peerDB.removeListener(
             'exchangeablePeer', this.learnExchangeablePeer);
         this.cubeStore.removeListener("cubeAdded", this.sendSubscribedCubeUpdate);
+        this.cubeStore.removeListener("notificationAdded", this.sendNotificationUpdate);
 
         // Close our connection object.
         // Note: this means conn.close() gets called twice when closure
@@ -263,15 +274,24 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
                         this.handleSubscribeCube(msg as CubeRequestMessage);
                         break;
                     } catch (err) {  // we'll mostly ignore errors with this
-                        logger.warn(`NetworkPeer ${this.toString()}: Ignoring a CubeSubscribe because an error occurred processing it: ${err}`);
+                        logger.warn(`NetworkPeer ${this.toString()}: Ignoring a SubscribeCube message because an error occurred processing it: ${err}`);
                         break;
                     }
+                case MessageClass.SubscribeNotifications:
+                    try {  // non-essential feature
+                        this.handleSubscribeNotifications(msg as CubeRequestMessage);
+                        break;
+                    } catch (err) {  // we'll mostly ignore errors with this
+                        logger.warn(`NetworkPeer ${this.toString()}: Ignoring a SubscribeNotifications message because an error occurred processing it: ${err}`);
+                        break;
+                    }
+
                 case MessageClass.SubscriptionConfirmation:
                     try {  // non-essential feature
                         this.handleSubscriptionConfirmation(msg as SubscriptionConfirmationMessage);
                         break;
                     } catch (err) {  // we'll mostly ignore errors with this
-                        logger.warn(`NetworkPeer ${this.toString()}: Ignoring a SubscriptionConfirmation because an error occurred processing it: ${err}`);
+                        logger.warn(`NetworkPeer ${this.toString()}: Ignoring a SubscriptionConfirmation message because an error occurred processing it: ${err}`);
                         break;
                     }
                 case MessageClass.MyServerAddress:
@@ -536,7 +556,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
             return;
         }
         // All good, subscription accepted! Register it...
-        let i=0;
+        let i=0;  // for debug output only
         for (const key of requestedKeys) {
             this.addCubeSubscription(key);
             i++;
@@ -547,6 +567,37 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
             SubscriptionResponseCode.SubscriptionConfirmed,
             requestedKeys,
             currentHashes,
+            this.options.cubeSubscriptionPeriod,
+        );
+        this.sendMessage(reply);
+    }
+
+    private async handleSubscribeNotifications(msg: CubeRequestMessage): Promise<void> {
+        // take note of all newly subscribed notifications keys
+        const requestedKeys: CubeKey[] = Array.from(msg.cubeKeys());
+        let i=0;  // for debug output only
+        for (const notificationKey of requestedKeys) {
+            this.addNotificationSubscription(notificationKey);
+            i++;
+        }
+        logger.trace(`NetworkPeer ${this.toString()}: handleSubscribeNotifications(): recorded ${i} notification subscriptions`);
+
+        // Note that unlike Cube subscriptions, there is no need for any
+        // preliminary checks -- we will serve the peer all future notifications
+        // no matter what we currently do or don't have in store.
+        // TODO: Same as for a CubeSubscription, we should return the current hash of
+        // hashes to the peer to enable them to determine whether or not they
+        // are in sync; if we do not have any notifications to the requested key(s),
+        // this will be the empty string hash.
+        // When implementing, need to ensure this does not cause excessive
+        // store retrievals in case of highly frequented notification keys.
+        // Currently returning all zeroes.
+
+        // Send confirmation
+        const reply = new SubscriptionConfirmationMessage(
+            SubscriptionResponseCode.SubscriptionConfirmed,
+            requestedKeys,
+            [Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0)],
             this.options.cubeSubscriptionPeriod,
         );
         this.sendMessage(reply);
@@ -824,6 +875,24 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
             const binaryCube: Buffer = cube.getBinaryDataIfAvailable();
             if (binaryCube === undefined) {
                 logger.warn(`NetworkPeer ${this.toString()}.sendSubscribedCubeUpdate(): I was called on an apparently uncompiled Cube. This should not happen. Doing nothing.`);
+                return;
+            }
+            const reply = new CubeResponseMessage([cube.getBinaryDataIfAvailable()]);
+            this.sendMessage(reply);
+        }
+    }
+
+    // TODO: Wait just a tiny little bit after learning a new notification so that
+    // updates received in short succession get grouped together.
+    // This reduces overhead massively and also keep updates neatly grouped
+    // together for potential further forwarding at the receiving node.
+    // NOTE: must use arrow syntax to have this event handler pre-bound;
+    //  otherwise, event subscription will not properly cancel on close
+    private sendNotificationUpdate: (notificationKey: CubeKey, cube: Cube) => void = (notificationKey, cube) => {
+        if (this._notificationSubscriptions.has(keyVariants(notificationKey).keyString)) {
+            const binaryCube: Buffer = cube.getBinaryDataIfAvailable();
+            if (binaryCube === undefined) {
+                logger.warn(`NetworkPeer ${this.toString()}.sendNotificationUpdate(): I was called on an apparently uncompiled Cube. This should not happen. Doing nothing.`);
                 return;
             }
             const reply = new CubeResponseMessage([cube.getBinaryDataIfAvailable()]);

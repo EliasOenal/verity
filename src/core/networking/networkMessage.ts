@@ -69,6 +69,8 @@ export abstract class NetworkMessage extends BaseField {
         return new CubeRequestMessage(value);
       case MessageClass.SubscribeCube:
         return new SubscribeCubeMessage(value, type);
+      case MessageClass.SubscribeNotifications:
+        return new SubscribeCubeMessage(value, type);
       case MessageClass.SubscriptionConfirmation:
         return new SubscriptionConfirmationMessage(value);
       case MessageClass.CubeResponse:
@@ -457,6 +459,7 @@ export class CubeRequestMessage extends NetworkMessage {
 }
 
 export class SubscribeCubeMessage extends CubeRequestMessage {}
+export class SubscribeNotificationsMessage extends CubeRequestMessage {}
 
 export class CubeResponseMessage extends NetworkMessage {
   constructor(value: Buffer);
