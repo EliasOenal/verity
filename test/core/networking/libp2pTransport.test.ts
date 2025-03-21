@@ -16,7 +16,7 @@ describe('libp2p transport', () => {
     // TODO: Make API more intuitive.
 
     // expect a server-side connection to be spawned by the server upon connection
-    let serverConn: Libp2pConnection = undefined;
+    let serverConn: Libp2pConnection;
     server.on("incomingConnection", (conn: Libp2pConnection) => {
       serverConn = conn;
     });
@@ -26,12 +26,12 @@ describe('libp2p transport', () => {
     const clientConn = new Libp2pConnection(multiaddr('/ip4/127.0.0.1/tcp/11985/ws'), transport);
     await clientConn.readyPromise;
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    expect(serverConn).toBeInstanceOf(Libp2pConnection);
+    expect(serverConn!).toBeInstanceOf(Libp2pConnection);
 
     // prepare for message to be received
     const serverReceivedMessages: Buffer[] = [];
     const clientReceivedMessages: Buffer[] = [];
-    serverConn.on("messageReceived", (msgData: Buffer) => {
+    serverConn!.on("messageReceived", (msgData: Buffer) => {
       serverReceivedMessages.push(msgData);
     });
     clientConn.on("messageReceived", (msgData: Buffer) => {
@@ -49,7 +49,7 @@ describe('libp2p transport', () => {
     expect(serverReceivedMessages[0].toString()).toEqual("Salve serve, cliens tuus sum.");
 
     // Send a message from client to server
-    serverConn.send(Buffer.from("Salve cliens, ad tuum servitium."));
+    serverConn!.send(Buffer.from("Salve cliens, ad tuum servitium."));
 
     // Wait for the message to arrive
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -60,7 +60,7 @@ describe('libp2p transport', () => {
 
     // Clean up
     await clientConn.close();
-    await serverConn.close();
+    await serverConn!.close();
     await transport.shutdown();
   }, 5000);
 

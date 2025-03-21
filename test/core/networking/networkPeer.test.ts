@@ -1,18 +1,9 @@
-import { KeyPair } from "../../../src/cci/helpers/cryptography";
-import { Cube } from "../../../src/core/cube/cube";
-import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
-import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
-import { calculateHash, keyVariants } from "../../../src/core/cube/cubeUtil";
-import { unixtime } from "../../../src/core/helpers/misc";
-import { MessageClass, NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { NetworkManagerIf } from "../../../src/core/networking/networkManagerIf";
-import { CubeResponseMessage, NetworkMessage, SubscribeCubeMessage, SubscriptionConfirmationMessage, SubscriptionResponseCode } from "../../../src/core/networking/networkMessage";
 import { NetworkPeer } from "../../../src/core/networking/networkPeer";
 import { DummyTransportConnection } from "../../../src/core/networking/testingDummies/DummyTransportConnection";
 import { DummyNetworkManager } from "../../../src/core/networking/testingDummies/networkManagerDummy";
 import { PeerDB } from "../../../src/core/peering/peerDB";
-import { Settings } from "../../../src/core/settings";
 import { requiredDifficulty, testCoreOptions } from "../testcore.definition";
 
 import sodium from 'libsodium-wrappers-sumo'
