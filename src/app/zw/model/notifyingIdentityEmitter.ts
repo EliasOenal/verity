@@ -1,6 +1,6 @@
 import { CubeKey, HasNotify, CubeFieldType } from "../../../core/cube/cube.definitions";
 import { CubeInfo } from "../../../core/cube/cubeInfo";
-import { CubeEmitter, CubeRetrievalInterface, CubeStore } from "../../../core/cube/cubeStore";
+import { CubeEmitter, CubeEmitterEvents, CubeRetrievalInterface, CubeStore } from "../../../core/cube/cubeStore";
 import { keyVariants } from "../../../core/cube/cubeUtil";
 import { Shuttable } from "../../../core/helpers/coreInterfaces";
 import { CubeRetriever } from "../../../core/networking/cubeRetrieval/cubeRetriever";
@@ -19,7 +19,7 @@ export interface NotifyingIdentityEmitterOptions {
   identityRecursionDepth?: number;
 }
 
-export class NotifyingIdentityEmitter extends EventEmitter implements CubeEmitter, Shuttable {
+export class NotifyingIdentityEmitter extends EventEmitter<CubeEmitterEvents> implements CubeEmitter, Shuttable {
   identities: Map<string, Identity> = new Map();
 
 

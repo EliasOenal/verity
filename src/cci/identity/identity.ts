@@ -1,6 +1,6 @@
 
 import type { Shuttable } from '../../core/helpers/coreInterfaces';
-import { TypedEmitter, unixtime } from '../../core/helpers/misc';
+import { unixtime } from '../../core/helpers/misc';
 import { eventsToGenerator, mergeAsyncGenerators, resolveAndYield } from '../../core/helpers/asyncGenerators';
 import { Cube } from '../../core/cube/cube';
 import { KeyVariants, keyVariants } from '../../core/cube/cubeUtil';
@@ -185,7 +185,7 @@ export interface GetRecursiveEmitterOptions {
 
 
 interface IdentityEvents extends CubeEmitterEvents {
-  postAdded: (postInfo: PostInfo<Veritum>) => void;
+  postAdded: [PostInfo<Veritum>];
 }
 
 // TODO: Split out the MUC management code.
@@ -256,7 +256,7 @@ interface IdentityEvents extends CubeEmitterEvents {
  *
  * TODO: Specify maximums to make sure all of that nicely fits into a single MUC.
  */
-export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitter, Shuttable {
+export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitter, Shuttable {
 
   //###
   // #region Static Construction methods
@@ -929,7 +929,7 @@ export class Identity extends TypedEmitter<IdentityEvents> implements CubeEmitte
    * as well as any of this Identity's subscriptions.
    * By default, it will emit posts through the postAdded event.
    */
-  getRecursiveEmitter(options: GetRecursiveEmitterOptions = {}) {
+  getRecursiveEmitter(options: GetRecursiveEmitterOptions = {}): RecursiveEmitter {
     // set default options
     options.depth ??= DEFAULT_SUBSCRIPTION_RECURSION_DEPTH;
     options.event ??= 'postAdded';

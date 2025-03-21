@@ -14,7 +14,6 @@ import { WeakValueMap } from "weakref";
 import { Buffer } from "buffer";
 import { NetConstants } from "../networking/networkDefinitions";
 import { Shuttable } from "../helpers/coreInterfaces";
-import { TypedEmitter } from "../helpers/misc";
 
 // TODO: we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes
@@ -105,9 +104,9 @@ export interface CubeRetrievalInterface<OptionsType = GetCubeOptions> {
   cubeStore: CubeStore;
 }
 
-export interface CubeEmitterEvents extends Record<string, (...args: any[]) => void> {
-  cubeAdded: (cubeInfo: CubeInfo) => void;
-  notificationAdded: (notificationKey: CubeKey, cube: Cube) => void;
+export interface CubeEmitterEvents extends Record<string, any[]> {
+  cubeAdded: [CubeInfo];
+  notificationAdded: [notificationKey: CubeKey, cube: Cube];
 }
 
 /**
@@ -116,7 +115,7 @@ export interface CubeEmitterEvents extends Record<string, (...args: any[]) => vo
  * CubeStore is obviously an example of a CubeEmitter, emitting a CubeInfo
  * whenever a Cube is added to or updated in store.
  */
-export interface CubeEmitter extends TypedEmitter<CubeEmitterEvents> {
+export interface CubeEmitter extends EventEmitter<CubeEmitterEvents> {
   /**
    * A Generator producing all CubeInfos that have been emitted by this emitter;
    * or would have been emitted if the emitter existed at the appropriate time.
@@ -128,7 +127,7 @@ export interface CubeEmitter extends TypedEmitter<CubeEmitterEvents> {
   shutdown?: () => Promise<void>;
 }
 
-export class CubeStore extends EventEmitter implements CubeRetrievalInterface<GetCubeOptions>, CubeEmitter, Shuttable {
+export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRetrievalInterface<GetCubeOptions>, CubeEmitter, Shuttable {
 
   readyPromise: Promise<undefined>;
 

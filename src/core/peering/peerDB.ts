@@ -24,6 +24,13 @@ interface TrackerResponse {
     peers6?: Buffer;
 }
 
+interface PeerDbEventMap extends Record<string, any[]> {
+    newPeer: [Peer];
+    verifiedPeer: [Peer];
+    exchangeablePeer: [Peer];
+    removePeer: [Peer];
+}
+
 // TODO: We should persist known peers locally, at least the verified ones.
 /**
  * Stores all of our known peers, non-persistantly (for now).
@@ -35,7 +42,7 @@ interface TrackerResponse {
  * Note only verified peers can get promoted to exchangeable; a reachable peer
  * who never sent us a valid HELLO is still just unverified.
  */
-export class PeerDB extends EventEmitter {
+export class PeerDB extends EventEmitter<PeerDbEventMap> {
     /**
      * Stores peers we have never successfully connected to and therefore don't
      * know the ID of.
