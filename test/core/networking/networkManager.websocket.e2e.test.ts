@@ -1,8 +1,8 @@
 import { Settings } from '../../../src/core/settings';
 import { NetConstants, SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 
+import { NetworkManagerOptions } from '../../../src/core/networking/networkManagerIf';
 import { NetworkManager } from '../../../src/core/networking/networkManager';
-import { NetworkManagerOptions } from 'core/networking/networkManagerIf';
 import { NetworkPeer } from '../../../src/core/networking/networkPeer';
 import { WebSocketTransport } from '../../../src/core/networking/transport/webSocket/webSocketTransport';
 import { WebSocketServer } from '../../../src/core/networking/transport/webSocket/webSocketServer';
@@ -68,7 +68,7 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
       expect(manager.transports.get(SupportedTransports.ws)).
         toBeInstanceOf(WebSocketTransport);
       await manager.start();
-      expect(manager.transports.get(SupportedTransports.ws).servers[0]).
+      expect(manager.transports.get(SupportedTransports.ws)!.servers[0]).
         toBeInstanceOf(WebSocketServer);
       await manager.shutdown();
     }, 3000);
@@ -371,7 +371,7 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
         ws.readyState).toEqual(WebSocket.OPEN);
       expect((myDuplicateNp.conn as WebSocketConnection).
         ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
-      expect((othersDuplicateNp.conn as WebSocketConnection).
+      expect((othersDuplicateNp!.conn as WebSocketConnection).
         ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
 
       // maybe implement further tests:
@@ -398,7 +398,7 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
         ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
       expect((myDuplicateNp.conn as WebSocketConnection).
         ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
-      expect((othersDuplicateNp.conn as WebSocketConnection).
+      expect((othersDuplicateNp!.conn as WebSocketConnection).
         ws.readyState).toBeGreaterThanOrEqual(WebSocket.CLOSING);
     }, 5000);
 

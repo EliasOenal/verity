@@ -1,10 +1,10 @@
-import type { NetworkPeerIf } from 'core/networking/networkPeerIf';
+import type { NetworkPeerIf } from '../../../src/core/networking/networkPeerIf';
 
 import { Settings } from '../../../src/core/settings';
 
 import { SupportedTransports } from '../../../src/core/networking/networkDefinitions';
 import { NetworkManager } from '../../../src/core/networking/networkManager';
-import { NetworkManagerOptions } from 'core/networking/networkManagerIf';
+import { NetworkManagerOptions } from '../../../src/core/networking/networkManagerIf';
 import { NetworkPeer } from '../../../src/core/networking/networkPeer';
 import { Libp2pConnection } from '../../../src/core/networking/transport/libp2p/libp2pConnection';
 import { Libp2pTransport } from '../../../src/core/networking/transport/libp2p/libp2pTransport';
@@ -119,8 +119,8 @@ describe('networkManager - libp2p connections', () => {
     // wait for connection to establish and HELLOs to be exchanged
     await clientToServer.onlinePromise;
     await serverToClientPromise;
-    expect(serverToClient).toBeInstanceOf(NetworkPeer);
-    await serverToClient.onlinePromise;
+    expect(serverToClient!).toBeInstanceOf(NetworkPeer);
+    await serverToClient!.onlinePromise;
 
     // now they should be online!
     expect(clientToServer.online).toBeTruthy();
@@ -682,7 +682,7 @@ describe('networkManager - libp2p connections', () => {
       await browser1.cubeStore.addCube(cubeSent);
       // anticipate arrival of Cube at browser 2
       expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
-      let cubeReceived: Cube = undefined;
+      let cubeReceived: Cube;
       const cubeReceivedPromise = new Promise<void>(
         (resolve) => browser2.cubeStore.once('cubeAdded', (cubeInfo: CubeInfo) => {
           cubeReceived = cubeInfo.getCube();
@@ -694,8 +694,8 @@ describe('networkManager - libp2p connections', () => {
       b2ToB1Np.sendCubeRequest([await cubeSent.getKey()]);
       await cubeReceivedPromise;
       expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
-      expect(cubeReceived).toBeInstanceOf(Cube);
-      expect(cubeReceived.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).
+      expect(cubeReceived!).toBeInstanceOf(Cube);
+      expect(cubeReceived!.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).
         valueString).toContain(
           "Hic cubus directe ad collegam meum iturus est");
     }
@@ -731,7 +731,7 @@ describe('networkManager - libp2p connections', () => {
       expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(2);
 
       // anticipate arrival of Cube at browser 1
-      let cubeReceived: Cube = undefined;
+      let cubeReceived: Cube;
       const cubeReceivedPromise = new Promise<void>(
         (resolve) => browser1.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => {
           cubeReceived = cubeInfo.getCube();
@@ -749,8 +749,8 @@ describe('networkManager - libp2p connections', () => {
       // direct WebRTC connection using a genuine, native WebRTC stream
 
       expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(2);
-      expect(cubeReceived).toBeInstanceOf(Cube);
-      expect(cubeReceived.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).
+      expect(cubeReceived!).toBeInstanceOf(Cube);
+      expect(cubeReceived!.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).
         valueString).toContain(
           "Gratias collega, cubus tuus aestimatur.");
     }
