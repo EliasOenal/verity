@@ -60,25 +60,3 @@ export function isIterableButNotBuffer(obj: any): boolean {
     typeof obj[Symbol.iterator] === 'function' &&
     !Buffer.isBuffer(obj);
 }
-
-
-// Enforce that event mappings have function values
-export type TypedEmitterEventMap = Record<string, (...args: any[]) => void>;
-
-export class TypedEmitter<T extends TypedEmitterEventMap> extends EventEmitter {
-  emit<K extends keyof T & (string | symbol)>(event: K, ...args: Parameters<T[K]>): boolean {
-    return super.emit(event, ...args);
-  }
-
-  on<K extends keyof T & (string | symbol)>(event: K, listener: T[K]): this {
-    return super.on(event, listener);
-  }
-
-  once<K extends keyof T & (string | symbol)>(event: K, listener: T[K]): this {
-    return super.once(event, listener);
-  }
-
-  removeListener<K extends keyof T & (string | symbol)>(event: K, listener: T[K]): this {
-    return super.removeListener(event, listener);
-  }
-}

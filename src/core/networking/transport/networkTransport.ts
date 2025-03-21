@@ -8,6 +8,10 @@ import EventEmitter from "events";
 export type TransportMap = Map<SupportedTransports, NetworkTransport>;
 export type TransportParamMap = Map<SupportedTransports, any>;
 
+interface NetworkTransportEventMap extends Record<string, any[]> {
+  serverAddress: [AddressAbstraction];
+}
+
 /**
  * Abstract base class representing a certain form of network transport, e.g.
  * using native WebSockets or libp2p.
@@ -19,7 +23,7 @@ export type TransportParamMap = Map<SupportedTransports, any>;
  * For most forms of transport which do not (e.g. WebSocketTransport), their
  * NetworkTransport subclass object will be more or less empty.
  */
-export abstract class NetworkTransport extends EventEmitter{
+export abstract class NetworkTransport extends EventEmitter<NetworkTransportEventMap> {
   /**
    * Stores all of this transport's TransportServer subclass objects
    * which listen for incoming connections. You could also call them listeners.
