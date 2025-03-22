@@ -1,8 +1,8 @@
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 import { NetworkManagerIf } from "../../../src/core/networking/networkManagerIf";
 import { NetworkPeer } from "../../../src/core/networking/networkPeer";
-import { DummyTransportConnection } from "../../../src/core/networking/testingDummies/DummyTransportConnection";
-import { DummyNetworkManager } from "../../../src/core/networking/testingDummies/networkManagerDummy";
+import { DummyTransportConnection } from "../../../src/core/networking/testingDummies/dummyTransportConnection";
+import { DummyNetworkManager } from "../../../src/core/networking/testingDummies/dummyNetworkManager";
 import { PeerDB } from "../../../src/core/peering/peerDB";
 import { requiredDifficulty, testCoreOptions } from "../testcore.definition";
 
@@ -24,9 +24,6 @@ describe('NetworkPeer', () => {
 
   beforeAll(async () => {
     await sodium.ready;
-  });
-
-  beforeEach(() => {
   });
 
   describe('close', () => {

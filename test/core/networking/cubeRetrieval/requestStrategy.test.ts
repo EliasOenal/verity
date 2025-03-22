@@ -1,6 +1,6 @@
 import { BestScoreStrategy, RandomStrategy, RoundrobinStrategy } from "../../../../src/core/networking/cubeRetrieval/requestStrategy";
 import { NetworkPeerIf } from "../../../../src/core/networking/networkPeerIf";
-import { DummyNetworkPeer } from "../../../../src/core/networking/testingDummies/networkPeerDummy";
+import { DummyNetworkPeer } from "../../../../src/core/networking/testingDummies/dummyNetworkPeer";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
