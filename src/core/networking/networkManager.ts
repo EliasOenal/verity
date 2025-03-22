@@ -71,7 +71,9 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
      * Handle the 'cubeAdded' event from CubeStore
      * @param cubeInfo The CubeInfo of the newly added cube
      */
-    private handleCubeAdded(cubeInfo: CubeInfo): void {
+    // NOTE: must use arrow syntax to have this event handler pre-bound;
+    //  otherwise, event subscription will not properly cancel on close
+    private handleCubeAdded: (cubeInfo: CubeInfo) => void = cubeInfo => {
         this.addRecentKey(cubeInfo.key);
     }
     get onlinePeerCount(): number {
@@ -163,7 +165,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         this._id = Buffer.from(crypto.getRandomValues(new Uint8Array(NetConstants.PEER_ID_SIZE)));
 
         // Set up event listener for cubeAdded event
-        this._cubeStore.on('cubeAdded', this.handleCubeAdded.bind(this));
+        this._cubeStore.on('cubeAdded', this.handleCubeAdded);
 
         // Add cube key 0 of store to window, so it's not empty. A random key would be better,
         // but we don't have a good way to do this without incurring O(n) cost.
@@ -252,12 +254,10 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
             } catch(err) {
                 logger.error("NetworkManager: Error requesting a transport to start, will continue without it: " + err?.toString());
             }
-            transport.on("serverAddress",
-                (addr: AddressAbstraction) => this.learnServerAddress(addr));
+            transport.on("serverAddress", this.learnServerAddress);
             for (const server of transport.servers) {
                 try {  // subscribe to incoming connections
-                    server.on("incomingConnection",
-                    (conn: TransportConnection) => this.handleIncomingPeer(conn));
+                    server.on("incomingConnection", this.handleIncomingPeer);
                 } catch(err) {
                     logger.error("NetworkManager: Error subscribing to incoming connections: " + err?.toString());
                 }
@@ -275,7 +275,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
             this._peerDB.startAnnounceTimer();
             this._peerDB.announce();
         }
-        this._peerDB.on('newPeer', (newPeer: Peer) => this.autoConnectPeers());
+        this._peerDB.on('newPeer', this.handleNewPeer);
         this.autoConnectPeers();
 
         this.emit('listening');
@@ -288,6 +288,10 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
             closedPromises.push(peer.close()));
         return Promise.all(closedPromises) as unknown as Promise<void>;
     }
+
+    // NOTE: must use arrow syntax to have this event handler pre-bound;
+    //  otherwise, event subscription will not properly cancel on close
+    private handleNewPeer: () => void = () => { this.autoConnectPeers() }
 
     /**
     * Will try to connect more peers until we either run out of eligible peers
@@ -399,6 +403,8 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         // stop auto-connection
         this.stopConnectingPeers();
         this.options.autoConnect = false;
+        // remove event subscriptions -- TODO complete
+        this.cubeStore.removeListener('cubeAdded', this.handleCubeAdded);
         // shut down components
         this.scheduler.shutdown();
         this._peerDB.removeListener('newPeer',
@@ -409,11 +415,9 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         // shut down transports
         for (const [transportType, transport] of this.transports) {
             // remove listeners first
-            transport.removeListener("serverAddress",
-            (addr: AddressAbstraction) => this.learnServerAddress(addr));
+            transport.removeListener("serverAddress", this.learnServerAddress);
             for (const server of transport.servers) {
-                server.removeListener("incomingConnection",
-                    (conn: TransportConnection) => this.handleIncomingPeer(conn));
+                server.removeListener("incomingConnection", this.handleIncomingPeer);
             }
             // then shut down transport
             logger.trace("NetworkManager: Shutting down server " + transport.toString());
@@ -430,7 +434,9 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
     }
 
     /** Called by NetworkServer only, should never be called manually. */
-    handleIncomingPeer(conn: TransportConnection) {
+    // NOTE: must use arrow syntax to have this event handler pre-bound;
+    //  otherwise, event subscription will not properly cancel on close
+    handleIncomingPeer: (conn: TransportConnection) => void = conn => {
         if (!this.options.acceptIncomingConnections) {
             logger.trace("NetworkManager: Refused an incoming connection as I was told not to accept any.");
             conn.close();
@@ -447,7 +453,9 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         this.emit("incomingPeer", networkPeer);  // used for tests only
     }
 
-    learnServerAddress(addr: AddressAbstraction): void {
+    // NOTE: must use arrow syntax to have this event handler pre-bound;
+    //  otherwise, event subscription will not properly cancel on close
+    learnServerAddress: (addr: AddressAbstraction) => void = addr => {
         // TODO: this is very crude and should be handled more selectively
         for (const peer of this.outgoingPeers.concat(this.incomingPeers)) {
             if (peer.online) peer.sendMyServerAddress();

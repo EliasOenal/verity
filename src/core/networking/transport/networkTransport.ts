@@ -1,6 +1,8 @@
-import { SupportedTransports } from "../networkDefinitions";
-import { TransportServer } from "./transportServer";
-import { AddressAbstraction } from "../../peering/addressing";
+import type { NetworkManagerOptions } from "../networkManagerIf";
+import type { SupportedTransports } from "../networkDefinitions";
+import type { TransportServer } from "./transportServer";
+import type { AddressAbstraction } from "../../peering/addressing";
+
 import { Settings } from "../../settings";
 
 import EventEmitter from "events";
@@ -34,7 +36,10 @@ export abstract class NetworkTransport extends EventEmitter<NetworkTransportEven
 
   dialableAddress: AddressAbstraction = undefined;
 
-  constructor() {
+  constructor(
+      params?: any,  // TODO fix or document any type
+      options: NetworkManagerOptions = {},
+  ) {
     super();
     this.setMaxListeners(Settings.MAXIMUM_CONNECTIONS * 5);
   }
