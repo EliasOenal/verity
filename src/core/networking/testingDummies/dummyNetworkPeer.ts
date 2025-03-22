@@ -7,8 +7,8 @@ import { CubeStore } from '../../cube/cubeStore';
 import { Peer } from '../../peering/peer';
 import { PeerDB } from '../../peering/peerDB';
 import { TransportConnection } from '../transport/transportConnection';
-import { DummyNetworkManager } from './networkManagerDummy';
-import { DummyTransportConnection } from './DummyTransportConnection';
+import { DummyNetworkManager } from './dummyNetworkManager';
+import { DummyTransportConnection } from './dummyTransportConnection';
 import { NetConstants } from '../networkDefinitions';
 import { Settings } from '../../settings';
 

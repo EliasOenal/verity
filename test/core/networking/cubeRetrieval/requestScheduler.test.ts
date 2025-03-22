@@ -5,14 +5,14 @@ import { NetConstants } from "../../../../src/core/networking/networkDefinitions
 
 import { unixtime } from "../../../../src/core/helpers/misc";
 
-import { NetworkPeerIf } from 'core/networking/networkPeerIf';
+import { NetworkPeerIf } from '../../../../src/core/networking/networkPeerIf';
 import { SubscriptionConfirmationMessage, SubscriptionResponseCode } from "../../../../src/core/networking/networkMessage";
 import { RequestScheduler } from "../../../../src/core/networking/cubeRetrieval/requestScheduler";
 import { RoundrobinStrategy } from "../../../../src/core/networking/cubeRetrieval/requestStrategy";
 import { CubeRequest, CubeSubscription } from "../../../../src/core/networking/cubeRetrieval/pendingRequest";
 
-import { DummyNetworkManager } from "../../../../src/core/networking/testingDummies/networkManagerDummy";
-import { DummyNetworkPeer } from '../../../../src/core/networking/testingDummies/networkPeerDummy';
+import { DummyNetworkManager } from "../../../../src/core/networking/testingDummies/dummyNetworkManager";
+import { DummyNetworkPeer } from '../../../../src/core/networking/testingDummies/dummyNetworkPeer';
 
 import { Cube } from "../../../../src/core/cube/cube";
 import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
@@ -434,7 +434,7 @@ describe('RequestScheduler', () => {
 
             // expect request to have been sent
             expect(sendSubscribeCube).toHaveBeenCalledTimes(1);
-            expect(sendSubscribeCube.mock.lastCall[0]).toContainEqual(testKey);
+            expect(sendSubscribeCube.mock.lastCall![0]).toContainEqual(testKey);
           });
 
           it('will first request the Cube if not present locally', async() => {
@@ -478,7 +478,7 @@ describe('RequestScheduler', () => {
 
             // Assert that the subscription request has been now been sent
             expect(sendSubscribeCube).toHaveBeenCalledTimes(1);
-            expect(sendSubscribeCube.mock.lastCall[0]).toContainEqual(testKey);
+            expect(sendSubscribeCube.mock.lastCall![0]).toContainEqual(testKey);
           });
 
           it('will auto-renew a subscription once it times out', async() => {
@@ -502,7 +502,7 @@ describe('RequestScheduler', () => {
 
             // expect mock peer to have received one subscription request
             expect(sendSubscribeCube).toHaveBeenCalledTimes(1);
-            expect(sendSubscribeCube.mock.lastCall[0]).toContainEqual(testKey);
+            expect(sendSubscribeCube.mock.lastCall![0]).toContainEqual(testKey);
 
             // expect subscription to be registered
             const sub: CubeSubscription = await subPromise;
@@ -531,7 +531,7 @@ describe('RequestScheduler', () => {
             // requests, the original one and the renewal
             // (mock peer is the only peer in this test)
             expect(sendSubscribeCube).toHaveBeenCalledTimes(2);
-            expect(sendSubscribeCube.mock.lastCall[0]).toContainEqual(testKey);
+            expect(sendSubscribeCube.mock.lastCall![0]).toContainEqual(testKey);
           });
         });  // regular workflow
 

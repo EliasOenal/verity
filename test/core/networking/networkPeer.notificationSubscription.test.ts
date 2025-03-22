@@ -9,8 +9,8 @@ import { MessageClass, NetConstants } from "../../../src/core/networking/network
 import { NetworkManagerIf } from "../../../src/core/networking/networkManagerIf";
 import { CubeResponseMessage, NetworkMessage, SubscribeCubeMessage, SubscribeNotificationsMessage, SubscriptionConfirmationMessage, SubscriptionResponseCode } from "../../../src/core/networking/networkMessage";
 import { NetworkPeer } from "../../../src/core/networking/networkPeer";
-import { DummyTransportConnection } from "../../../src/core/networking/testingDummies/DummyTransportConnection";
-import { DummyNetworkManager } from "../../../src/core/networking/testingDummies/networkManagerDummy";
+import { DummyTransportConnection } from "../../../src/core/networking/testingDummies/dummyTransportConnection";
+import { DummyNetworkManager } from "../../../src/core/networking/testingDummies/dummyNetworkManager";
 import { PeerDB } from "../../../src/core/peering/peerDB";
 import { Settings } from "../../../src/core/settings";
 import { requiredDifficulty, testCoreOptions } from "../testcore.definition";

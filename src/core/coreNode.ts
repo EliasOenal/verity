@@ -7,7 +7,7 @@ import { AddressAbstraction } from "./peering/addressing";
 import { Peer } from "./peering/peer";
 import { PeerDB } from "./peering/peerDB";
 import { RequestScheduler } from "./networking/cubeRetrieval/requestScheduler";
-import { DummyNetworkManager } from "./networking/testingDummies/networkManagerDummy";
+import { DummyNetworkManager } from "./networking/testingDummies/dummyNetworkManager";
 
 interface InitialisationOptions {
   initialPeers?: AddressAbstraction[],
