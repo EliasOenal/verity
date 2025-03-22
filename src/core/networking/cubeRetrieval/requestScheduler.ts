@@ -120,8 +120,7 @@ export class RequestScheduler implements Shuttable {
     options.requestTimeout ??= Settings.CUBE_REQUEST_TIMEOUT;
     options.interactiveRequestDelay ??= Settings.INTERACTIVE_REQUEST_DELAY;
 
-    this.networkManager.cubeStore.on("cubeAdded", (cubeInfo: CubeInfo) =>
-      this.cubeAddedHandler(cubeInfo));
+    this.networkManager.cubeStore.on("cubeAdded", this.cubeAddedHandler);
   }
 
   /**
@@ -655,8 +654,7 @@ export class RequestScheduler implements Shuttable {
     this.shutdownPromiseResolve();
     this.cubeRequestTimer.clear();
     this.keyRequestTimer.clear();
-    this.networkManager.cubeStore.removeListener("cubeAdded", (cubeInfo: CubeInfo) =>
-      this.cubeAddedHandler(cubeInfo));
+    this.networkManager.cubeStore.removeListener("cubeAdded", this.cubeAddedHandler);
     for (const [key, req] of this.requestedCubes) req.shutdown();
     for (const [key, req] of this.requestedNotifications) req.shutdown();
     for (const [key, req] of this.expectedNotifications) req.shutdown();
@@ -831,7 +829,9 @@ export class RequestScheduler implements Shuttable {
     }
   }
 
-  private cubeAddedHandler(cubeInfo: CubeInfo) {
+    // NOTE: must use arrow syntax to have this event handler pre-bound;
+    //  otherwise, event subscription will not properly cancel on close
+  private cubeAddedHandler: (cubeInfo: CubeInfo) => void = cubeInfo => {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
 

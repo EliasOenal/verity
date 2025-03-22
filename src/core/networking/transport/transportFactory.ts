@@ -1,15 +1,14 @@
 import { AddressError, SupportedTransports } from "../networkDefinitions";
 import { Libp2pTransport } from "./libp2p/libp2pTransport";
-import { NetworkManager } from "../networkManager";
 import { NetworkManagerOptions } from '../networkManagerIf';
 import { TransportParamMap, TransportMap } from "./networkTransport";
+
 import { WebSocketTransport } from "./webSocket/webSocketTransport";
 import { Libp2pConnection } from "./libp2p/libp2pConnection";
 import { WebSocketConnection } from "./webSocket/webSocketConnection";
+import { DummyNetworkTransport } from "../testingDummies/dummyNetworkTransport";
 
 import { AddressAbstraction, WebSocketAddress } from "../../peering/addressing";
-
-import { logger } from "../../logger";
 
 // Putting this stuff in a separate module rather than using static methods
 // to avoid circular dependencies
@@ -21,13 +20,17 @@ export function createNetworkTransport(
 const transports: TransportMap = new Map();
 for (const [type, param] of params.entries()) {
   // try {
-    if (type == SupportedTransports.ws) {
+    if (type === SupportedTransports.ws) {
       transports.set(SupportedTransports.ws,
         new WebSocketTransport(param, options));
     }
-    if (type == SupportedTransports.libp2p) {
+    if (type === SupportedTransports.libp2p) {
       transports.set(SupportedTransports.libp2p,
         new Libp2pTransport(param, options));
+    }
+    if (type === SupportedTransports.dummy) {
+      transports.set(SupportedTransports.dummy,
+        new DummyNetworkTransport(param, options));
     }
   // } catch(error) {
   //   logger.error(error.message);
