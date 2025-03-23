@@ -166,4 +166,9 @@ export interface CubeSubscriptionSupplemental {
   key: Buffer,
   shallRenew?: boolean,
 }
+/**
+ * A CubeSubscription represents a single subscription period for one or multiple
+ * keys to a single peer. When it times out, it can be renewed by replacing it
+ * with a new and different CubeSubscription.
+ */
 export class CubeSubscription extends PendingRequest<void, CubeSubscriptionSupplemental> {}
