@@ -801,7 +801,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
       const subGen: AsyncGenerator<Veritum> =
         eventsToGenerator(
           [{emitter: emitter, event: 'postAdded'}],
-          (!options.postInfo? extractPost : undefined),
+          { transform: (!options.postInfo? extractPost : undefined)},
       );
       ret = mergeAsyncGenerators(mine, ...rGens, subGen);
     } else {
