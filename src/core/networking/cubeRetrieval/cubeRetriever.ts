@@ -3,6 +3,8 @@ import { CubeKey } from "../../cube/cube.definitions";
 import { CubeFamilyDefinition } from "../../cube/cubeFields";
 import { CubeInfo } from "../../cube/cubeInfo";
 import { CubeRetrievalInterface, CubeStore } from "../../cube/cubeStore";
+import { keyVariants } from "../../cube/cubeUtil";
+import { eventsToGenerator } from "../../helpers/asyncGenerators";
 import { CubeRequestOptions, RequestScheduler } from "./requestScheduler";
 
 /**
@@ -39,6 +41,32 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
   ): Promise<cubeClass> {
     const cubeInfo = await this.getCubeInfo(key, options);
     return cubeInfo?.getCube<cubeClass>(options);
+  }
+
+  subscribeCube(
+      keyInput: CubeKey|string,
+  ): AsyncGenerator<Cube> {
+    // normalise input
+    const key: CubeKey = keyVariants(keyInput).binaryKey;
+
+    // Prepare a Generator that will yield all updates to this Cube.
+    // To do this, we will leverage CubeStore's cubeAdded events and adapt
+    // them into a Generator.
+    // That generator will be limited to only yielding events which match the
+    // subscribed key.
+    const generator: AsyncGenerator<Cube> = eventsToGenerator(
+      [{ emitter: this.cubeStore, event: 'cubeAdded' }],
+      {
+        limit: (cubeInfo: CubeInfo) => cubeInfo.key.equals(key),
+        transform: (cubeInfo: CubeInfo) => cubeInfo.getCube(),
+      },
+    );
+
+    // Have our scheduler actually network-subscribe the requested Cube
+    this.requestScheduler.subscribeCube(keyInput);
+    // TODO error handling
+
+    return generator;
   }
 
   /**
