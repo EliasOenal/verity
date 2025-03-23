@@ -511,12 +511,13 @@ describe('eventsToGenerator()', () => {
     });
   });  // termination
 
-  describe('optional transformation', () => {
-    it('runs the transformation function if supplied', async () => {
-      const emitter = new EventEmitter();
+  describe('options', () => {
+    describe('transform', () => {
+      it('runs the transformation function if supplied', async () => {
+        const emitter = new EventEmitter();
 
-      const toIntAndDouble: (input: string) => number =
-        (input: string) => Number.parseInt(input) * 2;
+        const toIntAndDouble: (input: string) => number =
+          (input: string) => Number.parseInt(input) * 2;
 
         const generator = eventsToGenerator(
           [{ emitter: emitter, event: 'event' }],
@@ -524,26 +525,58 @@ describe('eventsToGenerator()', () => {
         );
 
 
-      // Emit events -- but only after a short while as eventsToGenerator()
-      // is not listening yet.
-      setTimeout(() => {
-        emitter.emit('event', '1');
-        emitter.emit('event', '2');
-        emitter.emit('event', '3');
-      }, 100);
+        // Emit events -- but only after a short while as eventsToGenerator()
+        // is not listening yet.
+        setTimeout(() => {
+          emitter.emit('event', '1');
+          emitter.emit('event', '2');
+          emitter.emit('event', '3');
+        }, 100);
 
-      // Test event yielding with for...of loop
-      const results: any[] = [];
-      for await (const event of generator) {
-        results.push(event);
-        if (results.length === 3) break;
-      }
+        // Test event yielding with for...of loop
+        const results: any[] = [];
+        for await (const event of generator) {
+          results.push(event);
+          if (results.length === 3) break;
+        }
 
-      expect(results[0]).toBe(2);
-      expect(results[1]).toBe(4);
-      expect(results[2]).toBe(6);
-    });
-  });
+        expect(results[0]).toBe(2);
+        expect(results[1]).toBe(4);
+        expect(results[2]).toBe(6);
+      });
+    });  // transform
+
+    describe('exclude', () => {
+      it('excludes events if the exclude function returns true', async () => {
+        const emitter = new EventEmitter();
+
+        const exclude: (input: string) => boolean = input => input !== '2';
+
+        const generator = eventsToGenerator(
+          [{ emitter: emitter, event: 'event' }],
+          { limit: exclude },
+        );
+
+        // Emit events -- but only after a short while as eventsToGenerator()
+        // is not listening yet.
+        setTimeout(() => {
+          emitter.emit('event', '1');
+          emitter.emit('event', '2');
+          emitter.emit('event', '3');
+        }, 100);
+
+        // Test event yielding with for...of loop
+        const results: any[] = [];
+        for await (const event of generator) {
+          results.push(event);
+          if (results.length === 2) break;
+        }
+
+        expect(results[0]).toBe('1');
+        expect(results[1]).toBe('3');
+      });
+    })
+  });  // options
 
   describe('edge cases', () => {
     it('handles empty emitter array gracefully', async () => {

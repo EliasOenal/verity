@@ -89,7 +89,17 @@ export async function* resolveAndYield<T>(
 
 
 export interface EventsToGeneratorOptions<Emitted, Transformed = Emitted> {
+  /**
+   * If supplied, all emitted data will be passed through this transformation
+   * function before yielding.
+   */
   transform?: (data: Emitted) => Transformed;
+
+  /**
+   * Limits which events should be yielded.
+   * The supplied function shall return `true` if the emitted data should be yielded.
+   */
+  limit?: (data: Emitted) => boolean;
 }
 
 /**
@@ -122,11 +132,14 @@ export async function* eventsToGenerator<Emitted, Transformed = Emitted>(
   // event that we're listening. Whenever we receive data from an event, we'll
   // push it into our queue of yieldable data.
   const createHandler = (event: string) => (data: Emitted): void => {
+    // If the user has specified exclusion, skip any excluded events
+    if (options.limit && options.limit(data) === false) return;
+    // Not excluded? Great! Push it onto our yieldable queue.
     queue.push(data);
     // If we're currently awaiting the next event, stop waiting now
     if (resolveQueue) {
       resolveQueue();
-      resolveQueue = null;
+      resolveQueue = null;  // we're no longer in waiting state
     }
   };
 
