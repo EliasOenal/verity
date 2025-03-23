@@ -520,7 +520,7 @@ describe('eventsToGenerator()', () => {
 
         const generator = eventsToGenerator(
           [{ emitter: emitter, event: 'event' }],
-          toIntAndDouble,
+          { transform: toIntAndDouble },
         );
 
 

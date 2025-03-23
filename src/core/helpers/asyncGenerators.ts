@@ -88,6 +88,9 @@ export async function* resolveAndYield<T>(
 }
 
 
+export interface EventsToGeneratorOptions<Emitted, Transformed = Emitted> {
+  transform?: (data: Emitted) => Transformed;
+}
 
 /**
  * An async generator that listens to multiple event emitters and yields events as they occur.
@@ -99,7 +102,7 @@ export async function* resolveAndYield<T>(
  */
 export async function* eventsToGenerator<Emitted, Transformed = Emitted>(
   emitters: { emitter: EventEmitter; event: string }[],
-  transform?: (data: Emitted) => Transformed
+  options: EventsToGeneratorOptions<Emitted, Transformed> = {},
 ): AsyncGenerator<Transformed> {
   // Sanity check: If no emitters are provided, exit immediately.
   if (emitters.length === 0) {
@@ -151,7 +154,7 @@ export async function* eventsToGenerator<Emitted, Transformed = Emitted>(
         // Fetch something from the queue of data ready to yield
         let data: Emitted|Transformed = queue.shift()!;
         // If requested by the caller, run a transformation on the data
-        if (transform) data = transform(data);
+        if (options.transform) data = options.transform(data);
         yield data as Transformed;  // typecast: data will either be Emitted or Transformed
       }
     }
