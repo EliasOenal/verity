@@ -57,7 +57,7 @@ describe('RequestScheduler', () => {
       await cubeStore.readyPromise;
 
       // Create a dummy NetworkManager and a RequestScheduler
-      dummyNetworkManager = new DummyNetworkManager(cubeStore, new PeerDB(), undefined, {
+      dummyNetworkManager = new DummyNetworkManager(cubeStore, new PeerDB(), {
         lightNode: lightNode,  // test will be run for both cases
         requestInterval: 50,  // running requests 20 times per second totally is a sensible idea
         requestScaleFactor: 4,  // default value a the time of writing these tests
@@ -95,7 +95,7 @@ describe('RequestScheduler', () => {
 
       it('should return undefined when Cube requests time out', async () => {
         const promise = scheduler.requestCube(testKey, {scheduleIn: 0, timeout: 10});  // I fully expect you to fetch my Cube in 10ms
-        expect(promise).resolves.toBeUndefined();
+        await expect(promise).resolves.toBeUndefined();
       });
 
       it('can request from a user-defined node', async() => {

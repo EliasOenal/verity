@@ -12,11 +12,16 @@ import { SupportedTransports, NetConstants } from "../networkDefinitions";
 import EventEmitter from "events";
 
 export class DummyNetworkManager extends EventEmitter implements NetworkManagerIf {
-  constructor(public cubeStore: CubeStore, public peerDB: PeerDB, transports: TransportParamMap = new Map(), public options: NetworkManagerOptions = {}) {
-      super();
-      SetNetworkManagerDefaults(options);
-      this.scheduler = new RequestScheduler(this, options);
+  constructor(
+      public cubeStore: CubeStore,
+      public peerDB: PeerDB,
+      public options: NetworkManagerOptions = {},
+  ) {
+    super();
+    SetNetworkManagerDefaults(options);
+    this.scheduler = new RequestScheduler(this, options);
   }
+
   shutdownPromise: Promise<void> = Promise.resolve();
   transports: Map<SupportedTransports, NetworkTransport>;
   scheduler: RequestScheduler;
