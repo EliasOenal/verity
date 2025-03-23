@@ -106,18 +106,30 @@ export async function* eventsToGenerator<Emitted, Transformed = Emitted>(
     return;
   }
 
+  // Prepare some vars:
+  // A queue of emitted data ready to be yielded
   const queue: Emitted[] = [];
+  // We will later use a Promise to block ourselves whenever there's currently
+  // nothing to yield. resolveQueue will hold that blocking Promise' resolve
+  // function and will be called to wake us back up whenever we receive
+  // yieldable data.
   let resolveQueue: (() => void) | null = null;
 
-  // Event handler factory that pushes data into the queue
+  // Create a factory of event handlers, which will be called once for each
+  // event that we're listening. Whenever we receive data from an event, we'll
+  // push it into our queue of yieldable data.
   const createHandler = (event: string) => (data: Emitted): void => {
     queue.push(data);
+    // If we're currently awaiting the next event, stop waiting now
     if (resolveQueue) {
       resolveQueue();
       resolveQueue = null;
     }
   };
 
+  // Finally, subscribe to all events that we're supposed to listen to.
+  // To facilitate proper cleanup once we're done, keep track of all events'
+  // unsubscribe functions.
   const unsubscribeFns: (() => void)[] = emitters.map(({ emitter, event }): (() => void) => {
     const listener = createHandler(event);
     emitter.on(event, listener);
@@ -131,6 +143,7 @@ export async function* eventsToGenerator<Emitted, Transformed = Emitted>(
       // If there is currently nothing ready to yield, wait for the next
       // Promise to resolve.
       if (queue.length === 0) {
+        // Promise will be resolved by our event handler(s)
         await new Promise<void>((resolve) => (resolveQueue = resolve));
       }
       // But if there is something ready, yield it now.
@@ -139,12 +152,12 @@ export async function* eventsToGenerator<Emitted, Transformed = Emitted>(
         let data: Emitted|Transformed = queue.shift()!;
         // If requested by the caller, run a transformation on the data
         if (transform) data = transform(data);
-        yield data as any;  // typecast: data will either be Emitted or Transformed
+        yield data as Transformed;  // typecast: data will either be Emitted or Transformed
       }
     }
   } finally {
     // We're finished! Just do some cleanup work:
-    // - Resolve the last pending Promise, if any -- TODO: why?
+    // - Resolve the last pending Promise, if any (not sure why we actually need this)
     if (resolveQueue) {
       resolveQueue();
     }

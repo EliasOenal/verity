@@ -553,6 +553,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     }
 
     // Subscribe to remote Identity updates (i.e. same user using multiple devices)
+    // TODO network-subscribe and write test for it
     if (!(options?.subscribeRemoteChanges === false)) {  // unless explicitly opted out
       this.cubeStore?.on("cubeAdded", this.mergeRemoteChanges);
     }
