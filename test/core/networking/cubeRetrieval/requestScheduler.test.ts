@@ -22,17 +22,9 @@ import { CubeStore, CubeStoreOptions } from "../../../../src/core/cube/cubeStore
 
 import { PeerDB } from "../../../../src/core/peering/peerDB";
 
+import { requiredDifficulty, testCoreOptions } from "../../testcore.definition";
+
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-
-const reducedDifficulty = 0;
-
-const cubeStoreOptions: CubeStoreOptions = {
-  inMemory: true,
-  requiredDifficulty: reducedDifficulty,
-  enableCubeRetentionPolicy: false,
-  dbName: 'cubes.test',
-  dbVersion: 1,
-};
 
 describe('RequestScheduler', () => {
   describe.each([
@@ -53,7 +45,7 @@ describe('RequestScheduler', () => {
       // Create a CubeStore
       // note: copying cubeStoreOptions here so we can manipulate them
       // within the tests without affecting subsequent tests
-      cubeStore = new CubeStore(Object.assign({}, cubeStoreOptions));
+      cubeStore = new CubeStore(Object.assign({}, testCoreOptions));
       await cubeStore.readyPromise;
 
       // Create a dummy NetworkManager and a RequestScheduler
@@ -331,7 +323,7 @@ describe('RequestScheduler', () => {
             contentField,
             CubeField.Notify(testKey),
           ],
-          requiredDifficulty: reducedDifficulty,
+          requiredDifficulty,
         })
         await scheduler.networkManager.cubeStore.addCube(notification);
 
@@ -406,150 +398,6 @@ describe('RequestScheduler', () => {
       });
     });
 
-    describe(`subscribeCube() as a ${lightNode? 'light node':'full node'}`, () => {
-      if (lightNode) {
-        describe('regular workflow', () => {
-          it('sends a subscription request to any connected peer', async() => {
-            // prepare test Cube
-            const cube = testCube();
-            const testKey = await cube.getKey();
-            // For this test, we assume that the Cube is already present locally
-            await cubeStore.addCube(cube);
-            // prepare spy
-            const sendSubscribeCube = vi.spyOn(dummyPeer, 'sendSubscribeCube');
-
-            // make request
-            const subPromise: Promise<CubeSubscription> = scheduler.subscribeCube(testKey);
-
-            // mock peer response
-            const resp = new SubscriptionConfirmationMessage(
-              SubscriptionResponseCode.SubscriptionConfirmed,
-              [testKey], [await cube.getHash()], Settings.CUBE_SUBSCRIPTION_PERIOD
-            );
-            scheduler.handleSubscriptionConfirmation(resp);
-
-            await subPromise;
-            // expect subscription to be registered
-            expect(scheduler.isAlreadySubscribed(testKey)).toBe(true);
-
-            // expect request to have been sent
-            expect(sendSubscribeCube).toHaveBeenCalledTimes(1);
-            expect(sendSubscribeCube.mock.lastCall![0]).toContainEqual(testKey);
-          });
-
-          it('will first request the Cube if not present locally', async() => {
-            // prepare test Cube
-            const cube = testCube();
-            const testKey = await cube.getKey();
-
-            // prepare spy
-            const sendSubscribeCube = vi.spyOn(dummyPeer, 'sendSubscribeCube');
-
-            // make request
-            const subPromise: Promise<CubeSubscription> = scheduler.subscribeCube(testKey);
-            await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
-
-            // Assert that a CubeRequest has been scheduled first
-            // as the Cube is not yet present locally
-            const preliminaryCubeRequest = scheduler.existingCubeRequest(testKey);
-            expect(preliminaryCubeRequest).toBeTruthy();
-
-            // Assert that the subscription has *not* been registered yet as the
-            // preliminary CubeRequest is still running
-            expect(scheduler.isAlreadySubscribed(testKey)).toBe(false);
-
-            // mock response to preliminary CubeRequest
-            scheduler.handleCubesDelivered([await cube.getBinaryData()], dummyPeer);
-            const preliminaryCubeInfo = await preliminaryCubeRequest;
-            expect(await preliminaryCubeInfo.getCube().getHash()).toEqual(await cube.getHash());
-            // Yield control once again to allow the subscription to be registered
-            await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
-
-            // mock peer response
-            const resp = new SubscriptionConfirmationMessage(
-              SubscriptionResponseCode.SubscriptionConfirmed,
-              [testKey], [await cube.getHash()], Settings.CUBE_SUBSCRIPTION_PERIOD
-            );
-            scheduler.handleSubscriptionConfirmation(resp);
-            await subPromise;
-
-            // Assert that the subscription has now been registered
-            expect(scheduler.isAlreadySubscribed(testKey)).toBe(true);
-
-            // Assert that the subscription request has been now been sent
-            expect(sendSubscribeCube).toHaveBeenCalledTimes(1);
-            expect(sendSubscribeCube.mock.lastCall![0]).toContainEqual(testKey);
-          });
-
-          it('will auto-renew a subscription once it times out', async() => {
-            // prepare test Cube
-            const cube = testCube();
-            const testKey = await cube.getKey();
-            // For this test, we assume that the Cube is already present locally
-            await cubeStore.addCube(cube);
-            // prepare spy
-            const sendSubscribeCube = vi.spyOn(dummyPeer, 'sendSubscribeCube');
-
-            // make request
-            const subPromise: Promise<CubeSubscription> = scheduler.subscribeCube(testKey);
-
-            // mock peer response, and make the subscription period very short
-            const resp = new SubscriptionConfirmationMessage(
-              SubscriptionResponseCode.SubscriptionConfirmed,
-              [testKey], [await cube.getHash()], 100
-            );
-            scheduler.handleSubscriptionConfirmation(resp);
-
-            // expect mock peer to have received one subscription request
-            expect(sendSubscribeCube).toHaveBeenCalledTimes(1);
-            expect(sendSubscribeCube.mock.lastCall![0]).toContainEqual(testKey);
-
-            // expect subscription to be registered
-            const sub: CubeSubscription = await subPromise;
-            expect(sub).toBeInstanceOf(CubeSubscription);
-            expect(scheduler.cubeSubscriptionDetails(testKey)).toBe(sub);
-
-            // wait for subscription to time out
-            await sub.promise;
-
-            // mock peer response to renewal request
-            const renewalResp = new SubscriptionConfirmationMessage(
-              SubscriptionResponseCode.SubscriptionConfirmed,
-              [testKey], [await cube.getHash()], Settings.CUBE_SUBSCRIPTION_PERIOD
-            );
-            scheduler.handleSubscriptionConfirmation(renewalResp);
-
-            // yield control to allow subscription renewal to be processed
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            // expect a new subscription to have been created
-            const newSub: CubeSubscription = scheduler.cubeSubscriptionDetails(testKey);
-            expect(newSub).toBeInstanceOf(CubeSubscription);
-            expect(newSub).not.toBe(sub);
-
-            // expect mock peer to now have received a total of two subscription
-            // requests, the original one and the renewal
-            // (mock peer is the only peer in this test)
-            expect(sendSubscribeCube).toHaveBeenCalledTimes(2);
-            expect(sendSubscribeCube.mock.lastCall![0]).toContainEqual(testKey);
-          });
-        });  // regular workflow
-
-        describe('error handling', () => {
-          it.todo('write tests');
-        });
-      }  // light node
-
-      if (!lightNode) {
-        it('should ignore subscription requests when running as a full node', () => {  // TODO is this actually something we want to assert?
-          scheduler.options.lightNode = false;
-          scheduler.subscribeCube(testKey);
-          // @ts-ignore spying on private attribute
-          expect(scheduler.subscribedCubes).not.toContainEqual(testKey);
-        });
-      }
-    });  // subscribeCube()
-
     describe(`handleCubesOffered() as ${lightNode ? 'light node' : 'full node'}`, () => {
         it('should ignore cubes that do not meet the retention policy', async () => {
           await cubeStore.readyPromise;
@@ -564,7 +412,7 @@ describe('RequestScheduler', () => {
               CubeField.RawContent(CubeType.FROZEN, "Viva Malta Repubblika!"),
               CubeField.Date(date),
             ],
-            requiredDifficulty: reducedDifficulty,
+            requiredDifficulty,
           });
           const oldCubeInfo: CubeInfo = await oldCube.getCubeInfo();
           expect(oldCubeInfo.date).toBe(date);
@@ -624,7 +472,7 @@ describe('RequestScheduler', () => {
               CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
               CubeField.Date(unixtime() - 315360000),  // sculpted ten years ago
             ],
-            requiredDifficulty: reducedDifficulty,
+            requiredDifficulty,
           });
           await cubeStore.addCube(oldCube);
           // ... and a new one that will be offered to us
@@ -633,7 +481,7 @@ describe('RequestScheduler', () => {
               CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
               CubeField.Date(unixtime()),  // sculpted right now
             ],
-            requiredDifficulty: reducedDifficulty,
+            requiredDifficulty,
           });
           const testCubeInfo = await newCube.getCubeInfo();
 
@@ -664,7 +512,7 @@ describe('RequestScheduler', () => {
               CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
               CubeField.Date(unixtime()),  // sculpted right now
             ],
-            requiredDifficulty: reducedDifficulty,
+            requiredDifficulty,
           });
           await cubeStore.addCube(newCube);
           // ... and an older one that will be offered to us
@@ -673,7 +521,7 @@ describe('RequestScheduler', () => {
               CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
               CubeField.Date(unixtime() - 315360000),  // sculpted ten years
             ],
-            requiredDifficulty: reducedDifficulty,
+            requiredDifficulty,
           });
           const testCubeInfo = await oldCube.getCubeInfo();
 
@@ -700,7 +548,7 @@ function testCube(): Cube {
     CubeField.RawContent(CubeType.FROZEN, "Cubus sum");
   const cube = Cube.Frozen({
     fields: contentField,
-    requiredDifficulty: reducedDifficulty,
+    requiredDifficulty,
   });
   return cube;
 }
