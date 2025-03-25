@@ -1,4 +1,4 @@
-import type { NetworkPeerIf } from 'core/networking/networkPeerIf';
+import type { NetworkPeerIf } from '../../../../src/core/networking/networkPeerIf';
 import type { CubeSubscription } from '../../../../src/core/networking/cubeRetrieval/pendingRequest';
 
 import { cciFamily, cciCube } from "../../../../src/cci/cube/cciCube";
@@ -12,7 +12,7 @@ import { CubeInfo } from '../../../../src/core/cube/cubeInfo';
 
 import { SupportedTransports } from "../../../../src/core/networking/networkDefinitions";
 import { NetworkManager } from "../../../../src/core/networking/networkManager";
-import { NetworkManagerOptions } from 'core/networking/networkManagerIf';
+import { NetworkManagerOptions } from '../../../../src/core/networking/networkManagerIf';
 import { NetworkPeer } from '../../../../src/core/networking/networkPeer';
 
 import { WebSocketAddress } from "../../../../src/core/peering/addressing";
@@ -24,7 +24,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 
 const reducedDifficulty = 0; // no hash cash for testing
 
-describe('RequestScheduler integration tests', () => {
+describe('RequestScheduler subscribeCube() e2e tests', () => {
   const testCubeStoreParams: CubeStoreOptions = {
     inMemory: true,
     enableCubeRetentionPolicy: false,
