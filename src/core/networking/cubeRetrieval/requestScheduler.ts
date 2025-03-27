@@ -2,7 +2,7 @@ import type { NetworkPeerIf } from '../networkPeerIf';
 import type { NetworkManagerIf } from '../networkManagerIf';
 
 import { Settings } from '../../settings';
-import { NetConstants, NetworkPeerError } from '../networkDefinitions';
+import { MessageClass, NetConstants, NetworkPeerError } from '../networkDefinitions';
 import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode, SubscriptionConfirmationMessage, SubscriptionResponseCode } from '../networkMessage';
 
 import { RequestStrategy, RandomStrategy, BestScoreStrategy } from './requestStrategy';
@@ -66,6 +66,8 @@ export interface CubeSubscribeOptions extends CubeRequestOptions {
    * automatic renewal of an existing subscription.
    */
   thisIsARenewal?: boolean;
+
+  type?: MessageClass.SubscribeCube | MessageClass.SubscribeNotifications;
 }
 
 /**
@@ -87,6 +89,7 @@ export class RequestScheduler implements Shuttable {
   private expectedNotifications: Map<string, CubeRequest> = new Map();
   /** Cubes (MUC, PMUC) subscribed to by the user */
   private subscribedCubes: Map<string, CubeSubscription> = new Map();
+  private subscribedNotifications: Map<string, CubeSubscription> = new Map();
 
   /**
    * A map of responses to Cube subscription requests we are currently waiting for.
@@ -232,30 +235,36 @@ export class RequestScheduler implements Shuttable {
   ): Promise<CubeSubscription> {
     // Sanity checks:
     // Do not accept any calls if this scheduler has already been shut down.
+    if (this._shutdown) return undefined;
     // Full nodes are implicitly subscribed to everything
-    if (this._shutdown ||
-        !this.options.lightNode) {
-      return undefined;
-    }
+    if (!this.options.lightNode) return undefined;
 
-    // Input normalisation:
-    const key = keyVariants(keyInput);
-    // Already subscribed?
-    if (!options.thisIsARenewal && this.subscribedCubes.has(key.keyString)) {
-      return undefined;
-    }
     // set defaults options
     options.scheduleIn ??= this.options.interactiveRequestDelay;
     options.timeout ??= this.options.requestTimeout;
+    options.type ??= MessageClass.SubscribeCube;
+    const subMap = options.type === MessageClass.SubscribeNotifications?
+      this.subscribedNotifications : this.subscribedCubes;
 
-    // Do we even have this Cube locally?
+    // Input normalisation:
+    const key = keyVariants(keyInput);
+
+    // Already subscribed?
+    if (!options.thisIsARenewal && subMap.has(key.keyString)) {
+      return undefined;
+    }
+
+    let ourCubeInfo: CubeInfo;
+    // If this is a CubeSubscription: Do we even have this Cube locally?
     // If we don't have it, does it even exist on the network?
-    let ourCubeInfo: CubeInfo = await this.networkManager.cubeStore.getCubeInfo(key.keyString);
-    if (ourCubeInfo === undefined) {
-      ourCubeInfo = await this.requestCube(key.keyString);
+    if (options.type === MessageClass.SubscribeCube) {
+      ourCubeInfo = await this.networkManager.cubeStore.getCubeInfo(key.keyString);
       if (ourCubeInfo === undefined) {
-        logger.trace(`RequestScheduler.subscribeCube(): Could not find Cube ${key.keyString} locally or remotely`);
-        return undefined;
+        ourCubeInfo = await this.requestCube(key.keyString);
+        if (ourCubeInfo === undefined) {
+          logger.trace(`RequestScheduler.subscribeCube(): Could not find Cube ${key.keyString} locally or remotely`);
+          return undefined;
+        }
       }
     }
 
@@ -284,7 +293,7 @@ export class RequestScheduler implements Shuttable {
 
       // Send subscription request...
       // maybe TODO optimise: group multiple subscriptions to the same peer?
-      peerSelected.sendSubscribeCube([key.binaryKey]);
+      peerSelected.sendSubscribeCube([key.binaryKey], options.type);
       // ... and await reply
       const req = new SubscriptionRequest(Settings.NETWORK_TIMEOUT, // low prio TODO: parametrise timeout
         { key: key.binaryKey } );
@@ -311,27 +320,29 @@ export class RequestScheduler implements Shuttable {
         peerSelected = undefined;
         continue;
       }
-      // 4) Does the remote node have the same version as us?
+      // 4) If this is a CubeSubscription: Does the remote node have the same version as us?
       //    If not, request this remote node's version:
       //    if the remote version is newer, subscribe;
       //    if the remote version is older, choose other node.
-      if (!subscriptionResponse.cubesHashBlob.equals(await ourCubeInfo.getCube().getHash())) {
-        const remoteCubeInfo: CubeInfo = await this.requestCube(
-          key.keyString, { requestFrom: peerSelected });
-        // disregard this peer if it:
-        // - does not respond or does not have the requested Cube
-        if (remoteCubeInfo === undefined) {
-          peerSelected = undefined;
-          continue;
-        }
-        // - if the remote version is older than ours
-        //   (note: calling cubeContest with reverse params as we want the
-        //   remote to "win" (qualify for subscription) in case of a tie --
-        //   a "tie" is actually the most favourable outcome as it means we
-        //   are in sync with the candidate node)
-        if (cubeContest(remoteCubeInfo, ourCubeInfo) !== remoteCubeInfo) {
-          peerSelected = undefined;
-          continue;
+      if (options.type === MessageClass.SubscribeCube) {
+        if (!subscriptionResponse.cubesHashBlob.equals(await ourCubeInfo.getCube().getHash())) {
+          const remoteCubeInfo: CubeInfo = await this.requestCube(
+            key.keyString, { requestFrom: peerSelected });
+          // disregard this peer if it:
+          // - does not respond or does not have the requested Cube
+          if (remoteCubeInfo === undefined) {
+            peerSelected = undefined;
+            continue;
+          }
+          // - if the remote version is older than ours
+          //   (note: calling cubeContest with reverse params as we want the
+          //   remote to "win" (qualify for subscription) in case of a tie --
+          //   a "tie" is actually the most favourable outcome as it means we
+          //   are in sync with the candidate node)
+          if (cubeContest(remoteCubeInfo, ourCubeInfo) !== remoteCubeInfo) {
+            peerSelected = undefined;
+            continue;
+          }
         }
       }
 
@@ -356,25 +367,36 @@ export class RequestScheduler implements Shuttable {
       subscriptionResponse.subscriptionDuration,
       { key: key.binaryKey },
     );
-    this.subscribedCubes.set(key.keyString, sub);
+    subMap.set(key.keyString, sub);
+
+    // Turn on auto-renewal by default
+    sub.sup.shallRenew = true;
+
     // Clean up subscription after it expires
     sub.promise.then(() => {
+      const registered: CubeSubscription = subMap.get(key.keyString);
       // only clean up if it has not been overwritten yet (e.g. by a renewal)
-      const registered: CubeSubscription = this.subscribedCubes.get(key.keyString);
-      if (registered === sub) this.subscribedCubes.delete(key.keyString)
-    });
-    // Set up auto-renewal
-    // TODO: We should actually renew the subscription *before* it times out
-    //   to avoid any gaps.
-    sub.sup.shallRenew = true;
-    sub.promise.then(() => {
-      // only renew if subscription has not been cancelled meanwhile
+      if (registered === sub) subMap.delete(key.keyString)
+
+      // If the subscription is supposed to auto-renew, renew it now!
+      // TODO: We should actually renew the subscription *before* it times out
+      //   to avoid any gaps.
       if (sub.sup.shallRenew === true) {
-        this.subscribeCube(key.binaryKey, { thisIsARenewal: true });
+        this.subscribeCube(key.binaryKey, { ...options, thisIsARenewal: true });
       }
     });
 
     return sub;
+  }
+
+  subscribeNotifications(
+      keyInput: CubeKey | string,
+      options: CubeSubscribeOptions = {},
+  ): Promise<CubeSubscription> {
+    return this.subscribeCube(
+      keyInput,
+      { ...options, type: MessageClass.SubscribeNotifications },
+    );
   }
 
 
@@ -408,7 +430,7 @@ export class RequestScheduler implements Shuttable {
     }
   }
 
-  isAlreadyRequested(
+  cubeAlreadyRequested(
       keyInput: CubeKey | string,
       includeSubscriptions: boolean = true,
   ): boolean {
@@ -422,10 +444,15 @@ export class RequestScheduler implements Shuttable {
     if (req) return true;
     else return false;
   }
-  isAlreadySubscribed(keyInput: CubeKey | string): boolean {
-    const key = keyVariants(keyInput);
-    return this.subscribedCubes.has(key.keyString);
+
+  cubeAlreadySubscribed(keyInput: CubeKey | string): boolean {
+    return this.subscribedCubes.has(keyVariants(keyInput).keyString);
   }
+
+  notificationsAlreadySubscribed(keyInput: CubeKey | string): boolean {
+    return this.subscribedNotifications.has(keyVariants(keyInput).keyString);
+  }
+
   existingCubeRequest(keyInput: CubeKey | string): Promise<CubeInfo> {
     return this.cubeRequestDetails(keyInput)?.promise;
   }
@@ -449,6 +476,10 @@ export class RequestScheduler implements Shuttable {
   cubeSubscriptionDetails(keyInput: CubeKey | string): CubeSubscription {
     const key = keyVariants(keyInput);
     return this.subscribedCubes.get(key.keyString);
+  }
+  notificationSubscriptionDetails(keyInput: CubeKey | string): CubeSubscription {
+    const key = keyVariants(keyInput);
+    return this.subscribedNotifications.get(key.keyString);
   }
 
   /**

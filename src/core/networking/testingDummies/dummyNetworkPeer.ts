@@ -1,5 +1,5 @@
 import type { NetworkPeerIf } from '../networkPeerIf';
-import type { NetworkMessage, KeyRequestMode, CubeFilterOptions, SubscriptionResponseCode, SubscriptionConfirmationMessage } from '../networkMessage';
+import { type NetworkMessage, type CubeFilterOptions, type SubscriptionResponseCode, type SubscriptionConfirmationMessage, KeyRequestMode, ServerAddressMessage, KeyRequestMessage, CubeRequestMessage, SubscribeCubeMessage, PeerRequestMessage } from '../networkMessage';
 import type { NetworkStats, NetworkPeerLifecycle, NetworkPeerOptions } from '../networkPeerIf';
 import type { NetworkManagerIf } from '../networkManagerIf';
 
@@ -9,7 +9,7 @@ import { PeerDB } from '../../peering/peerDB';
 import { TransportConnection } from '../transport/transportConnection';
 import { DummyNetworkManager } from './dummyNetworkManager';
 import { DummyTransportConnection } from './dummyTransportConnection';
-import { NetConstants } from '../networkDefinitions';
+import { MessageClass, NetConstants } from '../networkDefinitions';
 import { Settings } from '../../settings';
 
 export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
@@ -19,23 +19,28 @@ export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
     online: boolean = true;
     cubeSubscriptions: string[] = [];
     close(): Promise<void> { return Promise.resolve(); }
-    sendMessage(msg: NetworkMessage): void { }
-    sendMyServerAddress(): void { }
-    sendKeyRequests(): void { }
+
+    sendMessage(msg: NetworkMessage): void { this.sentMessages.push(msg) }
+    sendMyServerAddress(): void { this.sentMessages.push(new ServerAddressMessage(this.address)) }
+    sendKeyRequests(): void { this.sentMessages.push(new KeyRequestMessage(KeyRequestMode.SequentialStoreSync)) }
     sendSpecificKeyRequest(mode: KeyRequestMode, options: CubeFilterOptions = {}): void { }
-    sendCubeRequest(keys: Buffer[]): void { }
+    sendCubeRequest(keys: Buffer[]): void { this.sentMessages.push(new CubeRequestMessage(keys)) }
 
     async sendSubscribeCube(
             keys: Buffer[],
+            type: MessageClass.SubscribeCube | MessageClass.SubscribeNotifications = MessageClass.SubscribeCube,
             mockResponse?: SubscriptionConfirmationMessage,
     ): Promise<void> {
+        this.sentMessages.push(new SubscribeCubeMessage(keys, type));
         if (mockResponse !== undefined) {
             this.networkManager.scheduler.handleSubscriptionConfirmation(mockResponse);
         }
     }
 
-    sendNotificationRequest(keys: Buffer[]): void { }
-    sendPeerRequest(): void { }
+    sendNotificationRequest(keys: Buffer[]): void { this.sentMessages.push(new CubeRequestMessage(keys, MessageClass.NotificationRequest)) }
+    sendPeerRequest(): void { this.sentMessages.push(new PeerRequestMessage()) }
+
+    sentMessages: NetworkMessage[] = [];
 
     constructor(
         private networkManager?: NetworkManagerIf,

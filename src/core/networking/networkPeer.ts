@@ -757,12 +757,14 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     }
 
     /**
-     * Send a SubscribeCube message.
+     * Send a SubscribeCube (or SubscribeNotifications) message.
      * @param keys The list of cube keys to subscribe to.
      */
-    sendSubscribeCube(keys: Buffer[]): void {
-        const msg: CubeRequestMessage =
-            new CubeRequestMessage(keys, MessageClass.SubscribeCube);
+    sendSubscribeCube(
+            keys: Buffer[],
+            type: MessageClass.SubscribeCube | MessageClass.SubscribeNotifications = MessageClass.SubscribeCube,
+    ): void {
+        const msg: CubeRequestMessage = new CubeRequestMessage(keys, type);
         logger.trace(`NetworkPeer ${this.toString()}: sending SubscribeCube for ${keys.length} cubes`);
         this.setTimeout();  // expect a timely reply to this request
         this.sendMessage(msg);

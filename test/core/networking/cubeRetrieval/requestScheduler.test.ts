@@ -426,7 +426,7 @@ describe('RequestScheduler', () => {
 
           // assertions
           expect(performCubeRequest).not.toHaveBeenCalled();
-          expect(scheduler.isAlreadyRequested(oldCubeInfo.key)).toBeFalsy();
+          expect(scheduler.cubeAlreadyRequested(oldCubeInfo.key)).toBeFalsy();
           expect(dummyPeer.sendCubeRequest).not.toHaveBeenCalled();
         });
 
@@ -459,7 +459,7 @@ describe('RequestScheduler', () => {
           await scheduler.handleKeysOffered([testCubeInfo], dummyPeer);
 
           // assertions
-          expect(scheduler.isAlreadyRequested(testCubeInfo.key)).toBeTruthy();
+          expect(scheduler.cubeAlreadyRequested(testCubeInfo.key)).toBeTruthy();
           expect(performCubeRequest).toHaveBeenCalled();
           expect(sendCubeRequest).toHaveBeenCalled();
         });
@@ -499,7 +499,7 @@ describe('RequestScheduler', () => {
           await scheduler.handleKeysOffered([testCubeInfo], dummyPeer);
 
           // assertions
-          expect(scheduler.isAlreadyRequested(testCubeInfo.key)).toBeTruthy();
+          expect(scheduler.cubeAlreadyRequested(testCubeInfo.key)).toBeTruthy();
           expect(performCubeRequest).toHaveBeenCalled();
           expect(sendCubeRequest).toHaveBeenCalled();
         });
@@ -533,7 +533,7 @@ describe('RequestScheduler', () => {
           await scheduler.handleKeysOffered([testCubeInfo], dummyPeer);
 
           // assertions
-          expect(scheduler.isAlreadyRequested(testCubeInfo.key)).toBeFalsy();
+          expect(scheduler.cubeAlreadyRequested(testCubeInfo.key)).toBeFalsy();
           expect(performCubeRequest).not.toHaveBeenCalled();
           expect(sendCubeRequest).not.toHaveBeenCalled();
         });

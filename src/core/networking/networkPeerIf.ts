@@ -20,7 +20,7 @@ export interface NetworkPeerIf extends Peer {
     sendKeyRequests(): void;
     sendSpecificKeyRequest(mode: KeyRequestMode, options?: CubeFilterOptions): void;
     sendCubeRequest(keys: Buffer[]): void;
-    sendSubscribeCube(keys: Buffer[]): void;
+    sendSubscribeCube(keys: Buffer[], type?: MessageClass.SubscribeCube | MessageClass.SubscribeNotifications): void;
     sendNotificationRequest(keys: Buffer[]): void; // maybe deprecated
     sendPeerRequest(): void;
 }
