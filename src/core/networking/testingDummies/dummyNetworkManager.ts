@@ -9,8 +9,11 @@ import { NetworkPeerIf, NetworkStats } from "../networkPeerIf";
 import { RequestScheduler } from "../cubeRetrieval/requestScheduler";
 import { SupportedTransports, NetConstants } from "../networkDefinitions";
 
-import EventEmitter from "events";
+import { EventEmitter } from "events";
 
+// maybe TODO remove?
+// Since we properly split out transports, NetworkManager itself is lean enough
+// that a dummy version should no longer be needed.
 export class DummyNetworkManager extends EventEmitter implements NetworkManagerIf {
   constructor(
       public cubeStore: CubeStore,

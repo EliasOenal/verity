@@ -37,7 +37,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
         dummyNetworkManager = new DummyNetworkManager(cubeStore, new PeerDB(), {
           lightNode: lightNode,  // test will be run for both cases
           requestInterval: 50,  // running requests 20 times per second totally is a sensible idea
-          requestScaleFactor: 4,  // default value a the time of writing these tests
+          requestScaleFactor: 4,  // = default value at the time of writing these tests
         });
         scheduler = dummyNetworkManager.scheduler;
 
@@ -79,7 +79,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
 
             await subPromise;
             // expect subscription to be registered
-            expect(scheduler.isAlreadySubscribed(testKey)).toBe(true);
+            expect(scheduler.cubeAlreadySubscribed(testKey)).toBe(true);
 
             // expect request to have been sent
             expect(sendSubscribeCube).toHaveBeenCalledTimes(1);
@@ -108,7 +108,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
 
             // Assert that the subscription has *not* been registered yet as the
             // preliminary CubeRequest is still running
-            expect(scheduler.isAlreadySubscribed(testKey)).toBe(false);
+            expect(scheduler.cubeAlreadySubscribed(testKey)).toBe(false);
 
             // mock response to preliminary CubeRequest
             scheduler.handleCubesDelivered([await cube.getBinaryData()], dummyPeer);
@@ -126,7 +126,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
             await subPromise;
 
             // Assert that the subscription has now been registered
-            expect(scheduler.isAlreadySubscribed(testKey)).toBe(true);
+            expect(scheduler.cubeAlreadySubscribed(testKey)).toBe(true);
 
             // Assert that the subscription request has been now been sent
             expect(sendSubscribeCube).toHaveBeenCalledTimes(1);

@@ -113,7 +113,7 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
 
     // expect subscription to be fully registered on both ends
     await subPromise;
-    expect(local.scheduler.isAlreadySubscribed(mucKey)).toBe(true);
+    expect(local.scheduler.cubeAlreadySubscribed(mucKey)).toBe(true);
     expect(remoteToLocal.cubeSubscriptions).toContain(keyVariants(mucKey).keyString);
 
     // remote updates MUC
@@ -176,7 +176,7 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
 
     // expect subscription to be fully registered on both ends
     await subPromise;
-    expect(local.scheduler.isAlreadySubscribed(mucKey)).toBe(true);
+    expect(local.scheduler.cubeAlreadySubscribed(mucKey)).toBe(true);
     expect(remoteToLocal.cubeSubscriptions).toContain(keyVariants(mucKey).keyString);
 
     // remote updates MUC
@@ -241,7 +241,7 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
 
     // expect subscription to be fully registered on both ends
     await subPromise;
-    expect(local.scheduler.isAlreadySubscribed(mucKey)).toBe(true);
+    expect(local.scheduler.cubeAlreadySubscribed(mucKey)).toBe(true);
     expect(remoteToLocal.cubeSubscriptions).toContain(keyVariants(mucKey).keyString);
 
     // remote updates MUC
