@@ -13,6 +13,9 @@ import { LineShapedNetwork } from "./e2eSetup";
 import sodium from 'libsodium-wrappers-sumo';
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
+// TODO: use the CubeRetriever rather than talking directly to the scheduler
+//   (no application is expected to ever do that)
+
 describe('Cube subscription e2e tests', () => {
   describe('test group 1', () => {
     let net: LineShapedNetwork;

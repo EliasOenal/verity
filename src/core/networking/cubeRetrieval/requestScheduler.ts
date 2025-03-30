@@ -358,7 +358,7 @@ export class RequestScheduler implements Shuttable {
     }
 
     if (peerSelected === undefined) {
-      logger.trace(`RequestScheduler.subscribeCube(): Could not subscribe to Cube ${key.keyString}`);
+      logger.warn(`RequestScheduler.subscribeCube(): Could not subscribe to ${options.type === MessageClass.SubscribeCube ? 'Cube' : options.type === MessageClass.SubscribeNotifications ? 'Notification' : 'unknown sub type ' + options.type + ' '} ${key.keyString} because I could not find a suitable peer.`);
       return undefined;
     }
 
@@ -412,7 +412,18 @@ export class RequestScheduler implements Shuttable {
     if (sub !== undefined) sub.sup.shallRenew = false;
     this.subscribedCubes.delete(key.keyString);
   }
-
+  /**
+   * Removes a notification subscription
+   * Note: We currently can't actually cancel a subscription with a remote node.
+   * What this currently does is to cancel the renewal once the current
+   * subscription period expires.
+   */
+  cancelNotificationSubscription(keyInput: CubeKey | string): void {
+    const key = keyVariants(keyInput);
+    const sub: CubeSubscription = this.subscribedNotifications.get(key.keyString);
+    if (sub !== undefined) sub.sup.shallRenew = false;
+    this.subscribedNotifications.delete(key.keyString);
+  }
 
   handleSubscriptionConfirmation(msg: SubscriptionConfirmationMessage): void {
     // fetch the pending request
@@ -640,10 +651,16 @@ export class RequestScheduler implements Shuttable {
 
       // If we're a light node, check if we're even interested in this Cube
       if (this.options.lightNode) {
-        // maybe TODO: the key should always be available after reactivation;
-        //   do we want to switch to the non-async key getter?
-        if (!(this.requestedCubes.has(keyString)) &&
-            !(this.subscribedCubes.has(keyString))
+        // is this a notification Cube?
+        const notify: CubeKey = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
+
+        // We're only interested if we have subscribed or requested this very
+        // Cube, or if it notifies a notification key we're interested in
+        if (!(this.cubeAlreadyRequested(keyString)) &&  // included subscriptions
+            (
+              !notify ||
+              !(this.notificationsAlreadySubscribed(notify))
+            )
         ){
           continue;  // drop this Cube, we're not interested in it
         }
