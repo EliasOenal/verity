@@ -2,16 +2,26 @@ import { VerityNode } from "../../../src/cci/verityNode";
 import { SupportedTransports } from "../../../src/core/networking/networkDefinitions";
 import { AddressAbstraction, WebSocketAddress } from "../../../src/core/peering/addressing";
 import { CoreNodeOptions } from "../../../src/core/coreNode";
+import { NetworkPeer } from "../../../src/core/networking/networkPeer";
 import { testCoreOptions } from "../testcore.definition";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { NetworkPeerIf } from "../../../src/core/networking/networkPeerIf";
 
 export class LineShapedNetwork {
+  senderToFullNode1: NetworkPeer;
+  fullNode1ToFullNode2: NetworkPeer;
+  fullNode2ToRecipient: NetworkPeer;
+
+  recipientToFullNode2: NetworkPeer;
+  fullNode2ToFullNode1: NetworkPeer;
+  fullNode1ToSender: NetworkPeer;
+
   constructor(
-    public sender: VerityNode,      // note: using cciNode here instead of a plain
-    public fullNode1: VerityNode,   //   core cciNode breaks out layering, but
+    public sender: VerityNode,      // note: using CCI VerityNode here instead of a plain
+    public fullNode1: VerityNode,   //   CoreNode breaks out layering, but
     public fullNode2: VerityNode,   //   saves us from a lot of object oriented SNAFU
-    public recipient: VerityNode,
+    public recipient: VerityNode,   //   when this setup is reused in CCI tests
   ) {}
 
   static async Create(
@@ -59,7 +69,48 @@ export class LineShapedNetwork {
     await sender.readyPromise;
     await recipient.readyPromise;
 
-    return new this(sender, fullNode1, fullNode2, recipient);
+    const ret = new this(sender, fullNode1, fullNode2, recipient);
+
+    await Promise.all([
+      fullNode1.onlinePromise,
+      fullNode2.onlinePromise,
+      sender.onlinePromise,
+      recipient.onlinePromise,
+    ]);
+
+    await new Promise((resolve) => setTimeout(resolve, 100));  // give it some time
+
+    // assert connected as expected and expose connections as NetworkPeer objects:
+    // Sender --> Full Node 1
+    expect(sender.networkManager.outgoingPeers.length).toBe(1);
+    ret.senderToFullNode1 = sender.networkManager.outgoingPeers[0] as NetworkPeer;
+
+    // Full Node 1 --> Full Node 2
+    expect(fullNode1.networkManager.incomingPeers.length).toBe(2);
+    ret.fullNode1ToFullNode2 = fullNode1.networkManager.incomingPeers.find(
+      (peer: NetworkPeerIf) => peer.id.equals(fullNode2.networkManager.id)
+    ) as NetworkPeer;
+    expect(ret.fullNode1ToFullNode2).toBeInstanceOf(NetworkPeer);
+
+    // Full Node 2 --> Recipient
+    expect(fullNode2.networkManager.incomingPeers.length).toBe(1);
+    ret.fullNode2ToRecipient = fullNode2.networkManager.incomingPeers[0] as NetworkPeer;;
+
+    // Recipient --> Full Node 2
+    expect(recipient.networkManager.outgoingPeers.length).toBe(1);
+    ret.recipientToFullNode2 = recipient.networkManager.outgoingPeers[0] as NetworkPeer;
+
+    // Full Node 2 --> Full Node 1
+    expect(fullNode2.networkManager.outgoingPeers.length).toBe(1);
+    ret.fullNode2ToFullNode1 = recipient.networkManager.outgoingPeers[0] as NetworkPeer;
+
+    // Full Node 1 --> Sender
+    ret.fullNode1ToSender = fullNode1.networkManager.incomingPeers.find(
+      (peer: NetworkPeerIf) => peer.id.equals(sender.networkManager.id)
+    ) as NetworkPeer;
+    expect(ret.fullNode1ToSender).toBeInstanceOf(NetworkPeer);
+
+    return ret;
   }
 
   shutdown(): Promise<void> {
