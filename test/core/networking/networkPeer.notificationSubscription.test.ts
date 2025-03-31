@@ -18,6 +18,8 @@ import { requiredDifficulty, testCoreOptions } from "../testcore.definition";
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
+const TEST_SUBSCRIPTION_PERIOD = 1000;  // TODO BUGBUG this does not seem to work for shorter periods e.g. 500, why?!?!?!
+
 describe('NetworkPeer SubscribeNotification tests', () => {
   let peer: NetworkPeer;
   let networkManager: NetworkManagerIf;
@@ -43,7 +45,10 @@ describe('NetworkPeer SubscribeNotification tests', () => {
           peerDB = new PeerDB();
           networkManager = new DummyNetworkManager(cubeStore, peerDB);
           peer = new NetworkPeer(
-            networkManager, new DummyTransportConnection(), cubeStore);
+            networkManager, new DummyTransportConnection(), cubeStore, {
+              cubeSubscriptionPeriod: TEST_SUBSCRIPTION_PERIOD,
+            }
+          );
           conn = peer.conn as DummyTransportConnection;
 
           // subscribe a single notification key
@@ -58,19 +63,27 @@ describe('NetworkPeer SubscribeNotification tests', () => {
           await cubeStore.shutdown();
         });
 
-        it('should confirm the subscription', async () => {
+        it('should confirm the subscription', () => {
           expect(conn.sentMessages).toHaveLength(1);
           const binaryResponse = conn.sentMessages[0].subarray(2);
           const response = new SubscriptionConfirmationMessage(binaryResponse);
           expect(response.responseCode).toBe(SubscriptionResponseCode.SubscriptionConfirmed);
           expect(response.requestedKeyBlob).toEqual(notificationKey1);
           expect(response.cubesHashBlob).toEqual(zeroKey);  // TODO: or actual hash of existing, i.e. hash of zero length string
-          expect(response.subscriptionDuration).toBe(Settings.CUBE_SUBSCRIPTION_PERIOD);
+          expect(response.subscriptionDuration).toBe(TEST_SUBSCRIPTION_PERIOD);
         });
 
-        it('should register the subscription if the key is available', async () => {
+        it('should register the subscription if the key is available', () => {
           expect(peer.notificationSubscriptions).toHaveLength(1);
           expect(peer.notificationSubscriptions).toContain(keyVariants(notificationKey1).keyString);
+        });
+
+        it('should remove the subscription once it has expired', async () => {
+          // wait for expiry
+          await new Promise(resolve => setTimeout(resolve, TEST_SUBSCRIPTION_PERIOD + 10));
+
+          // subscription should be removed
+          expect(peer.notificationSubscriptions).toHaveLength(0);
         });
       });  // accepted requests
 
@@ -88,7 +101,9 @@ describe('NetworkPeer SubscribeNotification tests', () => {
           peerDB = new PeerDB();
           networkManager = new DummyNetworkManager(cubeStore, peerDB);
           peer = new NetworkPeer(
-            networkManager, new DummyTransportConnection(), cubeStore);
+            networkManager, new DummyTransportConnection(), cubeStore, {
+              cubeSubscriptionPeriod: TEST_SUBSCRIPTION_PERIOD,
+          });
           conn = peer.conn as DummyTransportConnection;
 
           // subscribe two notification keys
@@ -114,13 +129,30 @@ describe('NetworkPeer SubscribeNotification tests', () => {
           expect(response.requestedKeyBlob).toEqual(expectedKeyBlob);
 
           expect(response.cubesHashBlob).toEqual(zeroKey);  // TODO: or actual hash of existing, i.e. hash of zero length string
-          expect(response.subscriptionDuration).toBe(Settings.CUBE_SUBSCRIPTION_PERIOD);
+          expect(response.subscriptionDuration).toBe(TEST_SUBSCRIPTION_PERIOD);
         });
 
         it('should register the subscription', async () => {
           expect(peer.notificationSubscriptions).toHaveLength(2);
           expect(peer.notificationSubscriptions).toContain(keyVariants(notificationKey1).keyString);
           expect(peer.notificationSubscriptions).toContain(keyVariants(notificationKey2).keyString);
+        });
+
+        it('should not remove the subscription while it is active', async () => {
+          // wait a little, but not quite till expiry
+          await new Promise(resolve => setTimeout(resolve, TEST_SUBSCRIPTION_PERIOD - 100));
+          // subscription should still be there
+          expect(peer.notificationSubscriptions).toHaveLength(2);
+          expect(peer.notificationSubscriptions).toContain(keyVariants(notificationKey1).keyString);
+          expect(peer.notificationSubscriptions).toContain(keyVariants(notificationKey2).keyString);
+        });
+
+        it('should remove the subscription once it has expired', async () => {
+          // wait for expiry
+          await new Promise(resolve => setTimeout(resolve, TEST_SUBSCRIPTION_PERIOD + 10));
+
+          // subscription should be removed
+          expect(peer.notificationSubscriptions).toHaveLength(0);
         });
       });
 

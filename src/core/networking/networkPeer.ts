@@ -531,7 +531,6 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
      * Handle a CubeSubscribe message.
      * @param data The CubeSubscribe message, which has the same format as a CubeRequest message
      */
-    // TODO: Time out subscriptions
     // TODO: Limit the number of subscriptions
     private async handleSubscribeCube(msg: CubeRequestMessage): Promise<void> {
         const requestedKeys: CubeKey[] = Array.from(msg.cubeKeys());
@@ -561,7 +560,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
             this.addCubeSubscription(key);
             i++;
         }
-        logger.trace(`NetworkPeer ${this.toString()}: handleSubscribeCube(): recorded ${i} cube subscriptions`);
+        logger.trace(`NetworkPeer ${this.toString()}: handleSubscribeCube(): recorded ${i} Cube subscriptions`);
         // ... and send a confirmation
         const reply = new SubscriptionConfirmationMessage(
             SubscriptionResponseCode.SubscriptionConfirmed,
@@ -570,6 +569,16 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
             this.options.cubeSubscriptionPeriod,
         );
         this.sendMessage(reply);
+
+        // Remove the subscription after it expires
+        // TODO keep track of timeouts and cancel them on shutdown
+        setTimeout(() => {
+            let i = 0;
+            for (const key of requestedKeys) {
+                this.cancelCubeSubscription(key);
+            }
+            logger.trace(`NetworkPeer ${this.toString()}: handleSubscribeCube(): cancelled ${i} expired Cube subscriptions`);
+        }, this.options.cubeSubscriptionPeriod);
     }
 
     private async handleSubscribeNotifications(msg: CubeRequestMessage): Promise<void> {
@@ -601,6 +610,17 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
             this.options.cubeSubscriptionPeriod,
         );
         this.sendMessage(reply);
+
+        // Remove the subscription after it expires
+        // TODO keep track of timeouts and cancel them on shutdown
+        setTimeout(() => {
+            let i = 0;
+            for (const key of requestedKeys) {
+                this.cancelNotificationSubscription(key);
+            }
+            logger.trace(`NetworkPeer ${this.toString()}: handleSubscribeNotifications(): cancelled ${i} expired notification subscriptions`);
+        }, this.options.cubeSubscriptionPeriod);
+
     }
 
     private handleSubscriptionConfirmation(msg: SubscriptionConfirmationMessage): void {
