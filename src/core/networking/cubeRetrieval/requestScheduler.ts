@@ -61,12 +61,22 @@ export interface CubeRequestOptions {
 
 export interface CubeSubscribeOptions extends CubeRequestOptions {
   /**
+   * How early to renew a subscription before expiry (in milliseconds).
+   */
+  renewSubscriptionsBeforeExpiryMillis?: number;
+
+  /**
    * Do not set this property manually.
    * It's an internal option signalling that this call represents an
    * automatic renewal of an existing subscription.
    */
   thisIsARenewal?: boolean;
 
+  /**
+   * Do not set this property manually.
+   * It will automatically set for you based on whether you call
+   * subscribeCube() or subscribeNotifications().
+   */
   type?: MessageClass.SubscribeCube | MessageClass.SubscribeNotifications;
 }
 
@@ -243,6 +253,7 @@ export class RequestScheduler implements Shuttable {
     options.scheduleIn ??= this.options.interactiveRequestDelay;
     options.timeout ??= this.options.requestTimeout;
     options.type ??= MessageClass.SubscribeCube;
+    options.renewSubscriptionsBeforeExpiryMillis ??= Settings.RENEW_SUBCRIPTION_BEFORE_EXPIRY_MILLIS;
     const subMap = options.type === MessageClass.SubscribeNotifications?
       this.subscribedNotifications : this.subscribedCubes;
 
@@ -371,19 +382,31 @@ export class RequestScheduler implements Shuttable {
 
     // Turn on auto-renewal by default
     sub.sup.shallRenew = true;
+    // Auto-renewal shall take place before the subscription expires;
+    // as early as the user specified, but no earlier than halfway through
+    // the subscription period.
+    const beforeExpiryMillis = Math.min(
+      options.renewSubscriptionsBeforeExpiryMillis,  // when specified
+      subscriptionResponse.subscriptionDuration / 2  // but no earlier than halfway through
+    );
+    const renewAfterMillis = subscriptionResponse.subscriptionDuration - beforeExpiryMillis;
 
-    // Clean up subscription after it expires
-    sub.promise.then(() => {
+    // Set up renewal
+    // TODO keep track of timeouts and cancel them on shutdown
+    setTimeout(() => {
+      // Only renew if the subscription has not been overwritten or deleted yet
       const registered: CubeSubscription = subMap.get(key.keyString);
-      // only clean up if it has not been overwritten yet (e.g. by a renewal)
-      if (registered === sub) subMap.delete(key.keyString)
-
-      // If the subscription is supposed to auto-renew, renew it now!
-      // TODO: We should actually renew the subscription *before* it times out
-      //   to avoid any gaps.
-      if (sub.sup.shallRenew === true) {
+      if (registered === sub && registered.sup.shallRenew === true) {
         this.subscribeCube(key.binaryKey, { ...options, thisIsARenewal: true });
       }
+    }, renewAfterMillis);
+
+    // Clean up subscription after it expires,
+    // but only if it has not been renewed or overwritten yet
+    sub.promise.then(() => {
+      const registered: CubeSubscription = subMap.get(key.keyString);
+      if (registered === sub) subMap.delete(key.keyString)
+
     });
 
     return sub;

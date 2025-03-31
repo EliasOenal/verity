@@ -133,7 +133,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
             expect(sendSubscribeCube.mock.lastCall![0]).toContainEqual(testKey);
           });
 
-          it('will auto-renew a subscription once it times out', async() => {
+          it('will auto-renew a subscription before it times out', async() => {
             // prepare test Cube
             const cube = Cube.Create({
               fields: CubeField.RawContent(CubeType.PIC, "Cubus sum"),
@@ -191,7 +191,36 @@ describe('RequestScheduler subscribeCube() tests', () => {
         });  // regular workflow
 
         describe('error handling', () => {
-          it.todo('write tests');
+          it.todo('will not renew a subscription earlier than halfway through the subscription period', async() => {
+            // prepare test Cube
+            const cube = Cube.Create({
+              fields: CubeField.RawContent(CubeType.PIC, "Cubus sum"),
+              cubeType: CubeType.PIC, requiredDifficulty,
+            });
+            const testKey = await cube.getKey();
+            // For this test, we assume that the Cube is already present locally
+            await cubeStore.addCube(cube);
+
+            // make request
+            const subPromise: Promise<CubeSubscription> = scheduler.subscribeCube(testKey, {
+              renewSubscriptionsBeforeExpiryMillis: 1000,
+            });
+
+            // mock peer response, and make the subscription period very short
+            const resp = new SubscriptionConfirmationMessage(
+              SubscriptionResponseCode.SubscriptionConfirmed,
+              [testKey], [await cube.getHash()], 100
+            );
+            scheduler.handleSubscriptionConfirmation(resp);
+
+            // expect renewal time to be set to halfway through the subscription period,
+            // rather than the user-defined value
+
+            // TODO expose this through the API and then obviously
+            // TODO test it :)
+          });
+
+          it.todo('write more tests');
         });
       }  // light node
 

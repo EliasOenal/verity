@@ -125,19 +125,12 @@ describe('Cube subscription e2e tests', () => {
       // wait for the subscription to expire
       await sub.promise;  // denotes expiry
 
-      // expect subscription to have actually expired
+      // expect old subscription to have actually expired
       expect(sub.settled).toBe(true);
-      // note: once we implement renewal-before-expiry, amend the next line
-      const expired =
-        net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
-      expect(expired).toBeUndefined();
-
-      // give it some time for the subscription to renew
-      await new Promise(resolve => setTimeout(resolve, 100));
-      const renewedSub: CubeSubscription =
-        net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
 
       // expect to have a fresh subscription
+      const renewedSub: CubeSubscription =
+        net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
       expect(renewedSub).toBeInstanceOf(CubeSubscription);
       expect(renewedSub).not.toBe(sub);
     });
@@ -175,14 +168,15 @@ describe('Cube subscription e2e tests', () => {
 
 
     it('will catch up on any missed updates on renewal', async() => {
-      // To simulate a missed update, let's silently cancel the current
-      // subscription on the serving node.
-      // Some sanity-check assertions first though.
+      // Some preliminary sanity-checks first:
+      // Assert that the serving node still considers us connected & subscribed
       expect(net.fullNode2.networkManager.incomingPeers.length).toBe(1);
       const fn2ToRecpt: NetworkPeer =
         net.fullNode2.networkManager.incomingPeers[0] as NetworkPeer;
       expect(fn2ToRecpt.cubeSubscriptions).toContain(keyVariants(key).keyString);
-      // Now cancel the subscription
+
+      // To simulate a missed update, let's silently cancel the current
+      // subscription on the serving node.
       fn2ToRecpt.cancelCubeSubscription(key);
       // Verify the subscription is indeed cancelled
       expect(fn2ToRecpt.cubeSubscriptions).not.toContain(keyVariants(key).keyString);
@@ -204,11 +198,6 @@ describe('Cube subscription e2e tests', () => {
       // be delivered to the recipient as we cancelled the subscription
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      // Wait for subscription expiry
-      const sub: CubeSubscription =
-        net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
-      await sub.promise;  // denotes expiry
-
       // Assert the update was indeed missed due to us sabotaging the subscription
       const lastVersionAtRecipient = await net.recipient.cubeStore.getCube(key);
       expect(lastVersionAtRecipient.getFirstField(CubeFieldType.MUC_RAWCONTENT).
@@ -216,12 +205,14 @@ describe('Cube subscription e2e tests', () => {
       expect(lastVersionAtRecipient.getFirstField(CubeFieldType.MUC_RAWCONTENT).
         valueString).not.toContain(missedUpdateContent);
 
-      // Wait for the subscription to auto-renew
-      // give it some time for the subscription to renew
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait for subscription expiry
+      const sub: CubeSubscription =
+        net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
+      await sub.promise;  // denotes expiry
+
+      // Assert subscription has been auto-renewed
       const renewedSub: CubeSubscription =
         net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
-      // expect to have a fresh subscription
       expect(renewedSub).toBeInstanceOf(CubeSubscription);
       expect(renewedSub).not.toBe(sub);
 
