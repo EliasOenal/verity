@@ -18,6 +18,8 @@ import { requiredDifficulty, testCoreOptions } from "../testcore.definition";
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
+const TEST_SUBSCRIPTION_PERIOD = 1000;  // TODO BUGBUG this does not seem to work for shorter periods e.g. 500, why?!?!?!
+
 describe('NetworkPeer CubeSubscription tests', () => {
   let peer: NetworkPeer;
   let networkManager: NetworkManagerIf;
@@ -84,7 +86,11 @@ describe('NetworkPeer CubeSubscription tests', () => {
     peerDB = new PeerDB();
     networkManager = new DummyNetworkManager(cubeStore, peerDB);
     peer = new NetworkPeer(
-      networkManager, new DummyTransportConnection(), cubeStore);
+      networkManager, new DummyTransportConnection(), cubeStore,
+      {
+        cubeSubscriptionPeriod: TEST_SUBSCRIPTION_PERIOD,
+      }
+    );
     conn = peer.conn as DummyTransportConnection;
   });
 
@@ -102,7 +108,7 @@ describe('NetworkPeer CubeSubscription tests', () => {
           expect(response.responseCode).toBe(SubscriptionResponseCode.SubscriptionConfirmed);
           expect(response.requestedKeyBlob).toEqual(availableKey);
           expect(response.cubesHashBlob).toEqual(availableHash);
-          expect(response.subscriptionDuration).toBe(Settings.CUBE_SUBSCRIPTION_PERIOD);
+          expect(response.subscriptionDuration).toBe(TEST_SUBSCRIPTION_PERIOD);
         });
 
         it('should register the subscription if the key is available', async () => {
@@ -110,6 +116,20 @@ describe('NetworkPeer CubeSubscription tests', () => {
           await (peer as any).handleSubscribeCube(req);
           expect(peer.cubeSubscriptions).toHaveLength(1);
           expect(peer.cubeSubscriptions).toContain(keyVariants(availableKey).keyString);
+        });
+
+        it('should remove the subscription once it has expired', async () => {
+          // make subscription
+          const req = new SubscribeCubeMessage([availableKey]);
+          await (peer as any).handleSubscribeCube(req);
+          expect(peer.cubeSubscriptions).toHaveLength(1);
+          expect(peer.cubeSubscriptions).toContain(keyVariants(availableKey).keyString);
+
+          // wait for expiry
+          await new Promise(resolve => setTimeout(resolve, TEST_SUBSCRIPTION_PERIOD + 10));
+
+          // subscription should be removed
+          expect(peer.cubeSubscriptions).toHaveLength(0);
         });
       });  // successful requests
 
@@ -161,7 +181,7 @@ describe('NetworkPeer CubeSubscription tests', () => {
           const expectedHashBlob: Buffer = calculateHash(
             Buffer.concat([availableHash, availableHash2]));
           expect(response.cubesHashBlob).toEqual(expectedHashBlob);
-          expect(response.subscriptionDuration).toBe(Settings.CUBE_SUBSCRIPTION_PERIOD);
+          expect(response.subscriptionDuration).toBe(TEST_SUBSCRIPTION_PERIOD);
         });
 
         it('should register the subscription if all keys are available', async () => {
