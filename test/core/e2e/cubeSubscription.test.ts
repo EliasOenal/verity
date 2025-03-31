@@ -17,14 +17,27 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 //   (no application is expected to ever do that)
 
 describe('Cube subscription e2e tests', () => {
+  // Note! This is a test scenario.
+  // Tests depend on each other.
+  // Many tests cannot be run in isolation, and you cannot skip some test.
   describe('test group 1', () => {
     let net: LineShapedNetwork;
+    const originalContent = 'cubus usoris mutabilis sum';
+    const firstContentUpdate = 'ab domino meo renovatus sum';
+    const secondContentUpdate = 'iterum atque iterum renovari possum';
+    const missedUpdateContent = 'dominus meus taedere debet quod tam saepe me renovat';
+    const concurrentUpdateSender = 'duos dominos habeo';
+    const concurrentUpdateRecipient = 'de potestate mea pugnant';
+    const updateAfterSubscriptionEnded = 'nemo hunc nuntium videbit';
     let originalMuc: Cube;
     let key: CubeKey;
     let privateKey: Buffer;
-    let initialSubPromise: Promise<CubeSubscription>;
+    let received: Cube[];
 
     beforeAll(async () => {
+      // initialise vars
+      received = [];
+
       // prepare crypto
       await sodium.ready;
       const keyPair = sodium.crypto_sign_keypair();
@@ -37,8 +50,10 @@ describe('Cube subscription e2e tests', () => {
       });
 
       // recipient subscribes to the MUC
-      initialSubPromise =
-        net.recipient.networkManager.scheduler.subscribeCube(key);
+      const subGen: AsyncGenerator<Cube> =
+        net.recipient.cubeRetriever.subscribeCube(key);
+      // push the received cubes into an array for easier testing
+      (async () => { for await (const cube of subGen) received.push(cube)})();
 
       // sculpt the original MUC at the sender
       originalMuc = Cube.Create({
@@ -46,7 +61,7 @@ describe('Cube subscription e2e tests', () => {
         privateKey,
         publicKey: key, requiredDifficulty,
         fields: [
-          CubeField.RawContent(CubeType.MUC, 'cubus usoris mutabilis sum'),
+          CubeField.RawContent(CubeType.MUC, originalContent),
           CubeField.Date(1000001),  // acts as version counter
         ],
       });
@@ -61,13 +76,19 @@ describe('Cube subscription e2e tests', () => {
       expect(await net.recipient.cubeStore.getNumberOfStoredCubes()).toBe(0);
     });
 
+    afterAll(async () => {
+      await net.shutdown();
+    });
 
     it('will receive the initial MUC when subscribing', async () => {
       expect (await waitForMucContent(
-        net.recipient.cubeStore, key, 'cubus usoris mutabilis sum')).
+        net.recipient.cubeStore, key, originalContent)).
         toBe(true);
     });
 
+    it('will yield the initial MUC through the generator', async () => {
+      expect(containsCube(received, key, originalContent)).toBe(true);
+    });
 
     it('will receive MUC updates while subscribed', async () => {
       // sender updates the MUC
@@ -76,22 +97,32 @@ describe('Cube subscription e2e tests', () => {
         privateKey,
         publicKey: key,
         fields: [
-          CubeField.RawContent(CubeType.MUC, 'ab domino meo renovatus sum'),
+          CubeField.RawContent(CubeType.MUC, firstContentUpdate),
           CubeField.Date(1000002),  // acts as version counter
         ],
         requiredDifficulty,
       });
       await net.sender.cubeStore.addCube(updatedMuc);
 
-      expect (await waitForMucContent(
-        net.recipient.cubeStore, key, 'ab domino meo renovatus sum')).
+      expect(await waitForMucContent(
+        net.recipient.cubeStore, key, firstContentUpdate)).
         toBe(true);
     });
 
+    it('will yield MUC updates through the generator', async () => {
+      // high level test (testing CubeRetriever's Generator)
+      expect(containsCube(received, key, firstContentUpdate)).toBe(true);
+    });
 
+
+    // Note: This test may not be run in isolation!
+    // It must run after at least one of the previous tests awaiting the arrival
+    // of a subscribed Cube.
     it('will auto-renew the subscription after it expires', async() => {
+      // fetch the original subscription
+      const sub: CubeSubscription =
+        net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
       // wait for the subscription to expire
-      const sub: CubeSubscription = await initialSubPromise;
       await sub.promise;  // denotes expiry
 
       // expect subscription to have actually expired
@@ -120,7 +151,7 @@ describe('Cube subscription e2e tests', () => {
         privateKey,
         publicKey: key,
         fields: [
-          CubeField.RawContent(CubeType.MUC, 'iterum atque iterum renovari possum'),
+          CubeField.RawContent(CubeType.MUC, secondContentUpdate),
           CubeField.Date(1000003),  // acts as version counter
         ],
         requiredDifficulty,
@@ -128,8 +159,13 @@ describe('Cube subscription e2e tests', () => {
       await net.sender.cubeStore.addCube(updatedMuc);
 
       expect (await waitForMucContent(
-        net.recipient.cubeStore, key, 'iterum atque iterum renovari possum')).
+        net.recipient.cubeStore, key, secondContentUpdate)).
         toBe(true);
+    });
+
+    it('will keep yielding updates through the renewed subscription', async() => {
+      // high level test (testing CubeRetriever's Generator)
+      expect(containsCube(received, key, secondContentUpdate)).toBe(true);
     });
 
 
@@ -157,8 +193,7 @@ describe('Cube subscription e2e tests', () => {
         privateKey,
         publicKey: key,
         fields: [
-          CubeField.RawContent(CubeType.MUC,
-            'dominus meus taedere debet quod tam saepe me renovat'),
+          CubeField.RawContent(CubeType.MUC, missedUpdateContent),
           CubeField.Date(1000004),  // acts as version counter
         ],
         requiredDifficulty,
@@ -170,17 +205,16 @@ describe('Cube subscription e2e tests', () => {
       await new Promise(resolve => setTimeout(resolve, 200));
 
       // Wait for subscription expiry
-      const sub: CubeSubscription = await initialSubPromise;
+      const sub: CubeSubscription =
+        net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
       await sub.promise;  // denotes expiry
 
       // Assert the update was indeed missed due to us sabotaging the subscription
       const lastVersionAtRecipient = await net.recipient.cubeStore.getCube(key);
       expect(lastVersionAtRecipient.getFirstField(CubeFieldType.MUC_RAWCONTENT).
-        valueString).
-          toContain('iterum atque iterum renovari possum');
+        valueString).toContain(secondContentUpdate);
       expect(lastVersionAtRecipient.getFirstField(CubeFieldType.MUC_RAWCONTENT).
-        valueString).
-          not.toContain('dominus meus taedere debet quod tam saepe me renovat');
+        valueString).not.toContain(missedUpdateContent);
 
       // Wait for the subscription to auto-renew
       // give it some time for the subscription to renew
@@ -194,7 +228,11 @@ describe('Cube subscription e2e tests', () => {
       // Assert the missed update was catched up on renewal
       const nowReceived = await net.recipient.cubeStore.getCube(key);
       expect(nowReceived.getFirstField(CubeFieldType.MUC_RAWCONTENT).valueString).
-        toContain('dominus meus taedere debet quod tam saepe me renovat');
+        toContain(missedUpdateContent);
+    });
+
+    it('will yield the missed update through the Generator after catching up', () => {
+      expect(containsCube(received, key, missedUpdateContent)).toBe(true);
     });
 
 
@@ -210,7 +248,7 @@ describe('Cube subscription e2e tests', () => {
         privateKey,
         publicKey: key,
         fields: [
-          CubeField.RawContent(CubeType.MUC, 'duos dominos habeo'),
+          CubeField.RawContent(CubeType.MUC, concurrentUpdateSender),
           CubeField.Date(1000005),  // acts as version counter
         ],
         requiredDifficulty,
@@ -224,7 +262,7 @@ describe('Cube subscription e2e tests', () => {
         privateKey,
         publicKey: key,
         fields: [
-          CubeField.RawContent(CubeType.MUC, 'de potestate mea pugnant'),
+          CubeField.RawContent(CubeType.MUC, concurrentUpdateRecipient),
           CubeField.Date(1000006),  // acts as version counter
         ],
         requiredDifficulty,
@@ -234,7 +272,7 @@ describe('Cube subscription e2e tests', () => {
       // After some propagation time, sender should have adopted the recipient's
       // version as it is newer.
       expect(await waitForMucContent(
-        net.sender.cubeStore, key, 'de potestate mea pugnant')).
+        net.sender.cubeStore, key, concurrentUpdateRecipient)).
           toBe(true);
 
       // Allow for some more propagation time
@@ -244,7 +282,14 @@ describe('Cube subscription e2e tests', () => {
       // as it is older.
       expect((await net.recipient.cubeStore.getCube(key)).getFirstField(
         CubeFieldType.MUC_RAWCONTENT).valueString).
-          toContain('de potestate mea pugnant');
+          toContain(concurrentUpdateRecipient);
+    });
+
+    it('will yield concurrent updates on the recipient side through the Generator', () => {
+      // Note that this asserts that CubeRetriever's generator also yields
+      // local updates, which have not actually been retrieved through the
+      // subscription. This is the current behavious and is probably sensible.
+      expect(containsCube(received, key, concurrentUpdateRecipient)).toBe(true);
     });
 
     it('will stop receiving updates after a subscription is cancelled and expired', async () => {
@@ -264,7 +309,7 @@ describe('Cube subscription e2e tests', () => {
         privateKey,
         publicKey: key,
         fields: [
-          CubeField.RawContent(CubeType.MUC, 'nemo hunc nuntium videbit'),
+          CubeField.RawContent(CubeType.MUC, updateAfterSubscriptionEnded),
           CubeField.Date(1000007),  // acts as version counter
         ],
         requiredDifficulty,
@@ -280,10 +325,9 @@ describe('Cube subscription e2e tests', () => {
       expect(await recipientsLastVersion.getHash()).toEqual(await muc.getHash());
     });
 
-    afterAll(async () => {
-      await net.shutdown();
+    it('will not yield updates through the Generator after a subscription is cancelled and expired', () => {
+      expect(containsCube(received, key, updateAfterSubscriptionEnded)).toBe(false);
     });
-
   });  // test group 1
 
 });
@@ -302,4 +346,14 @@ async function waitForMucContent(cubeStore: CubeStore, key: CubeKey, expectedCon
     await new Promise(resolve => setTimeout(resolve, 50));
     timeWaited += 50;
   }
+}
+
+function containsCube(list: Cube[], key: CubeKey, expectedContent: string): boolean {
+  for (const cube of list) {
+    if (cube.publicKey.equals(key)) {
+      const field = cube.getFirstField(CubeFieldType.MUC_RAWCONTENT);
+      if (field.valueString.includes(expectedContent)) return true;
+    }
+  }
+  return false;
 }
