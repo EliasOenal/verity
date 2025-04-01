@@ -173,4 +173,11 @@ export interface CubeSubscriptionSupplemental {
  * When it times out, it can be renewed by replacing it with a new and different
  * CubeSubscription.
  */
-export class CubeSubscription extends PendingRequest<void, CubeSubscriptionSupplemental> {}
+export class CubeSubscription extends PendingRequest<void, CubeSubscriptionSupplemental> {
+  renewalTimeout: NodeJS.Timeout;
+
+  shutdown(): void {
+    super.shutdown();
+    clearTimeout(this.renewalTimeout);
+  }
+}

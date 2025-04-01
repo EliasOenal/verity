@@ -392,8 +392,8 @@ export class RequestScheduler implements Shuttable {
     const renewAfterMillis = subscriptionResponse.subscriptionDuration - beforeExpiryMillis;
 
     // Set up renewal
-    // TODO keep track of timeouts and cancel them on shutdown
-    setTimeout(() => {
+    // maybe TODO handle renewals internally within CubeSubscription?
+    sub.renewalTimeout = setTimeout(() => {
       // Only renew if the subscription has not been overwritten or deleted yet
       const registered: CubeSubscription = subMap.get(key.keyString);
       if (registered === sub && registered.sup.shallRenew === true) {
@@ -526,7 +526,6 @@ export class RequestScheduler implements Shuttable {
    *    on the network or even on the node they were requested from have been retrieved.
    *  - Promise will return undefined if no new notifications can be retrieved within timeout.
    */
-  // maybe TODO: something like an AsyncGenerator as return type would make much more sense
   requestNotifications(
     recipientKey: Buffer,
     scheduleIn: number = this.options.interactiveRequestDelay,
@@ -729,6 +728,8 @@ export class RequestScheduler implements Shuttable {
     for (const [key, req] of this.requestedCubes) req.shutdown();
     for (const [key, req] of this.requestedNotifications) req.shutdown();
     for (const [key, req] of this.expectedNotifications) req.shutdown();
+    for (const [key, req] of this.subscribedCubes) req.shutdown();
+    for (const [key, req] of this.subscribedNotifications) req.shutdown();
     for (const [peer, timeout] of this.expectedKeyResponses) timeout.clear();
     return this.shutdownPromise;
   }
