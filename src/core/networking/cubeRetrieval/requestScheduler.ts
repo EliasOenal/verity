@@ -262,7 +262,7 @@ export class RequestScheduler implements Shuttable {
 
     // Already subscribed?
     if (!options.thisIsARenewal && subMap.has(key.keyString)) {
-      return undefined;
+      return undefined;  // TODO why undefined?!?!?!? return existing sub!
     }
 
     let ourCubeInfo: CubeInfo;

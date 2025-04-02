@@ -11,6 +11,8 @@ import { requiredDifficulty, tooLong, evenLonger, farTooLong } from "../testcci.
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
+// TODO: With high CPU load, some of these tests sometimes fail and I don't know why :(
+
 describe('CCI Veritum encryption', () => {
   const plaintext = 'Nuntius cryptatus secretus est, ne intercipiatur';
   const payloadField = VerityField.Payload(plaintext);

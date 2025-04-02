@@ -5,7 +5,18 @@ import { CubeInfo } from "../../cube/cubeInfo";
 import { CubeRetrievalInterface, CubeStore } from "../../cube/cubeStore";
 import { keyVariants } from "../../cube/cubeUtil";
 import { eventsToGenerator } from "../../helpers/asyncGenerators";
-import { CubeRequestOptions, RequestScheduler } from "./requestScheduler";
+import { CubeSubscription } from "./pendingRequest";
+import { CubeRequestOptions, CubeSubscribeOptions, RequestScheduler } from "./requestScheduler";
+
+export interface CubeSubscribeRetrieverOptions extends CubeSubscribeOptions {
+  /**
+   * This is an output parameter.
+   * It is meant for testing, you will not need it in productive code.
+   * It will be set to the Promise for the RequestScheduler's underlying
+   * CubeSubscription objects.
+   */
+  outputSubPromise?: Promise<CubeSubscription>;
+}
 
 /**
  * "He may not be Golden, but he'll be your most trusted companion."
@@ -45,6 +56,7 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
 
   subscribeCube(
       keyInput: CubeKey|string,
+      options: CubeSubscribeRetrieverOptions = {},
   ): AsyncGenerator<Cube> {
     // normalise input
     const key: CubeKey = keyVariants(keyInput).binaryKey;
@@ -63,7 +75,34 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
     );
 
     // Have our scheduler actually network-subscribe the requested Cube
-    this.requestScheduler.subscribeCube(keyInput);
+    options.outputSubPromise =this.requestScheduler.subscribeCube(keyInput);
+    // TODO error handling
+
+    return generator;
+  }
+
+  subscribeNotifications(
+    keyInput: CubeKey|string,
+    options: CubeSubscribeRetrieverOptions = {},
+  ): AsyncGenerator<Cube> {
+    // normalise input
+    const key: CubeKey = keyVariants(keyInput).binaryKey;
+
+    // Prepare a Generator that will yield Cubes notifying this key
+    // To do this, we will leverage CubeStore's notificationAdded events and adapt
+    // them into a Generator.
+    // That generator will be limited to only yielding events which match the
+    // subscribed key.
+    const generator: AsyncGenerator<Cube> = eventsToGenerator(
+      [{ emitter: this.cubeStore, event: 'notificationAdded' }],
+      {
+        limit: (emittedKey: CubeKey, cube: Cube) => emittedKey.equals(key),
+        transform: (emittedKey: CubeKey, cube: Cube) => cube,
+      },
+    );
+
+    // Have our scheduler actually network-subscribe the requested notification key
+    options.outputSubPromise = this.requestScheduler.subscribeNotifications(keyInput);
     // TODO error handling
 
     return generator;

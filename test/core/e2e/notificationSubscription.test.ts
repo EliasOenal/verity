@@ -5,6 +5,7 @@ import { CubeFields } from "../../../src/core/cube/cubeFields";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 import { keyVariants } from "../../../src/core/cube/cubeUtil";
+import { CubeSubscribeRetrieverOptions } from "../../../src/core/networking/cubeRetrieval/cubeRetriever";
 import { CubeSubscription } from "../../../src/core/networking/cubeRetrieval/pendingRequest";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { NetworkPeer } from "../../../src/core/networking/networkPeer";
@@ -22,8 +23,10 @@ describe('Notification subscription e2e tests', () => {
   describe('test group 1', () => {
     const notificationKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42);
     let net: LineShapedNetwork;
-    let initialSub: CubeSubscription;
-    const receivedNotifications: Cube[] = [];
+    const received: Cube[] = [];
+
+    const content1 = 'Quaeso meam existentia cognoscas';
+    const content2 = 'Habeo res magnas dicere';
 
     beforeAll(async () => {
       await sodium.ready;
@@ -33,8 +36,15 @@ describe('Notification subscription e2e tests', () => {
       });
 
       // recipient subscribes to the notification key
-      initialSub = await net.recipient.networkManager.scheduler.
-        subscribeNotifications(notificationKey);
+      const sup: CubeSubscribeRetrieverOptions = {};
+      const gen = net.recipient.cubeRetriever.subscribeNotifications(notificationKey, sup);
+      // push received notifications into an array for ease of testing
+      (async() => {
+        for await (const cube of gen) received.push(cube);
+      })();
+
+      // wait for the subscription to be set up
+      await sup.outputSubPromise;
     });
 
     afterAll(async () => {
@@ -54,9 +64,7 @@ describe('Notification subscription e2e tests', () => {
       });
     });
 
-
     describe('notification propagation', () => {
-      let latin: string;
       let notification: Cube;
       let key: CubeKey;
 
@@ -66,49 +74,55 @@ describe('Notification subscription e2e tests', () => {
 
       beforeAll(async () => {
         // sculpt new notification at sender
-        latin = 'Quaeso meam existentia cognoscas';
         notification = Cube.Create({
           cubeType: CubeType.PIC_NOTIFY,
           fields: [
-            CubeField.RawContent(CubeType.PIC_NOTIFY, latin),
+            CubeField.RawContent(CubeType.PIC_NOTIFY, content1),
             CubeField.Notify(notificationKey),
           ],
           requiredDifficulty,
         });
         key = await notification.getKey();
-        net.sender.cubeStore.addCube(notification);
 
         // expect recipient to receive the notification (later)
         rcvdAtFullNode1 = net.fullNode1.cubeStore.expectCube(key);
         rcvdAtFullNode2 = net.fullNode2.cubeStore.expectCube(key);
         rcvdAtRecipient = net.recipient.cubeStore.expectCube(key);
+
+        // sender publishes the notification
+        await net.sender.cubeStore.addCube(notification);
       });
 
       it('will receive the notification at full node 1', async () => {
         const receivedInfo: CubeInfo = await rcvdAtFullNode1;
         expect(receivedInfo.getCube().getFirstField(
           CubeFieldType.PIC_NOTIFY_RAWCONTENT).valueString).
-          toContain(latin);
+          toContain(content1);
       });
 
       it('will receive the notification at full node 2', async () => {
         const receivedInfo: CubeInfo = await rcvdAtFullNode2;
         expect(receivedInfo.getCube().getFirstField(
           CubeFieldType.PIC_NOTIFY_RAWCONTENT).valueString).
-          toContain(latin);
+          toContain(content1);
       });
 
       it('will receive the notification at the recipient', async () => {
         const receivedInfo: CubeInfo = await rcvdAtRecipient;
         expect(receivedInfo.getCube().getFirstField(
           CubeFieldType.PIC_NOTIFY_RAWCONTENT).valueString).
-          toContain(latin);
+          toContain(content1);
       });
+
+      it("will yield the notification at the receiver through CubeRetriever's generator", () => {
+        expect(containsCube(received, content1)).toBe(true);
+      })
     });
 
     describe('subscription renewal', () => {
       it('will auto-renew the subscription after it expires', async() => {
         // wait for the subscription to expire
+        const initialSub = net.recipient.networkManager.scheduler.notificationSubscriptionDetails(notificationKey);
         await initialSub.promise;  // denotes expiry
 
         // expect subscription to have actually expired
@@ -127,11 +141,10 @@ describe('Notification subscription e2e tests', () => {
 
       it('will keep receiving notifications through the renewed subscription', async() => {
         // sculpt new notification at sender
-        const latin = 'Habeo res magnas dicere';
         const notification = Cube.Create({
           cubeType: CubeType.PIC_NOTIFY,
           fields: [
-            CubeField.RawContent(CubeType.PIC_NOTIFY, latin),
+            CubeField.RawContent(CubeType.PIC_NOTIFY, content2),
             CubeField.Notify(notificationKey),
           ],
           requiredDifficulty,
@@ -143,7 +156,11 @@ describe('Notification subscription e2e tests', () => {
         const receivedInfo: CubeInfo = await net.recipient.cubeStore.expectCube(key);
         expect(receivedInfo.getCube().getFirstField(
           CubeFieldType.PIC_NOTIFY_RAWCONTENT).valueString).
-          toContain(latin);
+          toContain(content2);
+      });
+
+      it("will keep yielding notifications through CubeRetriever's generator after renewal", () => {
+        expect(containsCube(received, content2)).toBe(true);
       });
 
 
@@ -187,5 +204,12 @@ describe('Notification subscription e2e tests', () => {
     });
 
   });  // test group 1
-
 });
+
+function containsCube(list: Cube[], expectedContent: string): boolean {
+  for (const cube of list) {
+    const field = cube.getFirstField(CubeFieldType.PIC_NOTIFY_RAWCONTENT);
+    if (field.valueString.includes(expectedContent)) return true;
+  }
+  return false;
+}
