@@ -88,96 +88,89 @@ export async function* resolveAndYield<T>(
 }
 
 
-export interface EventsToGeneratorOptions<Emitted, Transformed = Emitted> {
+export interface EventsToGeneratorOptions<
+  Emitted extends unknown[],
+  Transformed = Emitted extends [infer T] ? T : Emitted
+> {
   /**
    * If supplied, all emitted data will be passed through this transformation
    * function before yielding.
    */
-  transform?: (data: Emitted) => Transformed;
-
+  transform?: (...args: [...Emitted]) => Transformed;
   /**
    * Limits which events should be yielded.
    * The supplied function shall return `true` if the emitted data should be yielded.
    */
-  limit?: (data: Emitted) => boolean;
+  limit?: (...args: [...Emitted]) => boolean;
 }
 
 /**
  * An async generator that listens to multiple event emitters and yields events as they occur.
- * It's basically an adapter from events to await for ... of.
  *
- * @param emitters - An array of objects containing an EventEmitter and the event name to listen for.
- * @param transform - An optional function that transforms each emitted event before yielding.
- * @returns An async generator yielding transformed or original event data.
+ * In the absence of a custom transform:
+ * - If an event emits a single value, that value is yielded.
+ * - If it emits multiple values, the tuple of values is yielded.
+ *
+ * Both `limit` and `transform` now receive a dynamic number of arguments.
+ *
+ * @param emitters - An array of objects, each containing an EventEmitter and an event name.
+ * @param options  - Optional filter and transformation functions.
+ * @returns An async generator yielding event data in a backward-compatible manner.
  */
-export async function* eventsToGenerator<Emitted, Transformed = Emitted>(
+export async function* eventsToGenerator<
+  Emitted extends unknown[],
+  Transformed = Emitted extends [infer T] ? T : Emitted
+>(
   emitters: { emitter: EventEmitter; event: string }[],
-  options: EventsToGeneratorOptions<Emitted, Transformed> = {},
+  options: EventsToGeneratorOptions<Emitted, Transformed> = {}
 ): AsyncGenerator<Transformed> {
   // Sanity check: If no emitters are provided, exit immediately.
   if (emitters.length === 0) {
     return;
   }
 
-  // Prepare some vars:
-  // A queue of emitted data ready to be yielded
+  // Queue to store emitted events (each as a tuple of arguments).
   const queue: Emitted[] = [];
-  // We will later use a Promise to block ourselves whenever there's currently
-  // nothing to yield. resolveQueue will hold that blocking Promise' resolve
-  // function and will be called to wake us back up whenever we receive
-  // yieldable data.
   let resolveQueue: (() => void) | null = null;
 
-  // Create a factory of event handlers, which will be called once for each
-  // event that we're listening. Whenever we receive data from an event, we'll
-  // push it into our queue of yieldable data.
-  const createHandler = (event: string) => (data: Emitted): void => {
-    // If the user has specified exclusion, skip any excluded events
-    if (options.limit && options.limit(data) === false) return;
-    // Not excluded? Great! Push it onto our yieldable queue.
-    queue.push(data);
-    // If we're currently awaiting the next event, stop waiting now
+  // Event handler that collects the full set of arguments.
+  const createHandler = (event: string) => (...args: Emitted): void => {
+    // Call limit with the dynamic set of arguments—backwards compatible.
+    if (options.limit && options.limit(...args) === false) return;
+    queue.push(args);
     if (resolveQueue) {
       resolveQueue();
-      resolveQueue = null;  // we're no longer in waiting state
+      resolveQueue = null;
     }
   };
 
-  // Finally, subscribe to all events that we're supposed to listen to.
-  // To facilitate proper cleanup once we're done, keep track of all events'
-  // unsubscribe functions.
+  // Subscribe to each event; store a cleanup function for each.
   const unsubscribeFns: (() => void)[] = emitters.map(({ emitter, event }): (() => void) => {
     const listener = createHandler(event);
     emitter.on(event, listener);
     return () => emitter.removeListener(event, listener);
   });
 
-  // All preparations done!
   try {
-    // Run the main loop:
     while (true) {
-      // If there is currently nothing ready to yield, wait for the next
-      // Promise to resolve.
       if (queue.length === 0) {
-        // Promise will be resolved by our event handler(s)
         await new Promise<void>((resolve) => (resolveQueue = resolve));
       }
-      // But if there is something ready, yield it now.
       while (queue.length > 0) {
-        // Fetch something from the queue of data ready to yield
-        let data: Emitted|Transformed = queue.shift()!;
-        // If requested by the caller, run a transformation on the data
-        if (options.transform) data = options.transform(data);
-        yield data as Transformed;  // typecast: data will either be Emitted or Transformed
+        const args: Emitted = queue.shift()!;
+        let output: Transformed;
+        // Call the transform function with dynamic arguments if provided.
+        // Otherwise, yield a single value or the full tuple based on the number of arguments.
+        if (options.transform) {
+          output = options.transform(...args);
+        } else {
+          output = (args.length === 1 ? args[0] : args) as unknown as Transformed;
+        }
+        yield output;
       }
     }
   } finally {
-    // We're finished! Just do some cleanup work:
-    // - Resolve the last pending Promise, if any (not sure why we actually need this)
-    if (resolveQueue) {
-      resolveQueue();
-    }
-    // - Unsubscribe all event listeners
+    if (resolveQueue) resolveQueue();
     for (const unsubscribe of unsubscribeFns) {
       unsubscribe();
     }
