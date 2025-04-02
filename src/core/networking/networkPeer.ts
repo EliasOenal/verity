@@ -96,6 +96,8 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
 
     private networkTimeout: NodeJS.Timeout = undefined;
 
+    private timers: Set<NodeJS.Timeout> = new Set();
+
     constructor(
             private networkManager: NetworkManagerIf,
             private _conn: TransportConnection,
@@ -153,9 +155,14 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         logger.trace(`NetworkPeer ${this.toString()}: Closing connection.`);
         this._status.advance(NetworkPeerLifecycle.CLOSING);
 
-        // Clear all timers
+        // Clear all timers; first the named ones:
         clearInterval(this.peerRequestTimer);
         clearTimeout(this.networkTimeout);
+        // Then the unnamed ones (that's subscription timeouts as of the time of writing this comment)
+        for (const timer of this.timers) {
+            clearTimeout(timer);
+            this.timers.delete(timer);
+        }
 
         // Remove all event listeners
         this._conn.removeListener("messageReceived", this.handleMessage);
@@ -571,14 +578,16 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         this.sendMessage(reply);
 
         // Remove the subscription after it expires
-        // TODO keep track of timeouts and cancel them on shutdown
-        setTimeout(() => {
+        const timer = setTimeout(() => {
             let i = 0;
             for (const key of requestedKeys) {
                 this.cancelCubeSubscription(key);
+                i++;
             }
+            this.timers.delete(timer);
             logger.trace(`NetworkPeer ${this.toString()}: handleSubscribeCube(): cancelled ${i} expired Cube subscriptions`);
         }, this.options.cubeSubscriptionPeriod);
+        this.timers.add(timer);
     }
 
     private async handleSubscribeNotifications(msg: CubeRequestMessage): Promise<void> {
@@ -613,14 +622,16 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
 
         // Remove the subscription after it expires
         // TODO keep track of timeouts and cancel them on shutdown
-        setTimeout(() => {
+        const timer = setTimeout(() => {
             let i = 0;
             for (const key of requestedKeys) {
                 this.cancelNotificationSubscription(key);
+                i++;
             }
+            this.timers.delete(timer);
             logger.trace(`NetworkPeer ${this.toString()}: handleSubscribeNotifications(): cancelled ${i} expired notification subscriptions`);
         }, this.options.cubeSubscriptionPeriod);
-
+        this.timers.add(timer);
     }
 
     private handleSubscriptionConfirmation(msg: SubscriptionConfirmationMessage): void {
