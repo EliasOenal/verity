@@ -450,6 +450,21 @@ describe('eventsToGenerator()', () => {
       // Terminate the generator to clean up the listener.
       await generator.return(undefined);
     });
+
+    it('yields an Array for multi parameter events', async () => {
+      const emitter = new EventEmitter();
+      const generator = eventsToGenerator([{ emitter, event: 'event' }]);
+
+      setTimeout(() => {
+        emitter.emit('event', "Eventus multivarius", "notitia", "multa notitia");
+      }, 100);
+
+      const { value, done } = await generator.next();
+      expect(value).toEqual(["Eventus multivarius", "notitia", "multa notitia"]);
+
+      // Terminate the generator to clean up the listener.
+      await generator.return(undefined);
+    });
   });  // yielding correct values
 
   describe('termination', () => {
@@ -544,17 +559,33 @@ describe('eventsToGenerator()', () => {
         expect(results[1]).toBe(4);
         expect(results[2]).toBe(6);
       });
+
+      it('can transform multi parameter events', async () => {
+        const emitter = new EventEmitter();
+        const generator = eventsToGenerator([{ emitter, event: 'event' }], {
+          transform: (...input: string[]) => input[1]
+        });
+
+        setTimeout(() => {
+          emitter.emit('event', "Eventus multivarius", "notitia", "multa notitia");
+        }, 100);
+
+        const { value, done } = await generator.next();
+        expect(value).toEqual("notitia");
+
+        // Terminate the generator to clean up the listener.
+        await generator.return(undefined);
+      });
     });  // transform
 
-    describe('exclude', () => {
-      it('excludes events if the exclude function returns true', async () => {
+    describe('limit', () => {
+      it('excludes events if the limit function returns false', async () => {
         const emitter = new EventEmitter();
 
-        const exclude: (input: string) => boolean = input => input !== '2';
+        const limit: (input: string) => boolean = input => input !== '2';
 
         const generator = eventsToGenerator(
-          [{ emitter: emitter, event: 'event' }],
-          { limit: exclude },
+          [{ emitter: emitter, event: 'event' }], { limit },
         );
 
         // Emit events -- but only after a short while as eventsToGenerator()
@@ -574,6 +605,26 @@ describe('eventsToGenerator()', () => {
 
         expect(results[0]).toBe('1');
         expect(results[1]).toBe('3');
+      });
+
+      it('can apply limits to multi parameter events', async () => {
+        const emitter = new EventEmitter();
+        const generator = eventsToGenerator([{ emitter, event: 'event' }],
+          { limit: (...input: string[]) => input.some(item => item === 'magna notitia') }
+        );
+
+        setTimeout(() => {
+          emitter.emit('event', "casualis notitia", "famae notitia", "inutilis notitia");
+        }, 100);
+        setTimeout(() => {
+          emitter.emit('event', "politica notitia", "magna notitia", "oeconomica notitia");
+        }, 200);
+
+        const { value, done } = await generator.next();
+        expect(value).toEqual(["politica notitia", "magna notitia", "oeconomica notitia"]);
+
+        // Terminate the generator to clean up the listener.
+        await generator.return(undefined);
       });
     })
   });  // options
