@@ -717,10 +717,10 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     yield *resolveAndYield(promises);
   }
 
-  getPosts(options: { format: PostFormat.Veritum, postInfo: true, subscribe?: boolean, depth?: number } ): AsyncGenerator<PostInfo<Veritum>>;
-  getPosts(options: { format: PostFormat.CubeInfo, postInfo: true, subscribe?: boolean, depth?: number } ): AsyncGenerator<PostInfo<CubeInfo>>;
-  getPosts(options: { format: PostFormat.Veritum, postInfo?: false, subscribe?: boolean, depth?: number } ): AsyncGenerator<Veritum>;
-  getPosts(options: { format: PostFormat.CubeInfo, postInfo?: false, subscribe?: boolean, depth?: number } ): AsyncGenerator<CubeInfo>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, postInfo: true }): AsyncGenerator<PostInfo<Veritum>>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.CubeInfo, postInfo: true} ): AsyncGenerator<PostInfo<CubeInfo>>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, postInfo?: false} ): AsyncGenerator<Veritum>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.CubeInfo, postInfo?: false} ): AsyncGenerator<CubeInfo>;
   getPosts(options: GetPostsOptions): AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>;
   async *getPosts(
     options: GetPostsOptions = {},
