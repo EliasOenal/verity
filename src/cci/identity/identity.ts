@@ -751,6 +751,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
       switch(options.format) {
         case PostFormat.CubeInfo:
           promise = this.cubeRetriever.getCubeInfo(post);
+          break;
         case PostFormat.Veritum:
           promise = this.veritumRetriever.getVeritum(post, {
             recipient: this,
