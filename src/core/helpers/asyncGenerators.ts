@@ -1,35 +1,68 @@
 import EventEmitter from "events";
 
 /**
+ * A helper type that extends AsyncGenerator, used as return type for the
+ * `mergeAsyncGenerators` helper function.
+ */
+export type MergedAsyncGenerator<T> = AsyncGenerator<T> & {
+  completions: Promise<void>[];
+};
+
+/**
  * Helper function to merge multiple async generators into one.
  * It accepts any number of async generators and yields all of their values
  * in the order they are received.
+ * Optionally tracks completion of each input generator via `completions`
+ * property on the returned async generator.
  */
-
-export async function* mergeAsyncGenerators<T>(
+export function mergeAsyncGenerators<T>(
   ...generators: AsyncGenerator<T>[]
-): AsyncGenerator<T> {
-  // Array to hold the promises for the next values of each generator
-  const promises: Promise<IteratorResult<T>>[] = generators.map(gen => gen.next());
+): MergedAsyncGenerator<T> {
+  // Create a deferred promise for each generator.
+  const completionsDeferred = generators.map(() => {
+    let resolve!: () => void;
+    const promise = new Promise<void>((res) => {
+      resolve = res;
+    });
+    return { promise, resolve };
+  });
 
-  while (promises.length > 0) {
-    // Wait for any promise to resolve
-    const { value, index }: { value: IteratorResult<T>; index: number; } = await Promise.race(
-      promises.map((p, i) => p.then((result) => ({ value: result, index: i }))
-      )
+  // Define the inner async generator function
+  async function* merged(): AsyncGenerator<T> {
+    // Array of promises for the next values for each generator
+    const nextPromises: Promise<IteratorResult<T>>[] = generators.map((gen) =>
+      gen.next()
     );
 
-    // If the resolved promise is not done, yield its value
-    if (!value.done) {
-      yield value.value;
-      // Replace the resolved promise with the next from the corresponding generator
-      promises[index] = generators[index].next();
-    } else {
-      // If done, remove the corresponding generator and promise
-      promises.splice(index, 1);
-      generators.splice(index, 1);
+    while (nextPromises.length > 0) {
+      // Wait for any promise to resolve, and note which generator (index) it came from
+      const { value, index } = await Promise.race(
+        nextPromises.map((p, i) => p.then((result) => ({ value: result, index: i })))
+      );
+
+      if (!value.done) {
+        // Yield the coming value and immediately request the next one.
+        yield value.value;
+        nextPromises[index] = generators[index].next();
+      } else {
+        // When a generator ends, resolve its deferred promise.
+        completionsDeferred[index].resolve();
+
+        // Remove that generator, its promise, and its deferred from the arrays.
+        nextPromises.splice(index, 1);
+        generators.splice(index, 1);
+        completionsDeferred.splice(index, 1);
+      }
     }
   }
+
+  // Create the async generator instance.
+  const asyncGen = merged();
+
+  // Attach the `completions` property (an array of promises).
+  return Object.assign(asyncGen, {
+    completions: completionsDeferred.map((deferred) => deferred.promise),
+  });
 }
 
 
