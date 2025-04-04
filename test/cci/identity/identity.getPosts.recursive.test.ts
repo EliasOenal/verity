@@ -1,6 +1,6 @@
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
-import { Identity, PostFormat, PostInfo } from '../../../src/cci/identity/identity';
+import { GetPostsGenerator, Identity, PostFormat, PostInfo } from '../../../src/cci/identity/identity';
 
 // TODO: Don't use test setups from ZW for CCI components, it breaks our layering
 import { TestWordPostSet, TestWorld } from '../../app/zw/testWorld';
@@ -25,6 +25,9 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
   describe('Veritum post format', () => {
     for (const lvl of [0, 1, 2, 3, 1337]) describe (`recursion level ${lvl}`, () => {
       let w: TestWorld;
+      let postsGen: GetPostsGenerator<Veritable>;
+      let postInfoGen: GetPostsGenerator<PostInfo<Veritable>>;
+
       const posts: Veritable[] = [];
       const postInfos: PostInfo<Veritable>[] = [];
 
@@ -34,30 +37,32 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
         await w.setup();
 
         // run tests using direct post output, i.e. no PostInfos
+        postsGen = w.protagonist.getPosts({
+          depth: lvl,
+          format: PostFormat.Veritum,
+          postInfo: false,
+          subscribe: true,
+        });
+        // push yielded posts to array for ease of testing
         (async() => {
-          for await (const post of w.protagonist.getPosts({
-            depth: lvl,
-            format: PostFormat.Veritum,
-            postInfo: false,
-            subscribe: true,
-          })) {
-            posts.push(post);
-          }
+          for await (const post of postsGen) posts.push(post);
         })();
 
         // run tests using PostInfo output
+        postInfoGen = w.protagonist.getPosts({
+          depth: lvl,
+          format: PostFormat.Veritum,
+          postInfo: true,
+          subscribe: true,
+        });
+        // push yielded posts to array for ease of testing
         (async() => {
-          for await (const postInfo of w.protagonist.getPosts({
-            depth: lvl,
-            format: PostFormat.Veritum,
-            postInfo: true,
-            subscribe: true,
-          })) {
-            postInfos.push(postInfo);
-          }
+          for await (const postInfo of postInfoGen) postInfos.push(postInfo);
         })();
 
-        await new Promise((resolve) => setTimeout(resolve, 100));  // TODO nicify
+        // tests can start once all pre-existing posts have been yielded
+        await postsGen.existingYielded;
+        await postInfoGen.existingYielded;
       });
 
       function testPostBunch(list: Veritable[]|PostInfo<Veritable>[], n: number = 0, testAuthor: boolean) {

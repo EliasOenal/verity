@@ -1,4 +1,4 @@
-import { IdentityOptions, Identity, PostFormat } from '../../../src/cci/identity/identity';
+import { IdentityOptions, Identity, PostFormat, GetPostsGenerator } from '../../../src/cci/identity/identity';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { evenLonger, testCubeStoreParams } from '../testcci.definitions';
 import { cciCube } from '../../../src/cci/cube/cciCube';
@@ -254,11 +254,11 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
 
   describe('retrieval as Veritum', () => {
     let posts: Veritum[];
+    let gen: GetPostsGenerator<Veritum>;
     beforeAll(async () => {
       // run test
-      posts = await ArrayFromAsync(id.getPosts({
-        format: PostFormat.Veritum,
-      }));
+      gen = id.getPosts({ format: PostFormat.Veritum });
+      posts = await ArrayFromAsync(gen);
     });
 
     it('restores the correct number of posts', () => {
@@ -347,6 +347,10 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
         post => post.getKeyStringIfAvailable() === singleFrozenEncrypted.getKeyStringIfAvailable())!;
       // post is encrypted to self and should get decrypted automatically
       postEquals(singleFrozenEncrypted, singleFrozenEncryptedRestored);
+    });
+
+    it('resolved the existingYielded Promise when done', async () => {
+      await expect(gen.existingYielded).resolves.toBeDefined();
     });
   });
 
