@@ -1,7 +1,7 @@
 
 import type { Shuttable } from '../../core/helpers/coreInterfaces';
 import { unixtime } from '../../core/helpers/misc';
-import { eventsToGenerator, mergeAsyncGenerators, resolveAndYield } from '../../core/helpers/asyncGenerators';
+import { eventsToGenerator, mergeAsyncGenerators, MergedAsyncGenerator, resolveAndYield } from '../../core/helpers/asyncGenerators';
 import { Cube } from '../../core/cube/cube';
 import { KeyVariants, keyVariants } from '../../core/cube/cubeUtil';
 import { logger } from '../../core/logger';
@@ -175,8 +175,17 @@ export interface GetPostsOptions {
    * You will usually not need this.
    */
   recursionExclude?: Set<string>;
-
 }
+
+export type GetPostsGenerator<T> = MergedAsyncGenerator<T> & {
+  /**
+   * A Promise that will resolve once all existing posts have been yielded.
+   * This is useful in subscribe mode to know from which point on we're no longer
+   * actively retrieving existing posts but just hope to learn about new ones
+   * over the network.
+   */
+  existingYielded?: Promise<void>;
+};
 
 export interface GetRecursiveEmitterOptions {
   depth?: number,
@@ -201,8 +210,6 @@ interface IdentityEvents extends CubeEmitterEvents {
 // synced back from another node.
 // Maybe a Lamport clock? Did I mention that I like Lamport clocks? :)
 // (turns out a simple Lamport clock isn't enough :( )
-
-// TODO add type declarations documenting which Events Identity may emit
 
 /**
  * !!! May only be used after awaiting sodium.ready !!!
@@ -717,14 +724,14 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     yield *resolveAndYield(promises);
   }
 
-  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, postInfo: true }): AsyncGenerator<PostInfo<Veritum>>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.CubeInfo, postInfo: true} ): AsyncGenerator<PostInfo<CubeInfo>>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, postInfo?: false} ): AsyncGenerator<Veritum>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.CubeInfo, postInfo?: false} ): AsyncGenerator<CubeInfo>;
-  getPosts(options: GetPostsOptions): AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>;
-  async *getPosts(
+  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, postInfo: true }): GetPostsGenerator<PostInfo<Veritum>>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.CubeInfo, postInfo: true} ): GetPostsGenerator<PostInfo<CubeInfo>>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, postInfo?: false} ): GetPostsGenerator<Veritum>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.CubeInfo, postInfo?: false} ): GetPostsGenerator<CubeInfo>;
+  getPosts(options: GetPostsOptions): GetPostsGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>;
+  getPosts(
     options: GetPostsOptions = {},
-  ): AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>> {
+  ): GetPostsGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>> {
     // set default options
     options.format ??= this.veritumRetriever? PostFormat.Veritum: PostFormat.CubeInfo;
     options.depth ??= 0;
@@ -790,7 +797,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     }
 
     // Merge all those generators
-    let ret: AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>;
+    let ret: GetPostsGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>;
 
     // In subscription mode, keep going and yield new data as it arrives
     // TODO BUGBUG respect output format
@@ -808,9 +815,12 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     } else {
       ret = mergeAsyncGenerators(mine, ...rGens);
     }
+    // For subscription mode, let the caller know when we're done yielding
+    // existing posts.
+    ret.existingYielded = Promise.all(
+      ret.completions.slice(0, 1 + rGens.length)).then();
 
-    // Yield everything that we've just prepared
-    yield* ret;
+    return ret;
   }
 
   /**
@@ -880,7 +890,8 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   async *getPublicSubscriptionPosts(keyInput: CubeKey|string, options?: GetPostsOptions): AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>> {
     const identity: Identity = await this.getPublicSubscriptionIdentity(keyInput);
     if (identity !== undefined) {
-      yield* identity.getPosts(options);
+      const gen = identity.getPosts(options);
+      if (gen) yield* gen;
     }
   }
 
