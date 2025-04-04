@@ -6,7 +6,7 @@ import { CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
 import { VerityField } from '../../../src/cci/cube/verityField';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { Veritum } from '../../../src/cci/veritum/veritum';
-import { ArrayFromAsync } from '../../../src/core/helpers/misc';
+import { ArrayFromAsync, enumNums } from '../../../src/core/helpers/misc';
 
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
@@ -252,12 +252,12 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
   });  // verify test setup
 
-  describe('retrieval as Veritum', () => {
-    let posts: Veritum[];
-    let gen: GetPostsGenerator<Veritum>;
+  for (const format of enumNums(PostFormat)) describe(`retrieval as ${PostFormat[format]}`, () => {
+    let posts: Veritable[];  // note that Veritable covers both Veritum and Cube
+    let gen: GetPostsGenerator<Veritable>;
     beforeAll(async () => {
       // run test
-      gen = id.getPosts({ format: PostFormat.Veritum });
+      gen = id.getPosts({ format });
       posts = await ArrayFromAsync(gen);
     });
 
@@ -274,19 +274,23 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     it('restores a post made from a single frozen Cube', () => {
-      const singleFrozenRestored: Veritum = posts.find(
+      const singleFrozenRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleFrozen.getKeyStringIfAvailable())!;
+      if (format === PostFormat.Veritum) expect(singleFrozenRestored).toBeInstanceOf(Veritum);
+      if (format === PostFormat.Cube) expect(singleFrozenRestored).toBeInstanceOf(cciCube);
       postEquals(singleFrozen, singleFrozenRestored);
     });
 
     it('restores a post made from a single frozen Cube with notification', () => {
-      const singleFrozenNotifyRestored: Veritum = posts.find(
+      const singleFrozenNotifyRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleFrozenNotify.getKeyStringIfAvailable())!;
+      if (format === PostFormat.Veritum) expect(singleFrozenNotifyRestored).toBeInstanceOf(Veritum);
+      if (format === PostFormat.Cube) expect(singleFrozenNotifyRestored).toBeInstanceOf(cciCube);
       postEquals(singleFrozenNotify, singleFrozenNotifyRestored);
     });
 
     it('restores a post made from a single PIC', async() => {
-      let singlePicRestored: Veritum;
+      let singlePicRestored: Veritable;
       const singlePicKey = await singlePic.getKeyString();
       for (const post of posts) {
         const candidateKey = await post.getKeyString();
@@ -295,72 +299,103 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
           break;
         }
       }
+      if (format === PostFormat.Veritum) expect(singlePicRestored!).toBeInstanceOf(Veritum);
+      if (format === PostFormat.Cube) expect(singlePicRestored!).toBeInstanceOf(cciCube);
       postEquals(singlePic, singlePicRestored!);
     });
 
     it('restores a post made from a single PIC with notification', () => {
-      const singlePicNotifyRestored: Veritum = posts.find(
+      const singlePicNotifyRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singlePicNotify.getKeyStringIfAvailable())!;
+      if (format === PostFormat.Veritum) expect(singlePicNotifyRestored).toBeInstanceOf(Veritum);
+      if (format === PostFormat.Cube) expect(singlePicNotifyRestored).toBeInstanceOf(cciCube);
       postEquals(singlePicNotify, singlePicNotifyRestored);
     });
 
     it('restores a post made from a single MUC', () => {
-      const singleMucRestored: Veritum = posts.find(
+      const singleMucRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleMuc.getKeyStringIfAvailable())!;
+      if (format === PostFormat.Veritum) expect(singleMucRestored).toBeInstanceOf(Veritum);
+      if (format === PostFormat.Cube) expect(singleMucRestored).toBeInstanceOf(cciCube);
       postEquals(singleMuc, singleMucRestored);
     });
 
     it('restores a post made from a single MUC with notification', () => {
-      const singleMucNotifyRestored: Veritum = posts.find(
+      const singleMucNotifyRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleMucNotify.getKeyStringIfAvailable())!;
+      if (format === PostFormat.Veritum) expect(singleMucNotifyRestored).toBeInstanceOf(Veritum);
+      if (format === PostFormat.Cube) expect(singleMucNotifyRestored).toBeInstanceOf(cciCube);
       postEquals(singleMucNotify, singleMucNotifyRestored);
     });
 
-    // TODO FIXME: PMUC Veritum handling still buggy
-    it.skip('restores a post made from a single PMUC', () => {
-      const singlePmucRestored: Veritum = posts.find(
+    it('restores a post made from a single PMUC', () => {
+      const singlePmucRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singlePmuc.getKeyStringIfAvailable())!;
+      if (format === PostFormat.Veritum) expect(singlePmucRestored).toBeInstanceOf(Veritum);
+      if (format === PostFormat.Cube) expect(singlePmucRestored).toBeInstanceOf(cciCube);
       postEquals(singlePmuc, singlePmucRestored);
     });
 
     it('restores a post made from a single PMUC with notification', () => {
-      const singlePmucNotifyRestored: Veritum = posts.find(
+      const singlePmucNotifyRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singlePmucNotify.getKeyStringIfAvailable())!;
+      if (format === PostFormat.Veritum) expect(singlePmucNotifyRestored).toBeInstanceOf(Veritum);
+      if (format === PostFormat.Cube) expect(singlePmucNotifyRestored).toBeInstanceOf(cciCube);
       postEquals(singlePmucNotify, singlePmucNotifyRestored);
     });
 
-    it('restores a frozen multi Cube post', () => {
-      const multiFrozenRestored: Veritum = posts.find(
+    if (format === PostFormat.Veritum) it('restores a frozen multi Cube post', () => {
+      const multiFrozenRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === multiFrozen.getKeyStringIfAvailable())!;
+      expect(multiFrozenRestored).toBeInstanceOf(Veritum);
       postEquals(multiFrozen, multiFrozenRestored);
     });
 
+    if (format === PostFormat.Cube) it('restores the first Cube of a frozen multi Cube post', () => {
+      const multiFrozenRestored: Veritable = posts.find(
+        post => post.getKeyStringIfAvailable() === multiFrozen.getKeyStringIfAvailable())!;
+      expect(multiFrozenRestored).toBeInstanceOf(cciCube);
+      postEquals(multiFrozen, multiFrozenRestored, 900);
+      // we just compare the first 900 payload chars; if they match, we call it a day
+    });
+
     // TODO FIXME: PIC Veritum handling still buggy
-    it.skip('restores a PIC multi Cube post', () => {
-      const multiPicRestored: Veritum = posts.find(
+    if (format === PostFormat.Veritum) it.skip('restores a PIC multi Cube post', () => {
+      const multiPicRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === multiPic.getKeyStringIfAvailable())!;
+      expect(multiPicRestored).toBeInstanceOf(Veritum);
       postEquals(multiPic, multiPicRestored);
     });
 
-    it('restores a frozen single Cube encrypted post', () => {
-      const singleFrozenEncryptedRestored: Veritum = posts.find(
+    if (format === PostFormat.Cube) it('restores the first Cube of a PIC multi Cube post', () => {
+      const multiPicRestored: Veritable = posts.find(
+        post => post.getKeyStringIfAvailable() === multiPic.getKeyStringIfAvailable())!;
+      expect(multiPicRestored).toBeInstanceOf(cciCube);
+      postEquals(multiPic, multiPicRestored, 900);
+      // we just compare the first 900 payload chars; if they match, we call it a day
+    });
+
+    if (format === PostFormat.Veritum) it('restores a frozen single Cube encrypted post', () => {
+      const singleFrozenEncryptedRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleFrozenEncrypted.getKeyStringIfAvailable())!;
+      expect(singleFrozenEncryptedRestored).toBeInstanceOf(Veritum);
       // post is encrypted to self and should get decrypted automatically
       postEquals(singleFrozenEncrypted, singleFrozenEncryptedRestored);
+    });
+
+    if (format === PostFormat.Cube) it('returns the encrypteed raw Cube for an (frozen single Cube) encrypted post', () => {
+      const singleFrozenEncryptedRestored: Veritable = posts.find(
+        post => post.getKeyStringIfAvailable() === singleFrozenEncrypted.getKeyStringIfAvailable())!;
+      expect(singleFrozenEncryptedRestored).toBeInstanceOf(cciCube);
+      // post is encrypted and payload is thus not available
+      expect(singleFrozenEncryptedRestored.getFirstField(FieldType.PAYLOAD)).toBeUndefined();
+      expect(singleFrozenEncryptedRestored.getFirstField(FieldType.ENCRYPTED)).toBeDefined();
     });
 
     it('resolved the existingYielded Promise when done', async () => {
       await expect(gen.existingYielded).resolves.toBeDefined();
     });
-  });
-
-  describe('retrieval as Cube', () => {
-    it.todo('write tests');
-  });
-
-  describe('retrieval as CubeInfo', () => {
-    it.todo('write tests or drop feature');
-  });
+  });  // retrieval as <PostFormat>
 
   describe('edge cases', () => {
     it.todo('will not yield a post if a chunk is missing');
@@ -368,12 +403,25 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
   });
 });
 
-function postEquals(a: Veritable, b: Veritable) {
+function postEquals(a: Veritable, b: Veritable, compareLength?: number) {
+  // Do we even have two Veritables to compare?
   expect(a).toBeDefined();
   expect(b).toBeDefined();
-  const payloadA = a.getFirstField(FieldType.PAYLOAD);
-  const payloadB = b.getFirstField(FieldType.PAYLOAD);
-  expect(payloadA.valueString).toEqual(payloadB.valueString);
+
+  // Fetch payload
+  let payloadA = a.getFirstField(FieldType.PAYLOAD)?.valueString;
+  let payloadB = b.getFirstField(FieldType.PAYLOAD)?.valueString;
+  expect(payloadA).toBeDefined();
+  expect(payloadB).toBeDefined();
+
+  // Are we limiting the comparison to a certain length?
+  if (compareLength) {
+    payloadA = payloadA.substr(0, compareLength);
+    payloadB = payloadB.substr(0, compareLength);
+  }
+
+  // Mela let's see, are they equal?!
+  expect(payloadA).toEqual(payloadB);
   // TODO once we have proper comparisons, we should also compare things like date,
   //   notification, or update count in case of PMUC
 }

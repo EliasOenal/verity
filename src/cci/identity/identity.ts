@@ -109,12 +109,12 @@ export interface IdentityOptions {
 }
 
 export enum PostFormat {
-  CubeInfo,
+  Cube,
   Veritum,
 };
 
 export const PostFormatEventMap = {
-  [PostFormat.CubeInfo]: 'cubeAdded',
+  [PostFormat.Cube]: 'postAddedCube',
   [PostFormat.Veritum]: 'postAdded',
 } as const;
 
@@ -195,6 +195,7 @@ export interface GetRecursiveEmitterOptions {
 
 interface IdentityEvents extends CubeEmitterEvents {
   postAdded: [PostInfo<Veritum>];
+  postAddedCube: [PostInfo<Cube>];
 }
 
 // TODO: Split out the MUC management code.
@@ -725,15 +726,15 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   }
 
   getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, postInfo: true }): GetPostsGenerator<PostInfo<Veritum>>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.CubeInfo, postInfo: true} ): GetPostsGenerator<PostInfo<CubeInfo>>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.Cube, postInfo: true} ): GetPostsGenerator<PostInfo<Cube>>;
   getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, postInfo?: false} ): GetPostsGenerator<Veritum>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.CubeInfo, postInfo?: false} ): GetPostsGenerator<CubeInfo>;
-  getPosts(options: GetPostsOptions): GetPostsGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.Cube, postInfo?: false} ): GetPostsGenerator<Cube>;
+  getPosts(options: GetPostsOptions): GetPostsGenerator<Cube|Veritum|PostInfo<Cube|Veritum>>;
   getPosts(
     options: GetPostsOptions = {},
-  ): GetPostsGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>> {
+  ): GetPostsGenerator<Cube|Veritum|PostInfo<Cube|Veritum>> {
     // set default options
-    options.format ??= this.veritumRetriever? PostFormat.Veritum: PostFormat.CubeInfo;
+    options.format ??= this.veritumRetriever? PostFormat.Veritum: PostFormat.Cube;
     options.depth ??= 0;
 
     // check if we even have the means to fulfil this request
@@ -752,12 +753,12 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     else options.recursionExclude.add(this.keyString);
 
     // Get all my posts (as retrieval promises)
-    const minePromises: Promise<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>[] = [];
+    const minePromises: Promise<Cube|Veritum|PostInfo<Cube|Veritum>>[] = [];
     for (const post of this.getPostKeyStrings()) {
-      let promise: Promise<CubeInfo|Cube|Veritum>;
+      let promise: Promise<Cube|Veritum>;
       switch(options.format) {
-        case PostFormat.CubeInfo:
-          promise = this.cubeRetriever.getCubeInfo(post);
+        case PostFormat.Cube:
+          promise = this.cubeRetriever.getCube(post);
           break;
         case PostFormat.Veritum:
           promise = this.veritumRetriever.getVeritum(post, {
@@ -781,11 +782,11 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     }
 
     // Prepare Generator for my posts
-    const mine: AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>> =
+    const mine: AsyncGenerator<Cube|Veritum|PostInfo<Cube|Veritum>> =
       resolveAndYield(minePromises);
 
     // Prepare Generators for my subscription's posts
-    const rGens: AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>[] = [];
+    const rGens: AsyncGenerator<Cube|Veritum|PostInfo<Cube|Veritum>>[] = [];
     if (options.depth > 0) {
       for (const subKey of this.getPublicSubscriptionStrings()) {
         rGens.push(this.getPublicSubscriptionPosts(subKey, {
@@ -797,7 +798,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     }
 
     // Merge all those generators
-    let ret: GetPostsGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>;
+    let ret: GetPostsGenerator<Cube|Veritum|PostInfo<Cube|Veritum>>;
 
     // In subscription mode, keep going and yield new data as it arrives
     // TODO BUGBUG respect output format
@@ -805,10 +806,16 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     const extractPost = (postInfo: PostInfo<any>) => postInfo.post;
 
     if (options.subscribe) {
-      const emitter = this.getRecursiveEmitter({ event: 'postAdded', depth: options.depth });
+      const emitter = this.getRecursiveEmitter({
+        event: PostFormatEventMap[options.format],
+        depth: options.depth,
+      });
       const subGen: AsyncGenerator<Veritum> =
         eventsToGenerator(
-          [{emitter: emitter, event: 'postAdded'}],
+          [{
+            emitter: emitter,
+            event: PostFormatEventMap[options.format],
+          }],
           { transform: (!options.postInfo? extractPost : undefined)},
       );
       ret = mergeAsyncGenerators(mine, ...rGens, subGen);
@@ -879,15 +886,15 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   }
 
   getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: PostFormat.Veritum, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<Veritum>>;
-  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: PostFormat.CubeInfo, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<CubeInfo>>;
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: PostFormat.Cube, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<Cube>>;
   getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: PostFormat.Veritum, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<Veritum>;
-  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: PostFormat.CubeInfo, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<CubeInfo>;
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: PostFormat.Cube, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<Cube>;
   /**
    * Retrieves the posts by a specific subscribed Identity.
    * Note that this actually also works for non-subscribed users.
    */
-  getPublicSubscriptionPosts(keyInput: CubeKey|string, options?: GetPostsOptions): AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>>;
-  async *getPublicSubscriptionPosts(keyInput: CubeKey|string, options?: GetPostsOptions): AsyncGenerator<CubeInfo|Cube|Veritum|PostInfo<CubeInfo|Cube|Veritum>> {
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options?: GetPostsOptions): AsyncGenerator<Cube|Veritum|PostInfo<Cube|Veritum>>;
+  async *getPublicSubscriptionPosts(keyInput: CubeKey|string, options?: GetPostsOptions): AsyncGenerator<Cube|Veritum|PostInfo<Cube|Veritum>> {
     const identity: Identity = await this.getPublicSubscriptionIdentity(keyInput);
     if (identity !== undefined) {
       const gen = identity.getPosts(options);
@@ -1545,17 +1552,34 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   }
 
   private async emitPostAdded(key: CubeKey): Promise<void> {
-    if (!this.shouldIEmit('postAdded')) return;  // should I even emit?
-    const veritum = await this.veritumRetriever?.getVeritum?.(key);
-    if (veritum === undefined) {
-      logger.warn(`Identity ${this.keyString}.emitPostAdded() was called for an unavailable post; skipping.`);
-      return;
+    // For the full Veritum format:
+    if (this.shouldIEmit('postAdded')){  // should I even emit?
+      const veritum = await this.veritumRetriever?.getVeritum?.(key);
+      if (veritum === undefined) {
+        logger.warn(`Identity ${this.keyString}.emitPostAdded() was called for an unavailable Veritum; skipping.`);
+        return;
+      }
+      if (this.shouldIEmit('postAdded')) {  // recheck as we awaited something
+        this.emit('postAdded', {
+          post: veritum,
+          author: this,
+        });
+      }
     }
-    if (this.shouldIEmit('postAdded')) {
-      this.emit('postAdded', {
-        post: veritum,
-        author: this,
-      });
+
+    // For the first-Cube-only format:
+    if (this.shouldIEmit('postAddedCube')) {  // should I even emit?
+      const cube = await this.cubeRetriever?.getCube?.(key);
+      if (cube === undefined) {
+        logger.warn(`Identity ${this.keyString}.emitPostAdded() was called for an unavailable Cube; skipping.`);
+        return;
+      }
+      if (this.shouldIEmit('postAddedCube')) {  // recheck as we awaited something
+        this.emit('postAddedCube', {
+          post: cube,
+          author: this,
+        });
+      }
     }
   }
 
