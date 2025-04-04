@@ -10,7 +10,7 @@ import { testCubeStoreParams } from '../testcci.definitions';
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
-function hasPost(list: PostInfo<Veritum>[], post: Veritable, author?: Identity): boolean {
+function hasPost(list: PostInfo<Veritable>[], post: Veritable, author?: Identity): boolean {
   if (list.some(item => (
     item.post.getKeyStringIfAvailable() === post.getKeyStringIfAvailable() &&
     (author? item.author.keyString === author.keyString : true)
@@ -18,7 +18,7 @@ function hasPost(list: PostInfo<Veritum>[], post: Veritable, author?: Identity):
   else return false;
 }
 
-describe('Identity: emitting postAdded events', () => {
+describe('Identity: emitting postAdded / postAddedCube events', () => {
   let idTestOptions: IdentityOptions;
   let cubeStore: CubeStore;
 
@@ -41,14 +41,14 @@ describe('Identity: emitting postAdded events', () => {
     await cubeStore.shutdown();
   });
 
-  for (const lvl of [0, 1, 2, 3, 1337]) {
-    describe(`recursion level ${lvl} correctness`, () => {
+  for (const eventName of ['postAdded', 'postAddedCube']) describe(`event ${eventName}`, () => {
+    for (const lvl of [0, 1, 2, 3, 1337]) describe(`recursion level ${lvl} correctness`, () => {
       let w: TestWorld;
-      let posts: PostInfo<Veritum>[];
+      let posts: PostInfo<Veritable>[];  // note Veritable comprises both Veritum and Cube
       let emitter: RecursiveEmitter;
 
-      const handler: (postInfo: PostInfo<Veritum>) => void =
-        (postInfo: PostInfo<Veritum>) => posts.push(postInfo);
+      const handler: (postInfo: PostInfo<Veritable>) => void =
+        (postInfo: PostInfo<Veritable>) => posts.push(postInfo);
 
       beforeAll(async () => {
         // prepare test data
@@ -57,11 +57,14 @@ describe('Identity: emitting postAdded events', () => {
         w.makeSubscriptions();
 
         // set recursion level
-        emitter = w.protagonist.getRecursiveEmitter({ depth: lvl });
+        emitter = w.protagonist.getRecursiveEmitter({
+          depth: lvl,
+          event: eventName,
+        });
 
         // set up test listener
         posts = [];
-        emitter.on('postAdded', handler);
+        emitter.on(eventName, handler);
 
         // run test
         w.posts = [new TestWordPostSet(w, "")];
@@ -69,7 +72,7 @@ describe('Identity: emitting postAdded events', () => {
       });
 
       afterAll(async () => {
-        emitter.removeListener('postAdded', handler);
+        emitter.removeListener(eventName, handler);
         await emitter.shutdown();
         await w.protagonist.identityStore.shutdown();
       });
@@ -172,32 +175,37 @@ describe('Identity: emitting postAdded events', () => {
         expect(hasPost(posts, w.posts[0].subUnavailableIndirect)).toBe(false);
       });
     });  // recursion level ${lvl} correctness
-  }  // recursion level for loop
+
+    describe('feature auto-disable', () => {
+      it(`will not retrieve ${eventName === 'postAdded' ? 'Verita' : 'Cubes'} if there are no subscribers`, async () => {
+        // prepare test
+        const w: TestWorld = new TestWorld();
+        w.createIdentities();
+        w.makeSubscriptions();
+
+        // Spy on the CubeStore's getCubeInfo method
+        let retrievalSpy;
+        if (eventName === 'postAdded') retrievalSpy = vi.spyOn(w.retriever, 'getVeritum');
+        else retrievalSpy = vi.spyOn(w.retriever.cubeRetriever, 'getCube');
+
+        // Make posts
+        w.posts = [new TestWordPostSet(w, "")];
+        await w.posts[0].makePosts();
+
+        // assert that no Verita were retrieved
+        expect(retrievalSpy).not.toHaveBeenCalled();
+
+        // cleanup
+        await w.protagonist.identityStore.shutdown();
+        retrievalSpy.mockRestore();
+      });
+    });
+  });  // for postAdded / postAddedCube event
 
   describe.todo('reducing the recursion level');
 
+  // Note that this does NOT work in the current architecture as we use a
+  // separate RecursiveEmitter object to handle our subscription's posts, and
+  // this object will not be notified about changes in subscription status.
   describe.todo('will automatically emit posts from newly added subscriptions');
-
-  describe('feature auto-disable', () => {
-    it('will not retrieve Verita if there are no subscribers', async () => {
-      // prepare test
-      const w: TestWorld = new TestWorld();
-      w.createIdentities();
-      w.makeSubscriptions();
-
-      // Spy on the CubeStore's getCubeInfo method
-      const getVeritumSpy = vi.spyOn(w.retriever, 'getVeritum');
-
-      // Make posts
-      w.posts = [new TestWordPostSet(w, "")];
-      await w.posts[0].makePosts();
-
-      // assert that no Verita were retrieved
-      expect(getVeritumSpy).not.toHaveBeenCalled();
-
-      // cleanup
-      await w.protagonist.identityStore.shutdown();
-      getVeritumSpy.mockRestore();
-    });
-  });
 });
