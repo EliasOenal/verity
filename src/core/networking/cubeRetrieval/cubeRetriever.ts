@@ -4,7 +4,7 @@ import { CubeFamilyDefinition } from "../../cube/cubeFields";
 import { CubeInfo } from "../../cube/cubeInfo";
 import { CubeRetrievalInterface, CubeStore } from "../../cube/cubeStore";
 import { keyVariants } from "../../cube/cubeUtil";
-import { eventsToGenerator } from "../../helpers/asyncGenerators";
+import { eventsToGenerator, MergedAsyncGenerator } from "../../helpers/asyncGenerators";
 import { CubeSubscription } from "./pendingRequest";
 import { CubeRequestOptions, CubeSubscribeOptions, RequestScheduler } from "./requestScheduler";
 
@@ -79,6 +79,19 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
     // TODO error handling
 
     return generator;
+  }
+
+  // TODO BUGBUG FIXME:
+  // Besides notifications already locally present, this may sometimes only
+  // yield the *first* notification retrieved over the wire (rather than
+  // all notifications received upon our first request).
+  // The reason for this is that RequestScheduler resolves it's requestNotifications()
+  // promise within the cubeAddedHandler(), which is obviously called right after
+  // the first response has been stored.
+  async *getNotifications(recipient: Buffer): AsyncGenerator<Cube> {
+    const req = this.requestScheduler.requestNotifications(recipient);
+    await req;
+    yield* this.cubeStore.getNotificationCubes(recipient);
   }
 
   subscribeNotifications(
