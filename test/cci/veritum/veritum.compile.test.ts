@@ -7,7 +7,7 @@ import { CubeKey, CubeType, DEFAULT_CUBE_TYPE, HasNotify, HasSignature } from ".
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { enumNums } from "../../../src/core/helpers/misc";
 
-import { tooLong } from "../testcci.definitions";
+import { evenLonger, tooLong } from "../testcci.definitions";
 import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
 
 import sodium from 'libsodium-wrappers-sumo'
@@ -40,13 +40,16 @@ describe('Veritum compilation/decompilation tests', () => {
 
   describe('compile()', () => {
     // Note: basic encryption tests are in veritumEncryption.test.ts --
-    // this suite contains some higher level tests including encryption but
-    // assumes the basics are working.
+    //   this suite contains some higher level tests including encryption in the
+    //   round-trip tests section, but assumes the basics are working.
 
     describe('splitting', () => {
       it('compiles a short frozen Veritum to a single Frozen Cube', async() => {
         const veritum = new Veritum({
-          cubeType: CubeType.FROZEN,fields: payloadField, requiredDifficulty});
+          cubeType: CubeType.FROZEN,
+          fields: payloadField,
+          requiredDifficulty,
+        });
         const cubesIterable: Iterable<cciCube> = await veritum.compile();
         expect(cubesIterable).toEqual(veritum.chunks);
         const compiled: cciCube[] = Array.from(cubesIterable);
@@ -57,8 +60,11 @@ describe('Veritum compilation/decompilation tests', () => {
 
       it('compiles a long frozen Veritum to multiple Frozen Cubes', async() => {
         const veritum = new Veritum({
-          cubeType: CubeType.FROZEN, fields: VerityField.Payload(tooLong), requiredDifficulty});
-        await veritum.compile({requiredDifficulty});
+          cubeType: CubeType.FROZEN,
+          fields: VerityField.Payload(tooLong),
+          requiredDifficulty,
+        });
+        await veritum.compile();
         expect(veritum.chunks).toHaveLength(2);
 
         // expect both chunks to contain a (partial) PAYLOAD field
@@ -77,10 +83,33 @@ describe('Veritum compilation/decompilation tests', () => {
           tooLong);
       });
 
-      it.todo('can split MUCs and PMUCs');  // not currently implements, Github#634
-      it.todo('automatically sets and updates the PMUC update count');  // not currently implements, Github#634
-      it.todo('will split a notification Veritum into a leading notification Cube followed by non-notification Cubes');  // write an e2e test for that, too!
-      it.todo('will ensure all resulting chunks have the same date if not encrypted')
+      it('will split a notification Veritum into a leading notification Cube followed by non-notification Cubes', async () => {
+        const veritum = new Veritum({
+          cubeType: CubeType.PIC_NOTIFY,
+          fields: [
+            notificationField,
+            VerityField.Payload(evenLonger),
+          ],
+          requiredDifficulty,
+        });
+        await veritum.compile();
+
+        const chunks: cciCube[] = Array.from(veritum.chunks);
+        expect(chunks.length).toBe(3);
+
+        expect(chunks[0].cubeType).toBe(CubeType.PIC_NOTIFY);
+        expect(chunks[1].cubeType).toBe(CubeType.PIC);
+        expect(chunks[2].cubeType).toBe(CubeType.PIC);
+
+        expect(chunks[0].getFirstField(FieldType.NOTIFY).equals(notificationField)).toBe(true);
+        expect(chunks[1].getFirstField(FieldType.NOTIFY)).toBeUndefined();
+        expect(chunks[2].getFirstField(FieldType.NOTIFY)).toBeUndefined();
+      });
+
+      it.todo('will ensure all resulting chunks have the same date if not encrypted');
+
+      it.todo('can split MUCs and PMUCs');  // not currently implemented, Github#634
+      it.todo('automatically sets and updates the PMUC update count');  // not currently implemented, Github#634
     });  // compile() splitting tests
 
     describe('round-trip tests', () => {
@@ -301,6 +330,10 @@ describe('Veritum compilation/decompilation tests', () => {
                       expect(reconstructed.getKeyIfAvailable().equals(veritumKey)).toBe(true);
                     });
 
+                    it("retains the original Veritum's Cube type", () => {
+                      expect(reconstructed.cubeType).toEqual(veritum.cubeType);
+                    });
+
                     if (readable) it("should have reconstructed the original Veritum's payload", () => {
                       expect(reconstructed.getFirstField(FieldType.PAYLOAD).valueString).toEqual(text);
                     });
@@ -314,8 +347,17 @@ describe('Veritum compilation/decompilation tests', () => {
                       expect(reconstructed.publicKey).toEqual(veritum.chunks[0].publicKey);
                     });
 
-                    if (HasNotify[cubeType]) it.todo("will retain the notification");
+                    if (HasNotify[cubeType]) it("will retain the notification", () => {
+                      expect(reconstructed.getFirstField(FieldType.NOTIFY)).toBeDefined();
+                      expect(reconstructed.getFirstField(FieldType.NOTIFY).equals(notify)).toBeTruthy();
+                    });
+                    else it("does not have a spurious notification field", () => {
+                      expect(reconstructed.getFirstField(FieldType.NOTIFY)).toBeUndefined();
+                    });
+
                     it.todo("will retain the original DATE");
+
+                    // Note: Multi-chunk signed Verita currently not implemented; Github#634
                     if (cubeType === CubeType.PMUC || cubeType === CubeType.PMUC_NOTIFY) it.todo("will retain the PMUC update count");
                   });
                 });  // describe combination of options
