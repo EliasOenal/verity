@@ -1,7 +1,7 @@
 import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
-import { CubeError, CubeKey, CubeType, HasNotify, ToggleNotifyType } from "../../core/cube/cube.definitions";
+import { CubeError, CubeKey, CubeType, HasNotify, NonNotifyCubeType, NotifyCubeType, ToggleNotifyType } from "../../core/cube/cube.definitions";
 import { Cube, CubeCreateOptions, CubeOptions } from "../../core/cube/cube";
 import { FieldParser } from "../../core/fields/fieldParser";
 
@@ -109,7 +109,7 @@ export const ContinuationDefaultExclusions: number[] = [
 
 const DefaultMapFieldToChunk: Map<number, number> = new Map([
   [FieldType.DATE, -1],
-  [FieldType.NOTIFY, 1],
+  [FieldType.NOTIFY, 0],
   [FieldType.PMUC_UPDATE_COUNT, 0],
 ]);
 
@@ -413,10 +413,19 @@ class Splitter {
       }
     }
 
+    // Correct Cube type to the correct notify/non-notify variant if needed
+    // (Note: Would also be corrected automatically on the chunk compilation
+    //   layer if we didn't do it here, but we'll still do it for correctness)
+    const hasNotify: boolean = mappedFields.some((field: VerityField) =>
+      field.type === FieldType.NOTIFY);
+    const cubeType: CubeType = hasNotify?
+      NotifyCubeType(this.cubeType) :
+      NonNotifyCubeType(this.cubeType);
+
     // Finally, sculpt the chunk Cube
     const cube = this.veritum.family.cubeClass.Create({
       ...this.options,
-      cubeType: this.cubeType,
+      cubeType: cubeType,
       fields: mappedFields,
     }) as cciCube;
     this.cubes.push(cube);
