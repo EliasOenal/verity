@@ -7,7 +7,7 @@ identitytest=$(find test/cci/identity -type f | xargs wc -l | tail -n 1 | awk '{
 identitysrcpct=$(echo "$identitysrc/$totalsrc * 100" | bc -l | grep -Po "\d*\.\d?\d?")
 identitytestpct=$(echo "$identitytest/$totaltest * 100" | bc -l | grep -Po "\d*\.\d?\d?")
 
-echo 'Gratuitous projects stats!'
+echo 'Gratuitous project stats!'
 echo
 echo Project total:
 echo $totalsrc lines of src code

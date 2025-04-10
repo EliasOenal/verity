@@ -665,14 +665,14 @@ describe('cubeStore', () => {
 
             // Ensure the correct Cubes are returned upon notification retrieval
             const notificationsForKey1: Cube[] = [];
-            for await (const cube of cubeStore.getNotificationCubes(recipientKey1)) {
+            for await (const cube of cubeStore.getNotifications(recipientKey1)) {
               notificationsForKey1.push(cube);
             }
             expect(notificationsForKey1).toHaveLength(1);
             expect(await notificationsForKey1[0].getKey()).toEqual(await cube1.getKey());
 
             const notificationsForKey2: Cube[] = [];
-            for await (const cube of cubeStore.getNotificationCubes(recipientKey1)) {
+            for await (const cube of cubeStore.getNotifications(recipientKey1)) {
               notificationsForKey2.push(cube);
             }
             expect(notificationsForKey2).toHaveLength(1);
@@ -693,7 +693,7 @@ describe('cubeStore', () => {
             await cubeStore.addCube(cube);
 
             const notifications: Cube[] = [];
-            for await (const notification of cubeStore.getNotificationCubes(recipientKey)) {
+            for await (const notification of cubeStore.getNotifications(recipientKey)) {
               notifications.push(notification);
             }
 
@@ -729,7 +729,7 @@ describe('cubeStore', () => {
             await cubeStore.addCube(cube2);
 
             const notifications: Cube[] = [];
-            for await (const notification of cubeStore.getNotificationCubes(recipientKey)) {
+            for await (const notification of cubeStore.getNotifications(recipientKey)) {
               notifications.push(notification);
             }
 
@@ -768,7 +768,7 @@ describe('cubeStore', () => {
 
             // Ensure the notification is indexed correctly
             const notifications: Cube[] = [];
-            for await (const notification of cubeStore.getNotificationCubes(recipientKey)) {
+            for await (const notification of cubeStore.getNotifications(recipientKey)) {
               notifications.push(notification);
             }
 
@@ -804,7 +804,7 @@ describe('cubeStore', () => {
 
             // Ensure only the valid notification is stored
             const notifications: Cube[] = [];
-            for await (const notification of cubeStore.getNotificationCubes(validRecipientKey)) {
+            for await (const notification of cubeStore.getNotifications(validRecipientKey)) {
               notifications.push(notification);
             }
 
@@ -813,7 +813,7 @@ describe('cubeStore', () => {
 
             // Ensure no notifications were stored for the invalid key
             const invalidNotifications: Cube[] = [];
-            for await (const notification of cubeStore.getNotificationCubes(invalidRecipientKey)) {
+            for await (const notification of cubeStore.getNotifications(invalidRecipientKey)) {
               invalidNotifications.push(notification);
             }
             expect(invalidNotifications).toHaveLength(0); // No notification for the invalid key

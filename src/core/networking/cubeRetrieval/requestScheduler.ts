@@ -483,8 +483,23 @@ export class RequestScheduler implements Shuttable {
     return this.subscribedCubes.has(keyVariants(keyInput).keyString);
   }
 
-  notificationsAlreadySubscribed(keyInput: CubeKey | string): boolean {
-    return this.subscribedNotifications.has(keyVariants(keyInput).keyString);
+  notificationsAlreadyRequested(
+    recipientKey: CubeKey | string,
+    includeSubscriptions: boolean = true,
+  ): boolean {
+    const key = keyVariants(recipientKey);
+
+    let req: CubeRequest | CubeSubscription =
+      this.requestedNotifications.get(key.keyString);
+    if (!req && includeSubscriptions) {
+      req = this.subscribedNotifications.get(key.keyString);
+    }
+    if (req) return true;
+    else return false;
+  }
+
+  notificationsAlreadySubscribed(recipientKey: CubeKey | string): boolean {
+    return this.subscribedNotifications.has(keyVariants(recipientKey).keyString);
   }
 
   existingCubeRequest(keyInput: CubeKey | string): Promise<CubeInfo> {
@@ -681,7 +696,7 @@ export class RequestScheduler implements Shuttable {
         if (!(this.cubeAlreadyRequested(keyString)) &&  // included subscriptions
             (
               !notify ||
-              !(this.notificationsAlreadySubscribed(notify))
+              !(this.notificationsAlreadyRequested(notify))
             )
         ){
           continue;  // drop this Cube, we're not interested in it

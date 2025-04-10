@@ -14,6 +14,7 @@ import { WeakValueMap } from "weakref";
 import { Buffer } from "buffer";
 import { NetConstants } from "../networking/networkDefinitions";
 import { Shuttable } from "../helpers/coreInterfaces";
+import { Veritable } from "./veritable.definition";
 
 // TODO: we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes
@@ -101,6 +102,7 @@ export interface CubeRetrievalInterface<OptionsType = GetCubeOptions> {
   getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo>;
   getCube<cubeClass extends Cube>(key: CubeKey | string, options?: OptionsType): Promise<cubeClass>;
   expectCube(keyInput: CubeKey|string): Promise<CubeInfo>;  // maybe TODO: add timeout?
+  getNotifications(recipientKey: CubeKey|string): AsyncGenerator<Veritable>;
   cubeStore: CubeStore;
 }
 
@@ -614,7 +616,8 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
     }
   }
 
-  async *getNotificationCubeInfos(recipient: Buffer): AsyncGenerator<CubeInfo> {
+  async *getNotificationCubeInfos(recipientKey: Buffer|string): AsyncGenerator<CubeInfo> {
+    const recipient: CubeKey = keyVariants(recipientKey).binaryKey;
     if (!recipient || recipient.length !== NetConstants.NOTIFY_SIZE) {
       logger.error('CubeStore.getNotificationCubeInfos(): Invalid recipient buffer.');
       return;
@@ -637,8 +640,8 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
     }
   }
 
-  async *getNotificationCubes(recipient: Buffer): AsyncGenerator<Cube> {
-    for await (const cubeInfo of this.getNotificationCubeInfos(recipient)) {
+  async *getNotifications(recipientKey: Buffer|string): AsyncGenerator<Cube> {
+    for await (const cubeInfo of this.getNotificationCubeInfos(recipientKey)) {
       yield cubeInfo.getCube();
     }
   }
