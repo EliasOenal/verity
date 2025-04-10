@@ -91,7 +91,7 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
   async *getNotifications(recipient: Buffer): AsyncGenerator<Cube> {
     const req = this.requestScheduler.requestNotifications(recipient);
     await req;
-    yield* this.cubeStore.getNotificationCubes(recipient);
+    yield* this.cubeStore.getNotifications(recipient);
   }
 
   subscribeNotifications(

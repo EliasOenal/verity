@@ -13,6 +13,7 @@ import { CubeRetrievalInterface, CubeStore } from "../../core/cube/cubeStore";
 import { RelationshipType, Relationship } from "../cube/relationship";
 import { Veritum, VeritumFromChunksOptions } from "./veritum";
 import { Identity } from "../identity/identity";
+import { Veritable } from "../../core/cube/veritable.definition";
 
 export interface VeritumRetrievalInterface<OptionsType = CubeRequestOptions> extends CubeRetrievalInterface<OptionsType> {
   getVeritum(key: CubeKey|string, options?: OptionsType): Promise<Veritum>;
@@ -77,9 +78,83 @@ export class VeritumRetriever
     return veritum;
   }
 
+  /**
+   * Retrieves all available Verita notifying a given key.
+   * Any Veritum can only notify a single key, and is considered a notification
+   * Veritum if its first Chunk Cube contains an appropriate NOTIFY field.
+   * @returns An AsyncGenerator yielding notification Verita
+   */
+  // TODO: This method contains lots of async glue code which should be
+  //   generalised as a helpers, perhaps even included in mergeAsyncGenerators()
+  async *getNotifications(keyInput: CubeKey | string): AsyncGenerator<Veritum> {
+    // To retrieve notification Verita, we first must retrieve the notifying
+    // root chunk Cubes. This is done using CubeRetriever's getNotifications()
+    // method, which is also an AsyncGenerator.
+    // As soon as CubeRetriever yields a root chunk for us, we immediately
+    // want to retrieve the full notification Veritum, and immediately yield
+    // it once it arrives.
+
+    // We'll use a set to store pending retrievals of remaining chunks,
+    // which are the retrievals initiated after we received the corresponding
+    // root chunks.
+    const pending = new Set<Promise<Veritum>>();
+    const concurrencyLimit = 10; // TODO parametrise
+
+    // Helper function to wrap a promise so that it resolves to a tuple of
+    // [result, originalPromise]. We use this to remove the promise from the
+    // pending set once it has been handled (i.e. the Veritum has been yielded).
+    const wrapPromise = (p: Promise<Veritum>): Promise<[Veritum, Promise<Veritum>]> =>
+      p.then((value) => [value, p] as [Veritum, Promise<Veritum>]);
+
+    // Helper function to yield one notification Veritum as soon as we have it in full.
+    async function yieldOne(): Promise<Veritum> {
+      // Wait for the fastest promise in the pending set.
+      // Wrap each pending promise so that it resolves with a tuple [value, originalPromise].
+      const wrappedPromises = Array.from(pending).map(wrapPromise);
+      const [value, originalPromise] = await Promise.race(wrappedPromises);
+      // Now that we've handled it, remove the promise from the pending set.
+      pending.delete(originalPromise);
+      return value;
+    }
+
+    // Launch Veritum retrievals as we get notifying root chunks.
+    for await (const rootChunk of this.cubeRetriever.getNotifications(keyInput)) {
+      // Start retrieving the remaining chunks immediately.
+      const task = (async () => {
+        const key = await rootChunk.getKey();
+        return this.getVeritum(key);
+      })();
+      pending.add(task);
+
+      // If we have reached the concurrency limit, yield one as soon as it finishes.
+      if (pending.size >= concurrencyLimit) {
+        yield await yieldOne();
+      }
+    }
+
+    // Yield any remaining notifications as soon as they complete.
+    while (pending.size > 0) {
+      yield await yieldOne();
+    }
+  }
+
+
+
   // Note: This method basically defines a subclass and instantiates it for every call.
   //   Maybe we should refactor it into an actual class "ChunkRetriever" or something.
   //   Or maybe we call this idiomatic and leave it as it is? I don't know.
+  // TODO: Add an option to limit the maximum number of Continuation chunks.
+  //   This is important as applications expecting e.g. 5KB Verita will not
+  //   want to inadvertently initiate a 300MB video download just because
+  //   of a misplaced (or malicious) reference.
+  //   We should probably even set a (rather low) limit as default an print a
+  //   warning whenever the application does not provide its own limit.
+  /**
+   * This is a low level method retrieving a Veritum's chunks without actually
+   * reconstructing the Veritum. You will usually want to use getVeritum()
+   * instead.
+   * @returns An AsyncGenerator of chunk Cubes
+   */
   async *getContinuationChunks(
     key: CubeKey | string,
     options: CubeRequestOptions|GetCubeOptionsT = {},  // undefined = will use RequestScheduler's default

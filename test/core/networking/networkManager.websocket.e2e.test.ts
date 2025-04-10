@@ -1192,7 +1192,7 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
 
           // verify notification has been received correctly
           const receivedNotifications: Cube[] = [];
-          for await (const cube of node2.cubeStore.getNotificationCubes(notificationKey)) {
+          for await (const cube of node2.cubeStore.getNotifications(notificationKey)) {
             receivedNotifications.push(cube);
           }
           expect(receivedNotifications.length).toEqual(1);
