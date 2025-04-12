@@ -119,9 +119,9 @@ describe('Veritum compilation/decompilation tests', () => {
           if (HasSignature[cubeType] && chunkNo > 1) continue;
 
           for (const encrypt of [true, false]) for (const supplyKey of [true, false]) {
-            for (const roundTrips of [1, 2]) {
+            for (const roundTrips of [1, 2, 3]) for (const throughBinary of [true, false]) {
               if (encrypt && !supplyKey && roundTrips > 1) continue;  // cannot do extra round trip on unrestorable Veritum
-              describe(`performing ${roundTrips === 1? 'a single round trip': roundTrips + ' round trips'}`, () => {
+              describe(`performing ${roundTrips === 1? 'a single round trip': roundTrips + ' round trips'}, ${throughBinary? 'low-level (through Binary)' : 'high level (through chunk Cube objects'}`, () => {
                 const readable: boolean = !encrypt || (encrypt && supplyKey);
 
                 let describeText: string = "this should never display or there's a bug in the test setup";
@@ -136,14 +136,13 @@ describe('Veritum compilation/decompilation tests', () => {
                     let veritum: Veritum;
                     let veritumKey: CubeKey;
                     let veritumFields: VerityField[];
-                    let veritumChunks: cciCube[];
-                    let firstCompilationChunks: cciCube[];
-                    let firstCompilationBinaryData: Buffer[];
-
-
+                    let originalChunks: cciCube[];
+                    let reconstructed: Veritum;
+                    let firstRestoreVeritum: Veritum;
+                    let firstRestoreChunks: cciCube[];
+                    let firstRestoreBinaryData: Buffer[];
                     const notify = VerityField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42));
 
-                    let reconstructed: Veritum;
 
                     beforeAll(async () => {
                       // prepare fields
@@ -156,7 +155,7 @@ describe('Veritum compilation/decompilation tests', () => {
                       // sculpt test Veritum
                       veritum = new Veritum({
                         cubeType: cubeType,
-                        fields: HasNotify[cubeType] ? [payload, notify] : [payload],
+                        fields: HasNotify[cubeType] ? [payload, notify, VerityField.Date()] : [payload, VerityField.Date()],
                         publicKey, privateKey, requiredDifficulty: 0,
                       });
 
@@ -180,25 +179,49 @@ describe('Veritum compilation/decompilation tests', () => {
                       for (const field of veritum.getFields()) {
                         veritumFields.push(new VerityField(field));
                       }
-                      veritumChunks = [];
-                      for (const chunk of veritum.chunks) {
-                        veritumChunks.push(new cciCube(chunk));
-                      }
+                      originalChunks = Array.from(veritum.chunks);
 
                       // verify intermediate state:
                       // - if encrypted, assert the compiled chunks contain no plaintext
                       // - if not encrypted, assert the compiled chunks do contain plaintext
                       if (encrypt) {
-                        for (const chunk of veritum.chunks) {
+                        for (const chunk of originalChunks) {
                           expect(chunk.getFirstField(FieldType.PAYLOAD)).toBeUndefined();
                           expect(chunk.getBinaryDataIfAvailable()).toBeInstanceOf(Buffer);
                           expect(chunk.getBinaryDataIfAvailable().toString('utf-8')).not.toContain('Haec veritum');
                         }
                       } else {
-                        for (const chunk of veritum.chunks) {
+                        for (const chunk of originalChunks) {
                           expect(chunk.getFirstField(FieldType.PAYLOAD)).toBeDefined();
                         }
                       }
+
+                      // If specified, go low level by converting the chunks
+                      // themselves to binary and back -- just as it would happen
+                      // when a Veritum is sent over the wire.
+                      const chunksForRestore: cciCube[] = [];
+                      if (throughBinary) {
+                        for (const chunk of veritum.chunks) {
+                          // convert chunk to binary by fetching the
+                          // already-compiled binary data
+                          const bin: Buffer = chunk.getBinaryDataIfAvailable();
+                          // sanity check chunk binary
+                          expect(bin.length).toBe(NetConstants.CUBE_SIZE);
+
+                          // convert binary chunk back to Cube object
+                          const restoredChunk: cciCube = new cciCube(bin);
+                          // sanity check restored chunk
+                          expect((await chunk.getKey()).equals(await restoredChunk.getKey())).toBe(true);
+                          // expect(restoredChunk.equals(chunk)).toBeTruthy();
+
+                          chunksForRestore.push(restoredChunk);
+                        }
+                        // verify we've actually gone low-level by asserting
+                        // the chunks are not the same as the original Veritum's chunks
+                        for (let i=0; i<chunksForRestore.length; i++) {
+                          expect(chunksForRestore[i] === originalChunks[i]).toBe(false);
+                        }
+                      } else chunksForRestore.push(...originalChunks);
 
                       // Perform the restore
                       const options: VeritumFromChunksOptions = {
@@ -212,44 +235,89 @@ describe('Veritum compilation/decompilation tests', () => {
                         options.recipientPrivateKey = encryptionRecipientPrivateKey;
                         if (roundTrips > 1) options.privateKey = privateKey;
                       }
-                      reconstructed = Veritum.FromChunks(veritum.chunks, options);
+                      reconstructed = Veritum.FromChunks(chunksForRestore, options);
+                      firstRestoreVeritum = reconstructed;
 
-                      // if this is a dual round-trip test, do another compile/decompile
+                      // Preserve this compilation round's chunks and their
+                      // binary data. In case of multi-round-trip tests, we can use this to
+                      // later assert that the Veritum has actually been compiled
+                      // another time, rather than reusing the existing chunks
+                      firstRestoreChunks = Array.from(reconstructed.chunks);
+                      firstRestoreBinaryData = [];
+                      for (const chunk of firstRestoreChunks) {
+                        const bin: Buffer = chunk.getBinaryDataIfAvailable();
+                        expect(bin.length).toBe(NetConstants.CUBE_SIZE);
+                        firstRestoreBinaryData.push(Buffer.from(bin));
+                      }
+
+                      // if this is a multi round-trip test, do further compile/decompile
                       // round-trip
-                      if (roundTrips > 1) {
-                        // preserve previous compilation round's chunks and their
-                        // binary data so we can
-                        // later assert that the Veritum has actually been compiled
-                        // a second time, rather than reusing the existing chunks
-                        firstCompilationChunks = Array.from(reconstructed.chunks);
-                        firstCompilationBinaryData = [];
-                        for (const chunk of firstCompilationChunks) {
-                          const bin: Buffer = chunk.getBinaryDataIfAvailable();
-                          expect(bin.length).toBe(NetConstants.CUBE_SIZE);
-                          firstCompilationBinaryData.push(Buffer.from(bin));
-                        }
+                      let tripsRemaining = roundTrips - 1;
+                      while (tripsRemaining > 0) {
+                        tripsRemaining--;
 
                         // recompile
+                        const chPre = Array.from(reconstructed.chunks);
                         await reconstructed.compile({
                           recipients: encrypt? encryptionRecipientPublicKey : undefined,
                           requiredDifficulty: 0,  // TODO remove should not be required
                         });
+                        // assert actually recompiled
+                        const chPost = Array.from(reconstructed.chunks);
+                        expect(chPre.length).toEqual(chPost.length);
+                        for (let i=0; i<chPre.length; i++) {
+                          expect(chPre[i] === chPost[i]).toBe(false);
+                        }
+
+                        // if this is a low-level test going through binary
+                        // (as if the Veritum was sent over the wire),
+                        // convert the chunks to binary and back
+                        const chunksForAnotherRestore: cciCube[] = [];
+                        if (throughBinary) {
+                          for (const chunk of reconstructed.chunks) {
+                            // convert chunk to binary by fetching the
+                            // already-compiled binary data
+                            const bin: Buffer = chunk.getBinaryDataIfAvailable();
+                            // sanity check chunk binary
+                            expect(bin.length).toBe(NetConstants.CUBE_SIZE);
+
+                            // convert binary chunk back to Cube object
+                            const restoredChunk: cciCube = new cciCube(bin);
+                            // sanity check restored chunk
+                            expect((await chunk.getKey()).equals(await restoredChunk.getKey())).toBe(true);
+                            // expect(restoredChunk.equals(chunk)).toBeTruthy();
+                            chunksForAnotherRestore.push(restoredChunk);
+                          }
+                          // verify we've actually gone low-level by asserting
+                          // the chunks are not the same as on the first round
+                          for (let i=0; i<chunksForRestore.length; i++) {
+                            expect(chunksForRestore[i] === chunksForAnotherRestore[i]).toBe(false);
+                          }
+                        } else chunksForAnotherRestore.push(...reconstructed.chunks);
+
+                        // decompile
+                        reconstructed = Veritum.FromChunks(chunksForAnotherRestore, options);
                       }
                     });  // beforeAll
 
+                    // Tests start here!
+                    // First, some tests exclusive to multi-round-trip scenarios:
+
                     if (roundTrips > 1) {
-                      // assert actually recompiled
-                      it('creates the same number of chunks on both compilations', () => {
+                      it('creates the same number of chunks on first and last compilation', () => {
                         const recompiledChunks = Array.from(reconstructed.chunks);
-                        expect(recompiledChunks.length).toEqual(firstCompilationChunks.length);
+                        expect(recompiledChunks.length).toEqual(firstRestoreChunks.length);
                       });
 
                       it('actually recompiles the Veritum (i.e. objects are not identical)', () => {
+                        // assert Veritum object is not the same
+                        expect(reconstructed === firstRestoreVeritum).toBe(false);
+                        // assert Chunk cube objects are not the same
                         const recompiledChunks = Array.from(reconstructed.chunks);
                         for (let i=0; i<recompiledChunks.length; i++) {
                           // assert Chunk cube objects are not the same
                           const recompiledChunk: cciCube = recompiledChunks[i];
-                          const previousChunk: cciCube = firstCompilationChunks[i];
+                          const previousChunk: cciCube = firstRestoreChunks[i];
                           expect(recompiledChunk === previousChunk).toBe(false);
 
                           // fetch previous and recompiled chunks' binary data
@@ -264,7 +332,7 @@ describe('Veritum compilation/decompilation tests', () => {
                         }
                       });
 
-                      if (!encrypt && !HasSignature[cubeType]) it('first and second compilation yield identical chunk keys', () => {
+                      if (!encrypt && !HasSignature[cubeType]) it('first and last compilation yield identical chunk keys', () => {
                         // Note: Encrypted hash-key-type Verita will by design yield different keys
                         // on recompilation as we use ephemeral sender keys and,
                         // more importantly, random nonces for security.
@@ -272,7 +340,7 @@ describe('Veritum compilation/decompilation tests', () => {
                         for (let i=0; i<recompiledChunks.length; i++) {
                           // assert Chunk cube objects are not the same
                           const recompiledChunk: cciCube = recompiledChunks[i];
-                          const previousChunk: cciCube = firstCompilationChunks[i];
+                          const previousChunk: cciCube = firstRestoreChunks[i];
 
                           expect(recompiledChunk.getKeyIfAvailable().length).toBe(NetConstants.CUBE_KEY_SIZE);
                           expect(previousChunk.getKeyIfAvailable().length).toBe(NetConstants.CUBE_KEY_SIZE);
@@ -280,7 +348,7 @@ describe('Veritum compilation/decompilation tests', () => {
                         }
                       });
 
-                      if (!encrypt) it('first and second compilation yield identical binary chunks', () => {
+                      if (!encrypt) it('first and last compilation yield identical binary chunks', () => {
                         // Note: Encrypted Verita will by design yield different binaries
                         // on recompilation as we use ephemeral sender keys and,
                         // more importantly, random nonces for security.
@@ -288,14 +356,16 @@ describe('Veritum compilation/decompilation tests', () => {
                         for (let i=0; i<recompiledChunks.length; i++) {
                           // assert Chunk cube objects are not the same
                           const recompiledChunk: cciCube = recompiledChunks[i];
-                          const previousChunk: cciCube = firstCompilationChunks[i];
+                          const previousChunk: cciCube = firstRestoreChunks[i];
 
                           expect(recompiledChunk.getBinaryDataIfAvailable().length).toBe(NetConstants.CUBE_SIZE);
                           expect(previousChunk.getBinaryDataIfAvailable().length).toBe(NetConstants.CUBE_SIZE);
                           expect(recompiledChunk.getBinaryDataIfAvailable().equals(previousChunk.getBinaryDataIfAvailable())).toBe(true);
                         }
                       });
-                    }
+                    }  // tests exclusively for multi-round-trip scenarios
+
+                    // General tests run in all scenarios start here :)
 
                     it('does not change the original Veritum or its chunks', () => {
                       expect(veritum.getKeyIfAvailable()).toEqual(veritumKey);
@@ -308,10 +378,11 @@ describe('Veritum compilation/decompilation tests', () => {
                       }
 
                       const chunksAfter: cciCube[] = Array.from(veritum.chunks);
-                      expect(chunksAfter.length).toBe(veritumChunks.length);
-                      for (let i = 0; i < veritumChunks.length; i++) {
-                        expect(chunksAfter[i]).not.toBe(veritumChunks[i]);
-                        expect(chunksAfter[i].equals(veritumChunks[i])).toBeTruthy();
+                      expect(chunksAfter.length).toBe(originalChunks.length);
+                      for (let i = 0; i < originalChunks.length; i++) {
+                        // assert the original Veritum still retains the exact
+                        // same chunk objects it had after compilation
+                        expect(chunksAfter[i]).toBe(originalChunks[i]);
                       }
 
                       if (HasSignature[cubeType]) {
@@ -355,14 +426,23 @@ describe('Veritum compilation/decompilation tests', () => {
                       expect(reconstructed.getFirstField(FieldType.NOTIFY)).toBeUndefined();
                     });
 
-                    it.todo("will retain the original DATE");
+                    // DATE should be retained on unencrypted Verita, while on
+                    // encrypted ones it should be obfuscated within a certain
+                    // period to avoid leaking the exact sculpting time
+                    // (not yet implemented)
+                    if (!encrypt) it("will retain the original DATE", () => {
+                      const reconstructedDate = reconstructed.getFirstField(FieldType.DATE);
+                      const originalDate = veritum.getFirstField(FieldType.DATE);
+                      expect(reconstructedDate.value.equals(originalDate.value));
+                    });
+                    else it.todo('should obfuscate the DATE field');
 
                     // Note: Multi-chunk signed Verita currently not implemented; Github#634
                     if (cubeType === CubeType.PMUC || cubeType === CubeType.PMUC_NOTIFY) it.todo("will retain the PMUC update count");
                   });
                 });  // describe combination of options
               });
-            }  // for number of round trips
+            }  // for number of round trips; for restoration through binary or through Cube objects
           }
         }  // for cubeType
       }  // for chunkNo
