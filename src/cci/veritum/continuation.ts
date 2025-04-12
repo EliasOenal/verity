@@ -158,7 +158,7 @@ class Splitter {
   private macroFieldset: DoublyLinkedList<VerityField>
 
   // pre-processing related members
-  private minBytesRequred = 0;  // will get counted in preProcess()
+  private minBytesRequred = 0;  // will get counted in preProcess() -- TODO improper modeling, this should be part of SplitState instead
   private maxChunkIndexPlanned = 0;
 
   // splitting related members
@@ -191,8 +191,12 @@ class Splitter {
     // (non-notification) variant instead.
     // If we are actually going to set a notification on one or more chunks,
     // these chunks will automatically be switched back to notification types
-    // (by VeritableBaseImplementation based on the fact that a NOTIFY field is present)
-    if (HasNotify[this.cubeType]) this.cubeType = ToggleNotifyType[this.cubeType];
+    // (by VeritableBaseImplementation based on the fact that a NOTIFY field is present).
+    // Note that using the non-notify type for space calculations means we
+    // always optimistically assume the maximum space possible -- this is a good
+    // thing as by design, we can always plan more chunks if we need to, but we
+    // can't un-plan a chunk if we end up not needing it.
+    this.cubeType = NonNotifyCubeType(this.cubeType);
 
     // Construct a demo chunk which will be used to help determine the
     // available space per chunk.
@@ -257,11 +261,9 @@ class Splitter {
     // start by creating the first chunk
     let chunk = this.sculptNextChunk();
     // Let's figure out how much space we have available in the first Chunk.
-    // Our demo chunk will help us do that.
-    // Additionally, the caller may restrict the space we are allowed to use
-    // for each chunk.
+    // Note that the caller may restrict the amount of space we are allowed to use.
     let bytesAvailableThisChunk: number =
-      this.demoChunk.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
+      chunk.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
 
     // Prepare the split by initialising our state:
     // - We obviously start at the first input fields, and
@@ -342,7 +344,7 @@ class Splitter {
         // ... and then it's time for a chunk rollover!
         chunk = this.sculptNextChunk();
         bytesAvailableThisChunk =
-          this.demoChunk.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
+          chunk.bytesRemaining(this.options.maxChunkSize(this.chunkIndex));
         // Note that we have not handled this field!
         // We therefore must not advance the iterator.
       }
