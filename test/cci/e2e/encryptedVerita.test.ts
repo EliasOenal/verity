@@ -72,7 +72,10 @@ describe('Transmission of encrypted Verita', () => {
       expect(retrieved).toBeDefined();
       // expect Veritum decrypted
       expect(retrieved.getFirstField(FieldType.ENCRYPTED)).not.toBeDefined();
+
+      // TODO FIXME this sometimes fails and I don't know why :(
       expect(retrieved.getFirstField(FieldType.PAYLOAD)).toBeDefined();
+
       // expect plaintext to be restored correctly
       expect(retrieved.getFirstField(FieldType.PAYLOAD).valueString).toBe(plaintext);  // TODO fix: this sometimes fails
     });
