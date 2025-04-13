@@ -74,7 +74,7 @@ describe('CubeRetriever', () => {
     });
 
     it('retrieves a Cube available remotely', async () => {
-        // create Cube
+      // create Cube
       const cube: Cube = Cube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, "Cubus remotus per rete petendus est"),
         requiredDifficulty,

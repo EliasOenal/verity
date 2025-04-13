@@ -405,6 +405,9 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
                 throw new BinaryDataError("Could not decompile dormant (binary) Cube");
             }
             this.hash = CubeUtil.calculateHash(binaryData);
+            if (this.cubeType === CubeType.PIC || this.cubeType === CubeType.PIC_NOTIFY) {
+                this.generatePicKey();
+            }
             this.validateCube();
         } else if (param1 in CubeType) {
             // sculpt new Cube
