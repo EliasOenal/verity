@@ -537,6 +537,38 @@ describe('RequestScheduler', () => {
         expect(sendCubeRequest).not.toHaveBeenCalled();
       });
     });  // handleKeysOffered()
+
+    describe('handleCubesDelivered', () => {
+      it('will accept multiple requested Cubes at once', async () => {
+        // prepare two Cubes
+        const cube1: Cube = Cube.Create({
+          fields: CubeField.RawContent(CubeType.FROZEN, "Cubus sum"),
+          requiredDifficulty,
+        });
+        const cube1Bin: Buffer = await cube1.getBinaryData();
+        const cube1Key: CubeKey = await cube1.getKey();
+
+        const cube2: Cube = Cube.Create({
+          fields: CubeField.RawContent(CubeType.FROZEN, "Alius cubus sum"),
+          requiredDifficulty,
+        });
+        const cube2Bin: Buffer = await cube2.getBinaryData();
+        const cube2Key: CubeKey = await cube2.getKey();
+
+        // register requests for both Cubes
+        scheduler.requestCube(cube1Key);
+        scheduler.requestCube(cube2Key);
+
+        // run test
+        scheduler.handleCubesDelivered([cube1Bin, cube2Bin], dummyPeer);
+
+        // expect both Cubes to have been accepted
+        expect(cubeStore.hasCube(cube1Key)).toBeTruthy();
+        expect(cubeStore.hasCube(cube2Key)).toBeTruthy();
+      });
+
+      it.todo('write more tests');
+    });  // handleCubesDelivered()
   });  //tests run as both full and light node // mock-based unit tests
 });
 
