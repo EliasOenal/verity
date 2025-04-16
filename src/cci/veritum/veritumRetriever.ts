@@ -281,9 +281,12 @@ export class VeritumRetriever
       }
     }
 
-    const newNextChunkPromise = (key: CubeKey) => {
+    const newNextChunkPromise = (chunkKey: CubeKey) => {
       // abort if timeout reached
-      if (timeoutReached) return;
+      if (timeoutReached) {
+        logger.trace(`VeritumRetriever newNextChunkPromise(): timeout reached while retrieving chain ${keyVariants(key).keyString} expecting chunk ${keyVariants(chunkKey).keyString}, aborting. Aborting retrieval.`);
+        return;
+      }
 
       // create new promise
       nextChunkPromise = new Promise(resolve => {
@@ -310,6 +313,7 @@ export class VeritumRetriever
     let timeoutReached: boolean = false;
     const timer: NodeJS.Timeout = setTimeout(() => {
       timeoutReached = true;
+      logger.trace(`VeritumRetriever newNextChunkPromise(): timeout reached while retrieving chain ${keyVariants(key).keyString}, aborting. Aborting retrieval.`);
       nextChunkPromiseResolve(undefined);
     }, options.timeout);
     this.timers.push(timer);

@@ -455,6 +455,9 @@ class Splitter {
    *   updated as we itereate over macro fields.
    * @returns The updated split state
    */
+  // TODO FIXME:
+  // - Always calculate space per chunk based on non-NOTIFY variant
+  // - Subtract space required by mapped fields (which would include NOTIFY)
   private planChunks(state: SplitState): void {
     let refsAdded = 0;
     // do we need more space?
