@@ -572,7 +572,7 @@ export class RequestScheduler implements Shuttable {
         notifies: key.binaryKey,
       }
       this.performKeyRequest(undefined, filter);
-      // KeyResponse will automatically be handled in handleCubesOffered()
+      // KeyResponse will automatically be handled in handleKeysOffered()
       return req.promise;
     }
 
@@ -708,6 +708,7 @@ export class RequestScheduler implements Shuttable {
           continue;  // drop this Cube, we're not interested in it
         }
       }
+
       // Add the cube to the CubeStorage
       // Grant this peer local reputation if cube is accepted.
       // TODO BUGBUG: This currently grants reputation score for duplicates,

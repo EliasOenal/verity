@@ -31,7 +31,6 @@ describe('RequestScheduler', () => {
     true,
     false,
   ])('tests run as both full and light node', (lightNode) => {
-  describe('mock-based unit tests (custom)', () => {
     let scheduler: RequestScheduler;
     let cubeStore: CubeStore;
     let dummyNetworkManager: NetworkManagerIf;
@@ -398,148 +397,147 @@ describe('RequestScheduler', () => {
       });
     });
 
-    describe(`handleCubesOffered() as ${lightNode ? 'light node' : 'full node'}`, () => {
-        it('should ignore cubes that do not meet the retention policy', async () => {
-          await cubeStore.readyPromise;
+    describe(`handleKeysOffered() as ${lightNode ? 'light node' : 'full node'}`, () => {
+      it('should ignore cubes that do not meet the retention policy', async () => {
+        await cubeStore.readyPromise;
 
-          // set options for this test
-          cubeStore.options.enableCubeRetentionPolicy = true;
+        // set options for this test
+        cubeStore.options.enableCubeRetentionPolicy = true;
 
-          // sculpt a test Cube
-          const date = 148302000;
-          const oldCube: Cube = Cube.Frozen({
-            fields: [
-              CubeField.RawContent(CubeType.FROZEN, "Viva Malta Repubblika!"),
-              CubeField.Date(date),
-            ],
-            requiredDifficulty,
-          });
-          const oldCubeInfo: CubeInfo = await oldCube.getCubeInfo();
-          expect(oldCubeInfo.date).toBe(date);
-
-          // prepare to spy on method calls
-          const performCubeRequest = vi.spyOn((scheduler as any).cubeRequestTimer, 'callback');
-          const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
-
-          // perform test
-          await scheduler.handleKeysOffered([oldCubeInfo], dummyPeer);
-
-          // assertions
-          expect(performCubeRequest).not.toHaveBeenCalled();
-          expect(scheduler.cubeAlreadyRequested(oldCubeInfo.key)).toBeFalsy();
-          expect(dummyPeer.sendCubeRequest).not.toHaveBeenCalled();
+        // sculpt a test Cube
+        const date = 148302000;
+        const oldCube: Cube = Cube.Frozen({
+          fields: [
+            CubeField.RawContent(CubeType.FROZEN, "Viva Malta Repubblika!"),
+            CubeField.Date(date),
+          ],
+          requiredDifficulty,
         });
+        const oldCubeInfo: CubeInfo = await oldCube.getCubeInfo();
+        expect(oldCubeInfo.date).toBe(date);
 
-        it('should request cubes that are not in storage and meet the retention policy', async () => {
-          // set options for this test
-          cubeStore.options.enableCubeRetentionPolicy = true;
+        // prepare to spy on method calls
+        const performCubeRequest = vi.spyOn((scheduler as any).cubeRequestTimer, 'callback');
+        const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
 
-          // sculpt a test Cube
-          const testCube: Cube = Cube.Frozen({
-            fields: [
-              CubeField.RawContent(CubeType.FROZEN, "Cubus sum"),
-            ],
-            requiredDifficulty: Settings.REQUIRED_DIFFICULTY,  // running on full difficulty due to issue Github#134
-          });
-          const testCubeInfo: CubeInfo = await testCube.getCubeInfo();
+        // perform test
+        await scheduler.handleKeysOffered([oldCubeInfo], dummyPeer);
 
-          // if we are a light node, the Cubes must have been requested locally
-          if (scheduler.options.lightNode) {
-              scheduler.requestCube(testCubeInfo.key);
-          }
+        // assertions
+        expect(performCubeRequest).not.toHaveBeenCalled();
+        expect(scheduler.cubeAlreadyRequested(oldCubeInfo.key)).toBeFalsy();
+        expect(dummyPeer.sendCubeRequest).not.toHaveBeenCalled();
+      });
 
-          // prepare to spy on method calls
-          // note: spying on performCubeRequest directly as in this context
-          // it is called directly by scheduler.handleCubesOffered() and not
-          // scheduled / called back to.
-          const performCubeRequest = vi.spyOn((scheduler as any), 'performCubeRequest');
-          const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
+      it('should request cubes that are not in storage and meet the retention policy', async () => {
+        // set options for this test
+        cubeStore.options.enableCubeRetentionPolicy = true;
 
-          // perform test
-          await scheduler.handleKeysOffered([testCubeInfo], dummyPeer);
-
-          // assertions
-          expect(scheduler.cubeAlreadyRequested(testCubeInfo.key)).toBeTruthy();
-          expect(performCubeRequest).toHaveBeenCalled();
-          expect(sendCubeRequest).toHaveBeenCalled();
+        // sculpt a test Cube
+        const testCube: Cube = Cube.Frozen({
+          fields: [
+            CubeField.RawContent(CubeType.FROZEN, "Cubus sum"),
+          ],
+          requiredDifficulty: Settings.REQUIRED_DIFFICULTY,  // running on full difficulty due to issue Github#134
         });
+        const testCubeInfo: CubeInfo = await testCube.getCubeInfo();
 
-        it('should request cubes that win the cube contest', async () => {
-          // sculpt test Cubes:
-          // an old one already in store...
-          const oldCube: Cube = Cube.PIC({
-            fields: [
-              CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
-              CubeField.Date(unixtime() - 315360000),  // sculpted ten years ago
-            ],
-            requiredDifficulty,
-          });
-          await cubeStore.addCube(oldCube);
-          // ... and a new one that will be offered to us
-          const newCube: Cube = Cube.PIC({
-            fields: [
-              CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
-              CubeField.Date(unixtime()),  // sculpted right now
-            ],
-            requiredDifficulty,
-          });
-          const testCubeInfo = await newCube.getCubeInfo();
+        // if we are a light node, the Cubes must have been requested locally
+        if (scheduler.options.lightNode) {
+            scheduler.requestCube(testCubeInfo.key);
+        }
 
-          // if we are a light node, the Cubes must have been requested locally
-          if (scheduler.options.lightNode) scheduler.requestCube(testCubeInfo.key);
+        // prepare to spy on method calls
+        // note: spying on performCubeRequest directly as in this context
+        // it is called directly by scheduler.handleKeysOffered() and not
+        // scheduled / called back to.
+        const performCubeRequest = vi.spyOn((scheduler as any), 'performCubeRequest');
+        const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
 
-          // prepare to spy on method calls
-          // note: spying on performCubeRequest directly as in this context
-          // it is called directly by scheduler.handleCubesOffered() and not
-          // scheduled / called back to.
-          const performCubeRequest = vi.spyOn((scheduler as any), 'performCubeRequest');
-          const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
+        // perform test
+        await scheduler.handleKeysOffered([testCubeInfo], dummyPeer);
 
-          // perform test
-          await scheduler.handleKeysOffered([testCubeInfo], dummyPeer);
+        // assertions
+        expect(scheduler.cubeAlreadyRequested(testCubeInfo.key)).toBeTruthy();
+        expect(performCubeRequest).toHaveBeenCalled();
+        expect(sendCubeRequest).toHaveBeenCalled();
+      });
 
-          // assertions
-          expect(scheduler.cubeAlreadyRequested(testCubeInfo.key)).toBeTruthy();
-          expect(performCubeRequest).toHaveBeenCalled();
-          expect(sendCubeRequest).toHaveBeenCalled();
+      it('should request cubes that win the cube contest', async () => {
+        // sculpt test Cubes:
+        // an old one already in store...
+        const oldCube: Cube = Cube.PIC({
+          fields: [
+            CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
+            CubeField.Date(unixtime() - 315360000),  // sculpted ten years ago
+          ],
+          requiredDifficulty,
         });
-
-        it('should not request cubes that lose the cube contest', async () => {
-          // sculpt test Cubes:
-          // a new one already in store...
-          const newCube: Cube = Cube.PIC({
-            fields: [
-              CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
-              CubeField.Date(unixtime()),  // sculpted right now
-            ],
-            requiredDifficulty,
-          });
-          await cubeStore.addCube(newCube);
-          // ... and an older one that will be offered to us
-          const oldCube: Cube = Cube.PIC({
-            fields: [
-              CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
-              CubeField.Date(unixtime() - 315360000),  // sculpted ten years
-            ],
-            requiredDifficulty,
-          });
-          const testCubeInfo = await oldCube.getCubeInfo();
-
-          // prepare to spy on method calls
-          const performCubeRequest = vi.spyOn((scheduler as any).cubeRequestTimer, 'callback');
-          const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
-
-          // perform test
-          await scheduler.handleKeysOffered([testCubeInfo], dummyPeer);
-
-          // assertions
-          expect(scheduler.cubeAlreadyRequested(testCubeInfo.key)).toBeFalsy();
-          expect(performCubeRequest).not.toHaveBeenCalled();
-          expect(sendCubeRequest).not.toHaveBeenCalled();
+        await cubeStore.addCube(oldCube);
+        // ... and a new one that will be offered to us
+        const newCube: Cube = Cube.PIC({
+          fields: [
+            CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
+            CubeField.Date(unixtime()),  // sculpted right now
+          ],
+          requiredDifficulty,
         });
-      });  // handleCubesOffered()
-    });  //tests run as both full and light node
-  });  // mock-based unit tests
+        const testCubeInfo = await newCube.getCubeInfo();
+
+        // if we are a light node, the Cubes must have been requested locally
+        if (scheduler.options.lightNode) scheduler.requestCube(testCubeInfo.key);
+
+        // prepare to spy on method calls
+        // note: spying on performCubeRequest directly as in this context
+        // it is called directly by scheduler.handleKeysOffered() and not
+        // scheduled / called back to.
+        const performCubeRequest = vi.spyOn((scheduler as any), 'performCubeRequest');
+        const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
+
+        // perform test
+        await scheduler.handleKeysOffered([testCubeInfo], dummyPeer);
+
+        // assertions
+        expect(scheduler.cubeAlreadyRequested(testCubeInfo.key)).toBeTruthy();
+        expect(performCubeRequest).toHaveBeenCalled();
+        expect(sendCubeRequest).toHaveBeenCalled();
+      });
+
+      it('should not request cubes that lose the cube contest', async () => {
+        // sculpt test Cubes:
+        // a new one already in store...
+        const newCube: Cube = Cube.PIC({
+          fields: [
+            CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
+            CubeField.Date(unixtime()),  // sculpted right now
+          ],
+          requiredDifficulty,
+        });
+        await cubeStore.addCube(newCube);
+        // ... and an older one that will be offered to us
+        const oldCube: Cube = Cube.PIC({
+          fields: [
+            CubeField.RawContent(CubeType.PIC, "Cubus perpetuus immutabilis sum"),
+            CubeField.Date(unixtime() - 315360000),  // sculpted ten years
+          ],
+          requiredDifficulty,
+        });
+        const testCubeInfo = await oldCube.getCubeInfo();
+
+        // prepare to spy on method calls
+        const performCubeRequest = vi.spyOn((scheduler as any).cubeRequestTimer, 'callback');
+        const sendCubeRequest = vi.spyOn(dummyPeer as any, 'sendCubeRequest');
+
+        // perform test
+        await scheduler.handleKeysOffered([testCubeInfo], dummyPeer);
+
+        // assertions
+        expect(scheduler.cubeAlreadyRequested(testCubeInfo.key)).toBeFalsy();
+        expect(performCubeRequest).not.toHaveBeenCalled();
+        expect(sendCubeRequest).not.toHaveBeenCalled();
+      });
+    });  // handleKeysOffered()
+  });  //tests run as both full and light node // mock-based unit tests
 });
 
 
