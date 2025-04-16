@@ -39,7 +39,10 @@ describe('VeritumRetriever', () => {
     peer = new DummyNetworkPeer(networkManager, undefined, cubeStore);
     networkManager.outgoingPeers = [peer];
 
-    scheduler = new RequestScheduler(networkManager, { requestTimeout: 200 });
+    scheduler = new RequestScheduler(networkManager, {
+      ...testCciOptions,
+      requestTimeout: 200,
+    });
     const cubeRetriever = new CubeRetriever(cubeStore, scheduler);
     retriever = new VeritumRetriever(cubeRetriever);
   });
@@ -263,52 +266,56 @@ describe('VeritumRetriever', () => {
     });  // chunks arriving in correct order
 
 
-    describe('chunks arriving out of order', () => {
-    // TODO: This test sporadically fails on my machine and I don't know why :(
-      it('yields a 2-chunk continuation arriving in reverse order after the request', async () => {
-        // prepare macro Cube
-        const macroCube = cciCube.Create({
-          cubeType: CubeType.FROZEN,
-          requiredDifficulty: 0,
-        });
-        const payloadMacrofield = VerityField.Payload(tooLong);
-        macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
-
-        // split the macro Cube
-        const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
-        expect(splitCubes.length).toBe(2);
-        const continuationKey: CubeKey = await splitCubes[0].getKey();
-
-        // fire the request
-        const chunks: cciCube[] = [];
-        const gen: AsyncGenerator<cciCube> = retriever.getContinuationChunks(continuationKey);
-        gen.next().then((iteratorResult: IteratorResult<cciCube, boolean>) => {
-          chunks.push(iteratorResult.value as cciCube);
-          expect(iteratorResult.done).toBe(false);
-
-          gen.next().then((iteratorResult: IteratorResult<cciCube, boolean>) => {
-            chunks.push(iteratorResult.value as cciCube);
-            expect(iteratorResult.done).toBe(false);
-
-            gen.next().then((iteratorResult: IteratorResult<cciCube, boolean>) => {
-              expect(iteratorResult.done).toBe(true);
-            });
-          });
-        });
-
-        // simulate arrival of chunks by adding them to CubeStore --
-        // note this happens after the request has been fired
-        // and note the chunks are arriving in reverse order
-        await cubeStore.addCube(splitCubes[1]);
-        await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
-        await cubeStore.addCube(splitCubes[0]);
-        await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
-
-        expect(chunks.length).toBe(2);
-        const recombined: Veritum = Recombine(chunks, {requiredDifficulty: 0});
-        expect(recombined.getFirstField(FieldType.PAYLOAD).valueString).toEqual(tooLong);
+    // Note! Out of order arrival is really not expected to happen as the
+    // requester only learns the second chunk's key upon receiving the first.
+    // Also note that the only way we can test out-of-order arrival is by
+    // sneaking in the second chunk directly through CubeStore, as a light
+    // node's RequestScheduler would otherwise deny the chunk as it has not
+    // (yet) been requested.
+    it('yields a 2-chunk continuation sneaking in through CubeStore after the request, out of order', async () => {
+      // Sculpt a two-Cube Veritum.
+      // Note we don't add it to the store just yet, meaning it's not
+      // locally available and has to be requested over the wire.
+      const veritum = Veritum.Create({
+        cubeType: CubeType.FROZEN,
+        requiredDifficulty: 0,
+        fields: VerityField.Payload(tooLong),
       });
-    });  // chunks arriving out of order
+      await veritum.compile();
+      const key: CubeKey = veritum.getKeyIfAvailable();
+      expect(key.length).toBe(NetConstants.CUBE_KEY_SIZE);
+
+      const originalChunks = Array.from(veritum.chunks);
+      expect(originalChunks).toHaveLength(2);
+      expect(originalChunks[0].getKeyIfAvailable().equals(key)).toBe(true);
+      expect(originalChunks[1].getKeyIfAvailable().length).toBe(NetConstants.CUBE_KEY_SIZE);
+      expect(originalChunks[1].getKeyIfAvailable().equals(key)).toBe(false);
+
+      // Run test --
+      // note we don't await the result just yet
+      const rGen: AsyncGenerator<cciCube> = retriever.getContinuationChunks(key);
+      const chunkPromise: Promise<cciCube[]> = ArrayFromAsync(rGen);
+
+      // simulate arrival of chunks by adding them to CubeStore --
+      // note this happens after the request has been fired
+      // and note the chunks are arriving in reverse order
+      await new Promise(resolve => setTimeout(resolve, 50));  // give it some time
+      await cubeStore.addCube(originalChunks[1]);
+      await new Promise(resolve => setTimeout(resolve, 50));  // give it some time
+      await cubeStore.addCube(originalChunks[0]);
+
+      // All chunks have "arrived", so the retrieval promise should resolve
+      const retrievedChunks: cciCube[] = await chunkPromise;
+
+      // Verify result
+      expect(retrievedChunks).toHaveLength(2);
+      expect(retrievedChunks[0].equals(originalChunks[0])).toBe(true);
+      // expect(retrievedChunks[1].equals(twoCubeChunks[1])).toBe(true);
+      const restoredPayload: string =
+        retrievedChunks[0].getFirstField(FieldType.PAYLOAD).valueString +
+        retrievedChunks[1].getFirstField(FieldType.PAYLOAD).valueString;
+      expect(restoredPayload).toEqual(tooLong);
+    });
 
     describe('error handling', () => {
       describe('missing chunks', () => {
@@ -466,11 +473,69 @@ describe('VeritumRetriever', () => {
         expect(res.getFirstField(FieldType.PAYLOAD).valueString).toEqual(short);
         expect(res.getKeyIfAvailable().equals(singleCube.getKeyIfAvailable())).toBe(true);
       });
+
+
+      // Note! The first chunk of a Veritum can never arrive "out of order"
+      // as it is the one containing the references to further chunks; without
+      // the first chunk, a client would not even know to request further ones.
+      it('retrieves a three-Cube frozen PIC Veritum arriving over the wire out of order', async () => {
+        // Sculpt a two-Cube Veritum.
+        // Note we don't add it to the store just yet, meaning it's not
+        // locally available and has to be requested over the wire.
+        const veritum: Veritum = new Veritum({
+          cubeType: CubeType.PIC,
+          fields: [
+            VerityField.Payload(evenLonger),
+            VerityField.Date(),  // add DATE explicitly just to simplify comparison
+          ],
+          requiredDifficulty: 0,
+        });
+        await veritum.compile();
+        const key: CubeKey = veritum.getKeyIfAvailable();
+        expect(key.length).toBe(NetConstants.CUBE_KEY_SIZE);
+
+        const originalChunks = Array.from(veritum.chunks);
+        expect(originalChunks).toHaveLength(3);
+        const twoCubeChunk1Bin: Buffer = originalChunks[0].getBinaryDataIfAvailable();
+        const twoCubeChunk2Bin: Buffer = originalChunks[1].getBinaryDataIfAvailable();
+        const twoCubeChunk3Bin: Buffer = originalChunks[2].getBinaryDataIfAvailable();
+
+        // Run test --
+        // note we don't await the result just yet
+        const retrievalPromise: Promise<Veritum> = retriever.getVeritum(key);
+
+        // wait a moment to simulate network latency
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // have the first chunk "arrive over the wire"
+        scheduler.handleCubesDelivered([twoCubeChunk1Bin], peer);
+
+        // wait a moment to simulate network latency
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // have the third chunk "arrive over the wire" (that's out of order)
+        scheduler.handleCubesDelivered([twoCubeChunk2Bin], peer);
+
+        // wait a moment to simulate network latency
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // have the second chunk "arrive over the wire" (that's out of order)
+        scheduler.handleCubesDelivered([twoCubeChunk3Bin], peer);
+
+        // All chunks have "arrived", so the retrieval promise should resolve
+        const res: Veritum = await retrievalPromise;
+
+        // Verify result
+        expect(res instanceof Veritum).toBe(true);
+        expect(res.getFirstField(FieldType.PAYLOAD).valueString).toEqual(evenLonger);
+        expect(res.getKeyIfAvailable().equals(veritum.getKeyIfAvailable())).toBe(true);
+      });
     });
+
+    it.todo('returns undefined if the second chunk of a two-chunk Veritum is unretrievable');
 
     // TODO FIXME BUGBUG multi-Cube PIC Veritum handling still buggy :(
     it.todo('retrieves multi-Cube notification PICs');
-
     // multi-Cube signed Verita currently not supported; Github#634
     it.todo('retrieves multi-Cube notification MUCs');
     it.todo('retrieves multi-Cube notification PMUCs');
@@ -648,9 +713,8 @@ describe('VeritumRetriever', () => {
         expect(res[0].getKeyIfAvailable().equals(singleCube.getKeyIfAvailable())).toBe(true);
       });
 
-      // TODO fix -- does this actually have something to do with notifications
-      //   or is it a general Veritum retrieval issue?
-      it.skip('retrieves a two-Cube frozen Notification arriving over the wire out of order', async () => {
+
+      it('retrieves a two-Cube frozen Notification arriving over the wire in order', async () => {
         // Sculpt a two-Cube notification.
         // Note we don't add it to the store just yet, meaning they're not
         // locally available and have to be requested from the network.
@@ -666,6 +730,7 @@ describe('VeritumRetriever', () => {
         });
         await twoCube.compile();
         const twoCubeChunks = Array.from(twoCube.chunks);
+        expect(twoCubeChunks).toHaveLength(2);
         const twoCubeChunk1Bin: Buffer = twoCubeChunks[0].getBinaryDataIfAvailable();
         const twoCubeChunk2Bin: Buffer = twoCubeChunks[1].getBinaryDataIfAvailable();
 
@@ -675,17 +740,16 @@ describe('VeritumRetriever', () => {
           retriever.getNotifications(recipientKey));
 
         // wait a moment to simulate network latency
-        await new Promise(resolve => setTimeout(resolve, 10));
-
-        // have the second Cube of the two-Cube notification "arrive over the wire"
-        // (testing out-of-order arrival)
-        scheduler.handleCubesDelivered([twoCubeChunk2Bin], peer);
-
-        // wait a moment to simulate network latency
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise(resolve => setTimeout(resolve, 50));
 
         // have the first Cube of the two-Cube notification "arrive over the wire"
         scheduler.handleCubesDelivered([twoCubeChunk1Bin], peer);
+
+        // wait a moment to simulate network latency
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // have the second Cube of the two-Cube notification "arrive over the wire"
+        scheduler.handleCubesDelivered([twoCubeChunk2Bin], peer);
 
         // All chunks have "arrived", so the retrieval promise should resolve
         const res: Veritable[] = await retrievalPromise;
@@ -698,9 +762,64 @@ describe('VeritumRetriever', () => {
       });
 
 
-      // TODO fix -- does this actually have something to do with notifications
-      //   or is it a general Veritum retrieval issue?
-      it.skip('retrieves a two-Cube frozen Notification as well as a single Cube notification MUC arriving over the wire out of order', async () => {
+      // Note! Out of order arrival is really not expected to happen as the
+      // requester only learns the second chunk's key upon receiving the first.
+      // Also note that the only way we can test out-of-order arrival is by
+      // sneaking in the second chunk directly through CubeStore, as a light
+      // node's RequestScheduler would otherwise deny the chunk as it has not
+      // (yet) been requested.
+      it('retrieves a two-Cube frozen Notification sneaking in out of order through CubeStore', async () => {
+        // Sculpt a two-Cube notification.
+        // Note we don't add it to the store just yet, meaning they're not
+        // locally available and have to be requested from the network.
+        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+        const twoCube: Veritum = new Veritum({
+          cubeType: CubeType.FROZEN_NOTIFY,
+          fields: [
+            VerityField.Payload(tooLong),
+            VerityField.Notify(recipientKey),
+            VerityField.Date(),  // add DATE explicitly just to simplify comparison
+          ],
+          requiredDifficulty: 0,
+        });
+        await twoCube.compile();
+        const twoCubeChunks = Array.from(twoCube.chunks);
+        expect(twoCubeChunks).toHaveLength(2);
+
+        // Run test --
+        // note we don't await the result just yet
+        const retrievalPromise: Promise<Veritable[]> = ArrayFromAsync(
+          retriever.getNotifications(recipientKey));
+
+        // wait a moment to simulate network latency
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // have the second Cube of the two-Cube notification sneak in
+        cubeStore.addCube(twoCubeChunks[1]);
+
+        // wait a moment to simulate network latency
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // have the first Cube of the two-Cube notification "arrive over the wire"
+        cubeStore.addCube(twoCubeChunks[0]);
+
+        // All chunks have "arrived", so the retrieval promise should resolve
+        const res: Veritable[] = await retrievalPromise;
+
+        // Verify result
+        expect(res.length).toBe(1);
+        expect(res[0] instanceof Veritum).toBe(true);
+        expect(res[0].getFirstField(FieldType.PAYLOAD).valueString).toEqual(tooLong);
+        expect(res[0].getKeyIfAvailable().equals(twoCube.getKeyIfAvailable())).toBe(true);
+      });
+
+
+      // TODO BUGBUG FIXME:
+      // Only one notification retrieved.
+      // - It's the long one if both get delivered.
+      // - It's the short one if only the short one gets delivered.
+      it.skip('retrieves a two-Cube frozen Notification as well as a single Cube notification MUC arriving intertwined', async () => {
+        scheduler.options.requestTimeout = 1000;  // use longer timeout for this test
         // Sculpt a two-Cube notification and a single-Cube notification.
         // Note we don't add those to the store just yet, meaning they're not
         // locally available and have to be requested from the network.
@@ -716,8 +835,11 @@ describe('VeritumRetriever', () => {
         });
         await twoCube.compile();
         const twoCubeChunks = Array.from(twoCube.chunks);
+        expect(twoCubeChunks).toHaveLength(2);
         const twoCubeChunk1Bin: Buffer = twoCubeChunks[0].getBinaryDataIfAvailable();
         const twoCubeChunk2Bin: Buffer = twoCubeChunks[1].getBinaryDataIfAvailable();
+        expect(twoCubeChunk1Bin.length).toBe(NetConstants.CUBE_SIZE);
+        expect(twoCubeChunk2Bin.length).toBe(NetConstants.CUBE_SIZE);
 
         const short = "Nuntius brevis succinctus nec plures cubos requirens";
         const keyPair = sodium.crypto_sign_keypair();
@@ -735,7 +857,7 @@ describe('VeritumRetriever', () => {
         await singleCube.compile();
         const singleCubeBin: Buffer =
           Array.from(singleCube.chunks)[0].getBinaryDataIfAvailable();
-
+        expect(singleCubeBin.length).toBe(NetConstants.CUBE_SIZE);
 
         // Run test --
         // note we don't await the result just yet
@@ -743,27 +865,26 @@ describe('VeritumRetriever', () => {
           retriever.getNotifications(recipientKey));
 
         // wait a moment to simulate network latency
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise(resolve => setTimeout(resolve, 100));
 
-        // have the single Cube notification "arrive over the wire"
-        scheduler.handleCubesDelivered([singleCubeBin], peer);
+        // have the first Cube of the two-Cube notification "arrive over the wire"
+        await scheduler.handleCubesDelivered([twoCubeChunk1Bin], peer);
 
         // wait a moment to simulate network latency
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // have the single Cube notification "arrive over the wire"
+        await scheduler.handleCubesDelivered([singleCubeBin], peer);
+
+        // wait a moment to simulate network latency
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         // have the second Cube of the two-Cube notification "arrive over the wire"
         // (testing out-of-order arrival)
-        scheduler.handleCubesDelivered([twoCubeChunk2Bin], peer);
-
-        // wait a moment to simulate network latency
-        await new Promise(resolve => setTimeout(resolve, 10));
-
-        // have the first Cube of the two-Cube notification "arrive over the wire"
-        scheduler.handleCubesDelivered([twoCubeChunk1Bin], peer);
+        await scheduler.handleCubesDelivered([twoCubeChunk2Bin], peer);
 
         // All chunks have "arrived", so the retrieval promise should resolve
         const res: Veritable[] = await retrievalPromise;
-
 
         // Verify result
         expect(res.length).toBe(2);
@@ -773,10 +894,12 @@ describe('VeritumRetriever', () => {
         expect(res[1].getFirstField(FieldType.PAYLOAD).valueString).toEqual(tooLong);
         expect(res[0].getKeyIfAvailable().equals(singleCube.getKeyIfAvailable())).toBe(true);
         expect(res[1].getKeyIfAvailable().equals(twoCube.getKeyIfAvailable())).toBe(true);
-      }, 1000000);
+      });
 
       it.todo('retrieves a three-Cube frozen notification of which the root Cube was already in store but the remaining two chunks had to be retrieved over the wire', async () => {
-    });
+      });
+
+      it.todo('returns undefined trying to retrieve a two-chunk notification over the wire of which the last chunk is not retrievable');
     });  // notifications retrieved over the wire
   });
 });

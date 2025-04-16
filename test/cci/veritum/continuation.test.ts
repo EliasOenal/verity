@@ -5,13 +5,8 @@ import { VerityField } from "../../../src/cci/cube/verityField";
 import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
 import { Split, Recombine } from "../../../src/cci/veritum/continuation";
 import { Veritum } from "../../../src/cci/veritum/veritum";
-import { CubeKey, CubeType, HasNotify, HasSignature } from "../../../src/core/cube/cube.definitions";
-import { CubeStoreOptions, CubeStore } from "../../../src/core/cube/cubeStore";
-import { CubeRetriever } from "../../../src/core/networking/cubeRetrieval/cubeRetriever";
-import { RequestScheduler } from "../../../src/core/networking/cubeRetrieval/requestScheduler";
+import { CubeType, HasNotify, HasSignature } from "../../../src/core/cube/cube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { DummyNetworkManager } from "../../../src/core/networking/testingDummies/networkManagerDummy";
-import { PeerDB } from "../../../src/core/peering/peerDB";
 
 import { evenLonger, farTooLong, tooLong } from "../testcci.definitions";
 
