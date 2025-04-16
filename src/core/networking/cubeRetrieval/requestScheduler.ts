@@ -558,11 +558,13 @@ export class RequestScheduler implements Shuttable {
     // Based on what our caller requested, either request notifications Cubes
     // directly, or indirectly through a KeyRequest.
     if (directCubeRequest) {
+      logger.trace(`RequestScheduler.requestNotifications(): Planning notification request for ${key.keyString} in direct CubeRequest mode`);
       // Directly send a CubeRequest. This makes sense if we don't have any
       // notifications for this recipient yet.
       this.scheduleCubeRequest(scheduleIn);  // schedule request
       return req.promise;  // return result eventually
     } else {
+      logger.trace(`RequestScheduler.requestNotifications(): Planning notification request for ${key.keyString} in indirect KeyRequest mode`);
       // Start with a KeyRequest. This makes sense if we already have (a lot of)
       // notifications for this recipient and want to avoid redownloading them all.
       this.expectedNotifications.set(key.keyString, req);
@@ -683,7 +685,10 @@ export class RequestScheduler implements Shuttable {
     for (const binaryCube of binaryCubes) {
       // first of all, activate this Cube
       const cube = this.networkManager.cubeStore.activateCube(binaryCube);
-      if (cube === undefined) continue;  // drop this Cube if it's not valid
+      if (cube === undefined) {
+        logger.trace(`RequestScheduler.handleCubesDelivered(): Ignoring an invalid Cube delivered by ${offeringPeer.toString()}`);
+        continue;  // drop this Cube if it's not valid
+      }
       const keyString = await cube.getKeyString();
 
       // If we're a light node, check if we're even interested in this Cube
@@ -699,6 +704,7 @@ export class RequestScheduler implements Shuttable {
               !(this.notificationsAlreadyRequested(notify))
             )
         ){
+          logger.trace(`RequestScheduler.handleCubesDelivered(): Ignoring Cube ${keyString} from peer ${offeringPeer.toString()} as we do not seem to have requested it`);
           continue;  // drop this Cube, we're not interested in it
         }
       }
@@ -706,6 +712,7 @@ export class RequestScheduler implements Shuttable {
       // Grant this peer local reputation if cube is accepted.
       // TODO BUGBUG: This currently grants reputation score for duplicates,
       // which is absolutely contrary to what we want :'D
+      logger.trace(`RequestScheduler.handleCubesDelivered(): Accepting Cube ${keyString} delivered by ${offeringPeer.toString()}`);
       const value = await this.networkManager.cubeStore.addCube(binaryCube);  // TODO: use pre-activated version instead
       if (value) { offeringPeer.scoreReceivedCube(value.getDifficulty()); }
 
