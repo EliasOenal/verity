@@ -1,9 +1,9 @@
 import { VerityError } from '../../../src/core/settings';
+import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
+import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { CubeKey } from '../../../src/core/cube/cube.definitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
-
-import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
 import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
@@ -14,8 +14,6 @@ import { testCubeStoreParams } from '../testcci.definitions';
 
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { ArrayFromAsync } from '../../../src/core/helpers/misc';
-import { keyVariants } from '../../../src/core/cube/cubeUtil';
 
 describe('Identity: base model tests', () => {
   // This test suite provides basic unit tests regarding Identity's internal
