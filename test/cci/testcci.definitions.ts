@@ -12,11 +12,6 @@ export const testCubeStoreParams: CubeStoreOptions = {
   family: cciFamily,
 };
 
-export const testCciOptions: VerityNodeOptions = {
-  ...testCoreOptions,
-  ...testCubeStoreParams,
-};
-
 // Identity and cryptography related
 export const masterKeySize = 32;  // must match libsodium's crypto_sign_SEEDBYTES
 export const masterKey = Buffer.alloc(masterKeySize, 42);
@@ -29,6 +24,12 @@ export const idTestOptions: IdentityOptions = {
   requiredDifficulty: requiredDifficulty,
   argonCpuHardness: 1,  // == crypto_pwhash_OPSLIMIT_MIN (sodium not ready)
   argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
+};
+
+export const testCciOptions: VerityNodeOptions = {
+  ...testCoreOptions,
+  ...testCubeStoreParams,
+  ...idTestOptions,
 };
 
 // long test strings
