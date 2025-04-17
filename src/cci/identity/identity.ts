@@ -531,7 +531,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    * see there for param documentation.
    */
     constructor(
-      cubeStoreOrRetriever: CubeRetrievalInterface<any>,
+      cubeStoreOrRetriever: CubeRetrievalInterface<any>|undefined,
       mucOrMasterkey: cciCube | Buffer,
       readonly options: IdentityOptions = {},
   ){
