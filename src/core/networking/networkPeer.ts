@@ -644,38 +644,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
      * @param msg The CubeResponse message.
      */
     private handleCubeResponse(msg: CubeResponseMessage): void {
-        const binaryCubes: Generator<Buffer> = msg.binaryCubes();
-        // TODO: do we actually need this batch processing logic here?
-        // cubeStore.addCube() is async, i.e. calls are already just scheduled
-        // and not fired immediately
-        const processBatch = async (iterator: Iterator<Buffer>, batchSize: number) => {
-            let count = 0;
-            for (let i = 0; i < batchSize; i++) {
-                const { value: binaryCube, done } = iterator.next();
-                if (done) break;
-                count++;
-                // Inform the scheduler of the delivered Cube, who will make an
-                // informed decision on whether to accept it (i.e. discard
-                // non-requested Cubes if we're a light node)
-                this.networkManager.scheduler.handleCubesDelivered([binaryCube], this);
-            }
-            return count;
-        };
-
-        const processAllCubes = async () => {
-            const iterator = binaryCubes[Symbol.iterator]();
-            let totalProcessed = 0;
-            while (true) {
-                const processed = await processBatch(iterator, 10);
-                if (processed === 0) break;
-                totalProcessed += processed;
-                // Allow other operations to run
-                await new Promise(resolve => setTimeout(resolve, 0));
-            }
-            logger.info(`NetworkPeer ${this.toString()}: handleCubeResponse: processed incoming ${totalProcessed} cubes`);
-        };
-
-        processAllCubes();
+        this.networkManager.scheduler.handleCubesDelivered(msg.binaryCubes(), this);
     }
 
     /**
