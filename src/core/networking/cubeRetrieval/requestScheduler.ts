@@ -1,23 +1,24 @@
 import type { NetworkPeerIf } from '../networkPeerIf';
 import type { NetworkManagerIf } from '../networkManagerIf';
+import type { Cube } from '../../cube/cube';
+import type { CubeFamilyDefinition } from '../../cube/cubeFields';
 
 import { Settings } from '../../settings';
+import { Shuttable } from '../../helpers/coreInterfaces';
 import { MessageClass, NetConstants, NetworkPeerError } from '../networkDefinitions';
 import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode, SubscriptionConfirmationMessage, SubscriptionResponseCode } from '../networkMessage';
-
-import { RequestStrategy, RandomStrategy, BestScoreStrategy } from './requestStrategy';
-import { CubeRequest, CubeSubscription, PendingRequest, SubscriptionRequest } from './pendingRequest';
 
 import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
 import { CubeFieldType, type CubeKey } from '../../cube/cube.definitions';
 import { CubeInfo } from '../../cube/cubeInfo';
 import { cubeContest, getCurrentEpoch, keyVariants, shouldRetainCube } from '../../cube/cubeUtil';
 
+import { RequestStrategy, RandomStrategy, BestScoreStrategy } from './requestStrategy';
+import { CubeRequest, CubeSubscription, PendingRequest, SubscriptionRequest } from './pendingRequest';
+
 import { logger } from '../../logger';
 
 import { Buffer } from 'buffer';  // for browsers
-import { Shuttable } from '../../helpers/coreInterfaces';
-import { CubeFamilyDefinition } from '../../cube/cubeFields';
 
 // TODO: only schedule next request after previous request has been *fulfilled*,
 // or after a sensible timeout
@@ -682,6 +683,7 @@ export class RequestScheduler implements Shuttable {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
 
+    const delivered: Cube[] = [];
     for (const binaryCube of binaryCubes) {
       // first of all, activate this Cube
       const cube = this.networkManager.cubeStore.activateCube(binaryCube);
@@ -717,9 +719,48 @@ export class RequestScheduler implements Shuttable {
       const value = await this.networkManager.cubeStore.addCube(binaryCube);  // TODO: use pre-activated version instead
       if (value) { offeringPeer.scoreReceivedCube(value.getDifficulty()); }
 
-      // Check if this delivery fulfils a pending request
+      // Check if this delivery fulfils a pending Cube request
       const keyStrings: string[] = [keyString, offeringPeer.idString + keyString];
-      this.cubeRequestFulfilled(keyStrings, await cube.getCubeInfo());  // maybe TODO: avoid creating duplicate CubeInfo
+      this.cubeRequestFulfilled(keyStrings, await cube.getCubeInfo());  // TODO get rid of CubeInfo and pass Cube directly
+
+      delivered.push(cube);
+    }
+
+    // Check if this delivery fulfils a pending notification request
+    // Note: In contrast to a Cube request -- which is a well defined thing and
+    //   can only be fulfilled by delivery of that exact Cube, a notification
+    //   request is a rather fuzzy thing as there may be any number of
+    //   notifications for a given notification key.
+    //   In fact, the line between a "notification request" and a
+    //   "notification subscription" is a rather blurry one.
+    //   We currently mark a notification request as completed as soon as we
+    //   receive any delivery containing a Cube for that notification key.
+
+    for (const cube of delivered) {
+      const recipientKey: Buffer =
+        cube.getFirstField(CubeFieldType.NOTIFY)?.value;
+
+      // does this fulfill a notification request in direct, i.e. CubeRequest mode?
+      if (recipientKey) {
+        const directNotificationRequest: CubeRequest = this.requestedNotifications.get(keyVariants(recipientKey).keyString);
+        if (directNotificationRequest) {
+          directNotificationRequest.fulfilled(await cube.getCubeInfo());  // TODO get rid of CubeInfo and pass Cube directly
+          // Note: Not removing the request as it appears wise to accept
+          //   further notification for this request's timeout period.
+          // this.requestedNotifications.delete(await cube.getKeyString());
+        }
+      }
+
+      // does this fulfill a notification request in indirect, i.e. KeyRequest mode?
+      if (recipientKey) {
+        const indirectNotificationRequest: CubeRequest = this.expectedNotifications.get(keyVariants(recipientKey).keyString);
+        if (indirectNotificationRequest) {
+          indirectNotificationRequest.fulfilled(await cube.getCubeInfo());  // TODO get rid of CubeInfo and pass Cube directly
+          // Note: Not removing the request as it appears wise to accept
+          //   further notification for this request's timeout period.
+          // this.expectedNotifications.delete(await cube.getKeyString());
+        }
+      }
     }
 
     // TODO: In case of an empty (i.e. negative) CubeResponse, we should identify
@@ -936,27 +977,6 @@ export class RequestScheduler implements Shuttable {
     //       that it ensures a request gets fulfilled even if a new Cube is
     //       smuggled in without this scheduler noticing.
     this.cubeRequestFulfilled([cubeInfo.keyString], cubeInfo);
-
-    // does this fulfil a notification request in direct CubeRequest mode?
-    // TODO: do not potentially reactivate Cube a dormant Cube as it's inefficient
-    const recipientKey: Buffer =
-      cubeInfo.getCube().getFirstField(CubeFieldType.NOTIFY)?.value;
-    if (recipientKey) {
-      const directNotificationRequest: CubeRequest = this.requestedNotifications.get(keyVariants(recipientKey).keyString);
-      if (directNotificationRequest) {
-        directNotificationRequest.fulfilled(cubeInfo);
-        this.requestedNotifications.delete(cubeInfo.keyString);
-      }
-    }
-
-    // does this fulfill a notification request in KeyRequest mode?
-    if (recipientKey) {
-      const indirectNotificationRequest: CubeRequest = this.expectedNotifications.get(keyVariants(recipientKey).keyString);
-      if (indirectNotificationRequest) {
-        indirectNotificationRequest.fulfilled(cubeInfo);
-        this.expectedNotifications.delete(cubeInfo.keyString);
-      }
-    }
   }
 
   private cubeRequestFulfilled(keyStrings: string[], cubeInfo: CubeInfo): void {

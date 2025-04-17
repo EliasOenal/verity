@@ -1,256 +1,138 @@
-import type { NetworkPeerIf } from '../../../../src/core/networking/networkPeerIf';
+// Note! Most tests are in cubeRetriever.e2e.test.ts as we originally
+//  wrote CubeRetriever's test involving actual network communication.
+//  This file was originally only create to mirror VeritumRetriever's test
+//  setup to help identify whether a bug originates on the VeritumRetriever (CCI)
+//  or CubeRetriever (core) level.
 
-import { Cube } from "../../../../src/core/cube/cube";
-import { CubeFieldType, CubeKey, CubeType } from "../../../../src/core/cube/cube.definitions";
-import { CubeField } from "../../../../src/core/cube/cubeField";
-import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
-import { CubeStore, CubeStoreOptions } from "../../../../src/core/cube/cubeStore";
-import { CubeRetriever } from "../../../../src/core/networking/cubeRetrieval/cubeRetriever";
-import { NetConstants, SupportedTransports } from "../../../../src/core/networking/networkDefinitions";
-import { NetworkManager } from "../../../../src/core/networking/networkManager";
-import { NetworkManagerOptions } from '../../../../src/core/networking/networkManagerIf';
-import { WebSocketAddress } from "../../../../src/core/peering/addressing";
-import { Peer } from "../../../../src/core/peering/peer";
-import { PeerDB } from "../../../../src/core/peering/peerDB";
+import { CubeFieldType, CubeKey, CubeType } from '../../../../src/core/cube/cube.definitions';
+import { CubeField } from '../../../../src/core/cube/cubeField';
+import { NetConstants } from '../../../../src/core/networking/networkDefinitions';
+import { ArrayFromAsync } from '../../../../src/core/helpers/misc';
+import { Cube } from '../../../../src/core/cube/cube';
+import { CubeRetriever } from '../../../../src/core/networking/cubeRetrieval/cubeRetriever';
+import { CubeStore } from '../../../../src/core/cube/cubeStore';
+import { RequestScheduler } from '../../../../src/core/networking/cubeRetrieval/requestScheduler';
+import { NetworkManagerIf } from '../../../../src/core/networking/networkManagerIf';
+import { DummyNetworkManager } from '../../../../src/core/networking/testingDummies/dummyNetworkManager';
+import { DummyNetworkPeer } from '../../../../src/core/networking/testingDummies/dummyNetworkPeer';
+import { PeerDB } from '../../../../src/core/peering/peerDB';
+
+import { testCoreOptions } from '../../testcore.definition';
+
+import sodium from 'libsodium-wrappers-sumo';
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import sodium from 'libsodium-wrappers-sumo';
-import { requiredDifficulty, testCoreOptions } from '../../testcore.definition';
-import { ArrayFromAsync } from '../../../../src/core/helpers/misc';
-
-let local: NetworkManager;
-let remote: NetworkManager;
-let cubeRetriever: CubeRetriever;
-
-// Note: These are actually almost end-to-end tests as they involve actual
-//   network communication via WebSockets.
 
 describe('CubeRetriever', () => {
+  let cubeStore: CubeStore;
+  let networkManager: NetworkManagerIf;
+  let scheduler: RequestScheduler;
+  let retriever: CubeRetriever;
+  let peer: DummyNetworkPeer;
+
   beforeAll(async () => {
-    local = new NetworkManager(
-      new CubeStore(testCoreOptions),
-      new PeerDB(),
-      {
-        ...testCoreOptions,
-        transports: new Map([[SupportedTransports.ws, 18001]]),
-      },
-    );
-    cubeRetriever = new CubeRetriever(local.cubeStore, local.scheduler);
-    remote = new NetworkManager(
-      new CubeStore(testCoreOptions),
-      new PeerDB(),
-      {
-        ...testCoreOptions,
-        transports: new Map([[SupportedTransports.ws, 18002]]),
-      },
-    );
-    await Promise.all([local.start(), remote.start()]);
-    const np: NetworkPeerIf =
-      local.connect(new Peer(new WebSocketAddress("localhost", 18002)));
-    await np.onlinePromise;
+    await sodium.ready;
   });
 
-  afterAll(async () => {
-    await Promise.all([local.shutdown(), remote.shutdown()]);
-  })
+  beforeEach(async () => {
+    cubeStore = new CubeStore(testCoreOptions);
+    await cubeStore.readyPromise;
 
-  describe('getCube() / getCubeInfo()', () => {
-    it('retrieves a locally available Cube', async () => {
-      // create Cube
-      const cube: Cube = Cube.Frozen({
-        fields: CubeField.RawContent(CubeType.FROZEN, "Cubus localis in loco nostro disponibilis est"),
-        requiredDifficulty,
-      });
-      await local.cubeStore.addCube(cube);
-      const key: CubeKey = await cube.getKey();
+    networkManager = new DummyNetworkManager(cubeStore, new PeerDB());
+    peer = new DummyNetworkPeer(networkManager, undefined, cubeStore);
+    networkManager.outgoingPeers = [peer];
 
-      // retrieve Cube
-      const retrieved: Cube = await cubeRetriever.getCube(key);
-      expect((await retrieved.getHash()).equals(key)).toBe(true);
-      // retrieve CubeInfo
-      const retrievedInfo: CubeInfo = await cubeRetriever.getCubeInfo(key);
-      expect(retrievedInfo.date).toEqual(cube.getDate());
-      expect(retrievedInfo.binaryCube.equals(await cube.getBinaryData())).toBe(true);
+    scheduler = new RequestScheduler(networkManager, {
+      ...testCoreOptions,
+      requestTimeout: 200,
     });
+    retriever = new CubeRetriever(cubeStore, scheduler);
+  });
 
-    it('retrieves a Cube available remotely', async () => {
-      // create Cube
-      const cube: Cube = Cube.Frozen({
-        fields: CubeField.RawContent(CubeType.FROZEN, "Cubus remotus per rete petendus est"),
-        requiredDifficulty,
-      });
-      await remote.cubeStore.addCube(cube);
-      const key: CubeKey = await cube.getKey();
-
-      // retrieve Cube
-      const retrieved: Cube = await cubeRetriever.getCube(key);
-      expect((await retrieved.getHash()).equals(key)).toBe(true);
-      // retrieve CubeInfo
-      const retrievedInfo: CubeInfo = await cubeRetriever.getCubeInfo(key);
-      expect(retrievedInfo.date).toEqual(cube.getDate());
-      expect(retrievedInfo.binaryCube.equals(await cube.getBinaryData())).toBe(true);
-    });
-  });  // getCube() / getCubeInfo()
-
-
-  describe('subscribeCube()', () => {
-    let yielded: Cube[];
-    let preExisting: Cube;
-    let localUpdate: Cube;
-    let remoteUpdate: Cube;
-
-    beforeAll(async () => {
-      yielded = [];
-
-      // create a keypair
-      const keyPair = sodium.crypto_sign_keypair();
-      const publicKey = Buffer.from(keyPair.publicKey);
-      const privateKey = Buffer.from(keyPair.privateKey);
-
-      // create pre-existing Cube
-      preExisting = Cube.Create({
-        cubeType: CubeType.PMUC,
-        fields: [
-          CubeField.RawContent(CubeType.PMUC, "hic cubus iam repositus est"),
-          CubeField.PmucUpdateCount(1),
-        ],
-        requiredDifficulty, publicKey, privateKey,
-      });
-      await local.cubeStore.addCube(preExisting);
-
-      // run test call
-      const gen = cubeRetriever.subscribeCube(publicKey);
-      // consume generator
-      (async () => {
-        for await (const cube of gen) {
-          yielded.push(cube);
-        }
-      })();
-
-      localUpdate = Cube.Create({
-        cubeType: CubeType.PMUC,
-        fields: [
-          CubeField.RawContent(CubeType.PMUC, "hic cubus loco renovatus est"),
-          CubeField.PmucUpdateCount(2),
-        ],
-        requiredDifficulty, publicKey, privateKey,
-      });
-      await local.cubeStore.addCube(localUpdate);
-
-      remoteUpdate = Cube.Create({
-        cubeType: CubeType.PMUC,
-        fields: [
-          CubeField.RawContent(CubeType.PMUC, "hic cubus remoto renovatus est"),
-          CubeField.PmucUpdateCount(3),
-        ],
-        requiredDifficulty, publicKey, privateKey,
-      });
-      await remote.cubeStore.addCube(remoteUpdate);
-
-      await new Promise(resolve => setTimeout(resolve, 1000));  // give it some time
-    });
-
-    it.todo('yields an already locally available Cube');
-
-    it('yields a local-originating update', () => {
-      expect(yielded.some(cube => cube.equals(localUpdate))).toBe(true);
-    });
-
-    it('yields a remote-originating update', () => {
-      expect(yielded.some(cube => cube.equals(remoteUpdate))).toBe(true);
-    });
-  });  // subscribeCube()
+  afterEach(async () => {
+    await cubeStore.shutdown();
+    await networkManager.shutdown();
+    await scheduler.shutdown();
+  });
 
 
   describe('getNotifications()', () => {
-    const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
-    const irrelevantKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 43);
-    let notificationCubeKeys: CubeKey[];
-
-    beforeAll(async () => {
-      // Sculpt two Cubes notifying recipientKey, and an irrelevant one
-      // notifying irrelevantKey.
-      const notification1 = Cube.Create({
-        cubeType: CubeType.PIC_NOTIFY,
-        fields: [
-          CubeField.RawContent(CubeType.PIC_NOTIFY, "Cubus notificationis"),
-          CubeField.Notify(recipientKey),
-        ],
-        requiredDifficulty,
-      });
-      await local.cubeStore.addCube(notification1);
-
-      const notification2 = Cube.Create({
-        cubeType:CubeType.FROZEN_NOTIFY,
-        fields: [
-            CubeField.Notify(recipientKey),  // mix up input field order for extra fuzzing
-            CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Hic receptor notificationis popularis est"),
-        ],
-        requiredDifficulty,
-      });
-      await local.cubeStore.addCube(notification2);
-
-      const irrelevant = Cube.Create({
-        cubeType: CubeType.PIC_NOTIFY,
-        fields: [
-          CubeField.RawContent(CubeType.PIC_NOTIFY, "Cubus irrelevans"),
-          CubeField.Notify(irrelevantKey),
-        ],
-        requiredDifficulty,
-      });
-
-      notificationCubeKeys = [
-        await notification1.getKey(),
-        await notification2.getKey(),
-      ];
+    describe('notifications already in store', () => {
+      it.todo('write tests (or just be fine with the e2e tests we already have');
     });
 
-    it('fetches multiple locally available notifications', async () => {
-      const retrieved: Cube[] = await ArrayFromAsync(
-        cubeRetriever.getNotifications(recipientKey)
-      );
-      expect(retrieved.length).toEqual(notificationCubeKeys.length);
-      // Assert each retrieved Cube is one of our two notifications
-      expect(retrieved.every(cube => notificationCubeKeys.includes(cube.getKeyIfAvailable()))).toBe(true);
-      // Assert each of our notifications is retrieved
-      expect(notificationCubeKeys.every(key => retrieved.some(cube => cube.getKeyIfAvailable().equals(key)))).toBe(true);
-    }, 10000);  // TODO FIXME why the hell does that take so long?!
+    describe('notifications retrieved over the wire', () => {
+      it('retrieves two single-Cube notifications, arriving together after the request', async () => {
+        // Sculpt two single-Chunk notifications
+        // Note we don't add those to the store just yet, meaning they're not
+        // locally available and have to be requested from the network.
+        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
 
-    it('fetches multiple remote notifications', async () => {
-      // sculpt two remote notifications
-      const remote1 = Cube.Create({
-        cubeType: CubeType.PIC_NOTIFY,
-        fields: [
-          CubeField.RawContent(CubeType.PIC_NOTIFY, "monitum alienum"),
-          CubeField.Notify(recipientKey),
-        ],
-        requiredDifficulty,
+        const firstLatin = "Magni momenti nuntiatio";
+        const first: Cube = Cube.Create({
+          cubeType: CubeType.PIC_NOTIFY,
+          fields: [
+            CubeField.RawContent(CubeType.PIC_NOTIFY, firstLatin),
+            CubeField.Notify(recipientKey),
+            CubeField.Date(148302000),  // fixed date, thus fixed key for ease of debugging
+          ],
+          requiredDifficulty: 0,
+        });
+        await first.compile();
+        const firstBin: Buffer = first.getBinaryDataIfAvailable();
+        expect(firstBin.length).toBe(NetConstants.CUBE_SIZE);
+
+        const secondLatin = "Haud minus magni momenti nuntiatio";
+        const second: Cube = Cube.Create({
+          cubeType: CubeType.PIC_NOTIFY,
+          fields: [
+            CubeField.RawContent(CubeType.PIC_NOTIFY, secondLatin),
+            CubeField.Notify(recipientKey),
+            CubeField.Date(148302000),  // fixed date, thus fixed key for ease of debugging
+          ],
+          requiredDifficulty: 0,
+        });
+        await second.compile();
+        const secondBin: Buffer = second.getBinaryDataIfAvailable();
+        expect(secondBin.length).toBe(NetConstants.CUBE_SIZE);
+
+
+        // Run test --
+        // note we don't await the result just yet
+        const retrievalPromise: Promise<Cube[]> = ArrayFromAsync(
+          retriever.getNotifications(recipientKey));
+
+        // wait a moment to simulate network latency
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // have both notification "arrive over the wire" at once
+        await scheduler.handleCubesDelivered([firstBin, secondBin], peer);
+
+        // verify test setup: assert both Cubes are now in the local store
+        expect(await cubeStore.hasCube(first.getKeyIfAvailable())).toBe(true);
+        expect(await cubeStore.hasCube(second.getKeyIfAvailable())).toBe(true);
+
+        // All chunks have "arrived", so the retrieval promise should resolve
+        const res: Cube[] = await retrievalPromise;
+
+        // Verify result
+        expect(res.length).toBe(2);
+        expect(res[0] instanceof Cube).toBe(true);
+        expect(res[1] instanceof Cube).toBe(true);
+        expect(res.some(cube =>
+          cube.getFirstField(CubeFieldType.PIC_NOTIFY_RAWCONTENT).valueString.includes(firstLatin))).
+          toBe(true);
+        expect(res.some(cube =>
+          cube.getFirstField(CubeFieldType.PIC_NOTIFY_RAWCONTENT).valueString.includes(secondLatin))).
+          toBe(true);
+        expect(res.some(cube =>
+          cube.getKeyIfAvailable().equals(first.getKeyIfAvailable()))).
+          toBe(true);
+        expect(res.some(cube =>
+          cube.getKeyIfAvailable().equals(second.getKeyIfAvailable()))).
+          toBe(true);
       });
-      await remote.cubeStore.addCube(remote1);
-      const remote1Key = await remote1.getKey();
+    });
+  });
 
-      const remote2 = Cube.Create({
-        cubeType: CubeType.PIC_NOTIFY,
-        fields: [
-          CubeField.RawContent(CubeType.PIC_NOTIFY, "aliud monitum alienum"),
-          CubeField.Notify(recipientKey),
-        ],
-        requiredDifficulty,
-      });
-      await remote.cubeStore.addCube(remote2);
-      const remote2Key = await remote2.getKey();
-
-      // run test
-      const retrieved: Cube[] = await ArrayFromAsync(
-        cubeRetriever.getNotifications(recipientKey)
-      );
-      expect(retrieved.some(cube => cube.getKeyIfAvailable().equals(remote1Key))).toBe(true);
-      expect(retrieved.some(cube => cube.getKeyIfAvailable().equals(remote2Key))).toBe(true);
-    }, 10000);  // TODO FIXME why the hell does that take so long?!
-  });  // getNotifications()
-
-
-  describe('subscribeNotifications()', () => {
-    it.todo('write tests');
-  });  // subscribeNotifications()
 });

@@ -314,7 +314,7 @@ describe('RequestScheduler', () => {
         const promise: Promise<CubeInfo> = scheduler.requestNotifications(testKey, 0, undefined, true);
         expect((scheduler as any).requestedNotifications.size).toEqual(1);  // spying on private attribute
 
-        // simulate successful network retrieval by adding a matching notification Cube
+        // simulate successful network retrieval by delivering a matching notification Cube
         const contentField: CubeField =
           CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis");
         const notification = Cube.Frozen({
@@ -323,8 +323,9 @@ describe('RequestScheduler', () => {
             CubeField.Notify(testKey),
           ],
           requiredDifficulty,
-        })
-        await scheduler.networkManager.cubeStore.addCube(notification);
+        });
+        const notificationBin: Buffer = await notification.getBinaryData();
+        await scheduler.handleCubesDelivered([notificationBin], dummyPeer);
 
         const result = await promise;
         expect(result.key).toEqual(notification.getKeyIfAvailable());

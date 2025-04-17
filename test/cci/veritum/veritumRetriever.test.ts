@@ -1,4 +1,3 @@
-import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 import { cciCube } from '../../../src/cci/cube/cciCube';
 import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { VerityField } from '../../../src/cci/cube/verityField';
@@ -22,6 +21,8 @@ import { Veritable } from '../../../src/core/cube/veritable.definition';
 
 import sodium from 'libsodium-wrappers-sumo'
 
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+
 describe('VeritumRetriever', () => {
   let cubeStore: CubeStore;
   let networkManager: NetworkManagerIf;
@@ -29,9 +30,11 @@ describe('VeritumRetriever', () => {
   let retriever: VeritumRetriever<CubeRequestOptions>;
   let peer: DummyNetworkPeer;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     await sodium.ready;
+  });
 
+  beforeEach(async () => {
     cubeStore = new CubeStore(testCciOptions);
     await cubeStore.readyPromise;
 
@@ -627,6 +630,54 @@ describe('VeritumRetriever', () => {
         // TODO reinstate line once restored Verita retain their NOTIFY, Github#689
         // expect(retrievedNotifications[0].equals(notification, FieldEqualityMetric.IgnoreOrder)).toBe(true);
       });
+
+      it('retrieves two locally available single-Cube notifications', async () => {
+        // Sculpt two single-Chunk notifications
+        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+
+        const firstLatin = "Magni momenti nuntiatio";
+        const first: Veritum = new Veritum({
+          cubeType: CubeType.PIC_NOTIFY,
+          fields: [
+            VerityField.Payload(firstLatin),
+            VerityField.Notify(recipientKey),
+            VerityField.Date(),  // add DATE explicitly just to simplify comparison
+          ],
+          requiredDifficulty: 0,
+        });
+        await first.compile();
+        const firstChunk: cciCube = Array.from(first.chunks)[0];
+        await cubeStore.addCube(firstChunk);
+
+        const secondLatin = "Haud minus magni momenti nuntiatio";
+        const second: Veritum = new Veritum({
+          cubeType: CubeType.PIC_NOTIFY,
+          fields: [
+            VerityField.Payload(secondLatin),
+            VerityField.Notify(recipientKey),
+            VerityField.Date(),  // add DATE explicitly just to simplify comparison
+          ],
+          requiredDifficulty: 0,
+        });
+        await second.compile();
+        const secondChunk: cciCube = Array.from(second.chunks)[0];
+        await cubeStore.addCube(secondChunk);
+
+        // Run test --
+        // note we don't await the result just yet
+        const retrievalPromise: Promise<Veritable[]> = ArrayFromAsync(
+          retriever.getNotifications(recipientKey));
+        const res: Veritable[] = await retrievalPromise;
+
+        // Verify result
+        expect(res.length).toBe(2);
+        expect(res[0] instanceof Veritum).toBe(true);
+        expect(res[1] instanceof Veritum).toBe(true);
+        expect(res[0].getFirstField(FieldType.PAYLOAD).valueString).toEqual(firstLatin);
+        expect(res[1].getFirstField(FieldType.PAYLOAD).valueString).toEqual(secondLatin);
+        expect(res[0].getKeyIfAvailable().equals(first.getKeyIfAvailable())).toBe(true);
+        expect(res[1].getKeyIfAvailable().equals(second.getKeyIfAvailable())).toBe(true);
+      });
     });  // notifications already in store
 
     describe('notifications retrieved over the wire', () => {
@@ -813,6 +864,67 @@ describe('VeritumRetriever', () => {
         expect(res[0].getKeyIfAvailable().equals(twoCube.getKeyIfAvailable())).toBe(true);
       });
 
+      it('retrieves two single-Cube notifications, arriving together after the request', async () => {
+        // Sculpt two single-Chunk notifications
+        // Note we don't add those to the store just yet, meaning they're not
+        // locally available and have to be requested from the network.
+        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+
+        const firstLatin = "Magni momenti nuntiatio";
+        const first: Veritum = new Veritum({
+          cubeType: CubeType.PIC_NOTIFY,
+          fields: [
+            VerityField.Payload(firstLatin),
+            VerityField.Notify(recipientKey),
+            VerityField.Date(148302000),  // fixed date, thus fixed key for ease of debugging
+          ],
+          requiredDifficulty: 0,
+        });
+        await first.compile();
+        const firstChunk: cciCube = Array.from(first.chunks)[0];
+        const firstBin: Buffer = firstChunk.getBinaryDataIfAvailable();
+        expect(firstBin.length).toBe(NetConstants.CUBE_SIZE);
+
+        const secondLatin = "Haud minus magni momenti nuntiatio";
+        const second: Veritum = new Veritum({
+          cubeType: CubeType.PIC_NOTIFY,
+          fields: [
+            VerityField.Payload(secondLatin),
+            VerityField.Notify(recipientKey),
+            VerityField.Date(148302000),  // fixed date, thus fixed key for ease of debugging
+          ],
+          requiredDifficulty: 0,
+        });
+        await second.compile();
+        const secondChunk: cciCube = Array.from(second.chunks)[0];
+        const secondBin: Buffer = secondChunk.getBinaryDataIfAvailable();
+        expect(secondBin.length).toBe(NetConstants.CUBE_SIZE);
+
+
+        // Run test --
+        // note we don't await the result just yet
+        const retrievalPromise: Promise<Veritable[]> = ArrayFromAsync(
+          retriever.getNotifications(recipientKey));
+
+        // wait a moment to simulate network latency
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // have both notification "arrive over the wire" at once
+        scheduler.handleCubesDelivered([firstBin, secondBin], peer);
+
+        // All chunks have "arrived", so the retrieval promise should resolve
+        const res: Veritable[] = await retrievalPromise;
+
+        // Verify result
+        expect(res.length).toBe(2);
+        expect(res[0] instanceof Veritum).toBe(true);
+        expect(res[1] instanceof Veritum).toBe(true);
+        expect(res[0].getFirstField(FieldType.PAYLOAD).valueString).toEqual(firstLatin);
+        expect(res[1].getFirstField(FieldType.PAYLOAD).valueString).toEqual(secondLatin);
+        expect(res[0].getKeyIfAvailable().equals(first.getKeyIfAvailable())).toBe(true);
+        expect(res[1].getKeyIfAvailable().equals(second.getKeyIfAvailable())).toBe(true);
+      });
+
 
       // TODO BUGBUG FIXME:
       // Only one notification retrieved.
@@ -829,7 +941,7 @@ describe('VeritumRetriever', () => {
           fields: [
             VerityField.Payload(tooLong),
             VerityField.Notify(recipientKey),
-            VerityField.Date(),  // add DATE explicitly just to simplify comparison
+            VerityField.Date(148302000),  // fixed date, thus fixed key for ease of debugging
           ],
           requiredDifficulty: 0,
         });
@@ -848,7 +960,7 @@ describe('VeritumRetriever', () => {
           fields: [
             VerityField.Payload(short),
             VerityField.Notify(recipientKey),
-            VerityField.Date(),  // add DATE explicitly just to simplify comparison
+            VerityField.Date(148302000),  // fixed date, thus fixed key for ease of debugging
           ],
           publicKey: Buffer.from(keyPair.publicKey),
           privateKey: Buffer.from(keyPair.privateKey),
@@ -900,6 +1012,8 @@ describe('VeritumRetriever', () => {
       });
 
       it.todo('returns undefined trying to retrieve a two-chunk notification over the wire of which the last chunk is not retrievable');
+
+      it.todo('tests over the concurrency limit (i.e. more than 10 verita by default)')
     });  // notifications retrieved over the wire
   });
 });
