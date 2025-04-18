@@ -21,7 +21,9 @@ import { cciCube } from '../../../src/cci/cube/cciCube';
 
 describe('IdentityUtil', () => {
   describe('notifyingIdentities()', () => {
-    describe('from local CubeStore', () => {
+    describe('from local store', () => {
+      // In these tests, Identites are already present both as Cubes in the
+      // local CubeStore as well as as Identity objects in the local IdentityStore.
       let cubeStore: CubeStore;
       let notifying1: Identity, notifying2: Identity, notifying3: Identity;
       let irrelevant: Identity, nonNotifying: Identity;
@@ -92,24 +94,23 @@ describe('IdentityUtil', () => {
 
       it('will yield three matching notifying Identities', () => {
         expect(result.length).toBe(3);
-        expect(result.some(id =>
-          id.key.equals(notifying1.key)
-        )).toBe(true);
-        expect(result.some(id =>
-          id.key.equals(notifying2.key)
-        )).toBe(true);
-        expect(result.some(id =>
-          id.key.equals(notifying3.key)
-        )).toBe(true);
+        // Checking for exact object match as we already have those Identity
+        // objects in local store.
+        // notifyingIdentites() should not re-instantiate them.
+        expect(result).toContain(notifying1);
+        expect(result).toContain(notifying2);
+        expect(result).toContain(notifying3);
       });
 
       it('will not yield the non-notifying Identity', () => {
+        expect(result).not.toContain(nonNotifying);
         expect(result.some(id =>
           id.key.equals(nonNotifying.key)
         )).toBe(false);
       });
 
       it('will not yield the non-matching notifying Identity', () => {
+        expect(result).not.toContain(irrelevant);
         expect(result.some(id =>
           id.key.equals(irrelevant.key)
         )).toBe(false);
@@ -126,6 +127,7 @@ describe('IdentityUtil', () => {
       let peer: DummyNetworkPeer;
 
       let notifying1: Identity, notifying2: Identity;
+      let n1Bin: Buffer, n2Bin: Buffer;
       const notificationKey: CubeKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
 
       const result: Identity[] = [];
@@ -144,21 +146,24 @@ describe('IdentityUtil', () => {
         });
         retriever = new CubeRetriever(cubeStore, scheduler);
 
-        // prepare test Identities
-        const identityStore: IdentityStore = new IdentityStore(cubeStore);
+        // Prepare test Identities
+        // This is happening "remotely", thus we use a different CubeStore
+        // as well as a different IdentityStore
+        const creationCs = new CubeStore(testCciOptions);
+        const creationIs = new IdentityStore(creationCs);
         const identityOptions: IdentityOptions = {
           ...testCciOptions,
-          identityStore,
+          identityStore: creationIs,
         };
 
         const masterKey1: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 71);
-        notifying1 = new Identity(cubeStore, masterKey1, {
+        notifying1 = new Identity(creationCs, masterKey1, {
           ...identityOptions,
           idmucNotificationKey: notificationKey,
         });
 
         const masterKey2: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 22);
-        notifying2 = new Identity(cubeStore, masterKey2, {
+        notifying2 = new Identity(creationCs, masterKey2, {
           ...identityOptions,
           idmucNotificationKey: notificationKey,
         });
@@ -168,25 +173,8 @@ describe('IdentityUtil', () => {
           notifying1.makeMUC().then(muc => n1muc = muc),
           notifying2.makeMUC().then(muc => n2muc = muc),
         ]);
-        const n1Bin: Buffer = await n1muc!.getBinaryData();
-        const n2Bin: Buffer = await n2muc!.getBinaryData();
-
-        // run test
-        const gen = notifyingIdentities(retriever, notificationKey, identityStore);
-        // save results to array for ease of testing
-        (async () => { for await (const id of gen) result.push(id) })();
-
-        // simulate some network latency
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // have the notifying Identity root Cubes arrive
-        await scheduler.handleCubesDelivered([n1Bin, n2Bin], peer);
-
-        // TODO BUGBUG FIXME crashes in CubeStore's LevelDB without this delay
-        // (while the effect of this bug looks serious, it's still low priority
-        // because it is most certainly caused by shutting down the components
-        // too early, which is a pathological case)
-        await new Promise(resolve => setTimeout(resolve, 100));
+        n1Bin = await n1muc!.getBinaryData();
+        n2Bin = await n2muc!.getBinaryData();
       });
 
       afterAll(async () => {
@@ -197,7 +185,27 @@ describe('IdentityUtil', () => {
       });
 
       describe('regular one-off requests', () => {
-        it.only('yields the two notifying Identities', () => {
+        beforeAll(async () => {
+          // run test
+          const retrievalIs = new IdentityStore(cubeStore)
+          const gen = notifyingIdentities(retriever, notificationKey, retrievalIs);
+          // save results to array for ease of testing
+          (async () => { for await (const id of gen) result.push(id) })();
+
+          // simulate some network latency
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          // have the notifying Identity root Cubes arrive
+          await scheduler.handleCubesDelivered([n1Bin, n2Bin], peer);
+
+          // TODO BUGBUG FIXME crashes in CubeStore's LevelDB without this delay
+          // (while the effect of this bug looks serious, it's still low priority
+          // because it is most certainly caused by shutting down the components
+          // too early, which is a pathological case)
+          await new Promise(resolve => setTimeout(resolve, 100));
+        });
+
+        it('yields the two notifying Identities', () => {
           expect(result.length).toBe(2);
           expect(result.some(id =>
             id.key.equals(notifying1.key)
@@ -205,6 +213,12 @@ describe('IdentityUtil', () => {
           expect(result.some(id =>
             id.key.equals(notifying2.key)
           )).toBe(true);
+
+          // Note: This simulates a "remote" test, so the Identities need to
+          //   have been reinstantiated. They cannot be the exact same objects
+          //   as on creation.
+          expect(result).not.toContain(notifying1);
+          expect(result).not.toContain(notifying2);
         });
       });
 
