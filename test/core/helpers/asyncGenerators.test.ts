@@ -225,6 +225,29 @@ describe('mergeAsyncGenerators', () => {
 
       expect(results).toHaveLength(3);
     });
+
+    it('can be terminated while awaiting the next value', async () => {
+      const emitter = new EventEmitter();
+      const endlessGen = eventsToGenerator([{emitter, event: 'event'}]);
+
+      const merged = mergeAsyncGenerators(endlessGen);
+      const ret: any[] = [];
+      const done: Promise<void> = (async () => {
+        for await (const value of merged) ret.push(value)
+      })();
+
+      emitter.emit("event", "eventus primus");
+      emitter.emit("event", "eventus secundus");
+      emitter.emit("event", "eventus tertius");
+
+      // yield control to allow generator to advance
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      merged.cancel();
+      await done;
+
+      expect(ret).toEqual(["eventus primus", "eventus secundus", "eventus tertius"]);
+    });
   });
 
   describe('completion Promises', () => {

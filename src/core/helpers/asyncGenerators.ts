@@ -6,14 +6,19 @@ import EventEmitter from "events";
  */
 export type MergedAsyncGenerator<T> = AsyncGenerator<T> & {
   completions: Promise<void>[];
+  cancel(): void;
 };
 
 /**
  * Helper function to merge multiple async generators into one.
  * It accepts any number of async generators and yields all of their values
  * in the order they are received.
- * Optionally tracks completion of each input generator via `completions`
- * property on the returned async generator.
+ * @returns An AsyncGenerator with the following additional features:
+ *   - Tracks completion of each input generator via the `completions` property
+ *   - Can be aborted at any time by calling .cancel() on it,
+ *     even while it is awaiting the next value.
+ *     Note that in contrast the standard .return() call will only take effect
+ *     after the next value has been yielded.
  */
 export function mergeAsyncGenerators<T>(
   ...generators: AsyncGenerator<T>[]
@@ -23,51 +28,71 @@ export function mergeAsyncGenerators<T>(
   // So let's start by creating some helpers.
   // You could also call those attributes and methods, if you're so inclined.
 
+  // Here's an Array of promises for the next values for each generator
+  const nextPromises: Promise<IteratorResult<T>>[] = [];
+
+  // Promise 0 is a special extra promise that will allow us to interrupt the
+  // loop at any time.
+  const reloadSignal = {signal: 'reload' };  // will actually be compared by ref
+  const abortSignal = {signal: 'abort' };  // will actually be compared by ref
+  let interruptPromiseResolve: (signal: Object) => void;
+  let interruptPromise: Promise<Object> = new Promise((res) => {
+    interruptPromiseResolve = res;
+  })
+  nextPromises.push(interruptPromise as Promise<IteratorResult<T>>);  // HACKHACK typecast
+
+  // Now add the actual next value promises
+  nextPromises.push(...generators.map((gen) =>
+    gen.next()
+  ));
+
   // Here's a list of promises that will tell us when any individual input
   // generator is done.
-  const inputGensDone = generators.map(() => {
-    let resolve!: () => void;
+  const inputGenDone = () => {
+    let resolve: () => void;
     const promise = new Promise<void>((res) => {
       resolve = res;
     });
     return { promise, resolve };
-  });
-
-  // Here's an Array of promises for the next values for each generator
-  const nextPromises: Promise<IteratorResult<T>>[] = generators.map((gen) =>
-    gen.next()
-  );
+  }
+  const inputGensDone = generators.map(() => inputGenDone());
 
   // Now here comes the main part: Define the async generator body itself
   async function* merged(): AsyncGenerator<T> {
-    while (nextPromises.length > 0) {
+    while (nextPromises.length > 1) {  // >1 because index 0 is just our interrupt promise
       // Wait for any promise to resolve, and note which generator (index) it came from
       const { value, index } = await Promise.race(
         nextPromises.map((nextPromise, genIndex) =>
           nextPromise.then((result) => ({ value: result, index: genIndex })))
       );
+      const nextPromisesIndex = index;
+      const generatorsIndex = index - 1;
 
       // Well, we got a resolved promise! What could that be?
       // - Is it just a signal that we should re-run our loop, probably because
       //   an extra input generator was added?
-      // TODO implement
+      if (Object.is(value, reloadSignal)) {
+        continue;
+      }
       // - Is it an abort signal, telling us we should stop?
-      // TODO implement
+      else if (Object.is(value, abortSignal)) {
+        return;  // if our boss tells us we're done, we're done
+      }
       // - It it because one of the input generators has ended?
-      if (value.done) {
+      else if (value.done) {
         // When a generator ends, resolve its deferred promise.
-        inputGensDone[index].resolve();
+        inputGensDone[generatorsIndex].resolve();
 
         // Remove that generator, its promise, and its deferred from the arrays.
-        nextPromises.splice(index, 1);
-        generators.splice(index, 1);
-        inputGensDone.splice(index, 1);
+        nextPromises.splice(nextPromisesIndex, 1);
+        generators.splice(generatorsIndex, 1);
+        inputGensDone.splice(generatorsIndex, 1);
       }
       // - Or is it because there's actually a value to yield?
       else {
         // Yield the coming value and immediately request the next one.
         yield value.value;
-        nextPromises[index] = generators[index].next();
+        nextPromises[nextPromisesIndex] = generators[generatorsIndex].next();
       }
     }
   }
@@ -80,6 +105,13 @@ export function mergeAsyncGenerators<T>(
   // - Attach the `completions` property (an array of promises indicating
   //   which of the input generators have completed).
   asyncGen.completions = inputGensDone.map(deferred => deferred.promise);
+  // - Attach the cancel() method to be able to interrupt the Generator while it is
+  //   awaiting the next promise
+  asyncGen.cancel = () => {
+    interruptPromiseResolve(abortSignal);
+    return undefined;
+  };
+
   return asyncGen;
 }
 
