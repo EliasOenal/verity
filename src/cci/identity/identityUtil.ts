@@ -40,9 +40,17 @@ export async function *notifyingIdentities(
   // Then, for each notifying Identity root Cube, yield its Identity
   for await (const idRoot of idRoots) {
     if (!isCci(idRoot)) continue;
-    const id = new Identity(cubeStoreOrRetriever, idRoot as cciCube, {
-      identityStore,
-    });
-    yield id;
+    // Do we already have an object for this Identity?
+    const keyString = idRoot.getKeyStringIfAvailable();
+    const id = identityStore.getIdentity(keyString);
+    if (id)  yield id;
+    else {
+    // We don't yet have an object for this Identity.
+    // Create one, then yield it.
+      const id = new Identity(cubeStoreOrRetriever, idRoot as cciCube, {
+        identityStore,
+      });
+      yield id;
+    }
   }
 }
