@@ -37,11 +37,19 @@ export async function *notifyingIdentities(
     idRoots = mergeAsyncGenerators(existingIdRoots);
   }
 
+  const idsHandled: Set<string> = new Set();
+
   // Then, for each notifying Identity root Cube, yield its Identity
   for await (const idRoot of idRoots) {
     if (!isCci(idRoot)) continue;
-    // Do we already have an object for this Identity?
     const keyString = idRoot.getKeyStringIfAvailable();
+
+    // In subscribe mode, we may receive the same Identity multiple times.
+    // So let's skip any duplicates.
+    if (idsHandled.has(keyString)) continue;
+    idsHandled.add(keyString);
+
+    // Do we already have an object for this Identity?
     const id = identityStore.getIdentity(keyString);
     if (id)  yield id;
     else {
