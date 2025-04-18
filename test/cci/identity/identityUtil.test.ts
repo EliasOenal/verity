@@ -120,89 +120,97 @@ describe('IdentityUtil', () => {
 
 
     describe('retrieving over the wire', () => {
-      let cubeStore: CubeStore;
-      let networkManager: NetworkManagerIf;
-      let scheduler: RequestScheduler;
-      let retriever: CubeRetriever;
-      let peer: DummyNetworkPeer;
+      for (const subscribeMode of [true]) describe(subscribeMode? 'subscribe mode' : 'regular one-off requests', () => {
+        let cubeStore: CubeStore;
+        let networkManager: NetworkManagerIf;
+        let scheduler: RequestScheduler;
+        let retriever: CubeRetriever;
+        let peer: DummyNetworkPeer;
 
-      let notifying1: Identity, notifying2: Identity;
-      let n1Bin: Buffer, n2Bin: Buffer;
-      const notificationKey: CubeKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
+        let notifying1: Identity, notifying2: Identity;
+        let n1Bin: Buffer, n2Bin: Buffer;
+        const notificationKey: CubeKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
 
-      const result: Identity[] = [];
+        const result: Identity[] = [];
 
-      beforeAll(async () => {
-        // Prepare a minimal node with dummy networking components
-        await sodium.ready;
-        cubeStore = new CubeStore(testCciOptions);
-        await cubeStore.readyPromise;
-        networkManager = new DummyNetworkManager(cubeStore, new PeerDB());
-        peer = new DummyNetworkPeer(networkManager, undefined, cubeStore);
-        networkManager.outgoingPeers = [peer];
-        scheduler = new RequestScheduler(networkManager, {
-          ...testCciOptions,
-          requestTimeout: 1000,
-        });
-        retriever = new CubeRetriever(cubeStore, scheduler);
-
-        // Prepare test Identities
-        // This is happening "remotely", thus we use a different CubeStore
-        // as well as a different IdentityStore
-        const creationCs = new CubeStore(testCciOptions);
-        const creationIs = new IdentityStore(creationCs);
-        const identityOptions: IdentityOptions = {
-          ...testCciOptions,
-          identityStore: creationIs,
-        };
-
-        const masterKey1: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 71);
-        notifying1 = new Identity(creationCs, masterKey1, {
-          ...identityOptions,
-          idmucNotificationKey: notificationKey,
-        });
-
-        const masterKey2: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 22);
-        notifying2 = new Identity(creationCs, masterKey2, {
-          ...identityOptions,
-          idmucNotificationKey: notificationKey,
-        });
-
-        let n1muc: cciCube, n2muc: cciCube;
-        await Promise.all([
-          notifying1.makeMUC().then(muc => n1muc = muc),
-          notifying2.makeMUC().then(muc => n2muc = muc),
-        ]);
-        n1Bin = await n1muc!.getBinaryData();
-        n2Bin = await n2muc!.getBinaryData();
-      });
-
-      afterAll(async () => {
-        await notifying1.identityStore.shutdown();
-        await cubeStore.shutdown();
-        await networkManager.shutdown();
-        await scheduler.shutdown();
-      });
-
-      describe('regular one-off requests', () => {
         beforeAll(async () => {
+          // Prepare a minimal node with dummy networking components
+          await sodium.ready;
+          cubeStore = new CubeStore(testCciOptions);
+          await cubeStore.readyPromise;
+          networkManager = new DummyNetworkManager(cubeStore, new PeerDB());
+          peer = new DummyNetworkPeer(networkManager, undefined, cubeStore);
+          networkManager.outgoingPeers = [peer];
+          scheduler = new RequestScheduler(networkManager, {
+            ...testCciOptions,
+            requestTimeout: 1000,
+          });
+          retriever = new CubeRetriever(cubeStore, scheduler);
+
+          // Prepare test Identities
+          // This is happening "remotely", thus we use a different CubeStore
+          // as well as a different IdentityStore
+          const creationCs = new CubeStore(testCciOptions);
+          const creationIs = new IdentityStore(creationCs);
+          const identityOptions: IdentityOptions = {
+            ...testCciOptions,
+            identityStore: creationIs,
+          };
+
+          const masterKey1: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 71);
+          notifying1 = new Identity(creationCs, masterKey1, {
+            ...identityOptions,
+            idmucNotificationKey: notificationKey,
+          });
+
+          const masterKey2: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 22);
+          notifying2 = new Identity(creationCs, masterKey2, {
+            ...identityOptions,
+            idmucNotificationKey: notificationKey,
+          });
+
+          let n1muc: cciCube, n2muc: cciCube;
+          await Promise.all([
+            notifying1.makeMUC().then(muc => n1muc = muc),
+            notifying2.makeMUC().then(muc => n2muc = muc),
+          ]);
+          n1Bin = await n1muc!.getBinaryData();
+          n2Bin = await n2muc!.getBinaryData();
+
           // run test
           const retrievalIs = new IdentityStore(cubeStore)
-          const gen = notifyingIdentities(retriever, notificationKey, retrievalIs);
+          const gen = notifyingIdentities(
+            retriever, notificationKey, retrievalIs, {
+              subscribe: subscribeMode,
+          });
           // save results to array for ease of testing
           (async () => { for await (const id of gen) result.push(id) })();
 
           // simulate some network latency
           await new Promise(resolve => setTimeout(resolve, 100));
 
-          // have the notifying Identity root Cubes arrive
-          await scheduler.handleCubesDelivered([n1Bin, n2Bin], peer);
+          // have the notifying Identity root Cubes arrive:
+          // in one-off mode, they have to arrive all at once...
+          if (!subscribeMode) await scheduler.handleCubesDelivered([n1Bin, n2Bin], peer);
+          // ... while in subscribe mode, they are allowed to trickle in over time
+          if (subscribeMode) {
+            await scheduler.handleCubesDelivered([n1Bin], peer);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            await scheduler.handleCubesDelivered([n2Bin], peer);
+          }
 
           // TODO BUGBUG FIXME crashes in CubeStore's LevelDB without this delay
           // (while the effect of this bug looks serious, it's still low priority
           // because it is most certainly caused by shutting down the components
           // too early, which is a pathological case)
           await new Promise(resolve => setTimeout(resolve, 100));
+        });
+
+        afterAll(async () => {
+          await notifying1.identityStore.shutdown();
+          await cubeStore.shutdown();
+          await networkManager.shutdown();
+          await scheduler.shutdown();
         });
 
         it('yields the two notifying Identities', () => {
@@ -220,11 +228,7 @@ describe('IdentityUtil', () => {
           expect(result).not.toContain(notifying1);
           expect(result).not.toContain(notifying2);
         });
-      });
-
-      describe('subscribe mode', () => {
-        it.todo('write tests');
-      });
+      });  // subscribe mode / regular one-off requests
     });  // retrieving over the wire
   });  // notifyingIdentities()
 });  // identityUtil
