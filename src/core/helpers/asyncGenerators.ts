@@ -18,8 +18,14 @@ export type MergedAsyncGenerator<T> = AsyncGenerator<T> & {
 export function mergeAsyncGenerators<T>(
   ...generators: AsyncGenerator<T>[]
 ): MergedAsyncGenerator<T> {
-  // Create a deferred promise for each generator.
-  const completionsDeferred = generators.map(() => {
+  // Hi, welcome to this beautiful helper function!
+  // It's more of an ad-hoc object, to be honest.
+  // So let's start by creating some helpers.
+  // You could also call those attributes and methods, if you're so inclined.
+
+  // Here's a list of promises that will tell us when any individual input
+  // generator is done.
+  const inputGensDone = generators.map(() => {
     let resolve!: () => void;
     const promise = new Promise<void>((res) => {
       resolve = res;
@@ -27,42 +33,54 @@ export function mergeAsyncGenerators<T>(
     return { promise, resolve };
   });
 
-  // Define the inner async generator function
-  async function* merged(): AsyncGenerator<T> {
-    // Array of promises for the next values for each generator
-    const nextPromises: Promise<IteratorResult<T>>[] = generators.map((gen) =>
-      gen.next()
-    );
+  // Here's an Array of promises for the next values for each generator
+  const nextPromises: Promise<IteratorResult<T>>[] = generators.map((gen) =>
+    gen.next()
+  );
 
+  // Now here comes the main part: Define the async generator body itself
+  async function* merged(): AsyncGenerator<T> {
     while (nextPromises.length > 0) {
       // Wait for any promise to resolve, and note which generator (index) it came from
       const { value, index } = await Promise.race(
-        nextPromises.map((p, i) => p.then((result) => ({ value: result, index: i })))
+        nextPromises.map((nextPromise, genIndex) =>
+          nextPromise.then((result) => ({ value: result, index: genIndex })))
       );
 
-      if (!value.done) {
-        // Yield the coming value and immediately request the next one.
-        yield value.value;
-        nextPromises[index] = generators[index].next();
-      } else {
+      // Well, we got a resolved promise! What could that be?
+      // - Is it just a signal that we should re-run our loop, probably because
+      //   an extra input generator was added?
+      // TODO implement
+      // - Is it an abort signal, telling us we should stop?
+      // TODO implement
+      // - It it because one of the input generators has ended?
+      if (value.done) {
         // When a generator ends, resolve its deferred promise.
-        completionsDeferred[index].resolve();
+        inputGensDone[index].resolve();
 
         // Remove that generator, its promise, and its deferred from the arrays.
         nextPromises.splice(index, 1);
         generators.splice(index, 1);
-        completionsDeferred.splice(index, 1);
+        inputGensDone.splice(index, 1);
+      }
+      // - Or is it because there's actually a value to yield?
+      else {
+        // Yield the coming value and immediately request the next one.
+        yield value.value;
+        nextPromises[index] = generators[index].next();
       }
     }
   }
 
   // Create the async generator instance.
-  const asyncGen = merged();
+  const asyncGen: MergedAsyncGenerator<T> = merged() as MergedAsyncGenerator<T>;
 
-  // Attach the `completions` property (an array of promises).
-  return Object.assign(asyncGen, {
-    completions: completionsDeferred.map((deferred) => deferred.promise),
-  });
+  // Let's go ahead and enhance the async generator with the additional
+  // properties we defined:
+  // - Attach the `completions` property (an array of promises indicating
+  //   which of the input generators have completed).
+  asyncGen.completions = inputGensDone.map(deferred => deferred.promise);
+  return asyncGen;
 }
 
 
