@@ -19,6 +19,7 @@ export interface NotifyingIdentitiesOptions {
   subscribe?: boolean;
 }
 
+// TODO: make cancellable, in particular in subscribe mode
 export async function *notifyingIdentities(
     cubeStoreOrRetriever: CubeRetrievalInterface<any>,
     notificationKey: CubeKey,

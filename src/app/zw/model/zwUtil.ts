@@ -6,7 +6,7 @@
 import { Settings } from "../../../core/settings";
 import { NetConstants } from "../../../core/networking/networkDefinitions";
 
-import { Cube } from "../../../core/cube/cube";
+import { Cube, CubeCreateOptions } from "../../../core/cube/cube";
 import { CubeKey, CubeType } from "../../../core/cube/cube.definitions";
 import { CubeStore } from "../../../core/cube/cubeStore";
 
@@ -22,7 +22,7 @@ import { Buffer } from 'buffer';
 
 import { logger } from "../../../core/logger";
 
-export interface MakePostOptions {
+export interface MakePostOptions extends CubeCreateOptions {
   replyto?: CubeKey;
   id?: Identity;
   requiredDifficulty?: number;

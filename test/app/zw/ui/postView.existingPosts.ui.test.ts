@@ -56,7 +56,10 @@ describe('PostView tests regarding displayal of existing posts', () => {
           });
           if (subscriptionBased) await controller.navWot();
           else await controller.navExplore();
-          await new Promise((resolve) => setTimeout(resolve, 1000));  // in exlore mode, posts will currently often only be learned through emit and not through the getAll-generator -- this should get fixed once we fully transition to the high level API :(
+
+          // TODO: In explore mode, we currently do not provide a useful
+          //   done promise, so let's just give it some time to get done.
+          await new Promise((resolve) => setTimeout(resolve, 200));
           controller.contentAreaView.show();
         });
 
@@ -145,14 +148,14 @@ describe('PostView tests regarding displayal of existing posts', () => {
         });
 
         // Currently fails to display user names in some cases and I don't know why
-        describe.skip('posts arriving after the view has been built', () => {
+        describe('posts arriving after the view has been built', () => {
           beforeAll(async () => {
             // make a second set of posts appear
             w.posts.push(new TestWordPostSet(w, " (second set of posts)"));
             await w.posts[1].makePosts();
             await w.storeIdentities();
 
-            await new Promise(resolve => setTimeout(resolve, 1000));  // give it some time
+            await new Promise(resolve => setTimeout(resolve, 200));  // give it some time
           });
 
           testSuite(1);
