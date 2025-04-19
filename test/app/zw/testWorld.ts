@@ -13,7 +13,6 @@ import { testCubeStoreParams, idTestOptions } from "../../cci/testcci.definition
 import sodium from "libsodium-wrappers-sumo";
 import { Buffer } from 'buffer';
 import { ZwConfig } from "../../../src/app/zw/model/zwConfig";
-import { NotifyingIdentityEmitter } from "../../../src/app/zw/model/notifyingIdentityEmitter";
 import { VeritumRetriever } from "../../../src/cci/veritum/veritumRetriever";
 
 export interface TestWorldOptions {
@@ -214,24 +213,24 @@ export class TestWordPostSet {
       { id: this.w.directSub, requiredDifficulty: 0, replyto: await this.ownUnrelatedAnswered.getKey(), store: this.w.cubeStore });
 
     // - posts by direct sub
-    this.directUnreplied = await makePost("Post by direct sub" + this.suffix,
+    this.directUnreplied = await makePost("Post by direct sub (unreplied) " + this.suffix,
       { id: this.w.directSub, requiredDifficulty: 0, store: this.w.cubeStore });
-    this.directReplied = await makePost("Post by direct sub" + this.suffix,
+    this.directReplied = await makePost("Post by direct sub (replied) " + this.suffix,
       { id: this.w.directSub, requiredDifficulty: 0, store: this.w.cubeStore });
     // - own reply
-    this.directOwn = await makePost("Reply by protagonist" + this.suffix,
+    this.directOwn = await makePost("Reply by protagonist to post by direct sub " + this.suffix,
       { id: this.w.protagonist, requiredDifficulty: 0, replyto: await this.directReplied.getKey(), store: this.w.cubeStore });
     // - reply by third level sub
     this.directThird = await makePost("Reply by third level sub" + this.suffix,
       { id: this.w.thirdLevelSub, requiredDifficulty: 0, replyto: await this.directReplied.getKey(), store: this.w.cubeStore });
 
     // - posts by indirect sub
-    this.indirectUnreplied = await makePost("Post by indirect sub" + this.suffix,
+    this.indirectUnreplied = await makePost("Post by indirect sub (unreplied) " + this.suffix,
       { id: this.w.indirectSub, requiredDifficulty: 0, store: this.w.cubeStore });
-    this.indirectReplied = await makePost("Post by indirect sub" + this.suffix,
+    this.indirectReplied = await makePost("Post by indirect sub (replied) " + this.suffix,
       { id: this.w.indirectSub, requiredDifficulty: 0, store: this.w.cubeStore });
     // - own reply
-    this.indirectOwn = await makePost("Reply by protagonist" + this.suffix,
+    this.indirectOwn = await makePost("Reply by protagonist to post by indirect sub " + this.suffix,
       { id: this.w.protagonist, requiredDifficulty: 0, replyto: await this.indirectReplied.getKey(), store: this.w.cubeStore });
 
     // - posts by third level sub
@@ -240,7 +239,7 @@ export class TestWordPostSet {
     this.thirdReplied = await makePost("Post by third level sub" + this.suffix,
       { id: this.w.thirdLevelSub, requiredDifficulty: 0, store: this.w.cubeStore });
     // - own reply
-    this.thirdOwn = await makePost("Reply by protagonist" + this.suffix,
+    this.thirdOwn = await makePost("Reply by protagonist to post by third level sub " + this.suffix,
       { id: this.w.protagonist, requiredDifficulty: 0, replyto: await this.thirdReplied.getKey(), store: this.w.cubeStore });
 
     // - post by unrelated which will stay unanswered
