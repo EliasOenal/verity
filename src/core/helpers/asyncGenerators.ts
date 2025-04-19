@@ -8,6 +8,7 @@ export type MergedAsyncGenerator<T> = AsyncGenerator<T> & {
   completions: Promise<void>[];
   addInputGenerator(generator: AsyncGenerator<T>): void;
   cancel(): void;
+  setEndless(endless?: boolean): void;
 };
 
 /**
@@ -23,6 +24,8 @@ export type MergedAsyncGenerator<T> = AsyncGenerator<T> & {
  *   - Additional input generators can be added via the `addInputGenerator`
  *     method. This obviously only works as long as the generator is not done
  *     yet, i.e. the existing input generators have not completed.
+ *   - If needed, you can artificially make the generator never finish by
+ *     calling `setEndless()` on it (reversible by calling `setEndless(false)`).
  */
 export function mergeAsyncGenerators<T>(
   ...generators: AsyncGenerator<T>[]
@@ -61,9 +64,13 @@ export function mergeAsyncGenerators<T>(
   }
   const inputGensDone = generators.map(() => inputGenDone());
 
+  // On demand (but not by default), this generator can be made endless even
+  // if all of its input generators are done.
+  let endless = false;
+
   // Now here comes the main part: Define the async generator body itself
   async function* merged(): AsyncGenerator<T> {
-    while (nextPromises.length > 1) {  // >1 because index 0 is just our interrupt promise
+    while (endless || nextPromises.length > 1) {  // >1 because index 0 is just our interrupt promise
       // Wait for any promise to resolve, and note which generator (index) it came from
       const { value, index } = await Promise.race(
         nextPromises.map((nextPromise, genIndex) =>
@@ -130,6 +137,11 @@ export function mergeAsyncGenerators<T>(
       interruptPromiseResolve = res;
     });
     nextPromises[0] = interruptPromise as Promise<IteratorResult<T>>;
+  };
+  // - Add `setEndless` method to be able to make the Generator endless
+  //   even if all of its input generators are done.
+  asyncGen.setEndless = (arg: boolean = true) => {
+    endless = arg;
   };
 
   return asyncGen;

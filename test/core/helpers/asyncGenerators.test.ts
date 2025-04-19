@@ -403,7 +403,36 @@ describe('mergeAsyncGenerators', () => {
       // Clean up
       merged.cancel();
       await done;
-    })
+    });
+
+    it('can add inputs to an empty but endless merged generator', async () => {
+      // Create an empty merged generator and set it to endless
+      const merged = mergeAsyncGenerators();
+      merged.setEndless();
+
+      // Run generator and store yielded values to array for ease of testing
+      const ret: any[] = [];
+      const done: Promise<void> = (async () => {
+        for await (const value of merged) ret.push(value)
+      })();
+
+      // yield for a while, just to assert nothing happens :)
+      await new Promise(resolve => setTimeout(resolve, 100));
+      expect(ret).toHaveLength(0);
+
+      // Add an input generator
+      const input = createAsyncGenerator(["eventus primus", "eventus secundus", "eventus tertius"]);
+      merged.addInputGenerator(input);
+
+      // yield to allow generator to advance
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(ret).toHaveLength(3);
+      expect(ret).toEqual(["eventus primus", "eventus secundus", "eventus tertius"]);
+
+      // Clean up
+      merged.cancel();
+      await done;
+    });
   });
 });  // mergeAsyncGenerators()
 
