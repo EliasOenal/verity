@@ -349,6 +349,61 @@ describe('mergeAsyncGenerators', () => {
       // In our implementation, the promise remains unresolved if the generator throws.
       expect(didResolve).toBe(false);
     });
+  });  // completion Promises
+
+  describe('addInputGenerator()', () => {
+    it('should add a new input generator to the merged generator', async () => {
+      const emitter = new EventEmitter();
+      const firstInputGen = eventsToGenerator([{emitter: emitter, event: 'first'}]);
+      const secondInputGen = eventsToGenerator([{emitter: emitter, event: 'second'}]);
+
+      // Create the merged generator, first only with the first input generator
+      const merged = mergeAsyncGenerators(firstInputGen);
+      // Store yielded values to array for ease of testing
+      const ret: any[] = [];
+      const done: Promise<void> = (async () => {
+        for await (const value of merged) ret.push(value)
+      })();
+
+      // Have firstInputGen yield something -- this should be re-yielded by merged.
+      emitter.emit("first", "eventus primus");
+      // yield control to allow generator to advance
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(ret).toHaveLength(1);
+
+      // Have secondInputGen yield something -- this should be re-yielded by merged.
+      emitter.emit("second", "eventus secundus");
+      // yield control to allow generator to advance
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(ret).toHaveLength(1);
+
+      // Now add the second input generator
+      merged.addInputGenerator(secondInputGen);
+
+      // Have secondInputGen yield something -- this should be re-yielded by merged.
+      emitter.emit("second", "eventus tertius");
+      // yield control to allow generator to advance
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(ret).toHaveLength(2);
+
+      // Have firstInputGen yield something, which should obviously still be re-yielded by merged.
+      emitter.emit("first", "eventus quartus");
+      // yield control to allow generator to advance
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(ret).toHaveLength(3);
+
+      // And finally have secondInputGen yield again for good measure.
+      emitter.emit("second", "eventus quintus");
+      // yield control to allow generator to advance
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(ret).toHaveLength(4);
+
+      expect(ret).toEqual(["eventus primus", "eventus tertius", "eventus quartus", "eventus quintus"]);
+
+      // Clean up
+      merged.cancel();
+      await done;
+    })
   });
 });  // mergeAsyncGenerators()
 

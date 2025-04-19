@@ -6,6 +6,7 @@ import EventEmitter from "events";
  */
 export type MergedAsyncGenerator<T> = AsyncGenerator<T> & {
   completions: Promise<void>[];
+  addInputGenerator(generator: AsyncGenerator<T>): void;
   cancel(): void;
 };
 
@@ -19,6 +20,9 @@ export type MergedAsyncGenerator<T> = AsyncGenerator<T> & {
  *     even while it is awaiting the next value.
  *     Note that in contrast the standard .return() call will only take effect
  *     after the next value has been yielded.
+ *   - Additional input generators can be added via the `addInputGenerator`
+ *     method. This obviously only works as long as the generator is not done
+ *     yet, i.e. the existing input generators have not completed.
  */
 export function mergeAsyncGenerators<T>(
   ...generators: AsyncGenerator<T>[]
@@ -110,6 +114,22 @@ export function mergeAsyncGenerators<T>(
   asyncGen.cancel = () => {
     interruptPromiseResolve(abortSignal);
     return undefined;
+  };
+  // - Add helper function `addInputGenerator` to be able to add a new input
+  //   generator after the Generator has already started.
+  asyncGen.addInputGenerator = (gen: AsyncGenerator<T>) => {
+    generators.push(gen);
+    // Add a promise for the next value for the new generator
+    nextPromises.push(gen.next());
+    // Add a deferred promise for the completion of the new generator
+    inputGensDone.push(inputGenDone());
+    // Fire and replace our interrupt promise to make the Generator reload
+    // its loop.
+    interruptPromiseResolve(reloadSignal);
+    interruptPromise = new Promise((res) => {
+      interruptPromiseResolve = res;
+    });
+    nextPromises[0] = interruptPromise as Promise<IteratorResult<T>>;
   };
 
   return asyncGen;
