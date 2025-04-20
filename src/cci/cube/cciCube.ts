@@ -1,4 +1,6 @@
-import type { Relationship } from "./relationship";
+import type { CubeFamilyDefinition } from "../../core/cube/cubeFields";
+import type { CubeField } from "../../core/cube/cubeField";
+import type { Relationship, RelationshipType } from "./relationship";
 
 import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
@@ -6,8 +8,6 @@ import { NetConstants } from "../../core/networking/networkDefinitions";
 import { FieldPosition } from "../../core/fields/baseFields";
 import { CubeError, CubeType, FieldError, FieldSizeError } from "../../core/cube/cube.definitions";
 import { Cube, CubeCreateOptions, CubeOptions } from "../../core/cube/cube";
-import { CubeFamilyDefinition } from "../../core/cube/cubeFields";
-import { CubeField } from "../../core/cube/cubeField";
 
 import { VerityField } from "./verityField";
 import { VerityFields, cciFieldParsers } from "./verityFields";
@@ -15,7 +15,7 @@ import { FieldType } from "./cciCube.definitions";
 
 import { KeyPair, deriveSigningKeypair } from "../helpers/cryptography";
 
-import { Buffer } from 'buffer'
+import { Buffer } from 'buffer';  // for browsers
 
 export class cciCube extends Cube {
   static Create(
@@ -194,7 +194,7 @@ export class cciCube extends Cube {
   // Expose field methods
   //###
 
-  getRelationships(type?: number): Array<Relationship> {
+  getRelationships(type?: RelationshipType): Relationship[] {
     return this._fields.getRelationships(type);
   }
   public getFirstRelationship(type?: number): Relationship {
