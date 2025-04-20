@@ -1,11 +1,11 @@
 import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
-import { FieldError } from "../../core/cube/cube.definitions";
+import { CubeKey, FieldError } from "../../core/cube/cube.definitions";
 import { CubeField } from "../../core/cube/cubeField";
 
 import { FieldType, MediaTypes, FieldLength } from "./cciCube.definitions";
-import { Relationship } from "./relationship";
+import { Relationship, RelationshipType } from "./relationship";
 
 import { Buffer } from 'buffer'
 
@@ -48,7 +48,15 @@ export class VerityField extends CubeField {
     return new this(FieldType.DESCRIPTION, desc);
   }
 
-  static RelatesTo(rel: Relationship) {
+  static RelatesTo(rel: Relationship): VerityField;
+  static RelatesTo(type: RelationshipType, remoteKey: CubeKey);
+  static RelatesTo(input1: Relationship | RelationshipType, input2?: CubeKey): VerityField {
+    // normalise input
+    let rel: Relationship;
+    if (input1 instanceof Relationship) rel = input1;
+    else rel = new Relationship(input1, input2);
+
+    // craft field
     const value: Buffer = Buffer.alloc(
         NetConstants.RELATIONSHIP_TYPE_SIZE +
         NetConstants.CUBE_KEY_SIZE);
