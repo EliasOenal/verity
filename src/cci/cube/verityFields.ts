@@ -1,14 +1,13 @@
-import { NetConstants } from "../../core/networking/networkDefinitions";
+import type { CubeField } from "../../core/cube/cubeField";
 
 import { FieldPosition } from "../../core/fields/baseFields";
-import { CubeField } from "../../core/cube/cubeField";
 import { CubeFields, FieldParserTable } from "../../core/cube/cubeFields";
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
 import { CubeType, FrozenDefaultFields, FrozenNotifyDefaultFields, FrozenNotifyPositionalBack, FrozenPositionalBack, FrozenPositionalFront, MucDefaultFields, MucNotifyDefaultFields, MucNotifyPositionalBack, MucPositionalBack, MucPositionalFront, PicDefaultFields, PicNotifyDefaultFields, PicNotifyPositionalBack, PicPositionalBack, PicPositionalFront, PmucDefaultFields, PmucNotifyDefaultFields, PmucNotifyPositionalBack, PmucPositionalBack, PmucPositionalFront } from "../../core/cube/cube.definitions";
 
 import { FieldType, FieldLength } from "./cciCube.definitions";
 import { VerityField } from "./verityField";
-import { Relationship } from "./relationship";
+import { Relationship, RelationshipType } from "./relationship";
 
 import { Buffer } from 'buffer'
 import { logger } from "../../core/logger";
@@ -44,7 +43,7 @@ export class VerityFields extends CubeFields {
   * @param [type] If specified, only get relationships of the specified type.
   * @return An array of Relationship objects, which may be empty.
   */
-  public getRelationships(type?: number): Array<Relationship> {
+  public getRelationships(type?: RelationshipType): Relationship[] {
     const relationshipfields = this.get(FieldType.RELATES_TO);
     const ret = [];
     for (const relationshipfield of relationshipfields) {
@@ -56,7 +55,7 @@ export class VerityFields extends CubeFields {
   }
 
 
-  public getFirstRelationship(type?: number): Relationship {
+  public getFirstRelationship(type?: RelationshipType): Relationship {
     const rels: Array<Relationship> = this.getRelationships(type);
     if (rels.length) return rels[0];
     else return undefined;
