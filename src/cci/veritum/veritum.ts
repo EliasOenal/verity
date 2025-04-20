@@ -16,6 +16,7 @@ import { logger } from "../../core/logger";
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo';
+import { Relationship, RelationshipType } from "../cube/relationship";
 
 export interface VeritumCreateOptions extends VeritumCompileOptions {
   /**
@@ -221,5 +222,15 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     }
     return this._chunks;
   }
+
+  // Note: The following two methods have been copied from cciCube.
+  //   That's not perfectly DRY, but come on, they're single line methods.
+  getRelationships(type?: RelationshipType): Array<Relationship> {
+    return this._fields.getRelationships(type);
+  }
+  public getFirstRelationship(type?: number): Relationship {
+    return this._fields.getFirstRelationship(type);
+  }
+
 
 }
