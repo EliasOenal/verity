@@ -96,26 +96,34 @@ export abstract class VeritableBaseImplementation implements Veritable {
     }
 
     equals(other: Veritable&VeritableBaseImplementation, metric?: FieldEqualityMetric): boolean {
+        // Cubes of different types are not equal
+        if (this.cubeType !== other.cubeType) return false;
+
+        // Note: NOT comparing families as those describe purely local rules;
+        //   also, if we did, we'd have to ensure to actually compare family
+        //   rules rather than family object addresses.
+
+        // Compare key according to the following rules:
+        // - Two Verita with different keys are not equal
         if (
-            this.cubeType === other.cubeType &&
-            // this.family === other.family &&  // this is wrong as it compares object addresses, not contents
-            (
-                // Compare key according to the following rules:
-                // - Two Verita with the same key can be equal
-                // - Two Verita who both don't know their key
-                //   (e.g. due to both being uncompiled) can be equal
-                // - Verita with different keys are NOT equal
-                // - If one Veritum knows its key and the other doesn't,
-                //   they are NOT equal
-                !this.getKeyIfAvailable() && !other.getKeyIfAvailable() ||
-                (
-                    other.getKeyIfAvailable() &&
-                    this.getKeyIfAvailable()?.equals?.(other.getKeyIfAvailable())
-                )
-            ) &&
-            this.fieldsEqual(other, metric)
-        ) return true;
-        else return false;
+            this.getKeyIfAvailable() && other.getKeyIfAvailable() &&
+            !this.getKeyIfAvailable().equals(other.getKeyIfAvailable())
+        ) return false;
+        // - If one Veritum knows its key and the other doesn't,
+        //   they are not equal
+        if (
+            (!this.getKeyIfAvailable() && other.getKeyIfAvailable()) ||
+            (this.getKeyIfAvailable() && !other.getKeyIfAvailable())
+        ) return false;
+        // Note: On the other hand:
+        // - two Verita with the same key can obviously be equal; and
+        // - less obviously, two Verita who both don't know their key
+        //   (e.g. due to both being uncompiled) can be equal
+
+        // Compare fields
+        if (!this.fieldsEqual(other, metric)) return false;
+
+        return true;  // all checks passed
     }
 
     /** Subclass should override */
@@ -123,8 +131,11 @@ export abstract class VeritableBaseImplementation implements Veritable {
         return Promise.resolve();
     }
 
-    fieldsEqual(other: VeritableBaseImplementation, metric?: FieldEqualityMetric): boolean {
-       return this._fields.equals(other._fields, metric);
+    fieldsEqual(
+            other: VeritableBaseImplementation,
+            metric: FieldEqualityMetric = FieldEqualityMetric.IgnoreOrder,
+    ): boolean {
+        return this._fields.equals(other._fields, metric);
     }
 
     get fieldCount(): number { return this._fields.length }
