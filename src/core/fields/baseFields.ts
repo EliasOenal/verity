@@ -32,6 +32,7 @@ export enum FieldEqualityMetric {
 
 export interface FieldsEqualOptions {
     metric?: FieldEqualityMetric;
+    ignoreDisregarded?: boolean;
 }
 
 /** Nice wrapper around a field array providing some useful methods. */
@@ -147,14 +148,24 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
     ): boolean {
         // set default options
         options.metric ??= FieldEqualityMetric.IgnoreOrder;
+        options.ignoreDisregarded ??= true;
+
+        let cmpThis: BaseFields, cmpOther: BaseFields;
+        if (options.ignoreDisregarded) {
+            cmpThis = this.withoutDisregarded();
+            cmpOther = other.withoutDisregarded();
+        } else {
+            cmpThis = this;
+            cmpOther = other;
+        }
 
         switch (options.metric) {
             case FieldEqualityMetric.IgnoreOrder:
-                return this.equalsUnordered(other);
+                return cmpThis.equalsUnordered(cmpOther);
             case FieldEqualityMetric.Ordered:
-                return this.equalsOrdered(other);
+                return cmpThis.equalsOrdered(cmpOther);
             case FieldEqualityMetric.OrderedSameOffset:
-                return this.equalsOrdered(other, true);
+                return cmpThis.equalsOrdered(cmpOther, true);
         }
     }
 

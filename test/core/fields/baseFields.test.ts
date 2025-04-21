@@ -202,37 +202,53 @@ describe('baseFields', () => {
   });
 
   describe('equals', () => {
-    describe('using default metric (Ordered)', () => {
-      it('should return true when comparing two identical BaseFields instances', () => {
-        const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
-        const baseField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
-        const baseFields1 = new BaseFields([baseField1], testFieldDefinition);
-        const baseFields2 = new BaseFields([baseField2], testFieldDefinition);
-        expect(baseFields1.equals(baseFields2)).toBe(true);
+    describe('using metric IgnoreOrder (default)', () => {
+      it('should return true when comparing BaseFields instances with same fields in different order', () => {
+        const baseFields1 = new BaseFields([payload, payload2], testFieldDefinition);
+        const baseFields2 = new BaseFields([payload2, payload], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2, { metric: FieldEqualityMetric.IgnoreOrder })).toBe(true);
       });
 
-      it('should return false when comparing two different BaseFields instances', () => {
+      it('should return false when comparing BaseFields instances with different fields', () => {
         const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
-        const baseField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test2'));
-        const baseFields1 = new BaseFields([baseField1], testFieldDefinition);
-        const baseFields2 = new BaseFields([baseField2], testFieldDefinition);
-        expect(baseFields1.equals(baseFields2)).toBe(false);
+        const baseField2 = new BaseField(TestFieldType.NONCE, Buffer.from('other field'));
+        const baseField3 = new BaseField(TestFieldType.SIGNATURE, Buffer.from('yet another field'));
+        const baseFields1 = new BaseFields([baseField1, baseField2], testFieldDefinition);
+        const baseFields2 = new BaseFields([baseField1, baseField3], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2, { metric: FieldEqualityMetric.IgnoreOrder })).toBe(false);
+      });
+    });
+
+    describe('using metric Ordered', () => {
+      it('should return true when comparing two identical BaseFields', () => {
+        const baseFields1 = new BaseFields([payload], testFieldDefinition);
+        const baseFields2 = new BaseFields([payload], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2, { metric: FieldEqualityMetric.Ordered })).toBe(true);
+      });
+
+      it('should return false when comparing two different BaseFields', () => {
+        const baseFields1 = new BaseFields([payload], testFieldDefinition);
+        const baseFields2 = new BaseFields([payload2], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2, { metric: FieldEqualityMetric.Ordered })).toBe(false);
       });
 
       it('should return false when comparing BaseFields instances with different lengths', () => {
-        const baseField = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
-        const baseFields1 = new BaseFields([baseField], testFieldDefinition);
+        const baseFields1 = new BaseFields([payload], testFieldDefinition);
         const baseFields2 = new BaseFields([], testFieldDefinition);
-        expect(baseFields1.equals(baseFields2)).toBe(false);
+        expect(baseFields1.equals(baseFields2, { metric: FieldEqualityMetric.Ordered })).toBe(false);
+      });
+
+      it('should return false when comparing BaseFields instances with same fields in different order', () => {
+        const baseFields1 = new BaseFields([payload, payload2], testFieldDefinition);
+        const baseFields2 = new BaseFields([payload2, payload], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2, { metric: FieldEqualityMetric.Ordered })).toBe(false);
       });
     });
 
     describe('using metric OrderedSameOffset', () => {
       it('should return true when comparing BaseFields instances with same order and offset', () => {
-        const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'), 0);
-        const baseField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'), 0);
-        const baseFields1 = new BaseFields([baseField1], testFieldDefinition);
-        const baseFields2 = new BaseFields([baseField2], testFieldDefinition);
+        const baseFields1 = new BaseFields([payload], testFieldDefinition);
+        const baseFields2 = new BaseFields([payload], testFieldDefinition);
         expect(baseFields1.equals(baseFields2, { metric: FieldEqualityMetric.OrderedSameOffset })).toBe(true);
       });
 
@@ -245,22 +261,87 @@ describe('baseFields', () => {
       });
     });
 
-    describe('using metric IgnoreOrder', () => {
-      it('should return true when comparing BaseFields instances with same fields in different order', () => {
-        const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
-        const baseField2 = new BaseField(TestFieldType.NONCE, Buffer.from('other field'));
-        const baseFields1 = new BaseFields([baseField1, baseField2], testFieldDefinition);
-        const baseFields2 = new BaseFields([baseField2, baseField1], testFieldDefinition);
-        expect(baseFields1.equals(baseFields2, { metric: FieldEqualityMetric.IgnoreOrder })).toBe(true);
+    describe('using option ignoreDisregarded (default)', () => {
+      it('should compare two BaseFields as equal if one contains a disregarded field and the other does not', () => {
+        const baseFields1 = new BaseFields([
+          version, date, payload, stop, sig, nonce
+        ], testFieldDefinition);
+        const baseFields2 = new BaseFields([
+          version, date, payload, stop, payload2, sig, nonce
+        ], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2)).toBe(true);
       });
 
-      it('should return false when comparing BaseFields instances with different fields', () => {
-        const baseField1 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'));
-        const baseField2 = new BaseField(TestFieldType.NONCE, Buffer.from('other field'));
-        const baseField3 = new BaseField(TestFieldType.SIGNATURE, Buffer.from('yet another field'));
-        const baseFields1 = new BaseFields([baseField1, baseField2], testFieldDefinition);
-        const baseFields2 = new BaseFields([baseField1, baseField3], testFieldDefinition);
-        expect(baseFields1.equals(baseFields2, { metric: FieldEqualityMetric.IgnoreOrder })).toBe(false);
+      it('should compare two BaseFields as equal if they only differ in disregarded fields', () => {
+        const baseFields1 = new BaseFields([
+          version, date, stop, payload, sig, nonce
+        ], testFieldDefinition);
+        const baseFields2 = new BaseFields([
+          version, date, stop, payload, payload2, sig, nonce
+        ], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2)).toBe(true);
+      });
+
+      it('should compare two BaseFields as equal if one contains a remainder field and the other does not', () => {
+        const baseFields1 = new BaseFields([
+          version, date, payload, sig, nonce
+        ], testFieldDefinition);
+        const baseFields2 = new BaseFields([
+          version, date, payload, sig, nonce, remainder
+        ], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2)).toBe(true);
+      });
+
+      it('should return false if one has a stop field and the other does not', () => {
+        const baseFields1 = new BaseFields([
+          version, date, payload, stop, sig, nonce
+        ], testFieldDefinition);
+        const baseFields2 = new BaseFields([
+          version, date, payload, sig, nonce
+        ], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2)).toBe(false);
+      });
+    });
+
+    describe('disabling option ignoreDisregarded', () => {
+      it('should return false if one BaseFields contains a disregarded field and the other does not', () => {
+        const baseFields1 = new BaseFields([
+          version, date, payload, stop, sig, nonce
+        ], testFieldDefinition);
+        const baseFields2 = new BaseFields([
+          version, date, payload, stop, payload2, sig, nonce
+        ], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2, { ignoreDisregarded: false })).toBe(false);
+      });
+
+      it('should return false if two BaseFields differ (only) in disregarded fields', () => {
+        const baseFields1 = new BaseFields([
+          version, date, stop, payload, sig, nonce
+        ], testFieldDefinition);
+        const baseFields2 = new BaseFields([
+          version, date, stop, payload, payload2, sig, nonce
+        ], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2, { ignoreDisregarded: false })).toBe(false);
+      });
+
+      it('should return false if one BaseFields contains a remainder field and the other does not', () => {
+        const baseFields1 = new BaseFields([
+          version, date, payload, sig, nonce
+        ], testFieldDefinition);
+        const baseFields2 = new BaseFields([
+          version, date, payload, sig, nonce, remainder
+        ], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2, { ignoreDisregarded: false })).toBe(false);
+      });
+
+      it('should return false if one has a stop field and the other does not', () => {
+        const baseFields1 = new BaseFields([
+          version, date, payload, stop, sig, nonce
+        ], testFieldDefinition);
+        const baseFields2 = new BaseFields([
+          version, date, payload, sig, nonce
+        ], testFieldDefinition);
+        expect(baseFields1.equals(baseFields2, { ignoreDisregarded: false })).toBe(false);
       });
     });
   });
