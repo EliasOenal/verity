@@ -413,4 +413,76 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         }
         this.appendField(field);
     }
+
+
+    /**
+     * @returns A copy of this field set, with all disregarded fields removed.
+     *   Disregarded fields are those that appear after a stop field (as defined
+     *   by this.fieldDefinition) and are not positional,
+     *   as well as the remainder field.
+     *   (Note that the stop field itself however is not a disregarded field.)
+     *   For example:
+     *     - In the core family, there are no disregarded fields.
+     *       The returned field set will be identical to this one.
+     *     - In the CCI family, all non-positional fields after CCI_END will be
+     *       disregarded, as will be REMAINDER.
+     */
+    withoutDisregarded(): this {
+        // make a shallow copy of this field set
+        const copy = Object.assign(Object.create(Object.getPrototypeOf(this)), this);
+        copy.data = [];
+
+        // Prepare a list of positional field types
+        const positionals: number[] = [
+            ...Object.values(this.fieldDefinition.positionalFront),
+            ...Object.values(this.fieldDefinition.positionalBack),
+        ];
+        // Prepare a helper function to check for the stop and remainder fields
+        const isStop = type =>
+            Number.isInteger(this.fieldDefinition.stopField) &&
+            type === this.fieldDefinition.stopField;
+        const isRemainder = type =>
+            Number.isInteger(this.fieldDefinition.remainderField) &&
+            type === this.fieldDefinition.remainderField;
+
+        // look for disregarded fields and remove them
+        let stop: boolean = false;
+        for (let i = 0; i < this.data.length; i++) {
+            // Is this a positional field?
+            if (positionals.includes(this.data[i].type)) {
+                // positionals are never disregarded
+                copy.data.push(this.data[i]);
+                // handle special case: positional field could be the stop field
+                if (isStop(this.data[i].type)) {
+                    stop = true;
+                }
+            }
+
+            // Are we still before the stop field?
+            else if (!stop) {
+                // Did we encounter the stop field?
+                // (first check if there even is a stop field)
+                if (isStop(this.data[i].type)) {
+                    stop = true;
+                    // Note that the stop field itself is *not* disregarded
+                    copy.data.push(this.data[i]);
+                }
+                else if (isRemainder(this.data[i].type)) {
+                    // The remainder field is always disregarded
+                    // Do nothing
+                }
+                else {
+                    // Regular field before the stop -- keep it
+                    copy.data.push(this.data[i]);
+                }
+            }
+
+            // If we end up here, the encountered field is
+            // - not a positional, and
+            // - past the stop field.
+            // It will thus be disregarded.
+        }
+
+        return copy;
+    }
 }

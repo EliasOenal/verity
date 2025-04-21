@@ -14,6 +14,8 @@ describe('baseFields', () => {
     NONCE = 0,
     PAYLOAD = 4,
     SIGNATURE = 24,
+    STOP = 66,
+    REMAINDER = 67,
     VERSION = 257,
     DATE = 258,
   }
@@ -21,6 +23,8 @@ describe('baseFields', () => {
     [TestFieldType.NONCE]: 4,
     [TestFieldType.PAYLOAD]: undefined,
     [TestFieldType.SIGNATURE]: 5,
+    [TestFieldType.STOP]: undefined,  // using variable length stop field, just 'cause CCI doesn't
+    [TestFieldType.REMAINDER]: undefined,
     [TestFieldType.VERSION]: 1,
     [TestFieldType.DATE]: 5,
   };
@@ -40,9 +44,12 @@ describe('baseFields', () => {
     fieldObjectClass: BaseField,
     fieldsObjectClass: BaseFields,
     firstFieldOffset: 0,
+    stopField: TestFieldType.STOP,
+    remainderField: TestFieldType.REMAINDER,
   }
   let fieldParser: FieldParser;
-  let version: BaseField, date: BaseField, sig: BaseField, nonce: BaseField, payload: BaseField, payload2: BaseField;
+  let version: BaseField, date: BaseField, sig: BaseField, nonce: BaseField;
+  let payload: BaseField, payload2: BaseField, stop: BaseField, remainder: BaseField;
 
   beforeEach(() => {
     // prepare the field parser
@@ -68,11 +75,17 @@ describe('baseFields', () => {
       TestFieldType.NONCE, noncedata
     );
 
-    const payloaddata = Buffer.alloc(137); payloaddata.fill(42);
+    const payloaddata = 'Habeo res importantes dicere';
     payload = new BaseField(TestFieldType.PAYLOAD, payloaddata);
 
-    const payloaddata2 = Buffer.alloc(137); payloaddata2.fill(84);
+    const payloaddata2 = 'Habeo res maximi momenti dicendas'
     payload2 = new BaseField(TestFieldType.PAYLOAD, payloaddata2);
+
+    const stopdata = "Tempus dicendi consumptum est"
+    stop = new BaseField(TestFieldType.STOP, stopdata);
+
+    const remainderdata = "Nemo iam curat verba tua"
+    remainder = new BaseField(TestFieldType.REMAINDER, remainderdata);
   });
 
   describe('constructor (construction from scratch)', () => {
@@ -355,7 +368,7 @@ describe('baseFields', () => {
         expect(fields.all[0].type).toEqual(TestFieldType.VERSION);
         expect(fields.all[1].type).toEqual(TestFieldType.DATE);
         expect(fields.all[2].type).toEqual(TestFieldType.PAYLOAD);
-        expect(fields.all[2].value[0]).toEqual(42);
+        expect(fields.all[2].valueString).toEqual(payload.valueString)
         expect(fields.all[3].type).toEqual(TestFieldType.SIGNATURE);
         expect(fields.all[4].type).toEqual(TestFieldType.NONCE);
         fields.insertFieldBeforeBackPositionals(payload2);
@@ -363,9 +376,9 @@ describe('baseFields', () => {
         expect(fields.all[0].type).toEqual(TestFieldType.VERSION);
         expect(fields.all[1].type).toEqual(TestFieldType.DATE);
         expect(fields.all[2].type).toEqual(TestFieldType.PAYLOAD);
-        expect(fields.all[2].value[0]).toEqual(42);
+        expect(fields.all[2].valueString).toEqual(payload.valueString)
         expect(fields.all[3].type).toEqual(TestFieldType.PAYLOAD);
-        expect(fields.all[3].value[0]).toEqual(84);
+        expect(fields.all[3].valueString).toEqual(payload2.valueString)
         expect(fields.all[4].type).toEqual(TestFieldType.SIGNATURE);
         expect(fields.all[5].type).toEqual(TestFieldType.NONCE);
       });
@@ -529,7 +542,46 @@ describe('baseFields', () => {
     });
   });
 
-  describe('DefaultPositionals', () => {
+  describe('withoutDisregarded()', () => {
+    it('should create an equal copy when there is no stop field', () => {
+      const fields: BaseFields = new BaseFields([
+        version, date, payload, payload2, sig, nonce
+      ], testFieldDefinition);
+      const result = fields.withoutDisregarded();
+      expect(result).toEqual(fields);
+    });
+
+    it('should drop non-positional fields after the stop field while retaining positionals', () => {
+      const fields: BaseFields = new BaseFields([
+        version, date, payload, stop, payload2, sig, nonce
+      ], testFieldDefinition);
+      const result = fields.withoutDisregarded();
+      expect(result).toBeInstanceOf(BaseFields);
+      expect(result.length).toEqual(6);
+      expect(result.all[0].equals(version)).toBe(true);
+      expect(result.all[1].equals(date)).toBe(true);
+      expect(result.all[2].equals(payload)).toBe(true);
+      expect(result.all[3].equals(stop)).toBe(true);
+      expect(result.all[4].equals(sig)).toBe(true);
+      expect(result.all[5].equals(nonce)).toBe(true);
+    });
+
+    it('should always drop the remainder field', () => {
+      const fields: BaseFields = new BaseFields([
+        version, date, remainder, payload, sig, nonce
+      ], testFieldDefinition);
+      const result = fields.withoutDisregarded();
+      expect(result).toBeInstanceOf(BaseFields);
+      expect(result.length).toEqual(5);
+      expect(result.all[0].equals(version)).toBe(true);
+      expect(result.all[1].equals(date)).toBe(true);
+      expect(result.all[2].equals(payload)).toBe(true);
+      expect(result.all[3].equals(sig)).toBe(true);
+      expect(result.all[4].equals(nonce)).toBe(true);
+    });
+  });
+
+  describe('DefaultPositionals() static method', () => {
     it('should fill in missing positional fields with default values', () => {
       const result = BaseFields.DefaultPositionals(CoreFrozenFieldDefinition);
       // ensure correct types
