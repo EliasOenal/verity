@@ -397,7 +397,7 @@ describe('VeritumRetriever', () => {
         expect(retrievedVeritum instanceof Veritum).toBe(true);
         expect(retrievedVeritum.cubeType).toBe(CubeType.FROZEN);
         expect(retrievedVeritum.getFirstField(FieldType.PAYLOAD).valueString).toEqual(evenLonger);
-        expect(retrievedVeritum.equals(veritum, FieldEqualityMetric.IgnoreOrder)).toBe(true);
+        expect(retrievedVeritum.equals(veritum)).toBe(true);
       });
 
       it('retrieves a three-chunk PIC Veritum already in store', async () => {
@@ -418,7 +418,7 @@ describe('VeritumRetriever', () => {
         expect(retrievedVeritum instanceof Veritum).toBe(true);
         expect(retrievedVeritum.cubeType).toBe(CubeType.PIC);
         expect(retrievedVeritum.getFirstField(FieldType.PAYLOAD).valueString).toEqual(evenLonger);
-        expect(retrievedVeritum.equals(veritum, FieldEqualityMetric.IgnoreOrder)).toBe(true);
+        expect(retrievedVeritum.equals(veritum)).toBe(true);
       });
     });
 

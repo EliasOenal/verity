@@ -233,7 +233,7 @@ describe('baseFields', () => {
         const baseField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'), 0);
         const baseFields1 = new BaseFields([baseField1], testFieldDefinition);
         const baseFields2 = new BaseFields([baseField2], testFieldDefinition);
-        expect(baseFields1.equals(baseFields2, FieldEqualityMetric.OrderedSameOffset)).toBe(true);
+        expect(baseFields1.equals(baseFields2, { metric: FieldEqualityMetric.OrderedSameOffset })).toBe(true);
       });
 
       it('should return false when comparing BaseFields instances with same order but different offsets', () => {
@@ -241,7 +241,7 @@ describe('baseFields', () => {
         const baseField2 = new BaseField(TestFieldType.PAYLOAD, Buffer.from('test'), 1);
         const baseFields1 = new BaseFields([baseField1], testFieldDefinition);
         const baseFields2 = new BaseFields([baseField2], testFieldDefinition);
-        expect(baseFields1.equals(baseFields2, FieldEqualityMetric.OrderedSameOffset)).toBe(false);
+        expect(baseFields1.equals(baseFields2, { metric: FieldEqualityMetric.OrderedSameOffset })).toBe(false);
       });
     });
 
@@ -251,7 +251,7 @@ describe('baseFields', () => {
         const baseField2 = new BaseField(TestFieldType.NONCE, Buffer.from('other field'));
         const baseFields1 = new BaseFields([baseField1, baseField2], testFieldDefinition);
         const baseFields2 = new BaseFields([baseField2, baseField1], testFieldDefinition);
-        expect(baseFields1.equals(baseFields2, FieldEqualityMetric.IgnoreOrder)).toBe(true);
+        expect(baseFields1.equals(baseFields2, { metric: FieldEqualityMetric.IgnoreOrder })).toBe(true);
       });
 
       it('should return false when comparing BaseFields instances with different fields', () => {
@@ -260,7 +260,7 @@ describe('baseFields', () => {
         const baseField3 = new BaseField(TestFieldType.SIGNATURE, Buffer.from('yet another field'));
         const baseFields1 = new BaseFields([baseField1, baseField2], testFieldDefinition);
         const baseFields2 = new BaseFields([baseField1, baseField3], testFieldDefinition);
-        expect(baseFields1.equals(baseFields2, FieldEqualityMetric.IgnoreOrder)).toBe(false);
+        expect(baseFields1.equals(baseFields2, { metric: FieldEqualityMetric.IgnoreOrder })).toBe(false);
       });
     });
   });

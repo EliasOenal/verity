@@ -205,7 +205,7 @@ describe('Veritum compilation/decompilation tests', () => {
         expect(restoredVeritum.getFirstField(FieldType.DATE).value.equals(
           veritum.getFirstField(FieldType.DATE).value)).toBe(true);
         expect((await restoredVeritum.getKey()).equals(key)).toBe(true);
-        expect(restoredVeritum.equals(veritum, FieldEqualityMetric.IgnoreOrder)).toBe(true);
+        expect(restoredVeritum.equals(veritum)).toBe(true);
       });
 
     });

@@ -171,7 +171,7 @@ describe('cci Cockpit', () => {
 
           // perform test
           const restored: Veritum = await cockpit.getVeritum(key);
-          expect(restored.equals(veritum, FieldEqualityMetric.IgnoreOrder)).toBe(true);
+          expect(restored.equals(veritum)).toBe(true);
         });
 
         if (loggedIn) it("automatically decrypts a single-chunk encrypted Veritum if sender's public key is included", async() => {
