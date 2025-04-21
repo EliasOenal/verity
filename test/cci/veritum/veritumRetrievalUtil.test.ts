@@ -110,8 +110,7 @@ describe('VeritumRetrievalUtil', () => {
             const retrieved = await res.MYPOST[0];
             expect(retrieved).toBeInstanceOf(cciCube);
             expect(retrieved.getFirstField(FieldType.PAYLOAD).valueString).toBe("Hic cubus ab aliis cubis refertur");
-            // TODO fix Cube equality :-/
-            // expect(retrieved.equals(root1)).toBe(true);
+            expect(retrieved.equals(root1)).toBe(true);
           });
         });
       });
