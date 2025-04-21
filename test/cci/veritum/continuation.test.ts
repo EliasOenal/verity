@@ -238,7 +238,7 @@ describe('Continuation', () => {
           it("restored veritum's fields and original's fields compare as equal", () => {
             // Note that we don't compare the Verita itself as they have different
             // compilation status
-            expect(recombined.fieldsEqual(veritum, FieldEqualityMetric.IgnoreOrder)).toBe(true);
+            expect(recombined.fieldsEqual(veritum)).toBe(true);
           });
         });  // split and restore a single overly large payload field requiring two chunks
 

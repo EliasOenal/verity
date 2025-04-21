@@ -4,7 +4,7 @@ import { NetConstants } from '../networking/networkDefinitions';
 
 import type { Veritable } from './veritable.definition';
 
-import { FieldEqualityMetric, FieldPosition } from '../fields/baseFields';
+import { FieldEqualityMetric, FieldPosition, FieldsEqualOptions } from '../fields/baseFields';
 import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasNotify, HasSignature, SmartCubeError, ToggleNotifyType } from "./cube.definitions";
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
@@ -95,7 +95,7 @@ export abstract class VeritableBaseImplementation implements Veritable {
         throw new ApiMisuseError("VeritableBaseImplementation subclasses must implement getKeyString()");
     }
 
-    equals(other: Veritable&VeritableBaseImplementation, metric?: FieldEqualityMetric): boolean {
+    equals(other: Veritable&VeritableBaseImplementation, options?: FieldsEqualOptions): boolean {
         // Cubes of different types are not equal
         if (this.cubeType !== other.cubeType) return false;
 
@@ -121,7 +121,7 @@ export abstract class VeritableBaseImplementation implements Veritable {
         //   (e.g. due to both being uncompiled) can be equal
 
         // Compare fields
-        if (!this.fieldsEqual(other, metric)) return false;
+        if (!this.fieldsEqual(other, options)) return false;
 
         return true;  // all checks passed
     }
@@ -133,9 +133,9 @@ export abstract class VeritableBaseImplementation implements Veritable {
 
     fieldsEqual(
             other: VeritableBaseImplementation,
-            metric: FieldEqualityMetric = FieldEqualityMetric.IgnoreOrder,
+            options: FieldsEqualOptions = {},
     ): boolean {
-        return this._fields.equals(other._fields, metric);
+        return this._fields.equals(other._fields, options);
     }
 
     get fieldCount(): number { return this._fields.length }

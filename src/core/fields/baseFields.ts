@@ -30,6 +30,10 @@ export enum FieldEqualityMetric {
     OrderedSameOffset,
 }
 
+export interface FieldsEqualOptions {
+    metric?: FieldEqualityMetric;
+}
+
 /** Nice wrapper around a field array providing some useful methods. */
 // TODO: Abstract this further by introducing a base class not requiring a field
 // definition. Within BaseFields, the field definition is currently *only* used in getByteLength()
@@ -137,8 +141,14 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
         return ret;
     }
 
-    equals(other: BaseFields, metric: FieldEqualityMetric = FieldEqualityMetric.Ordered): boolean {
-        switch (metric) {
+    equals(
+            other: BaseFields,
+            options: FieldsEqualOptions = {},
+    ): boolean {
+        // set default options
+        options.metric ??= FieldEqualityMetric.IgnoreOrder;
+
+        switch (options.metric) {
             case FieldEqualityMetric.IgnoreOrder:
                 return this.equalsUnordered(other);
             case FieldEqualityMetric.Ordered:
