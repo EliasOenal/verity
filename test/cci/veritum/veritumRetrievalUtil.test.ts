@@ -6,112 +6,139 @@ import { cciCube } from '../../../src/cci/cube/cciCube';
 import { testCciOptions } from '../testcci.definitions';
 import { VerityField } from '../../../src/cci/cube/verityField';
 import { RelationshipType } from '../../../src/cci/cube/relationship';
-import { resolveRels, ResolveRelsResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
+import { resolveRels, resolveRelsRecursive, ResolveRelsRecursiveResult, ResolveRelsResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
 import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 
-describe('VeritumRetrievalUtil', () => {
-  describe('resolveRefs()', () => {
-    let cubeStore: CubeStore = new CubeStore(testCciOptions);
+describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', () => {
+  let cubeStore: CubeStore;
+  let leaf1: cciCube;
+  let leaf2: cciCube;
+  let leaf3: cciCube;
+  let singleMyPost: cciCube;
+  let twoMyPosts: cciCube;
+  let replyToPlusMyPost: cciCube;
 
-    let singleMyPost: cciCube;
-    let twoMyPosts: cciCube;
-    let replyToPlusMyPost: cciCube;
+  let cubeA: cciCube, cubeB: cciCube, cubeC: cciCube;
 
-    let root1: cciCube;
-    let root2: cciCube;
-    let root3: cciCube;
+  beforeAll(async () => {
+    // Wait for any needed crypto initialization.
+    await sodium.ready;
+    cubeStore = new CubeStore(testCciOptions);
+    await cubeStore.readyPromise;
 
-    beforeAll(async () => {
-      await sodium.ready;
-      await cubeStore.readyPromise;
+    // --- Create leaf cubes (i.e. having no further references) ---
+    leaf1 = cciCube.Create({
+      fields: [VerityField.Payload("Hic cubus ab aliis cubis refertur")],
+      requiredDifficulty: 0,
+    });
+    const leaf1Key = await leaf1.getKey();
+    await cubeStore.addCube(leaf1);
 
-      // sculpt test cubes:
-      // let's start with the "root" Cubes, i.e. those not referring to any further Cubes
-      root1 = cciCube.Create({
-        fields: VerityField.Payload("Hic cubus ab aliis cubis refertur"),
-        requiredDifficulty: 0,
-      });
-      const root1Key = await root1.getKey();
-      await cubeStore.addCube(root1);
+    leaf2 = cciCube.Create({
+      fields: [VerityField.Payload("Hic cubus quoque ab aliis cubis refertur")],
+      requiredDifficulty: 0,
+    });
+    const leaf2Key = await leaf2.getKey();
+    await cubeStore.addCube(leaf2);
 
-      root2 = cciCube.Create({
-        fields: VerityField.Payload("Hic cubus quoque ab aliis cubis refertur"),
-        requiredDifficulty: 0,
-      });
-      const root2Key = await root2.getKey();
-      await cubeStore.addCube(root2);
+    leaf3 = cciCube.Create({
+      fields: [VerityField.Payload("Alius cubus ab aliis refertur")],
+      requiredDifficulty: 0,
+    });
+    const leaf3Key = await leaf3.getKey();
+    await cubeStore.addCube(leaf3);
 
-      root3 = cciCube.Create({
-        fields: VerityField.Payload("Alius cubus ab aliis refertur"),
-        requiredDifficulty: 0,
-      });
-      const root3Key = await root3.getKey();
-      await cubeStore.addCube(root3);
+    // --- Create cubes with relationships (first level) ---
+    singleMyPost = cciCube.Create({
+      fields: [
+        VerityField.Payload("Ecce, dominus meus hunc alium cubum interessantem scripsit"),
+        VerityField.RelatesTo(RelationshipType.MYPOST, leaf1Key),
+      ],
+      requiredDifficulty: 0,
+    });
 
-      // let's continue with single level referrals
-      singleMyPost = cciCube.Create({
-        fields: [
-          VerityField.Payload("Ecce, dominus meus hunc alium cubum interessantem scripsit"),
-          VerityField.RelatesTo(RelationshipType.MYPOST, root1Key),
-        ],
-        requiredDifficulty: 0,
-      });
+    twoMyPosts = cciCube.Create({
+      fields: [
+        VerityField.Payload("Dominus meus sapiens plures alios cubos interessantes scripsit"),
+        VerityField.RelatesTo(RelationshipType.MYPOST, leaf1Key),
+        VerityField.RelatesTo(RelationshipType.MYPOST, leaf2Key),
+      ],
+      requiredDifficulty: 0,
+    });
 
-      twoMyPosts = cciCube.Create({
-        fields: [
-          VerityField.Payload("Dominus meus sapiens plures alios cubos interessantes scripsit"),
-          VerityField.RelatesTo(RelationshipType.MYPOST, root1Key),
-          VerityField.RelatesTo(RelationshipType.MYPOST, root2Key),
-        ],
-        requiredDifficulty: 0,
-      });
-
-      replyToPlusMyPost = cciCube.Create({
-        fields: [
-          VerityField.Payload("Tam sapiens est ut cubis alienis respondeat"),
-          VerityField.RelatesTo(RelationshipType.REPLY_TO, root3Key),
-          VerityField.RelatesTo(RelationshipType.MYPOST, root1Key),
-          VerityField.RelatesTo(RelationshipType.MYPOST, root2Key),
-        ],
-        requiredDifficulty: 0,
-      })
+    replyToPlusMyPost = cciCube.Create({
+      fields: [
+        VerityField.Payload("Tam sapiens est ut cubis alienis respondeat"),
+        VerityField.RelatesTo(RelationshipType.REPLY_TO, leaf3Key),
+        VerityField.RelatesTo(RelationshipType.MYPOST, leaf1Key),
+        VerityField.RelatesTo(RelationshipType.MYPOST, leaf2Key),
+      ],
+      requiredDifficulty: 0,
     });
 
 
-    describe('non-recursive', () => {
-      describe('resolves a single MYPOST reference', () => {
-        let res: ResolveRelsResult;
+    // Create a chain: cubeA -> cubeB -> cubeC (with cubeC being a leaf cube)
+    cubeC = cciCube.Create({
+      fields: [VerityField.Payload("Cube C")],
+      requiredDifficulty: 0,
+    });
+    await cubeStore.addCube(cubeC);
+    const cubeCKey = await cubeC.getKey();
 
-        beforeAll(() => {
-          res = resolveRels(
-            singleMyPost,
-            cubeStore.getCube.bind(cubeStore)
-          );
+    cubeB = cciCube.Create({
+      fields: [
+        VerityField.Payload("Cube B"),
+        VerityField.RelatesTo(RelationshipType.REPLY_TO, cubeCKey),
+      ],
+      requiredDifficulty: 0,
+    });
+    await cubeStore.addCube(cubeB);
+    const cubeBKey = await cubeB.getKey();
+
+    cubeA = cciCube.Create({
+      fields: [
+        VerityField.Payload("Cube A"),
+        VerityField.RelatesTo(RelationshipType.MYPOST, cubeBKey),
+      ],
+      requiredDifficulty: 0,
+    });
+    await cubeStore.addCube(cubeA);
+  });
+
+
+  describe('resolveRefs()', () => {
+    describe('resolves a single MYPOST reference', () => {
+      let res: ResolveRelsResult;
+
+      beforeAll(() => {
+        res = resolveRels(
+          singleMyPost,
+          cubeStore.getCube.bind(cubeStore)
+        );
+      });
+
+      describe('test without awaiting', () => {
+        it('refers the input Cube', () => {
+          expect(res.main).toBe(singleMyPost);
         });
 
-        describe('test without awaiting', () => {
-          it('refers the input Cube', () => {
-            expect(res.main).toBe(singleMyPost);
-          });
-
-          it('contains a retrieval promise for the referred Cube', () => {
-            expect(Array.isArray(res.MYPOST)).toBe(true);
-            expect(res.MYPOST.length).toBe(1);
-            expect(res.MYPOST[0]).toBeInstanceOf(Promise);
-          });
-
-          it('contains a collective done promise', () => {
-            expect(res.done).toBeInstanceOf(Promise);
-          });
+        it('contains a retrieval promise for the referred Cube', () => {
+          expect(Array.isArray(res.MYPOST)).toBe(true);
+          expect(res.MYPOST.length).toBe(1);
+          expect(res.MYPOST[0]).toBeInstanceOf(Promise);
         });
 
-        describe('test after awaiting', () => {
-          it('has retrieved the referred Cube', async () => {
-            const retrieved = await res.MYPOST[0];
-            expect(retrieved).toBeInstanceOf(cciCube);
-            expect(retrieved.getFirstField(FieldType.PAYLOAD).valueString).toBe("Hic cubus ab aliis cubis refertur");
-            expect(retrieved.equals(root1)).toBe(true);
-          });
+        it('contains a collective done promise', () => {
+          expect(res.done).toBeInstanceOf(Promise);
+        });
+      });
+
+      describe('test after awaiting', () => {
+        it('has retrieved the referred Cube', async () => {
+          const retrieved = await res.MYPOST[0];
+          expect(retrieved).toBeInstanceOf(cciCube);
+          expect(retrieved.getFirstField(FieldType.PAYLOAD).valueString).toBe("Hic cubus ab aliis cubis refertur");
+          expect(retrieved.equals(leaf1)).toBe(true);
         });
       });
 
@@ -147,11 +174,11 @@ describe('VeritumRetrievalUtil', () => {
           it('has retrieved the referred Cubes', async () => {
             const retrieved1 = await res.MYPOST[0];
             expect(retrieved1).toBeInstanceOf(cciCube);
-            expect(retrieved1.equals(root1)).toBe(true);
+            expect(retrieved1.equals(leaf1)).toBe(true);
 
             const retrieved2 = await res.MYPOST[1];
             expect(retrieved2).toBeInstanceOf(cciCube);
-            expect(retrieved2.equals(root2)).toBe(true);
+            expect(retrieved2.equals(leaf2)).toBe(true);
           });
         });
       });
@@ -193,25 +220,176 @@ describe('VeritumRetrievalUtil', () => {
           it('has retrieved the Cube referred to as REPLY_TO', async () => {
             const retrieved = await res.REPLY_TO[0];
             expect(retrieved).toBeInstanceOf(cciCube);
-            expect(retrieved.equals(root3)).toBe(true);
+            expect(retrieved.equals(leaf3)).toBe(true);
           });
 
           it('has retrieved the Cubes referred to as MYPOST', async () => {
             const retrieved1 = await res.MYPOST[0];
             expect(retrieved1).toBeInstanceOf(cciCube);
-            expect(retrieved1.equals(root1)).toBe(true);
+            expect(retrieved1.equals(leaf1)).toBe(true);
 
             const retrieved2 = await res.MYPOST[1];
             expect(retrieved2).toBeInstanceOf(cciCube);
-            expect(retrieved2.equals(root2)).toBe(true);
+            expect(retrieved2.equals(leaf2)).toBe(true);
           });
         });
       });
     });
+  });
 
-    describe('recursive', () => {
-      it.todo("implement");
-      it.todo("write tests");
+
+
+
+  describe('resolveRelsRecursive()', () => {
+    describe('leaf cube (no relationships)', () => {
+      let recursiveRes: ResolveRelsRecursiveResult;
+
+      beforeAll(async () => {
+        recursiveRes = resolveRelsRecursive(leaf1, cubeStore.getCube.bind(cubeStore));
+      });
+
+      it('returns a result with main equal to the input cube', () => {
+        expect(recursiveRes.main).toBe(leaf1);
+      });
+
+      it('has empty arrays for all relationship types', () => {
+        // Loop over all known relationship keys.
+        for (const key of Object.keys(RelationshipType)) {
+          expect(recursiveRes[key]).toBeInstanceOf(Array);
+          // Should be empty because leafCube does not refer to any other cube.
+          expect(recursiveRes[key].length).toBe(0);
+        }
+      });
+
+      it('resolves the overall done promise', async () => {
+        await expect(recursiveRes.done).resolves.toBeUndefined();
+      });
+    });
+
+
+
+    describe('cube with a single MYPOST reference', () => {
+      let recursiveRes: ResolveRelsRecursiveResult;
+
+      beforeAll(async () => {
+        recursiveRes = resolveRelsRecursive(singleMyPost, cubeStore.getCube.bind(cubeStore));
+        await recursiveRes.done;
+      });
+
+      it('refers back to the original cube as main', () => {
+        expect(recursiveRes.main).toBe(singleMyPost);
+      });
+
+      it('contains a MYPOST property that is an array of one promise', () => {
+        expect(Array.isArray(recursiveRes.MYPOST)).toBe(true);
+        expect(recursiveRes.MYPOST.length).toBe(1);
+        expect(recursiveRes.MYPOST[0]).toBeInstanceOf(Promise);
+      });
+
+      it('retrieves the referred cube', async () => {
+        const resolvedMypost = await recursiveRes.MYPOST[0];
+        expect(resolvedMypost.main).toBeInstanceOf(cciCube);
+        expect(resolvedMypost.main.equals(leaf1)).toBe(true);
+
+        // Since the referred Cube is a leaf, its relationship arrays should be empty.
+        for (const key of Object.keys(RelationshipType)) {
+          expect(resolvedMypost[key].length).toBe(0);
+        }
+        await expect(resolvedMypost.done).resolves.toBeUndefined();
+      });
+    });
+
+
+
+    describe('multi-level recursion', () => {
+      let recursiveRes: ResolveRelsRecursiveResult;
+
+      beforeAll(async () => {
+        recursiveRes = resolveRelsRecursive(cubeA, cubeStore.getCube.bind(cubeStore));
+        // Wait until the whole tree is resolved.
+        await recursiveRes.done;
+      });
+
+      it('has main equal to the starting cube (cubeA)', () => {
+        expect(recursiveRes.main).toBe(cubeA);
+      });
+
+      it('resolves the first step of the relationship chain (MYPOST rel from cubeA to cubeB)', async () => {
+        expect(recursiveRes.MYPOST.length).toBe(1);
+        const resB = await recursiveRes.MYPOST[0];
+        expect(resB.main.equals(cubeB)).toBe(true);
+      });
+
+      it('resolves the second step of the relationship chain (REPLY_TO rel from cubeB to cubeC)', async () => {
+        const nestedResB = await recursiveRes.MYPOST[0];
+        expect(nestedResB.REPLY_TO.length).toBe(1);
+        const nestedResC = await nestedResB.REPLY_TO[0];
+        expect(nestedResC.main.equals(cubeC)).toBe(true);
+
+        // Cube C is a leaf cube; its relationship arrays should be empty.
+        for (const key of Object.keys(RelationshipType)) {
+          expect(nestedResC[key].length).toBe(0);
+        }
+        await expect(nestedResC.done).resolves.toBeUndefined();
+      });
+
+      it('ensures the overall done promise resolves only after all nested levels complete', async () => {
+        await expect(recursiveRes.done).resolves.toBeUndefined();
+      });
+    });
+
+
+
+    describe('cube with multiple relationships', () => {
+      let recursiveRes: ResolveRelsRecursiveResult;
+
+      beforeAll(async () => {
+        recursiveRes = resolveRelsRecursive(twoMyPosts, cubeStore.getCube.bind(cubeStore));
+        await recursiveRes.done;
+      });
+
+      it('has two MYPOST relationships', () => {
+        expect(recursiveRes.MYPOST).toHaveLength(2);
+      });
+
+      it('correctly resolves the MYPOST relationships', async () => {
+        const nested1 = await recursiveRes.MYPOST[0];
+        const nested2 = await recursiveRes.MYPOST[1];
+
+        expect(nested1.main.equals(leaf1)).toBe(true);
+        expect(nested2.main.equals(leaf2)).toBe(true);
+      });
+    });
+
+    describe('cube with mixed relationship types', () => {
+      let recursiveRes: ResolveRelsRecursiveResult;
+
+      beforeAll(async () => {
+        recursiveRes = resolveRelsRecursive(replyToPlusMyPost, cubeStore.getCube.bind(cubeStore));
+        await recursiveRes.done;
+      });
+
+      it('returns a main cube equal to the input cube', () => {
+        expect(recursiveRes.main).toBe(replyToPlusMyPost);
+      });
+
+      it('resolves the REPLY_TO relationship', async () => {
+        expect(recursiveRes.REPLY_TO).toHaveLength(1);
+
+        const replyRes = await recursiveRes.REPLY_TO[0];
+        expect(replyRes.main.equals(leaf3)).toBe(true);
+      });
+
+      it('resolves the two MYPOST relationships', async () => {
+        expect(recursiveRes.MYPOST).toHaveLength(2);
+
+        const res1 = await recursiveRes.MYPOST[0];
+        const res2 = await recursiveRes.MYPOST[1];
+
+        expect(res1.main.equals(leaf1)).toBe(true);
+        expect(res2.main.equals(leaf2)).toBe(true);
+      });
     });
   });
+
 });

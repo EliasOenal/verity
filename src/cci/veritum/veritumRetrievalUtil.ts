@@ -26,14 +26,19 @@ export interface EnhancedRetrievalResult<MainType> {
 
 
 type RelResult = {
-  [key in keyof typeof RelationshipType]: Promise<Veritable>[];
+  -readonly [key in keyof typeof RelationshipType]: Promise<Veritable>[];
 }
 export interface ResolveRelsResult extends EnhancedRetrievalResult<Veritable>, RelResult {
 }
 
-export interface ResolveRelsOptions {
+type RecursiveRelResult = {
+  -readonly [key in keyof typeof RelationshipType]: Promise<ResolveRelsRecursiveResult>[];
+}
+export interface ResolveRelsRecursiveResult extends EnhancedRetrievalResult<Veritable>, RecursiveRelResult {
+}
+
+export interface ResolveRelsOptions extends CubeRequestOptions {
   // TODO implement
-  // maxRecursion?: number;
   // relTypes?: Iterable<RelationshipType>;
 }
 
@@ -41,18 +46,13 @@ export interface ResolveRelsOptions {
 export function resolveRels(
   main: cciCube|Veritum,
   retrievalFn?: (key: CubeKey, options: CubeRequestOptions) => Promise<Veritable>,
-  options: ResolveRelsOptions|CubeRequestOptions = {},
+  options: ResolveRelsOptions = {},
 ): ResolveRelsResult {
-  // set default options
-  // options.maxRecursion ??= 10;
-
-  const ret: Partial<ResolveRelsResult> = {
-    main,
-  };
+  const ret: Partial<ResolveRelsResult> = { main };
 
   // fetch rels
   const donePromises: Promise<Veritable>[] = [];
-  for (const rel of main.getRelationships()) {
+  for (const rel of main.getRelationships?.()) {
     // retrieve referred Veritable
     const promise = retrievalFn(rel.remoteKey, options);
     // lazy initialise that rel type's resolutions array if necessary
@@ -65,4 +65,45 @@ export function resolveRels(
   ret.done = Promise.all(donePromises).then();
 
   return ret as ResolveRelsResult;
+}
+
+export interface ResolveRelsRecursiveOptions extends ResolveRelsOptions {
+  maxRecursion?: number;
+}
+
+export function resolveRelsRecursive(
+  main: cciCube | Veritum,
+  retrievalFn?: (key: CubeKey, options: CubeRequestOptions) => Promise<Veritable>,
+  options: ResolveRelsOptions | CubeRequestOptions = {},
+): ResolveRelsRecursiveResult {
+  // First, resolve the direct relationships for the current main object.
+  const directRels = resolveRels(main, retrievalFn, options);
+  const result: Partial<ResolveRelsRecursiveResult> = { main: directRels.main };
+
+  // For each relationship type in RelationshipType,
+  // map each direct retrieval promise into a recursive resolution.
+  for (const relKey of Object.keys(RelationshipType) as (keyof typeof RelationshipType)[]) {
+    const directPromises = directRels[relKey] || [];
+    result[relKey] = directPromises.map((promise) =>
+      promise.then((veritable) => resolveRelsRecursive(veritable as Veritum, retrievalFn, options))
+    );
+  }
+
+  // Now, we need a "done" promise that waits for both the direct retrievals and all of the recursive enhancements.
+  // For each recursive promise, wait for its own "done" promise to resolve.
+  const nestedDonePromises: Promise<void>[] = [];
+  for (const relKey of Object.keys(RelationshipType) as (keyof typeof RelationshipType)[]) {
+    const recursivePromises = result[relKey] || [];
+    for (const recPromise of recursivePromises) {
+      nestedDonePromises.push(
+        recPromise.then((recursiveResult) => recursiveResult.done)
+      );
+    }
+  }
+
+  // The overall done promise waits for the direct relationships to be resolved
+  // and then for every nested resolution to complete.
+  result.done = directRels.done.then(() => Promise.all(nestedDonePromises)).then(() => {});
+
+  return result as ResolveRelsRecursiveResult;
 }
