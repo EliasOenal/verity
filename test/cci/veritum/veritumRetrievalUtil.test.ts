@@ -165,9 +165,9 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
         });
 
         it('contains a retrieval promise for the referred Cube', () => {
-          expect(Array.isArray(res.MYPOST)).toBe(true);
-          expect(res.MYPOST.length).toBe(1);
-          expect(res.MYPOST[0]).toBeInstanceOf(Promise);
+          expect(Array.isArray(res[RelationshipType.MYPOST])).toBe(true);
+          expect(res[RelationshipType.MYPOST].length).toBe(1);
+          expect(res[RelationshipType.MYPOST][0]).toBeInstanceOf(Promise);
         });
 
         it('contains a collective done promise', () => {
@@ -177,7 +177,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
       describe('test after awaiting', () => {
         it('has retrieved the referred Cube', async () => {
-          const retrieved = await res.MYPOST[0];
+          const retrieved = await res[RelationshipType.MYPOST][0];
           expect(retrieved).toBeInstanceOf(cciCube);
           expect(retrieved.getFirstField(FieldType.PAYLOAD).valueString).toBe("Hic cubus ab aliis cubis refertur");
           expect(retrieved.equals(leaf1)).toBe(true);
@@ -201,10 +201,10 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
           });
 
           it('contains two retrieval promises for the referred Cubes', () => {
-            expect(Array.isArray(res.MYPOST)).toBe(true);
-            expect(res.MYPOST.length).toBe(2);
-            expect(res.MYPOST[0]).toBeInstanceOf(Promise);
-            expect(res.MYPOST[1]).toBeInstanceOf(Promise);
+            expect(Array.isArray(res[RelationshipType.MYPOST])).toBe(true);
+            expect(res[RelationshipType.MYPOST].length).toBe(2);
+            expect(res[RelationshipType.MYPOST][0]).toBeInstanceOf(Promise);
+            expect(res[RelationshipType.MYPOST][1]).toBeInstanceOf(Promise);
           });
 
           it('contains a collective done promise', () => {
@@ -214,11 +214,11 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
         describe('test after awaiting', () => {
           it('has retrieved the referred Cubes', async () => {
-            const retrieved1 = await res.MYPOST[0];
+            const retrieved1 = await res[RelationshipType.MYPOST][0];
             expect(retrieved1).toBeInstanceOf(cciCube);
             expect(retrieved1.equals(leaf1)).toBe(true);
 
-            const retrieved2 = await res.MYPOST[1];
+            const retrieved2 = await res[RelationshipType.MYPOST][1];
             expect(retrieved2).toBeInstanceOf(cciCube);
             expect(retrieved2.equals(leaf2)).toBe(true);
           });
@@ -241,16 +241,16 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
           });
 
           it('contains a retrieval promise for the referred REPLY_TO Cube', () => {
-            expect(Array.isArray(res.REPLY_TO)).toBe(true);
-            expect(res.REPLY_TO.length).toBe(1);
-            expect(res.REPLY_TO[0]).toBeInstanceOf(Promise);
+            expect(Array.isArray(res[RelationshipType.REPLY_TO])).toBe(true);
+            expect(res[RelationshipType.REPLY_TO].length).toBe(1);
+            expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
           });
 
           it('contains two retrieval promises for the referred MYPOST Cubes', () => {
-            expect(Array.isArray(res.MYPOST)).toBe(true);
-            expect(res.MYPOST.length).toBe(2);
-            expect(res.MYPOST[0]).toBeInstanceOf(Promise);
-            expect(res.MYPOST[1]).toBeInstanceOf(Promise);
+            expect(Array.isArray(res[RelationshipType.MYPOST])).toBe(true);
+            expect(res[RelationshipType.MYPOST].length).toBe(2);
+            expect(res[RelationshipType.MYPOST][0]).toBeInstanceOf(Promise);
+            expect(res[RelationshipType.MYPOST][1]).toBeInstanceOf(Promise);
           });
 
           it('contains a collective done promise', () => {
@@ -260,17 +260,17 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
         describe('test after awaiting', () => {
           it('has retrieved the Cube referred to as REPLY_TO', async () => {
-            const retrieved = await res.REPLY_TO[0];
+            const retrieved = await res[RelationshipType.REPLY_TO][0];
             expect(retrieved).toBeInstanceOf(cciCube);
             expect(retrieved.equals(leaf3)).toBe(true);
           });
 
           it('has retrieved the Cubes referred to as MYPOST', async () => {
-            const retrieved1 = await res.MYPOST[0];
+            const retrieved1 = await res[RelationshipType.MYPOST][0];
             expect(retrieved1).toBeInstanceOf(cciCube);
             expect(retrieved1.equals(leaf1)).toBe(true);
 
-            const retrieved2 = await res.MYPOST[1];
+            const retrieved2 = await res[RelationshipType.MYPOST][1];
             expect(retrieved2).toBeInstanceOf(cciCube);
             expect(retrieved2.equals(leaf2)).toBe(true);
           });
@@ -294,13 +294,10 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
         expect(recursiveRes.main).toBe(leaf1);
       });
 
-      it('has empty arrays for all relationship types', () => {
-        // Loop over all known relationship keys.
-        for (const key of Object.keys(RelationshipType)) {
-          expect(recursiveRes[key]).toBeInstanceOf(Array);
-          // Should be empty because leafCube does not refer to any other cube.
-          expect(recursiveRes[key].length).toBe(0);
-        }
+      it('has no relationship properties', () => {
+        // By our type definition, relationship properties are those with numeric keys
+        expect(Object.keys(recursiveRes).filter(key => Number.parseInt(key)))
+          .toHaveLength(0);
       });
 
       it('resolves the overall done promise', async () => {
@@ -323,21 +320,25 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       });
 
       it('contains a MYPOST property that is an array of one promise', () => {
-        expect(Array.isArray(recursiveRes.MYPOST)).toBe(true);
-        expect(recursiveRes.MYPOST.length).toBe(1);
-        expect(recursiveRes.MYPOST[0]).toBeInstanceOf(Promise);
+        expect(Array.isArray(recursiveRes[RelationshipType.MYPOST])).toBe(true);
+        expect(recursiveRes[RelationshipType.MYPOST].length).toBe(1);
+        expect(recursiveRes[RelationshipType.MYPOST][0]).toBeInstanceOf(Promise);
       });
 
       it('retrieves the referred cube', async () => {
-        const resolvedMypost = await recursiveRes.MYPOST[0];
+        const resolvedMypost = await recursiveRes[RelationshipType.MYPOST][0];
         expect(resolvedMypost.main).toBeInstanceOf(cciCube);
         expect(resolvedMypost.main.equals(leaf1)).toBe(true);
 
-        // Since the referred Cube is a leaf, its relationship arrays should be empty.
-        for (const key of Object.keys(RelationshipType)) {
-          expect(resolvedMypost[key].length).toBe(0);
-        }
+        // Since the referred Cube is a leaf, it should not have relationship properties
+        expect(Object.keys(resolvedMypost).filter(key => Number.parseInt(key)))
+          .toHaveLength(0);
         await expect(resolvedMypost.done).resolves.toBeUndefined();
+      });
+
+      it('has no other relationship properties other than MYPOST', () => {
+        expect(Object.keys(recursiveRes).filter(key => Number.parseInt(key)))
+          .toEqual([RelationshipType.MYPOST.toString()]);
       });
     });
 
@@ -357,21 +358,20 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       });
 
       it('resolves the first step of the relationship chain (MYPOST rel from cubeA to cubeB)', async () => {
-        expect(recursiveRes.MYPOST.length).toBe(1);
-        const resB = await recursiveRes.MYPOST[0];
+        expect(recursiveRes[RelationshipType.MYPOST].length).toBe(1);
+        const resB = await recursiveRes[RelationshipType.MYPOST][0];
         expect(resB.main.equals(cubeB)).toBe(true);
       });
 
       it('resolves the second step of the relationship chain (REPLY_TO rel from cubeB to cubeC)', async () => {
-        const nestedResB = await recursiveRes.MYPOST[0];
-        expect(nestedResB.REPLY_TO.length).toBe(1);
-        const nestedResC = await nestedResB.REPLY_TO[0];
+        const nestedResB = await recursiveRes[RelationshipType.MYPOST][0];
+        expect(nestedResB[RelationshipType.REPLY_TO].length).toBe(1);
+        const nestedResC = await nestedResB[RelationshipType.REPLY_TO][0];
         expect(nestedResC.main.equals(cubeC)).toBe(true);
 
-        // Cube C is a leaf cube; its relationship arrays should be empty.
-        for (const key of Object.keys(RelationshipType)) {
-          expect(nestedResC[key].length).toBe(0);
-        }
+        // Cube C is a leaf cube; it should not have any relationship properties
+        expect(Object.keys(nestedResC).filter(key => Number.parseInt(key)))
+          .toHaveLength(0);
         await expect(nestedResC.done).resolves.toBeUndefined();
       });
 
@@ -391,12 +391,12 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       });
 
       it('has two MYPOST relationships', () => {
-        expect(recursiveRes.MYPOST).toHaveLength(2);
+        expect(recursiveRes[RelationshipType.MYPOST]).toHaveLength(2);
       });
 
       it('correctly resolves the MYPOST relationships', async () => {
-        const nested1 = await recursiveRes.MYPOST[0];
-        const nested2 = await recursiveRes.MYPOST[1];
+        const nested1 = await recursiveRes[RelationshipType.MYPOST][0];
+        const nested2 = await recursiveRes[RelationshipType.MYPOST][1];
 
         expect(nested1.main.equals(leaf1)).toBe(true);
         expect(nested2.main.equals(leaf2)).toBe(true);
@@ -416,17 +416,17 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       });
 
       it('resolves the REPLY_TO relationship', async () => {
-        expect(recursiveRes.REPLY_TO).toHaveLength(1);
+        expect(recursiveRes[RelationshipType.REPLY_TO]).toHaveLength(1);
 
-        const replyRes = await recursiveRes.REPLY_TO[0];
+        const replyRes = await recursiveRes[RelationshipType.REPLY_TO][0];
         expect(replyRes.main.equals(leaf3)).toBe(true);
       });
 
       it('resolves the two MYPOST relationships', async () => {
-        expect(recursiveRes.MYPOST).toHaveLength(2);
+        expect(recursiveRes[RelationshipType.MYPOST]).toHaveLength(2);
 
-        const res1 = await recursiveRes.MYPOST[0];
-        const res2 = await recursiveRes.MYPOST[1];
+        const res1 = await recursiveRes[RelationshipType.MYPOST][0];
+        const res2 = await recursiveRes[RelationshipType.MYPOST][1];
 
         expect(res1.main.equals(leaf1)).toBe(true);
         expect(res2.main.equals(leaf2)).toBe(true);
@@ -443,13 +443,14 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       );
       await res.done;
 
-      expect(res.MYPOST.length).toBe(1);
+      expect(res[RelationshipType.MYPOST].length).toBe(1);
 
-      const nestedResB = await res.MYPOST[0];
+      const nestedResB = await res[RelationshipType.MYPOST][0];
       expect(nestedResB.main.equals(cubeB)).toBe(true);
 
       // Since maxRecursion was 1, cubeB should not recurse further.
-      expect(nestedResB.REPLY_TO.length).toBe(0);
+      expect(Object.keys(nestedResB).filter(key => Number.parseInt(key)))
+        .toHaveLength(0);
     });
 
     it('fully resolves a 2-level tree when using a depth limit of 2', async () => {
@@ -459,20 +460,19 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
       await res.done;
 
-      expect(res.MYPOST.length).toBe(1);
+      expect(res[RelationshipType.MYPOST].length).toBe(1);
 
-      const nestedResB = await res.MYPOST[0];
+      const nestedResB = await res[RelationshipType.MYPOST][0];
       expect(nestedResB.main.equals(cubeB)).toBe(true);
 
-      expect(nestedResB.REPLY_TO.length).toBe(1);
+      expect(nestedResB[RelationshipType.REPLY_TO].length).toBe(1);
 
-      const nestedResC = await nestedResB.REPLY_TO[0];
+      const nestedResC = await nestedResB[RelationshipType.REPLY_TO][0];
       expect(nestedResC.main.equals(cubeC)).toBe(true);
 
-      // Cube C is a leaf, so further recursion should not happen.
-      for (const key of Object.keys(RelationshipType)) {
-        expect(nestedResC[key].length).toBe(0);
-      }
+      // Cube C is a leaf, so further recursion should not happen
+      expect(Object.keys(nestedResC).filter(key => Number.parseInt(key)))
+        .toHaveLength(0);
     });
   });  // recursion depth limiting
 
@@ -489,14 +489,13 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       await res.done;
 
       // Cube A's relationship to Cube B should have resolved as normal
-      expect(res.MYPOST.length).toBe(1);
-      const resB = await res.MYPOST[0];
+      expect(res[RelationshipType.MYPOST].length).toBe(1);
+      const resB = await res[RelationshipType.MYPOST][0];
       expect(resB.main.equals(cubeB)).toBe(true);
 
       // Since cubeB is excluded, it should contain no resolved relationships.
-      for (const key of Object.keys(RelationshipType)) {
-        expect(resB[key].length).toBe(0);
-      }
+      expect(Object.keys(resB).filter(key => Number.parseInt(key)))
+        .toHaveLength(0);
     });
 
     it('correctly adds newly encountered cubes to exclude set and prevents revisits', async () => {
@@ -507,9 +506,9 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
         { exclude: excludeSet });
       await res.done;
 
-      expect(res.MYPOST.length).toBe(1);
+      expect(res[RelationshipType.MYPOST].length).toBe(1);
 
-      const nestedResB = await res.MYPOST[0];
+      const nestedResB = await res[RelationshipType.MYPOST][0];
       expect(nestedResB.main.equals(cubeB)).toBe(true);
 
       // Ensure cubeB's key is now tracked in the exclude set.
@@ -523,26 +522,25 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       await res.done;
 
       // A's relationship to C should be resolved
-      expect(res.REPLY_TO.length).toBe(1);
-      const resC = await res.REPLY_TO[0];
+      expect(res[RelationshipType.REPLY_TO].length).toBe(1);
+      const resC = await res[RelationshipType.REPLY_TO][0];
       expect(resC.main.equals(cycleC)).toBe(true);
 
       // C's relationship to B should be resolved
-      expect(resC.REPLY_TO.length).toBe(1);
-      const resB = await resC.REPLY_TO[0];
+      expect(resC[RelationshipType.REPLY_TO].length).toBe(1);
+      const resB = await resC[RelationshipType.REPLY_TO][0];
       expect(resB.main.equals(cycleB)).toBe(true);
 
       // B's cyclic relationship to A should still be resolved,
       // but recursion should stop there
-      expect(resB.REPLY_TO.length).toBe(1);
-      const resA = await resB.REPLY_TO[0];
+      expect(resB[RelationshipType.REPLY_TO].length).toBe(1);
+      const resA = await resB[RelationshipType.REPLY_TO][0];
       expect(resA.main.equals(cycleA)).toBe(true);
 
       // resA should not feature any resolved relationships, as recursion
       // has be broken due to the cyclic relationship
-      for (const key of Object.keys(RelationshipType)) {
-        expect(resA[key].length).toBe(0);
-      }
+      expect(Object.keys(resA).filter(key => Number.parseInt(key)))
+        .toHaveLength(0);
     });
 
   });  // recursion exclusion set

@@ -25,20 +25,21 @@ export interface EnhancedRetrievalResult<MainType> {
 
 
 type RelResult = {
-  -readonly [key in keyof typeof RelationshipType]: Promise<Veritable>[];
+  [key in number]: Promise<Veritable>[];
 }
 export interface ResolveRelsResult extends EnhancedRetrievalResult<Veritable>, RelResult {
 }
 
 type RecursiveRelResult = {
-  -readonly [key in keyof typeof RelationshipType]: Promise<ResolveRelsRecursiveResult>[];
+  [key in number]: Promise<ResolveRelsRecursiveResult>[];
 }
 export interface ResolveRelsRecursiveResult extends EnhancedRetrievalResult<Veritable>, RecursiveRelResult {
 }
 
+
 export interface ResolveRelsOptions extends CubeRequestOptions {
   // TODO implement
-  // relTypes?: Iterable<RelationshipType>;
+  relTypes?: Iterable<number>;
 }
 
 
@@ -60,9 +61,9 @@ export function resolveRels(
     // retrieve referred Veritable
     const promise = retrievalFn(rel.remoteKey, options);
     // lazy initialise that rel type's resolutions array if necessary
-    if (!ret[RelationshipType[rel.type]]) ret[RelationshipType[rel.type]] = [];
+    if (!ret[rel.type]) ret[rel.type] = [];
     // add that retrieval to ret
-    ret[RelationshipType[rel.type]].push(promise);
+    ret[rel.type].push(promise);
     // Add this promise to array of done promises
     donePromises.push(promise);
   }
@@ -85,6 +86,19 @@ export interface ResolveRelsRecursiveOptions extends ResolveRelsOptions {
   exclude?: Set<string>;
 }
 
+/**
+ * Recursively resolves all relationships for a Veritable.
+ * Note:
+ *   - Each referred Veritum will only be resolved once,
+ *     even if it is referenced through multiple relationship types,
+ *     even if those referrals originate from different Verita.
+ * @param main - Start resolving references from this Veritable
+ * @param retrievalFn - Function to retrieve a Veritable from a CubeKey, e.g.
+ *   CubeStore.getCube(), CubeRetriever.getCube(), or VeritumRetriever.getVeritum().
+ * @param options - See ResolveRelsRecursiveOptions
+ * @returns - A ResolveRelsRecursiveResult object,
+ *   containing a retrieval promise for each reference.
+ */
 export function resolveRelsRecursive(
   main: Veritable,
   retrievalFn?: (key: CubeKey, options: CubeRequestOptions) => Promise<Veritable>,
@@ -103,8 +117,11 @@ export function resolveRelsRecursive(
   const directRels = resolveRels(main, retrievalFn, options);
   const result: Partial<ResolveRelsRecursiveResult> = { main: directRels.main };
 
-  // For every relationship type, map each retrieval promise to a recursive resolution.
-  for (const relKey of Object.keys(RelationshipType) as (keyof typeof RelationshipType)[]) {
+  // For every occurring relationship type, map each retrieval promise to a
+  // recursive resolution.
+  // (Note: By our definition, RelationshipTypes are numeric properties, or rather
+  // properties with keys parseable as int as in Javascript all keys are strings.)
+  for (const relKey of Object.keys(directRels).filter(key => Number.parseInt(key))) {
     const directPromises: Promise<Veritable>[] = directRels[relKey] || [];
     result[relKey] = directPromises.map((promise) =>
       promise.then(async (veritable) => {
@@ -114,27 +131,21 @@ export function resolveRelsRecursive(
         // Check if we should stop recursing on this branch.
         if (options.maxRecursion <= 1 || options.exclude.has(key)) {
           // Create a leaf result: no further recursion is performed.
-          const leafResult: Partial<ResolveRelsRecursiveResult> = {
+          return {
             main: veritable,
             done: Promise.resolve(),
           };
-          // For every relationship type, ensure an empty array.
-          for (const rk of Object.keys(RelationshipType)) {
-            leafResult[rk as keyof typeof RelationshipType] = [];
-          }
-          return leafResult as ResolveRelsRecursiveResult;
-        } else {
-          // Otherwise, add this key to the exclusion set.
-          options.exclude.add(key);
-          // Prepare child options: decrement the recursion depth.
-          const childOptions: ResolveRelsRecursiveOptions = {
-            ...options,
-            maxRecursion: options.maxRecursion - 1,
-            exclude: options.exclude, // sharing the same exclusion set
-          };
-          // Recurse into the referred cube.
-          return resolveRelsRecursive(veritable as Veritum, retrievalFn, childOptions);
         }
+        // Otherwise, add this key to the exclusion set.
+        options.exclude.add(key);
+        // Prepare child options: decrement the recursion depth.
+        const childOptions: ResolveRelsRecursiveOptions = {
+          ...options,
+          maxRecursion: options.maxRecursion - 1,
+          exclude: options.exclude, // sharing the same exclusion set
+        };
+        // Recurse into the referred cube.
+        return resolveRelsRecursive(veritable as Veritum, retrievalFn, childOptions);
       })
     );
   }
@@ -148,7 +159,7 @@ export function resolveRelsRecursive(
       nestedDonePromises.push(recPromise.then((nestedResult) => nestedResult.done));
     }
   }
-  result.done = directRels.done.then(() => Promise.all(nestedDonePromises).then(() => {}));
+  result.done = directRels.done.then(() => Promise.all(nestedDonePromises).then(() => undefined));
 
   return result as ResolveRelsRecursiveResult;
 }
