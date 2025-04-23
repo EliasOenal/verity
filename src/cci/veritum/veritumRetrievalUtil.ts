@@ -1,10 +1,9 @@
 import type { CubeKey } from "../../core/cube/cube.definitions";
+import type { Veritum } from "./veritum";
+import type { Veritable } from "../../core/cube/veritable.definition";
+import type { CubeRequestOptions } from "../../core/networking/cubeRetrieval/requestScheduler";
 
-import { Veritable } from "../../core/cube/veritable.definition";
-import { CubeRequestOptions } from "../../core/networking/cubeRetrieval/requestScheduler";
-import { cciCube } from "../cube/cciCube";
-import { RelationshipType } from "../cube/relationship";
-import { Veritum } from "./veritum";
+import { Relationship, RelationshipType } from "../cube/relationship";
 
 // Result type declaration
 export interface EnhancedRetrievalResult<MainType> {
@@ -44,15 +43,20 @@ export interface ResolveRelsOptions extends CubeRequestOptions {
 
 
 export function resolveRels(
-  main: cciCube|Veritum,
+  main: Veritable,
   retrievalFn?: (key: CubeKey, options: CubeRequestOptions) => Promise<Veritable>,
   options: ResolveRelsOptions = {},
 ): ResolveRelsResult {
   const ret: Partial<ResolveRelsResult> = { main };
 
   // fetch rels
+  // HACKHACK typecast: We kinda sorta need an extended Veritable interface
+  //   that (optionally?) exposes CCI-compatible relationships.
+  //   It still works though as we only call getRelationships() if it exists.
+  const rels: Iterable<Relationship> = (main as Veritum).getRelationships?.();
+
   const donePromises: Promise<Veritable>[] = [];
-  for (const rel of main.getRelationships?.()) {
+  for (const rel of rels) {
     // retrieve referred Veritable
     const promise = retrievalFn(rel.remoteKey, options);
     // lazy initialise that rel type's resolutions array if necessary
@@ -68,42 +72,83 @@ export function resolveRels(
 }
 
 export interface ResolveRelsRecursiveOptions extends ResolveRelsOptions {
+  /**
+   * The maximum number of levels to recurse into. (Minimum is 1.)
+   * @default 10
+   */
   maxRecursion?: number;
+
+  /**
+   * Stop recursing when encountering a Veritable with any of these keys.
+   * Note that we will still retrieve the veritable, but not recurse into it.
+   */
+  exclude?: Set<string>;
 }
 
 export function resolveRelsRecursive(
-  main: cciCube | Veritum,
+  main: Veritable,
   retrievalFn?: (key: CubeKey, options: CubeRequestOptions) => Promise<Veritable>,
-  options: ResolveRelsOptions | CubeRequestOptions = {},
+  options: ResolveRelsRecursiveOptions = {},
 ): ResolveRelsRecursiveResult {
-  // First, resolve the direct relationships for the current main object.
+  // Set the default recursion limit if not specified.
+  if (options.maxRecursion === undefined) {
+    options.maxRecursion = 10;
+  }
+  // Ensure an exclusion set exists. (We’re sharing this across recursions.)
+  if (!options.exclude) options.exclude = new Set();
+  // Add main's key to the exclusion set. Note that this is async, but that's fine.
+  main.getKeyString().then((key) => options.exclude.add(key));
+
+  // First, perform the direct resolution.
   const directRels = resolveRels(main, retrievalFn, options);
   const result: Partial<ResolveRelsRecursiveResult> = { main: directRels.main };
 
-  // For each relationship type in RelationshipType,
-  // map each direct retrieval promise into a recursive resolution.
+  // For every relationship type, map each retrieval promise to a recursive resolution.
   for (const relKey of Object.keys(RelationshipType) as (keyof typeof RelationshipType)[]) {
-    const directPromises = directRels[relKey] || [];
+    const directPromises: Promise<Veritable>[] = directRels[relKey] || [];
     result[relKey] = directPromises.map((promise) =>
-      promise.then((veritable) => resolveRelsRecursive(veritable as Veritum, retrievalFn, options))
+      promise.then(async (veritable) => {
+        // Retrieve the veritable's key asynchronously.
+        const key = await veritable.getKeyString();
+
+        // Check if we should stop recursing on this branch.
+        if (options.maxRecursion <= 1 || options.exclude.has(key)) {
+          // Create a leaf result: no further recursion is performed.
+          const leafResult: Partial<ResolveRelsRecursiveResult> = {
+            main: veritable,
+            done: Promise.resolve(),
+          };
+          // For every relationship type, ensure an empty array.
+          for (const rk of Object.keys(RelationshipType)) {
+            leafResult[rk as keyof typeof RelationshipType] = [];
+          }
+          return leafResult as ResolveRelsRecursiveResult;
+        } else {
+          // Otherwise, add this key to the exclusion set.
+          options.exclude.add(key);
+          // Prepare child options: decrement the recursion depth.
+          const childOptions: ResolveRelsRecursiveOptions = {
+            ...options,
+            maxRecursion: options.maxRecursion - 1,
+            exclude: options.exclude, // sharing the same exclusion set
+          };
+          // Recurse into the referred cube.
+          return resolveRelsRecursive(veritable as Veritum, retrievalFn, childOptions);
+        }
+      })
     );
   }
 
-  // Now, we need a "done" promise that waits for both the direct retrievals and all of the recursive enhancements.
-  // For each recursive promise, wait for its own "done" promise to resolve.
+  // Build the overall "done" promise; it resolves after the direct retrievals
+  // and after every nested recursive call's done promise.
   const nestedDonePromises: Promise<void>[] = [];
   for (const relKey of Object.keys(RelationshipType) as (keyof typeof RelationshipType)[]) {
-    const recursivePromises = result[relKey] || [];
-    for (const recPromise of recursivePromises) {
-      nestedDonePromises.push(
-        recPromise.then((recursiveResult) => recursiveResult.done)
-      );
+    const arr = result[relKey] || [];
+    for (const recPromise of arr) {
+      nestedDonePromises.push(recPromise.then((nestedResult) => nestedResult.done));
     }
   }
-
-  // The overall done promise waits for the direct relationships to be resolved
-  // and then for every nested resolution to complete.
-  result.done = directRels.done.then(() => Promise.all(nestedDonePromises)).then(() => {});
+  result.done = directRels.done.then(() => Promise.all(nestedDonePromises).then(() => {}));
 
   return result as ResolveRelsRecursiveResult;
 }

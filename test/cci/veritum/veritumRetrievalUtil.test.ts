@@ -8,6 +8,7 @@ import { VerityField } from '../../../src/cci/cube/verityField';
 import { RelationshipType } from '../../../src/cci/cube/relationship';
 import { resolveRels, resolveRelsRecursive, ResolveRelsRecursiveResult, ResolveRelsResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
 import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { CubeType } from '../../../src/core/cube/cube.definitions';
 
 describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', () => {
   let cubeStore: CubeStore;
@@ -19,6 +20,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
   let replyToPlusMyPost: cciCube;
 
   let cubeA: cciCube, cubeB: cciCube, cubeC: cciCube;
+  let cycleA: cciCube, cycleB: cciCube, cycleC: cciCube;
 
   beforeAll(async () => {
     // Wait for any needed crypto initialization.
@@ -103,6 +105,46 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       requiredDifficulty: 0,
     });
     await cubeStore.addCube(cubeA);
+
+
+    // --- Create a cyclic chain: cycleA -> cycleB -> cycleC -> cycleA ---
+    // cycleA has to be a signed type as cyclic rels are impossible
+    // with hash-based types
+    const keyPairCycleA = sodium.crypto_sign_keypair();
+    cycleA = cciCube.Create({
+      cubeType: CubeType.PMUC,
+      fields: [VerityField.Payload("Cycle A")],
+      requiredDifficulty: 0,
+      publicKey: Buffer.from(keyPairCycleA.publicKey),
+      privateKey: Buffer.from(keyPairCycleA.privateKey),
+    });
+    const cycleAKey = cycleA.getKeyIfAvailable();  // signed types always know their key
+    // defer publishing of cyclyA until after we complete the cyclic chain
+
+    cycleB = cciCube.Create({
+      fields: [
+        VerityField.Payload("Cycle B"),
+        VerityField.RelatesTo(RelationshipType.REPLY_TO, cycleAKey), // cycle
+      ],
+      requiredDifficulty: 0,
+    });
+    await cubeStore.addCube(cycleB);
+    const cycleBKey = await cycleB.getKey();
+
+    cycleC = cciCube.Create({
+      fields: [
+        VerityField.Payload("Cycle C"),
+        VerityField.RelatesTo(RelationshipType.REPLY_TO, cycleBKey), // cycle
+      ],
+      requiredDifficulty: 0,
+    });
+    await cubeStore.addCube(cycleC);
+    const cycleCKey = await cycleC.getKey();
+
+    // Close the cycle: cycleA -> cycleB -> cycleC -> cycleA
+    cycleA.insertFieldBeforeBackPositionals(VerityField.RelatesTo(RelationshipType.REPLY_TO, cycleCKey));
+    await cubeStore.addCube(cycleA);
+
   });
 
 
@@ -389,7 +431,122 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
         expect(res1.main.equals(leaf1)).toBe(true);
         expect(res2.main.equals(leaf2)).toBe(true);
       });
+    });  // cube with mixed relationship types
+  });  // resolveRelsRecursive()
+
+
+  describe('recursion depth limiting', () => {
+    it('respects a depth limit of 1', async () => {
+      const res = resolveRelsRecursive(
+        cubeA, cubeStore.getCube.bind(cubeStore),
+        { maxRecursion: 1 }
+      );
+      await res.done;
+
+      expect(res.MYPOST.length).toBe(1);
+
+      const nestedResB = await res.MYPOST[0];
+      expect(nestedResB.main.equals(cubeB)).toBe(true);
+
+      // Since maxRecursion was 1, cubeB should not recurse further.
+      expect(nestedResB.REPLY_TO.length).toBe(0);
     });
-  });
+
+    it('fully resolves a 2-level tree when using a depth limit of 2', async () => {
+      const res = resolveRelsRecursive(
+        cubeA, cubeStore.getCube.bind(cubeStore),
+        { maxRecursion: 2 });
+
+      await res.done;
+
+      expect(res.MYPOST.length).toBe(1);
+
+      const nestedResB = await res.MYPOST[0];
+      expect(nestedResB.main.equals(cubeB)).toBe(true);
+
+      expect(nestedResB.REPLY_TO.length).toBe(1);
+
+      const nestedResC = await nestedResB.REPLY_TO[0];
+      expect(nestedResC.main.equals(cubeC)).toBe(true);
+
+      // Cube C is a leaf, so further recursion should not happen.
+      for (const key of Object.keys(RelationshipType)) {
+        expect(nestedResC[key].length).toBe(0);
+      }
+    });
+  });  // recursion depth limiting
+
+
+  describe('recursion exclusion set (e.g. for already-visited cubes)', () => {
+    it('does not revisit cubes already seen in exclude set', async () => {
+      const excludeSet = new Set<string>();
+      const stopKey = await cubeB.getKeyString();
+      excludeSet.add(stopKey);
+
+      const res = resolveRelsRecursive(
+        cubeA, cubeStore.getCube.bind(cubeStore),
+        { exclude: excludeSet });
+      await res.done;
+
+      // Cube A's relationship to Cube B should have resolved as normal
+      expect(res.MYPOST.length).toBe(1);
+      const resB = await res.MYPOST[0];
+      expect(resB.main.equals(cubeB)).toBe(true);
+
+      // Since cubeB is excluded, it should contain no resolved relationships.
+      for (const key of Object.keys(RelationshipType)) {
+        expect(resB[key].length).toBe(0);
+      }
+    });
+
+    it('correctly adds newly encountered cubes to exclude set and prevents revisits', async () => {
+      const excludeSet = new Set<string>();
+
+      const res = resolveRelsRecursive(
+        cubeA, cubeStore.getCube.bind(cubeStore),
+        { exclude: excludeSet });
+      await res.done;
+
+      expect(res.MYPOST.length).toBe(1);
+
+      const nestedResB = await res.MYPOST[0];
+      expect(nestedResB.main.equals(cubeB)).toBe(true);
+
+      // Ensure cubeB's key is now tracked in the exclude set.
+      const cubeBKey = await cubeB.getKeyString();
+      expect(excludeSet.has(cubeBKey)).toBe(true);
+    });
+
+    it('avoids infinite recursion caused by cyclic relationships', async () => {
+      const res = resolveRelsRecursive(
+        cycleA, cubeStore.getCube.bind(cubeStore));
+      await res.done;
+
+      // A's relationship to C should be resolved
+      expect(res.REPLY_TO.length).toBe(1);
+      const resC = await res.REPLY_TO[0];
+      expect(resC.main.equals(cycleC)).toBe(true);
+
+      // C's relationship to B should be resolved
+      expect(resC.REPLY_TO.length).toBe(1);
+      const resB = await resC.REPLY_TO[0];
+      expect(resB.main.equals(cycleB)).toBe(true);
+
+      // B's cyclic relationship to A should still be resolved,
+      // but recursion should stop there
+      expect(resB.REPLY_TO.length).toBe(1);
+      const resA = await resB.REPLY_TO[0];
+      expect(resA.main.equals(cycleA)).toBe(true);
+
+      // resA should not feature any resolved relationships, as recursion
+      // has be broken due to the cyclic relationship
+      for (const key of Object.keys(RelationshipType)) {
+        expect(resA[key].length).toBe(0);
+      }
+    });
+
+  });  // recursion exclusion set
+
+
 
 });
