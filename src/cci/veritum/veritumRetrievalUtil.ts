@@ -38,8 +38,7 @@ export interface ResolveRelsRecursiveResult extends EnhancedRetrievalResult<Veri
 
 
 export interface ResolveRelsOptions extends CubeRequestOptions {
-  // TODO implement
-  relTypes?: Iterable<number>;
+  relTypes?: number[];
 }
 
 
@@ -48,6 +47,11 @@ export function resolveRels(
   retrievalFn?: (key: CubeKey, options: CubeRequestOptions) => Promise<Veritable>,
   options: ResolveRelsOptions = {},
 ): ResolveRelsResult {
+  // Set default options
+  options.relTypes ??= Object.keys(RelationshipType)
+    .map(key => Number.parseInt(key))
+    .filter(key => !Number.isNaN(key));
+
   const ret: Partial<ResolveRelsResult> = { main };
 
   // fetch rels
@@ -58,6 +62,7 @@ export function resolveRels(
 
   const donePromises: Promise<Veritable>[] = [];
   for (const rel of rels) {
+    if (!options.relTypes.includes(rel.type)) continue;
     // retrieve referred Veritable
     const promise = retrievalFn(rel.remoteKey, options);
     // lazy initialise that rel type's resolutions array if necessary

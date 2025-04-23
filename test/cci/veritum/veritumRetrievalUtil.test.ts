@@ -183,100 +183,148 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
           expect(retrieved.equals(leaf1)).toBe(true);
         });
       });
+    });
 
+    describe('resolves two MYPOST references', () => {
+      let res: ResolveRelsResult;
 
-      describe('resolves two MYPOST references', () => {
-        let res: ResolveRelsResult;
+      beforeAll(() => {
+        res = resolveRels(
+          twoMyPosts,
+          cubeStore.getCube.bind(cubeStore)
+        );
+      });
 
-        beforeAll(() => {
-          res = resolveRels(
-            twoMyPosts,
-            cubeStore.getCube.bind(cubeStore)
-          );
+      describe('test without awaiting', () => {
+        it('refers the input Cube', () => {
+          expect(res.main).toBe(twoMyPosts);
         });
 
-        describe('test without awaiting', () => {
-          it('refers the input Cube', () => {
-            expect(res.main).toBe(twoMyPosts);
-          });
-
-          it('contains two retrieval promises for the referred Cubes', () => {
-            expect(Array.isArray(res[RelationshipType.MYPOST])).toBe(true);
-            expect(res[RelationshipType.MYPOST].length).toBe(2);
-            expect(res[RelationshipType.MYPOST][0]).toBeInstanceOf(Promise);
-            expect(res[RelationshipType.MYPOST][1]).toBeInstanceOf(Promise);
-          });
-
-          it('contains a collective done promise', () => {
-            expect(res.done).toBeInstanceOf(Promise);
-          });
+        it('contains two retrieval promises for the referred Cubes', () => {
+          expect(Array.isArray(res[RelationshipType.MYPOST])).toBe(true);
+          expect(res[RelationshipType.MYPOST].length).toBe(2);
+          expect(res[RelationshipType.MYPOST][0]).toBeInstanceOf(Promise);
+          expect(res[RelationshipType.MYPOST][1]).toBeInstanceOf(Promise);
         });
 
-        describe('test after awaiting', () => {
-          it('has retrieved the referred Cubes', async () => {
-            const retrieved1 = await res[RelationshipType.MYPOST][0];
-            expect(retrieved1).toBeInstanceOf(cciCube);
-            expect(retrieved1.equals(leaf1)).toBe(true);
-
-            const retrieved2 = await res[RelationshipType.MYPOST][1];
-            expect(retrieved2).toBeInstanceOf(cciCube);
-            expect(retrieved2.equals(leaf2)).toBe(true);
-          });
+        it('contains a collective done promise', () => {
+          expect(res.done).toBeInstanceOf(Promise);
         });
       });
 
-      describe('resolves a single REPLY_TO reference as well as two MYPOST references', () => {
-        let res: ResolveRelsResult;
+      describe('test after awaiting', () => {
+        it('has retrieved the referred Cubes', async () => {
+          const retrieved1 = await res[RelationshipType.MYPOST][0];
+          expect(retrieved1).toBeInstanceOf(cciCube);
+          expect(retrieved1.equals(leaf1)).toBe(true);
 
-        beforeAll(() => {
-          res = resolveRels(
-            replyToPlusMyPost,
-            cubeStore.getCube.bind(cubeStore)
-          );
-        });
-
-        describe('test without awaiting', () => {
-          it('refers the input Cube', () => {
-            expect(res.main).toBe(replyToPlusMyPost);
-          });
-
-          it('contains a retrieval promise for the referred REPLY_TO Cube', () => {
-            expect(Array.isArray(res[RelationshipType.REPLY_TO])).toBe(true);
-            expect(res[RelationshipType.REPLY_TO].length).toBe(1);
-            expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
-          });
-
-          it('contains two retrieval promises for the referred MYPOST Cubes', () => {
-            expect(Array.isArray(res[RelationshipType.MYPOST])).toBe(true);
-            expect(res[RelationshipType.MYPOST].length).toBe(2);
-            expect(res[RelationshipType.MYPOST][0]).toBeInstanceOf(Promise);
-            expect(res[RelationshipType.MYPOST][1]).toBeInstanceOf(Promise);
-          });
-
-          it('contains a collective done promise', () => {
-            expect(res.done).toBeInstanceOf(Promise);
-          });
-        });
-
-        describe('test after awaiting', () => {
-          it('has retrieved the Cube referred to as REPLY_TO', async () => {
-            const retrieved = await res[RelationshipType.REPLY_TO][0];
-            expect(retrieved).toBeInstanceOf(cciCube);
-            expect(retrieved.equals(leaf3)).toBe(true);
-          });
-
-          it('has retrieved the Cubes referred to as MYPOST', async () => {
-            const retrieved1 = await res[RelationshipType.MYPOST][0];
-            expect(retrieved1).toBeInstanceOf(cciCube);
-            expect(retrieved1.equals(leaf1)).toBe(true);
-
-            const retrieved2 = await res[RelationshipType.MYPOST][1];
-            expect(retrieved2).toBeInstanceOf(cciCube);
-            expect(retrieved2.equals(leaf2)).toBe(true);
-          });
+          const retrieved2 = await res[RelationshipType.MYPOST][1];
+          expect(retrieved2).toBeInstanceOf(cciCube);
+          expect(retrieved2.equals(leaf2)).toBe(true);
         });
       });
     });
+
+    describe('resolves a single REPLY_TO reference as well as two MYPOST references', () => {
+      let res: ResolveRelsResult;
+
+      beforeAll(() => {
+        res = resolveRels(
+          replyToPlusMyPost,
+          cubeStore.getCube.bind(cubeStore)
+        );
+      });
+
+      describe('test without awaiting', () => {
+        it('refers the input Cube', () => {
+          expect(res.main).toBe(replyToPlusMyPost);
+        });
+
+        it('contains a retrieval promise for the referred REPLY_TO Cube', () => {
+          expect(Array.isArray(res[RelationshipType.REPLY_TO])).toBe(true);
+          expect(res[RelationshipType.REPLY_TO].length).toBe(1);
+          expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
+        });
+
+        it('contains two retrieval promises for the referred MYPOST Cubes', () => {
+          expect(Array.isArray(res[RelationshipType.MYPOST])).toBe(true);
+          expect(res[RelationshipType.MYPOST].length).toBe(2);
+          expect(res[RelationshipType.MYPOST][0]).toBeInstanceOf(Promise);
+          expect(res[RelationshipType.MYPOST][1]).toBeInstanceOf(Promise);
+        });
+
+        it('contains a collective done promise', () => {
+          expect(res.done).toBeInstanceOf(Promise);
+        });
+      });
+
+      describe('test after awaiting', () => {
+        it('has retrieved the Cube referred to as REPLY_TO', async () => {
+          const retrieved = await res[RelationshipType.REPLY_TO][0];
+          expect(retrieved).toBeInstanceOf(cciCube);
+          expect(retrieved.equals(leaf3)).toBe(true);
+        });
+
+        it('has retrieved the Cubes referred to as MYPOST', async () => {
+          const retrieved1 = await res[RelationshipType.MYPOST][0];
+          expect(retrieved1).toBeInstanceOf(cciCube);
+          expect(retrieved1.equals(leaf1)).toBe(true);
+
+          const retrieved2 = await res[RelationshipType.MYPOST][1];
+          expect(retrieved2).toBeInstanceOf(cciCube);
+          expect(retrieved2.equals(leaf2)).toBe(true);
+        });
+      });
+    });
+
+    describe('limiting relationship types', () => {
+      it('returns an empty result when the only relationship type is excluded', () => {
+        const res = resolveRels(
+          singleMyPost,
+          cubeStore.getCube.bind(cubeStore),
+          {
+            relTypes: [RelationshipType.REPLY_TO],
+          }
+        );
+
+        expect(res.main).toBe(singleMyPost);
+        expect(res.done).toBeInstanceOf(Promise);
+        expect(Object.keys(res).filter(key => Number.parseInt(key))).toHaveLength(0);
+      });
+
+      it('only includes the specified relationship types', () => {
+        const res = resolveRels(
+          replyToPlusMyPost,
+          cubeStore.getCube.bind(cubeStore),
+          {
+            relTypes: [RelationshipType.REPLY_TO],
+          }
+        );
+
+        expect(res.main).toBe(replyToPlusMyPost);
+        expect(res.done).toBeInstanceOf(Promise);
+
+        expect(Object.keys(res).filter(key => Number.parseInt(key))).toHaveLength(1);
+        expect(res[RelationshipType.REPLY_TO].length).toBe(1);
+      });
+
+      it('is neutral if all relationship type present are in the filter list', () => {
+        const res = resolveRels(
+          replyToPlusMyPost,
+          cubeStore.getCube.bind(cubeStore),
+          {
+            relTypes: [RelationshipType.REPLY_TO, RelationshipType.MYPOST],
+          }
+        );
+
+        expect(res.main).toBe(replyToPlusMyPost);
+        expect(res.done).toBeInstanceOf(Promise);
+
+        expect(Object.keys(res).filter(key => Number.parseInt(key))).toHaveLength(2);
+        expect(res[RelationshipType.REPLY_TO].length).toBe(1);
+        expect(res[RelationshipType.MYPOST].length).toBe(2);
+      });
+    });  // limiting relationship types
   });
 
 
@@ -545,6 +593,75 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
   });  // recursion exclusion set
 
+  describe('limiting relationship types', () => {
+    describe('first level resolutions', () => {
+      it('returns an empty result when the only relationship type is excluded', () => {
+        const res = resolveRelsRecursive(
+          singleMyPost,
+          cubeStore.getCube.bind(cubeStore),
+          {
+            relTypes: [RelationshipType.REPLY_TO],
+          }
+        );
 
+        expect(res.main).toBe(singleMyPost);
+        expect(res.done).toBeInstanceOf(Promise);
+        expect(Object.keys(res).filter(key => Number.parseInt(key))).toHaveLength(0);
+      });
 
+      it('only includes the specified relationship types', () => {
+        const res = resolveRelsRecursive(
+          replyToPlusMyPost,
+          cubeStore.getCube.bind(cubeStore),
+          {
+            relTypes: [RelationshipType.REPLY_TO],
+          }
+        );
+
+        expect(res.main).toBe(replyToPlusMyPost);
+        expect(res.done).toBeInstanceOf(Promise);
+
+        expect(Object.keys(res).filter(key => Number.parseInt(key))).toHaveLength(1);
+        expect(res[RelationshipType.REPLY_TO].length).toBe(1);
+      });
+
+      it('is neutral if all relationship type present are in the filter list', () => {
+        const res = resolveRelsRecursive(
+          replyToPlusMyPost,
+          cubeStore.getCube.bind(cubeStore),
+          {
+            relTypes: [RelationshipType.REPLY_TO, RelationshipType.MYPOST],
+          }
+        );
+
+        expect(res.main).toBe(replyToPlusMyPost);
+        expect(res.done).toBeInstanceOf(Promise);
+
+        expect(Object.keys(res).filter(key => Number.parseInt(key))).toHaveLength(2);
+        expect(res[RelationshipType.REPLY_TO].length).toBe(1);
+        expect(res[RelationshipType.MYPOST].length).toBe(2);
+      });
+    });  // first level resolutions
+
+    describe('recursive resolutions', () => {
+      it('stops the recursion when the only relationship type is excluded', async () => {
+        const res = resolveRelsRecursive(
+          cubeA, cubeStore.getCube.bind(cubeStore),
+          { relTypes: [RelationshipType.MYPOST] }
+        );
+        await res.done;
+
+        // Expect the rel from cubeA to cubeB to be resolved as it is a MYPOST rel
+        expect(res[RelationshipType.MYPOST].length).toBe(1);
+        const resB = await res[RelationshipType.MYPOST][0];
+        expect(resB.main.equals(cubeB)).toBe(true);
+
+        // Expect the rel from cubeB to cubeC to not be resolved as it is a REPLY_TO rel.
+        // The resolved B should not have any further relationship entries.
+        expect(resB[RelationshipType.REPLY_TO]).toBeUndefined();
+        expect(Object.keys(resB).filter(key => Number.parseInt(key)))
+          .toHaveLength(0);
+      });
+    });
+  });  // limiting relationship types
 });
