@@ -29,16 +29,59 @@ export interface EnhancedRetrievalResult<MainType> {
   // declaration for this.
 };
 
+interface RetrievalMetadata {
+  /**
+   * Set to true if and when all referenced Verita have been retrieved.
+   * Note that this means it will be false:
+   *   - While a retrieval is still in progress
+   *   - If any retrieval has failed
+   * And in the case of recursive retrieval:
+   *   - If the depth limit has been reached
+   *   - If an encluded Veritable has been encountered
+   *   - If a circular reference has been encountered
+   *     (which is technically the same thing as an excluded Veritable)
+   * Note that if you limit resolution to certain types of references using
+   *   the relTypes option, allResolved will become true as soon as those have
+   *   been retrieved, as any other references will be disregarded.
+   */
+  allResolved: boolean;
+
+  /**
+   * Will be set to true if retrieval of any referenced Veritable has failed,
+   * e.g. due it not being in store while we're offline, or due to it not being
+   * available on the network at all.
+   */
+  resolutionFailure: boolean;
+}
+
 type RelResult = {
   [key in number]: Promise<Veritable>[];
 }
-export interface ResolveRelsResult extends EnhancedRetrievalResult<Veritable>, RelResult {
+export interface ResolveRelsResult
+  extends EnhancedRetrievalResult<Veritable>, RelResult, RetrievalMetadata
+{
 }
 
 type RecursiveRelResult = {
   [key in number]: Promise<ResolveRelsRecursiveResult>[];
 }
-export interface ResolveRelsRecursiveResult extends EnhancedRetrievalResult<Veritable>, RecursiveRelResult {
+export interface ResolveRelsRecursiveResult
+  extends EnhancedRetrievalResult<Veritable>, RecursiveRelResult, RetrievalMetadata
+{
+  /**
+   * Will be set to true if an excluded Veritable has been encountered,
+   * or in case of a circular reference (which technically is an automatic exclusion).
+   **/
+  exclusionApplied: boolean;
+
+  /**
+   * Will be set to true if the specified recursion depth limit has been reached.
+   * Note that this does not mean it was *exceeded* or that anything actually
+   * was skipped because of this, it was just reached -- e.g., a chain of depth
+   * 2 will still be fully resolved using a depth limit of 2, even though the
+   * limit was reached.
+   **/
+  depthLimitReached: boolean;
 }
 
 
@@ -57,9 +100,12 @@ export function resolveRels(
     .map(key => Number.parseInt(key))
     .filter(key => !Number.isNaN(key));
 
-  const ret: Partial<ResolveRelsResult> = {
+  const ret: ResolveRelsResult = {
     main,
+    done: undefined,
     isDone: false,
+    allResolved: false,
+    resolutionFailure: false,
   };
 
   // fetch rels
@@ -80,9 +126,13 @@ export function resolveRels(
     // Add this promise to array of done promises
     donePromises.push(promise);
   }
-  ret.done = Promise.all(donePromises).then(() => { ret.isDone = true });
+  ret.done = Promise.all(donePromises).then((retrievalResults: Veritable[]) => {
+    ret.isDone = true;
+    ret.resolutionFailure = retrievalResults.some(veritum => veritum === undefined);
+    ret.allResolved = !ret.resolutionFailure;
+  });
 
-  return ret as ResolveRelsResult;
+  return ret;
 }
 
 export interface ResolveRelsRecursiveOptions extends ResolveRelsOptions {
@@ -120,23 +170,28 @@ export function resolveRelsRecursive(
   // Set the default recursion limit if not specified.
   if (options.maxRecursion === undefined) {
     options.maxRecursion = 10;
+    // Note: options.relTypes will be set by resolveRels() if not specified
   }
   // Ensure an exclusion set exists. (We’re sharing this across recursions.)
   if (!options.exclude) options.exclude = new Set();
-  // Add main's key to the exclusion set. Note that this is async, but that's fine.
+  // Add main's key to the exclusion set. (This is async; we assume it’s okay if not awaited.)
   main.getKeyString().then((key) => options.exclude.add(key));
 
   // First, perform the direct resolution.
   const directRels = resolveRels(main, retrievalFn, options);
-  const result: Partial<ResolveRelsRecursiveResult> = {
+  const result: ResolveRelsRecursiveResult = {
     main: directRels.main,
+    done: undefined,
     isDone: false,
+    allResolved: false,
+    resolutionFailure: false,
+    exclusionApplied: false,
+    depthLimitReached: false,
   };
 
   // For every occurring relationship type, map each retrieval promise to a
   // recursive resolution.
-  // (Note: By our definition, RelationshipTypes are numeric properties, or rather
-  // properties with keys parseable as int as in Javascript all keys are strings.)
+  // (Note: By our definition, RelationshipTypes are numeric properties, e.g. '1', '2', etc.)
   for (const relKey of Object.keys(directRels).filter(key => Number.parseInt(key))) {
     const directPromises: Promise<Veritable>[] = directRels[relKey] || [];
     result[relKey] = directPromises.map((promise) =>
@@ -150,6 +205,13 @@ export function resolveRelsRecursive(
           return {
             main: veritable,
             done: Promise.resolve(),
+            isDone: true,
+            allResolved:
+              (veritable as Veritum).getRelationships?.() === undefined ||
+              (veritable as Veritum).getRelationships?.().length === 0,
+            depthLimitReached: options.maxRecursion <= 1,
+            exclusionApplied: options.exclude.has(key),
+            resolutionFailure: false,
           };
         }
         // Otherwise, add this key to the exclusion set.
@@ -166,17 +228,30 @@ export function resolveRelsRecursive(
     );
   }
 
-  // Build the overall "done" promise; it resolves after the direct retrievals
-  // and after every nested recursive call's done promise.
-  const nestedDonePromises: Promise<void>[] = [];
-  for (const relKey of Object.keys(RelationshipType) as (keyof typeof RelationshipType)[]) {
-    const arr = result[relKey] || [];
-    for (const recPromise of arr) {
-      nestedDonePromises.push(recPromise.then((nestedResult) => nestedResult.done));
-    }
-  }
-  result.done = directRels.done.then(() => Promise.all(nestedDonePromises).then(
-    () => { result.isDone = true }));
+  // Build the overall "done" promise;
+  // it waits for the direct retrievals (directRels.done) and for every nested recursive call’s done promise.
+  result.done = Promise.all([
+    directRels.done,
+    // For every relationship type, wait for each recursive result
+    ...options.relTypes.flatMap((relKey) =>
+      (result[relKey] ?? []).map(async (subPromise) => {
+        const nestedResult = await subPromise;
+        await nestedResult.done;
+      })
+    ),
+  ]).then(() => {
+    return Promise.all(
+      options.relTypes.flatMap((relKey) =>
+        (result[relKey] ?? []).map(async (subPromise) => await subPromise)
+      )
+    ).then((nestedResults) => {
+      result.isDone = true;
+      result.resolutionFailure = nestedResults.some(r => r.resolutionFailure);
+      result.allResolved = nestedResults.every(r => r.allResolved);
+      result.depthLimitReached = nestedResults.some(r => r.depthLimitReached);
+      result.exclusionApplied = nestedResults.some(r => r.exclusionApplied);
+    });
+  });
 
-  return result as ResolveRelsRecursiveResult;
+  return result;
 }
