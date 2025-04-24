@@ -17,12 +17,17 @@ export interface EnhancedRetrievalResult<MainType> {
    */
   done: Promise<void>;
 
+  /**
+   * True once the done promise resolves.
+   * Wouldn't it be great if you could query a promise's status directly?
+   **/
+  isDone: boolean;
+
   // All other properties should be of an application-specific enhancement type;
   // e.g. Promise<Veritable>[] for resolveRels.
   // However, neither me nor my AI assistants could up with a sensible type
   // declaration for this.
 };
-
 
 type RelResult = {
   [key in number]: Promise<Veritable>[];
@@ -52,7 +57,10 @@ export function resolveRels(
     .map(key => Number.parseInt(key))
     .filter(key => !Number.isNaN(key));
 
-  const ret: Partial<ResolveRelsResult> = { main };
+  const ret: Partial<ResolveRelsResult> = {
+    main,
+    isDone: false,
+  };
 
   // fetch rels
   // HACKHACK typecast: We kinda sorta need an extended Veritable interface
@@ -72,7 +80,7 @@ export function resolveRels(
     // Add this promise to array of done promises
     donePromises.push(promise);
   }
-  ret.done = Promise.all(donePromises).then();
+  ret.done = Promise.all(donePromises).then(() => { ret.isDone = true });
 
   return ret as ResolveRelsResult;
 }
@@ -120,7 +128,10 @@ export function resolveRelsRecursive(
 
   // First, perform the direct resolution.
   const directRels = resolveRels(main, retrievalFn, options);
-  const result: Partial<ResolveRelsRecursiveResult> = { main: directRels.main };
+  const result: Partial<ResolveRelsRecursiveResult> = {
+    main: directRels.main,
+    isDone: false,
+  };
 
   // For every occurring relationship type, map each retrieval promise to a
   // recursive resolution.
@@ -164,7 +175,8 @@ export function resolveRelsRecursive(
       nestedDonePromises.push(recPromise.then((nestedResult) => nestedResult.done));
     }
   }
-  result.done = directRels.done.then(() => Promise.all(nestedDonePromises).then(() => undefined));
+  result.done = directRels.done.then(() => Promise.all(nestedDonePromises).then(
+    () => { result.isDone = true }));
 
   return result as ResolveRelsRecursiveResult;
 }
