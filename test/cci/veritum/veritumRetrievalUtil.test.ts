@@ -157,6 +157,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
           singleMyPost,
           cubeStore.getCube.bind(cubeStore)
         );
+        expect(res.isDone).toBe(false);
       });
 
       describe('test without awaiting', () => {
@@ -181,6 +182,10 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
           expect(retrieved).toBeInstanceOf(cciCube);
           expect(retrieved.getFirstField(FieldType.PAYLOAD).valueString).toBe("Hic cubus ab aliis cubis refertur");
           expect(retrieved.equals(leaf1)).toBe(true);
+        });
+
+        it("sets isDone to true once it's done", () => {
+          expect(res.isDone).toBe(true);
         });
       });
     });
@@ -360,7 +365,12 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
       beforeAll(async () => {
         recursiveRes = resolveRelsRecursive(singleMyPost, cubeStore.getCube.bind(cubeStore));
+        expect(recursiveRes.isDone).toBe(false);
         await recursiveRes.done;
+      });
+
+      it("sets isDone to true once it's not done yet", () => {
+        expect(recursiveRes.isDone).toBe(true);
       });
 
       it('refers back to the original cube as main', () => {
@@ -425,6 +435,10 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
       it('ensures the overall done promise resolves only after all nested levels complete', async () => {
         await expect(recursiveRes.done).resolves.toBeUndefined();
+      });
+
+      it("sets isDone to true once it's done", () => {
+        expect(recursiveRes.isDone).toBe(true);
       });
     });
 
