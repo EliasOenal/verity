@@ -9,16 +9,14 @@ import { RelationshipType } from '../../../src/cci/cube/relationship';
 import { resolveRels, resolveRelsRecursive, ResolveRelsRecursiveResult, ResolveRelsResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
 import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { CubeType } from '../../../src/core/cube/cube.definitions';
+import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', () => {
   let cubeStore: CubeStore;
-  let leaf1: cciCube;
-  let leaf2: cciCube;
-  let leaf3: cciCube;
-  let singleMyPost: cciCube;
-  let twoMyPosts: cciCube;
-  let replyToPlusMyPost: cciCube;
 
+  let leaf1: cciCube, leaf2: cciCube, leaf3: cciCube;
+  let singleMyPost: cciCube, twoMyPosts: cciCube, replyToPlusMyPost: cciCube;
+  let unresolvableRel: cciCube;
   let cubeA: cciCube, cubeB: cciCube, cubeC: cciCube;
   let cycleA: cciCube, cycleB: cciCube, cycleC: cciCube;
 
@@ -78,8 +76,16 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       requiredDifficulty: 0,
     });
 
+    // Sculpt a Cube with an unresolvable relationship.
+    unresolvableRel = cciCube.Create({
+      fields: [
+        VerityField.Payload("Tam sapiens est ut cubis alienis respondeat"),
+        VerityField.RelatesTo(RelationshipType.REPLY_TO,
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337)),
+    ]});
 
-    // Create a chain: cubeA -> cubeB -> cubeC (with cubeC being a leaf cube)
+
+    // --- Create a chain: cubeA -> cubeB -> cubeC (with cubeC being a leaf cube) ---
     cubeC = cciCube.Create({
       fields: [VerityField.Payload("Cube C")],
       requiredDifficulty: 0,
@@ -157,7 +163,13 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
           singleMyPost,
           cubeStore.getCube.bind(cubeStore)
         );
+
+        // check initial status flags --
+        // note we have to check them here as retrieval is reeeeeeeally fast
+        // and might complete once we run the test blocks, even before awaiting done.
         expect(res.isDone).toBe(false);
+        expect(res.allResolved).toBe(false);
+        expect(res.resolutionFailure).toBe(false);
       });
 
       describe('test without awaiting', () => {
@@ -184,8 +196,10 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
           expect(retrieved.equals(leaf1)).toBe(true);
         });
 
-        it("sets isDone to true once it's done", () => {
+        it("sets its status flags correctly", () => {
           expect(res.isDone).toBe(true);
+          expect(res.allResolved).toBe(true);
+          expect(res.resolutionFailure).toBe(false);
         });
       });
     });
@@ -282,6 +296,35 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       });
     });
 
+    describe('trying to resolve an unavailable relationship', () => {
+      let res: ResolveRelsResult;
+
+      beforeAll(async () => {
+        res = resolveRels(
+          unresolvableRel,
+          cubeStore.getCube.bind(cubeStore),
+        );
+        await res.done;
+      });
+
+      it('refers the input Cube', () => {
+        expect(res.main).toBe(unresolvableRel);
+      });
+
+      it('sets its status flags correctly', () => {
+        expect(res.isDone).toBe(true);
+        expect(res.allResolved).toBe(false);
+        expect(res.resolutionFailure).toBe(true);
+      });
+
+      it('contains a retrieval promise for the referred Cube resolved to undefined', async () => {
+        expect(Array.isArray(res[RelationshipType.REPLY_TO])).toBe(true);
+        expect(res[RelationshipType.REPLY_TO].length).toBe(1);
+        expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
+        await expect(res[RelationshipType.REPLY_TO][0]).resolves.toBeUndefined();
+      });
+    });
+
     describe('limiting relationship types', () => {
       it('returns an empty result when the only relationship type is excluded', () => {
         const res = resolveRels(
@@ -341,6 +384,15 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
       beforeAll(async () => {
         recursiveRes = resolveRelsRecursive(leaf1, cubeStore.getCube.bind(cubeStore));
+
+        // check initial status flags --
+        // note we have to check them here as retrieval is reeeeeeeally fast
+        // and might complete once we run the test blocks, even before awaiting done.
+        expect(recursiveRes.isDone).toBe(false);
+        expect(recursiveRes.allResolved).toBe(false);
+        expect(recursiveRes.resolutionFailure).toBe(false);
+        expect(recursiveRes.exclusionApplied).toBe(false);
+        expect(recursiveRes.depthLimitReached).toBe(false);
       });
 
       it('returns a result with main equal to the input cube', () => {
@@ -355,6 +407,15 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
       it('resolves the overall done promise', async () => {
         await expect(recursiveRes.done).resolves.toBeUndefined();
+      });
+
+      it('sets its status flags correctly once done', async () => {
+        await recursiveRes.done;
+        expect(recursiveRes.isDone).toBe(true);
+        expect(recursiveRes.allResolved).toBe(true);
+        expect(recursiveRes.resolutionFailure).toBe(false);
+        expect(recursiveRes.exclusionApplied).toBe(false);
+        expect(recursiveRes.depthLimitReached).toBe(false);
       });
     });
 
@@ -398,6 +459,15 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
         expect(Object.keys(recursiveRes).filter(key => Number.parseInt(key)))
           .toEqual([RelationshipType.MYPOST.toString()]);
       });
+
+      it('sets its status flags correctly once done', async () => {
+        await recursiveRes.done;
+        expect(recursiveRes.isDone).toBe(true);
+        expect(recursiveRes.allResolved).toBe(true);
+        expect(recursiveRes.resolutionFailure).toBe(false);
+        expect(recursiveRes.exclusionApplied).toBe(false);
+        expect(recursiveRes.depthLimitReached).toBe(false);
+      });
     });
 
 
@@ -437,8 +507,13 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
         await expect(recursiveRes.done).resolves.toBeUndefined();
       });
 
-      it("sets isDone to true once it's done", () => {
+      it('sets its status flags correctly once done', async () => {
+        await recursiveRes.done;
         expect(recursiveRes.isDone).toBe(true);
+        expect(recursiveRes.allResolved).toBe(true);
+        expect(recursiveRes.resolutionFailure).toBe(false);
+        expect(recursiveRes.exclusionApplied).toBe(false);
+        expect(recursiveRes.depthLimitReached).toBe(false);
       });
     });
 
@@ -462,6 +537,15 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
         expect(nested1.main.equals(leaf1)).toBe(true);
         expect(nested2.main.equals(leaf2)).toBe(true);
+      });
+
+      it('sets its status flags correctly once done', async () => {
+        await recursiveRes.done;
+        expect(recursiveRes.isDone).toBe(true);
+        expect(recursiveRes.allResolved).toBe(true);
+        expect(recursiveRes.resolutionFailure).toBe(false);
+        expect(recursiveRes.exclusionApplied).toBe(false);
+        expect(recursiveRes.depthLimitReached).toBe(false);
       });
     });
 
@@ -493,6 +577,15 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
         expect(res1.main.equals(leaf1)).toBe(true);
         expect(res2.main.equals(leaf2)).toBe(true);
       });
+
+      it('sets its status flags correctly once done', async () => {
+        await recursiveRes.done;
+        expect(recursiveRes.isDone).toBe(true);
+        expect(recursiveRes.allResolved).toBe(true);
+        expect(recursiveRes.resolutionFailure).toBe(false);
+        expect(recursiveRes.exclusionApplied).toBe(false);
+        expect(recursiveRes.depthLimitReached).toBe(false);
+      });
     });  // cube with mixed relationship types
   });  // resolveRelsRecursive()
 
@@ -513,6 +606,13 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       // Since maxRecursion was 1, cubeB should not recurse further.
       expect(Object.keys(nestedResB).filter(key => Number.parseInt(key)))
         .toHaveLength(0);
+
+      // should set its status flags correctly
+      expect(res.isDone).toBe(true);
+      expect(res.allResolved).toBe(false);
+      expect(res.resolutionFailure).toBe(false);
+      expect(res.exclusionApplied).toBe(false);
+      expect(res.depthLimitReached).toBe(true);
     });
 
     it('fully resolves a 2-level tree when using a depth limit of 2', async () => {
@@ -535,6 +635,13 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       // Cube C is a leaf, so further recursion should not happen
       expect(Object.keys(nestedResC).filter(key => Number.parseInt(key)))
         .toHaveLength(0);
+
+      // should set its status flags correctly
+      expect(res.isDone).toBe(true);
+      expect(res.allResolved).toBe(true);
+      expect(res.resolutionFailure).toBe(false);
+      expect(res.exclusionApplied).toBe(false);
+      expect(res.depthLimitReached).toBe(true);  // note it was not exceeded, but is was reached
     });
   });  // recursion depth limiting
 
@@ -558,6 +665,13 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       // Since cubeB is excluded, it should contain no resolved relationships.
       expect(Object.keys(resB).filter(key => Number.parseInt(key)))
         .toHaveLength(0);
+
+      // should set its status flags correctly
+      expect(res.isDone).toBe(true);
+      expect(res.allResolved).toBe(false);
+      expect(res.resolutionFailure).toBe(false);
+      expect(res.exclusionApplied).toBe(true);
+      expect(res.depthLimitReached).toBe(false);
     });
 
     it('correctly adds newly encountered cubes to exclude set and prevents revisits', async () => {
@@ -576,6 +690,13 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       // Ensure cubeB's key is now tracked in the exclude set.
       const cubeBKey = await cubeB.getKeyString();
       expect(excludeSet.has(cubeBKey)).toBe(true);
+
+      // should set its status flags correctly
+      expect(res.isDone).toBe(true);
+      expect(res.allResolved).toBe(true);  // still true, the exclusion was tracked but nothing was actually skipped
+      expect(res.resolutionFailure).toBe(false);
+      expect(res.exclusionApplied).toBe(false);  // still false, B was marked for exclusion, but as it was never revisited anyway it was not skipped
+      expect(res.depthLimitReached).toBe(false);
     });
 
     it('avoids infinite recursion caused by cyclic relationships', async () => {
@@ -603,6 +724,13 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       // has be broken due to the cyclic relationship
       expect(Object.keys(resA).filter(key => Number.parseInt(key)))
         .toHaveLength(0);
+
+      // should set its status flags correctly
+      expect(res.isDone).toBe(true);
+      expect(res.allResolved).toBe(false);
+      expect(res.resolutionFailure).toBe(false);
+      expect(res.exclusionApplied).toBe(true);
+      expect(res.depthLimitReached).toBe(false);
     });
 
   });  // recursion exclusion set
@@ -675,6 +803,13 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
         expect(resB[RelationshipType.REPLY_TO]).toBeUndefined();
         expect(Object.keys(resB).filter(key => Number.parseInt(key)))
           .toHaveLength(0);
+
+        // should set its status flags correctly
+        expect(res.isDone).toBe(true);
+        expect(res.allResolved).toBe(true);
+        expect(res.resolutionFailure).toBe(false);
+        expect(res.exclusionApplied).toBe(false);
+        expect(res.depthLimitReached).toBe(false);
       });
     });
   });  // limiting relationship types
