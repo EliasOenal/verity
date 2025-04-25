@@ -59,7 +59,18 @@ type RelResult = {
 }
 export interface ResolveRelsResult
   extends EnhancedRetrievalResult<Veritable>, RelResult, RetrievalMetadata
-{
+{ }
+
+/** Returns an almost valid initialization of ResolveRelsResult, just without the done promise */
+export function emptyResolveRelsResult(main: Veritable): Partial<ResolveRelsResult> {
+  const ret: Partial<ResolveRelsResult> = {
+    main,
+    isDone: false,
+    allResolved: false,
+    resolutionFailure: false,
+    // note the done Promise is missing and must be supplied by the caller
+  };
+  return ret;
 }
 
 type RecursiveRelResult = {
@@ -84,8 +95,23 @@ export interface ResolveRelsRecursiveResult
   depthLimitReached: boolean;
 }
 
+/** Returns an almost valid initialization of ResolveRelsRecursiveResult, just without the done promise */
+export function emptyResolveRelsRecursiveResult(main: Veritable): Partial<ResolveRelsRecursiveResult> {
+  const partial: Partial<ResolveRelsResult> = emptyResolveRelsResult(main);
+  const ret: Partial<ResolveRelsRecursiveResult> = {
+    ...partial,
+    exclusionApplied: false,
+    depthLimitReached: false,
+  };
+  return ret;
+}
+
 
 export interface ResolveRelsOptions extends CubeRequestOptions {
+  /**
+   * If specified, only resolve relationships of the specified types.
+   * @default - All standard relationship types (CCI)
+   */
   relTypes?: number[];
 }
 
@@ -100,13 +126,7 @@ export function resolveRels(
     .map(key => Number.parseInt(key))
     .filter(key => !Number.isNaN(key));
 
-  const ret: ResolveRelsResult = {
-    main,
-    done: undefined,
-    isDone: false,
-    allResolved: false,
-    resolutionFailure: false,
-  };
+  const ret: Partial<ResolveRelsResult> = emptyResolveRelsResult(main);
 
   // fetch rels
   // HACKHACK typecast: We kinda sorta need an extended Veritable interface
@@ -132,7 +152,7 @@ export function resolveRels(
     ret.allResolved = !ret.resolutionFailure;
   });
 
-  return ret;
+  return ret as ResolveRelsResult;
 }
 
 export interface ResolveRelsRecursiveOptions extends ResolveRelsOptions {
@@ -179,15 +199,7 @@ export function resolveRelsRecursive(
 
   // First, perform the direct resolution.
   const directRels = resolveRels(main, retrievalFn, options);
-  const result: ResolveRelsRecursiveResult = {
-    main: directRels.main,
-    done: undefined,
-    isDone: false,
-    allResolved: false,
-    resolutionFailure: false,
-    exclusionApplied: false,
-    depthLimitReached: false,
-  };
+  const result: Partial<ResolveRelsRecursiveResult> = emptyResolveRelsRecursiveResult(main);
 
   // For every occurring relationship type, map each retrieval promise to a
   // recursive resolution.
@@ -253,5 +265,5 @@ export function resolveRelsRecursive(
     });
   });
 
-  return result;
+  return result as ResolveRelsRecursiveResult;
 }

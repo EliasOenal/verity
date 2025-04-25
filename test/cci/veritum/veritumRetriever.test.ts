@@ -22,6 +22,8 @@ import { Veritable } from '../../../src/core/cube/veritable.definition';
 import sodium from 'libsodium-wrappers-sumo'
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { RelationshipType } from '../../../src/cci/cube/relationship';
+import { ResolveRelsRecursiveResult, ResolveRelsResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
 
 describe('VeritumRetriever', () => {
   let cubeStore: CubeStore;
@@ -55,6 +57,127 @@ describe('VeritumRetriever', () => {
     await networkManager.shutdown();
     await scheduler.shutdown();
     await retriever.shutdown();
+  });
+
+  describe('getCube()', () => {
+    let cubeA: cciCube, cubeB: cciCube, cubeC: cciCube;
+
+    beforeAll(async () => {
+      cubeC = cciCube.Create({
+        fields: [
+          VerityField.Payload("Ultimus cubus in catena cuborum"),
+          VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+        ],
+        requiredDifficulty: 0,
+      });
+      const keyC = await cubeC.getKey();
+
+      cubeB = cciCube.Create({
+        fields: [
+          VerityField.Payload("Secundus cubus in catena cuborum"),
+          VerityField.RelatesTo(RelationshipType.REPLY_TO, keyC),
+          VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+        ],
+        requiredDifficulty: 0,
+      });
+      const keyB = await cubeB.getKey();
+
+      cubeA = cciCube.Create({
+        fields: [
+          VerityField.Payload("Primus cubus in catena cuborum"),
+          VerityField.RelatesTo(RelationshipType.REPLY_TO, keyB),
+          VerityField.RelatesTo(RelationshipType.MYPOST, keyB),
+          VerityField.RelatesTo(RelationshipType.MYPOST, keyC),
+          VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+        ],
+        requiredDifficulty: 0,
+      });
+      const keyA = await cubeA.getKey();
+    });
+
+    describe('base use case (getting a plain Cube)', () => {
+      beforeEach(async () => {
+        await cubeStore.addCube(cubeA);
+      });
+
+      it('retrieves a Cube', async () => {
+        const result = await retriever.getCube(cubeA.getKeyIfAvailable());
+        expect(result.equals(cubeA)).toEqual(true);
+      });
+    });
+
+    describe('using option resolveRels (single layer)', () => {
+      beforeEach(async () => {
+        await Promise.all([
+          cubeStore.addCube(cubeA), cubeStore.addCube(cubeB), cubeStore.addCube(cubeC)]);
+      });
+
+      it('retrieves a Cube and its direct relationships', async () => {
+        // verify direct return type
+        const resultPromise: Promise<ResolveRelsResult> =
+          retriever.getCube(cubeA.getKeyIfAvailable(), { resolveRels: true });
+        expect(resultPromise).toBeInstanceOf(Promise);
+
+        // verify main result (Cube A) referenced correctly
+        const result: ResolveRelsResult = await resultPromise;
+        expect(result.main.equals(cubeA)).toBe(true);
+
+        // verify REPLY_TO rel to Cube B resolved
+        const replyPromise: Promise<Veritable> = result[RelationshipType.REPLY_TO][0];
+        expect(replyPromise).toBeInstanceOf(Promise);
+        const reply: Veritable = await replyPromise;
+        expect(reply.equals(cubeB)).toBe(true);
+
+        // verify MYPOST rel to Cube B resolved
+        const postBPromise: Promise<Veritable> = result[RelationshipType.MYPOST][0];
+        expect(postBPromise).toBeInstanceOf(Promise);
+        const postB: Veritable = await postBPromise;
+        expect(postB.equals(cubeB)).toBe(true);
+
+        // verify MYPOST rel to Cube C resolved
+        const postCPromise: Promise<Veritable> = result[RelationshipType.MYPOST][1];
+        expect(postCPromise).toBeInstanceOf(Promise);
+        const postC: Veritable = await postCPromise;
+        expect(postC.equals(cubeC)).toBe(true);
+      });
+    });
+
+    describe('using option resolveRels (recursive)', () => {
+      beforeEach(async () => {
+        await Promise.all([
+          cubeStore.addCube(cubeA), cubeStore.addCube(cubeB), cubeStore.addCube(cubeC)]);
+      });
+
+      it('retrieves a Cube and its recursive relationships, limited to REPLY_TO rels', async() => {
+        // verify direct return type
+        const resultPromise: Promise<ResolveRelsRecursiveResult> =
+          retriever.getCube(cubeA.getKeyIfAvailable(),
+          { resolveRels: 'recursive', relTypes: [RelationshipType.REPLY_TO] });
+        expect(resultPromise).toBeInstanceOf(Promise);
+
+        // verify main result (Cube A) referenced correctly
+        const result: ResolveRelsRecursiveResult = await resultPromise;
+        expect(result.main.equals(cubeA)).toBe(true);
+
+        // verify REPLY_TO rel to Cube B resolved
+        const replyPromise: Promise<ResolveRelsRecursiveResult> = result[RelationshipType.REPLY_TO][0];
+        expect(replyPromise).toBeInstanceOf(Promise);
+        const reply: ResolveRelsRecursiveResult = await replyPromise;
+        expect(reply.main.equals(cubeB)).toBe(true);
+
+        // verify recursive REPLY_TO rel form Cube B to Cube C resolved
+        const subreplyPromise: Promise<ResolveRelsRecursiveResult> = reply[RelationshipType.REPLY_TO][0];
+        expect(subreplyPromise).toBeInstanceOf(Promise);
+        const subreply: ResolveRelsRecursiveResult = await subreplyPromise;
+        expect(subreply.main.equals(cubeC)).toBe(true);
+
+        // verify direct MYPOST rel not resolved, as we opted out
+        expect(result[RelationshipType.MYPOST]).toBeUndefined();
+
+        // verify indirect MYPOST rel not resolved, as we opted out
+        expect(reply[RelationshipType.MYPOST]).toBeUndefined();
+      });
+    });
   });
 
   describe('getContinuationChunks()', () => {
@@ -549,7 +672,7 @@ describe('VeritumRetriever', () => {
       it('retrieves a single-Cube notification PIC already in store', async () => {
         // sculpt a single-Cube notification and add it to the local CubeStore
         const latin = "Nuntius brevis succinctus nec plures cubos requirens";
-        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x43);
         const notification: Veritum = new Veritum({
           cubeType: CubeType.FROZEN_NOTIFY,
           fields: [
@@ -592,7 +715,7 @@ describe('VeritumRetriever', () => {
 
       it('retrieves a three-Cube frozen notification already in store', async () => {
         // sculpt a three-Cube notification and add it to the local CubeStore
-        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x44);
         const notification: Veritum = new Veritum({
           cubeType: CubeType.FROZEN_NOTIFY,
           fields: [
@@ -633,7 +756,7 @@ describe('VeritumRetriever', () => {
 
       it('retrieves two locally available single-Cube notifications', async () => {
         // Sculpt two single-Chunk notifications
-        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x45);
 
         const firstLatin = "Magni momenti nuntiatio";
         const first: Veritum = new Veritum({
@@ -671,12 +794,9 @@ describe('VeritumRetriever', () => {
 
         // Verify result
         expect(res.length).toBe(2);
-        expect(res[0] instanceof Veritum).toBe(true);
-        expect(res[1] instanceof Veritum).toBe(true);
-        expect(res[0].getFirstField(FieldType.PAYLOAD).valueString).toEqual(firstLatin);
-        expect(res[1].getFirstField(FieldType.PAYLOAD).valueString).toEqual(secondLatin);
-        expect(res[0].getKeyIfAvailable().equals(first.getKeyIfAvailable())).toBe(true);
-        expect(res[1].getKeyIfAvailable().equals(second.getKeyIfAvailable())).toBe(true);
+        expect(res.every(v => v instanceof Veritum)).toBe(true);
+        expect(res.some(v => v.equals(first))).toBe(true);
+        expect(res.some(v => v.equals(second))).toBe(true);
       });
     });  // notifications already in store
 
@@ -685,7 +805,7 @@ describe('VeritumRetriever', () => {
         // Sculpt a single-Cube MUC notification.
         // Note we don't add it to the store just yet, meaning it's not
         // locally available and has to be requested from the network.
-        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x46);
         const short = "Nuntius brevis succinctus nec plures cubos requirens";
         const singleCube: Veritum = new Veritum({
           cubeType: CubeType.PIC_NOTIFY,
@@ -725,7 +845,7 @@ describe('VeritumRetriever', () => {
         // Sculpt a single-Cube MUC notification.
         // Note we don't add it to the store just yet, meaning it's not
         // locally available and has to be requested from the network.
-        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x47);
         const short = "Nuntius brevis succinctus nec plures cubos requirens";
         const keyPair = sodium.crypto_sign_keypair();
         const singleCube: Veritum = new Veritum({
@@ -769,7 +889,7 @@ describe('VeritumRetriever', () => {
         // Sculpt a two-Cube notification.
         // Note we don't add it to the store just yet, meaning they're not
         // locally available and have to be requested from the network.
-        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x48);
         const twoCube: Veritum = new Veritum({
           cubeType: CubeType.FROZEN_NOTIFY,
           fields: [
@@ -823,7 +943,7 @@ describe('VeritumRetriever', () => {
         // Sculpt a two-Cube notification.
         // Note we don't add it to the store just yet, meaning they're not
         // locally available and have to be requested from the network.
-        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x49);
         const twoCube: Veritum = new Veritum({
           cubeType: CubeType.FROZEN_NOTIFY,
           fields: [
@@ -868,7 +988,7 @@ describe('VeritumRetriever', () => {
         // Sculpt two single-Chunk notifications
         // Note we don't add those to the store just yet, meaning they're not
         // locally available and have to be requested from the network.
-        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x50);
 
         const firstLatin = "Magni momenti nuntiatio";
         const first: Veritum = new Veritum({
@@ -935,7 +1055,7 @@ describe('VeritumRetriever', () => {
         // Sculpt a two-Cube notification and a single-Cube notification.
         // Note we don't add those to the store just yet, meaning they're not
         // locally available and have to be requested from the network.
-        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x51);
         const twoCube: Veritum = new Veritum({
           cubeType: CubeType.FROZEN_NOTIFY,
           fields: [

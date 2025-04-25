@@ -14,6 +14,7 @@ import { RelationshipType, Relationship } from "../cube/relationship";
 import { Veritum, VeritumFromChunksOptions } from "./veritum";
 import { Identity } from "../identity/identity";
 import { Veritable } from "../../core/cube/veritable.definition";
+import { resolveRels, ResolveRelsOptions, resolveRelsRecursive, ResolveRelsRecursiveOptions, ResolveRelsRecursiveResult, ResolveRelsResult } from "./veritumRetrievalUtil";
 
 export interface VeritumRetrievalInterface<OptionsType = CubeRequestOptions> extends CubeRetrievalInterface<OptionsType> {
   getVeritum(key: CubeKey|string, options?: OptionsType): Promise<Veritum>;
@@ -24,6 +25,14 @@ export interface GetVeritumOptions {
    * Automatically attempt to decrypt the Veritum if it is encrypted
    */
   recipient?: Identity|Buffer;
+
+  /**
+   * If true, automatically resolve and retrieve all referenced further
+   * Verita. If set to 'recursive', even resolve sub-referenced relationships
+   * up to `maxRecursion` levels. The type of relationships to resolve can be
+   * limited using the `relTypes` option.
+   */
+  resolveRels?: boolean|'recursive';
 }
 
 export class VeritumRetriever
@@ -37,16 +46,55 @@ export class VeritumRetriever
   ) {
   }
 
+  get cubeStore(): CubeStore { return this.cubeRetriever.cubeStore }
+
   getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo> {
     return this.cubeRetriever.getCubeInfo(keyInput);
   }
-  getCube<cubeClass extends Cube>(key: CubeKey | string, options?: GetCubeOptionsT): Promise<cubeClass> {
-    return this.cubeRetriever.getCube(key, options);
-  }
+
   expectCube(keyInput: CubeKey | string): Promise<CubeInfo> {
     return this.cubeRetriever.expectCube(keyInput);
   }
-  get cubeStore(): CubeStore { return this.cubeRetriever.cubeStore }
+
+  getCube<cubeClass extends Cube = cciCube>(
+      key: CubeKey | string,
+      options: {resolveRels: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsOptions,
+  ): Promise<ResolveRelsResult>;
+  getCube<cubeClass extends Cube = cciCube>(
+      key: CubeKey | string,
+      options: {resolveRels: 'recursive'} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
+  ): Promise<ResolveRelsRecursiveResult>;
+  getCube<cubeClass extends Cube = cciCube>(
+      key: CubeKey | string,
+      options?: GetCubeOptionsT & GetVeritumOptions
+  ): Promise<cubeClass>;
+// TODO implement auto-decryption of single encrypted Cubes
+  getCube<cubeClass extends Cube = cciCube>(
+      key: CubeKey | string,
+      options: Partial<GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions> = {}
+  ): Promise<cubeClass|ResolveRelsResult|ResolveRelsRecursiveResult> {
+    // Fire retrieval
+    const cubePromise: Promise<cubeClass> =
+      this.cubeRetriever.getCube(key, options as GetCubeOptionsT);
+
+    // In case we shall resolve recursions, it's us who handles this -- the layers
+    // below will not be passed `resolveRels` again
+    const avoidDoubleRes = { ...options, resolveRels: false };
+
+    // Determine and prepare output format:
+    // - Resolve relationships (single level)
+    if (options.resolveRels === true) {
+      return cubePromise.then(cube =>
+        resolveRels(cube, this.getCube.bind(this), avoidDoubleRes as ResolveRelsOptions));
+    }
+    // - Resolve relationships (recursive)
+    else if (options.resolveRels === 'recursive') {
+      return cubePromise.then(cube =>
+        resolveRelsRecursive(cube, this.getCube.bind(this), avoidDoubleRes as ResolveRelsRecursiveOptions));
+    }
+    // - Simple case: just return the Cube
+    else return cubePromise as Promise<cubeClass>;
+  }
 
   async getVeritum(key: CubeKey|string, options?: GetCubeOptionsT&GetVeritumOptions): Promise<Veritum> {
     const chunks: cciCube[] = await ArrayFromAsync(
@@ -62,7 +110,7 @@ export class VeritumRetriever
       } else if (Buffer.isBuffer(options.recipient)) {
         recipientPrivateKey = options.recipient;
       } else {
-        logger.error("VeritumRetriever.getVeritum(): Invalid param for options.recipient, must be a Buffer containing a private key or an Identity object");
+        logger.error("VeritumRetriever.getVeritum(): Invalid param for options.recipient, must be a Buffer containing a private key or an Identity object. Will not attempt to decrypt.");
       }
     }
 
