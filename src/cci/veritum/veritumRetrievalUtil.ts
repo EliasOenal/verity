@@ -6,7 +6,7 @@ import type { CubeRequestOptions } from "../../core/networking/cubeRetrieval/req
 import { Relationship, RelationshipType } from "../cube/relationship";
 
 // Result type declaration
-export interface EnhancedRetrievalResult<MainType> {
+export interface MetadataEnhancedRetrieval<MainType> {
   main: MainType;
 
   /**
@@ -58,7 +58,7 @@ type RelResult = {
   [key in number]: Promise<Veritable>[];
 }
 export interface ResolveRelsResult
-  extends EnhancedRetrievalResult<Veritable>, RelResult, RetrievalMetadata
+  extends MetadataEnhancedRetrieval<Veritable>, RelResult, RetrievalMetadata
 { }
 
 /** Returns an almost valid initialization of ResolveRelsResult, just without the done promise */
@@ -77,7 +77,7 @@ type RecursiveRelResult = {
   [key in number]: Promise<ResolveRelsRecursiveResult>[];
 }
 export interface ResolveRelsRecursiveResult
-  extends EnhancedRetrievalResult<Veritable>, RecursiveRelResult, RetrievalMetadata
+  extends MetadataEnhancedRetrieval<Veritable>, RecursiveRelResult, RetrievalMetadata
 {
   /**
    * Will be set to true if an excluded Veritable has been encountered,
