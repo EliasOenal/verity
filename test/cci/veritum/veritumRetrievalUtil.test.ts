@@ -654,7 +654,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
       const res = resolveRelsRecursive(
         cubeA, cubeStore.getCube.bind(cubeStore),
-        { exclude: excludeSet });
+        { excludeVeritable: excludeSet });
       await res.done;
 
       // Cube A's relationship to Cube B should have resolved as normal
@@ -679,7 +679,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
       const res = resolveRelsRecursive(
         cubeA, cubeStore.getCube.bind(cubeStore),
-        { exclude: excludeSet });
+        { excludeVeritable: excludeSet });
       await res.done;
 
       expect(res[RelationshipType.MYPOST].length).toBe(1);

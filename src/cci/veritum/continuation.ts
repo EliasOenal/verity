@@ -60,7 +60,7 @@ export interface RecombineOptions extends CubeCreateOptions {
    *   wise to still include those in your custom exclude list. You can do this
    *   by copying and amending Continuation.ContinuationDefaultExclusions.
    **/
-  exclude?: number[],
+  excludeField?: number[],
 
   /**
    * If mentioned in this map, Split() will copy the first input field of the
@@ -182,7 +182,7 @@ class Splitter {
     this.options = options;
 
     // set default options
-    options.exclude ??= ContinuationDefaultExclusions;
+    options.excludeField ??= ContinuationDefaultExclusions;
     options.maxChunkSize ??= () => NetConstants.CUBE_SIZE;
     options.mapFieldToChunk ??= DefaultMapFieldToChunk;
 
@@ -222,7 +222,7 @@ class Splitter {
       // - Only accept non-excluded fields from supplied Veritum, i.e. everything
       //   except non-payload boilerplate. Pre-exisiting CONTINUED_IN relationships
       //   will also be dropped.
-      if (!this.options.exclude.includes(field.type) && (
+      if (!this.options.excludeField.includes(field.type) && (
             field.type !== FieldType.RELATES_TO ||
             Relationship.fromField(field).type !== RelationshipType.CONTINUED_IN
           )
@@ -498,7 +498,7 @@ export function Recombine(
   options: RecombineOptions = {},
 ): Veritum {
   // set default options
-  options.exclude ??= ContinuationDefaultExclusions;
+  options.excludeField ??= ContinuationDefaultExclusions;
   options.mapFieldToChunk ??= DefaultMapFieldToChunk;
 
   // Input sanitation and normalisation
@@ -527,7 +527,7 @@ export function Recombine(
       // - Excluded fields will be dropped, except PADDING which separates
       //   non-rejoinable adjacent fields
       if (field.type !== FieldType.PADDING &&
-          options.exclude.includes(field.type)) continue;
+          options.excludeField.includes(field.type)) continue;
       // - CONTINUED_IN references will be dropped
       if (field.type === FieldType.RELATES_TO) {
         const rel = Relationship.fromField(field);
