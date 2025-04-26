@@ -12,7 +12,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 
 function hasPost(list: PostInfo<Veritable>[], post: Veritable, author?: Identity): boolean {
   if (list.some(item => (
-    item.post.getKeyStringIfAvailable() === post.getKeyStringIfAvailable() &&
+    item.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable() &&
     (author? item.author.keyString === author.keyString : true)
   ))) return true;
   else return false;

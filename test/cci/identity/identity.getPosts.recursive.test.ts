@@ -16,7 +16,7 @@ function hasPost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable, forma
     // author check requested?
     if (expectAuthor && item['author'].keyString !== expectAuthor.keyString) return false;
     // normalise postInfo to post
-    if (item['post'] !== undefined) item = item.post;
+    if (item['main'] !== undefined) item = item.main;
     // correct format?
     if (format === PostFormat.Veritum && !(item instanceof Veritum)) return false;
     if (format === PostFormat.Cube && !(item instanceof cciCube)) return false;
@@ -50,7 +50,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       postsGenDirectVeritum = w.protagonist.getPosts({
         depth: lvl,
         format: PostFormat.Veritum,
-        postInfo: false,
+        metadata: false,
         subscribe: true,
       });
       // push yielded posts to array for ease of testing
@@ -62,7 +62,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       postsGenPostInfoVeritum = w.protagonist.getPosts({
         depth: lvl,
         format: PostFormat.Veritum,
-        postInfo: true,
+        metadata: true,
         subscribe: true,
       });
       // push yielded posts to array for ease of testing
@@ -74,7 +74,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       postsGenDirectCube = w.protagonist.getPosts({
         depth: lvl,
         format: PostFormat.Cube,
-        postInfo: false,
+        metadata: false,
         subscribe: true,
       });
       // push yielded posts to array for ease of testing
@@ -86,7 +86,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       postsGenPostInfoCube = w.protagonist.getPosts({
         depth: lvl,
         format: PostFormat.Cube,
-        postInfo: true,
+        metadata: true,
         subscribe: true,
       });
       // push yielded posts to array for ease of testing

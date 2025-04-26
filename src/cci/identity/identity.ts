@@ -32,6 +32,7 @@ import { Veritum } from '../veritum/veritum';
 import { VeritumRetrievalInterface, VeritumRetriever } from '../veritum/veritumRetriever';
 import { CubeRequestOptions } from '../../core/networking/cubeRetrieval/requestScheduler';
 import { RecursiveEmitter } from '../../core/helpers/recursiveEmitter';
+import { MetadataEnhancedRetrieval } from '../veritum/veritumRetrievalUtil';
 
 // Identity defaults
 // TODO move to settings
@@ -118,8 +119,8 @@ export const PostFormatEventMap = {
   [PostFormat.Veritum]: 'postAdded',
 } as const;
 
-export interface PostInfo<postFormat> {
-  post: postFormat;
+export interface PostInfo<postFormat> extends MetadataEnhancedRetrieval<postFormat>{
+  main: postFormat;
   author: Identity;
 }
 
@@ -148,7 +149,7 @@ export interface GetPostsOptions {
    *   the yielded posts. The goal behind this is having the default API as
    *   intuitive as possible.
    */
-  postInfo?: boolean;
+  metadata?: boolean;
 
   /**
    * If true, the generator will not exit when all existing data has been yielded.
@@ -725,10 +726,10 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     yield *resolveAndYield(promises);
   }
 
-  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, postInfo: true }): GetPostsGenerator<PostInfo<Veritum>>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.Cube, postInfo: true} ): GetPostsGenerator<PostInfo<Cube>>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, postInfo?: false} ): GetPostsGenerator<Veritum>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.Cube, postInfo?: false} ): GetPostsGenerator<Cube>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, metadata: true }): GetPostsGenerator<PostInfo<Veritum>>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.Cube, metadata: true} ): GetPostsGenerator<PostInfo<Cube>>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, metadata?: false} ): GetPostsGenerator<Veritum>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.Cube, metadata?: false} ): GetPostsGenerator<Cube>;
   getPosts(options: GetPostsOptions): GetPostsGenerator<Cube|Veritum|PostInfo<Cube|Veritum>>;
   getPosts(
     options: GetPostsOptions = {},
@@ -767,12 +768,14 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
           break;
       }
       if (promise !== undefined) {
-        if (options.postInfo) {
+        if (options.metadata) {
           minePromises.push(promise.then(payload => {
             if (payload === undefined) return undefined;
             return {
-              post: payload,
+              main: payload,
               author: this,
+              done: Promise.resolve(),
+              isDone: true,
             }
           }));
         } else {
@@ -803,7 +806,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     // In subscription mode, keep going and yield new data as it arrives
     // TODO BUGBUG respect output format
 
-    const extractPost = (postInfo: PostInfo<any>) => postInfo.post;
+    const extractPost = (postInfo: PostInfo<any>) => postInfo.main;
 
     if (options.subscribe) {
       const emitter = this.getRecursiveEmitter({
@@ -816,7 +819,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
             emitter: emitter,
             event: PostFormatEventMap[options.format],
           }],
-          { transform: (!options.postInfo? extractPost : undefined)},
+          { transform: (!options.metadata? extractPost : undefined)},
       );
       ret = mergeAsyncGenerators(mine, ...rGens, subGen);
     } else {
@@ -1560,10 +1563,13 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         return;
       }
       if (this.shouldIEmit('postAdded')) {  // recheck as we awaited something
-        this.emit('postAdded', {
-          post: veritum,
+        const postInfo: PostInfo<Veritum> = {
+          main: veritum,
           author: this,
-        });
+          done: Promise.resolve(),
+          isDone: true,
+        };
+        this.emit('postAdded', postInfo);
       }
     }
 
@@ -1575,10 +1581,13 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         return;
       }
       if (this.shouldIEmit('postAddedCube')) {  // recheck as we awaited something
-        this.emit('postAddedCube', {
-          post: cube,
+        const postInfo: PostInfo<Cube> = {
+          main: cube,
           author: this,
-        });
+          done: Promise.resolve(),
+          isDone: true,
+        };
+        this.emit('postAddedCube', postInfo);
       }
     }
   }
