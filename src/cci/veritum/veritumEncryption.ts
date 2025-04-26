@@ -376,8 +376,8 @@ export function ChunkDecrypt(
     // key distribution chunks intended for other recipients.
     // This also means that if decryption fails, the application gets served
     // an empty Veritum rather than a bunch of useless ciphertext.
-    options.exclude = [
-      ...(options.exclude ?? ContinuationDefaultExclusions),
+    options.excludeField = [
+      ...(options.excludeField ?? ContinuationDefaultExclusions),
       FieldType.ENCRYPTED,
     ]
     return transformedChunks;

@@ -476,7 +476,7 @@ describe('VeritumRetriever', () => {
   });
 
   describe('getVeritum()', () => {
-    describe('Verita already in store', () => {
+    describe('Plain Verita already in store', () => {
       it('retrieves a a single PIC Veritum already in store', async () => {
         const short = "Verita brevia unum tantum cubum exigunt";
         const veritum: Veritum = new Veritum({
@@ -545,7 +545,7 @@ describe('VeritumRetriever', () => {
       });
     });
 
-    describe('Verita retrieved over the wire', () => {
+    describe('Plain Verita retrieved over the wire', () => {
       it('retrieves a a single PIC Veritum arriving over the wire', async () => {
         // use longer timeout for this test
         scheduler.options.requestTimeout = 1000;
@@ -658,13 +658,123 @@ describe('VeritumRetriever', () => {
       });
     });
 
-    it.todo('returns undefined if the second chunk of a two-chunk Veritum is unretrievable');
+    describe('auto-resolving relationships', () => {
+      let vA: Veritum, vB: Veritum, vC: Veritum;
 
-    // TODO FIXME BUGBUG multi-Cube PIC Veritum handling still buggy :(
-    it.todo('retrieves multi-Cube notification PICs');
-    // multi-Cube signed Verita currently not supported; Github#634
-    it.todo('retrieves multi-Cube notification MUCs');
-    it.todo('retrieves multi-Cube notification PMUCs');
+      beforeAll(async () => {
+        vC = Veritum.Create({
+          fields: [
+            VerityField.Payload("Ultimum veritum in catena veritatum"),
+            VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+          ],
+          requiredDifficulty: 0,
+        });
+        const keyC = await vC.getKey();
+
+        vB = Veritum.Create({
+          fields: [
+            VerityField.Payload(evenLonger),
+            VerityField.RelatesTo(RelationshipType.REPLY_TO, keyC),
+            VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+          ],
+          requiredDifficulty: 0,
+        });
+        const keyB = await vB.getKey();
+
+        vA = Veritum.Create({
+          fields: [
+            VerityField.Payload("Breve veritum unum tantum cubum exigens"),
+            VerityField.RelatesTo(RelationshipType.REPLY_TO, keyB),
+            VerityField.RelatesTo(RelationshipType.MYPOST, keyB),
+            VerityField.RelatesTo(RelationshipType.MYPOST, keyC),
+            VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+          ],
+          requiredDifficulty: 0,
+        });
+        const keyA = await vA.getKey();
+      });
+
+      beforeEach(async () => {
+        await Promise.all([
+          vA.compile().then(chunks => { for (const chunk of chunks) cubeStore.addCube(chunk) } ),
+          vB.compile().then(chunks => { for (const chunk of chunks) cubeStore.addCube(chunk) } ),
+          vC.compile().then(chunks => { for (const chunk of chunks) cubeStore.addCube(chunk) } ),
+        ]);
+      });
+
+      describe('using option resolveRels=true (single layer)', () => {
+        it('retrieves a Veritum and its direct relationships', async () => {
+          // verify direct return type
+          const resultPromise: Promise<ResolveRelsResult> =
+            retriever.getVeritum(vA.getKeyIfAvailable(), { resolveRels: true });
+          expect(resultPromise).toBeInstanceOf(Promise);
+
+          // verify main result (Veritum A) referenced correctly
+          const result: ResolveRelsResult = await resultPromise;
+          expect(result.main.equals(vA)).toBe(true);
+
+          // verify REPLY_TO rel to Veritum B resolved
+          const replyPromise: Promise<Veritable> = result[RelationshipType.REPLY_TO][0];
+          expect(replyPromise).toBeInstanceOf(Promise);
+          const reply: Veritable = await replyPromise;
+          expect(reply.equals(vB)).toBe(true);
+
+          // verify MYPOST rel to Veritum B resolved
+          const postBPromise: Promise<Veritable> = result[RelationshipType.MYPOST][0];
+          expect(postBPromise).toBeInstanceOf(Promise);
+          const postB: Veritable = await postBPromise;
+          expect(postB.equals(vB)).toBe(true);
+
+          // verify MYPOST rel to Veritum C resolved
+          const postCPromise: Promise<Veritable> = result[RelationshipType.MYPOST][1];
+          expect(postCPromise).toBeInstanceOf(Promise);
+          const postC: Veritable = await postCPromise;
+          expect(postC.equals(vC)).toBe(true);
+        });
+      });
+
+      describe("using option resolveRels='veritum' (recursive)", () => {
+        it('retrieves a Veritum and its recursive relationships, limited to REPLY_TO rels', async() => {
+          // verify direct return type
+          const resultPromise: Promise<ResolveRelsRecursiveResult> =
+            retriever.getVeritum(vA.getKeyIfAvailable(),
+            { resolveRels: 'recursive', relTypes: [RelationshipType.REPLY_TO] });
+          expect(resultPromise).toBeInstanceOf(Promise);
+
+          // verify main result (Veritum A) referenced correctly
+          const result: ResolveRelsRecursiveResult = await resultPromise;
+          expect(result.main.equals(vA)).toBe(true);
+
+          // verify REPLY_TO rel to Veritum B resolved
+          const replyPromise: Promise<ResolveRelsRecursiveResult> = result[RelationshipType.REPLY_TO][0];
+          expect(replyPromise).toBeInstanceOf(Promise);
+          const reply: ResolveRelsRecursiveResult = await replyPromise;
+          expect(reply.main.equals(vB)).toBe(true);
+
+          // verify recursive REPLY_TO rel from Veritum B to Veritum C resolved
+          const subreplyPromise: Promise<ResolveRelsRecursiveResult> = reply[RelationshipType.REPLY_TO][0];
+          expect(subreplyPromise).toBeInstanceOf(Promise);
+          const subreply: ResolveRelsRecursiveResult = await subreplyPromise;
+          expect(subreply.main.equals(vC)).toBe(true);
+
+          // verify direct MYPOST rel not resolved, as we opted out
+          expect(result[RelationshipType.MYPOST]).toBeUndefined();
+
+          // verify indirect MYPOST rel not resolved, as we opted out
+          expect(reply[RelationshipType.MYPOST]).toBeUndefined();
+        });
+      });
+    });
+
+
+    describe.todo('missing getVeritum() test cases', () => {
+      it.todo('returns undefined if the second chunk of a two-chunk Veritum is unretrievable');
+      // TODO FIXME BUGBUG multi-Cube PIC Veritum handling still buggy :(
+      it.todo('retrieves multi-Cube notification PICs');
+      // multi-Cube signed Verita currently not supported; Github#634
+      it.todo('retrieves multi-Cube notification MUCs');
+      it.todo('retrieves multi-Cube notification PMUCs');
+    });
   });
 
   describe('getNotifications()', () => {

@@ -166,7 +166,7 @@ export interface ResolveRelsRecursiveOptions extends ResolveRelsOptions {
    * Stop recursing when encountering a Veritable with any of these keys.
    * Note that we will still retrieve the veritable, but not recurse into it.
    */
-  exclude?: Set<string>;
+  excludeVeritable?: Set<string>;
 }
 
 /**
@@ -193,9 +193,9 @@ export function resolveRelsRecursive(
     // Note: options.relTypes will be set by resolveRels() if not specified
   }
   // Ensure an exclusion set exists. (We’re sharing this across recursions.)
-  if (!options.exclude) options.exclude = new Set();
+  if (!options.excludeVeritable) options.excludeVeritable = new Set();
   // Add main's key to the exclusion set. (This is async; we assume it’s okay if not awaited.)
-  main.getKeyString().then((key) => options.exclude.add(key));
+  main.getKeyString().then((key) => options.excludeVeritable.add(key));
 
   // First, perform the direct resolution.
   const directRels = resolveRels(main, retrievalFn, options);
@@ -212,7 +212,7 @@ export function resolveRelsRecursive(
         const key = await veritable.getKeyString();
 
         // Check if we should stop recursing on this branch.
-        if (options.maxRecursion <= 1 || options.exclude.has(key)) {
+        if (options.maxRecursion <= 1 || options.excludeVeritable.has(key)) {
           // Create a leaf result: no further recursion is performed.
           return {
             main: veritable,
@@ -222,17 +222,17 @@ export function resolveRelsRecursive(
               (veritable as Veritum).getRelationships?.() === undefined ||
               (veritable as Veritum).getRelationships?.().length === 0,
             depthLimitReached: options.maxRecursion <= 1,
-            exclusionApplied: options.exclude.has(key),
+            exclusionApplied: options.excludeVeritable.has(key),
             resolutionFailure: false,
           };
         }
         // Otherwise, add this key to the exclusion set.
-        options.exclude.add(key);
+        options.excludeVeritable.add(key);
         // Prepare child options: decrement the recursion depth.
         const childOptions: ResolveRelsRecursiveOptions = {
           ...options,
           maxRecursion: options.maxRecursion - 1,
-          exclude: options.exclude, // sharing the same exclusion set
+          excludeVeritable: options.excludeVeritable, // sharing the same exclusion set
         };
         // Recurse into the referred cube.
         return resolveRelsRecursive(veritable as Veritum, retrievalFn, childOptions);

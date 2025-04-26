@@ -96,7 +96,22 @@ export class VeritumRetriever
     else return cubePromise as Promise<cubeClass>;
   }
 
-  async getVeritum(key: CubeKey|string, options?: GetCubeOptionsT&GetVeritumOptions): Promise<Veritum> {
+  getVeritum(
+      key: CubeKey | string,
+      options: {resolveRels: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsOptions,
+  ): Promise<ResolveRelsResult>;
+  getVeritum(
+      key: CubeKey | string,
+      options: {resolveRels: 'recursive'} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
+  ): Promise<ResolveRelsRecursiveResult>;
+  getVeritum(
+      key: CubeKey | string,
+      options?: GetCubeOptionsT & GetVeritumOptions
+  ): Promise<Veritum>;
+  async getVeritum(
+      key: CubeKey|string,
+      options: Partial<GetCubeOptionsT&GetVeritumOptions> = {},
+  ): Promise<Veritum|ResolveRelsResult|ResolveRelsRecursiveResult> {
     const chunks: cciCube[] = await ArrayFromAsync(
       this.getContinuationChunks(key, options));
     // maybe TODO: get rid of ugly Array conversion?
@@ -123,7 +138,30 @@ export class VeritumRetriever
       { recipientPrivateKey }
     ;
     const veritum: Veritum = Veritum.FromChunks(chunks, fromChunksOptions);
-    return veritum;
+
+    // In case we shall resolve recursions, it's us who handles this -- the layers
+    // below will not be passed `resolveRels` again
+    const avoidDoubleRes = { ...options, resolveRels: false };
+
+    // Determine and prepare output format:
+    // - Resolve relationships (single level)
+    if (options.resolveRels === true) {
+      return resolveRels(
+        veritum,
+        this.getVeritum.bind(this),
+        avoidDoubleRes as ResolveRelsOptions,
+      );
+    }
+    // - Resolve relationships (recursive)
+    else if (options.resolveRels === 'recursive') {
+      return resolveRelsRecursive(
+        veritum,
+        this.getVeritum.bind(this),
+        avoidDoubleRes as ResolveRelsRecursiveOptions,
+      );
+    }
+    // - Simple case: just return the Cube
+    else return veritum;
   }
 
   /**
