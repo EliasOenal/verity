@@ -29,7 +29,7 @@ import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
 import EventEmitter from 'events';
 import { Veritum } from '../veritum/veritum';
-import { VeritumRetrievalInterface, VeritumRetriever } from '../veritum/veritumRetriever';
+import { GetVeritumOptions, VeritumRetrievalInterface, VeritumRetriever } from '../veritum/veritumRetriever';
 import { CubeRequestOptions } from '../../core/networking/cubeRetrieval/requestScheduler';
 import { RecursiveEmitter } from '../../core/helpers/recursiveEmitter';
 import { MetadataEnhancedRetrieval } from '../veritum/veritumRetrievalUtil';
@@ -124,7 +124,7 @@ export interface PostInfo<postFormat> extends MetadataEnhancedRetrieval<postForm
   author: Identity;
 }
 
-export interface GetPostsOptions {
+export interface GetPostsOptions extends GetVeritumOptions {
   /**
    * Select in which way you'd like your posts yielded, either as the full post
    * Veritum or as a compact CubeInfo object.
@@ -141,15 +141,6 @@ export interface GetPostsOptions {
    *   intuitive as possible.
    */
   format?: PostFormat;
-
-  /**
-   * If true, return a PostInfo object containing the post in the specified
-   * format as well as metadata, such as author.
-   * @default false, allowing callers to directly process (e.g. display)
-   *   the yielded posts. The goal behind this is having the default API as
-   *   intuitive as possible.
-   */
-  metadata?: boolean;
 
   /**
    * If true, the generator will not exit when all existing data has been yielded.
