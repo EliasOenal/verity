@@ -23,7 +23,7 @@ import sodium from 'libsodium-wrappers-sumo'
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 import { RelationshipType } from '../../../src/cci/cube/relationship';
-import { ResolveRelsRecursiveResult, ResolveRelsResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
+import { MetadataEnhancedRetrieval, ResolveRelsRecursiveResult, ResolveRelsResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
 
 describe('VeritumRetriever', () => {
   let cubeStore: CubeStore;
@@ -655,6 +655,27 @@ describe('VeritumRetriever', () => {
         expect(res instanceof Veritum).toBe(true);
         expect(res.getFirstField(FieldType.PAYLOAD).valueString).toEqual(evenLonger);
         expect(res.getKeyIfAvailable().equals(veritum.getKeyIfAvailable())).toBe(true);
+      });
+    });
+
+    describe('using option metadata (wrapping results in a metadata object)', () => {
+      it('wraps the returned value in a metadata object', async() => {
+        const val = Veritum.Create({
+          fields: [
+            VerityField.Payload("multa de me dicenda sunt"),
+            VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+          ],
+          requiredDifficulty: 0,
+        });
+        await val.compile();
+        for (const chunk of val.chunks) await cubeStore.addCube(chunk);
+
+        const res: MetadataEnhancedRetrieval<Veritum> =
+          await retriever.getVeritum(val.getKeyIfAvailable(), {metadata: true});
+
+        expect(res.main.getKeyStringIfAvailable()).toEqual(val.getKeyStringIfAvailable());
+        expect(res.main.equals(val)).toBe(true);
+        expect(res.isDone).toBe(true);
       });
     });
 

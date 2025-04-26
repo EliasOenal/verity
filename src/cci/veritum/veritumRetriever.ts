@@ -13,14 +13,23 @@ import { CubeRetrievalInterface, CubeStore } from "../../core/cube/cubeStore";
 import { RelationshipType, Relationship } from "../cube/relationship";
 import { Veritum, VeritumFromChunksOptions } from "./veritum";
 import { Identity } from "../identity/identity";
-import { Veritable } from "../../core/cube/veritable.definition";
-import { resolveRels, ResolveRelsOptions, resolveRelsRecursive, ResolveRelsRecursiveOptions, ResolveRelsRecursiveResult, ResolveRelsResult } from "./veritumRetrievalUtil";
+import { MetadataEnhancedRetrieval, resolveRels, ResolveRelsOptions, resolveRelsRecursive, ResolveRelsRecursiveOptions, ResolveRelsRecursiveResult, ResolveRelsResult } from "./veritumRetrievalUtil";
 
 export interface VeritumRetrievalInterface<OptionsType = CubeRequestOptions> extends CubeRetrievalInterface<OptionsType> {
   getVeritum(key: CubeKey|string, options?: OptionsType): Promise<Veritum>;
 }
 
 export interface GetVeritumOptions {
+  /**
+   * If true, return a unified metadata container object, containing the
+   * veritum as its `main` property.
+   * Note that you normally don't need to set this option manually.
+   * It will always be enabled by default if you select a metadata supplying option,
+   * e.g. resolveRels.
+   * @default - false if no options supplying metadata selected, true otherwise
+   */
+  metadata?: boolean;
+
   /**
    * Automatically attempt to decrypt the Veritum if it is encrypted
    */
@@ -58,12 +67,16 @@ export class VeritumRetriever
 
   getCube<cubeClass extends Cube = cciCube>(
       key: CubeKey | string,
-      options: {resolveRels: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsOptions,
+      options: {resolveRels: true, metadata?: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsOptions,
   ): Promise<ResolveRelsResult>;
   getCube<cubeClass extends Cube = cciCube>(
       key: CubeKey | string,
-      options: {resolveRels: 'recursive'} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
+      options: {resolveRels: 'recursive', metadata?: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
   ): Promise<ResolveRelsRecursiveResult>;
+  getCube<cubeClass extends Cube = cciCube>(
+    key: CubeKey | string,
+    options: {metadata: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
+  ): Promise<MetadataEnhancedRetrieval<Cube>>;
   getCube<cubeClass extends Cube = cciCube>(
       key: CubeKey | string,
       options?: GetCubeOptionsT & GetVeritumOptions
@@ -72,14 +85,20 @@ export class VeritumRetriever
   getCube<cubeClass extends Cube = cciCube>(
       key: CubeKey | string,
       options: Partial<GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions> = {}
-  ): Promise<cubeClass|ResolveRelsResult|ResolveRelsRecursiveResult> {
+  ): Promise<cubeClass|ResolveRelsResult|ResolveRelsRecursiveResult|MetadataEnhancedRetrieval<Cube>> {
+    // set default options
+    if (options.resolveRels) (options as GetVeritumOptions).metadata ??= true;
+
     // Fire retrieval
     const cubePromise: Promise<cubeClass> =
       this.cubeRetriever.getCube(key, options as GetCubeOptionsT);
 
+    // Shall we enhance the result with metadata?
+    if (!options.metadata) return cubePromise;  // nope, we're good
+
     // In case we shall resolve recursions, it's us who handles this -- the layers
     // below will not be passed `resolveRels` again
-    const avoidDoubleRes = { ...options, resolveRels: false };
+    const avoidDoubleRes = { ...options, resolveRels: false, metadata: false };
 
     // Determine and prepare output format:
     // - Resolve relationships (single level)
@@ -92,18 +111,29 @@ export class VeritumRetriever
       return cubePromise.then(cube =>
         resolveRelsRecursive(cube, this.getCube.bind(this), avoidDoubleRes as ResolveRelsRecursiveOptions));
     }
-    // - Simple case: just return the Cube
-    else return cubePromise as Promise<cubeClass>;
+    // - None of that? Craft an empty meta data object then I guess.
+    else return cubePromise.then(cube => {
+      const ret: MetadataEnhancedRetrieval<Cube> = {
+        main: cube,
+        done: Promise.resolve(),
+        isDone: true,
+      };
+      return ret;
+    });
   }
 
   getVeritum(
       key: CubeKey | string,
-      options: {resolveRels: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsOptions,
+      options: {resolveRels: true, metadata?: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsOptions,
   ): Promise<ResolveRelsResult>;
   getVeritum(
       key: CubeKey | string,
-      options: {resolveRels: 'recursive'} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
+      options: {resolveRels: 'recursive', metadata?: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
   ): Promise<ResolveRelsRecursiveResult>;
+  getVeritum(
+    key: CubeKey | string,
+    options: {metadata: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
+): Promise<MetadataEnhancedRetrieval<Veritum>>;
   getVeritum(
       key: CubeKey | string,
       options?: GetCubeOptionsT & GetVeritumOptions
@@ -111,7 +141,11 @@ export class VeritumRetriever
   async getVeritum(
       key: CubeKey|string,
       options: Partial<GetCubeOptionsT&GetVeritumOptions> = {},
-  ): Promise<Veritum|ResolveRelsResult|ResolveRelsRecursiveResult> {
+  ): Promise<Veritum|ResolveRelsResult|ResolveRelsRecursiveResult|MetadataEnhancedRetrieval<Veritum>> {
+    // set default options
+    if (options.resolveRels) (options as GetVeritumOptions).metadata ??= true;
+
+    // Request this Veritum's chunk Cubes
     const chunks: cciCube[] = await ArrayFromAsync(
       this.getContinuationChunks(key, options));
     // maybe TODO: get rid of ugly Array conversion?
@@ -139,9 +173,12 @@ export class VeritumRetriever
     ;
     const veritum: Veritum = Veritum.FromChunks(chunks, fromChunksOptions);
 
+    // Shall we enhance the result with metadata?
+    if (!options.metadata) return veritum;  // nope, we're good
+
     // In case we shall resolve recursions, it's us who handles this -- the layers
     // below will not be passed `resolveRels` again
-    const avoidDoubleRes = { ...options, resolveRels: false };
+    const avoidDoubleRes = { ...options, resolveRels: false, metadata: false };
 
     // Determine and prepare output format:
     // - Resolve relationships (single level)
@@ -160,8 +197,15 @@ export class VeritumRetriever
         avoidDoubleRes as ResolveRelsRecursiveOptions,
       );
     }
-    // - Simple case: just return the Cube
-    else return veritum;
+    // - None of that? Craft an empty meta data object then I guess.
+    else {
+      const ret: MetadataEnhancedRetrieval<Veritum> = {
+        main: veritum,
+        done: Promise.resolve(),
+        isDone: true,
+      };
+      return ret;
+    }
   }
 
   /**
