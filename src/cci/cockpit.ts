@@ -9,6 +9,7 @@ import { GetVeritumOptions } from "./veritum/veritumRetriever";
 
 import { Buffer } from 'buffer';
 import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
+import { MetadataEnhancedRetrieval, ResolveRelsOptions, ResolveRelsRecursiveOptions, ResolveRelsRecursiveResult, ResolveRelsResult } from "./veritum/veritumRetrievalUtil";
 
 export interface CockpitOptions {
   identity?: Identity | (() => Identity);
@@ -100,16 +101,32 @@ export class Cockpit {
   }
 
   getVeritum(
+      key: CubeKey | string,
+      options: {resolveRels: true, metadata?: true} & CubeRequestOptions & GetVeritumOptions & ResolveRelsOptions,
+  ): Promise<ResolveRelsResult>;
+  getVeritum(
+      key: CubeKey | string,
+      options: {resolveRels: 'recursive', metadata?: true} & CubeRequestOptions & GetVeritumOptions & ResolveRelsRecursiveOptions,
+  ): Promise<ResolveRelsRecursiveResult>;
+  getVeritum(
+      key: CubeKey | string,
+      options: {metadata: true} & CubeRequestOptions & GetVeritumOptions & ResolveRelsRecursiveOptions,
+  ): Promise<MetadataEnhancedRetrieval<Veritum>>;
+  getVeritum(
+      key: CubeKey | string,
+      options?: CubeRequestOptions & GetVeritumOptions
+  ): Promise<Veritum>;
+  getVeritum(
       key: CubeKey,
       options: CubeRequestOptions & GetVeritumOptions = {},
-  ): Promise<Veritum> {
-    const veritumPromise: Promise<Veritum> =
+  ): Promise<Veritum|ResolveRelsResult|ResolveRelsRecursiveResult|MetadataEnhancedRetrieval<Veritum>> {
+    const ret: Promise<Veritum|ResolveRelsResult|ResolveRelsRecursiveResult|MetadataEnhancedRetrieval<Veritum>> =
       this.node.veritumRetriever.getVeritum(key,
         {
           ...options,
           recipient: this.identity,
         }
     );
-    return veritumPromise;
+    return ret;
   }
 }
