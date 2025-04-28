@@ -32,7 +32,8 @@ import { Veritum } from '../veritum/veritum';
 import { GetVeritumOptions, VeritumRetrievalInterface, VeritumRetriever } from '../veritum/veritumRetriever';
 import { CubeRequestOptions } from '../../core/networking/cubeRetrieval/requestScheduler';
 import { RecursiveEmitter } from '../../core/helpers/recursiveEmitter';
-import { MetadataEnhancedRetrieval } from '../veritum/veritumRetrievalUtil';
+import { MetadataEnhancedRetrieval, resolveRels, resolveRelsRecursive, ResolveRelsRecursiveResult, ResolveRelsResult } from '../veritum/veritumRetrievalUtil';
+import { Veritable } from '../../core/cube/veritable.definition';
 
 // Identity defaults
 // TODO move to settings
@@ -746,20 +747,13 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
 
     // Get all my posts (as retrieval promises)
     const minePromises: Promise<Cube|Veritum|PostInfo<Cube|Veritum>>[] = [];
+    const retrievalFn: (key: CubeKey|string, options: GetVeritumOptions) => Promise<Cube|Veritum|PostInfo<Cube|Veritum>> =
+      options.format === PostFormat.Cube ?
+        this.cubeRetriever.getCube.bind(this.cubeRetriever) :
+        this.veritumRetriever.getVeritum.bind(this.veritumRetriever);
     for (const post of this.getPostKeyStrings()) {
-      let promise: Promise<Cube|Veritum|PostInfo<Cube|Veritum>>;
-      switch(options.format) {
-        case PostFormat.Cube:
-          promise = this.cubeRetriever.getCube(post, {
-            ...options, recipient: this,
-          });
-          break;
-        case PostFormat.Veritum:
-          promise = this.veritumRetriever.getVeritum(post, {
-            ...options, recipient: this,
-          });
-          break;
-      }
+      const promise: Promise<Cube|Veritum|PostInfo<Cube|Veritum>> =
+        retrievalFn(post, { ...options, recipient: this });
       if (promise !== undefined) {
         if (options.metadata) {
           minePromises.push(promise.then(struct => {
@@ -795,23 +789,52 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     let ret: GetPostsGenerator<Cube|Veritum|PostInfo<Cube|Veritum>>;
 
     // In subscription mode, keep going and yield new data as it arrives
-    // TODO BUGBUG respect output format
-
-    const extractPost = (postInfo: PostInfo<any>) => postInfo.main;
-
     if (options.subscribe) {
+      // Spawn an appropriate event emitter
       const emitter = this.getRecursiveEmitter({
         event: PostFormatEventMap[options.format],
         depth: options.subscriptionDepth,
       });
+      // Will we need to pre-process those events?
+      let transform: (postInfo: PostInfo<any>) => any = undefined;
+      if (!options.metadata) {
+       // In case raw post output (i.e. no PostInfo) is requested, prepare a
+       // stub to un-wrap the post from the PostInfo object.
+        transform = (postInfo: PostInfo<any>) => postInfo.main;
+      } else if (options.resolveRels === true) {
+        // Did the caller wanted inter-Veritum relations resolved (single layer)?
+        transform = (postInfo: PostInfo<any>) => {
+          const ret = resolveRels(
+            postInfo.main,
+            retrievalFn as (key: CubeKey, options: GetVeritumOptions|Object) => Promise<Veritable>,
+            { ...options },
+          ) as ResolveRelsResult & PostInfo<Veritable>;
+          // Merge native PostInfo data (i.e. authorship) back in
+          ret.author = postInfo.author;
+          return ret;
+        }
+      } else if (options.resolveRels === 'recursive') {
+        // Did the caller wanted inter-Veritum relations resolved recursively?
+        transform = (postInfo: PostInfo<any>) => {
+          const ret = resolveRelsRecursive(
+            postInfo.main,
+            retrievalFn as (key: CubeKey, options: GetVeritumOptions|Object) => Promise<Veritable>,
+            { ...options },
+          ) as ResolveRelsRecursiveResult & PostInfo<Veritable>;
+          // Merge native PostInfo data (i.e. authorship) back in
+          ret.author = postInfo.author;
+          return ret;
+        }
+      }
+      // Adapt the event emitter into an AsyncGenerator
       const subGen: AsyncGenerator<Veritum> =
         eventsToGenerator(
           [{
             emitter: emitter,
             event: PostFormatEventMap[options.format],
-          }],
-          { transform: (!options.metadata? extractPost : undefined)},
+          }], { transform },
       );
+      // Merge all generators
       ret = mergeAsyncGenerators(mine, ...rGens, subGen);
     } else {
       ret = mergeAsyncGenerators(mine, ...rGens);
