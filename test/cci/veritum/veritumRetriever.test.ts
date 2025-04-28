@@ -752,6 +752,19 @@ describe('VeritumRetriever', () => {
           const postC: Veritable = await postCPromise;
           expect(postC.equals(vC)).toBe(true);
         });
+
+        it('returns an empty metadata object if the Veritum is not retrievable', async () => {
+          const result: ResolveRelsResult =
+            await retriever.getVeritum(
+              Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42), {
+                resolveRels: true,
+          });
+          expect(result).toBeDefined();
+          expect(result.main).toBeUndefined();
+          expect(result.isDone).toBe(true);
+          expect(result.allResolved).toBe(false);
+          expect(result.resolutionFailure).toBe(true);
+        });
       });
 
       describe("using option resolveRels='veritum' (recursive)", () => {
@@ -783,6 +796,19 @@ describe('VeritumRetriever', () => {
 
           // verify indirect MYPOST rel not resolved, as we opted out
           expect(reply[RelationshipType.MYPOST]).toBeUndefined();
+        });
+
+        it('returns an empty metadata object if the Veritum is not retrievable', async () => {
+          const result: ResolveRelsRecursiveResult =
+            await retriever.getVeritum(
+              Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42), {
+                resolveRels: 'recursive',
+          });
+          expect(result).toBeDefined();
+          expect(result.main).toBeUndefined();
+          expect(result.isDone).toBe(true);
+          expect(result.allResolved).toBe(false);
+          expect(result.resolutionFailure).toBe(true);
         });
       });
     });

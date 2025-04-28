@@ -126,7 +126,7 @@ export interface ResolveRelsOptions {
 
 
 export function resolveRels(
-  main: Veritable,
+  main?: Veritable,
   retrievalFn?: (key: CubeKey, options: GetVeritumOptions|Object) => Promise<Veritable>,
   options: ResolveRelsOptions = {},
 ): ResolveRelsResult {
@@ -136,6 +136,14 @@ export function resolveRels(
     .filter(key => !Number.isNaN(key));
 
   const ret: Partial<ResolveRelsResult> = emptyResolveRelsResult(main);
+
+  // Pathological case: return empty result if there is no main Veritable
+  if (main === undefined) {
+    ret.done = Promise.resolve();
+    ret.isDone = true;
+    ret.resolutionFailure = true;
+    return ret as ResolveRelsResult;
+  }
 
   // fetch rels
   // HACKHACK typecast: We kinda sorta need an extended Veritable interface
@@ -196,7 +204,7 @@ export interface ResolveRelsRecursiveOptions extends ResolveRelsOptions {
  *   containing a retrieval promise for each reference.
  */
 export function resolveRelsRecursive(
-  main: Veritable,
+  main?: Veritable,
   retrievalFn?: (key: CubeKey, options: GetVeritumOptions) => Promise<Veritable>,
   options: ResolveRelsRecursiveOptions = {},
 ): ResolveRelsRecursiveResult {
@@ -207,12 +215,23 @@ export function resolveRelsRecursive(
   }
   // Ensure an exclusion set exists. (We’re sharing this across recursions.)
   if (!options.excludeVeritable) options.excludeVeritable = new Set();
+
+  // Prepare the result object
+  const result: Partial<ResolveRelsRecursiveResult> = emptyResolveRelsRecursiveResult(main);
+
+  // Pathological case: return empty result if there is no main Veritable
+  if (main === undefined) {
+    result.done = Promise.resolve();
+    result.isDone = true;
+    result.resolutionFailure = true;
+    return result as ResolveRelsRecursiveResult;
+  }
+
   // Add main's key to the exclusion set. (This is async; we assume it’s okay if not awaited.)
   main.getKeyString().then((key) => options.excludeVeritable.add(key));
 
   // First, perform the direct resolution.
   const directRels = resolveRels(main, retrievalFn, options);
-  const result: Partial<ResolveRelsRecursiveResult> = emptyResolveRelsRecursiveResult(main);
 
   // For every occurring relationship type, map each retrieval promise to a
   // recursive resolution.
