@@ -157,7 +157,7 @@ export interface GetPostsOptions extends GetVeritumOptions {
    * indirect subscriptions.
    * Defaults to 0, i.e. only retrieves this Identity's own posts.
    */
-  depth?: number;
+  subscriptionDepth?: number;
 
   /**
    * A set of Identity key strings to exclude when retrieving not just own posts
@@ -727,7 +727,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   ): GetPostsGenerator<Cube|Veritum|PostInfo<Cube|Veritum>> {
     // set default options
     options.format ??= this.veritumRetriever? PostFormat.Veritum: PostFormat.Cube;
-    options.depth ??= 0;
+    options.subscriptionDepth ??= 0;
 
     // check if we even have the means to fulfil this request
     if (this.cubeStore === undefined) {
@@ -747,26 +747,26 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     // Get all my posts (as retrieval promises)
     const minePromises: Promise<Cube|Veritum|PostInfo<Cube|Veritum>>[] = [];
     for (const post of this.getPostKeyStrings()) {
-      let promise: Promise<Cube|Veritum>;
+      let promise: Promise<Cube|Veritum|PostInfo<Cube|Veritum>>;
       switch(options.format) {
         case PostFormat.Cube:
-          promise = this.cubeRetriever.getCube(post);
+          promise = this.cubeRetriever.getCube(post, {
+            ...options, recipient: this,
+          });
           break;
         case PostFormat.Veritum:
           promise = this.veritumRetriever.getVeritum(post, {
-            recipient: this,
+            ...options, recipient: this,
           });
           break;
       }
       if (promise !== undefined) {
         if (options.metadata) {
-          minePromises.push(promise.then(payload => {
-            if (payload === undefined) return undefined;
-            return {
-              main: payload,
-              author: this,
-              done: Promise.resolve(),
-              isDone: true,
+          minePromises.push(promise.then(struct => {
+            if ((struct as PostInfo<any>)?.main === undefined) return undefined;
+            else {
+              (struct as PostInfo<any>).author = this;
+              return struct;
             }
           }));
         } else {
@@ -781,11 +781,11 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
 
     // Prepare Generators for my subscription's posts
     const rGens: AsyncGenerator<Cube|Veritum|PostInfo<Cube|Veritum>>[] = [];
-    if (options.depth > 0) {
+    if (options.subscriptionDepth > 0) {
       for (const subKey of this.getPublicSubscriptionStrings()) {
         rGens.push(this.getPublicSubscriptionPosts(subKey, {
           ...options,
-          depth: options.depth - 1,
+          subscriptionDepth: options.subscriptionDepth - 1,
           subscribe: false,  // subscription mode is always handled through events
         }));
       }
@@ -802,7 +802,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     if (options.subscribe) {
       const emitter = this.getRecursiveEmitter({
         event: PostFormatEventMap[options.format],
-        depth: options.depth,
+        depth: options.subscriptionDepth,
       });
       const subGen: AsyncGenerator<Veritum> =
         eventsToGenerator(

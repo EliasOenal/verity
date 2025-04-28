@@ -4,6 +4,7 @@ import type { Veritable } from "../../core/cube/veritable.definition";
 import type { CubeRequestOptions } from "../../core/networking/cubeRetrieval/requestScheduler";
 
 import { Relationship, RelationshipType } from "../cube/relationship";
+import { GetVeritumOptions } from "./veritumRetriever";
 
 // Result type declaration
 export interface MetadataEnhancedRetrieval<MainType> {
@@ -107,7 +108,15 @@ export function emptyResolveRelsRecursiveResult(main: Veritable): Partial<Resolv
 }
 
 
-export interface ResolveRelsOptions extends CubeRequestOptions {
+export interface ResolveRelsOptions {
+  /**
+   * If true, automatically resolve and retrieve all referenced further
+   * Verita. If set to 'recursive', even resolve sub-referenced relationships
+   * up to `maxRecursion` levels. The type of relationships to resolve can be
+   * limited using the `relTypes` option.
+   */
+  resolveRels?: boolean | 'recursive';
+
   /**
    * If specified, only resolve relationships of the specified types.
    * @default - All standard relationship types (CCI)
@@ -118,7 +127,7 @@ export interface ResolveRelsOptions extends CubeRequestOptions {
 
 export function resolveRels(
   main: Veritable,
-  retrievalFn?: (key: CubeKey, options: CubeRequestOptions) => Promise<Veritable>,
+  retrievalFn?: (key: CubeKey, options: GetVeritumOptions|Object) => Promise<Veritable>,
   options: ResolveRelsOptions = {},
 ): ResolveRelsResult {
   // Set default options
@@ -138,7 +147,11 @@ export function resolveRels(
   for (const rel of rels) {
     if (!options.relTypes.includes(rel.type)) continue;
     // retrieve referred Veritable
-    const promise = retrievalFn(rel.remoteKey, options);
+    const promise = retrievalFn(rel.remoteKey, {
+      ...options,
+      resolveRels: false,  // don't pass that on, we're the ones handling it!
+      metadata: false,  // plain vanilla result please
+    });
     // lazy initialise that rel type's resolutions array if necessary
     if (!ret[rel.type]) ret[rel.type] = [];
     // add that retrieval to ret
@@ -184,7 +197,7 @@ export interface ResolveRelsRecursiveOptions extends ResolveRelsOptions {
  */
 export function resolveRelsRecursive(
   main: Veritable,
-  retrievalFn?: (key: CubeKey, options: CubeRequestOptions) => Promise<Veritable>,
+  retrievalFn?: (key: CubeKey, options: GetVeritumOptions) => Promise<Veritable>,
   options: ResolveRelsRecursiveOptions = {},
 ): ResolveRelsRecursiveResult {
   // Set the default recursion limit if not specified.
@@ -208,6 +221,17 @@ export function resolveRelsRecursive(
     const directPromises: Promise<Veritable>[] = directRels[relKey] || [];
     result[relKey] = directPromises.map((promise) =>
       promise.then(async (veritable) => {
+        // First of all: Were we able to resolve this Veritable?
+        // If not, return an empty result.
+        if (veritable === undefined) return {
+          main: undefined,
+          done: Promise.resolve(),
+          isDone: true,
+          allResolved: false,
+          depthLimitReached: false,
+          exclusionApplied: false,
+          resolutionFailure: true,
+        };
         // Retrieve the veritable's key asynchronously.
         const key = await veritable.getKeyString();
 

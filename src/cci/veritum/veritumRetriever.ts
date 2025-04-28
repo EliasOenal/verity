@@ -19,7 +19,7 @@ export interface VeritumRetrievalInterface<OptionsType = CubeRequestOptions> ext
   getVeritum(key: CubeKey|string, options?: OptionsType): Promise<Veritum>;
 }
 
-export interface GetVeritumOptions {
+export interface GetVeritumOptions extends CubeRequestOptions, ResolveRelsOptions {
   /**
    * If true, return a unified metadata container object, containing the
    * veritum as its `main` property.
@@ -34,14 +34,6 @@ export interface GetVeritumOptions {
    * Automatically attempt to decrypt the Veritum if it is encrypted
    */
   recipient?: Identity|Buffer;
-
-  /**
-   * If true, automatically resolve and retrieve all referenced further
-   * Verita. If set to 'recursive', even resolve sub-referenced relationships
-   * up to `maxRecursion` levels. The type of relationships to resolve can be
-   * limited using the `relTypes` option.
-   */
-  resolveRels?: boolean|'recursive';
 }
 
 export class VeritumRetriever
@@ -131,9 +123,9 @@ export class VeritumRetriever
       options: {resolveRels: 'recursive', metadata?: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
   ): Promise<ResolveRelsRecursiveResult>;
   getVeritum(
-    key: CubeKey | string,
-    options: {metadata: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
-): Promise<MetadataEnhancedRetrieval<Veritum>>;
+      key: CubeKey | string,
+      options: {metadata: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
+  ): Promise<MetadataEnhancedRetrieval<Veritum>>;
   getVeritum(
       key: CubeKey | string,
       options?: GetCubeOptionsT & GetVeritumOptions

@@ -16,7 +16,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
   let leaf1: cciCube, leaf2: cciCube, leaf3: cciCube;
   let singleMyPost: cciCube, twoMyPosts: cciCube, replyToPlusMyPost: cciCube;
-  let unresolvableRel: cciCube;
+  let unresolvableRel: cciCube, indirectlyUnresolvableRel: cciCube;
   let cubeA: cciCube, cubeB: cciCube, cubeC: cciCube;
   let cycleA: cciCube, cycleB: cciCube, cycleC: cciCube;
 
@@ -79,11 +79,19 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
     // Sculpt a Cube with an unresolvable relationship.
     unresolvableRel = cciCube.Create({
       fields: [
-        VerityField.Payload("Tam sapiens est ut cubis alienis respondeat"),
+        VerityField.Payload("Mysterium manebit quid significem"),
         VerityField.RelatesTo(RelationshipType.REPLY_TO,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337)),
     ]});
+    const unresolvableRelKey = await unresolvableRel.getKey();
+    await cubeStore.addCube(unresolvableRel);
 
+    // Sculpt a Cube with an indirectly unresolvable relationship
+    indirectlyUnresolvableRel = cciCube.Create({
+      fields: [
+        VerityField.Payload("Haec catena cuborum fracta est"),
+        VerityField.RelatesTo(RelationshipType.REPLY_TO, unresolvableRelKey),
+    ]});
 
     // --- Create a chain: cubeA -> cubeB -> cubeC (with cubeC being a leaf cube) ---
     cubeC = cciCube.Create({
@@ -309,6 +317,12 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
       it('refers the input Cube', () => {
         expect(res.main).toBe(unresolvableRel);
+      });
+
+      it('resolves the unresolvable REPLY_TO rel to undefined', async () => {
+        expect(res[RelationshipType.REPLY_TO]).toHaveLength(1);
+        expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
+        expect(await res[RelationshipType.REPLY_TO][0]).toBeUndefined();
       });
 
       it('sets its status flags correctly', () => {
@@ -587,221 +601,51 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
         expect(recursiveRes.depthLimitReached).toBe(false);
       });
     });  // cube with mixed relationship types
-  });  // resolveRelsRecursive()
 
-
-  describe('recursion depth limiting', () => {
-    it('respects a depth limit of 1', async () => {
-      const res = resolveRelsRecursive(
-        cubeA, cubeStore.getCube.bind(cubeStore),
-        { maxRecursion: 1 }
-      );
-      await res.done;
-
-      expect(res[RelationshipType.MYPOST].length).toBe(1);
-
-      const nestedResB = await res[RelationshipType.MYPOST][0];
-      expect(nestedResB.main.equals(cubeB)).toBe(true);
-
-      // Since maxRecursion was 1, cubeB should not recurse further.
-      expect(Object.keys(nestedResB).filter(key => Number.parseInt(key)))
-        .toHaveLength(0);
-
-      // should set its status flags correctly
-      expect(res.isDone).toBe(true);
-      expect(res.allResolved).toBe(false);
-      expect(res.resolutionFailure).toBe(false);
-      expect(res.exclusionApplied).toBe(false);
-      expect(res.depthLimitReached).toBe(true);
-    });
-
-    it('fully resolves a 2-level tree when using a depth limit of 2', async () => {
-      const res = resolveRelsRecursive(
-        cubeA, cubeStore.getCube.bind(cubeStore),
-        { maxRecursion: 2 });
-
-      await res.done;
-
-      expect(res[RelationshipType.MYPOST].length).toBe(1);
-
-      const nestedResB = await res[RelationshipType.MYPOST][0];
-      expect(nestedResB.main.equals(cubeB)).toBe(true);
-
-      expect(nestedResB[RelationshipType.REPLY_TO].length).toBe(1);
-
-      const nestedResC = await nestedResB[RelationshipType.REPLY_TO][0];
-      expect(nestedResC.main.equals(cubeC)).toBe(true);
-
-      // Cube C is a leaf, so further recursion should not happen
-      expect(Object.keys(nestedResC).filter(key => Number.parseInt(key)))
-        .toHaveLength(0);
-
-      // should set its status flags correctly
-      expect(res.isDone).toBe(true);
-      expect(res.allResolved).toBe(true);
-      expect(res.resolutionFailure).toBe(false);
-      expect(res.exclusionApplied).toBe(false);
-      expect(res.depthLimitReached).toBe(true);  // note it was not exceeded, but is was reached
-    });
-  });  // recursion depth limiting
-
-
-  describe('recursion exclusion set (e.g. for already-visited cubes)', () => {
-    it('does not revisit cubes already seen in exclude set', async () => {
-      const excludeSet = new Set<string>();
-      const stopKey = await cubeB.getKeyString();
-      excludeSet.add(stopKey);
-
-      const res = resolveRelsRecursive(
-        cubeA, cubeStore.getCube.bind(cubeStore),
-        { excludeVeritable: excludeSet });
-      await res.done;
-
-      // Cube A's relationship to Cube B should have resolved as normal
-      expect(res[RelationshipType.MYPOST].length).toBe(1);
-      const resB = await res[RelationshipType.MYPOST][0];
-      expect(resB.main.equals(cubeB)).toBe(true);
-
-      // Since cubeB is excluded, it should contain no resolved relationships.
-      expect(Object.keys(resB).filter(key => Number.parseInt(key)))
-        .toHaveLength(0);
-
-      // should set its status flags correctly
-      expect(res.isDone).toBe(true);
-      expect(res.allResolved).toBe(false);
-      expect(res.resolutionFailure).toBe(false);
-      expect(res.exclusionApplied).toBe(true);
-      expect(res.depthLimitReached).toBe(false);
-    });
-
-    it('correctly adds newly encountered cubes to exclude set and prevents revisits', async () => {
-      const excludeSet = new Set<string>();
-
-      const res = resolveRelsRecursive(
-        cubeA, cubeStore.getCube.bind(cubeStore),
-        { excludeVeritable: excludeSet });
-      await res.done;
-
-      expect(res[RelationshipType.MYPOST].length).toBe(1);
-
-      const nestedResB = await res[RelationshipType.MYPOST][0];
-      expect(nestedResB.main.equals(cubeB)).toBe(true);
-
-      // Ensure cubeB's key is now tracked in the exclude set.
-      const cubeBKey = await cubeB.getKeyString();
-      expect(excludeSet.has(cubeBKey)).toBe(true);
-
-      // should set its status flags correctly
-      expect(res.isDone).toBe(true);
-      expect(res.allResolved).toBe(true);  // still true, the exclusion was tracked but nothing was actually skipped
-      expect(res.resolutionFailure).toBe(false);
-      expect(res.exclusionApplied).toBe(false);  // still false, B was marked for exclusion, but as it was never revisited anyway it was not skipped
-      expect(res.depthLimitReached).toBe(false);
-    });
-
-    it('avoids infinite recursion caused by cyclic relationships', async () => {
-      const res = resolveRelsRecursive(
-        cycleA, cubeStore.getCube.bind(cubeStore));
-      await res.done;
-
-      // A's relationship to C should be resolved
-      expect(res[RelationshipType.REPLY_TO].length).toBe(1);
-      const resC = await res[RelationshipType.REPLY_TO][0];
-      expect(resC.main.equals(cycleC)).toBe(true);
-
-      // C's relationship to B should be resolved
-      expect(resC[RelationshipType.REPLY_TO].length).toBe(1);
-      const resB = await resC[RelationshipType.REPLY_TO][0];
-      expect(resB.main.equals(cycleB)).toBe(true);
-
-      // B's cyclic relationship to A should still be resolved,
-      // but recursion should stop there
-      expect(resB[RelationshipType.REPLY_TO].length).toBe(1);
-      const resA = await resB[RelationshipType.REPLY_TO][0];
-      expect(resA.main.equals(cycleA)).toBe(true);
-
-      // resA should not feature any resolved relationships, as recursion
-      // has be broken due to the cyclic relationship
-      expect(Object.keys(resA).filter(key => Number.parseInt(key)))
-        .toHaveLength(0);
-
-      // should set its status flags correctly
-      expect(res.isDone).toBe(true);
-      expect(res.allResolved).toBe(false);
-      expect(res.resolutionFailure).toBe(false);
-      expect(res.exclusionApplied).toBe(true);
-      expect(res.depthLimitReached).toBe(false);
-    });
-
-  });  // recursion exclusion set
-
-  describe('limiting relationship types', () => {
-    describe('first level resolutions', () => {
-      it('returns an empty result when the only relationship type is excluded', () => {
-        const res = resolveRelsRecursive(
-          singleMyPost,
-          cubeStore.getCube.bind(cubeStore),
-          {
-            relTypes: [RelationshipType.REPLY_TO],
-          }
-        );
-
-        expect(res.main).toBe(singleMyPost);
-        expect(res.done).toBeInstanceOf(Promise);
-        expect(Object.keys(res).filter(key => Number.parseInt(key))).toHaveLength(0);
-      });
-
-      it('only includes the specified relationship types', () => {
-        const res = resolveRelsRecursive(
-          replyToPlusMyPost,
-          cubeStore.getCube.bind(cubeStore),
-          {
-            relTypes: [RelationshipType.REPLY_TO],
-          }
-        );
-
-        expect(res.main).toBe(replyToPlusMyPost);
-        expect(res.done).toBeInstanceOf(Promise);
-
-        expect(Object.keys(res).filter(key => Number.parseInt(key))).toHaveLength(1);
-        expect(res[RelationshipType.REPLY_TO].length).toBe(1);
-      });
-
-      it('is neutral if all relationship type present are in the filter list', () => {
-        const res = resolveRelsRecursive(
-          replyToPlusMyPost,
-          cubeStore.getCube.bind(cubeStore),
-          {
-            relTypes: [RelationshipType.REPLY_TO, RelationshipType.MYPOST],
-          }
-        );
-
-        expect(res.main).toBe(replyToPlusMyPost);
-        expect(res.done).toBeInstanceOf(Promise);
-
-        expect(Object.keys(res).filter(key => Number.parseInt(key))).toHaveLength(2);
-        expect(res[RelationshipType.REPLY_TO].length).toBe(1);
-        expect(res[RelationshipType.MYPOST].length).toBe(2);
-      });
-    });  // first level resolutions
-
-    describe('recursive resolutions', () => {
-      it('stops the recursion when the only relationship type is excluded', async () => {
+    describe('recursion depth limiting', () => {
+      it('respects a depth limit of 1', async () => {
         const res = resolveRelsRecursive(
           cubeA, cubeStore.getCube.bind(cubeStore),
-          { relTypes: [RelationshipType.MYPOST] }
+          { maxRecursion: 1 }
         );
         await res.done;
 
-        // Expect the rel from cubeA to cubeB to be resolved as it is a MYPOST rel
         expect(res[RelationshipType.MYPOST].length).toBe(1);
-        const resB = await res[RelationshipType.MYPOST][0];
-        expect(resB.main.equals(cubeB)).toBe(true);
 
-        // Expect the rel from cubeB to cubeC to not be resolved as it is a REPLY_TO rel.
-        // The resolved B should not have any further relationship entries.
-        expect(resB[RelationshipType.REPLY_TO]).toBeUndefined();
-        expect(Object.keys(resB).filter(key => Number.parseInt(key)))
+        const nestedResB = await res[RelationshipType.MYPOST][0];
+        expect(nestedResB.main.equals(cubeB)).toBe(true);
+
+        // Since maxRecursion was 1, cubeB should not recurse further.
+        expect(Object.keys(nestedResB).filter(key => Number.parseInt(key)))
+          .toHaveLength(0);
+
+        // should set its status flags correctly
+        expect(res.isDone).toBe(true);
+        expect(res.allResolved).toBe(false);
+        expect(res.resolutionFailure).toBe(false);
+        expect(res.exclusionApplied).toBe(false);
+        expect(res.depthLimitReached).toBe(true);
+      });
+
+      it('fully resolves a 2-level tree when using a depth limit of 2', async () => {
+        const res = resolveRelsRecursive(
+          cubeA, cubeStore.getCube.bind(cubeStore),
+          { maxRecursion: 2 });
+
+        await res.done;
+
+        expect(res[RelationshipType.MYPOST].length).toBe(1);
+
+        const nestedResB = await res[RelationshipType.MYPOST][0];
+        expect(nestedResB.main.equals(cubeB)).toBe(true);
+
+        expect(nestedResB[RelationshipType.REPLY_TO].length).toBe(1);
+
+        const nestedResC = await nestedResB[RelationshipType.REPLY_TO][0];
+        expect(nestedResC.main.equals(cubeC)).toBe(true);
+
+        // Cube C is a leaf, so further recursion should not happen
+        expect(Object.keys(nestedResC).filter(key => Number.parseInt(key)))
           .toHaveLength(0);
 
         // should set its status flags correctly
@@ -809,8 +653,260 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
         expect(res.allResolved).toBe(true);
         expect(res.resolutionFailure).toBe(false);
         expect(res.exclusionApplied).toBe(false);
+        expect(res.depthLimitReached).toBe(true);  // note it was not exceeded, but is was reached
+      });
+    });  // recursion depth limiting
+
+
+    describe('recursion exclusion set (e.g. for already-visited cubes)', () => {
+      it('does not revisit cubes already seen in exclude set', async () => {
+        const excludeSet = new Set<string>();
+        const stopKey = await cubeB.getKeyString();
+        excludeSet.add(stopKey);
+
+        const res = resolveRelsRecursive(
+          cubeA, cubeStore.getCube.bind(cubeStore),
+          { excludeVeritable: excludeSet });
+        await res.done;
+
+        // Cube A's relationship to Cube B should have resolved as normal
+        expect(res[RelationshipType.MYPOST].length).toBe(1);
+        const resB = await res[RelationshipType.MYPOST][0];
+        expect(resB.main.equals(cubeB)).toBe(true);
+
+        // Since cubeB is excluded, it should contain no resolved relationships.
+        expect(Object.keys(resB).filter(key => Number.parseInt(key)))
+          .toHaveLength(0);
+
+        // should set its status flags correctly
+        expect(res.isDone).toBe(true);
+        expect(res.allResolved).toBe(false);
+        expect(res.resolutionFailure).toBe(false);
+        expect(res.exclusionApplied).toBe(true);
         expect(res.depthLimitReached).toBe(false);
       });
+
+      it('correctly adds newly encountered cubes to exclude set and prevents revisits', async () => {
+        const excludeSet = new Set<string>();
+
+        const res = resolveRelsRecursive(
+          cubeA, cubeStore.getCube.bind(cubeStore),
+          { excludeVeritable: excludeSet });
+        await res.done;
+
+        expect(res[RelationshipType.MYPOST].length).toBe(1);
+
+        const nestedResB = await res[RelationshipType.MYPOST][0];
+        expect(nestedResB.main.equals(cubeB)).toBe(true);
+
+        // Ensure cubeB's key is now tracked in the exclude set.
+        const cubeBKey = await cubeB.getKeyString();
+        expect(excludeSet.has(cubeBKey)).toBe(true);
+
+        // should set its status flags correctly
+        expect(res.isDone).toBe(true);
+        expect(res.allResolved).toBe(true);  // still true, the exclusion was tracked but nothing was actually skipped
+        expect(res.resolutionFailure).toBe(false);
+        expect(res.exclusionApplied).toBe(false);  // still false, B was marked for exclusion, but as it was never revisited anyway it was not skipped
+        expect(res.depthLimitReached).toBe(false);
+      });
+
+      it('avoids infinite recursion caused by cyclic relationships', async () => {
+        const res = resolveRelsRecursive(
+          cycleA, cubeStore.getCube.bind(cubeStore));
+        await res.done;
+
+        // A's relationship to C should be resolved
+        expect(res[RelationshipType.REPLY_TO].length).toBe(1);
+        const resC = await res[RelationshipType.REPLY_TO][0];
+        expect(resC.main.equals(cycleC)).toBe(true);
+
+        // C's relationship to B should be resolved
+        expect(resC[RelationshipType.REPLY_TO].length).toBe(1);
+        const resB = await resC[RelationshipType.REPLY_TO][0];
+        expect(resB.main.equals(cycleB)).toBe(true);
+
+        // B's cyclic relationship to A should still be resolved,
+        // but recursion should stop there
+        expect(resB[RelationshipType.REPLY_TO].length).toBe(1);
+        const resA = await resB[RelationshipType.REPLY_TO][0];
+        expect(resA.main.equals(cycleA)).toBe(true);
+
+        // resA should not feature any resolved relationships, as recursion
+        // has be broken due to the cyclic relationship
+        expect(Object.keys(resA).filter(key => Number.parseInt(key)))
+          .toHaveLength(0);
+
+        // should set its status flags correctly
+        expect(res.isDone).toBe(true);
+        expect(res.allResolved).toBe(false);
+        expect(res.resolutionFailure).toBe(false);
+        expect(res.exclusionApplied).toBe(true);
+        expect(res.depthLimitReached).toBe(false);
+      });
+    });  // recursion exclusion set
+
+    describe('limiting relationship types', () => {
+      describe('first level resolutions', () => {
+        it('returns an empty result when the only relationship type is excluded', () => {
+          const res = resolveRelsRecursive(
+            singleMyPost,
+            cubeStore.getCube.bind(cubeStore),
+            {
+              relTypes: [RelationshipType.REPLY_TO],
+            }
+          );
+
+          expect(res.main).toBe(singleMyPost);
+          expect(res.done).toBeInstanceOf(Promise);
+          expect(Object.keys(res).filter(key => Number.parseInt(key))).toHaveLength(0);
+        });
+
+        it('only includes the specified relationship types', () => {
+          const res = resolveRelsRecursive(
+            replyToPlusMyPost,
+            cubeStore.getCube.bind(cubeStore),
+            {
+              relTypes: [RelationshipType.REPLY_TO],
+            }
+          );
+
+          expect(res.main).toBe(replyToPlusMyPost);
+          expect(res.done).toBeInstanceOf(Promise);
+
+          expect(Object.keys(res).filter(key => Number.parseInt(key))).toHaveLength(1);
+          expect(res[RelationshipType.REPLY_TO].length).toBe(1);
+        });
+
+        it('is neutral if all relationship type present are in the filter list', () => {
+          const res = resolveRelsRecursive(
+            replyToPlusMyPost,
+            cubeStore.getCube.bind(cubeStore),
+            {
+              relTypes: [RelationshipType.REPLY_TO, RelationshipType.MYPOST],
+            }
+          );
+
+          expect(res.main).toBe(replyToPlusMyPost);
+          expect(res.done).toBeInstanceOf(Promise);
+
+          expect(Object.keys(res).filter(key => Number.parseInt(key))).toHaveLength(2);
+          expect(res[RelationshipType.REPLY_TO].length).toBe(1);
+          expect(res[RelationshipType.MYPOST].length).toBe(2);
+        });
+      });  // first level resolutions
+
+      describe('recursive resolutions', () => {
+        it('stops the recursion when the only relationship type is excluded', async () => {
+          const res = resolveRelsRecursive(
+            cubeA, cubeStore.getCube.bind(cubeStore),
+            { relTypes: [RelationshipType.MYPOST] }
+          );
+          await res.done;
+
+          // Expect the rel from cubeA to cubeB to be resolved as it is a MYPOST rel
+          expect(res[RelationshipType.MYPOST].length).toBe(1);
+          const resB = await res[RelationshipType.MYPOST][0];
+          expect(resB.main.equals(cubeB)).toBe(true);
+
+          // Expect the rel from cubeB to cubeC to not be resolved as it is a REPLY_TO rel.
+          // The resolved B should not have any further relationship entries.
+          expect(resB[RelationshipType.REPLY_TO]).toBeUndefined();
+          expect(Object.keys(resB).filter(key => Number.parseInt(key)))
+            .toHaveLength(0);
+
+          // should set its status flags correctly
+          expect(res.isDone).toBe(true);
+          expect(res.allResolved).toBe(true);
+          expect(res.resolutionFailure).toBe(false);
+          expect(res.exclusionApplied).toBe(false);
+          expect(res.depthLimitReached).toBe(false);
+        });
+      });  // recursive resolutions
+    });  // limiting relationship types
+
+
+    describe('trying to resolve an unavailable relationship', () => {
+      let res: ResolveRelsRecursiveResult;
+
+      beforeAll(async () => {
+        res = resolveRelsRecursive(
+          unresolvableRel,
+          cubeStore.getCube.bind(cubeStore),
+        );
+        await res.done;
+      });
+
+      it('refers the input Cube', () => {
+        expect(res.main).toBe(unresolvableRel);
+      });
+
+      it('produces an empty result object for the unresolvable REPLY_TO rel', async () => {
+        expect(res[RelationshipType.REPLY_TO]).toHaveLength(1);
+        expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
+        const emptySubRes: ResolveRelsRecursiveResult =
+          await res[RelationshipType.REPLY_TO][0];
+
+        expect(emptySubRes.main).toBeUndefined();
+        expect(emptySubRes.isDone).toBe(true);
+        expect(emptySubRes.allResolved).toBe(false);
+        expect(emptySubRes.depthLimitReached).toBe(false);
+        expect(emptySubRes.exclusionApplied).toBe(false);
+        expect(emptySubRes.resolutionFailure).toBe(true);
+      });
+
+      it('sets its status flags correctly', () => {
+        expect(res.isDone).toBe(true);
+        expect(res.allResolved).toBe(false);
+        expect(res.depthLimitReached).toBe(false);
+        expect(res.exclusionApplied).toBe(false);
+        expect(res.resolutionFailure).toBe(true);
+      });
     });
-  });  // limiting relationship types
+
+
+    describe('trying to resolve an indirectly unavailable relationship', () => {
+      let res: ResolveRelsRecursiveResult;
+
+      beforeAll(async () => {
+        res = resolveRelsRecursive(
+          indirectlyUnresolvableRel,
+          cubeStore.getCube.bind(cubeStore),
+        );
+        await res.done;
+      });
+
+      it('refers the input Cube', () => {
+        expect(res.main).toBe(indirectlyUnresolvableRel);
+      });
+
+      it('resolves the first reference level', async () => {
+        expect(res[RelationshipType.REPLY_TO]).toHaveLength(1);
+        expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
+        const resolvedSubRes: ResolveRelsRecursiveResult =
+          await res[RelationshipType.REPLY_TO][0];
+
+        expect(resolvedSubRes.main.equals(unresolvableRel)).toBe(true);
+      });
+
+      it('produces an empty result object for the unresolvable sub-relationship', async () => {
+        const lvl1: ResolveRelsRecursiveResult =
+          await res[RelationshipType.REPLY_TO][0];
+        const lvl2: ResolveRelsRecursiveResult =
+          await lvl1[RelationshipType.REPLY_TO][0];
+
+        // The unresolvable relationship should be empty
+        expect(lvl2.main).toBeUndefined();
+      });
+
+      it('sets its status flags correctly', () => {
+        expect(res.isDone).toBe(true);
+        expect(res.allResolved).toBe(false);
+        expect(res.depthLimitReached).toBe(false);
+        expect(res.exclusionApplied).toBe(false);
+        expect(res.resolutionFailure).toBe(true);
+      });
+    });
+  });  // resolveRelsRecursive()
+
 });

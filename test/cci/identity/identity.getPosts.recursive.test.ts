@@ -9,7 +9,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 import { cciCube } from '../../../src/cci/cube/cciCube';
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { Cube } from '../../../src/core/cube/cube';
-import { P } from 'pino';
+import { RelationshipType } from '../../../src/cci/cube/relationship';
 
 function hasPost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable, format?: PostFormat, expectAuthor?: Identity): boolean {
   if (list.some(item => {
@@ -48,7 +48,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
 
       // run tests using direct Veritum format, i.e. no PostInfos
       postsGenDirectVeritum = w.protagonist.getPosts({
-        depth: lvl,
+        subscriptionDepth: lvl,
         format: PostFormat.Veritum,
         metadata: false,
         subscribe: true,
@@ -59,11 +59,14 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       })();
 
       // run tests using PostInfo-wrapped Veritum format
+      // including reverse reply resolution
       postsGenPostInfoVeritum = w.protagonist.getPosts({
-        depth: lvl,
+        subscriptionDepth: lvl,
         format: PostFormat.Veritum,
         metadata: true,
         subscribe: true,
+        // resolveRels: 'recursive',
+        // relTypes: [RelationshipType.REPLY_TO],
       });
       // push yielded posts to array for ease of testing
       (async() => {
@@ -72,7 +75,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
 
       // run tests using direct first-Cube-only format, i.e. no PostInfos
       postsGenDirectCube = w.protagonist.getPosts({
-        depth: lvl,
+        subscriptionDepth: lvl,
         format: PostFormat.Cube,
         metadata: false,
         subscribe: true,
@@ -84,7 +87,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
 
       // run tests using PostInfo-wrapped first-Cube-only format
       postsGenPostInfoCube = w.protagonist.getPosts({
-        depth: lvl,
+        subscriptionDepth: lvl,
         format: PostFormat.Cube,
         metadata: true,
         subscribe: true,

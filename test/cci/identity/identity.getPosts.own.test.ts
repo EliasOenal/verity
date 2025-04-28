@@ -1,4 +1,4 @@
-import { IdentityOptions, Identity, PostFormat, GetPostsGenerator } from '../../../src/cci/identity/identity';
+import { IdentityOptions, Identity, PostFormat, GetPostsGenerator, PostInfo } from '../../../src/cci/identity/identity';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { evenLonger, testCubeStoreParams } from '../testcci.definitions';
 import { cciCube } from '../../../src/cci/cube/cciCube';
@@ -13,6 +13,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 import { VeritumRetriever } from '../../../src/cci/veritum/veritumRetriever';
 import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
+import { RelationshipType } from '../../../src/cci/cube/relationship';
 
 describe('Identity: getPosts generator; own posts only (no recursion)', () => {
   // Tests regarding the retrieval of an Identity's own posts using the
@@ -42,6 +43,8 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
   let multiPic: Veritum;
   let singleFrozenEncrypted: Veritum;
 
+  let somebodyElsesPost: cciCube, myReply: cciCube, replyToUnavailable: cciCube;
+
   beforeAll(async () => {
     await sodium.ready;
     idTestOptions = {  // note that those are diferent for some tests further down
@@ -65,7 +68,10 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     // - a frozen single Cube post
     singleFrozen = cciCube.Create({
       cubeType: CubeType.FROZEN,
-      fields: VerityField.Payload("Commentarius ex uno cubo factus"),
+      fields: [
+        VerityField.Payload("Commentarius ex uno cubo factus"),
+        VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+      ],
       requiredDifficulty: 0,
     });
     await cubeStore.addCube(singleFrozen);
@@ -78,6 +84,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       fields: [
         VerityField.Payload("Commentarius ex uno cubo factus cum nuntio"),
         VerityField.Notify(notificationKey1),
+        VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
       ],
       requiredDifficulty: 0,
     });
@@ -87,7 +94,10 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     // - a PIC single Cube post
     singlePic = cciCube.Create({
       cubeType: CubeType.PIC,
-      fields: VerityField.Payload("Commentarius ex cubo immutabili perpetuo factus"),
+      fields: [
+        VerityField.Payload("Commentarius ex cubo immutabili perpetuo factus"),
+        VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+      ],
       requiredDifficulty: 0,
     });
     await cubeStore.addCube(singlePic);
@@ -100,6 +110,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       fields: [
         VerityField.Payload("Commentarius ex cubo immutabili perpetuo factus cum nuntio"),
         VerityField.Notify(notificationKey2),
+        VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
       ],
       requiredDifficulty: 0,
     });
@@ -110,7 +121,10 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     // - a MUC single Cube post
     singleMuc = cciCube.Create({
       cubeType: CubeType.MUC,
-      fields: VerityField.Payload("Commentarius ex cubo usoris mutabili factus"),
+      fields: [
+        VerityField.Payload("Commentarius ex cubo usoris mutabili factus"),
+        VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+      ],
       requiredDifficulty: 0,
       privateKey: Buffer.from(singleMucKeys.privateKey),
       publicKey: Buffer.from(singleMucKeys.publicKey),
@@ -141,6 +155,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       fields: [
         VerityField.Payload("Commentarius ex cubo usoris mutabili perpetuo factus"),
         VerityField.PmucUpdateCount(1337),
+        VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
       ],
       requiredDifficulty: 0,
       privateKey: Buffer.from(singlePmucKeys.privateKey),
@@ -157,6 +172,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       fields: [
         VerityField.Payload("Commentarius ex cubo usoris mutabili perpetuo factus cum nuntio"),
         VerityField.Notify(notificationKey4),
+        VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
       ],
       requiredDifficulty: 0,
       privateKey: Buffer.from(singlePmucNotifyKeys.privateKey),
@@ -168,7 +184,10 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     // - a multi Cube frozen veritum
     multiFrozen = Veritum.Create({
       cubeType: CubeType.FROZEN,
-      fields: VerityField.Payload(evenLonger),
+      fields: [
+        VerityField.Payload(evenLonger),
+        VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+      ],
       requiredDifficulty: 0,
     });
     await multiFrozen.compile();
@@ -178,7 +197,10 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     // - a multi Cube frozen PIC
     multiPic = Veritum.Create({
       cubeType: CubeType.PIC,
-      fields: VerityField.Payload(evenLonger),
+      fields: [
+        VerityField.Payload(evenLonger),
+        VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+      ],
       requiredDifficulty: 0,
     });
     await multiPic.compile();
@@ -192,7 +214,10 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     // - a single Cube frozen Veritum, encrypted to self
     singleFrozenEncrypted = Veritum.Create({
       cubeType: CubeType.FROZEN,
-      fields: VerityField.Payload("Hoc veritum mihi privatum ac cryptatum est."),
+      fields: [
+        VerityField.Payload("Hoc veritum mihi privatum ac cryptatum est."),
+        VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+      ],
       requiredDifficulty: 0,
     });
     await singleFrozenEncrypted.compile({
@@ -200,6 +225,43 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
     for (const chunk of singleFrozenEncrypted.chunks) await cubeStore.addCube(chunk);
     id.addPost(await singleFrozenEncrypted.getKey());
+
+    // test posts for automatic relationship retrieval:
+    // - referencing another author's post
+    somebodyElsesPost = cciCube.Create({
+      cubeType: CubeType.PIC,
+      fields: [
+        VerityField.Payload("Commentarium interessans responsione dignum"),
+        VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+      ],
+      requiredDifficulty: 0,
+    });
+    await cubeStore.addCube(somebodyElsesPost);
+
+    myReply = cciCube.Create({
+      cubeType: CubeType.PIC,
+      fields: [
+        VerityField.Payload("Vere, quam interessante commentarium!"),
+        VerityField.RelatesTo(RelationshipType.REPLY_TO, await somebodyElsesPost.getKey()),
+        VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+      ],
+      requiredDifficulty: 0,
+    });
+    await cubeStore.addCube(myReply);
+    id.addPost(await myReply.getKey());
+
+    // - referencing an unavailable post
+    replyToUnavailable = cciCube.Create({
+      cubeType: CubeType.PIC,
+      fields: [
+        VerityField.Payload("Fruebar legendo commentarium tuum, dum licuit"),
+        VerityField.RelatesTo(RelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x99)),
+        VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
+      ],
+      requiredDifficulty: 0,
+    });
+    await cubeStore.addCube(replyToUnavailable);
+    id.addPost(await replyToUnavailable.getKey());
 
     await id.store();
   });
@@ -252,13 +314,24 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
   });  // verify test setup
 
-  for (const format of enumNums(PostFormat)) describe(`retrieval as ${PostFormat[format]}`, () => {
+  for (const format of enumNums(PostFormat)) for (const metadata of [true, false]) describe(`retrieval as ${PostFormat[format]} ${metadata? 'wrapped in a PostInfo' : '(post only, i.e. no PostInfo)'}`, () => {
     let posts: Veritable[];  // note that Veritable covers both Veritum and Cube
-    let gen: GetPostsGenerator<Veritable>;
+    let postInfos: Array<PostInfo<Veritable>>;
+    let gen: GetPostsGenerator<Veritable|PostInfo<Veritable>>;
     beforeAll(async () => {
       // run test
-      gen = id.getPosts({ format });
-      posts = await ArrayFromAsync(gen);
+      gen = id.getPosts({
+        format,  // test will be run for both full-Veritum and first-Cube-only retrieval formats
+        metadata,  // test will be run for both raw and PostInfo-wrapped retrieval formats
+        resolveRels: metadata ? 'recursive' : false,  // when getting PostInfos also test rel resolution
+      });
+      if (!metadata) {
+        posts = await ArrayFromAsync(gen) as Veritable[];
+        postInfos = [];
+      } else {
+        postInfos = await ArrayFromAsync(gen) as Array<PostInfo<Veritable>>;
+        posts = postInfos.map(postInfo => (postInfo as PostInfo<Veritable>).main);
+      }
     });
 
     it('restores the correct number of posts', () => {
@@ -395,6 +468,38 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     it('resolved the existingYielded Promise when done', async () => {
       await expect(gen.existingYielded).resolves.toBeDefined();
     });
+
+    if (metadata) {
+      it('annotates all posts as mine', () => {
+        // note: we can expect the posts to reference the exact same Identity
+        //   object thanks to IdentityStore avoiding duplicate instantiations
+        expect(postInfos.every(post => post.author === id)).toBeTruthy();
+      });
+
+      it("resolves the foreign post I replied to", async () => {
+        const postInfo = postInfos.find(post => post.main.getKeyStringIfAvailable() === myReply.getKeyStringIfAvailable())!;
+        expect(postInfo).toBeDefined();
+        expect(postInfo[RelationshipType.REPLY_TO]).toHaveLength(1);
+        expect(postInfo[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
+
+        const referencedPostInfo: PostInfo<Veritable> = await postInfo[RelationshipType.REPLY_TO][0];
+        expect(referencedPostInfo).toBeDefined();
+        expect(referencedPostInfo.main.getKeyStringIfAvailable()).toEqual(somebodyElsesPost.getKeyStringIfAvailable());
+        expect(referencedPostInfo.main.getFirstField(FieldType.PAYLOAD)?.valueString).toEqual(
+          somebodyElsesPost.getFirstField(FieldType.PAYLOAD)?.valueString);
+      });
+
+      it('provides an empty metadata object for the referenced unresolvable post', async () => {
+        const postInfo = postInfos.find(post => post.main.getKeyStringIfAvailable() === replyToUnavailable.getKeyStringIfAvailable())!;
+        expect(postInfo).toBeDefined();
+        expect(postInfo[RelationshipType.REPLY_TO]).toHaveLength(1);
+        expect(postInfo[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
+
+        const referencedPostInfo: PostInfo<Veritable> = await postInfo[RelationshipType.REPLY_TO][0];
+        expect(referencedPostInfo).toBeDefined();
+        expect(referencedPostInfo.main).toBeUndefined();
+      });
+    }
   });  // retrieval as <PostFormat>
 
   describe('edge cases', () => {
