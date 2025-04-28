@@ -304,41 +304,6 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       });
     });
 
-    describe('trying to resolve an unavailable relationship', () => {
-      let res: ResolveRelsResult;
-
-      beforeAll(async () => {
-        res = resolveRels(
-          unresolvableRel,
-          cubeStore.getCube.bind(cubeStore),
-        );
-        await res.done;
-      });
-
-      it('refers the input Cube', () => {
-        expect(res.main).toBe(unresolvableRel);
-      });
-
-      it('resolves the unresolvable REPLY_TO rel to undefined', async () => {
-        expect(res[RelationshipType.REPLY_TO]).toHaveLength(1);
-        expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
-        expect(await res[RelationshipType.REPLY_TO][0]).toBeUndefined();
-      });
-
-      it('sets its status flags correctly', () => {
-        expect(res.isDone).toBe(true);
-        expect(res.allResolved).toBe(false);
-        expect(res.resolutionFailure).toBe(true);
-      });
-
-      it('contains a retrieval promise for the referred Cube resolved to undefined', async () => {
-        expect(Array.isArray(res[RelationshipType.REPLY_TO])).toBe(true);
-        expect(res[RelationshipType.REPLY_TO].length).toBe(1);
-        expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
-        await expect(res[RelationshipType.REPLY_TO][0]).resolves.toBeUndefined();
-      });
-    });
-
     describe('limiting relationship types', () => {
       it('returns an empty result when the only relationship type is excluded', () => {
         const res = resolveRels(
@@ -387,6 +352,58 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
         expect(res[RelationshipType.MYPOST].length).toBe(2);
       });
     });  // limiting relationship types
+
+    describe('edge cases', () => {
+      describe('no main Veritable supplied', () => {
+        it('returns an empty result', () => {
+          const res = resolveRels(
+            undefined,
+            cubeStore.getCube.bind(cubeStore)
+          );
+
+          expect(res.main).toBeUndefined();
+          expect(res.done).toBeInstanceOf(Promise);
+          expect(res.isDone).toBe(true);
+          expect(res.allResolved).toBe(false);
+          expect(res.resolutionFailure).toBe(true);
+        });
+      });
+
+      describe('trying to resolve an unavailable relationship', () => {
+        let res: ResolveRelsResult;
+
+        beforeAll(async () => {
+          res = resolveRels(
+            unresolvableRel,
+            cubeStore.getCube.bind(cubeStore),
+          );
+          await res.done;
+        });
+
+        it('refers the input Cube', () => {
+          expect(res.main).toBe(unresolvableRel);
+        });
+
+        it('resolves the unresolvable REPLY_TO rel to undefined', async () => {
+          expect(res[RelationshipType.REPLY_TO]).toHaveLength(1);
+          expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
+          expect(await res[RelationshipType.REPLY_TO][0]).toBeUndefined();
+        });
+
+        it('sets its status flags correctly', () => {
+          expect(res.isDone).toBe(true);
+          expect(res.allResolved).toBe(false);
+          expect(res.resolutionFailure).toBe(true);
+        });
+
+        it('contains a retrieval promise for the referred Cube resolved to undefined', async () => {
+          expect(Array.isArray(res[RelationshipType.REPLY_TO])).toBe(true);
+          expect(res[RelationshipType.REPLY_TO].length).toBe(1);
+          expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
+          await expect(res[RelationshipType.REPLY_TO][0]).resolves.toBeUndefined();
+        });
+      });  // unresolvable relationship
+    });  // edge cases
   });
 
 
@@ -825,88 +842,105 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       });  // recursive resolutions
     });  // limiting relationship types
 
-
-    describe('trying to resolve an unavailable relationship', () => {
-      let res: ResolveRelsRecursiveResult;
-
-      beforeAll(async () => {
-        res = resolveRelsRecursive(
-          unresolvableRel,
-          cubeStore.getCube.bind(cubeStore),
-        );
-        await res.done;
+    describe('edge cases', () => {
+      describe('no main Veritable supplied', () => {
+        it('returns an empty result', () => {
+          const res = resolveRelsRecursive(
+            undefined,
+            cubeStore.getCube.bind(cubeStore)
+          );
+          expect(res.main).toBeUndefined();
+          expect(res.done).toBeInstanceOf(Promise);
+          expect(res.isDone).toBe(true);
+          expect(res.allResolved).toBe(false);
+          expect(res.resolutionFailure).toBe(true);
+          expect(res.exclusionApplied).toBe(false);
+          expect(res.depthLimitReached).toBe(false);
+        });
       });
 
-      it('refers the input Cube', () => {
-        expect(res.main).toBe(unresolvableRel);
+      describe('trying to resolve an unavailable relationship', () => {
+        let res: ResolveRelsRecursiveResult;
+
+        beforeAll(async () => {
+          res = resolveRelsRecursive(
+            unresolvableRel,
+            cubeStore.getCube.bind(cubeStore),
+          );
+          await res.done;
+        });
+
+        it('refers the input Cube', () => {
+          expect(res.main).toBe(unresolvableRel);
+        });
+
+        it('produces an empty result object for the unresolvable REPLY_TO rel', async () => {
+          expect(res[RelationshipType.REPLY_TO]).toHaveLength(1);
+          expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
+          const emptySubRes: ResolveRelsRecursiveResult =
+            await res[RelationshipType.REPLY_TO][0];
+
+          expect(emptySubRes.main).toBeUndefined();
+          expect(emptySubRes.isDone).toBe(true);
+          expect(emptySubRes.allResolved).toBe(false);
+          expect(emptySubRes.depthLimitReached).toBe(false);
+          expect(emptySubRes.exclusionApplied).toBe(false);
+          expect(emptySubRes.resolutionFailure).toBe(true);
+        });
+
+        it('sets its status flags correctly', () => {
+          expect(res.isDone).toBe(true);
+          expect(res.allResolved).toBe(false);
+          expect(res.depthLimitReached).toBe(false);
+          expect(res.exclusionApplied).toBe(false);
+          expect(res.resolutionFailure).toBe(true);
+        });
       });
 
-      it('produces an empty result object for the unresolvable REPLY_TO rel', async () => {
-        expect(res[RelationshipType.REPLY_TO]).toHaveLength(1);
-        expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
-        const emptySubRes: ResolveRelsRecursiveResult =
-          await res[RelationshipType.REPLY_TO][0];
 
-        expect(emptySubRes.main).toBeUndefined();
-        expect(emptySubRes.isDone).toBe(true);
-        expect(emptySubRes.allResolved).toBe(false);
-        expect(emptySubRes.depthLimitReached).toBe(false);
-        expect(emptySubRes.exclusionApplied).toBe(false);
-        expect(emptySubRes.resolutionFailure).toBe(true);
-      });
+      describe('trying to resolve an indirectly unavailable relationship', () => {
+        let res: ResolveRelsRecursiveResult;
 
-      it('sets its status flags correctly', () => {
-        expect(res.isDone).toBe(true);
-        expect(res.allResolved).toBe(false);
-        expect(res.depthLimitReached).toBe(false);
-        expect(res.exclusionApplied).toBe(false);
-        expect(res.resolutionFailure).toBe(true);
-      });
-    });
+        beforeAll(async () => {
+          res = resolveRelsRecursive(
+            indirectlyUnresolvableRel,
+            cubeStore.getCube.bind(cubeStore),
+          );
+          await res.done;
+        });
 
+        it('refers the input Cube', () => {
+          expect(res.main).toBe(indirectlyUnresolvableRel);
+        });
 
-    describe('trying to resolve an indirectly unavailable relationship', () => {
-      let res: ResolveRelsRecursiveResult;
+        it('resolves the first reference level', async () => {
+          expect(res[RelationshipType.REPLY_TO]).toHaveLength(1);
+          expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
+          const resolvedSubRes: ResolveRelsRecursiveResult =
+            await res[RelationshipType.REPLY_TO][0];
 
-      beforeAll(async () => {
-        res = resolveRelsRecursive(
-          indirectlyUnresolvableRel,
-          cubeStore.getCube.bind(cubeStore),
-        );
-        await res.done;
-      });
+          expect(resolvedSubRes.main.equals(unresolvableRel)).toBe(true);
+        });
 
-      it('refers the input Cube', () => {
-        expect(res.main).toBe(indirectlyUnresolvableRel);
-      });
+        it('produces an empty result object for the unresolvable sub-relationship', async () => {
+          const lvl1: ResolveRelsRecursiveResult =
+            await res[RelationshipType.REPLY_TO][0];
+          const lvl2: ResolveRelsRecursiveResult =
+            await lvl1[RelationshipType.REPLY_TO][0];
 
-      it('resolves the first reference level', async () => {
-        expect(res[RelationshipType.REPLY_TO]).toHaveLength(1);
-        expect(res[RelationshipType.REPLY_TO][0]).toBeInstanceOf(Promise);
-        const resolvedSubRes: ResolveRelsRecursiveResult =
-          await res[RelationshipType.REPLY_TO][0];
+          // The unresolvable relationship should be empty
+          expect(lvl2.main).toBeUndefined();
+        });
 
-        expect(resolvedSubRes.main.equals(unresolvableRel)).toBe(true);
-      });
-
-      it('produces an empty result object for the unresolvable sub-relationship', async () => {
-        const lvl1: ResolveRelsRecursiveResult =
-          await res[RelationshipType.REPLY_TO][0];
-        const lvl2: ResolveRelsRecursiveResult =
-          await lvl1[RelationshipType.REPLY_TO][0];
-
-        // The unresolvable relationship should be empty
-        expect(lvl2.main).toBeUndefined();
-      });
-
-      it('sets its status flags correctly', () => {
-        expect(res.isDone).toBe(true);
-        expect(res.allResolved).toBe(false);
-        expect(res.depthLimitReached).toBe(false);
-        expect(res.exclusionApplied).toBe(false);
-        expect(res.resolutionFailure).toBe(true);
-      });
-    });
+        it('sets its status flags correctly', () => {
+          expect(res.isDone).toBe(true);
+          expect(res.allResolved).toBe(false);
+          expect(res.depthLimitReached).toBe(false);
+          expect(res.exclusionApplied).toBe(false);
+          expect(res.resolutionFailure).toBe(true);
+        });
+      });  // indirectly unresolvable relationship
+    });  // edge cases
   });  // resolveRelsRecursive()
 
 });
