@@ -10,6 +10,8 @@ import { cciCube } from '../../../src/cci/cube/cciCube';
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { Cube } from '../../../src/core/cube/cube';
 import { RelationshipType } from '../../../src/cci/cube/relationship';
+import { ResolveRelsRecursiveResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
+import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 
 function hasPost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable, format?: PostFormat, expectAuthor?: Identity): boolean {
   if (list.some(item => {
@@ -65,8 +67,8 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
         format: PostFormat.Veritum,
         metadata: true,
         subscribe: true,
-        // resolveRels: 'recursive',
-        // relTypes: [RelationshipType.REPLY_TO],
+        resolveRels: 'recursive',
+        relTypes: [RelationshipType.REPLY_TO],
       });
       // push yielded posts to array for ease of testing
       (async() => {
@@ -102,7 +104,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       await postsGenPostInfoVeritum.existingYielded;
     });
 
-    function testPostBunch(list: Veritable[]|PostInfo<Veritable>[], n: number = 0, format: PostFormat, testAuthor: boolean) {
+    function testPostBunch(list: Veritable[]|PostInfo<Veritable>[], n: number = 0, format: PostFormat, testAuthor: boolean, testReplyResolution: boolean) {
       it('should include my own root posts', () => {
         expect(hasPost(list, w.posts[n].own, format, testAuthor? w.protagonist : undefined)).toBe(true);
       });
@@ -130,6 +132,17 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
 
       it("should include my own replies to direct subscription's posts", async () => {
         expect(hasPost(list, w.posts[n].directOwn, format, testAuthor? w.protagonist : undefined)).toBe(true);
+
+        if (testReplyResolution) {
+          const post = list.find(item =>
+            (item as PostInfo<Veritable>).main.getKeyStringIfAvailable() ===
+            w.posts[n].directOwn.getKeyStringIfAvailable())!;
+          const resPromise: Promise<ResolveRelsRecursiveResult> = post[RelationshipType.REPLY_TO][0];
+          expect(resPromise).toBeInstanceOf(Promise);
+          const res = await resPromise;
+          expect(res.main.getFirstField(FieldType.PAYLOAD).valueString).toEqual(
+            w.posts[n].directReplied.getFirstField(FieldType.PAYLOAD).valueString);
+        }
       });
 
       it("should include my own replies to indirect subscription's posts", async () => {
@@ -204,19 +217,19 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
 
     describe('pre-existing posts', () => {
       describe('direct Veritum yield format (no PostInfo)', () => {
-        testPostBunch(postsDirectVeritum, 0, PostFormat.Veritum, false);
+        testPostBunch(postsDirectVeritum, 0, PostFormat.Veritum, false, false);
       });
 
       describe('PostInfo-wrapped Veritum yield format', () => {
-        testPostBunch(postsPostInfoVeritum, 0, PostFormat.Veritum, true);
+        testPostBunch(postsPostInfoVeritum, 0, PostFormat.Veritum, true, true);
       });
 
       describe('direct first-Cube-only yield format (no PostInfo)', () => {
-        testPostBunch(postsDirectCube, 0, PostFormat.Cube, false);
+        testPostBunch(postsDirectCube, 0, PostFormat.Cube, false, false);
       });
 
       describe('PostInfo-wrapped first-Cube-only yield format', () => {
-        testPostBunch(postsPostInfoCube, 0, PostFormat.Cube, true);
+        testPostBunch(postsPostInfoCube, 0, PostFormat.Cube, true, false);
       });
     });
 
@@ -228,19 +241,19 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       });
 
       describe('direct Veritum yield format (no PostInfo)', () => {
-        testPostBunch(postsDirectVeritum, 1, PostFormat.Veritum, false);
+        testPostBunch(postsDirectVeritum, 1, PostFormat.Veritum, false, false);
       });
 
       describe('PostInfo-wrapped Veritum yield format', () => {
-        testPostBunch(postsPostInfoVeritum, 1, PostFormat.Veritum, true);
+        testPostBunch(postsPostInfoVeritum, 1, PostFormat.Veritum, true, true);
       });
 
       describe('direct first-Cube-only yield format (no PostInfo)', () => {
-        testPostBunch(postsDirectCube, 1, PostFormat.Cube, false);
+        testPostBunch(postsDirectCube, 1, PostFormat.Cube, false, false);
       });
 
       describe('PostInfo-wrapped first-Cube-only yield format', () => {
-        testPostBunch(postsPostInfoCube, 1, PostFormat.Cube, true);
+        testPostBunch(postsPostInfoCube, 1, PostFormat.Cube, true, false);
       });
     });
   });  // for each recursion level
