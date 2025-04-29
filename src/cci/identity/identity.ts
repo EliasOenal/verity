@@ -795,7 +795,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         event: PostFormatEventMap[options.format],
         depth: options.subscriptionDepth,
       });
-      // Will we need to pre-process those events?
+      // Will we need to pre-process those events before yielding?
       let transform: (postInfo: PostInfo<any>) => any = undefined;
       if (!options.metadata) {
        // In case raw post output (i.e. no PostInfo) is requested, prepare a

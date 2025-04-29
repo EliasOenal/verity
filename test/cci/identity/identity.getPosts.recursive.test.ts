@@ -9,23 +9,46 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 import { cciCube } from '../../../src/cci/cube/cciCube';
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { Cube } from '../../../src/core/cube/cube';
-import { RelationshipType } from '../../../src/cci/cube/relationship';
+import { Relationship, RelationshipType } from '../../../src/cci/cube/relationship';
 import { ResolveRelsRecursiveResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
 import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 
-function hasPost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable, format?: PostFormat, expectAuthor?: Identity): boolean {
-  if (list.some(item => {
-    // author check requested?
-    if (expectAuthor && item['author'].keyString !== expectAuthor.keyString) return false;
-    // normalise postInfo to post
-    if (item['main'] !== undefined) item = item.main;
-    // correct format?
-    if (format === PostFormat.Veritum && !(item instanceof Veritum)) return false;
-    if (format === PostFormat.Cube && !(item instanceof cciCube)) return false;
-    // compare key
-    return item.getKeyStringIfAvailable() === post.getKeyStringIfAvailable();
-  })) return true;
-  else return false;
+async function hasPost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable, format?: PostFormat, expectAuthor?: Identity, shouldResolveBasePost?: Veritable) {
+  // fetch item from list by key
+  const item = list.find(item => {
+    if (item['main'] !== undefined) item = (item as unknown as PostInfo<Veritable>).main;
+    return (item as Veritable).getKeyStringIfAvailable() === post.getKeyStringIfAvailable();
+  });
+  expect(item).toBeDefined();
+
+  // author check requested?
+  if (expectAuthor) expect(item!['author'].keyString).toEqual(expectAuthor.keyString);
+  // normalise postInfo to post
+  let veritum: Veritable = item as Veritable;
+  if (veritum['main'] !== undefined) veritum = (veritum as unknown as PostInfo<Veritable>).main;
+  // correct format?
+  if (format === PostFormat.Veritum) expect(veritum).toBeInstanceOf(Veritum);
+  if (format === PostFormat.Cube) expect(veritum).toBeInstanceOf(cciCube);
+
+  if (shouldResolveBasePost) {
+    const rel: Relationship = (veritum as Veritum).getFirstRelationship(RelationshipType.REPLY_TO);
+    expect(rel).toBeDefined();  // verify test setup
+
+    const resPromise: Promise<ResolveRelsRecursiveResult> = item![RelationshipType.REPLY_TO][0];
+    expect(resPromise).toBeInstanceOf(Promise);
+    const res = await resPromise;
+    expect(res.main.getFirstField(FieldType.PAYLOAD).valueString).toEqual(
+      shouldResolveBasePost.getFirstField(FieldType.PAYLOAD).valueString);
+  }
+}
+
+function doesNotHavePost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable): void {
+  // fetch item from list by key
+  const item = list.find(item => {
+    if (item['main'] !== undefined) item = (item as unknown as PostInfo<Veritable>).main;
+    return (item as Veritable).getKeyStringIfAvailable() === post.getKeyStringIfAvailable();
+  });
+  expect(item).toBeUndefined();
 }
 
 describe('Identity: getPosts generator; recursive retrieval of own posts and posts by subscribed authors', () => {
@@ -106,112 +129,101 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
 
     function testPostBunch(list: Veritable[]|PostInfo<Veritable>[], n: number = 0, format: PostFormat, testAuthor: boolean, testReplyResolution: boolean) {
       it('should include my own root posts', () => {
-        expect(hasPost(list, w.posts[n].own, format, testAuthor? w.protagonist : undefined)).toBe(true);
+        hasPost(list, w.posts[n].own, format, testAuthor? w.protagonist : undefined);
       });
 
-      if (lvl > 0) it("should include my 1st level subscription's posts", () => {
-        expect(hasPost(list, w.posts[n].directUnreplied, format, testAuthor? w.directSub : undefined)).toBe(true);
+      if (lvl > 0) it("should include my 1st level subscription's posts", async () => {
+        await hasPost(list, w.posts[n].directUnreplied, format, testAuthor? w.directSub : undefined);
       });
-      else it("should NOT include my 1st level subscription's posts", () => {
-        expect(hasPost(list, w.posts[n].directUnreplied)).toBe(false);
-      });
-
-      if (lvl > 1) it("should include my 2nd level subscription's posts", () => {
-        expect(hasPost(list, w.posts[n].indirectUnreplied, format, testAuthor? w.indirectSub : undefined)).toBe(true);
-      });
-      else it("should NOT include my 2nd level subscription's posts", () => {
-        expect(hasPost(list, w.posts[n].indirectUnreplied)).toBe(false);
+      else it("should NOT include my 1st level subscription's posts", async () => {
+        await doesNotHavePost(list, w.posts[n].directUnreplied);
       });
 
-      if (lvl > 2) it("should include my 3rd level subscription's posts", () => {
-        expect(hasPost(list, w.posts[n].thirdUnreplied, format, testAuthor? w.thirdLevelSub : undefined)).toBe(true);
+      if (lvl > 1) it("should include my 2nd level subscription's posts", async () => {
+        await hasPost(list, w.posts[n].indirectUnreplied, format, testAuthor? w.indirectSub : undefined);
       });
-      else it("should NOT include my 3rd level subscription's posts", () => {
-        expect(hasPost(list, w.posts[n].thirdUnreplied)).toBe(false);
+      else it("should NOT include my 2nd level subscription's posts", async () => {
+        await doesNotHavePost(list, w.posts[n].indirectUnreplied);
+      });
+
+      if (lvl > 2) it("should include my 3rd level subscription's posts", async () => {
+        await hasPost(list, w.posts[n].thirdUnreplied, format, testAuthor? w.thirdLevelSub : undefined);
+      });
+      else it("should NOT include my 3rd level subscription's posts", async () => {
+        await doesNotHavePost(list, w.posts[n].thirdUnreplied);
       });
 
       it("should include my own replies to direct subscription's posts", async () => {
-        expect(hasPost(list, w.posts[n].directOwn, format, testAuthor? w.protagonist : undefined)).toBe(true);
-
-        if (testReplyResolution) {
-          const post = list.find(item =>
-            (item as PostInfo<Veritable>).main.getKeyStringIfAvailable() ===
-            w.posts[n].directOwn.getKeyStringIfAvailable())!;
-          const resPromise: Promise<ResolveRelsRecursiveResult> = post[RelationshipType.REPLY_TO][0];
-          expect(resPromise).toBeInstanceOf(Promise);
-          const res = await resPromise;
-          expect(res.main.getFirstField(FieldType.PAYLOAD).valueString).toEqual(
-            w.posts[n].directReplied.getFirstField(FieldType.PAYLOAD).valueString);
-        }
+        await hasPost(list, w.posts[n].directOwn, format, testAuthor? w.protagonist : undefined, testReplyResolution? w.posts[n].directReplied : undefined);
       });
 
       it("should include my own replies to indirect subscription's posts", async () => {
-        expect(hasPost(list, w.posts[n].indirectOwn, format, testAuthor? w.protagonist : undefined)).toBe(true);
-        expect(hasPost(list, w.posts[n].thirdOwn, format, testAuthor? w.protagonist : undefined)).toBe(true);
+        await hasPost(list, w.posts[n].indirectOwn, format, testAuthor? w.protagonist : undefined, testReplyResolution? w.posts[n].indirectReplied : undefined);
+        await hasPost(list, w.posts[n].thirdOwn, format, testAuthor? w.protagonist : undefined, testReplyResolution ? w.posts[n].thirdReplied : undefined);
       });
 
       if (lvl > 0) it("should include my 1st level subscription's replies to my own posts", async () => {
-        expect(hasPost(list, w.posts[n].ownDirect, format, testAuthor? w.directSub : undefined)).toBe(true);
+        await hasPost(list, w.posts[n].ownDirect, format, testAuthor? w.directSub : undefined, testReplyResolution? w.posts[n].own : undefined);
       });
       else it("should NOT include my 1st level subscription's replies to my own posts", async () => {
-        expect(hasPost(list, w.posts[n].ownDirect)).toBe(false);
+        await doesNotHavePost(list, w.posts[n].ownDirect);
       });
 
       if (lvl > 1) it("should include my 2nd level subscription's replies to my own posts", async () => {
-        expect(hasPost(list, w.posts[n].ownIndirect, format, testAuthor? w.indirectSub : undefined)).toBe(true);
+        await hasPost(list, w.posts[n].ownIndirect, format, testAuthor? w.indirectSub : undefined, testReplyResolution? w.posts[n].own : undefined);
       });
       else it("should NOT include my 2nd level subscription's replies to my own posts", async () => {
-        expect(hasPost(list, w.posts[n].ownIndirect)).toBe(false);
+        await doesNotHavePost(list, w.posts[n].ownIndirect);
       });
 
       if (lvl > 2) it("should include my 3rd level subscription's replies to my own posts", async () => {
-        expect(hasPost(list, w.posts[n].ownThird, format, testAuthor? w.thirdLevelSub : undefined)).toBe(true);
+        await hasPost(list, w.posts[n].ownThird, format, testAuthor? w.thirdLevelSub : undefined, testReplyResolution? w.posts[n].own : undefined);
       });
       else it("should NOT include my 3rd level subscription's replies to my own posts", async () => {
-        expect(hasPost(list, w.posts[n].ownThird)).toBe(false);
+        await doesNotHavePost(list, w.posts[n].ownThird);
       });
 
       if (lvl > 2) it("should include my 3rd level subscription's replies to my subscription's posts", async () => {
-        expect(hasPost(list, w.posts[n].directThird, format, testAuthor? w.thirdLevelSub : undefined)).toBe(true);
+        await hasPost(list, w.posts[n].directThird, format, testAuthor? w.thirdLevelSub : undefined, testReplyResolution? w.posts[n].directReplied : undefined);
       });
       else it("should NOT include my 3rd level subscription's replies to my subscription's posts", async () => {
-        expect(hasPost(list, w.posts[n].directThird)).toBe(false);
+        await doesNotHavePost(list, w.posts[n].directThird);
       });
 
       it('should NOT include root posts by non-subscribed users', async () => {
-        expect(hasPost(list, w.posts[n].unrelatedUnanswered)).toBe(false);
+        await doesNotHavePost(list, w.posts[n].unrelatedUnanswered);
       });
 
       it('should NOT include replies by non-subscribed users', async () => {
-        expect(hasPost(list, w.posts[n].ownUnrelatedUnanswered)).toBe(false);
+        await doesNotHavePost(list, w.posts[n].ownUnrelatedUnanswered);
       });
 
       it('should NOT include posts by non-subscribed users even if subscribed users answered them', async () => {
-        expect(hasPost(list, w.posts[n].ownUnrelatedAnswered)).toBe(false);
+        await doesNotHavePost(list, w.posts[n].ownUnrelatedAnswered);
       });
 
       it('should NOT include posts by non-subscribed users even if I answered them', async () => {
-        expect(hasPost(list, w.posts[n].unrelatedAnsweredByProtagonist)).toBe(false);
+        await doesNotHavePost(list, w.posts[n].unrelatedAnsweredByProtagonist);
       });
 
       if (lvl > 0) it("should include my 1st level subscription's replies to non-subscribed users", async () => {
-        expect(hasPost(list, w.posts[n].unrelatedSub, format, testAuthor? w.directSub : undefined)).toBe(true);
-        expect(hasPost(list, w.posts[n].ownUnrelatedSub, format, testAuthor? w.directSub : undefined)).toBe(true);
+        await hasPost(list, w.posts[n].unrelatedSub, format, testAuthor? w.directSub : undefined, testReplyResolution? w.posts[n].unrelatedAnsweredBySub : undefined);
+        await hasPost(list, w.posts[n].ownUnrelatedSub, format, testAuthor? w.directSub : undefined, testReplyResolution? w.posts[n].ownUnrelatedAnswered : undefined);
       });
       else it("should NOT include my 1st level subscription's replies to non-subscribed users", async () => {
-        expect(hasPost(list, w.posts[n].unrelatedSub)).toBe(false);
-        expect(hasPost(list, w.posts[n].ownUnrelatedSub)).toBe(false);
+        await doesNotHavePost(list, w.posts[n].unrelatedSub);
+        await doesNotHavePost(list, w.posts[n].ownUnrelatedSub);
       });
 
       it("should include my own replies to non-subscribed users", async () => {
-        expect(hasPost(list, w.posts[n].unrelatedOwn, format, testAuthor? w.protagonist : undefined)).toBe(true);
+        await hasPost(list, w.posts[n].unrelatedOwn, format, testAuthor? w.protagonist : undefined, testReplyResolution? w.posts[n].unrelatedAnsweredByProtagonist : undefined);
       });
 
       if (lvl > 1) it("should include 2nd level replies to unavailable posts", async () => {
-        expect(hasPost(list, w.posts[n].subUnavailableIndirect, format, testAuthor? w.indirectSub : undefined)).toBe(true);
+        await hasPost(list, w.posts[n].subUnavailableIndirect, format, testAuthor? w.indirectSub : undefined, undefined /* no reply resolution,  base post is unavailable */);
       });
       else it("should NOT include 2nd level replies to unavailable posts", async () => {
-        expect(hasPost(list, w.posts[n].subUnavailableIndirect)).toBe(false);
+        await doesNotHavePost(list, w.posts[n].subUnavailableIndirect);
       });
     }
 
