@@ -1,11 +1,9 @@
 import { Cube } from "../../../src/core/cube/cube";
-import { CubeInfo } from "../../../src/core/cube/cubeInfo";
-import { CubeEmitter, CubeStore, CubeStoreOptions } from "../../../src/core/cube/cubeStore";
+import { CubeStore } from "../../../src/core/cube/cubeStore";
 
 import { cciCube } from "../../../src/cci/cube/cciCube";
 import { Identity, IdentityOptions } from "../../../src/cci/identity/identity";
 
-import { ZwAnnotationEngine, SubscriptionRequirement } from "../../../src/app/zw/model/zwAnnotationEngine";
 import { makePost } from "../../../src/app/zw/model/zwUtil";
 
 import { testCubeStoreParams, idTestOptions } from "../../cci/testcci.definitions";
@@ -24,7 +22,6 @@ export interface TestWorldOptions {
 export class TestWorld {
   cubeStore: CubeStore;
   retriever: VeritumRetriever;
-  private engine: ZwAnnotationEngine;
   identityOptions: IdentityOptions;
 
   posts: TestWordPostSet[] = [];
@@ -56,40 +53,6 @@ export class TestWorld {
     this.posts = [new TestWordPostSet(this, "")];
     await this.posts[0].makePosts();
     await this.storeIdentities();
-  }
-
-  /** For unit testing only, not to be used for integration/UI tests */
-  async setFullWot(): Promise<void> {
-    const emitter = this.protagonist.getRecursiveEmitter({event: "cubeAdded", depth: 1337 });
-    const protagonist = this.protagonist;
-    emitter['getAllCubeInfos'] = async function*(...args) { yield* protagonist.getAllCubeInfos(...args) }  // HACKHACK
-    this.engine = new ZwAnnotationEngine(
-      emitter as unknown as CubeEmitter,  // HACKHACK
-      this.cubeStore,
-      SubscriptionRequirement.subscribedReply,
-      undefined,
-      true,  // auto-learn MUCs (to be able to display authors when available)
-      true,  // no need to filter anonymous posts as they won't be fed anyway
-    );
-  }
-
-  /** For unit testing only, not to be used for integration/UI tests */
-  async setExplore(): Promise<void> {
-    const reEmitter = new NotifyingIdentityEmitter(this.cubeStore, this.protagonist.options.identityStore);
-    this.engine = new ZwAnnotationEngine(
-      reEmitter,
-      this.cubeStore,
-      SubscriptionRequirement.none,
-      undefined,
-      true,  // auto-learn MUCs (to be able to display authors when available)
-      true,  // no need to filter anonymous posts as they won't be fed anyway
-    );
-  }
-
-  /** For unit testing only, not to be used for integration/UI tests */
-  async displayble(post: Cube | CubeInfo): Promise<boolean> {
-    if (post instanceof Cube) post = await post.getCubeInfo();
-    return this.engine.isCubeDisplayable(post);
   }
 
   createIdentities() {

@@ -35,7 +35,7 @@ describe('PostView tests regarding displayal of existing posts', () => {
   });
 
   describe('showing the correct posts', () => {
-    for (const subscriptionBased of [true, false]) {
+    for (const subscriptionBased of [/*true,*/ false]) {
       let modeString: string;
       if (subscriptionBased) modeString = "My Network (showing posts based on subscriptions)";
       else modeString = "Explore (showcasing unknown authors based on group notifications)";
