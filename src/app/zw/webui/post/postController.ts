@@ -2,20 +2,19 @@ import { CubeKey } from "../../../../core/cube/cube.definitions";
 import { Cube } from "../../../../core/cube/cube";
 import { CubeInfo } from "../../../../core/cube/cubeInfo";
 import { keyVariants } from "../../../../core/cube/cubeUtil";
-import { CubeEmitter } from "../../../../core/cube/cubeStore";
 import { logger } from "../../../../core/logger";
 
 import { FieldLength, FieldType, MediaTypes } from "../../../../cci/cube/cciCube.definitions";
 import { VerityFields } from "../../../../cci/cube/verityFields";
 import { cciCube, cciFamily } from "../../../../cci/cube/cciCube";
-import { Relationship, RelationshipType } from "../../../../cci/cube/relationship";
+import { RelationshipType } from "../../../../cci/cube/relationship";
 import { ensureCci, isCci } from "../../../../cci/cube/cciCubeUtil";
-import { GetPostsGenerator, Identity, PostFormat, PostInfo } from "../../../../cci/identity/identity";
+import { Identity, PostInfo, RecursiveRelResolvingGetPostsGenerator } from "../../../../cci/identity/identity";
 import { UNKNOWNAVATAR } from "../../../../cci/identity/avatar";
+import { IdentityStore } from "../../../../cci/identity/identityStore";
+import { ResolveRelsRecursiveResult } from "../../../../cci/veritum/veritumRetrievalUtil";
 
-import { ZwConfig } from "../../model/zwConfig";
-import { assertZwCube, makePost } from "../../model/zwUtil";
-import { SubscriptionRequirement, ZwAnnotationEngine } from "../../model/zwAnnotationEngine";
+import { explorePostGenerator, isPostDisplayable, makePost, wotPostGenerator } from "../../model/zwUtil";
 
 import { ControllerContext, VerityController } from "../../../../webui/verityController";
 import { PostView } from "./postView";
@@ -24,10 +23,6 @@ import { FileApplication } from '../../../fileApplication';
 
 import { Buffer } from 'buffer';
 import DOMPurify from 'dompurify';
-import { eventsToGenerator, mergeAsyncGenerators, MergedAsyncGenerator } from "../../../../core/helpers/asyncGenerators";
-import { CubeRetriever } from "../../../../core/networking/cubeRetrieval/cubeRetriever";
-import { IdentityStore } from "../../../../cci/identity/identityStore";
-import { notifyingIdentities } from "../../../../cci/identity/identityUtil";
 
 
 // TODO refactor: just put the damn CubeInfo in here
@@ -55,7 +50,7 @@ export interface PostData {
 export class PostController extends VerityController {
   declare public contentAreaView: PostView;
   private displayedPosts: Map<string, PostData> = new Map();
-  private postGenerator: MergedAsyncGenerator<Cube|PostInfo<Cube>>;
+  private postGenerator: RecursiveRelResolvingGetPostsGenerator<Cube>;
   private idStore: IdentityStore;
 
   constructor(
@@ -71,7 +66,7 @@ export class PostController extends VerityController {
   // Navigation methods
   //***
 
-  async navSubscribed(depth: number = 1): Promise<void> {
+  async navSubscribed(subscriptionDepth: number = 1): Promise<void> {
     logger.trace("PostController: Displaying posts by subscriptions");
     this.shutdownComponents();
     this.contentAreaView.clearAlerts();
@@ -81,13 +76,8 @@ export class PostController extends VerityController {
       return;
     }
 
-    this.postGenerator = this.identity.getPosts({
-      depth,
-      format: PostFormat.Cube,
-      postInfo: true,
-      subscribe: true,
-    })
-    return this.redisplayPosts((this.postGenerator as GetPostsGenerator<CubeInfo>).existingYielded);
+    this.postGenerator = wotPostGenerator(this.identity, subscriptionDepth);
+    return this.redisplayPosts(this.postGenerator.existingYielded);
   }
 
   navWot(): Promise<void> {
@@ -98,33 +88,7 @@ export class PostController extends VerityController {
     logger.trace("PostController: Displaying posts by notifications");
     this.shutdownComponents();
 
-    // start an endless fetch of ZW Identities and store them all in a list
-    this.postGenerator = mergeAsyncGenerators();
-    this.postGenerator.setEndless();
-
-    const identityGen: AsyncGenerator<Identity> = notifyingIdentities(
-      this.cubeRetriever,
-      ZwConfig.NOTIFICATION_KEY,
-      this.idStore,
-      { subscribe: true },
-    );
-    (async() => {
-      for await (const identity of identityGen) {
-        const postsGen = identity.getPosts({
-          depth: 0,
-          format: PostFormat.Cube,
-          postInfo: true,
-          subscribe: true,
-        });
-        this.postGenerator.addInputGenerator(postsGen);
-      }
-    })();
-
-    // TODO stop generators on teardown
-    // maybe TODO: expose getting posts from multiple Identities as a common
-    //   IdentityUtil building block. Maybe introduce a new class IdentityGroup
-    //   following Identity's API for getting posts and subscriptions from all
-    //   group members.
+    this.postGenerator = explorePostGenerator(this.veritumRetriever, this.idStore);
 
     // TODO define a sensible done promise
     return this.redisplayPosts(new Promise(resolve => setTimeout(resolve, 100)));
@@ -150,29 +114,15 @@ export class PostController extends VerityController {
     } else {
       logger.warn("PostController.redisplayPosts() called, but we either have no post Generator. You will not see any posts.");
     }
+    // All done; just define a sensible return state:
+    // We'll consider ourselves done, once all displayals started while the done
+    // promise was pending have been completed.
+    // This is completely irrelevant in production, but used for testing.
     return donePromise.then(() => {
       const promises = displayPromises;
       displayPromises = undefined;
       return Promise.all(promises).then();
     });
-  }
-
-  private isPostDisplayable(cube: Cube): boolean {
-    // is this even a valid ZwCube?
-    if (!assertZwCube(cube)) return false;
-
-    // does this have a Payload field and does it contain something??
-    const payload = cube.getFirstField(FieldType.PAYLOAD);
-    if (!payload || !payload.length) return false;
-
-    // does it have the correct media type?
-    const typefield = cube.getFirstField(FieldType.MEDIA_TYPE);
-    if (!typefield) return false;
-    if (typefield.value.readUIntBE(0, FieldLength[FieldType.MEDIA_TYPE]) !== MediaTypes.TEXT) {
-      return false;
-    }
-
-    return true;  // all checks passed
   }
 
   /**
@@ -186,21 +136,13 @@ export class PostController extends VerityController {
 
   // Show all new cubes that are displayable.
   // This will handle cubeStore cubeDisplayable events.
-  private async displayPost(input: CubeKey|Cube|PostInfo<Cube>): Promise<void> {
+  private async displayPost(postInfo: PostInfo<Cube> & ResolveRelsRecursiveResult<Cube>): Promise<void> {
     // normalise input:
     // setting cube:
-    let cube: cciCube;
-    if (input instanceof Cube) cube = input as cciCube;
-    else if (input instanceof CubeInfo) cube = input.getCube() as cciCube;
-    else if (Buffer.isBuffer(input)) cube = await this.cubeRetriever.getCube(input, {family: cciFamily});
-    else if (input['post']) cube = input.post as cciCube;
-    else {
-      logger.error(`PostController.displayPost(): Invalid input type: ${typeof input}`);
-      return;
-    }
+    const cube: cciCube = postInfo.main as cciCube;
 
     // sanity checks
-    if (!this.isPostDisplayable(cube)) {
+    if (!(await isPostDisplayable(postInfo))) {
       logger.trace(`PostController.displayPost(): Ignoring a non-displayable Cube`);
       return;
     }
@@ -221,20 +163,22 @@ export class PostController extends VerityController {
     });
     data.text = await this.processImageTags(data.text);
     // Author known?
-    data.identity = (input as PostInfo<Cube>).author ?? undefined;
+    data.identity = (postInfo as PostInfo<Cube>).author ?? undefined;
     this.parseAuthor(data);
 
     // is this post already displayed?
     if (this.displayedPosts.has(data.keystring)) return;
 
     // is this a reply?
-    const reply: Relationship = fields.getFirstRelationship(RelationshipType.REPLY_TO);
-    if (reply !== undefined) {  // yes
-      const superiorPostKey: CubeKey = reply.remoteKey;
+    const superiorPostPromise: Promise<PostInfo<Cube> & ResolveRelsRecursiveResult<Cube>> =
+      postInfo[RelationshipType.REPLY_TO]?.[0] as Promise<PostInfo<Cube> & ResolveRelsRecursiveResult<Cube>>;
+    if (superiorPostPromise !== undefined) {  // yes
+      const superiorPost: PostInfo<Cube> & ResolveRelsRecursiveResult<Cube> = await superiorPostPromise;
+      const superiorPostKey: CubeKey = await superiorPost.main.getKey();
       data.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));
       if (!data.superior) {
         // Apparently the original post has not yet been displayed, so let's display it
-        await this.displayPost(superiorPostKey);
+        await this.displayPost(superiorPost);
         data.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));
         if (!data.superior || !data.superior.displayElement) {  // STILL not displayed?!?!
           logger.debug(`PostController: Failed to display post ${superiorPostKey.toString('hex')} because the superior post cannot be displayed.`);

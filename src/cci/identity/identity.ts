@@ -124,6 +124,8 @@ export interface PostInfo<postFormat> extends MetadataEnhancedRetrieval<postForm
   main: postFormat;
   author: Identity;
 }
+export type RelResolvingPostInfo<T> = PostInfo<T> & ResolveRelsResult<T>;
+export type RecursiveRelResolvingPostInfo<T> = PostInfo<T> & ResolveRelsRecursiveResult<T>;
 
 export interface GetPostsOptions extends GetVeritumOptions {
   /**
@@ -179,6 +181,8 @@ export type GetPostsGenerator<T> = MergedAsyncGenerator<T> & {
    */
   existingYielded?: Promise<void>;
 };
+export type RelResolvingGetPostsGenerator<T> = GetPostsGenerator<RelResolvingPostInfo<T>>;
+export type RecursiveRelResolvingGetPostsGenerator<T> = GetPostsGenerator<RecursiveRelResolvingPostInfo<T>>;
 
 export interface GetRecursiveEmitterOptions {
   depth?: number,
@@ -718,6 +722,10 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     yield *resolveAndYield(promises);
   }
 
+  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, metadata: true, resolveRels: true }): RelResolvingGetPostsGenerator<Veritum>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.Cube, metadata: true, resolveRels: true} ): RelResolvingGetPostsGenerator<Cube>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, metadata: true, resolveRels: 'recursive' }): RecursiveRelResolvingGetPostsGenerator<Veritum>;
+  getPosts(options: GetPostsOptions & { format: PostFormat.Cube, metadata: true, resolveRels: 'recursive'} ): RecursiveRelResolvingGetPostsGenerator<Cube>;
   getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, metadata: true }): GetPostsGenerator<PostInfo<Veritum>>;
   getPosts(options: GetPostsOptions & { format: PostFormat.Cube, metadata: true} ): GetPostsGenerator<PostInfo<Cube>>;
   getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, metadata?: false} ): GetPostsGenerator<Veritum>;

@@ -58,8 +58,8 @@ interface RetrievalMetadata {
 type RelResult = {
   [key in number]: Promise<Veritable>[];
 }
-export interface ResolveRelsResult
-  extends MetadataEnhancedRetrieval<Veritable>, RelResult, RetrievalMetadata
+export interface ResolveRelsResult<T = Veritable>
+  extends MetadataEnhancedRetrieval<T>, RelResult, RetrievalMetadata
 { }
 
 /** Returns an almost valid initialization of ResolveRelsResult, just without the done promise */
@@ -77,8 +77,8 @@ export function emptyResolveRelsResult(main: Veritable): Partial<ResolveRelsResu
 type RecursiveRelResult = {
   [key in number]: Promise<ResolveRelsRecursiveResult>[];
 }
-export interface ResolveRelsRecursiveResult
-  extends MetadataEnhancedRetrieval<Veritable>, RecursiveRelResult, RetrievalMetadata
+export interface ResolveRelsRecursiveResult<T = Veritable>
+  extends MetadataEnhancedRetrieval<T>, RecursiveRelResult, RetrievalMetadata
 {
   /**
    * Will be set to true if an excluded Veritable has been encountered,
