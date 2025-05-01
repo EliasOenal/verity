@@ -16,7 +16,7 @@
     "./webpack.veritycommon.mjs": "./webpack.veritycommon.mjs"
   },
   "scripts": {
-    "start": "node --import=extensionless/register dist/src/verity.js",
+    "start": "node --import=extensionless/register dist/verity.js",
     "test": "npm run vitest",
     "vitest": "./node_modules/.bin/vitest run",
     "webpack": "webpack",
