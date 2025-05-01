@@ -88,7 +88,7 @@ export class PostController extends VerityController {
     logger.trace("PostController: Displaying posts by notifications");
     this.shutdownComponents();
 
-    this.postGenerator = explorePostGenerator(this.veritumRetriever, this.idStore);
+    this.postGenerator = explorePostGenerator(this.cubeRetriever, this.idStore);
 
     // TODO define a sensible done promise
     return this.redisplayPosts(new Promise(resolve => setTimeout(resolve, 100)));

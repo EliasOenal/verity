@@ -15,7 +15,7 @@ import { VerityField } from "../../../cci/cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition } from "../../../cci/cube/verityFields";
 import { Relationship, RelationshipType } from "../../../cci/cube/relationship";
 import { cciCube, cciFamily } from "../../../cci/cube/cciCube";
-import { Identity, PostFormat, PostInfo, RecursiveRelResolvingGetPostsGenerator } from "../../../cci/identity/identity";
+import { Identity, PostFormat, PostInfo, RecursiveRelResolvingGetPostsGenerator, RecursiveRelResolvingPostInfo } from "../../../cci/identity/identity";
 import { isCci } from "../../../cci/cube/cciCubeUtil";
 
 import { Buffer } from 'buffer';
@@ -130,7 +130,7 @@ export function assertZwMuc(cube: Cube): boolean {
   else return assertZwCube(cube);
 }
 
-export async function isPostDisplayable(postInfo: PostInfo<Cube> & ResolveRelsRecursiveResult<Cube>): Promise<boolean> {
+export async function isPostDisplayable(postInfo: RecursiveRelResolvingPostInfo<Cube>): Promise<boolean> {
   // is this even a valid ZwCube?
   const cube: Cube = postInfo.main;
   if (!assertZwCube(cube)) {

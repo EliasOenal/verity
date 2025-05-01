@@ -20,6 +20,8 @@ export interface NotifyingIdentitiesOptions {
 }
 
 // TODO: make cancellable, in particular in subscribe mode
+// Note: cubeStoreOrRetriever should actually be a CubeStore or a CubeRetriever;
+//   supplying a VeritumRetriever will not work properly.
 export async function *notifyingIdentities(
     cubeStoreOrRetriever: CubeRetrievalInterface<any>,
     notificationKey: CubeKey,
