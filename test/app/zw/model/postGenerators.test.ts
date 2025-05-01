@@ -2,18 +2,14 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 
 import { cciCube } from "../../../../src/cci/cube/cciCube";
 import { TestWorld } from "../testWorld";
+import { explorePostGenerator, isPostDisplayable, wotPostGenerator } from '../../../../src/app/zw/model/zwUtil';
+import { PostInfo, RecursiveRelResolvingPostInfo } from '../../../../src/cci/identity/identity';
+import { Cube } from '../../../../src/core/cube/cube';
+import { ArrayFromAsync } from '../../../../src/core/helpers/misc';
+import { Veritable } from '../../../../src/core/cube/veritable.definition';
+import { IdentityStore } from '../../../../src/cci/identity/identityStore';
 
-describe('post displayability', () => {
-  // This suite tests that posts are properly marked as displayable,
-  // or as non-displayable in case of replies with missing base posts.
-  // Displayability is currently still handled within ZwAnnotationEngine,
-  // which we should change. We now mostly feed posts directly from the
-  // Identity modules based on subscriptions, which is the way it was originally
-  // intended ("all parsing starts from the MUC"). Actual annotations are not
-  // really used that much anymore. Subscription-based displayability logic
-  // within ZwAnnotationEngine should be removed as we can (and do) now directly
-  // only feed subscribed posts.
-
+describe('post generators', () => {
   describe('verify test setup (i.e. test TestWorld', () => {
     let w: TestWorld;
     beforeAll(async () => {
@@ -86,151 +82,176 @@ describe('post displayability', () => {
     });
   });
 
+  async function shouldDisplay(post: Veritable, list: RecursiveRelResolvingPostInfo<Cube>[]) {
+    const postInfo = list.find((p) => p.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable());
+    expect(postInfo).toBeDefined();
+    expect(await isPostDisplayable(postInfo!)).toBe(true);
+  }
+
+  function shouldNotGenerate(post: Veritable, list: RecursiveRelResolvingPostInfo<Cube>[]) {
+    const postInfo = list.find((p) => p.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable());
+    expect(postInfo).toBeUndefined();
+  }
+
+  async function shouldGenerateButNotDisplay(post: Veritable, list: RecursiveRelResolvingPostInfo<Cube>[]) {
+    const postInfo = list.find((p) => p.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable());
+    expect(postInfo).toBeDefined();
+    expect(await isPostDisplayable(postInfo!)).toBe(false);
+  }
+
   describe('full WOT', () => {
     let w: TestWorld;
+    const list: RecursiveRelResolvingPostInfo<Cube>[] = [];
     beforeAll(async () => {
       w = new TestWorld({ subscriptions: true });
       await w.setup();
-      await w.setFullWot();
+
+      const gen = wotPostGenerator(w.protagonist, 1337);
+      (async () => { for await (const post of gen) list.push(post) })();
+      await gen.existingYielded;
     });
 
     it('should display my own root posts', async () => {
-      expect(await w.displayble(w.posts[0].own)).toBe(true);
+      await shouldDisplay(w.posts[0].own, list);
     });
 
     it("should display my direct subscription's posts", async () => {
-      expect(await w.displayble(w.posts[0].directUnreplied)).toBe(true);
+      await shouldDisplay(w.posts[0].directUnreplied, list);
     });
 
     it("should display indirect subscription's posts", async () => {
-      expect(await w.displayble(w.posts[0].indirectUnreplied)).toBe(true);
-      expect(await w.displayble(w.posts[0].thirdUnreplied)).toBe(true);
+      await shouldDisplay(w.posts[0].indirectUnreplied, list);
+      await shouldDisplay(w.posts[0].thirdUnreplied, list);
     });
 
     it("should display my own replies to direct subscription's posts", async () => {
-      expect(await w.displayble(w.posts[0].directOwn)).toBe(true);
+      await shouldDisplay(w.posts[0].directOwn, list);
     });
 
     it("should display my own replies to indirect subscription's posts", async () => {
-      expect(await w.displayble(w.posts[0].indirectOwn)).toBe(true);
-      expect(await w.displayble(w.posts[0].thirdOwn)).toBe(true);
+      await shouldDisplay(w.posts[0].indirectOwn, list);
+      await shouldDisplay(w.posts[0].thirdOwn, list);
     });
 
     it("should display my subscription's replies to my own posts", async () => {
-      expect(await w.displayble(w.posts[0].ownDirect)).toBe(true);
-      expect(await w.displayble(w.posts[0].ownIndirect)).toBe(true);
-      expect(await w.displayble(w.posts[0].ownThird)).toBe(true);
+      await shouldDisplay(w.posts[0].ownDirect, list);
+      await shouldDisplay(w.posts[0].ownIndirect, list);
+      await shouldDisplay(w.posts[0].ownThird, list);
     });
 
     it("should display my subscription's replies to my subscription's posts", async () => {
-      expect(await w.displayble(w.posts[0].directThird)).toBe(true);
+      await shouldDisplay(w.posts[0].directThird, list);
     });
 
-    // This currently fails and I don't know why.
-    // As this test still uses the deprecated ZwAnnotationEngine logic to determine
-    // subscribed authorship and we're not expecting to even present those posts
-    // to the engine anymore, I currently won't spend time debugging this.
-    it.skip('should NOT show root posts by non-subscribed users', async () => {
-      expect(await w.displayble(w.posts[0].unrelatedUnanswered)).toBe(false);
+    it('should NOT show root posts by non-subscribed users', async () => {
+      await shouldNotGenerate(w.posts[0].unrelatedUnanswered, list);
     });
 
-    // failing, see above
-    it.skip('should NOT show replies by non-subscribed users', async () => {
-      expect(await w.displayble(w.posts[0].ownUnrelatedUnanswered)).toBe(false);
+    it('should NOT show replies by non-subscribed users', async () => {
+      await shouldNotGenerate(w.posts[0].ownUnrelatedUnanswered, list);
     });
 
-    it('should show posts by non-subscribed users if subscribed users answered them', async () => {
-      expect(await w.displayble(w.posts[0].ownUnrelatedAnswered)).toBe(true);
+    it('should not generate posts by non-subscribed users even if subscribed users answered them', async () => {
+      // Note that this post will still be displayed by the app, because it
+      // will get displayed as root post when processing the reply.
+      await shouldNotGenerate(w.posts[0].ownUnrelatedAnswered, list);
     });
 
-    it('should show posts by non-subscribed users if I answered them', async () => {
-      expect(await w.displayble(w.posts[0].unrelatedAnsweredByProtagonist)).toBe(true);
+    it('should not generate posts by non-subscribed users even if I answered them', async () => {
+      // Note that this post will still be displayed by the app, because it
+      // will get displayed as root post when processing the reply.
+      await shouldNotGenerate(w.posts[0].unrelatedAnsweredByProtagonist, list);
     });
 
     it("should show my subscription's replies to non-subscribed users", async () => {
-      expect(await w.displayble(w.posts[0].unrelatedSub)).toBe(true);
-      expect(await w.displayble(w.posts[0].ownUnrelatedSub)).toBe(true);
+      await shouldDisplay(w.posts[0].unrelatedSub, list);
+      await shouldDisplay(w.posts[0].ownUnrelatedSub, list);
     });
 
     it("should show my own replies to non-subscribed users", async () => {
-      expect(await w.displayble(w.posts[0].unrelatedOwn)).toBe(true);
+      await shouldDisplay(w.posts[0].unrelatedOwn, list);
     });
 
     // TODO do we actually want that?
     it("should NOT display replies to unavailable posts", async () => {
-      expect(await w.displayble(w.posts[0].subUnavailableIndirect)).toBe(false);
+      await shouldGenerateButNotDisplay(w.posts[0].subUnavailableIndirect, list);
     });
   });
 
 
   describe('explore unknown authors through notifications', () => {
     let w: TestWorld;
+    const list: RecursiveRelResolvingPostInfo<Cube>[] = [];
+
     beforeAll(async () => {
       w = new TestWorld({ subscriptions: false });
       await w.setup();
-      await w.setExplore();
+
+      const gen = explorePostGenerator(w.retriever.cubeRetriever, new IdentityStore(w.retriever));
+      (async () => { for await (const post of gen) list.push(post) })();
+      await new Promise((resolve) => setTimeout(resolve, 100));  // TODO provide proper done promise
     });
 
     it('should display my own root posts', async () => {
-      expect(await w.displayble(w.posts[0].own)).toBe(true);
+      await shouldDisplay(w.posts[0].own, list);
     });
 
     it("should display my direct subscription's posts", async () => {
-      expect(await w.displayble(w.posts[0].directUnreplied)).toBe(true);
+      await shouldDisplay(w.posts[0].directUnreplied, list);
     });
 
     it("should display indirect subscription's posts", async () => {
-      expect(await w.displayble(w.posts[0].indirectUnreplied)).toBe(true);
-      expect(await w.displayble(w.posts[0].thirdUnreplied)).toBe(true);
+      await shouldDisplay(w.posts[0].indirectUnreplied, list);
+      await shouldDisplay(w.posts[0].thirdUnreplied, list);
     });
 
     it("should display my own replies to direct subscription's posts", async () => {
-      expect(await w.displayble(w.posts[0].directOwn)).toBe(true);
+      await shouldDisplay(w.posts[0].directOwn, list);
     });
 
     it("should display my own replies to indirect subscription's posts", async () => {
-      expect(await w.displayble(w.posts[0].indirectOwn)).toBe(true);
-      expect(await w.displayble(w.posts[0].thirdOwn)).toBe(true);
+      await shouldDisplay(w.posts[0].indirectOwn, list);
+      await shouldDisplay(w.posts[0].thirdOwn, list);
     });
 
     it("should display my subscription's replies to my own posts", async () => {
-      expect(await w.displayble(w.posts[0].ownDirect)).toBe(true);
-      expect(await w.displayble(w.posts[0].ownIndirect)).toBe(true);
-      expect(await w.displayble(w.posts[0].ownThird)).toBe(true);
+      await shouldDisplay(w.posts[0].ownDirect, list);
+      await shouldDisplay(w.posts[0].ownIndirect, list);
+      await shouldDisplay(w.posts[0].ownThird, list);
     });
 
     it("should display my subscription's replies to my subscription's posts", async () => {
-      expect(await w.displayble(w.posts[0].directThird)).toBe(true);
+      await shouldDisplay(w.posts[0].directThird, list);
     });
 
     it('should show root posts by non-subscribed users', async () => {
-      expect(await w.displayble(w.posts[0].unrelatedUnanswered)).toBe(true);
+      await shouldDisplay(w.posts[0].unrelatedUnanswered, list);
     });
 
     it('should show replies by non-subscribed users', async () => {
-      expect(await w.displayble(w.posts[0].ownUnrelatedUnanswered)).toBe(true);
+      await shouldDisplay(w.posts[0].ownUnrelatedUnanswered, list);
     });
 
     it('should show posts by non-subscribed users if subscribed users answered them', async () => {
-      expect(await w.displayble(w.posts[0].ownUnrelatedAnswered)).toBe(true);
+      await shouldDisplay(w.posts[0].ownUnrelatedAnswered, list);
     });
 
     it('should show posts by non-subscribed users if I answered them', async () => {
-      expect(await w.displayble(w.posts[0].unrelatedAnsweredByProtagonist)).toBe(true);
+      await shouldDisplay(w.posts[0].unrelatedAnsweredByProtagonist, list);
     });
 
     it("should show my subscription's replies to non-subscribed users", async () => {
-      expect(await w.displayble(w.posts[0].unrelatedSub)).toBe(true);
-      expect(await w.displayble(w.posts[0].ownUnrelatedSub)).toBe(true);
+      await shouldDisplay(w.posts[0].unrelatedSub, list);
+      await shouldDisplay(w.posts[0].ownUnrelatedSub, list);
     });
 
     it("should show my own replies to non-subscribed users", async () => {
-      expect(await w.displayble(w.posts[0].unrelatedOwn)).toBe(true);
+      await shouldDisplay(w.posts[0].unrelatedOwn, list);
     });
 
     // TODO do we actually want that?
     it("should NOT display replies to unavailable posts", async () => {
-      expect(await w.displayble(w.posts[0].subUnavailableIndirect)).toBe(false);
+      await shouldGenerateButNotDisplay(w.posts[0].subUnavailableIndirect, list);
     });
   });
 
