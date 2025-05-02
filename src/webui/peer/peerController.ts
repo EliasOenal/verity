@@ -26,8 +26,8 @@ export class PeerController extends VerityController {
   redisplayTimeout: NodeJS.Timeout = undefined;
   onlineView: OnlineView;
 
-  get networkManager(): NetworkManagerIf { return this.parent.node.networkManager }
-  get peerDB(): PeerDB { return this.parent.node.peerDB }
+  get networkManager(): NetworkManagerIf { return this.node.networkManager }
+  get peerDB(): PeerDB { return this.node.peerDB }
 
   constructor(
       parent: ControllerContext,

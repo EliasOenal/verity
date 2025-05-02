@@ -130,11 +130,13 @@ export class VerityUI implements ControllerContext {
       readonly node: VerityNode,
       readonly options: VerityOptions = {},
     ){
+    // Create our components. Note the order: Create cockpit first,
+    // as it is part of the mandatory controller context.
+    this.cockpit = new Cockpit(this.node,
+      { identity: () => this.identityController.identity });
     this.peerController = new PeerController(this);
     this.fileManagerController = new FileManagerController(this);
     this.identityController = new IdentityController(this, options);
-    this.cockpit = new Cockpit(this.node,
-      { identity: () => this.identityController.identity });
   }
 
   shutdown() {

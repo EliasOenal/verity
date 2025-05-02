@@ -17,12 +17,11 @@ import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestSche
  */
 export interface ControllerContext {
   /**
-   * Provides access to the Verity core node, including stuff like Cube storage
-   * and retrieval as well as networking
+   * The cockpit provide a high level API for retrieving and publishin Verita.
+   * It also provides access to the Verity node object, including stuff like
+   * Cube storage and retrieval as well as networking.
    **/
-  node: VerityNodeIf;
-
-  cockpit: Cockpit
+  cockpit: Cockpit;
 
   /** Optionally, the Identity of the currently logged in user */
   identity?: Identity;
@@ -49,13 +48,20 @@ export interface VerityControllerOptions {
 }
 
 /** Abstract base class for our controllers */
-export class VerityController {
+export class VerityController implements ControllerContext {
   public contentAreaView: VerityView = undefined;
-  get cubeStore(): CubeStore { return this.parent?.node?.cubeStore }
-  get veritumRetriever(): VeritumRetrievalInterface<CubeRequestOptions> { return this.parent?.node?.veritumRetriever }
-  get cubeRetriever(): CubeRetriever | CubeRetrievalInterface<CubeRequestOptions> { return this.parent?.node?.cubeRetriever }
-  get identity(): Identity { return this.parent?.identity }
-  get cockpit(): Cockpit { return this.parent?.cockpit }
+
+  get cockpit(): Cockpit { return this.parent.cockpit }
+  get identity(): Identity { return this.parent.identity }
+  get node(): VerityNodeIf { return this.parent.cockpit.node }
+  get nav(): NavControllerIf { return this.parent.nav }
+
+  /** @deprecated - Applications should prefer the cockpit API, or use this.node.cubeStore */
+  get cubeStore(): CubeStore { return this.parent.cockpit.node.cubeStore }
+  /** @deprecated - Applications should prefer the cockpit API, or use this.node.veritumRetriever */
+  get veritumRetriever(): VeritumRetrievalInterface<CubeRequestOptions> { return this.parent.cockpit.node.veritumRetriever }
+  /** @deprecated - Applications should prefer the cockpit API, or use this.node.cubeRetriever */
+  get cubeRetriever(): CubeRetriever | CubeRetrievalInterface<CubeRequestOptions> { return this.parent.cockpit.node.cubeRetriever }
 
   constructor(
     readonly parent: ControllerContext,

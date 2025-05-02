@@ -12,7 +12,7 @@
       "types": "./dist/webui/index.d.ts",
       "default": "./dist/webui/index.js"
     },
-    "./src": "./src",
+    "./src/*": "./src/*",
     "./webpack.veritycommon.mjs": "./webpack.veritycommon.mjs"
   },
   "scripts": {
