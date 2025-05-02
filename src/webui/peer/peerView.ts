@@ -26,7 +26,7 @@ export class PeerView extends VerityView {
     if (show) this.show();
   }
 
-  get myId(): string { return this.controller.parent.node.networkManager.id.toString('hex'); }
+  get myId(): string { return this.controller.node.networkManager.id.toString('hex'); }
 
   clearAll() {
     this.peerList.replaceChildren();

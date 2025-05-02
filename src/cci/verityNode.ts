@@ -12,6 +12,12 @@ export interface VerityNodeOptions extends CoreNodeOptions {
 export class VerityNode extends CoreNode {
   readonly veritumRetriever: VeritumRetriever<CubeRequestOptions>;
 
+  static async Create(options: VerityNodeOptions = {}): Promise<VerityNode> {
+    const v = new VerityNode(options);
+    await v.readyPromise;
+    return v;
+  }
+
   constructor(options: VerityNodeOptions = {}){
     super(options);
     this.veritumRetriever = new VeritumRetriever(this.cubeRetriever);
