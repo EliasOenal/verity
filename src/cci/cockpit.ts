@@ -41,10 +41,9 @@ export class Cockpit {
   prepareVeritum(options: CubeCreateOptions = {}): Veritum {
     options = { ...options };  // copy options to avoid tainting passed object
     if (this.identity) {
-      // TODO FIXME: use key derivation rather than overwriting the Identity MUC o.Ô
-      // This must probably be implemented in Continuation
-      options.publicKey ??= this.identity?.publicKey;
-      options.privateKey ??= this.identity?.privateKey;
+      // TODO: Provide automatic key derivation for signed Verita.
+      //   We have not decided yet whether we even want to support multi-chunk
+      //   signed Verita, Github#634.
     }
     const veritum = new Veritum(options);
     return veritum;
