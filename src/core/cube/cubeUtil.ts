@@ -3,6 +3,7 @@ import { Settings } from '../settings';
 import { NetConstants } from '../networking/networkDefinitions';
 
 import { CubeError, CubeKey, CubeType, NonNotifyCubeType } from './cube.definitions';
+import { CubeFamilyDefinition } from './cubeFields';
 import { Cube } from './cube';
 import { CubeInfo } from './cubeInfo';
 
@@ -12,7 +13,6 @@ import { Buffer } from 'buffer';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import pkg from 'js-sha3';
 import sodium from 'libsodium-wrappers-sumo'
-import { CubeFamilyDefinition } from './cubeFields';
 
 /*
  * Calculate the hash of a buffer using the SHA3-256 algorithm.
