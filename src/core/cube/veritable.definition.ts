@@ -26,6 +26,8 @@ export interface Veritable {
   /** The private key of this veritable structure, or undefined if n/a */
   get privateKey(): Buffer;
 
+  getDate(): number;
+
   /**
    * @returns This veritable structure's key, if available.
    *   Notably, depending on the type of structure the key may not be

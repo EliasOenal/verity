@@ -77,6 +77,18 @@ export abstract class VeritableBaseImplementation implements Veritable {
     get publicKey(): Buffer { return this.options.publicKey }
     get privateKey(): Buffer { return this.options.privateKey }
 
+    public getDate(): number {
+        const dateField: CubeField =
+            this.getFirstField(CubeFieldType.DATE);
+        if (dateField === undefined) return undefined;
+        try {
+            const val: number = dateField.value.readUIntBE(0, NetConstants.TIMESTAMP_SIZE);
+            return val;
+        } catch (e) {
+            logger.debug("VeritableBaseImplementation.getDate(): Cannot read date field; returning undefined. Error was: " + e);
+            return undefined;
+        }
+    }
 
     /** Subclass must override */
     getKeyIfAvailable(): CubeKey {
@@ -492,12 +504,6 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
             difficulty: CubeUtil.countTrailingZeroBits(this.hash),
             family: family,
         });
-    }
-
-    public getDate(): number {
-        const dateField: CubeField =
-            this.getFirstField(CubeFieldType.DATE);
-        return dateField.value.readUIntBE(0, NetConstants.TIMESTAMP_SIZE);
     }
 
     public setDate(date: number): void {
