@@ -9,9 +9,6 @@ import { PeerDB } from "./peering/peerDB";
 import { RequestScheduler } from "./networking/cubeRetrieval/requestScheduler";
 import { DummyNetworkManager } from "./networking/testingDummies/dummyNetworkManager";
 
-interface InitialisationOptions {
-  initialPeers?: AddressAbstraction[],
-}
 
 // Default initial peers to use if none are supplied as command line options:
 export const defaultInitialPeers: AddressAbstraction[] = [
@@ -23,7 +20,30 @@ export const defaultInitialPeers: AddressAbstraction[] = [
   // new AddressAbstraction("158.101.100.95:1984"),
 ];
 
-export type CoreNodeOptions = NetworkManagerOptions & CubeStoreOptions & InitialisationOptions;
+export interface CoreNodeOptions extends NetworkManagerOptions, CubeStoreOptions {
+  /** Try to auto-connect to these peers */
+  initialPeers?: AddressAbstraction[],
+
+  /**
+   * Optionally use this existing CubeStore instance.
+   * For testing mainly, do not use unless you know what you are doing.
+   **/
+  cubeStore?: CubeStore,
+
+  /**
+   * Optionally use this existing PeerDB instance.
+   * For testing mainly, do not use unless you know what you are doing.
+   **/
+  peerDB?: PeerDB,
+
+  /**
+   * Optionally use this existing NetworkManager instance.
+   * For testing mainly, do not use unless you know what you are doing.
+   * If you do use it, it's on you to assemble the system properly.-- i.e.
+   * supply your own CubeStore and PeerDB and feed them to your NetworkManager.
+   **/
+  networkManager?: NetworkManagerIf,
+}
 
 export interface CoreNodeIf {
   readonly cubeStore: CubeStore;
@@ -41,7 +61,7 @@ export interface CoreNodeIf {
 export class CoreNode implements CoreNodeIf {
   readonly cubeStore: CubeStore;
   readonly peerDB: PeerDB;
-  readonly networkManager: NetworkManager;
+  readonly networkManager: NetworkManagerIf;
   readonly cubeRetriever: CubeRetriever;
 
   readonly onlinePromise: Promise<void>;
@@ -60,17 +80,17 @@ export class CoreNode implements CoreNodeIf {
     options.initialPeers ??= defaultInitialPeers;
     options.inMemory ??= true;
 
-    this.cubeStore = new CubeStore(options);
+    this.cubeStore = options.cubeStore ?? new CubeStore(options);
     // find a suitable port number for tracker announcement
     let port;
     const wsServerSpec = options.transports.get(SupportedTransports.ws);
     if (wsServerSpec) port = wsServerSpec;
     else port = undefined;
-    this.peerDB = new PeerDB(port);
+    this.peerDB = options.peerDB ?? new PeerDB(port);
     if (port === undefined) options.announceToTorrentTrackers = false;
 
     // Prepare networking
-    this.networkManager = new NetworkManager(
+    this.networkManager = options.networkManager ?? new NetworkManager(
       this.cubeStore, this.peerDB, options);
     // Only start networking once our CubeStore is ready
     this.cubeStore.readyPromise.then(() => this.networkManager.start());
@@ -107,36 +127,6 @@ export class CoreNode implements CoreNodeIf {
     this.networkManager.shutdown();
     this.cubeStore.shutdown();
     this.peerDB.shutdown();
-    return this.shutdownPromise;
-  }
-}
-
-
-/** Dummy for testing only */
-export class DummyCoreNode implements CoreNodeIf {
-  readonly cubeStore: CubeStore;
-  readonly peerDB: PeerDB;
-  readonly networkManager: NetworkManagerIf;
-  readonly cubeRetriever: CubeRetriever;
-
-  readonly onlinePromise: Promise<void>;
-  get readyPromise(): Promise<void> { return this.cubeStore.readyPromise }
-  readonly shutdownPromise: Promise<void>;
-
-  constructor(optionsInput: CoreNodeOptions = {}) {
-    const options = {
-      ... optionsInput,
-      inMemory: true,
-    };
-    this.cubeStore = new CubeStore(options);
-    this.peerDB = new PeerDB();
-    this.networkManager = new DummyNetworkManager(this.cubeStore, this.peerDB);
-    this.cubeRetriever = new CubeRetriever(this.cubeStore, new RequestScheduler(this.networkManager, options));
-    this.onlinePromise = Promise.resolve(undefined);
-    this.shutdownPromise = Promise.resolve(undefined);
-  }
-
-  shutdown(): Promise<void> {
     return this.shutdownPromise;
   }
 }
