@@ -3,7 +3,7 @@
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 import { TestWordPostSet, TestWorld } from '../testWorld';
 import { PostController } from '../../../../src/app/zw/webui/post/postController';
-import { DummyCoreNode, CoreNodeIf, CoreNodeOptions } from '../../../../src/core/coreNode';
+import { CoreNodeOptions } from '../../../../src/core/coreNode';
 import { DummyNavController } from '../../../../src/webui/navigation/navigationDefinitions';
 import { Veritable } from '../../../../src/core/cube/veritable.definition';
 import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
@@ -14,8 +14,8 @@ import { cciTestOptions } from '../../../cci/e2e/e2eCciSetup';
 import { loadZwTemplate } from './uiTestSetup';
 import { CubeKey } from '../../../../src/core/cube/cube.definitions';
 import { keyVariants } from '../../../../src/core/cube/cubeUtil';
-import { VerityNodeIf, DummyVerityNode } from '../../../../src/cci/verityNode';
-import { Cockpit } from '../../../../src/cci/cockpit';
+import { VerityNodeIf, dummyVerityNode } from '../../../../src/cci/verityNode';
+import { Cockpit, dummyCockpit } from '../../../../src/cci/cockpit';
 
 const testOptions: CoreNodeOptions = {
   ...cciTestOptions,
@@ -44,12 +44,11 @@ describe('PostView tests regarding displayal of existing posts', () => {
         let controller: PostController;
 
         beforeAll(async () => {
-          const node: VerityNodeIf = new DummyVerityNode(testOptions);
+          const node: VerityNodeIf = dummyVerityNode(testOptions);
           await node.readyPromise;
           w = new TestWorld({ subscriptions: subscriptionBased, cubeStore: node.cubeStore });
           await w.setup();
           controller = new PostController({
-            node,
             nav: new DummyNavController(),
             identity: w.protagonist,
             cockpit: new Cockpit(node, {identity: w.protagonist}),

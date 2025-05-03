@@ -1,4 +1,4 @@
-import { VerityNodeIf, DummyVerityNode } from "../../src/cci/verityNode";
+import { VerityNodeIf, dummyVerityNode } from "../../src/cci/verityNode";
 import { Cockpit } from "../../src/cci/cockpit";
 import { FieldType } from "../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../src/cci/cube/verityField";
@@ -23,7 +23,7 @@ describe('cci Cockpit', () => {
       let cockpit: Cockpit;
 
       beforeAll(async () => {
-        node = new DummyVerityNode({requiredDifficulty});
+        node = dummyVerityNode();
         await node.readyPromise;
         if (loggedIn) {
           identity = new Identity(node.cubeStore, masterKey, idTestOptions);

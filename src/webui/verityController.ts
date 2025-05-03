@@ -2,11 +2,10 @@ import { VerityView } from "./verityView";
 import { UiError } from "./webUiDefinitions";
 
 import type { Identity } from "../cci/identity/identity";
-import { DummyCoreNode, type CoreNode, type CoreNodeIf } from "../core/coreNode";
 import type { CubeRetrievalInterface, CubeStore } from "../core/cube/cubeStore";
 import { DummyNavController, type NavControllerIf, type NavItem } from "./navigation/navigationDefinitions";
 import { CubeRetriever } from "../core/networking/cubeRetrieval/cubeRetriever";
-import { VerityNodeIf, DummyVerityNode } from "../cci/verityNode";
+import { dummyVerityNode, VerityNodeIf } from "../cci/verityNode";
 import { Cockpit } from "../cci/cockpit";
 import { VeritumRetrievalInterface, VeritumRetriever } from "../cci/veritum/veritumRetriever";
 import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
@@ -36,7 +35,7 @@ export interface ControllerContext {
 /** Dummy for testing only */
 export class DummyControllerContext implements ControllerContext {
   constructor(
-    public readonly node: VerityNodeIf = new DummyVerityNode(),
+    public readonly node: VerityNodeIf = dummyVerityNode(),
     public readonly nav: NavControllerIf = new DummyNavController(),
     public readonly cockpit: Cockpit = new Cockpit(node),
   ) {}

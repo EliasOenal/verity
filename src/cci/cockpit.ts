@@ -1,7 +1,7 @@
 import { CubeCreateOptions } from "../core/cube/cube";
 import { CubeKey, CubeType } from "../core/cube/cube.definitions";
 import { ArrayFromAsync } from "../core/helpers/misc";
-import { VerityNodeIf } from "./verityNode";
+import { dummyVerityNode, VerityNodeIf } from "./verityNode";
 import { cciCube } from "./cube/cciCube";
 import { Identity } from "./identity/identity";
 import { Veritum, VeritumCompileOptions, VeritumFromChunksOptions } from "./veritum/veritum";
@@ -59,7 +59,7 @@ export class Cockpit {
   publishVeritum(options: PublishVeritumOptions): Promise<Veritum>;
 
   // maybe TODO: Ensure Cubes have actually been synced to the network?
-  publishVeritum(param1: Veritum|CubeCreateOptions, param2: PublishVeritumOptions = {}): Promise<Veritum> {
+  publishVeritum(param1: Veritum|PublishVeritumOptions, param2: PublishVeritumOptions = {}): Promise<Veritum> {
     let veritum: Veritum;
     let options: PublishVeritumOptions;
     if (param1 instanceof Veritum) {
@@ -128,4 +128,13 @@ export class Cockpit {
     );
     return ret;
   }
+}
+
+/**
+ * For testing only:
+ * Assemble a dummy Cockpit, i.e. one based on a node with a DummyNetworkManager.
+ */
+export function dummyCockpit(options: CockpitOptions = {}): Cockpit {
+  const node = dummyVerityNode();
+  return new Cockpit(node, options);
 }
