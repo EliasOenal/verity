@@ -1,15 +1,18 @@
-import { CubeCreateOptions } from "../core/cube/cube";
+import { Cube, CubeCreateOptions } from "../core/cube/cube";
 import { CubeKey, CubeType } from "../core/cube/cube.definitions";
 import { ArrayFromAsync } from "../core/helpers/misc";
-import { dummyVerityNode, VerityNodeIf } from "./verityNode";
+import { dummyVerityNode, VerityNodeIf, VerityNodeOptions } from "./verityNode";
 import { cciCube } from "./cube/cciCube";
 import { Identity } from "./identity/identity";
 import { Veritum, VeritumCompileOptions, VeritumFromChunksOptions } from "./veritum/veritum";
-import { GetVeritumOptions } from "./veritum/veritumRetriever";
+import { GetVeritumOptions, VeritumRetrievalInterface } from "./veritum/veritumRetriever";
 
 import { Buffer } from 'buffer';
 import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
 import { MetadataEnhancedRetrieval, ResolveRelsOptions, ResolveRelsRecursiveOptions, ResolveRelsRecursiveResult, ResolveRelsResult } from "./veritum/veritumRetrievalUtil";
+import { CubeInfo } from "../core/cube/cubeInfo";
+import { CubeStore } from "../core/cube/cubeStore";
+import { Veritable } from "../core/cube/veritable.definition";
 
 export interface CockpitOptions {
   identity?: Identity | (() => Identity);
@@ -20,12 +23,13 @@ export interface PublishVeritumOptions extends VeritumCompileOptions {
   identity?: Identity;
 }
 
-export class Cockpit {
+export class Cockpit implements VeritumRetrievalInterface {
   constructor(
       public node: VerityNodeIf,
       readonly options: CockpitOptions = {},
   ) {
   }
+  cubeStore: CubeStore;
 
   get identity(): Identity {
     if (typeof this.options.identity === 'function') return this.options.identity();
@@ -76,6 +80,9 @@ export class Cockpit {
     // Besides allowing overrides, this assignment also ensures the Identity
     // cannot change while this call is in progress (Cockpit supports Identity changes).
     options.identity = this.identity;
+
+    // maybe TODO: When encryption is enabled, auto-add self as additional recipient
+    //   by default? Sculpting Verita not readable by self seems like a trap.
 
     // Compile the Veritum
     // TODO BUGBUG should not recompile the Veritum if already compiled (may change key!)
@@ -128,13 +135,53 @@ export class Cockpit {
     );
     return ret;
   }
+
+
+  // Pass-through method to implement CubeRetrievalInterface
+  getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo> {
+    return this.node.veritumRetriever.getCubeInfo(keyInput);
+  }
+  // Pass-through method to implement CubeRetrievalInterface --
+  // TODO: implement enhancement features like auto-decrypt
+  getCube<cubeClass extends Cube = cciCube>(
+    key: CubeKey | string,
+    options: {resolveRels: true, metadata?: true} & GetVeritumOptions & ResolveRelsOptions,
+  ): Promise<ResolveRelsResult>;
+  getCube<cubeClass extends Cube = cciCube>(
+      key: CubeKey | string,
+      options: {resolveRels: 'recursive', metadata?: true} & GetVeritumOptions & ResolveRelsRecursiveOptions,
+  ): Promise<ResolveRelsRecursiveResult>;
+  getCube<cubeClass extends Cube = cciCube>(
+    key: CubeKey | string,
+    options: {metadata: true} & GetVeritumOptions & ResolveRelsRecursiveOptions,
+  ): Promise<MetadataEnhancedRetrieval<Cube>>;
+  getCube<cubeClass extends Cube = cciCube>(
+      key: CubeKey | string,
+      options?: GetVeritumOptions
+  ): Promise<cubeClass>;
+  getCube<cubeClass extends Cube = cciCube>(
+      key: CubeKey | string,
+      options?: CubeRequestOptions,
+  ): Promise<cubeClass|ResolveRelsResult|ResolveRelsRecursiveResult|MetadataEnhancedRetrieval<Cube>> {
+    return this.node.veritumRetriever.getCube(key, options);
+  }
+  // Pass-through method to implement CubeRetrievalInterface
+  expectCube(keyInput: CubeKey | string): Promise<CubeInfo> {
+    return this.node.cubeStore.expectCube(keyInput);
+  }
+  // Pass-through method to implement CubeRetrievalInterface --
+  // TODO: implement enhancement features like auto-decrypt
+  getNotifications(recipientKey: CubeKey | string): AsyncGenerator<Veritable> {
+    return this.node.veritumRetriever.getNotifications(recipientKey);
+  }
+
 }
 
 /**
  * For testing only:
  * Assemble a dummy Cockpit, i.e. one based on a node with a DummyNetworkManager.
  */
-export function dummyCockpit(options: CockpitOptions = {}): Cockpit {
-  const node = dummyVerityNode();
-  return new Cockpit(node, options);
+export function dummyCockpit(options: CockpitOptions|VerityNodeOptions = {}): Cockpit {
+  const node = dummyVerityNode(options as VerityNodeOptions);
+  return new Cockpit(node, options as CockpitOptions);
 }

@@ -53,9 +53,9 @@ export function dummyVerityNode(options: VerityNodeOptions = {}): VerityNode {
   options.requiredDifficulty ??= 0;
   options.family ??= cciFamily;
 
-  const cubeStore = new CubeStore(options);
-  const peerDB = new PeerDB();
-  const networkManager = new DummyNetworkManager(cubeStore, peerDB, options);
+  const cubeStore = options.cubeStore ??= new CubeStore(options);
+  const peerDB = options.peerDB ??= new PeerDB();
+  const networkManager = options.networkManager ??= new DummyNetworkManager(cubeStore, peerDB, options);
 
   const node = new VerityNode({
     ... options,
