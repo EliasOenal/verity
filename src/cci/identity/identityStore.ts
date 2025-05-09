@@ -94,11 +94,11 @@ export class IdentityStore implements Shuttable {
 
   shutdown(): Promise<void> {
     this._shutdown = true;  // mark myself as shutting down
-    this.shutdownPromiseResolve();
     for (const id of this.identityMap.values()) {
       id.shutdown();  // shut down all my IDs
       this.deleteIdentity(id);  // delete all my ID references
     }
+    this.shutdownPromiseResolve();
     return this.shutdownPromise;
   }
 
