@@ -542,16 +542,19 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
       this.cubeRetriever = cubeStoreOrRetriever;
       this.cubeStore = cubeStoreOrRetriever?.cubeStore;
     }
-    // set options
-    options.minMucRebuildDelay ??= DEFAULT_MIN_MUC_REBUILD_DELAY;
-    options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
-    options.idmucContextString ??= DEFAULT_IDMUC_CONTEXT_STRING;
-    options.idmucApplicationString ??= DEFAULT_IDMUC_APPLICATION_STRING;
-    options.idmucEncryptionContextString ??= DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING;
-    // adopt or initialise Identity store
+    // Adopt or initialise Identity store.
+    // Not that we deliberately seed this into the user-supplied options object
+    // to encourage IdentityStore sharing between Identities.
     if (options.identityStore === undefined) {
       options.identityStore = new IdentityStore(this.cubeRetriever);
     }
+    // Copy options and set defaults
+    this.options = { ...options };
+    this.options.minMucRebuildDelay ??= DEFAULT_MIN_MUC_REBUILD_DELAY;
+    this.options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
+    this.options.idmucContextString ??= DEFAULT_IDMUC_CONTEXT_STRING;
+    this.options.idmucApplicationString ??= DEFAULT_IDMUC_APPLICATION_STRING;
+    this.options.idmucEncryptionContextString ??= DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING;
 
     // Subscribe to remote Identity updates (i.e. same user using multiple devices)
     // TODO network-subscribe and write test for it
@@ -722,7 +725,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   getPosts(options: GetPostsOptions & { format: PostFormat.Cube, metadata: true} ): GetPostsGenerator<PostInfo<Cube>>;
   getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, metadata?: false} ): GetPostsGenerator<Veritum>;
   getPosts(options: GetPostsOptions & { format: PostFormat.Cube, metadata?: false} ): GetPostsGenerator<Cube>;
-  getPosts(options: GetPostsOptions): GetPostsGenerator<Cube|Veritum|PostInfo<Cube|Veritum>>;
+  getPosts(options?: GetPostsOptions): GetPostsGenerator<Veritum>;
   getPosts(
     options: GetPostsOptions = {},
   ): GetPostsGenerator<Cube|Veritum|PostInfo<Cube|Veritum>> {
