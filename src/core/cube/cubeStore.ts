@@ -225,8 +225,8 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
     families: CubeFamilyDefinition[] = this.options.family as CubeFamilyDefinition[]
   ): Promise<Cube> {
     try {
-      // Cube objects are ephemeral as storing binary data is more efficient.
-      // Create cube object if we don't have one yet.
+      // If this Cube is currently inactive (i.e. only present as a binary blob),
+      // activate it now (i.e. instantiate it as a Cube object).
       let cube: Cube = undefined;
       if (cube_input instanceof Cube) {
         cube = cube_input;
@@ -238,9 +238,33 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
       }
       if (cube === undefined) return undefined;  // cannot add this Cube
 
+      // If this is a PMUC and the PMUC_UPDATE_COUNT field has not been set
+      // manually, attempt to auto-increment it.
+      // TODO: Only auto-increment if this version actually differs from
+      //   the latest one in store
+      if (cube.cubeType === CubeType.PMUC) {
+        const countField = cube.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT);
+        // Only auto-increment if version is still at the default of 0
+        if (countField.value.readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE) === 0) {
+          // Fetch latest version from store
+          const latestVersion = await this.getCube(cube.getKeyIfAvailable());
+          let latestCount: number = 0;
+          if (latestVersion) {
+            latestCount = latestVersion.getFirstField(
+              CubeFieldType.PMUC_UPDATE_COUNT).value.readUIntBE(
+                0, NetConstants.PMUC_UPDATE_COUNT_SIZE);
+          }
+          // Auto-increment the count
+          const newCount = latestCount + 1;
+          countField.value.writeUIntBE(newCount, 0, NetConstants.PMUC_UPDATE_COUNT_SIZE);
+        }
+      }
+
       // Now create the CubeInfo, which is a meta-object containing some core
       // information about the Cube so we don't have to re-instantiate it all
       // the time.
+      // If this is a locally sculpted Cube that has not yet been compiled,
+      // this will also compile it.
       const cubeInfo: CubeInfo = await cube.getCubeInfo();
 
       // If ephemeral Cubes are enabled, ensure we only store recent Cubes.
@@ -275,7 +299,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
         }
       }
 
-      // keep Cube cached in memory until the garbage collector comes for it
+      // Keep Cube cached in memory until the garbage collector comes for it
       this.cubesWeakRefCache?.set(cubeInfo.keyString, cubeInfo);
       // store Cube
       await this.leveldb.store(Sublevels.CUBES, cubeInfo.key, cubeInfo.binaryCube);
