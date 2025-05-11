@@ -29,7 +29,8 @@ export class Cockpit implements VeritumRetrievalInterface {
       readonly options: CockpitOptions = {},
   ) {
   }
-  cubeStore: CubeStore;
+
+  get cubeStore(): CubeStore { return this.node.cubeStore }
 
   get identity(): Identity {
     if (typeof this.options.identity === 'function') return this.options.identity();
