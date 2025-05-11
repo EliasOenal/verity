@@ -630,6 +630,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
      * you call getBinaryData() or getHash().
      **/
     public async compile(): Promise<void> {
+        // Pre-processing:
         // pre-compile sanity checks
         if (Settings.RUNTIME_ASSERTIONS) {
             const expectedPublicKeyLength = sodium.crypto_sign_PUBLICKEYBYTES;
@@ -641,8 +642,11 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
                 throw new SmartCubeError(`Cube.compile(): Cannot compile a ${CubeType[this.cubeType]} without a valid public and private key`);
             }
         }
-        // compile it
+
+        // Compile it!
         this.binaryData = this.fieldParser.compileFields(this._fields);
+
+        // Post-processing:
         // post-compile sanity checks
         if (Settings.RUNTIME_ASSERTIONS && this.binaryData.length !== NetConstants.CUBE_SIZE) {
             throw new BinaryDataError("Cube: Something went horribly wrong, I just wrote a cube of invalid size " + this.binaryData.length);

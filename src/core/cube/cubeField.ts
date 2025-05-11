@@ -63,7 +63,16 @@ export class CubeField extends BaseField {
     return new this(CubeFieldType.NOTIFY, ref);
   }
 
-  static PmucUpdateCount(count: number = 0) {
+  /**
+   * Constructs a PMUC_UPDATE_COUNT field, which is the mandatory version counter
+   * for PMUCs.
+   * In this implementation, the PMUC counter is by default initially set to 0.
+   * Unless you set it manually, we will attempt to auto-increment it on
+   * compilation based on any previous version we have in our local CubeStore.
+   * Note that this obviously does not reliably prevent lost updates!
+   * @param count The count to set
+   */
+  static PmucUpdateCount(count: number = 0): CubeField {
     const buf: Buffer = Buffer.alloc(CubeFieldLength[CubeFieldType.PMUC_UPDATE_COUNT]);
     buf.writeUIntBE(count, 0, CubeFieldLength[CubeFieldType.PMUC_UPDATE_COUNT]);
     return new this(CubeFieldType.PMUC_UPDATE_COUNT, buf);

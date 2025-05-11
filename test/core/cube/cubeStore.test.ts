@@ -359,6 +359,117 @@ describe('cubeStore', () => {
           });
         });
 
+        describe('addCube() special features', () => {
+          describe('PMUC_UPDATE_COUNT auto-increment', () => {
+            describe('auto-increment tests', () => {
+              it('should set the count to 1 if no previous version exists', async () => {
+                const cube = Cube.Create({
+                  cubeType: CubeType.PMUC,
+                  fields: CubeField.RawContent(CubeType.PMUC,
+                    "Pudibundus sum. Certus sum me primum fore, sed alium id mihi dicere volo."
+                  ),
+                  publicKey, privateKey,
+                  requiredDifficulty: 0,
+                });
+                await cubeStore.addCube(cube);
+
+                expect(cube.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1);
+
+                const restored = await cubeStore.getCube(cube.getKeyIfAvailable());
+                expect(restored.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1);
+              });
+
+              it('should increment the count if a previous version exists', async () => {
+                const previous = Cube.Create({
+                  cubeType: CubeType.PMUC,
+                  fields: [
+                    CubeField.RawContent(CubeType.PMUC, "Ego prior adfui."),
+                    CubeField.PmucUpdateCount(1337),
+                  ],
+                  publicKey, privateKey,
+                  requiredDifficulty: 0,
+                });
+                await cubeStore.addCube(previous);
+
+                const cube = Cube.Create({
+                  cubeType: CubeType.PMUC,
+                  fields: CubeField.RawContent(CubeType.PMUC,
+                    "Vita mea ab aliis determinatur. Ab alio meum locum indicante dependeo."
+                  ),
+                  publicKey, privateKey,
+                  requiredDifficulty: 0,
+                });
+                await cubeStore.addCube(cube);
+
+                expect(cube.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1338);
+
+                const restored = await cubeStore.getCube(cube.getKeyIfAvailable());
+                expect(restored.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1338);
+              });
+            });
+
+            describe('negative feature tests', () => {
+              it('should do nothing if a manual update count is set (Cube accepted case)', async () => {
+                const cube = Cube.Create({
+                  cubeType: CubeType.PMUC,
+                  fields: [
+                    CubeField.RawContent(CubeType.PMUC, "Ne auderis numerum mihi attribuere!"),
+                    CubeField.PmucUpdateCount(4711),
+                  ],
+                  publicKey, privateKey,
+                  requiredDifficulty: 0,
+                });
+                await cubeStore.addCube(cube);
+
+                expect(cube.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(4711);
+
+                const restored = await cubeStore.getCube(cube.getKeyIfAvailable());
+                expect(restored.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(4711);
+              });
+
+              it('should do nothing if a manual update count is set (Cube refused case)', async () => {
+                const newer = Cube.Create({
+                  cubeType: CubeType.PMUC,
+                  fields: [
+                    CubeField.RawContent(CubeType.PMUC, "Haec est versio recentior."),
+                    CubeField.PmucUpdateCount(1337),
+                  ],
+                  publicKey, privateKey,
+                  requiredDifficulty: 0,
+                });
+                await cubeStore.addCube(newer);
+
+                const candidate = Cube.Create({
+                  cubeType: CubeType.PMUC,
+                  fields: [
+                    CubeField.RawContent(CubeType.PMUC, "Haec est versio vetustior."),
+                    CubeField.PmucUpdateCount(42),
+                  ],
+                  publicKey, privateKey,
+                  requiredDifficulty: 0,
+                });
+                await cubeStore.addCube(candidate);
+
+                expect(candidate.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(42);
+
+                const restored = await cubeStore.getCube(candidate.getKeyIfAvailable());
+                expect(restored.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1337);
+              });
+
+              // Feature not implemented yet
+              it.todo('should not auto-increment if there are no changes compared to the last version');
+            });
+          });
+        });
+
         describe('getKeyRange() method', () => {
           it('should return keys within the specified range using gt and lt', async () => {
             expect(await cubeStore.getNumberOfStoredCubes()).toBe(0);
