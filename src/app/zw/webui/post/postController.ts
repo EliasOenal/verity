@@ -1,21 +1,20 @@
 import { CubeKey } from "../../../../core/cube/cube.definitions";
+import { Cube } from "../../../../core/cube/cube";
 import { CubeInfo } from "../../../../core/cube/cubeInfo";
 import { keyVariants } from "../../../../core/cube/cubeUtil";
-import { CubeEmitter } from "../../../../core/cube/cubeStore";
 import { logger } from "../../../../core/logger";
 
-import { FieldType } from "../../../../cci/cube/cciCube.definitions";
+import { FieldLength, FieldType, MediaTypes } from "../../../../cci/cube/cciCube.definitions";
 import { VerityFields } from "../../../../cci/cube/verityFields";
 import { cciCube, cciFamily } from "../../../../cci/cube/cciCube";
-import { Relationship, RelationshipType } from "../../../../cci/cube/relationship";
-import { ensureCci } from "../../../../cci/cube/cciCubeUtil";
-import { Identity } from "../../../../cci/identity/identity";
+import { RelationshipType } from "../../../../cci/cube/relationship";
+import { ensureCci, isCci } from "../../../../cci/cube/cciCubeUtil";
+import { Identity, PostInfo, RecursiveRelResolvingGetPostsGenerator } from "../../../../cci/identity/identity";
 import { UNKNOWNAVATAR } from "../../../../cci/identity/avatar";
+import { IdentityStore } from "../../../../cci/identity/identityStore";
+import { ResolveRelsRecursiveResult } from "../../../../cci/veritum/veritumRetrievalUtil";
 
-import { ZwConfig } from "../../model/zwConfig";
-import { NotifyingIdentityEmitter } from "../../model/notifyingIdentityEmitter";
-import { makePost } from "../../model/zwUtil";
-import { SubscriptionRequirement, ZwAnnotationEngine } from "../../model/zwAnnotationEngine";
+import { explorePostGenerator, isPostDisplayable, makePost, wotPostGenerator } from "../../model/zwUtil";
 
 import { ControllerContext, VerityController } from "../../../../webui/verityController";
 import { PostView } from "./postView";
@@ -25,11 +24,13 @@ import { FileApplication } from '../../../fileApplication';
 import { Buffer } from 'buffer';
 import DOMPurify from 'dompurify';
 
+
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
   binarykey?: CubeKey;
   keystring?: string;
   timestamp?: number;
+  identity?: Identity;
   author?: string;
   authorkey?: string
   authorsubscribed?: boolean | "self" | "none";
@@ -49,119 +50,79 @@ export interface PostData {
 export class PostController extends VerityController {
   declare public contentAreaView: PostView;
   private displayedPosts: Map<string, PostData> = new Map();
-  private annotationEngine: ZwAnnotationEngine;
-  private reEmitter: CubeEmitter;
+  private postGenerator: RecursiveRelResolvingGetPostsGenerator<Cube>;
+  private idStore: IdentityStore;
 
   constructor(
       parent: ControllerContext,
   ){
     super(parent);
     this.contentAreaView = new PostView(this);
+
+    this.idStore = this.identity?.identityStore ?? new IdentityStore(this.cubeRetriever);
   }
 
   //***
   // Navigation methods
   //***
 
-  async navSubscribed(): Promise<void> {
-    logger.trace("PostController: Displaying posts from subscribed authors and their preceding posts");
+  async navSubscribed(subscriptionDepth: number = 1): Promise<void> {
+    logger.trace("PostController: Displaying posts by subscriptions");
     this.shutdownComponents();
+    this.contentAreaView.clearAlerts();
 
-    const emitter = this.identity.getRecursiveEmitter({event: "cubeAdded", depth: 1 });
-    const identity = this.identity;
-    emitter['getAllCubeInfos'] = async function*() { yield* identity.getAllCubeInfos() }  // HACKHACK
-    this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      emitter as unknown as NotifyingIdentityEmitter,  // HACKHACK
-      this.cubeRetriever,
-      SubscriptionRequirement.none,
-      undefined,
-      true,      // auto-learn MUCs (to be able to display authors when available)
-      true,      // no need to filter anonymous posts as they won't be fed anyway
-    );
-    this.annotationEngine.on('cubeDisplayable', this.displayPost);
-    this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
-    return this.redisplayPosts();
+    if (!this.identity) {  // must be logged in
+      this.contentAreaView.makeAlert("Please log in to follow your subscribed authors");
+      return;
+    }
+
+    this.postGenerator = wotPostGenerator(this.identity, subscriptionDepth);
+    return this.redisplayPosts(this.postGenerator.existingYielded);
   }
 
-  async navWot(): Promise<void> {
-    logger.trace("PostController: Displaying posts from my web of trust, up to five levels deep (WOT5)");
-    this.shutdownComponents();
-
-    // TODO: - Make subscription recursion depth configurable
-    const emitter = this.identity.getRecursiveEmitter({event: "cubeAdded", depth: 5 });
-    const identity = this.identity;
-    emitter['getAllCubeInfos'] = async function*() { yield* identity.getAllCubeInfos(5) }  // HACKHACK
-    this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      emitter as unknown as CubeEmitter,  // HACKHACK
-      this.cubeRetriever,
-      SubscriptionRequirement.none,
-      undefined,
-      true,      // auto-learn MUCs (to be able to display authors when available)
-      true,      // allow anonymous posts as we may learn posts through replies without learning the author
-    );
-    this.annotationEngine.on('cubeDisplayable', this.displayPost);
-    this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
-    return this.redisplayPosts();
+  navWot(): Promise<void> {
+    return this.navSubscribed(5);
   }
 
   async navExplore(): Promise<void> {
-    logger.trace("PostController: Displaying posts from unknown authors based on notifications");
+    logger.trace("PostController: Displaying posts by notifications");
     this.shutdownComponents();
 
-    this.reEmitter = new NotifyingIdentityEmitter(this.cubeRetriever, this.identity?.options.identityStore);
-    if ('requestScheduler' in this.cubeRetriever) {  // HACKHACK
-      this.cubeRetriever.requestScheduler.requestNotifications(
-        ZwConfig.NOTIFICATION_KEY, 0);
-    }
-    this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      this.reEmitter,
-      this.cubeRetriever,
-      SubscriptionRequirement.none,
-      undefined,
-      true,      // auto-learn MUCs (to be able to display authors when available)
-      true,      // allow anonymous posts as we may learn posts through replies without learning the author
-    );
-    this.annotationEngine.on('cubeDisplayable', this.displayPost);
-    this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
-    return this.redisplayPosts();
-  }
+    this.postGenerator = explorePostGenerator(this.cubeRetriever, this.idStore);
 
-  /** @deprecated Neither works on light nodes nor with any kind of efficiency */
-  async navLocalPosts(): Promise<void> {
-    logger.trace("PostController: Displaying all posts including anonymous ones");
-    this.shutdownComponents();
-    this.annotationEngine = await ZwAnnotationEngine.ZwConstruct(
-      this.cubeStore,
-      this.cubeRetriever,
-      SubscriptionRequirement.none,  // show all posts
-      [],       // subscriptions don't play a role in this mode
-      true,     // auto-learn MUCs to display authorship info if available
-      true,     // allow anonymous posts
-    );
-    this.annotationEngine.on('cubeDisplayable', this.displayPost);
-    this.annotationEngine.on('authorUpdated', this.redisplayAuthor);
-    return this.redisplayPosts();
+    // TODO define a sensible done promise
+    return this.redisplayPosts(new Promise(resolve => setTimeout(resolve, 100)));
   }
 
   //***
   // View assembly methods
   //***
 
-  async redisplayPosts(): Promise<void> {
-    // clear all currently displayed cubes:
+  redisplayPosts(donePromise: Promise<void> = Promise.resolve()): Promise<void> {
+    let displayPromises: Promise<void>[] = [];
+    // clear all currently displayed cubes...
     this.clearAllPosts();
-    // redisplay them one by one:
+    // ...and redisplay them one by one
     // logger.trace("CubeDisplay: Redisplaying all cubes");
-    // TODO: we need to get rid of this full CubeStore walk
-    if (this.annotationEngine?.cubeEmitter) {
-      for await (const cubeInfo of this.annotationEngine.cubeEmitter.getAllCubeInfos()) {
-          if (await this.annotationEngine.isCubeDisplayable(cubeInfo)) {
-              await this.displayPost(cubeInfo.key);
-          }
-      }
+    if (this.postGenerator) {
+      (async() => {
+        for await (const post of this.postGenerator) {
+          const displayPromise = this.displayPost(post);
+          if (displayPromises) displayPromises.push(displayPromise);
+        }
+      })();
     } else {
-      logger.warn("PostController.redisplayPosts() called, but we either have no AnnotationEngine or it has no cubeEmitter. You will probably not see any posts.");
+      logger.warn("PostController.redisplayPosts() called, but we either have no post Generator. You will not see any posts.");
     }
+    // All done; just define a sensible return state:
+    // We'll consider ourselves done, once all displayals started while the done
+    // promise was pending have been completed.
+    // This is completely irrelevant in production, but used for testing.
+    return donePromise.then(() => {
+      const promises = displayPromises;
+      displayPromises = undefined;
+      return Promise.all(promises).then();
+    });
   }
 
   /**
@@ -175,17 +136,25 @@ export class PostController extends VerityController {
 
   // Show all new cubes that are displayable.
   // This will handle cubeStore cubeDisplayable events.
-  displayPost = async (binarykey: CubeKey): Promise<void> => {
+  private async displayPost(postInfo: PostInfo<Cube> & ResolveRelsRecursiveResult<Cube>): Promise<void> {
+    // normalise input:
+    // setting cube:
+    const cube: cciCube = postInfo.main as cciCube;
+
+    // sanity checks
+    if (!(await isPostDisplayable(postInfo))) {
+      logger.trace(`PostController.displayPost(): Ignoring a non-displayable Cube`);
+      return;
+    }
+
     // logger.trace(`PostDisplay: Attempting to display post ${binarykey.toString('hex')}`)
     // get Cube
-    const cube: cciCube = ensureCci(await this.cubeStore.getCube(binarykey, {family: cciFamily}));
-    if (cube === undefined) return;
     const fields: VerityFields = cube.fields;
 
     // gather PostData
     const data: PostData = {};
-    data.binarykey = binarykey;
-    data.keystring = binarykey.toString('hex');
+    data.binarykey = await cube.getKey();
+    data.keystring = keyVariants(data.binarykey).keyString;
     data.timestamp = cube.getDate();
     data.text = fields.getFirst(FieldType.PAYLOAD).value.toString();
     data.text = DOMPurify.sanitize(data.text, {
@@ -193,22 +162,26 @@ export class PostController extends VerityController {
       ALLOWED_ATTR: []
     });
     data.text = await this.processImageTags(data.text);
-    await this.findAuthor(data);  // this sets data.author and data.authorkey
+    // Author known?
+    data.identity = (postInfo as PostInfo<Cube>).author ?? undefined;
+    this.parseAuthor(data);
 
     // is this post already displayed?
     if (this.displayedPosts.has(data.keystring)) return;
 
     // is this a reply?
-    const reply: Relationship = fields.getFirstRelationship(RelationshipType.REPLY_TO);
-    if (reply !== undefined) {  // yes
-      const superiorPostKey: CubeKey = reply.remoteKey;
+    const superiorPostPromise: Promise<PostInfo<Cube> & ResolveRelsRecursiveResult<Cube>> =
+      postInfo[RelationshipType.REPLY_TO]?.[0] as Promise<PostInfo<Cube> & ResolveRelsRecursiveResult<Cube>>;
+    if (superiorPostPromise !== undefined) {  // yes
+      const superiorPost: PostInfo<Cube> & ResolveRelsRecursiveResult<Cube> = await superiorPostPromise;
+      const superiorPostKey: CubeKey = await superiorPost.main.getKey();
       data.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));
       if (!data.superior) {
         // Apparently the original post has not yet been displayed, so let's display it
-        await this.displayPost(superiorPostKey);
+        await this.displayPost(superiorPost);
         data.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));
         if (!data.superior || !data.superior.displayElement) {  // STILL not displayed?!?!
-          logger.error("PostController: Failed to display a post because the superior post cannot be displayed. This indicates displayPost was called on a non-displayable post, which should not be done.");
+          logger.debug(`PostController: Failed to display post ${superiorPostKey.toString('hex')} because the superior post cannot be displayed.`);
           return;
         }
       }
@@ -221,11 +194,37 @@ export class PostController extends VerityController {
     this.displayedPosts.set(data.keystring, data);  // remember the displayed post
   }
 
+  private parseAuthor(data: PostData): void {
+    // Is the author known?
+    if (data.identity) {
+      data.author = data.identity.name;
+      data.authorkey = data.identity.keyString;
+      data.profilepic = data.identity.avatar.render();
+
+      // is this author subscribed?
+      if (this.identity) {
+        data.authorsubscribed = this.identity.hasPublicSubscription(data.identity.key);
+        // or is this even my own post?
+        if (data.identity.key.equals(this.identity.publicKey)) data.authorsubscribed = "self";
+      } else {
+        data.authorsubscribed = "none";  // no Identity, no subscriptions
+      }
+    } else {
+      // Author not known
+      data.author = "Unknown user";
+      data.profilepic = UNKNOWNAVATAR;
+    }
+    // Limit author username length
+    if (data.author.length > 60) {
+      data.author = data.author.slice(0, 57) + "...";
+    }
+  }
+
   /** Redisplays authorship information for a single post */
   redisplayPostAuthor(key: CubeKey | string) {
     const postData: PostData = this.displayedPosts.get(keyVariants(key).keyString);
     if (!postData) return;
-    this.findAuthor(postData);  // this (re-)sets data.author and data.authorkey
+    this.parseAuthor(postData);  // this (re-)sets data.author and data.authorkey
     this.contentAreaView.redisplayCubeAuthor(postData);
   }
 
@@ -249,14 +248,6 @@ export class PostController extends VerityController {
     }
   }
 
-  // Maybe TODO remove? This should no longer be needed.
-  redisplayAllAuthors(): void {
-    logger.trace("CubeDisplay: Redisplaying all cube authors");
-    for (const data of this.displayedPosts.values()) {
-      this.findAuthor(data);  // this (re-)sets data.author and data.authorkey
-      this.contentAreaView.redisplayCubeAuthor(data);
-    }
-  }
 
   //***
   // Navigation methods
@@ -303,31 +294,7 @@ export class PostController extends VerityController {
   //***
   // Data conversion methods
   //***
-  private async findAuthor(data: PostData): Promise<void> {
-    const authorObject: Identity = await this.annotationEngine.cubeAuthor(data.binarykey);
-    if (authorObject) {
-      data.authorkey = authorObject.key.toString('hex');
-      // TODO: display if this authorship information is authenticated,
-      // i.e. if it comes from a MUC we trust
-      data.author = authorObject.name ?? "Unknown user";
-      data.profilepic = authorObject.avatar.render();
 
-      // is this author subscribed?
-      if (this.identity) {
-        data.authorsubscribed = this.identity.hasPublicSubscription(authorObject.key);
-        // or is this even my own post?
-        if (authorObject.key.equals(this.identity.publicKey)) data.authorsubscribed = "self";
-      } else {
-        data.authorsubscribed = "none";  // no Identity, no subscriptions
-      }
-    } else {
-      data.author = "Unknown user";
-      data.profilepic = UNKNOWNAVATAR;
-    }
-    if (data.author.length > 60) {
-      data.author = data.author.slice(0, 57) + "...";
-    }
-  }
 
   //***
   // State management methods
@@ -392,10 +359,9 @@ export class PostController extends VerityController {
   // Cleanup methods
   //***
   private shutdownComponents(): void {
-    this.annotationEngine?.removeListener('cubeDisplayable', this.displayPost);
-    this.annotationEngine?.removeListener('authorUpdated', this.redisplayAuthor);
-    this.annotationEngine?.shutdown();
-    this.reEmitter?.shutdown?.();
+    if (this.postGenerator) this.postGenerator.return(undefined);  // TODO resolve final Promise once implemented
+    this.postGenerator = undefined;
+    if (this.idStore && this.idStore !== this.identity?.identityStore) this.idStore.shutdown();
   }
 
   shutdown(unshow: boolean = true, callback: boolean = true): Promise<void> {
