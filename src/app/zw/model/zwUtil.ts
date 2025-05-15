@@ -6,23 +6,29 @@
 import { Settings } from "../../../core/settings";
 import { NetConstants } from "../../../core/networking/networkDefinitions";
 
-import { Cube } from "../../../core/cube/cube";
+import { Cube, CubeCreateOptions } from "../../../core/cube/cube";
 import { CubeKey, CubeType } from "../../../core/cube/cube.definitions";
-import { CubeStore } from "../../../core/cube/cubeStore";
+import { CubeRetrievalInterface, CubeStore } from "../../../core/cube/cubeStore";
 
-import { MediaTypes, FieldType } from "../../../cci/cube/cciCube.definitions";
+import { MediaTypes, FieldType, FieldLength } from "../../../cci/cube/cciCube.definitions";
 import { VerityField } from "../../../cci/cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition } from "../../../cci/cube/verityFields";
 import { Relationship, RelationshipType } from "../../../cci/cube/relationship";
 import { cciCube, cciFamily } from "../../../cci/cube/cciCube";
-import { Identity } from "../../../cci/identity/identity";
+import { Identity, PostFormat, PostInfo, RecursiveRelResolvingGetPostsGenerator, RecursiveRelResolvingPostInfo } from "../../../cci/identity/identity";
 import { isCci } from "../../../cci/cube/cciCubeUtil";
 
 import { Buffer } from 'buffer';
 
 import { logger } from "../../../core/logger";
+import { ResolveRelsRecursiveResult } from "../../../cci/veritum/veritumRetrievalUtil";
+import { VeritumRetrievalInterface, VeritumRetriever } from "../../../cci/veritum/veritumRetriever";
+import { IdentityStore } from "../../../cci/identity/identityStore";
+import { mergeAsyncGenerators } from "../../../core/helpers/asyncGenerators";
+import { notifyingIdentities } from "../../../cci/identity/identityUtil";
+import { ZwConfig } from "./zwConfig";
 
-export interface MakePostOptions {
+export interface MakePostOptions extends CubeCreateOptions {
   replyto?: CubeKey;
   id?: Identity;
   requiredDifficulty?: number;
@@ -122,4 +128,95 @@ export function assertZwMuc(cube: Cube): boolean {
     logger.trace("asserZwMuc: Supplied Cube is not a ZW Muc, as it's not a MUC at all.");
   }
   else return assertZwCube(cube);
+}
+
+export async function isPostDisplayable(postInfo: RecursiveRelResolvingPostInfo<Cube>): Promise<boolean> {
+  // is this even a valid ZwCube?
+  const cube: Cube = postInfo.main;
+  if (!assertZwCube(cube)) {
+    logger.trace("isPostDisplayable(): Rejecting a Cube as it's not ZW");
+    return false;
+  }
+
+  // does this have a Payload field and does it contain something??
+  const payload = cube.getFirstField(FieldType.PAYLOAD);
+  if (!payload || !payload.length) {
+    logger.trace("isPostDisplayable(): Rejecting a Cube as it has no payload");
+    return false;
+  }
+
+  // does it have the correct media type?
+  const typefield = cube.getFirstField(FieldType.MEDIA_TYPE);
+  if (!typefield) {
+    logger.trace("isPostDisplayable(): Rejecting a Cube as it has no media type");
+    return false;
+  }
+  if (typefield.value.readUIntBE(0, FieldLength[FieldType.MEDIA_TYPE]) !== MediaTypes.TEXT) {
+    logger.trace("isPostDisplayable(): Rejecting a Cube as it has the wrong media type");
+    return false;
+  }
+
+  // is this a reply to another post?
+  // if so, has the root post been retrieved?
+  await postInfo.done;
+  if (!postInfo.allResolved) {
+    logger.trace("isPostDisplayable(): Rejecting a Cube as it has unresolved relationships");
+    return false;
+  }
+
+  return true;  // all checks passed
+}
+
+
+export function wotPostGenerator(
+    identity: Identity,
+    subscriptionDepth: number,
+): RecursiveRelResolvingGetPostsGenerator<Cube> {
+  const gen: RecursiveRelResolvingGetPostsGenerator<Cube> = identity.getPosts({
+    subscriptionDepth,
+    format: PostFormat.Cube,
+    metadata: true,
+    subscribe: true,
+    resolveRels: 'recursive',
+    relTypes: [RelationshipType.REPLY_TO],
+  });
+  return gen;
+}
+
+export function explorePostGenerator(
+    retriever: CubeRetrievalInterface,
+    idStore: IdentityStore,
+): RecursiveRelResolvingGetPostsGenerator<Cube> {
+  // start an endless fetch of ZW Identities and store them all in a list
+  const postGenerator = mergeAsyncGenerators() as RecursiveRelResolvingGetPostsGenerator<Cube>;
+  postGenerator.setEndless();
+
+  const identityGen: AsyncGenerator<Identity> = notifyingIdentities(
+    retriever,
+    ZwConfig.NOTIFICATION_KEY,
+    idStore,
+    { subscribe: true },
+  );
+  (async() => {
+    for await (const identity of identityGen) {
+      const postsGen: RecursiveRelResolvingGetPostsGenerator<Cube> =
+        identity.getPosts({
+          subscriptionDepth: 0,
+          format: PostFormat.Cube,
+          metadata: true,
+          subscribe: true,
+          resolveRels: 'recursive',
+          relTypes: [RelationshipType.REPLY_TO],
+        });
+      postGenerator.addInputGenerator(postsGen);
+    }
+  })();
+
+  // TODO stop generators on teardown
+  // maybe TODO: expose getting posts from multiple Identities as a common
+  //   IdentityUtil building block. Maybe introduce a new class IdentityGroup
+  //   following Identity's API for getting posts and subscriptions from all
+  //   group members.
+
+  return postGenerator;
 }
