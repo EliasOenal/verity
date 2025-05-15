@@ -716,7 +716,9 @@ export class RequestScheduler implements Shuttable {
       // TODO BUGBUG: This currently grants reputation score for duplicates,
       // which is absolutely contrary to what we want :'D
       logger.trace(`RequestScheduler.handleCubesDelivered(): Accepting Cube ${keyString} delivered by ${offeringPeer.toString()}`);
-      const value = await this.networkManager.cubeStore.addCube(binaryCube);  // TODO: use pre-activated version instead
+      const value = await this.networkManager.cubeStore.addCube(cube, {
+        autoIncrementPmuc: false,  // never manipulate Cubes received from peers
+      });
       if (value) { offeringPeer.scoreReceivedCube(value.getDifficulty()); }
 
       // Check if this delivery fulfils a pending Cube request
