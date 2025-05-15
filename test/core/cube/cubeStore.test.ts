@@ -381,6 +381,30 @@ describe('cubeStore', () => {
                   .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1);
               });
 
+              it('should also auto-increment a zero count to one on a notification PMUC', async () => {
+                const notificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42);
+                const cube = Cube.Create({
+                  cubeType: CubeType.PMUC_NOTIFY,
+                  fields: [
+                    CubeField.RawContent(CubeType.PMUC_NOTIFY,
+                      "Pudibundus sum. Certus sum me primum fore, sed alium id mihi dicere volo."
+                    ),
+                    CubeField.Notify(notificationKey),
+                  ],
+                  publicKey, privateKey,
+                  requiredDifficulty: 0,
+                });
+                expect(cube.cubeType).toEqual(CubeType.PMUC_NOTIFY);
+                await cubeStore.addCube(cube);
+
+                expect(cube.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1);
+
+                const restored = await cubeStore.getCube(cube.getKeyIfAvailable());
+                expect(restored.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1);
+              });
+
               it('should increment the count if a previous version exists', async () => {
                 const previous = Cube.Create({
                   cubeType: CubeType.PMUC,
@@ -484,7 +508,7 @@ describe('cubeStore', () => {
                   .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1337);
               });
 
-              it('should never auto-increment on Cubes supplied as binary (e.g. arriving over the wire)', async () => {
+              it('should by default not auto-increment on Cubes supplied as binary (e.g. arriving over the wire)', async () => {
                 const cube = Cube.Create({
                   cubeType: CubeType.PMUC,
                   fields: CubeField.RawContent(CubeType.PMUC,
