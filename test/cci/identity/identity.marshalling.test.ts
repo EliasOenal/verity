@@ -62,6 +62,7 @@ let cubeStore: CubeStore;
       // compile ID into MUC
       const muc: cciCube = await original.makeMUC();
       expect(muc).toBeInstanceOf(cciCube);
+      expect(muc.getKeyIfAvailable()).toEqual(original.key);
 
       // double check everything's in there
       expect(muc.fields.getFirstRelationship(RelationshipType.ILLUSTRATION).remoteKey).
@@ -71,10 +72,10 @@ let cubeStore: CubeStore;
 
       // Store the MUC
       const mucadded = await cubeStore.addCube(muc);
-      expect(mucadded.getKeyIfAvailable()).toEqual(original.publicKey);
+      expect(mucadded).toBe(muc);
 
       // Restore the Identity from the stored MUC
-      const restoredmuc: cciCube = await cubeStore.getCube(await muc.getKey()) as cciCube;
+      const restoredmuc: cciCube = await cubeStore.getCube(original.key) as cciCube;
       expect(restoredmuc).toBeInstanceOf(cciCube);
       const restored: Identity = await Identity.Construct(cubeStore, restoredmuc);
       expect(restored).toBeInstanceOf(Identity);
@@ -128,6 +129,41 @@ let cubeStore: CubeStore;
       expect(restored.getPostCount()).toEqual(1);
       expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as Cube).getFirstField(FieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
+    }, 5000);
+
+    it("correctly handles subsequent changes", async () => {
+      const id: Identity = await Identity.Create(
+        cubeStore,
+        "usor probationis",
+        "clavis probationis",
+        idTestOptions
+      );
+      id.name = "Probator Identitatum";
+      const firstMuc: cciCube = await id.store();
+      const firstMucHash: Buffer = firstMuc.getHashIfAvailable();
+      expect(firstMuc).toBeInstanceOf(cciCube);
+      expect(firstMucHash).toBeInstanceOf(Buffer);
+      expect(id.name).toEqual("Probator Identitatum");
+      expect(id.profilepic).toBeUndefined();
+
+      id.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xda);
+      const secondMuc: cciCube = await id.store();
+      const secondMucHash: Buffer = secondMuc.getHashIfAvailable();
+      expect(secondMuc).toBeInstanceOf(cciCube);
+      expect(secondMucHash).toBeInstanceOf(Buffer);
+      expect(secondMucHash.equals(firstMucHash)).toBeFalsy();
+      expect(id.name).toEqual("Probator Identitatum");
+      expect(id.profilepic).toBeInstanceOf(Buffer);
+
+      id.name = "Probator Identitatum Repetitus";
+      const thirdMuc: cciCube = await id.store();
+      const thirdMucHash: Buffer = thirdMuc.getHashIfAvailable();
+      expect(thirdMuc).toBeInstanceOf(cciCube);
+      expect(thirdMucHash).toBeInstanceOf(Buffer);
+      expect(thirdMucHash.equals(firstMucHash)).toBeFalsy();
+      expect(thirdMucHash.equals(secondMucHash)).toBeFalsy();
+      expect(id.name).toEqual("Probator Identitatum Repetitus");
+      expect(id.profilepic).toBeInstanceOf(Buffer);
     }, 5000);
 
     it('still works even if I update my Identity really really often', async() => {
@@ -451,7 +487,7 @@ let cubeStore: CubeStore;
         cubeStore, Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42), options);
       const muc: cciCube = await id.makeMUC();
       expect(muc).toBeInstanceOf(cciCube);
-      expect(muc.cubeType).toBe(CubeType.MUC_NOTIFY);
+      expect(muc.cubeType).toBe(CubeType.PMUC_NOTIFY);
       expect(muc.getFirstField(FieldType.NOTIFY).value.equals(notificationKey)).toBeTruthy();
     });
 

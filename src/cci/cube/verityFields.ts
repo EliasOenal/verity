@@ -32,6 +32,7 @@ export class VerityFields extends CubeFields {
     return super.Muc(publicKey, data, fieldDefinition) as VerityFields;
   }
 
+  // TODO do we need this empty constructor override?
   constructor(
       data: VerityFields | Array<VerityField> | VerityField | undefined,
       fieldDefinition: FieldDefinition) {

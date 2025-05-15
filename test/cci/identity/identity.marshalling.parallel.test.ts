@@ -25,45 +25,6 @@ describe("Identity (separate MUC storage test suite for long-running tests)", ()
   });
 
   describe("MUC storage", () => {
-    // This is a particularly long-running test because it makes
-    // three consecutive MUC changes, which must each be spaced at least one
-    // second apart as our minimal time resolution is one full second.
-    // Threfore, it by definition takes at least three seconds.
-    it("correctly handles subsequent changes", async () => {
-      const id: Identity = await Identity.Create(
-        cubeStore,
-        "usor probationis",
-        "clavis probationis",
-        idTestOptions
-      );
-      id.name = "Probator Identitatum";
-      const firstMuc: cciCube = await id.store();
-      const firstMucHash: Buffer = firstMuc.getHashIfAvailable();
-      expect(firstMuc).toBeInstanceOf(cciCube);
-      expect(firstMucHash).toBeInstanceOf(Buffer);
-      expect(id.name).toEqual("Probator Identitatum");
-      expect(id.profilepic).toBeUndefined();
-
-      id.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xda);
-      const secondMuc: cciCube = await id.store();
-      const secondMucHash: Buffer = secondMuc.getHashIfAvailable();
-      expect(secondMuc).toBeInstanceOf(cciCube);
-      expect(secondMucHash).toBeInstanceOf(Buffer);
-      expect(secondMucHash.equals(firstMucHash)).toBeFalsy();
-      expect(id.name).toEqual("Probator Identitatum");
-      expect(id.profilepic).toBeInstanceOf(Buffer);
-
-      id.name = "Probator Identitatum Repetitus";
-      const thirdMuc: cciCube = await id.store();
-      const thirdMucHash: Buffer = thirdMuc.getHashIfAvailable();
-      expect(thirdMuc).toBeInstanceOf(cciCube);
-      expect(thirdMucHash).toBeInstanceOf(Buffer);
-      expect(thirdMucHash.equals(firstMucHash)).toBeFalsy();
-      expect(thirdMucHash.equals(secondMucHash)).toBeFalsy();
-      expect(id.name).toEqual("Probator Identitatum Repetitus");
-      expect(id.profilepic).toBeInstanceOf(Buffer);
-    }, 5000);
-
     // This is a particularly long-running test because it uses the
     // actual default minimum MUC spacing of 5 seconds, and therefore by
     // definition takes at least 5 seconds.

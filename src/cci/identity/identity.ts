@@ -19,7 +19,7 @@ import { VerityField } from '../cube/verityField';
 import { VerityFields, cciMucFieldDefinition } from '../cube/verityFields';
 import { Relationship, RelationshipType } from '../cube/relationship';
 import { cciCube, cciFamily } from '../cube/cciCube';
-import { ensureCci } from '../cube/cciCubeUtil';
+import { ensureCci, extensionMuc } from '../cube/cciCubeUtil';
 
 import { IdentityPersistence } from './identityPersistence';
 import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
@@ -573,10 +573,12 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         throw new ApiMisuseError("Identity constructor: Master key must be a Buffer");
       }
       this._masterKey = mucOrMasterkey;
-      this._muc = cciCube.ExtensionMuc(
+      this._muc = extensionMuc(
         this._masterKey,
-        [],  // TODO: allow to set fields like username directly on construction
-        IDMUC_MASTERINDEX, this.options.idmucContextString,
+        {
+          subkeyIndex: IDMUC_MASTERINDEX,
+          contextString: this.options.idmucContextString,
+        }
       );
       this.deriveEncryptionKeys();  // must be called after MUC creation as it sets a MUC field
       this.readyPromiseResolve(this);
@@ -990,6 +992,8 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    * and publish it by inserting it into the CubeStore.
    * (You could also provide a private cubeStore instead, but why should you?)
    */
+  // TODO guard this against double access similar to makeMUC() now that compilation
+  //   is triggered here rather than there
   async store():Promise<cciCube>{
     // sanity checks
     if (this.cubeStore === undefined) {
@@ -1011,29 +1015,29 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   }
 
   /**
-  * Compiles this Identity into a MUC for publishing.
+  * Compiles this Identity into a PMUC for publishing.
   * Make sure to call this after changes have been performed so they
   * will be visible to other users, and make sure to only call it once *all*
   * changes have been performed to avoid spamming multiple MUC versions
   * (and having to compute hashcash for all of them).
   */
   async makeMUC(): Promise<cciCube> {
-    // Make sure we don't rebuild our MUC too often. This is to limit spam,
-    // reduce local hash cash load and to prevent rapid subsequent changes to
-    // be lost due to our one second minimum time resolution.
+    // Pre-run check:
+    // Is there already a PMUC compilation in progress?
+    // If so, do not start a competing process but just return their promise.
     let makeMucPromiseResolve: Function;
     if (this.makeMucPromise) {
-      // MUC rebuild already scheduled, just return it:
       return this.makeMucPromise;
     }
     else {
-      // Register our run so there will be no other concurrent attempts
+      // Register our run so there to prevent later concurrent attempts
       this.makeMucPromise = new Promise(function(resolve){
         makeMucPromiseResolve = resolve;
       });
     }
 
-    // If the last MUC rebuild was too short a while ago, wait a little.
+    // Make sure we don't rebuild our root PMUC too often. This is to limit spam,
+    // reduce local hash cash load.
     const earliestAllowed: number = this.muc.getDate() + this.options.minMucRebuildDelay;
     if (unixtime() < earliestAllowed) {
       const waitFor = earliestAllowed - (Math.floor(Date.now() / 1000));
@@ -1046,53 +1050,56 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
       initialFields.push(VerityField.Notify(this.options.idmucNotificationKey));
     }
 
-    const newMuc: cciCube = cciCube.MUC(
-      this._muc.publicKey, this._muc.privateKey, {
-        fields: initialFields,
-        requiredDifficulty: this.options.requiredDifficulty
-    });
     // Include application header if requested
     if (this.options.idmucApplicationString) {
-      newMuc.insertFieldBeforeBackPositionals(
+      initialFields.push(
         VerityField.Application(this.options.idmucApplicationString));
     }
 
     // Write username
     if (this.name) {
-      newMuc.insertFieldBeforeBackPositionals(VerityField.Username(this.name));
+      initialFields.push(VerityField.Username(this.name));
     }
 
     // Write encryption public key
     if (this.encryptionPublicKey) {
-      newMuc.insertFieldBeforeBackPositionals(VerityField.CryptoPubkey(this.encryptionPublicKey));
+      initialFields.push(VerityField.CryptoPubkey(this.encryptionPublicKey));
     }
 
     // Write avatar string
     if (this._avatar !== undefined &&
         this.avatar.scheme != AvatarScheme.UNKNOWN &&
         !(this._avatar.equals(this.defaultAvatar()))) {
-          newMuc.insertFieldBeforeBackPositionals(this.avatar.toField());
+          initialFields.push(this.avatar.toField());
     }
 
     // Write profile picture reference
     if (this.profilepic) {
-      newMuc.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
+      initialFields.push(VerityField.RelatesTo(
         new Relationship(RelationshipType.ILLUSTRATION, this.profilepic)
       ));
     }
 
     // Write subscription recommendations
-    // (these will be in their own sub-MUCs and we'll reference the first one
+    // (these will be in their own sub-PMUCs and we'll reference the first one
     // of those here)
     this.writeSubscriptionRecommendations();
     if (this.subscriptionRecommendationIndices.length) {  // any subs at all?
-      newMuc.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
+      initialFields.push(VerityField.RelatesTo(
         new Relationship(RelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
           this.subscriptionRecommendationIndices[0].getKeyIfAvailable())));
           // note: key is always available as this is a MUC
     }
 
-    // Write my post references, as many as will fit into the MUC.
+    const newPmuc: cciCube = cciCube.Create({
+      cubeType: CubeType.PMUC,
+      publicKey: this.publicKey,
+      privateKey: this._muc.privateKey,
+      fields: initialFields,
+      requiredDifficulty: this.options.requiredDifficulty
+    });
+
+    // Write my post references, as many as will fit into the PMUC.
     // Note: We currently just include our newest post here, and then include
     // reference to older posts within our new posts themselves.
     // We might need to change that again as it basically precludes us from ever
@@ -1103,18 +1110,17 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     // TODO: get rid of intermediate Array
     // TODO: find a smarter way to determine reference order than local insertion
     //   order, as local insertion order is not guaranteed to be stable when it
-    //   has itself been restored from a MUC.
+    //   has itself been restored from a PMUC.
     const newestPostsFirst: string[] = Array.from(this.getPostKeyStrings()).reverse();
-    newMuc.fields.insertTillFull(VerityField.FromRelationships(
+    newPmuc.fields.insertTillFull(VerityField.FromRelationships(
       Relationship.fromKeys(RelationshipType.MYPOST, newestPostsFirst)));
 
-    await newMuc.getBinaryData();  // compile MUC
-    this.emitCubeAdded(newMuc);
-    this._muc = newMuc;
+    this.emitCubeAdded(newPmuc);
+    this._muc = newPmuc;
 
-    makeMucPromiseResolve(newMuc);
+    makeMucPromiseResolve(newPmuc);
     this.makeMucPromise = undefined;  // all done, no more open promises!
-    return newMuc;
+    return newPmuc;
   }
 
   //###
@@ -1239,9 +1245,13 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         // unsubscribes one of the first ones, this would currently lead to a very
         // expensive reinsert of ALL extension MUCs. In this case, it would be much
         // cheaper to just keep an open slot on the first extension MUC.
-        const indexCube: cciCube = cciCube.ExtensionMuc(
-          this.masterKey, fields, i, "Subscription recommendation indices",
-          false, cciFamily, this.options.requiredDifficulty);
+        const indexCube: cciCube = extensionMuc(this.masterKey, {
+          fields,
+          subkeyIndex: i,
+          contextString: "Subscription recommendation index",
+          family: cciFamily,
+          requiredDifficulty: this.options.requiredDifficulty,
+        });
         this.subscriptionRecommendationIndices[i] = indexCube;
       }
       // Note: Once calling store(), we will still try to reinsert non-changed
