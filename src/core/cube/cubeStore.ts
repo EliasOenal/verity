@@ -130,6 +130,11 @@ export interface CubeEmitter extends EventEmitter<CubeEmitterEvents> {
   shutdown?: () => Promise<void>;
 }
 
+export interface AddCubeOptions {
+  families?: CubeFamilyDefinition[];
+  autoIncrementPmuc?: boolean;
+}
+
 export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRetrievalInterface<GetCubeOptions>, CubeEmitter, Shuttable {
 
   readyPromise: Promise<undefined>;
@@ -209,13 +214,13 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
    * @returns the Cube object that was added to storage, or undefined if it
    *   was not added
    */
-  async addCube(cube: Buffer, families?: CubeFamilyDefinition[]): Promise<Cube>;
+  async addCube(cube: Buffer, options?: AddCubeOptions): Promise<Cube>;
   /**
    * Add a Cube object to storage.
    * (Note you cannot specify a custom family setting in this variant as the
    * Cube has already been parsed.)
    */
-  async addCube(cube: Cube): Promise<Cube>;
+  async addCube(cube: Cube, options?: AddCubeOptions): Promise<Cube>;
 
   // TODO (maybe): implement importing CubeInfo directly
   // TODO (someday): Instead of instantiiating a Cube object, we could optionally
@@ -223,24 +228,32 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
   //  to alleviate load, especially on full nodes.
   async addCube(
     cube_input: Cube | Buffer,
-    families: CubeFamilyDefinition[] = this.options.family as CubeFamilyDefinition[]
+    options: AddCubeOptions = {},
   ): Promise<Cube> {
+    // Copy input options and set defaults
+    options = { ...options };
+    options.families ??= this.options.family as CubeFamilyDefinition[];
+
     try {
       // If this Cube is currently inactive (i.e. only present as a binary blob),
       // activate it now (i.e. instantiate it as a Cube object).
       let cube: Cube = undefined;
       if (cube_input instanceof Cube) {
         cube = cube_input;
-
-        // Special pre-processing for PMUCs supplied as active (i.e. Cube objects):
-        await autoIncrementPmuc(cube, this);
+        // set default options based on input type
+        options.autoIncrementPmuc ??= true;
       } else if (cube_input instanceof Buffer) {
-        cube = activateCube(cube_input, families);  // will log info on failure
+        cube = activateCube(cube_input, options.families);  // will log info on failure
+        // set default options based on input type
+        options.autoIncrementPmuc ??= false;
       } else {
         // should never be even possible to happen, and yet, there was this one time when it did
         throw new ApiMisuseError("CubeStore: invalid type supplied to addCube: " + (cube_input as unknown)?.constructor?.name);
       }
       if (cube === undefined) return undefined;  // cannot add this Cube
+
+      // Special pre-processing for PMUCs supplied as active (i.e. Cube objects):
+      if (options.autoIncrementPmuc) await autoIncrementPmuc(cube, this);
 
       // Now create the CubeInfo, which is a meta-object containing some core
       // information about the Cube so we don't have to re-instantiate it all
