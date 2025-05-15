@@ -1,5 +1,4 @@
 // cubeUtil.ts
-import { Settings } from '../settings';
 import { NetConstants } from '../networking/networkDefinitions';
 
 import { CubeError, CubeKey, CubeType, NonNotifyCubeType } from './cube.definitions';

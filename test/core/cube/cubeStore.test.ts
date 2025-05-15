@@ -410,6 +410,26 @@ describe('cubeStore', () => {
                 expect(restored.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
                   .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1338);
               });
+
+              it('should recompile the Cube if necessary', async () => {
+                const cube = Cube.Create({
+                  cubeType: CubeType.PMUC,
+                  fields: CubeField.RawContent(CubeType.PMUC,
+                    "Pudibundus sum. Certus sum me primum fore, sed alium id mihi dicere volo."
+                  ),
+                  publicKey, privateKey,
+                  requiredDifficulty: 0,
+                });
+                await cube.compile();
+                await cubeStore.addCube(cube);
+
+                expect(cube.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1);
+
+                const restored = await cubeStore.getCube(cube.getKeyIfAvailable());
+                expect(restored.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1);
+              });
             });
 
             describe('negative feature tests', () => {
@@ -462,6 +482,26 @@ describe('cubeStore', () => {
                 const restored = await cubeStore.getCube(candidate.getKeyIfAvailable());
                 expect(restored.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
                   .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1337);
+              });
+
+              it('should never auto-increment on Cubes supplied as binary (e.g. arriving over the wire)', async () => {
+                const cube = Cube.Create({
+                  cubeType: CubeType.PMUC,
+                  fields: CubeField.RawContent(CubeType.PMUC,
+                    "Nullius numeri sum et id te non pertinet."
+                  ),
+                  publicKey, privateKey,
+                  requiredDifficulty: 0,
+                });
+                const bin = await cube.getBinaryData();
+                await cubeStore.addCube(bin);
+
+                expect(cube.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(0);
+
+                const restored = await cubeStore.getCube(cube.getKeyIfAvailable());
+                expect(restored.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(0);
               });
 
               // Feature not implemented yet
