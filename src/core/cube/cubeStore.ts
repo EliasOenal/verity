@@ -15,6 +15,7 @@ import { Buffer } from "buffer";
 import { NetConstants } from "../networking/networkDefinitions";
 import { Shuttable } from "../helpers/coreInterfaces";
 import { Veritable } from "./veritable.definition";
+import { autoIncrementPmuc } from "./cubeStoreUtil";
 
 // TODO: we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes
@@ -230,6 +231,9 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
       let cube: Cube = undefined;
       if (cube_input instanceof Cube) {
         cube = cube_input;
+
+        // Special pre-processing for PMUCs supplied as active (i.e. Cube objects):
+        await autoIncrementPmuc(cube, this);
       } else if (cube_input instanceof Buffer) {
         cube = activateCube(cube_input, families);  // will log info on failure
       } else {
@@ -237,28 +241,6 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
         throw new ApiMisuseError("CubeStore: invalid type supplied to addCube: " + (cube_input as unknown)?.constructor?.name);
       }
       if (cube === undefined) return undefined;  // cannot add this Cube
-
-      // If this is a PMUC and the PMUC_UPDATE_COUNT field has not been set
-      // manually, attempt to auto-increment it.
-      // TODO: Only auto-increment if this version actually differs from
-      //   the latest one in store
-      if (cube.cubeType === CubeType.PMUC) {
-        const countField = cube.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT);
-        // Only auto-increment if version is still at the default of 0
-        if (countField.value.readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE) === 0) {
-          // Fetch latest version from store
-          const latestVersion = await this.getCube(cube.getKeyIfAvailable());
-          let latestCount: number = 0;
-          if (latestVersion) {
-            latestCount = latestVersion.getFirstField(
-              CubeFieldType.PMUC_UPDATE_COUNT).value.readUIntBE(
-                0, NetConstants.PMUC_UPDATE_COUNT_SIZE);
-          }
-          // Auto-increment the count
-          const newCount = latestCount + 1;
-          countField.value.writeUIntBE(newCount, 0, NetConstants.PMUC_UPDATE_COUNT_SIZE);
-        }
-      }
 
       // Now create the CubeInfo, which is a meta-object containing some core
       // information about the Cube so we don't have to re-instantiate it all
