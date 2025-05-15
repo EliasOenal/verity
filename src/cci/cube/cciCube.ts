@@ -56,52 +56,6 @@ export class cciCube extends Cube {
     return cube;
   }
 
-  // TODO write unit test
-  /** !!! May only be called after awaiting sodium.ready !!! */
-  static ExtensionMuc(
-    masterKey: Uint8Array,
-    fields: VerityFields | VerityField[],
-    subkeyIndex: number = undefined, context: string = undefined,
-    writeSubkeyIndexToCube: boolean = false,
-    family: CubeFamilyDefinition = cciFamily,
-    requiredDifficulty = Settings.REQUIRED_DIFFICULTY
-  ): cciCube {
-    // normalise input
-    if (!(fields instanceof VerityFields)) {
-      fields = new VerityFields(VerityFields as any, family.parsers[CubeType.MUC].fieldDef);
-    }
-    // choose a random subkeyIndex if none was provided
-    if (subkeyIndex === undefined) {
-      const max: number = Math.pow(2, (Settings.MUC_EXTENSION_SEED_SIZE * 8)) - 1;
-      subkeyIndex = Math.floor(  // TODO: Use a proper cryptographic function instead
-        Math.random() * max);
-    }
-    // choose the default context string if none was provided
-    if (context === undefined) context = "MUC extension key";
-    // derive this extension MUC's signing key pair
-    const keyPair: KeyPair = deriveSigningKeypair(
-      masterKey, subkeyIndex, context);
-
-    // If requested, write subkey to cube
-    if (writeSubkeyIndexToCube) {
-      // Note: While this information is probably not harmful, it's only ever useful
-      // to its owner. Maybe we should encrypt it.
-      const nonceBuf = Buffer.alloc(Settings.MUC_EXTENSION_SEED_SIZE);
-      nonceBuf.writeUintBE(subkeyIndex, 0, Settings.MUC_EXTENSION_SEED_SIZE);
-      fields.appendField(VerityField.SubkeySeed(Buffer.from(nonceBuf)));
-    }
-
-    // Create and return extension MUC
-    const extensionMuc: cciCube = cciCube.MUC(
-      // note that we don't need to upgrade the keys to Buffers here as upstream
-      // will already handle this -- upgrading here would just cause them to
-      // be copied twice
-      keyPair.publicKey, keyPair.privateKey, {
-        fields, family, requiredDifficulty
-    });
-    return extensionMuc;
-  }
-
   declare protected _fields: VerityFields;
 
   /** Reactivate an existing, binary cube */

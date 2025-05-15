@@ -20,7 +20,7 @@ export const remote2MasterKey = Buffer.alloc(masterKeySize, 11);
 export const requiredDifficulty = 0;
 export const idTestOptions: IdentityOptions = {
   identityPersistence: undefined,
-  minMucRebuildDelay: 1,  // allow updating Identity MUCs every second
+  minMucRebuildDelay: 0,  // disable Identity root Cube update rate limiting to accelerate tests
   requiredDifficulty: requiredDifficulty,
   argonCpuHardness: 1,  // == crypto_pwhash_OPSLIMIT_MIN (sodium not ready)
   argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
