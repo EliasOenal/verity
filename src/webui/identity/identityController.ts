@@ -43,8 +43,6 @@ export class IdentityController extends VerityController {
 
   selectEditForm(): Promise<void> {
     this.contentAreaView = new EditIdentityView(this);
-    (this.contentAreaView as EditIdentityView).displayAvatar(
-      this._identity.avatar?.seedString, this.identity.avatar.render());
     return new Promise<void>(resolve => resolve());  // nothing to do, return resolved promise
   }
 

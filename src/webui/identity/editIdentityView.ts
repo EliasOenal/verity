@@ -14,6 +14,12 @@ export class EditIdentityView extends VerityView {
     const displayNameInput: HTMLInputElement =
       this.renderedView.querySelector(".verityDisplayNameInput");
     displayNameInput.value = this.controller.identity.name;
+
+    this.displayAvatar(
+      this.controller.identity.avatar?.seedString,
+      this.controller.identity.avatar.render()
+    );
+
   }
 
   displayAvatar(seed: string, src: string) {
