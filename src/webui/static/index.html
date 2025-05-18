@@ -188,7 +188,7 @@
                   data-bs-target="#verityLoginFormRecoveryTab"
                   aria-controls="verityLoginFormRecoveryTab"
                   aria-selected="false"
-            >Recovery code</button>
+            >Recovery phrase</button>
         </li>
       </ul>
       <div class="tab-content" id="verityLoginFormTabsContent">
@@ -203,8 +203,7 @@
             your password later.
           </p>
 
-          <form action="javascript:void(0);"
-                onsubmit="window.verity.identityController.performLogin(this);">
+          <form class="verityLoginPasswordForm" action="javascript:void(0)">
             <div class="form-floating my-2">
               <input class="form-control form-control-sm verityUsernameInput"
                     type="text" id="verityLoginUsername"
@@ -218,16 +217,28 @@
               <label for="verityLoginPassword">Password</label>
             </div>
             <button class="btn btn-primary my-2" type="submit">Login / Register</button>
-          </form>
-            <p class="verityLoginErrorMessage">
-              <!-- loginFormView will place an error message here when applicable -->
+            <p class="verityLoginFormPasswordErrorMessage">
+              <!-- p reserved for potential error message -->
             </p>
-          </div>
+          </form>
+        </div>
 
-        </div>
         <div id="verityLoginFormRecoveryTab" class="tab-pane fade">
-          Coming soon
+          <form class="verityLoginBip39Form" action="javascript:void(0)">
+            <p>You can log back into your account if you know your recovery phrase:</p>
+            <div class="form-floating my-2">
+              <input class="form-control form-control-sm verityLoginBip39Input"
+                     type="text" id="verityLoginBip39Input"
+                     placeholder="Recovery Phrase" autocomplete="off" name="bip39" required />
+              <label for="verityLoginBip39Input">Recovery Phrase</label>
+            </div>
+            <button class="btn btn-primary my-2" type="submit">Login</button>
+            <p class="verityLoginFormBip39ErrorMessage">
+              <!-- p reserved for potential error message -->
+            </p>
+          </form>
         </div>
+
       </div>
   </template>
 

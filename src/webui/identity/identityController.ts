@@ -63,10 +63,13 @@ export class IdentityController extends VerityController {
   //***
 
   /**
+   * Handle a traditional username/password login
    * Called from: login form view
    * Submit method.
    */
-  async performLogin(form: HTMLFormElement) {
+  async performPasswordLogin(form: HTMLFormElement) {
+    this.contentAreaView.clearAlerts();
+
     const username: string =
       (form.querySelector(".verityUsernameInput") as HTMLInputElement).value;
     const password: string =
@@ -101,6 +104,41 @@ export class IdentityController extends VerityController {
       });
       window?.navigator?.credentials?.store?.(passwordCredential);
     }
+    this._identity = identity;
+    this.showLoginStatus();
+    await this.parent.nav.identityChanged();
+    this.close();
+  }
+
+
+  /**
+   * Handle a bip39 recovery phrase login
+   * Called from: login form view
+   * Submit method.
+   */
+  async performBip39Login(form: HTMLFormElement) {
+    this.contentAreaView.clearAlerts();
+
+    const recoveryPhrase: string =
+      (form.querySelector(".verityLoginBip39Input") as HTMLInputElement).value;
+    let identity: Identity = await Identity.Load(this.node.veritumRetriever, {
+      ...this.options,
+      recoveryPhrase,
+      // Block app for up to one second trying to fetch existing Identity.
+      // If not successful, Identity will be constructed empty and may later
+      // adopt the existing root Cube as it arrives.
+      timeout: 1000,
+    });
+    if (identity === undefined) {
+      this.contentAreaView.makeAlert(
+        "Could not find an Identity for this recovery phrase.", {
+          container: ".verityLoginFormBip39ErrorMessage",
+          type: "danger",
+      });
+      return;
+    }
+
+    identity.persistance.store(identity);  // don't use identity.store() to avoid MUC rebuild
     this._identity = identity;
     this.showLoginStatus();
     await this.parent.nav.identityChanged();
