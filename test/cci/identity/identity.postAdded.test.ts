@@ -1,5 +1,6 @@
 import { RecursiveEmitter } from '../../../src/core/helpers/recursiveEmitter';
-import { Identity, IdentityOptions, PostFormat, PostInfo } from '../../../src/cci/identity/identity';
+import { IdentityOptions, PostFormat, PostInfo } from '../../../src/cci/identity/identity.definitions';
+import { Identity } from '../../../src/cci/identity/identity';
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { Veritable } from '../../../src/core/cube/veritable.definition';

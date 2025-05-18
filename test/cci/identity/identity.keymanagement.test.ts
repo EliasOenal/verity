@@ -1,7 +1,7 @@
-import { cciCube, cciFamily } from "../../../src/cci/cube/cciCube";
+import { cciCube } from "../../../src/cci/cube/cciCube";
 import { CrpytographyError } from "../../../src/cci/helpers/cryptography";
-import { Identity, IdentityOptions } from "../../../src/cci/identity/identity";
-import { CubeStore, CubeStoreOptions } from "../../../src/core/cube/cubeStore";
+import { Identity } from "../../../src/cci/identity/identity";
+import { CubeStore } from "../../../src/core/cube/cubeStore";
 
 import { testCubeStoreParams, idTestOptions } from "../testcci.definitions";
 

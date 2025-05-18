@@ -9,7 +9,8 @@ import { VerityFields } from "../../../../cci/cube/verityFields";
 import { cciCube, cciFamily } from "../../../../cci/cube/cciCube";
 import { RelationshipType } from "../../../../cci/cube/relationship";
 import { ensureCci, isCci } from "../../../../cci/cube/cciCubeUtil";
-import { Identity, PostInfo, RecursiveRelResolvingGetPostsGenerator } from "../../../../cci/identity/identity";
+import { RecursiveRelResolvingGetPostsGenerator, PostInfo } from "../../../../cci/identity/identity.definitions";
+import { Identity } from "../../../../cci/identity/identity";
 import { UNKNOWNAVATAR } from "../../../../cci/identity/avatar";
 import { IdentityStore } from "../../../../cci/identity/identityStore";
 import { ResolveRelsRecursiveResult } from "../../../../cci/veritum/veritumRetrievalUtil";
@@ -23,8 +24,6 @@ import { FileApplication } from '../../../fileApplication';
 
 import { Buffer } from 'buffer';
 import DOMPurify from 'dompurify';
-
-
 // TODO refactor: just put the damn CubeInfo in here
 export interface PostData {
   binarykey?: CubeKey;

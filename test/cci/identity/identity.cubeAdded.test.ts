@@ -1,8 +1,10 @@
+import { RecursiveEmitter } from '../../../src/core/helpers/recursiveEmitter';
 import { CubeType } from '../../../src/core/cube/cube.definitions';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
-import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
+import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
+import { Identity } from '../../../src/cci/identity/identity'
 import { cciCube } from '../../../src/cci/cube/cciCube';
 import { VerityField } from '../../../src/cci/cube/verityField';
 import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
@@ -11,7 +13,6 @@ import { testCubeStoreParams } from '../testcci.definitions';
 
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { RecursiveEmitter } from '../../../src/core/helpers/recursiveEmitter';
 
 describe('Identity: emitting cubeAdded events', () => {
   // This test suite handles Identity's impelementation of the CubeEmitter interface,

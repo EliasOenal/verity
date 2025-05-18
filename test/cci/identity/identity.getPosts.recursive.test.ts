@@ -1,6 +1,7 @@
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
-import { GetPostsGenerator, Identity, PostFormat, PostInfo } from '../../../src/cci/identity/identity';
+import { Identity } from '../../../src/cci/identity/identity';
+import { GetPostsGenerator, PostFormat, PostInfo } from '../../../src/cci/identity/identity.definitions';
 
 // TODO: Don't use test setups from ZW for CCI components, it breaks our layering
 import { TestWordPostSet, TestWorld } from '../../app/zw/testWorld';

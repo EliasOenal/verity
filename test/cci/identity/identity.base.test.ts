@@ -6,7 +6,8 @@ import { CubeKey } from '../../../src/core/cube/cube.definitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
-import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
+import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
+import { Identity } from '../../../src/cci/identity/identity'
 import { IdentityStore } from '../../../src/cci/identity/identityStore';
 import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
 

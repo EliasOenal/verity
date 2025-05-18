@@ -1,10 +1,12 @@
 import type { CubeKey } from "../../core/cube/cube.definitions";
-import { CubeRetrievalInterface } from "../../core/cube/cubeStore";
+import type { CubeRetrievalInterface } from "../../core/cube/cubeStore";
+import type { Shuttable } from "../../core/helpers/coreInterfaces";
+import type { cciCube } from "../cube/cciCube";
+import type { IdentityOptions } from "./identity.definitions";
+
 import { keyVariants } from "../../core/cube/cubeUtil";
-import { Shuttable } from "../../core/helpers/coreInterfaces";
 import { logger } from "../../core/logger";
-import { cciCube } from "../cube/cciCube";
-import { Identity, IdentityOptions } from "./identity";
+import { Identity } from "./identity";
 
 export class IdentityStore implements Shuttable {
   private identityMap: Map<string, Identity> = new Map();

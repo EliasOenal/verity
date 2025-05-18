@@ -3,7 +3,8 @@ import { CubeKey } from '../../../src/core/cube/cube.definitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
-import { IdentityOptions, Identity } from '../../../src/cci/identity/identity';
+import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
+import { Identity } from '../../../src/cci/identity/identity';
 import { IdentityPersistence } from '../../../src/cci/identity/identityPersistence';
 
 import { testCubeStoreParams } from '../testcci.definitions';

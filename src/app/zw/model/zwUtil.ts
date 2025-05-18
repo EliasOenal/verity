@@ -15,17 +15,16 @@ import { VerityField } from "../../../cci/cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition } from "../../../cci/cube/verityFields";
 import { Relationship, RelationshipType } from "../../../cci/cube/relationship";
 import { cciCube, cciFamily } from "../../../cci/cube/cciCube";
-import { Identity, PostFormat, PostInfo, RecursiveRelResolvingGetPostsGenerator, RecursiveRelResolvingPostInfo } from "../../../cci/identity/identity";
+import { RecursiveRelResolvingPostInfo, RecursiveRelResolvingGetPostsGenerator, PostFormat } from "../../../cci/identity/identity.definitions";
+import { Identity } from "../../../cci/identity/identity";
 import { isCci } from "../../../cci/cube/cciCubeUtil";
 
 import { Buffer } from 'buffer';
 
 import { logger } from "../../../core/logger";
-import { ResolveRelsRecursiveResult } from "../../../cci/veritum/veritumRetrievalUtil";
-import { VeritumRetrievalInterface, VeritumRetriever } from "../../../cci/veritum/veritumRetriever";
 import { IdentityStore } from "../../../cci/identity/identityStore";
 import { mergeAsyncGenerators } from "../../../core/helpers/asyncGenerators";
-import { notifyingIdentities } from "../../../cci/identity/identityUtil";
+import { notifyingIdentities } from "../../../cci/identity/identityGenerators";
 import { ZwConfig } from "./zwConfig";
 
 export interface MakePostOptions extends CubeCreateOptions {

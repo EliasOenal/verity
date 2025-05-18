@@ -1,9 +1,8 @@
 import { cciCube, cciFamily } from "../../../src/cci/cube/cciCube";
-import { IdentityOptions, Identity } from "../../../src/cci/identity/identity";
+import { Identity } from "../../../src/cci/identity/identity";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
-import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
-import { idTestOptions, requiredDifficulty } from "../testcci.definitions";
+import { requiredDifficulty } from "../testcci.definitions";
 
 import sodium from "libsodium-wrappers-sumo";
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';

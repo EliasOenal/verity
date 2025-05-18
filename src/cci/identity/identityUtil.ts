@@ -1,67 +1,60 @@
-import type { CubeKey } from "../../core/cube/cube.definitions";
+import type { CubeInfo } from "../../core/cube/cubeInfo";
 
-import { Cube } from "../../core/cube/cube";
-import { CubeRetrievalInterface } from "../../core/cube/cubeStore";
-import { MergedAsyncGenerator, mergeAsyncGenerators } from "../../core/helpers/asyncGenerators";
-import { CubeRetriever } from "../../core/networking/cubeRetrieval/cubeRetriever";
-import { Identity } from "./identity";
-import { isCci } from "../cube/cciCubeUtil";
-import { cciCube } from "../cube/cciCube";
-import { IdentityStore } from "./identityStore";
+import { CubeType } from "../../core/cube/cube.definitions";
+import { DEFAULT_IDMUC_CONTEXT_STRING, IdentityOptions, IDMUC_MASTERINDEX } from "./identity.definitions";
+import { deriveSigningKeypair, KeyPair } from "../helpers/cryptography";
 
-export interface NotifyingIdentitiesOptions {
-  /**
-   * In subscribe mode, we will network-subscribe the supplied notificiation key
-   * and keep yielding further notifying Identities as we learn of them.
-   * The returned async generator will never terminate;
-   * it will keep running indefinetely.
-   */
-  subscribe?: boolean;
+import { Buffer } from 'buffer';
+import sodium from 'libsodium-wrappers-sumo'
+
+
+/** This function may only be called after awaiting sodium.ready. */
+export function deriveIdentityRootCubeKeypair(masterKey: Buffer, options?: IdentityOptions): KeyPair {
+  const contextString: string =
+    options?.idmucContextString ?? DEFAULT_IDMUC_CONTEXT_STRING;
+  return deriveSigningKeypair(masterKey, IDMUC_MASTERINDEX, contextString);
 }
 
-// TODO: make cancellable, in particular in subscribe mode
-// Note: cubeStoreOrRetriever should actually be a CubeStore or a CubeRetriever;
-//   supplying a VeritumRetriever will not work properly.
-export async function *notifyingIdentities(
-    cubeStoreOrRetriever: CubeRetrievalInterface<any>,
-    notificationKey: CubeKey,
-    identityStore: IdentityStore,
-    options: NotifyingIdentitiesOptions = {},
-): AsyncGenerator<Identity> {
-  // First, get any notifying Identity root Cube matching the notification key
-  let idRoots: MergedAsyncGenerator<Cube>;
-  const existingIdRoots: AsyncGenerator<Cube> =
-    cubeStoreOrRetriever.getNotifications(notificationKey) as AsyncGenerator<Cube>;
-  if (options.subscribe && 'subscribeNotifications' in cubeStoreOrRetriever) {
-    const futureIdRoots: AsyncGenerator<Cube> =
-      (cubeStoreOrRetriever as CubeRetriever).subscribeNotifications(notificationKey);
-    idRoots = mergeAsyncGenerators(existingIdRoots, futureIdRoots);
-  } else {
-    idRoots = mergeAsyncGenerators(existingIdRoots);
-  }
-
-  const idsHandled: Set<string> = new Set();
-
-  // Then, for each notifying Identity root Cube, yield its Identity
-  for await (const idRoot of idRoots) {
-    if (!isCci(idRoot)) continue;
-    const keyString = idRoot.getKeyStringIfAvailable();
-
-    // In subscribe mode, we may receive the same Identity multiple times.
-    // So let's skip any duplicates.
-    if (idsHandled.has(keyString)) continue;
-    idsHandled.add(keyString);
-
-    // Do we already have an object for this Identity?
-    const id = identityStore.getIdentity(keyString);
-    if (id)  yield id;
-    else {
-    // We don't yet have an object for this Identity.
-    // Create one, then yield it.
-      const id = new Identity(cubeStoreOrRetriever, idRoot as cciCube, {
-        identityStore,
-      });
-      yield id;
-    }
-  }
+/** This function may only be called after awaiting sodium.ready. */
+export function deriveIdentityMasterKey(
+    username: string,
+    password: string,
+    argonCpuHardness = sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE,
+    argonMemoryHardness = sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE,
+): Buffer {
+  return Buffer.from(sodium.crypto_pwhash(
+    sodium.crypto_sign_SEEDBYTES,
+    password,
+    sodium.crypto_hash(username, "uint8array").subarray(
+      0, sodium.crypto_pwhash_SALTBYTES),
+    argonCpuHardness,
+    argonMemoryHardness,
+    sodium.crypto_pwhash_ALG_ARGON2ID13,
+    "uint8array"));
 }
+
+export function validateIdentityRoot(mucInfo: CubeInfo): boolean {
+  // is this even a MUC?
+  if (mucInfo.cubeType !== CubeType.MUC &&
+      mucInfo.cubeType !== CubeType.MUC_NOTIFY &&
+      mucInfo.cubeType !== CubeType.PMUC &&
+      mucInfo.cubeType !== CubeType.PMUC_NOTIFY
+  ) {
+    return false;
+  }
+
+  // Check if this is an Identity MUC by trying to create an Identity object
+  // for it.
+  // I'm not sure if that's efficient.
+  // Disabled for now as it's not really important and forces us to make
+  // MUC learning asynchroneous, which sometimes causes us to learn a MUC
+  // too late.
+  // let id: Identity;
+  // try {
+  //   const muc = ensureCci(mucInfo.getCube());
+  //   if (muc === undefined) return false;
+  //   id = await Identity.Construct(this.cubeStore, muc);
+  // } catch (error) { return false; }
+  return true;  // all checks passed
+}
+

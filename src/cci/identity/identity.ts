@@ -1,17 +1,20 @@
 
 import type { Shuttable } from '../../core/helpers/coreInterfaces';
-import { unixtime } from '../../core/helpers/misc';
-import { eventsToGenerator, mergeAsyncGenerators, MergedAsyncGenerator, resolveAndYield } from '../../core/helpers/asyncGenerators';
-import { Cube } from '../../core/cube/cube';
-import { KeyVariants, keyVariants } from '../../core/cube/cubeUtil';
-import { logger } from '../../core/logger';
 
 import { ApiMisuseError, Settings, VerityError } from '../../core/settings';
 import { NetConstants } from '../../core/networking/networkDefinitions';
+
+import { unixtime } from '../../core/helpers/misc';
+import { eventsToGenerator, mergeAsyncGenerators, MergedAsyncGenerator, resolveAndYield } from '../../core/helpers/asyncGenerators';
+import { RecursiveEmitter } from '../../core/helpers/recursiveEmitter';
+import { logger } from '../../core/logger';
+
+import { Veritable } from '../../core/cube/veritable.definition';
+import { Cube } from '../../core/cube/cube';
+import { KeyVariants, keyVariants } from '../../core/cube/cubeUtil';
 import { CubeEmitter, CubeEmitterEvents, CubeRetrievalInterface, CubeStore } from '../../core/cube/cubeStore';
 import { CubeInfo } from '../../core/cube/cubeInfo';
-import { CubeError, CubeKey, CubeType } from '../../core/cube/cube.definitions';
-import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
+import { CubeKey, CubeType } from '../../core/cube/cube.definitions';
 
 import { FieldType } from '../cube/cciCube.definitions';
 import { KeyMismatchError, KeyPair, deriveEncryptionKeypair, deriveSigningKeypair } from '../helpers/cryptography';
@@ -21,6 +24,12 @@ import { Relationship, RelationshipType } from '../cube/relationship';
 import { cciCube, cciFamily } from '../cube/cciCube';
 import { ensureCci, extensionMuc } from '../cube/cciCubeUtil';
 
+import { Veritum } from '../veritum/veritum';
+import { GetVeritumOptions, VeritumRetrievalInterface } from '../veritum/veritumRetriever';
+import { MetadataEnhancedRetrieval, resolveRels, resolveRelsRecursive, ResolveRelsRecursiveResult, ResolveRelsResult } from '../veritum/veritumRetrievalUtil';
+
+import { DEFAULT_IDMUC_APPLICATION_STRING, DEFAULT_IDMUC_CONTEXT_STRING, DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING, DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX, DEFAULT_MIN_MUC_REBUILD_DELAY, DEFAULT_SUBSCRIPTION_RECURSION_DEPTH, GetPostsGenerator, GetPostsOptions, GetRecursiveEmitterOptions, IdentityEvents, IdentityLoadOptions, IdentityOptions, IDMUC_MASTERINDEX, PostFormat, PostFormatEventMap, PostInfo, RecursiveRelResolvingGetPostsGenerator, RelResolvingGetPostsGenerator } from './identity.definitions';
+import { deriveIdentityMasterKey, deriveIdentityRootCubeKeypair, validateIdentityRoot } from './identityUtil';
 import { IdentityPersistence } from './identityPersistence';
 import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
 import { IdentityStore } from './identityStore';
@@ -28,172 +37,8 @@ import { IdentityStore } from './identityStore';
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
 import EventEmitter from 'events';
-import { Veritum } from '../veritum/veritum';
-import { GetVeritumOptions, VeritumRetrievalInterface, VeritumRetriever } from '../veritum/veritumRetriever';
-import { CubeRequestOptions } from '../../core/networking/cubeRetrieval/requestScheduler';
-import { RecursiveEmitter } from '../../core/helpers/recursiveEmitter';
-import { MetadataEnhancedRetrieval, resolveRels, resolveRelsRecursive, ResolveRelsRecursiveResult, ResolveRelsResult } from '../veritum/veritumRetrievalUtil';
-import { Veritable } from '../../core/cube/veritable.definition';
-
-// Identity defaults
-// TODO move to settings
-const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
-const DEFAULT_MIN_MUC_REBUILD_DELAY = 5;  // minimum five seconds between Identity MUC generations unless specified otherwise
-const DEFAULT_SUBSCRIPTION_RECURSION_DEPTH = 10;
-
-// Key derivation defaults
-const DEFAULT_IDMUC_CONTEXT_STRING = "CCI Identity";
-const IDMUC_MASTERINDEX = 0;
-const DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING = "CCI Encrpytion";
-const DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX = 0;
-
-
-export interface IdentityOptions {
-  /**
-   * If you this Identity stored locally on this node, please create an
-   * IdentityPersistence object and supply it here.
-   * This is only relevant to local Identities, i.e. Identities owned by
-   * this node's user.
-   */
-  identityPersistence?: IdentityPersistence,
-  minMucRebuildDelay?: number,
-  requiredDifficulty?: number,
-
-  // TODO: Offer a family param governing which kinds of Cubes Identity will sculpt
-  // family?: CubeFamilyDefinition,
-
-  /**
-   * Adjust how much CPU power it will take to restore an Identity from
-   * username/password. You should never change this except for tests as any
-   * change will invalidate all existing passwords.
-   **/
-  argonCpuHardness?: number,
-
-  /**
-   * Adjust how much RAM it will take to restore an Identity from
-   * username/password. You should never change this except for tests as any
-   * change will invalidate all existing passwords.
-   **/
-  argonMemoryHardness?: number,
-
-  /**
-   * Governs how a local Identity's signing key pair is derived from
-   * it's master key. This needs to be changed if an application deliberately
-   * wants to use Identities separate from and incompatible with regular CCI
-   * Identities, allowing a user to have completely separate CCI Identities
-   * and application Identities on the same Verity network using the same
-   * username/password combination.
-   * Other than that, it is not recommended to change this option.
-   */
-  idmucContextString?: string,
-
-  idmucEncryptionContextString?: string,
-
-  /**
-   * The application value used in this Identity's MUCs. Defaults to "ID".
-   * Should only be changed if the goal is to create separate
-   * application-specific Identities, in which case idmucContentString
-   * should also be changed.
-   */
-  idmucApplicationString?: string,
-
-  idmucNotificationKey?: CubeKey,
-
-  /**
-   * Whether this Identity should listen for remote updates to itself.
-   * This is required whenever the same Identity may be actively used (= edited)
-   * on different nodes as otherwise changes won't be synced.
-   * Default: true
-   **/
-  subscribeRemoteChanges?: boolean;
-
-  identityStore?: IdentityStore;
-}
-
-export enum PostFormat {
-  Cube,
-  Veritum,
-};
-
-export const PostFormatEventMap = {
-  [PostFormat.Cube]: 'postAddedCube',
-  [PostFormat.Veritum]: 'postAdded',
-} as const;
-
-export interface PostInfo<postFormat> extends MetadataEnhancedRetrieval<postFormat>{
-  main: postFormat;
-  author: Identity;
-}
-export type RelResolvingPostInfo<T> = PostInfo<T> & ResolveRelsResult<T>;
-export type RecursiveRelResolvingPostInfo<T> = PostInfo<T> & ResolveRelsRecursiveResult<T>;
-
-export interface GetPostsOptions extends GetVeritumOptions {
-  /**
-   * Select in which way you'd like your posts yielded, either as the full post
-   * Veritum or as a compact CubeInfo object.
-   * Note:
-   *  - Using the default Veritum format implies that all posts need to be
-   *    retrieved over the wire in full, while using the CubeInfo format only
-   *    retrieves the first chunk.
-   *  - Therefore, a post yielded using the CubeInfo format does not guarantee
-   *    that the full post is actually retrievable from the network.
-   *  - If posts in your application may be very large
-   *    (e.g. representing large files), you may wish to use the CubeInfo format.
-   * @default Veritum, allowing callers to directly process (e.g. display)
-   *   the yielded posts. The goal behind this is having the default API as
-   *   intuitive as possible.
-   */
-  format?: PostFormat;
-
-  /**
-   * If true, the generator will not exit when all existing data has been yielded.
-   * Instead, it will keep running indefinetely, yielding values as new data
-   * becomes available.
-   * TODO provide a way to terminate the generator
-   */
-  subscribe?: boolean;
-
-  /**
-   * When set to a number greater than 0, getPosts() will not only fetch this
-   * Identity's own posts but also posts by subscribed authors.
-   * This number is the maximum recursion depth, i.e. the maximum level of
-   * indirect subscriptions.
-   * Defaults to 0, i.e. only retrieves this Identity's own posts.
-   */
-  subscriptionDepth?: number;
-
-  /**
-   * A set of Identity key strings to exclude when retrieving not just own posts
-   * but also posts by subscribed authors.
-   * Note: This options only applies to retrieving pre-existing posts, not to
-   *       new posts in subscription mode.
-   * You will usually not need this.
-   */
-  recursionExclude?: Set<string>;
-}
-
-export type GetPostsGenerator<T> = MergedAsyncGenerator<T> & {
-  /**
-   * A Promise that will resolve once all existing posts have been yielded.
-   * This is useful in subscribe mode to know from which point on we're no longer
-   * actively retrieving existing posts but just hope to learn about new ones
-   * over the network.
-   */
-  existingYielded?: Promise<void>;
-};
-export type RelResolvingGetPostsGenerator<T> = GetPostsGenerator<RelResolvingPostInfo<T>>;
-export type RecursiveRelResolvingGetPostsGenerator<T> = GetPostsGenerator<RecursiveRelResolvingPostInfo<T>>;
-
-export interface GetRecursiveEmitterOptions {
-  depth?: number,
-  event?: string,
-}
-
-
-interface IdentityEvents extends CubeEmitterEvents {
-  postAdded: [PostInfo<Veritum>];
-  postAddedCube: [PostInfo<Cube>];
-}
+import * as bip39 from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english';
 
 // TODO: Split out the MUC management code.
 // Much of it (like writing multi-cube long indexes of cube keys) are not even
@@ -267,23 +112,55 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   // #region Static Construction methods
   //###
 
-  /** @static Tries to load an existing Identity from the network or the CubeStore */
+  /** @static
+   * Tries to load an existing Identity from the network or the CubeStore.
+   * @returns The requested Identity, or undefined if not found.
+   **/
   static async Load(
-      cubeStoreOrRetriever: CubeRetrievalInterface<any>,
-      username: string,
-      password: string,
-      options?: IdentityOptions&CubeRequestOptions,
+      retriever: CubeRetrievalInterface<any>,
+      options: IdentityLoadOptions,
   ): Promise<Identity> {
+    // Normalise input, await dependency
+    options = options? { ...options } : {};
     await sodium.ready;
-    const masterKey: Buffer = Identity.DeriveMasterKey(username, password,
-      options?.argonCpuHardness, options?.argonMemoryHardness);
-    const keyPair: KeyPair = Identity.DeriveKeypair(masterKey, options);
-    const idMuc: cciCube = ensureCci(await cubeStoreOrRetriever.getCube(
+
+    // Did we get the master key supplied directly, or shall we reconstruct it
+    // through an alternative method?
+    if (options.masterKey) {
+      options.masterKey = keyVariants(options.masterKey).binaryKey;
+    } else {
+      if (options.recoveryPhrase) {
+        if (!bip39.validateMnemonic(options.recoveryPhrase, wordlist)) {
+          logger.error("Identity.Load(): Invalid recovery phrase");
+          return undefined;
+        }
+        options.masterKey = Buffer.from(
+          bip39.mnemonicToEntropy(options.recoveryPhrase, wordlist)
+        );
+      }
+      else if (options.username !== undefined && options.password !== undefined) {
+        options.masterKey = deriveIdentityMasterKey(
+          options.username, options.password,
+          options.argonCpuHardness, options.argonMemoryHardness);
+      } else {
+        logger.error("Identity.Load(): Must either supply masterkey or an alternative retrieval method (e.g. username/password or recovery phrase)");
+        return undefined;
+      }
+      // TODO: add further recovery methods here as we implement them
+    }
+
+    // Derive keys and fetch root cube
+    const keyPair: KeyPair = deriveIdentityRootCubeKeypair(options.masterKey as Buffer, options);
+    const idMuc: cciCube = ensureCci(await retriever.getCube(
       Buffer.from(keyPair.publicKey), options));
-    if (idMuc === undefined) return undefined;
-    const identity: Identity =
-      await Identity.Construct(cubeStoreOrRetriever, idMuc, options);
-    identity.supplyMasterKey(masterKey);
+    if (idMuc === undefined) {
+      logger.trace("Identity.Load(): Could not retrieve Identity root Cube");
+      return undefined;
+    }
+
+    // Construct identity
+    const identity: Identity = new Identity(retriever, idMuc, options);
+    identity.supplyMasterKey(options.masterKey);
     return identity;
   }
 
@@ -295,13 +172,14 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     options?: IdentityOptions,
   ): Promise<Identity> {
     await sodium.ready;
-    const masterKey: Buffer = Identity.DeriveMasterKey(
+    const masterKey: Buffer = deriveIdentityMasterKey(
       username, password,
       options?.argonCpuHardness, options?.argonMemoryHardness);
     return Identity.Construct(cubeStoreOrRetriever, masterKey, options);
   }
 
   /**
+   * @deprecated Identity.ready should not be awaited in production code, TODO refine API
    * @static Convenient await-able wrapper around the constructor.
    * Depending on whether you provide a key pair or an existing Identity MUC,
    * this will either create a brand new Identity or parse an existing one
@@ -335,7 +213,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   ): Promise<Identity> {
     await sodium.ready;
     const id = new Identity(cubeStoreOrRetriever, mucOrMasterkey, options);
-    return id.ready;
+    return id.fullyParsed;
   }
 
   /* @static Retrieves all Identity objects stored in persistant storage. */
@@ -354,56 +232,6 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   // #endregion
   // #region Other static methods
   //###
-
-  /** This method may only be called after awaiting sodium.ready. */
-  static DeriveKeypair(masterKey: Buffer, options?: IdentityOptions): KeyPair {
-    const contextString: string =
-      options?.idmucContextString ?? DEFAULT_IDMUC_CONTEXT_STRING;
-    return deriveSigningKeypair(masterKey, IDMUC_MASTERINDEX, contextString);
-  }
-
-  /** This method may only be called after awaiting sodium.ready. */
-  static DeriveMasterKey(
-      username: string,
-      password: string,
-      argonCpuHardness = sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE,
-      argonMemoryHardness = sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE,
-  ): Buffer {
-    return Buffer.from(sodium.crypto_pwhash(
-      sodium.crypto_sign_SEEDBYTES,
-      password,
-      sodium.crypto_hash(username, "uint8array").subarray(
-        0, sodium.crypto_pwhash_SALTBYTES),
-      argonCpuHardness,
-      argonMemoryHardness,
-      sodium.crypto_pwhash_ALG_ARGON2ID13,
-      "uint8array"));
-  }
-
-  static ValidateMuc(mucInfo: CubeInfo): boolean {
-    // is this even a MUC?
-    if (mucInfo.cubeType !== CubeType.MUC &&
-        mucInfo.cubeType !== CubeType.MUC_NOTIFY &&
-        mucInfo.cubeType !== CubeType.PMUC &&
-        mucInfo.cubeType !== CubeType.PMUC_NOTIFY
-    ) {
-      return false;
-    }
-
-    // Check if this is an Identity MUC by trying to create an Identity object
-    // for it.
-    // I'm not sure if that's efficient.
-    // Disabled for now as it's not really important and forces us to make
-    // MUC learning asynchroneous, which sometimes causes us to learn a MUC
-    // too late.
-    // let id: Identity;
-    // try {
-    //   const muc = ensureCci(mucInfo.getCube());
-    //   if (muc === undefined) return false;
-    //   id = await Identity.Construct(this.cubeStore, muc);
-    // } catch (error) { return false; }
-    return true;  // all checks passed
-  }
 
   /**
    * This is a normalisation method converting various ways an Identity might
@@ -501,17 +329,20 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    */
   private makeMucPromise: Promise<cciCube> = undefined;
 
-  // Provide a ready promise
-  private readyPromiseResolve: Function;
-  private readyPromiseReject: Function;
-  private _ready: Promise<Identity> = new Promise<Identity>( (resolve, reject) => {
-    this.readyPromiseResolve = resolve; this.readyPromiseReject = reject;
-  });
   /**
-   * Kindly always await ready before using an Identity, or it might not yet
-   * be fully initialized.
+   * A promise which will resolve once this Identity has been fully parsed,
+   * i.e. all extension Cubes have been loaded and processed.
+   * @deprecated Marked pseudo-deprecated as you should usually NOT await this
+   * in production code, as retrieving all extension Cubes can take a long time,
+   * and if some of them are missing for any reason this promise will not
+   * resolve until all requests have timed out (and there may be many
+   * subsequent/non-parallel ones, so those timeouts may sum up substantially).
    **/
-  get ready(): Promise<Identity> { return this._ready }
+  get fullyParsed(): Promise<Identity> { return this._fullyParsed }
+  private fullyParsedPromiseResolve: Function;
+  private _fullyParsed: Promise<Identity> = new Promise<Identity>( resolve => {
+    this.fullyParsedPromiseResolve = resolve;
+  });
 
   get identityStore(): IdentityStore { return this.options.identityStore }
 
@@ -570,7 +401,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     if (mucOrMasterkey instanceof Cube) {  // checking for the more generic Cube instead of cciCube as this is the more correct branch compared to handling this as a KeyPair (also Cube subclass handling is not completely clean yet throughout our codebase)
       this.parseMuc(mucOrMasterkey).then(() => {
         // TODO: this makes little sense outside of synthetic tests, see discussion in parseMuc() jsdoc
-        this.readyPromiseResolve(this)
+        this.fullyParsedPromiseResolve(this)
     });
     } else {  // create new Identity
       if (Settings.RUNTIME_ASSERTIONS && !(Buffer.isBuffer(mucOrMasterkey))) {
@@ -585,7 +416,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         }
       );
       this.deriveEncryptionKeys();  // must be called after MUC creation as it sets a MUC field
-      this.readyPromiseResolve(this);
+      this.fullyParsedPromiseResolve(this);
     }
 
     // ensure we are present in the IdentityStore
@@ -632,6 +463,12 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   */
   get key(): CubeKey { return this._muc?.publicKey; }
   get keyString(): string { return this._muc?.publicKey?.toString('hex') }
+
+  get recoveryPhrase(): string {
+    if (!this.masterKey) return undefined;
+    const phrase: string = bip39.entropyToMnemonic(this.masterKey, wordlist);
+    return phrase;
+  }
 
   get muc(): cciCube { return this._muc; }
 
@@ -1165,7 +1002,10 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     return this.shutdownPromise;
   }
 
-  /** @deprecated Currently unused */
+  /**
+   * @deprecated
+   * Unused except for a single test, still uses the old low level API :(
+   **/
   async recursiveWebOfSubscriptions(maxDepth: number = 1, curDepth: number = 0): Promise<Set<string>> {
     // sanity checks
     if (this.cubeRetriever === undefined) {
@@ -1304,7 +1144,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
           muc.cubeType !== CubeType.PMUC_NOTIFY
       ) {
         logger.error("Identity: Supplied Cube is not a MUC");
-        this.readyPromiseResolve(this);
+        this.fullyParsedPromiseResolve(this);
         return;
       }
     }
@@ -1359,17 +1199,22 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
           incoming.getCube().getHashIfAvailable())
     ){ return }
     // check if this MUC is even valid
-    if (!Identity.ValidateMuc(incoming)) return;
-    // TODO: This does not actually perform a merge.
-    // It just gives precedence to "never" version, which is not a good idea
-    // to start with and is exacerbated by the fact that no actual time
-    // synchronisation exists between nodes.
-    // TODO: This currently creates a race condition as parseMuc() is async.
-    if (incoming.date > this.muc.getDate()) {
+    if (!validateIdentityRoot(incoming)) return;
+    // TODO: This does not actually perform a merge;
+    //   it just prefers the newer version and is thus prone to lost updates.
+    //   Also note that we don't actually need to do another comparison;
+    //   CubeStore would reject an older version anyway and will prefer PMUCs
+    //   over plain MUCs. So let's remove that crap once we implement an actual merge.
+    if (
+        ((incoming.cubeType === CubeType.MUC || incoming.cubeType === CubeType.MUC_NOTIFY) &&
+          incoming.date > this.muc.getDate()) ||
+        ((incoming.cubeType === CubeType.PMUC || incoming.cubeType === CubeType.PMUC_NOTIFY) &&
+          incoming.updatecount > this.muc.getFirstField(FieldType.PMUC_UPDATE_COUNT)?.value?.readUintBE?.(0, NetConstants.PMUC_UPDATE_COUNT_SIZE))
+    ) {
       this.parseMuc(incoming.getCube() as cciCube);
-      logger.trace("Identity.mergeRemoteChanges: Adopting incoming MUC");
+      logger.trace("Identity.mergeRemoteChanges: Adopting incoming root Cube");
     } else {
-      logger.trace("Identity.mergeRemoteChanges: Rejecting incoming MUC as mine is newer");
+      logger.trace("Identity.mergeRemoteChanges: Rejecting incoming root Cube as mine is newer");
     }
   }
 

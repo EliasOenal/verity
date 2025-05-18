@@ -1,4 +1,5 @@
-import { IdentityOptions, Identity, PostFormat, GetPostsGenerator, PostInfo } from '../../../src/cci/identity/identity';
+import { IdentityOptions, PostFormat, GetPostsGenerator, PostInfo } from '../../../src/cci/identity/identity.definitions';
+import { Identity } from '../../../src/cci/identity/identity';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { evenLonger, testCubeStoreParams } from '../testcci.definitions';
 import { cciCube } from '../../../src/cci/cube/cciCube';

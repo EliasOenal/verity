@@ -1,26 +1,29 @@
+import type { AddressAbstraction } from '../core/peering/addressing';
+
+import type { IdentityPersistenceOptions } from '../cci/identity/identityPersistence';
+import type { IdentityOptions } from '../cci/identity/identity.definitions';
+import type { Identity } from '../cci/identity/identity';
+
+import type { ControllerContext, VerityController } from './verityController';
+import type { NavItem } from './navigation/navigationDefinitions';
+
 import { SupportedTransports } from '../core/networking/networkDefinitions';
 import { CoreNodeOptions, defaultInitialPeers } from '../core/coreNode';
-import { AddressAbstraction } from '../core/peering/addressing';
+import { coreCubeFamily } from '../core/cube/cube';
 
 import { cciFamily } from '../cci/cube/cciCube';
-import { Identity, IdentityOptions } from '../cci/identity/identity';
+import { VerityNode } from '../cci/verityNode';
+import { Cockpit } from '../cci/cockpit';
 
-import { ControllerContext, VerityController } from './verityController';
 import { PeerController } from './peer/peerController';
 import { IdentityController } from './identity/identityController';
 import { NavigationController } from './navigation/navigationController';
 import { VeraAnimationController } from './veraAnimationController';
 import { CubeExplorerController } from './cubeExplorer/cubeExplorerController';
-import { FileManagerController } from './fileManager/fileManagerController';
 
 import { logger } from '../core/logger'
-import { IdentityPersistenceOptions } from '../cci/identity/identityPersistence';
 
-import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
-import { NavItem } from './navigation/navigationDefinitions';
-import { coreCubeFamily } from '../core/cube/cube';
-import { VerityNode } from '../cci/verityNode';
-import { Cockpit } from '../cci/cockpit';
+import sodium from 'libsodium-wrappers-sumo'
 
 // TODO remove
 localStorage.setItem('debug', 'libp2p:*') // then refresh the page to ensure the libraries can read this when spinning up.
@@ -119,8 +122,7 @@ export class VerityUI implements ControllerContext {
 
   readonly nav: NavigationController = new NavigationController(this);
   readonly peerController: PeerController;
-  identityController: IdentityController;
-  readonly fileManagerController: FileManagerController;
+  readonly identityController: IdentityController;
   readonly cockpit: Cockpit;
   public vera: VeraAnimationController;
 
@@ -135,7 +137,6 @@ export class VerityUI implements ControllerContext {
     this.cockpit = new Cockpit(this.node,
       { identity: () => this.identityController.identity });
     this.peerController = new PeerController(this);
-    this.fileManagerController = new FileManagerController(this);
     this.identityController = new IdentityController(this, options);
   }
 
