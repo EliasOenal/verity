@@ -1,16 +1,15 @@
-import { Identity, IdentityOptions } from './identity';
+import type { CubeKey } from '../../core/cube/cube.definitions';
+import type { CubeRetrievalInterface } from '../../core/cube/cubeStore';
+import type { IdentityOptions } from './identity.definitions';
 
-import { CubeKey } from '../../core/cube/cube.definitions';
-import { CubeRetrievalInterface, CubeStore } from '../../core/cube/cubeStore';
 import { ensureCci } from '../cube/cciCubeUtil';
-import { cciFamily } from '../cube/cciCube';
+import { Identity } from './identity';
 
 import { logger } from '../../core/logger';
 
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
 import { Level } from 'level';
 import { Buffer } from 'buffer';
-import { CubeRetriever } from '../../core/networking/cubeRetrieval/cubeRetriever';
 
 const DEFAULT_DB_NAME = "identity";
 const DEFAULT_DB_VERSION = 1;

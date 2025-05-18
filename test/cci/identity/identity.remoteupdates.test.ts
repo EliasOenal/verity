@@ -4,7 +4,8 @@ import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { cciCube } from '../../../src/cci/cube/cciCube';
 import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { Avatar, AvatarScheme } from '../../../src/cci/identity/avatar';
-import { IdentityOptions, Identity } from '../../../src/cci/identity/identity';
+import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
+import { Identity } from '../../../src/cci/identity/identity';
 
 import { makePost } from '../../../src/app/zw/model/zwUtil';
 
@@ -45,7 +46,11 @@ describe('Identity: remote updates', () => {
       "Hoc est scriptum in computatore domi meae",
       { id: notebookId, requiredDifficulty:reducedDifficulty });
     await cubeStore.addCube(postWrittenOnNotebook);
-    await notebookId.store();
+    const pmuc1: cciCube = await notebookId.store();
+    // expect PMUC update count to have been auto-incremented
+    expect(pmuc1.getFirstField(FieldType.PMUC_UPDATE_COUNT).value
+      .readUintBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE))
+      .toBe(1);
     // expect everything to be saved correctly
     expect(notebookId.name).toEqual("Dominus plurium apparatorum")
     expect(notebookId.avatar.seedString).toEqual("1234567890");
@@ -58,8 +63,12 @@ describe('Identity: remote updates', () => {
 
     // Re-instantiate same identity.
     // Let's say this is the user logging back in on their phone.
-    const phoneId: Identity = await Identity.Load(
-      cubeStore, "usor probationis", "clavis probationis", idTestOptions);
+    const phoneId: Identity = await Identity.Load(cubeStore, {
+      ...idTestOptions,
+      username: "usor probationis",
+      password: "clavis probationis",
+    });
+    await phoneId.fullyParsed;
     // expect all data to have loaded correctly
     expect(phoneId.name).toEqual("Dominus plurium apparatorum")
     expect(phoneId.avatar.seedString).toEqual("1234567890");
@@ -73,7 +82,11 @@ describe('Identity: remote updates', () => {
     await cubeStore.addCube(postWrittenOnPhone);
     phoneId.name = "Dominus plurium apparatorum qui nunc iter agit";
     phoneId.avatar = new Avatar("cafebabe42", AvatarScheme.MULTIAVATAR);
-    await phoneId.store();
+    const pmuc2: cciCube = await phoneId.store();
+    // expect PMUC update count to have been auto-incremented
+    expect(pmuc2.getFirstField(FieldType.PMUC_UPDATE_COUNT).value
+      .readUintBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE))
+      .toBe(2);
     // expect all changes to be saved correctly
     expect(phoneId.name).toEqual("Dominus plurium apparatorum qui nunc iter agit")
     expect(phoneId.avatar.seedString).toEqual("cafebabe42");

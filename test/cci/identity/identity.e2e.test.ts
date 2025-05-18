@@ -73,7 +73,7 @@ describe('Identity: end-to-end tests', () => {
   });
 
   // TODO: This test sporadically fails (restored post count too low) and I have no idea why
-  it.skip('will correctly reconstruct an Identity created on another node even when operating as a light node', async() => {
+  it('will correctly reconstruct an Identity created on another node even when operating as a light node', async() => {
     // just preparing some test constants and containers
     const TESTPOSTCOUNT = 40;
     const testPostKeys: string[] = [];
@@ -158,8 +158,12 @@ describe('Identity: end-to-end tests', () => {
 
     { // block on local node
       // now let's restore the subject on a different node
-      const restored: Identity = (await Identity.Load(cubeRetriever,
-        "user remotus", "clavis secreta", idTestOptions))!;
+      const restored: Identity = (await Identity.Load(cubeRetriever, {
+        ...idTestOptions,
+        username: "user remotus",
+        password: "clavis secreta",
+      }))!;
+      await restored.fullyParsed;
 
       // verify all basic properties have been restored correctly
       expect(restored.name).toBe("usor in alia parte retis positus");
@@ -178,7 +182,7 @@ describe('Identity: end-to-end tests', () => {
       // verify all subscriptions have been restored correctly
       expect(restored.getPublicSubscriptionCount()).toBe(TESTSUBCOUNT);
       for (let i=0; i<testSubs.length; i++) {
-        expect(restored.getPublicSubscriptionCount()).toContainEqual(testSubs[i]);
+        expect(restored.getPublicSubscriptionKeys()).toContainEqual(testSubs[i]);
       }
 
       // verify all indirect subscriptions are correctly recognized as within
@@ -190,8 +194,11 @@ describe('Identity: end-to-end tests', () => {
       // direct subscriptions are technically also part of our web of trust,
       // so let's quickly check for those, too
       for (let i=0; i<testSubs.length; i++) {
-        expect(restoredWot).toContainEqual(testSubs[i]);
+        expect(restoredWot).toContainEqual(keyVariants(testSubs[i]).keyString);
       }
     }
   }, 5000);
+
+  // This should work since we started using PMUCs rather than regular MUCs
+  it.todo('will not lose existing data if another node logs and stores into the same account without retrieving the current version');
 });

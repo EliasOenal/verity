@@ -1,4 +1,5 @@
-import { Identity, IdentityOptions } from "../../cci/identity/identity";
+import { IdentityOptions } from "../../cci/identity/identity.definitions";
+import { Identity } from "../../cci/identity/identity";
 import { IdentityPersistence, IdentityPersistenceOptions } from "../../cci/identity/identityPersistence";
 
 import { EditIdentityView } from "./editIdentityView";
@@ -71,14 +72,15 @@ export class IdentityController extends VerityController {
     const password: string =
       (form.querySelector(".verityPasswordInput") as HTMLInputElement).value;
     // TODO: enforce some minimum length for both
-    let identity: Identity = await Identity.Load(
-      this.veritumRetriever, username, password, {
-        ...this.options,
-        // Block app for up to one second trying to fetch existing Identity.
-        // If not successful, Identity will be constructed empty and may later
-        // adopt the existing root Cube as it arrives.
-        timeout: 1000,
+    let identity: Identity = await Identity.Load(this.node.veritumRetriever, {
+      ...this.options,
+      username, password,
+      // Block app for up to one second trying to fetch existing Identity.
+      // If not successful, Identity will be constructed empty and may later
+      // adopt the existing root Cube as it arrives.
+      timeout: 1000,
     });
+    // TODO provide proper feedback if login fails; just constructing a new Identity on e.g. a network error or a type is a very confusing user experience
     if (identity === undefined) {
       identity = await Identity.Create(
         this.veritumRetriever, username, password, this.options);

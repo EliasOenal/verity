@@ -1,7 +1,8 @@
 import { CubeKey } from '../../../src/core/cube/cube.definitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
-import { IdentityOptions, Identity } from '../../../src/cci/identity/identity';
+import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
+import { Identity } from '../../../src/cci/identity/identity';
 import { makePost } from '../../../src/app/zw/model/zwUtil';
 
 import { testCubeStoreParams } from '../testcci.definitions';
@@ -66,17 +67,16 @@ describe('Identity: static functions', () => {
   });
 
   describe("Load", () => {
-    it("returns undefined when MUC is unavailable", () => {
-      const doesNotExist = Identity.Load(cubeStore, "Usor absens",
-        "quis curat de clavis usoris non existentis?");
-      expect(doesNotExist).toBeUndefined;
-    });
+    let original: Identity;
+    let username: string, password: string;
 
-    it('correctly restores an existing Identity', async () => {
+    beforeEach(async () => {
       // create an Identity
-      const original: Identity = await Identity.Create(
-        cubeStore, "usor probationis", "clavis probationis", idTestOptions);
-      // make lots of custom changes
+      username = "usor probationis";
+      password = "clavis probationis";
+      original = await Identity.Create(
+        cubeStore, username, password, idTestOptions);
+      // make some custom changes
       original.name = "Sum usor frequens, semper redeo"
       original.avatar.random();
 
@@ -87,28 +87,70 @@ describe('Identity: static functions', () => {
       await cubeStore.addCube(post);
       expect(original.getPostCount()).toEqual(1);
 
-      // remember individual values and customizations
-      const masterkey = original.masterKey.toString('hex');
-      const pubkey = original.muc.publicKey.toString('hex');
-      const privkey = original.muc.privateKey.toString('hex');
-      const chosenAvatar: string = original.avatar.seedString;
-      const myPostKey: CubeKey = original.getPostKeyStrings()[0];
-
       // store Identity
       await original.store();
+    });
 
+    it("returns undefined when MUC is unavailable", () => {
+      const doesNotExist = Identity.Load(cubeStore, {
+        ...idTestOptions,
+        username: "Usor absens",
+        password: "quis curat de clavis usoris non existentis?"
+      });
+      expect(doesNotExist).toBeUndefined;
+    });
+
+    it('loads an existing owned Identity by master key', async () => {
       // restore Identity
-      const restored: Identity = await Identity.Load(cubeStore,
-        "usor probationis", "clavis probationis", idTestOptions);
+      const restored: Identity = await Identity.Load(cubeStore, {
+        ...idTestOptions,
+        masterKey: original.masterKey,
+      });
+      await restored.fullyParsed;
 
-      // assert all values custom changes still present
-      expect(restored.name).toEqual("Sum usor frequens, semper redeo");
-      expect(restored.masterKey.toString('hex')).toEqual(masterkey);
-      expect(restored.muc.publicKey.toString('hex')).toEqual(pubkey);
-      expect(restored.muc.privateKey.toString('hex')).toEqual(privkey);
-      expect(restored.avatar.seedString).toEqual(chosenAvatar);
+      // assert all data has been retained
+      expect(restored.name).toEqual(original.name);
+      expect(restored.masterKey.equals(original.masterKey)).toBe(true);
+      expect(restored.publicKey.equals(original.publicKey)).toBe(true);
+      expect(restored.muc.privateKey.equals(original.muc.privateKey)).toBe(true);
+      expect(restored.avatar.seedString).toEqual(original.avatar.seedString);
       expect(restored.getPostCount()).toEqual(1);
-      expect(restored.getPostKeyStrings()[0]).toEqual(myPostKey);
+      expect(restored.getPostKeyStrings()[0]).toEqual(original.getPostKeyStrings()[0]);
+    });
+
+    it('loads an existing owned Identity by username and password', async () => {
+      // restore Identity
+      const restored: Identity = await Identity.Load(cubeStore, {
+        ...idTestOptions, username, password,
+      });
+      await restored.fullyParsed;
+
+      // assert all data has been retained
+      expect(restored.name).toEqual(original.name);
+      expect(restored.masterKey.equals(original.masterKey)).toBe(true);
+      expect(restored.publicKey.equals(original.publicKey)).toBe(true);
+      expect(restored.muc.privateKey.equals(original.muc.privateKey)).toBe(true);
+      expect(restored.avatar.seedString).toEqual(original.avatar.seedString);
+      expect(restored.getPostCount()).toEqual(1);
+      expect(restored.getPostKeyStrings()[0]).toEqual(original.getPostKeyStrings()[0]);
+    });
+
+    it('loads an existing owned Identity by recovery phrase', async () => {
+      // restore Identity
+      const restored: Identity = await Identity.Load(cubeStore, {
+        ...idTestOptions,
+        recoveryPhrase: original.recoveryPhrase,
+      });
+      await restored.fullyParsed;
+
+      // assert all data has been retained
+      expect(restored.name).toEqual(original.name);
+      expect(restored.masterKey.equals(original.masterKey)).toBe(true);
+      expect(restored.publicKey.equals(original.publicKey)).toBe(true);
+      expect(restored.muc.privateKey.equals(original.muc.privateKey)).toBe(true);
+      expect(restored.avatar.seedString).toEqual(original.avatar.seedString);
+      expect(restored.getPostCount()).toEqual(1);
+      expect(restored.getPostKeyStrings()[0]).toEqual(original.getPostKeyStrings()[0]);
     });
   });
 });  // static helpers

@@ -5,7 +5,8 @@ import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { CubeType } from '../../../src/core/cube/cube.definitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
-import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
+import { Identity } from '../../../src/cci/identity/identity'
+import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
 import { cciCube } from '../../../src/cci/cube/cciCube';
 import { VerityField } from '../../../src/cci/cube/verityField';
 

@@ -2,14 +2,12 @@ import type { CubeKey } from '../../../src/core/cube/cube.definitions';
 
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
-import { Identity, IdentityOptions } from '../../../src/cci/identity/identity';
+import { Identity } from '../../../src/cci/identity/identity';
 import { IdentityStore } from '../../../src/cci/identity/identityStore';
-import { notifyingIdentities } from '../../../src/cci/identity/identityUtil';
+import { notifyingIdentities } from '../../../src/cci/identity/identityGenerators';
 
 import { testCciOptions } from '../testcci.definitions';
 
-import sodium from 'libsodium-wrappers-sumo'
-import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { DummyNetworkManager } from '../../../src/core/networking/testingDummies/dummyNetworkManager';
 import { DummyNetworkPeer } from '../../../src/core/networking/testingDummies/dummyNetworkPeer';
@@ -18,6 +16,10 @@ import { CubeRetriever } from '../../../src/core/networking/cubeRetrieval/cubeRe
 import { NetworkManagerIf } from '../../../src/core/networking/networkManagerIf';
 import { PeerDB } from '../../../src/core/peering/peerDB';
 import { cciCube } from '../../../src/cci/cube/cciCube';
+import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
+
+import sodium from 'libsodium-wrappers-sumo'
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 describe('IdentityUtil', () => {
   describe('notifyingIdentities()', () => {

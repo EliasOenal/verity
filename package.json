@@ -58,6 +58,7 @@
     "@libp2p/webrtc": "^4.0.34",
     "@libp2p/websockets": "^9.1.5",
     "@multiavatar/multiavatar": "^1.0.7",
+    "@scure/bip39": "^1.6.0",
     "@types/libsodium-wrappers": "^0.7.14",
     "@types/node": "^22.13.1",
     "abstract-level": "^3.0.1",

@@ -1,7 +1,5 @@
-import { Identity } from "../../cci/identity/identity";
-import { VerityView } from "../verityView";
-
 import type { IdentityController } from "./identityController";
+import { VerityView } from "../verityView";
 
 export class EditIdentityView extends VerityView {
   constructor(
@@ -15,14 +13,14 @@ export class EditIdentityView extends VerityView {
       this.renderedView.querySelector(".verityDisplayNameInput");
     displayNameInput.value = this.controller.identity.name;
 
-    this.displayAvatar(
-      this.controller.identity.avatar?.seedString,
-      this.controller.identity.avatar.render()
-    );
-
+    this.displayAvatar();
+    this.displayBip39();
   }
 
-  displayAvatar(seed: string, src: string) {
+  displayAvatar(
+      seed: string = this.controller.identity?.avatar?.seedString,
+      src: string = this.controller.identity?.avatar?.render?.(),
+  ) {
     const imgElem: HTMLImageElement = this.renderedView.querySelector(
       "img.verityEditIdentityAvatar");
     if (!imgElem) return;
@@ -32,5 +30,12 @@ export class EditIdentityView extends VerityView {
     imgElem.src = src;
     if (seed) seedElem.value = seed;
     else seedElem.value = "";
+  }
+
+  displayBip39() {
+    const phraseElem: HTMLInputElement = this.renderedView.querySelector(
+      ".verityEditIdentityBip39Phrase");
+    const phrase = this.controller.identity.recoveryPhrase;
+    phraseElem.textContent = phrase;
   }
 }

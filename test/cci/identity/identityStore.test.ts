@@ -1,4 +1,5 @@
-import { Identity, IdentityOptions } from '../../../src/cci/identity/identity'
+import { IdentityOptions } from '../../../src/cci/identity/identity.definitions'
+import { Identity } from '../../../src/cci/identity/identity'
 
 import { testCubeStoreParams } from '../testcci.definitions';
 
@@ -68,7 +69,7 @@ describe('IdentityStore', () => {
     it('restores an Identity from Cubes when not in store', async () => {
       const masterKey: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42);
       const id: Identity = new Identity(cubeStore, masterKey, idTestOptions);
-      await id.ready;
+      await id.fullyParsed;
       id.name = "Probator conversionis";
       await id.store();
       expect(identityStore.getIdentity(id.keyString)).toBeUndefined();
@@ -89,7 +90,7 @@ describe('IdentityStore', () => {
     it('still returns the Identity in store even if it was only stored while our call was already in progress', async () => {
       const masterKey: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42);
       const id: Identity = new Identity(cubeStore, masterKey, idTestOptions);
-      await id.ready;
+      await id.fullyParsed;
 
       // Save the original getCube method
       const originalGetCube = cubeStore.getCube;
