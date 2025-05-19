@@ -60,7 +60,7 @@
     "@multiavatar/multiavatar": "^1.0.7",
     "@scure/bip39": "^1.6.0",
     "@types/libsodium-wrappers": "^0.7.14",
-    "@types/node": "^22.13.1",
+    "@types/node": "^22.15.19",
     "abstract-level": "^3.0.1",
     "bencodec": "^3.0.1",
     "browser-or-node": "^3.0.0",
