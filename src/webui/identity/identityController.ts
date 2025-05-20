@@ -71,9 +71,9 @@ export class IdentityController extends VerityController {
     this.contentAreaView.clearAlerts();
 
     const username: string =
-      (form.querySelector(".verityUsernameInput") as HTMLInputElement).value;
+      (form.querySelector(".verityLoginUsernameInput") as HTMLInputElement).value;
     const password: string =
-      (form.querySelector(".verityPasswordInput") as HTMLInputElement).value;
+      (form.querySelector(".verityLoginPasswordInput") as HTMLInputElement).value;
     // TODO: enforce some minimum length for both
     let identity: Identity = await Identity.Load(this.node.veritumRetriever, {
       ...this.options,
@@ -125,8 +125,8 @@ export class IdentityController extends VerityController {
       ...this.options,
       recoveryPhrase,
       // Block app for up to one second trying to fetch existing Identity.
-      // If not successful, Identity will be constructed empty and may later
-      // adopt the existing root Cube as it arrives.
+      // If not successful, will show an error.
+      // TODO give immediate feedback, then allow much more time for background retrieval
       timeout: 1000,
     });
     if (identity === undefined) {

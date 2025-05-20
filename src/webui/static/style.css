@@ -190,14 +190,14 @@ img#veralogo {
 }
 
 /* Identity row */
-div.verityMyProfilePicArea {
+div.verityIdentityAvatarArea {
   height: 6ex;
   float: left;
   padding: 0;
   margin: 0;
   margin-right: 0.2em;
 }
-img.verityMyProfilePic {
+img.verityIdentityAvatar {
   height: 100%;
 }
 div.verityMyIdentityInfoArea {

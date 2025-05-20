@@ -8,11 +8,11 @@ import type { ControllerContext, VerityController } from './verityController';
 import type { NavItem } from './navigation/navigationDefinitions';
 
 import { SupportedTransports } from '../core/networking/networkDefinitions';
-import { CoreNodeOptions, defaultInitialPeers } from '../core/coreNode';
+import { defaultInitialPeers } from '../core/coreNode';
 import { coreCubeFamily } from '../core/cube/cube';
 
 import { cciFamily } from '../cci/cube/cciCube';
-import { VerityNode } from '../cci/verityNode';
+import { VerityNode, VerityNodeOptions } from '../cci/verityNode';
 import { Cockpit } from '../cci/cockpit';
 
 import { PeerController } from './peer/peerController';
@@ -39,7 +39,13 @@ export interface VerityUiOptions {
   initialNav?: NavItem;
 };
 
-export type VerityOptions = CoreNodeOptions & VerityUiOptions & IdentityOptions & IdentityPersistenceOptions;
+export interface VerityOptions extends VerityNodeOptions, VerityUiOptions, IdentityOptions, IdentityPersistenceOptions {
+  /**
+   * Whether or not to animate Vera while starting up
+   * @default true
+   **/
+  startupAnimation?: boolean;
+}
 
 
 // Tell Typescript we're planning to use the custom window.verity attribute
@@ -55,8 +61,13 @@ export class VerityUI implements ControllerContext {
    */
   static async Construct(options: VerityOptions): Promise<VerityUI> {
     logger.info('Starting web node');
+
+    // set default options
+    options.startupAnimation ??= true;
+
+    // Initiate startup animation (unless disabled)
     const vera = new VeraAnimationController();
-    vera.start();
+    if (options.startupAnimation) vera.start();
 
     await sodium.ready;
 
@@ -114,7 +125,7 @@ export class VerityUI implements ControllerContext {
     ui.identityController.loginStatusView.show();  // display Identity status
     ui.peerController.onlineView.show();
     ui.currentController?.contentAreaView?.show();  // display initial nav
-    vera.stop();
+    if (options.startupAnimation) vera.stop();
     return ui;
   }
 
@@ -124,6 +135,8 @@ export class VerityUI implements ControllerContext {
   readonly peerController: PeerController;
   readonly identityController: IdentityController;
   readonly cockpit: Cockpit;
+
+  // HACKHACK: will be set externally by our static Construct() method
   public vera: VeraAnimationController;
 
   get currentController(): VerityController { return this.nav.currentController }

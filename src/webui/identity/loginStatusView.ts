@@ -20,7 +20,7 @@ export class LoginStatusView extends VerityView {
     infoArea.replaceChildren(this.newFromTemplate(".verityNotLoggedIn"));
     // remove profile pic
     const profilePicElem:  HTMLImageElement = (this.renderedView.querySelector(
-      ".verityMyProfilePic")) as HTMLImageElement;
+      ".verityIdentityAvatar")) as HTMLImageElement;
     profilePicElem.src = "unknownuser.svg";
     this.setLinkTargets();
     if (show) this.show();
@@ -31,12 +31,12 @@ export class LoginStatusView extends VerityView {
     const infoArea = this.renderedView.querySelector(".verityMyIdentityInfoArea");
     const infoDiv: HTMLElement = this.newFromTemplate(".verityMyIdentityInfo");
     const usernameElem: HTMLElement =
-      infoDiv.querySelector(".verityMyIdentityDisplayname") as HTMLElement;
+      infoDiv.querySelector(".verityIdentityDisplayname") as HTMLElement;
     usernameElem.textContent = identity.name;
     usernameElem.setAttribute("title", "MUC key " + identity.keyString);
     // show profile pic
     const profilePicElem:  HTMLImageElement = (this.renderedView.querySelector(
-      ".verityMyProfilePic")) as HTMLImageElement;
+      ".verityIdentityAvatar")) as HTMLImageElement;
     profilePicElem.src = identity.avatar.render();
     infoArea.replaceChildren(infoDiv);
     this.setLinkTargets();
@@ -46,17 +46,28 @@ export class LoginStatusView extends VerityView {
   private setLinkTargets() {
     const loginLink: HTMLAnchorElement =
       this.renderedView.querySelector('.verityIdentityLoginLink');
-    if (loginLink) loginLink.onclick = () =>
-      this.controller.parent.nav.show({
+    if (loginLink) {
+      loginLink.onclick = () => this.controller.parent.nav.show({
         controller: this.controller,
         navAction: this.controller.selectLoginForm
       });
+    }
+
     const editLink: HTMLAnchorElement =
       this.renderedView.querySelector('.verityIdentityEditLink')
-    if (editLink) editLink.onclick = () =>
-      this.controller.parent.nav.show({
+    if (editLink) {
+      editLink.onclick = () => this.controller.parent.nav.show({
         controller: this.controller,
         navAction: this.controller.selectEditForm
       });
+    }
+
+    const logoutLink: HTMLAnchorElement =
+      this.renderedView.querySelector('.verityIdentityLogoutLink')
+    if (logoutLink) {
+      logoutLink.onclick = () => {
+        this.controller.logOut();
+      }
+    }
   }
 }

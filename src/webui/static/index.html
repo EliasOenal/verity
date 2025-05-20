@@ -66,9 +66,9 @@
                    IdentityController is ready, hence the "display: none".
               -->
               <div class="verityIdentityRow" style="display: none">
-                <div class="verityMyProfilePicArea">
+                <div class="verityIdentityAvatarArea">
                   <img src="unknownuser.svg" alt="" height="100%"
-                      class="verityMyProfilePic" id="verityMyProfilePic" />
+                      class="verityIdentityAvatar" id="verityIdentityAvatar" />
                 </div>
                 <div class="verityMyIdentityInfoArea">
                   <div class="verityNotLoggedIn">
@@ -122,9 +122,9 @@
   <!-- Identity related templates -->
   <template id="verityIdentityRowTemplate">
     <div class="verityIdentityRow">
-      <div class="verityMyProfilePicArea">
+      <div class="verityIdentityAvatarArea">
         <img src="unknownuser.svg" alt="" height="100%"
-            class="verityMyProfilePic" id="verityMyProfilePic" />
+            class="verityIdentityAvatar" id="verityIdentityAvatar" />
       </div>
       <div class="verityMyIdentityInfoArea">
         <div class="verityNotLoggedIn">
@@ -134,10 +134,10 @@
           </a>
         </div>
         <div class="verityMyIdentityInfo">
-          <b class="verityMyIdentityDisplayname">Usor probus veritatem tuendus</b><br />
+          <b class="verityIdentityDisplayname">Usor probus veritatem tuendus</b><br />
           <a href="#" class="verityIdentityEditLink" onclick="false">
             Edit
-          </a> · <a href="#" class="verityIdentityLogoutLink" onclick="window.verity.identityController.logOut()">
+          </a> · <a href="#" class="verityIdentityLogoutLink" onclick="false">
             Logout
           </a>
         </div>
@@ -205,18 +205,18 @@
 
           <form class="verityLoginPasswordForm" action="javascript:void(0)">
             <div class="form-floating my-2">
-              <input class="form-control form-control-sm verityUsernameInput"
-                    type="text" id="verityLoginUsername"
+              <input class="form-control form-control-sm verityLoginUsernameInput"
+                    type="text" id="verityLoginUsernameInput"
                     placeholder="Username" autocomplete="username" name="id" required />
-              <label for="verityLoginUsername">Username</label>
+              <label for="verityLoginUsernameInput">Username</label>
             </div>
             <div class="form-floating my-2">
-              <input class="form-control form-control-sm verityPasswordInput"
+              <input class="form-control form-control-sm verityLoginPasswordInput"
                     type="password" autocomplete="current-password"
-                    id="verityLoginPassword" placeholder="Password" required />
-              <label for="verityLoginPassword">Password</label>
+                    id="verityLoginPasswordInput" placeholder="Password" required />
+              <label for="verityLoginPasswordInput">Password</label>
             </div>
-            <button class="btn btn-primary my-2" type="submit">Login / Register</button>
+            <button class="btn btn-primary my-2 verityLoginPasswordSubmitButton" type="submit">Login / Register</button>
             <p class="verityLoginFormPasswordErrorMessage">
               <!-- p reserved for potential error message -->
             </p>
@@ -232,7 +232,7 @@
                      placeholder="Recovery Phrase" autocomplete="off" name="bip39" required />
               <label for="verityLoginBip39Input">Recovery Phrase</label>
             </div>
-            <button class="btn btn-primary my-2" type="submit">Login</button>
+            <button class="btn btn-primary my-2 verityLoginBip39SubmitButton" type="submit">Login</button>
             <p class="verityLoginFormBip39ErrorMessage">
               <!-- p reserved for potential error message -->
             </p>
