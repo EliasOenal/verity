@@ -11,7 +11,7 @@ import { Identity } from '../../../../src/cci/identity/identity';
 
 import { Buffer } from 'buffer';
 import { cciTestOptions } from '../../../cci/e2e/e2eCciSetup';
-import { loadZwTemplate } from './uiTestSetup';
+import { loadZwTemplate } from './zwUiTestSetup';
 import { CubeKey } from '../../../../src/core/cube/cube.definitions';
 import { keyVariants } from '../../../../src/core/cube/cubeUtil';
 import { VerityNodeIf, dummyVerityNode } from '../../../../src/cci/verityNode';

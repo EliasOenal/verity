@@ -151,12 +151,16 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
 
     // Derive keys and fetch root cube
     const keyPair: KeyPair = deriveIdentityRootCubeKeypair(options.masterKey as Buffer, options);
-    const idMuc: cciCube = ensureCci(await retriever.getCube(
-      Buffer.from(keyPair.publicKey), options));
+    const idMuc: cciCube = await retriever.getCube(
+      Buffer.from(keyPair.publicKey), options);
     if (idMuc === undefined) {
       logger.trace("Identity.Load(): Could not retrieve Identity root Cube");
       return undefined;
     }
+    if (!ensureCci(idMuc)) {
+      logger.error("Identity.Load(): Root Cube is not a CCI Cube, cannot be used as Identity root");
+      return undefined;
+    };
 
     // Construct identity
     const identity: Identity = new Identity(retriever, idMuc, options);
