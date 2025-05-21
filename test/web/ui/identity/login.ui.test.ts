@@ -28,7 +28,7 @@ const testOptions: VerityOptions = {
   startupAnimation: false,  // uses features not present in JSDOM
 }
 
-// Note! These are flow tests.
+// Note! These are workflow tests.
 // You cannot run them in isolation or skip any essential steps.
 
 describe('Login/Logout flow UI tests', () => {
