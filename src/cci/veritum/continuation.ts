@@ -522,6 +522,7 @@ export function Recombine(
       fields = new VerityFields([], cube.fieldParser.fieldDef);
     }
 
+    let fieldIndexInChunk = 0;
     for (const field of cube.fields.all) {
       // ... and look at each field:
       // - Excluded fields will be dropped, except PADDING which separates
@@ -533,22 +534,24 @@ export function Recombine(
         const rel = Relationship.fromField(field);
         if (rel.type === RelationshipType.CONTINUED_IN) continue;
       }
-      // - variable length fields of same type directly adjacent to each
-      //   other will be merged
-      const previousField: VerityField =
-        fields.length > 0 ?
-          // TODO: get rid of unsafe manipulateFields() call
-          fields.all[fields.length-1] :
-          undefined;
-      if (previousField !== undefined && field.type === previousField.type &&
-          fields.fieldDefinition.fieldLengths[field.type] === undefined) {
-        previousField.value = Buffer.concat([previousField.value, field.value]);
-        continue;
+      // - If this is a chunk boundary, variable length fields directly adjacent
+      //   on both sides of the boundary will be merged.
+      if (fieldIndexInChunk === 0) {
+        const previousField: VerityField = fields.length > 0
+          ? fields.all[fields.length-1]
+          : undefined;
+        if (previousField !== undefined && field.type === previousField.type &&
+            fields.fieldDefinition.fieldLengths[field.type] === undefined) {
+          previousField.value = Buffer.concat([previousField.value, field.value]);
+          fieldIndexInChunk++;
+          continue;
+        }
       }
       // - the rest will just be copied to the macro fieldset
       const fieldType = field.constructor as typeof VerityField;
       const copy: VerityField = new fieldType(field);
       fields.appendField(copy);
+      fieldIndexInChunk++;
     }
   }
 

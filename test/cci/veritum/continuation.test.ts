@@ -179,6 +179,33 @@ describe('Continuation', () => {
     })
   });  // manual splitting
 
+  describe('manual Recombine() tests', () => {
+    it('will not merge fields within the same chunk', () => {
+      // This enables users to treat Verita the same as plain old single Cubes.
+      const cube: cciCube = cciCube.Create({
+        fields: [
+          VerityField.Date(),  // add DATE explicitly just to simplify comparison
+          VerityField.Payload("Ego campus sum"),
+          VerityField.Payload("Ego alius campus sum"),
+          VerityField.Payload("Hic non idem campus est"),
+        ]
+      });
+
+      // run test
+      const recombined: Veritum = Recombine([cube]);
+
+      // assert payload fields not merged
+      const originalPayload: VerityField[] = Array.from(cube.getFields(FieldType.PAYLOAD));
+      expect(originalPayload.length).toBe(3);
+      const recombinedPayload: VerityField[] = Array.from(recombined.getFields(FieldType.PAYLOAD));
+      expect(recombinedPayload.length).toBe(3);
+
+      for (let i=0; i < 3; i++) {
+        expect(recombinedPayload[i].equals(originalPayload[i])).toBe(true);
+      }
+    });
+  });
+
   for (const cubeType of enumNums(CubeType)) {
     if (HasSignature[cubeType]) continue;  // signed Continuation not yet supported
     describe(`round-trip Split()-Recombine() tests using ${CubeType[cubeType]} Cubes`, () => {
