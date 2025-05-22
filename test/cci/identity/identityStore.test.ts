@@ -122,7 +122,7 @@ describe('IdentityStore', () => {
       expect(identityStore.shuttingDown).toBe(false);
       expect(id.shuttingDown).toBe(false);
 
-      const masterKey2: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42);
+      const masterKey2: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 43);
       const id2: Identity = new Identity(cubeStore, masterKey2, idTestOptions);
       identityStore.addIdentity(id2);
       expect(identityStore.shuttingDown).toBe(false);

@@ -123,6 +123,8 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     // Normalise input, await dependency
     options = options? { ...options } : {};
     await sodium.ready;
+    // If no IdentityStore was supplied, create one
+    if (!options.identityStore) options.identityStore = new IdentityStore(retriever);
 
     // Did we get the master key supplied directly, or shall we reconstruct it
     // through an alternative method?
@@ -149,22 +151,18 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
       // TODO: add further recovery methods here as we implement them
     }
 
-    // Derive keys and fetch root cube
+    // Derive signing key pair
     const keyPair: KeyPair = deriveIdentityRootCubeKeypair(options.masterKey as Buffer, options);
-    const idMuc: cciCube = await retriever.getCube(
-      Buffer.from(keyPair.publicKey), options);
-    if (idMuc === undefined) {
-      logger.trace("Identity.Load(): Could not retrieve Identity root Cube");
-      return undefined;
-    }
-    if (!ensureCci(idMuc)) {
-      logger.error("Identity.Load(): Root Cube is not a CCI Cube, cannot be used as Identity root");
-      return undefined;
-    };
 
-    // Construct identity
-    const identity: Identity = new Identity(retriever, idMuc, options);
-    identity.supplyMasterKey(options.masterKey);
+    // Fetch Identity -- either from IdentityStore if already constructed, or
+    // reconstruct it from the network
+    const identity: Identity =
+      await options.identityStore.retrieveIdentity(keyPair.publicKey);
+
+    // If the Identity was found, supply the master key
+    identity?.supplyMasterKey?.(options.masterKey);
+
+    // Return the retrieved Identity, or undefined if not found
     return identity;
   }
 
@@ -386,10 +384,10 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
       this.cubeStore = cubeStoreOrRetriever?.cubeStore;
     }
     // Adopt or initialise Identity store.
-    // Not that we deliberately seed this into the user-supplied options object
+    // Note that we deliberately seed this into the user-supplied options object
     // to encourage IdentityStore sharing between Identities.
     if (options.identityStore === undefined) {
-      options.identityStore = new IdentityStore(this.cubeRetriever);
+      options.identityStore = new IdentityStore(this.veritumRetriever ?? this.cubeRetriever);
     }
     // Copy options and set defaults
     this.options = { ...options };
@@ -430,7 +428,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     // ensure we are present in the IdentityStore
     const added: boolean = options.identityStore.addIdentity(this);
     if (!added) {
-      logger.error(`Identity constructor ${this.keyString}: Conflicting Identity of same key already present in IdentityStore. This is most likely a bug in application code; please check your Identity management.`);
+      logger.warn(`Identity constructor ${this.keyString}: Conflicting Identity of same key already present in IdentityStore. This is most likely a bug in application code; please check your Identity management.`);
     }
   }
 
