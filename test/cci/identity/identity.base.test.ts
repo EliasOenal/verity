@@ -302,7 +302,7 @@ describe('Identity: base model tests', () => {
           id.muc,
           idTestOptions,
         );
-        await restored.ready;
+        await restored.fullyParsed;
 
         // verify information restored from MUC
         expect(restored.name).toBe("Probator Identitatum");

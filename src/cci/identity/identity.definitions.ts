@@ -27,12 +27,17 @@ export const DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX = 0;
 
 export interface IdentityOptions {
   /**
-   * If you this Identity stored locally on this node, please create an
-   * IdentityPersistence object and supply it here.
-   * This is only relevant to local Identities, i.e. Identities owned by
-   * this node's user.
+   * When used on direct Identity construction:
+   *   If you this Identity stored locally on this node, please create an
+   *   IdentityPersistence object and supply it here.
+   *   This is only relevant to local Identities, i.e. Identities owned by
+   *   this node's user.
+   * When used on initialising the whole framework:
+   *   Some components (e.g. the Web UI) will default to enabling persistence.
+   *   If you do not want this, set identityPersistence to false (not undefined).
    */
-  identityPersistence?: IdentityPersistence,
+  identityPersistence?: IdentityPersistence | false,
+
   minMucRebuildDelay?: number,
   requiredDifficulty?: number,
 

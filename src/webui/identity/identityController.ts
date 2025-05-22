@@ -20,7 +20,7 @@ export class IdentityController extends VerityController {
     this.showLoginStatus();
   }
 
-  get persistence(): IdentityPersistence { return this.options.identityPersistence }
+  get persistence(): IdentityPersistence { return this.options.identityPersistence || undefined }
 
   constructor(
     parent: ControllerContext,
@@ -89,7 +89,6 @@ export class IdentityController extends VerityController {
         this.veritumRetriever, username, password, this.options);
       identity.name = username;  // TODO separate username and display name
     }
-    identity.persistance.store(identity);  // don't use identity.store() to avoid MUC rebuild
     // @ts-ignore Typescript does not know the PasswordCredential DOM API
     // TODO: This just doesn't work in Chrome.
     // And Firefox is smart enough to offer autocomplete without it anyway.
@@ -104,10 +103,7 @@ export class IdentityController extends VerityController {
       });
       window?.navigator?.credentials?.store?.(passwordCredential);
     }
-    this._identity = identity;
-    this.showLoginStatus();
-    await this.parent.nav.identityChanged();
-    this.close();
+    return this.finaliseLogin(identity);
   }
 
 
@@ -137,12 +133,7 @@ export class IdentityController extends VerityController {
       });
       return;
     }
-
-    identity.persistance.store(identity);  // don't use identity.store() to avoid MUC rebuild
-    this._identity = identity;
-    this.showLoginStatus();
-    await this.parent.nav.identityChanged();
-    this.close();
+    return this.finaliseLogin(identity);
   }
 
   /**
@@ -214,5 +205,25 @@ export class IdentityController extends VerityController {
     // Identity controller must ignore its own identityChanged events
     // as it is the very instance causing them.
     return true;
+  }
+
+
+  private async finaliseLogin(identity: Identity): Promise<void> {
+    // If we're using Identity persistence, store the logged in Identity persistently.
+    // Don't use identity.store() to avoid recompiling it.
+    identity.persistance?.store?.(identity);
+
+    // Set this Identity as the currently logged in one
+    this._identity = identity;
+
+    // Update the view
+    this.showLoginStatus();
+
+    // Inform our controllers that the identity has changed
+    // (which will reload them unless they handle the event internally)
+    await this.parent.nav.identityChanged();
+
+    // Close the login form
+    this.close();
   }
 }
