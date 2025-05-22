@@ -64,10 +64,10 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
      *   If your field definition has holes in its positional field specification,
      *  dummy zero type, zero length fields will be created to fill them.
      */
-    static DefaultPositionals(
+    static DefaultPositionals<T extends BaseFields>(
             fieldDefinition: FieldDefinition,
-            data: BaseFields | BaseField[] | BaseField | undefined = undefined,
-    ): BaseFields {
+            data?: BaseFields | BaseField[] | BaseField,
+    ): T {
         // normalize input
         if (data instanceof BaseField) data = [data];
         if (data instanceof BaseFields) data = data.all;
@@ -95,7 +95,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
             fields.ensureFieldInBack(type, fieldDefinition);
         }
 
-        return fields;
+        return fields as T;
     }
 
     fieldDefinition: FieldDefinition = undefined;

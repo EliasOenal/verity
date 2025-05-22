@@ -62,13 +62,6 @@ export class CubeFields extends BaseFields {
     return this.DefaultPositionals(fieldDefinition, fieldsObj) as CubeFields;
   }
 
-  static DefaultPositionals(
-    fieldDefinition: FieldDefinition,
-    data: CubeFields | CubeField[] | CubeField | undefined = undefined,
-  ): CubeFields {
-    return super.DefaultPositionals(fieldDefinition, data) as CubeFields;
-  }
-
   static ContentBytesAvailable(
       cubeType: CubeType,
   ): number {
