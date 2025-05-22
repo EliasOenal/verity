@@ -368,7 +368,7 @@ let cubeStore: CubeStore;
       const recovered_muc: cciCube = await cubeStore.getCube(subject.key) as cciCube;
       expect(recovered_muc).toBeInstanceOf(cciCube);
 
-      // First subscription recommendation index saved in MUC?
+      // First subscription recommendation index referenced from the Identitiy root?
       const fields: VerityFields = recovered_muc.fields as VerityFields;
       expect(fields).toBeInstanceOf(VerityFields);
       const rel: Relationship = fields.getFirstRelationship(

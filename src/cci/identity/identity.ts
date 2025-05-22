@@ -16,10 +16,10 @@ import { CubeEmitter, CubeEmitterEvents, CubeRetrievalInterface, CubeStore } fro
 import { CubeInfo } from '../../core/cube/cubeInfo';
 import { CubeKey, CubeType } from '../../core/cube/cube.definitions';
 
-import { FieldType } from '../cube/cciCube.definitions';
+import { FieldLength, FieldType } from '../cube/cciCube.definitions';
 import { KeyMismatchError, KeyPair, deriveEncryptionKeypair, deriveSigningKeypair } from '../helpers/cryptography';
 import { VerityField } from '../cube/verityField';
-import { VerityFields, cciMucFieldDefinition } from '../cube/verityFields';
+import { VerityFields, cciMucFieldDefinition, cciPmucFieldDefinition, cciPmucParser } from '../cube/verityFields';
 import { Relationship, RelationshipType } from '../cube/relationship';
 import { cciCube, cciFamily } from '../cube/cciCube';
 import { ensureCci, extensionMuc } from '../cube/cciCubeUtil';
@@ -1039,45 +1039,40 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   //###
 
   private writeSubscriptionRecommendations(): void {
-    // TODO: properly calculate available space
-    // For now, let's just eyeball it:
-    // TODO UPDATE CALCULATION
-    // After mandatory boilerplate, there's 904 bytes left in a MUC.
-    // We use up 3 of those for APPLICATION (3), and let's calculate with
-    // 12 bytes subkey (10 byte = 80 bits subkey + 2 byte header).
-    // Also allow 102 bytes for three more index references.
-    // That gives us 787 bytes remaining.
-    // Each subscription recommendation is 34 byte long (1 byte RELATES_TO header,
-    // 1 byte relationship type, 32 bytes cube key).
-    // So we can safely fit 23 subscription recommendations per cube.
-    const relsPerCube = 23;
-
     // Prepare index field sets, one for each index cube.
     // The cubes themselves will be sculpted in the next step.
     const fieldSets: VerityFields[] = [];
-    let fields: VerityFields = new VerityFields([], cciMucFieldDefinition);
-    if (this.options.idmucApplicationString) {
-      fields.appendField(VerityField.Application(this.options.idmucApplicationString));
-    }
-    // TODO get rid of intermediate Array
+    let fields: VerityFields;  // will be lazily constructed within the loop
+
+    // In each cube, reserve space for a further index references
+    const reservedBytes =
+      FieldLength[FieldType.RELATES_TO]  // rel itself
+      + cciPmucParser.getFieldHeaderLength(FieldType.RELATES_TO);  // field header
+
+    // Not let's go ahead and build those field sets
+    // maybe TODO: get rid of intermediate Array
     const subs: string[] = Array.from(this._publicSubscriptions).reverse();
     for (let i=0; i<subs.length; i++) {
+      // first check if it's time to roll over to the field set for the next cube
+      if (fields === undefined ||  // initial construction
+          fields.bytesRemaining() - reservedBytes < FieldLength[FieldType.RELATES_TO]  // rollover
+      ) {
+        if (fields !== undefined) fieldSets.push(fields);
+        fields = VerityFields.DefaultPositionals(cciPmucFieldDefinition);
+        if (this.options.idmucApplicationString) {
+          fields.insertFieldAfterFrontPositionals(
+            VerityField.Application(this.options.idmucApplicationString));
+        }
+      }
+
       // write rel
-      fields.appendField(VerityField.RelatesTo(new Relationship(
+      fields.insertFieldBeforeBackPositionals(VerityField.RelatesTo(new Relationship(
         RelationshipType.SUBSCRIPTION_RECOMMENDATION,
         keyVariants(subs[i]).binaryKey
       )));
-
-      // time to roll over to the field set for the next cube?
-      if (i % relsPerCube == relsPerCube - 1 ||
-          i == this.getPublicSubscriptionCount() - 1) {
-        fieldSets.push(fields);
-        fields = new VerityFields([], cciMucFieldDefinition);
-        if (this.options.idmucApplicationString) {
-          fields.appendField(VerityField.Application(this.options.idmucApplicationString));
-        }
-      }
     }
+    if (fields !== undefined) fieldSets.push(fields);  // push last chunk, if any
+
     // Now sculpt the index cubes using the field sets generated before,
     // in reverse order so we can link them together
     for (let i=fieldSets.length - 1; i>=0; i--) {
@@ -1097,11 +1092,15 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         // unsubscribes one of the first ones, this would currently lead to a very
         // expensive reinsert of ALL extension MUCs. In this case, it would be much
         // cheaper to just keep an open slot on the first extension MUC.
+        // TODO BUGBUG: This will currently not delete an unnecessary index cube
+        //   if enough subs have been removed, effectively retaining the removed
+        //   subs. The same applies if the number of subs is reduced to zero.
         const indexCube: cciCube = extensionMuc(this.masterKey, {
           fields,
           subkeyIndex: i,
           contextString: "Subscription recommendation index",
           family: cciFamily,
+          cubeType: CubeType.PMUC,
           requiredDifficulty: this.options.requiredDifficulty,
         });
         this.subscriptionRecommendationIndices[i] = indexCube;
