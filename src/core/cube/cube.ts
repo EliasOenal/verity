@@ -284,8 +284,11 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
         // on signed types, ensure public key field is present
         if (HasSignature[options.cubeType]) {
             (options.fields as CubeFields).ensureFieldInBack(
-                CubeFieldType.PUBLIC_KEY, fieldDef.fieldObjectClass.PublicKey(
-                    options.publicKey));
+                CubeFieldType.PUBLIC_KEY, fieldDef.fieldObjectClass.PublicKey());
+            // set public key field content; this will enforce the
+            // options-supplied public key (even in case of conflicting field)
+            const pubkeyField = (options.fields as CubeFields).getFirst(CubeFieldType.PUBLIC_KEY);
+            pubkeyField.value = Buffer.from(options.publicKey);
         }
         // supply any default fields that might be missing
         options.fields = CubeFields.DefaultPositionals(
