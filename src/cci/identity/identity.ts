@@ -226,8 +226,12 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     options?: IdentityOptions
   ): Promise<Identity[]> {
     await sodium.ready;
+    if (options.identityPersistence === false) {
+      logger.info("Identity.Retrieve(): I was called even though identityPersistence is set to false (i.e. explicitly disabled). This makes no sense. I'll return an empty array.");
+      return [];
+    }
     const persistance: IdentityPersistence =
-      await IdentityPersistence.Construct(options);
+      options.identityPersistence || await IdentityPersistence.Construct(options);
     const ids: Array<Identity> = await persistance.retrieve(cubeStoreOrRetriever);
     return ids;
   }
@@ -280,7 +284,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    * If this Identity object knows an IdentityPersistant object
    * it can be stored in a local database. If it doesn't... then it can't.
    */
-  get persistance(): IdentityPersistence { return this.options.identityPersistence }
+  get persistance(): IdentityPersistence { return this.options.identityPersistence || undefined}
 
   /**
    * Identity requires CubeStore for loading and parsing Identity extension
