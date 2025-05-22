@@ -200,7 +200,7 @@ describe('cube', () => {
         expect(cube.privateKey).toEqual(Buffer.from(commonKeyPair.privateKey));
     });
 
-    it('should normalize publicKey and privateKey to Buffer if they are not already Buffers', () => {
+    it('should adopt options-supplied publicKey and privateKey and normalise them to Buffer if necessary', () => {
         const type = CubeType.MUC;
         const cube = Cube.Create({
           cubeType: type,
@@ -212,7 +212,28 @@ describe('cube', () => {
         expect(cube).toBeInstanceOf(Cube);
         expect(Buffer.isBuffer(cube.publicKey)).toBe(true);
         expect(Buffer.isBuffer(cube.privateKey)).toBe(true);
+        expect(cube.publicKey.equals(commonPublicKey)).toBe(true);
+        expect(cube.privateKey.equals(commonPrivateKey)).toBe(true);
     });
+
+    it('should prefer an options-supplied public key over an existing PUBLIC_KEY field', () => {
+        const type = CubeType.PMUC;
+        const cube = Cube.Create({
+          cubeType: type,
+          publicKey: commonPublicKey,
+          privateKey: commonPrivateKey,
+          // supply bogus public key field
+          fields: CubeField.PublicKey(Buffer.alloc(NetConstants.PUBLIC_KEY_SIZE, 42)),
+          requiredDifficulty: requiredDifficulty,
+        });
+
+        expect(cube).toBeInstanceOf(Cube);
+        expect(Buffer.isBuffer(cube.publicKey)).toBe(true);
+        expect(Buffer.isBuffer(cube.privateKey)).toBe(true);
+        expect(cube.publicKey.equals(commonPublicKey)).toBe(true);
+        expect(cube.privateKey.equals(commonPrivateKey)).toBe(true);
+    });
+
 
     it('should auto-correct CubeType to a notify-type if a NOTIFY field is present', () => {
         const cubeType = CubeType.FROZEN;
@@ -240,8 +261,7 @@ describe('cube', () => {
           { cubeType, publicKey, privateKey: commonPrivateKey })).
           toThrow(ApiMisuseError);
     });
-  });  // static methods
-
+  });  // static Create
 
   describe('compile()', () => {
     it('should compile fields correctly even after manipulating them', async () => {
@@ -422,7 +442,7 @@ describe('cube', () => {
             requiredDifficulty: requiredDifficulty,
           });
           // if this is a signed Cube type, supply the private key
-          if (HasSignature[type]) cube.privateKey = privateKey;
+          if (HasSignature[type]) cube.privateKey = privateKey!;
           // compile Cube
           const binaryData = await cube.getBinaryData();
           // verify hash calculation is correct (has is always calculated from
@@ -432,15 +452,15 @@ describe('cube', () => {
           // verify key calculation is correct
           const key = await cube.getKey();
           // for signed Cubes, the key is the public key
-          if (HasSignature[type]) expect(key).toEqual(publicKey);
+          if (HasSignature[type]) expect(key).toEqual(publicKey!);
           else if (type === CubeType.FROZEN || type === CubeType.FROZEN_NOTIFY) {
             // for frozen Cubes, the key is the full hash
             expect(key).toEqual(expectedHash);
           } else if (type === CubeType.PIC || type === CubeType.PIC_NOTIFY) {
             // for PICs, the key is the hash excluding the DATE and NONCE fields
             const keyHashLength =
-              CubeFieldLength[CubeFieldType.TYPE] +
-              CubeFieldLength[CubeFieldType.PIC_RAWCONTENT];  // equal to the lengths of PIC_NOTIFY_RAWCONTENT plus NOTIFY
+              CubeFieldLength[CubeFieldType.TYPE]! +
+              CubeFieldLength[CubeFieldType.PIC_RAWCONTENT]!;  // equal to the lengths of PIC_NOTIFY_RAWCONTENT plus NOTIFY
             const keyHashableBinaryData = binaryData.subarray(0, keyHashLength);
             const expectedKey = Buffer.from(sha3_256.arrayBuffer(keyHashableBinaryData));
             expect(key).toEqual(expectedKey);
@@ -449,9 +469,9 @@ describe('cube', () => {
           // decompile the Cube and check if the content is still the same
           const recontructed: Cube = new Cube(binaryData);
           expect(recontructed.cubeType).toBe(type);
-          expect(recontructed.getFirstField(RawcontentFieldType[type]).value).
+          expect(recontructed.getFirstField(RawcontentFieldType[type]!).value).
             toEqual(paddedBuffer(
-              contentString, CubeFieldLength[RawcontentFieldType[type]]));
+              contentString, CubeFieldLength[RawcontentFieldType[type]!]!));
           if (HasNotify[type]) {
             expect(recontructed.getFirstField(CubeFieldType.NOTIFY).value[0]).toEqual(randomNotifyNumer);
           }
@@ -484,7 +504,7 @@ describe('cube', () => {
             const binaryData = cube.getBinaryDataIfAvailable();
             expect(binaryData.length).toBe(NetConstants.CUBE_SIZE);
             const keyHashLength: number = NetConstants.CUBE_SIZE -
-              CubeFieldLength[CubeFieldType.DATE] - CubeFieldLength[CubeFieldType.NONCE];
+              CubeFieldLength[CubeFieldType.DATE]! - CubeFieldLength[CubeFieldType.NONCE]!;
             const keyHashableBinaryData = binaryData.subarray(0, keyHashLength);
             const expectedKey = Buffer.from(sha3_256.arrayBuffer(keyHashableBinaryData));
             expect(key).toEqual(expectedKey);
@@ -605,7 +625,7 @@ describe('cube', () => {
           publicKey)).toBeTruthy();
         expect(binaryData.subarray(
           pubkeyField.start,
-          pubkeyField.start + CubeFieldLength[CubeFieldType.PUBLIC_KEY]).
+          pubkeyField.start + CubeFieldLength[CubeFieldType.PUBLIC_KEY]!).
           equals(publicKey)).toBeTruthy();
 
         // verify signature is correct, manually...
