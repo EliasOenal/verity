@@ -185,11 +185,25 @@ export class IdentityController extends VerityController {
   //***
   // Business logic invocation methods
   //***
+
+  /**
+   * Log in to the (first) locally stored Identity.
+   */
   async loadLocal(): Promise<boolean> {
+    // This does obviously not work if we are not using Identity persistence
+    if (this.options.identityPersistence === false) return false;
+
+    // Fetch the locally stored Identity/Identities;
+    // if there are multiple, select the first one (our UI does not yet
+    // support managing multiple stored Identities).
     const idlist: Identity[] = await Identity.Retrieve(this.veritumRetriever, this.options);
     let identity: Identity = undefined;
     if (idlist?.length) identity = idlist[0];
+
+    // Update the view
     this.showLoginStatus();
+
+    // If we found a locally stored Identity, set it as the currently logged in one
     if (identity) {
       this.identity = identity;
       return true;

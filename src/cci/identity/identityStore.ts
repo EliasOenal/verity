@@ -27,7 +27,7 @@ export class IdentityStore implements Shuttable {
       this.identityMap.set(id.keyString, id);
       return true;
     } else {
-      logger.error(`IdentityStore: Cannot add ID ${id.keyString} as I already have it (identical: ${this.identityMap.get(id.keyString) === id})`);
+      logger.debug(`IdentityStore: Cannot add ID ${id.keyString} as I already have it (identical: ${this.identityMap.get(id.keyString) === id})`);
       return false;
     }
   }
