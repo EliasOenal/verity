@@ -181,6 +181,19 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   }
 
   /**
+   * @static Creates a new passwordless Identity at random
+   * !!! May only be called after awaiting sodium.ready !!!
+   **/
+  static New(
+      cubeStoreOrRetriever: CubeRetrievalInterface,
+      options: IdentityOptions,
+  ): Identity {
+    const masterKey: Buffer = Buffer.from(
+      sodium.randombytes_buf(sodium.crypto_kdf_KEYBYTES));
+    return new Identity(cubeStoreOrRetriever, masterKey, options);
+  }
+
+  /**
    * @deprecated Identity.ready should not be awaited in production code, TODO refine API
    * @static Convenient await-able wrapper around the constructor.
    * Depending on whether you provide a key pair or an existing Identity MUC,
@@ -215,6 +228,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   ): Promise<Identity> {
     await sodium.ready;
     const id = new Identity(cubeStoreOrRetriever, mucOrMasterkey, options);
+    // TODO: Production code should never await fullyParsed; return id instead.
     return id.fullyParsed;
   }
 

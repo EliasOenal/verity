@@ -237,7 +237,7 @@ export class NavigationController extends VerityController implements NavControl
    * and restart them if they do not implement a handler for this event.
    */
   identityChanged(): Promise<boolean> {
-    let currentControllerPromise: Promise<any>;
+    let currentControllerPromise: Promise<any> = Promise.resolve();
     const alreadyRestarted: VerityController[] = [];
     for (let i=0; i<this.controllerStack.length; i++) {
       const layer: ControllerStackLayer = this.controllerStack[i];
@@ -258,7 +258,7 @@ export class NavigationController extends VerityController implements NavControl
     }
     // reshow the current controller once it has been updated
     currentControllerPromise.then(
-      () => this.currentController.contentAreaView?.show());
+      () => this.currentController?.contentAreaView?.show?.());
     // let's just wait for the topmost controller to be done
     return new Promise<boolean>(resolve =>
       currentControllerPromise.then(() => resolve(true)));

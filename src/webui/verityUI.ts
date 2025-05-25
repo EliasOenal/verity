@@ -60,14 +60,14 @@ export class VerityUI implements ControllerContext {
    * Always create your VerityUI this way or it won't have an Identity 🤷
    */
   static async Construct(options: VerityOptions): Promise<VerityUI> {
-    logger.info('Starting web node');
-
     // set default options
     options.startupAnimation ??= true;
 
     // Initiate startup animation (unless disabled)
     const vera = new VeraAnimationController();
     if (options.startupAnimation) vera.start();
+
+    logger.info('Starting web node');
 
     await sodium.ready;
 
@@ -101,24 +101,20 @@ export class VerityUI implements ControllerContext {
       ui.nav.makeNavItem(navItem);
     }
 
-    // Prepare user Identity
-    const identityPromise: Promise<any> = ui.identityController.loadLocal();
-
     // Now prepare the initial view.
     // If supplied (which the app really should do), perform an initial nav
     // action. Otherwise, the content area will just stay blank.
     let initialViewPromise: Promise<void>;
     if (ui.options.initialNav) {
-      initialViewPromise = new Promise(resolve =>
-        identityPromise.then(() =>
-          ui.nav.show(ui.options.initialNav, false).then(resolve)));
+      initialViewPromise = ui.identityController.ready.then(() =>
+          ui.nav.show(ui.options.initialNav, false));
     } else {
       // no view specified, so nothing to prepare, so just make a resolved promise
       initialViewPromise = new Promise<void>(resolve => resolve());
     }
 
     // Wait till everything is ready to draw the UI
-    await Promise.all([identityPromise, initialViewPromise]);
+    await Promise.all([ui.identityController.ready, initialViewPromise]);
 
     // All done, now update the DOM and stop the startup animation
     ui.nav.navigationView.show();  // display navbar items

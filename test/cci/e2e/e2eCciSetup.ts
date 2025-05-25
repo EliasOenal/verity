@@ -1,21 +1,10 @@
 import { Cockpit } from "../../../src/cci/cockpit";
-import { cciFamily } from "../../../src/cci/cube/cciCube";
 import { Identity } from "../../../src/cci/identity/identity";
-import { coreCubeFamily } from "../../../src/core/cube/cube";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { CoreNode } from "../../../src/core/coreNode";
 import { LineShapedNetwork } from "../../core/e2e/e2eSetup";
-import { testCoreOptions } from "../../core/testcore.definition";
-import { VerityNodeOptions } from "../../../src/cci/verityNode";
-import { IdentityOptions } from "../../../src/cci/identity/identity.definitions";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-
-export const cciTestOptions: VerityNodeOptions | IdentityOptions = {
-  ...testCoreOptions,
-  family: [cciFamily, coreCubeFamily],
-  identityPersistence: false,
-}
 
 export class cciLineShapedNetwork {
   constructor(

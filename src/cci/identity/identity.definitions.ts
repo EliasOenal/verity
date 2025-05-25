@@ -27,14 +27,16 @@ export const DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX = 0;
 
 export interface IdentityOptions {
   /**
-   * When used on direct Identity construction:
-   *   If you this Identity stored locally on this node, please create an
-   *   IdentityPersistence object and supply it here.
-   *   This is only relevant to local Identities, i.e. Identities owned by
-   *   this node's user.
-   * When used on initialising the whole framework:
-   *   Some components (e.g. the Web UI) will default to enabling persistence.
-   *   If you do not want this, set identityPersistence to false (not undefined).
+   * Local Identities (i.e. one owned by the user running this node, for
+   * which we have the private key) can be stored in local persistant storage
+   * through an IdentityPersistence object. There should only be a single
+   * IdentityPersistence object per node.
+   * If you want persistent Identities, you may supply your IdentityPersistence
+   * object here. Otherwise, set this option to false.
+   * @default - Behaviour on undefined depends on the component evaluating this option:
+   *   - Identity objects themselves will default to no persistence.
+   *   - Framework components like Identity.Load() or the Verity WebUI framework
+   *     will default to enabling persistence.
    */
   identityPersistence?: IdentityPersistence | false,
 
@@ -89,6 +91,13 @@ export interface IdentityOptions {
    **/
   subscribeRemoteChanges?: boolean;
 
+  /**
+   * To avoid having multiple Identity objects representing the same Identity
+   * (and the associated overhead as well as increased complexity), all local
+   * Identity object should share the same IdentityStore.
+   * If none is provided, an new one will be constructed when constructing an
+   * Identity object.
+   */
   identityStore?: IdentityStore;
 }
 

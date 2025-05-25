@@ -45,7 +45,7 @@ export class VerityView {
 
   constructor(
     readonly controller: VerityController,
-    readonly htmlTemplate: HTMLTemplateElement,
+    readonly htmlTemplate?: HTMLTemplateElement,
     readonly viewArea: HTMLElement = document.getElementById("verityContentArea")
   ) {
     if (htmlTemplate) this.renderedView =
