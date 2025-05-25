@@ -151,7 +151,8 @@ export class IdentityController extends VerityController {
       });
       window?.navigator?.credentials?.store?.(passwordCredential);
     }
-    return this.finaliseLogin(identity);
+    await this.finaliseLogin(identity);
+    this.close();
   }
 
 
@@ -181,7 +182,8 @@ export class IdentityController extends VerityController {
       });
       return;
     }
-    return this.finaliseLogin(identity);
+    await this.finaliseLogin(identity);
+    this.close();
   }
 
   /**
@@ -216,7 +218,6 @@ export class IdentityController extends VerityController {
     }
     this._identity.store();
     this.showLoginStatus();
-    this.close();
   }
 
   /**
@@ -313,8 +314,5 @@ export class IdentityController extends VerityController {
     // Inform our controllers that the identity has changed
     // (which will reload them unless they handle the event internally)
     await this.parent.nav.identityChanged();
-
-    // Close the login form
-    this.close();
   }
 }
