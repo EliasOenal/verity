@@ -35,7 +35,7 @@ export interface ControllerContext {
 /** Dummy for testing only */
 export class DummyControllerContext implements ControllerContext {
   constructor(
-    public readonly node: VerityNodeIf = dummyVerityNode(),
+    node: VerityNodeIf = dummyVerityNode(),
     public readonly nav: NavControllerIf = new DummyNavController(),
     public readonly cockpit: Cockpit = new Cockpit(node),
   ) {}
@@ -68,10 +68,8 @@ export class VerityController implements ControllerContext {
   ){
     // If specified, set or instantiate the contentAreaView.
     if (options.contentAreaView) {
-      if (options.contentAreaView instanceof VerityView) {
-        this.contentAreaView = options.contentAreaView;
-      } else this.contentAreaView = new options.contentAreaView(
-          this, options.htmlTemplateOverride);
+      this.contentAreaView = this.constructViewIfRequired(
+        options.contentAreaView, this.options);
     }
   }
 
@@ -122,6 +120,20 @@ export class VerityController implements ControllerContext {
   async identityChanged(): Promise<boolean> {
     return false;
   }
+
+
+  protected constructViewIfRequired<T extends VerityView>(
+    view: VerityView | typeof VerityView | false,
+    options: VerityControllerOptions = this.options,
+  ): T {
+    // If there's already a view object, just return it.
+    if (view instanceof VerityView) return view as T;
+    // If the view is undefined, return undefined.
+    else if (view === undefined || view === null || view === false) return undefined;
+    // If the view is a constructor, instantiate it.
+    else return new view(this, options.htmlTemplateOverride) as T;
+  }
+
 }
 
 export class ControllerError extends UiError { name = "ControllerError" }

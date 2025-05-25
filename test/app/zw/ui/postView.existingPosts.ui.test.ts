@@ -10,7 +10,7 @@ import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
 import { Identity } from '../../../../src/cci/identity/identity';
 
 import { Buffer } from 'buffer';
-import { cciTestOptions } from '../../../cci/e2e/e2eCciSetup';
+import { testCciOptions } from '../../../cci/e2e/e2eCciSetup';
 import { loadZwTemplate } from './zwUiTestSetup';
 import { CubeKey } from '../../../../src/core/cube/cube.definitions';
 import { keyVariants } from '../../../../src/core/cube/cubeUtil';
@@ -18,7 +18,7 @@ import { VerityNodeIf, dummyVerityNode } from '../../../../src/cci/verityNode';
 import { Cockpit, dummyCockpit } from '../../../../src/cci/cockpit';
 
 const testOptions: CoreNodeOptions = {
-  ...cciTestOptions,
+  ...testCciOptions,
   requestTimeout: 100,
 }
 

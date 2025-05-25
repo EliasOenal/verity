@@ -1,29 +1,20 @@
 // @vitest-environment jsdom
 
-import { CoreNodeOptions } from '../../../../src/core/coreNode';
-import { DummyNavController } from '../../../../src/webui/navigation/navigationDefinitions';
-import { Veritable } from '../../../../src/core/cube/veritable.definition';
-import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
-import { Identity } from '../../../../src/cci/identity/identity';
+import { VerityError } from '../../../../src/core/settings';
+import { DummyNetworkManager } from '../../../../src/core/networking/testingDummies/dummyNetworkManager';
+import { PeerDB } from '../../../../src/core/peering/peerDB';
+import { CubeStore } from '../../../../src/core/cube/cubeStore';
 
-import { cciTestOptions } from '../../../cci/e2e/e2eCciSetup';
-import { CubeKey } from '../../../../src/core/cube/cube.definitions';
-import { keyVariants } from '../../../../src/core/cube/cubeUtil';
-import { VerityNodeIf, dummyVerityNode } from '../../../../src/cci/verityNode';
-import { Cockpit, dummyCockpit } from '../../../../src/cci/cockpit';
+import { testCciOptions } from "../../../cci/testcci.definitions";
+import { loadVerityBaseTemplate } from '../uiTestSetup';
 
 import { VerityOptions, VerityUI } from '../../../../src/webui/verityUI';
 
 import { Buffer } from 'buffer';
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { DummyNetworkManager } from '../../../../src/core/networking/testingDummies/dummyNetworkManager';
-import { PeerDB } from '../../../../src/core/peering/peerDB';
-import { CubeStore } from '../../../../src/core/cube/cubeStore';
-import { loadVerityBaseTemplate } from '../uiTestSetup';
-import { VerityError } from '../../../../src/core/settings';
 
 const testOptions: VerityOptions = {
-  ...cciTestOptions,
+  ...testCciOptions,
   requestTimeout: 100,
   startupAnimation: false,  // uses features not present in JSDOM
 }

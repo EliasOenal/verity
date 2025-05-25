@@ -1,8 +1,10 @@
+import type { IdentityOptions } from "../../src/cci/identity/identity.definitions";
+
 import { cciFamily } from "../../src/cci/cube/cciCube";
-import { IdentityOptions } from "../../src/cci/identity/identity";
 import { CubeStoreOptions } from "../../src/core/cube/cubeStore";
 import { testCoreOptions } from "../core/testcore.definition";
 import { VerityNodeOptions } from "../../src/cci/verityNode";
+import { coreCubeFamily } from "../../src/core/cube/cube";
 
 export const testCubeStoreParams: CubeStoreOptions = {
   inMemory: true,
@@ -26,10 +28,12 @@ export const idTestOptions: IdentityOptions = {
   argonMemoryHardness: 8192, // == sodium.crypto_pwhash_MEMLIMIT_MIN (sodium not ready)
 };
 
-export const testCciOptions: VerityNodeOptions = {
+export const testCciOptions: VerityNodeOptions | IdentityOptions = {
   ...testCoreOptions,
   ...testCubeStoreParams,
   ...idTestOptions,
+  family: [cciFamily, coreCubeFamily],
+  identityPersistence: false,
 };
 
 // long test strings

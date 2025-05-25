@@ -1,16 +1,44 @@
 import { IdentityOptions } from "../../cci/identity/identity.definitions";
 import { Identity } from "../../cci/identity/identity";
 import { IdentityPersistence, IdentityPersistenceOptions } from "../../cci/identity/identityPersistence";
+import { Avatar, AvatarScheme } from "../../cci/identity/avatar";
+import { IdentityStore } from "../../cci/identity/identityStore";
 
+import * as WebuiSettings from "../webuiSettings";
+import { VerityView } from "../verityView";
 import { EditIdentityView } from "./editIdentityView";
 import { LoginFormView } from "./loginFormView";
 import { LoginStatusView } from "./loginStatusView";
 import { ControllerContext, VerityController, VerityControllerOptions } from "../verityController";
 
-import { Avatar, AvatarScheme } from "../../cci/identity/avatar";
+
+import sodium from 'libsodium-wrappers-sumo';
+
+export interface IdentityControllerOptions
+    extends IdentityOptions, IdentityPersistenceOptions, VerityControllerOptions
+{
+  /**
+   * If enabled, a new passwordless account will be created automatically
+   * on launch (unless an existing locally persistent Identity was loaded).
+   */
+  autoCreateIdentity?: boolean;
+
+  /**
+   * The display name to use when auto-creating a new account.
+   * @default - New User
+   */
+  autoCreateIdentityName?: string;
+
+  /**
+   * This options allows to override the default login status view.
+   * Used mainly for testing. You probably won't want to use this.
+   **/
+  loginStatusView?: VerityView | typeof VerityView | false;
+}
+
 
 export class IdentityController extends VerityController {
-  declare options: IdentityOptions&IdentityPersistenceOptions&VerityControllerOptions;
+  declare options: IdentityControllerOptions;
   loginStatusView: LoginStatusView;
 
   private _identity: Identity = undefined;
@@ -20,17 +48,37 @@ export class IdentityController extends VerityController {
     this.showLoginStatus();
   }
 
+  /**
+   * A promise that resolves when the IdentityController is fully ready.
+   * This is only relevant in case of an automatic log in, in which case this
+   * promise will resolve when the login has been processed.
+   * (Note: Having processed the log in does does not
+   * indicate that the Identity has been fully parsed, as there is never any
+   * guarantee on how long fully parsing an Identity will take or if it will
+   * even succeed at all.
+   * The logged in Identity can still be used regardless and additional content
+   * [posts, subscriptions, etc.] will be loaded in the background.)
+   */
+  ready: Promise<void>;
+
   get persistence(): IdentityPersistence { return this.options.identityPersistence || undefined }
 
   constructor(
     parent: ControllerContext,
-    options: IdentityOptions&IdentityPersistenceOptions&VerityControllerOptions = {},
+    options: IdentityControllerOptions = {},
   ){
+    // set default options
+    options.loginStatusView ??= LoginStatusView;
+
     super(parent, options);
-    if (options.identityPersistence === undefined) {
-      options.identityPersistence = new IdentityPersistence(options);
-    }
-    this.loginStatusView = new LoginStatusView(this);
+
+    // Initialise Identity (depending on local options and circumstances, this
+    // can mean logging into an existing one, creating a new one,
+    // or doing nothing at all).
+    this.ready = this.initialiseIdentity();
+
+    // Create and render the login status view
+    this.loginStatusView = this.constructViewIfRequired(options.loginStatusView, {});
     this.showLoginStatus();
   }
 
@@ -53,8 +101,8 @@ export class IdentityController extends VerityController {
   //***
 
   showLoginStatus() {
-    if (this._identity) this.loginStatusView.renderLoggedIn(this._identity);
-    else this.loginStatusView.renderLoggedOut();
+    if (this._identity) this.loginStatusView?.renderLoggedIn?.(this._identity);
+    else this.loginStatusView?.renderLoggedOut?.();
   }
 
 
@@ -68,7 +116,7 @@ export class IdentityController extends VerityController {
    * Submit method.
    */
   async performPasswordLogin(form: HTMLFormElement) {
-    this.contentAreaView.clearAlerts();
+    this.contentAreaView?.clearAlerts?.();
 
     const username: string =
       (form.querySelector(".verityLoginUsernameInput") as HTMLInputElement).value;
@@ -92,7 +140,7 @@ export class IdentityController extends VerityController {
     // @ts-ignore Typescript does not know the PasswordCredential DOM API
     // TODO: This just doesn't work in Chrome.
     // And Firefox is smart enough to offer autocomplete without it anyway.
-    if (window.PasswordCredential) {
+    if (globalThis.PasswordCredential) {
     // @ts-ignore Typescript does not know the PasswordCredential DOM API
       const passwordCredential = new PasswordCredential({
         // iconURL: "vera.svg",  -- need full URL
@@ -113,7 +161,7 @@ export class IdentityController extends VerityController {
    * Submit method.
    */
   async performBip39Login(form: HTMLFormElement) {
-    this.contentAreaView.clearAlerts();
+    this.contentAreaView?.clearAlerts?.();
 
     const recoveryPhrase: string =
       (form.querySelector(".verityLoginBip39Input") as HTMLInputElement).value;
@@ -126,7 +174,7 @@ export class IdentityController extends VerityController {
       timeout: 1000,
     });
     if (identity === undefined) {
-      this.contentAreaView.makeAlert(
+      this.contentAreaView?.makeAlert?.(
         "Could not find an Identity for this recovery phrase.", {
           container: ".verityLoginFormBip39ErrorMessage",
           type: "danger",
@@ -183,35 +231,6 @@ export class IdentityController extends VerityController {
 
 
   //***
-  // Business logic invocation methods
-  //***
-
-  /**
-   * Log in to the (first) locally stored Identity.
-   */
-  async loadLocal(): Promise<boolean> {
-    // This does obviously not work if we are not using Identity persistence
-    if (this.options.identityPersistence === false) return false;
-
-    // Fetch the locally stored Identity/Identities;
-    // if there are multiple, select the first one (our UI does not yet
-    // support managing multiple stored Identities).
-    const idlist: Identity[] = await Identity.Retrieve(this.veritumRetriever, this.options);
-    let identity: Identity = undefined;
-    if (idlist?.length) identity = idlist[0];
-
-    // Update the view
-    this.showLoginStatus();
-
-    // If we found a locally stored Identity, set it as the currently logged in one
-    if (identity) {
-      this.identity = identity;
-      return true;
-    } else return false;
-  }
-
-
-  //***
   // Framework event handling
   //***
 
@@ -222,10 +241,63 @@ export class IdentityController extends VerityController {
   }
 
 
-  private async finaliseLogin(identity: Identity): Promise<void> {
+  //***
+  // PRIVATE Business logic invocation methods
+  //***
+
+  private async initialiseIdentity(): Promise<void> {
+    await sodium.ready;
+
+    // Set default options
+    this.options.autoCreateIdentity ??= WebuiSettings.AUTO_CREATE_IDENTITY;
+    this.options.autoCreateIdentityName ??= WebuiSettings.AUTO_CREATE_IDENTITY_NAME;
+
+    // Create an IdentityStore unless we already have on
+    this.options.identityStore ??= new IdentityStore(this.node.veritumRetriever);
+
+    // Default to using persistent local Identities (unless disabled in settings)
+    if (this.options.identityPersistence === undefined && WebuiSettings.USE_IDENTITY_PERSISTENCE) {
+      this.options.identityPersistence = await IdentityPersistence.Construct(this.options);
+    }
+
+    let identity: Identity;
+
+    // If feature enabled, load any existing locally persistent Identity
+    if (identity === undefined && this.options.identityPersistence) {
+      identity = await this.loadLocal();
+    }
+    // If feature enabled and there is no logged in Identity yet,
+    // create a new one (based on a new random master key).
+    if (identity === undefined && this.options.autoCreateIdentity) {
+      identity = Identity.New(this.node.veritumRetriever, this.options);
+      identity.name = this.options.autoCreateIdentityName;
+    }
+
+    this.finaliseLogin(identity);
+  }
+
+
+  /**
+   * Log in to the (first) locally stored Identity.
+   */
+  private async loadLocal(): Promise<Identity> {
+    // This does obviously not work if we are not using Identity persistence
+    if (this.options.identityPersistence === false) return undefined;
+
+    // Fetch the locally stored Identity/Identities;
+    // if there are multiple, select the first one (our UI does not yet
+    // support managing multiple stored Identities).
+    const idlist: Identity[] = await Identity.Retrieve(
+      this.node.veritumRetriever, this.options);
+    let identity: Identity = undefined;
+    if (idlist?.length) identity = idlist[0];
+    return this.identity;
+  }
+
+  private async finaliseLogin(identity?: Identity): Promise<void> {
     // If we're using Identity persistence, store the logged in Identity persistently.
     // Don't use identity.store() to avoid recompiling it.
-    identity.persistance?.store?.(identity);
+    identity?.persistance?.store?.(identity);
 
     // Set this Identity as the currently logged in one
     this._identity = identity;

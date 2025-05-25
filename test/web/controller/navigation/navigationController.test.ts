@@ -9,7 +9,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 class DummyVerityController extends VerityController {
   constructor(parent: DummyControllerContext, options?: VerityControllerOptions) {
     super(parent);
-    this.contentAreaView = new VerityView(this, undefined, null);
+    this.contentAreaView = new VerityView(this, undefined, null! /* null (in contrast to undefined) prevents defaults */);
   }
   navActionCalled: boolean = false;
   public async navAction(): Promise<void> {
@@ -92,7 +92,7 @@ describe('NavigationController', () => {
       }
       // expect all nav IDs to be unique by converting them to a set and
       // checking the size
-      const navIds: string[] = navs.map(nav => nav.navId);
+      const navIds: string[] = navs.map(nav => nav.navId!);
       const uniqueNavIds = new Set(navIds);
       expect(uniqueNavIds.size).toBe(100);
     });
