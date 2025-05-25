@@ -291,19 +291,24 @@ export class IdentityController extends VerityController {
       this.node.veritumRetriever, this.options);
     let identity: Identity = undefined;
     if (idlist?.length) identity = idlist[0];
-    return this.identity;
+    return identity;
   }
 
   private async finaliseLogin(identity?: Identity): Promise<void> {
-    // If we're using Identity persistence, store the logged in Identity persistently.
-    // Don't use identity.store() to avoid recompiling it.
-    identity?.persistance?.store?.(identity);
-
     // Set this Identity as the currently logged in one
     this._identity = identity;
 
     // Update the view
     this.showLoginStatus();
+
+    if (identity !== undefined) {
+      // If we're using Identity persistence:
+      // - make sure the Identity object knows about it
+      identity.options.identityPersistence = this.options.identityPersistence;
+      // - store the logged in Identity persistently;
+      //   don't use identity.store() to avoid recompiling it.
+      identity.persistance?.store?.(identity);
+    }
 
     // Inform our controllers that the identity has changed
     // (which will reload them unless they handle the event internally)
