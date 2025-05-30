@@ -64,10 +64,11 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
      *   If your field definition has holes in its positional field specification,
      *  dummy zero type, zero length fields will be created to fill them.
      */
-    static DefaultPositionals<T extends BaseFields>(
+    static DefaultPositionals<T extends typeof BaseFields>(
+            this: T,
             fieldDefinition: FieldDefinition,
             data?: BaseFields | BaseField[] | BaseField,
-    ): T {
+    ): InstanceType<T> {
         // normalize input
         if (data instanceof BaseField) data = [data];
         if (data instanceof BaseFields) data = data.all;
@@ -95,7 +96,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
             fields.ensureFieldInBack(type, fieldDefinition);
         }
 
-        return fields as T;
+        return fields as InstanceType<T>;
     }
 
     fieldDefinition: FieldDefinition = undefined;
@@ -443,7 +444,7 @@ export class BaseFields {  // cannot make abstract, FieldParser creates temporar
      *   as well as the remainder field.
      *   (Note that the stop field itself however is not a disregarded field.)
      *   For example:
-     *     - In the core family, there are no disregarded fields.
+     *     - In the core Cube family, there are no disregarded fields.
      *       The returned field set will be identical to this one.
      *     - In the CCI family, all non-positional fields after CCI_END will be
      *       disregarded, as will be REMAINDER.
