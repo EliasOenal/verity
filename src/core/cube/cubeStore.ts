@@ -1,21 +1,24 @@
 // cubeStore.ts
 import { ApiMisuseError, Settings } from "../settings";
-import { Cube, coreCubeFamily } from "./cube";
-import { CubeInfo } from "./cubeInfo";
-import { LevelBackend, LevelBackendOptions, Sublevels } from "./levelBackend";
+
+import { Shuttable } from "../helpers/coreInterfaces";
+import { Veritable } from "./veritable.definition";
+
 import { CubeType, CubeKey, CubeFieldType, HasNotify } from "./cube.definitions";
+import { Cube, coreCubeFamily } from "./cube";
 import { CubeFamilyDefinition } from "./cubeFields";
+import { CubeInfo } from "./cubeInfo";
 import { cubeContest, shouldRetainCube, getCurrentEpoch, keyVariants, activateCube } from "./cubeUtil";
+import { LevelBackend, Sublevels } from "./levelBackend";
+import { autoIncrementPmuc } from "./cubeStoreUtil";
+
+import { NetConstants } from "../networking/networkDefinitions";
 import { TreeOfWisdom } from "../tow";
 import { logger } from "../logger";
 
 import { EventEmitter } from "events";
 import { WeakValueMap } from "weakref";
 import { Buffer } from "buffer";
-import { NetConstants } from "../networking/networkDefinitions";
-import { Shuttable } from "../helpers/coreInterfaces";
-import { Veritable } from "./veritable.definition";
-import { autoIncrementPmuc } from "./cubeStoreUtil";
 
 // TODO: we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes
@@ -287,10 +290,10 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
       const storedCube: CubeInfo = await this.getCubeInfo(cubeInfo.key, true);
       if (storedCube !== undefined) {
         if (cubeContest(storedCube, cubeInfo) === storedCube) {
-          logger.trace(`CubeStorage: Keeping stored ${CubeType[storedCube.cubeType]} over incoming one`);
+          logger.trace(`CubeStore.addCube(): Keeping stored ${CubeType[storedCube.cubeType]} ${cubeInfo.keyString} over incoming one`);
           return storedCube.getCube(); // TODO: it's completely unnecessary to instantiate the potentially dormant Cube here -- maybe change the addCube() signature once again and not return a Cube object after all?
         } else {
-          logger.trace("CubeStorage: Replacing stored MUC with incoming MUC");
+          logger.trace(`CubeStore.addCube(): Replacing stored ${CubeType[storedCube.cubeType]} ${cubeInfo.keyString} with incoming one`);
         }
       }
 

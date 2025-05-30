@@ -454,7 +454,36 @@ describe('cubeStore', () => {
                 expect(restored.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
                   .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1);
               });
-            });
+
+              it('should start the count at 1 if the previous version does not have a counter', async () => {
+                // The previous version in this case is a plain MUC;
+                // thus it does not have a PMUC_UPDATE_COUNT field.
+                const previous = Cube.Create({
+                  cubeType: CubeType.MUC,
+                  fields: CubeField.RawContent(CubeType.MUC, "Cubus sine numero"),
+                  publicKey, privateKey,
+                  requiredDifficulty: 0,
+                });
+                await cubeStore.addCube(previous);
+
+                const cube = Cube.Create({
+                  cubeType: CubeType.PMUC,
+                  fields: CubeField.RawContent(CubeType.PMUC,
+                    "Hic simplex cubus usoris mutabilis renovabitur ut fiat cubus usoris mutabilis persistens."
+                  ),
+                  publicKey, privateKey,
+                  requiredDifficulty: 0,
+                });
+                await cubeStore.addCube(cube);
+
+                expect(cube.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1);
+
+                const restored = await cubeStore.getCube(cube.getKeyIfAvailable());
+                expect(restored.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value
+                  .readUIntBE(0, NetConstants.PMUC_UPDATE_COUNT_SIZE)).toEqual(1);
+              });
+            });  // auto-increment tests
 
             describe('negative feature tests', () => {
               it('should do nothing if a manual update count is set (Cube accepted case)', async () => {
