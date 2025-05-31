@@ -1162,11 +1162,20 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
           muc.cubeType !== CubeType.PMUC &&
           muc.cubeType !== CubeType.PMUC_NOTIFY
       ) {
-        logger.error("Identity: Supplied Cube is not a MUC");
+        logger.error("Identity.demarshall(): Supplied Cube is not mutable/signed; thus not a valid Identity root.");
+        this.fullyParsedPromiseResolve(this);
+        return;
+      }
+
+      if (this.key !== undefined && !this.key.equals(muc.publicKey)) {
+        logger.error("Identity.demarshall(): Supplied Cube has wrong key");
         this.fullyParsedPromiseResolve(this);
         return;
       }
     }
+
+    // Store the supplied Cube as our new Identity root
+    this._muc = muc;
 
     // read name
     const nameField: VerityField = muc.getFirstField(FieldType.USERNAME);
@@ -1198,8 +1207,6 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     // recursively fetch my own SUBSCRIPTION_RECOMMENDATION references
     const subRecPromise: Promise<void> =
       this.recursiveDemarshallPublicSubscriptions(muc);
-    // last but not least: store this MUC as our MUC
-    this._muc = muc;
 
     return Promise.all(  // HACKHACK typecast
       [postPromise, subRecPromise]) as unknown as Promise<void>;
@@ -1239,7 +1246,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
 
   // TODO: check and limit recursion
   private async recursiveDemarshallPublicSubscriptions(
-      mucOrMucExtension: Cube,
+      mucOrMucExtension: cciCube,
       alreadyTraversedCubes: string[] = []
   ): Promise<void> {
     // sanity check
@@ -1250,11 +1257,19 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     // do we even have this cube?
     if (!mucOrMucExtension) return;
     // have we been here before? avoid endless recursion
-    const thisCubesKeyString = (mucOrMucExtension.getKeyIfAvailable()).toString('hex');
+    const thisCubesKeyString = mucOrMucExtension.getKeyStringIfAvailable();
     if (thisCubesKeyString === undefined || alreadyTraversedCubes.includes(thisCubesKeyString)) return;
     else alreadyTraversedCubes.push(thisCubesKeyString);
 
-    // parse this index cube
+    // accept this index Cube
+    // maybe TODO: this duplicates alreadyTraversedCubes...
+    if (
+        !mucOrMucExtension.getKeyIfAvailable().equals(this.key) &&
+        !this._publicSubscriptionIndices.some((cube) => cube.getKeyStringIfAvailable() === thisCubesKeyString)
+    ) {
+      this._publicSubscriptionIndices.push(mucOrMucExtension);
+    }
+    // now parse it!
     if (!(mucOrMucExtension.fields instanceof VerityFields)) return;  // no CCI, no rels
     const fields: VerityFields = mucOrMucExtension.fields as VerityFields;
     if (!fields) return;
@@ -1270,7 +1285,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     for (const furtherIndex of furtherIndices) {
       const furtherCube: Cube = await this.cubeRetriever.getCube(furtherIndex.remoteKey);
       if (furtherCube) {
-        await this.recursiveDemarshallPublicSubscriptions(furtherCube, alreadyTraversedCubes);
+        await this.recursiveDemarshallPublicSubscriptions(furtherCube as cciCube, alreadyTraversedCubes);
       }
     }
   }

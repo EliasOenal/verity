@@ -335,7 +335,7 @@ let cubeStore: CubeStore;
   });  // storing and restoring own posts
 
   describe('public subscriptons (aka subscription recommendations)', ()  => {
-    it("correctly saves and restores recommended subscriptions to and from extension MUCs", async () => {
+    it("correctly saves and restores recommended subscriptions to and from extension Cubes", async () => {
       // Create a subject and subscribe 40 other authors
       const TESTSUBCOUNT = 40;
       const subject: Identity = await Identity.Create(
@@ -361,17 +361,18 @@ let cubeStore: CubeStore;
         expect(
           subject.hasPublicSubscription(other.key)).toBeTruthy();
       }
-      subject.muc.setDate(0); // hack, just for the test let's not wait 5s for the MUC update
-      const muc: cciCube = await subject.store();
 
-      // Master MUC stored in CubeStore?
-      const recovered_muc: cciCube = await cubeStore.getCube(subject.key) as cciCube;
-      expect(recovered_muc).toBeInstanceOf(cciCube);
+      // Marshall Identity
+      const masterCube: cciCube = await subject.store();
+      // 40 subs should have required two index Cubes
+      expect(subject.publicSubscriptionIndices.length).toEqual(2);
+
+      // Master Cube stored in CubeStore?
+      const recoveredMaster: cciCube = await cubeStore.getCube(subject.key) as cciCube;
+      expect(recoveredMaster).toBeInstanceOf(cciCube);
 
       // First subscription recommendation index referenced from the Identitiy root?
-      const fields: VerityFields = recovered_muc.fields as VerityFields;
-      expect(fields).toBeInstanceOf(VerityFields);
-      const rel: Relationship = fields.getFirstRelationship(
+      const rel: Relationship = recoveredMaster.getFirstRelationship(
         RelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX
       );
       expect(rel.remoteKey).toBeInstanceOf(Buffer);
@@ -405,11 +406,13 @@ let cubeStore: CubeStore;
 
       // let's put it all together:
       // all subscription recommendations correctly restored?
-      const restored: Identity = await Identity.Construct(cubeStore, muc);
+      const restored: Identity = await Identity.Construct(cubeStore, masterCube);
       expect(restored.getPublicSubscriptionCount()).toEqual(TESTSUBCOUNT);
       for (let i = 0; i < TESTSUBCOUNT; i++) {
         expect(restored.hasPublicSubscription(subs[i].keyString)).toBeTruthy();
       }
+      // subscription index extension Cubes still referenced?
+      expect(restored.publicSubscriptionIndices.length).toEqual(2);
     }, 5000);
 
     it('preserves extension MUC keys and does not update unchanged MUCs when adding subscriptions', async () => {
