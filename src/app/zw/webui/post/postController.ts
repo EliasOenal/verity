@@ -50,6 +50,8 @@ export class PostController extends VerityController {
   declare public contentAreaView: PostView;
   private displayedPosts: Map<string, PostData> = new Map();
   private postGenerator: RecursiveRelResolvingGetPostsGenerator<Cube>;
+
+  // TODO remove this, use IdentityController's store instead
   private idStore: IdentityStore;
 
   constructor(
@@ -58,7 +60,7 @@ export class PostController extends VerityController {
     super(parent);
     this.contentAreaView = new PostView(this);
 
-    this.idStore = this.identity?.identityStore ?? new IdentityStore(this.cubeRetriever);
+    this.idStore = this.identity?.identityStore ?? new IdentityStore(this.node.cubeRetriever);
   }
 
   //***
@@ -87,7 +89,7 @@ export class PostController extends VerityController {
     logger.trace("PostController: Displaying posts by notifications");
     this.shutdownComponents();
 
-    this.postGenerator = explorePostGenerator(this.cubeRetriever, this.idStore);
+    this.postGenerator = explorePostGenerator(this.node.cubeRetriever, this.idStore);
 
     // TODO define a sensible done promise
     return this.redisplayPosts(new Promise(resolve => setTimeout(resolve, 100)));
@@ -136,6 +138,18 @@ export class PostController extends VerityController {
   // Show all new cubes that are displayable.
   // This will handle cubeStore cubeDisplayable events.
   private async displayPost(postInfo: PostInfo<Cube> & ResolveRelsRecursiveResult<Cube>): Promise<void> {
+    // is this post already displayed?
+    const previouslyShown: PostData =
+      this.displayedPosts.get(postInfo.main.getKeyStringIfAvailable());
+    if (previouslyShown) {
+      // Handle edge case: We may just have learned the authorship information
+      // of a post previously displayed as by an unknown author.
+      if (previouslyShown.identity === undefined) {
+        this.redisplayAuthor(postInfo.author.keyString);
+      }
+      return;
+    }
+
     // normalise input:
     // setting cube:
     const cube: cciCube = postInfo.main as cciCube;
@@ -146,16 +160,12 @@ export class PostController extends VerityController {
       return;
     }
 
-    // logger.trace(`PostDisplay: Attempting to display post ${binarykey.toString('hex')}`)
-    // get Cube
-    const fields: VerityFields = cube.fields;
-
     // gather PostData
     const data: PostData = {};
-    data.binarykey = await cube.getKey();
+    data.binarykey = cube.getKeyIfAvailable();
     data.keystring = keyVariants(data.binarykey).keyString;
     data.timestamp = cube.getDate();
-    data.text = fields.getFirst(FieldType.PAYLOAD).value.toString();
+    data.text = cube.getFirstField(FieldType.PAYLOAD).value.toString();
     data.text = DOMPurify.sanitize(data.text, {
       ALLOWED_TAGS: ['b', 'i', 'u', 's', 'em', 'strong', 'mark', 'sub', 'sup', 'p', 'br', 'ul', 'ol', 'li'],
       ALLOWED_ATTR: []
@@ -164,9 +174,6 @@ export class PostController extends VerityController {
     // Author known?
     data.identity = (postInfo as PostInfo<Cube>).author ?? undefined;
     this.parseAuthor(data);
-
-    // is this post already displayed?
-    if (this.displayedPosts.has(data.keystring)) return;
 
     // is this a reply?
     const superiorPostPromise: Promise<PostInfo<Cube> & ResolveRelsRecursiveResult<Cube>> =
@@ -219,34 +226,25 @@ export class PostController extends VerityController {
     }
   }
 
-  /** Redisplays authorship information for a single post */
-  redisplayPostAuthor(key: CubeKey | string) {
-    const postData: PostData = this.displayedPosts.get(keyVariants(key).keyString);
-    if (!postData) return;
-    this.parseAuthor(postData);  // this (re-)sets data.author and data.authorkey
-    this.contentAreaView.redisplayCubeAuthor(postData);
-  }
-
   /** Redisplays authorship information for all of one author's posts */
-  redisplayAuthor = async (mucInfo: CubeInfo) => {
-    const muc = ensureCci(mucInfo.getCube({family: cciFamily}));
-    if (muc === undefined) {
-      logger.trace(`PostController.redisplayAuthor: Cannot get author for post ${mucInfo.keyString} as it does not appear to be a CCI cube`);
-      return;  // not CCI or garbage
+  async redisplayAuthor(idKey: string): Promise<void> {
+    const id: Identity = await this.idStore.retrieveIdentity(idKey);
+    if (id === undefined) {
+      logger.trace(`PostController.redisplayAuthor: Failed to retrieve Identity ${idKey}`);
+      return;
     }
-    let id: Identity;
-    // maybe TODO: Recreating the whole Identity is unnecessary.
-    // Identity should split out the post list retrieval code into a static method.
-    try {
-      id = await Identity.Construct(this.cubeStore, muc);
-    } catch(error) { return; }
-    for (const post of id.getPostKeyStrings()) {
-      const cubeInfo: CubeInfo = await this.cubeStore.getCubeInfo(post);
-      if (!cubeInfo) continue;
-      this.redisplayPostAuthor(cubeInfo.key);
+
+    for (const postKey of id.getPostKeyStrings()) {
+      const postData: PostData = this.displayedPosts.get(keyVariants(postKey).keyString);
+      if (!postData) return;
+
+      if (postData.identity === undefined) {
+        postData.identity = id;
+        this.parseAuthor(postData);  // this (re-)sets data.author and data.authorkey
+        this.contentAreaView.redisplayCubeAuthor(postData);
+      }
     }
   }
-
 
   //***
   // Navigation methods
@@ -268,25 +266,37 @@ export class PostController extends VerityController {
     // This way the UI directly displays you as the author.
     const post = await makePost(text, { replyto: replyto, id: this.identity});
     if (this.identity) await this.identity.store();
-    this.cubeStore.addCube(post);
+    this.node.cubeStore.addCube(post);
   }
 
-  async subscribeUser(subscribeButton: HTMLButtonElement) {
+  /**
+   * Toggle public subscription to an author (i.e., either subscribe or
+   * unsubscribe them).
+   * @param subscribeButton - The subscribe (or unsubscribe) button
+   * @returns A Promise which will resolve when all operations have terminated,
+   *   i.e. the user's Identity update has been published and the UI has been
+   *   updated. This is only useful for testing.
+   */
+  subscribeUser(subscribeButton: HTMLButtonElement): Promise<void> {
+    // fetch input data
     const authorkeystring = subscribeButton.getAttribute("data-authorkey");
-    const authorkey = Buffer.from(authorkeystring, 'hex');
+    // keep track of async progress (for testing only)
+    const donePromises: Promise<void>[] = [];
+
     // subscribing or unsubscribing?
     if (subscribeButton.classList.contains("active")) {
       logger.trace("VerityUI: Unsubscribing from " + authorkeystring);
-      this.identity.removePublicSubscription(authorkey);
+      this.identity.removePublicSubscription(authorkeystring);
       subscribeButton.classList.remove("active");
-      await this.identity.store();
+      donePromises.push(this.identity.store().then());
     } else {
       logger.trace("VerityUI: Subscribing to " + authorkeystring);
-      this.identity.addPublicSubscription(authorkey);
+      this.identity.addPublicSubscription(authorkeystring);
       subscribeButton.classList.add("active");
-      await this.identity.store();
+      donePromises.push(this.identity.store().then());
     }
-    this.redisplayAuthor(await this.cubeStore.getCubeInfo(authorkeystring));
+    donePromises.push(this.redisplayAuthor(authorkeystring));
+    return Promise.all(donePromises).then();
   }
 
 
