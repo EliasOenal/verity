@@ -107,7 +107,7 @@ export class PostView extends VerityView {
   redisplayCubeAuthor(data: PostData): void {
     this.displayCubeAuthor(data);
     const profilepicCollection =
-      data.displayElement.getElementsByClassName("postProfilePic");
+      data.displayElement.getElementsByClassName("verityPostProfilePic");
     if (!profilepicCollection) return;
     const profilepicElem = profilepicCollection[0] as HTMLImageElement;
     if (!profilepicElem) return;
