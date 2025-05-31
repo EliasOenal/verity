@@ -156,7 +156,7 @@ describe('Avatar class', () => {
       const field = avatar.toField();
 
       expect(field).toBeDefined();
-      const expectedLength = AvatarSeedLength[avatar.scheme] + 1;
+      const expectedLength = AvatarSeedLength[avatar.scheme]! + 1;
       expect(field.length).toBe(expectedLength);
       expect(field.value.length).toBe(expectedLength);
     });

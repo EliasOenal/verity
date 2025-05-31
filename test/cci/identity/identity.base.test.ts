@@ -275,7 +275,7 @@ describe('Identity: base model tests', () => {
         id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 45));
 
         // compile to MUC
-        const muc: cciCube = await id.makeMUC();
+        const muc: cciCube = await id.marshall();
         expect(id.muc).toBe(muc);
 
         // verify information

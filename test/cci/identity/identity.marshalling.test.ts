@@ -61,7 +61,7 @@ let cubeStore: CubeStore;
         toEqual("Habeo res importantes dicere");
 
       // compile ID into MUC
-      const muc: cciCube = await original.makeMUC();
+      const muc: cciCube = await original.marshall();
       expect(muc).toBeInstanceOf(cciCube);
       expect(muc.getKeyIfAvailable()).toEqual(original.key);
 
@@ -107,7 +107,7 @@ let cubeStore: CubeStore;
       ));
 
       // compile ID into binary MUC
-      const muc = await original.makeMUC();
+      const muc = await original.marshall();
       expect(muc).toBeInstanceOf(cciCube);
       const muckey = await muc.getKey();
       expect(muckey).toBeInstanceOf(Buffer);
@@ -181,7 +181,7 @@ let cubeStore: CubeStore;
         id.name = "Probator condendi repetitionis " + i;
         id.avatar = new Avatar(
           "00000000" + i.toString(16).padStart(2, "0"), AvatarScheme.MULTIAVATAR);
-        const muc: cciCube = await id.makeMUC();
+        const muc: cciCube = await id.marshall();
         muc.setDate(i);
         await muc.getBinaryData();
         const key = await muc.getKey();
@@ -377,7 +377,7 @@ let cubeStore: CubeStore;
       expect(rel.remoteKey).toBeInstanceOf(Buffer);
       expect(
         rel.remoteKey.equals(
-          subject.subscriptionRecommendationIndices[0].getKeyIfAvailable()
+          subject.publicSubscriptionIndices[0].getKeyIfAvailable()
         )
       ).toBeTruthy();
       // First subscription recommendation index saved in CubeStore?
@@ -431,13 +431,13 @@ let cubeStore: CubeStore;
       const muc: cciCube = await subject.store();
 
       // Good, 40 added. Now let's have a look at the extension MUCs.
-      const firstExtensionMuc: cciCube = subject.subscriptionRecommendationIndices[0];
+      const firstExtensionMuc: cciCube = subject.publicSubscriptionIndices[0];
       const firstExtensionMucKey: CubeKey = firstExtensionMuc.getKeyIfAvailable();
       expect(firstExtensionMucKey).toBeInstanceOf(Buffer);
       const firstExtensionMucHash: Buffer = firstExtensionMuc.getHashIfAvailable();
       expect(firstExtensionMucHash).toBeInstanceOf(Buffer);
 
-      const secondExtensionMuc: cciCube = subject.subscriptionRecommendationIndices[1];
+      const secondExtensionMuc: cciCube = subject.publicSubscriptionIndices[1];
       const secondExtensionMucKey: CubeKey = secondExtensionMuc.getKeyIfAvailable();
       expect(secondExtensionMucKey).toBeInstanceOf(Buffer);
       const secondExtensionMucHash: Buffer = secondExtensionMuc.getHashIfAvailable();
@@ -456,7 +456,7 @@ let cubeStore: CubeStore;
       // Extension MUC keys should not have changed.
       // First extension MUC hash should not have changed either,
       // but the second one's must have.
-      const firstExtensionMucAfterChange: cciCube = subject.subscriptionRecommendationIndices[0];
+      const firstExtensionMucAfterChange: cciCube = subject.publicSubscriptionIndices[0];
       const firstExtensionMucKeyAfterChange: CubeKey = firstExtensionMucAfterChange.getKeyIfAvailable();
       expect(firstExtensionMucKeyAfterChange).toBeInstanceOf(Buffer);
       const firstExtensionMucHashAfterChange: Buffer = firstExtensionMucAfterChange.getHashIfAvailable();
@@ -464,7 +464,7 @@ let cubeStore: CubeStore;
       expect(firstExtensionMucKeyAfterChange.equals(firstExtensionMucKey)).toBeTruthy();
       // expect(firstExtensionMucHashAfterChange.equals(firstExtensionMucHash)).toBeTruthy();  // TODO fix -- the first extension should not have been re-sculpted since it's subscription content has not changed and it's relationship to the changed second extension MUC has not changed either (as MUC keys don't change)
 
-      const secondExtensionMucAfterChange: cciCube = subject.subscriptionRecommendationIndices[1];
+      const secondExtensionMucAfterChange: cciCube = subject.publicSubscriptionIndices[1];
       const secondExtensionMucKeyAfterChange: CubeKey = secondExtensionMucAfterChange.getKeyIfAvailable();
       expect(secondExtensionMucKeyAfterChange).toBeInstanceOf(Buffer);
       const secondExtensionMucHashAfterChange: Buffer = secondExtensionMucAfterChange.getHashIfAvailable();
@@ -486,7 +486,7 @@ let cubeStore: CubeStore;
       }
       const id: Identity = new Identity(
         cubeStore, Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42), options);
-      const muc: cciCube = await id.makeMUC();
+      const muc: cciCube = await id.marshall();
       expect(muc).toBeInstanceOf(cciCube);
       expect(muc.cubeType).toBe(CubeType.PMUC_NOTIFY);
       expect(muc.getFirstField(FieldType.NOTIFY).value.equals(notificationKey)).toBeTruthy();

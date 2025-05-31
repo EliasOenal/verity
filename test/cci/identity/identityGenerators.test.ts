@@ -173,8 +173,8 @@ describe('IdentityUtil', () => {
 
           let n1muc: cciCube, n2muc: cciCube;
           await Promise.all([
-            notifying1.makeMUC().then(muc => n1muc = muc),
-            notifying2.makeMUC().then(muc => n2muc = muc),
+            notifying1.marshall().then(muc => n1muc = muc),
+            notifying2.marshall().then(muc => n2muc = muc),
           ]);
           n1Bin = await n1muc!.getBinaryData();
           n2Bin = await n2muc!.getBinaryData();

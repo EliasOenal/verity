@@ -122,7 +122,7 @@ describe('Identity: remote updates', () => {
     expect(leftId.getPostCount()).toEqual(2);
     expect(leftId.hasPost(commonPostKey)).toBeTruthy();
     expect(leftId.hasPost(leftOnlyKey)).toBeTruthy();
-    const leftMuc: cciCube = await leftId.makeMUC();
+    const leftMuc: cciCube = await leftId.marshall();
     await cubeStore.addCube(leftMuc);
 
     // create conflicting Identity (this might e.g. happen on another device)
@@ -136,7 +136,7 @@ describe('Identity: remote updates', () => {
     expect(rightId.hasPost(commonPostKey)).toBeTruthy();
     expect(rightId.hasPost(leftOnlyKey)).toBeFalsy();
     expect(rightId.hasPost(rightOnlyKey)).toBeTruthy();
-    const rightMuc: cciCube = await rightId.makeMUC();
+    const rightMuc: cciCube = await rightId.marshall();
 
     // merge right to left by adding right's MUC to left's CubeStore
     await cubeStore.addCube(rightMuc);
@@ -161,7 +161,7 @@ describe('Identity: remote updates', () => {
     expect(leftId.getPostCount()).toEqual(2);
     expect(leftId.hasPost(commonPostKey)).toBeTruthy();
     expect(leftId.hasPost(leftOnlyKey)).toBeTruthy();
-    const leftMuc: cciCube = await leftId.makeMUC();
+    const leftMuc: cciCube = await leftId.marshall();
     await cubeStore.addCube(leftMuc);
 
     // create conflicting Identity (this might e.g. happen on another device)
@@ -175,7 +175,7 @@ describe('Identity: remote updates', () => {
     expect(rightId.hasPost(commonPostKey)).toBeTruthy();
     expect(rightId.hasPost(leftOnlyKey)).toBeFalsy();
     expect(rightId.hasPost(rightOnlyKey)).toBeTruthy();
-    const rightMuc: cciCube = await rightId.makeMUC();
+    const rightMuc: cciCube = await rightId.marshall();
 
     // merge right to left by adding right's MUC to left's CubeStore
     await cubeStore.addCube(rightMuc);
