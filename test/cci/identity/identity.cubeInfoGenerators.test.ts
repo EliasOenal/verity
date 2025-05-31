@@ -244,7 +244,7 @@ describe('Identity: CubeInfo generators', () => {
           // prepare test:
           // makeMUC() must have been called at least once for Identity properties
           // like username to be represented in the Cube
-          await id.makeMUC();
+          await id.marshall();
 
           // perform test
           const cubeInfos: CubeInfo[] = await ArrayFromAsync(id.getAllCubeInfos());

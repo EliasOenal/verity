@@ -1,4 +1,3 @@
-
 import type { Shuttable } from '../../core/helpers/coreInterfaces';
 
 import { ApiMisuseError, Settings, VerityError } from '../../core/settings';
@@ -335,9 +334,9 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    */
   private _publicSubscriptions: Set<string> = new Set();
 
-  private _subscriptionRecommendationIndices: Array<cciCube> = [];
-  get subscriptionRecommendationIndices(): Array<cciCube> {
-    return this._subscriptionRecommendationIndices;
+  private _publicSubscriptionIndices: Array<cciCube> = [];
+  get publicSubscriptionIndices(): Array<cciCube> {
+    return this._publicSubscriptionIndices;
   }
 
   /** @member - Points to first cube in the profile picture continuation chain */
@@ -419,7 +418,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
 
     // are we loading or creating an Identity?
     if (mucOrMasterkey instanceof Cube) {  // checking for the more generic Cube instead of cciCube as this is the more correct branch compared to handling this as a KeyPair (also Cube subclass handling is not completely clean yet throughout our codebase)
-      this.parseMuc(mucOrMasterkey).then(() => {
+      this.demarshall(mucOrMasterkey).then(() => {
         // TODO: this makes little sense outside of synthetic tests, see discussion in parseMuc() jsdoc
         this.fullyParsedPromiseResolve(this)
     });
@@ -868,8 +867,8 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
       throw new VerityError("Identity.store(): Cannot store an Identity whose private and master key I don't have");
     }
     logger.trace("Identity: Storing identity " + this.name);
-    const muc = await this.makeMUC();
-    for (const extensionMuc of this.subscriptionRecommendationIndices) {
+    const muc = await this.marshall();
+    for (const extensionMuc of this.publicSubscriptionIndices) {
       await this.cubeStore.addCube(extensionMuc);
     }
     await this.cubeStore.addCube(muc);
@@ -886,7 +885,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   * changes have been performed to avoid spamming multiple MUC versions
   * (and having to compute hashcash for all of them).
   */
-  async makeMUC(): Promise<cciCube> {
+  async marshall(): Promise<cciCube> {
     // Pre-run check:
     // Is there already a PMUC compilation in progress?
     // If so, do not start a competing process but just return their promise.
@@ -948,11 +947,11 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     // Write subscription recommendations
     // (these will be in their own sub-PMUCs and we'll reference the first one
     // of those here)
-    this.writeSubscriptionRecommendations();
-    if (this.subscriptionRecommendationIndices.length) {  // any subs at all?
+    this.marshallPublicSubscriptions();
+    if (this.publicSubscriptionIndices.length) {  // any subs at all?
       initialFields.push(VerityField.RelatesTo(
         new Relationship(RelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
-          this.subscriptionRecommendationIndices[0].getKeyIfAvailable())));
+          this.publicSubscriptionIndices[0].getKeyIfAvailable())));
           // note: key is always available as this is a MUC
     }
 
@@ -1054,7 +1053,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   // #region PRIVATE marshalling and demarshalling
   //###
 
-  private writeSubscriptionRecommendations(): void {
+  private marshallPublicSubscriptions(): void {
     // Prepare index field sets, one for each index cube.
     // The cubes themselves will be sculpted in the next step.
     const fieldSets: VerityFields[] = [];
@@ -1097,12 +1096,12 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
       if (i < fieldSets.length - 1 ) {  // last one has no successor, obviously
         fields.appendField(VerityField.RelatesTo(new Relationship(
           RelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX,
-            this.subscriptionRecommendationIndices[i+1].
+            this.publicSubscriptionIndices[i+1].
               getKeyIfAvailable())));  // it's a MUC, the key is always available
       }
       // do we actually need to rewrite this index cube?
-      if (!this.subscriptionRecommendationIndices[i] ||
-          !fields.equals(this.subscriptionRecommendationIndices[i].fields)) {
+      if (!this.publicSubscriptionIndices[i] ||
+          !fields.equals(this.publicSubscriptionIndices[i].fields)) {
         // TODO: Further minimize unnecessary extension MUC update.
         // For example, if a user having let's say 10000 subscriptions ever
         // unsubscribes one of the first ones, this would currently lead to a very
@@ -1119,7 +1118,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
           cubeType: CubeType.PMUC,
           requiredDifficulty: this.options.requiredDifficulty,
         });
-        this.subscriptionRecommendationIndices[i] = indexCube;
+        this.publicSubscriptionIndices[i] = indexCube;
       }
       // Note: Once calling store(), we will still try to reinsert non-changed
       // extension MUCs -- CubeStore will however discard them as they're unchanged.
@@ -1130,7 +1129,8 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   }
 
   /**
-   * Sets this Identity based on a MUC; should only be used on construction.
+   * Restore this Identity from its root Cube (and its extension Cubes, if any).
+   * Should only be used on construction.
    * @returns A promise that will resolve once the Identity reconstruction
    *   process has completed, no matter how successfully so.
    *   The returned promise should *not* be awaited in any interactive context:
@@ -1148,7 +1148,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    *   it will just resolve after the retrieval timeout and still be no good.
    *   We need to rethink that...
    */
-  private parseMuc(muc: cciCube): Promise<void> {
+  private demarshall(muc: cciCube): Promise<void> {
     if (Settings.RUNTIME_ASSERTIONS) {
       // disabled for now: Identity doesn't *really* require a cciCube object
       // and our codebase currently does not cleanly distinguish required
@@ -1193,11 +1193,11 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
 
     // - recursively fetch my-post references
     const postPromise: Promise<void> =
-      this.recursiveParsePostReferences(muc, []);
+      this.recursiveDemarshallPostReferences(muc, []);
 
     // recursively fetch my own SUBSCRIPTION_RECOMMENDATION references
     const subRecPromise: Promise<void> =
-      this.recursiveParseSubscriptionRecommendations(muc);
+      this.recursiveDemarshallPublicSubscriptions(muc);
     // last but not least: store this MUC as our MUC
     this._muc = muc;
 
@@ -1230,7 +1230,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         ((incoming.cubeType === CubeType.PMUC || incoming.cubeType === CubeType.PMUC_NOTIFY) &&
           incoming.updatecount > this.muc.getFirstField(FieldType.PMUC_UPDATE_COUNT)?.value?.readUintBE?.(0, NetConstants.PMUC_UPDATE_COUNT_SIZE))
     ) {
-      this.parseMuc(incoming.getCube() as cciCube);
+      this.demarshall(incoming.getCube() as cciCube);
       logger.trace("Identity.mergeRemoteChanges: Adopting incoming root Cube");
     } else {
       logger.trace("Identity.mergeRemoteChanges: Rejecting incoming root Cube as mine is newer");
@@ -1238,13 +1238,13 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   }
 
   // TODO: check and limit recursion
-  private async recursiveParseSubscriptionRecommendations(
+  private async recursiveDemarshallPublicSubscriptions(
       mucOrMucExtension: Cube,
       alreadyTraversedCubes: string[] = []
   ): Promise<void> {
     // sanity check
     if (this.cubeRetriever === undefined) {
-      logger.error("Identity.recursiveParseSubscriptionRecommendations(): This Identity is running in read-only mode (i.e. does not have a CubeRetriever reference), thus recursiveParseSubscriptionRecommendations() is not possible.");
+      logger.error("Identity.recursiveParsePublicSubscriptions(): This Identity is running in read-only mode (i.e. does not have a CubeRetriever reference), thus recursiveParsePublicSubscriptions() is not possible.");
       return;
     }
     // do we even have this cube?
@@ -1270,20 +1270,20 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     for (const furtherIndex of furtherIndices) {
       const furtherCube: Cube = await this.cubeRetriever.getCube(furtherIndex.remoteKey);
       if (furtherCube) {
-        await this.recursiveParseSubscriptionRecommendations(furtherCube, alreadyTraversedCubes);
+        await this.recursiveDemarshallPublicSubscriptions(furtherCube, alreadyTraversedCubes);
       }
     }
   }
 
   /**
-   * Extension of and only to be called by parseMuc().
+   * Extension of and only to be called by demarshall().
    * Parsing a MUC involves retrieving all own-post references from the MUC
    * as well as indirect my-post references contained down the line in other
    * posts (can't fit them all in the MUC, cube space is fixed, remember?).
    * This is the recursive part of that.
    */
   // TODO: check and limit recursion
-  private recursiveParsePostReferences(
+  private recursiveDemarshallPostReferences(
       mucOrMucExtension: Cube,
       alreadyTraversedCubes: string[],  // TODO make this a Set
   ): Promise<void> {
@@ -1352,7 +1352,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         // Continue recursion:
         // Search for further post references within this post.
         const recursionDone: Promise<void> =
-          this.recursiveParsePostReferences(post, alreadyTraversedCubes);
+          this.recursiveDemarshallPostReferences(post, alreadyTraversedCubes);
         return recursionDone;
       });
       retPromises.push(recursionPromise);
