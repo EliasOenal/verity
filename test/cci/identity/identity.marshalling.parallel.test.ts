@@ -23,11 +23,11 @@ describe("Identity (separate MUC storage test suite for long-running tests)", ()
     });
   });
 
-  describe("MUC storage", () => {
+  describe("Marshalling (long running test cases)", () => {
     // This is a particularly long-running test because it uses the
     // actual default minimum MUC spacing of 5 seconds, and therefore by
     // definition takes at least 5 seconds.
-    it("combines makeMUC requests spaced less than 5 seconds apart", async () => {
+    it("combines marshalling requests spaced less than 5 seconds apart", async () => {
       const id: Identity = await Identity.Create(
         cubeStore,
         "usor probationis",
