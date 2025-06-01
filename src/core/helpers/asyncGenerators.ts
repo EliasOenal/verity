@@ -1,13 +1,40 @@
 import EventEmitter from "events";
 
 /**
- * A helper type that extends AsyncGenerator, used as return type for the
- * `mergeAsyncGenerators` helper function.
+ * A helper type for AsyncGenerators which are based on internally awaiting
+ * promises, allowing them to be cancelled externally by calling cancel().
+ * Note that the standard return() call will not work properly on promise-based
+ * AsyncGenerators as it cannot interrupt the Generator while it is awaiting
+ * a promise.
  */
-export type MergedAsyncGenerator<T> = AsyncGenerator<T> & {
-  completions: Promise<void>[];
-  addInputGenerator(generator: AsyncGenerator<T>): void;
+export type CancellableGenerator<T> = AsyncGenerator<T> & {
+  /** Interrupts the Generator, causing it to return immediately. */
   cancel(): void;
+}
+
+/**
+ * A helper type that extends AsyncGenerator, used as return type for the
+ * `mergeAsyncGenerators` helper function. It enhances regular AsyncGenerators
+ * with additional methods.
+ */
+export type MergedAsyncGenerator<T> = CancellableGenerator<T> & {
+  /**
+   * A list of promises resolving at the completion of each individual input
+   * generator. The list is in the same order as the input generators.
+   **/
+  completions: Promise<void>[];
+
+  /**
+   * Adds an additional input generator.
+   * Can be used at any time after construction but before the Generator terminates.
+   **/
+  addInputGenerator(generator: AsyncGenerator<T>): void;
+
+  /**
+   * Makes the Generator never finish, even if all of its
+   * input generators are done. It must thus be terminated externally by calling
+   * cancel(). Useful in combination with addInputGenerator().
+   **/
   setEndless(endless?: boolean): void;
 };
 
@@ -68,7 +95,8 @@ export function mergeAsyncGenerators<T>(
   // if all of its input generators are done.
   let endless = false;
 
-  // Now here comes the main part: Define the async generator body itself
+  // Now here comes the main part:
+  // Define the async generator body itself
   async function* merged(): AsyncGenerator<T> {
     while (endless || nextPromises.length > 1) {  // >1 because index 0 is just our interrupt promise
       // Wait for any promise to resolve, and note which generator (index) it came from
@@ -232,27 +260,30 @@ export interface EventsToGeneratorOptions<
  * @param options  - Optional filter and transformation functions.
  * @returns An async generator yielding event data in a backward-compatible manner.
  */
-export async function* eventsToGenerator<
+export function eventsToGenerator<
   Emitted extends unknown[],
   Transformed = Emitted extends [infer T] ? T : Emitted
 >(
   emitters: { emitter: EventEmitter; event: string }[],
   options: EventsToGeneratorOptions<Emitted, Transformed> = {}
-): AsyncGenerator<Transformed> {
-  // Sanity check: If no emitters are provided, exit immediately.
-  if (emitters.length === 0) {
-    return;
-  }
-
-  // Queue to store emitted events (each as a tuple of arguments).
+): CancellableGenerator<Transformed> {
+  // Define a queue to store emitted events (each as a tuple of arguments).
   const queue: Emitted[] = [];
   let resolveQueue: (() => void) | null = null;
 
-  // Event handler that collects the full set of arguments.
-  const createHandler = (event: string) => (...args: Emitted): void => {
-    // Call limit with the dynamic set of arguments—backwards compatible.
+  // Define a cancellation flag, which will cause our generator (defined below)
+  // to abort. This flag can be set externally by calling cancel() on the generator.
+  let cancelled = false;
+
+  // Define an event handler which pushes emitted events to the queue
+  // (the generator [defined below] will then yield queued values one by one).
+  const eventHandler = (event: string) => (...args: Emitted): void => {
+    // If there is a user-defined limit function (i.e. an event filter),
+    // only accept events that pass the filter.
     if (options.limit && options.limit(...args) === false) return;
+    // Looks good, push the event value to the queue
     queue.push(args);
+    // If the generator is currently sleeping, wake it up
     if (resolveQueue) {
       resolveQueue();
       resolveQueue = null;
@@ -261,33 +292,64 @@ export async function* eventsToGenerator<
 
   // Subscribe to each event; store a cleanup function for each.
   const unsubscribeFns: (() => void)[] = emitters.map(({ emitter, event }): (() => void) => {
-    const listener = createHandler(event);
+    const listener = eventHandler(event);
     emitter.on(event, listener);
     return () => emitter.removeListener(event, listener);
   });
 
-  try {
-    while (true) {
-      if (queue.length === 0) {
-        await new Promise<void>((resolve) => (resolveQueue = resolve));
-      }
-      while (queue.length > 0) {
-        const args: Emitted = queue.shift()!;
-        let output: Transformed;
-        // Call the transform function with dynamic arguments if provided.
-        // Otherwise, yield a single value or the full tuple based on the number of arguments.
-        if (options.transform) {
-          output = options.transform(...args);
-        } else {
-          output = (args.length === 1 ? args[0] : args) as unknown as Transformed;
-        }
-        yield output;
-      }
+  // Now here comes the main part:
+  // Define the async generator body itself
+  async function* gen(): AsyncGenerator<Transformed> {
+    // Sanity check: If no emitters are provided, exit immediately.
+    if (emitters.length === 0) {
+      return;
     }
-  } finally {
-    if (resolveQueue) resolveQueue();
-    for (const unsubscribe of unsubscribeFns) {
-      unsubscribe();
+
+    try {
+      while (true) {
+        if (cancelled) return;  // do not go to sleep if cancelled
+        if (queue.length === 0) {
+          await new Promise<void>(resolve => resolveQueue = resolve);
+        }
+        if (cancelled) return;  // do not yield after sleeping if cancelled
+        // If there are values ready to emit, emit them one by one now.
+        while (queue.length > 0) {
+          // Collect the next value from the queue
+          const args: Emitted = queue.shift()!;
+
+          let output: Transformed;
+          if (options.transform) {
+            // If the caller has specified a transform function, transform the
+            // value before yielding it.
+            output = options.transform(...args);
+          } else {
+            // Otherwise, yield the value as it is. If the value is a tuple
+            // (i.e. was emitted by an event emitting multiple values), yield
+            // the full tuple. For single value events, strip the containing
+            // array and just yield that value.
+            output = (args.length === 1 ? args[0] : args) as unknown as Transformed;
+          }
+          yield output;
+        }
+      }
+    } finally {
+      // Cleanup:
+      // - Resolve the final waiting promise, if any
+      if (resolveQueue) resolveQueue();
+      // Unsubscribe from all events
+      for (const unsubscribe of unsubscribeFns) {
+        unsubscribe();
+      }
     }
   }
+
+  // Instantiate the Generator
+  const asyncGen = gen() as CancellableGenerator<Transformed>;
+
+  // Enhance the generator to conform to the CancellableGenerator interface.
+  asyncGen.cancel = () => {
+    cancelled = true;
+    if (resolveQueue) resolveQueue();
+  }
+  return asyncGen;
 }

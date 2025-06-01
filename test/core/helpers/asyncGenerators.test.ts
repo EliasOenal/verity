@@ -371,34 +371,39 @@ describe('mergeAsyncGenerators', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
       expect(ret).toHaveLength(1);
 
-      // Have secondInputGen yield something -- this should be re-yielded by merged.
+      // Have secondInputGen yield something --
+      // as secondInputGen is not added yet, this will NOT be re-yielded just yet.
       emitter.emit("second", "eventus secundus");
-      // yield control to allow generator to advance
+      // yield control, even though nothing should happen
       await new Promise(resolve => setTimeout(resolve, 0));
       expect(ret).toHaveLength(1);
-
       // Now add the second input generator
       merged.addInputGenerator(secondInputGen);
+      // This causes the previous event, which has not yet been consumed, to
+      // be re-yielded by the merged generator.
+      // yield control to allow generator to advance
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(ret).toHaveLength(2);
 
       // Have secondInputGen yield something -- this should be re-yielded by merged.
       emitter.emit("second", "eventus tertius");
       // yield control to allow generator to advance
       await new Promise(resolve => setTimeout(resolve, 0));
-      expect(ret).toHaveLength(2);
+      expect(ret).toHaveLength(3);
 
       // Have firstInputGen yield something, which should obviously still be re-yielded by merged.
       emitter.emit("first", "eventus quartus");
       // yield control to allow generator to advance
       await new Promise(resolve => setTimeout(resolve, 0));
-      expect(ret).toHaveLength(3);
+      expect(ret).toHaveLength(4);
 
       // And finally have secondInputGen yield again for good measure.
       emitter.emit("second", "eventus quintus");
       // yield control to allow generator to advance
       await new Promise(resolve => setTimeout(resolve, 0));
-      expect(ret).toHaveLength(4);
+      expect(ret).toHaveLength(5);
 
-      expect(ret).toEqual(["eventus primus", "eventus tertius", "eventus quartus", "eventus quintus"]);
+      expect(ret).toEqual(["eventus primus", "eventus secundus", "eventus tertius", "eventus quartus", "eventus quintus"]);
 
       // Clean up
       merged.cancel();
