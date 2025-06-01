@@ -1,17 +1,13 @@
 import { CubeKey } from "../../../../core/cube/cube.definitions";
 import { Cube } from "../../../../core/cube/cube";
-import { CubeInfo } from "../../../../core/cube/cubeInfo";
 import { keyVariants } from "../../../../core/cube/cubeUtil";
 import { logger } from "../../../../core/logger";
 
-import { FieldLength, FieldType, MediaTypes } from "../../../../cci/cube/cciCube.definitions";
-import { VerityFields } from "../../../../cci/cube/verityFields";
-import { cciCube, cciFamily } from "../../../../cci/cube/cciCube";
+import { FieldType } from "../../../../cci/cube/cciCube.definitions";
+import { cciCube } from "../../../../cci/cube/cciCube";
 import { RelationshipType } from "../../../../cci/cube/relationship";
-import { ensureCci, isCci } from "../../../../cci/cube/cciCubeUtil";
-import { RecursiveRelResolvingGetPostsGenerator, PostInfo } from "../../../../cci/identity/identity.definitions";
+import { RecursiveRelResolvingGetPostsGenerator, PostInfo, RecursiveRelResolvingPostInfo } from "../../../../cci/identity/identity.definitions";
 import { Identity } from "../../../../cci/identity/identity";
-import { UNKNOWNAVATAR } from "../../../../cci/identity/avatar";
 import { IdentityStore } from "../../../../cci/identity/identityStore";
 import { ResolveRelsRecursiveResult } from "../../../../cci/veritum/veritumRetrievalUtil";
 
@@ -24,17 +20,11 @@ import { FileApplication } from '../../../fileApplication';
 
 import { Buffer } from 'buffer';
 import DOMPurify from 'dompurify';
-// TODO refactor: just put the damn CubeInfo in here
-export interface PostData {
-  binarykey?: CubeKey;
-  keystring?: string;
-  timestamp?: number;
-  identity?: Identity;
-  author?: string;
-  authorkey?: string
+
+export interface PostData extends RecursiveRelResolvingPostInfo<Cube> {
+  displayname?: string;
   authorsubscribed?: boolean | "self" | "none";
   text?: string;
-  profilepic?: string;  // SVG or base64 representation of a raster image
 
   /** @param If this is a reply, this refers to the superior post. */
   superior?: PostData;
@@ -137,14 +127,14 @@ export class PostController extends VerityController {
 
   // Show all new cubes that are displayable.
   // This will handle cubeStore cubeDisplayable events.
-  private async displayPost(postInfo: PostInfo<Cube> & ResolveRelsRecursiveResult<Cube>): Promise<void> {
+  private async displayPost(postInfo: PostData): Promise<void> {
     // is this post already displayed?
     const previouslyShown: PostData =
       this.displayedPosts.get(postInfo.main.getKeyStringIfAvailable());
     if (previouslyShown) {
       // Handle edge case: We may just have learned the authorship information
       // of a post previously displayed as by an unknown author.
-      if (previouslyShown.identity === undefined) {
+      if (previouslyShown.author === undefined) {
         this.redisplayAuthor(postInfo.author.keyString);
       }
       return;
@@ -161,19 +151,14 @@ export class PostController extends VerityController {
     }
 
     // gather PostData
-    const data: PostData = {};
-    data.binarykey = cube.getKeyIfAvailable();
-    data.keystring = keyVariants(data.binarykey).keyString;
-    data.timestamp = cube.getDate();
-    data.text = cube.getFirstField(FieldType.PAYLOAD).value.toString();
-    data.text = DOMPurify.sanitize(data.text, {
+    postInfo.text = cube.getFirstField(FieldType.PAYLOAD).value.toString();
+    postInfo.text = DOMPurify.sanitize(postInfo.text, {
       ALLOWED_TAGS: ['b', 'i', 'u', 's', 'em', 'strong', 'mark', 'sub', 'sup', 'p', 'br', 'ul', 'ol', 'li'],
       ALLOWED_ATTR: []
     });
-    data.text = await this.processImageTags(data.text);
+    postInfo.text = await this.processImageTags(postInfo.text);
     // Author known?
-    data.identity = (postInfo as PostInfo<Cube>).author ?? undefined;
-    this.parseAuthor(data);
+    this.parseAuthor(postInfo);
 
     // is this a reply?
     const superiorPostPromise: Promise<PostInfo<Cube> & ResolveRelsRecursiveResult<Cube>> =
@@ -181,12 +166,12 @@ export class PostController extends VerityController {
     if (superiorPostPromise !== undefined) {  // yes
       const superiorPost: PostInfo<Cube> & ResolveRelsRecursiveResult<Cube> = await superiorPostPromise;
       const superiorPostKey: CubeKey = await superiorPost.main.getKey();
-      data.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));
-      if (!data.superior) {
+      postInfo.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));
+      if (!postInfo.superior) {
         // Apparently the original post has not yet been displayed, so let's display it
         await this.displayPost(superiorPost);
-        data.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));
-        if (!data.superior || !data.superior.displayElement) {  // STILL not displayed?!?!
+        postInfo.superior = this.displayedPosts.get(superiorPostKey.toString('hex'));
+        if (!postInfo.superior || !postInfo.superior.displayElement) {  // STILL not displayed?!?!
           logger.debug(`PostController: Failed to display post ${superiorPostKey.toString('hex')} because the superior post cannot be displayed.`);
           return;
         }
@@ -194,35 +179,32 @@ export class PostController extends VerityController {
     }
 
     // we've awaited stuff, so let's check again: is this post already displayed?
-    if (this.displayedPosts.has(data.keystring)) return;
+    if (this.displayedPosts.has(postInfo.main.getKeyStringIfAvailable())) return;
 
-    this.contentAreaView.displayPost(data);  // have the view display the post
-    this.displayedPosts.set(data.keystring, data);  // remember the displayed post
+    this.contentAreaView.displayPost(postInfo);  // have the view display the post
+    this.displayedPosts.set(postInfo.main.getKeyStringIfAvailable(), postInfo);  // remember the displayed post
   }
 
   private parseAuthor(data: PostData): void {
     // Is the author known?
-    if (data.identity) {
-      data.author = data.identity.name;
-      data.authorkey = data.identity.keyString;
-      data.profilepic = data.identity.avatar.render();
+    if (data.author) {
+      // Limit author username length
+      data.displayname = data.author.name;
+      if (data.displayname.length > 60) {
+        data.displayname = data.displayname.slice(0, 57) + "...";
+      }
 
       // is this author subscribed?
       if (this.identity) {
-        data.authorsubscribed = this.identity.hasPublicSubscription(data.identity.key);
+        data.authorsubscribed = this.identity.hasPublicSubscription(data.author.key);
         // or is this even my own post?
-        if (data.identity.key.equals(this.identity.publicKey)) data.authorsubscribed = "self";
+        if (data.author.key.equals(this.identity.publicKey)) data.authorsubscribed = "self";
       } else {
         data.authorsubscribed = "none";  // no Identity, no subscriptions
       }
     } else {
       // Author not known
-      data.author = "Unknown user";
-      data.profilepic = UNKNOWNAVATAR;
-    }
-    // Limit author username length
-    if (data.author.length > 60) {
-      data.author = data.author.slice(0, 57) + "...";
+      data.displayname = "Unknown user";
     }
   }
 
@@ -238,9 +220,9 @@ export class PostController extends VerityController {
       const postData: PostData = this.displayedPosts.get(keyVariants(postKey).keyString);
       if (!postData) return;
 
-      if (postData.identity === undefined) {
-        postData.identity = id;
-        this.parseAuthor(postData);  // this (re-)sets data.author and data.authorkey
+      if (postData.author === undefined) {
+        postData.author = id;
+        this.parseAuthor(postData);  // this (re-)sets the displayname, profilepic and authorsubscribed properties
         this.contentAreaView.redisplayCubeAuthor(postData);
       }
     }

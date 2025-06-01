@@ -7,6 +7,7 @@ import type { PostController, PostData } from "./postController";
 import { loadTemplate } from "../../../../webui/helpers/dom";
 import * as template from './postTemplate.html';
 import { formatDate } from "../../../../webui/helpers/datetime";
+import { UNKNOWNAVATAR } from "../../../../cci/identity/avatar";
 loadTemplate(template);
 
 export class PostView extends VerityView {
@@ -40,9 +41,9 @@ export class PostView extends VerityView {
 
     // Fill in this post's data
     // metadata
-    li.setAttribute("data-cubekey", data.keystring);
-    form.setAttribute("data-cubekey", data.keystring);
-    li.setAttribute("data-timestamp", String(data.timestamp));
+    li.setAttribute("data-cubekey", data.main.getKeyStringIfAvailable());
+    form.setAttribute("data-cubekey", data.main.getKeyStringIfAvailable());
+    li.setAttribute("data-timestamp", data.main.getDate().toString());
     // profile pic
     this.displayCubeProfilepic(data,
       li.getElementsByClassName("verityPostProfilePic")[0] as HTMLImageElement);
@@ -50,12 +51,12 @@ export class PostView extends VerityView {
     this.displayCubeAuthor(data);
     // date
     const dateelem = li.getElementsByClassName("verityPostDate")[0] as HTMLElement;
-    dateelem.textContent = formatDate(data.timestamp)
+    dateelem.textContent = formatDate(data.main.getDate());
     // post text
     const text: HTMLParagraphElement =
       li.getElementsByClassName("verityPostContent")[0] as HTMLParagraphElement;
     text.innerHTML = data.text; // Was sanitized in controller
-    text.title = `Cube Key ${data.keystring}`;  // show cube key as tooltip
+    text.title = `Cube Key ${data.main.getKeyStringIfAvailable()}`;  // show cube key as tooltip
 
     // Configure reply input field
     const replyform: HTMLFormElement =
@@ -70,12 +71,12 @@ export class PostView extends VerityView {
       const replyfield: HTMLTextAreaElement =
         li.getElementsByClassName("verityPostInput")[0] as HTMLTextAreaElement;
       replyfield.setAttribute("maxlength", ZwConfig.MAXIMUM_POST_LENGTH.toString());
-      replyfield.setAttribute("id", `verityReplyInput-${data.keystring}`);
+      replyfield.setAttribute("id", `verityReplyInput-${data.main.getKeyStringIfAvailable()}`);
       replyfield.setAttribute("style", `height: ${replyfield.scrollHeight}px;`);  // for auto-resize
       // @ts-ignore Typescript does not like us using custom window attributes
       const replybutton: HTMLButtonElement =
         li.getElementsByClassName("verityPostButton")[0] as HTMLButtonElement
-      replybutton.setAttribute("id", `replybutton-${data.keystring}`);
+      replybutton.setAttribute("id", `replybutton-${data.main.getKeyStringIfAvailable()}`);
     }
 
     // Insert sorted by date
@@ -84,7 +85,7 @@ export class PostView extends VerityView {
       const timestamp: string | null = child.getAttribute("data-timestamp");
       if (timestamp) {
         const childdate: number = parseInt(timestamp);
-        if (childdate < data.timestamp) {
+        if (childdate < data.main.getDate()) {
           container.insertBefore(li, child);
           appended = true;
           break;
@@ -122,15 +123,15 @@ export class PostView extends VerityView {
     if (!authorelementCollection) return;
     const authorelement = authorelementCollection[0] as HTMLElement;
     if (!authorelement) return;
-    authorelement.setAttribute("id", data.keystring + "-author");
+    authorelement.setAttribute("id", data.main.getKeyStringIfAvailable() + "-author");
     authorelement.setAttribute("class", "verityCubeAuthor");
-    if (data.authorkey) authorelement.setAttribute("title", "MUC key " + data.authorkey);
-    authorelement.textContent = data.author;
+    if (data.author?.keyString) authorelement.setAttribute("title", "MUC key " + data.author.keyString);
+    authorelement.textContent = data.displayname;
 
     const subscribeButton: HTMLButtonElement =
     data.displayElement.getElementsByClassName("veritySubscribeButton")[0] as HTMLButtonElement;
-    if (data.authorkey && data.authorsubscribed !== "none") {
-      subscribeButton.setAttribute("data-authorkey", data.authorkey);
+    if (data.author && data.authorsubscribed !== "none") {
+      subscribeButton.setAttribute("data-authorkey", data.author.keyString);
       if (data.authorsubscribed === "self") {  // own post
         subscribeButton.textContent = "You"
         subscribeButton.classList.add("active");
@@ -146,7 +147,7 @@ export class PostView extends VerityView {
   }
 
   displayCubeProfilepic(data: PostData, profilepicelem: HTMLImageElement) {
-    profilepicelem.setAttribute("src", data.profilepic);
+    profilepicelem.setAttribute("src", data.author?.avatar?.render?.() ?? UNKNOWNAVATAR);
   }
 
   private getOrCreateContainer(data: PostData): HTMLUListElement {
