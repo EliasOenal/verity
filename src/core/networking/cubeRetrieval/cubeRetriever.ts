@@ -1,5 +1,5 @@
 import { Cube } from "../../cube/cube";
-import { CubeKey } from "../../cube/cube.definitions";
+import { CubeFieldType, CubeKey } from "../../cube/cube.definitions";
 import { CubeFamilyDefinition } from "../../cube/cubeFields";
 import { CubeInfo } from "../../cube/cubeInfo";
 import { CubeRetrievalInterface, CubeStore } from "../../cube/cubeStore";
@@ -81,17 +81,40 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
     return generator;
   }
 
-  // TODO BUGBUG FIXME:
-  // Besides notifications already locally present, this may sometimes only
-  // yield the *first* notification retrieved over the wire (rather than
-  // all notifications received upon our first request).
-  // The reason for this is that RequestScheduler resolves it's requestNotifications()
-  // promise within the cubeAddedHandler(), which is obviously called right after
-  // the first response has been stored.
   async *getNotifications(recipient: Buffer): AsyncGenerator<Cube> {
-    const req = this.requestScheduler.requestNotifications(recipient);
-    await req;
+    // HACKHACK:
+    // We first yield all notifications already locally present;
+    // only then we request them from the network.
+    // This is to both avoid having to wait for a network request to complete,
+    // and to avoid duplicates.
+    // (Note that there can still be "duplicates" in the form of newly received
+    // updates to mutable Cubes.)
+    // While the performance impact should be minimal (local store retrieval is
+    // very fast compared to network requests), this does mean that the network
+    // request is only fired once the caller has started iterating and is done#
+    // processing the local notifications.
     yield* this.cubeStore.getNotifications(recipient);
+
+    // Prepare to add newly added notifications
+    const newlyAdded = eventsToGenerator([
+      { emitter: this.cubeStore, event: 'cubeAdded' },
+    ], {
+      limit: (cubeInfo: CubeInfo) =>
+        cubeInfo.getCube()?.getFirstField?.(CubeFieldType.NOTIFY)?.value
+          ?.equals?.(recipient) ?? false,
+      transform: (cubeInfo: CubeInfo) => cubeInfo.getCube(),
+    });
+    const req = this.requestScheduler.requestNotifications(recipient);
+    req.then(async () => {
+      // HACKHACK: Wait a few more millis before terminating.
+      // The reason for this is that RequestScheduler resolves it's requestNotifications()
+      // promise within the cubeAddedHandler(), which is obviously called right after
+      // the first response has been stored; there may be more responses in
+      // the same batch waiting to be processed.
+      await new Promise(resolve => setTimeout(resolve, 100));
+      newlyAdded.cancel();
+    });
+    yield *newlyAdded;
   }
 
   subscribeNotifications(
