@@ -3,7 +3,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 import { cciCube } from "../../../../src/cci/cube/cciCube";
 import { TestWorld } from "../testWorld";
 import { explorePostGenerator, isPostDisplayable, wotPostGenerator } from '../../../../src/app/zw/model/zwUtil';
-import { PostInfo, RecursiveRelResolvingPostInfo } from '../../../../src/cci/identity/identity';
+import { PostInfo, RecursiveRelResolvingPostInfo } from '../../../../src/cci/identity/identity.definitions';
 import { Cube } from '../../../../src/core/cube/cube';
 import { ArrayFromAsync } from '../../../../src/core/helpers/misc';
 import { Veritable } from '../../../../src/core/cube/veritable.definition';

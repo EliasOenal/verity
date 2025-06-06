@@ -1,21 +1,25 @@
 // @vitest-environment jsdom
 
-import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { TestWordPostSet, TestWorld } from '../testWorld';
-import { PostController } from '../../../../src/app/zw/webui/post/postController';
 import { CoreNodeOptions } from '../../../../src/core/coreNode';
-import { DummyNavController } from '../../../../src/webui/navigation/navigationDefinitions';
 import { Veritable } from '../../../../src/core/cube/veritable.definition';
-import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
-import { Identity } from '../../../../src/cci/identity/identity';
-
-import { Buffer } from 'buffer';
-import { testCciOptions } from '../../../cci/e2e/e2eCciSetup';
-import { loadZwTemplate } from './zwUiTestSetup';
 import { CubeKey } from '../../../../src/core/cube/cube.definitions';
 import { keyVariants } from '../../../../src/core/cube/cubeUtil';
+
+import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
+import { Identity } from '../../../../src/cci/identity/identity';
+import { testCciOptions } from '../../../cci/testcci.definitions';
 import { VerityNodeIf, dummyVerityNode } from '../../../../src/cci/verityNode';
 import { Cockpit, dummyCockpit } from '../../../../src/cci/cockpit';
+
+import { PostController } from '../../../../src/app/zw/webui/post/postController';
+import { DummyControllerContext, DummyNavController } from '../../../../src/webui/testingDummies';
+
+import { TestWordPostSet, TestWorld } from '../testWorld';
+import { loadZwTemplate } from './zwUiTestSetup';
+
+import { Buffer } from 'buffer';
+import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { IdentityController } from '../../../../src/webui/identity/identityController';
 
 const testOptions: CoreNodeOptions = {
   ...testCciOptions,
@@ -44,15 +48,18 @@ describe('PostView tests regarding displayal of existing posts', () => {
         let controller: PostController;
 
         beforeAll(async () => {
-          const node: VerityNodeIf = dummyVerityNode(testOptions);
-          await node.readyPromise;
-          w = new TestWorld({ subscriptions: subscriptionBased, cubeStore: node.cubeStore });
-          await w.setup();
-          controller = new PostController({
-            nav: new DummyNavController(),
-            identity: w.protagonist,
-            cockpit: new Cockpit(node, {identity: w.protagonist}),
+          const context = new DummyControllerContext();
+          await context.node.readyPromise;
+
+          w = new TestWorld({
+            subscriptions: subscriptionBased,
+            cubeStore: context.node.cubeStore,
           });
+          await w.setup();
+          context.identityController.identity = w.protagonist;
+
+          controller = new PostController(context);
+
           if (subscriptionBased) await controller.navWot();
           else await controller.navExplore();
 
