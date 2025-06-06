@@ -11,7 +11,6 @@ import { LoginFormView } from "./loginFormView";
 import { LoginStatusView } from "./loginStatusView";
 import { ControllerContext, VerityController, VerityControllerOptions } from "../verityController";
 
-
 import sodium from 'libsodium-wrappers-sumo';
 
 export interface IdentityControllerOptions
@@ -34,8 +33,12 @@ export interface IdentityControllerOptions
    * Used mainly for testing. You probably won't want to use this.
    **/
   loginStatusView?: VerityView | typeof VerityView | false;
+
+  /** If provided, this Identity will be logged in right away */
+  identity?: Identity;
 }
 
+// TODO: Properly shut down, i.e. shut down owned IdentityStore (implement Shuttable)
 
 export class IdentityController extends VerityController {
   declare options: IdentityControllerOptions;
@@ -47,6 +50,8 @@ export class IdentityController extends VerityController {
     this._identity = identity;
     this.showLoginStatus();
   }
+
+  get identityStore(): IdentityStore { return this.options.identityStore }
 
   /**
    * A promise that resolves when the IdentityController is fully ready.
@@ -79,7 +84,7 @@ export class IdentityController extends VerityController {
 
     // Create and render the login status view
     this.loginStatusView = this.constructViewIfRequired(options.loginStatusView, {});
-    this.showLoginStatus();
+    this.identity = options.identity;  // this also updates the view
   }
 
   //***

@@ -1,6 +1,6 @@
 import { Identity } from "../../../../src/cci/identity/identity";
 import { IdentityController, IdentityControllerOptions } from "../../../../src/webui/identity/identityController";
-import { DummyControllerContext } from "../../../../src/webui/verityController";
+import { DummyControllerContext } from "../../../../src/webui/testingDummies";
 
 import { testCciOptions } from "../../../cci/testcci.definitions";
 

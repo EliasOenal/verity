@@ -1,14 +1,18 @@
-import { VerityView } from "./verityView";
-import { UiError } from "./webUiDefinitions";
+import type { CubeRetrievalInterface, CubeStore } from "../core/cube/cubeStore";
+import type { CubeRetriever } from "../core/networking/cubeRetrieval/cubeRetriever";
+import type { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
 
 import type { Identity } from "../cci/identity/identity";
-import type { CubeRetrievalInterface, CubeStore } from "../core/cube/cubeStore";
-import { DummyNavController, type NavControllerIf, type NavItem } from "./navigation/navigationDefinitions";
-import { CubeRetriever } from "../core/networking/cubeRetrieval/cubeRetriever";
-import { dummyVerityNode, VerityNodeIf } from "../cci/verityNode";
-import { Cockpit } from "../cci/cockpit";
-import { VeritumRetrievalInterface, VeritumRetriever } from "../cci/veritum/veritumRetriever";
-import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
+import type { VerityNodeIf } from "../cci/verityNode";
+import type { Cockpit } from "../cci/cockpit";
+import type { VeritumRetrievalInterface } from "../cci/veritum/veritumRetriever";
+import type { IdentityStore } from "../cci/identity/identityStore";
+
+import type { NavControllerIf } from "./navigation/navigationDefinitions";
+import type { IdentityController } from "./identity/identityController";
+
+import { VerityView } from "./verityView";
+import { UiError } from "./webUiDefinitions";
 
 /**
  * The interface a controller's parent object needs to provide;
@@ -22,23 +26,20 @@ export interface ControllerContext {
    **/
   cockpit: Cockpit;
 
-  /** Optionally, the Identity of the currently logged in user */
-  identity?: Identity;
+  /**
+   * The Identity controller.
+   * We always require an Identity controller for consistency.
+   * Applications not using the Identity module can still construct an
+   * IdentityController object (passing option `identityPersistence: false`),
+   * which is very lightweight and will do nothing.
+   */
+  identityController: IdentityController;
 
   /**
    * The navigation controller,
    * which is the central instance controlling the user interface.
    */
   nav: NavControllerIf;
-}
-
-/** Dummy for testing only */
-export class DummyControllerContext implements ControllerContext {
-  constructor(
-    node: VerityNodeIf = dummyVerityNode(),
-    public readonly nav: NavControllerIf = new DummyNavController(),
-    public readonly cockpit: Cockpit = new Cockpit(node),
-  ) {}
 }
 
 export interface VerityControllerOptions {
@@ -51,9 +52,11 @@ export class VerityController implements ControllerContext {
   public contentAreaView: VerityView = undefined;
 
   get cockpit(): Cockpit { return this.parent.cockpit }
-  get identity(): Identity { return this.parent.identity }
+  get identityController(): IdentityController { return this.parent.identityController }
   get node(): VerityNodeIf { return this.parent.cockpit.node }
   get nav(): NavControllerIf { return this.parent.nav }
+  get identity(): Identity { return this.parent.identityController.identity }
+  get identityStore(): IdentityStore { return this.parent.identityController.identityStore }
 
   /** @deprecated - Applications should prefer the cockpit API, or use this.node.cubeStore */
   get cubeStore(): CubeStore { return this.parent.cockpit.node.cubeStore }

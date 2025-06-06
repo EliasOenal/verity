@@ -2,16 +2,17 @@ import { Cube } from "../../../src/core/cube/cube";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 
 import { cciCube } from "../../../src/cci/cube/cciCube";
-import { Identity, IdentityOptions } from "../../../src/cci/identity/identity";
+import { IdentityOptions } from "../../../src/cci/identity/identity.definitions";
+import { Identity } from "../../../src/cci/identity/identity";
+import { VeritumRetriever } from "../../../src/cci/veritum/veritumRetriever";
 
 import { makePost } from "../../../src/app/zw/model/zwUtil";
+import { ZwConfig } from "../../../src/app/zw/model/zwConfig";
 
 import { testCubeStoreParams, idTestOptions } from "../../cci/testcci.definitions";
 
 import sodium from "libsodium-wrappers-sumo";
 import { Buffer } from 'buffer';
-import { ZwConfig } from "../../../src/app/zw/model/zwConfig";
-import { VeritumRetriever } from "../../../src/cci/veritum/veritumRetriever";
 
 export interface TestWorldOptions {
   subscriptions?: boolean;

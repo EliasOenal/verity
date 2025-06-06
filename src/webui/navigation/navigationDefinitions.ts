@@ -66,10 +66,3 @@ export interface NavControllerIf {
   closeController(controllerStackIndex: VerityController | number, updateView?: boolean): void;
   identityChanged(): Promise<boolean>;
 }
-
-/** Mock for testing only */
-export class DummyNavController implements NavControllerIf {
-  show(navItem: NavItem, show?: boolean): Promise<void> { return new Promise<void>(resolve => {resolve()})}
-  closeController(controllerStackIndex: number | VerityController, updateView?: boolean): void {}
-  identityChanged(): Promise<boolean> { return new Promise<boolean>(resolve => {resolve(true)})}
-}

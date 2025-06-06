@@ -9,6 +9,8 @@ import { FileApplication } from '../../../../src/app/fileApplication';
 
 import { Buffer } from 'buffer';
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { CubeStore } from '../../../../src/core/cube/cubeStore';
+import { testCubeStoreParams } from '../../../cci/testcci.definitions';
 
 describe('FileApplication', () => {
   test('createFileCubes with small string', async () => {
@@ -78,22 +80,21 @@ describe('FileApplication', () => {
       const fileName = 'test.txt';
       const cubes = await FileApplication.createFileCubes(Buffer.from(content), fileName);
 
-      const mockCubeStore = {
-        getCube: async (key: CubeKey) => cubes[0]
-      };
+      const cubeStore = new CubeStore(testCubeStoreParams);
+      await cubeStore.readyPromise;
+      await cubeStore.addCube(cubes[0]);
 
-      const result = await FileApplication.retrieveFile(await cubes[0].getKey(), mockCubeStore);
+      const result = await FileApplication.retrieveFile(await cubes[0].getKey(), cubeStore);
 
       expect(result.fileName).toBe(fileName);
       expect(result.content.toString()).toBe(content);
     });
 
     test('retrieveFile with non-existent cube', async () => {
-      const mockCubeStore = {
-        getCube: async () => null
-      };
+      const cubeStore = new CubeStore(testCubeStoreParams);
+      await cubeStore.readyPromise;
 
-      await expect(FileApplication.retrieveFile(Buffer.alloc(32), mockCubeStore))
+      await expect(FileApplication.retrieveFile(Buffer.alloc(32), cubeStore))
         .rejects.toThrow('Cube not found');
     });
 
@@ -102,12 +103,12 @@ describe('FileApplication', () => {
         fields: VerityField.Application('not-file')
       });
 
-      const mockCubeStore = {
-        getCube: async () => invalidCube
-      };
+      const cubeStore = new CubeStore(testCubeStoreParams);
+      await cubeStore.readyPromise;
+      await cubeStore.addCube(invalidCube);
 
       try {
-        await FileApplication.retrieveFile(await invalidCube.getKey(), mockCubeStore);
+        await FileApplication.retrieveFile(await invalidCube.getKey(), cubeStore);
         throw new Error('Expected FileApplication.retrieveFile to throw an error');
       } catch (error) {
         if (error instanceof Error) {
