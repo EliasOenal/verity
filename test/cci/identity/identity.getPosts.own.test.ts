@@ -1,20 +1,23 @@
+import { ArrayFromAsync, enumNums } from '../../../src/core/helpers/misc';
+import { CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
+import { Veritable } from '../../../src/core/cube/veritable.definition';
+import { CubeStore } from '../../../src/core/cube/cubeStore';
+import { NetConstants } from '../../../src/core/networking/networkDefinitions';
+
 import { IdentityOptions, PostFormat, GetPostsGenerator, PostInfo } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity';
-import { CubeStore } from '../../../src/core/cube/cubeStore';
-import { evenLonger, testCubeStoreParams } from '../testcci.definitions';
+
 import { cciCube } from '../../../src/cci/cube/cciCube';
-import { CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
 import { VerityField } from '../../../src/cci/cube/verityField';
-import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { Veritum } from '../../../src/cci/veritum/veritum';
-import { ArrayFromAsync, enumNums } from '../../../src/core/helpers/misc';
+import { VeritumRetriever } from '../../../src/cci/veritum/veritumRetriever';
+import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { RelationshipType } from '../../../src/cci/cube/relationship';
+
+import { evenLonger, testCubeStoreParams } from '../testcci.definitions';
 
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { VeritumRetriever } from '../../../src/cci/veritum/veritumRetriever';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
-import { Veritable } from '../../../src/core/cube/veritable.definition';
-import { RelationshipType } from '../../../src/cci/cube/relationship';
 
 describe('Identity: getPosts generator; own posts only (no recursion)', () => {
   // Tests regarding the retrieval of an Identity's own posts using the
