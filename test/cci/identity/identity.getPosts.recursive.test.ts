@@ -1,18 +1,19 @@
-import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
-import { Identity } from '../../../src/cci/identity/identity';
+import { Cube } from '../../../src/core/cube/cube';
+
+import { cciCube } from '../../../src/cci/cube/cciCube';
+import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { Relationship, RelationshipType } from '../../../src/cci/cube/relationship';
+import { Veritum } from '../../../src/cci/veritum/veritum';
+import { ResolveRelsRecursiveResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
+
 import { GetPostsGenerator, PostFormat, PostInfo } from '../../../src/cci/identity/identity.definitions';
+import { Identity } from '../../../src/cci/identity/identity';
 
 // TODO: Don't use test setups from ZW for CCI components, it breaks our layering
 import { TestWordPostSet, TestWorld } from '../../app/zw/testWorld';
 
-import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { cciCube } from '../../../src/cci/cube/cciCube';
-import { Veritum } from '../../../src/cci/veritum/veritum';
-import { Cube } from '../../../src/core/cube/cube';
-import { Relationship, RelationshipType } from '../../../src/cci/cube/relationship';
-import { ResolveRelsRecursiveResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 async function hasPost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable, format?: PostFormat, expectAuthor?: Identity, shouldResolveBasePost?: Veritable) {
   // fetch item from list by key
