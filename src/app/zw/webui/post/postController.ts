@@ -8,7 +8,6 @@ import { cciCube } from "../../../../cci/cube/cciCube";
 import { RelationshipType } from "../../../../cci/cube/relationship";
 import { RecursiveRelResolvingGetPostsGenerator, PostInfo, RecursiveRelResolvingPostInfo } from "../../../../cci/identity/identity.definitions";
 import { Identity } from "../../../../cci/identity/identity";
-import { IdentityStore } from "../../../../cci/identity/identityStore";
 import { ResolveRelsRecursiveResult } from "../../../../cci/veritum/veritumRetrievalUtil";
 
 import { explorePostGenerator, isPostDisplayable, makePost, wotPostGenerator } from "../../model/zwUtil";
@@ -41,16 +40,11 @@ export class PostController extends VerityController {
   private displayedPosts: Map<string, PostData> = new Map();
   private postGenerator: RecursiveRelResolvingGetPostsGenerator<Cube>;
 
-  // TODO remove this, use IdentityController's store instead
-  private idStore: IdentityStore;
-
   constructor(
       parent: ControllerContext,
   ){
     super(parent);
     this.contentAreaView = new PostView(this);
-
-    this.idStore = this.identity?.identityStore ?? new IdentityStore(this.node.cubeRetriever);
   }
 
   //***
@@ -79,7 +73,7 @@ export class PostController extends VerityController {
     logger.trace("PostController: Displaying posts by notifications");
     this.shutdownComponents();
 
-    this.postGenerator = explorePostGenerator(this.node.cubeRetriever, this.idStore);
+    this.postGenerator = explorePostGenerator(this.node.veritumRetriever, this.identityStore);
 
     // TODO define a sensible done promise
     return this.redisplayPosts(new Promise(resolve => setTimeout(resolve, 100)));
@@ -210,7 +204,7 @@ export class PostController extends VerityController {
 
   /** Redisplays authorship information for all of one author's posts */
   async redisplayAuthor(idKey: string): Promise<void> {
-    const id: Identity = await this.idStore.retrieveIdentity(idKey);
+    const id: Identity = await this.identityStore.retrieveIdentity(idKey);
     if (id === undefined) {
       logger.trace(`PostController.redisplayAuthor: Failed to retrieve Identity ${idKey}`);
       return;
@@ -352,7 +346,6 @@ export class PostController extends VerityController {
   private shutdownComponents(): void {
     if (this.postGenerator) this.postGenerator.return(undefined);  // TODO resolve final Promise once implemented
     this.postGenerator = undefined;
-    if (this.idStore && this.idStore !== this.identity?.identityStore) this.idStore.shutdown();
   }
 
   shutdown(unshow: boolean = true, callback: boolean = true): Promise<void> {

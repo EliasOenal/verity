@@ -187,7 +187,7 @@ describe('post generators', () => {
       w = new TestWorld({ subscriptions: false });
       await w.setup();
 
-      const gen = explorePostGenerator(w.retriever.cubeRetriever, new IdentityStore(w.retriever));
+      const gen = explorePostGenerator(w.retriever, new IdentityStore(w.retriever));
       (async () => { for await (const post of gen) list.push(post) })();
       await new Promise((resolve) => setTimeout(resolve, 100));  // TODO provide proper done promise
     });
