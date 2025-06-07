@@ -1,30 +1,20 @@
 // @vitest-environment jsdom
 
-import { CoreNodeOptions } from '../../../../src/core/coreNode';
 import { Veritable } from '../../../../src/core/cube/veritable.definition';
 import { CubeKey } from '../../../../src/core/cube/cube.definitions';
 import { keyVariants } from '../../../../src/core/cube/cubeUtil';
 
 import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
 import { Identity } from '../../../../src/cci/identity/identity';
-import { testCciOptions } from '../../../cci/testcci.definitions';
-import { VerityNodeIf, dummyVerityNode } from '../../../../src/cci/verityNode';
-import { Cockpit, dummyCockpit } from '../../../../src/cci/cockpit';
 
 import { PostController } from '../../../../src/app/zw/webui/post/postController';
-import { DummyControllerContext, DummyNavController } from '../../../../src/webui/testingDummies';
+import { DummyControllerContext } from '../../../../src/webui/testingDummies';
 
 import { TestWordPostSet, TestWorld } from '../testWorld';
 import { loadZwTemplate } from './zwUiTestSetup';
 
 import { Buffer } from 'buffer';
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { IdentityController } from '../../../../src/webui/identity/identityController';
-
-const testOptions: CoreNodeOptions = {
-  ...testCciOptions,
-  requestTimeout: 100,
-}
 
 describe('PostView tests regarding displayal of existing posts', () => {
   beforeAll(async () => {
