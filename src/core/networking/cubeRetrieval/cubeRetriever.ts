@@ -81,7 +81,7 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
     return generator;
   }
 
-  async *getNotifications(recipient: Buffer): AsyncGenerator<Cube> {
+  async *getNotifications(recipient: Buffer, options?: {}): AsyncGenerator<Cube> {
     // HACKHACK:
     // We first yield all notifications already locally present;
     // only then we request them from the network.
@@ -93,6 +93,7 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
     // very fast compared to network requests), this does mean that the network
     // request is only fired once the caller has started iterating and is done#
     // processing the local notifications.
+    // TODO: pass through options to individual retrieval calls
     yield* this.cubeStore.getNotifications(recipient);
 
     // Prepare to add newly added notifications

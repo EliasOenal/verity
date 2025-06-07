@@ -106,8 +106,13 @@ export interface CubeRetrievalInterface<OptionsType = GetCubeOptions> {
   getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo>;
   getCube<cubeClass extends Cube>(key: CubeKey | string, options?: OptionsType): Promise<cubeClass>;
   expectCube(keyInput: CubeKey|string): Promise<CubeInfo>;  // maybe TODO: add timeout?
-  getNotifications(recipientKey: CubeKey|string): AsyncGenerator<Veritable>;
+  getNotifications(recipientKey: CubeKey|string, options?: {}): AsyncGenerator<Veritable>;
   cubeStore: CubeStore;
+
+  // TODO: introduce a generalised optional `format` option, supporting retrieval
+  //   formats such as Cube, CubeInfo or Veritum.
+  //   Once we have this, we can replace the getCube and getCubeInfo methods
+  //   with a single generic get method.
 }
 
 export interface CubeEmitterEvents extends Record<string, any[]> {
@@ -662,7 +667,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
     }
   }
 
-  async *getNotifications(recipientKey: Buffer|string): AsyncGenerator<Cube> {
+  async *getNotifications(recipientKey: Buffer|string, options?: {}): AsyncGenerator<Cube> {
     for await (const cubeInfo of this.getNotificationCubeInfos(recipientKey)) {
       yield cubeInfo.getCube();
     }
