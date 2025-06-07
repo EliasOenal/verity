@@ -8,6 +8,7 @@ import type { IdentityStore } from "./identityStore";
 import { MergedAsyncGenerator, mergeAsyncGenerators } from "../../core/helpers/asyncGenerators";
 import { isCci } from "../cube/cciCubeUtil";
 import { Identity } from "./identity";
+import { RetrievalFormat } from "../veritum/veritumRetriever";
 
 
 export interface NotifyingIdentitiesOptions {
@@ -32,7 +33,7 @@ export async function *notifyingIdentities(
   // First, get any notifying Identity root Cube matching the notification key
   let idRoots: MergedAsyncGenerator<Cube>;
   const existingIdRoots: AsyncGenerator<Cube> =
-    cubeStoreOrRetriever.getNotifications(notificationKey) as AsyncGenerator<Cube>;
+    cubeStoreOrRetriever.getNotifications(notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
   if (options.subscribe && 'subscribeNotifications' in cubeStoreOrRetriever) {
     const futureIdRoots: AsyncGenerator<Cube> =
       (cubeStoreOrRetriever as CubeRetriever).subscribeNotifications(notificationKey);
