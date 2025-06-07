@@ -14,10 +14,16 @@ import { RelationshipType, Relationship } from "../cube/relationship";
 import { Veritum, VeritumFromChunksOptions } from "./veritum";
 import { Identity } from "../identity/identity";
 import { MetadataEnhancedRetrieval, resolveRels, ResolveRelsOptions, resolveRelsRecursive, ResolveRelsRecursiveOptions, ResolveRelsRecursiveResult, ResolveRelsResult } from "./veritumRetrievalUtil";
+import { Veritable } from "../../core/cube/veritable.definition";
 
 export interface VeritumRetrievalInterface<OptionsType = CubeRequestOptions> extends CubeRetrievalInterface<OptionsType> {
   getVeritum(key: CubeKey|string, options?: OptionsType): Promise<Veritum>;
 }
+
+export enum RetrievalFormat {
+  Cube,
+  Veritum,
+};
 
 export interface GetVeritumOptions extends CubeRequestOptions, ResolveRelsOptions {
   /**
@@ -34,6 +40,10 @@ export interface GetVeritumOptions extends CubeRequestOptions, ResolveRelsOption
    * Automatically attempt to decrypt the Veritum if it is encrypted
    */
   recipient?: Identity|Buffer;
+}
+
+export interface GetNotificationsOptions {
+  format?: RetrievalFormat;
 }
 
 export class VeritumRetriever
@@ -200,6 +210,9 @@ export class VeritumRetriever
     }
   }
 
+  getNotifications<cubeClass extends Cube>(keyInput: CubeKey | string, options: GetNotificationsOptions & {format: RetrievalFormat.Cube}): AsyncGenerator<cubeClass>;
+  getNotifications(keyInput: CubeKey | string, options?: GetNotificationsOptions & {format: RetrievalFormat.Veritum|undefined}): AsyncGenerator<Veritum>;
+  getNotifications(keyInput: CubeKey | string, options?: GetNotificationsOptions): AsyncGenerator<Veritable>;
   /**
    * Retrieves all available Verita notifying a given key.
    * Any Veritum can only notify a single key, and is considered a notification
@@ -208,7 +221,15 @@ export class VeritumRetriever
    */
   // TODO: This method contains lots of async glue code which should be
   //   generalised as a helpers, perhaps even included in mergeAsyncGenerators()
-  async *getNotifications(keyInput: CubeKey | string): AsyncGenerator<Veritum> {
+  async *getNotifications(keyInput: CubeKey | string, options: GetNotificationsOptions = {}): AsyncGenerator<Veritable> {
+    // set default options
+    options.format ??= RetrievalFormat.Veritum;
+
+    if (options.format === RetrievalFormat.Cube) {
+      yield* this.cubeRetriever.getNotifications(keyInput, options);
+      return;
+    }
+
     // To retrieve notification Verita, we first must retrieve the notifying
     // root chunk Cubes. This is done using CubeRetriever's getNotifications()
     // method, which is also an AsyncGenerator.

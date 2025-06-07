@@ -542,6 +542,7 @@ export class RequestScheduler implements Shuttable {
    *    on the network or even on the node they were requested from have been retrieved.
    *  - Promise will return undefined if no new notifications can be retrieved within timeout.
    */
+  // TODO refactor: accept an option object rather than the current parameter list
   requestNotifications(
     recipientKey: Buffer,
     scheduleIn: number = this.options.interactiveRequestDelay,
