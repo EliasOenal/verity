@@ -281,6 +281,7 @@ export class VeritumRetriever
     }
   }
 
+  // TODO implement subscribeNotifications()
 
 
   // Note: This method basically defines a subclass and instantiates it for every call.
