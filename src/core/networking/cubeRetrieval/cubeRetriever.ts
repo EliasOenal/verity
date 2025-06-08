@@ -16,6 +16,12 @@ export interface CubeSubscribeRetrieverOptions extends CubeSubscribeOptions {
    * CubeSubscription objects.
    */
   outputSubPromise?: Promise<CubeSubscription>;
+
+  /**
+   * Placeholder for VeritumRetriever compatibility; will be removed here
+   * once we have a universal `format` option in CubeRetrievalInterface.
+   */
+  format?: any;
 }
 
 /**

@@ -30,13 +30,25 @@ export async function *notifyingIdentities(
     identityStore: IdentityStore,
     options: NotifyingIdentitiesOptions = {},
 ): AsyncGenerator<Identity> {
+  // normalise input:
+  // - If cubeStoreOrRetriever is a VeritumRetriever, get its CubeRetriever.
+  //   This is a "temporary" workaround because VeritumRetriever cannot yet
+  //   be used as a drop-in for CubeRetriever in every use case; in particular,
+  //   it lacks a subscribeNotifications() method.
+  let cubeRetriever: CubeRetrievalInterface<any>;
+  if ('cubeRetriever' in cubeStoreOrRetriever) {
+    cubeRetriever = cubeStoreOrRetriever.cubeRetriever as CubeRetriever;
+  } else {
+    cubeRetriever = cubeStoreOrRetriever;
+  }
+
   // First, get any notifying Identity root Cube matching the notification key
   let idRoots: MergedAsyncGenerator<Cube>;
   const existingIdRoots: AsyncGenerator<Cube> =
     cubeStoreOrRetriever.getNotifications(notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
   if (options.subscribe && 'subscribeNotifications' in cubeStoreOrRetriever) {
     const futureIdRoots: AsyncGenerator<Cube> =
-      (cubeStoreOrRetriever as CubeRetriever).subscribeNotifications(notificationKey);
+      (cubeRetriever as CubeRetriever).subscribeNotifications(notificationKey, { format: RetrievalFormat.Cube });
     idRoots = mergeAsyncGenerators(existingIdRoots, futureIdRoots);
   } else {
     idRoots = mergeAsyncGenerators(existingIdRoots);
@@ -55,15 +67,14 @@ export async function *notifyingIdentities(
     idsHandled.add(keyString);
 
     // Do we already have an object for this Identity?
-    const id = identityStore.getIdentity(keyString);
-    if (id)  yield id;
-    else {
-    // We don't yet have an object for this Identity.
-    // Create one, then yield it.
-      const id = new Identity(cubeStoreOrRetriever, idRoot as cciCube, {
+    let id = identityStore.getIdentity(keyString);
+    if (id === undefined) {
+      // We don't yet have an object for this Identity.
+      // Create one, then yield it.
+      id = new Identity(cubeStoreOrRetriever, idRoot as cciCube, {
         identityStore,
       });
-      yield id;
     }
+    yield id;
   }
 }
