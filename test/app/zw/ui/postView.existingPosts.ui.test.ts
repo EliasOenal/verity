@@ -29,7 +29,7 @@ describe('PostView tests regarding displayal of existing posts', () => {
   });
 
   describe('showing the correct posts', () => {
-    for (const subscriptionBased of [/*true,*/ false]) {
+    for (const subscriptionBased of [true, false]) {
       let modeString: string;
       if (subscriptionBased) modeString = "My Network (showing posts based on subscriptions)";
       else modeString = "Explore (showcasing unknown authors based on group notifications)";
@@ -61,11 +61,7 @@ describe('PostView tests regarding displayal of existing posts', () => {
 
         function testSuite(n: number) {
           it('should display my own root posts', async () => {
-            if (subscriptionBased) expectDisplayed(w.posts[n].own, { author: w.protagonist });
-            else {
-              // TODO BUGBUG Fails to display my own user name in explore mode and I don't know why
-              expectDisplayed(w.posts[n].own);
-            }
+            expectDisplayed(w.posts[n].own, { author: w.protagonist });
           });
 
           it("should display my direct subscription's posts", async () => {

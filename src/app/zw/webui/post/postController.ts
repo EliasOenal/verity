@@ -123,7 +123,7 @@ export class PostController extends VerityController {
   // This will handle cubeStore cubeDisplayable events.
   private async displayPost(postInfo: PostData): Promise<void> {
     // is this post already displayed?
-    const previouslyShown: PostData =
+    let previouslyShown: PostData =
       this.displayedPosts.get(postInfo.main.getKeyStringIfAvailable());
     if (previouslyShown) {
       // Handle edge case: We may just have learned the authorship information
@@ -173,7 +173,16 @@ export class PostController extends VerityController {
     }
 
     // we've awaited stuff, so let's check again: is this post already displayed?
-    if (this.displayedPosts.has(postInfo.main.getKeyStringIfAvailable())) return;
+    previouslyShown =
+      this.displayedPosts.get(postInfo.main.getKeyStringIfAvailable());
+    if (previouslyShown) {
+      // Handle edge case: We may just have learned the authorship information
+      // of a post previously displayed as by an unknown author.
+      if (previouslyShown.author === undefined) {
+        this.redisplayAuthor(postInfo.author.keyString);
+      }
+      return;
+    }
 
     this.contentAreaView.displayPost(postInfo);  // have the view display the post
     this.displayedPosts.set(postInfo.main.getKeyStringIfAvailable(), postInfo);  // remember the displayed post
@@ -212,7 +221,7 @@ export class PostController extends VerityController {
 
     for (const postKey of id.getPostKeyStrings()) {
       const postData: PostData = this.displayedPosts.get(keyVariants(postKey).keyString);
-      if (!postData) return;
+      if (!postData) continue;
 
       if (postData.author === undefined) {
         postData.author = id;
