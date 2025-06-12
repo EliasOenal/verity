@@ -152,6 +152,8 @@ describe('PostView tests regarding displayal of existing posts', () => {
 
           testSuite(1);
         });
+
+        describe.todo('posts by new Identities, learned after the view has been built');
       });  // describe retrieval mode (explore or my network)
     }  // for (const explore of [true, false])
   });  // showing the correct posts
