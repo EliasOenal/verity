@@ -606,7 +606,7 @@ describe('Continuation', () => {
           const recombined: Veritum = Recombine(splitCubes, {requiredDifficulty: 0});
 
           // verify result
-          const postTestFields = Array.from(veritum.getFields(FieldType.PAYLOAD))
+          const postTestFields = Array.from(recombined.getFields(FieldType.PAYLOAD))
           expect(postTestFields).toHaveLength(30);
           for (const field of postTestFields) {
             expect(field.valueString).toEqual(text);
@@ -615,29 +615,54 @@ describe('Continuation', () => {
       });
 
       describe('fuzzing tests', () => {
-        for (let fuzzingRepeat=0; fuzzingRepeat<10; fuzzingRepeat++) {
-          it('splits and restores random oversized Cubes (fuzzing test)', async() => {
-            const eligibleFieldTypes: number[] = [
+        const TESTREPETITIONS = 10;  // - How many fuzzing tests to perform
+        const MAXNUMFIELDS = 100;    // - Number of Veritum fields is randomised from 0 to this value
+        const MAXSIZEFIELD = 10000;   // - Variable field payload is randomised from 0 to this value (bytes)
+        const PROPREPEAT = 50;  // - Probability adjacent fields having the same field type, from 0% to 100%
+        const PROPVAR = 50;     // - Chance for a variable length field, from 0% to 100%
+
+        for (let fuzzingRepeat=0; fuzzingRepeat<TESTREPETITIONS; fuzzingRepeat++) {
+          it('splits and restores random Verita (fuzzing test)', async() => {
+            const eligibleVariableFieldTypes: number[] = [
               FieldType.PAYLOAD,
               FieldType.CONTENTNAME,
               FieldType.DESCRIPTION,
-              FieldType.RELATES_TO,
               FieldType.USERNAME,
-              FieldType.MEDIA_TYPE,
               FieldType.AVATAR,
             ];
-            const numCciFields = Math.floor(Math.random() * 100);
 
-            // prepare macro Cube
+            const eligibleFixedLengthFieldTypes: number[] = [
+              FieldType.RELATES_TO,
+              FieldType.MEDIA_TYPE,
+            ]
+
+            const numCciFields = Math.floor(Math.random() * MAXNUMFIELDS);
+
+            // prepare Veritum
             const veritum = new Veritum({
               cubeType: cubeType,
               requiredDifficulty: 0,
               publicKey, privateKey,
               fields: VerityField.Date(date),
             });
+
+            let lastFieldType: number;
             for (let i=0; i < numCciFields; i++) {
-              const chosenFieldType: number = eligibleFieldTypes[Math.floor(Math.random() * eligibleFieldTypes.length)];
-              const length: number = FieldLength[chosenFieldType] ?? Math.floor(Math.random() * 3000);
+              // Determine the next field type:
+              let chosenFieldType: number;
+              // - Shall we repeat the previous one?
+              if (lastFieldType !== undefined && Math.floor(Math.random() * PROPREPEAT) > 50) {
+                chosenFieldType = lastFieldType;
+              } else if (Math.floor(Math.random() * 100) > PROPVAR) {
+                // - Or shall we have a variable size field?
+                chosenFieldType = eligibleVariableFieldTypes[Math.floor(Math.random() * eligibleVariableFieldTypes.length)];
+              } else {
+                chosenFieldType = eligibleFixedLengthFieldTypes[Math.floor(Math.random() * eligibleFixedLengthFieldTypes.length)];
+              }
+              lastFieldType = chosenFieldType;
+
+              const length: number =
+                FieldLength[chosenFieldType] ?? Math.floor(Math.random() * MAXSIZEFIELD);
               let val: Buffer;
               if (chosenFieldType === FieldType.RELATES_TO) {
                 val = VerityField.RelatesTo(new Relationship(RelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))).value;
@@ -655,7 +680,7 @@ describe('Continuation', () => {
             const splitCubes: cciCube[] = await Split(veritum, {requiredDifficulty: 0});
             const recombined: Veritum = Recombine(splitCubes, {requiredDifficulty: 0});
 
-            // assert that payload was correctly restored
+            // assert that all fields were correctly restored (manually)
             const restoredFields = Array.from(recombined.getFields());
             expect(restoredFields.length).toEqual(veritum.fieldCount);
             // assert that all fields have been restored correctly
