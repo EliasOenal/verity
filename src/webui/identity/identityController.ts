@@ -56,7 +56,8 @@ export class IdentityController extends VerityController {
   /**
    * A promise that resolves when the IdentityController is fully ready.
    * This is only relevant in case of an automatic log in, in which case this
-   * promise will resolve when the login has been processed.
+   * promise will resolve when the login has been processed;
+   * when no auto-login features are used, it is not necessary to await ready.
    * (Note: Having processed the log in does does not
    * indicate that the Identity has been fully parsed, as there is never any
    * guarantee on how long fully parsing an Identity will take or if it will
@@ -77,14 +78,14 @@ export class IdentityController extends VerityController {
 
     super(parent, options);
 
+
+    // Construct the login status view
+    this.loginStatusView = this.constructViewIfRequired(options.loginStatusView, {});
+
     // Initialise Identity (depending on local options and circumstances, this
     // can mean logging into an existing one, creating a new one,
     // or doing nothing at all).
     this.ready = this.initialiseIdentity();
-
-    // Create and render the login status view
-    this.loginStatusView = this.constructViewIfRequired(options.loginStatusView, {});
-    this.identity = options.identity;  // this also updates the view
   }
 
   //***
@@ -251,35 +252,58 @@ export class IdentityController extends VerityController {
   // PRIVATE Business logic invocation methods
   //***
 
-  private async initialiseIdentity(): Promise<void> {
-    await sodium.ready;
-
+  private initialiseIdentity(): Promise<void> {
     // Set default options
     this.options.autoCreateIdentity ??= WebuiSettings.AUTO_CREATE_IDENTITY;
     this.options.autoCreateIdentityName ??= WebuiSettings.AUTO_CREATE_IDENTITY_NAME;
 
-    // Create an IdentityStore unless we already have on
-    this.options.identityStore ??= new IdentityStore(this.node.veritumRetriever);
+    this.identity = this.options.identity;  // implicitly calls showLoginStatus()
 
+    // Create an IdentityStore unless we already have on
+    this.options.identityStore ??=
+      this.options.identity?.identityStore
+      ?? new IdentityStore(this.node.veritumRetriever);
+
+    let identityPersistencePromise: Promise<IdentityPersistence>;
     // Default to using persistent local Identities (unless disabled in settings)
     if (this.options.identityPersistence === undefined && WebuiSettings.USE_IDENTITY_PERSISTENCE) {
-      this.options.identityPersistence = await IdentityPersistence.Construct(this.options);
+      identityPersistencePromise = IdentityPersistence.Construct(this.options);
+    } else {
+      identityPersistencePromise = Promise.resolve(undefined);
     }
-
-    let identity: Identity;
 
     // If feature enabled, load any existing locally persistent Identity
-    if (identity === undefined && this.options.identityPersistence) {
-      identity = await this.loadLocal();
-    }
-    // If feature enabled and there is no logged in Identity yet,
-    // create a new one (based on a new random master key).
-    if (identity === undefined && this.options.autoCreateIdentity) {
-      identity = Identity.New(this.node.veritumRetriever, this.options);
-      identity.name = this.options.autoCreateIdentityName;
+    let identityLoadPromise: Promise<Identity>;
+    if (this.identity === undefined && this.options.identityPersistence) {
+      identityLoadPromise = this.loadLocal();
+    } else {
+      identityLoadPromise = Promise.resolve(undefined);
     }
 
-    this.finaliseLogin(identity);
+    // Wait for stuff to complete
+    return Promise.all([
+      identityPersistencePromise,
+      identityLoadPromise,
+      sodium.ready,
+    ]).then(results => {
+      this.options.identityPersistence = results[0];
+
+      if (this.identity === undefined) {
+        let identity: Identity = results[1];
+
+        // If feature enabled and there is no logged in Identity yet,
+        // create a new one (based on a new random master key).
+        if (identity === undefined && this.options.autoCreateIdentity) {
+          identity = Identity.New(this.node.veritumRetriever, this.options);
+          identity.name = this.options.autoCreateIdentityName;
+        }
+
+        if (identity !== undefined) return this.finaliseLogin(identity);
+        else return Promise.resolve(undefined);
+      } else {
+        return Promise.resolve(undefined);
+      }
+    });
   }
 
 
