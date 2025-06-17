@@ -53,7 +53,7 @@
     "@chainsafe/libp2p-noise": "^15.1.2",
     "@chainsafe/libp2p-yamux": "^7.0.1",
     "@libp2p/circuit-relay-v2": "^1.1.5",
-    "@libp2p/identify": "^2.1.5",
+    "@libp2p/identify": "^3.0.34",
     "@libp2p/mplex": "^11.0.17",
     "@libp2p/webrtc": "^4.0.34",
     "@libp2p/websockets": "^9.1.5",
