@@ -1,4 +1,4 @@
-import { CubeType, WrongFieldType } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, CubeType, WrongFieldType } from "../../../src/core/cube/cube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 import { VerityField } from "../../../src/cci/cube/verityField";
@@ -23,23 +23,23 @@ describe('Relationship', () => {
       VerityField.Payload("Ego sum cubus bene connexus cum multis relationibus ad alios cubos."),
       VerityField.RelatesTo(new Relationship(
         RelationshipType.REPLY_TO,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1))),
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1) as CubeKey)),
       VerityField.RelatesTo(new Relationship(
         RelationshipType.REPLY_TO,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2))),
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2) as CubeKey)),
       VerityField.RelatesTo(new Relationship(
         RelationshipType.MENTION,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(11))),
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(11) as CubeKey)),
       VerityField.RelatesTo(new Relationship(
         RelationshipType.REPLY_TO,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3))),
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3) as CubeKey)),
       VerityField.Payload("Cubus insolitus sum."),
       VerityField.RelatesTo(new Relationship(
         RelationshipType.MYPOST,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(21))),
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(21) as CubeKey)),
       VerityField.RelatesTo(new Relationship(
         RelationshipType.REPLY_TO,
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(4))),
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(4) as CubeKey)),
       VerityField.Date(),
       VerityField.Nonce(),
     ],

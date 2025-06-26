@@ -1,6 +1,6 @@
 import { NetConstants } from "../../core/networking/networkDefinitions";
 import { CubeKey } from "../../core/cube/cube.definitions";
-import { keyVariants } from "../../core/cube/cubeUtil";
+import { asCubeKey } from "../../core/cube/keyUtil";
 
 import { FieldType } from "./cciCube.definitions";
 import { VerityField } from "./verityField";
@@ -76,9 +76,9 @@ export class Relationship {
         return undefined;
       }
       relationship.type = field.value.readUIntBE(0, NetConstants.RELATIONSHIP_TYPE_SIZE);
-      relationship.remoteKey = field.value.subarray(
+      relationship.remoteKey = asCubeKey(field.value.subarray(
           NetConstants.RELATIONSHIP_TYPE_SIZE,
-          NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE);
+          NetConstants.RELATIONSHIP_TYPE_SIZE + NetConstants.CUBE_KEY_SIZE));
       return relationship;
   }
 
@@ -87,7 +87,7 @@ export class Relationship {
       keys: Iterable<CubeKey | string>
   ): Generator<Relationship> {
     for (let key of keys) {
-      yield new Relationship(type, keyVariants(key).binaryKey);
+      yield new Relationship(type, asCubeKey(key));
     }
   }
 }

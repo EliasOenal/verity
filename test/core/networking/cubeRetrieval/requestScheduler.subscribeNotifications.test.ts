@@ -1,22 +1,16 @@
-import { Settings } from "../../../../src/core/settings";
-import { Cube } from "../../../../src/core/cube/cube";
-import { CubeType } from "../../../../src/core/cube/cube.definitions";
-import { CubeField } from "../../../../src/core/cube/cubeField";
+import { NotificationKey } from "../../../../src";
 import { CubeStore } from "../../../../src/core/cube/cubeStore";
 import { CubeSubscription } from "../../../../src/core/networking/cubeRetrieval/pendingRequest";
 import { RequestScheduler } from "../../../../src/core/networking/cubeRetrieval/requestScheduler";
 import { MessageClass, NetConstants, SupportedTransports } from "../../../../src/core/networking/networkDefinitions";
 import { NetworkManagerIf } from "../../../../src/core/networking/networkManagerIf";
 import { SubscribeNotificationsMessage, SubscriptionConfirmationMessage, SubscriptionResponseCode } from "../../../../src/core/networking/networkMessage";
-import { NetworkPeerIf } from "../../../../src/core/networking/networkPeerIf";
 import { DummyNetworkManager } from "../../../../src/core/networking/testingDummies/dummyNetworkManager";
 import { DummyNetworkPeer } from "../../../../src/core/networking/testingDummies/dummyNetworkPeer";
 import { PeerDB } from "../../../../src/core/peering/peerDB";
-import { requiredDifficulty, testCoreOptions } from "../../testcore.definition";
+import { testCoreOptions } from "../../testcore.definition";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { NetworkManager } from "../../../../src/core/networking/networkManager";
-import { DummyNetworkTransport } from "../../../../src/core/networking/testingDummies/dummyNetworkTransport";
 
 const SHORTENED_SUB_PERIOD = 100;
 
@@ -27,7 +21,7 @@ let dummyNetworkManager: NetworkManagerIf;
 let dummyPeer: DummyNetworkPeer;
 let sub: CubeSubscription;
 
-const notificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42);
+const notificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as NotificationKey;
 const zeroKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x00);
 
   describe('regular workflow', () => {

@@ -3,6 +3,8 @@ import { type NetworkMessage, type CubeFilterOptions, type SubscriptionResponseC
 import type { NetworkStats, NetworkPeerLifecycle, NetworkPeerOptions } from '../networkPeerIf';
 import type { NetworkManagerIf } from '../networkManagerIf';
 
+import { Settings } from '../../settings';
+import { CubeKey, NotificationKey } from '../../cube/cube.definitions';
 import { CubeStore } from '../../cube/cubeStore';
 import { Peer } from '../../peering/peer';
 import { PeerDB } from '../../peering/peerDB';
@@ -10,7 +12,7 @@ import { TransportConnection } from '../transport/transportConnection';
 import { DummyNetworkManager } from './dummyNetworkManager';
 import { DummyTransportConnection } from './dummyTransportConnection';
 import { MessageClass, NetConstants } from '../networkDefinitions';
-import { Settings } from '../../settings';
+import { Cube } from '../../cube/cube';
 
 export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
     stats: NetworkStats;
@@ -24,10 +26,10 @@ export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
     sendMyServerAddress(): void { this.sentMessages.push(new ServerAddressMessage(this.address)) }
     sendKeyRequests(): void { this.sentMessages.push(new KeyRequestMessage(KeyRequestMode.SequentialStoreSync)) }
     sendSpecificKeyRequest(mode: KeyRequestMode, options: CubeFilterOptions = {}): void { }
-    sendCubeRequest(keys: Buffer[]): void { this.sentMessages.push(new CubeRequestMessage(keys)) }
+    sendCubeRequest(keys: CubeKey[]): void { this.sentMessages.push(new CubeRequestMessage(keys)) }
 
     async sendSubscribeCube(
-            keys: Buffer[],
+            keys: CubeKey[],
             type: MessageClass.SubscribeCube | MessageClass.SubscribeNotifications = MessageClass.SubscribeCube,
             mockResponse?: SubscriptionConfirmationMessage,
     ): Promise<void> {
@@ -37,7 +39,7 @@ export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
         }
     }
 
-    sendNotificationRequest(keys: Buffer[]): void { this.sentMessages.push(new CubeRequestMessage(keys, MessageClass.NotificationRequest)) }
+    sendNotificationRequest(keys: NotificationKey[]): void { this.sentMessages.push(new CubeRequestMessage(keys as unknown as CubeKey[], MessageClass.NotificationRequest)) }
     sendPeerRequest(): void { this.sentMessages.push(new PeerRequestMessage()) }
 
     sentMessages: NetworkMessage[] = [];

@@ -1,9 +1,10 @@
-import { Settings, VerityError } from "../settings";
-import { NetConstants } from "../networking/networkDefinitions";
 import type { FieldBooleanParam, FieldFactoryParam, FieldNumericalParam, PositionalFields } from "../fields/fieldParser";
 
-import { Buffer } from 'buffer';
+import { Settings, VerityError } from "../settings";
+import { NetConstants } from "../networking/networkDefinitions";
 import { CubeField } from "./cubeField";
+
+import { Buffer } from 'buffer';
 
 // Note: To avoid circular references, this file should not include any of the
 // actual implementation files under cube.
@@ -316,12 +317,17 @@ export function NonNotifyCubeType(cubeType: CubeType): CubeType {
 // Never check if something is instanceof CubeKey, it never will be.
 // All the underlying lib will ever give us are Buffers, and Typescript will
 // gladly allow you to treat a Buffer as CubeKey without correctly downcasting it :(
-export class CubeKey extends Buffer {}
+export type Branded<T, B> = T & { __brand: B };
+export type CubeKey = Branded<Buffer, "CubeKey">;
+export type NotificationKey = Branded<Buffer, "NotificationKey">;
 
 // Error definitions
+export class KeyError extends VerityError { name = "KeyError" }
+export class InvalidCubeKey extends KeyError { name = "InvalidCubeKey" }
+export class InvalidNotificationKey extends KeyError { name = "InvalidNotificationKey" }
+
 export class CubeError extends VerityError { name = "CubeError" }
 export class InsufficientDifficulty extends CubeError { name = "InsufficientDifficulty" }
-export class InvalidCubeKey extends CubeError { name = "InvalidCubeKey" }
 
 export class FieldError extends CubeError { name = "FieldError" }
 export class MissingFieldError extends FieldError { name = "MissingFieldError" }

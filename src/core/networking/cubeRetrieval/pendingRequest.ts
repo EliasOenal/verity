@@ -1,3 +1,4 @@
+import { CubeKey } from "../../cube/cube.definitions";
 import { CubeInfo } from "../../cube/cubeInfo";
 import { Settings } from "../../settings";
 import { SubscriptionConfirmationMessage } from "../networkMessage";

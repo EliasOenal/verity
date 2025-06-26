@@ -884,7 +884,7 @@ describe('networkManager - libp2p connections', () => {
       fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus directe ad collegam meum iturus est"),
       requiredDifficulty: reducedDifficulty  // no hashcash for faster testing
     });
-    const cubeKey: Buffer = await cube.getKey();
+    const cubeKey: CubeKey = await cube.getKey();
     browser1.cubeStore.addCube(cube);
 
     // Expedite cube exchange for faster testing

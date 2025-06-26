@@ -1,7 +1,7 @@
 import { Settings } from '../../../src/core/settings';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
-import { CubeFieldLength, CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeFieldLength, CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/cube.definitions';
 import { Cube, coreCubeFamily } from '../../../src/core/cube/cube';
 import { CubeIteratorOptions, CubeStore as CubeStore, CubeStoreOptions } from '../../../src/core/cube/cubeStore';
 import { Sublevels } from '../../../src/core/cube/levelBackend';
@@ -118,7 +118,7 @@ describe('cubeStore', () => {
     }, 3000);
 
     it('should error when getting a cube with invalid hash', async () => {
-      const buffer = Buffer.alloc(32);
+      const buffer = Buffer.alloc(32) as CubeKey;
       expect(await cubeStore.getCube(buffer)).toBeUndefined();
     }, 3000);
 
@@ -350,7 +350,7 @@ describe('cubeStore', () => {
               requiredDifficulty: reducedDifficulty,
             });
             const spammyBinary: Buffer = await spammyCube.getBinaryData();
-            const spamKey: Buffer = await spammyCube.getKey();
+            const spamKey: CubeKey = await spammyCube.getKey();
             expect(spammyCube.fieldCount).toBeGreaterThan(300);  // lots of spam
             await cubeStore.addCube(spammyBinary);
 
@@ -382,7 +382,7 @@ describe('cubeStore', () => {
               });
 
               it('should also auto-increment a zero count to one on a notification PMUC', async () => {
-                const notificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42);
+                const notificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as NotificationKey;
                 const cube = Cube.Create({
                   cubeType: CubeType.PMUC_NOTIFY,
                   fields: [
@@ -717,12 +717,12 @@ describe('cubeStore', () => {
             expect(await cubeStore.getCubeInfo(undefined!)).toBeUndefined;
             expect(await cubeStore.getCube('')).toBeUndefined;
             expect(await cubeStore.getCubeInfo('')).toBeUndefined;
-            expect(await cubeStore.getCube(Buffer.alloc(0))).toBeUndefined;
-            expect(await cubeStore.getCubeInfo(Buffer.alloc(0))).toBeUndefined;
+            expect(await cubeStore.getCube(Buffer.alloc(0) as CubeKey)).toBeUndefined;
+            expect(await cubeStore.getCubeInfo(Buffer.alloc(0) as CubeKey)).toBeUndefined;
           });
 
           it('should return undefined when requesting an unavailable Cube', async () => {
-            const mockKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42);
+            const mockKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey;
             expect(await cubeStore.getCube(mockKey)).toBeUndefined;
             expect(await cubeStore.getCubeInfo(mockKey)).toBeUndefined;
           });
@@ -739,7 +739,7 @@ describe('cubeStore', () => {
             it('should return undefined when trying to retrieve a corrupt Cube', async () => {
               // craft and store a corrupt Cube
               const corruptCube: Buffer = Buffer.alloc(NetConstants.CUBE_SIZE, 137);
-              const key: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 101);
+              const key = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 101) as CubeKey;
               // @ts-ignore accessing private member persistence
               await cubeStore.leveldb.store(Sublevels.CUBES, key.toString('hex'), corruptCube);
 
@@ -758,7 +758,7 @@ describe('cubeStore', () => {
         describe('Notification tests', () => {
           it('should index and retrieve notifications correctly', async () => {
             // choose a notification recipient key
-            const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
+            const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42) as NotificationKey;
 
             // create two Cubes notifying this receiver --
             // this tests sculpts the Cubes "manually" while the next one will
@@ -816,7 +816,7 @@ describe('cubeStore', () => {
             // sculpt a notification Cube --
             // this test will use the convenience helpers while the previous
             // one sculpted them manually
-            const recipientKey1 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 84);
+            const recipientKey1 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 84) as NotificationKey;
             const cube1 = Cube.Frozen({
               fields: [
                 CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis"),
@@ -840,7 +840,7 @@ describe('cubeStore', () => {
             // sculpt a notification Cube --
             // this test will use the convenience helpers while the previous
             // one sculpted them manually
-            const recipientKey1 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 84);
+            const recipientKey1 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 84) as NotificationKey;
             const cube1 = Cube.Frozen({
               fields: [
                 CubeField.RawContent(CubeType.FROZEN_NOTIFY, "Cubus notificationis"),
@@ -851,7 +851,7 @@ describe('cubeStore', () => {
             await cubeStore.addCube(cube1);
 
             // sculpt a Cube notifying another receiver
-            const recipientKey2 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 1337);
+            const recipientKey2 = Buffer.alloc(NetConstants.NOTIFY_SIZE, 1337) as NotificationKey;
             const cube2 = Cube.Frozen({
               fields: [
                 CubeField.Notify(recipientKey2),
@@ -905,7 +905,7 @@ describe('cubeStore', () => {
           });
 
           it("should remove notification when Cube is replaced with a non-notification Cube", async () => {
-            const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 60);
+            const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 60) as NotificationKey;
 
             // Original notification Cube
             const cube1: Cube = Cube.Create({
@@ -941,7 +941,7 @@ describe('cubeStore', () => {
           });
 
           it("should index a notification when a non-notification Cube is replaced by a notification Cube", async () => {
-            const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 84);
+            const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 84) as NotificationKey;
 
             // Initial non-notification Cube
             const nonNotificationCube = Cube.Create({
@@ -981,7 +981,7 @@ describe('cubeStore', () => {
           });
 
           it("should gracefully ignore invalid notification fields without throwing", async () => {
-            const validRecipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42); // Valid key size
+            const validRecipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42) as NotificationKey; // Valid key size
             const invalidRecipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE - 1, 42); // Invalid key size (too short)
 
             // Cube with valid notification field
@@ -1063,7 +1063,7 @@ describe('cubeStore', () => {
           // compile it to binary -- it's CCI family is now no longer visible
           // as family is a purely local, parsing-related attribute
           const binaryCube: Buffer = await cube.getBinaryData();
-          const key: Buffer = await cube.getKey();
+          const key: CubeKey = await cube.getKey();
           // add compiled binary Cube to the store
           const added = await cubeStore.addCube(binaryCube);
           expect(added).toBeTruthy();

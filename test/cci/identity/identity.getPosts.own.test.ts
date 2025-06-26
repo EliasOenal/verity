@@ -1,5 +1,5 @@
 import { ArrayFromAsync, enumNums } from '../../../src/core/helpers/misc';
-import { CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/cube.definitions';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
@@ -82,7 +82,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     id.addPost(await singleFrozen.getKey());
 
     // - a frozen single Cube post with notification
-    const notificationKey1: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x41);
+    const notificationKey1 = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x41) as NotificationKey;
     singleFrozenNotify = cciCube.Create({
       cubeType: CubeType.FROZEN_NOTIFY,
       fields: [
@@ -108,7 +108,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     id.addPost(await singlePic.getKey());
 
     // - a PIC single Cube post with notification
-    const notificationKey2: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+    const notificationKey2 = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as NotificationKey;
     singlePicNotify = cciCube.Create({
       cubeType: CubeType.PIC_NOTIFY,
       fields: [
@@ -137,7 +137,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     id.addPost(await singleMuc.getKey());
 
     // - a MUC single Cube post with notification
-    const notificationKey3: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x43);
+    const notificationKey3 = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x43) as NotificationKey;
     const singleMucNotifyKeys = sodium.crypto_sign_keypair();
     singleMucNotify = cciCube.Create({
       cubeType: CubeType.MUC_NOTIFY,
@@ -169,7 +169,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     id.addPost(await singlePmuc.getKey());
 
     // - a PMUC single Cube post with notification
-    const notificationKey4: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x44);
+    const notificationKey4 = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x44) as NotificationKey;
     const singlePmucNotifyKeys = sodium.crypto_sign_keypair();
     singlePmucNotify = cciCube.Create({
       cubeType: CubeType.PMUC_NOTIFY,
@@ -259,7 +259,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       cubeType: CubeType.PIC,
       fields: [
         VerityField.Payload("Fruebar legendo commentarium tuum, dum licuit"),
-        VerityField.RelatesTo(RelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x99)),
+        VerityField.RelatesTo(RelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x99) as CubeKey),
         VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
       ],
       requiredDifficulty: 0,

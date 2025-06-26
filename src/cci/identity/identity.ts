@@ -10,8 +10,8 @@ import { logger } from '../../core/logger';
 
 import { Veritable } from '../../core/cube/veritable.definition';
 import { Cube } from '../../core/cube/cube';
-import { KeyVariants, keyVariants } from '../../core/cube/cubeUtil';
-import { CubeEmitter, CubeEmitterEvents, CubeRetrievalInterface, CubeStore } from '../../core/cube/cubeStore';
+import { asCubeKey, KeyVariants, keyVariants } from '../../core/cube/keyUtil';
+import { CubeEmitter, CubeRetrievalInterface, CubeStore } from '../../core/cube/cubeStore';
 import { CubeInfo } from '../../core/cube/cubeInfo';
 import { CubeKey, CubeType } from '../../core/cube/cube.definitions';
 
@@ -156,7 +156,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     // Fetch Identity -- either from IdentityStore if already constructed, or
     // reconstruct it from the network
     const identity: Identity =
-      await options.identityStore.retrieveIdentity(keyPair.publicKey);
+      await options.identityStore.retrieveIdentity(keyPair.publicKey as CubeKey);
 
     // If the Identity was found, supply the master key
     identity?.supplyMasterKey?.(options.masterKey);
@@ -480,7 +480,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    * (Yes, I know this is functionally identical with publicKey(), but it's
    * about the semantics :-P )
   */
-  get key(): CubeKey { return this._muc?.publicKey; }
+  get key(): CubeKey { return this._muc?.publicKey as CubeKey; }
   get keyString(): string { return this._muc?.publicKey?.toString('hex') }
 
   get recoveryPhrase(): string {
@@ -508,8 +508,8 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     this._posts.add(key.keyString);
 
     // emit events
-    this.emitCubeAdded(key.binaryKey);
-    this.emitPostAdded(key.binaryKey);
+    this.emitCubeAdded(asCubeKey(key.binaryKey));
+    this.emitPostAdded(asCubeKey(key.binaryKey));
     return true;
   }
 
@@ -557,7 +557,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    * Note that this is a synchroneous method and there is no recursion option.
    */
   *getPostKeys(): Iterable<CubeKey> {
-    for (const key of this._posts) yield keyVariants(key).binaryKey;
+    for (const key of this._posts) yield asCubeKey(key);
   }
 
   /**
@@ -732,7 +732,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    * Note that this is a synchroneous method and there is no recursion option.
    **/
   *getPublicSubscriptionKeys(): Iterable<CubeKey> {
-    for (const key of this._publicSubscriptions) yield keyVariants(key).binaryKey;
+    for (const key of this._publicSubscriptions) yield asCubeKey(key);
   }
 
   /**
@@ -920,7 +920,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
 
     const initialFields: VerityField[] = [];
     // Write notification key if requested
-    if (this.options.idmucNotificationKey?.length === NetConstants.CUBE_KEY_SIZE) {
+    if (this.options.idmucNotificationKey?.length === NetConstants.NOTIFY_SIZE) {
       initialFields.push(VerityField.Notify(this.options.idmucNotificationKey));
     }
 
@@ -1093,7 +1093,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
       // write rel
       fields.insertFieldBeforeBackPositionals(VerityField.RelatesTo(new Relationship(
         RelationshipType.SUBSCRIPTION_RECOMMENDATION,
-        keyVariants(subs[i]).binaryKey
+        asCubeKey(subs[i])
       )));
     }
     if (fields !== undefined) fieldSets.push(fields);  // push last chunk, if any

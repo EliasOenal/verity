@@ -1,15 +1,11 @@
 import { Cube } from "../../../src/core/cube/cube";
-import { CubeFieldType, CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
+import { CubeFieldType, CubeKey, CubeType, NotificationKey } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
-import { CubeFields } from "../../../src/core/cube/cubeFields";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
-import { CubeStore } from "../../../src/core/cube/cubeStore";
-import { keyVariants } from "../../../src/core/cube/cubeUtil";
+import { keyVariants } from "../../../src/core/cube/keyUtil";
 import { CubeSubscribeRetrieverOptions } from "../../../src/core/networking/cubeRetrieval/cubeRetriever";
 import { CubeSubscription } from "../../../src/core/networking/cubeRetrieval/pendingRequest";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { NetworkPeer } from "../../../src/core/networking/networkPeer";
-import { NetworkPeerIf } from "../../../src/core/networking/networkPeerIf";
 import { requiredDifficulty } from "../testcore.definition";
 import { LineShapedNetwork } from "./e2eSetup";
 
@@ -21,7 +17,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 
 describe('Notification subscription e2e tests', () => {
   describe('test group 1', () => {
-    const notificationKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42);
+    const notificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as NotificationKey;
     let net: LineShapedNetwork;
     const received: Cube[] = [];
 

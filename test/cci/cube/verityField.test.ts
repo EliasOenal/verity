@@ -1,7 +1,7 @@
 import { FieldType, MediaTypes } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
-import { FieldError } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, FieldError } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
@@ -52,7 +52,7 @@ describe('VerityField', () => {
     });
 
     it('should create RelatesTo cciField', () => {
-      const rel = new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42));
+      const rel = new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42) as CubeKey);
       const field = VerityField.RelatesTo(rel);
       expect(field instanceof VerityField).toBe(true);
       expect(field.type).toBe(FieldType.RELATES_TO);
@@ -101,7 +101,7 @@ describe('VerityField', () => {
 
   describe('static FromRelationships generator', () => {
     it('should generate fields from relationships', () => {
-      const rels = [new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))];
+      const rels = [new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE) as CubeKey)];
       const gen = VerityField.FromRelationships(rels);
       expect(gen.next().value instanceof VerityField).toBe(true);
     });

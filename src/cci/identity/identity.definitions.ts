@@ -1,6 +1,6 @@
 import type { MergedAsyncGenerator } from "../../core/helpers/asyncGenerators";
 
-import type { CubeKey } from "../../core/cube/cube.definitions";
+import type { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
 import type { Cube } from "../../core/cube/cube";
 import type { CubeEmitterEvents } from "../../core/cube/cubeStore";
 
@@ -81,7 +81,7 @@ export interface IdentityOptions {
    */
   idmucApplicationString?: string,
 
-  idmucNotificationKey?: CubeKey,
+  idmucNotificationKey?: NotificationKey,
 
   /**
    * Whether this Identity should listen for remote updates to itself.

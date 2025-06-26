@@ -1,3 +1,5 @@
+import type { CubeKey } from "../../../../src/core/cube/cube.definitions";
+
 import { Cube } from "../../../../src/core/cube/cube";
 import { VerityField } from "../../../../src/cci/cube/verityField";
 import { NetConstants } from "../../../../src/core/networking/networkDefinitions";
@@ -23,7 +25,7 @@ describe('makePost function', () => {
   it('should create a reply post', async () => {
     const text = "Habeo res importantiores dicere quam meus praecessor";
     const post: cciCube = await makePost(text, {
-      replyto: Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42),
+      replyto: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey,
       requiredDifficulty: 0,
     });
     expect(post).toBeInstanceOf(Cube);
@@ -31,7 +33,7 @@ describe('makePost function', () => {
     expect(post.getFirstField(FieldType.PAYLOAD).value.toString('utf8')).
       toEqual(text);
     expect(post.fields.getFirstRelationship(RelationshipType.REPLY_TO).remoteKey).
-      toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42));
+      toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey);
   });
 
   it('should throw when trying to create an overly large post', () => {

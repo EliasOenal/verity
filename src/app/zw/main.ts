@@ -7,7 +7,6 @@ import { FileManagerController } from "../../webui/fileManager/fileManagerContro
 import { ChatController } from "../../webui/chatApp/chatController";
 import type { NavItem } from "../../webui/navigation/navigationDefinitions";
 import { ZwConfig } from "./model/zwConfig";
-import { keyVariants } from "../../core/cube/cubeUtil";
 
 export async function webmain() {
   const navItems: NavItem[] = [

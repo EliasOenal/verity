@@ -2,7 +2,7 @@ import { Buffer } from 'buffer';
 import { cciCube } from '../cci/cube/cciCube';
 import { VerityField } from '../cci/cube/verityField';
 import { FieldType } from '../cci/cube/cciCube.definitions';
-import { CubeType } from '../core/cube/cube.definitions';
+import { CubeType, NotificationKey } from '../core/cube/cube.definitions';
 import { CubeField } from '../core/cube/cubeField';
 import { logger } from '../core/logger';
 import { Cube } from '../core/cube/cube';
@@ -18,7 +18,7 @@ export class ChatApplication {
      * @returns A frozen notify cciCube containing the chat message.
      * @throws Error if the notification key is invalid.
      */
-    static async createChatCube(username: string, message: string, notificationKey: Buffer): Promise<cciCube> {
+    static async createChatCube(username: string, message: string, notificationKey: NotificationKey): Promise<cciCube> {
         if (!Buffer.isBuffer(notificationKey) || notificationKey.length !== 32) {
             throw new Error('Invalid notification key: must be a 32-byte Buffer');
         }

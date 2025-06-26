@@ -1,14 +1,19 @@
-import { BaseField } from "../fields/baseField";
-import { CubeError, CubeKey, CubeType, FieldError } from "../cube/cube.definitions";
-import { CubeInfo } from "../cube/cubeInfo";
-import { logger } from "../logger";
-import { AddressAbstraction } from "../peering/addressing";
-import { Peer } from "../peering/peer";
 import { ApiMisuseError, Settings, VerityError } from "../settings";
 import { MessageClass, NetConstants, NetworkError, NetworkMessageError, SupportedTransports } from "./networkDefinitions";
 
-import { Buffer } from 'buffer';
+import { BaseField } from "../fields/baseField";
+
+import { CubeError, CubeKey, CubeType, FieldError, NotificationKey } from "../cube/cube.definitions";
+import { CubeInfo } from "../cube/cubeInfo";
 import { calculateHash } from "../cube/cubeUtil";
+import { asCubeKey } from "../cube/keyUtil";
+
+import { logger } from "../logger";
+
+import { AddressAbstraction } from "../peering/addressing";
+import { Peer } from "../peering/peer";
+
+import { Buffer } from 'buffer';
 
 export interface CubeFilterOptions {
   /** no more than this number of Cubes or records */
@@ -27,7 +32,7 @@ export interface CubeFilterOptions {
   timeMax?: number,
 
   /** only Cubes with a notification field referring to this key */
-  notifies?: Buffer,
+  notifies?: NotificationKey,
 
   /**
    * Request to start returning keys from this key.
@@ -165,7 +170,7 @@ export class KeyRequestMessage extends NetworkMessage {
       }
       startKey = options.startKey;
     } else {
-      startKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0);
+      startKey = asCubeKey(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0));
     }
     startKey.copy(buffer, offset);
     offset += NetConstants.CUBE_KEY_SIZE;
@@ -382,7 +387,7 @@ export class KeyResponseMessage extends NetworkMessage {
           const timestamp = this.value.readUIntBE(offset, NetConstants.TIMESTAMP_SIZE);
           offset += NetConstants.TIMESTAMP_SIZE;
 
-          const key = this.value.subarray(offset, offset + NetConstants.CUBE_KEY_SIZE);
+          const key = asCubeKey(this.value.subarray(offset, offset + NetConstants.CUBE_KEY_SIZE));
           offset += NetConstants.CUBE_KEY_SIZE;
 
           const updatecount = this.value.readUIntBE(offset, NetConstants.PMUC_UPDATE_COUNT_SIZE);
@@ -409,9 +414,12 @@ export class CubeRequestMessage extends NetworkMessage {
   readonly keyCount: number;
 
   constructor(value: Buffer, messageClass?: MessageClass);
-  constructor(cubeKeys: CubeKey[], messageClass?: MessageClass);
+  // HACKHACK: Also accept NotificationKeys (which have the same format)
+  //   so NotificationRequestMessage can inherit from CubeRequestMessage
+  //   without having to duplicate the constructor
+  constructor(cubeKeys: CubeKey[]|NotificationKey[], messageClass?: MessageClass);
 
-  constructor(param: Buffer | CubeKey[], messageClass: MessageClass = MessageClass.CubeRequest) {
+  constructor(param: Buffer | CubeKey[] | NotificationKey[], messageClass: MessageClass = MessageClass.CubeRequest) {
     if (Buffer.isBuffer(param)) {
       super(messageClass, param);
       // ensure number of requests per message does not exceed maximum
@@ -420,7 +428,7 @@ export class CubeRequestMessage extends NetworkMessage {
         NetConstants.MAX_CUBES_PER_MESSAGE
       );
     } else if (Array.isArray(param)) {
-      const keys: CubeKey[] = param;
+      const keys: CubeKey[] = param as CubeKey[];
       // ensure number of requests per message does not exceed maximum
       const keyCount = Math.min(
         keys.length,
@@ -450,10 +458,10 @@ export class CubeRequestMessage extends NetworkMessage {
 
   *cubeKeys(): Generator<CubeKey> {
     for (let i = 0; i < this.keyCount; i++) {
-      yield this.value.subarray(
+      yield asCubeKey(this.value.subarray(
         NetConstants.COUNT_SIZE + i * NetConstants.CUBE_KEY_SIZE,
         NetConstants.COUNT_SIZE + (i + 1) * NetConstants.CUBE_KEY_SIZE
-      );
+      ));
     }
   }
 }

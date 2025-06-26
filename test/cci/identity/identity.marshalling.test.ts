@@ -1,5 +1,6 @@
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
+import { asNotificationKey } from "../../../src/core/cube/keyUtil";
 import { Cube } from "../../../src/core/cube/cube";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 
@@ -47,7 +48,7 @@ let cubeStore: CubeStore;
 
       // populate ID
       original.name = "Probator Identitatum";
-      original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
+      original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA) as CubeKey;
       original.avatar = new Avatar(
         Buffer.from("0102030405", 'hex'), AvatarScheme.MULTIAVATAR);
 
@@ -97,7 +98,7 @@ let cubeStore: CubeStore;
 
       // populate ID
       original.name = "Probator Identitatum";
-      original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA);
+      original.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xDA) as CubeKey;
       original.avatar = new Avatar("0102030405", AvatarScheme.MULTIAVATAR);
       await cubeStore.addCube(
         await makePost("Habeo res importantes dicere", {
@@ -147,7 +148,7 @@ let cubeStore: CubeStore;
       expect(id.name).toEqual("Probator Identitatum");
       expect(id.profilepic).toBeUndefined();
 
-      id.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xda);
+      id.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xda) as CubeKey;
       const secondMuc: cciCube = await id.store();
       const secondMucHash: Buffer = secondMuc.getHashIfAvailable();
       expect(secondMuc).toBeInstanceOf(cciCube);
@@ -221,7 +222,7 @@ let cubeStore: CubeStore;
       const original: Identity = await Identity.Create(
         cubeStore, "usor probationis", "clavis probationis", idTestOptions);
       original.name = "Probator memoriae tabellae";
-      const idkey = original.publicKey;
+      const idkey = original.publicKey as CubeKey;
 
       // make some test posts
       for (let i=0; i<TESTPOSTCOUNT; i++) {
@@ -482,7 +483,7 @@ let cubeStore: CubeStore;
 
   describe('optional fields', () => {
     it('makes a Notification Cube if requested', async () => {
-      const notificationKey = Buffer.from("1337133713371337133713371337133713371337133713371337133713371337", "hex");
+      const notificationKey = asNotificationKey("1337133713371337133713371337133713371337133713371337133713371337");
       const options: IdentityOptions = {
         ...idTestOptions,
         idmucNotificationKey: notificationKey,

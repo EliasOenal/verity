@@ -2,7 +2,7 @@ import { cciCube } from "../../../src/cci/cube/cciCube";
 import { MediaTypes, FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Veritum, VeritumFromChunksOptions } from "../../../src/cci/veritum/veritum";
-import { CubeKey, CubeType, DEFAULT_CUBE_TYPE, HasNotify, HasSignature } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, CubeType, DEFAULT_CUBE_TYPE, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/cube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { enumNums } from "../../../src/core/helpers/misc";
 
@@ -68,7 +68,7 @@ describe('Veritum compilation/decompilation combinatorial round-trip tests', () 
                 let firstRestoreVeritum: Veritum;
                 let firstRestoreChunks: cciCube[];
                 let firstRestoreBinaryData: Buffer[];
-                const notify = VerityField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42));
+                const notify = VerityField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as NotificationKey);
 
 
                 beforeAll(async () => {

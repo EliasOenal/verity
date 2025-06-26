@@ -2,7 +2,7 @@
 
 import { Veritable } from '../../../../src/core/cube/veritable.definition';
 import { CubeKey } from '../../../../src/core/cube/cube.definitions';
-import { keyVariants } from '../../../../src/core/cube/cubeUtil';
+import { keyVariants } from '../../../../src/core/cube/keyUtil';
 
 import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
 import { Identity } from '../../../../src/cci/identity/identity';

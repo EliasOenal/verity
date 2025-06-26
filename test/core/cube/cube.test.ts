@@ -7,7 +7,7 @@ import { BaseField } from '../../../src/core/fields/baseField';
 import { BaseFields } from '../../../src/core/fields/baseFields';
 import { FieldParser } from '../../../src/core/fields/fieldParser';
 
-import { BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldSizeError, HasNotify, HasSignature, RawcontentFieldType } from '../../../src/core/cube/cube.definitions';
+import { BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, FieldSizeError, HasNotify, HasSignature, NotificationKey, RawcontentFieldType } from '../../../src/core/cube/cube.definitions';
 import { Cube, coreCubeFamily } from '../../../src/core/cube/cube';
 import { calculateHash, countTrailingZeroBits, paddedBuffer, verifySignature } from '../../../src/core/cube/cubeUtil';
 import { CubeField } from '../../../src/core/cube/cubeField';
@@ -423,7 +423,7 @@ describe('cube', () => {
             [CubeField.RawContent(type, contentString)];
           // ... plus a Notify field if this is a Notify type ...
           if (HasNotify[type]) incompleteFieldset.push(
-            CubeField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, randomNotifyNumer)));
+            CubeField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, randomNotifyNumer) as NotificationKey));
           // ... plus a public key field if this is a signed type.
           let publicKey: Buffer, privateKey: Buffer;
           if (HasSignature[type]) {

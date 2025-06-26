@@ -1,4 +1,4 @@
-import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, CubeType, NotificationKey } from "../../../src/core/cube/cube.definitions";
 import { Cube } from "../../../src/core/cube/cube";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { MessageClass, NetConstants } from "../../../src/core/networking/networkDefinitions";
@@ -64,7 +64,7 @@ describe('KeyRequestMessage', () => {
       const keyRequestMessage = new KeyRequestMessage(
         KeyRequestMode.SlidingWindow, {
           maxCount: 10,
-          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42),
+          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey,
       });
       expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
       expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
@@ -85,7 +85,7 @@ describe('KeyRequestMessage', () => {
       const keyRequestMessage = new KeyRequestMessage(
         KeyRequestMode.SequentialStoreSync, {
           maxCount: 5,
-          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
+          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
       });
       expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
       expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
@@ -106,8 +106,8 @@ describe('KeyRequestMessage', () => {
       const keyRequestMessage = new KeyRequestMessage(
         KeyRequestMode.NotificationChallenge, {
           maxCount: 5,
-          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
-          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69),
+          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
+          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69) as NotificationKey,
           difficulty: 42,
         }
       );
@@ -140,8 +140,8 @@ describe('KeyRequestMessage', () => {
       const keyRequestMessage = new KeyRequestMessage(
         KeyRequestMode.NotificationChallenge, {
           maxCount: 5,
-          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
-          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69),
+          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
+          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69) as NotificationKey,
         }
       );
       expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
@@ -173,8 +173,8 @@ describe('KeyRequestMessage', () => {
       const keyRequestMessage = new KeyRequestMessage(
         KeyRequestMode.NotificationTimestamp, {
           maxCount: 5,
-          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
-          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69),
+          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
+          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69) as NotificationKey,
           timeMin: 42,
           timeMax: 1337,
       });
@@ -217,8 +217,8 @@ describe('KeyRequestMessage', () => {
       const keyRequestMessage = new KeyRequestMessage(
         KeyRequestMode.NotificationTimestamp, {
           maxCount: 5,
-          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
-          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69),
+          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
+          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69) as NotificationKey,
       });
       expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
       expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
@@ -261,7 +261,7 @@ describe('KeyRequestMessage', () => {
     it('should decompile a valid KeyRequestMessage in SlidingWindow mode', () => {
       const compiling = new KeyRequestMessage(KeyRequestMode.SlidingWindow, {
         maxCount: 5,
-        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
+        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
       });
       const msg = new KeyRequestMessage(compiling.value);
 
@@ -275,7 +275,7 @@ describe('KeyRequestMessage', () => {
     it('should decompile a valid KeyRequestMessage in Sequential Store Sync mode', () => {
       const compiling = new KeyRequestMessage(KeyRequestMode.SequentialStoreSync, {
         maxCount: 5,
-        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
+        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
       });
       const msg = new KeyRequestMessage(compiling.value);
 
@@ -289,8 +289,8 @@ describe('KeyRequestMessage', () => {
     it('should decompile a valid KeyRequestMessage in Notification w/ Challenge Constraint mode', () => {
       const compiling = new KeyRequestMessage(KeyRequestMode.NotificationChallenge, {
         maxCount: 5,
-        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
-        notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69),
+        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
+        notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69) as NotificationKey,
         difficulty: 42,
       });
       const msg = new KeyRequestMessage(compiling.value);
@@ -307,8 +307,8 @@ describe('KeyRequestMessage', () => {
     it('should decompile a valid KeyRequestMessage in Notification w/ Timestamp Constraint mode', () => {
       const compiling = new KeyRequestMessage(KeyRequestMode.NotificationTimestamp, {
         maxCount: 5,
-        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
-        notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69),
+        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
+        notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69) as NotificationKey,
         timeMin: 42,
         timeMax: 31337,
       });

@@ -4,7 +4,7 @@ import { MediaTypes, FieldType } from "../../../src/cci/cube/cciCube.definitions
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Veritum } from "../../../src/cci/veritum/veritum";
 import { coreCubeFamily } from "../../../src/core/cube/cube";
-import { CubeKey, CubeType, DEFAULT_CUBE_TYPE, HasNotify, HasSignature } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, CubeType, DEFAULT_CUBE_TYPE, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/cube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { enumNums } from "../../../src/core/helpers/misc";
 
@@ -22,7 +22,7 @@ describe('Veritum (basic tests)', () => {
   const applicationField = VerityField.Application("contentum probationis non applicationis");
   const mediaTypeField = VerityField.MediaType(MediaTypes.TEXT);
   const payloadField = VerityField.Payload("Hoc veritum probatio est");
-  const notificationField = VerityField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x69));
+  const notificationField = VerityField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x69) as NotificationKey);
 
   let publicKey: Buffer;
   let privateKey: Buffer;

@@ -1,18 +1,19 @@
-import { Cube, CubeCreateOptions } from "../core/cube/cube";
-import { CubeKey, CubeType } from "../core/cube/cube.definitions";
-import { ArrayFromAsync } from "../core/helpers/misc";
-import { dummyVerityNode, VerityNodeIf, VerityNodeOptions } from "./verityNode";
-import { cciCube } from "./cube/cciCube";
-import { Identity } from "./identity/identity";
-import { Veritum, VeritumCompileOptions, VeritumFromChunksOptions } from "./veritum/veritum";
-import { GetVeritumOptions, VeritumRetrievalInterface } from "./veritum/veritumRetriever";
+import type { CubeKey, NotificationKey } from "../core/cube/cube.definitions";
 
-import { Buffer } from 'buffer';
-import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
-import { MetadataEnhancedRetrieval, ResolveRelsOptions, ResolveRelsRecursiveOptions, ResolveRelsRecursiveResult, ResolveRelsResult } from "./veritum/veritumRetrievalUtil";
+import { Cube, CubeCreateOptions } from "../core/cube/cube";
 import { CubeInfo } from "../core/cube/cubeInfo";
 import { CubeStore } from "../core/cube/cubeStore";
 import { Veritable } from "../core/cube/veritable.definition";
+import { asCubeKey } from "../core/cube/keyUtil";
+
+import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
+
+import { dummyVerityNode, VerityNodeIf, VerityNodeOptions } from "./verityNode";
+import { cciCube } from "./cube/cciCube";
+import { Identity } from "./identity/identity";
+import { Veritum, VeritumCompileOptions } from "./veritum/veritum";
+import { GetVeritumOptions, VeritumRetrievalInterface } from "./veritum/veritumRetriever";
+import { MetadataEnhancedRetrieval, ResolveRelsOptions, ResolveRelsRecursiveOptions, ResolveRelsRecursiveResult, ResolveRelsResult } from "./veritum/veritumRetrievalUtil";
 
 export interface CockpitOptions {
   identity?: Identity | (() => Identity);
@@ -168,11 +169,11 @@ export class Cockpit implements VeritumRetrievalInterface {
   }
   // Pass-through method to implement CubeRetrievalInterface
   expectCube(keyInput: CubeKey | string): Promise<CubeInfo> {
-    return this.node.cubeStore.expectCube(keyInput);
+    return this.node.cubeStore.expectCube(asCubeKey(keyInput));
   }
   // Pass-through method to implement CubeRetrievalInterface --
   // TODO: implement enhancement features like auto-decrypt
-  getNotifications(recipientKey: CubeKey | string): AsyncGenerator<Veritable> {
+  getNotifications(recipientKey: NotificationKey | string): AsyncGenerator<Veritable> {
     return this.node.veritumRetriever.getNotifications(recipientKey);
   }
 

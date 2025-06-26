@@ -1,12 +1,10 @@
 import { Cube } from "../../../src/core/cube/cube";
 import { CubeFieldType, CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
-import { CubeFields } from "../../../src/core/cube/cubeFields";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
-import { keyVariants } from "../../../src/core/cube/cubeUtil";
+import { asCubeKey, keyVariants } from "../../../src/core/cube/keyUtil";
 import { CubeSubscription } from "../../../src/core/networking/cubeRetrieval/pendingRequest";
 import { NetworkPeer } from "../../../src/core/networking/networkPeer";
-import { NetworkPeerIf } from "../../../src/core/networking/networkPeerIf";
 import { requiredDifficulty } from "../testcore.definition";
 import { LineShapedNetwork } from "./e2eSetup";
 
@@ -41,7 +39,7 @@ describe('Cube subscription e2e tests', () => {
       // prepare crypto
       await sodium.ready;
       const keyPair = sodium.crypto_sign_keypair();
-      key = Buffer.from(keyPair.publicKey);
+      key = asCubeKey(Buffer.from(keyPair.publicKey));
       privateKey = Buffer.from(keyPair.privateKey);
 
       // prepare a test network

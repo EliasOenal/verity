@@ -1,5 +1,6 @@
 import { SupportedTransports } from "../../../src/core/networking/networkDefinitions";
 import { CubeKey } from "../../../src/core/cube/cube.definitions";
+import { keyVariants } from "../../../src/core/cube/keyUtil";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 import { CubeRetriever } from "../../../src/core/networking/cubeRetrieval/cubeRetriever";
 import { NetworkManager } from "../../../src/core/networking/networkManager";
@@ -19,7 +20,6 @@ import { idTestOptions, testCubeStoreParams } from "../testcci.definitions";
 
 import sodium from "libsodium-wrappers-sumo";
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { keyVariants } from "../../../src/core/cube/cubeUtil";
 
 const reducedDifficulty = 0;  // no hash cash for testing
 

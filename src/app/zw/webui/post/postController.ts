@@ -1,6 +1,6 @@
 import { CubeKey } from "../../../../core/cube/cube.definitions";
 import { Cube } from "../../../../core/cube/cube";
-import { keyVariants } from "../../../../core/cube/cubeUtil";
+import { asCubeKey, keyVariants } from "../../../../core/cube/keyUtil";
 import { logger } from "../../../../core/logger";
 
 import { FieldType } from "../../../../cci/cube/cciCube.definitions";
@@ -238,7 +238,7 @@ export class PostController extends VerityController {
   async makeNewPost(input: HTMLFormElement) {
     const replytostring: string = input.getAttribute("data-cubekey");
     const replyto: CubeKey =
-      replytostring? Buffer.from(replytostring, 'hex') : undefined;
+      replytostring? asCubeKey(replytostring) : undefined;
     const textarea: HTMLTextAreaElement =
       input.getElementsByTagName("textarea")[0] as HTMLTextAreaElement;
     const text = textarea.value;
@@ -313,7 +313,7 @@ export class PostController extends VerityController {
 
   private async getImageDataUrl(cubeKey: string): Promise<string | null> {
     try {
-      const { content, fileName } = await FileApplication.retrieveFile(Buffer.from(cubeKey, 'hex'), this.cubeRetriever);
+      const { content, fileName } = await FileApplication.retrieveFile(asCubeKey(cubeKey), this.cubeRetriever);
       const base64 = Buffer.from(content).toString('base64');
       const mimeType = this.getMimeType(fileName);
       return `data:${mimeType};base64,${base64}`;

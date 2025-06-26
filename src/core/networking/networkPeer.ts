@@ -5,10 +5,15 @@ import { CubeFilterOptions, CubeRequestMessage, CubeResponseMessage, HelloMessag
 import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
 import { KeyRequestMode } from './networkMessage';
 import { TransportConnection } from './transport/transportConnection';
+import { NetworkPeerIf, NetworkPeerLifecycle, NetworkPeerOptions, NetworkStats } from './networkPeerIf';
+import { NetworkManagerIf } from './networkManagerIf';
 
-import { CubeKey } from '../cube/cube.definitions';
+import { CubeKey, NotificationKey } from '../cube/cube.definitions';
 import { CubeStore } from '../cube/cubeStore';
 import { CubeInfo } from '../cube/cubeInfo';
+import { Sublevels } from '../cube/levelBackend';
+import { Cube } from '../cube/cube';
+import { keyVariants } from '../cube/keyUtil';
 
 import { WebSocketAddress, AddressAbstraction } from '../peering/addressing';
 import { Peer } from '../peering/peer';
@@ -16,11 +21,6 @@ import { Peer } from '../peering/peer';
 import { logger } from '../logger';
 
 import { Buffer } from 'buffer';
-import { Sublevels } from '../cube/levelBackend';
-import { Cube } from '../cube/cube';
-import { keyVariants } from '../cube/cubeUtil';
-import { NetworkPeerIf, NetworkPeerLifecycle, NetworkPeerOptions, NetworkStats } from './networkPeerIf';
-import { NetworkManagerIf } from './networkManagerIf';
 
 /**
  * Class representing a network peer, responsible for handling incoming and outgoing messages.
@@ -749,7 +749,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
      * Send a CubeRequest message.
      * @param keys The list of cube keys to request.
      */
-    sendCubeRequest(keys: Buffer[]): void {
+    sendCubeRequest(keys: CubeKey[]): void {
         const msg: CubeRequestMessage = new CubeRequestMessage(keys);
         logger.trace(`NetworkPeer ${this.toString()}: sending CubeRequest for ${keys.length} cubes`);
         this.setTimeout();  // expect a timely reply to this request
@@ -761,7 +761,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
      * @param keys The list of cube keys to subscribe to.
      */
     sendSubscribeCube(
-            keys: Buffer[],
+            keys: CubeKey[],
             type: MessageClass.SubscribeCube | MessageClass.SubscribeNotifications = MessageClass.SubscribeCube,
     ): void {
         const msg: CubeRequestMessage = new CubeRequestMessage(keys, type);
@@ -774,9 +774,11 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
      * Send a NotificationRequest message.
      * @param keys The list of notification keys to request.
      */
-    sendNotificationRequest(keys: Buffer[]): void {
+    sendNotificationRequest(keys: NotificationKey[]): void {
         // NotificationRequests are a special type of CubeRequests
-        const msg: CubeRequestMessage = new CubeRequestMessage(keys, MessageClass.NotificationRequest);
+        const msg: CubeRequestMessage = new CubeRequestMessage(
+            keys as unknown as CubeKey[],  // HACKHACK CubeKeys and NotificationKeys have the same format
+            MessageClass.NotificationRequest);
         logger.trace(`NetworkPeer ${this.toString()}: sending NotificationRequest for ${keys.length} cubes`);
         this.setTimeout();  // expect a timely reply to this request
         this.sendMessage(msg);

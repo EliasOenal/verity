@@ -4,7 +4,7 @@ import { VerityField } from '../../../src/cci/cube/verityField';
 import { Recombine, Split } from '../../../src/cci/veritum/continuation';
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { RetrievalFormat, VeritumRetriever } from '../../../src/cci/veritum/veritumRetriever';
-import { CubeType, CubeKey } from '../../../src/core/cube/cube.definitions';
+import { CubeType, CubeKey, NotificationKey } from '../../../src/core/cube/cube.definitions';
 import { CubeStoreOptions, CubeStore } from '../../../src/core/cube/cubeStore';
 import { CubeRequestOptions, RequestScheduler } from '../../../src/core/networking/cubeRetrieval/requestScheduler';
 import { NetworkManagerIf } from '../../../src/core/networking/networkManagerIf';
@@ -447,7 +447,7 @@ describe('VeritumRetriever', () => {
       describe('missing chunks', () => {
         it('aborts if the first chunk is missing and returns an error', async () => {
           // prepare test data
-          const notificationKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+          const notificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as NotificationKey;
           const veritum: Veritum = new Veritum({
             cubeType: CubeType.PIC_NOTIFY,
             fields: [
@@ -756,7 +756,7 @@ describe('VeritumRetriever', () => {
         it('returns an empty metadata object if the Veritum is not retrievable', async () => {
           const result: ResolveRelsResult =
             await retriever.getVeritum(
-              Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42), {
+              Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as CubeKey, {
                 resolveRels: true,
           });
           expect(result).toBeDefined();
@@ -801,7 +801,7 @@ describe('VeritumRetriever', () => {
         it('returns an empty metadata object if the Veritum is not retrievable', async () => {
           const result: ResolveRelsRecursiveResult =
             await retriever.getVeritum(
-              Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42), {
+              Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as CubeKey, {
                 resolveRels: 'recursive',
           });
           expect(result).toBeDefined();
@@ -830,7 +830,7 @@ describe('VeritumRetriever', () => {
         it('retrieves a single-Cube notification PIC already in store', async () => {
           // sculpt a single-Cube notification and add it to the local CubeStore
           const latin = "Nuntius brevis succinctus nec plures cubos requirens";
-          const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x43);
+          const recipientKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x43) as NotificationKey;
           const notification: Veritum = new Veritum({
             cubeType: CubeType.FROZEN_NOTIFY,
             fields: [
@@ -873,7 +873,7 @@ describe('VeritumRetriever', () => {
 
         it('retrieves a three-Cube frozen notification already in store', async () => {
           // sculpt a three-Cube notification and add it to the local CubeStore
-          const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x44);
+          const recipientKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x44) as NotificationKey;
           const notification: Veritum = new Veritum({
             cubeType: CubeType.FROZEN_NOTIFY,
             fields: [
@@ -914,7 +914,7 @@ describe('VeritumRetriever', () => {
 
         it('retrieves two locally available single-Cube notifications', async () => {
           // Sculpt two single-Chunk notifications
-          const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x45);
+          const recipientKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x45) as NotificationKey;
 
           const firstLatin = "Magni momenti nuntiatio";
           const first: Veritum = new Veritum({
@@ -963,7 +963,7 @@ describe('VeritumRetriever', () => {
           // Sculpt a single-Cube MUC notification.
           // Note we don't add it to the store just yet, meaning it's not
           // locally available and has to be requested from the network.
-          const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x46);
+          const recipientKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x46) as NotificationKey;
           const short = "Nuntius brevis succinctus nec plures cubos requirens";
           const singleCube: Veritum = new Veritum({
             cubeType: CubeType.PIC_NOTIFY,
@@ -1003,7 +1003,7 @@ describe('VeritumRetriever', () => {
           // Sculpt a single-Cube MUC notification.
           // Note we don't add it to the store just yet, meaning it's not
           // locally available and has to be requested from the network.
-          const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x47);
+          const recipientKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x47) as NotificationKey;
           const short = "Nuntius brevis succinctus nec plures cubos requirens";
           const keyPair = sodium.crypto_sign_keypair();
           const singleCube: Veritum = new Veritum({
@@ -1047,7 +1047,7 @@ describe('VeritumRetriever', () => {
           // Sculpt a two-Cube notification.
           // Note we don't add it to the store just yet, meaning they're not
           // locally available and have to be requested from the network.
-          const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x48);
+          const recipientKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x48) as NotificationKey;
           const twoCube: Veritum = new Veritum({
             cubeType: CubeType.FROZEN_NOTIFY,
             fields: [
@@ -1101,7 +1101,7 @@ describe('VeritumRetriever', () => {
           // Sculpt a two-Cube notification.
           // Note we don't add it to the store just yet, meaning they're not
           // locally available and have to be requested from the network.
-          const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x49);
+          const recipientKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x49) as NotificationKey;
           const twoCube: Veritum = new Veritum({
             cubeType: CubeType.FROZEN_NOTIFY,
             fields: [
@@ -1146,7 +1146,7 @@ describe('VeritumRetriever', () => {
           // Sculpt two single-Chunk notifications
           // Note we don't add those to the store just yet, meaning they're not
           // locally available and have to be requested from the network.
-          const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x50);
+          const recipientKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x50) as NotificationKey;
 
           const firstLatin = "Magni momenti nuntiatio";
           const first: Veritum = new Veritum({
@@ -1213,7 +1213,7 @@ describe('VeritumRetriever', () => {
           // Sculpt a two-Cube notification and a single-Cube notification.
           // Note we don't add those to the store just yet, meaning they're not
           // locally available and have to be requested from the network.
-          const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x51);
+          const recipientKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x51) as NotificationKey;
           const twoCube: Veritum = new Veritum({
             cubeType: CubeType.FROZEN_NOTIFY,
             fields: [
@@ -1298,7 +1298,7 @@ describe('VeritumRetriever', () => {
     describe('retrieval as Cube', () => {
       describe('notifications already in store', () => {
         it('retrieves a single-Cube notification', async () => {
-          const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0xA1);
+          const recipientKey: NotificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0xA1) as NotificationKey;
           const notification = cciCube.Create({
             cubeType: CubeType.PIC_NOTIFY,
             fields: [

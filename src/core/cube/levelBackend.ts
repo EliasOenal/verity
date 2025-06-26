@@ -11,8 +11,7 @@ import { ClassicLevel } from 'classic-level';
 import { MemoryLevel } from 'memory-level';
 import { AbstractLevel } from 'abstract-level';
 import { CubeIteratorOptions } from './cubeStore';
-import { keyVariants } from './cubeUtil';
-import { err } from 'cmd-ts/dist/cjs/Result';
+import { keyVariants } from './keyUtil';
 
 // maybe TODO: If we find random data in the database that doesn't parse as a cube, should we delete it?
 // ... now that we generalized this Class, any deleting of unparseable Cubes

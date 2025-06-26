@@ -2,7 +2,7 @@ import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 import { Cube } from '../../../src/core/cube/cube';
-import { CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { CubeField } from '../../../src/core/cube/cubeField';
@@ -25,7 +25,7 @@ describe('CubeInfo', () => {
     describe('dormant Cubes', () => {
       it('knows the update count when actively supplied', () => {
         const binaryCube: Buffer = Buffer.alloc(NetConstants.CUBE_SIZE, 42);  // fake Cube
-        const fakeKey: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337);
+        const fakeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337) as CubeKey;
         const cubeInfo: CubeInfo = new CubeInfo({
           key: fakeKey,
           cube: binaryCube,
@@ -44,7 +44,7 @@ describe('CubeInfo', () => {
         const binaryCube: Buffer = await cube.getBinaryData();
 
         const cubeInfo: CubeInfo = new CubeInfo({
-          key: publicKey,
+          key: publicKey as CubeKey,
           cube: binaryCube,
           cubeType: CubeType.PMUC,
           // note missing updatecount
@@ -54,7 +54,7 @@ describe('CubeInfo', () => {
 
       it('returns undefined when it cannot activate the Cube to get the update count', () => {
         const binaryCube: Buffer = Buffer.alloc(NetConstants.CUBE_SIZE, 42);  // fake Cube
-        const fakeKey: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337);
+        const fakeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337) as CubeKey;
         const cubeInfo: CubeInfo = new CubeInfo({
           key: fakeKey,
           cube: binaryCube,
@@ -77,7 +77,7 @@ describe('CubeInfo', () => {
         await cube.compile();
 
         const cubeInfo: CubeInfo = new CubeInfo({
-          key: publicKey,
+          key: publicKey as CubeKey,
           cube: cube,
           cubeType: CubeType.PMUC,
           // note missing updatecount
@@ -94,7 +94,7 @@ describe('CubeInfo', () => {
         await cube.compile();
 
         const cubeInfo: CubeInfo = new CubeInfo({
-          key: publicKey,
+          key: publicKey as CubeKey,
           cube: cube,
           cubeType: CubeType.PMUC,
           // note wrong updatecount supplied; should be ignored
@@ -107,7 +107,7 @@ describe('CubeInfo', () => {
     describe('incomplete Cubes', () => {
       describe('dormant Cubes', () => {
         it('knows the update count when actively supplied', () => {
-          const fakeKey: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337);
+          const fakeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337) as CubeKey;
           const cubeInfo: CubeInfo = new CubeInfo({
             key: fakeKey,
             cubeType: CubeType.PMUC,
@@ -117,7 +117,7 @@ describe('CubeInfo', () => {
         });
 
         it('returns undefined when the update count has not been supplied', () => {
-          const fakeKey: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337);
+          const fakeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337) as CubeKey;
           const cubeInfo: CubeInfo = new CubeInfo({
             key: fakeKey,
             cubeType: CubeType.PMUC,

@@ -10,6 +10,7 @@ import { logger } from '../../core/logger';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from 'browser-or-node';
 import { Level } from 'level';
 import { Buffer } from 'buffer';
+import { asCubeKey, keyVariants } from '../../core/cube/keyUtil';
 
 const DEFAULT_DB_NAME = "identity";
 const DEFAULT_DB_VERSION = 1;
@@ -77,8 +78,8 @@ export class IdentityPersistence {
       return undefined;
     }
     return this.db.put(
-      id.key.toString('hex'),
-      id.masterKey.toString('hex')
+      id.keyString,
+      keyVariants(id.masterKey).keyString,
     );
   }
 
@@ -97,9 +98,9 @@ export class IdentityPersistence {
     const identities: Array<Identity> = [];
     for await (const [pubkeyString, masterkeyString] of this.db.iterator()) {
       try {
-        const masterKey = Buffer.from(masterkeyString, 'hex');
+        const masterKey = keyVariants(masterkeyString).binaryKey;
         const muc = ensureCci(
-          await cubeStore.getCube(Buffer.from(pubkeyString, 'hex')));
+          await cubeStore.getCube(asCubeKey(pubkeyString)));
         if (muc === undefined) {
           logger.error("IdentityPersistance: Could not parse and Identity from DB as MUC " + pubkeyString + " is not present");
           continue;
@@ -117,7 +118,7 @@ export class IdentityPersistence {
 
   /** Deletes an Identity. Only used for unit testing by now. */
   delete(idkey: CubeKey) {
-    this.db.del(idkey.toString('hex'));
+    this.db.del(keyVariants(idkey).keyString);
   }
 
   /** Should only really be used by unit tests */

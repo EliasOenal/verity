@@ -2,15 +2,14 @@ import { ControllerContext, VerityController } from "../verityController";
 import { ChatView } from "./chatView";
 import { ChatApplication } from "../../app/chatApplication";
 import { logger } from "../../core/logger";
-import { Cube } from "../../core/cube/cube";
-import { CubeInfo } from "../../core/cube/cubeInfo";
 import { cciCube, cciFamily } from "../../cci/cube/cciCube";
 import { Buffer } from "buffer";
 import { log } from "console";
+import { NotificationKey } from "../../core/cube/cube.definitions";
 
 export class ChatController extends VerityController {
     declare public contentAreaView: ChatView;
-    private notificationKey: Buffer | null = null;
+    private notificationKey: NotificationKey | null = null;
     private username: string = '';
     private refreshInterval: NodeJS.Timeout | null = null;
 
@@ -35,7 +34,7 @@ export class ChatController extends VerityController {
 
     async setNotificationKey(key: string): Promise<void> {
         try {
-            this.notificationKey = Buffer.alloc(32);
+            this.notificationKey = Buffer.alloc(32) as NotificationKey;
             this.notificationKey.write(key, 'utf-8');
             await this.updateMessages();
             this.startAutoRefresh();

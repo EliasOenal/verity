@@ -7,6 +7,7 @@ import { VerityFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../.
 import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { CubeKey } from "../../../src";
 
 describe('VerityFields', () => {
   describe('constructor', () => {
@@ -39,7 +40,7 @@ describe('VerityFields', () => {
         VerityField.ContentName(contentName),
         new VerityField(FieldType.CUSTOM1, custom1),
         VerityField.RelatesTo(new Relationship(
-          RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
+          RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42) as CubeKey)),
         new VerityField(FieldType.CUSTOM2, custom2),
         VerityField.Username(username),
         new VerityField(FieldType.CUSTOM3, custom3),
@@ -80,16 +81,16 @@ describe('VerityFields', () => {
       const rels = [
         VerityField.RelatesTo(new Relationship(
           RelationshipType.MYPOST,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42) as CubeKey)),
         VerityField.RelatesTo(new Relationship(
           RelationshipType.SUBSCRIPTION_RECOMMENDATION,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137) as CubeKey)),
         VerityField.RelatesTo(new Relationship(
           RelationshipType.MYPOST,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(43))),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(43) as CubeKey)),
         VerityField.RelatesTo(new Relationship(
           RelationshipType.SUBSCRIPTION_RECOMMENDATION,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(138))),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(138) as CubeKey)),
       ];
       const fields = new VerityFields(rels, cciFrozenFieldDefinition);
       expect(fields.getRelationships(RelationshipType.MYPOST).length).toBe(2);
@@ -99,16 +100,16 @@ describe('VerityFields', () => {
       const rels = [
         VerityField.RelatesTo(new Relationship(
           RelationshipType.MYPOST,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42) as CubeKey)),
         VerityField.RelatesTo(new Relationship(
           RelationshipType.SUBSCRIPTION_RECOMMENDATION,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137) as CubeKey)),
         VerityField.RelatesTo(new Relationship(
           RelationshipType.MYPOST,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(43))),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(43) as CubeKey)),
         VerityField.RelatesTo(new Relationship(
           RelationshipType.SUBSCRIPTION_RECOMMENDATION,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(138))),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(138) as CubeKey)),
       ];
       const fields = new VerityFields(rels, cciFrozenFieldDefinition);
       expect(fields.getRelationships().length).toBe(4);
@@ -125,10 +126,10 @@ describe('VerityFields', () => {
       const rels = [
         VerityField.RelatesTo(new Relationship(
           RelationshipType.MYPOST,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42) as CubeKey)),
         VerityField.RelatesTo(new Relationship(
           RelationshipType.SUBSCRIPTION_RECOMMENDATION,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137) as CubeKey)),
       ];
       const fields = new VerityFields(rels, cciFrozenFieldDefinition);
       expect(fields.getFirstRelationship(
@@ -143,10 +144,10 @@ describe('VerityFields', () => {
       const rels = [
         VerityField.RelatesTo(new Relationship(
           RelationshipType.MYPOST,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42))),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(42) as CubeKey)),
         VerityField.RelatesTo(new Relationship(
           RelationshipType.SUBSCRIPTION_RECOMMENDATION,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137))),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137) as CubeKey)),
       ];
       const fields = new VerityFields(rels, cciFrozenFieldDefinition);
       expect(fields.getFirstRelationship().type).toBe(

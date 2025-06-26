@@ -86,11 +86,11 @@ export async function makePost(
 export const maxPostSize: number =  // calculate maximum posts size by creating a mock post
   VerityFields.Frozen([
     VerityField.RelatesTo(  // need space for one ref if this is a reply
-      new Relationship(RelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))),
+      new Relationship(RelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE) as CubeKey)),
     VerityField.RelatesTo(  // need space for at least one reference to my older posts
-      new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))),
+      new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE) as CubeKey)),
     VerityField.RelatesTo(  // make that two for good measure
-      new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))),
+      new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE) as CubeKey)),
   ], cciFrozenFieldDefinition).bytesRemaining();
 
 export function assertZwCube(cube: Cube): boolean {
