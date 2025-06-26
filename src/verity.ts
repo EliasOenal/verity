@@ -1,4 +1,6 @@
 Error.stackTraceLimit = Infinity;  // mooooaaaar stacktraces
+
+import { CubeType, NotificationKey } from './core/cube/cube.definitions';
 import { Settings } from './core/settings';
 import { SupportedTransports } from './core/networking/networkDefinitions';
 
@@ -7,15 +9,15 @@ import { CubeField } from './core/cube/cubeField';
 import { CoreNode, CoreNodeOptions, defaultInitialPeers } from "./core/coreNode";
 import { AddressAbstraction } from './core/peering/addressing';
 
+import { FileApplication } from './app/fileApplication';
+
 import { logger } from './core/logger';
 import { vera } from './misc/vera';
 
 import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
-import { FileApplication } from './app/fileApplication';
 import * as fs from 'fs/promises';
-import { CubeType } from './core/cube/cube.definitions';
 
 let readline: any;
 let cmd;
@@ -183,7 +185,7 @@ class VerityCmdClient {
 
   /** Just for manual testing: Handler for the 'n' hotkey */
   public async makeNewNotificationCube() {
-    const notificationKey: Buffer = Buffer.concat([Buffer.from("DEADBEEF", 'hex'), Buffer.alloc(28)]);
+    const notificationKey = Buffer.concat([Buffer.from("DEADBEEF", 'hex'), Buffer.alloc(28)]) as NotificationKey;
     const contentField = CubeField.RawContent(CubeType.FROZEN_NOTIFY,
       "DEADBEEF");
     const notification: Cube = Cube.Frozen({

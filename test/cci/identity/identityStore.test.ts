@@ -8,6 +8,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 import { IdentityStore } from '../../../src/cci/identity/identityStore';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
+import { CubeKey } from '../../../src/core/cube/cube.definitions';
 
 describe('IdentityStore', () => {
   const reducedDifficulty = 0;  // no hash cash for testing
@@ -40,7 +41,7 @@ describe('IdentityStore', () => {
     it('adds and retrieves an Identity & returns undefined for Identities not in store', () => {
       const masterKey: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42);
       // assert undefined for invalid key
-      expect(identityStore.getIdentity(masterKey)).toBeUndefined();
+      expect(identityStore.getIdentity(masterKey as CubeKey)).toBeUndefined();
 
       const id: Identity = new Identity(undefined, masterKey, idTestOptions);
       expect(id.key.length).toBe(NetConstants.CUBE_KEY_SIZE);
@@ -51,7 +52,7 @@ describe('IdentityStore', () => {
 
       // assert undefined for Identity not in store
       expect(identityStore.getIdentity(
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43)
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43) as CubeKey
       )).toBeUndefined();
     });
   });
@@ -83,7 +84,7 @@ describe('IdentityStore', () => {
 
     it('returns undefined if Identity is neither in store nor retrievable', async () => {
       expect(await identityStore.retrieveIdentity(
-        Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 404)
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 404) as CubeKey
       )).toBeUndefined();
     });
 
@@ -96,7 +97,7 @@ describe('IdentityStore', () => {
       const originalGetCube = cubeStore.getCube;
 
       // Mock the getCube method to introduce a delay and add the identity to the store
-      cubeStore.getCube = vi.fn(async (key: Buffer) => {
+      cubeStore.getCube = vi.fn(async (key: CubeKey) => {
         // Add the identity to the store while the retrieval is in progress
         identityStore.addIdentity(id);
         // Simulate a delay to ensure the identity is added before the retrieval completes

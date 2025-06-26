@@ -2,14 +2,13 @@ import type { NetworkPeerIf } from '../../../../src/core/networking/networkPeerI
 
 import { ArrayFromAsync } from '../../../../src/core/helpers/misc';
 import { Cube } from "../../../../src/core/cube/cube";
-import { CubeFieldType, CubeKey, CubeType } from "../../../../src/core/cube/cube.definitions";
+import { CubeKey, CubeType, NotificationKey } from "../../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../../src/core/cube/cubeField";
 import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
-import { CubeStore, CubeStoreOptions } from "../../../../src/core/cube/cubeStore";
+import { CubeStore } from "../../../../src/core/cube/cubeStore";
 import { CubeRetriever } from "../../../../src/core/networking/cubeRetrieval/cubeRetriever";
 import { NetConstants, SupportedTransports } from "../../../../src/core/networking/networkDefinitions";
 import { NetworkManager } from "../../../../src/core/networking/networkManager";
-import { NetworkManagerOptions } from '../../../../src/core/networking/networkManagerIf';
 import { WebSocketAddress } from "../../../../src/core/peering/addressing";
 import { Peer } from "../../../../src/core/peering/peer";
 import { PeerDB } from "../../../../src/core/peering/peerDB";
@@ -18,6 +17,7 @@ import { requiredDifficulty, testCoreOptions } from '../../testcore.definition';
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 import sodium from 'libsodium-wrappers-sumo';
+import { asCubeKey } from '../../../../src/core/cube/keyUtil';
 
 let local: NetworkManager;
 let remote: NetworkManager;
@@ -122,7 +122,7 @@ describe('CubeRetriever e2e tests', () => {
       await local.cubeStore.addCube(preExisting);
 
       // run test call
-      const gen = cubeRetriever.subscribeCube(publicKey);
+      const gen = cubeRetriever.subscribeCube(asCubeKey(publicKey));
       // consume generator
       (async () => {
         for await (const cube of gen) {
@@ -166,8 +166,8 @@ describe('CubeRetriever e2e tests', () => {
 
 
   describe('getNotifications()', () => {
-    const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
-    const irrelevantKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 43);
+    const recipientKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42) as NotificationKey;
+    const irrelevantKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 43) as NotificationKey;
     let notificationCubeKeys: CubeKey[];
 
     beforeAll(async () => {

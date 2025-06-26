@@ -1,12 +1,12 @@
 import type { Veritable } from "../../core/cube/veritable.definition";
-import type { CciEncryptionParams, CryptStateOutput, EncryptionHashNonce } from "./chunkEncryption";
+import type { CciEncryptionParams } from "./chunkEncryption";
 
-import { Cube, CubeCreateOptions, VeritableBaseImplementation } from "../../core/cube/cube";
-import { HasSignature, type CubeKey, CubeType, DEFAULT_CUBE_TYPE } from "../../core/cube/cube.definitions";
-import { keyVariants } from "../../core/cube/cubeUtil";
-import { ApiMisuseError } from "../../core/settings";
+import { CubeCreateOptions, VeritableBaseImplementation } from "../../core/cube/cube";
+import { HasSignature, type CubeKey, DEFAULT_CUBE_TYPE } from "../../core/cube/cube.definitions";
+import { asCubeKey, keyVariants } from "../../core/cube/keyUtil";
 
 import { cciCube, cciFamily } from "../cube/cciCube";
+import { Relationship, RelationshipType } from "../cube/relationship";
 import { VerityFields } from "../cube/verityFields";
 import { Split, Recombine, RecombineOptions, SplitOptions, ChunkFinalisationState } from "./continuation";
 import { CciDecryptionParams, Decrypt } from "./chunkDecryption";
@@ -16,7 +16,6 @@ import { logger } from "../../core/logger";
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo';
-import { Relationship, RelationshipType } from "../cube/relationship";
 
 export interface VeritumCreateOptions extends VeritumCompileOptions {
   /**
@@ -116,7 +115,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
    * appropriate for all recipients.
    */
   getKeyIfAvailable(): CubeKey {
-    if (HasSignature[this.cubeType]) return this.publicKey;
+    if (HasSignature[this.cubeType]) return asCubeKey(this.publicKey);
     else return this._chunks[0]?.getKeyIfAvailable();
   }
   getKeyStringIfAvailable(): string {

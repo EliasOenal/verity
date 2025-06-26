@@ -1,5 +1,5 @@
 import { Cube } from "../../../src/core/cube/cube";
-import { CubeFieldType, CubeType } from "../../../src/core/cube/cube.definitions";
+import { CubeFieldType, CubeType, NotificationKey } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { NetConstants, SupportedTransports } from "../../../src/core/networking/networkDefinitions";
@@ -48,7 +48,7 @@ describe('notification end-to-end tests', () => {
     expect(recipient.networkManager.onlinePeers[0].address.port).toBe(61104);
 
     // sender sculpts a notification Cube for recipient
-    const notificationKey: Buffer = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
+    const notificationKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42) as NotificationKey;
     const contentField = CubeField.RawContent(CubeType.FROZEN_NOTIFY,
       "Haec notificatio directe tradetur. Nulla deviatio acceptabilis est!");
     const notification: Cube = Cube.Frozen({
@@ -81,7 +81,7 @@ describe('notification end-to-end tests', () => {
   test('notifications posted by light nodes propagate through the full node network to be retrieved by another light node', async() => {
     const { sender, fullNode1, fullNode2, recipient } = await LineShapedNetwork.Create(61101, 61102);
     // sender sculpts a notification Cube for recipient
-    const notificationKey: Buffer = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
+    const notificationKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42) as NotificationKey;
     const contentField = CubeField.RawContent(CubeType.FROZEN_NOTIFY,
       "Haec notificatio ad collegam meam directa est");
     const notification: Cube = Cube.Frozen({

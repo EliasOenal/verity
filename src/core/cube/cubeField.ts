@@ -3,7 +3,7 @@ import { NetConstants } from '../networking/networkDefinitions';
 import { unixtime } from '../helpers/misc';
 
 import { BaseField } from '../fields/baseField';
-import { CubeFieldLength, CubeFieldType, CubeType, FieldError, RawcontentFieldType } from './cube.definitions';
+import { CubeFieldLength, CubeFieldType, CubeType, FieldError, NotificationKey, RawcontentFieldType } from './cube.definitions';
 
 import { Buffer } from 'buffer';
 import { paddedBuffer } from './cubeUtil';
@@ -55,7 +55,7 @@ export class CubeField extends BaseField {
   }
 
   static Notify(
-      ref: Buffer = Buffer.alloc(NetConstants.NOTIFY_SIZE, 0),
+      ref: NotificationKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 0) as NotificationKey,
   ): CubeField {
     if (Settings.RUNTIME_ASSERTIONS && ref.length !== NetConstants.NOTIFY_SIZE) {
       throw new FieldError(`Cannot construct a Notify field with length ${ref.length} as the spec prescribes a notify size of ${NetConstants.NOTIFY_SIZE}`);

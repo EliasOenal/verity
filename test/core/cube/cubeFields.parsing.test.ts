@@ -1,4 +1,4 @@
-import { CubeFieldType, CubeType, RawcontentFieldType } from "../../../src/core/cube/cube.definitions";
+import { CubeFieldType, CubeType, NotificationKey, RawcontentFieldType } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeFields } from "../../../src/core/cube/cubeFields";
 import { enumNums } from "../../../src/core/helpers/misc";
@@ -30,7 +30,7 @@ describe('CubeFields compilation and decompilation using rawCubeFamily', () => {
           case CubeType.FROZEN_NOTIFY:
           case CubeType.PIC_NOTIFY:
             cubeFields.appendField(CubeField.RawContent(type, "Raw content"));
-            cubeFields.appendField(CubeField.Notify(Buffer.alloc(NetConstants.NOTIFY_SIZE, 42)));
+            cubeFields.appendField(CubeField.Notify(Buffer.alloc(NetConstants.NOTIFY_SIZE, 42) as NotificationKey));
             cubeFields.appendField(CubeField.Date());
             break;
           case CubeType.MUC:
@@ -41,7 +41,7 @@ describe('CubeFields compilation and decompilation using rawCubeFamily', () => {
             break;
           case CubeType.MUC_NOTIFY:
             cubeFields.appendField(CubeField.RawContent(type, "Raw content"));
-            cubeFields.appendField(CubeField.Notify(Buffer.alloc(NetConstants.NOTIFY_SIZE, 42)));
+            cubeFields.appendField(CubeField.Notify(Buffer.alloc(NetConstants.NOTIFY_SIZE, 42) as NotificationKey));
             cubeFields.appendField(CubeField.PublicKey(Buffer.alloc(32, 147)));
             cubeFields.appendField(CubeField.Date());
             cubeFields.appendField(CubeField.Signature());
@@ -55,7 +55,7 @@ describe('CubeFields compilation and decompilation using rawCubeFamily', () => {
             break;
           case CubeType.PMUC_NOTIFY:
             cubeFields.appendField(CubeField.RawContent(type, "Raw content"));
-            cubeFields.appendField(CubeField.Notify(Buffer.alloc(NetConstants.NOTIFY_SIZE, 42)));
+            cubeFields.appendField(CubeField.Notify(Buffer.alloc(NetConstants.NOTIFY_SIZE, 42) as NotificationKey));
             cubeFields.appendField(CubeField.PmucUpdateCount(137)),
             cubeFields.appendField(CubeField.PublicKey(Buffer.alloc(32, 1)));
             cubeFields.appendField(CubeField.Date());

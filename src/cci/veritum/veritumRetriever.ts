@@ -1,10 +1,10 @@
 import { ApiMisuseError, Settings } from "../../core/settings";
 import { ArrayFromAsync } from "../../core/helpers/misc";
-import { CubeKey } from "../../core/cube/cube.definitions";
+import { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
 import { Shuttable } from "../../core/helpers/coreInterfaces";
 import { Cube } from "../../core/cube/cube";
 import { CubeInfo } from "../../core/cube/cubeInfo";
-import { keyVariants } from "../../core/cube/cubeUtil";
+import { keyVariants } from "../../core/cube/keyUtil";
 import { CubeRequestOptions, RequestScheduler } from "../../core/networking/cubeRetrieval/requestScheduler";
 import { logger } from "../../core/logger";
 
@@ -210,9 +210,9 @@ export class VeritumRetriever
     }
   }
 
-  getNotifications<cubeClass extends Cube>(keyInput: CubeKey | string, options: GetNotificationsOptions & {format: RetrievalFormat.Cube}): AsyncGenerator<cubeClass>;
-  getNotifications(keyInput: CubeKey | string, options?: GetNotificationsOptions & {format: RetrievalFormat.Veritum|undefined}): AsyncGenerator<Veritum>;
-  getNotifications(keyInput: CubeKey | string, options?: GetNotificationsOptions): AsyncGenerator<Veritable>;
+  getNotifications<cubeClass extends Cube>(keyInput: NotificationKey | string, options: GetNotificationsOptions & {format: RetrievalFormat.Cube}): AsyncGenerator<cubeClass>;
+  getNotifications(keyInput: NotificationKey | string, options?: GetNotificationsOptions & {format: RetrievalFormat.Veritum|undefined}): AsyncGenerator<Veritum>;
+  getNotifications(keyInput: NotificationKey | string, options?: GetNotificationsOptions): AsyncGenerator<Veritable>;
   /**
    * Retrieves all available Verita notifying a given key.
    * Any Veritum can only notify a single key, and is considered a notification
@@ -221,7 +221,7 @@ export class VeritumRetriever
    */
   // TODO: This method contains lots of async glue code which should be
   //   generalised as a helpers, perhaps even included in mergeAsyncGenerators()
-  async *getNotifications(keyInput: CubeKey | string, options: GetNotificationsOptions = {}): AsyncGenerator<Veritable> {
+  async *getNotifications(keyInput: NotificationKey | string, options: GetNotificationsOptions = {}): AsyncGenerator<Veritable> {
     // set default options
     options.format ??= RetrievalFormat.Veritum;
 

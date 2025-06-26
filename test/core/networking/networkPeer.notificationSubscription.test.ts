@@ -1,10 +1,9 @@
-import { KeyPair } from "../../../src/cci/helpers/cryptography";
 import { Cube } from "../../../src/core/cube/cube";
-import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, NotificationKey } from "../../../src/core/cube/cube.definitions";
+import { keyVariants } from "../../../src/core/cube/keyUtil";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
-import { calculateHash, keyVariants } from "../../../src/core/cube/cubeUtil";
-import { unixtime } from "../../../src/core/helpers/misc";
+import { calculateHash } from "../../../src/core/cube/cubeUtil";
 import { MessageClass, NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { NetworkManagerIf } from "../../../src/core/networking/networkManagerIf";
 import { CubeResponseMessage, NetworkMessage, SubscribeCubeMessage, SubscribeNotificationsMessage, SubscriptionConfirmationMessage, SubscriptionResponseCode } from "../../../src/core/networking/networkMessage";
@@ -12,7 +11,6 @@ import { NetworkPeer } from "../../../src/core/networking/networkPeer";
 import { DummyTransportConnection } from "../../../src/core/networking/testingDummies/dummyTransportConnection";
 import { DummyNetworkManager } from "../../../src/core/networking/testingDummies/dummyNetworkManager";
 import { PeerDB } from "../../../src/core/peering/peerDB";
-import { Settings } from "../../../src/core/settings";
 import { requiredDifficulty, testCoreOptions } from "../testcore.definition";
 
 import sodium from 'libsodium-wrappers-sumo'
@@ -27,9 +25,9 @@ describe('NetworkPeer SubscribeNotification tests', () => {
   let peerDB: PeerDB;
   let conn: DummyTransportConnection;
 
-  const notificationKey1: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x47);
-  const notificationKey2: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x11);
-  const zeroKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x00);
+  const notificationKey1 = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x47) as NotificationKey;
+  const notificationKey2 = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x11) as NotificationKey;
+  const zeroKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x00) as NotificationKey;
 
   beforeAll(async () => {
     await sodium.ready;

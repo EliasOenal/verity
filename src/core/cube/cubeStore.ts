@@ -4,11 +4,12 @@ import { ApiMisuseError, Settings } from "../settings";
 import { Shuttable } from "../helpers/coreInterfaces";
 import { Veritable } from "./veritable.definition";
 
-import { CubeType, CubeKey, CubeFieldType, HasNotify } from "./cube.definitions";
+import { CubeType, CubeKey, CubeFieldType, HasNotify, NotificationKey } from "./cube.definitions";
 import { Cube, coreCubeFamily } from "./cube";
 import { CubeFamilyDefinition } from "./cubeFields";
 import { CubeInfo } from "./cubeInfo";
-import { cubeContest, shouldRetainCube, getCurrentEpoch, keyVariants, activateCube } from "./cubeUtil";
+import { cubeContest, shouldRetainCube, getCurrentEpoch, activateCube } from "./cubeUtil";
+import { asCubeKey, keyVariants, asNotificationKey } from "./keyUtil";
 import { LevelBackend, Sublevels } from "./levelBackend";
 import { autoIncrementPmuc } from "./cubeStoreUtil";
 
@@ -84,10 +85,10 @@ export interface CubeStoreOptions {
 }
 
 export type CubeIteratorOptions = {
-  gt?: CubeKey | string,
-  gte?: CubeKey | string,
-  lt?: CubeKey | string,
-  lte?: CubeKey | string,
+  gt?: CubeKey | NotificationKey,
+  gte?: CubeKey | NotificationKey,
+  lt?: CubeKey | NotificationKey,
+  lte?: CubeKey | NotificationKey,
   limit?: number,
   asString?: boolean,
   wraparound?: boolean,
@@ -106,7 +107,7 @@ export interface CubeRetrievalInterface<OptionsType = GetCubeOptions> {
   getCubeInfo(keyInput: CubeKey | string): Promise<CubeInfo>;
   getCube<cubeClass extends Cube>(key: CubeKey | string, options?: OptionsType): Promise<cubeClass>;
   expectCube(keyInput: CubeKey|string): Promise<CubeInfo>;  // maybe TODO: add timeout?
-  getNotifications(recipientKey: CubeKey|string, options?: {}): AsyncGenerator<Veritable>;
+  getNotifications(recipientKey: NotificationKey|string, options?: {}): AsyncGenerator<Veritable>;
   cubeStore: CubeStore;
 
   // TODO: introduce a generalised optional `format` option, supporting retrieval
@@ -323,10 +324,10 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
           // There's a couple of special cases if this Cube replaces an older version.
           // Let's fetch both the previous and the current Cube's notifications.
           const previousCube: Cube = storedCube.getCube();
-          const previousNotification: CubeKey =
-            previousCube.getFirstField(CubeFieldType.NOTIFY)?.value;
-          const newNotification: CubeKey =
-            cube.getFirstField(CubeFieldType.NOTIFY)?.value;
+          const previousNotification: NotificationKey =
+            asNotificationKey(previousCube.getFirstField(CubeFieldType.NOTIFY)?.value);
+          const newNotification: NotificationKey =
+            asNotificationKey(cube.getFirstField(CubeFieldType.NOTIFY)?.value);
           // - Easy case first: If the updated Cube has a notification but
           //   the previous one didn't, index the new one.
           if (newNotification !== undefined && previousNotification === undefined) {
@@ -423,7 +424,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
       if (binaryCube !== undefined) {
         try {  // could fail e.g. on invalid binary data
           const cubeInfo = new CubeInfo({
-            key: key.binaryKey,
+            key: key.binaryKey as CubeKey,
             cube: binaryCube,
             family: this.options.family,
           });
@@ -495,7 +496,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
         yield keyVariants(key).keyString;
       }
       else {
-        yield keyVariants(key).binaryKey;
+        yield keyVariants(key).binaryKey as CubeKey;
       }
       // Keep track of number of keys returned, break once limit reached
       count++;
@@ -555,7 +556,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
   async getKeyAtPosition(position: number): Promise<CubeKey> {
     const key = await this.leveldb.getKeyAtPosition(Sublevels.CUBES, position)
     if (key)
-      return key;
+      return asCubeKey(key);
     else
       return undefined;
   }
@@ -584,7 +585,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
         // Cube key at the very end.
         key = key.subarray(key.length - NetConstants.CUBE_KEY_SIZE);
       }
-      const cubeInfo = await this.getCubeInfo(key);
+      const cubeInfo = await this.getCubeInfo(asCubeKey(key));
       if (cubeInfo) {
         cubeInfos.push(cubeInfo);
       }
@@ -624,8 +625,8 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
     toBuffer.writeUIntBE(timeTo, 0, NetConstants.TIMESTAMP_SIZE);
 
     const iteratorOptions: CubeIteratorOptions = {
-      gte: Buffer.concat([recipient, fromBuffer]),
-      lte: Buffer.concat([recipient, toBuffer, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0xff)]),
+      gte: Buffer.concat([recipient, fromBuffer]) as CubeKey,
+      lte: Buffer.concat([recipient, toBuffer, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0xff)]) as CubeKey,
       limit: limit,
       reverse: reverse
     };
@@ -634,8 +635,8 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
     for await (const key of this.leveldb.getKeyRange(Sublevels.INDEX_TIME, iteratorOptions)) {
       if (count >= limit) break;
 
-      const cubeKey = key.slice(recipient.length + NetConstants.TIMESTAMP_SIZE);
-      const cube = await this.getCubeInfo(cubeKey);
+      const cKey = asCubeKey(key.slice(recipient.length + NetConstants.TIMESTAMP_SIZE));
+      const cube = await this.getCubeInfo(cKey);
       if (cube) {
         yield cube;
         count++;
@@ -644,7 +645,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
   }
 
   async *getNotificationCubeInfos(recipientKey: Buffer|string): AsyncGenerator<CubeInfo> {
-    const recipient: CubeKey = keyVariants(recipientKey).binaryKey;
+    const recipient: CubeKey = asCubeKey(recipientKey);
     if (!recipient || recipient.length !== NetConstants.NOTIFY_SIZE) {
       logger.error('CubeStore.getNotificationCubeInfos(): Invalid recipient buffer.');
       return;
@@ -652,15 +653,15 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
 
     // We have CubeStore.NOTIFY_INDEX_PREFIX indices, we iterate the date/timestamp index in this method.
     const maxBuffer = Buffer.alloc(NetConstants.TIMESTAMP_SIZE + NetConstants.CUBE_KEY_SIZE, 0xff);
-    const iteratorOptions = {
-      gte: Buffer.concat([recipient]),
-      lte: Buffer.concat([recipient, maxBuffer]),
+    const iteratorOptions: CubeIteratorOptions = {
+      gte: asNotificationKey(Buffer.concat([recipient])),
+      lte: asNotificationKey(Buffer.concat([recipient, maxBuffer])),
     };
 
     const iterator = this.leveldb.getKeyRange(Sublevels.INDEX_TIME, iteratorOptions);
     for await (const key of iterator) {
-        const cubeKey = key.slice(recipient.length + NetConstants.TIMESTAMP_SIZE); // Extract the cube key part, skipping recipient and date
-        const cubeInfo = await this.getCubeInfo(cubeKey);
+        const cKey = asCubeKey(key.slice(recipient.length + NetConstants.TIMESTAMP_SIZE)); // Extract the cube key part, skipping recipient and date
+        const cubeInfo = await this.getCubeInfo(cKey);
         if (cubeInfo) {
           yield cubeInfo;
       }
@@ -748,8 +749,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
    * @returns - A Promise resolving to the expected Cube's CubeInfo once received
    */
   // maybe TODO: add timeout?
-  expectCube(keyInput: CubeKey|string): Promise<CubeInfo> {
-    const key: CubeKey = keyVariants(keyInput).binaryKey;
+  expectCube(key: CubeKey): Promise<CubeInfo> {
     let resolve: (cubeInfo: CubeInfo) => void;
     const eventHandler = (cubeInfo: CubeInfo) => {
       if (cubeInfo.key.equals(key)) {

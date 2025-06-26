@@ -3,7 +3,8 @@ import { Cube } from "../../../src/core/cube/cube";
 import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
-import { calculateHash, keyVariants } from "../../../src/core/cube/cubeUtil";
+import { calculateHash } from "../../../src/core/cube/cubeUtil";
+import { keyVariants } from "../../../src/core/cube/keyUtil";
 import { unixtime } from "../../../src/core/helpers/misc";
 import { MessageClass, NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { NetworkManagerIf } from "../../../src/core/networking/networkManagerIf";
@@ -136,7 +137,7 @@ describe('NetworkPeer CubeSubscription tests', () => {
       describe('denied requests', () => {
         it('should deny the subscription if the key is not available', async () => {
           const req = new SubscribeCubeMessage([
-            Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42),
+            Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as CubeKey,
           ]);
           await (peer as any).handleSubscribeCube(req);
 
@@ -151,7 +152,7 @@ describe('NetworkPeer CubeSubscription tests', () => {
 
         it('should not register the subscription if the key is not available', async () => {
           const req = new SubscribeCubeMessage([
-            Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42),
+            Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as CubeKey,
           ]);
           await (peer as any).handleSubscribeCube(req);
           expect(peer.cubeSubscriptions).toHaveLength(0);
@@ -197,7 +198,7 @@ describe('NetworkPeer CubeSubscription tests', () => {
         it('should deny the subscription if any key is not available', async () => {
           const req = new SubscribeCubeMessage([
             availableKey,
-            Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42),
+            Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as CubeKey,
           ]);
           await (peer as any).handleSubscribeCube(req);
 
@@ -215,7 +216,7 @@ describe('NetworkPeer CubeSubscription tests', () => {
 
         it('should not register any subscription if any key is not available', async () => {
           const req = new SubscribeCubeMessage([
-            Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42),
+            Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as CubeKey,
             availableKey,
           ]);
           await (peer as any).handleSubscribeCube(req);

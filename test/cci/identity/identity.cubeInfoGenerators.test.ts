@@ -2,7 +2,7 @@ import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
-import { CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { Identity } from '../../../src/cci/identity/identity'
@@ -220,7 +220,7 @@ describe('Identity: CubeInfo generators', () => {
       });
 
       it('does not yield anything for unavailable subscriptions', async () => {
-        id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+        id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337) as CubeKey);
 
         const sub2MasterKey: Buffer = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 1338);
         const sub2: Identity = await Identity.Construct(cubeStore, sub2MasterKey, idTestOptions);
@@ -476,7 +476,7 @@ describe('Identity: CubeInfo generators', () => {
             await cubeStore.addCube(availablePost);
             id.addPost(availablePost.getKeyIfAvailable());
 
-            const unavailablePostKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 404);
+            const unavailablePostKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 404) as CubeKey;
             id.addPost(unavailablePostKey);
 
             // Perform test
@@ -502,7 +502,7 @@ describe('Identity: CubeInfo generators', () => {
             await availableSub.store();
             id.addPublicSubscription(availableSub.key);
 
-            const unavailableSubKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 404);
+            const unavailableSubKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 404) as CubeKey;
             id.addPublicSubscription(unavailableSubKey);
 
             // Perform test

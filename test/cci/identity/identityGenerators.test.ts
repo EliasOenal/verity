@@ -1,4 +1,4 @@
-import type { CubeKey } from '../../../src/core/cube/cube.definitions';
+import type { CubeKey, NotificationKey } from '../../../src/core/cube/cube.definitions';
 
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
@@ -30,8 +30,8 @@ describe('IdentityUtil', () => {
       let notifying1: Identity, notifying2: Identity, notifying3: Identity;
       let irrelevant: Identity, nonNotifying: Identity;
 
-      const notificationKey: CubeKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
-      const irrelevantKey: CubeKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 99);
+      const notificationKey: NotificationKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42) as NotificationKey;
+      const irrelevantKey: NotificationKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 99) as NotificationKey;
 
       let result: Identity[];
 
@@ -131,7 +131,7 @@ describe('IdentityUtil', () => {
 
         let notifying1: Identity, notifying2: Identity;
         let n1Bin: Buffer, n2Bin: Buffer;
-        const notificationKey: CubeKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
+        const notificationKey: NotificationKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42) as NotificationKey;
 
         const result: Identity[] = [];
 

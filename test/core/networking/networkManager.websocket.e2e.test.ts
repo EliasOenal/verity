@@ -9,7 +9,9 @@ import { WebSocketServer } from '../../../src/core/networking/transport/webSocke
 import { WebSocketConnection } from '../../../src/core/networking/transport/webSocket/webSocketConnection';
 import { NetworkPeerIf, NetworkPeerLifecycle } from '../../../src/core/networking/networkPeerIf';
 
-import { CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/cube.definitions';
+import { cubeContest, cubeExpiration, cubeLifetime } from '../../../src/core/cube/cubeUtil';
+import { asCubeKey } from '../../../src/core/cube/keyUtil';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { Cube } from '../../../src/core/cube/cube';
 import { CubeField } from '../../../src/core/cube/cubeField';
@@ -26,8 +28,6 @@ import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { CubeResponseMessage } from '../../../src/core/networking/networkMessage';
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { unixtime } from '../../../src/core/helpers/misc';
-import { cubeContest, cubeExpiration, cubeLifetime } from '../../../src/core/cube/cubeUtil';
 
 // Note: Most general functionality concerning NetworkManager, NetworkPeer
 // etc is described within the WebSocket tests while the libp2p tests are more
@@ -748,7 +748,7 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
 
           // sync PMUC from peer 1 to peer 2
           const expectPmucDelivery: Promise<CubeInfo> =
-            manager2.cubeStore.expectCube(publicKey);
+            manager2.cubeStore.expectCube(publicKey as CubeKey);
           manager2.incomingPeers[0].sendKeyRequests();
           await expectPmucDelivery;
         });
@@ -756,7 +756,7 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
         it('receives the first version from peer 1 at peer 2', async () => {
           // check PMUC has been received correctly by peer 2
           expect(await manager2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
-          const rcvd: Cube = await manager2.cubeStore.getCube(publicKey);
+          const rcvd: Cube = await manager2.cubeStore.getCube(publicKey as CubeKey);
           expect(rcvd).toBeInstanceOf(Cube);
           expect((await rcvd.getHash()).equals(firstHash)).toBeTruthy();
           expect(rcvd.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value.
@@ -787,12 +787,12 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
           // verify test setup:
           // expect the stale version to be stored locally
           expect(await manager1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
-          const stored: Cube = await manager1.cubeStore.getCube(publicKey);
+          const stored: Cube = await manager1.cubeStore.getCube(publicKey as CubeKey);
           expect(await stored.getHash()).toEqual(staleHash);
           expect(stored.getFirstField(CubeFieldType.PMUC_RAWCONTENT).valueString).
             toContain(staleContent);
           // expect peer 2 to have another version of the PMUC
-          const previous: Cube = await manager2.cubeStore.getCube(publicKey);
+          const previous: Cube = await manager2.cubeStore.getCube(publicKey as CubeKey);
           expect(previous).toBeInstanceOf(Cube);
           expect((await previous.getHash()).equals(staleHash)).toBe(false);
           expect(previous.getFirstField(CubeFieldType.PMUC_RAWCONTENT).valueString)
@@ -816,7 +816,7 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
 
           // check MUC has *not* been updated at peer 2
           expect(await manager2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
-          const rcvd: Cube = await manager2.cubeStore.getCube(publicKey);
+          const rcvd: Cube = await manager2.cubeStore.getCube(publicKey as CubeKey);
           expect(rcvd).toBeInstanceOf(Cube);
           expect(rcvd.getFirstField(CubeFieldType.PMUC_RAWCONTENT).valueString).
             not.toContain(staleContent);
@@ -843,13 +843,13 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
 
           // sync PMUC from peer 1 to peer 2, again
           const expectPmucDelivery: Promise<CubeInfo> =
-            manager2.cubeStore.expectCube(publicKey);
+            manager2.cubeStore.expectCube(publicKey as CubeKey);
           manager2.incomingPeers[0].sendKeyRequests();
           await expectPmucDelivery;
 
           // check MUC has been updated correctly at peer 2
           expect(await manager2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
-          const rcvd: Cube = await manager2.cubeStore.getCube(publicKey);
+          const rcvd: Cube = await manager2.cubeStore.getCube(publicKey as CubeKey);
           expect(rcvd).toBeInstanceOf(Cube);
           expect((await rcvd.getHash()).equals(secondHash)).toBeTruthy();
           expect(rcvd.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value.
@@ -877,13 +877,13 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
 
           // sync PMUC from peer 2 to peer 1
           const expectPmucDelivery: Promise<CubeInfo> =
-            manager1.cubeStore.expectCube(publicKey);
+            manager1.cubeStore.expectCube(publicKey as CubeKey);
           manager1.outgoingPeers[0].sendKeyRequests();
           await expectPmucDelivery;
 
           // check MUC has been updated correctly at peer 1
           expect(await manager1.cubeStore.getNumberOfStoredCubes()).toEqual(1);
-          const rcvd: Cube = await manager1.cubeStore.getCube(publicKey);
+          const rcvd: Cube = await manager1.cubeStore.getCube(publicKey as CubeKey);
           expect(rcvd).toBeInstanceOf(Cube);
           expect((await rcvd.getHash()).equals(thirdHash)).toBeTruthy();
           expect(rcvd.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value.
@@ -905,7 +905,7 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
             requiredDifficulty: reducedDifficulty,
           });
           const expectPmucDelivery: Promise<CubeInfo> =
-            manager2.cubeStore.expectCube(publicKey);
+            manager2.cubeStore.expectCube(publicKey as CubeKey);
           await manager1.cubeStore.addCube(pmuc);
           fourthHash = await pmuc.getHash();
           // expect still just one Cube stored, new version replaces old version
@@ -917,7 +917,7 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
 
           // check MUC has been updated correctly at peer 2
           expect(await manager2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
-          const rcvd: Cube = await manager2.cubeStore.getCube(publicKey);
+          const rcvd: Cube = await manager2.cubeStore.getCube(publicKey as CubeKey);
           expect(rcvd).toBeInstanceOf(Cube);
           expect((await rcvd.getHash()).equals(fourthHash)).toBeTruthy();
           expect(rcvd.getFirstField(CubeFieldType.PMUC_UPDATE_COUNT).value.
@@ -1101,7 +1101,7 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
           // Prepare a key pair for an updatable Cube, i.e. a MUC
           await sodium.ready;
           const keyPair = sodium.crypto_sign_keypair();
-          mucKey = Buffer.from(keyPair.publicKey);
+          mucKey = asCubeKey(Buffer.from(keyPair.publicKey));
           mucPrivateKey = Buffer.from(keyPair.privateKey);
           // Sculpt a MUC at the server
           const content = "Noli oblivisci ad amare et subscribere!";
@@ -1171,7 +1171,7 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
           await Promise.all([node1.start(), node2.start()]);
 
           // sculpt a notification Cube at node1
-          const notificationKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42);
+          const notificationKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42) as NotificationKey;
           const latinSmartassery = "Cubi notificationes ad clavem notificationis referunt";
           const contentField = CubeField.RawContent(CubeType.FROZEN_NOTIFY, latinSmartassery);
           const notificationCube = Cube.Frozen({

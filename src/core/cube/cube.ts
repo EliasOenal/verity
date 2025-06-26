@@ -18,6 +18,7 @@ import { logger } from '../logger';
 import sodium from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 import { FieldType } from '../../cci/cube/cciCube.definitions';
+import { asCubeKey } from './keyUtil';
 
 export interface CubeOptions {
     fields?: CubeFields | CubeField[] | CubeField,
@@ -405,7 +406,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
                 Buffer.from(param1.binaryData) : undefined;
             // copy pic key
             this.picKey = param1.picKey?
-                Buffer.from(param1.picKey) : undefined;
+                asCubeKey(Buffer.from(param1.picKey)) : undefined;
             // copy hash
             this.hash = param1.hash?
                 Buffer.from(param1.hash) : undefined;
@@ -549,11 +550,11 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
     public async getKey(): Promise<CubeKey> {
         if (HasSignature[this.cubeType]) {
             // for signed Cubes, the key is the public key
-            return this.publicKey;
+            return asCubeKey(this.publicKey);
         } else if (this.cubeType === CubeType.FROZEN ||
                    this.cubeType === CubeType.FROZEN_NOTIFY) {
             // for frozen Cubes, the key is the whole hash
-            return await this.getHash();
+            return asCubeKey(await this.getHash());
         } else if (this.cubeType === CubeType.PIC ||
                    this.cubeType === CubeType.PIC_NOTIFY) {
             // for PICs, the key is the hash excluding the NONCE and DATE fields
@@ -575,11 +576,11 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
     public getKeyIfAvailable(): CubeKey {
         if (HasSignature[this.cubeType]) {
             // for signed Cubes, the key is the public key
-            return this.publicKey;
+            return asCubeKey(this.publicKey);
         } else if (this.cubeType === CubeType.FROZEN ||
                    this.cubeType === CubeType.FROZEN_NOTIFY) {
             // for frozen Cubes, the key is the whole hash
-            return this.getHashIfAvailable();
+            return asCubeKey(this.getHashIfAvailable());
         } else if (this.cubeType === CubeType.PIC ||
                    this.cubeType === CubeType.PIC_NOTIFY) {
             // For PICs, the key is the hash excluding the NONCE and DATE fields.
@@ -735,7 +736,7 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
         const keyHashLength = CubeFieldLength[CubeFieldType.TYPE] +
             CubeFieldLength[CubeFieldType.PIC_RAWCONTENT];  // equal to the lengths of PIC_NOTIFY_RAWCONTENT plus NOTIFY
         const keyHashableBinaryData = this.binaryData.subarray(0, keyHashLength);
-        this.picKey = CubeUtil.calculateHash(keyHashableBinaryData);
+        this.picKey = asCubeKey(CubeUtil.calculateHash(keyHashableBinaryData));
     }
 
     /**

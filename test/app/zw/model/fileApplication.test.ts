@@ -94,7 +94,7 @@ describe('FileApplication', () => {
       const cubeStore = new CubeStore(testCubeStoreParams);
       await cubeStore.readyPromise;
 
-      await expect(FileApplication.retrieveFile(Buffer.alloc(32), cubeStore))
+      await expect(FileApplication.retrieveFile(Buffer.alloc(32) as CubeKey, cubeStore))
         .rejects.toThrow('Cube not found');
     });
 

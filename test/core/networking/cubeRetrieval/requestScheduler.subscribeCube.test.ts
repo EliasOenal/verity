@@ -1,6 +1,6 @@
 import { Settings } from "../../../../src/core/settings";
 import { Cube } from "../../../../src/core/cube/cube";
-import { CubeType } from "../../../../src/core/cube/cube.definitions";
+import { CubeKey, CubeType } from "../../../../src/core/cube/cube.definitions";
 import { CubeField } from "../../../../src/core/cube/cubeField";
 import { CubeStore } from "../../../../src/core/cube/cubeStore";
 import { CubeSubscription } from "../../../../src/core/networking/cubeRetrieval/pendingRequest";
@@ -227,7 +227,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
       if (!lightNode) {
         it('should ignore subscription requests when running as a full node', () => {  // TODO is this actually something we want to assert?
           scheduler.options.lightNode = false;
-          const testKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42);
+          const testKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey;
           scheduler.subscribeCube(testKey);
           // @ts-ignore spying on private attribute
           expect(scheduler.subscribedCubes).not.toContainEqual(testKey);

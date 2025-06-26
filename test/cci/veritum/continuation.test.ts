@@ -1,11 +1,10 @@
-import type { NetworkManagerIf } from "../../../src/core/networking/networkManagerIf";
 import { cciCube } from "../../../src/cci/cube/cciCube";
 import { MediaTypes, FieldLength, FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
 import { Split, Recombine } from "../../../src/cci/veritum/continuation";
 import { Veritum } from "../../../src/cci/veritum/veritum";
-import { CubeType, HasNotify, HasSignature } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, CubeType, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/cube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 import { evenLonger, farTooLong, tooLong } from "../testcci.definitions";
@@ -14,11 +13,10 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 import { enumNums } from "../../../src/core/helpers/misc";
 
 import sodium from 'libsodium-wrappers-sumo'
-import { FieldEqualityMetric } from "../../../src/core/fields/baseFields";
 
 describe('Continuation', () => {
   let privateKey: Buffer, publicKey: Buffer;
-  const notificationKey: Buffer = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 333);
+  const notificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 333) as NotificationKey;
   const date = 148302000;  // viva Malta repubblika!
 
   beforeAll(async () => {
@@ -485,22 +483,22 @@ describe('Continuation', () => {
             publicKey, privateKey,
           });
           macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-            new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+            new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey)));
           macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-            new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+            new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey)));
           macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-            new Relationship(RelationshipType.MENTION, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+            new Relationship(RelationshipType.MENTION, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey)));
           macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-            new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+            new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey)));
           macroCube.insertFieldBeforeBackPositionals(VerityField.Payload(tooLong));
           macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-            new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+            new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey)));
           macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-            new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+            new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey)));
           macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-            new Relationship(RelationshipType.MENTION, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+            new Relationship(RelationshipType.MENTION, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey)));
           macroCube.insertFieldBeforeBackPositionals(VerityField.RelatesTo(
-            new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))));
+            new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey)));
 
           // run the test: split, then recombine
           const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
@@ -665,7 +663,7 @@ describe('Continuation', () => {
                 FieldLength[chosenFieldType] ?? Math.floor(Math.random() * MAXSIZEFIELD);
               let val: Buffer;
               if (chosenFieldType === FieldType.RELATES_TO) {
-                val = VerityField.RelatesTo(new Relationship(RelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE))).value;
+                val = VerityField.RelatesTo(new Relationship(RelationshipType.REPLY_TO, Buffer.alloc(NetConstants.CUBE_KEY_SIZE) as CubeKey)).value;
               } else {
                 val = Buffer.alloc(length);
                 // fill val with random bytes

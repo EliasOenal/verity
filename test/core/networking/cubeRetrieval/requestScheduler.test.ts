@@ -6,10 +6,9 @@ import { NetConstants } from "../../../../src/core/networking/networkDefinitions
 import { unixtime } from "../../../../src/core/helpers/misc";
 
 import { NetworkPeerIf } from '../../../../src/core/networking/networkPeerIf';
-import { SubscriptionConfirmationMessage, SubscriptionResponseCode } from "../../../../src/core/networking/networkMessage";
 import { RequestScheduler } from "../../../../src/core/networking/cubeRetrieval/requestScheduler";
 import { RoundrobinStrategy } from "../../../../src/core/networking/cubeRetrieval/requestStrategy";
-import { CubeRequest, CubeSubscription } from "../../../../src/core/networking/cubeRetrieval/pendingRequest";
+import { CubeRequest } from "../../../../src/core/networking/cubeRetrieval/pendingRequest";
 
 import { DummyNetworkManager } from "../../../../src/core/networking/testingDummies/dummyNetworkManager";
 import { DummyNetworkPeer } from '../../../../src/core/networking/testingDummies/dummyNetworkPeer';
@@ -17,8 +16,9 @@ import { DummyNetworkPeer } from '../../../../src/core/networking/testingDummies
 import { Cube } from "../../../../src/core/cube/cube";
 import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
 import { CubeField } from "../../../../src/core/cube/cubeField";
-import { CubeFieldType, CubeKey, CubeType } from "../../../../src/core/cube/cube.definitions";
-import { CubeStore, CubeStoreOptions } from "../../../../src/core/cube/cubeStore";
+import { CubeFieldType, CubeKey, CubeType, NotificationKey } from "../../../../src/core/cube/cube.definitions";
+import { CubeStore } from "../../../../src/core/cube/cubeStore";
+import { asNotificationKey } from "../../../../src/core/cube/keyUtil";
 
 import { PeerDB } from "../../../../src/core/peering/peerDB";
 
@@ -36,9 +36,8 @@ describe('RequestScheduler', () => {
     let dummyNetworkManager: NetworkManagerIf;
     let dummyPeer: NetworkPeerIf;
 
-    const testKey = Buffer.from("01".repeat(NetConstants.CUBE_KEY_SIZE), 'hex');
-    const testKey2 = Buffer.from("02".repeat(NetConstants.CUBE_KEY_SIZE), 'hex');
-    const testKey3 = Buffer.from("03".repeat(NetConstants.CUBE_KEY_SIZE), 'hex');
+    const testKey = Buffer.from("01".repeat(NetConstants.CUBE_KEY_SIZE), 'hex') as CubeKey;
+    const testKey2 = Buffer.from("02".repeat(NetConstants.CUBE_KEY_SIZE), 'hex') as CubeKey;
 
     beforeEach(async () => {
       // Create a CubeStore
@@ -320,7 +319,7 @@ describe('RequestScheduler', () => {
         const notification = Cube.Frozen({
           fields: [
             contentField,
-            CubeField.Notify(testKey),
+            CubeField.Notify(asNotificationKey(testKey)),
           ],
           requiredDifficulty,
         });

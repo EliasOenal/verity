@@ -1,9 +1,9 @@
 import { Cube } from "../../cube/cube";
-import { CubeFieldType, CubeKey } from "../../cube/cube.definitions";
+import { CubeFieldType, CubeKey, NotificationKey } from "../../cube/cube.definitions";
 import { CubeFamilyDefinition } from "../../cube/cubeFields";
 import { CubeInfo } from "../../cube/cubeInfo";
 import { CubeRetrievalInterface, CubeStore } from "../../cube/cubeStore";
-import { keyVariants } from "../../cube/cubeUtil";
+import { keyVariants } from "../../cube/keyUtil";
 import { eventsToGenerator, MergedAsyncGenerator } from "../../helpers/asyncGenerators";
 import { CubeSubscription } from "./pendingRequest";
 import { CubeRequestOptions, CubeSubscribeOptions, RequestScheduler } from "./requestScheduler";
@@ -61,12 +61,9 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
   }
 
   subscribeCube(
-      keyInput: CubeKey|string,
+      key: CubeKey,
       options: CubeSubscribeRetrieverOptions = {},
   ): AsyncGenerator<Cube> {
-    // normalise input
-    const key: CubeKey = keyVariants(keyInput).binaryKey;
-
     // Prepare a Generator that will yield all updates to this Cube.
     // To do this, we will leverage CubeStore's cubeAdded events and adapt
     // them into a Generator.
@@ -81,13 +78,13 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
     );
 
     // Have our scheduler actually network-subscribe the requested Cube
-    options.outputSubPromise =this.requestScheduler.subscribeCube(keyInput);
+    options.outputSubPromise =this.requestScheduler.subscribeCube(key);
     // TODO error handling
 
     return generator;
   }
 
-  async *getNotifications(recipient: Buffer, options?: {}): AsyncGenerator<Cube> {
+  async *getNotifications(recipient: NotificationKey, options?: {}): AsyncGenerator<Cube> {
     // HACKHACK:
     // We first yield all notifications already locally present;
     // only then we request them from the network.
@@ -125,12 +122,9 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
   }
 
   subscribeNotifications(
-    keyInput: CubeKey|string,
+    key: NotificationKey,
     options: CubeSubscribeRetrieverOptions = {},
   ): AsyncGenerator<Cube> {
-    // normalise input
-    const key: CubeKey = keyVariants(keyInput).binaryKey;
-
     // Prepare a Generator that will yield Cubes notifying this key
     // To do this, we will leverage CubeStore's notificationAdded events and adapt
     // them into a Generator.
@@ -145,7 +139,7 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
     );
 
     // Have our scheduler actually network-subscribe the requested notification key
-    options.outputSubPromise = this.requestScheduler.subscribeNotifications(keyInput);
+    options.outputSubPromise = this.requestScheduler.subscribeNotifications(key);
     // TODO error handling
 
     return generator;
@@ -153,12 +147,12 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
 
   /**
    * Expects a Cube to be received soon, without actually requesting it.
-   * @param keyInput The key of the Cube to expect
+   * @param key The key of the Cube to expect
    * @returns A promise that will resolve to the expected Cube's CubeInfo
    *   if and when it is eventually received.
    */
-  expectCube(keyInput: CubeKey | string): Promise<CubeInfo> {
-    return this.cubeStore.expectCube(keyInput);
+  expectCube(key: CubeKey): Promise<CubeInfo> {
+    return this.cubeStore.expectCube(key);
   }
 
   // TODO add retrieval methods for notifications

@@ -9,9 +9,10 @@ import { MessageClass, NetConstants, NetworkPeerError } from '../networkDefiniti
 import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode, SubscriptionConfirmationMessage, SubscriptionResponseCode } from '../networkMessage';
 
 import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
-import { CubeFieldType, type CubeKey } from '../../cube/cube.definitions';
+import { CubeFieldType, NotificationKey, type CubeKey } from '../../cube/cube.definitions';
 import { CubeInfo } from '../../cube/cubeInfo';
-import { cubeContest, getCurrentEpoch, keyVariants, shouldRetainCube } from '../../cube/cubeUtil';
+import { cubeContest, getCurrentEpoch, shouldRetainCube } from '../../cube/cubeUtil';
+import { asCubeKey, keyVariants } from '../../cube/keyUtil';
 
 import { RequestStrategy, RandomStrategy, BestScoreStrategy } from './requestStrategy';
 import { CubeRequest, CubeSubscription, PendingRequest, SubscriptionRequest } from './pendingRequest';
@@ -182,7 +183,7 @@ export class RequestScheduler implements Shuttable {
 
     // create and remember this request
     const req = new CubeRequest(options.timeout, {
-      key: key.binaryKey,
+      key: key.binaryKey as CubeKey,
     });
     this.requestedCubes.set(primaryMapKey, req);
     // clean up the request when it's done
@@ -205,7 +206,7 @@ export class RequestScheduler implements Shuttable {
     if (options.requestFrom !== undefined) {
       // send direct Cube request to user-selected peer
       // maybe TODO: schedule and collect Cube requests to user-defined peers?
-      options.requestFrom.sendCubeRequest([key.binaryKey]);
+      options.requestFrom.sendCubeRequest([key.binaryKey as CubeKey]);
     } else {
       // schedule Cube request
       this.scheduleCubeRequest(options.scheduleIn);
@@ -305,7 +306,7 @@ export class RequestScheduler implements Shuttable {
 
       // Send subscription request...
       // maybe TODO optimise: group multiple subscriptions to the same peer?
-      peerSelected.sendSubscribeCube([key.binaryKey], options.type);
+      peerSelected.sendSubscribeCube([key.binaryKey as CubeKey], options.type);
       // ... and await reply
       const req = new SubscriptionRequest(Settings.NETWORK_TIMEOUT, // low prio TODO: parametrise timeout
         { key: key.binaryKey } );
@@ -398,7 +399,7 @@ export class RequestScheduler implements Shuttable {
       // Only renew if the subscription has not been overwritten or deleted yet
       const registered: CubeSubscription = subMap.get(key.keyString);
       if (registered === sub && registered.sup.shallRenew === true) {
-        this.subscribeCube(key.binaryKey, { ...options, thisIsARenewal: true });
+        this.subscribeCube(key.binaryKey as CubeKey, { ...options, thisIsARenewal: true });
       }
     }, renewAfterMillis);
 
@@ -414,11 +415,11 @@ export class RequestScheduler implements Shuttable {
   }
 
   subscribeNotifications(
-      keyInput: CubeKey | string,
+      key: NotificationKey,
       options: CubeSubscribeOptions = {},
   ): Promise<CubeSubscription> {
     return this.subscribeCube(
-      keyInput,
+      key as unknown as CubeKey,  // HACKHACK, CubeKey and NotificationKey have the same format
       { ...options, type: MessageClass.SubscribeNotifications },
     );
   }
@@ -442,7 +443,7 @@ export class RequestScheduler implements Shuttable {
    * What this currently does is to cancel the renewal once the current
    * subscription period expires.
    */
-  cancelNotificationSubscription(keyInput: CubeKey | string): void {
+  cancelNotificationSubscription(keyInput: NotificationKey | string): void {
     const key = keyVariants(keyInput);
     const sub: CubeSubscription = this.subscribedNotifications.get(key.keyString);
     if (sub !== undefined) sub.sup.shallRenew = false;
@@ -499,7 +500,7 @@ export class RequestScheduler implements Shuttable {
     else return false;
   }
 
-  notificationsAlreadySubscribed(recipientKey: CubeKey | string): boolean {
+  notificationsAlreadySubscribed(recipientKey: NotificationKey | string): boolean {
     return this.subscribedNotifications.has(keyVariants(recipientKey).keyString);
   }
 
@@ -527,7 +528,7 @@ export class RequestScheduler implements Shuttable {
     const key = keyVariants(keyInput);
     return this.subscribedCubes.get(key.keyString);
   }
-  notificationSubscriptionDetails(keyInput: CubeKey | string): CubeSubscription {
+  notificationSubscriptionDetails(keyInput: NotificationKey | string): CubeSubscription {
     const key = keyVariants(keyInput);
     return this.subscribedNotifications.get(key.keyString);
   }
@@ -554,7 +555,7 @@ export class RequestScheduler implements Shuttable {
     const key = keyVariants(recipientKey);  // normalise input
 
     // Create request object
-    const req = new CubeRequest(timeout, { key: key.binaryKey });
+    const req = new CubeRequest(timeout, { key: key.binaryKey as CubeKey });
     this.requestedNotifications.set(key.keyString, req);  // remember request
 
     // Based on what our caller requested, either request notifications Cubes
@@ -571,7 +572,7 @@ export class RequestScheduler implements Shuttable {
       // notifications for this recipient and want to avoid redownloading them all.
       this.expectedNotifications.set(key.keyString, req);
       const filter: CubeFilterOptions = {
-        notifies: key.binaryKey,
+        notifies: key.binaryKey as NotificationKey,
       }
       this.performKeyRequest(undefined, filter);
       // KeyResponse will automatically be handled in handleKeysOffered()
@@ -697,7 +698,7 @@ export class RequestScheduler implements Shuttable {
       // If we're a light node, check if we're even interested in this Cube
       if (this.options.lightNode) {
         // is this a notification Cube?
-        const notify: CubeKey = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
+        const notify: CubeKey = asCubeKey(cube.getFirstField(CubeFieldType.NOTIFY)?.value);
 
         // We're only interested if we have subscribed or requested this very
         // Cube, or if it notifies a notification key we're interested in
@@ -856,7 +857,7 @@ export class RequestScheduler implements Shuttable {
       //   be queued
       if (keys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
       if (!req.networkRequestRunning) {
-        keys.push(req.sup.key);
+        keys.push(req.sup.key as CubeKey);
         req.requestSent(peerSelected).then(() => {
           this.scheduleCubeRequest();  // schedule retry after network timeout
         });
@@ -870,11 +871,11 @@ export class RequestScheduler implements Shuttable {
     // NetworkPeer. This should instead also be controlled by the RequestScheduler.
 
     // request notifications
-    const notificationKeys: Buffer[] = [];
+    const notificationKeys: NotificationKey[] = [];
     for (const [keystring, req] of this.requestedNotifications) {
       if (notificationKeys.length >= NetConstants.MAX_CUBES_PER_MESSAGE) break;
       if (!req.networkRequestRunning) {
-        notificationKeys.push(req.sup.key);
+        notificationKeys.push(req.sup.key as NotificationKey);
         req.requestSent(peerSelected).then(() => {
           this.scheduleCubeRequest();  // schedule retry after network timeout
         })

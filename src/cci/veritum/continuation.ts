@@ -1,7 +1,7 @@
 import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
-import { CubeError, CubeKey, CubeType, HasNotify, NonNotifyCubeType, NotifyCubeType, ToggleNotifyType } from "../../core/cube/cube.definitions";
+import { CubeError, CubeKey, CubeType, NonNotifyCubeType, NotifyCubeType } from "../../core/cube/cube.definitions";
 import { Cube, CubeCreateOptions, CubeOptions } from "../../core/cube/cube";
 import { FieldParser } from "../../core/fields/fieldParser";
 
@@ -466,7 +466,7 @@ class Splitter {
       // add another CONTINUED_IN reference, i.e. plan for an extra Cube
       const rel: Relationship = new Relationship(
         RelationshipType.CONTINUED_IN, Buffer.alloc(
-          NetConstants.CUBE_KEY_SIZE, 0));  // dummy key for now
+          NetConstants.CUBE_KEY_SIZE, 0) as CubeKey);  // dummy key for now
       const refField: VerityField = VerityField.RelatesTo(rel);
       // remember this ref as a planned Cube...
       this.refs.push(refField);

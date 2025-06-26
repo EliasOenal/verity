@@ -8,7 +8,7 @@ import { VerityField } from '../../../src/cci/cube/verityField';
 import { RelationshipType } from '../../../src/cci/cube/relationship';
 import { resolveRels, resolveRelsRecursive, ResolveRelsRecursiveResult, ResolveRelsResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
 import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
-import { CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', () => {
@@ -81,7 +81,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       fields: [
         VerityField.Payload("Mysterium manebit quid significem"),
         VerityField.RelatesTo(RelationshipType.REPLY_TO,
-          Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337)),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337) as CubeKey),
     ]});
     const unresolvableRelKey = await unresolvableRel.getKey();
     await cubeStore.addCube(unresolvableRel);

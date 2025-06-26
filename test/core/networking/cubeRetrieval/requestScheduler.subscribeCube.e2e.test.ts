@@ -7,7 +7,7 @@ import { VerityField } from "../../../../src/cci/cube/verityField";
 import { CubeKey } from "../../../../src/core/cube/cube.definitions";
 import { Cube } from "../../../../src/core/cube/cube";
 import { CubeStoreOptions, CubeStore } from "../../../../src/core/cube/cubeStore";
-import { keyVariants } from '../../../../src/core/cube/cubeUtil';
+import { keyVariants } from '../../../../src/core/cube/keyUtil';
 import { CubeInfo } from '../../../../src/core/cube/cubeInfo';
 
 import { SupportedTransports } from "../../../../src/core/networking/networkDefinitions";

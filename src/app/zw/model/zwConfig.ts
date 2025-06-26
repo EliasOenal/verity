@@ -1,7 +1,7 @@
-import { keyVariants } from "../../../core/cube/cubeUtil";
+import { asNotificationKey } from "../../../core/cube/keyUtil";
 
 export const ZwConfig = {
   MAXIMUM_POST_LENGTH: 600,
-  NOTIFICATION_KEY: keyVariants("97a64a08415cd1b6b86e4e8c47faf47f9cd5a967294e2b083d04c7bc9519d645").binaryKey,  // fair dice roll, pinky promise!
+  NOTIFICATION_KEY: asNotificationKey("97a64a08415cd1b6b86e4e8c47faf47f9cd5a967294e2b083d04c7bc9519d645"),  // fair dice roll, pinky promise!
   ALLOW_ANONYMOUS_POSTS: false,  // note: even when enabled, we provide no way for users to ever find those anonymous posts
 }

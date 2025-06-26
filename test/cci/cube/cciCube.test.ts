@@ -2,7 +2,7 @@ import { cciCube } from "../../../src/cci/cube/cciCube";
 import { FieldLength, FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition } from "../../../src/cci/cube/verityFields";
-import { CubeFieldType, CubeType, FieldSizeError, HasNotify, HasSignature } from "../../../src/core/cube/cube.definitions";
+import { CubeFieldType, CubeType, FieldSizeError, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/cube.definitions";
 import { typeFromBinary } from "../../../src/core/cube/cubeUtil";
 import { enumNums } from "../../../src/core/helpers/misc";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
@@ -135,7 +135,7 @@ describe('cciCube', () => {
             [VerityField.Payload(contentString)];
           // ... plus a Notify field if this is a Notify type ...
           if (HasNotify[type]) incompleteFieldset.push(
-            VerityField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, randomNotifyNumber)));
+            VerityField.Notify(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, randomNotifyNumber) as NotificationKey));
 
           // sculpt Cube
           const cube: cciCube = cciCube.Create({

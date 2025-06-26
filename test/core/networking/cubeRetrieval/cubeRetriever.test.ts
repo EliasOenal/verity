@@ -4,7 +4,7 @@
 //  setup to help identify whether a bug originates on the VeritumRetriever (CCI)
 //  or CubeRetriever (core) level.
 
-import { CubeFieldType, CubeKey, CubeType } from '../../../../src/core/cube/cube.definitions';
+import { CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../../src/core/cube/cube.definitions';
 import { CubeField } from '../../../../src/core/cube/cubeField';
 import { NetConstants } from '../../../../src/core/networking/networkDefinitions';
 import { ArrayFromAsync } from '../../../../src/core/helpers/misc';
@@ -66,7 +66,7 @@ describe('CubeRetriever', () => {
         // Sculpt two single-Chunk notifications
         // Note we don't add those to the store just yet, meaning they're not
         // locally available and have to be requested from the network.
-        const recipientKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42);
+        const recipientKey: NotificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as NotificationKey;
 
         const firstLatin = "Magni momenti nuntiatio";
         const first: Cube = Cube.Create({

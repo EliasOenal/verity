@@ -1,3 +1,4 @@
+import { CubeKey } from '../../../src/core/cube/cube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
@@ -115,9 +116,9 @@ describe('Identity: remote updates', () => {
     // create Identity
     const leftId: Identity =
       await Identity.Construct(cubeStore, masterKey, idTestOptions);
-    const commonPostKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1);
+    const commonPostKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1) as CubeKey;
     leftId.addPost(commonPostKey);
-    const leftOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2);
+    const leftOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2) as CubeKey;
     leftId.addPost(leftOnlyKey);
     expect(leftId.getPostCount()).toEqual(2);
     expect(leftId.hasPost(commonPostKey)).toBeTruthy();
@@ -130,7 +131,7 @@ describe('Identity: remote updates', () => {
     const rightId: Identity =
       await Identity.Construct(anotherCubeStore, masterKey, idTestOptions);
     rightId.addPost(commonPostKey);
-    const rightOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3);
+    const rightOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3) as CubeKey;
     rightId.addPost(rightOnlyKey);
     expect(rightId.getPostCount()).toEqual(2);
     expect(rightId.hasPost(commonPostKey)).toBeTruthy();
@@ -154,9 +155,9 @@ describe('Identity: remote updates', () => {
     // create Identity
     const leftId: Identity =
       await Identity.Construct(cubeStore, masterKey, idTestOptions);
-    const commonPostKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1);
+    const commonPostKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(1) as CubeKey;
     leftId.addPost(commonPostKey);
-    const leftOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2);
+    const leftOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(2) as CubeKey;
     leftId.addPost(leftOnlyKey);
     expect(leftId.getPostCount()).toEqual(2);
     expect(leftId.hasPost(commonPostKey)).toBeTruthy();
@@ -169,7 +170,7 @@ describe('Identity: remote updates', () => {
     const rightId: Identity =
       await Identity.Construct(anotherCubeStore, masterKey, idTestOptions);
     rightId.addPost(commonPostKey);
-    const rightOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3);
+    const rightOnlyKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(3) as CubeKey;
     rightId.addPost(rightOnlyKey);
     expect(rightId.getPostCount()).toEqual(2);
     expect(rightId.hasPost(commonPostKey)).toBeTruthy();

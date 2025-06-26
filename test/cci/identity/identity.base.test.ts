@@ -5,7 +5,7 @@ import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { CubeKey } from '../../../src/core/cube/cube.definitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
-import { cciCube, cciFamily } from '../../../src/cci/cube/cciCube';
+import { cciCube } from '../../../src/cci/cube/cciCube';
 import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity'
 import { IdentityStore } from '../../../src/cci/identity/identityStore';
@@ -51,7 +51,7 @@ describe('Identity: base model tests', () => {
     });
 
     it('always has an IdentityStore and is itself present in it', () => {
-      const masterKey: CubeKey = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42);
+      const masterKey: CubeKey = Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42) as CubeKey;
       const id = new Identity(undefined, masterKey, idTestOptions);
       expect(id.identityStore).toBeInstanceOf(IdentityStore);
       expect(id.identityStore.getIdentity(id.keyString)).toBe(id);
@@ -70,19 +70,19 @@ describe('Identity: base model tests', () => {
 
     it('stores and remembers own post references', () => {
       // create Identity
-      const idKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41);
+      const idKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41) as CubeKey;
       const id = new Identity(undefined, idKey, idTestOptions);
       expect(id.getPostCount()).toEqual(0);
 
       // add a post
-      const postKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337);
+      const postKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337) as CubeKey;
       id.addPost(postKey);
 
       // check getPostCount()
       expect(id.getPostCount()).toEqual(1);
 
       // check hasPost()
-      expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337))).toBeTruthy();
+      expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337) as CubeKey)).toBeTruthy();
 
       // check getPostKeyStrings()
       expect(Array.from(id.getPostKeyStrings())).toHaveLength(1);
@@ -98,10 +98,10 @@ describe('Identity: base model tests', () => {
         undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
       expect(id.getPostCount()).toEqual(0);
 
-      id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
-      id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337));
+      id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337) as CubeKey);
+      id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337) as CubeKey);
       expect(id.getPostCount()).toEqual(1);
-      expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337))).toBeTruthy();
+      expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337) as CubeKey)).toBeTruthy();
     });
   });
 
@@ -146,7 +146,7 @@ describe('Identity: base model tests', () => {
         undefined, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 41), idTestOptions);
       expect(id.getPublicSubscriptionCount()).toBe(0);
 
-      const subbedKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337);
+      const subbedKey: CubeKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 1337) as CubeKey;
       id.addPublicSubscription(subbedKey);
       id.addPublicSubscription(subbedKey);
       expect(id.getPublicSubscriptionCount()).toBe(1);
@@ -266,13 +266,13 @@ describe('Identity: base model tests', () => {
 
         // store some information (in RAM only)
         id.name = "Probator Identitatum";
-        id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42));
-        id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 13));
-        id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 37));
+        id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey);
+        id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 13) as CubeKey);
+        id.addPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 37) as CubeKey);
         id.avatar = new Avatar("4213374211", AvatarScheme.MULTIAVATAR);
-        id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43));
-        id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 44));
-        id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 45));
+        id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43) as CubeKey);
+        id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 44) as CubeKey);
+        id.addPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 45) as CubeKey);
 
         // compile to MUC
         const muc: cciCube = await id.marshall();
@@ -281,15 +281,15 @@ describe('Identity: base model tests', () => {
         // verify information
         expect(id.name).toBe("Probator Identitatum");
         expect(id.getPostCount()).toBe(3);
-        expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42))).toBeTruthy();
-        expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 13))).toBeTruthy();
-        expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 37))).toBeTruthy();
+        expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey)).toBeTruthy();
+        expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 13) as CubeKey)).toBeTruthy();
+        expect(id.hasPost(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 37) as CubeKey)).toBeTruthy();
         expect(id.avatar.seedString).toBe("4213374211");
         expect(id.avatar.scheme).toBe(AvatarScheme.MULTIAVATAR);
         expect(id.getPublicSubscriptionCount()).toBe(3);
-        expect(id.hasPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43))).toBeTruthy();
-        expect(id.hasPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 44))).toBeTruthy();
-        expect(id.hasPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 45))).toBeTruthy();
+        expect(id.hasPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 43) as CubeKey)).toBeTruthy();
+        expect(id.hasPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 44) as CubeKey)).toBeTruthy();
+        expect(id.hasPublicSubscription(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 45) as CubeKey)).toBeTruthy();
       });
 
       it('will parse an Identity MUC on construction but ignore any references to other Cubes', async() => {

@@ -1,5 +1,5 @@
 import type { Cube } from "../../core/cube/cube";
-import type { CubeKey } from "../../core/cube/cube.definitions";
+import type { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
 import type { CubeRetrievalInterface } from "../../core/cube/cubeStore";
 import type { CubeRetriever } from "../../core/networking/cubeRetrieval/cubeRetriever";
 import type { cciCube } from "../cube/cciCube";
@@ -26,7 +26,7 @@ export interface NotifyingIdentitiesOptions {
 //   supplying a VeritumRetriever will not work properly.
 export async function *notifyingIdentities(
     cubeStoreOrRetriever: CubeRetrievalInterface<any>,
-    notificationKey: CubeKey,
+    notificationKey: NotificationKey,
     identityStore: IdentityStore,
     options: NotifyingIdentitiesOptions = {},
 ): AsyncGenerator<Identity> {
