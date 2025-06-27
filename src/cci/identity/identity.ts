@@ -11,7 +11,8 @@ import { logger } from '../../core/logger';
 import { Veritable } from '../../core/cube/veritable.definition';
 import { Cube } from '../../core/cube/cube';
 import { asCubeKey, KeyVariants, keyVariants } from '../../core/cube/keyUtil';
-import { CubeEmitter, CubeRetrievalInterface, CubeStore } from '../../core/cube/cubeStore';
+import { CubeStore } from '../../core/cube/cubeStore';
+import { CubeEmitter, CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import { CubeInfo } from '../../core/cube/cubeInfo';
 import { CubeKey, CubeType } from '../../core/cube/cube.definitions';
 

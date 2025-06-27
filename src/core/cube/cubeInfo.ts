@@ -4,7 +4,7 @@ import { ApiMisuseError } from '../settings';
 import { CubeType, CubeKey, CubeFieldType } from './cube.definitions';
 import { Cube, coreCubeFamily } from './cube'
 import { CubeFamilyDefinition } from './cubeFields';
-import { GetCubeOptions } from './cubeStore';
+import { GetCubeOptions } from "./cubeRetrieval.definitions";
 import { activateCube, dateFromBinary, typeFromBinary } from './cubeUtil';
 import { logger } from '../logger';
 

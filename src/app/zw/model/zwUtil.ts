@@ -9,7 +9,8 @@ import { NetConstants } from "../../../core/networking/networkDefinitions";
 import { Cube } from "../../../core/cube/cube";
 import { CubeCreateOptions } from '../../../core/cube/cube.definitions';
 import { CubeKey, CubeType } from "../../../core/cube/cube.definitions";
-import { CubeRetrievalInterface, CubeStore } from "../../../core/cube/cubeStore";
+import { CubeStore } from "../../../core/cube/cubeStore";
+import { CubeRetrievalInterface } from "../../../core/cube/cubeRetrieval.definitions";
 
 import { MediaTypes, FieldType, FieldLength } from "../../../cci/cube/cciCube.definitions";
 import { VerityField } from "../../../cci/cube/verityField";

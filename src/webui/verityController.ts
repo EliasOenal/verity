@@ -1,4 +1,5 @@
-import type { CubeRetrievalInterface, CubeStore } from "../core/cube/cubeStore";
+import type { CubeStore } from "../core/cube/cubeStore";
+import type { CubeRetrievalInterface } from "../core/cube/cubeRetrieval.definitions";
 import type { CubeRetriever } from "../core/networking/cubeRetrieval/cubeRetriever";
 import type { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
 

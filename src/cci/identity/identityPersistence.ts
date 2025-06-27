@@ -1,5 +1,5 @@
 import type { CubeKey } from '../../core/cube/cube.definitions';
-import type { CubeRetrievalInterface } from '../../core/cube/cubeStore';
+import type { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import type { IdentityOptions } from './identity.definitions';
 
 import { ensureCci } from '../cube/cciCubeUtil';

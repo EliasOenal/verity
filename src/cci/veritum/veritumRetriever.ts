@@ -9,7 +9,8 @@ import { CubeRequestOptions, RequestScheduler } from "../../core/networking/cube
 import { logger } from "../../core/logger";
 
 import { cciCube } from "../cube/cciCube";
-import { CubeRetrievalInterface, CubeStore } from "../../core/cube/cubeStore";
+import { CubeStore } from "../../core/cube/cubeStore";
+import { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import { RelationshipType, Relationship } from "../cube/relationship";
 import { Veritum, VeritumFromChunksOptions } from "./veritum";
 import { Identity } from "../identity/identity";

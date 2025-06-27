@@ -10,7 +10,7 @@ import { KeyIteratorOptions, Level, ValueIteratorOptions } from 'level';
 import { ClassicLevel } from 'classic-level';
 import { MemoryLevel } from 'memory-level';
 import { AbstractLevel } from 'abstract-level';
-import { CubeIteratorOptions } from './cubeStore';
+import { CubeIteratorOptions } from "./cubeRetrieval.definitions";
 import { keyVariants } from './keyUtil';
 
 // maybe TODO: If we find random data in the database that doesn't parse as a cube, should we delete it?
