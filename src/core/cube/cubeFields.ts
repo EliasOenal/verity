@@ -7,7 +7,8 @@ import { coreCubeFamily, type Cube } from "./cube";
 import { CubeField } from "./cubeField";
 
 import { Buffer } from 'buffer';
-import { CubeFieldType, CubeType, CubeFieldLength, FrozenCorePositionalFront, FrozenPositionalBack, FrozenNotifyCorePositionalFront, FrozenNotifyPositionalBack, PicCorePositionalFront, PicPositionalBack, PicNotifyCorePositionalFront, PicNotifyPositionalBack, MucCorePositionalFront, MucPositionalBack, MucNotifyCorePositionalFront, MucNotifyPositionalBack, PmucCorePositionalFront, PmucPositionalBack, PmucNotifyCorePositionalFront, PmucNotifyPositionalBack, FrozenPositionalFront, MucPositionalFront, FrozenDefaultFields, FrozenNotifyDefaultFields, PicDefaultFields, PicNotifyDefaultFields, MucDefaultFields, MucNotifyDefaultFields, PmucDefaultFields, PmucNotifyDefaultFields, HasNotify, ToggleNotifyType, RawcontentFieldType } from "./cube.definitions";
+import { CubeFieldType, CubeType, CubeFieldLength, FrozenCorePositionalFront, FrozenPositionalBack, FrozenNotifyCorePositionalFront, FrozenNotifyPositionalBack, PicCorePositionalFront, PicPositionalBack, PicNotifyCorePositionalFront, PicNotifyPositionalBack, MucCorePositionalFront, MucPositionalBack, MucNotifyCorePositionalFront, MucNotifyPositionalBack, PmucCorePositionalFront, PmucPositionalBack, PmucNotifyCorePositionalFront, PmucNotifyPositionalBack, FrozenPositionalFront, MucPositionalFront, HasNotify, ToggleNotifyType, RawcontentFieldType } from "./cube.definitions";
+import { FrozenDefaultFields, FrozenNotifyDefaultFields, PicDefaultFields, PicNotifyDefaultFields, MucDefaultFields, MucNotifyDefaultFields, PmucDefaultFields, PmucNotifyDefaultFields } from "./cubeField";
 
 export class CubeFields extends BaseFields {
   static CorrectNotifyType(type: CubeType, fields: CubeFields | CubeField[] | CubeField) {
