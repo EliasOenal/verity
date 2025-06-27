@@ -1,4 +1,5 @@
-import { Cube, CubeCreateOptions } from "../../core/cube/cube";
+import { Cube } from "../../core/cube/cube";
+import { CubeCreateOptions } from '../../core/cube/cube.definitions';
 import { CubeType } from "../../core/cube/cube.definitions";
 import { Settings } from "../../core/settings";
 import { deriveSigningKeypair, KeyPair } from "../helpers/cryptography";

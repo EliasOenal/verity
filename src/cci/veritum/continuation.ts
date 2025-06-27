@@ -2,7 +2,8 @@ import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
 import { CubeError, CubeKey, CubeType, NonNotifyCubeType, NotifyCubeType } from "../../core/cube/cube.definitions";
-import { Cube, CubeCreateOptions, CubeOptions } from "../../core/cube/cube";
+import { Cube } from "../../core/cube/cube";
+import { CubeCreateOptions, CubeOptions } from '../../core/cube/cube.definitions';
 import { FieldParser } from "../../core/fields/fieldParser";
 
 import { cciCube } from "../cube/cciCube";

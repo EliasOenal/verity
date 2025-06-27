@@ -6,7 +6,8 @@
 import { Settings } from "../../../core/settings";
 import { NetConstants } from "../../../core/networking/networkDefinitions";
 
-import { Cube, CubeCreateOptions } from "../../../core/cube/cube";
+import { Cube } from "../../../core/cube/cube";
+import { CubeCreateOptions } from '../../../core/cube/cube.definitions';
 import { CubeKey, CubeType } from "../../../core/cube/cube.definitions";
 import { CubeRetrievalInterface, CubeStore } from "../../../core/cube/cubeStore";
 

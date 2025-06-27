@@ -5,7 +5,7 @@ import { NetConstants } from '../networking/networkDefinitions';
 import type { Veritable } from './veritable.definition';
 
 import { FieldEqualityMetric, FieldPosition, FieldsEqualOptions } from '../fields/baseFields';
-import { BinaryDataError, BinaryLengthError, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasNotify, HasSignature, SmartCubeError, ToggleNotifyType } from "./cube.definitions";
+import { BinaryDataError, BinaryLengthError, CubeCreateOptions, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeOptions, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasNotify, HasSignature, SmartCubeError, ToggleNotifyType } from "./cube.definitions";
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { CubeField } from "./cubeField";
@@ -19,18 +19,6 @@ import sodium from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 import { FieldType } from '../../cci/cube/cciCube.definitions';
 import { asCubeKey } from './keyUtil';
-
-export interface CubeOptions {
-    fields?: CubeFields | CubeField[] | CubeField,
-    family?: CubeFamilyDefinition,
-    requiredDifficulty?: number,
-}
-
-export interface CubeCreateOptions extends CubeOptions {
-    cubeType?: CubeType,
-    publicKey?: Buffer,
-    privateKey?: Buffer,
-}
 
 export abstract class VeritableBaseImplementation implements Veritable {
     protected _fields: CubeFields;

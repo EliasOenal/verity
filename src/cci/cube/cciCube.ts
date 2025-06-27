@@ -7,7 +7,8 @@ import { NetConstants } from "../../core/networking/networkDefinitions";
 
 import { FieldPosition } from "../../core/fields/baseFields";
 import { CubeError, CubeType, FieldError, FieldSizeError } from "../../core/cube/cube.definitions";
-import { Cube, CubeCreateOptions, CubeOptions } from "../../core/cube/cube";
+import { Cube } from "../../core/cube/cube";
+import { CubeCreateOptions, CubeOptions } from '../../core/cube/cube.definitions';
 
 import { VerityField } from "./verityField";
 import { VerityFields, cciFieldParsers } from "./verityFields";

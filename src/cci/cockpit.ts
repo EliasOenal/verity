@@ -1,6 +1,7 @@
 import type { CubeKey, NotificationKey } from "../core/cube/cube.definitions";
 
-import { Cube, CubeCreateOptions } from "../core/cube/cube";
+import { Cube } from "../core/cube/cube";
+import { CubeCreateOptions } from '../core/cube/cube.definitions';
 import { CubeInfo } from "../core/cube/cubeInfo";
 import { CubeStore } from "../core/cube/cubeStore";
 import { Veritable } from "../core/cube/veritable.definition";
