@@ -1,12 +1,14 @@
+import type { FieldFactoryParam } from '../fields/fieldParser';
+
 import { Settings } from '../settings';
-import { NetConstants } from '../networking/networkDefinitions';
+import { CubeFieldLength, CubeFieldType, CubeType, FieldError, NotificationKey, RawcontentFieldType } from './cube.definitions';
 import { unixtime } from '../helpers/misc';
 
 import { BaseField } from '../fields/baseField';
-import { CubeFieldLength, CubeFieldType, CubeType, FieldError, NotificationKey, RawcontentFieldType } from './cube.definitions';
+import { paddedBuffer } from './cubeUtil';
+import { NetConstants } from '../networking/networkDefinitions';
 
 import { Buffer } from 'buffer';
-import { paddedBuffer } from './cubeUtil';
 
 export class CubeField extends BaseField {
   static Type(cubeType: CubeType): CubeField {
@@ -89,3 +91,69 @@ export class CubeField extends BaseField {
     super(param1, value, start);
   }
 }
+
+
+// Default field defitions
+
+export const FrozenDefaultFields: FieldFactoryParam = {
+  [CubeFieldType.TYPE]: () => CubeField.Type(CubeType.FROZEN),
+  [CubeFieldType.FROZEN_RAWCONTENT]: () => CubeField.RawContent(CubeType.FROZEN),
+  [CubeFieldType.DATE]: () => CubeField.Date(),
+  [CubeFieldType.NONCE]: () => CubeField.Nonce(),
+};
+export const FrozenNotifyDefaultFields: FieldFactoryParam = {
+  [CubeFieldType.TYPE]: () => CubeField.Type(CubeType.FROZEN_NOTIFY),
+  [CubeFieldType.FROZEN_NOTIFY_RAWCONTENT]: () => CubeField.RawContent(CubeType.FROZEN_NOTIFY),
+  [CubeFieldType.NOTIFY]: () => CubeField.Notify(),
+  [CubeFieldType.DATE]: () => CubeField.Date(),
+  [CubeFieldType.NONCE]: () => CubeField.Nonce(),
+};
+export const PicDefaultFields: FieldFactoryParam = {
+  [CubeFieldType.TYPE]: () => CubeField.Type(CubeType.PIC),
+  [CubeFieldType.PIC_RAWCONTENT]: () => CubeField.RawContent(CubeType.PIC),
+  [CubeFieldType.DATE]: () => CubeField.Date(),
+  [CubeFieldType.NONCE]: () => CubeField.Nonce(),
+};
+export const PicNotifyDefaultFields: FieldFactoryParam = {
+  [CubeFieldType.TYPE]: () => CubeField.Type(CubeType.PIC_NOTIFY),
+  [CubeFieldType.PIC_NOTIFY_RAWCONTENT]: () => CubeField.RawContent(CubeType.PIC_NOTIFY),
+  [CubeFieldType.NOTIFY]: () => CubeField.Notify(),
+  [CubeFieldType.DATE]: () => CubeField.Date(),
+  [CubeFieldType.NONCE]: () => CubeField.Nonce(),
+};
+export const MucDefaultFields: FieldFactoryParam = {
+  [CubeFieldType.TYPE]: () => CubeField.Type(CubeType.MUC),
+  [CubeFieldType.MUC_RAWCONTENT]: () => CubeField.RawContent(CubeType.MUC),
+  [CubeFieldType.NONCE]: () => CubeField.Nonce(),
+  [CubeFieldType.SIGNATURE]: () => CubeField.Signature(),
+  [CubeFieldType.DATE]: () => CubeField.Date(),
+  [CubeFieldType.PUBLIC_KEY]: () => CubeField.PublicKey(),
+};
+export const MucNotifyDefaultFields: FieldFactoryParam = {
+  [CubeFieldType.TYPE]: () => CubeField.Type(CubeType.MUC_NOTIFY),
+  [CubeFieldType.MUC_NOTIFY_RAWCONTENT]: () => CubeField.RawContent(CubeType.MUC_NOTIFY),
+  [CubeFieldType.NOTIFY]: () => CubeField.Notify(),
+  [CubeFieldType.NONCE]: () => CubeField.Nonce(),
+  [CubeFieldType.SIGNATURE]: () => CubeField.Signature(),
+  [CubeFieldType.DATE]: () => CubeField.Date(),
+  [CubeFieldType.PUBLIC_KEY]: () => CubeField.PublicKey(),
+};
+export const PmucDefaultFields: FieldFactoryParam = {
+  [CubeFieldType.TYPE]: () => CubeField.Type(CubeType.PMUC),
+  [CubeFieldType.PMUC_RAWCONTENT]: () => CubeField.RawContent(CubeType.PMUC),
+  [CubeFieldType.NONCE]: () => CubeField.Nonce(),
+  [CubeFieldType.SIGNATURE]: () => CubeField.Signature(),
+  [CubeFieldType.DATE]: () => CubeField.Date(),
+  [CubeFieldType.PUBLIC_KEY]: () => CubeField.PublicKey(),
+  [CubeFieldType.PMUC_UPDATE_COUNT]: () => CubeField.PmucUpdateCount(),
+};
+export const PmucNotifyDefaultFields: FieldFactoryParam = {
+  [CubeFieldType.TYPE]: () => CubeField.Type(CubeType.PMUC_NOTIFY),
+  [CubeFieldType.PMUC_NOTIFY_RAWCONTENT]: () => CubeField.RawContent(CubeType.PMUC_NOTIFY),
+  [CubeFieldType.NOTIFY]: () => CubeField.Notify(),
+  [CubeFieldType.NONCE]: () => CubeField.Nonce(),
+  [CubeFieldType.SIGNATURE]: () => CubeField.Signature(),
+  [CubeFieldType.DATE]: () => CubeField.Date(),
+  [CubeFieldType.PUBLIC_KEY]: () => CubeField.PublicKey(),
+  [CubeFieldType.PMUC_UPDATE_COUNT]: () => CubeField.PmucUpdateCount(),
+};
