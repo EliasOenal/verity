@@ -4,10 +4,11 @@ import { NetConstants } from '../networking/networkDefinitions';
 
 import type { Veritable } from './veritable.definition';
 
-import { FieldEqualityMetric, FieldPosition, FieldsEqualOptions } from '../fields/baseFields';
+import { FieldPosition, FieldsEqualOptions } from '../fields/baseFields';
 import { BinaryDataError, BinaryLengthError, CubeCreateOptions, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeOptions, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasNotify, HasSignature, SmartCubeError, ToggleNotifyType } from "./cube.definitions";
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
+import { asCubeKey } from './keyUtil';
 import { CubeField } from "./cubeField";
 import { CoreFieldParsers, CubeFamilyDefinition, CubeFields } from './cubeFields';
 
@@ -17,9 +18,13 @@ import { logger } from '../logger';
 
 import sodium from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
-import { FieldType } from '../../cci/cube/cciCube.definitions';
-import { asCubeKey } from './keyUtil';
 
+/**
+ * Base class for all of our Veritable implementations, namely Cube here
+ * and Veritum on the CCI layer.
+ */
+// Note: Cannot be moved to separate file as it uses coreCubeFamily as a default
+//       param, moving it would cause a circular dependency.
 export abstract class VeritableBaseImplementation implements Veritable {
     protected _fields: CubeFields;
     readonly options: CubeCreateOptions;
@@ -49,7 +54,7 @@ export abstract class VeritableBaseImplementation implements Veritable {
 
             // ensure Cube type is of a notification variant if there is a
             // NOTIFY field
-            if (this._fields.getFirst(FieldType.NOTIFY) && !HasNotify[this.options.cubeType]) {
+            if (this._fields.getFirst(CubeFieldType.NOTIFY) && !HasNotify[this.options.cubeType]) {
                 this.options.cubeType = ToggleNotifyType[this.options.cubeType];
             }
         }
