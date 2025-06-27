@@ -1,6 +1,6 @@
 import type { Cube } from "../../core/cube/cube";
 import type { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
-import type { CubeRetrievalInterface } from "../../core/cube/cubeStore";
+import type { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import type { CubeRetriever } from "../../core/networking/cubeRetrieval/cubeRetriever";
 import type { cciCube } from "../cube/cciCube";
 import type { IdentityStore } from "./identityStore";

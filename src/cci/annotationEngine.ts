@@ -5,7 +5,7 @@ import { Cube } from '../core/cube/cube';
 import { VerityFields } from './cube/verityFields';
 import { Relationship } from './cube/relationship';
 import { BaseFields } from '../core/fields/baseFields';
-import { CubeEmitter } from '../core/cube/cubeStore';
+import { CubeEmitter } from "../core/cube/cubeRetrieval.definitions";
 
 import { logger } from '../core/logger';
 
