@@ -1,3 +1,6 @@
+export * from './core/cube/cube.definitions.js'
+export * from './core/cube/keyUtil.js'
+
 export * from './cci/cube/cciCube.definitions.js'
 export * from './cci/cube/cciCube.js'
 export * from './cci/cube/cciCubeUtil.js'

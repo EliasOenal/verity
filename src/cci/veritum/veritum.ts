@@ -1,7 +1,8 @@
 import type { Veritable } from "../../core/cube/veritable.definition";
 import type { CciEncryptionParams } from "./chunkEncryption";
 
-import { CubeCreateOptions, VeritableBaseImplementation } from "../../core/cube/cube";
+import { VeritableBaseImplementation } from "../../core/cube/cube";
+import { CubeCreateOptions } from '../../core/cube/cube.definitions';
 import { HasSignature, type CubeKey, DEFAULT_CUBE_TYPE } from "../../core/cube/cube.definitions";
 import { asCubeKey, keyVariants } from "../../core/cube/keyUtil";
 

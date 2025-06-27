@@ -1,4 +1,5 @@
 import type { FieldBooleanParam, FieldFactoryParam, FieldNumericalParam, PositionalFields } from "../fields/fieldParser";
+import type { CubeFields, CubeFamilyDefinition } from "./cubeFields";
 
 import { Settings, VerityError } from "../settings";
 import { NetConstants } from "../networking/networkDefinitions";
@@ -78,6 +79,7 @@ export const CubeFieldLength: FieldNumericalParam = {
   [CubeFieldType.PMUC_RAWCONTENT]: NetConstants.CUBE_SIZE - NetConstants.CUBE_TYPE_SIZE - NetConstants.PMUC_UPDATE_COUNT_SIZE - NetConstants.PUBLIC_KEY_SIZE - NetConstants.TIMESTAMP_SIZE - NetConstants.SIGNATURE_SIZE - NetConstants.NONCE_SIZE,
   [CubeFieldType.PMUC_NOTIFY_RAWCONTENT]: NetConstants.CUBE_SIZE - NetConstants.CUBE_TYPE_SIZE - NetConstants.NOTIFY_SIZE - NetConstants.PMUC_UPDATE_COUNT_SIZE - NetConstants.PUBLIC_KEY_SIZE - NetConstants.TIMESTAMP_SIZE - NetConstants.SIGNATURE_SIZE - NetConstants.NONCE_SIZE,
 };
+
 
 //===
 // Positional field definitions
@@ -194,6 +196,7 @@ export const PmucNotifyPositionalBack: PositionalFields = {
 };
 
 // Default field defitions for frozen Cubes
+// TODO move to avoid circular references
 export const FrozenDefaultFields: FieldFactoryParam = {
   [CubeFieldType.TYPE]: () => CubeField.Type(CubeType.FROZEN),
   [CubeFieldType.FROZEN_RAWCONTENT]: () => CubeField.RawContent(CubeType.FROZEN),
@@ -309,6 +312,21 @@ export function NonNotifyCubeType(cubeType: CubeType): CubeType {
   if (HasNotify[cubeType]) return ToggleNotifyType[cubeType];
   else return cubeType;
 }
+
+
+
+export interface CubeOptions {
+    fields?: CubeFields | CubeField[] | CubeField;
+    family?: CubeFamilyDefinition;
+    requiredDifficulty?: number;
+}
+
+export interface CubeCreateOptions extends CubeOptions {
+    cubeType?: CubeType;
+    publicKey?: Buffer;
+    privateKey?: Buffer;
+}
+
 
 
 
