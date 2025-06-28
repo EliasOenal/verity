@@ -248,18 +248,28 @@ export function NonNotifyCubeType(cubeType: CubeType): CubeType {
   else return cubeType;
 }
 
-
-
-export interface CubeOptions {
-    fields?: CubeFields | CubeField[] | CubeField;
-    family?: CubeFamilyDefinition;
-    requiredDifficulty?: number;
+export interface GetCubeOptions {
+  /**
+   * The family definition, i.e. the local parsing settings to use.
+   * You do not usually need to change this unless your app uses custom
+   * Cube formats.
+   * When retrieving, a list of multiple definitions can be provided: In case
+   * parsing the received data using the first definition fails, we'll try the
+   * next one.
+   * This does not apply when creating new Cubes / Veritables; in this case,
+   * only a single definition must be supplied.
+   * @default - coreCubeFamily on the Core layer, cciFamily on the CCI layer.
+   */
+  family?: CubeFamilyDefinition | CubeFamilyDefinition[];
 }
 
-export interface CubeCreateOptions extends CubeOptions {
-    cubeType?: CubeType;
-    publicKey?: Buffer;
-    privateKey?: Buffer;
+export interface CubeCreateOptions extends GetCubeOptions {
+  cubeType?: CubeType;
+  fields?: CubeFields | CubeField[] | CubeField;
+  family?: CubeFamilyDefinition;
+  requiredDifficulty?: number;
+  publicKey?: Buffer;
+  privateKey?: Buffer;
 }
 
 

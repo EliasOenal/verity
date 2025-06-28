@@ -170,6 +170,8 @@ export class VeritumRetriever
     const fromChunksOptions: VeritumFromChunksOptions = options?
       {
         ...options,
+        // TODO BUGBUG: Try decompilation for every family definition supplied
+        family: Array.isArray(options.family) ? options.family[0] : options.family,
         recipientPrivateKey,
       } :
       { recipientPrivateKey }

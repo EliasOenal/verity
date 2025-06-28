@@ -5,7 +5,7 @@ import { NetConstants } from '../networking/networkDefinitions';
 import type { Veritable } from './veritable.definition';
 
 import { FieldPosition, FieldsEqualOptions } from '../fields/baseFields';
-import { BinaryDataError, BinaryLengthError, CubeCreateOptions, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeOptions, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasNotify, HasSignature, SmartCubeError, ToggleNotifyType } from "./cube.definitions";
+import { BinaryDataError, BinaryLengthError, CubeCreateOptions, CubeError, CubeFieldLength, CubeFieldType, CubeKey, CubeSignatureError, CubeType, DEFAULT_CUBE_TYPE, FieldError, FieldSizeError, HasNotify, HasSignature, SmartCubeError, ToggleNotifyType } from "./cube.definitions";
 import { CubeInfo } from "./cubeInfo";
 import * as CubeUtil from './cubeUtil';
 import { asCubeKey } from './keyUtil';
@@ -43,7 +43,15 @@ export abstract class VeritableBaseImplementation implements Veritable {
             this._fields = new fieldsType(param1._fields);
         } else {
             // construction from scratch
-            this.options = param1;
+            this.options = { ...param1 };
+            // normalise options:
+            // Do not accept more than one family definition.
+            // Note that we already banned multiple definitions on the TypeScript
+            // layer, but we still normalise here for extra resilience.
+            if (Array.isArray(this.options.family)) {
+                this.options.family = this.options.family[0];
+                // in case of empty Array, default below will apply
+            }
             // set default options
             this.options.cubeType ??= DEFAULT_CUBE_TYPE;
             this.options.family ??= coreCubeFamily;
@@ -237,6 +245,14 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
         options: CubeCreateOptions = {},
     ): Cube {
         options = Object.assign({}, options);  // copy options to avoid messing up original
+        // normalise options:
+        // Do not accept more than one family definition.
+        // Note that we already banned multiple definitions on the TypeScript
+        // layer, but we still normalise here for extra resilience.
+        if (Array.isArray(options.family)) {
+            options.family = options.family[0];
+            // in case of empty Array, default below will apply
+        }
         // set default options
         options.cubeType ??= DEFAULT_CUBE_TYPE;
         options.family ??= coreCubeFamily;
@@ -372,24 +388,27 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
     /** Reactivate an existing, binary cube */
     constructor(
         binaryData: Buffer,
-        options?: CubeOptions);
+        options?: CubeCreateOptions);
     /**
      * Sculpt a new bare Cube, starting out without any fields.
      * This is only useful if for some reason you need full control even over
      * mandatory boilerplate fields. Consider using Cube.Frozen or Cube.MUC
      * instead, which will sculpt a fully valid frozen Cube or MUC, respectively.
      **/
+    // Note: Usage of CubeCreateOptions here is not perfectly elegant,
+    //       as we require cubeType as a mandatory param and will ignore any
+    //       value supplied within options.
     constructor(
         cubeType: CubeType,
-        options?: CubeOptions);
+        options?: CubeCreateOptions);
     /** Copy constructor: Copy an existing Cube */
     constructor(copyFrom: Cube);
     // Repeat implementation as declaration as calls must strictly match a
     // declaration, not the implementation (which is stupid)
-    constructor(param1: Buffer | CubeType | Cube, option?: CubeOptions);
+    constructor(param1: Buffer | CubeType | Cube, options?: CubeCreateOptions);
     constructor(
             param1: Buffer | CubeType | Cube,
-            options?: CubeOptions)
+            options?: CubeCreateOptions)
     {
         if (param1 instanceof Cube) {
             // copy constructor
