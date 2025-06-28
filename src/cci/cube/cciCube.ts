@@ -8,13 +8,11 @@ import { NetConstants } from "../../core/networking/networkDefinitions";
 import { FieldPosition } from "../../core/fields/baseFields";
 import { CubeError, CubeType, FieldError, FieldSizeError } from "../../core/cube/cube.definitions";
 import { Cube } from "../../core/cube/cube";
-import { CubeCreateOptions, CubeOptions } from '../../core/cube/cube.definitions';
+import { CubeCreateOptions } from '../../core/cube/cube.definitions';
 
 import { VerityField } from "./verityField";
 import { VerityFields, cciFieldParsers } from "./verityFields";
 import { FieldType } from "./cciCube.definitions";
-
-import { KeyPair, deriveSigningKeypair } from "../helpers/cryptography";
 
 import { Buffer } from 'buffer';  // for browsers
 
@@ -62,7 +60,7 @@ export class cciCube extends Cube {
   /** Reactivate an existing, binary cube */
   constructor(
     binaryData: Buffer,
-    options?: CubeOptions);
+    options?: CubeCreateOptions);
   /**
    * Sculpt a new bare Cube, starting out without any fields.
    * This is only useful if for some reason you need full control even over
@@ -71,16 +69,16 @@ export class cciCube extends Cube {
    **/
   constructor(
       cubeType: CubeType,
-      options?: CubeOptions);
+      options?: CubeCreateOptions);
   /** Copy constructor: Copy an existing Cube */
   constructor(copyFrom: cciCube);
   // Repeat implementation as declaration as calls must strictly match a
   // declaration, not the implementation (which is stupid)
-  constructor(param1: Buffer | CubeType | cciCube, option?: CubeOptions);
+  constructor(param1: Buffer | CubeType | cciCube, option?: CubeCreateOptions);
 
   constructor(
     param1: Buffer | CubeType | cciCube,
-    options: CubeOptions = {},
+    options: CubeCreateOptions = {},
   ) {
     options.family = options.family ?? cciFamily;
     super(param1, options)

@@ -19,7 +19,8 @@ import { logger } from "../logger";
 import { EventEmitter } from "events";
 import { WeakValueMap } from "weakref";
 import { Buffer } from "buffer";
-import { CubeEmitterEvents, CubeRetrievalInterface, GetCubeOptions, CubeEmitter, CubeIteratorOptions } from "./cubeRetrieval.definitions";
+import { CubeEmitterEvents, CubeRetrievalInterface, CubeEmitter, CubeIteratorOptions } from "./cubeRetrieval.definitions";
+import { GetCubeOptions } from "./cube.definitions";
 
 // TODO: we need to be able to pin certain cubes
 // to prevent them from being pruned. This may be used to preserve cubes

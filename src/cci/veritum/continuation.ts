@@ -3,13 +3,13 @@ import { NetConstants } from "../../core/networking/networkDefinitions";
 
 import { CubeError, CubeKey, CubeType, NonNotifyCubeType, NotifyCubeType } from "../../core/cube/cube.definitions";
 import { Cube } from "../../core/cube/cube";
-import { CubeCreateOptions, CubeOptions } from '../../core/cube/cube.definitions';
+import { CubeCreateOptions } from '../../core/cube/cube.definitions';
 import { FieldParser } from "../../core/fields/fieldParser";
 
 import { cciCube } from "../cube/cciCube";
 import { FieldType } from "../cube/cciCube.definitions";
 import { VerityField } from "../cube/verityField";
-import { cciFrozenFieldDefinition, VerityFields } from "../cube/verityFields";
+import { VerityFields } from "../cube/verityFields";
 import { Relationship, RelationshipType } from "../cube/relationship";
 import { Veritable } from "../../core/cube/veritable.definition";
 import { Veritum } from "./veritum";

@@ -1,7 +1,7 @@
 import type { NetworkPeerIf } from '../networkPeerIf';
 import type { NetworkManagerIf } from '../networkManagerIf';
 import type { Cube } from '../../cube/cube';
-import type { CubeFamilyDefinition } from '../../cube/cubeFields';
+import type { CubeInfo } from '../../cube/cubeInfo';
 
 import { Settings } from '../../settings';
 import { Shuttable } from '../../helpers/coreInterfaces';
@@ -9,13 +9,12 @@ import { MessageClass, NetConstants, NetworkPeerError } from '../networkDefiniti
 import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode, SubscriptionConfirmationMessage, SubscriptionResponseCode } from '../networkMessage';
 
 import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
-import { CubeFieldType, NotificationKey, type CubeKey } from '../../cube/cube.definitions';
-import { CubeInfo } from '../../cube/cubeInfo';
+import { CubeFieldType, GetCubeOptions, type NotificationKey, type CubeKey } from '../../cube/cube.definitions';
 import { cubeContest, getCurrentEpoch, shouldRetainCube } from '../../cube/cubeUtil';
 import { asCubeKey, keyVariants } from '../../cube/keyUtil';
 
 import { RequestStrategy, RandomStrategy, BestScoreStrategy } from './requestStrategy';
-import { CubeRequest, CubeSubscription, PendingRequest, SubscriptionRequest } from './pendingRequest';
+import { CubeRequest, CubeSubscription, SubscriptionRequest } from './pendingRequest';
 
 import { logger } from '../../logger';
 
@@ -54,11 +53,10 @@ export interface RequestSchedulerOptions {
   interactiveRequestDelay?: number;
 }
 
-export interface CubeRequestOptions {
+export interface CubeRequestOptions extends GetCubeOptions {
   scheduleIn?: number;
   timeout?: number;
   requestFrom?: NetworkPeerIf;
-  family?: CubeFamilyDefinition;
 }
 
 export interface CubeSubscribeOptions extends CubeRequestOptions {
@@ -145,6 +143,7 @@ export class RequestScheduler implements Shuttable {
    * @returns A promise resolving to the CubeInfo of the requested Cube.
    *  Promise will return undefined if Cube cannot be retrieved within timeout.
    */
+  // TODO minor BUGBUG: options.family is ignored
   requestCube(
     keyInput: CubeKey | string,
     options: CubeRequestOptions = {},

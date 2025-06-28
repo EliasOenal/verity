@@ -96,7 +96,6 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
         fields: new VerityFields(copyFrom._fields, copyFrom._fields.fieldDefinition),
       }
       super({...options, cubeType: copyFrom.cubeType});
-      this.options = options;
       this._chunks = copyFrom._chunks ?? [];
     } else {
       // creating new Veritum
@@ -104,8 +103,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
       options.family ??= cciFamily;
       options.cubeType ??= DEFAULT_CUBE_TYPE;
       super(options);
-      this.options = options;
-      this._chunks = options.chunks ?? [];
+      this._chunks = this.options.chunks ?? [];
     }
   }
 

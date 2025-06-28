@@ -1,14 +1,9 @@
 import { EventEmitter } from "events";
 import { Cube } from "./cube";
-import { CubeKey, NotificationKey } from "./cube.definitions";
-import { CubeFamilyDefinition } from "./cubeFields";
+import { CubeKey, GetCubeOptions, NotificationKey } from "./cube.definitions";
 import { CubeInfo } from "./cubeInfo";
 import { CubeStore } from "./cubeStore";
 import { Veritable } from "./veritable.definition";
-
-export interface GetCubeOptions {
-  family?: CubeFamilyDefinition | CubeFamilyDefinition[];
-}
 
 /**
  * A generalised interface for objects that can retrieve Cubes.
@@ -21,7 +16,6 @@ export interface CubeRetrievalInterface<OptionsType = GetCubeOptions> {
   expectCube(keyInput: CubeKey | string): Promise<CubeInfo>; // maybe TODO: add timeout?
   getNotifications(recipientKey: NotificationKey | string, options?: {}): AsyncGenerator<Veritable>;
   cubeStore: CubeStore;
-
 }
 
 export type CubeIteratorOptions = {
