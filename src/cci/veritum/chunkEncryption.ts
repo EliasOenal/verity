@@ -1,10 +1,12 @@
+import { ApiMisuseError, Settings, VerityError } from "../../core/settings";
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
 import { NetConstants } from "../../core/networking/networkDefinitions";
-import { ApiMisuseError, Settings, VerityError } from "../../core/settings";
-import { FieldLength, FieldType } from "../cube/cciCube.definitions";
+
+import { FieldType } from "../cube/cciCube.definitions";
 import { VerityField } from "../cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition } from "../cube/verityFields";
-import { ContinuationDefaultExclusions } from "./continuation";
+import { ContinuationDefaultExclusions } from "./veritum.definitions";
+import { CciEncryptionParams, CryptStateOutput, EncryptionRecipients } from "./encryption.definitions";
 
 import { Identity } from "../identity/identity";
 
@@ -12,71 +14,6 @@ import { isIterableButNotBuffer } from "../../core/helpers/misc";
 
 import { Buffer } from 'buffer'
 import sodium from 'libsodium-wrappers-sumo'
-
-export type EncryptionRecipients = Identity|Iterable<Identity>|Buffer|Iterable<Buffer>;
-export interface CciEncryptionParams {
-  /**
-   * Excludes the listed field types from encryption, instead keeping them as
-   * plaintext together with the encrypted message.
-   * May be used for example to split a single message into a private and public
-   * part, or for custom key distribution schemes.
-   * This is generally NOT RECOMMENDED as it may cause information leaks.
-   * Only use this if you know what you're doing please.
-   **/
-  excludeFromEncryption?: number[],
-
-  /**
-   * @deprecated
-   * If both sender and recipient already know which nonce to use, please
-   * provide it here. It will not be included in the output.
-   * Otherwise, a random nonce will be rolled and included in the output.
-   * Marked as deprecated as it can very easily lead to insecure use.
-   */
-  nonce?: Buffer,
-
-  /**
-   * If you already have a shared secret with the recipient (and you're positive
-   * that the recipient thinks so as well), you can supply it here to re-use
-   * this shared secret rather than generating a new one. Saves some CPU load.
-   * Only use this if you know what you're doing please.
-   */
-  symmetricKey?: Buffer,
-
-  /**
-   * @deprecated
-   * If for some reason you want to encrypt your Veritum using a specific sender
-   * key, please provide the public part here.
-   * Marked as deprecated as we prefer using ephemeral sender keys which are
-   * auto-generated one layer up at the VeritumEncryption stage.
-   */
-  senderPubkey?: Buffer,
-  /**
-   * @deprecated
-   * If for some reason you want to encrypt your Veritum using a specific sender
-   * key, please provide the private part here.
-   * Marked as deprecated as we prefer using ephemeral sender keys which are
-   * auto-generated one layer up at the VeritumEncryption stage.
-   */
-  senderPrivateKey?: Buffer,
-
-  /**
-   * To automatically encrypt a Veritum only intended for a specific recipient
-   * or list of recipients, supply their Identities or encryption public keys here.
-   * Don't forget to also supply the encryptionPrivateKey.
-   */
-  recipients?: EncryptionRecipients,
-
-  // Header flags
-  pubkeyHeader?: boolean;
-  nonceHeader?: boolean;
-  keyslotHeader?: boolean;
-}
-
-export interface CryptStateOutput {
-  result: VerityFields,
-  symmetricKey: Buffer,
-  nonce: Buffer,
-}
 
 //###
 // "Public" functions

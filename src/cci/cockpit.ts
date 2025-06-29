@@ -12,7 +12,8 @@ import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestSche
 import { dummyVerityNode, VerityNodeIf, VerityNodeOptions } from "./verityNode";
 import { cciCube } from "./cube/cciCube";
 import { Identity } from "./identity/identity";
-import { Veritum, VeritumCompileOptions } from "./veritum/veritum";
+import { Veritum } from "./veritum/veritum";
+import { VeritumCompileOptions } from "./veritum/veritum.definitions";
 import { GetVeritumOptions, VeritumRetrievalInterface } from "./veritum/veritumRetriever";
 import { MetadataEnhancedRetrieval, ResolveRelsOptions, ResolveRelsRecursiveOptions, ResolveRelsRecursiveResult, ResolveRelsResult } from "./veritum/veritumRetrievalUtil";
 

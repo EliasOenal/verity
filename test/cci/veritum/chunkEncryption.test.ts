@@ -3,7 +3,8 @@ import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { VerityFields, cciFrozenFieldDefinition } from '../../../src/cci/cube/verityFields';
 import { VerityField } from '../../../src/cci/cube/verityField';
 import { FieldType, MediaTypes } from '../../../src/cci/cube/cciCube.definitions';
-import { Encrypt, CryptStateOutput } from '../../../src/cci/veritum/chunkEncryption';
+import { CryptStateOutput } from '../../../src/cci/veritum/encryption.definitions';
+import { Encrypt } from '../../../src/cci/veritum/chunkEncryption';
 import { KeyPair } from '../../../src/cci/helpers/cryptography';
 
 import { Decrypt } from '../../../src/cci/veritum/chunkDecryption';

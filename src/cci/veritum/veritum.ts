@@ -1,39 +1,21 @@
 import type { Veritable } from "../../core/cube/veritable.definition";
-import type { CciEncryptionParams } from "./chunkEncryption";
 
 import { VeritableBaseImplementation } from "../../core/cube/cube";
-import { CubeCreateOptions } from '../../core/cube/cube.definitions';
 import { HasSignature, type CubeKey, DEFAULT_CUBE_TYPE } from "../../core/cube/cube.definitions";
 import { asCubeKey, keyVariants } from "../../core/cube/keyUtil";
 
 import { cciCube, cciFamily } from "../cube/cciCube";
 import { Relationship, RelationshipType } from "../cube/relationship";
 import { VerityFields } from "../cube/verityFields";
-import { Split, Recombine, RecombineOptions, SplitOptions, ChunkFinalisationState } from "./continuation";
-import { CciDecryptionParams, Decrypt } from "./chunkDecryption";
+import { Split, Recombine } from "./continuation";
+import { SplitOptions, ChunkFinalisationState } from "./veritum.definitions";
 import { ChunkDecrypt, ChunkEncryptionHelper } from "./veritumEncryption";
 
 import { logger } from "../../core/logger";
 
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo';
-
-export interface VeritumCreateOptions extends VeritumCompileOptions {
-  /**
-   * You should never need to supply this manually; if you do, make sure you
-   * know what your're doing.
-   * This parameter is used when reconstructing a Veritum from a list of chunks
-   * to supply that list here, so that the resulting Veritum is already in
-   * compiled state.
-   */
-  chunks?: cciCube[];
-}
-
-export interface VeritumCompileOptions extends CubeCreateOptions, CciEncryptionParams {
-}
-
-export interface VeritumFromChunksOptions extends RecombineOptions, CciDecryptionParams {
-}
+import { VeritumCreateOptions, VeritumFromChunksOptions, VeritumCompileOptions } from "./veritum.definitions";
 
 // TODO: Provide an own configurable equals() method with sensible defaults
 //   to allow semantic comparisons between Verita as well as between Verita

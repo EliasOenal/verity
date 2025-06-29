@@ -3,19 +3,12 @@ import { Settings } from "../../core/settings";
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
 import { FieldType } from "../cube/cciCube.definitions";
 import { VerityFields } from "../cube/verityFields";
-import { CryptStateOutput } from "./chunkEncryption";
+import { CciDecryptionParams, CryptStateOutput } from "./encryption.definitions";
 
 import { logger } from "../../core/logger";
 
 import { Buffer } from 'buffer'
 import sodium from 'libsodium-wrappers-sumo'
-
-export interface CciDecryptionParams {
-  predefinedNonce?: Buffer,
-  preSharedKey?: Buffer,
-  recipientPrivateKey?: Buffer,
-}
-
 
 //###
 // "Public" functions

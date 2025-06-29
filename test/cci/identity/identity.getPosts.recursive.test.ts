@@ -7,15 +7,16 @@ import { Relationship, RelationshipType } from '../../../src/cci/cube/relationsh
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { ResolveRelsRecursiveResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
 
-import { GetPostsGenerator, PostFormat, PostInfo } from '../../../src/cci/identity/identity.definitions';
+import { GetPostsGenerator, PostInfo } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity';
 
 // TODO: Don't use test setups from ZW for CCI components, it breaks our layering
 import { TestWordPostSet, TestWorld } from '../../app/zw/testWorld';
 
 import { beforeAll, describe, expect, it } from 'vitest';
+import { RetrievalFormat } from '../../../src/cci/veritum/veritum.definitions';
 
-async function hasPost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable, format?: PostFormat, expectAuthor?: Identity, shouldResolveBasePost?: Veritable) {
+async function hasPost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable, format?: RetrievalFormat, expectAuthor?: Identity, shouldResolveBasePost?: Veritable) {
   // fetch item from list by key
   const item = list.find(item => {
     if (item['main'] !== undefined) item = (item as unknown as PostInfo<Veritable>).main;
@@ -29,8 +30,8 @@ async function hasPost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable,
   let veritum: Veritable = item as Veritable;
   if (veritum['main'] !== undefined) veritum = (veritum as unknown as PostInfo<Veritable>).main;
   // correct format?
-  if (format === PostFormat.Veritum) expect(veritum).toBeInstanceOf(Veritum);
-  if (format === PostFormat.Cube) expect(veritum).toBeInstanceOf(cciCube);
+  if (format === RetrievalFormat.Veritum) expect(veritum).toBeInstanceOf(Veritum);
+  if (format === RetrievalFormat.Cube) expect(veritum).toBeInstanceOf(cciCube);
 
   if (shouldResolveBasePost) {
     const rel: Relationship = (veritum as Veritum).getFirstRelationship(RelationshipType.REPLY_TO);
@@ -76,7 +77,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       // run tests using direct Veritum format, i.e. no PostInfos
       postsGenDirectVeritum = w.protagonist.getPosts({
         subscriptionDepth: lvl,
-        format: PostFormat.Veritum,
+        format: RetrievalFormat.Veritum,
         metadata: false,
         subscribe: true,
       });
@@ -89,7 +90,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       // including reverse reply resolution
       postsGenPostInfoVeritum = w.protagonist.getPosts({
         subscriptionDepth: lvl,
-        format: PostFormat.Veritum,
+        format: RetrievalFormat.Veritum,
         metadata: true,
         subscribe: true,
         resolveRels: 'recursive',
@@ -103,7 +104,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       // run tests using direct first-Cube-only format, i.e. no PostInfos
       postsGenDirectCube = w.protagonist.getPosts({
         subscriptionDepth: lvl,
-        format: PostFormat.Cube,
+        format: RetrievalFormat.Cube,
         metadata: false,
         subscribe: true,
       });
@@ -115,7 +116,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       // run tests using PostInfo-wrapped first-Cube-only format
       postsGenPostInfoCube = w.protagonist.getPosts({
         subscriptionDepth: lvl,
-        format: PostFormat.Cube,
+        format: RetrievalFormat.Cube,
         metadata: true,
         subscribe: true,
       });
@@ -129,7 +130,7 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       await postsGenPostInfoVeritum.existingYielded;
     });
 
-    function testPostBunch(list: Veritable[]|PostInfo<Veritable>[], n: number = 0, format: PostFormat, testAuthor: boolean, testReplyResolution: boolean) {
+    function testPostBunch(list: Veritable[]|PostInfo<Veritable>[], n: number = 0, format: RetrievalFormat, testAuthor: boolean, testReplyResolution: boolean) {
       it('should include my own root posts', () => {
         hasPost(list, w.posts[n].own, format, testAuthor? w.protagonist : undefined);
       });
@@ -231,19 +232,19 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
 
     describe('pre-existing posts', () => {
       describe('direct Veritum yield format (no PostInfo)', () => {
-        testPostBunch(postsDirectVeritum, 0, PostFormat.Veritum, false, false);
+        testPostBunch(postsDirectVeritum, 0, RetrievalFormat.Veritum, false, false);
       });
 
       describe('PostInfo-wrapped Veritum yield format', () => {
-        testPostBunch(postsPostInfoVeritum, 0, PostFormat.Veritum, true, true);
+        testPostBunch(postsPostInfoVeritum, 0, RetrievalFormat.Veritum, true, true);
       });
 
       describe('direct first-Cube-only yield format (no PostInfo)', () => {
-        testPostBunch(postsDirectCube, 0, PostFormat.Cube, false, false);
+        testPostBunch(postsDirectCube, 0, RetrievalFormat.Cube, false, false);
       });
 
       describe('PostInfo-wrapped first-Cube-only yield format', () => {
-        testPostBunch(postsPostInfoCube, 0, PostFormat.Cube, true, false);
+        testPostBunch(postsPostInfoCube, 0, RetrievalFormat.Cube, true, false);
       });
     });
 
@@ -255,19 +256,19 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
       });
 
       describe('direct Veritum yield format (no PostInfo)', () => {
-        testPostBunch(postsDirectVeritum, 1, PostFormat.Veritum, false, false);
+        testPostBunch(postsDirectVeritum, 1, RetrievalFormat.Veritum, false, false);
       });
 
       describe('PostInfo-wrapped Veritum yield format', () => {
-        testPostBunch(postsPostInfoVeritum, 1, PostFormat.Veritum, true, true);
+        testPostBunch(postsPostInfoVeritum, 1, RetrievalFormat.Veritum, true, true);
       });
 
       describe('direct first-Cube-only yield format (no PostInfo)', () => {
-        testPostBunch(postsDirectCube, 1, PostFormat.Cube, false, false);
+        testPostBunch(postsDirectCube, 1, RetrievalFormat.Cube, false, false);
       });
 
       describe('PostInfo-wrapped first-Cube-only yield format', () => {
-        testPostBunch(postsPostInfoCube, 1, PostFormat.Cube, true, false);
+        testPostBunch(postsPostInfoCube, 1, RetrievalFormat.Cube, true, false);
       });
     });
   });  // for each recursion level

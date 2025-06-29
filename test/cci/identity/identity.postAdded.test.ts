@@ -1,10 +1,8 @@
 import { RecursiveEmitter } from '../../../src/core/helpers/recursiveEmitter';
-import { IdentityOptions, PostFormat, PostInfo } from '../../../src/cci/identity/identity.definitions';
+import { IdentityOptions, PostInfo } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity';
-import { Veritum } from '../../../src/cci/veritum/veritum';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
-import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { TestWordPostSet, TestWorld } from '../../app/zw/testWorld';
 import { testCubeStoreParams } from '../testcci.definitions';
 

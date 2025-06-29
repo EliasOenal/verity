@@ -1,8 +1,8 @@
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 
+import { RetrievalFormat } from '../../../src/cci/veritum/veritum.definitions';
 import { Identity } from '../../../src/cci/identity/identity';
-import { PostFormat } from '../../../src/cci/identity/identity.definitions';
 
 import { testCciOptions } from '../testcci.definitions';
 
@@ -30,7 +30,7 @@ describe('Identity: getPosts generator; edge case tests', () => {
       const cubeStore = new CubeStore(testCciOptions);
       const id = new Identity(cubeStore, masterKey, testCciOptions);
 
-      const gen = id.getPosts({ format: PostFormat.Veritum });
+      const gen = id.getPosts({ format: RetrievalFormat.Veritum });
       const posts = await ArrayFromAsync(gen);
       expect(posts).toHaveLength(0);
     });

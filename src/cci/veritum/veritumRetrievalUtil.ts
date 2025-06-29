@@ -1,7 +1,6 @@
 import type { CubeKey } from "../../core/cube/cube.definitions";
 import type { Veritum } from "./veritum";
 import type { Veritable } from "../../core/cube/veritable.definition";
-import type { CubeRequestOptions } from "../../core/networking/cubeRetrieval/requestScheduler";
 
 import { Relationship, RelationshipType } from "../cube/relationship";
 import { GetVeritumOptions } from "./veritumRetriever";

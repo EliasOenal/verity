@@ -4,11 +4,12 @@ import { Veritable } from '../../../src/core/cube/veritable.definition';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
-import { IdentityOptions, PostFormat, GetPostsGenerator, PostInfo } from '../../../src/cci/identity/identity.definitions';
+import { IdentityOptions, GetPostsGenerator, PostInfo } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity';
 
 import { cciCube } from '../../../src/cci/cube/cciCube';
 import { VerityField } from '../../../src/cci/cube/verityField';
+import { RetrievalFormat } from '../../../src/cci/veritum/veritum.definitions';
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { VeritumRetriever } from '../../../src/cci/veritum/veritumRetriever';
 import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
@@ -318,7 +319,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
   });  // verify test setup
 
-  for (const format of enumNums(PostFormat)) for (const metadata of [true, false]) describe(`retrieval as ${PostFormat[format]} ${metadata? 'wrapped in a PostInfo' : '(post only, i.e. no PostInfo)'}`, () => {
+  for (const format of enumNums(RetrievalFormat)) for (const metadata of [true, false]) describe(`retrieval as ${RetrievalFormat[format]} ${metadata? 'wrapped in a PostInfo' : '(post only, i.e. no PostInfo)'}`, () => {
     let posts: Veritable[];  // note that Veritable covers both Veritum and Cube
     let postInfos: Array<PostInfo<Veritable>>;
     let gen: GetPostsGenerator<Veritable|PostInfo<Veritable>>;
@@ -353,16 +354,16 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     it('restores a post made from a single frozen Cube', () => {
       const singleFrozenRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleFrozen.getKeyStringIfAvailable())!;
-      if (format === PostFormat.Veritum) expect(singleFrozenRestored).toBeInstanceOf(Veritum);
-      if (format === PostFormat.Cube) expect(singleFrozenRestored).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Veritum) expect(singleFrozenRestored).toBeInstanceOf(Veritum);
+      if (format === RetrievalFormat.Cube) expect(singleFrozenRestored).toBeInstanceOf(cciCube);
       postEquals(singleFrozen, singleFrozenRestored);
     });
 
     it('restores a post made from a single frozen Cube with notification', () => {
       const singleFrozenNotifyRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleFrozenNotify.getKeyStringIfAvailable())!;
-      if (format === PostFormat.Veritum) expect(singleFrozenNotifyRestored).toBeInstanceOf(Veritum);
-      if (format === PostFormat.Cube) expect(singleFrozenNotifyRestored).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Veritum) expect(singleFrozenNotifyRestored).toBeInstanceOf(Veritum);
+      if (format === RetrievalFormat.Cube) expect(singleFrozenNotifyRestored).toBeInstanceOf(cciCube);
       postEquals(singleFrozenNotify, singleFrozenNotifyRestored);
     });
 
@@ -376,59 +377,59 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
           break;
         }
       }
-      if (format === PostFormat.Veritum) expect(singlePicRestored!).toBeInstanceOf(Veritum);
-      if (format === PostFormat.Cube) expect(singlePicRestored!).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Veritum) expect(singlePicRestored!).toBeInstanceOf(Veritum);
+      if (format === RetrievalFormat.Cube) expect(singlePicRestored!).toBeInstanceOf(cciCube);
       postEquals(singlePic, singlePicRestored!);
     });
 
     it('restores a post made from a single PIC with notification', () => {
       const singlePicNotifyRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singlePicNotify.getKeyStringIfAvailable())!;
-      if (format === PostFormat.Veritum) expect(singlePicNotifyRestored).toBeInstanceOf(Veritum);
-      if (format === PostFormat.Cube) expect(singlePicNotifyRestored).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Veritum) expect(singlePicNotifyRestored).toBeInstanceOf(Veritum);
+      if (format === RetrievalFormat.Cube) expect(singlePicNotifyRestored).toBeInstanceOf(cciCube);
       postEquals(singlePicNotify, singlePicNotifyRestored);
     });
 
     it('restores a post made from a single MUC', () => {
       const singleMucRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleMuc.getKeyStringIfAvailable())!;
-      if (format === PostFormat.Veritum) expect(singleMucRestored).toBeInstanceOf(Veritum);
-      if (format === PostFormat.Cube) expect(singleMucRestored).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Veritum) expect(singleMucRestored).toBeInstanceOf(Veritum);
+      if (format === RetrievalFormat.Cube) expect(singleMucRestored).toBeInstanceOf(cciCube);
       postEquals(singleMuc, singleMucRestored);
     });
 
     it('restores a post made from a single MUC with notification', () => {
       const singleMucNotifyRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleMucNotify.getKeyStringIfAvailable())!;
-      if (format === PostFormat.Veritum) expect(singleMucNotifyRestored).toBeInstanceOf(Veritum);
-      if (format === PostFormat.Cube) expect(singleMucNotifyRestored).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Veritum) expect(singleMucNotifyRestored).toBeInstanceOf(Veritum);
+      if (format === RetrievalFormat.Cube) expect(singleMucNotifyRestored).toBeInstanceOf(cciCube);
       postEquals(singleMucNotify, singleMucNotifyRestored);
     });
 
     it('restores a post made from a single PMUC', () => {
       const singlePmucRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singlePmuc.getKeyStringIfAvailable())!;
-      if (format === PostFormat.Veritum) expect(singlePmucRestored).toBeInstanceOf(Veritum);
-      if (format === PostFormat.Cube) expect(singlePmucRestored).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Veritum) expect(singlePmucRestored).toBeInstanceOf(Veritum);
+      if (format === RetrievalFormat.Cube) expect(singlePmucRestored).toBeInstanceOf(cciCube);
       postEquals(singlePmuc, singlePmucRestored);
     });
 
     it('restores a post made from a single PMUC with notification', () => {
       const singlePmucNotifyRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singlePmucNotify.getKeyStringIfAvailable())!;
-      if (format === PostFormat.Veritum) expect(singlePmucNotifyRestored).toBeInstanceOf(Veritum);
-      if (format === PostFormat.Cube) expect(singlePmucNotifyRestored).toBeInstanceOf(cciCube);
+      if (format === RetrievalFormat.Veritum) expect(singlePmucNotifyRestored).toBeInstanceOf(Veritum);
+      if (format === RetrievalFormat.Cube) expect(singlePmucNotifyRestored).toBeInstanceOf(cciCube);
       postEquals(singlePmucNotify, singlePmucNotifyRestored);
     });
 
-    if (format === PostFormat.Veritum) it('restores a frozen multi Cube post', () => {
+    if (format === RetrievalFormat.Veritum) it('restores a frozen multi Cube post', () => {
       const multiFrozenRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === multiFrozen.getKeyStringIfAvailable())!;
       expect(multiFrozenRestored).toBeInstanceOf(Veritum);
       postEquals(multiFrozen, multiFrozenRestored);
     });
 
-    if (format === PostFormat.Cube) it('restores the first Cube of a frozen multi Cube post', () => {
+    if (format === RetrievalFormat.Cube) it('restores the first Cube of a frozen multi Cube post', () => {
       const multiFrozenRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === multiFrozen.getKeyStringIfAvailable())!;
       expect(multiFrozenRestored).toBeInstanceOf(cciCube);
@@ -437,14 +438,14 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
     });
 
     // TODO FIXME: PIC Veritum handling still buggy
-    if (format === PostFormat.Veritum) it.skip('restores a PIC multi Cube post', () => {
+    if (format === RetrievalFormat.Veritum) it.skip('restores a PIC multi Cube post', () => {
       const multiPicRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === multiPic.getKeyStringIfAvailable())!;
       expect(multiPicRestored).toBeInstanceOf(Veritum);
       postEquals(multiPic, multiPicRestored);
     });
 
-    if (format === PostFormat.Cube) it('restores the first Cube of a PIC multi Cube post', () => {
+    if (format === RetrievalFormat.Cube) it('restores the first Cube of a PIC multi Cube post', () => {
       const multiPicRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === multiPic.getKeyStringIfAvailable())!;
       expect(multiPicRestored).toBeInstanceOf(cciCube);
@@ -452,7 +453,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       // we just compare the first 900 payload chars; if they match, we call it a day
     });
 
-    if (format === PostFormat.Veritum) it('restores a frozen single Cube encrypted post', () => {
+    if (format === RetrievalFormat.Veritum) it('restores a frozen single Cube encrypted post', () => {
       const singleFrozenEncryptedRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleFrozenEncrypted.getKeyStringIfAvailable())!;
       expect(singleFrozenEncryptedRestored).toBeInstanceOf(Veritum);
@@ -460,7 +461,7 @@ describe('Identity: getPosts generator; own posts only (no recursion)', () => {
       postEquals(singleFrozenEncrypted, singleFrozenEncryptedRestored);
     });
 
-    if (format === PostFormat.Cube) it('returns the encrypteed raw Cube for an (frozen single Cube) encrypted post', () => {
+    if (format === RetrievalFormat.Cube) it('returns the encrypteed raw Cube for an (frozen single Cube) encrypted post', () => {
       const singleFrozenEncryptedRestored: Veritable = posts.find(
         post => post.getKeyStringIfAvailable() === singleFrozenEncrypted.getKeyStringIfAvailable())!;
       expect(singleFrozenEncryptedRestored).toBeInstanceOf(cciCube);
