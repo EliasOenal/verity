@@ -12,7 +12,8 @@ import { cciCube } from "../cube/cciCube";
 import { CubeStore } from "../../core/cube/cubeStore";
 import { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import { RelationshipType, Relationship } from "../cube/relationship";
-import { Veritum, VeritumFromChunksOptions } from "./veritum";
+import { Veritum } from "./veritum";
+import { RetrievalFormat, VeritumFromChunksOptions } from "./veritum.definitions";
 import { Identity } from "../identity/identity";
 import { MetadataEnhancedRetrieval, resolveRels, ResolveRelsOptions, resolveRelsRecursive, ResolveRelsRecursiveOptions, ResolveRelsRecursiveResult, ResolveRelsResult } from "./veritumRetrievalUtil";
 import { Veritable } from "../../core/cube/veritable.definition";
@@ -20,11 +21,6 @@ import { Veritable } from "../../core/cube/veritable.definition";
 export interface VeritumRetrievalInterface<OptionsType = CubeRequestOptions> extends CubeRetrievalInterface<OptionsType> {
   getVeritum(key: CubeKey|string, options?: OptionsType): Promise<Veritum>;
 }
-
-export enum RetrievalFormat {
-  Cube,
-  Veritum,
-};
 
 export interface GetVeritumOptions extends CubeRequestOptions, ResolveRelsOptions {
   /**

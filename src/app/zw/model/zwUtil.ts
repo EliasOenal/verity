@@ -9,25 +9,27 @@ import { NetConstants } from "../../../core/networking/networkDefinitions";
 import { Cube } from "../../../core/cube/cube";
 import { CubeCreateOptions } from '../../../core/cube/cube.definitions';
 import { CubeKey, CubeType } from "../../../core/cube/cube.definitions";
+import { mergeAsyncGenerators } from "../../../core/helpers/asyncGenerators";
 import { CubeStore } from "../../../core/cube/cubeStore";
 import { CubeRetrievalInterface } from "../../../core/cube/cubeRetrieval.definitions";
+import { logger } from "../../../core/logger";
 
 import { MediaTypes, FieldType, FieldLength } from "../../../cci/cube/cciCube.definitions";
 import { VerityField } from "../../../cci/cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition } from "../../../cci/cube/verityFields";
 import { Relationship, RelationshipType } from "../../../cci/cube/relationship";
 import { cciCube, cciFamily } from "../../../cci/cube/cciCube";
-import { RecursiveRelResolvingPostInfo, RecursiveRelResolvingGetPostsGenerator, PostFormat } from "../../../cci/identity/identity.definitions";
-import { Identity } from "../../../cci/identity/identity";
 import { isCci } from "../../../cci/cube/cciCubeUtil";
+import { RetrievalFormat } from "../../../cci/veritum/veritum.definitions";
+import { RecursiveRelResolvingPostInfo, RecursiveRelResolvingGetPostsGenerator } from "../../../cci/identity/identity.definitions";
+import { Identity } from "../../../cci/identity/identity";
+import { notifyingIdentities } from "../../../cci/identity/identityGenerators";
+
+import { ZwConfig } from "./zwConfig";
 
 import { Buffer } from 'buffer';
 
-import { logger } from "../../../core/logger";
 import { IdentityStore } from "../../../cci/identity/identityStore";
-import { mergeAsyncGenerators } from "../../../core/helpers/asyncGenerators";
-import { notifyingIdentities } from "../../../cci/identity/identityGenerators";
-import { ZwConfig } from "./zwConfig";
 
 export interface MakePostOptions extends CubeCreateOptions {
   replyto?: CubeKey;
@@ -175,7 +177,7 @@ export function wotPostGenerator(
 ): RecursiveRelResolvingGetPostsGenerator<Cube> {
   const gen: RecursiveRelResolvingGetPostsGenerator<Cube> = identity.getPosts({
     subscriptionDepth,
-    format: PostFormat.Cube,
+    format: RetrievalFormat.Cube,
     metadata: true,
     subscribe: true,
     resolveRels: 'recursive',
@@ -203,7 +205,7 @@ export function explorePostGenerator(
       const postsGen: RecursiveRelResolvingGetPostsGenerator<Cube> =
         identity.getPosts({
           subscriptionDepth: 0,
-          format: PostFormat.Cube,
+          format: RetrievalFormat.Cube,
           metadata: true,
           subscribe: true,
           resolveRels: 'recursive',

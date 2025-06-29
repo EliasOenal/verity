@@ -3,7 +3,6 @@ import { NetConstants } from "../../core/networking/networkDefinitions";
 
 import { CubeError, CubeKey, CubeType, NonNotifyCubeType, NotifyCubeType } from "../../core/cube/cube.definitions";
 import { Cube } from "../../core/cube/cube";
-import { CubeCreateOptions } from '../../core/cube/cube.definitions';
 import { FieldParser } from "../../core/fields/fieldParser";
 
 import { cciCube } from "../cube/cciCube";
@@ -15,8 +14,9 @@ import { Veritable } from "../../core/cube/veritable.definition";
 import { Veritum } from "./veritum";
 
 import { Buffer } from 'buffer'
-import { DoublyLinkedList, DoublyLinkedListNode } from 'data-structure-typed/dist/esm';
+import { DoublyLinkedList } from 'data-structure-typed/dist/esm';
 import { logger } from "../../core/logger";
+import { SplitOptions, ContinuationDefaultExclusions, SplitState, RecombineOptions } from "./veritum.definitions";
 
 /**
  * Don't split fields if a resulting chunk would be smaller than this amount
@@ -24,89 +24,6 @@ import { logger } from "../../core/logger";
  * field (3) or things will break horribly!
  **/
 const MIN_CHUNK = 10;
-
-export interface SplitOptions extends RecombineOptions {
-  /**
-   * The maximum number of bytes to use in each chunk.
-   * You can set this to something smaller than the cube size if you need
-   * to reserve some space in each chunk, e.g. for crypto overhead.
-   * @default - A full Cube, i.e. 1024 bytes.
-   */
-  maxChunkSize?: (chunkIndex: number) => number;
-
-  /**
-   * Optionally, a callback that will be called while each chunk is getting
-   * finalised.
-   * @param chunk - The chunk being finalised
-   * @param state - The current finalisation state, including the running number
-   *   of the current chunk as well as the total number of chunk Cubes.
-   * @returns
-   */
-  chunkTransformationCallback?: (chunk: cciCube, state: ChunkFinalisationState) => void;
-}
-
-export interface RecombineOptions extends CubeCreateOptions {
-  // TODO these are not really CubeOptions; I can't define fields here.
-  //   All it uses from CubeOptions is CubeType, and even that should probably
-  //   just be derived from the first chunk or something.
-  /**
-   * Fields to exclude from splitting. Those will not be included in the
-   * resulting chunks.
-   * It is not recommended to override the default settings except to add
-   * further exclusion.
-   * If you do, be sure to know what you're doing.
-   * Otherwise be prepared for errors thrown or unexpected results.
-   * @default - All core/positional fields, as well as CCI end markers and
-   *   padding fields. When overriding please note that it will usually be
-   *   wise to still include those in your custom exclude list. You can do this
-   *   by copying and amending Continuation.ContinuationDefaultExclusions.
-   **/
-  excludeField?: number[],
-
-  /**
-   * If mentioned in this map, Split() will copy the first input field of the
-   * specified type to the n-th chunk, as represented by the mapped value.
-   * Recombine() will do the reverse.
-   * - Note that chunk numbers start at 0.
-   * - The special mapped value -1 will cause Split() to copy the field to all chunks,
-   *   and Recombine() to retain the field from the first chunk.
-   * - Note that field mapping is a separate operation independent from regular
-   *   splitting. You will want to ensure any mapped fields are also excluded.
-   * By default, we use this feature to:
-   * - ensure all chunks have the same date
-   *   (note: this is only relevant for plaintext Verita as we will be default
-   *   randomise the date on each chunk for encrypted Verita)
-   * - theoretically, to preserve the PMUC update count, be we currently don't
-   *   even support signed multi-chunk Verita
-   */
-  mapFieldToChunk?: Map<number, number>;
-}
-
-interface SplitState {
-  spaceRemaining: number,
-  macroFieldsetNode: DoublyLinkedListNode<VerityField>,
-}
-
-export interface ChunkFinalisationState {
-  chunkIndex: number;
-  chunkCount: number;
-}
-
-export const ContinuationDefaultExclusions: number[] = [
-  // Cube positionals
-  FieldType.TYPE, FieldType.NOTIFY, FieldType.PMUC_UPDATE_COUNT,
-  FieldType.PUBLIC_KEY, FieldType.DATE, FieldType.SIGNATURE,
-  FieldType.NONCE, FieldType.PMUC_UPDATE_COUNT,
-  // raw / non-CCI content fields
-  FieldType.FROZEN_RAWCONTENT, FieldType.FROZEN_NOTIFY_RAWCONTENT,
-  FieldType.PIC_RAWCONTENT, FieldType.PIC_NOTIFY_RAWCONTENT,
-  FieldType.MUC_RAWCONTENT, FieldType.MUC_NOTIFY_RAWCONTENT,
-  FieldType.PMUC_RAWCONTENT, FieldType.PMUC_NOTIFY_RAWCONTENT,
-  // non-content bearing CCI fields
-  FieldType.CCI_END, FieldType.PADDING,
-  // virtual / pseudo fields
-  FieldType.REMAINDER,
-] as const;
 
 const DefaultMapFieldToChunk: Map<number, number> = new Map([
   [FieldType.DATE, -1],

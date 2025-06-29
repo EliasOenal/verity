@@ -1,29 +1,33 @@
-import { cciCube } from '../../../src/cci/cube/cciCube';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
-import { VerityField } from '../../../src/cci/cube/verityField';
-import { Recombine, Split } from '../../../src/cci/veritum/continuation';
-import { Veritum } from '../../../src/cci/veritum/veritum';
-import { RetrievalFormat, VeritumRetriever } from '../../../src/cci/veritum/veritumRetriever';
+import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { CubeType, CubeKey, NotificationKey } from '../../../src/core/cube/cube.definitions';
-import { CubeStoreOptions, CubeStore } from '../../../src/core/cube/cubeStore';
+import { Cube } from '../../../src/core/cube/cube';
+import { Veritable } from '../../../src/core/cube/veritable.definition';
+import { CubeStore } from '../../../src/core/cube/cubeStore';
+
+import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubeRequestOptions, RequestScheduler } from '../../../src/core/networking/cubeRetrieval/requestScheduler';
 import { NetworkManagerIf } from '../../../src/core/networking/networkManagerIf';
 import { DummyNetworkManager } from '../../../src/core/networking/testingDummies/dummyNetworkManager';
 import { DummyNetworkPeer } from '../../../src/core/networking/testingDummies/dummyNetworkPeer';
-import { PeerDB } from '../../../src/core/peering/peerDB';
-import { tooLong, evenLonger, farTooLong, testCciOptions } from '../testcci.definitions';
 import { CubeRetriever } from '../../../src/core/networking/cubeRetrieval/cubeRetriever';
-import { NetConstants } from '../../../src/core/networking/networkDefinitions';
-import { ArrayFromAsync } from '../../../src/core/helpers/misc';
-import { FieldEqualityMetric } from '../../../src/core/fields/baseFields';
-import { Cube } from '../../../src/core/cube/cube';
-import { Veritable } from '../../../src/core/cube/veritable.definition';
+
+import { PeerDB } from '../../../src/core/peering/peerDB';
+
+import { cciCube } from '../../../src/cci/cube/cciCube';
+import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { RelationshipType } from '../../../src/cci/cube/relationship';
+import { VerityField } from '../../../src/cci/cube/verityField';
+import { Recombine, Split } from '../../../src/cci/veritum/continuation';
+import { RetrievalFormat } from '../../../src/cci/veritum/veritum.definitions';
+import { Veritum } from '../../../src/cci/veritum/veritum';
+import { MetadataEnhancedRetrieval, ResolveRelsRecursiveResult, ResolveRelsResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
+import { VeritumRetriever } from '../../../src/cci/veritum/veritumRetriever';
+
+import { tooLong, evenLonger, farTooLong, testCciOptions } from '../testcci.definitions';
 
 import sodium from 'libsodium-wrappers-sumo'
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { RelationshipType } from '../../../src/cci/cube/relationship';
-import { MetadataEnhancedRetrieval, ResolveRelsRecursiveResult, ResolveRelsResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
 
 describe('VeritumRetriever', () => {
   let cubeStore: CubeStore;

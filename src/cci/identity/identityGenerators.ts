@@ -8,7 +8,7 @@ import type { IdentityStore } from "./identityStore";
 import { MergedAsyncGenerator, mergeAsyncGenerators } from "../../core/helpers/asyncGenerators";
 import { isCci } from "../cube/cciCubeUtil";
 import { Identity } from "./identity";
-import { RetrievalFormat } from "../veritum/veritumRetriever";
+import { RetrievalFormat } from "../veritum/veritum.definitions";
 
 
 export interface NotifyingIdentitiesOptions {

@@ -3,8 +3,8 @@ import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { KeyPair } from "../../../src/cci/helpers/cryptography";
 import { Decrypt } from "../../../src/cci/veritum/chunkDecryption";
-import { ContinuationDefaultExclusions } from "../../../src/cci/veritum/continuation";
 import { Veritum } from "../../../src/cci/veritum/veritum";
+import { ContinuationDefaultExclusions } from "../../../src/cci/veritum/veritum.definitions";
 import { CubeType } from "../../../src/core/cube/cube.definitions";
 import { requiredDifficulty, tooLong, evenLonger, farTooLong } from "../testcci.definitions";
 

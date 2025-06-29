@@ -2,8 +2,9 @@ import { Settings } from '../../../src/core/settings';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 import { CubeFieldLength, CubeFieldType, CubeKey, CubeType, NotificationKey } from '../../../src/core/cube/cube.definitions';
+import { CubeIteratorOptions } from '../../../src/core/cube/cubeRetrieval.definitions';
 import { Cube, coreCubeFamily } from '../../../src/core/cube/cube';
-import { CubeIteratorOptions, CubeStore as CubeStore, CubeStoreOptions } from '../../../src/core/cube/cubeStore';
+import { CubeStore, CubeStoreOptions } from '../../../src/core/cube/cubeStore';
 import { Sublevels } from '../../../src/core/cube/levelBackend';
 import { CubeField } from '../../../src/core/cube/cubeField';
 

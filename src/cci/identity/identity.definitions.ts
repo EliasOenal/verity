@@ -13,6 +13,7 @@ import type { GetVeritumOptions } from "../veritum/veritumRetriever";
 import type { Identity } from "./identity";
 import type { IdentityPersistence } from "./identityPersistence";
 import type { IdentityStore } from "./identityStore";
+import { RetrievalFormat } from "../veritum/veritum.definitions";
 
 // Identity defaults
 export const DEFAULT_IDMUC_APPLICATION_STRING = "ID";
@@ -128,15 +129,9 @@ export interface IdentityLoadOptions extends IdentityOptions, CubeRequestOptions
   recoveryPhrase?: string;
 }
 
-
-export enum PostFormat {
-  Cube,
-  Veritum,
-};
-
 export const PostFormatEventMap = {
-  [PostFormat.Cube]: 'postAddedCube',
-  [PostFormat.Veritum]: 'postAdded',
+  [RetrievalFormat.Cube]: 'postAddedCube',
+  [RetrievalFormat.Veritum]: 'postAdded',
 } as const;
 
 export interface PostInfo<postFormat> extends MetadataEnhancedRetrieval<postFormat>{
@@ -162,7 +157,7 @@ export interface GetPostsOptions extends GetVeritumOptions {
    *   the yielded posts. The goal behind this is having the default API as
    *   intuitive as possible.
    */
-  format?: PostFormat;
+  format?: RetrievalFormat;
 
   /**
    * If true, the generator will not exit when all existing data has been yielded.

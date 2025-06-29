@@ -4,7 +4,7 @@ import { ApiMisuseError, Settings, VerityError } from '../../core/settings';
 import { NetConstants } from '../../core/networking/networkDefinitions';
 
 import { unixtime } from '../../core/helpers/misc';
-import { eventsToGenerator, mergeAsyncGenerators, MergedAsyncGenerator, resolveAndYield } from '../../core/helpers/asyncGenerators';
+import { eventsToGenerator, mergeAsyncGenerators, resolveAndYield } from '../../core/helpers/asyncGenerators';
 import { RecursiveEmitter } from '../../core/helpers/recursiveEmitter';
 import { logger } from '../../core/logger';
 
@@ -19,23 +19,24 @@ import { CubeKey, CubeType } from '../../core/cube/cube.definitions';
 import { FieldLength, FieldType } from '../cube/cciCube.definitions';
 import { KeyMismatchError, KeyPair, deriveEncryptionKeypair, deriveSigningKeypair } from '../helpers/cryptography';
 import { VerityField } from '../cube/verityField';
-import { VerityFields, cciMucFieldDefinition, cciPmucFieldDefinition, cciPmucParser } from '../cube/verityFields';
+import { VerityFields, cciPmucFieldDefinition, cciPmucParser } from '../cube/verityFields';
 import { Relationship, RelationshipType } from '../cube/relationship';
 import { cciCube, cciFamily } from '../cube/cciCube';
 import { ensureCci, extensionMuc } from '../cube/cciCubeUtil';
 
+import { RetrievalFormat } from '../veritum/veritum.definitions';
 import { Veritum } from '../veritum/veritum';
 import { GetVeritumOptions, VeritumRetrievalInterface } from '../veritum/veritumRetriever';
-import { MetadataEnhancedRetrieval, resolveRels, resolveRelsRecursive, ResolveRelsRecursiveResult, ResolveRelsResult } from '../veritum/veritumRetrievalUtil';
+import { resolveRels, resolveRelsRecursive, ResolveRelsRecursiveResult, ResolveRelsResult } from '../veritum/veritumRetrievalUtil';
 
-import { DEFAULT_IDMUC_APPLICATION_STRING, DEFAULT_IDMUC_CONTEXT_STRING, DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING, DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX, DEFAULT_MIN_MUC_REBUILD_DELAY, DEFAULT_SUBSCRIPTION_RECURSION_DEPTH, GetPostsGenerator, GetPostsOptions, GetRecursiveEmitterOptions, IdentityEvents, IdentityLoadOptions, IdentityOptions, IDMUC_MASTERINDEX, PostFormat, PostFormatEventMap, PostInfo, RecursiveRelResolvingGetPostsGenerator, RelResolvingGetPostsGenerator } from './identity.definitions';
+import { DEFAULT_IDMUC_APPLICATION_STRING, DEFAULT_IDMUC_CONTEXT_STRING, DEFAULT_IDMUC_ENCRYPTION_CONTEXT_STRING, DEFAULT_IDMUC_ENCRYPTION_KEY_INDEX, DEFAULT_MIN_MUC_REBUILD_DELAY, DEFAULT_SUBSCRIPTION_RECURSION_DEPTH, GetPostsGenerator, GetPostsOptions, GetRecursiveEmitterOptions, IdentityEvents, IdentityLoadOptions, IdentityOptions, IDMUC_MASTERINDEX, PostFormatEventMap, PostInfo, RecursiveRelResolvingGetPostsGenerator, RelResolvingGetPostsGenerator } from './identity.definitions';
 import { deriveIdentityMasterKey, deriveIdentityRootCubeKeypair, validateIdentityRoot } from './identityUtil';
 import { IdentityPersistence } from './identityPersistence';
 import { AvatarScheme, Avatar, DEFAULT_AVATARSCHEME } from './avatar';
 import { IdentityStore } from './identityStore';
 
 import { Buffer } from 'buffer';
-import sodium from 'libsodium-wrappers-sumo'
+import sodium from 'libsodium-wrappers-sumo';
 import EventEmitter from 'events';
 import * as bip39 from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
@@ -584,20 +585,20 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     yield *resolveAndYield(promises);
   }
 
-  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, metadata: true, resolveRels: true }): RelResolvingGetPostsGenerator<Veritum>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.Cube, metadata: true, resolveRels: true} ): RelResolvingGetPostsGenerator<Cube>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, metadata: true, resolveRels: 'recursive' }): RecursiveRelResolvingGetPostsGenerator<Veritum>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.Cube, metadata: true, resolveRels: 'recursive'} ): RecursiveRelResolvingGetPostsGenerator<Cube>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, metadata: true }): GetPostsGenerator<PostInfo<Veritum>>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.Cube, metadata: true} ): GetPostsGenerator<PostInfo<Cube>>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.Veritum, metadata?: false} ): GetPostsGenerator<Veritum>;
-  getPosts(options: GetPostsOptions & { format: PostFormat.Cube, metadata?: false} ): GetPostsGenerator<Cube>;
+  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Veritum, metadata: true, resolveRels: true }): RelResolvingGetPostsGenerator<Veritum>;
+  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Cube, metadata: true, resolveRels: true} ): RelResolvingGetPostsGenerator<Cube>;
+  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Veritum, metadata: true, resolveRels: 'recursive' }): RecursiveRelResolvingGetPostsGenerator<Veritum>;
+  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Cube, metadata: true, resolveRels: 'recursive'} ): RecursiveRelResolvingGetPostsGenerator<Cube>;
+  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Veritum, metadata: true }): GetPostsGenerator<PostInfo<Veritum>>;
+  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Cube, metadata: true} ): GetPostsGenerator<PostInfo<Cube>>;
+  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Veritum, metadata?: false} ): GetPostsGenerator<Veritum>;
+  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Cube, metadata?: false} ): GetPostsGenerator<Cube>;
   getPosts(options?: GetPostsOptions): GetPostsGenerator<Veritum>;
   getPosts(
     options: GetPostsOptions = {},
   ): GetPostsGenerator<Cube|Veritum|PostInfo<Cube|Veritum>> {
     // set default options
-    options.format ??= this.veritumRetriever? PostFormat.Veritum: PostFormat.Cube;
+    options.format ??= this.veritumRetriever? RetrievalFormat.Veritum: RetrievalFormat.Cube;
     options.subscriptionDepth ??= 0;
 
     // Prepare output partials: A list of post generators
@@ -611,7 +612,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     if (this.cubeStore === undefined) {
       logger.error(`Identity ${this.keyString} getPosts(): This Identity was created without CubeStore or CubeRetriever access; cannot fulfil request.`);
     }
-    else if (options.format === PostFormat.Veritum && this.veritumRetriever === undefined) {
+    else if (options.format === RetrievalFormat.Veritum && this.veritumRetriever === undefined) {
       logger.error(`Identity ${this.keyString} getPosts(): Requested posts to be retrieved as Verita, but this Identity was created without a VeritumRetriever reference; cannot fulfil request.`);
     }
     else if (options.resolveRels && this.veritumRetriever === undefined) {
@@ -628,7 +629,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
       const minePromises: Promise<Cube|Veritum|PostInfo<Cube|Veritum>>[] = [];
       // TODO BUGBUG FIXME: metadata resolution only works with a VeritumRetriever, not with a CubeRetriever
       const retrievalFn: (key: CubeKey|string, options: GetVeritumOptions) => Promise<Cube|Veritum|PostInfo<Cube|Veritum>> =
-        options.format === PostFormat.Veritum
+        options.format === RetrievalFormat.Veritum
           ? this.veritumRetriever.getVeritum.bind(this.veritumRetriever)
           : this.retriever.getCube.bind(this.cubeRetriever);
       for (const post of this.getPostKeyStrings()) {
@@ -782,10 +783,10 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     return this.identityStore.retrieveIdentity(keyInput);
   }
 
-  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: PostFormat.Veritum, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<Veritum>>;
-  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: PostFormat.Cube, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<Cube>>;
-  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: PostFormat.Veritum, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<Veritum>;
-  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: PostFormat.Cube, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<Cube>;
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: RetrievalFormat.Veritum, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<Veritum>>;
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: RetrievalFormat.Cube, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<Cube>>;
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: RetrievalFormat.Veritum, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<Veritum>;
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: RetrievalFormat.Cube, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<Cube>;
   /**
    * Retrieves the posts by a specific subscribed Identity.
    * Note that this actually also works for non-subscribed users.
