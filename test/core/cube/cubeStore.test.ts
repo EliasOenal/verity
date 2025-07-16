@@ -39,10 +39,6 @@ async function populateStore(num: number): Promise<CubeKey[]> {
 
 // TODO: Add tests involving Cube deletion
 // TODO: Add tests checking Tree of Wisdom state (partilarly in combination with deletion)
-// TODO: For EnableCubePersistence.PRIMARY mode, add tests verifying the weak
-//       ref cache actually works.
-//       Also add tests for negative cache, i.e. Cubes unparsable
-//       (not parseable at all or at chosen CubeFamily)
 
 describe('cubeStore', () => {
   // TODO: Update payload field ID. Make tests actually check payload.
