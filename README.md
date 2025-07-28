@@ -24,19 +24,22 @@ For more information, see the [technical documentation](doc/verity.md).
 npm install
 ```
 
-## Building and Running ##
-```
-npm run build
-npm run start -- -w 1984 -t
-```
-
-## Building the Web Node ##
+## Building the demo Microblogging Web App ##
 ```
 npm run webpack
 ```
 Then open `distweb/index.html` in a browser. Or alternatively directly spawn a web server with:
 ```
 npm run webpack serve
+```
+
+## Building the Support Node ##
+Note that this runs a command line node intended to support the Verity network.
+An end-user will typically not need this.
+
+```
+npm run build
+npm run start -- -w 1984 -t
 ```
 
 ## Tests ##
