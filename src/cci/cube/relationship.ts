@@ -14,16 +14,15 @@ export enum RelationshipType {
   QUOTATION = 4,
   MYPOST = 5,
   MENTION = 6,
+  AUTHORHINT = 7,
 
   REPLACED_BY = 11,
-  INTERPRETS = 12,
+  // INTERPRETS = 12,  // commented out as it's not currently defined in the docs
 
-  // Only used in MUCs:
   ILLUSTRATION = 71,
   KEY_BACKUP_CUBE = 72,
   SUBSCRIPTION_RECOMMENDATION_INDEX = 73,
 
-  // Only used in MUC extension cubes:
   SUBSCRIPTION_RECOMMENDATION = 81,
 
   // codes 128 and above are reserved for app-specific usage
@@ -31,13 +30,18 @@ export enum RelationshipType {
 
 export const RelationshipLimits: Map<RelationshipType, number> = new Map([
   [RelationshipType.CONTINUED_IN, 1],
-  [RelationshipType.MENTION, undefined],
   [RelationshipType.REPLY_TO, 1],
   [RelationshipType.QUOTATION, undefined],
   [RelationshipType.MYPOST, undefined],
-  [RelationshipType.ILLUSTRATION, 1],
+  [RelationshipType.MENTION, undefined],
+  [RelationshipType.AUTHORHINT, 1],
+
+  [RelationshipType.REPLACED_BY, 1],
+
+  [RelationshipType.ILLUSTRATION, undefined],
   [RelationshipType.KEY_BACKUP_CUBE, undefined],
   [RelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX, undefined],
+
   [RelationshipType.SUBSCRIPTION_RECOMMENDATION, undefined]
 ]);
 

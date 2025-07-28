@@ -109,6 +109,7 @@ Currently defined relationship types:
 | 4    | QUOTATION | This Cube semantically refers to the referred Cube without being a direct response to it. |
 | 5    | MYPOST | The referred Cube has the same author as this Cube. |
 | 6    | MENTION | The referred Cube must contain a CCI Identity. This Cube's content semantically refers to the user described there. |
+| 7    | AUTHORHINT | The referred Cube must contain a CCI Identity, which is claimed to be this Cube's author. Note that this information is not guaranteed to be true and should never be trusted as such; it is a hint only. Authenticated authorship information is provided by the CCI Identity through MYPOST rels pointing to their content. User agents should only use this hint to check if such a MYPOST rel exists, and disregard the AUTHORHINT otherwise. |
 | 11   | REPLACED_BY | This Cube should be disregarded and the referred Cube should be fetched instead. |
 | 71   | ILLUSTRATION | The referred Cube contains and image that should be presented alongside this Cube's content. If this Cube describes a CCI Identity, then the referred Cube contain's this Identity's profile picture. User agents should exercise caution and refrain from displaying such referred images by untrusted Identites. |
 | 72   | KEY_BACKUP_CUBE | The referred Cube provides a way for its owner to restore it's own private key. This is currently neither used nor specified. |
