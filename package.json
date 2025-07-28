@@ -20,7 +20,7 @@
     "test": "npm run vitest",
     "vitest": "./node_modules/.bin/vitest run",
     "webpack": "webpack",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "server": "webpack serve",
     "lint": "node_modules/.bin/eslint"
   },
