@@ -1,22 +1,23 @@
-import { ApiMisuseError, Settings } from "../../core/settings";
+import type { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
+import type { Shuttable } from "../../core/helpers/coreInterfaces";
+import type { Cube } from "../../core/cube/cube";
+import type { CubeInfo } from "../../core/cube/cubeInfo";
+import type { CubeRequestOptions, RequestScheduler } from "../../core/networking/cubeRetrieval/requestScheduler";
+import type { Veritable } from "../../core/cube/veritable.definition";
+import type { CubeStore } from "../../core/cube/cubeStore";
+import type { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
+import type { cciCube } from "../cube/cciCube";
+
+import { Settings } from "../../core/settings";
 import { ArrayFromAsync } from "../../core/helpers/misc";
-import { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
-import { Shuttable } from "../../core/helpers/coreInterfaces";
-import { Cube } from "../../core/cube/cube";
-import { CubeInfo } from "../../core/cube/cubeInfo";
 import { keyVariants } from "../../core/cube/keyUtil";
-import { CubeRequestOptions, RequestScheduler } from "../../core/networking/cubeRetrieval/requestScheduler";
 import { logger } from "../../core/logger";
 
-import { cciCube } from "../cube/cciCube";
-import { CubeStore } from "../../core/cube/cubeStore";
-import { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import { RelationshipType, Relationship } from "../cube/relationship";
 import { Veritum } from "./veritum";
 import { RetrievalFormat, VeritumFromChunksOptions } from "./veritum.definitions";
 import { Identity } from "../identity/identity";
 import { MetadataEnhancedRetrieval, resolveRels, ResolveRelsOptions, resolveRelsRecursive, ResolveRelsRecursiveOptions, ResolveRelsRecursiveResult, ResolveRelsResult } from "./veritumRetrievalUtil";
-import { Veritable } from "../../core/cube/veritable.definition";
 
 export interface VeritumRetrievalInterface<OptionsType = CubeRequestOptions> extends CubeRetrievalInterface<OptionsType> {
   getVeritum(key: CubeKey|string, options?: OptionsType): Promise<Veritum>;
@@ -224,6 +225,9 @@ export class VeritumRetriever
     // set default options
     options.format ??= RetrievalFormat.Veritum;
 
+    // If the user just wants notification Cubes rather than notification
+    // Verita, everything that follows below is complete overkill.
+    // Rather, let's just redirect the user to CubeRetriever.
     if (options.format === RetrievalFormat.Cube) {
       yield* this.cubeRetriever.getNotifications(keyInput, options);
       return;

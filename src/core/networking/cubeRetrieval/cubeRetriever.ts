@@ -1,13 +1,12 @@
-import { Cube } from "../../cube/cube";
-import { CubeFieldType, CubeKey, NotificationKey } from "../../cube/cube.definitions";
-import { CubeFamilyDefinition } from "../../cube/cubeFields";
-import { CubeInfo } from "../../cube/cubeInfo";
-import { CubeStore } from "../../cube/cubeStore";
-import { CubeRetrievalInterface } from "../../cube/cubeRetrieval.definitions";
-import { keyVariants } from "../../cube/keyUtil";
-import { eventsToGenerator, MergedAsyncGenerator } from "../../helpers/asyncGenerators";
-import { CubeSubscription } from "./pendingRequest";
-import { CubeRequestOptions, CubeSubscribeOptions, RequestScheduler } from "./requestScheduler";
+import type { CubeInfo } from "../../cube/cubeInfo";
+import type { CubeStore } from "../../cube/cubeStore";
+import type { Cube } from "../../cube/cube";
+import type { CubeRetrievalInterface } from "../../cube/cubeRetrieval.definitions";
+import type { CubeSubscription } from "./pendingRequest";
+import type { CubeRequestOptions, CubeSubscribeOptions, RequestScheduler } from "./requestScheduler";
+
+import { CancellableGenerator, eventsToGenerator } from "../../helpers/asyncGenerators";
+import { CubeFieldType, type CubeKey, type NotificationKey } from "../../cube/cube.definitions";
 
 export interface CubeSubscribeRetrieverOptions extends CubeSubscribeOptions {
   /**
@@ -39,6 +38,15 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
   ) {
   }
 
+  /**
+   * Fetches a single CubeInfo, either from the local CubeStore or over the
+   * wire if it is not present.
+   * Note that a network request will strictly only be sent if the Cube is not
+   * present in the local CubeStore, thus mutable Cubes will not be updated
+   * using this method.
+   * @param key - The key of the Cube to fetch
+   * @param options - Any optional Cube request parameters
+   */
   async getCubeInfo(
       keyInput: CubeKey | string,
       options: CubeRequestOptions = undefined,  // undefined = will use RequestScheduler's default
@@ -53,6 +61,15 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
     }
   }
 
+  /**
+   * Fetches a single Cube, either from the local CubeStore or over the
+   * wire if it is not present.
+   * Note that a network request will strictly only be sent if the Cube is not
+   * present in the local CubeStore, thus mutable Cubes will not be updated
+   * using this method.
+   * @param key - The key of the Cube to fetch
+   * @param options - Any optional Cube request parameters
+   */
   async getCube<cubeClass extends Cube>(
       key: CubeKey | string,
       options: CubeRequestOptions = undefined,  // undefined = will use RequestScheduler's and CubeInfo's default
@@ -61,16 +78,35 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
     return cubeInfo?.getCube<cubeClass>(options);
   }
 
+  /**
+   * Subscribe to any updates to a single Cube.
+   * To achieve this, we will network-subscribe to the key provided with a
+   * single remote note.
+   * If we currently do not have the specified Cube, we will try to request it
+   * and yield it once received.
+   * Note: In case the requested Cube is already in our local store, this call
+   *   will *not* yield the currently stored version. Only updates will be
+   *   yielded.
+   *   This obviously means that this call will yield nothing and is thus
+   *   useless for already-stored non-mutable Cubes.
+   * @param key - The key of the Cube to subscribe to
+   * @param options - Any optional Cube request parameters
+   * @returns - A cancellable AsyncGenerator yielding any updates to the
+   *   requested Cube.
+   */
+  // TODO Cleanup: Netowrk-subscription should be cancelled when generator is
+  //   cancelled, but only if there are no other active generators relying on
+  //   the same subscription.
   subscribeCube(
       key: CubeKey,
       options: CubeSubscribeRetrieverOptions = {},
-  ): AsyncGenerator<Cube> {
+  ): CancellableGenerator<Cube> {
     // Prepare a Generator that will yield all updates to this Cube.
     // To do this, we will leverage CubeStore's cubeAdded events and adapt
     // them into a Generator.
     // That generator will be limited to only yielding events which match the
     // subscribed key.
-    const generator: AsyncGenerator<Cube> = eventsToGenerator(
+    const generator: CancellableGenerator<Cube> = eventsToGenerator(
       [{ emitter: this.cubeStore, event: 'cubeAdded' }],
       {
         limit: (cubeInfo: CubeInfo) => cubeInfo.key.equals(key),
@@ -79,12 +115,19 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
     );
 
     // Have our scheduler actually network-subscribe the requested Cube
-    options.outputSubPromise =this.requestScheduler.subscribeCube(key);
+    options.outputSubPromise = this.requestScheduler.subscribeCube(key);
     // TODO error handling
 
     return generator;
   }
 
+  /**
+   * Fetches any notifications to a specific recipient key.
+   * This will first yield all notifications already locally present;
+   * then, it will perform a single network request for new notifications.
+   * @param recipient - The notification key to fetch notifications for
+   * @param options - Currently unused
+   */
   async *getNotifications(recipient: NotificationKey, options?: {}): AsyncGenerator<Cube> {
     // HACKHACK:
     // We first yield all notifications already locally present;
@@ -95,7 +138,7 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
     // updates to mutable Cubes.)
     // While the performance impact should be minimal (local store retrieval is
     // very fast compared to network requests), this does mean that the network
-    // request is only fired once the caller has started iterating and is done#
+    // request is only fired once the caller has started iterating and is done
     // processing the local notifications.
     // TODO: pass through options to individual retrieval calls
     yield* this.cubeStore.getNotifications(recipient);
@@ -109,6 +152,8 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
           ?.equals?.(recipient) ?? false,
       transform: (cubeInfo: CubeInfo) => cubeInfo.getCube(),
     });
+
+    // Fire a single network request for new notifications
     const req = this.requestScheduler.requestNotifications(recipient);
     req.then(async () => {
       // HACKHACK: Wait a few more millis before terminating.
@@ -119,19 +164,20 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
       await new Promise(resolve => setTimeout(resolve, 100));
       newlyAdded.cancel();
     });
+
     yield *newlyAdded;
   }
 
   subscribeNotifications(
     key: NotificationKey,
     options: CubeSubscribeRetrieverOptions = {},
-  ): AsyncGenerator<Cube> {
+  ): CancellableGenerator<Cube> {
     // Prepare a Generator that will yield Cubes notifying this key
     // To do this, we will leverage CubeStore's notificationAdded events and adapt
     // them into a Generator.
     // That generator will be limited to only yielding events which match the
     // subscribed key.
-    const generator: AsyncGenerator<Cube> = eventsToGenerator(
+    const generator: CancellableGenerator<Cube> = eventsToGenerator(
       [{ emitter: this.cubeStore, event: 'notificationAdded' }],
       {
         limit: (emittedKey: CubeKey, cube: Cube) => emittedKey.equals(key),
