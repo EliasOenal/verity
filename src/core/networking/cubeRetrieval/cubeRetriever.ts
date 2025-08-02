@@ -168,6 +168,16 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
     yield *newlyAdded;
   }
 
+  /**
+   * Subscribe to new notifications to a specific recipient key.
+   * To achieve this, we will network-subscribe to the key provided with a
+   * single remote note.
+   * Note: This call will *not* yield any notifications already in our local
+   *   store. Only newly received notifications will be yielded.
+   * @param key - The notification key to subscribe to
+   * @param options - Any optional network subscription parameters
+   * @returns - A cancellable AsyncGenerator yielding new notifications
+   */
   subscribeNotifications(
     key: NotificationKey,
     options: CubeSubscribeRetrieverOptions = {},
