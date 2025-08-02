@@ -40,7 +40,7 @@ export interface GetVeritumOptions extends CubeRequestOptions, ResolveRelsOption
   recipient?: Identity|Buffer;
 }
 
-export interface GetNotificationsOptions {
+export interface GetNotificationsOptions extends GetVeritumOptions {
   format?: RetrievalFormat;
 }
 
@@ -122,22 +122,28 @@ export class VeritumRetriever
     });
   }
 
+  // Overloads:
+  // - Auto-resolving relationships, single level
   getVeritum(
       key: CubeKey | string,
       options: {resolveRels: true, metadata?: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsOptions,
-  ): Promise<ResolveRelsResult>;
+  ): Promise<ResolveRelsResult<Veritum>>;
+  // - Auto-resolving relationships, recursive
   getVeritum(
       key: CubeKey | string,
       options: {resolveRels: 'recursive', metadata?: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
-  ): Promise<ResolveRelsRecursiveResult>;
+  ): Promise<ResolveRelsRecursiveResult<Veritum>>;
+  // - Using metadata, but not auto-resolving relationships
   getVeritum(
       key: CubeKey | string,
       options: {metadata: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
   ): Promise<MetadataEnhancedRetrieval<Veritum>>;
+  // - Plain output, no metadata
   getVeritum(
       key: CubeKey | string,
       options?: GetCubeOptionsT & GetVeritumOptions
   ): Promise<Veritum>;
+
   async getVeritum(
       key: CubeKey|string,
       options: Partial<GetCubeOptionsT&GetVeritumOptions> = {},
@@ -175,44 +181,83 @@ export class VeritumRetriever
     ;
     const veritum: Veritum = Veritum.FromChunks(chunks, fromChunksOptions);
 
-    // Shall we enhance the result with metadata?
-    if (!options.metadata) return veritum;  // nope, we're good
-
-    // In case we shall resolve recursions, it's us who handles this -- the layers
-    // below will not be passed `resolveRels` again
-    const avoidDoubleRes = { ...options, resolveRels: false, metadata: false };
-
-    // Determine and prepare output format:
-    // - Resolve relationships (single level)
-    if (options.resolveRels === true) {
-      return resolveRels(
-        veritum,
-        this.getVeritum.bind(this),
-        avoidDoubleRes as ResolveRelsOptions,
-      );
-    }
-    // - Resolve relationships (recursive)
-    else if (options.resolveRels === 'recursive') {
-      return resolveRelsRecursive(
-        veritum,
-        this.getVeritum.bind(this),
-        avoidDoubleRes as ResolveRelsRecursiveOptions,
-      );
-    }
-    // - None of that? Craft an empty meta data object then I guess.
-    else {
-      const ret: MetadataEnhancedRetrieval<Veritum> = {
-        main: veritum,
-        done: Promise.resolve(),
-        isDone: true,
-      };
-      return ret;
-    }
+    return this.enhanceMetadata(veritum, options) as Veritum|MetadataEnhancedRetrieval<Veritum>;
   }
 
-  getNotifications<cubeClass extends Cube>(keyInput: NotificationKey | string, options: GetNotificationsOptions & {format: RetrievalFormat.Cube}): AsyncGenerator<cubeClass>;
-  getNotifications(keyInput: NotificationKey | string, options?: GetNotificationsOptions & {format: RetrievalFormat.Veritum|undefined}): AsyncGenerator<Veritum>;
-  getNotifications(keyInput: NotificationKey | string, options?: GetNotificationsOptions): AsyncGenerator<Veritable>;
+  // Overloads for getNotifications()
+  // Overloads using the `Cube` RetrievalFormat:
+  // - Auto-resolving relationships, single level
+  getNotifications<cubeClass extends Cube>(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format: RetrievalFormat.Cube,
+      metadata: true,
+      resolveRels: true,
+    },
+  ): AsyncGenerator<ResolveRelsResult<cubeClass>>;
+  // - Auto-resolving relationships, recursive
+  getNotifications<cubeClass extends Cube>(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format: RetrievalFormat.Cube,
+      metadata: true,
+      resolveRels: 'recursive',
+    },
+  ): AsyncGenerator<ResolveRelsRecursiveResult<cubeClass>>;
+  // - Using metadata, but not auto-resolving relationships
+  getNotifications<cubeClass extends Cube>(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format: RetrievalFormat.Cube,
+      metadata: true,
+    },
+  ): AsyncGenerator<MetadataEnhancedRetrieval<cubeClass>>;
+  // - Plain output, no metadata
+  getNotifications<cubeClass extends Cube>(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format: RetrievalFormat.Cube,
+    },
+  ): AsyncGenerator<cubeClass>;
+  // Overloads using the `Veritum` RetrievalFormat (default):
+  // - Auto-resolving relationships, single level
+  getNotifications(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format?: RetrievalFormat.Veritum,
+      metadata: true,
+      resolveRels: true,
+    },
+  ): AsyncGenerator<ResolveRelsResult<Veritum>>;
+  // - Auto-resolving relationships, recursive
+  getNotifications(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format?: RetrievalFormat.Veritum,
+      metadata: true,
+      resolveRels: 'recursive',
+    },
+  ): AsyncGenerator<ResolveRelsRecursiveResult<Veritum>>;
+  // - Using metadata, but not auto-resolving relationships
+  getNotifications(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format?: RetrievalFormat.Veritum,
+      metadata: true,
+    },
+  ): AsyncGenerator<MetadataEnhancedRetrieval<Veritum>>;
+  // - Plain output, no metadata
+  getNotifications(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format?: RetrievalFormat.Veritum,
+    },
+  ): AsyncGenerator<Veritum>;
+  // - Default overload with no options supplied
+  getNotifications(
+    keyInput: NotificationKey | string,
+  ): AsyncGenerator<Veritum>;
+
   /**
    * Retrieves all available Verita notifying a given key.
    * Any Veritum can only notify a single key, and is considered a notification
@@ -221,7 +266,10 @@ export class VeritumRetriever
    */
   // TODO: This method contains lots of async glue code which should be
   //   generalised as a helpers, perhaps even included in mergeAsyncGenerators()
-  async *getNotifications(keyInput: NotificationKey | string, options: GetNotificationsOptions = {}): AsyncGenerator<Veritable> {
+  async *getNotifications(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions = {},
+  ): AsyncGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
     // set default options
     options.format ??= RetrievalFormat.Veritum;
 
@@ -253,14 +301,14 @@ export class VeritumRetriever
       p.then((value) => [value, p] as [Veritum, Promise<Veritum>]);
 
     // Helper function to yield one notification Veritum as soon as we have it in full.
-    async function yieldOne(): Promise<Veritum> {
+    async function yieldOne(retriever: VeritumRetriever): Promise<Veritable|MetadataEnhancedRetrieval<Veritable>> {
       // Wait for the fastest promise in the pending set.
       // Wrap each pending promise so that it resolves with a tuple [value, originalPromise].
       const wrappedPromises = Array.from(pending).map(wrapPromise);
       const [value, originalPromise] = await Promise.race(wrappedPromises);
       // Now that we've handled it, remove the promise from the pending set.
       pending.delete(originalPromise);
-      return value;
+      return retriever.enhanceMetadata(value, options);
     }
 
     // Launch Veritum retrievals as we get notifying root chunks.
@@ -274,13 +322,13 @@ export class VeritumRetriever
 
       // If we have reached the concurrency limit, yield one as soon as it finishes.
       if (pending.size >= concurrencyLimit) {
-        yield await yieldOne();
+        yield await yieldOne(this);
       }
     }
 
     // Yield any remaining notifications as soon as they complete.
     while (pending.size > 0) {
-      yield await yieldOne();
+      yield await yieldOne(this);
     }
   }
 
@@ -493,6 +541,45 @@ export class VeritumRetriever
 
     cleanup();
     return true;  // retrieval successful
+  }
+
+  private enhanceMetadata(
+    veritable: Veritable,
+    options: GetVeritumOptions,
+  ): Veritable|MetadataEnhancedRetrieval<Veritable> {
+    // Shall we enhance the result with metadata?
+    if (!options.metadata) return veritable;  // nope, we're good
+
+    // In case we shall resolve recursions, it's us who handles this -- the layers
+    // below will not be passed `resolveRels` again
+    const avoidDoubleRes = { ...options, resolveRels: false, metadata: false };
+
+    // Determine and prepare output format:
+    // - Resolve relationships (single level)
+    if (options.resolveRels === true) {
+      return resolveRels(
+        veritable,
+        this.getVeritum.bind(this),
+        avoidDoubleRes as ResolveRelsOptions,
+      );
+    }
+    // - Resolve relationships (recursive)
+    else if (options.resolveRels === 'recursive') {
+      return resolveRelsRecursive(
+        veritable,
+        this.getVeritum.bind(this),
+        avoidDoubleRes as ResolveRelsRecursiveOptions,
+      );
+    }
+    // - None of that? Craft an empty meta data object then I guess.
+    else {
+      const ret: MetadataEnhancedRetrieval<Veritable> = {
+        main: veritable,
+        done: Promise.resolve(),
+        isDone: true,
+      };
+      return ret;
+    }
   }
 
   // implement Shuttable
