@@ -42,18 +42,26 @@ import * as bip39 from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
 
 // TODO: Split out the MUC management code.
-// Much of it (like writing multi-cube long indexes of cube keys) are not even
-// Identity specific and should be exposed as common CCI building blocks.
+//   Much of it (like writing multi-cube long indexes of cube keys) are not even
+//   Identity specific and should be exposed as common CCI building blocks.
 
 // TODO: For both post and subscription/recommendation referenced, introduce a
-// parameter governing whether those references should be kept in dedicated,
-// separate extension MUCs or whether they should be piggy-backed on top of posts.
+//   parameter governing whether those references should be kept in dedicated,
+//   separate extension MUCs or whether they should be piggy-backed on top of posts.
+// Partially related TODO:
+//   Introduce a parameter governing which data (posts, public subscriptions)
+//   is automatically retrieved by the Identity object, and allowing the user
+//   to supply limits. Currently, simply constructing an Identity object could
+//   potentially lead to *A LOT* of data being retrieved.
+//   (This is not so much a problem in a public / hashcash-governed /
+//   microblogging-style network where posting stuff is severely limited, but
+//   could be a complete showstopper in private networks carrying larger files.)
 
 // TODO: Once we properly merge conflicting remote changes, deleting stuff
-// will be essentially broken. Implement a way to delete stuff without it being
-// synced back from another node.
-// Maybe a Lamport clock? Did I mention that I like Lamport clocks? :)
-// (turns out a simple Lamport clock isn't enough :( )
+//   will be essentially broken. Implement a way to delete stuff without it being
+//   synced back from another node.
+//   Maybe a Lamport clock? Did I mention that I like Lamport clocks? :)
+//   (turns out a simple Lamport clock isn't enough :( )
 
 /**
  * !!! May only be used after awaiting sodium.ready !!!
