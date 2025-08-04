@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import { eventsToGenerator, mergeAsyncGenerators, resolveAndYield } from '../../../src/core/helpers/asyncGenerators';
+import { eventsToGenerator, mergeAsyncGenerators, parallelMap, resolveAndYield } from '../../../src/core/helpers/asyncGenerators';
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
@@ -644,6 +644,104 @@ describe("resolveAndYield", () => {
     });
   });
 });
+
+
+describe('parallelMap', () => {
+  it('yields mapped values in the order of resolution, skipping undefined', async () => {
+    const inputs = [1, 2, 3]
+    const mapper = (n: number) => {
+      const delay = n === 2 ? 50 : n === 3 ? 10 : 30
+      return new Promise<string | undefined>(resolve => {
+        setTimeout(() => {
+          // skip even numbers
+          resolve(n % 2 === 0 ? undefined : `val${n}`)
+        }, delay)
+      })
+    }
+
+    const results: string[] = []
+    for await (const v of parallelMap(inputs, mapper)) {
+      results.push(v)
+    }
+
+    // 3 resolves first (10ms), then 1 (30ms), 2 is skipped
+    expect(results).toEqual(['val3', 'val1'])
+  })
+
+  it('handles an empty input array', async () => {
+    const mapper = async (n: number) => `x${n}`
+    const results: string[] = []
+    for await (const v of parallelMap([], mapper)) {
+      results.push(v)
+    }
+    expect(results).toEqual([])
+  })
+
+  it('passes the correct index to the mapper', async () => {
+    const calls: Array<{ item: number; idx: number }> = []
+    const mapper = async (item: number, idx: number) => {
+      calls.push({ item, idx })
+      return `${item * 2}`
+    }
+
+    const results: string[] = []
+    for await (const v of parallelMap([10, 20, 30], mapper)) {
+      results.push(v)
+    }
+
+    // All three should map, order of resolution here is immediate.
+    expect(results).toEqual(['20', '40', '60'])
+    expect(calls).toEqual([
+      { item: 10, idx: 0 },
+      { item: 20, idx: 1 },
+      { item: 30, idx: 2 },
+    ])
+  })
+
+  it('bubbles errors thrown by the mapper', async () => {
+    const inputs = [1, 2, 3]
+    const mapper = async (n: number) => {
+      if (n === 2) throw new Error('mapper failed on 2')
+      return n
+    }
+
+    await expect(async () => {
+      for await (const _ of parallelMap(inputs, mapper)) {
+        // no-op
+      }
+    }).rejects.toThrow('mapper failed on 2')
+  })
+
+  it('works with all promises resolving immediately', async () => {
+    const inputs = ['a', 'b', 'c']
+    const mapper = async (s: string) => s.toUpperCase()
+    const results: string[] = []
+
+    for await (const v of parallelMap(inputs, mapper)) {
+      results.push(v)
+    }
+
+    expect(results).toEqual(['A', 'B', 'C'])
+  })
+
+  it('handles a large number of inputs efficiently', async () => {
+    const N = 500
+    const inputs = Array.from({ length: N }, (_, i) => i)
+    const mapper = (i: number) =>
+      new Promise<number>(resolve =>
+        setTimeout(() => resolve(i * 2), Math.random() * 20)
+      )
+
+    const results: number[] = []
+    for await (const v of parallelMap(inputs, mapper)) {
+      results.push(v)
+    }
+
+    expect(results).toHaveLength(N)
+    // every input mapped to i*2
+    expect(new Set(results)).toEqual(new Set(inputs.map(i => i * 2)))
+  })
+})
 
 
 describe('eventsToGenerator()', () => {

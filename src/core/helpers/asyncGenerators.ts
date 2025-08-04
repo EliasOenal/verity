@@ -309,6 +309,75 @@ export async function* resolveAndYield<T, M>(
 }
 
 
+/**
+ * Transforms an array of inputs in parallel using an asynchronous mapper,
+ * yielding results as soon as they resolve and skipping any that return `undefined`.
+ *
+ * @template I  Type of each input item.
+ * @template O  Type of each output value.
+ *
+ * @param inputs
+ *   Array of input items to be transformed.
+ *
+ * @param mapper
+ *   An async function that takes an input item and its index, returning
+ *   either an `O` or `undefined` (to filter out unwanted results).
+ *
+ * @returns
+ *   An `AsyncGenerator` that yields each mapped value of type `O` as soon as
+ *   its promise resolves, in the order of resolution.
+ *
+ * @example
+ * ```ts
+ * interface User { id: number }
+ * interface Details { name: string; age: number }
+ *
+ * async function fetchUserDetails(id: number): Promise<Details | undefined> {
+ *   if (id % 2 === 0) {
+ *     // pretend even‐ID users don’t exist
+ *     return undefined;
+ *   }
+ *   return { name: `User${id}`, age: 20 + id };
+ * }
+ *
+ * const users: User[] = [
+ *   { id: 1 }, { id: 2 }, { id: 3 }
+ * ];
+ *
+ * for await (const details of parallelMap(users, (user) => fetchUserDetails(user.id))) {
+ *   console.log(details);
+ * }
+ * // Possible output:
+ * // { name: 'User3', age: 23 }
+ * // { name: 'User1', age: 21 }
+ * // (skips id=2 because mapper returned undefined)
+ * ```
+ *
+ * @remarks
+ * - Uses `resolveAndYield` under the hood; all input promises are kicked off immediately.
+ * - If you need to preserve the original input order, collect results into an array
+ *   and sort by index (you can pass index as metadata to `resolveAndYield`).
+ * - Errors thrown by `mapper` will bubble; you can `.catch()` inside your mapper
+ *   if you want to skip or handle failures.
+ */
+export async function* parallelMap<I, O>(
+  inputs: I[],
+  mapper: (item: I, index: number) => Promise<O | undefined>
+): AsyncGenerator<O, void, undefined> {
+  // Attach each mapper call with its index as metadata
+  const entries = inputs.map((item, index) => ({
+    promise: mapper(item, index),
+    meta: index,
+  }));
+
+  // Use resolveAndYield to drive parallel resolution
+  for await (const { value } of resolveAndYield(entries)) {
+    yield value;
+  }
+}
+
+
+
 export interface EventsToGeneratorOptions<
   Emitted extends unknown[],
   Transformed = Emitted extends [infer T] ? T : Emitted
