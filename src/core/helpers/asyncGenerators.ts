@@ -176,6 +176,15 @@ export function mergeAsyncGenerators<T>(
 }
 
 
+export interface ResolveYieldEntry<T, M> {
+  promise: Promise<T | undefined>;
+  meta: M;
+}
+
+export interface ResolveYieldResult<T, M> {
+  value: T;
+  meta: M;
+}
 
 /**
  * Asynchronously yields values from an array of promises as they resolve, in the order they are fulfilled.
@@ -204,28 +213,97 @@ export function mergeAsyncGenerators<T>(
  * - The function will continue until all promises in the input array are resolved.
  * - If a promise rejects, the rejection must be handled externally to prevent unhandled promise rejections.
  *
- * @throws This function does not handle rejected promises internally. Ensure that you handle rejections in the input promises, e.g., by using `.catch()` before passing them to this function.
+ * @throws This function does not handle rejected promises internally.
+ *   Ensure that you handle rejections in the input promises, e.g., by using
+ * `.catch()` before passing them to this function.
  */
+export function resolveAndYield<T>(
+  promises: Array<Promise<T | undefined>>
+): AsyncGenerator<T, void, undefined>;
 
-export async function* resolveAndYield<T>(
-  promises: Promise<T | undefined>[]
-): AsyncGenerator<T, void, undefined> {
-  const pending: Set<Promise<T | undefined>> = new Set(promises); // Set of pending promises
-  const promiseMap: Map<Promise<T | undefined>, Promise<{ value: T | undefined; promise: Promise<T | undefined>; }>> = new Map(
-    promises.map(p => [
-      p,
-      p.then(value => ({ value, promise: p }))
-    ])
-  );
+/**
+ * Races an array of promise–metadata entries and yields each resolved value together with its metadata,
+ * in the order the promises settle. Promises resolving to `undefined` are skipped.
+ *
+ * @template T - The type of the values resolved by the promises.
+ * @template M - The type of metadata associated with each promise.
+ *
+ * @param entries
+ *   Array of objects, each with:
+ *     - `promise`: a `Promise<T | undefined>` whose resolution you want to await.
+ *     - `meta`: arbitrary metadata of type `M` to be paired with the resolved value.
+ *
+ * @returns
+ *   An `AsyncGenerator` that yields objects of shape `{ value: T; meta: M }` as soon as
+ *   their corresponding promises resolve (and skip any that resolve to `undefined`).
+ *
+ * @example
+ * ```ts
+ * interface Entry { promise: Promise<string | undefined>; meta: 'user' | 'config' }
+ *
+ * const entries: Entry[] = [
+ *   { promise: fetchUsername(),    meta: 'user'   },
+ *   { promise: fetchAppSettings(), meta: 'config' },
+ * ];
+ *
+ * for await (const { value, meta } of resolveAndYield(entries)) {
+ *   console.log(meta, value);
+ * }
+ * // Possible output:
+ * // user alice
+ * // config { theme: 'dark' }
+ * ```
+ *
+ * @remarks
+ * - Internally uses `Promise.race` on the fixed set of promises.
+ * - All input promises must be provided up-front; you cannot add entries mid-stream.
+ *
+ * @throws This function does not handle rejected promises internally.
+ *   Ensure that you handle rejections in the input promises, e.g., by using
+ * `.catch()` before passing them to this function.
+ */
+export function resolveAndYield<T, M>(
+  entries: Array<ResolveYieldEntry<T, M>>
+): AsyncGenerator<ResolveYieldResult<T, M>, void, undefined>;
 
-  while (pending.size > 0) {
-    const { value, promise } = await Promise.race(promiseMap.values()); // Wait for the first promise to resolve
+export async function* resolveAndYield<T, M>(
+  items: Array<Promise<T | undefined> | ResolveYieldEntry<T, M>>
+): AsyncGenerator<any, void, undefined> {
+  // Detect form
+  const isRaw = items.length > 0 && typeof (items[0] as any).then === 'function' && !(items[0] as any).meta;
 
-    pending.delete(promise); // Remove the resolved promise from the set
-    promiseMap.delete(promise); // Remove it from the map
+  // Normalize to array of { promise, meta }
+  const entries: Array<ResolveYieldEntry<T, M>> = isRaw
+    ? (items as Promise<T | undefined>[]).map(p => ({ promise: p, meta: undefined! }))
+    : (items as ResolveYieldEntry<T, M>[]);
 
+  // Tag each entry with a unique index
+  type RaceRecord = {
+    id: number;
+    wrapped: Promise<{ id: number; value: T | undefined; meta: M }>;
+  };
+
+  const races: RaceRecord[] = entries.map((entry, id) => ({
+    id,
+    wrapped: entry.promise.then(value => ({ id, value, meta: entry.meta })),
+  }));
+
+  // Race them one by one
+  while (races.length) {
+    // Wait for the next promise to finish
+    const { id, value, meta } = await Promise.race(races.map(r => r.wrapped));
+
+    // Remove that record so it doesn’t fire again
+    const idx = races.findIndex(r => r.id === id);
+    races.splice(idx, 1);
+
+    // Only yield defined values
     if (value !== undefined) {
-      yield value; // Yield the resolved value if it's not undefined
+      if (isRaw) {
+        yield value;
+      } else {
+        yield { value, meta };
+      }
     }
   }
 }

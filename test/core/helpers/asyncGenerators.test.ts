@@ -444,115 +444,117 @@ describe('mergeAsyncGenerators', () => {
 
 
 describe("resolveAndYield", () => {
-  it("should yield values in the order the promises resolve", async () => {
-      const promises = [
-          new Promise<number | undefined>(resolve => setTimeout(() => resolve(1), 300)),
-          new Promise<number | undefined>(resolve => setTimeout(() => resolve(undefined), 200)),
-          new Promise<number | undefined>(resolve => setTimeout(() => resolve(2), 100)),
-      ];
+  describe('plain promise format, no metadata', () => {
+    it("should yield values in the order the promises resolve", async () => {
+        const promises = [
+            new Promise<number | undefined>(resolve => setTimeout(() => resolve(1), 300)),
+            new Promise<number | undefined>(resolve => setTimeout(() => resolve(undefined), 200)),
+            new Promise<number | undefined>(resolve => setTimeout(() => resolve(2), 100)),
+        ];
 
-      const results: number[] = [];
-      for await (const value of resolveAndYield(promises)) {
-          results.push(value);
-      }
+        const results: number[] = [];
+        for await (const value of resolveAndYield(promises)) {
+            results.push(value);
+        }
 
-      expect(results).toEqual([2, 1]);
-  });
+        expect(results).toEqual([2, 1]);
+    });
 
-  it("should handle an empty array of promises", async () => {
-      const promises: Promise<number | undefined>[] = [];
-      const results: number[] = [];
+    it("should handle an empty array of promises", async () => {
+        const promises: Promise<number | undefined>[] = [];
+        const results: number[] = [];
 
-      for await (const value of resolveAndYield(promises)) {
-          results.push(value);
-      }
+        for await (const value of resolveAndYield(promises)) {
+            results.push(value);
+        }
 
-      expect(results).toEqual([]);
-  });
+        expect(results).toEqual([]);
+    });
 
-  it("should not yield undefined values", async () => {
-      const promises = [
-          Promise.resolve(1),
-          Promise.resolve(undefined),
-          Promise.resolve(2),
-      ];
+    it("should not yield undefined values", async () => {
+        const promises = [
+            Promise.resolve(1),
+            Promise.resolve(undefined),
+            Promise.resolve(2),
+        ];
 
-      const results: number[] = [];
-      for await (const value of resolveAndYield(promises)) {
-          results.push(value);
-      }
+        const results: number[] = [];
+        for await (const value of resolveAndYield(promises)) {
+            results.push(value);
+        }
 
-      expect(results).toEqual([1, 2]);
-  });
+        expect(results).toEqual([1, 2]);
+    });
 
-  it("should yield results as they arrive, not waiting for long-pending promises", async () => {
-      const start = Date.now();
+    it("should yield results as they arrive, not waiting for long-pending promises", async () => {
+        const start = Date.now();
 
-      const promises = [
-          new Promise<number | undefined>(resolve => setTimeout(() => resolve(1), 100)),
-          new Promise<number | undefined>(resolve => setTimeout(() => resolve(2), 300)),
-          new Promise<number | undefined>(resolve => setTimeout(() => resolve(3), 500)),
-      ];
+        const promises = [
+            new Promise<number | undefined>(resolve => setTimeout(() => resolve(1), 100)),
+            new Promise<number | undefined>(resolve => setTimeout(() => resolve(2), 300)),
+            new Promise<number | undefined>(resolve => setTimeout(() => resolve(3), 500)),
+        ];
 
-      const results: { value: number; time: number }[] = [];
-      for await (const value of resolveAndYield(promises)) {
-          results.push({ value, time: Date.now() - start });
-      }
+        const results: { value: number; time: number }[] = [];
+        for await (const value of resolveAndYield(promises)) {
+            results.push({ value, time: Date.now() - start });
+        }
 
-      expect(results.length).toBe(3);
-      expect(results[0].value).toBe(1);
-      expect(results[1].value).toBe(2);
-      expect(results[2].value).toBe(3);
+        expect(results.length).toBe(3);
+        expect(results[0].value).toBe(1);
+        expect(results[1].value).toBe(2);
+        expect(results[2].value).toBe(3);
 
-      // Verify that results are yielded approximately at the expected times
-      expect(results[0].time).toBeGreaterThanOrEqual(95);
-      expect(results[0].time).toBeLessThan(200);
-      expect(results[1].time).toBeGreaterThanOrEqual(295);
-      expect(results[1].time).toBeLessThan(400);
-      expect(results[2].time).toBeGreaterThanOrEqual(495);
-      expect(results[2].time).toBeLessThan(600);
-  });
+        // Verify that results are yielded approximately at the expected times
+        expect(results[0].time).toBeGreaterThanOrEqual(95);
+        expect(results[0].time).toBeLessThan(200);
+        expect(results[1].time).toBeGreaterThanOrEqual(295);
+        expect(results[1].time).toBeLessThan(400);
+        expect(results[2].time).toBeGreaterThanOrEqual(495);
+        expect(results[2].time).toBeLessThan(600);
+    });
 
-  it("should handle a mix of resolved and pending promises", async () => {
-      const promises = [
-          Promise.resolve(1),
-          new Promise<number | undefined>(resolve => setTimeout(() => resolve(2), 100)),
-          Promise.resolve(undefined),
-          new Promise<number | undefined>(resolve => setTimeout(() => resolve(3), 200)),
-      ];
+    it("should handle a mix of resolved and pending promises", async () => {
+        const promises = [
+            Promise.resolve(1),
+            new Promise<number | undefined>(resolve => setTimeout(() => resolve(2), 100)),
+            Promise.resolve(undefined),
+            new Promise<number | undefined>(resolve => setTimeout(() => resolve(3), 200)),
+        ];
 
-      const results: number[] = [];
-      for await (const value of resolveAndYield(promises)) {
-          results.push(value);
-      }
+        const results: number[] = [];
+        for await (const value of resolveAndYield(promises)) {
+            results.push(value);
+        }
 
-      expect(results).toEqual([1, 2, 3]);
-  });
+        expect(results).toEqual([1, 2, 3]);
+    });
 
-  it("should work with promises that reject (skip rejections)", async () => {
-      const promises = [
-          Promise.resolve(1),
-          Promise.reject(new Error("Failed")),
-          new Promise<number | undefined>(resolve => setTimeout(() => resolve(2), 100)),
-      ];
+    it("should work with promises that reject (skip rejections)", async () => {
+        const promises = [
+            Promise.resolve(1),
+            Promise.reject(new Error("Failed")),
+            new Promise<number | undefined>(resolve => setTimeout(() => resolve(2), 100)),
+        ];
 
-      const results: number[] = [];
-      const errors: Error[] = [];
+        const results: number[] = [];
+        const errors: Error[] = [];
 
-      for await (const value of resolveAndYield(
-          promises.map(p =>
-              p.catch(err => {
-                  errors.push(err);
-                  return undefined;
-              })
-          )
-      )) {
-          results.push(value);
-      }
+        for await (const value of resolveAndYield(
+            promises.map(p =>
+                p.catch(err => {
+                    errors.push(err);
+                    return undefined;
+                })
+            )
+        )) {
+            results.push(value);
+        }
 
-      expect(results).toEqual([1, 2]);
-      expect(errors).toHaveLength(1);
-      expect(errors[0].message).toBe("Failed");
+        expect(results).toEqual([1, 2]);
+        expect(errors).toHaveLength(1);
+        expect(errors[0].message).toBe("Failed");
+    });
   });
 
   it("should handle a large number of promises efficiently", async () => {
@@ -583,6 +585,63 @@ describe("resolveAndYield", () => {
       }
 
       expect(results).toEqual([1, 2, 3]);
+  });
+
+  describe('with metadata', () => {
+    it("should yield { value, meta } pairs in the order the promises resolve", async () => {
+      const entries = [
+        { promise: new Promise<string | undefined>(r => setTimeout(() => r('first'), 50)), meta: 'A' },
+        { promise: new Promise<string | undefined>(r => setTimeout(() => r('second'), 10)), meta: 'B' },
+        { promise: new Promise<string | undefined>(r => setTimeout(() => r('third'), 30)), meta: 'C' },
+      ];
+
+      const results: Array<{ value: string; meta: string }> = [];
+      for await (const item of resolveAndYield(entries)) {
+        results.push(item);
+      }
+
+      expect(results).toEqual([
+        { value: 'second', meta: 'B' },
+        { value: 'third',  meta: 'C' },
+        { value: 'first',  meta: 'A' },
+      ]);
+    });
+
+    it("should skip entries resolving to undefined (and omit their metadata)", async () => {
+      const entries = [
+        { promise: Promise.resolve<number | undefined>(undefined), meta: { id: 1 } },
+        { promise: Promise.resolve<number | undefined>(42),      meta: { id: 2 } },
+        { promise: Promise.resolve<number | undefined>(undefined), meta: { id: 3 } },
+      ];
+
+      const results: Array<{ value: number; meta: { id: number } }> = [];
+      for await (const item of resolveAndYield(entries)) {
+        results.push(item);
+      }
+
+      expect(results).toEqual([
+        { value: 42, meta: { id: 2 } },
+      ]);
+    });
+
+    it("should handle all entries resolving immediately and preserve their metadata order", async () => {
+      const entries = [
+        { promise: Promise.resolve(1), meta: 'one' },
+        { promise: Promise.resolve(2), meta: 'two' },
+        { promise: Promise.resolve(3), meta: 'three' },
+      ];
+
+      const results: Array<{ value: number; meta: string }> = [];
+      for await (const item of resolveAndYield(entries)) {
+        results.push(item);
+      }
+
+      expect(results).toEqual([
+        { value: 1, meta: 'one' },
+        { value: 2, meta: 'two' },
+        { value: 3, meta: 'three' },
+      ]);
+    });
   });
 });
 
