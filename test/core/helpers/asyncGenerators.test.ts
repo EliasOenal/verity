@@ -587,6 +587,22 @@ describe("resolveAndYield", () => {
       expect(results).toEqual([1, 2, 3]);
   });
 
+
+  it("will yield undefiended values if requested", async () => {
+      const promises = [
+          Promise.resolve(undefined),
+          Promise.resolve(2),
+          Promise.resolve(3),
+      ];
+
+      const results: number[] = [];
+      for await (const value of resolveAndYield(promises, { skipUndefined: false })) {
+          results.push(value);
+      }
+
+      expect(results).toEqual([undefined, 2, 3]);
+  });
+
   describe('with metadata', () => {
     it("should yield { value, meta } pairs in the order the promises resolve", async () => {
       const entries = [
@@ -649,84 +665,104 @@ describe("resolveAndYield", () => {
 describe('parallelMap', () => {
   it('yields mapped values in the order of resolution, skipping undefined', async () => {
     const inputs = [1, 2, 3]
+
     const mapper = (n: number) => {
-      const delay = n === 2 ? 50 : n === 3 ? 10 : 30
+      let delay: number;
+      if (n === 1) delay = 30;
+      else delay = 10;
+
       return new Promise<string | undefined>(resolve => {
         setTimeout(() => {
-          // skip even numbers
-          resolve(n % 2 === 0 ? undefined : `val${n}`)
+          // skip even numbers;
+          // a value of one will take slightly longer than the others
+          resolve(n % 2 === 0 ? undefined : `val${n}`);
         }, delay)
       })
     }
 
     const results: string[] = []
     for await (const v of parallelMap(inputs, mapper)) {
-      results.push(v)
+      results.push(v);
     }
 
     // 3 resolves first (10ms), then 1 (30ms), 2 is skipped
-    expect(results).toEqual(['val3', 'val1'])
+    expect(results).toEqual(['val3', 'val1']);
   })
 
   it('handles an empty input array', async () => {
-    const mapper = async (n: number) => `x${n}`
-    const results: string[] = []
+    const mapper = async (n: number) => `x${n}`;
+    const results: string[] = [];
     for await (const v of parallelMap([], mapper)) {
-      results.push(v)
+      results.push(v);
     }
-    expect(results).toEqual([])
-  })
+    expect(results).toEqual([]);
+  });
 
   it('passes the correct index to the mapper', async () => {
-    const calls: Array<{ item: number; idx: number }> = []
+    const calls: Array<{ item: number; idx: number }> = [];
     const mapper = async (item: number, idx: number) => {
-      calls.push({ item, idx })
-      return `${item * 2}`
+      calls.push({ item, idx });
+      return `${item * 2}`;
     }
 
-    const results: string[] = []
+    const results: string[] = [];
     for await (const v of parallelMap([10, 20, 30], mapper)) {
-      results.push(v)
+      results.push(v);
     }
 
     // All three should map, order of resolution here is immediate.
-    expect(results).toEqual(['20', '40', '60'])
+    expect(results).toEqual(['20', '40', '60']);
     expect(calls).toEqual([
       { item: 10, idx: 0 },
       { item: 20, idx: 1 },
       { item: 30, idx: 2 },
-    ])
-  })
+    ]);
+  });
 
   it('bubbles errors thrown by the mapper', async () => {
-    const inputs = [1, 2, 3]
+    const inputs = [1, 2, 3];
     const mapper = async (n: number) => {
-      if (n === 2) throw new Error('mapper failed on 2')
-      return n
+      if (n === 2) throw new Error('mapper failed on 2');
+      return n;
     }
 
     await expect(async () => {
       for await (const _ of parallelMap(inputs, mapper)) {
         // no-op
       }
-    }).rejects.toThrow('mapper failed on 2')
-  })
+    }).rejects.toThrow('mapper failed on 2');
+  });
 
   it('works with all promises resolving immediately', async () => {
-    const inputs = ['a', 'b', 'c']
-    const mapper = async (s: string) => s.toUpperCase()
-    const results: string[] = []
+    const inputs = ['a', 'b', 'c'];
+    const mapper = async (s: string) => s.toUpperCase();
+    const results: string[] = [];
 
     for await (const v of parallelMap(inputs, mapper)) {
-      results.push(v)
+      results.push(v);
     }
 
-    expect(results).toEqual(['A', 'B', 'C'])
-  })
+    expect(results).toEqual(['A', 'B', 'C']);
+  });
+
+  it('will yield undefined values if requested', async () => {
+    const inputs = [1, 2, 3];
+    const mapper = async (n: number) => {
+      if (n === 2) return undefined;
+      return n;
+    }
+
+    const results: (number | undefined)[] = [];
+    for await (const v of parallelMap(inputs, mapper, { skipUndefined: false })) {
+      results.push(v);
+    }
+
+    expect(results).toEqual([1, undefined, 3]);
+  });
 
   it('handles a large number of inputs efficiently', async () => {
-    const N = 500
-    const inputs = Array.from({ length: N }, (_, i) => i)
+    const N = 500;
+    const inputs = Array.from({ length: N }, (_, i) => i);
     const mapper = (i: number) =>
       new Promise<number>(resolve =>
         setTimeout(() => resolve(i * 2), Math.random() * 20)
@@ -734,13 +770,13 @@ describe('parallelMap', () => {
 
     const results: number[] = []
     for await (const v of parallelMap(inputs, mapper)) {
-      results.push(v)
+      results.push(v);
     }
 
-    expect(results).toHaveLength(N)
+    expect(results).toHaveLength(N);
     // every input mapped to i*2
-    expect(new Set(results)).toEqual(new Set(inputs.map(i => i * 2)))
-  })
+    expect(new Set(results)).toEqual(new Set(inputs.map(i => i * 2)));
+  });
 })
 
 

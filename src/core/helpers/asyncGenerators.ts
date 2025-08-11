@@ -1,4 +1,5 @@
 import EventEmitter from "events";
+import { CancellableTask, DeferredPromise } from "./promises";
 
 /**
  * A helper type for AsyncGenerators which are based on internally awaiting
@@ -82,14 +83,7 @@ export function mergeAsyncGenerators<T>(
 
   // Here's a list of promises that will tell us when any individual input
   // generator is done.
-  const inputGenDone = () => {
-    let resolve: () => void;
-    const promise = new Promise<void>((res) => {
-      resolve = res;
-    });
-    return { promise, resolve };
-  }
-  const inputGensDone = generators.map(() => inputGenDone());
+  const inputGensDone = generators.map(() => new DeferredPromise());
 
   // On demand (but not by default), this generator can be made endless even
   // if all of its input generators are done.
@@ -143,7 +137,7 @@ export function mergeAsyncGenerators<T>(
   // properties we defined:
   // - Attach the `completions` property (an array of promises indicating
   //   which of the input generators have completed).
-  asyncGen.completions = inputGensDone.map(deferred => deferred.promise);
+  asyncGen.completions = inputGensDone.map(p => p.promise);
   // - Attach the cancel() method to be able to interrupt the Generator while it is
   //   awaiting the next promise
   asyncGen.cancel = () => {
@@ -157,7 +151,7 @@ export function mergeAsyncGenerators<T>(
     // Add a promise for the next value for the new generator
     nextPromises.push(gen.next());
     // Add a deferred promise for the completion of the new generator
-    inputGensDone.push(inputGenDone());
+    inputGensDone.push(new DeferredPromise());
     // Fire and replace our interrupt promise to make the Generator reload
     // its loop.
     interruptPromiseResolve(reloadSignal);
@@ -186,9 +180,17 @@ export interface ResolveYieldResult<T, M> {
   meta: M;
 }
 
+export interface ResolveYieldOptions {
+  /**
+   * If `true`, `undefined` values are skipped and not yielded.
+   * @default true
+   */
+  skipUndefined?: boolean;
+}
+
 /**
  * Asynchronously yields values from an array of promises as they resolve, in the order they are fulfilled.
- * Promises resolving to `undefined` are skipped and not yielded.
+ * By default, Promises resolving to `undefined` are skipped and not yielded.
  *
  * @template T - The type of values resolved by the promises.
  * @param promises - An array of promises that resolve to either a value of type `T` or `undefined`.
@@ -218,7 +220,8 @@ export interface ResolveYieldResult<T, M> {
  * `.catch()` before passing them to this function.
  */
 export function resolveAndYield<T>(
-  promises: Array<Promise<T | undefined>>
+  promises: Array<Promise<T | undefined>>,
+  options?: ResolveYieldOptions,
 ): AsyncGenerator<T, void, undefined>;
 
 /**
@@ -263,12 +266,17 @@ export function resolveAndYield<T>(
  * `.catch()` before passing them to this function.
  */
 export function resolveAndYield<T, M>(
-  entries: Array<ResolveYieldEntry<T, M>>
+  entries: Array<ResolveYieldEntry<T, M>>,
+  options?: ResolveYieldOptions,
 ): AsyncGenerator<ResolveYieldResult<T, M>, void, undefined>;
 
 export async function* resolveAndYield<T, M>(
-  items: Array<Promise<T | undefined> | ResolveYieldEntry<T, M>>
+  items: Array<Promise<T | undefined> | ResolveYieldEntry<T, M>>,
+  options: ResolveYieldOptions = {},
 ): AsyncGenerator<any, void, undefined> {
+  // Set default options
+  options.skipUndefined ??= true;
+
   // Detect form
   const isRaw = items.length > 0 && typeof (items[0] as any).then === 'function' && !(items[0] as any).meta;
 
@@ -298,7 +306,7 @@ export async function* resolveAndYield<T, M>(
     races.splice(idx, 1);
 
     // Only yield defined values
-    if (value !== undefined) {
+    if (value !== undefined || !options.skipUndefined) {
       if (isRaw) {
         yield value;
       } else {
@@ -308,71 +316,136 @@ export async function* resolveAndYield<T, M>(
   }
 }
 
+export interface ParallelMapOptions extends ResolveYieldOptions {
+}
 
 /**
- * Transforms an array of inputs in parallel using an asynchronous mapper,
- * yielding results as soon as they resolve and skipping any that return `undefined`.
+ * Processes items from a synchronous or asynchronous iterable in parallel,
+ * mapping each through a cancellable task, and yields results in the order
+ * they resolve. Skips any tasks whose promise resolves to `undefined`.
  *
- * @template I  Type of each input item.
- * @template O  Type of each output value.
+ * @template S  The source item type.
+ * @template T  The task result type.
  *
- * @param inputs
- *   Array of input items to be transformed.
+ * @param source
+ *   A synchronous `Iterable<S>` or `AsyncIterable<S>` of items to process.
  *
  * @param mapper
- *   An async function that takes an input item and its index, returning
- *   either an `O` or `undefined` (to filter out unwanted results).
+ *   A function that, given an item `S`, returns a `CancellableTask<T>`,
+ *   i.e. `{ promise: Promise<T|undefined>, cancel: () => void }`.
  *
  * @returns
- *   An `AsyncGenerator` that yields each mapped value of type `O` as soon as
- *   its promise resolves, in the order of resolution.
+ *   An `AsyncGenerator<T>` that yields each `T` as soon as its task’s promise
+ *   resolves, in resolution order. Tasks resolving to `undefined` are skipped.
  *
  * @example
  * ```ts
- * interface User { id: number }
- * interface Details { name: string; age: number }
+ * // Accept both sync and async sources:
+ * const source = [1,2,3]; // or: async function*(){ yield 1; yield 2; yield 3; }()
  *
- * async function fetchUserDetails(id: number): Promise<Details | undefined> {
- *   if (id % 2 === 0) {
- *     // pretend even‐ID users don’t exist
- *     return undefined;
+ * // A task that may “filter out” even numbers by resolving undefined:
+ * function taskify(n: number): CancellableTask<string> {
+ *   let cancelled = false
+ *   return {
+ *     promise: new Promise(res => {
+ *       setTimeout(() => {
+ *         if (!cancelled) res(n % 2 ? `odd${n}` : undefined)
+ *       }, 100 * n)
+ *     }),
+ *     cancel: () => { cancelled = true }
  *   }
- *   return { name: `User${id}`, age: 20 + id };
  * }
  *
- * const users: User[] = [
- *   { id: 1 }, { id: 2 }, { id: 3 }
- * ];
- *
- * for await (const details of parallelMap(users, (user) => fetchUserDetails(user.id))) {
- *   console.log(details);
+ * for await (const label of parallelMap(source, taskify)) {
+ *   console.log(label)
  * }
- * // Possible output:
- * // { name: 'User3', age: 23 }
- * // { name: 'User1', age: 21 }
- * // (skips id=2 because mapper returned undefined)
+ * // Logs “odd1”, then “odd3”, skipping 2.
  * ```
- *
- * @remarks
- * - Uses `resolveAndYield` under the hood; all input promises are kicked off immediately.
- * - If you need to preserve the original input order, collect results into an array
- *   and sort by index (you can pass index as metadata to `resolveAndYield`).
- * - Errors thrown by `mapper` will bubble; you can `.catch()` inside your mapper
- *   if you want to skip or handle failures.
  */
-export async function* parallelMap<I, O>(
-  inputs: I[],
-  mapper: (item: I, index: number) => Promise<O | undefined>
-): AsyncGenerator<O, void, undefined> {
-  // Attach each mapper call with its index as metadata
-  const entries = inputs.map((item, index) => ({
-    promise: mapper(item, index),
-    meta: index,
-  }));
+export async function* parallelMap<S, T>(
+  source: Iterable<S> | AsyncIterable<S>,
+  mapper: (item: S, index?: number) => CancellableTask<T>|Promise<T>,
+  options: ParallelMapOptions = {},
+): AsyncGenerator<T, void, undefined> {
+  // Set default options
+  options.skipUndefined ??= true;
 
-  // Use resolveAndYield to drive parallel resolution
-  for await (const { value } of resolveAndYield(entries)) {
-    yield value;
+  const pending: Array<CancellableTask<T>> = []
+  let done = false;
+  let notifyNew = new DeferredPromise();
+
+
+  // background producer: pull items, spawn tasks with index
+  (async () => {
+    let idx = 0
+    try {
+      for await (const item of source) {
+        // spawn task
+        let task: CancellableTask<T>|Promise<T> = mapper(item, idx++);
+        // upgrade task to CancellableTask if mapper returns legacy Promise
+        if (task instanceof Promise) task = new CancellableTask(task);
+        // store the pending task
+        pending.push(task);
+        // signal that a new task is now await-able
+        notifyNew.resolve();
+        notifyNew = new DeferredPromise();
+      }
+    } finally {
+      // Set the done flag to indicate the pending list will no longer change
+      done = true;
+      // Resolve notifyNew to interrupt the consumer loop
+      notifyNew.resolve();
+      // Reset notifyNew a final time. This way, the consumer loop can keep
+      // racing notifyNew with the payload promises as before.
+      notifyNew = new DeferredPromise();
+    }
+  })()
+
+  try {
+    // Fan‐in loop: keep going until source exhausted and no pending tasks
+    while (!done || pending.length > 0) {
+      // race the pending tasks, yield the first non-undefined result
+      // resolveAndYield tags each promise with its task object as metadata
+      const raceEntries: ResolveYieldEntry<T|void, CancellableTask<T>|string>[] = [
+        ...pending.map(task => ({
+          promise: task.promise, meta: task
+        })),
+        // notifyNew also needs to be races, as promises added later might well
+        // end up being the first to resolve
+        { promise: notifyNew.promise, meta: 'notifyNew' },
+      ];
+      for await (const { value, meta: task } of resolveAndYield(raceEntries, { skipUndefined: false })) {
+        // yield the resolved value
+        if (task as any !== 'notifyNew' && (value !== undefined || !options.skipUndefined)) {
+          yield value as T;
+        }
+
+        // cancel and remove that task
+        if (typeof (task as any)?.cancel === 'function') {
+          (task as CancellableTask<T>).cancel();
+        }
+        const idx = pending.indexOf(task as CancellableTask<T>);
+        // note: notifyNew promise is not a pending payload promise, and thus
+        //       has no index
+        if (idx >= 0) pending.splice(idx, 1);
+
+        // break to re-evaluate done/pending
+        break;
+      }
+    }
+  } finally {
+    // cleanup source iterator if it has a cancle() or return() function
+    if (typeof (source as any).cancel === 'function') {
+      await (source as any).cancel();
+    } else if (typeof (source as any).return === 'function') {
+      await (source as any).return();
+    }
+    // cancel any leftover tasks, if they are cancellable
+    for (const t of pending) {
+      if (typeof (t as any).cancel === 'function') {
+        (t as CancellableTask<T>).cancel();
+      }
+    }
   }
 }
 
