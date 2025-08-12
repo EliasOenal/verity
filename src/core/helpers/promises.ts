@@ -27,3 +27,13 @@ export class CancellableTask<T> extends DeferredPromise<T> {
   public cancel(): void {
     this.resolve(undefined);
 }}
+
+/**
+ * Type guard that recognizes a CancellableTask by a `.promise` with a `.then`.
+ *
+ * A "CancellableTask" is expected to look like:
+ *   { promise: Promise<T>, cancel?: () => void }
+ */
+export function isCancellableTask<T>(x: any): x is CancellableTask<T> {
+  return !!x && typeof x === 'object' && 'promise' in x && typeof x.promise?.then === 'function';
+}

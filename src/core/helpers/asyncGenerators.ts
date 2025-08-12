@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import { CancellableTask, DeferredPromise } from "./promises";
+import { CancellableTask, DeferredPromise, isCancellableTask } from "./promises";
 
 /**
  * A helper type for AsyncGenerators which are based on internally awaiting
@@ -364,91 +364,172 @@ export interface ParallelMapOptions extends ResolveYieldOptions {
  */
 export async function* parallelMap<S, T>(
   source: Iterable<S> | AsyncIterable<S>,
-  mapper: (item: S, index?: number) => CancellableTask<T>|Promise<T>,
+  mapper: (item: S, index?: number) => CancellableTask<T> | Promise<T>,
   options: ParallelMapOptions = {},
 ): AsyncGenerator<T, void, undefined> {
   // Set default options
   options.skipUndefined ??= true;
 
-  const pending: Array<CancellableTask<T>> = []
-  let done = false;
-  let notifyNew = new DeferredPromise();
+  /**
+   * We model three concurrent flows:
+   * 1) Producer: pulls from `source`, creates tasks, and immediately attaches
+   *    resolve/reject handlers that push events into an AsyncQueue.
+   * 2) Tasks: each task settles independently and pushes a "value" or "error"
+   *    event to the queue (value events carry the task result).
+   * 3) Consumer (this generator): reads the queue and yields values the instant
+   *    they arrive. This guarantees out-of-order, as-ready delivery.
+   */
 
+  type Event =
+    | { kind: 'value'; value: T | undefined; task: CancellableTask<T> }
+    | { kind: 'error'; error: unknown; task?: CancellableTask<T> };
 
-  // background producer: pull items, spawn tasks with index
+  const pending = new Set<CancellableTask<T>>();   // tracks still-running tasks
+  const queue = new AsyncQueue<Event>();           // fan-in of results/errors from all tasks
+  let producing = true;                            // flips to false when source has been drained
+
+  // Start the producer in the background
   (async () => {
-    let idx = 0
+    let idx = 0;
     try {
-      for await (const item of source) {
-        // spawn task
-        let task: CancellableTask<T>|Promise<T> = mapper(item, idx++);
-        // upgrade task to CancellableTask if mapper returns legacy Promise
-        if (task instanceof Promise) task = new CancellableTask(task);
-        // store the pending task
-        pending.push(task);
-        // signal that a new task is now await-able
-        notifyNew.resolve();
-        notifyNew = new DeferredPromise();
+      for await (const item of source as any) {
+        // Normalize the mapper output to a CancellableTask<T>
+        const maybe = mapper(item, idx++);
+        const task = isCancellableTask<T>(maybe)
+          ? maybe
+          : new CancellableTask<T>(Promise.resolve(maybe as PromiseLike<T>));
+
+        // Track the task so we can cancel/cleanup later if needed
+        pending.add(task);
+
+        /**
+         * "Touch" the promise to eagerly start the task if it's lazy.
+         * - If the task is already hot (work started at construction), this is a no-op.
+         * - If the task is lazy (e.g., promise is created via a getter or work
+         *   begins on first .then/await), this ensures work starts now rather than
+         *   waiting for the consumer to "race" or await it.
+         */
+        void task.promise;
+
+        // When the task resolves or rejects, push an event into the queue.
+        // This decouples task completion from the consumer loop, enabling
+        // immediate, out-of-order delivery.
+        task.promise.then(
+          (value) => queue.push({ kind: 'value', value, task }),
+          (error) => queue.push({ kind: 'error', error, task }),
+        ).finally(() => {
+          // Always remove from pending when the task settles
+          pending.delete(task);
+          // If no more production and no pending tasks remain, close the queue
+          if (!producing && pending.size === 0) queue.close();
+        });
       }
+    } catch (err) {
+      // Surface producer errors to the consumer ASAP through the queue
+      queue.push({ kind: 'error', error: err });
     } finally {
-      // Set the done flag to indicate the pending list will no longer change
-      done = true;
-      // Resolve notifyNew to interrupt the consumer loop
-      notifyNew.resolve();
-      // Reset notifyNew a final time. This way, the consumer loop can keep
-      // racing notifyNew with the payload promises as before.
-      notifyNew = new DeferredPromise();
+      // Signal that no further tasks will be added
+      producing = false;
+      // If all tasks are done, we can close the queue right away
+      if (pending.size === 0) queue.close();
     }
-  })()
+  })();
 
   try {
-    // Fan‐in loop: keep going until source exhausted and no pending tasks
-    while (!done || pending.length > 0) {
-      // race the pending tasks, yield the first non-undefined result
-      // resolveAndYield tags each promise with its task object as metadata
-      const raceEntries: ResolveYieldEntry<T|void, CancellableTask<T>|string>[] = [
-        ...pending.map(task => ({
-          promise: task.promise, meta: task
-        })),
-        // notifyNew also needs to be races, as promises added later might well
-        // end up being the first to resolve
-        { promise: notifyNew.promise, meta: 'notifyNew' },
-      ];
-      for await (const { value, meta: task } of resolveAndYield(raceEntries, { skipUndefined: false })) {
-        // yield the resolved value
-        if (task as any !== 'notifyNew' && (value !== undefined || !options.skipUndefined)) {
-          yield value as T;
-        }
+    // Drain events as they arrive; yield values immediately.
+    for await (const ev of queue) {
+      if (ev.kind === 'error') {
+        // On first error, surface it. You can choose a different policy if needed.
+        throw ev.error;
+      }
 
-        // cancel and remove that task
-        if (typeof (task as any)?.cancel === 'function') {
-          (task as CancellableTask<T>).cancel();
-        }
-        const idx = pending.indexOf(task as CancellableTask<T>);
-        // note: notifyNew promise is not a pending payload promise, and thus
-        //       has no index
-        if (idx >= 0) pending.splice(idx, 1);
-
-        // break to re-evaluate done/pending
-        break;
+      // Optionally filter out undefined results
+      const v = ev.value;
+      if (!(options.skipUndefined && v === undefined)) {
+        yield v as T;
       }
     }
   } finally {
-    // cleanup source iterator if it has a cancle() or return() function
+    // If the consumer stops early, try to stop the producer
     if (typeof (source as any).cancel === 'function') {
       await (source as any).cancel();
     } else if (typeof (source as any).return === 'function') {
       await (source as any).return();
     }
-    // cancel any leftover tasks, if they are cancellable
+
+    // Cancel any still-pending tasks, if they are cancellable
     for (const t of pending) {
-      if (typeof (t as any).cancel === 'function') {
-        (t as CancellableTask<T>).cancel();
-      }
+      if (typeof (t as any).cancel === 'function') t.cancel();
     }
   }
 }
 
+/**
+ * A minimal async FIFO queue for fan-in/fan-out between producers and a single
+ * async consumer (e.g., an async generator loop).
+ *
+ * Usage:
+ * - Producers call `push(item)` to enqueue an item. If a consumer is waiting,
+ *   the item is delivered immediately without buffering.
+ * - Call `close()` to signal no more items will arrive. Any awaiting consumer
+ *   receives {done: true}, and subsequent `push` calls are ignored.
+ * - The queue is an AsyncIterable; `for await (const x of queue)` consumes
+ *   items until the queue is closed and drained.
+ *
+ * Ordering and backpressure:
+ * - Items are yielded in the order they were pushed.
+ * - If the consumer is slower than producers, items buffer in memory.
+ *   Add your own concurrency limits upstream if you need bounded memory.
+ */
+class AsyncQueue<T> implements AsyncIterable<T> {
+  private items: T[] = [];                               // buffered items if consumer isn't ready
+  private waiters: ((r: IteratorResult<T>) => void)[] = []; // pending consumer resolvers
+  private closed = false;
+
+  /**
+   * Enqueue an item. If a consumer is already waiting, deliver immediately.
+   * If the queue has been closed, the item is dropped.
+   */
+  push(item: T) {
+    if (this.closed) return;
+    const waiter = this.waiters.shift();
+    if (waiter) {
+      waiter({ value: item, done: false });
+    } else {
+      this.items.push(item);
+    }
+  }
+
+  /**
+   * Close the queue. All current and future consumers will observe done: true.
+   * Idempotent: calling close multiple times is safe.
+   */
+  close() {
+    if (this.closed) return;
+    this.closed = true;
+    while (this.waiters.length) {
+      this.waiters.shift()!({ value: undefined as any, done: true });
+    }
+  }
+
+  /**
+   * AsyncIterator protocol: return the next item if available, otherwise
+   * suspend until an item is pushed or the queue is closed.
+   */
+  async next(): Promise<IteratorResult<T>> {
+    if (this.items.length) {
+      return { value: this.items.shift()!, done: false };
+    }
+    if (this.closed) {
+      return { value: undefined as any, done: true };
+    }
+    return new Promise<IteratorResult<T>>((resolve) => this.waiters.push(resolve));
+  }
+
+  [Symbol.asyncIterator](): AsyncIterator<T> {
+    return { next: this.next.bind(this) };
+  }
+}
 
 
 export interface EventsToGeneratorOptions<
