@@ -2,6 +2,7 @@ import EventEmitter from 'events';
 import { eventsToGenerator, mergeAsyncGenerators, parallelMap, resolveAndYield } from '../../../src/core/helpers/asyncGenerators';
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { CancellableTask } from '../../../src/core/helpers/promises';
 
 describe('mergeAsyncGenerators', () => {
   // Helper function to create an async generator from an array
@@ -777,7 +778,230 @@ describe('parallelMap', () => {
     // every input mapped to i*2
     expect(new Set(results)).toEqual(new Set(inputs.map(i => i * 2)));
   });
-})
+
+  it('yields results from later-started tasks as soon as they resolve (async source)', async () => {
+    async function* source() {
+      yield 1;
+      await new Promise(res => setTimeout(res, 50));
+      yield 2;
+      await new Promise(res => setTimeout(res, 30));
+      yield 3;
+    }
+
+    const mapper = (n: number) =>
+      new Promise<string>(resolve => {
+        const delay = n === 1 ? 100 : n === 2 ? 10 : 5;
+        setTimeout(() => resolve(`v${n}`), delay);
+      });
+
+    const results: string[] = [];
+    for await (const v of parallelMap(source(), mapper)) {
+      results.push(v);
+    }
+
+    expect(results).toEqual(['v2', 'v3', 'v1']);
+  });
+
+  it('does not block on a very slow input; yields others promptly', async () => {
+    const inputs = [1, 2, 3, 4];
+    const mapper = (n: number) =>
+      new Promise<string>(resolve => {
+        const delay = n === 2 ? 200 : 10;
+        setTimeout(() => resolve(`v${n}`), delay);
+      });
+
+    const results: string[] = [];
+    for await (const v of parallelMap(inputs, mapper)) {
+      results.push(v);
+    }
+
+    expect(results.length).toBe(4);
+    expect(results[0]).not.toBe('v2');
+    expect(new Set(results)).toEqual(new Set(['v1', 'v2', 'v3', 'v4']));
+  });
+
+  it('eagerly starts lazy tasks via promise access (without CancellableTask)', async () => {
+    const inputs = [1, 2, 3];
+    let startCount = 0;
+
+    function lazyTask(n: number) {
+      let inner: Promise<string> | undefined;
+
+      const task: { promise?: Promise<string> } = {};
+      Object.defineProperty(task, 'promise', {
+        get() {
+          if (!inner) {
+            startCount++;
+            inner = new Promise<string>(res => setTimeout(() => res(`v${n}`), 10));
+          }
+          return inner!;
+        },
+        configurable: true,
+      });
+
+      return task as CancellableTask<string>;
+    }
+
+    const results: string[] = [];
+    for await (const v of parallelMap(inputs, lazyTask)) {
+      results.push(v);
+    }
+
+    expect(startCount).toBe(3);
+    expect(results).toEqual(['v1', 'v2', 'v3']);
+  });
+
+  it('cancels pending tasks and the source when the consumer stops early', async () => {
+    const cancelSource = vi.fn(async () => {});
+    const source: any = {
+      [Symbol.asyncIterator]: async function* () {
+        yield 1;
+        await new Promise(res => setTimeout(res, 5));
+        yield 2;
+        await new Promise(res => setTimeout(res, 5));
+        yield 3;
+      },
+      cancel: cancelSource,
+    };
+
+    // Task 3 never resolves unless cancelled
+    const mapper = (n: number) => {
+      if (n !== 3) {
+        return new Promise<string>(res => setTimeout(() => res(`v${n}`), 10));
+      }
+      const t = new CancellableTask<string>();
+      // Never resolve/reject on its own; only cancel() will resolve undefined
+      return t;
+    };
+
+    const received: Array<string | undefined> = [];
+    let count = 0;
+    for await (const v of parallelMap(source, mapper, { skipUndefined: false })) {
+      received.push(v);
+      if (++count === 2) break;
+    }
+
+    // Early break should have attempted to cancel source
+    expect(cancelSource).toHaveBeenCalledTimes(1);
+
+    // We can't directly assert the specific CancellableTask.cancel() was called
+    // without capturing it, but we can at least assert we didn't hang and got 2 values.
+    expect(received.length).toBe(2);
+  });
+
+  it('bubbles async rejections from mapper after yielding prior results', async () => {
+    const inputs = [1, 2, 3];
+
+    const mapper = (n: number) =>
+      new Promise<number>((resolve, reject) => {
+        if (n === 2) setTimeout(() => reject(new Error('async mapper fail')), 5);
+        else setTimeout(() => resolve(n * 10), 5);
+      });
+
+    const results: number[] = [];
+    await expect(async () => {
+      for await (const v of parallelMap(inputs, mapper)) {
+        results.push(v);
+      }
+    }).rejects.toThrow('async mapper fail');
+
+    // Any results yielded before error are allowed; check subset membership inline
+    for (const v of results) {
+      expect([10, 30]).toContain(v);
+    }
+  });
+
+  it('handles a never-resolving task by allowing the consumer to stop; cancels it', async () => {
+    const inputs = [1, 2, 3];
+
+    const neverTask = new CancellableTask<string>(); // will never get resolve/reject called
+    const cancelSpy = vi.spyOn(neverTask, 'cancel');
+
+    const mapper = (n: number) => {
+      if (n === 2) return neverTask;
+      return new Promise<string>(res => setTimeout(() => res(`v${n}`), n === 1 ? 5 : 10));
+    };
+
+    const out: string[] = [];
+    const gen = parallelMap(inputs, mapper);
+    let i = 0;
+    for await (const v of gen) {
+      out.push(v);
+      if (++i === 2) break; // stop before the never-resolving task yields
+    }
+
+    expect(out.length).toBe(2);
+    expect(cancelSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts a mix of raw Promises and CancellableTasks and yields as they resolve', async () => {
+    const inputs = [1, 2, 3, 4];
+
+    const t4 = new CancellableTask<string>(new Promise(res => setTimeout(() => res('v4'), 15)));
+
+    const mapper = (n: number) => {
+      if (n === 4) return t4; // CancellableTask form
+      // Plain Promise form
+      return new Promise<string>(res => setTimeout(() => res(`v${n}`), n * 3));
+    };
+
+    const results: string[] = [];
+    for await (const v of parallelMap(inputs, mapper)) {
+      results.push(v);
+    }
+
+    expect(new Set(results)).toEqual(new Set(['v1', 'v2', 'v3', 'v4']));
+  });
+
+  it('propagates errors from an async source after yielding prior values', async () => {
+    const err = new Error('source boom');
+
+    const source = (async function* () {
+      yield 1;
+      await new Promise(res => setTimeout(res, 5));
+      yield 2;
+      await new Promise(res => setTimeout(res, 5));
+      throw err;
+    })();
+
+    const mapper: (n: number) => Promise<string> =
+      (n: number) => new Promise(res => setTimeout(() => res(`v${n}`), 1));
+
+    const seen: string[] = [];
+
+    await expect(async () => {
+      for await (const v of parallelMap(source, mapper)) {
+        seen.push(v);
+      }
+    }).rejects.toBe(err);
+
+    expect(seen).toEqual(['v1', 'v2']);
+  });
+
+  it('resolves undefined for a cancelled CancellableTask and respects skipUndefined', async () => {
+    const inputs = [1, 2, 3];
+
+    const t2 = new CancellableTask<string>(new Promise<string>(res => setTimeout(() => res('v2'), 30)));
+    // Cancel before it resolves
+    setTimeout(() => t2.cancel(), 5);
+
+    const mapper = (n: number) => {
+      if (n === 2) return t2;
+      return new Promise<string>(res => setTimeout(() => res(`v${n}`), n === 1 ? 10 : 15));
+    };
+
+    const kept: Array<string | undefined> = [];
+    for await (const v of parallelMap(inputs, mapper, { skipUndefined: false })) {
+      kept.push(v);
+    }
+
+    // Expect we observed explicit undefined for the cancelled task
+    expect(kept).toContain(undefined);
+    expect(new Set(kept.filter(x => x !== undefined) as string[]))
+      .toEqual(new Set(['v1', 'v3']));
+  });
+
+});
 
 
 describe('eventsToGenerator()', () => {
