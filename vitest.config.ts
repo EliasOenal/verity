@@ -1,13 +1,13 @@
 import { defineConfig } from 'vitest/config'
 import rawPlugin from 'vite-raw-plugin'
 
-// Uncomment and use if you need to suppress vitest output
-// import { DefaultReporter } from 'vitest/reporters';
-// class silent extends DefaultReporter {
-//   onFinished() {
-//     // Override this to suppress final output
-//   }
-// }
+import { DefaultReporter } from 'vitest/reporters';
+
+class silent extends DefaultReporter {
+  onFinished() {
+    // Override this to suppress final output
+  }
+}
 
 export default defineConfig({
   test: {
