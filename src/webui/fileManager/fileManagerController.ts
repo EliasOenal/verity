@@ -49,7 +49,7 @@ export class FileManagerController extends VerityController {
       const cubeKey = Buffer.from(key, 'hex') as CubeKey;
       const { content, fileName } = await FileApplication.retrieveFile(cubeKey, this.cubeRetriever);
 
-      const blob = new Blob([content], { type: 'application/octet-stream' });
+      const blob = new Blob([new Uint8Array(content)], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
 
       // Offer file for download
@@ -75,7 +75,7 @@ export class FileManagerController extends VerityController {
 
       let imageUrl: string | undefined;
       if (this.isImage(fileName)) {
-        const blob = new Blob([content], { type: this.getImageMimeType(fileName) });
+        const blob = new Blob([new Uint8Array(content)], { type: this.getImageMimeType(fileName) });
         imageUrl = URL.createObjectURL(blob);
       }
 
