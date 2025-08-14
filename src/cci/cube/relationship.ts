@@ -90,7 +90,7 @@ export class Relationship {
       type: RelationshipType,
       keys: Iterable<CubeKey | string>
   ): Generator<Relationship> {
-    for (let key of keys) {
+    for (const key of keys) {
       yield new Relationship(type, asCubeKey(key));
     }
   }

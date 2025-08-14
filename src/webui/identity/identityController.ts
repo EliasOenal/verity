@@ -143,11 +143,10 @@ export class IdentityController extends VerityController {
         this.veritumRetriever, username, password, this.options);
       identity.name = username;  // TODO separate username and display name
     }
-    // @ts-ignore Typescript does not know the PasswordCredential DOM API
     // TODO: This just doesn't work in Chrome.
     // And Firefox is smart enough to offer autocomplete without it anyway.
     if (globalThis.PasswordCredential) {
-    // @ts-ignore Typescript does not know the PasswordCredential DOM API
+    // @ts-expect-error Typescript does not know the PasswordCredential DOM API
       const passwordCredential = new PasswordCredential({
         // iconURL: "vera.svg",  -- need full URL
         id: username,
@@ -172,7 +171,7 @@ export class IdentityController extends VerityController {
 
     const recoveryPhrase: string =
       (form.querySelector(".verityLoginBip39Input") as HTMLInputElement).value;
-    let identity: Identity = await Identity.Load(this.node.veritumRetriever, {
+    const identity: Identity = await Identity.Load(this.node.veritumRetriever, {
       ...this.options,
       recoveryPhrase,
       // Block app for up to one second trying to fetch existing Identity.

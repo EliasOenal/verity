@@ -245,7 +245,7 @@ export class PostController extends VerityController {
     if (!text.length) return;  // don't make empty posts
     // clear the input
     textarea.value = '';
-    // @ts-ignore Typescript doesn't like us using custom window attributes
+    // @ts-expect-error Typescript doesn't like us using custom window attributes
     window.onTextareaInput(textarea);
     // First create the post, then update the identity, then add the cube.
     // This way the UI directly displays you as the author.
