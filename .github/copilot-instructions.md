@@ -92,6 +92,9 @@ npm run webpack
 Since both the TypeScript build and webpack build have issues, **validate changes by:**
 1. Running the support node and verifying it starts and displays the ASCII art logo
 2. Running the development server and checking it serves content on http://localhost:11984/
+   - **The web application loads despite build errors** - you can dismiss webpack error overlays
+   - Application shows the basic Verity UI structure
+   - Service worker registration succeeds
 3. Running the full test suite and ensuring no new test failures beyond the 7 existing libp2p failures
 4. Testing any cube operations, identity management, or networking features through the test suite
 
@@ -185,3 +188,31 @@ Since both the TypeScript build and webpack build have issues, **validate change
 - Should display ASCII art logo when starting successfully
 
 **Always prioritize working functionality (support node, most tests, development server) over broken functionality (TypeScript build, webpack build).**
+
+## Common Output Examples
+
+### Expected npm install output (successful):
+```
+npm install
+# Shows deprecation warnings, then:
+added 1060 packages, and audited 1061 packages in 8m
+found 0 vulnerabilities
+```
+
+### Expected npm run start output (successful):
+```
+npm run start -- -w 1984 -t
+# Shows ASCII art logo, then:
+[INFO]: Starting full node
+[TRACE]: WebSocketServer: stated on :::1984
+[DEBUG]: WebSocketServer: Server is listening on :::1984.
+[WARN]: Error occurred while announcing... (network warnings are normal)
+```
+
+### Expected npm run server output (works despite errors):
+```
+npm run server
+# Shows webpack compilation with 3 errors, then:
+webpack 5.101.2 compiled with 3 errors in 11126 ms
+# Server serves on http://localhost:11984/ - app loads and works
+```
