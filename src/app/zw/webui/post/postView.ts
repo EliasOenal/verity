@@ -73,7 +73,6 @@ export class PostView extends VerityView {
       replyfield.setAttribute("maxlength", ZwConfig.MAXIMUM_POST_LENGTH.toString());
       replyfield.setAttribute("id", `verityReplyInput-${data.main.getKeyStringIfAvailable()}`);
       replyfield.setAttribute("style", `height: ${replyfield.scrollHeight}px;`);  // for auto-resize
-      // @ts-ignore Typescript does not like us using custom window attributes
       const replybutton: HTMLButtonElement =
         li.getElementsByClassName("verityPostButton")[0] as HTMLButtonElement
       replybutton.setAttribute("id", `replybutton-${data.main.getKeyStringIfAvailable()}`);
