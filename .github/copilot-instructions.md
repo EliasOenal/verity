@@ -55,7 +55,7 @@ Verity is a decentralized and censorship-resistant data storage and distribution
 npm run start -- -w 1984 -t
 ```
 - Runs a full Verity network node on port 1984
-- Will show network connectivity warnings in sandboxed environments (normal)
+- May not have external connectivity in sandboxed environments (normal)
 - Use Ctrl+C to stop
 
 #### Web Application Development Server
@@ -90,7 +90,7 @@ npm run webpack
    - **The web application should load successfully**
    - Application shows the basic Verity UI structure
    - Service worker registration succeeds
-3. Running the full test suite and ensuring no new test failures beyond occasional flaky tests
+3. Running the full test suite and ensuring no new test failures beyond tests already marked as flaky
 4. Testing any cube operations, identity management, or networking features through the test suite
 
 ## Committing and merging
@@ -153,7 +153,7 @@ npm run webpack
 - **Some webpack compilation issues** may occur with specific TypeScript modules
 - **1900+ linting errors** - do not attempt to fix unless specifically requested
 - **Occasional flaky test failures** - these are expected and documented in test files
-- **Network connectivity warnings** in sandboxed environments (normal for support node)
+- **May not have external connectivity** in sandboxed environments (normal for support node)
 
 ### Dependencies
 - **Node.js 20+** required
@@ -180,7 +180,7 @@ npm run webpack
 
 ### If support node fails to start:
 - Ensure port 1984 is available
-- Network connectivity warnings are normal in sandboxed environments
+- May not have external connectivity in sandboxed environments (normal)
 - Should display ASCII art logo when starting successfully
 
 **Always prioritize working functionality (support node, tests, development server, build) over any remaining minor issues.**
