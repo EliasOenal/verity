@@ -20,9 +20,24 @@ alternative to traditional, centralized social networks.
 For more information, see the [technical documentation](doc/verity.md).
 
 ## Installing Dependencies ##
+
+**For fastest installation (recommended):**
 ```
-npm install
+npm ci --no-audit --no-fund
 ```
+
+**For first-time setup or after package.json changes:**
+```
+npm install --no-audit --no-fund
+```
+
+**Alternative using npm scripts:**
+```
+npm run install:fast    # Uses npm ci for speed
+npm run install:clean   # Clean install from scratch
+```
+
+> **Performance tip:** The project includes `.npmrc` optimizations and reduced dependencies for faster builds. See [BUILD_PERFORMANCE.md](BUILD_PERFORMANCE.md) for more details.
 
 ## Building the demo Microblogging Web App ##
 ```
