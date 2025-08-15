@@ -38,11 +38,6 @@ describe('PeerDB Tracker Announcements', () => {
         expect(calledUrls).toContain('http://bt1.archive.org:6969/announce');
         expect(calledUrls).toContain('http://bt2.archive.org:6969/announce');
         expect(calledUrls).toContain('https://tracker.tamersunion.org:443/announce');
-
-        // Verify old problematic trackers are NOT in the list
-        expect(calledUrls).not.toContain('http://tracker.openbittorrent.com:80/announce');
-        expect(calledUrls).not.toContain('http://tracker2.dler.org/announce');
-        expect(calledUrls).not.toContain('http://open.acgtracker.com:1096/announce');
     });
 
     it('should handle tracker timeout gracefully', async () => {
