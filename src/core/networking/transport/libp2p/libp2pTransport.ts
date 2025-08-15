@@ -59,7 +59,7 @@ export class Libp2pTransport extends NetworkTransport {
           `/ip4/0.0.0.0/udp/${listenSpec}/webrtc`,
           // `/ip6/::1/udp/${listenSpec}/webrtc`,
         ]);
-        
+
         // Add WebRTC-Direct listen addresses on Node.js for direct peer-to-peer connections
         if (isNode) {
           // Use port 0 to let the system assign an available port for WebRTC-Direct
@@ -75,7 +75,7 @@ export class Libp2pTransport extends NetworkTransport {
       }
     }
     if (!this.listen.includes("/webrtc")) this.listen.push("/webrtc");
-    
+
     // Always add generic WebRTC-Direct on Node.js for maximum connectivity
     if (isNode && !this.listen.includes("/webrtc-direct")) {
       this.listen.push("/webrtc-direct");
@@ -106,7 +106,7 @@ export class Libp2pTransport extends NetworkTransport {
         filter: filters.all,  // allow all kinds of connections for testing, effectively disabling sanitizing - maybe TODO remove this?
       }));
     }
-    
+
     // webRTC (standard WebRTC with circuit relay)
     transports.push(webRTC({
       rtcConfiguration: {
@@ -122,7 +122,7 @@ export class Libp2pTransport extends NetworkTransport {
         }]
       }
     }));
-    
+
     // webRTC-Direct (direct peer-to-peer connections without circuit relay)
     // Enable on Node.js for maximum connectivity including HTTPS nodes
     if (isNode) {
@@ -138,7 +138,7 @@ export class Libp2pTransport extends NetworkTransport {
         }
       }));
     }
-    
+
     // relaying - always add circuit relay transport as webRTC requires it in v2
     transports.push(circuitRelayTransport());
     // addressing (listen and possibly announce, which are basically public address override)
@@ -179,7 +179,7 @@ export class Libp2pTransport extends NetworkTransport {
     await this.server.start();
     if (this.options.useRelaying) {
       // Find the circuit relay transport in the services
-      // Note: In libp2p v2, services are accessed differently  
+      // Note: In libp2p v2, services are accessed differently
       try {
         // Try to access through services if it's exposed there
         this.circuitRelayTransport = (this.node as any)?.services?.relay;
@@ -226,14 +226,14 @@ export class Libp2pTransport extends NetworkTransport {
     }
     for (const multiaddr of this.node.getMultiaddrs()) {  // TODO rename multiaddr, it conflicts with the multiaddr() creation method (actually not strictly in conflict due to scoping but still confusing)
       const protos: string[] = multiaddr.protoNames();
-      
+
       // Check for WebRTC-Direct addresses (preferred for direct connections)
       if (protos.includes("p2p") && protos.includes("webrtc-direct")) {
         this.dialableAddress = new AddressAbstraction(multiaddr);
         this.emit("serverAddress", this.dialableAddress);
         return; // Prefer WebRTC-Direct over circuit relay
       }
-      
+
       // Fallback to circuit relay WebRTC addresses
       if (protos.includes("p2p") && protos.includes("p2p-circuit") &&
           protos.includes("webrtc")) {
