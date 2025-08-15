@@ -460,7 +460,20 @@ export class VeritumRetriever
         }
       }
       if (next === undefined) {
-        // There are no further CONTINUED_IN references.
+        // There are no further CONTINUED_IN references in the chunks we've received so far.
+        // However, we might still have chunks being retrieved that could contain additional
+        // CONTINUED_IN references. We should wait for all pending retrievals to complete
+        // before declaring the chain complete to avoid race conditions.
+        if (currentlyRetrieving.size > 0) {
+          // Wait for all pending retrievals and then re-check
+          Promise.all(Array.from(currentlyRetrieving)).then(() => {
+            // Re-run the check after all pending retrievals complete
+            resolveNextChunkPromiseIfPossible();
+          });
+          return;
+        }
+
+        // Now we can safely say there are no further CONTINUED_IN references.
         // Either we're done fetching the whole continuation chain,
         // or the chain is corrupt, or there's a serious bug here in the
         // fetching code. Anyway, we can't continue.
