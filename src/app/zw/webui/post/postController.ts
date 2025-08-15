@@ -128,7 +128,7 @@ export class PostController extends VerityController {
     if (previouslyShown) {
       // Handle edge case: We may just have learned the authorship information
       // of a post previously displayed as by an unknown author.
-      if (previouslyShown.author === undefined) {
+      if (previouslyShown.author === undefined && postInfo.author) {
         this.redisplayAuthor(postInfo.author.keyString);
       }
       return;
@@ -178,7 +178,7 @@ export class PostController extends VerityController {
     if (previouslyShown) {
       // Handle edge case: We may just have learned the authorship information
       // of a post previously displayed as by an unknown author.
-      if (previouslyShown.author === undefined) {
+      if (previouslyShown.author === undefined && postInfo.author) {
         this.redisplayAuthor(postInfo.author.keyString);
       }
       return;
