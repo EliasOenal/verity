@@ -107,6 +107,7 @@ export class Libp2pTransport extends NetworkTransport {
         }]
       }
     }));
+    
     // relaying - always add circuit relay transport as webRTC requires it in v2
     transports.push(circuitRelayTransport());
     // addressing (listen and possibly announce, which are basically public address override)
