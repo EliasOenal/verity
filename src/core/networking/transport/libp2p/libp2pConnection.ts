@@ -73,26 +73,9 @@ export class Libp2pConnection extends TransportConnection {
       this.close();
       return false;
     }
-    if (this.conn.transient) {
-      logger.trace(`${this.toString()}: Connection is transient. Waiting up to 10 seconds for it to upgrade.`);
-      // TODO HACKHACK: This is obviously the most ridiculous hack ever.
-      // Apparently, there once upon a time was a peer:update event you could
-      // listen to, but it doesn not seem to exist anymore.
-      // I don't understand libp2p.
-      for (let i = 0; i < 100; i++) {
-        if (!this.conn.transient) {
-            break;
-        }
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      if (this.conn.transient) {
-        logger.info(`${this.toString()}: Connection still transient after 10 seconds. Giving up, closing.`)
-        this.close();
-        return false;
-      }
-    }
-    if (this.conn.status === 'open' && this.conn.transient === false) return true;
-    else return false;
+    // In updated libp2p versions, we can rely on the status being 'open'
+    // for a fully established connection
+    return true;
   }
 
   async handleStreams() {
