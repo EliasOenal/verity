@@ -338,7 +338,7 @@ export class PeerDB extends EventEmitter<PeerDbEventMap> {
 
             try {
                 const res = await axios.get(trackerUrl + '?' + params, { 
-                    timeout: 8000, 
+                    timeout: 5000, 
                     responseType: 'arraybuffer',
                     headers: {
                         'User-Agent': 'Verity/0.1.0'
