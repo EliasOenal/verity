@@ -82,10 +82,25 @@ export class PeerDB extends EventEmitter<PeerDbEventMap> {
     private _peersBlocked: Map<string,Peer> = new Map();
     get peersBlocked(): Map<string,Peer> { return this._peersBlocked }
     private announceTimer?: NodeJS.Timeout;
-    private static trackerUrls: string[] = ['http://tracker.opentrackr.org:1337/announce',
-        'http://tracker.openbittorrent.com:80/announce',
-        'http://tracker2.dler.org/announce',
-        'http://open.acgtracker.com:1096/announce',];
+    private static trackerUrls: string[] = [
+        // OpenTracker - one of the most reliable public trackers
+        'https://tracker.opentrackr.org:443/announce',
+        'http://tracker.opentrackr.org:1337/announce',
+        
+        // Archive.org trackers - very stable institutional trackers
+        'http://bt1.archive.org:6969/announce', 
+        'http://bt2.archive.org:6969/announce',
+        
+        // Other reliable public trackers
+        'https://tracker.tamersunion.org:443/announce',
+        'http://tracker.torrent.eu.org:451/announce',
+        'https://tracker.gbitt.info:443/announce',
+        'http://retracker.lanta-net.ru:2710/announce',
+        
+        // Fallback options
+        'https://opentracker.i2p.rocks:443/announce',
+        'http://tracker.files.fm:6969/announce'
+    ];
     private static infoHash: string = '\x4d\x69\x6e\x69\x73\x74\x72\x79\x20\x6f\x66\x20\x54\x72\x75\x74\x68\x00\x00\x00';  // wtf is this? :D
 
     private ourPort: number;  // param always gets supplied by VerityNode
@@ -322,7 +337,13 @@ export class PeerDB extends EventEmitter<PeerDbEventMap> {
             logger.trace(`PeerDB: sending announce request to ${trackerUrl}?${params}`);
 
             try {
-                const res = await axios.get(trackerUrl + '?' + params, { timeout: 5000, responseType: 'arraybuffer' });
+                const res = await axios.get(trackerUrl + '?' + params, { 
+                    timeout: 5000, 
+                    responseType: 'arraybuffer',
+                    headers: {
+                        'User-Agent': 'Verity/0.1.0'
+                    }
+                });
                 const decoded = decode(res.data) as TrackerResponse;
                 logger.trace(`PeerDB: received announce response from ${trackerUrl}: ${JSON.stringify(decoded)}`);
 
