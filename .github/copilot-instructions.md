@@ -93,6 +93,10 @@ npm run webpack
 3. Running the full test suite and ensuring no new test failures beyond occasional flaky tests
 4. Testing any cube operations, identity management, or networking features through the test suite
 
+## Committing and merging
+- Commit message style: When appropriate, prefix your commit messages with the name of the changed component. This could be a class name (e.g. "CubeStore: ..."), a class and method name (e.g. "Cube.Create(): ...", or even the name of a collection of functions and the one you changed (e.g. "AsyncGenerator helper parallelMap(): ..."). When the changed component is part of a larger unit of components, e.g. the WebUI, prefix as appropriate, e.g. "WebUI IdentityController: Refactor initialiseIdentity()".
+- Commit squashing: Whenever appropriate, no more than a single commit should be merged into main per pull request. Squash your commits whenever feasible. Never merge temporary gargabe like "Initial plan" into main.
+
 ## Repository Structure and Key Locations
 
 ### Core Source Code (`/src/`)
