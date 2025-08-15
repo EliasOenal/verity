@@ -92,6 +92,7 @@ export class PeerDB extends EventEmitter<PeerDbEventMap> {
         'http://bt2.archive.org:6969/announce',
         
         // Other reliable public trackers
+        'http://tracker.openbittorrent.com/announce',
         'https://tracker.tamersunion.org:443/announce',
         'http://tracker.torrent.eu.org:451/announce',
         'https://tracker.gbitt.info:443/announce',
