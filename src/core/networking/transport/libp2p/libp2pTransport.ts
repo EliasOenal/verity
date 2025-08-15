@@ -1,5 +1,8 @@
 import type { NetworkManagerOptions } from '../../networkManagerIf';
 
+// Add Promise.withResolvers polyfill for Node.js 20 compatibility
+import 'promise.withresolvers/auto';
+
 import { Settings, VerityError } from "../../../settings";
 import { Libp2pServer } from "./libp2pServer";
 import { NetworkTransport } from "../networkTransport";
@@ -13,7 +16,7 @@ import { webSockets } from "@libp2p/websockets";
 import { createLibp2p } from "libp2p";
 import { circuitRelayTransport, circuitRelayServer } from "@libp2p/circuit-relay-v2";
 import { identify } from "@libp2p/identify";
-import { Libp2pNode } from "libp2p/libp2p";
+import type { Libp2p } from "@libp2p/interface";
 import * as filters from '@libp2p/websockets/filters'
 import { createServer } from 'https';
 import { readFileSync } from 'fs';
@@ -28,7 +31,7 @@ import { isNode } from "browser-or-node";
 // TODO: try to move more server/listener specific stuff into Libp2pServer
 export class Libp2pTransport extends NetworkTransport {
   private listen: string[] = [];
-  private _node: Libp2pNode;  // libp2p types are much to complicated for my humble brain
+  private _node: Libp2p;  // libp2p types are much to complicated for my humble brain
   public circuitRelayTransport: any = undefined;  // class CircuitRelayTransport not exported by lib
   get node() { return this._node }
 
@@ -104,10 +107,8 @@ export class Libp2pTransport extends NetworkTransport {
         }]
       }
     }));
-    // relaying
-    if (this.options.useRelaying) {
-      transports.push(circuitRelayTransport());
-    }
+    // relaying - always add circuit relay transport as webRTC requires it in v2
+    transports.push(circuitRelayTransport());
     // addressing (listen and possibly announce, which are basically public address override)
     const addresses = {
       listen: this.listen,
@@ -123,7 +124,7 @@ export class Libp2pTransport extends NetworkTransport {
     this._node = await createLibp2p({
       addresses: addresses,
       transports: transports,
-      connectionEncryption: [noise()],
+      connectionEncrypters: [noise()],
       streamMuxers: [yamux()],
       services: {
         identify: identify(),  // finds out stuff like our own observed address and protocols supported by remote node
@@ -141,14 +142,26 @@ export class Libp2pTransport extends NetworkTransport {
         filterMultiaddrForPeer: async() => true,
       },
       connectionManager: {
-        minConnections: 0,  // we manage creating new peer connections ourselves
       }
-    }) as unknown as Libp2pNode;  // it's actually the class the lib creates, believe me
+    }) as unknown as Libp2p;  // it's actually the class the lib creates, believe me
     await this.server.start();
     if (this.options.useRelaying) {
-      this.circuitRelayTransport = this.node.components.transportManager.
-        getTransports().find( (transport) => 'reservationStore' in transport);
-        // ugly... I'd do instanceof, but CircuitRelayTransport is not exported
+      // Find the circuit relay transport in the services
+      // Note: In libp2p v2, services are accessed differently  
+      try {
+        // Try to access through services if it's exposed there
+        this.circuitRelayTransport = (this.node as any)?.services?.relay;
+        if (!this.circuitRelayTransport) {
+          // Fallback: search through transports if services access doesn't work
+          const transports = (this.node as any)?.getTransports?.();
+          if (transports) {
+            this.circuitRelayTransport = Array.from(transports.values()).find(
+              (transport: any) => 'reservationStore' in transport);
+          }
+        }
+      } catch (error) {
+        logger.warn("Failed to find circuit relay transport: " + error);
+      }
     }
   }
 
