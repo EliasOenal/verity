@@ -9,7 +9,12 @@ export const commonConfig = {
     rules: [
       {
         test: /\.ts?$/,
-        use: 'ts-loader',
+        use: {
+          loader: 'ts-loader',
+          options: {
+            configFile: 'tsconfig.build.json'
+          },
+        },
         exclude: /node_modules/,
       },
       {
@@ -18,6 +23,7 @@ export const commonConfig = {
           loader: 'ts-loader',
           options: {
             allowTsInNodeModules: true, // Allow processing files in node_modules
+            configFile: 'tsconfig.build.json'
           },
         },
         include: /node_modules\/verity\/src/, // Only include files in node_modules/verity/src
@@ -59,6 +65,9 @@ export const commonConfig = {
     // fs: "fs",
   },
   plugins: [
+    new webpack.NormalModuleReplacementPlugin(/^node:(.*)$/, (resource) => {
+      resource.request = resource.request.replace(/^node:/, '');
+    }),
     new webpack.ProvidePlugin({
       // Make a global `process` variable that points to the `process` package,
       // because the `util` package expects there to be a global variable named `process`.
