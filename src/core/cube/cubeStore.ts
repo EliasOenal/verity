@@ -600,8 +600,8 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
     // We have CubeStore.NOTIFY_INDEX_PREFIX indices, we iterate the date/timestamp index in this method.
     const maxBuffer = Buffer.alloc(NetConstants.TIMESTAMP_SIZE + NetConstants.CUBE_KEY_SIZE, 0xff);
     const iteratorOptions: CubeIteratorOptions = {
-      gte: asNotificationKey(Buffer.concat([recipient])),
-      lte: asNotificationKey(Buffer.concat([recipient, maxBuffer])),
+      gte: recipient,
+      lte: Buffer.concat([recipient, maxBuffer]) as CubeKey,
     };
 
     const iterator = this.leveldb.getKeyRange(Sublevels.INDEX_TIME, iteratorOptions);
