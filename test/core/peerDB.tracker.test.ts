@@ -42,7 +42,7 @@ describe('PeerDB Tracker Announcements', () => {
 
     it('should handle tracker timeout gracefully', async () => {
         // Mock timeout error
-        mockedAxios.get.mockRejectedValue(new Error('timeout of 8000ms exceeded'));
+        mockedAxios.get.mockRejectedValue(new Error('timeout of 5000ms exceeded'));
 
         await peerDB.announce();
 
@@ -81,7 +81,7 @@ describe('PeerDB Tracker Announcements', () => {
 
         // Check axios configuration
         const axiosConfig = firstCall[1];
-        expect(axiosConfig.timeout).toBe(8000);
+        expect(axiosConfig.timeout).toBe(5000);
         expect(axiosConfig.responseType).toBe('arraybuffer');
         expect(axiosConfig.headers['User-Agent']).toBe('Verity/0.1.0');
     });
