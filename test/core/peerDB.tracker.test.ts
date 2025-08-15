@@ -28,13 +28,14 @@ describe('PeerDB Tracker Announcements', () => {
 
         await peerDB.announce();
 
-        // Verify that the new tracker URLs are being used
-        expect(mockedAxios.get).toHaveBeenCalledTimes(10); // Should have 10 new trackers
+        // Verify that the updated tracker URLs are being used
+        expect(mockedAxios.get).toHaveBeenCalledTimes(12); // Should have 12 trackers now
 
         const calledUrls = mockedAxios.get.mock.calls.map(call => call[0].split('?')[0]);
         
         // Verify new trackers are in the list
         expect(calledUrls).toContain('https://tracker.opentrackr.org:443/announce');
+        expect(calledUrls).toContain('http://tracker.openbittorrent.com:80/announce'); // User requested
         expect(calledUrls).toContain('http://bt1.archive.org:6969/announce');
         expect(calledUrls).toContain('http://bt2.archive.org:6969/announce');
         expect(calledUrls).toContain('https://tracker.tamersunion.org:443/announce');
@@ -81,7 +82,7 @@ describe('PeerDB Tracker Announcements', () => {
 
         // Check axios configuration
         const axiosConfig = firstCall[1];
-        expect(axiosConfig.timeout).toBe(5000);
+        expect(axiosConfig.timeout).toBe(8000); // Updated timeout
         expect(axiosConfig.responseType).toBe('arraybuffer');
         expect(axiosConfig.headers['User-Agent']).toBe('Verity/0.1.0');
     });
@@ -97,5 +98,33 @@ describe('PeerDB Tracker Announcements', () => {
 
         expect(mockedAxios.get).toHaveBeenCalledTimes(1);
         expect(mockedAxios.get.mock.calls[0][0]).toContain('test-tracker.example.com');
+    });
+
+    it('should retry failed requests up to 2 times', async () => {
+        const testTrackers = ['http://test-tracker-retry.example.com/announce'];
+        const mockResponse = {
+            data: Buffer.from('d8:intervali1800e5:peers0:e', 'ascii')
+        };
+        
+        // Fail first 2 attempts, succeed on 3rd
+        mockedAxios.get
+            .mockRejectedValueOnce(new Error('timeout'))
+            .mockRejectedValueOnce(new Error('connection failed'))
+            .mockResolvedValueOnce(mockResponse);
+
+        await peerDB.announce(testTrackers);
+
+        expect(mockedAxios.get).toHaveBeenCalledTimes(3); // 2 retries + 1 success
+    });
+
+    it('should fail after max retries exceeded', async () => {
+        const testTrackers = ['http://test-tracker-fail.example.com/announce'];
+        
+        // Fail all attempts
+        mockedAxios.get.mockRejectedValue(new Error('persistent failure'));
+
+        await peerDB.announce(testTrackers);
+
+        expect(mockedAxios.get).toHaveBeenCalledTimes(3); // 1 initial + 2 retries
     });
 });

@@ -87,17 +87,21 @@ export class PeerDB extends EventEmitter<PeerDbEventMap> {
         'https://tracker.opentrackr.org:443/announce',
         'http://tracker.opentrackr.org:1337/announce',
         
+        // User-requested reliable tracker - bring back
+        'http://tracker.openbittorrent.com:80/announce',
+        
         // Archive.org trackers - very stable institutional trackers
         'http://bt1.archive.org:6969/announce', 
         'http://bt2.archive.org:6969/announce',
         
-        // Other reliable public trackers
+        // Other well-known reliable public trackers
         'https://tracker.tamersunion.org:443/announce',
         'http://tracker.torrent.eu.org:451/announce',
         'https://tracker.gbitt.info:443/announce',
         'http://retracker.lanta-net.ru:2710/announce',
+        'http://open.tracker.cl:1337/announce',
         
-        // Fallback options
+        // Additional reliable fallbacks
         'https://opentracker.i2p.rocks:443/announce',
         'http://tracker.files.fm:6969/announce'
     ];
@@ -319,26 +323,23 @@ export class PeerDB extends EventEmitter<PeerDbEventMap> {
     }
 
     /**
-    * Send an announce request to multiple trackers concurrently.
-    */
-    async announce(testTrackers: string[] | undefined = undefined): Promise<void> {
-        logger.trace("PeerDB: announcing we're alive");
+     * Perform a single tracker announce request with retries
+     */
+    private async announceToTracker(trackerUrl: string): Promise<void> {
+        const params = new URLSearchParams({
+            info_hash: String(PeerDB.infoHash),
+            port: String(this.ourPort),
+        });
 
-        if (testTrackers !== undefined) {
-            PeerDB.trackerUrls = testTrackers;
-        }
+        const maxRetries = 2;
+        let lastError: any;
 
-        const tasks = PeerDB.trackerUrls.map(async (trackerUrl) => {
-            const params = new URLSearchParams({
-                info_hash: String(PeerDB.infoHash),
-                port: String(this.ourPort),
-            });
-
-            logger.trace(`PeerDB: sending announce request to ${trackerUrl}?${params}`);
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            logger.trace(`PeerDB: sending announce request to ${trackerUrl}?${params}${attempt > 0 ? ` (attempt ${attempt + 1})` : ''}`);
 
             try {
                 const res = await axios.get(trackerUrl + '?' + params, { 
-                    timeout: 5000, 
+                    timeout: 8000, // Increased from 5s to 8s for better reliability
                     responseType: 'arraybuffer',
                     headers: {
                         'User-Agent': 'Verity/0.1.0'
@@ -355,11 +356,34 @@ export class PeerDB extends EventEmitter<PeerDbEventMap> {
                 const peers: Peer[] = PeerDB.parsePeers(decoded.peers, decoded.peers6);
                 logger.debug(`PeerDB: Got ${peers.length} peers from trackers: ${peers.map(peer => `${peer.ip}:${peer.port}`).join(', ')}`);
                 for (const peer of peers) this.learnPeer(peer);  // add peers
+                return; // Success, exit retry loop
             } catch (err) {
-                logger.warn(`Error occurred while announcing to ${trackerUrl}: ${err}`);
-                throw err;  // Re-throw the error
+                lastError = err;
+                
+                if (attempt < maxRetries) {
+                    const delay = Math.min(1000 * Math.pow(2, attempt), 3000); // exponential backoff capped at 3s
+                    logger.debug(`PeerDB: tracker request failed, retrying in ${delay}ms: ${err}`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                } else {
+                    logger.warn(`Error occurred while announcing to ${trackerUrl} after ${maxRetries + 1} attempts: ${err}`);
+                    throw err;  // Re-throw the error after all retries exhausted
+                }
             }
-        });
+        }
+    }
+
+    /**
+    * Send an announce request to multiple trackers concurrently.
+    */
+    async announce(testTrackers: string[] | undefined = undefined): Promise<void> {
+        logger.trace("PeerDB: announcing we're alive");
+
+        if (testTrackers !== undefined) {
+            PeerDB.trackerUrls = testTrackers;
+        }
+
+        const tasks = PeerDB.trackerUrls.map(trackerUrl => this.announceToTracker(trackerUrl));
+        
         // Wait for all requests to finish
         const results = await Promise.allSettled(tasks);
 
