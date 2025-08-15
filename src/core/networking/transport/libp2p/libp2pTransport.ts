@@ -54,11 +54,20 @@ export class Libp2pTransport extends NetworkTransport {
     for (const listenSpec of listen_param) {
       if (!isNaN(listenSpec as number)) {  // if listen_param is a port number
         this.listen = this.listen.concat([
-          `/ip4/0.0.0.0/tcp/${listen_param}/ws`,  // for relay... or WebSocket via libp2p
-          // `/ip6/::1/tcp/${listen_param}/ws`,  // configuring IPv6 always throws "Listener not ready"... so no IPv6 I guess
-          `/ip4/0.0.0.0/udp/${listen_param}/webrtc`,
-          // `/ip6/::1/udp/${listen_param}/webrtc`,
+          `/ip4/0.0.0.0/tcp/${listenSpec}/ws`,  // for relay... or WebSocket via libp2p
+          // `/ip6/::1/tcp/${listenSpec}/ws`,  // configuring IPv6 always throws "Listener not ready"... so no IPv6 I guess
+          `/ip4/0.0.0.0/udp/${listenSpec}/webrtc`,
+          // `/ip6/::1/udp/${listenSpec}/webrtc`,
         ]);
+        
+        // Add WebRTC-Direct listen addresses on Node.js for direct peer-to-peer connections
+        if (isNode) {
+          // Use port 0 to let the system assign an available port for WebRTC-Direct
+          this.listen = this.listen.concat([
+            `/ip4/0.0.0.0/udp/0/webrtc-direct`,
+            // `/ip6/::1/udp/0/webrtc-direct`,  // IPv6 disabled for now
+          ]);
+        }
       } else if (typeof listenSpec === 'string' || listenSpec as any instanceof String) {
         this.listen.push(listenSpec as string);
       } else {
@@ -66,6 +75,11 @@ export class Libp2pTransport extends NetworkTransport {
       }
     }
     if (!this.listen.includes("/webrtc")) this.listen.push("/webrtc");
+    
+    // Always add generic WebRTC-Direct on Node.js for maximum connectivity
+    if (isNode && !this.listen.includes("/webrtc-direct")) {
+      this.listen.push("/webrtc-direct");
+    }
   }
 
   async start(): Promise<void> {
@@ -92,7 +106,8 @@ export class Libp2pTransport extends NetworkTransport {
         filter: filters.all,  // allow all kinds of connections for testing, effectively disabling sanitizing - maybe TODO remove this?
       }));
     }
-    // webRTC
+    
+    // webRTC (standard WebRTC with circuit relay)
     transports.push(webRTC({
       rtcConfiguration: {
         iceServers:[{
@@ -107,6 +122,22 @@ export class Libp2pTransport extends NetworkTransport {
         }]
       }
     }));
+    
+    // webRTC-Direct (direct peer-to-peer connections without circuit relay)
+    // Enable on Node.js for maximum connectivity including HTTPS nodes
+    if (isNode) {
+      transports.push(webRTCDirect({
+        rtcConfiguration: {
+          iceServers:[{
+            // STUN servers are still needed for NAT traversal in WebRTC-Direct
+            urls: [
+              'stun:stun.l.google.com:19302',
+              'stun:global.stun.twilio.com:3478'
+            ]
+          }]
+        }
+      }));
+    }
     
     // relaying - always add circuit relay transport as webRTC requires it in v2
     transports.push(circuitRelayTransport());
@@ -195,8 +226,17 @@ export class Libp2pTransport extends NetworkTransport {
     }
     for (const multiaddr of this.node.getMultiaddrs()) {  // TODO rename multiaddr, it conflicts with the multiaddr() creation method (actually not strictly in conflict due to scoping but still confusing)
       const protos: string[] = multiaddr.protoNames();
-       if (protos.includes("p2p") && protos.includes("p2p-circuit") &&
-           protos.includes("webrtc")) {
+      
+      // Check for WebRTC-Direct addresses (preferred for direct connections)
+      if (protos.includes("p2p") && protos.includes("webrtc-direct")) {
+        this.dialableAddress = new AddressAbstraction(multiaddr);
+        this.emit("serverAddress", this.dialableAddress);
+        return; // Prefer WebRTC-Direct over circuit relay
+      }
+      
+      // Fallback to circuit relay WebRTC addresses
+      if (protos.includes("p2p") && protos.includes("p2p-circuit") &&
+          protos.includes("webrtc")) {
         this.dialableAddress = new AddressAbstraction(multiaddr);
         this.emit("serverAddress", this.dialableAddress);
       }
