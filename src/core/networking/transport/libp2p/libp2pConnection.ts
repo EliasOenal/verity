@@ -6,8 +6,8 @@ import { TransportConnection } from "../transportConnection";
 import { AddressAbstraction } from "../../../peering/addressing";
 import { logger } from "../../../logger";
 
-import { Connection, Stream } from '@libp2p/interface/src/connection'
-import type { IncomingStreamData } from '@libp2p/interface/src/stream-handler'
+import { Connection, Stream } from '@libp2p/interface'
+import type { IncomingStreamData } from '@libp2p/interface'
 import { Multiaddr } from '@multiformats/multiaddr'
 
 import { Uint8ArrayList } from 'uint8arraylist'
@@ -46,7 +46,7 @@ export class Libp2pConnection extends TransportConnection {
       this.stream = lpStream(this.rawStream);
       if (this.ready()) this.emit("ready");
       else throw new NetworkError("Libp2p connection not open and I have no clue why");
-      logger.trace("Libp2pPeerConnection: Successfully connected to " + addr.toString() + ". My multiaddrs are " + this.transport.node.getMultiaddrs() + " and my peer ID is " + Buffer.from(this.transport.node.peerId.publicKey).toString('hex'));
+      logger.trace("Libp2pPeerConnection: Successfully connected to " + addr.toString() + ". My multiaddrs are " + this.transport.node.getMultiaddrs() + " and my peer ID is " + this.transport.node.peerId.toString());
       this.handleStreams();
     } catch (error) {
       // TODO FIXME: This currently happens when we try to dial a libp2p connection before

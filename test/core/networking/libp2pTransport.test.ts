@@ -8,22 +8,22 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 
 describe('libp2p transport', () => {
   it('should transmit messages between client to server', async () => {
-    // Manually create a WebSocket server
-    const transport = new Libp2pTransport('/ip4/0.0.0.0/tcp/11985/ws');
-    await transport.start();
-    const server = transport.server;
-    // NOTE: Must not manually create server object for libp2p.
-    // TODO: Make API more intuitive.
+    // Create two separate transports for server and client
+    const serverTransport = new Libp2pTransport('/ip4/0.0.0.0/tcp/11985/ws');
+    await serverTransport.start();
+    const server = serverTransport.server;
+
+    const clientTransport = new Libp2pTransport('/ip4/0.0.0.0/tcp/11986/ws');
+    await clientTransport.start();
 
     // expect a server-side connection to be spawned by the server upon connection
     let serverConn: Libp2pConnection;
     server.on("incomingConnection", (conn: Libp2pConnection) => {
       serverConn = conn;
     });
-    const listeners = server.listeners;
 
-    // create connection
-    const clientConn = new Libp2pConnection(multiaddr('/ip4/127.0.0.1/tcp/11985/ws'), transport);
+    // create connection from client to server
+    const clientConn = new Libp2pConnection(multiaddr('/ip4/127.0.0.1/tcp/11985/ws'), clientTransport);
     await clientConn.readyPromise;
     await new Promise((resolve) => setTimeout(resolve, 1000));
     expect(serverConn!).toBeInstanceOf(Libp2pConnection);
@@ -48,7 +48,7 @@ describe('libp2p transport', () => {
     expect(clientReceivedMessages).toHaveLength(0); // Server did not send message yet
     expect(serverReceivedMessages[0].toString()).toEqual("Salve serve, cliens tuus sum.");
 
-    // Send a message from client to server
+    // Send a message from server to client
     serverConn!.send(Buffer.from("Salve cliens, ad tuum servitium."));
 
     // Wait for the message to arrive
@@ -61,8 +61,9 @@ describe('libp2p transport', () => {
     // Clean up
     await clientConn.close();
     await serverConn!.close();
-    await transport.shutdown();
-  }, 5000);
+    await serverTransport.shutdown();
+    await clientTransport.shutdown();
+  }, 10000);
 
 
   it.todo('automatically creates server objects as per supplied spec');
