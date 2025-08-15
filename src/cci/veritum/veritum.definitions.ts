@@ -4,7 +4,7 @@ import type { cciCube } from "../cube/cciCube";
 import type { CciDecryptionParams, CciEncryptionParams } from "./encryption.definitions";
 import type { VerityField } from "../cube/verityField";
 
-import type { DoublyLinkedListNode } from "data-structure-typed";
+import type { DoublyLinkedListNode } from "./doublyLinkedList";
 
 import { FieldType } from "../cube/cciCube.definitions";
 

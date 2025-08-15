@@ -14,7 +14,7 @@ import { Veritable } from "../../core/cube/veritable.definition";
 import { Veritum } from "./veritum";
 
 import { Buffer } from 'buffer'
-import { DoublyLinkedList } from 'data-structure-typed';
+import { DoublyLinkedList } from './doublyLinkedList';
 import { logger } from "../../core/logger";
 import { SplitOptions, ContinuationDefaultExclusions, SplitState, RecombineOptions } from "./veritum.definitions";
 
