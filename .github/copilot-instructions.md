@@ -29,7 +29,7 @@ Verity is a decentralized and censorship-resistant data storage and distribution
    ```
    - **NEVER CANCEL: Takes 3+ minutes to complete.** Set timeout to 10+ minutes.
    - Runs all 78 test files with 900+ tests using vitest
-   - Should pass with only occasional flaky test failures
+   - Should pass consistently
 
 4. **Run Subset of Tests (CI Command):**
    ```bash
@@ -79,7 +79,7 @@ npm run webpack
 
 ### Always Run These Validation Steps After Changes
 1. **Build Check:** `npm run build` - should complete successfully
-2. **Test Suite:** `npm test` - should pass with only occasional flaky test failures  
+2. **Test Suite:** `npm test` - should pass consistently
 3. **Support Node:** `npm run start -- -w 1984 -t` - must start successfully and show ASCII art
 4. **Development Server:** `npm run server` - should serve content successfully
 
@@ -90,12 +90,12 @@ npm run webpack
    - **The web application should load successfully**
    - Application shows the basic Verity UI structure
    - Service worker registration succeeds
-3. Running the full test suite and ensuring no new test failures beyond tests already marked as flaky
+3. Running the full test suite and ensuring no new test failures
 4. Testing any cube operations, identity management, or networking features through the test suite
 
 ## Committing and merging
 - Commit message style: When appropriate, prefix your commit messages with the name of the changed component. This could be a class name (e.g. "CubeStore: ..."), a class and method name (e.g. "Cube.Create(): ...", or even the name of a collection of functions and the one you changed (e.g. "AsyncGenerator helper parallelMap(): ..."). When the changed component is part of a larger unit of components, e.g. the WebUI, prefix as appropriate, e.g. "WebUI IdentityController: Refactor initialiseIdentity()".
-- Commit squashing: Whenever appropriate, no more than a single commit should be merged into main per pull request. Squash your commits whenever feasible. Never merge temporary gargabe like "Initial plan" into main.
+- Commit squashing: Unless semantically meaningful, no more than a single commit should be merged into main per pull request. You can and should squash your commits once your work is otherwise complete. Do not merge non-descript commits like "Initial plan" into main.
 
 ## Repository Structure and Key Locations
 
@@ -144,7 +144,7 @@ npm run webpack
 ### Timing Expectations
 - **npm install:** 8+ minutes - **NEVER CANCEL**
 - **npm run build:** ~7 seconds (should complete successfully)
-- **npm test:** 3+ minutes (should pass with only occasional flaky failures) - **NEVER CANCEL**  
+- **npm test:** 3+ minutes (should pass consistently) - **NEVER CANCEL**
 - **npm run lint:** ~8 seconds (1900+ errors but exits successfully)
 - **npm run server:** ~11 seconds to start (should serve successfully)
 - **npm run webpack:** ~9 seconds (may have some compilation issues with specific modules)
@@ -152,8 +152,7 @@ npm run webpack
 ### Known Issues
 - **Some webpack compilation issues** may occur with specific TypeScript modules
 - **1900+ linting errors** - do not attempt to fix unless specifically requested
-- **Occasional flaky test failures** - these are expected and documented in test files
-- **May not have external connectivity** in sandboxed environments (normal for support node)
+- **Network connectivity warnings** in sandboxed environments (normal for support node)
 
 ### Dependencies
 - **Node.js 20+** required
@@ -168,11 +167,6 @@ npm run webpack
 - Ensure all imports are correctly resolved
 - The support node and tests should still work for most functionality
 
-### If tests fail with occasional flaky failures:
-- This is expected for some tests that have timing dependencies
-- Look for "TODO FIXME" comments in failing tests
-- Core functionality tests for cubes and identity should work consistently
-
 ### If webpack build shows TypeScript errors:
 - The development server may still work despite compilation errors
 - Use `npm run server` for development instead of building directly
@@ -184,6 +178,13 @@ npm run webpack
 - Should display ASCII art logo when starting successfully
 
 **Always prioritize working functionality (support node, tests, development server, build) over any remaining minor issues.**
+
+## Environment and Tools
+
+### Bash Tool
+- Your bash tool has a limited execution time of 600 seconds (10 minutes).
+- After the timeout, it detaches to background. Use `read_bash` to re-attach and continue working, or `stop_bash` to abort.
+- After 'stop_bash', processes may be left in background, blocking network ports.
 
 ## Common Output Examples
 
