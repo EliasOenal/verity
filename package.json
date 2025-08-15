@@ -95,5 +95,9 @@
     "crypto": false,
     "cmd-ts": false,
     "https": false
+  },
+  "overrides": {
+    "rimraf": "^6.0.1",
+    "glob": "^11.0.3"
   }
 }
