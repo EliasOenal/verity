@@ -10,16 +10,10 @@ import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeType, NotificationKey, CubeFieldType } from '../../../src/core/cube/cube.definitions';
 import { testCoreOptions } from '../testcore.definition';
 import { Buffer } from 'buffer';
-import { isNode } from 'browser-or-node';
 import { Libp2pTransport } from '../../../src/core/networking/transport/libp2p/libp2pTransport';
 
 describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
   it('should configure WebRTC-Direct transport and verify multiaddrs', async () => {
-    if (!isNode) {
-      console.log('Skipping WebRTC-Direct test in browser environment');
-      return;
-    }
-    
     // Create node configured with libp2p transport
     // WebRTC-Direct is enabled by default on Node.js in Verity's libp2p configuration
     const node: CoreNode = new CoreNode({
@@ -57,15 +51,6 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
   }, 8000);
 
   it('should establish WebRTC-Direct connection and transmit cubes between Verity nodes', async () => {
-    if (!isNode) {
-      console.log('Skipping WebRTC-Direct connection test in browser environment');
-      return;
-    }
-
-    // Skip this test in CI/sandboxed environments where WebRTC-Direct connections typically fail
-    // due to network restrictions, but still verify that WebRTC-Direct is properly configured
-    const isCIEnvironment = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
-    
     // Create listener node with WebRTC-Direct enabled (default on Node.js)
     const listener: CoreNode = new CoreNode({
       ...testCoreOptions,
@@ -90,13 +75,7 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
     expect(webrtcDirectAddr!.toString()).toContain('/webrtc-direct/');
     console.log('Using WebRTC-Direct address for connection:', webrtcDirectAddr!.toString());
 
-    if (isCIEnvironment) {
-      console.log('Skipping actual connection test in CI environment - WebRTC-Direct configuration verified');
-      await listener.shutdown();
-      return;
-    }
-
-    // Create dialer node and attempt actual connection (only in non-CI environments)
+    // Create dialer node and attempt actual connection
     const dialer: CoreNode = new CoreNode({
       ...testCoreOptions,
       lightNode: true,
@@ -147,11 +126,6 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
   }, 12000);
 
   it('should create WebRTC-Direct-capable nodes for notification delivery', async () => {
-    if (!isNode) {
-      console.log('Skipping WebRTC-Direct notification capability test in browser environment');
-      return;
-    }
-    
     // Create sender node with WebRTC-Direct enabled (default on Node.js)
     const sender: CoreNode = new CoreNode({
       ...testCoreOptions,
