@@ -29,7 +29,7 @@ describe('PeerDB Tracker Announcements', () => {
         await peerDB.announce();
 
         // Verify that the new tracker URLs are being used
-        expect(mockedAxios.get).toHaveBeenCalledTimes(10); // Should have 10 new trackers
+        expect(mockedAxios.get).toHaveBeenCalledTimes(11); // Should have 11 new trackers
 
         const calledUrls = mockedAxios.get.mock.calls.map(call => call[0].split('?')[0]);
         
