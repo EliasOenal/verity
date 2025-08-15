@@ -107,7 +107,11 @@ export class Libp2pTransport extends NetworkTransport {
         }]
       }
     }));
-    // relaying - always add circuit relay transport as webRTC requires it in v2
+    
+    // CRITICAL: always add circuit relay transport as webRTC requires it in v2
+    // Without this, libp2p will throw:
+    // "Service '@libp2p/webrtc' required capability '@libp2p/circuit-relay-v2-transport' but it was not provided"
+    // This was the source of issue #811 - libp2p errors on startup
     transports.push(circuitRelayTransport());
     // addressing (listen and possibly announce, which are basically public address override)
     const addresses = {
