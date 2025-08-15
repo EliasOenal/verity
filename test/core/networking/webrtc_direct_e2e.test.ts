@@ -11,6 +11,7 @@ import { CubeType, NotificationKey, CubeFieldType } from '../../../src/core/cube
 import { testCoreOptions } from '../testcore.definition';
 import { Buffer } from 'buffer';
 import { Libp2pTransport } from '../../../src/core/networking/transport/libp2p/libp2pTransport';
+import type { NetworkPeerIf } from '../../../src/core/networking/networkPeerIf';
 
 describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
   it('should configure WebRTC-Direct transport and verify multiaddrs', async () => {
@@ -75,6 +76,14 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
     expect(webrtcDirectAddr!.toString()).toContain('/webrtc-direct/');
     console.log('Using WebRTC-Direct address for connection:', webrtcDirectAddr!.toString());
 
+    // Set up promise to capture incoming peer on listener side
+    let listenerToDialer: NetworkPeerIf;
+    const listenerIncomingPeerPromise = new Promise<void>(
+      (resolve) => listener.networkManager.once('incomingPeer', (np: NetworkPeerIf) => {
+        listenerToDialer = np;
+        resolve();
+      }));
+
     // Create dialer node and attempt actual connection
     const dialer: CoreNode = new CoreNode({
       ...testCoreOptions,
@@ -88,13 +97,25 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
 
     await dialer.readyPromise;
 
-    // Attempt to establish connection
+    // Wait for connection to establish and HELLO messages to be exchanged
     await Promise.race([
       dialer.onlinePromise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Connection timeout')), 5000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Dialer connection timeout')), 8000))
     ]);
     
-    // Verify connection was established
+    // Wait for incoming peer to be registered on listener side
+    await Promise.race([
+      listenerIncomingPeerPromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Listener incoming peer timeout')), 5000))
+    ]);
+    
+    // Wait for listener side to complete HELLO exchange
+    await Promise.race([
+      listenerToDialer!.onlinePromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Listener peer online timeout')), 5000))
+    ]);
+    
+    // Verify connection was established on both sides
     expect(dialer.networkManager.onlinePeers.length).toBeGreaterThan(0);
     expect(listener.networkManager.onlinePeers.length).toBeGreaterThan(0);
     console.log('WebRTC-Direct connection established successfully');
@@ -102,7 +123,7 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
     // Test cube transmission over WebRTC-Direct
     const testCube = Cube.Frozen({
       fields: [
-        CubeField.RawContent(CubeFieldType.FROZEN_RAWCONTENT, "WebRTC-Direct e2e test message"),
+        CubeField.RawContent(CubeType.FROZEN, "WebRTC-Direct e2e test message"),
       ],
       requiredDifficulty: 0,
     });
