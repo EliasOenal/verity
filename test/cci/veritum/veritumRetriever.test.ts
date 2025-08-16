@@ -1463,8 +1463,9 @@ describe('VeritumRetriever', () => {
         });
 
         it.todo('retrieves the first Chunk of a two-Cube notification Veritum');
-      });
+      });  // notifications already in store
 
+      describe.todo('notifications retrieved over the wire');
     });
   });  // getNotifications()
 
@@ -1472,7 +1473,7 @@ describe('VeritumRetriever', () => {
     describe('retrieval as Veritum', () => {
       it('can subscribe to notifications in Veritum format', async () => {
         const recipientKey: NotificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0xA2) as NotificationKey;
-        
+
         // Create a test notification
         const notification: Veritum = new Veritum({
           cubeType: CubeType.PIC_NOTIFY,
@@ -1487,7 +1488,7 @@ describe('VeritumRetriever', () => {
 
         // Start subscription
         const subscriptionGen = retriever.subscribeNotifications(recipientKey);
-        
+
         // Simulate adding the notification after subscription starts
         setTimeout(async () => {
           await cubeStore.addCube(notification.chunks[0]);
@@ -1503,7 +1504,7 @@ describe('VeritumRetriever', () => {
         expect(result.done).toBe(false);
         expect(result.value).toBeDefined();
         expect(result.value instanceof Veritum).toBe(true);
-        
+
         // Clean up
         subscriptionGen.cancel();
       });
@@ -1512,7 +1513,7 @@ describe('VeritumRetriever', () => {
     describe('retrieval as Cube', () => {
       it('can subscribe to notifications in Cube format', async () => {
         const recipientKey: NotificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0xA3) as NotificationKey;
-        
+
         // Create a test notification
         const notification = cciCube.Create({
           cubeType: CubeType.PIC_NOTIFY,
@@ -1526,7 +1527,7 @@ describe('VeritumRetriever', () => {
 
         // Start subscription with Cube format
         const subscriptionGen = retriever.subscribeNotifications(recipientKey, { format: RetrievalFormat.Cube });
-        
+
         // Simulate adding the notification after subscription starts
         setTimeout(async () => {
           await cubeStore.addCube(notification);
@@ -1542,7 +1543,7 @@ describe('VeritumRetriever', () => {
         expect(result.done).toBe(false);
         expect(result.value).toBeDefined();
         expect(result.value instanceof cciCube).toBe(true);
-        
+
         // Clean up
         subscriptionGen.cancel();
       });

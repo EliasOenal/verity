@@ -20,6 +20,7 @@ export interface NotifyingIdentitiesOptions {
   subscribe?: boolean;
 }
 
+// TODO: make cancellable, in particular in subscribe mode
 export async function *notifyingIdentities(
     cubeStoreOrRetriever: CubeRetrievalInterface<any>,
     notificationKey: NotificationKey,
@@ -30,6 +31,11 @@ export async function *notifyingIdentities(
   let idRoots: MergedAsyncGenerator<Cube>;
   const existingIdRoots: AsyncGenerator<Cube> =
     cubeStoreOrRetriever.getNotifications(notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
+
+  // HACKHACK: Check if there's a subscribeNotifications() method.
+  //   This is a "temporary" hack to work around the fact that CubeRetrievalInterface
+  //   does not yet mandate the presence of a subscribeNotifications() method;
+  //   and notably CubeStore does not implement it.
   if (options.subscribe && 'subscribeNotifications' in cubeStoreOrRetriever) {
     const futureIdRoots: AsyncGenerator<Cube> =
       (cubeStoreOrRetriever as any).subscribeNotifications(notificationKey, { format: RetrievalFormat.Cube });

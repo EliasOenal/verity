@@ -22,6 +22,9 @@ import { MetadataEnhancedRetrieval, resolveRels, ResolveRelsOptions, resolveRels
 
 export interface VeritumRetrievalInterface<OptionsType = CubeRequestOptions> extends CubeRetrievalInterface<OptionsType> {
   getVeritum(key: CubeKey|string, options?: OptionsType): Promise<Veritum>;
+
+  // HACKHACK: subscribeNotifications() should actually be mandated by
+  //   CubeRetrievalInterface, but CubeStore does not yet implement it
   subscribeNotifications(keyInput: NotificationKey | string, options?: GetNotificationsOptions): CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>>;
 }
 
@@ -455,12 +458,12 @@ export class VeritumRetriever
   // Create an empty cancellable generator for when subscriptions aren't supported
   private createEmptySubscriptionGenerator(): CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
     const generator = this.createEmptySubscriptionGeneratorInternal();
-    
+
     // Add cancel method to make it properly cancellable
     (generator as any).cancel = () => {
       // Nothing to cancel for an empty generator
     };
-    
+
     return generator as CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>>;
   }
 
@@ -475,12 +478,12 @@ export class VeritumRetriever
     options: GetNotificationsOptions,
   ): CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
     const generator = this.createVeritumSubscriptionGeneratorInternal(cubeNotifications, options);
-    
+
     // Add cancel method to make it properly cancellable
     (generator as any).cancel = () => {
       cubeNotifications.cancel();
     };
-    
+
     return generator as CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>>;
   }
 
@@ -494,7 +497,7 @@ export class VeritumRetriever
           // Convert the root chunk to a full Veritum
           const key = await rootChunk.getKey();
           const result = await this.getVeritum(key, options as any);
-          
+
           // The result is already enhanced if metadata was requested
           yield result as Veritable|MetadataEnhancedRetrieval<Veritable>;
         } catch (error) {
