@@ -13,11 +13,9 @@ import { DummyNetworkManager } from "./networking/testingDummies/dummyNetworkMan
 // Default initial peers to use if none are supplied as command line options:
 export const defaultInitialPeers: AddressAbstraction[] = [
   new AddressAbstraction("verity.hahn.mt:1984"),
+  new AddressAbstraction("verity0.open-bash.org:1984"),
+  new AddressAbstraction("verity1.open-bash.org:1984"),
   new AddressAbstraction("/dns4/verity.hahn.mt/tcp/1985/wss"),
-  // new AddressAbstraction("verity.hahn.mt:1985"),
-  // new AddressAbstraction("verity.hahn.mt:1986"),
-  // new AddressAbstraction("132.145.174.233:1984"),
-  // new AddressAbstraction("158.101.100.95:1984"),
 ];
 
 export interface CoreNodeOptions extends NetworkManagerOptions, CubeStoreOptions {
