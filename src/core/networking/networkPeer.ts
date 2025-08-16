@@ -809,6 +809,12 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     toLongString() {
         let ret: string = "";
         ret += "NetworkPeer ID#" + this.idString + " connected through " + this.conn?.toString();
+        
+        // Add node type information
+        const nodeTypeStr = this.remoteNodeType === NodeType.Full ? 'Full' : 
+                           this.remoteNodeType === NodeType.Light ? 'Light' : 'Unknown';
+        ret += `, node type: ${nodeTypeStr}`;
+        
         if (this.addresses.length) {
             ret += ", addresses:\n";
             for (let i=0; i<this.addresses.length; i++) {
