@@ -1,16 +1,18 @@
 import { VerityView } from "../verityView";
-import { ChatController } from "./chatController";
+import { ChatController, ChatRoom } from "./chatController";
 
 export class ChatView extends VerityView {
     declare readonly controller: ChatController;
     private chatContainer: HTMLElement;
+    private roomTabs: HTMLElement;
     private messageList: HTMLElement;
-    private notificationKeyInput: HTMLInputElement;
-    private notificationKeySetButton: HTMLButtonElement;
     private usernameInput: HTMLInputElement;
     private usernameSetButton: HTMLButtonElement;
+    private roomNameInput: HTMLInputElement;
+    private joinRoomButton: HTMLButtonElement;
     private messageInput: HTMLInputElement;
     private sendButton: HTMLButtonElement;
+    private activeRoomName: HTMLElement;
 
     constructor(controller: ChatController, htmlTemplate: HTMLTemplateElement = document.getElementById(
         "verityChatAppTemplate") as HTMLTemplateElement,) {
@@ -28,29 +30,29 @@ export class ChatView extends VerityView {
         const content = template.content.cloneNode(true) as HTMLElement;
         this.chatContainer = content.querySelector('.verityChatApp') as HTMLElement;
         
+        this.roomTabs = this.chatContainer.querySelector('.verityChatRoomTabs') as HTMLElement;
         this.messageList = this.chatContainer.querySelector('.verityChatMessages') as HTMLElement;
-        this.notificationKeyInput = this.chatContainer.querySelector('.verityNotificationKeyInput') as HTMLInputElement;
-        this.notificationKeySetButton = this.chatContainer.querySelector('.verityNotificationKeySet') as HTMLButtonElement;
         this.usernameInput = this.chatContainer.querySelector('.verityUsernameInput') as HTMLInputElement;
         this.usernameSetButton = this.chatContainer.querySelector('.verityUsernameSet') as HTMLButtonElement;
+        this.roomNameInput = this.chatContainer.querySelector('.verityRoomNameInput') as HTMLInputElement;
+        this.joinRoomButton = this.chatContainer.querySelector('.verityJoinRoom') as HTMLButtonElement;
         this.messageInput = this.chatContainer.querySelector('.verityMessageInput') as HTMLInputElement;
         this.sendButton = this.chatContainer.querySelector('button[type="submit"]') as HTMLButtonElement;
+        this.activeRoomName = this.chatContainer.querySelector('.verityActiveRoomName') as HTMLElement;
 
         // Set default username to "Anonymous"
         this.usernameInput.value = "Anonymous";
 
-        const setNotificationKey = () => this.controller.setNotificationKey(this.notificationKeyInput.value);
         const setUsername = () => this.controller.setUsername(this.usernameInput.value || "Anonymous");
-
-        this.notificationKeySetButton.addEventListener('click', setNotificationKey);
-        this.usernameSetButton.addEventListener('click', setUsername);
-
-        this.notificationKeyInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                setNotificationKey();
+        const joinRoom = () => {
+            if (this.roomNameInput.value.trim()) {
+                this.controller.joinRoom(this.roomNameInput.value.trim());
+                this.roomNameInput.value = '';
             }
-        });
+        };
+
+        this.usernameSetButton.addEventListener('click', setUsername);
+        this.joinRoomButton.addEventListener('click', joinRoom);
 
         this.usernameInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -58,12 +60,22 @@ export class ChatView extends VerityView {
                 setUsername();
             }
         });
+
+        this.roomNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                joinRoom();
+            }
+        });
         
         const form = this.chatContainer.querySelector('.verityChatForm') as HTMLFormElement;
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            this.controller.sendMessage(this.usernameInput.value || "Anonymous", this.messageInput.value);
-            this.messageInput.value = '';
+            const message = this.messageInput.value.trim();
+            if (message) {
+                this.controller.sendMessage(this.usernameInput.value || "Anonymous", message);
+                this.messageInput.value = '';
+            }
         });
 
         this.renderedView.appendChild(this.chatContainer);
@@ -77,10 +89,15 @@ export class ChatView extends VerityView {
         for (const { username, message, timestamp } of messages) {
             const messageElement = document.createElement('div');
             messageElement.className = 'verityChatMessage';
+            
+            // Create a more structured message layout
+            const timeString = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             messageElement.innerHTML = `
-                <span class="verityMessageTimestamp">${timestamp.toLocaleString()}</span>
-                <span class="verityMessageUsername">${username}:</span>
-                <span class="verityMessageContent">${message}</span>
+                <div class="verityMessageHeader">
+                    <span class="verityMessageUsername">${this.escapeHtml(username)}</span>
+                    <span class="verityMessageTimestamp">${timeString}</span>
+                </div>
+                <div class="verityMessageContent">${this.escapeHtml(message)}</div>
             `;
             this.messageList.appendChild(messageElement);
         }
@@ -90,6 +107,68 @@ export class ChatView extends VerityView {
         } else {
             this.messageList.scrollTop = scrollTop;
         }
+    }
+
+    updateRoomList(rooms: ChatRoom[]): void {
+        this.roomTabs.innerHTML = '';
+        
+        if (rooms.length === 0) {
+            this.activeRoomName.textContent = 'No rooms joined';
+            return;
+        }
+
+        rooms.forEach(room => {
+            const tab = document.createElement('button');
+            tab.className = 'verityChatRoomTab';
+            tab.dataset.roomId = room.id;
+            
+            if (room.unreadCount > 0) {
+                tab.classList.add('hasUnread');
+            }
+            
+            tab.innerHTML = `
+                <span class="roomName">${this.escapeHtml(room.name)}</span>
+                ${room.unreadCount > 0 ? `<span class="unreadBadge">${room.unreadCount}</span>` : ''}
+                <button class="closeRoom" data-room-id="${room.id}" title="Leave room">×</button>
+            `;
+            
+            // Add click handler for tab switching
+            tab.addEventListener('click', (e) => {
+                const target = e.target as HTMLElement;
+                if (target.classList.contains('closeRoom')) {
+                    e.stopPropagation();
+                    this.controller.leaveRoom(room.id);
+                } else {
+                    this.controller.switchToRoom(room.id);
+                }
+            });
+            
+            this.roomTabs.appendChild(tab);
+        });
+    }
+
+    updateActiveRoom(roomId: string): void {
+        // Update active tab styling
+        const tabs = this.roomTabs.querySelectorAll('.verityChatRoomTab');
+        tabs.forEach(tab => {
+            const tabElement = tab as HTMLElement;
+            if (tabElement.dataset.roomId === roomId) {
+                tabElement.classList.add('active');
+                const roomName = tabElement.querySelector('.roomName')?.textContent || 'Unknown Room';
+                this.activeRoomName.textContent = roomName;
+            } else {
+                tabElement.classList.remove('active');
+            }
+        });
+    }
+
+    private escapeHtml(unsafe: string): string {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 
     private isScrolledToBottom(): boolean {
