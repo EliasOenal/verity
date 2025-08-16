@@ -1,15 +1,16 @@
 # Verity API Reference
 
-This document provides comprehensive reference documentation for the Verity API.
+This document provides comprehensive reference documentation for the Verity API, focusing on the high-level interfaces most developers will use.
 
 ## Table of Contents
 
 1. [Core Classes](#core-classes)
-2. [Cube Management](#cube-management)
-3. [Identity and Cryptography](#identity-and-cryptography)
-4. [Common Cube Interface (CCI)](#common-cube-interface-cci)
-5. [Application Utilities](#application-utilities)
-6. [Constants and Enums](#constants-and-enums)
+2. [Common Cube Interface (CCI)](#common-cube-interface-cci)
+3. [Veritum for Large Data](#veritum-for-large-data)
+4. [Application APIs](#application-apis)
+5. [Identity and Cryptography](#identity-and-cryptography)
+6. [Low-Level Cube Management](#low-level-cube-management)
+7. [Constants and Enums](#constants-and-enums)
 
 ## Core Classes
 
@@ -53,25 +54,359 @@ const node = await VerityNode.Create({
 });
 ```
 
-### CoreNode
+## Common Cube Interface (CCI)
 
-Lower-level node interface (usually use VerityNode instead).
+CCI provides the primary interface for structured data in Verity applications.
+
+### cciCube
+
+The main class for working with structured cubes.
 
 ```typescript
-class CoreNode {
-  static async Create(options?: CoreNodeOptions): Promise<CoreNode>
-  
-  readonly cubeStore: CubeStore
-  readonly cubeRetriever: CubeRetriever  
-  readonly networkManager: NetworkManager
-  readonly ready: boolean
-  readonly readyPromise: Promise<void>
-  
-  async shutdown(): Promise<void>
+class cciCube extends Cube {
+  static Frozen(options: CciCubeCreateOptions): cciCube
+  static MUC(publicKey: Buffer, privateKey: Buffer, options?: CciCubeCreateOptions): cciCube
+  static PIC(options: CciCubeCreateOptions): cciCube
+  static PMUC(publicKey: Buffer, privateKey: Buffer, options?: CciCubeCreateOptions): cciCube
+
+  readonly fields: VerityFields
+  readonly fieldParser: FieldParser
+
+  insertFieldBeforeBackPositionals(field: VerityField): void
+  getFirstField(fieldType: FieldType): Field | undefined
+  getAllFields(fieldType: FieldType): Field[]
 }
 ```
 
-## Cube Management
+#### CciCubeCreateOptions
+
+```typescript
+interface CciCubeCreateOptions {
+  fields: VerityField[]
+  cubeType?: CubeType
+}
+```
+
+**Example:**
+```typescript
+const cube = cciCube.Frozen({
+  fields: [
+    VerityField.Application('my-app'),
+    VerityField.Username('Alice'),
+    VerityField.Payload('Hello, world!')
+  ]
+});
+```
+
+### VerityField
+
+Factory class for creating standardized fields.
+
+```typescript
+class VerityField {
+  // Content fields
+  static Application(identifier: string): Field
+  static Payload(data: string | Buffer): Field
+  static ContentName(name: string): Field
+  static Description(text: string): Field
+  static MediaType(type: MediaType): Field
+
+  // Identity fields  
+  static Username(name: string): Field
+  static PublicKey(key: Buffer): Field
+  static Signature(sig: Buffer): Field
+
+  // Temporal fields
+  static Timestamp(date: Date): Field
+  static Date(timeType: number, unixTimestamp: number): Field
+
+  // Relationship fields
+  static RelatesTo(relationship: Relationship): Field
+  static Notify(notificationKey: Buffer): Field
+
+  // Advanced fields
+  static EncryptedPayload(data: Buffer): Field
+  static KeyChunk(keyData: Buffer): Field
+  static RecipientPublicKey(key: Buffer): Field
+}
+```
+
+**Example:**
+```typescript
+const fields = [
+  VerityField.Application('chat-app'),
+  VerityField.Username('Alice'),
+  VerityField.Payload('Hello!'),
+  VerityField.Timestamp(new Date())
+];
+```
+
+### Relationship
+
+Links between cubes for creating structured data relationships.
+
+```typescript
+class Relationship {
+  constructor(type: RelationshipType, targetKey: CubeKey)
+  
+  readonly type: RelationshipType
+  readonly targetKey: CubeKey
+}
+
+enum RelationshipType {
+  REPLY_TO = 0x01,
+  CONTINUED_IN = 0x02,
+  RELATES_TO = 0x03,
+  SUPERSEDES = 0x04,
+  REFERENCES = 0x05
+}
+```
+
+**Example:**
+```typescript
+const replyRelationship = new Relationship(
+  RelationshipType.REPLY_TO,
+  await originalMessage.getKey()
+);
+
+const reply = cciCube.Frozen({
+  fields: [
+    VerityField.Application('chat-app'),
+    VerityField.RelatesTo(replyRelationship),
+    VerityField.Payload('This is a reply')
+  ]
+});
+```
+
+## Veritum for Large Data
+
+Veritum handles data larger than what fits in a single cube by automatically splitting and recombining.
+
+### Veritum
+
+```typescript
+class Veritum extends VeritableBaseImplementation {
+  static Create(options: VeritumCreateOptions): Veritum
+  static FromChunks(chunks: Iterable<cciCube>, options?: VeritumFromChunksOptions): Veritum
+
+  readonly chunks: Iterable<cciCube>
+  readonly fields: VerityFields
+  readonly publicKey: Buffer
+  readonly privateKey: Buffer
+
+  async compile(): Promise<cciCube[]>
+  getFirstField(fieldType: FieldType): Field | undefined
+}
+```
+
+#### VeritumCreateOptions
+
+```typescript
+interface VeritumCreateOptions extends VeritumCompileOptions {
+  chunks?: cciCube[]
+}
+
+interface VeritumCompileOptions extends CubeCreateOptions, CciEncryptionParams {
+  fields: VerityField[]
+  publicKey?: Buffer
+  privateKey?: Buffer
+}
+```
+
+**Example:**
+```typescript
+// Create a Veritum for large content
+const largeContent = Buffer.from('Very long content...'.repeat(1000));
+
+const veritum = Veritum.Create({
+  fields: [
+    VerityField.Application('document-app'),
+    VerityField.ContentName('large-document.txt'),
+    VerityField.Payload(largeContent)
+  ]
+});
+
+// Compile into cubes
+const cubes = await veritum.compile();
+for (const cube of cubes) {
+  await node.cubeStore.addCube(cube);
+}
+
+// Reconstruct from cubes
+const reconstructed = Veritum.FromChunks(cubes);
+const originalContent = reconstructed.getFirstField(FieldType.PAYLOAD);
+```
+
+### VeritumRetriever
+
+High-level interface for retrieving and reconstructing Veritum data.
+
+```typescript
+class VeritumRetriever {
+  constructor(cubeRetriever: CubeRetriever)
+
+  async getVeritum(key: CubeKey | string, options?: RetrievalOptions): Promise<Veritum | null>
+  async subscribeNotifications(notificationKey: Buffer, callback: (veritum: Veritum) => void): Promise<void>
+}
+```
+
+**Example:**
+```typescript
+const veritum = await node.veritumRetriever.getVeritum(veritumKey);
+if (veritum) {
+  const content = veritum.getFirstField(FieldType.PAYLOAD);
+  console.log('Retrieved large content:', content.valueBuffer);
+}
+```
+
+## Application APIs
+
+High-level APIs for common application patterns.
+
+### ChatApplication
+
+Ready-to-use API for messaging applications.
+
+```typescript
+class ChatApplication {
+  static async createChatCube(
+    username: string, 
+    message: string, 
+    notificationKey: Buffer
+  ): Promise<cciCube>
+
+  static parseChatCube(cube: cciCube): {
+    username: string
+    message: string
+    notificationKey: Buffer
+  }
+}
+```
+
+**Example:**
+```typescript
+// Send a message
+const notificationKey = Buffer.alloc(32); // Your routing key
+const chatCube = await ChatApplication.createChatCube(
+  'Alice',
+  'Hello everyone!',
+  notificationKey
+);
+await node.cubeStore.addCube(chatCube);
+
+// Parse received messages
+const parsed = ChatApplication.parseChatCube(chatCube);
+console.log(`${parsed.username}: ${parsed.message}`);
+```
+
+### FileApplication
+
+Ready-to-use API for file storage and sharing.
+
+```typescript
+class FileApplication {
+  static async createFileCubes(
+    fileContent: Buffer,
+    fileName: string,
+    progressCallback?: (progress: number, remainingSize: number) => void
+  ): Promise<cciCube[]>
+
+  static async reconstructFile(cubes: cciCube[]): Promise<{
+    fileName: string
+    content: Buffer
+  }>
+}
+```
+
+**Example:**
+```typescript
+// Store a file
+const fileContent = await fs.readFile('document.pdf');
+const fileCubes = await FileApplication.createFileCubes(
+  fileContent,
+  'document.pdf',
+  (progress, remaining) => {
+    console.log(`Progress: ${progress}%, ${remaining} bytes remaining`);
+  }
+);
+
+// Add to network
+for (const cube of fileCubes) {
+  await node.cubeStore.addCube(cube);
+}
+
+// Reconstruct file
+const file = await FileApplication.reconstructFile(fileCubes);
+await fs.writeFile('downloaded.pdf', file.content);
+```
+
+## Identity and Cryptography
+
+### Identity
+
+Manages cryptographic identities for signing and encryption.
+
+```typescript
+class Identity {
+  static async Create(options?: IdentityCreateOptions): Promise<Identity>
+  static async Load(publicKeyString: string): Promise<Identity>
+
+  readonly name: string
+  readonly publicKeyString: string
+  readonly store: IdentityStore
+
+  async getKeypair(): Promise<{ publicKey: Buffer, privateKey: Buffer }>
+  async createMUC(options: CciCubeCreateOptions): Promise<cciCube>
+  async createPMUC(options: CciCubeCreateOptions): Promise<cciCube>
+  async sign(data: Buffer): Promise<Buffer>
+  async encrypt(data: Buffer, recipientPublicKey: Buffer): Promise<Buffer>
+  async decrypt(encryptedData: Buffer): Promise<Buffer>
+}
+```
+
+#### IdentityCreateOptions
+
+```typescript
+interface IdentityCreateOptions {
+  name?: string
+  persistenceDirectory?: string
+  inMemory?: boolean
+}
+```
+
+**Example:**
+```typescript
+// Create identity
+const identity = await Identity.Create({ name: 'Alice' });
+
+// Create signed content
+const signedCube = await identity.createMUC({
+  fields: [
+    VerityField.Application('my-app'),
+    VerityField.Payload('Signed content')
+  ]
+});
+
+// Verify signature
+const isValid = await signedCube.verifySignature();
+```
+
+### IdentityStore
+
+Manages persistent storage of identities.
+
+```typescript
+class IdentityStore {
+  async save(): Promise<void>
+  async load(publicKeyString: string): Promise<Identity | null>
+  async list(): Promise<string[]>
+  async delete(publicKeyString: string): Promise<void>
+}
+```
+
+## Low-Level Cube Management
+
+*Note: Most applications should use CCI and Veritum APIs instead.*
 
 ### Cube
 
@@ -82,596 +417,102 @@ class Cube {
   static Create(options?: CubeCreateOptions): Cube
   static Frozen(options: CubeCreateOptions): Cube
   static MUC(publicKey: Buffer, privateKey: Buffer, options?: CubeCreateOptions): Cube
-  
+
   readonly cubeType: CubeType
   readonly binaryData: Buffer
   readonly fields: Fields
-  
+
   async getKey(): Promise<CubeKey>
   async getKeyString(): Promise<string>
   getKeyIfAvailable(): CubeKey | undefined
-  
+
   getFirstField(fieldType: number): Field | undefined
   verifySignature(): Promise<boolean>
-  
-  // Size and validation
+
   get isValid(): boolean
   get size(): number
 }
 ```
 
-#### CubeCreateOptions
-
-```typescript
-interface CubeCreateOptions {
-  cubeType?: CubeType
-  fields?: Field[]
-  requiredDifficulty?: number
-  family?: CubeFamilyDefinition
-}
-```
-
-#### CubeType Enum
-
-```typescript
-enum CubeType {
-  FROZEN = 0,        // Immutable, expires in 7 days
-  PIC = 1,           // Immutable, extendable by anyone
-  MUC = 2,           // Mutable by owner
-  PMUC = 3,          // Mutable by owner, extendable by anyone
-  FROZEN_NOTIFY = 4, // Frozen cube with notification
-  MUC_NOTIFY = 6,    // MUC with notification
-  PMUC_NOTIFY = 7    // PMUC with notification
-}
-```
-
-**Example:**
-```typescript
-// Create a simple frozen cube
-const cube = Cube.Frozen({
-  fields: [
-    { type: 0x10, value: Buffer.from('Hello World') }
-  ]
-});
-
-// Get the cube's key
-const key = await cube.getKey();
-console.log('Cube key:', key.toString('hex'));
-```
-
-### cciCube
-
-CCI-compliant cube with structured fields.
-
-```typescript
-class cciCube extends Cube {
-  static Create(options?: CubeCreateOptions): cciCube
-  static Frozen(options: CubeCreateOptions): cciCube
-  static MUC(publicKey: Buffer, privateKey: Buffer, options?: CubeCreateOptions): cciCube
-  
-  readonly fields: VerityFields
-  
-  insertFieldBeforeBackPositionals(field: VerityField): void
-  assertCci(): boolean
-}
-```
-
-**Example:**
-```typescript
-import { cciCube, VerityField } from 'verity';
-
-const cube = cciCube.Frozen({
-  fields: [
-    VerityField.Application('my-app'),
-    VerityField.Payload('Hello CCI!')
-  ]
-});
-```
-
 ### CubeStore
 
-Storage and retrieval of cubes.
+Local storage for cubes.
 
 ```typescript
-class CubeStore {
-  constructor(options: CubeStoreOptions)
-  
-  async addCube(cube: Cube | Buffer, options?: AddCubeOptions): Promise<Cube>
-  async getCube(key: CubeKey | string): Promise<Cube>
-  async getCubeInfo(key: CubeKey | string): Promise<CubeInfo>
+class CubeStore extends EventEmitter {
+  async addCube(cube: Cube): Promise<void>
+  async getCube(key: CubeKey | string): Promise<Cube | null>
   async hasCube(key: CubeKey | string): Promise<boolean>
-  
-  async getAllCubes(): AsyncGenerator<CubeInfo>
-  async getNumberOfStoredCubes(): Promise<number>
-  
-  async shutdown(): Promise<void>
-  
+  async removeCube(key: CubeKey | string): Promise<void>
+  async getAllCubes(): Promise<Cube[]>
+
   // Events
   on(event: 'cubeAdded', listener: (cube: Cube) => void): this
-  on(event: 'cubeUpdated', listener: (cube: Cube) => void): this
+  on(event: 'cubeRemoved', listener: (key: CubeKey) => void): this
 }
-```
-
-#### AddCubeOptions
-
-```typescript
-interface AddCubeOptions {
-  fromNetwork?: boolean
-  skipValidation?: boolean
-}
-```
-
-**Example:**
-```typescript
-// Add a cube to storage
-await node.cubeStore.addCube(cube);
-
-// Check if cube exists
-const exists = await node.cubeStore.hasCube(cubeKey);
-
-// Retrieve a cube
-const retrievedCube = await node.cubeStore.getCube(cubeKey);
-
-// Listen for new cubes
-node.cubeStore.on('cubeAdded', (cube) => {
-  console.log('New cube added:', cube.getKeyIfAvailable()?.toString('hex'));
-});
 ```
 
 ### CubeRetriever
 
-Request cubes from the network.
+Network retrieval of cubes.
 
 ```typescript
 class CubeRetriever {
-  async requestCube(key: CubeKey, options?: CubeRequestOptions): Promise<CubeInfo>
-  async requestNotifications(key: NotificationKey): Promise<CubeInfo>
-  
-  async shutdown(): Promise<void>
+  async getCube(key: CubeKey | string): Promise<Cube | null>
+  async requestCube(key: CubeKey | string): Promise<void>
+  async subscribeNotifications(notificationKey: Buffer, callback: (cube: Cube) => void): Promise<void>
 }
-```
-
-## Identity and Cryptography
-
-### Identity
-
-Cryptographic identity for users.
-
-```typescript
-class Identity {
-  static async Create(options?: IdentityOptions): Promise<Identity>
-  static async Load(keyData: IdentityKeyData, options?: IdentityOptions): Promise<Identity>
-  
-  readonly name: string
-  readonly publicKey: Buffer
-  readonly publicKeyString: string
-  
-  async getKeypair(): Promise<{ publicKey: Buffer, privateKey: Buffer }>
-  
-  // Content creation
-  async createMUC(options: CubeCreateOptions): Promise<cciCube>
-  async createEncryptedCube(content: string, recipients: Buffer[]): Promise<cciCube>
-  
-  // Content management
-  addPost(cubeKey: CubeKey): void
-  getPostKeyStrings(): Set<string>
-  async getPosts(options?: GetPostsOptions): AsyncGenerator<PostInfo>
-  
-  // Subscriptions
-  addPublicSubscription(publicKey: Buffer): void
-  hasPublicSubscription(publicKey: Buffer): boolean
-  getPublicSubscriptions(): Set<string>
-  
-  // Persistence
-  async store(): Promise<void>
-  
-  // Encryption
-  async decryptCube(cube: cciCube): Promise<string>
-}
-```
-
-#### IdentityOptions
-
-```typescript
-interface IdentityOptions {
-  name?: string
-  cubeStore?: CubeStore
-  cubeRetriever?: CubeRetriever
-  veritumRetriever?: VeritumRetriever
-  identityStore?: IdentityStore
-  idmucNotificationKey?: NotificationKey
-}
-```
-
-**Example:**
-```typescript
-// Create a new identity
-const identity = await Identity.Create({
-  name: 'Alice',
-  cubeStore: node.cubeStore
-});
-
-// Create signed content
-const signedCube = await identity.createMUC({
-  fields: [
-    VerityField.Application('my-app'),
-    VerityField.Username(identity.name),
-    VerityField.Payload('Signed message')
-  ]
-});
-
-// Subscribe to another user
-identity.addPublicSubscription(bobsPublicKey);
-
-// Store the identity
-await identity.store();
-```
-
-### IdentityStore
-
-Manage multiple identities.
-
-```typescript
-class IdentityStore {
-  constructor(cubeStore: CubeStore)
-  
-  async addIdentity(identity: Identity): Promise<void>
-  async getIdentity(publicKey: string | Buffer): Promise<Identity | undefined>
-  async getAllIdentities(): Promise<Identity[]>
-  
-  async shutdown(): Promise<void>
-}
-```
-
-## Common Cube Interface (CCI)
-
-### VerityField
-
-Factory for creating CCI fields.
-
-```typescript
-class VerityField {
-  static Application(value: string): VerityField
-  static Payload(value: string | Buffer): VerityField
-  static ContentName(value: string): VerityField
-  static Description(value: string): VerityField
-  static Username(value: string): VerityField
-  static MediaType(value: number): VerityField
-  static Date(purpose: number, timestamp: number): VerityField
-  static RelatesTo(relationship: Relationship): VerityField
-  static Notify(key: NotificationKey): VerityField
-  static Avatar(scheme: number, data: Buffer): VerityField
-  
-  readonly type: number
-  readonly value: Buffer
-  readonly length?: number
-}
-```
-
-#### MediaTypes Enum
-
-```typescript
-enum MediaTypes {
-  TEXT = 1,
-  JPEG = 2
-}
-```
-
-### Relationship
-
-Defines relationships between cubes.
-
-```typescript
-class Relationship {
-  constructor(type: RelationshipType, targetKey: CubeKey)
-  static fromKeys(type: RelationshipType, keys: string[]): Relationship[]
-  
-  readonly type: RelationshipType
-  readonly targetKey: CubeKey
-}
-```
-
-#### RelationshipType Enum
-
-```typescript
-enum RelationshipType {
-  CONTINUED_IN = 1,
-  INTERPRETS = 2,
-  REPLY_TO = 3,
-  QUOTATION = 4,
-  MYPOST = 5,
-  MENTION = 6,
-  AUTHORHINT = 7,
-  REPLACED_BY = 11,
-  ILLUSTRATION = 71,
-  KEY_BACKUP_CUBE = 72,
-  SUBSCRIPTION_RECOMMENDATION_INDEX = 73,
-  SUBSCRIPTION_RECOMMENDATION = 81
-}
-```
-
-### FieldType Enum
-
-```typescript
-enum FieldType {
-  // Core CCI fields (0x00-0x0F)
-  CCI_END = 0x00,
-  APPLICATION = 0x01,
-  ENCRYPTED_CONTENT = 0x02,
-  ENCRYPTION_NONCE = 0x03,
-  ENCRYPTION_MAC = 0x04,
-  ENCRYPTED_SYMMETRIC_KEY = 0x05,
-  ENCRYPTION_PUBLIC_KEY = 0x06,
-  MUC_PMUC_KDF_HINT = 0x07,
-  DATE = 0x0A,
-  
-  // Content-descriptive fields (0x10-0x1F)
-  PAYLOAD = 0x10,
-  CONTENT_NAME = 0x11,
-  DESCRIPTION = 0x12,
-  RELATES_TO = 0x13,
-  USERNAME = 0x14,
-  MEDIA_TYPE = 0x15,
-  AVATAR = 0x16,
-  
-  // Application-specific fields (0x30-0x3F)
-  // Your application can define custom fields in this range
-}
-```
-
-**Example:**
-```typescript
-// Create various CCI fields
-const fields = [
-  VerityField.Application('chat-app'),
-  VerityField.Username('Alice'),
-  VerityField.MediaType(MediaTypes.TEXT),
-  VerityField.Payload('Hello everyone!'),
-  VerityField.Date(1, Math.floor(Date.now() / 1000)),
-  VerityField.RelatesTo(new Relationship(RelationshipType.REPLY_TO, parentKey))
-];
-
-const cube = cciCube.Frozen({ fields });
-```
-
-### VerityFields
-
-Container for CCI fields in a cube.
-
-```typescript
-class VerityFields {
-  get(fieldType: FieldType): VerityField[] | undefined
-  getFirst(fieldType: FieldType): VerityField | undefined
-  has(fieldType: FieldType): boolean
-  
-  insertTillFull(fields: VerityField[]): number
-  bytesRemaining(): number
-  
-  readonly size: number
-}
-```
-
-## Application Utilities
-
-### makePost
-
-Utility for creating microblog posts (from ZW application).
-
-```typescript
-async function makePost(
-  text: string, 
-  options?: MakePostOptions
-): Promise<cciCube>
-```
-
-#### MakePostOptions
-
-```typescript
-interface MakePostOptions {
-  replyto?: CubeKey      // Key of post being replied to
-  id?: Identity          // Identity of the poster
-  requiredDifficulty?: number
-  store?: CubeStore      // Automatically add to store
-}
-```
-
-**Example:**
-```typescript
-// Create a post
-const post = await makePost('Hello Verity!', {
-  id: identity,
-  store: node.cubeStore
-});
-
-// Create a reply
-const reply = await makePost('Nice to meet you!', {
-  id: identity,
-  replyto: await post.getKey(),
-  store: node.cubeStore  
-});
-```
-
-### ChatApplication
-
-Utility for chat applications.
-
-```typescript
-class ChatApplication {
-  static async createChatCube(
-    username: string, 
-    message: string, 
-    notificationKey: NotificationKey
-  ): Promise<cciCube>
-  
-  static parseChatCube(cube: cciCube): {
-    username: string,
-    message: string, 
-    notificationKey: Buffer
-  }
-}
-```
-
-**Example:**
-```typescript
-// Create a chat room
-const chatRoomKey = Buffer.alloc(32);
-crypto.randomFillSync(chatRoomKey);
-
-// Send a message
-const chatCube = await ChatApplication.createChatCube(
-  'Alice',
-  'Hello everyone!',
-  chatRoomKey
-);
-await node.cubeStore.addCube(chatCube);
-
-// Parse received message
-const { username, message } = ChatApplication.parseChatCube(chatCube);
-console.log(`${username}: ${message}`);
-```
-
-### FileApplication
-
-Utility for file sharing.
-
-```typescript
-class FileApplication {
-  static async createFileCubes(
-    fileContent: Buffer,
-    fileName: string,
-    progressCallback?: (progress: number, remainingSize: number) => void
-  ): Promise<cciCube[]>
-  
-  static async retrieveFile(
-    firstCube: cciCube,
-    cubeStore: CubeStore
-  ): Promise<Buffer>
-}
-```
-
-**Example:**
-```typescript
-// Share a file
-const fileData = fs.readFileSync('document.pdf');
-const fileCubes = await FileApplication.createFileCubes(
-  fileData,
-  'document.pdf',
-  (progress, remaining) => {
-    console.log(`Progress: ${progress}%`);
-  }
-);
-
-// Store all cubes
-for (const cube of fileCubes) {
-  await node.cubeStore.addCube(cube);
-}
-
-// Retrieve the file
-const reconstructed = await FileApplication.retrieveFile(
-  fileCubes[0],
-  node.cubeStore
-);
 ```
 
 ## Constants and Enums
 
-### Network Constants
+### CubeType
 
 ```typescript
-const NetConstants = {
-  CUBE_SIZE: 1024,           // Size of each cube in bytes
-  CUBE_KEY_SIZE: 32,         // Size of cube keys in bytes
-  NOTIFY_SIZE: 32,           // Size of notification keys in bytes
-  PUBLIC_KEY_SIZE: 32,       // Size of public keys in bytes
-  PRIVATE_KEY_SIZE: 64,      // Size of private keys in bytes
-  SIGNATURE_SIZE: 64,        // Size of signatures in bytes
-  DEFAULT_DIFFICULTY: 0      // Default proof-of-work difficulty
-};
-```
-
-### Buffer Types
-
-```typescript
-type CubeKey = Buffer;           // 32-byte cube identifier
-type NotificationKey = Buffer;   // 32-byte notification key
-type PublicKey = Buffer;         // 32-byte Ed25519 public key
-type PrivateKey = Buffer;        // 64-byte Ed25519 private key
-```
-
-### Error Classes
-
-```typescript
-class CubeError extends Error {
-  constructor(message: string)
-}
-
-class FieldError extends Error {
-  constructor(message: string)  
-}
-
-class FieldSizeError extends FieldError {
-  constructor(message: string)
-}
-
-class VerityError extends Error {
-  constructor(message: string)
+enum CubeType {
+  FROZEN = 0x00,
+  FROZEN_NOTIFY = 0x01,
+  MUC = 0x10,
+  MUC_NOTIFY = 0x11,
+  PIC = 0x20,
+  PIC_NOTIFY = 0x21,
+  PMUC = 0x30,
+  PMUC_NOTIFY = 0x31
 }
 ```
 
-## Usage Patterns
-
-### Basic Application Setup
+### FieldType
 
 ```typescript
-import { VerityNode, Identity, cciCube, VerityField } from 'verity';
-
-class MyApp {
-  private node: VerityNode;
-  private identity: Identity;
-  
-  async init() {
-    this.node = await VerityNode.Create({ inMemory: true });
-    this.identity = await Identity.Create({
-      cubeStore: this.node.cubeStore,
-      name: 'AppUser'
-    });
-  }
-  
-  async createContent(data: string) {
-    const cube = cciCube.Frozen({
-      fields: [
-        VerityField.Application('my-app'),
-        VerityField.Payload(data)
-      ]
-    });
-    
-    await this.node.cubeStore.addCube(cube);
-    return cube;
-  }
-  
-  async shutdown() {
-    await this.node.shutdown();
-  }
+enum FieldType {
+  APPLICATION = 0x01,
+  PAYLOAD = 0x02,
+  CONTENT_NAME = 0x03,
+  USERNAME = 0x04,
+  PUBLIC_KEY = 0x05,
+  SIGNATURE = 0x06,
+  TIMESTAMP = 0x07,
+  RELATES_TO = 0x08,
+  NOTIFY = 0x09,
+  ENCRYPTED_PAYLOAD = 0x0A,
+  KEY_CHUNK = 0x0B,
+  RECIPIENT_PUBLIC_KEY = 0x0C,
+  // ... and more
 }
 ```
 
-### Event-Driven Application
+### MediaType
 
 ```typescript
-// Listen for new cubes
-node.cubeStore.on('cubeAdded', (cube) => {
-  const appField = cube.getFirstField(FieldType.APPLICATION);
-  if (appField?.value.toString() === 'my-app') {
-    const payload = cube.getFirstField(FieldType.PAYLOAD);
-    console.log('New content:', payload.value.toString());
-  }
-});
-
-// Request notifications
-const notificationKey = Buffer.alloc(32, 'my-notifications');
-node.cubeRetriever.requestNotifications(notificationKey).then(cubeInfo => {
-  console.log('Notification received:', cubeInfo.keyString);
-});
+enum MediaType {
+  TEXT = 'text/plain',
+  HTML = 'text/html',
+  JSON = 'application/json',
+  BINARY = 'application/octet-stream',
+  IMAGE_PNG = 'image/png',
+  IMAGE_JPEG = 'image/jpeg',
+  // ... and more
+}
 ```
 
-This API reference covers the main classes and functions you'll use when building applications on Verity. For more examples and detailed guides, see the [Developer Guide](developer-guide.md).
+This API reference covers the main interfaces developers will use when building applications on Verity. For more practical examples, see the [Developer Guide](developer-guide.md) and the working applications in `src/app/`.

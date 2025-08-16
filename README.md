@@ -23,16 +23,18 @@ alternative to traditional, centralized social networks.
 
 If you want to build applications on top of Verity:
 
-1. **Install Verity as a dependency:**
+1. **Clone and set up the project:**
    ```bash
-   npm install verity
+   git clone https://github.com/EliasOenal/verity.git
+   cd verity
+   npm install
+   npm run build
    ```
 
 2. **Create a simple application:**
-   ```javascript
-   // Note: This is a conceptual example showing the intended API usage
-   // For working examples, see the included applications in src/app/
-   import { VerityNode, Identity, makePost } from 'verity';
+   ```typescript
+   // Use the high-level CCI and application APIs
+   import { VerityNode, Identity, ChatApplication } from './src/index.js';
    
    // Create a Verity node
    const node = await VerityNode.Create({ inMemory: true });
@@ -40,9 +42,12 @@ If you want to build applications on top of Verity:
    // Create an identity
    const identity = await Identity.Create();
    
-   // Make a post
-   const post = await makePost("Hello Verity!", { id: identity });
-   await node.cubeStore.addCube(post);
+   // Create a chat message using the ChatApplication
+   const notificationKey = Buffer.from('your-32-byte-notification-key');
+   const chatCube = await ChatApplication.createChatCube(
+     'Alice', 'Hello Verity!', notificationKey
+   );
+   await node.cubeStore.addCube(chatCube);
    ```
 
 3. **See more examples:** Check out the [Developer Guide](doc/developer-guide.md), [API Reference](doc/api-reference.md), and the working applications in `src/app/`.

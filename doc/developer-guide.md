@@ -6,26 +6,29 @@ This guide will help you build applications on top of the Verity platform. Verit
 
 1. [Core Concepts](#core-concepts)
 2. [Getting Started](#getting-started)
-3. [Working with Cubes](#working-with-cubes)
-4. [Using the Common Cube Interface (CCI)](#using-the-common-cube-interface-cci)
-5. [Identity Management](#identity-management)
-6. [Building Applications](#building-applications)
-7. [Examples](#examples)
-8. [Best Practices](#best-practices)
-9. [Troubleshooting](#troubleshooting)
+3. [Using the Common Cube Interface (CCI)](#using-the-common-cube-interface-cci)
+4. [Working with Veritum for Large Data](#working-with-veritum-for-large-data)
+5. [Application-Level APIs](#application-level-apis)
+6. [Identity Management](#identity-management)
+7. [Building Applications](#building-applications)
+8. [Examples](#examples)
+9. [Best Practices](#best-practices)
 
 ## Core Concepts
 
 ### Cubes
-Cubes are the fundamental building blocks of Verity. Each cube contains exactly 1kB of data and has a unique key derived from its content. There are several types of cubes:
-
-- **Frozen Cubes**: Immutable cubes with a limited lifespan (7 days by default)
-- **MUCs (Mutable User Cubes)**: Cubes that can be updated by their owner
-- **PICs (Immutable Persistence Cubes)**: Immutable cubes whose lifespan can be extended by anyone
-- **PMUCs**: Combination of MUCs and PICs features
+Cubes are the fundamental building blocks of Verity. Each cube contains exactly 1kB of data and has a unique key derived from its content. However, for most application development, you'll work with higher-level abstractions rather than manipulating cubes directly.
 
 ### Common Cube Interface (CCI)
-CCI provides a standardized way to structure data within cubes using a Type-Length-Value (TLV) format. This enables interoperability between different applications.
+CCI provides a standardized way to structure data within cubes using a Type-Length-Value (TLV) format. This is the primary interface for most application development, enabling interoperability between different applications.
+
+### Veritum
+Veritum handles large data that doesn't fit in a single cube by automatically splitting it across multiple cubes and providing seamless reconstruction. This is ideal for files, large messages, or any data over 1kB.
+
+### Application-Level APIs
+Verity includes ready-to-use application APIs for common use cases:
+- **ChatApplication**: For messaging and communication
+- **FileApplication**: For file storage and sharing
 
 ### Identities
 Identities are cryptographic keypairs that allow users to:
@@ -39,16 +42,24 @@ Identities are cryptographic keypairs that allow users to:
 
 ## Getting Started
 
-### Installation
+### Installation and Setup
 
 ```bash
-npm install verity
+# Clone the repository
+git clone https://github.com/EliasOenal/verity.git
+cd verity
+
+# Install dependencies (takes ~8 minutes)
+npm install
+
+# Build the project
+npm run build
 ```
 
 ### Basic Setup
 
 ```typescript
-import { VerityNode, Identity, cciCube, VerityField } from 'verity';
+import { VerityNode, Identity } from './src/index.js';
 
 // Create a node (light node by default)
 const node = await VerityNode.Create({
@@ -61,112 +72,156 @@ const identity = await Identity.Create();
 console.log('Identity created:', identity.publicKeyString);
 ```
 
-### Creating Your First Cube
+## Using the Common Cube Interface (CCI)
+
+CCI is the primary interface for structuring data in Verity. It provides a standardized Type-Length-Value (TLV) format that ensures interoperability between applications.
+
+### Creating Structured Data with CCI
 
 ```typescript
-// Create a simple text cube
-const cube = cciCube.Frozen({
+import { cciCube, VerityField } from './src/index.js';
+
+// Create a simple structured message
+const messageCube = cciCube.Frozen({
   fields: [
     VerityField.Application('my-app'),
+    VerityField.Username('Alice'),
     VerityField.Payload('Hello, Verity!')
   ]
 });
 
-// Add it to the node's storage
-await node.cubeStore.addCube(cube);
-console.log('Cube created with key:', await cube.getKeyString());
+await node.cubeStore.addCube(messageCube);
 ```
 
-## Working with Cubes
+### Available Field Types
 
-### Creating Different Types of Cubes
+CCI supports many standardized field types:
 
 ```typescript
-import { CubeType, VerityField, cciCube } from 'verity';
+// Common field types
+VerityField.Application('app-name')           // Application identifier
+VerityField.Username('alice')                 // User name
+VerityField.Payload('message content')        // Main content
+VerityField.ContentName('filename.txt')       // File or content name
+VerityField.Timestamp(new Date())             // Timestamp
+VerityField.RelatesTo(relationship)           // Links to other cubes
+VerityField.Notify(notificationKey)           // Notification routing
 
-// Frozen cube (immutable, expires in 7 days)
-const frozenCube = cciCube.Frozen({
+// Identity and cryptography
+VerityField.PublicKey(keyBuffer)              // Public key
+VerityField.Signature(signatureBuffer)        // Digital signature
+
+// Advanced
+VerityField.EncryptedPayload(encryptedData)   // Encrypted content
+VerityField.KeyChunk(keyData)                 // Encryption key fragment
+```
+
+### Working with Relationships
+
+CCI allows linking cubes together:
+
+```typescript
+import { Relationship, RelationshipType } from './src/index.js';
+
+// Create a reply to another cube
+const originalCubeKey = await originalCube.getKey();
+const replyCube = cciCube.Frozen({
   fields: [
     VerityField.Application('my-app'),
-    VerityField.Payload('This is immutable content')
-  ]
-});
-
-// MUC (updatable by owner)
-const { publicKey, privateKey } = await identity.getKeypair();
-const muc = cciCube.MUC(publicKey, privateKey, {
-  fields: [
-    VerityField.Application('my-app'),
-    VerityField.Username('Alice'),
-    VerityField.Payload('This content can be updated')
-  ]
-});
-```
-
-### Retrieving Cubes
-
-```typescript
-// Get a cube by its key
-const cubeKey = await cube.getKey();
-const retrievedCube = await node.cubeStore.getCube(cubeKey);
-
-// Check if a cube exists
-const exists = await node.cubeStore.hasCube(cubeKey);
-```
-
-## Using the Common Cube Interface (CCI)
-
-### Standard Fields
-
-CCI defines standard fields that all applications can understand:
-
-```typescript
-import { VerityField, MediaTypes, RelationshipType, Relationship } from 'verity';
-
-const cube = cciCube.Frozen({
-  fields: [
-    // Application identifier
-    VerityField.Application('my-chat-app'),
-    
-    // Content description
-    VerityField.ContentName('Chat message'),
-    VerityField.Description('A message in the chat room'),
-    
-    // Media type
-    VerityField.MediaType(MediaTypes.TEXT),
-    
-    // Main content
-    VerityField.Payload('Hello everyone!'),
-    
-    // User information
-    VerityField.Username('Alice'),
-    
-    // Relationships to other cubes
     VerityField.RelatesTo(new Relationship(
-      RelationshipType.REPLY_TO,
-      parentMessageKey
+      RelationshipType.REPLY_TO, 
+      originalCubeKey
     )),
-    
-    // Timestamp
-    VerityField.Date(1, Date.now() / 1000) // 1 = creation time
+    VerityField.Payload('This is a reply')
   ]
 });
 ```
 
-### Reading Field Data
+## Working with Veritum for Large Data
+
+Veritum automatically handles data larger than what fits in a single cube by splitting it across multiple cubes.
+
+### Creating a Veritum
 
 ```typescript
-import { FieldType } from 'verity';
+import { Veritum, VerityField } from './src/index.js';
 
-// Get the first field of a specific type
-const payload = cube.getFirstField(FieldType.PAYLOAD);
-const payloadText = payload.value.toString();
+// Create a large document
+const largeContent = Buffer.from('A very long document...'.repeat(1000));
 
-// Get all fields of a specific type
-const allRelationships = cube.fields.get(FieldType.RELATES_TO);
+const veritum = Veritum.Create({
+  fields: [
+    VerityField.Application('document-app'),
+    VerityField.ContentName('large-document.txt'),
+    VerityField.Payload(largeContent)
+  ]
+});
 
-// Check if a field exists
-const hasUsername = cube.fields.has(FieldType.USERNAME);
+// Compile into multiple cubes automatically
+const cubes = await veritum.compile();
+for (const cube of cubes) {
+  await node.cubeStore.addCube(cube);
+}
+```
+
+### Retrieving and Reconstructing Veritum
+
+```typescript
+// Retrieve all chunks and reconstruct
+const retrievedCubes = /* fetch cubes from network */;
+const reconstructed = Veritum.FromChunks(retrievedCubes);
+
+// Access the original data
+const content = reconstructed.getFirstField(FieldType.PAYLOAD);
+```
+
+## Application-Level APIs
+
+For most common use cases, Verity provides ready-to-use application APIs.
+
+### Chat Application
+
+```typescript
+import { ChatApplication } from './src/index.js';
+
+// Create a chat message
+const notificationKey = Buffer.alloc(32); // Your notification routing key
+const chatCube = await ChatApplication.createChatCube(
+  'Alice',           // username
+  'Hello everyone!', // message
+  notificationKey    // notification routing
+);
+
+await node.cubeStore.addCube(chatCube);
+
+// Parse received chat messages
+const parsed = ChatApplication.parseChatCube(chatCube);
+console.log(`${parsed.username}: ${parsed.message}`);
+```
+
+### File Application
+
+```typescript
+import { FileApplication } from './src/index.js';
+
+// Store a file
+const fileContent = await fs.readFile('document.pdf');
+const fileCubes = await FileApplication.createFileCubes(
+  fileContent, 
+  'document.pdf',
+  (progress, remaining) => {
+    console.log(`Upload progress: ${progress}%, ${remaining} bytes remaining`);
+  }
+);
+
+// Add all file cubes to storage
+for (const cube of fileCubes) {
+  await node.cubeStore.addCube(cube);
+}
+
+// Reconstruct file from cubes
+const reconstructed = await FileApplication.reconstructFile(fileCubes);
+await fs.writeFile('downloaded-document.pdf', reconstructed.content);
 ```
 
 ## Identity Management
@@ -174,311 +229,202 @@ const hasUsername = cube.fields.has(FieldType.USERNAME);
 ### Creating and Managing Identities
 
 ```typescript
-import { Identity, IdentityStore } from 'verity';
+import { Identity } from './src/index.js';
 
 // Create a new identity
 const identity = await Identity.Create({
-  cubeStore: node.cubeStore,
   name: 'Alice'
 });
 
-// Store the identity
-const identityStore = new IdentityStore(node.cubeStore);
-await identityStore.addIdentity(identity);
+// Save identity to storage
+await identity.store.save();
 
-// Load an existing identity by public key
-const publicKeyString = identity.publicKeyString;
-const loadedIdentity = await identityStore.getIdentity(publicKeyString);
-```
+// Load existing identity
+const loadedIdentity = await Identity.Load(identity.publicKeyString);
 
-### Signed Content
-
-```typescript
-// Create content signed by an identity
+// Create signed content
 const signedCube = await identity.createMUC({
   fields: [
     VerityField.Application('my-app'),
-    VerityField.Username(identity.name),
-    VerityField.Payload('This is signed content')
+    VerityField.Payload('Signed content')
   ]
 });
-
-// Verify the signature
-const isValid = await signedCube.verifySignature();
 ```
 
-### Encrypted Content
+### Working with Signed Content
 
 ```typescript
-// Encrypt content for specific recipients
-const recipients = [alice.publicKey, bob.publicKey];
-const encryptedCube = await identity.createEncryptedCube(
-  'Secret message',
-  recipients
-);
+// Verify signatures
+const isValid = await signedCube.verifySignature();
 
-// Decrypt content (if you're a recipient)
-const decryptedContent = await identity.decryptCube(encryptedCube);
+// Get the signing identity
+const signerKey = signedCube.getFirstField(FieldType.PUBLIC_KEY);
 ```
 
 ## Building Applications
 
 ### Application Structure
 
-Here's how to structure a basic Verity application:
-
 ```typescript
-class MyApplication {
+// my-app/index.ts
+import { VerityNode, Identity, cciCube, VerityField } from '../verity/src/index.js';
+
+export class MyApplication {
   private node: VerityNode;
   private identity: Identity;
-  
-  constructor(private appId: string) {}
-  
-  async initialize() {
-    // Setup node and identity
-    this.node = await VerityNode.Create();
-    this.identity = await Identity.Create({
-      cubeStore: this.node.cubeStore,
-      name: 'User'
-    });
+
+  constructor(node: VerityNode, identity: Identity) {
+    this.node = node;
+    this.identity = identity;
   }
-  
-  async createContent(data: string) {
-    const cube = cciCube.Frozen({
+
+  async createPost(content: string): Promise<void> {
+    const postCube = cciCube.Frozen({
       fields: [
-        VerityField.Application(this.appId),
-        VerityField.Payload(data),
-        VerityField.Username(this.identity.name)
+        VerityField.Application('my-social-app'),
+        VerityField.Username(this.identity.name),
+        VerityField.Payload(content),
+        VerityField.Timestamp(new Date())
       ]
     });
-    
-    await this.node.cubeStore.addCube(cube);
-    return cube;
+
+    await this.node.cubeStore.addCube(postCube);
   }
-  
-  async getContent(): Promise<string[]> {
-    const content: string[] = [];
-    
-    // Iterate through all cubes
-    for await (const cubeInfo of this.node.cubeStore.getAllCubes()) {
-      const cube = cubeInfo.getCube();
-      
-      // Check if this cube belongs to our application
-      const appField = cube.getFirstField(FieldType.APPLICATION);
-      if (appField?.value.toString() === this.appId) {
-        const payloadField = cube.getFirstField(FieldType.PAYLOAD);
-        if (payloadField) {
-          content.push(payloadField.value.toString());
-        }
-      }
-    }
-    
-    return content;
-  }
-  
-  async shutdown() {
-    await this.node.shutdown();
+
+  async getPosts(): Promise<string[]> {
+    // Implementation would retrieve and filter cubes
+    // This is a simplified example
+    return [];
   }
 }
 ```
 
-### File Sharing Application
+### Handling Network Events
 
 ```typescript
-import { FileApplication } from 'verity';
+// Listen for new cubes
+node.cubeStore.on('cubeAdded', (cube) => {
+  console.log('New cube received:', cube.getKeyIfAvailable());
+});
 
-// Create cubes for a file
-const fileContent = fs.readFileSync('document.pdf');
-const fileCubes = await FileApplication.createFileCubes(
-  fileContent,
-  'document.pdf',
-  (progress, remaining) => {
-    console.log(`Upload progress: ${progress}%, ${remaining} bytes remaining`);
-  }
-);
-
-// Store all cubes
-for (const cube of fileCubes) {
-  await node.cubeStore.addCube(cube);
-}
-
-// Retrieve and reconstruct file
-const reconstructedFile = await FileApplication.retrieveFile(
-  fileCubes[0], // Start with first cube
-  node.cubeStore
-);
-```
-
-### Chat Application
-
-```typescript
-import { ChatApplication } from 'verity';
-
-// Create a chat room (notification key)
-const chatRoomKey = Buffer.alloc(32, 'my-chat-room');
-
-// Send a message
-const chatCube = await ChatApplication.createChatCube(
-  'Alice',
-  'Hello everyone!',
-  chatRoomKey
-);
-await node.cubeStore.addCube(chatCube);
-
-// Listen for messages
-node.cubeRetriever.requestNotifications(chatRoomKey).then(cubeInfo => {
-  const { username, message } = ChatApplication.parseChatCube(
-    cubeInfo.getCube()
-  );
-  console.log(`${username}: ${message}`);
+// Handle network connections
+node.networkManager.on('peerConnected', (peerId) => {
+  console.log('Peer connected:', peerId);
 });
 ```
 
 ## Examples
 
-### Microblogging (like the included ZW app)
+### Simple Messaging App
 
 ```typescript
-import { makePost } from 'verity';
+import { VerityNode, Identity, ChatApplication } from './src/index.js';
 
-// Create a post
-const post = await makePost('Hello Verity!', {
-  id: identity,
-  store: node.cubeStore
-});
+class SimpleMessenger {
+  private node: VerityNode;
+  private identity: Identity;
+  private notificationKey: Buffer;
 
-// Create a reply
-const reply = await makePost('Great to see you here!', {
-  id: identity,
-  replyto: await post.getKey(),
-  store: node.cubeStore
-});
+  constructor(node: VerityNode, identity: Identity) {
+    this.node = node;
+    this.identity = identity;
+    this.notificationKey = Buffer.alloc(32); // Configure your routing
+  }
 
-// Get posts from an identity
-for await (const postInfo of identity.getPosts()) {
-  const cube = postInfo.main;
-  const payload = cube.getFirstField(FieldType.PAYLOAD);
-  console.log('Post:', payload.value.toString());
+  async sendMessage(message: string): Promise<void> {
+    const chatCube = await ChatApplication.createChatCube(
+      this.identity.name,
+      message,
+      this.notificationKey
+    );
+    await this.node.cubeStore.addCube(chatCube);
+  }
+
+  async receiveMessages(): Promise<void> {
+    this.node.cubeStore.on('cubeAdded', (cube) => {
+      try {
+        const parsed = ChatApplication.parseChatCube(cube);
+        console.log(`${parsed.username}: ${parsed.message}`);
+      } catch (e) {
+        // Not a chat cube, ignore
+      }
+    });
+  }
 }
 ```
 
-### Custom Application Fields
+### File Sharing Service
 
 ```typescript
-// Define custom application fields (0x30-0x3F range)
-const CUSTOM_FIELD_TYPE = 0x30;
+import { VerityNode, FileApplication } from './src/index.js';
 
-const cube = cciCube.Frozen({
-  fields: [
-    VerityField.Application('my-custom-app'),
-    VerityField.Payload('Main content'),
-    // Custom field
-    {
-      type: CUSTOM_FIELD_TYPE,
-      value: Buffer.from('Custom data'),
-      length: Buffer.from('Custom data').length
+class FileShare {
+  private node: VerityNode;
+
+  constructor(node: VerityNode) {
+    this.node = node;
+  }
+
+  async shareFile(filePath: string): Promise<string[]> {
+    const content = await fs.readFile(filePath);
+    const fileName = path.basename(filePath);
+    
+    const fileCubes = await FileApplication.createFileCubes(
+      content,
+      fileName,
+      (progress) => console.log(`Upload: ${progress}%`)
+    );
+
+    const cubeKeys = [];
+    for (const cube of fileCubes) {
+      await this.node.cubeStore.addCube(cube);
+      cubeKeys.push(await cube.getKeyString());
     }
-  ]
-});
+
+    return cubeKeys; // Share these keys with others
+  }
+
+  async downloadFile(cubeKeys: string[], outputPath: string): Promise<void> {
+    const cubes = [];
+    for (const keyString of cubeKeys) {
+      const cube = await this.node.cubeRetriever.getCube(keyString);
+      if (cube) cubes.push(cube);
+    }
+
+    const file = await FileApplication.reconstructFile(cubes);
+    await fs.writeFile(outputPath, file.content);
+  }
+}
 ```
 
 ## Best Practices
 
 ### Performance
-- Use light nodes for client applications
-- Only store cubes you actually need
-- Consider cube lifetime when designing applications
-- Use appropriate cube types (Frozen for temporary data, PICs for persistent data)
+
+- **Use light nodes** for applications that don't need to store all network data
+- **Batch operations** when adding multiple cubes
+- **Use Veritum** for large data rather than creating many small cubes
+- **Cache frequently accessed cubes** locally
 
 ### Security
-- Always encrypt sensitive data
-- Verify signatures before trusting content
-- Use proper key management practices
-- Don't store private keys in plaintext
+
+- **Always verify signatures** on received content
+- **Use proper encryption** for sensitive data
+- **Validate input data** before creating cubes
+- **Keep private keys secure** and never log them
 
 ### Data Design
-- Keep cubes under 1kB (they'll be rejected if larger)
-- Use relationships to link related content
-- Choose appropriate media types
-- Include application identifiers
 
-### Network Efficiency
-- Reuse relationships when possible
-- Avoid creating unnecessary cubes
-- Use notification keys for real-time applications
-- Consider pruning old data
+- **Use appropriate field types** to ensure interoperability
+- **Include application identifiers** to enable filtering
+- **Use relationships** to link related content
+- **Consider data lifetime** when choosing cube types
 
-## Troubleshooting
+### Development
 
-### Common Issues
+- **Start with in-memory nodes** for testing
+- **Use the application APIs** rather than low-level cube manipulation
+- **Test network connectivity** in a local environment first
+- **Monitor cube storage usage** in production applications
 
-**Cube too large:**
-```typescript
-// Check remaining space before adding fields
-console.log('Bytes remaining:', cube.fields.bytesRemaining());
-```
-
-**Identity not found:**
-```typescript
-// Make sure to store the identity
-await identityStore.addIdentity(identity);
-await identity.store();
-```
-
-**Cube not found:**
-```typescript
-// Check if cube exists before retrieving
-const exists = await node.cubeStore.hasCube(cubeKey);
-if (!exists) {
-  // Request from network if light node
-  const cubeInfo = await node.cubeRetriever.requestCube(cubeKey);
-}
-```
-
-**Network connectivity issues:**
-- Check if running in a sandboxed environment
-- Verify WebSocket transport is available
-- For web applications, ensure HTTPS/WSS is used
-
-### Debugging
-
-Enable debug logging:
-```typescript
-import { logger } from 'verity';
-
-// Set log level
-logger.level = 'debug';
-
-// Log cube information
-const cube = await node.cubeStore.getCube(cubeKey);
-console.log('Cube type:', cube.cubeType);
-console.log('Cube size:', cube.binaryData.length);
-console.log('Fields:', cube.fields.size);
-```
-
-### Testing
-
-Use in-memory storage for tests:
-```typescript
-const testNode = await VerityNode.Create({
-  inMemory: true,
-  lightNode: true,
-  announceToTorrentTrackers: false
-});
-```
-
-## Next Steps
-
-- Read the [API Reference](api-reference.md) for detailed method documentation
-- Explore the [example applications](../examples/) 
-- Study the [technical specifications](verity.md) for advanced features
-- Join the Verity community for support and discussions
-
-## Contributing
-
-Verity is open to contributions! Please:
-1. Read the technical documentation
-2. Check existing issues and PRs
-3. Follow the coding standards
-4. Add tests for new features
-5. Update documentation as needed
+This guide provides the foundation for building applications on Verity. For more detailed API documentation, see the [API Reference](api-reference.md), and for working examples, explore the applications in `src/app/`.
