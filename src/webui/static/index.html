@@ -622,21 +622,49 @@
   <!-- Chat Application related templates -->
   <template id="verityChatAppTemplate">
     <div class="verityChatApp">
-      <h2 class="mt-3 mt-sm-5 mb-3">Chat</h2>
+      <div class="verityChatHeader">
+        <h2 class="verityChatTitle">Chat</h2>
+        <div class="verityActiveRoomIndicator">
+          <span class="verityActiveRoomName">No rooms joined</span>
+        </div>
+      </div>
+      
       <div class="verityChatError alert alert-danger" style="display: none;"></div>
-      <div class="input-group mb-3">
-        <input type="text" class="form-control verityUsernameInput" placeholder="Enter your username" required>
-        <button class="btn btn-primary verityUsernameSet" type="button">Set</button>
-      </div>
-      <div class="input-group mb-3">
-        <input type="text" class="form-control verityNotificationKeyInput" placeholder="Enter room name">
-        <button class="btn btn-primary verityNotificationKeySet" type="button">Set</button>
-      </div>
-      <div class="verityChatMessages mb-3"></div>
-      <form class="verityChatForm">
+      
+      <!-- User Setup Section -->
+      <div class="verityChatUserSetup">
         <div class="input-group mb-3">
-          <input type="text" class="form-control verityMessageInput" placeholder="Type your message" required>
-          <button type="submit" class="btn btn-primary">Send</button>
+          <span class="input-group-text">👤</span>
+          <input type="text" class="form-control verityUsernameInput" placeholder="Enter your username" required>
+          <button class="btn btn-outline-primary verityUsernameSet" type="button">Set</button>
+        </div>
+      </div>
+      
+      <!-- Room Management Section -->
+      <div class="verityChatRoomManagement">
+        <div class="input-group mb-3">
+          <span class="input-group-text">🏠</span>
+          <input type="text" class="form-control verityRoomNameInput" placeholder="Enter room name to join">
+          <button class="btn btn-primary verityJoinRoom" type="button">Join Room</button>
+        </div>
+      </div>
+      
+      <!-- Room Tabs -->
+      <div class="verityChatRoomTabs"></div>
+      
+      <!-- Messages Area -->
+      <div class="verityChatMessagesContainer">
+        <div class="verityChatMessages"></div>
+      </div>
+      
+      <!-- Message Input -->
+      <form class="verityChatForm">
+        <div class="input-group">
+          <input type="text" class="form-control verityMessageInput" placeholder="Type your message..." required>
+          <button type="submit" class="btn btn-primary">
+            <span class="d-none d-sm-inline">Send</span>
+            <span class="d-sm-none">📤</span>
+          </button>
         </div>
       </form>
     </div>
