@@ -4,6 +4,7 @@ import type { PeerDB } from "../../peering/peerDB";
 import { SetNetworkManagerDefaults, type NetworkManagerIf, type NetworkManagerOptions } from "../networkManagerIf";
 import type { TransportParamMap, NetworkTransport } from "../transport/networkTransport";
 import type { CubeKey } from "../../cube/cube.definitions";
+import type { CubeInfo } from "../../cube/cubeInfo";
 
 import { NetworkPeerIf, NetworkStats } from "../networkPeerIf";
 import { RequestScheduler } from "../cubeRetrieval/requestScheduler";
@@ -49,4 +50,7 @@ export class DummyNetworkManager extends EventEmitter implements NetworkManagerI
   }
   getRecentKeys(): CubeKey[] { return []; }
   handlePeerUpdated(peer: NetworkPeerIf): void { }
+  expressSync(cubeInfos: CubeInfo[]): void {
+    // Dummy implementation - does nothing
+  }
 }

@@ -2,7 +2,7 @@ import { Settings, VerityError } from '../settings';
 import { unixtime } from '../helpers/misc';
 import { CubeKey } from '../cube/cube.definitions';
 
-import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
+import { MessageClass, NetConstants, SupportedTransports, NodeType } from './networkDefinitions';
 import { NetworkPeer } from './networkPeer';
 import { NetworkPeerOptions, NetworkStats } from './networkPeerIf';
 import { NetworkPeerIf } from './networkPeerIf';
@@ -10,6 +10,7 @@ import { NetworkTransport, TransportParamMap } from './transport/networkTranspor
 import { TransportConnection } from './transport/transportConnection';
 import { createNetworkPeerConnection, createNetworkTransport } from './transport/transportFactory';
 import { RequestScheduler } from './cubeRetrieval/requestScheduler';
+import { KeyResponseMessage, KeyRequestMode } from './networkMessage';
 
 import { CubeStore } from '../cube/cubeStore';
 import { CubeInfo } from '../cube/cubeInfo';
@@ -237,6 +238,43 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
 
         // Return the slice of keys starting from beginIndex
         return this.recentKeysWindow.slice(beginIndex, beginIndex + availableCount);
+    }
+
+    /**
+     * Offer one or multiple cubes to all connected full nodes by sending
+     * an unsolicited ExpressSync KeyResponse message.
+     * This helps propagate new cubes across the network backbone without
+     * interfering with regular sync processes.
+     * @param cubeInfos Array of CubeInfo objects to offer
+     */
+    expressSync(cubeInfos: CubeInfo[]): void {
+        if (!cubeInfos || cubeInfos.length === 0) {
+            return;
+        }
+
+        // Get all online peers that are full nodes
+        const fullNodePeers = this.onlinePeers.filter(peer => 
+            peer.remoteNodeType === NodeType.Full
+        );
+
+        if (fullNodePeers.length === 0) {
+            logger.trace('NetworkManager.expressSync(): No connected full nodes to offer cubes to');
+            return;
+        }
+
+        // Create a KeyResponse message with ExpressSync mode containing the cube metadata
+        const keyResponse = new KeyResponseMessage(KeyRequestMode.ExpressSync, cubeInfos);
+        
+        logger.trace(`NetworkManager.expressSync(): Offering ${cubeInfos.length} cube(s) to ${fullNodePeers.length} full node(s)`);
+        
+        // Send the unsolicited KeyResponse to all connected full nodes
+        for (const peer of fullNodePeers) {
+            try {
+                peer.sendMessage(keyResponse);
+            } catch (error) {
+                logger.warn(`NetworkManager.expressSync(): Error sending cube offer to peer ${peer.toString()}: ${error}`);
+            }
+        }
     }
 
     get cubeStore(): CubeStore { return this._cubeStore; }

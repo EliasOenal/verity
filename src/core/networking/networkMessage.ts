@@ -144,6 +144,7 @@ export enum KeyRequestMode {
   SequentialStoreSync = 0x02,
   NotificationChallenge = 0x03,
   NotificationTimestamp = 0x04,
+  ExpressSync = 0x05,
 }
 
 export class KeyRequestMessage extends NetworkMessage {

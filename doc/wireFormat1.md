@@ -60,6 +60,7 @@
       * `0x00`: Legacy Mode (Deprecated)
       * `0x01`: Sliding Window Mode
       * `0x02`: Sequential Store Sync Mode
+      * `0x05`: Express Sync Mode
     - **Key Count (4 bytes)**: This is an integer indicating the number of keys being sent.
     - **Cube Details**: Each detail includes:
       - **Cube Type (1 byte)**: The type of the cube (e.g., regular, MUC, IPC).

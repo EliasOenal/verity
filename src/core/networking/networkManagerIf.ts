@@ -6,6 +6,7 @@ import type { PeerDB } from '../peering/peerDB';
 import type { SupportedTransports } from './networkDefinitions';
 import type { NetworkStats, NetworkPeerIf, NetworkPeerOptions } from './networkPeerIf';
 import type { CubeKey } from '../cube/cube.definitions';
+import type { CubeInfo } from '../cube/cubeInfo';
 
 import type { EventEmitter } from 'events';
 import { Settings } from '../settings';
@@ -37,6 +38,7 @@ export interface NetworkManagerIf extends EventEmitter {
   getRecentSucceedingKeys(startKey: CubeKey, count: number): CubeKey[];
   getRecentKeys(): CubeKey[];
   handlePeerUpdated(peer: NetworkPeerIf): void;
+  expressSync(cubeInfos: CubeInfo[]): void;
 }
 
 export interface NetworkManagerOwnOptions {
