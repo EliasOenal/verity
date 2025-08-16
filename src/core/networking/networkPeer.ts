@@ -889,12 +889,8 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     private sendSubscribedCubeUpdate: (cubeInfo: CubeInfo) => void = cubeInfo => {
         const cube: Cube = cubeInfo.getCube();
         if (this._cubeSubscriptions.has(cube.getKeyStringIfAvailable())) {
-            const binaryCube: Buffer = cube.getBinaryDataIfAvailable();
-            if (binaryCube === undefined) {
-                logger.warn(`NetworkPeer ${this.toString()}.sendSubscribedCubeUpdate(): I was called on an apparently uncompiled Cube. This should not happen. Doing nothing.`);
-                return;
-            }
-            const reply = new CubeResponseMessage([cube.getBinaryDataIfAvailable()]);
+            // Send KeyResponse with ExpressSync mode instead of full cube
+            const reply = new KeyResponseMessage(KeyRequestMode.ExpressSync, [cubeInfo]);
             this.sendMessage(reply);
         }
     }
@@ -907,13 +903,18 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     //  otherwise, event subscription will not properly cancel on close
     private sendNotificationUpdate: (notificationKey: CubeKey, cube: Cube) => void = (notificationKey, cube) => {
         if (this._notificationSubscriptions.has(keyVariants(notificationKey).keyString)) {
-            const binaryCube: Buffer = cube.getBinaryDataIfAvailable();
-            if (binaryCube === undefined) {
-                logger.warn(`NetworkPeer ${this.toString()}.sendNotificationUpdate(): I was called on an apparently uncompiled Cube. This should not happen. Doing nothing.`);
-                return;
-            }
-            const reply = new CubeResponseMessage([cube.getBinaryDataIfAvailable()]);
-            this.sendMessage(reply);
+            // For notification updates, we need to create a CubeInfo from the cube
+            // Since this is triggered by the notificationAdded event, we should be able to get the CubeInfo
+            this.networkManager.cubeStore.getCubeInfo(cube.getKeyIfAvailable())
+                .then(cubeInfo => {
+                    if (cubeInfo) {
+                        const reply = new KeyResponseMessage(KeyRequestMode.ExpressSync, [cubeInfo]);
+                        this.sendMessage(reply);
+                    }
+                })
+                .catch(err => {
+                    logger.warn(`NetworkPeer ${this.toString()}.sendNotificationUpdate(): Failed to get CubeInfo: ${err}`);
+                });
         }
     }
 

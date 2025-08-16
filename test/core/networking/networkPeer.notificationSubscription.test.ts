@@ -6,7 +6,7 @@ import { CubeStore } from "../../../src/core/cube/cubeStore";
 import { calculateHash } from "../../../src/core/cube/cubeUtil";
 import { MessageClass, NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { NetworkManagerIf } from "../../../src/core/networking/networkManagerIf";
-import { CubeResponseMessage, NetworkMessage, SubscribeCubeMessage, SubscribeNotificationsMessage, SubscriptionConfirmationMessage, SubscriptionResponseCode } from "../../../src/core/networking/networkMessage";
+import { CubeResponseMessage, NetworkMessage, SubscribeCubeMessage, SubscribeNotificationsMessage, SubscriptionConfirmationMessage, SubscriptionResponseCode, KeyResponseMessage, KeyRequestMode } from "../../../src/core/networking/networkMessage";
 import { NetworkPeer } from "../../../src/core/networking/networkPeer";
 import { DummyTransportConnection } from "../../../src/core/networking/testingDummies/dummyTransportConnection";
 import { DummyNetworkManager } from "../../../src/core/networking/testingDummies/dummyNetworkManager";
@@ -185,7 +185,7 @@ describe('NetworkPeer SubscribeNotification tests', () => {
     });
 
     describe('sendSubscribedCubeUpdate() private method', () => {
-      it('should send a CubeUpdateMessage when a subscribed Cube is updated', async () => {
+      it('should send a KeyResponse with ExpressSync mode when a subscribed notification is added', async () => {
         // add a notification cube
         const notification = Cube.Create({
           fields: CubeField.Notify(notificationKey1),
@@ -193,19 +193,20 @@ describe('NetworkPeer SubscribeNotification tests', () => {
         });
         await cubeStore.addCube(notification);
 
-        // expect a CubeResponseMessage to have been "sent" through our dummy connection:
+        // expect a KeyResponse with ExpressSync mode to have been "sent" through our dummy connection:
         // fetch latest message
         const binaryMessage: Buffer =
           conn.sentMessages[conn.sentMessages.length-1]
           .subarray(NetConstants.PROTOCOL_VERSION_SIZE);
         // decompile message
-        const msg: CubeResponseMessage = NetworkMessage.fromBinary(binaryMessage) as CubeResponseMessage;
-        expect(msg.type).toBe(MessageClass.CubeResponse);
-        expect(msg.cubeCount).toBe(1);
-        // retrieve binary Cube from message
-        const binaryCube: Buffer = Array.from(msg.binaryCubes())[0];
-        // should be the new notification Cube
-        expect(binaryCube.equals(notification.getBinaryDataIfAvailable())).toBeTruthy();
+        const msg: KeyResponseMessage = NetworkMessage.fromBinary(binaryMessage) as KeyResponseMessage;
+        expect(msg.type).toBe(MessageClass.KeyResponse);
+        expect(msg.mode).toBe(KeyRequestMode.ExpressSync);
+        expect(msg.keyCount).toBe(1);
+        // retrieve cube info from message
+        const cubeInfos = Array.from(msg.cubeInfos());
+        expect(cubeInfos).toHaveLength(1);
+        expect(cubeInfos[0].key).toEqual(await notification.getKey());
       });
     });
   });
