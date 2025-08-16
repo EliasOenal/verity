@@ -179,6 +179,11 @@ export class Cockpit implements VeritumRetrievalInterface {
     return this.node.veritumRetriever.getNotifications(recipientKey);
   }
 
+  // Pass-through method to implement VeritumRetrievalInterface
+  subscribeNotifications(recipientKey: NotificationKey | string, options?: any): any {
+    return this.node.veritumRetriever.subscribeNotifications(recipientKey, options);
+  }
+
 }
 
 /**

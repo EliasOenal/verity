@@ -1,7 +1,6 @@
 import type { Cube } from "../../core/cube/cube";
 import type { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
 import type { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
-import type { CubeRetriever } from "../../core/networking/cubeRetrieval/cubeRetriever";
 import type { cciCube } from "../cube/cciCube";
 import type { IdentityStore } from "./identityStore";
 
@@ -21,34 +20,19 @@ export interface NotifyingIdentitiesOptions {
   subscribe?: boolean;
 }
 
-// TODO: make cancellable, in particular in subscribe mode
-// Note: cubeStoreOrRetriever should actually be a CubeStore or a CubeRetriever;
-//   supplying a VeritumRetriever will not work properly.
 export async function *notifyingIdentities(
     cubeStoreOrRetriever: CubeRetrievalInterface<any>,
     notificationKey: NotificationKey,
     identityStore: IdentityStore,
     options: NotifyingIdentitiesOptions = {},
 ): AsyncGenerator<Identity> {
-  // normalise input:
-  // - If cubeStoreOrRetriever is a VeritumRetriever, get its CubeRetriever.
-  //   This is a "temporary" workaround because VeritumRetriever cannot yet
-  //   be used as a drop-in for CubeRetriever in every use case; in particular,
-  //   it lacks a subscribeNotifications() method.
-  let cubeRetriever: CubeRetrievalInterface<any>;
-  if ('cubeRetriever' in cubeStoreOrRetriever) {
-    cubeRetriever = cubeStoreOrRetriever.cubeRetriever as CubeRetriever;
-  } else {
-    cubeRetriever = cubeStoreOrRetriever;
-  }
-
   // First, get any notifying Identity root Cube matching the notification key
   let idRoots: MergedAsyncGenerator<Cube>;
   const existingIdRoots: AsyncGenerator<Cube> =
     cubeStoreOrRetriever.getNotifications(notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
   if (options.subscribe && 'subscribeNotifications' in cubeStoreOrRetriever) {
     const futureIdRoots: AsyncGenerator<Cube> =
-      (cubeRetriever as CubeRetriever).subscribeNotifications(notificationKey, { format: RetrievalFormat.Cube });
+      (cubeStoreOrRetriever as any).subscribeNotifications(notificationKey, { format: RetrievalFormat.Cube });
     idRoots = mergeAsyncGenerators(existingIdRoots, futureIdRoots);
   } else {
     idRoots = mergeAsyncGenerators(existingIdRoots);
