@@ -421,8 +421,8 @@ img.verityEditIdentityAvatar {
 /* Chat Application styles */
 .verityChatApp {
   max-width: 900px;
-  margin: 2rem auto 0 auto;
-  height: calc(100vh - 300px);
+  margin: 0.5rem auto 0 auto;
+  height: calc(100vh - 200px);
   display: flex;
   flex-direction: column;
   background: var(--bs-body-bg);

@@ -15,10 +15,13 @@ export interface ChatRoom {
     id: string;
     name: string;
     notificationKey: NotificationKey;
-    messages: Array<{ username: string, message: string, timestamp: Date }>;
+    messages: Array<{ username: string, message: string, timestamp: Date, cubeKey?: string }>;
     unreadCount: number;
     subscription: MergedAsyncGenerator<Cube> | null;
     isProcessingMessages: boolean;
+    processedCubeKeys: Set<string>; // Track processed cube keys to avoid duplicates
+    seenCubeKeys: Set<string>; // Track which messages have been seen by the user
+    lastSeenTimestamp: number; // Track when the room was last viewed
 }
 
 export class ChatController extends VerityController {
@@ -41,10 +44,11 @@ export class ChatController extends VerityController {
             contentArea.innerHTML = '';
             contentArea.appendChild(this.contentAreaView.renderedView);
             
-            // Hide the back button as requested
+            // Permanently hide the back button - it's not needed for chat navigation
             const backArea = document.getElementById("verityBackArea");
             if (backArea) {
-                backArea.setAttribute("style", "display: none");
+                backArea.style.display = "none";
+                backArea.style.visibility = "hidden";
             }
             
             // Load persisted data
@@ -56,7 +60,8 @@ export class ChatController extends VerityController {
 
     async joinRoom(roomName: string): Promise<void> {
         // Allow empty strings and whitespace room names
-        const roomId = roomName.toLowerCase();
+        // Use a special identifier for empty room names to distinguish them
+        const roomId = roomName === '' ? '__empty__' : roomName.toLowerCase();
         if (this.rooms.has(roomId)) {
             this.switchToRoom(roomId);
             return;
@@ -73,7 +78,10 @@ export class ChatController extends VerityController {
                 messages: [],
                 unreadCount: 0,
                 subscription: null,
-                isProcessingMessages: false
+                isProcessingMessages: false,
+                processedCubeKeys: new Set<string>(),
+                seenCubeKeys: new Set<string>(),
+                lastSeenTimestamp: Date.now()
             };
 
             this.rooms.set(roomId, room);
@@ -120,6 +128,15 @@ export class ChatController extends VerityController {
 
         this.activeRoomId = roomId;
         room.unreadCount = 0;
+        room.lastSeenTimestamp = Date.now();
+        
+        // Mark all current messages as seen
+        for (const message of room.messages) {
+            if (message.cubeKey) {
+                room.seenCubeKeys.add(message.cubeKey);
+            }
+        }
+        
         this.contentAreaView.updateMessages(room.messages);
         this.contentAreaView.updateActiveRoom(roomId);
         this.contentAreaView.updateRoomList(Array.from(this.rooms.values()));
@@ -190,20 +207,33 @@ export class ChatController extends VerityController {
                 try {
                     if (!cube) continue;
                     
+                    const cubeKey = cube.getKey().toString('hex');
+                    
+                    // Skip if we've already processed this cube
+                    if (room.processedCubeKeys.has(cubeKey)) {
+                        continue;
+                    }
+                    
                     const cciCube: cciCube = cube as cciCube;
                     const { username, message } = ChatApplication.parseChatCube(cciCube);
                     const newMessage = { 
                         username, 
                         message, 
-                        timestamp: new Date(cciCube.getDate() * 1000) 
+                        timestamp: new Date(cciCube.getDate() * 1000),
+                        cubeKey
                     };
+                    
+                    // Mark this cube as processed
+                    room.processedCubeKeys.add(cubeKey);
                     
                     // Add to room's messages array (keeping sorted by timestamp)
                     room.messages.push(newMessage);
                     room.messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
                     
-                    // Update unread count if this isn't the active room
-                    if (this.activeRoomId !== roomId) {
+                    // Only increment unread count for truly new messages (not historical ones)
+                    // and only if this isn't the active room
+                    const isNewMessage = newMessage.timestamp.getTime() > room.lastSeenTimestamp;
+                    if (this.activeRoomId !== roomId && isNewMessage && !room.seenCubeKeys.has(cubeKey)) {
                         room.unreadCount++;
                     }
                     
@@ -283,7 +313,10 @@ export class ChatController extends VerityController {
                     messages: [],
                     unreadCount: 0,
                     subscription: null,
-                    isProcessingMessages: false
+                    isProcessingMessages: false,
+                    processedCubeKeys: new Set<string>(),
+                    seenCubeKeys: new Set<string>(),
+                    lastSeenTimestamp: Date.now()
                 };
                 
                 this.rooms.set(storedRoom.id, room);
@@ -331,19 +364,33 @@ export class ChatController extends VerityController {
                     limit: 100 
                 }) as AsyncGenerator<Cube>;
             
-            const messages: Array<{ username: string, message: string, timestamp: Date }> = [];
+            const messages: Array<{ username: string, message: string, timestamp: Date, cubeKey: string }> = [];
             
             for await (const cube of historicalCubes) {
                 try {
                     if (!cube) continue;
+                    
+                    const cubeKey = cube.getKey().toString('hex');
+                    
+                    // Skip if we've already processed this cube
+                    if (room.processedCubeKeys.has(cubeKey)) {
+                        continue;
+                    }
                     
                     const cciCube: cciCube = cube as cciCube;
                     const { username, message } = ChatApplication.parseChatCube(cciCube);
                     const newMessage = { 
                         username, 
                         message, 
-                        timestamp: new Date(cciCube.getDate() * 1000) 
+                        timestamp: new Date(cciCube.getDate() * 1000),
+                        cubeKey
                     };
+                    
+                    // Mark this cube as processed to avoid future duplicates
+                    room.processedCubeKeys.add(cubeKey);
+                    
+                    // Mark historical messages as seen (they don't count as new)
+                    room.seenCubeKeys.add(cubeKey);
                     
                     messages.push(newMessage);
                 } catch (error) {
@@ -355,6 +402,9 @@ export class ChatController extends VerityController {
             messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
             room.messages = messages;
             
+            // Clean up old seen message tracking
+            this.cleanupOldSeenMessages(roomId);
+            
             // Update UI if this is the active room
             if (this.activeRoomId === roomId) {
                 this.contentAreaView.updateMessages([...room.messages]);
@@ -364,6 +414,36 @@ export class ChatController extends VerityController {
         } catch (error) {
             logger.error(`Chat: Error loading historical messages for room ${roomId}: ${error}`);
         }
+    }
+
+    private cleanupOldSeenMessages(roomId: string): void {
+        const room = this.rooms.get(roomId);
+        if (!room) return;
+
+        // Get cube keys from current messages
+        const currentCubeKeys = new Set(
+            room.messages
+                .map(m => m.cubeKey)
+                .filter(key => key !== undefined)
+        );
+
+        // Remove seen cube keys that are no longer in current messages
+        const seenKeysToKeep = new Set<string>();
+        for (const seenKey of room.seenCubeKeys) {
+            if (currentCubeKeys.has(seenKey)) {
+                seenKeysToKeep.add(seenKey);
+            }
+        }
+        room.seenCubeKeys = seenKeysToKeep;
+
+        // Also clean up processed cube keys
+        const processedKeysToKeep = new Set<string>();
+        for (const processedKey of room.processedCubeKeys) {
+            if (currentCubeKeys.has(processedKey)) {
+                processedKeysToKeep.add(processedKey);
+            }
+        }
+        room.processedCubeKeys = processedKeysToKeep;
     }
 }
 

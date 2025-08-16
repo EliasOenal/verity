@@ -80,7 +80,7 @@ export class ChatView extends VerityView {
         this.renderedView.appendChild(this.chatContainer);
     }
 
-    updateMessages(messages: Array<{ username: string, message: string, timestamp: Date }>): void {
+    updateMessages(messages: Array<{ username: string, message: string, timestamp: Date, cubeKey?: string }>): void {
         const isScrolledToBottom = this.isScrolledToBottom();
         const scrollTop = this.messageList.scrollTop;
 
