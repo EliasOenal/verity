@@ -38,7 +38,7 @@ export interface NetworkManagerIf extends EventEmitter {
   getRecentSucceedingKeys(startKey: CubeKey, count: number): CubeKey[];
   getRecentKeys(): CubeKey[];
   handlePeerUpdated(peer: NetworkPeerIf): void;
-  offerCubesToConnectedPeers(cubeInfos: CubeInfo[]): void;
+  expressSync(cubeInfos: CubeInfo[]): void;
 }
 
 export interface NetworkManagerOwnOptions {

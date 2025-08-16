@@ -155,27 +155,24 @@ export class ChatController extends VerityController {
         logger.trace(`Chat: Starting subscription for room ${roomId} with key: ${room.notificationKey.toString('hex')}`);
         
         try {
-            // First, load historical messages from local store
-            await this.loadHistoricalMessages(roomId);
-            
-            // Get existing cubes from local store
-            const existingCubes: AsyncGenerator<Cube> = 
-                this.cubeStore.getNotifications(room.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
-            
-            // Subscribe to future cubes via network (with proper type checking)
+            // Subscribe to future cubes via network first to avoid missing notifications
             if ('subscribeNotifications' in this.cubeRetriever) {
-                const futureCubes: AsyncGenerator<Cube> = 
+                const futureCubes: AsyncGenerator<Cube> =
                     (this.cubeRetriever as CubeRetriever).subscribeNotifications(room.notificationKey, { format: RetrievalFormat.Cube });
-                
-                // Merge both streams
-                room.subscription = mergeAsyncGenerators(existingCubes, futureCubes);
+                room.subscription = mergeAsyncGenerators(futureCubes);
             } else {
-                // Fallback to existing cubes only if subscription is not available
-                room.subscription = mergeAsyncGenerators(existingCubes);
+                // No subscription support; keep an empty merged generator to satisfy typing
+                room.subscription = mergeAsyncGenerators();
             }
-            
-            // Start processing messages for this room
+
+            // Start processing future notifications immediately
             this.processRoomMessageStream(roomId);
+
+            // Then fetch historical messages via the network-aware retriever.
+            // Fire-and-forget; dedup logic prevents duplicates with the subscription.
+            this.loadHistoricalMessages(roomId).catch(error => {
+                logger.error(`Chat: Error loading historical messages after subscribing for room ${roomId}: ${error}`);
+            });
         } catch (error) {
             logger.error(`Chat: Error starting subscription for room ${roomId}: ${error}`);
             this.contentAreaView.showError(`Failed to start real-time updates for room "${room.name}".`);
@@ -207,7 +204,7 @@ export class ChatController extends VerityController {
                 try {
                     if (!cube) continue;
                     
-                    const cubeKey = cube.getKeyIfAvailable()?.toString('hex') || `unknown_${Date.now()}_${Math.random()}`;
+                    const cubeKey = await cube.getKeyString();
                     
                     // Skip if we've already processed this cube
                     if (room.processedCubeKeys.has(cubeKey)) {
@@ -280,9 +277,7 @@ export class ChatController extends VerityController {
             
             // Offer new cubes to all connected peers
             const cubeInfo = await chatCube.getCubeInfo();
-            this.node.networkManager.offerCubesToConnectedPeers([cubeInfo]);
-            
-            // No need to manually update messages - the subscription will handle it automatically
+            this.node.networkManager.expressSync([cubeInfo]);
         } catch (error) {
             logger.error(`Chat: Error sending message: ${error}`);
             this.contentAreaView.showError("Failed to send message. Please try again.");
@@ -362,11 +357,10 @@ export class ChatController extends VerityController {
         try {
             logger.trace(`Chat: Loading historical messages for room ${roomId}`);
             
-            // Get recent messages from the store (limit to last 100)
+            // Get recent messages via the network-aware retriever (do not rely on local-only store)
             const historicalCubes: AsyncGenerator<Cube> = 
-                this.cubeStore.getNotifications(room.notificationKey, { 
-                    format: RetrievalFormat.Cube,
-                    limit: 100 
+                (this.cubeRetriever as CubeRetriever).getNotifications(room.notificationKey, { 
+                    format: RetrievalFormat.Cube
                 }) as AsyncGenerator<Cube>;
             
             const messages: Array<{ username: string, message: string, timestamp: Date, cubeKey: string }> = [];
@@ -375,7 +369,7 @@ export class ChatController extends VerityController {
                 try {
                     if (!cube) continue;
                     
-                    const cubeKey = cube.getKeyIfAvailable()?.toString('hex') || `unknown_${Date.now()}_${Math.random()}`;
+                    const cubeKey = await cube.getKeyString();
                     
                     // Skip if we've already processed this cube
                     if (room.processedCubeKeys.has(cubeKey)) {
@@ -403,7 +397,7 @@ export class ChatController extends VerityController {
                 }
             }
             
-            // Sort messages by timestamp
+            // Sort messages by timestamp and keep all fetched messages
             messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
             room.messages = messages;
             
@@ -415,7 +409,7 @@ export class ChatController extends VerityController {
                 this.contentAreaView.updateMessages([...room.messages]);
             }
             
-            logger.trace(`Chat: Loaded ${messages.length} historical messages for room ${roomId}`);
+            logger.trace(`Chat: Loaded ${room.messages.length} historical messages for room ${roomId}`);
         } catch (error) {
             logger.error(`Chat: Error loading historical messages for room ${roomId}: ${error}`);
         }
