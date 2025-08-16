@@ -45,7 +45,7 @@ If you want to build applications on top of Verity:
    await node.cubeStore.addCube(post);
    ```
 
-3. **See more examples:** Check out the [Developer Guide](doc/developer-guide.md) and [API Reference](doc/api-reference.md).
+3. **See more examples:** Check out the [Developer Guide](doc/developer-guide.md), [API Reference](doc/api-reference.md), and the working applications in `src/app/`.
 
 ### For Network Operators and Developers
 
