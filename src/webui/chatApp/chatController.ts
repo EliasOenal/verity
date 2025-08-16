@@ -277,6 +277,11 @@ export class ChatController extends VerityController {
         try {
             const chatCube = await ChatApplication.createChatCube(username, message.trim(), activeRoom.notificationKey);
             await this.cubeStore.addCube(chatCube);
+            
+            // Offer new cubes to all connected peers
+            const cubeInfo = await chatCube.getCubeInfo();
+            this.node.networkManager.offerCubesToConnectedPeers([cubeInfo]);
+            
             // No need to manually update messages - the subscription will handle it automatically
         } catch (error) {
             logger.error(`Chat: Error sending message: ${error}`);
