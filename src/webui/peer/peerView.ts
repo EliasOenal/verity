@@ -2,6 +2,7 @@ import type { NetworkPeerIf } from '../../core/networking/networkPeerIf';
 import type { PeerController, ShallDisplay } from "./peerController";
 
 import { NetworkPeerLifecycle } from '../../core/networking/networkPeerIf';
+import { NodeType } from '../../core/networking/networkDefinitions';
 import { Peer } from "../../core/peering/peer";
 import { NetworkPeer } from "../../core/networking/networkPeer";
 import { VerityView } from "../verityView";
@@ -12,6 +13,20 @@ import { logger } from "../../core/logger";
 
 export class PeerView extends VerityView {
   private peerList: HTMLUListElement;
+
+  /**
+   * Helper function to convert NodeType enum to human-readable string
+   */
+  private nodeTypeToString(nodeType?: NodeType): string {
+    switch (nodeType) {
+      case NodeType.Full:
+        return 'Full';
+      case NodeType.Light:
+        return 'Light';
+      default:
+        return 'Unknown';
+    }
+  }
 
   constructor(
       controller: PeerController,
@@ -89,6 +104,10 @@ export class PeerView extends VerityView {
           statusField.textContent = 'Unknown NetworkPeer lifecycle status: ' + networkPeer.status;
         }
 
+        // Print node type
+        const nodeTypeField: HTMLTableCellElement = freshLi.querySelector('.verityPeerNodeType');
+        nodeTypeField.textContent = this.nodeTypeToString(networkPeer.remoteNodeType);
+
         // Print connected address
         const connField: HTMLTableCellElement = freshLi.querySelector('.verityPeerConn');
         connField.textContent = networkPeer.conn.addressString;
@@ -108,6 +127,10 @@ export class PeerView extends VerityView {
         const statusField: HTMLTableCellElement =
           freshLi.querySelector('.verityPeerStatus');
         statusField.textContent = 'Not connected';
+
+        // Remove node type row (only available for connected peers)
+        const nodeTypeRow: HTMLTableRowElement = freshLi.querySelector('.verityPeerNodeTypeRow');
+        nodeTypeRow.remove();
 
         // Remove connected address
         const connRow: HTMLTableRowElement = freshLi.querySelector('.verityPeerConnRow');

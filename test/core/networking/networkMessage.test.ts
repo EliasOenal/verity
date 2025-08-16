@@ -1,7 +1,7 @@
 import { CubeKey, CubeType, NotificationKey } from "../../../src/core/cube/cube.definitions";
 import { Cube } from "../../../src/core/cube/cube";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
-import { MessageClass, NetConstants } from "../../../src/core/networking/networkDefinitions";
+import { MessageClass, NetConstants, NodeType } from "../../../src/core/networking/networkDefinitions";
 import { NetworkMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, CubeRequestMessage, CubeResponseMessage, ServerAddressMessage, PeerRequestMessage, PeerResponseMessage, KeyRequestMode, SubscriptionResponseCode, SubscriptionConfirmationMessage } from "../../../src/core/networking/networkMessage";
 import { AddressAbstraction } from "../../../src/core/peering/addressing";
 import { Peer } from "../../../src/core/peering/peer";
@@ -55,6 +55,82 @@ describe('HelloMessage', () => {
     const helloMessage = new HelloMessage(buffer);
     expect(helloMessage.type).toEqual(MessageClass.Hello);
     expect(helloMessage.remoteId).toEqual(buffer);
+  });
+
+  describe('node type functionality', () => {
+    it('should create HelloMessage with full node type', () => {
+      const peerId = Buffer.from('abcdefghijklmnop', 'ascii');
+      const helloMessage = new HelloMessage(peerId, NodeType.Full);
+      
+      expect(helloMessage.type).toEqual(MessageClass.Hello);
+      expect(helloMessage.remoteId).toEqual(peerId);
+      expect(helloMessage.nodeType).toEqual(NodeType.Full);
+      expect(helloMessage.value.length).toEqual(NetConstants.PEER_ID_SIZE + NetConstants.NODE_TYPE_SIZE);
+    });
+
+    it('should create HelloMessage with light node type', () => {
+      const peerId = Buffer.from('abcdefghijklmnop', 'ascii');
+      const helloMessage = new HelloMessage(peerId, NodeType.Light);
+      
+      expect(helloMessage.type).toEqual(MessageClass.Hello);
+      expect(helloMessage.remoteId).toEqual(peerId);
+      expect(helloMessage.nodeType).toEqual(NodeType.Light);
+      expect(helloMessage.value.length).toEqual(NetConstants.PEER_ID_SIZE + NetConstants.NODE_TYPE_SIZE);
+    });
+
+    it('should parse HelloMessage with node type from binary data', () => {
+      const peerId = Buffer.from('abcdefghijklmnop', 'ascii');
+      const buffer = Buffer.alloc(NetConstants.PEER_ID_SIZE + NetConstants.NODE_TYPE_SIZE);
+      peerId.copy(buffer, 0);
+      buffer.writeUInt8(NodeType.Full, NetConstants.PEER_ID_SIZE);
+      
+      const helloMessage = new HelloMessage(buffer);
+      expect(helloMessage.remoteId).toEqual(peerId);
+      expect(helloMessage.nodeType).toEqual(NodeType.Full);
+    });
+
+    it('should return undefined nodeType for messages without node type field', () => {
+      const buffer = Buffer.from('abcdefghijklmnop', 'ascii'); // Only 16 bytes (peer ID)
+      const helloMessage = new HelloMessage(buffer);
+      
+      expect(helloMessage.remoteId).toEqual(buffer);
+      expect(helloMessage.nodeType).toBeUndefined();
+    });
+
+    it('should return undefined nodeType for invalid node type values', () => {
+      const peerId = Buffer.from('abcdefghijklmnop', 'ascii');
+      const buffer = Buffer.alloc(NetConstants.PEER_ID_SIZE + NetConstants.NODE_TYPE_SIZE);
+      peerId.copy(buffer, 0);
+      buffer.writeUInt8(0xFF, NetConstants.PEER_ID_SIZE); // Invalid node type
+      
+      const helloMessage = new HelloMessage(buffer);
+      expect(helloMessage.remoteId).toEqual(peerId);
+      expect(helloMessage.nodeType).toBeUndefined();
+    });
+
+    it('should work with NetworkMessage.fromBinary for node type messages', () => {
+      const peerId = Buffer.from('abcdefghijklmnop', 'ascii');
+      const messageBuffer = Buffer.alloc(NetConstants.MESSAGE_CLASS_SIZE + NetConstants.PEER_ID_SIZE + NetConstants.NODE_TYPE_SIZE);
+      messageBuffer.writeUInt8(MessageClass.Hello, 0);
+      peerId.copy(messageBuffer, NetConstants.MESSAGE_CLASS_SIZE);
+      messageBuffer.writeUInt8(NodeType.Light, NetConstants.MESSAGE_CLASS_SIZE + NetConstants.PEER_ID_SIZE);
+      
+      const helloMessage = NetworkMessage.fromBinary(messageBuffer) as HelloMessage;
+      expect(helloMessage).toBeInstanceOf(HelloMessage);
+      expect(helloMessage.remoteId).toEqual(peerId);
+      expect(helloMessage.nodeType).toEqual(NodeType.Light);
+    });
+
+    it('should maintain backward compatibility with old Hello messages', () => {
+      const oldHelloMessage = NetworkMessage.fromBinary(Buffer.concat([
+        Buffer.alloc(NetConstants.MESSAGE_CLASS_SIZE, MessageClass.Hello),
+        Buffer.from('abcdefghijklmnop', 'ascii'),
+      ])) as HelloMessage;
+      
+      expect(oldHelloMessage).toBeInstanceOf(HelloMessage);
+      expect(oldHelloMessage.remoteId).toEqual(Buffer.from('abcdefghijklmnop', 'ascii'));
+      expect(oldHelloMessage.nodeType).toBeUndefined();
+    });
   });
 });
 

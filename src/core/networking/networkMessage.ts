@@ -1,5 +1,5 @@
 import { ApiMisuseError, Settings, VerityError } from "../settings";
-import { MessageClass, NetConstants, NetworkError, NetworkMessageError, SupportedTransports } from "./networkDefinitions";
+import { MessageClass, NetConstants, NetworkError, NetworkMessageError, SupportedTransports, NodeType } from "./networkDefinitions";
 
 import { BaseField } from "../fields/baseField";
 
@@ -101,9 +101,18 @@ export abstract class NetworkMessage extends BaseField {
 
 export class HelloMessage extends NetworkMessage {
   constructor(value: Buffer);
-  constructor(peerId: Buffer);
-  constructor(value: Buffer) {
-    super(MessageClass.Hello, value);
+  constructor(peerId: Buffer, nodeType: NodeType);
+  constructor(value: Buffer, nodeType?: NodeType) {
+    if (nodeType !== undefined) {
+      // Creating from peerId and nodeType
+      const buffer = Buffer.alloc(NetConstants.PEER_ID_SIZE + NetConstants.NODE_TYPE_SIZE);
+      value.copy(buffer, 0, 0, NetConstants.PEER_ID_SIZE);
+      buffer.writeUInt8(nodeType, NetConstants.PEER_ID_SIZE);
+      super(MessageClass.Hello, buffer);
+    } else {
+      // Creating from existing buffer
+      super(MessageClass.Hello, value);
+    }
   }
 
   get remoteId(): Buffer {
@@ -112,6 +121,20 @@ export class HelloMessage extends NetworkMessage {
       return undefined;
     }
     return this.value.subarray(0, NetConstants.PEER_ID_SIZE);
+  }
+
+  get nodeType(): NodeType | undefined {
+    const expectedLength = NetConstants.PEER_ID_SIZE + NetConstants.NODE_TYPE_SIZE;
+    if (this.value.length < expectedLength) {
+      logger.trace(`HelloMessage.nodeType: Invalid message of length ${this.value.length} while expected length is ${expectedLength}; returning undefined`);
+      return undefined;
+    }
+    const nodeTypeValue = this.value.readUInt8(NetConstants.PEER_ID_SIZE);
+    if (nodeTypeValue === NodeType.Full || nodeTypeValue === NodeType.Light) {
+      return nodeTypeValue;
+    }
+    logger.warn(`HelloMessage.nodeType: Unknown node type value ${nodeTypeValue}; returning undefined`);
+    return undefined;
   }
 }
 

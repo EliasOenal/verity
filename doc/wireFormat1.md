@@ -19,8 +19,8 @@
   Each of these message classes will have different data payloads:
   - `Hello`:
     - **Node Identifier (16 bytes)**: This is a unique NodeID that's randomly generated at startup. Primary purpose is to detect when we connected to ourselves. This may happen if we don't know our external IP. (e.g. NAT) Secondarily this may be used to detect duplicate connections to the same node, which may happen if the node is reachable via multiple IPs.
+    - **Node type (1 byte)**: 0x01 for full nodes, 0x02 for light nodes
     - Proposed future additions:
-      - **Node type (1 byte)***: 0x01 for full nodes, 0x02 for light nodes
       - **Community key (32 byte)**: Identifies this node to belong to a specific community of Verity nodes. Other nodes should only proceed with the connection
         if they identify with the same community. The exact mechanism of determining whether or not two nodes belong to the same community can be specific to the
         individual community. By default, nodes are assumed to belong the same community if their community keys are identical.

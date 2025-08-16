@@ -2,7 +2,7 @@ import { Settings } from '../settings';
 import { unixtime } from '../helpers/misc';
 
 import { CubeFilterOptions, CubeRequestMessage, CubeResponseMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, NetworkMessage, PeerRequestMessage, PeerResponseMessage, ServerAddressMessage, SubscriptionConfirmationMessage, SubscriptionResponseCode } from './networkMessage';
-import { MessageClass, NetConstants, SupportedTransports } from './networkDefinitions';
+import { MessageClass, NetConstants, SupportedTransports, NodeType } from './networkDefinitions';
 import { KeyRequestMode } from './networkMessage';
 import { TransportConnection } from './transport/transportConnection';
 import { NetworkPeerIf, NetworkPeerLifecycle, NetworkPeerOptions, NetworkStats } from './networkPeerIf';
@@ -73,6 +73,8 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     get online(): boolean { return this.status === NetworkPeerLifecycle.ONLINE; }
 
     private unsentPeers: Peer[] = undefined;  // TODO this should probably be a Set instead
+
+    remoteNodeType?: NodeType;
 
     get conn(): TransportConnection { return this._conn }
 
@@ -351,7 +353,8 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
 
     private sendHello(): void {
         logger.trace(`NetworkPeer ${this.toString()}: Sending HELLO`);
-        const msg: HelloMessage = new HelloMessage(this.networkManager.id);
+        const nodeType = this.networkManager.options.lightNode ? NodeType.Light : NodeType.Full;
+        const msg: HelloMessage = new HelloMessage(this.networkManager.id, nodeType);
         this.sendMessage(msg);
     }
 
@@ -374,8 +377,12 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
             }
         } else {  // not a repeat hello
             this._id = msg.remoteId;
+            this.remoteNodeType = msg.nodeType;
             this._status.advance(NetworkPeerLifecycle.ONLINE);
-            logger.trace(`NetworkPeer ${this.toString()}: received HELLO, peer now considered online`);
+            
+            const nodeTypeStr = this.remoteNodeType === NodeType.Full ? 'full' : 
+                               this.remoteNodeType === NodeType.Light ? 'light' : 'unknown';
+            logger.trace(`NetworkPeer ${this.toString()}: received HELLO from ${nodeTypeStr} node, peer now considered online`);
 
             // Let the network manager know this peer is now online.
             // Abort if the network manager gives us a thumbs down on the peer.
@@ -802,6 +809,12 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     toLongString() {
         let ret: string = "";
         ret += "NetworkPeer ID#" + this.idString + " connected through " + this.conn?.toString();
+        
+        // Add node type information
+        const nodeTypeStr = this.remoteNodeType === NodeType.Full ? 'Full' : 
+                           this.remoteNodeType === NodeType.Light ? 'Light' : 'Unknown';
+        ret += `, node type: ${nodeTypeStr}`;
+        
         if (this.addresses.length) {
             ret += ", addresses:\n";
             for (let i=0; i<this.addresses.length; i++) {
