@@ -1,7 +1,7 @@
 {
   "name": "verity",
   "version": "0.1.0",
-  "description": "Write something really important sounding here",
+  "description": "Decentralized and censorship-resistant data storage and distribution platform with unique cube structures for building peer-to-peer applications",
   "type": "module",
   "exports": {
     ".": {

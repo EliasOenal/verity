@@ -17,32 +17,72 @@ private communication between users. By offering a high degree of privacy,
 security, and resistance to censorship, this project offers a compelling
 alternative to traditional, centralized social networks.
 
-For more information, see the [technical documentation](doc/verity.md).
+## Quick Start
 
-## Installing Dependencies ##
-```
+### For Application Developers
+
+If you want to build applications on top of Verity:
+
+1. **Install Verity as a dependency:**
+   ```bash
+   npm install verity
+   ```
+
+2. **Create a simple application:**
+   ```javascript
+   // Note: This is a conceptual example showing the intended API usage
+   // For working examples, see the included applications in src/app/
+   import { VerityNode, Identity, makePost } from 'verity';
+   
+   // Create a Verity node
+   const node = await VerityNode.Create({ inMemory: true });
+   
+   // Create an identity
+   const identity = await Identity.Create();
+   
+   // Make a post
+   const post = await makePost("Hello Verity!", { id: identity });
+   await node.cubeStore.addCube(post);
+   ```
+
+3. **See more examples:** Check out the [Developer Guide](doc/developer-guide.md) and [API Reference](doc/api-reference.md).
+
+### For Network Operators and Developers
+
+To run the included applications or contribute to Verity development:
+
+#### Installing Dependencies
+```bash
 npm install
 ```
 
-## Building the demo Microblogging Web App ##
-```
+#### Building and Running the Microblogging Web App
+```bash
+npm run build
 npm run webpack
 ```
-Then open `distweb/index.html` in a browser. Or alternatively directly spawn a web server with:
+Then open `distweb/index.html` in a browser. Or alternatively start a development server:
+```bash
+npm run server
 ```
-npm run webpack serve
-```
+Open http://localhost:11984/ in your browser.
 
-## Building the Support Node ##
-Note that this runs a command line node intended to support the Verity network.
-An end-user will typically not need this.
-
-```
+#### Running a Support Node
+Support nodes help maintain the Verity network. End-users typically don't need this.
+```bash
 npm run build
 npm run start -- -w 1984 -t
 ```
 
-## Tests ##
-```
+#### Running Tests
+```bash
 npm test
 ```
+
+## Documentation
+
+- **[Developer Guide](doc/developer-guide.md)** - Get started building applications
+- **[API Reference](doc/api-reference.md)** - Complete API documentation
+- **[Technical Specifications](doc/verity.md)** - Detailed technical documentation
+- **[Common Cube Interface](doc/cci.md)** - Data format specifications
+- **[Example Applications](examples/)** - Working examples and tutorials
