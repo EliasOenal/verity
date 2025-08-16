@@ -242,8 +242,9 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
 
     /**
      * Offer one or multiple cubes to all connected full nodes by sending
-     * an unsolicited sliding window KeyResponse message.
-     * This helps propagate new cubes across the network backbone.
+     * an unsolicited ExpressSync KeyResponse message.
+     * This helps propagate new cubes across the network backbone without
+     * interfering with regular sync processes.
      * @param cubeInfos Array of CubeInfo objects to offer
      */
     offerCubesToConnectedPeers(cubeInfos: CubeInfo[]): void {
@@ -261,8 +262,8 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
             return;
         }
 
-        // Create a KeyResponse message with SlidingWindow mode containing the cube metadata
-        const keyResponse = new KeyResponseMessage(KeyRequestMode.SlidingWindow, cubeInfos);
+        // Create a KeyResponse message with ExpressSync mode containing the cube metadata
+        const keyResponse = new KeyResponseMessage(KeyRequestMode.ExpressSync, cubeInfos);
         
         logger.trace(`NetworkManager.offerCubesToConnectedPeers(): Offering ${cubeInfos.length} cube(s) to ${fullNodePeers.length} full node(s)`);
         

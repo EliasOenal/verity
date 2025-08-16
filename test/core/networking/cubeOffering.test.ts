@@ -109,10 +109,10 @@ describe('NetworkManager cube offering', () => {
     expect(lightPeerSendSpy).not.toHaveBeenCalled();
     expect(offlineFullPeerSendSpy).not.toHaveBeenCalled();
 
-    // Verify the message sent is a KeyResponse with SlidingWindow mode
+    // Verify the message sent is a KeyResponse with ExpressSync mode
     const sentMessage = fullPeerSendSpy.mock.calls[0][0];
     expect(sentMessage).toBeInstanceOf(KeyResponseMessage);
-    expect((sentMessage as KeyResponseMessage).mode).toBe(KeyRequestMode.SlidingWindow);
+    expect((sentMessage as KeyResponseMessage).mode).toBe(KeyRequestMode.ExpressSync);
     expect((sentMessage as KeyResponseMessage).keyCount).toBe(1);
   });
 
@@ -157,9 +157,9 @@ describe('NetworkManager cube offering', () => {
     const sentMessage1 = fullPeer1SendSpy.mock.calls[0][0] as KeyResponseMessage;
     const sentMessage2 = fullPeer2SendSpy.mock.calls[0][0] as KeyResponseMessage;
     
-    expect(sentMessage1.mode).toBe(KeyRequestMode.SlidingWindow);
+    expect(sentMessage1.mode).toBe(KeyRequestMode.ExpressSync);
     expect(sentMessage1.keyCount).toBe(2);
-    expect(sentMessage2.mode).toBe(KeyRequestMode.SlidingWindow);
+    expect(sentMessage2.mode).toBe(KeyRequestMode.ExpressSync);
     expect(sentMessage2.keyCount).toBe(2);
   });
 
@@ -186,6 +186,35 @@ describe('NetworkManager cube offering', () => {
     expect(() => {
       networkManager.offerCubesToConnectedPeers([cubeInfo]);
     }).not.toThrow();
+  });
+
+  test('offerCubesToConnectedPeers should use ExpressSync mode specifically', () => {
+    const cubeInfo = new CubeInfo({
+      key: asCubeKey(Buffer.alloc(32, 1)),
+      cubeType: 1,
+      difficulty: 0,
+      date: Date.now() / 1000,
+      updatecount: 0
+    });
+
+    const fullPeer = new TestNetworkPeer(networkManager);
+    fullPeer.remoteNodeType = NodeType.Full;
+    fullPeer.online = true;
+    networkManager.incomingPeers.push(fullPeer);
+
+    const sendMessageSpy = vi.spyOn(fullPeer, 'sendMessage');
+    
+    networkManager.offerCubesToConnectedPeers([cubeInfo]);
+    
+    expect(sendMessageSpy).toHaveBeenCalledTimes(1);
+    const sentMessage = sendMessageSpy.mock.calls[0][0] as KeyResponseMessage;
+    
+    // Verify it's using the new ExpressSync mode, not SlidingWindow
+    expect(sentMessage.mode).toBe(KeyRequestMode.ExpressSync);
+    expect(sentMessage.mode).not.toBe(KeyRequestMode.SlidingWindow);
+    expect(sentMessage.mode).not.toBe(KeyRequestMode.Legacy);
+    expect(sentMessage.mode).not.toBe(KeyRequestMode.SequentialStoreSync);
+    expect(sentMessage.keyCount).toBe(1);
   });
 
   test('DummyNetworkManager should have a no-op implementation', () => {
