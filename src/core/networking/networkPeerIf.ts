@@ -1,7 +1,7 @@
 import { CubeKey, NotificationKey } from '../cube/cube.definitions';
 import type { AddressAbstraction } from '../peering/addressing';
 import type { Peer } from '../peering/peer';
-import type { MessageClass } from './networkDefinitions';
+import type { MessageClass, NodeType } from './networkDefinitions';
 import type { NetworkMessage, KeyRequestMode, CubeFilterOptions } from './networkMessage';
 import type { TransportConnection } from './transport/transportConnection';
 
@@ -14,6 +14,7 @@ export interface NetworkPeerIf extends Peer {
     conn: TransportConnection;
     cubeSubscriptions: Iterable<string>;
     options: NetworkPeerOptions;
+    remoteNodeType?: NodeType;
 
     close(): Promise<void>;
     sendMessage(msg: NetworkMessage): void;

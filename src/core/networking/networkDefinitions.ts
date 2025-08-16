@@ -16,10 +16,16 @@ export enum MessageClass {
     SubscribeNotifications = 0x0b,
 }
 
+export enum NodeType {
+    Full = 0x01,
+    Light = 0x02,
+}
+
 export const NetConstants =  {
     PROTOCOL_VERSION_SIZE: 1,
     PROTOCOL_VERSION: 0x00,
     PEER_ID_SIZE: 16,
+    NODE_TYPE_SIZE: 1,
     MAX_CUBES_PER_MESSAGE: 1000,
     MAX_NODE_ADDRESS_COUNT: 1000,
     CUBE_SIZE: 1024,
