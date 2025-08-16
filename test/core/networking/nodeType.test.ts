@@ -122,16 +122,4 @@ describe('Node Type Integration Tests', () => {
     await fullNode1.shutdown();
     await fullNode2.shutdown();
   });
-
-  test('should handle backward compatibility with nodes not sending node type', async () => {
-    // This test would be more complex to implement as it requires creating
-    // a mock peer that sends old-format HelloMessage without node type.
-    // For now, we test this via the HelloMessage tests which verify that
-    // old messages return undefined for nodeType.
-    
-    // The key behavior is tested in the HelloMessage unit tests:
-    // - Old HelloMessage format (16 bytes) should return undefined for nodeType
-    // - NetworkPeer should handle undefined nodeType gracefully
-    expect(true).toBe(true); // placeholder
-  });
 });
