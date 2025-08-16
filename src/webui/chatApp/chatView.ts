@@ -45,10 +45,9 @@ export class ChatView extends VerityView {
 
         const setUsername = () => this.controller.setUsername(this.usernameInput.value || "Anonymous");
         const joinRoom = () => {
-            if (this.roomNameInput.value.trim()) {
-                this.controller.joinRoom(this.roomNameInput.value.trim());
-                this.roomNameInput.value = '';
-            }
+            // Allow any room name including empty strings and whitespace
+            this.controller.joinRoom(this.roomNameInput.value);
+            this.roomNameInput.value = '';
         };
 
         this.usernameSetButton.addEventListener('click', setUsername);
@@ -188,5 +187,9 @@ export class ChatView extends VerityView {
         setTimeout(() => {
             errorElement.style.display = 'none';
         }, 5000);
+    }
+
+    setUsername(username: string): void {
+        this.usernameInput.value = username;
     }
 }

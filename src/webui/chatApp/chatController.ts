@@ -9,6 +9,7 @@ import { mergeAsyncGenerators, MergedAsyncGenerator } from "../../core/helpers/a
 import { RetrievalFormat } from "../../cci/veritum/veritum.definitions";
 import { Cube } from "../../core/cube/cube";
 import { CubeRetriever } from "../../core/networking/cubeRetrieval/cubeRetriever";
+import { ChatStorage, StoredChatRoom } from "./chatStorage";
 
 export interface ChatRoom {
     id: string;
@@ -25,10 +26,12 @@ export class ChatController extends VerityController {
     private username: string = '';
     private rooms: Map<string, ChatRoom> = new Map();
     private activeRoomId: string | null = null;
+    private storage: ChatStorage;
 
     constructor(parent: ControllerContext) {
         super(parent);
         this.contentAreaView = new ChatView(this);
+        this.storage = new ChatStorage();
     }
 
     async showChatApp(): Promise<void> {
@@ -37,18 +40,23 @@ export class ChatController extends VerityController {
         if (contentArea) {
             contentArea.innerHTML = '';
             contentArea.appendChild(this.contentAreaView.renderedView);
+            
+            // Hide the back button as requested
+            const backArea = document.getElementById("verityBackArea");
+            if (backArea) {
+                backArea.setAttribute("style", "display: none");
+            }
+            
+            // Load persisted data
+            await this.loadPersistedData();
         } else {
             logger.error('Chat: Content area not found');
         }
     }
 
     async joinRoom(roomName: string): Promise<void> {
-        if (!roomName.trim()) {
-            this.contentAreaView.showError("Please enter a room name.");
-            return;
-        }
-
-        const roomId = roomName.toLowerCase().trim();
+        // Allow empty strings and whitespace room names
+        const roomId = roomName.toLowerCase();
         if (this.rooms.has(roomId)) {
             this.switchToRoom(roomId);
             return;
@@ -72,6 +80,9 @@ export class ChatController extends VerityController {
             await this.startRoomSubscription(roomId);
             this.switchToRoom(roomId);
             this.contentAreaView.updateRoomList(Array.from(this.rooms.values()));
+            
+            // Save to storage
+            await this.saveRoomsToStorage();
         } catch (error) {
             logger.error(`Chat: Error joining room ${roomName}: ${error}`);
             this.contentAreaView.showError(`Failed to join room "${roomName}". Please try again.`);
@@ -96,6 +107,11 @@ export class ChatController extends VerityController {
         } else {
             this.contentAreaView.updateMessages([]);
         }
+        
+        // Save to storage
+        this.saveRoomsToStorage().catch(error => {
+            logger.error(`Chat: Error saving rooms to storage: ${error}`);
+        });
     }
 
     switchToRoom(roomId: string): void {
@@ -122,6 +138,9 @@ export class ChatController extends VerityController {
         logger.trace(`Chat: Starting subscription for room ${roomId} with key: ${room.notificationKey.toString('hex')}`);
         
         try {
+            // First, load historical messages from local store
+            await this.loadHistoricalMessages(roomId);
+            
             // Get existing cubes from local store
             const existingCubes: AsyncGenerator<Cube> = 
                 this.cubeStore.getNotifications(room.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
@@ -207,6 +226,11 @@ export class ChatController extends VerityController {
     setUsername(username: string): void {
         this.username = username || "Anonymous";
         logger.trace(`Chat: Username set to ${this.username}`);
+        
+        // Save to storage
+        this.storage.saveUsername(this.username).catch(error => {
+            logger.error(`Chat: Error saving username to storage: ${error}`);
+        });
     }
 
     async sendMessage(username: string, message: string): Promise<void> {
@@ -238,6 +262,108 @@ export class ChatController extends VerityController {
         this.rooms.clear();
         this.activeRoomId = null;
         return super.close(unshow, callback);
+    }
+
+    private async loadPersistedData(): Promise<void> {
+        try {
+            await this.storage.waitForReady();
+            const settings = await this.storage.loadSettings();
+            
+            // Restore username
+            this.username = settings.username;
+            this.contentAreaView.setUsername(this.username);
+            
+            // Restore rooms
+            for (const storedRoom of settings.joinedRooms) {
+                const notificationKey = ChatStorage.hexToNotificationKey(storedRoom.notificationKey);
+                const room: ChatRoom = {
+                    id: storedRoom.id,
+                    name: storedRoom.name,
+                    notificationKey,
+                    messages: [],
+                    unreadCount: 0,
+                    subscription: null,
+                    isProcessingMessages: false
+                };
+                
+                this.rooms.set(storedRoom.id, room);
+                await this.startRoomSubscription(storedRoom.id);
+            }
+            
+            // Switch to first room if any
+            if (this.rooms.size > 0) {
+                const firstRoomId = Array.from(this.rooms.keys())[0];
+                this.switchToRoom(firstRoomId);
+            }
+            
+            this.contentAreaView.updateRoomList(Array.from(this.rooms.values()));
+            logger.trace('Chat: Persisted data loaded successfully');
+        } catch (error) {
+            logger.error(`Chat: Error loading persisted data: ${error}`);
+        }
+    }
+
+    private async saveRoomsToStorage(): Promise<void> {
+        try {
+            const storedRooms: StoredChatRoom[] = Array.from(this.rooms.values()).map(room => ({
+                id: room.id,
+                name: room.name,
+                notificationKey: ChatStorage.notificationKeyToHex(room.notificationKey)
+            }));
+            
+            await this.storage.saveJoinedRooms(storedRooms);
+        } catch (error) {
+            logger.error(`Chat: Error saving rooms to storage: ${error}`);
+        }
+    }
+
+    private async loadHistoricalMessages(roomId: string): Promise<void> {
+        const room = this.rooms.get(roomId);
+        if (!room) return;
+
+        try {
+            logger.trace(`Chat: Loading historical messages for room ${roomId}`);
+            
+            // Get recent messages from the store (limit to last 100)
+            const historicalCubes: AsyncGenerator<Cube> = 
+                this.cubeStore.getNotifications(room.notificationKey, { 
+                    format: RetrievalFormat.Cube,
+                    limit: 100 
+                }) as AsyncGenerator<Cube>;
+            
+            const messages: Array<{ username: string, message: string, timestamp: Date }> = [];
+            
+            for await (const cube of historicalCubes) {
+                try {
+                    if (!cube) continue;
+                    
+                    const cciCube: cciCube = cube as cciCube;
+                    const { username, message } = ChatApplication.parseChatCube(cciCube);
+                    const newMessage = { 
+                        username, 
+                        message, 
+                        timestamp: new Date(cciCube.getDate() * 1000) 
+                    };
+                    
+                    messages.push(newMessage);
+                } catch (error) {
+                    logger.warn(`Chat: Error parsing historical chat cube for room ${roomId}: ${error}`);
+                }
+            }
+            
+            // Sort messages by timestamp
+            messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+            room.messages = messages;
+            
+            // Update UI if this is the active room
+            if (this.activeRoomId === roomId) {
+                this.contentAreaView.updateMessages([...room.messages]);
+            }
+            
+            logger.trace(`Chat: Loaded ${messages.length} historical messages for room ${roomId}`);
+        } catch (error) {
+            logger.error(`Chat: Error loading historical messages for room ${roomId}: ${error}`);
+        }
     }
 }
 
