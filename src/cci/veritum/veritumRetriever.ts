@@ -429,23 +429,47 @@ export class VeritumRetriever
     // Verita, everything that follows below is complete overkill.
     // Rather, let's just redirect the user to CubeRetriever.
     if (options.format === RetrievalFormat.Cube) {
-      // Cast to any since CubeRetrievalInterface doesn't include subscribeNotifications
-      // but we know our cubeRetriever implements it (it's a CubeRetriever)
-      return (this.cubeRetriever as any).subscribeNotifications(keyInput, options);
+      // Check if the underlying retriever supports subscribeNotifications
+      if ('subscribeNotifications' in this.cubeRetriever) {
+        return (this.cubeRetriever as any).subscribeNotifications(keyInput, options);
+      } else {
+        // Return an empty generator if subscriptions aren't supported
+        return this.createEmptySubscriptionGenerator();
+      }
     }
 
     // For Veritum format, we need to subscribe to root chunk notifications
     // and convert them to Verita as they arrive
-    const cubeNotifications = (this.cubeRetriever as any).subscribeNotifications(keyInput);
-
-    // Convert the cube notifications to an async generator that yields Verita
-    const veritumGenerator = this.createVeritumSubscriptionGenerator(cubeNotifications, options);
-
-    return veritumGenerator;
+    if ('subscribeNotifications' in this.cubeRetriever) {
+      const cubeNotifications = (this.cubeRetriever as any).subscribeNotifications(keyInput);
+      // Convert the cube notifications to an async generator that yields Verita
+      const veritumGenerator = this.createVeritumSubscriptionGenerator(cubeNotifications, options);
+      return veritumGenerator;
+    } else {
+      // Return an empty generator if subscriptions aren't supported
+      return this.createEmptySubscriptionGenerator();
+    }
   }
 
 
-  // Make the generator cancellable by adding a cancel method
+  // Create an empty cancellable generator for when subscriptions aren't supported
+  private createEmptySubscriptionGenerator(): CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
+    const generator = this.createEmptySubscriptionGeneratorInternal();
+    
+    // Add cancel method to make it properly cancellable
+    (generator as any).cancel = () => {
+      // Nothing to cancel for an empty generator
+    };
+    
+    return generator as CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>>;
+  }
+
+  private async *createEmptySubscriptionGeneratorInternal(): AsyncGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
+    // Empty generator - never yields anything since there's no subscription capability
+    return;
+    // This line is unreachable but satisfies TypeScript's requirement for generators
+    yield undefined as any;
+  }
   private createVeritumSubscriptionGenerator(
     cubeNotifications: CancellableGenerator<Cube>,
     options: GetNotificationsOptions,
