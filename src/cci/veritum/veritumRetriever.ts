@@ -12,6 +12,7 @@ import { Settings } from "../../core/settings";
 import { ArrayFromAsync } from "../../core/helpers/misc";
 import { keyVariants } from "../../core/cube/keyUtil";
 import { logger } from "../../core/logger";
+import { CancellableGenerator } from "../../core/helpers/asyncGenerators";
 
 import { RelationshipType, Relationship } from "../cube/relationship";
 import { Veritum } from "./veritum";
@@ -21,6 +22,7 @@ import { MetadataEnhancedRetrieval, resolveRels, ResolveRelsOptions, resolveRels
 
 export interface VeritumRetrievalInterface<OptionsType = CubeRequestOptions> extends CubeRetrievalInterface<OptionsType> {
   getVeritum(key: CubeKey|string, options?: OptionsType): Promise<Veritum>;
+  subscribeNotifications(keyInput: NotificationKey | string, options?: GetNotificationsOptions): CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>>;
 }
 
 export interface GetVeritumOptions extends CubeRequestOptions, ResolveRelsOptions {
@@ -332,10 +334,178 @@ export class VeritumRetriever
     }
   }
 
-  // TODO implement subscribeNotifications()
+  // Overloads for subscribeNotifications()
+  // Overloads using the `Cube` RetrievalFormat:
+  // - Auto-resolving relationships, single level
+  subscribeNotifications<cubeClass extends Cube>(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format: RetrievalFormat.Cube,
+      metadata: true,
+      resolveRels: true,
+    },
+  ): CancellableGenerator<ResolveRelsResult<cubeClass>>;
+  // - Auto-resolving relationships, recursive
+  subscribeNotifications<cubeClass extends Cube>(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format: RetrievalFormat.Cube,
+      metadata: true,
+      resolveRels: 'recursive',
+    },
+  ): CancellableGenerator<ResolveRelsRecursiveResult<cubeClass>>;
+  // - Using metadata, but not auto-resolving relationships
+  subscribeNotifications<cubeClass extends Cube>(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format: RetrievalFormat.Cube,
+      metadata: true,
+    },
+  ): CancellableGenerator<MetadataEnhancedRetrieval<cubeClass>>;
+  // - Plain output, no metadata
+  subscribeNotifications<cubeClass extends Cube>(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format: RetrievalFormat.Cube,
+    },
+  ): CancellableGenerator<cubeClass>;
+  // Overloads using the `Veritum` RetrievalFormat (default):
+  // - Auto-resolving relationships, single level
+  subscribeNotifications(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format?: RetrievalFormat.Veritum,
+      metadata: true,
+      resolveRels: true,
+    },
+  ): CancellableGenerator<ResolveRelsResult<Veritum>>;
+  // - Auto-resolving relationships, recursive
+  subscribeNotifications(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format?: RetrievalFormat.Veritum,
+      metadata: true,
+      resolveRels: 'recursive',
+    },
+  ): CancellableGenerator<ResolveRelsRecursiveResult<Veritum>>;
+  // - Using metadata, but not auto-resolving relationships
+  subscribeNotifications(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format?: RetrievalFormat.Veritum,
+      metadata: true,
+    },
+  ): CancellableGenerator<MetadataEnhancedRetrieval<Veritum>>;
+  // - Plain output, no metadata
+  subscribeNotifications(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions & {
+      format?: RetrievalFormat.Veritum,
+    },
+  ): CancellableGenerator<Veritum>;
+  // - Default overload with no options supplied
+  subscribeNotifications(
+    keyInput: NotificationKey | string,
+  ): CancellableGenerator<Veritum>;
+
+  /**
+   * Subscribe to new notifications to a specific recipient key.
+   * This will yield newly received notifications as they arrive.
+   * Note: This call will *not* yield any notifications already in our local
+   *   store. Only newly received notifications will be yielded.
+   * To also get existing notifications, use getNotifications() first.
+   * @param keyInput - The notification key to subscribe to
+   * @param options - Options controlling the format and processing of notifications
+   * @returns A CancellableGenerator yielding new notifications
+   */
+  subscribeNotifications(
+    keyInput: NotificationKey | string,
+    options: GetNotificationsOptions = {},
+  ): CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
+    // set default options
+    options.format ??= RetrievalFormat.Veritum;
+
+    // If the user just wants notification Cubes rather than notification
+    // Verita, everything that follows below is complete overkill.
+    // Rather, let's just redirect the user to CubeRetriever.
+    if (options.format === RetrievalFormat.Cube) {
+      // Check if the underlying retriever supports subscribeNotifications
+      if ('subscribeNotifications' in this.cubeRetriever) {
+        return (this.cubeRetriever as any).subscribeNotifications(keyInput, options);
+      } else {
+        // Return an empty generator if subscriptions aren't supported
+        return this.createEmptySubscriptionGenerator();
+      }
+    }
+
+    // For Veritum format, we need to subscribe to root chunk notifications
+    // and convert them to Verita as they arrive
+    if ('subscribeNotifications' in this.cubeRetriever) {
+      const cubeNotifications = (this.cubeRetriever as any).subscribeNotifications(keyInput);
+      // Convert the cube notifications to an async generator that yields Verita
+      const veritumGenerator = this.createVeritumSubscriptionGenerator(cubeNotifications, options);
+      return veritumGenerator;
+    } else {
+      // Return an empty generator if subscriptions aren't supported
+      return this.createEmptySubscriptionGenerator();
+    }
+  }
 
 
-  // Note: This method basically defines a subclass and instantiates it for every call.
+  // Create an empty cancellable generator for when subscriptions aren't supported
+  private createEmptySubscriptionGenerator(): CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
+    const generator = this.createEmptySubscriptionGeneratorInternal();
+    
+    // Add cancel method to make it properly cancellable
+    (generator as any).cancel = () => {
+      // Nothing to cancel for an empty generator
+    };
+    
+    return generator as CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>>;
+  }
+
+  private async *createEmptySubscriptionGeneratorInternal(): AsyncGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
+    // Empty generator - never yields anything since there's no subscription capability
+    return;
+    // This line is unreachable but satisfies TypeScript's requirement for generators
+    yield undefined as any;
+  }
+  private createVeritumSubscriptionGenerator(
+    cubeNotifications: CancellableGenerator<Cube>,
+    options: GetNotificationsOptions,
+  ): CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
+    const generator = this.createVeritumSubscriptionGeneratorInternal(cubeNotifications, options);
+    
+    // Add cancel method to make it properly cancellable
+    (generator as any).cancel = () => {
+      cubeNotifications.cancel();
+    };
+    
+    return generator as CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>>;
+  }
+
+  private async *createVeritumSubscriptionGeneratorInternal(
+    cubeNotifications: CancellableGenerator<Cube>,
+    options: GetNotificationsOptions,
+  ): AsyncGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
+    try {
+      for await (const rootChunk of cubeNotifications) {
+        try {
+          // Convert the root chunk to a full Veritum
+          const key = await rootChunk.getKey();
+          const result = await this.getVeritum(key, options as any);
+          
+          // The result is already enhanced if metadata was requested
+          yield result as Veritable|MetadataEnhancedRetrieval<Veritable>;
+        } catch (error) {
+          // Log error but continue processing other notifications
+          logger.error(`VeritumRetriever.subscribeNotifications(): Error processing notification root chunk: ${error}`);
+        }
+      }
+    } catch (error) {
+      logger.error(`VeritumRetriever.subscribeNotifications(): Error in subscription generator: ${error}`);
+    }
+  }
   //   Maybe we should refactor it into an actual class "ChunkRetriever" or something.
   //   Or maybe we call this idiomatic and leave it as it is? I don't know.
   // TODO: Add an option to limit the maximum number of Continuation chunks.
