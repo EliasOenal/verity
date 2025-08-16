@@ -207,7 +207,7 @@ export class ChatController extends VerityController {
                 try {
                     if (!cube) continue;
                     
-                    const cubeKey = cube.getKey().toString('hex');
+                    const cubeKey = cube.getKeyIfAvailable()?.toString('hex') || `unknown_${Date.now()}_${Math.random()}`;
                     
                     // Skip if we've already processed this cube
                     if (room.processedCubeKeys.has(cubeKey)) {
@@ -370,7 +370,7 @@ export class ChatController extends VerityController {
                 try {
                     if (!cube) continue;
                     
-                    const cubeKey = cube.getKey().toString('hex');
+                    const cubeKey = cube.getKeyIfAvailable()?.toString('hex') || `unknown_${Date.now()}_${Math.random()}`;
                     
                     // Skip if we've already processed this cube
                     if (room.processedCubeKeys.has(cubeKey)) {
