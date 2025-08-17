@@ -11,7 +11,7 @@ import { PeerDB } from '../../peering/peerDB';
 import { TransportConnection } from '../transport/transportConnection';
 import { DummyNetworkManager } from './dummyNetworkManager';
 import { DummyTransportConnection } from './dummyTransportConnection';
-import { MessageClass, NetConstants } from '../networkDefinitions';
+import { MessageClass, NetConstants, NodeType } from '../networkDefinitions';
 import { Cube } from '../../cube/cube';
 
 export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
@@ -20,6 +20,7 @@ export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
     onlinePromise: Promise<NetworkPeerIf> = Promise.resolve(this);
     online: boolean = true;
     cubeSubscriptions: string[] = [];
+    remoteNodeType?: NodeType = NodeType.Full; // Default to full node for tests
     close(): Promise<void> { return Promise.resolve(); }
 
     sendMessage(msg: NetworkMessage): void { this.sentMessages.push(msg) }

@@ -176,6 +176,7 @@ export interface CubeSubscriptionSupplemental {
  */
 export class CubeSubscription extends PendingRequest<void, CubeSubscriptionSupplemental> {
   renewalTimeout: NodeJS.Timeout;
+  subscribedPeers?: NetworkPeerIf[]; // Track which peers we're subscribed to
 
   shutdown(): void {
     super.shutdown();

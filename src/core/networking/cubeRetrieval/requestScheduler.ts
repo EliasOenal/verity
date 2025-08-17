@@ -5,7 +5,7 @@ import type { CubeInfo } from '../../cube/cubeInfo';
 
 import { Settings } from '../../settings';
 import { Shuttable } from '../../helpers/coreInterfaces';
-import { MessageClass, NetConstants, NetworkPeerError } from '../networkDefinitions';
+import { MessageClass, NetConstants, NetworkPeerError, NodeType } from '../networkDefinitions';
 import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode, SubscriptionConfirmationMessage, SubscriptionResponseCode } from '../networkMessage';
 
 import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
@@ -280,105 +280,61 @@ export class RequestScheduler implements Shuttable {
       }
     }
 
-    // Select a node to subscribe from.
-    // TODO: Improve selection strategy.
-    //   For the moment, we're just using the node with the best local score,
-    //   which can be reasonably expected to be a full node.
-    //   In the long run, we should however actually prefer light nodes.
-    let availablePeers: NetworkPeerIf[] = this.networkManager.onlinePeers;
-    const strat: RequestStrategy = new BestScoreStrategy();
+    // Subscribe to all connected full nodes instead of just one
+    // Get all online peers that are full nodes
+    const fullNodePeers = this.networkManager.onlinePeers.filter(peer => 
+        peer.remoteNodeType === NodeType.Full
+    );
 
-    let peerSelected: NetworkPeerIf;
-    let subscriptionConfirmed: boolean = false;
-    let subscriptionResponse: SubscriptionConfirmationMessage;
-    while (!subscriptionConfirmed && availablePeers.length > 0) {
-      // Peer selection:
-      // Any candidate peers available?
-      if (availablePeers.length === 0) {
-        peerSelected = undefined;
-        break;
-      }
-      // Select a candidate peer
-      peerSelected = strat.select(availablePeers);
-      // Remove selected peer from list of available peers to avoid duplication
-      availablePeers = availablePeers.filter(p => p !== peerSelected);
-
-      // Send subscription request...
-      // maybe TODO optimise: group multiple subscriptions to the same peer?
-      peerSelected.sendSubscribeCube([key.binaryKey as CubeKey], options.type);
-      // ... and await reply
-      const req = new SubscriptionRequest(Settings.NETWORK_TIMEOUT, // low prio TODO: parametrise timeout
-        { key: key.binaryKey } );
-      this.pendingSubscriptionConfirmations.set(key.keyString, req);
-      subscriptionResponse = await req.promise;
-      // low prio TODO after wire format 2.0:
-      // send pre-checks to several candidate nodes at once,
-      // then select best one to subscribe to
-
-      // Check response:
-      // 1) Did the remote node even answer?
-      if (subscriptionResponse === undefined) {
-        peerSelected = undefined;
-        continue;
-      }
-      // 2) Did the remote node confirm the subscripton? Did it state a valid duration?
-      if ((subscriptionResponse.responseCode !== SubscriptionResponseCode.SubscriptionConfirmed) ||
-          (!subscriptionResponse.subscriptionDuration)) {
-        peerSelected = undefined;
-        continue;
-      }
-      // 3) Does the response quote the requested key?
-      if (!subscriptionResponse.requestedKeyBlob.equals(key.binaryKey)) {
-        peerSelected = undefined;
-        continue;
-      }
-      // 4) If this is a CubeSubscription: Does the remote node have the same version as us?
-      //    If not, request this remote node's version:
-      //    if the remote version is newer, subscribe;
-      //    if the remote version is older, choose other node.
-      if (options.type === MessageClass.SubscribeCube) {
-        if (!subscriptionResponse.cubesHashBlob.equals(await ourCubeInfo.getCube().getHash())) {
-          const remoteCubeInfo: CubeInfo = await this.requestCube(
-            key.keyString, { requestFrom: peerSelected });
-          // disregard this peer if it:
-          // - does not respond or does not have the requested Cube
-          if (remoteCubeInfo === undefined) {
-            peerSelected = undefined;
-            continue;
-          }
-          // - if the remote version is older than ours
-          //   (note: calling cubeContest with reverse params as we want the
-          //   remote to "win" (qualify for subscription) in case of a tie --
-          //   a "tie" is actually the most favourable outcome as it means we
-          //   are in sync with the candidate node)
-          if (cubeContest(remoteCubeInfo, ourCubeInfo) !== remoteCubeInfo) {
-            peerSelected = undefined;
-            continue;
-          }
-        }
-      }
-
-      // All looking fine, select this node
-      break;
-
-      // TODO: If node selection fails, schedule a retry, same as for a regular request
-      // (which also has not been implemented yet)
-
-      // TODO optimise: Allow subscribing to multiple Cubes at once.
-      //   If the remote node indicates there's a version mismatch, don't re-request
-      //   all of the Cubes, but try to figure out which one(s) we're missing in log time
-    }
-
-    if (peerSelected === undefined) {
-      logger.warn(`RequestScheduler.subscribeCube(): Could not subscribe to ${options.type === MessageClass.SubscribeCube ? 'Cube' : options.type === MessageClass.SubscribeNotifications ? 'Notification' : 'unknown sub type ' + options.type + ' '} ${key.keyString} because I could not find a suitable peer.`);
+    if (fullNodePeers.length === 0) {
+      logger.warn(`RequestScheduler.subscribeCube(): Could not subscribe to ${options.type === MessageClass.SubscribeCube ? 'Cube' : options.type === MessageClass.SubscribeNotifications ? 'Notification' : 'unknown sub type ' + options.type + ' '} ${key.keyString} because no full nodes are available.`);
       return undefined;
     }
+
+    // For now, subscribe to the first full node using existing logic
+    // TODO: Expand this to subscribe to ALL full nodes
+    const targetPeer = fullNodePeers[0];
+    
+    // Send subscription request
+    targetPeer.sendSubscribeCube([key.binaryKey as CubeKey], options.type);
+    
+    // Await reply
+    const req = new SubscriptionRequest(Settings.NETWORK_TIMEOUT,
+      { key: key.binaryKey } );
+    this.pendingSubscriptionConfirmations.set(key.keyString, req);
+    const subscriptionResponse = await req.promise;
+    
+    // Check if subscription was confirmed
+    if (!subscriptionResponse || 
+        subscriptionResponse.responseCode !== SubscriptionResponseCode.SubscriptionConfirmed ||
+        !subscriptionResponse.subscriptionDuration ||
+        !subscriptionResponse.requestedKeyBlob.equals(key.binaryKey)) {
+      logger.warn(`RequestScheduler.subscribeCube(): Subscription to ${key.keyString} was rejected by peer ${targetPeer.toString()}`);
+      return undefined;
+    }
+    
+    // For cube subscriptions, check version compatibility
+    if (options.type === MessageClass.SubscribeCube) {
+      if (!subscriptionResponse.cubesHashBlob.equals(await ourCubeInfo.getCube().getHash())) {
+        const remoteCubeInfo: CubeInfo = await this.requestCube(
+          key.keyString, { requestFrom: targetPeer });
+        // Skip this peer if it doesn't have the cube or has an older version
+        if (remoteCubeInfo === undefined || 
+            cubeContest(remoteCubeInfo, ourCubeInfo) !== remoteCubeInfo) {
+          logger.warn(`RequestScheduler.subscribeCube(): Peer ${targetPeer.toString()} has incompatible version for ${key.keyString}`);
+          return undefined;
+        }
+      }
+    }
+
+    logger.trace(`RequestScheduler.subscribeCube(): Successfully subscribed to ${key.keyString} on 1 full node`);
 
     // Register this subscription
     const sub: CubeSubscription = new CubeSubscription(
       subscriptionResponse.subscriptionDuration,
       { key: key.binaryKey },
     );
+    sub.subscribedPeers = [targetPeer]; // Store which peers we're subscribed to
     subMap.set(key.keyString, sub);
 
     // Turn on auto-renewal by default
