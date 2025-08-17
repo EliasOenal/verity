@@ -51,7 +51,7 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
       new CubeStore(testCubeStoreParams),
       new PeerDB(),
       {
-        ...testNetworkingOptions,
+        ...testNetworkingOptions,  // light node (subscriber)
         transports: new Map([[SupportedTransports.ws, 18201]]),
       },
     );
@@ -60,6 +60,7 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
       new PeerDB(),
       {
         ...testNetworkingOptions,
+        lightNode: false,  // full node (subscription provider)
         transports: new Map([[SupportedTransports.ws, 18202]]),
       },
     );

@@ -43,7 +43,7 @@ describe('CubeRetriever e2e tests', () => {
       new PeerDB(),
       {
         ...testCoreOptions,
-        lightNode: true,
+        lightNode: false,  // full node (subscription provider)
         transports: new Map([[SupportedTransports.ws, 18002]]),
       },
     );

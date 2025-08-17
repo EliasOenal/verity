@@ -75,7 +75,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
               SubscriptionResponseCode.SubscriptionConfirmed,
               [testKey], [await cube.getHash()], Settings.CUBE_SUBSCRIPTION_PERIOD
             );
-            scheduler.handleSubscriptionConfirmation(resp);
+            scheduler.handleSubscriptionConfirmation(resp, dummyPeer);
 
             await subPromise;
             // expect subscription to be registered
@@ -122,7 +122,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
               SubscriptionResponseCode.SubscriptionConfirmed,
               [testKey], [await cube.getHash()], Settings.CUBE_SUBSCRIPTION_PERIOD
             );
-            scheduler.handleSubscriptionConfirmation(resp);
+            scheduler.handleSubscriptionConfirmation(resp, dummyPeer);
             await subPromise;
 
             // Assert that the subscription has now been registered
@@ -153,7 +153,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
               SubscriptionResponseCode.SubscriptionConfirmed,
               [testKey], [await cube.getHash()], 100
             );
-            scheduler.handleSubscriptionConfirmation(resp);
+            scheduler.handleSubscriptionConfirmation(resp, dummyPeer);
 
             // expect mock peer to have received one subscription request
             expect(sendSubscribeCube).toHaveBeenCalledTimes(1);
@@ -172,7 +172,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
               SubscriptionResponseCode.SubscriptionConfirmed,
               [testKey], [await cube.getHash()], Settings.CUBE_SUBSCRIPTION_PERIOD
             );
-            scheduler.handleSubscriptionConfirmation(renewalResp);
+            scheduler.handleSubscriptionConfirmation(renewalResp, dummyPeer);
 
             // yield control to allow subscription renewal to be processed
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -211,7 +211,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
               SubscriptionResponseCode.SubscriptionConfirmed,
               [testKey], [await cube.getHash()], 100
             );
-            scheduler.handleSubscriptionConfirmation(resp);
+            scheduler.handleSubscriptionConfirmation(resp, dummyPeer);
 
             // expect renewal time to be set to halfway through the subscription period,
             // rather than the user-defined value

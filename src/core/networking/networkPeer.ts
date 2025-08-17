@@ -642,7 +642,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     }
 
     private handleSubscriptionConfirmation(msg: SubscriptionConfirmationMessage): void {
-        this.networkManager.scheduler.handleSubscriptionConfirmation(msg);
+        this.networkManager.scheduler.handleSubscriptionConfirmation(msg, this);
     }
 
 

@@ -13,6 +13,7 @@ import { DummyNetworkManager } from './dummyNetworkManager';
 import { DummyTransportConnection } from './dummyTransportConnection';
 import { MessageClass, NetConstants, NodeType } from '../networkDefinitions';
 import { Cube } from '../../cube/cube';
+import { webcrypto as crypto } from 'crypto';
 
 export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
     stats: NetworkStats;
@@ -36,7 +37,7 @@ export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
     ): Promise<void> {
         this.sentMessages.push(new SubscribeCubeMessage(keys, type));
         if (mockResponse !== undefined) {
-            this.networkManager.scheduler.handleSubscriptionConfirmation(mockResponse);
+            this.networkManager.scheduler.handleSubscriptionConfirmation(mockResponse, this);
         }
     }
 

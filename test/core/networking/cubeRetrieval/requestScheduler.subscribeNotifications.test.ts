@@ -50,7 +50,7 @@ const zeroKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x00);
         SubscriptionResponseCode.SubscriptionConfirmed,
         [notificationKey], [zeroKey], SHORTENED_SUB_PERIOD,
       );
-      scheduler.handleSubscriptionConfirmation(resp);
+      scheduler.handleSubscriptionConfirmation(resp, dummyPeer);
 
       // wait for subscription request to return
       sub = await subPromise;
@@ -107,7 +107,7 @@ const zeroKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x00);
         SubscriptionResponseCode.SubscriptionConfirmed,
         [notificationKey], [zeroKey], SHORTENED_SUB_PERIOD,
       );
-      scheduler.handleSubscriptionConfirmation(renewalResp);
+      scheduler.handleSubscriptionConfirmation(renewalResp, dummyPeer);
 
       // yield control to allow subscription renewal to be processed
       await new Promise(resolve => setTimeout(resolve, 100));
