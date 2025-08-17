@@ -266,17 +266,6 @@ export class RequestScheduler implements Shuttable {
       return undefined;  // TODO why undefined?!?!?!? return existing sub!
     }
 
-    let ourCubeInfo: CubeInfo;
-    // If this is a CubeSubscription: Try to get the cube locally
-    // Note: We no longer automatically request missing cubes - callers should 
-    // explicitly call requestCube() first if they want the current version
-    if (options.type === MessageClass.SubscribeCube) {
-      ourCubeInfo = await this.networkManager.cubeStore.getCubeInfo(key.keyString);
-      if (ourCubeInfo === undefined) {
-        logger.trace(`RequestScheduler.subscribeCube(): Cube ${key.keyString} not found locally, but proceeding with subscription for potential future updates`);
-      }
-    }
-
     // Subscribe to connected full nodes only
     // Get all online peers that are full nodes
     const fullNodePeers = this.networkManager.onlinePeers.filter(peer => 
