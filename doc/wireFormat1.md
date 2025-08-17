@@ -60,9 +60,7 @@
       * `0x00`: Legacy Mode (Deprecated)
       * `0x01`: Sliding Window Mode
       * `0x02`: Sequential Store Sync Mode
-      * `0x05`: Express Sync Mode (Used for subscription updates to offer cube keys
-        without waiting for a request. Receiving nodes can then request full cubes
-        for keys they don't already have in their store.)
+      * `0x05`: Express Sync Mode
     - **Key Count (4 bytes)**: This is an integer indicating the number of keys being sent.
     - **Cube Details**: Each detail includes:
       - **Cube Type (1 byte)**: The type of the cube (e.g., regular, MUC, IPC).
@@ -146,7 +144,4 @@
 
   - `SubscribeNotifications`: Requests all *future* notifications for the keys supplied.
     - Message follows the exact same structure as a CubeRequest.
-    - When future notifications occur, the subscribed peer will send a KeyResponse message
-      in Express Sync Mode (0x05) containing the notification cube metadata. The receiving 
-      node can then request the full cube data if needed and if not already in its store.
     - see `SubscribeCube` above for further information / TODOs
