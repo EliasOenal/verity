@@ -480,13 +480,18 @@ export class RequestScheduler implements Shuttable {
   ): boolean {
     const key = keyVariants(recipientKey);
 
+    // Consider direct notification requests first
     let req: CubeRequest | CubeSubscription =
       this.requestedNotifications.get(key.keyString);
+    // Also consider active subscriptions when requested
     if (!req && includeSubscriptions) {
       req = this.subscribedNotifications.get(key.keyString);
     }
-    if (req) return true;
-    else return false;
+    // And consider indirect (KeyRequest) notification requests
+    if (!req) {
+      req = this.expectedNotifications.get(key.keyString);
+    }
+    return !!req;
   }
 
   notificationsAlreadySubscribed(recipientKey: NotificationKey | string): boolean {
@@ -545,20 +550,26 @@ export class RequestScheduler implements Shuttable {
 
     // Create request object
     const req = new CubeRequest(timeout, { key: key.binaryKey as CubeKey });
-    this.requestedNotifications.set(key.keyString, req);  // remember request
 
     // Based on what our caller requested, either request notifications Cubes
     // directly, or indirectly through a KeyRequest.
     if (directCubeRequest) {
       logger.trace(`RequestScheduler.requestNotifications(): Planning notification request for ${key.keyString} in direct CubeRequest mode`);
+      // In direct mode, remember this request in requestedNotifications so it
+      // will be batched and sent as a direct NotificationRequest by
+      // performCubeRequest().
+      this.requestedNotifications.set(key.keyString, req);
       // Directly send a CubeRequest. This makes sense if we don't have any
       // notifications for this recipient yet.
       this.scheduleCubeRequest(scheduleIn);  // schedule request
       return req.promise;  // return result eventually
     } else {
       logger.trace(`RequestScheduler.requestNotifications(): Planning notification request for ${key.keyString} in indirect KeyRequest mode`);
-      // Start with a KeyRequest. This makes sense if we already have (a lot of)
+      // Start with a KeyRequest only. This makes sense if we already have (a lot of)
       // notifications for this recipient and want to avoid redownloading them all.
+      // IMPORTANT: Do NOT also add to requestedNotifications here; otherwise a
+      // subsequent performCubeRequest() will send a direct NotificationRequest
+      // in addition to the KeyRequest, leading to duplicate deliveries.
       this.expectedNotifications.set(key.keyString, req);
       const filter: CubeFilterOptions = {
         notifies: key.binaryKey as NotificationKey,
