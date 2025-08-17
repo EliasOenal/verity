@@ -268,6 +268,12 @@ function DecryptionDecompileFields(
   const parser: FieldParser = new FieldParser(intermediateFieldDef);
   const decryptedFields: VerityFields =
     parser.decompileFields(Buffer.from(plaintext)) as VerityFields;
+    
+  // Validate that field parsing produced results
+  if (!decryptedFields || !decryptedFields.all || decryptedFields.all.length === 0) {
+    throw new Error(`Field parsing failed: no fields could be parsed from ${plaintext.length} bytes of decrypted plaintext`);
+  }
+  
   return decryptedFields;
 }
 
