@@ -168,7 +168,7 @@ describe('Cube subscription e2e tests', () => {
     it.todo('will not miss any updates happening during the renewal');
 
 
-    it('will catch up on any missed updates on renewal', async() => {
+    it('will not automatically catch up on missed updates on renewal (subscription is only for future updates)', async() => {
       // Some preliminary sanity-checks first:
       // Assert that the serving node still considers us connected & subscribed
       expect(net.fullNode2.networkManager.incomingPeers.length).toBe(1);
@@ -217,14 +217,26 @@ describe('Cube subscription e2e tests', () => {
       expect(renewedSub).toBeInstanceOf(CubeSubscription);
       expect(renewedSub).not.toBe(sub);
 
-      // Assert the missed update was catched up on renewal
+      // Assert the missed update was NOT automatically caught up on renewal
+      // (subscribeCube is now subscription-only - if you want current data, call requestCube explicitly)
+      const stillNotReceived = await net.recipient.cubeStore.getCube(key);
+      expect(stillNotReceived.getFirstField(CubeFieldType.MUC_RAWCONTENT).
+        valueString).not.toContain(missedUpdateContent);
+    });
+
+    it('will not yield missed updates automatically (must be explicitly requested)', () => {
+      // The subscription should not have automatically delivered the missed update
+      expect(containsCube(received, key, missedUpdateContent)).toBe(false);
+      
+      // To get the missed update, you need to explicitly request it
+      // This demonstrates the new behavior where subscription and requests are separate
+    });
+
+    it('can explicitly request missed updates after subscription renewal', async () => {
+      await net.recipient.networkManager.scheduler.requestCube(key);
       const nowReceived = await net.recipient.cubeStore.getCube(key);
       expect(nowReceived.getFirstField(CubeFieldType.MUC_RAWCONTENT).valueString).
         toContain(missedUpdateContent);
-    });
-
-    it('will yield the missed update through the Generator after catching up', () => {
-      expect(containsCube(received, key, missedUpdateContent)).toBe(true);
     });
 
 
