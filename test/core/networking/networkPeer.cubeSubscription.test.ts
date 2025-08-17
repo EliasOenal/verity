@@ -135,7 +135,7 @@ describe('NetworkPeer CubeSubscription tests', () => {
       });  // successful requests
 
       describe('denied requests', () => {
-        it('should deny the subscription if the key is not available', async () => {
+        it('should accept the subscription even if the key is not available', async () => {
           const req = new SubscribeCubeMessage([
             Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as CubeKey,
           ]);
@@ -144,18 +144,18 @@ describe('NetworkPeer CubeSubscription tests', () => {
           expect(conn.sentMessages).toHaveLength(1);
           const binaryResponse = conn.sentMessages[0].subarray(2);
           const response = new SubscriptionConfirmationMessage(binaryResponse);
-          expect(response.responseCode).toBe(SubscriptionResponseCode.RequestedKeyNotAvailable);
+          expect(response.responseCode).toBe(SubscriptionResponseCode.SubscriptionConfirmed);
           expect(response.requestedKeyBlob).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42));
-          expect(response.cubesHashBlob.length).toBe(0);
-          expect(response.subscriptionDuration).toBe(0);
+          expect(response.cubesHashBlob.length).toBe(32);  // empty hash for non-existent cube
+          expect(response.subscriptionDuration).toBeGreaterThan(0);
         });
 
-        it('should not register the subscription if the key is not available', async () => {
+        it('should register the subscription even if the key is not available', async () => {
           const req = new SubscribeCubeMessage([
             Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as CubeKey,
           ]);
           await (peer as any).handleSubscribeCube(req);
-          expect(peer.cubeSubscriptions).toHaveLength(0);
+          expect(peer.cubeSubscriptions).toHaveLength(1);
         });
       });  // denied requests
 
@@ -195,7 +195,7 @@ describe('NetworkPeer CubeSubscription tests', () => {
       });
 
       describe('denied requests', () => {
-        it('should deny the subscription if any key is not available', async () => {
+        it('should accept all subscriptions even if some keys are not available', async () => {
           const req = new SubscribeCubeMessage([
             availableKey,
             Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as CubeKey,
@@ -205,22 +205,22 @@ describe('NetworkPeer CubeSubscription tests', () => {
           expect(conn.sentMessages).toHaveLength(1);
           const binaryResponse = conn.sentMessages[0].subarray(2);
           const response = new SubscriptionConfirmationMessage(binaryResponse);
-          expect(response.responseCode).toBe(SubscriptionResponseCode.RequestedKeyNotAvailable);
+          expect(response.responseCode).toBe(SubscriptionResponseCode.SubscriptionConfirmed);
           expect(response.requestedKeyBlob).toEqual(calculateHash(Buffer.concat([
             availableKey,
             Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42)
           ])));
-          expect(response.cubesHashBlob.length).toBe(0);
-          expect(response.subscriptionDuration).toBe(0);
+          expect(response.cubesHashBlob.length).toBe(32);  // single combined hash of all cube hashes
+          expect(response.subscriptionDuration).toBeGreaterThan(0);
         });
 
-        it('should not register any subscription if any key is not available', async () => {
+        it('should register all subscriptions even if some keys are not available', async () => {
           const req = new SubscribeCubeMessage([
             Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0x42) as CubeKey,
             availableKey,
           ]);
           await (peer as any).handleSubscribeCube(req);
-          expect(peer.cubeSubscriptions).toHaveLength(0);
+          expect(peer.cubeSubscriptions).toHaveLength(2);
         });
       });
 

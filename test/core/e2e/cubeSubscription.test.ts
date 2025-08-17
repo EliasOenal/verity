@@ -78,13 +78,16 @@ describe('Cube subscription e2e tests', () => {
       await net.shutdown();
     });
 
-    it('will receive the initial MUC when subscribing', async () => {
+    it('can explicitly fetch the initial MUC after subscribing', async () => {
+      // With the new behavior, subscribeCube doesn't automatically fetch initial cubes
+      // We need to explicitly request it if we want the current version
+      await net.recipient.cubeRetriever.getCubeInfo(key);
       expect (await waitForMucContent(
         net.recipient.cubeStore, key, originalContent)).
         toBe(true);
     });
 
-    it('will yield the initial MUC through the generator', async () => {
+    it('will yield the explicitly fetched MUC through the generator', async () => {
       expect(containsCube(received, key, originalContent)).toBe(true);
     });
 
