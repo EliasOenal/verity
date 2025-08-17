@@ -85,9 +85,20 @@ export class ChatController extends VerityController {
             };
 
             this.rooms.set(roomId, room);
-            await this.startRoomSubscription(roomId);
+            // Switch immediately for responsive UI
             this.switchToRoom(roomId);
             this.contentAreaView.updateRoomList(Array.from(this.rooms.values()));
+
+            // Load local history first so messages appear instantly
+            this.loadHistoricalMessages(roomId).catch(error => {
+                logger.error(`Chat: Error loading historical messages for room ${roomName}: ${error}`);
+            });
+
+            // Start live subscription in background
+            this.startRoomSubscription(roomId).catch(error => {
+                logger.error(`Chat: Error starting subscription for room ${roomName}: ${error}`);
+                this.contentAreaView.showError(`Failed to start real-time updates for room "${room.name}".`);
+            });
             
             // Save to storage
             await this.saveRoomsToStorage();
@@ -155,24 +166,24 @@ export class ChatController extends VerityController {
         logger.trace(`Chat: Starting subscription for room ${roomId} with key: ${room.notificationKey.toString('hex')}`);
         
         try {
-            // Subscribe to future cubes via network first to avoid missing notifications
+            // 1) Enable live subscription first so we don't miss notifications
+            let futureCubes: AsyncGenerator<Cube> | undefined;
             if ('subscribeNotifications' in this.cubeRetriever) {
-                const futureCubes: AsyncGenerator<Cube> =
-                    (this.cubeRetriever as CubeRetriever).subscribeNotifications(room.notificationKey, { format: RetrievalFormat.Cube });
-                room.subscription = mergeAsyncGenerators(futureCubes);
-            } else {
-                // No subscription support; keep an empty merged generator to satisfy typing
-                room.subscription = mergeAsyncGenerators();
+                futureCubes = (this.cubeRetriever as CubeRetriever)
+                    .subscribeNotifications(room.notificationKey, { format: RetrievalFormat.Cube });
             }
 
-            // Start processing future notifications immediately
-            this.processRoomMessageStream(roomId);
+            // 2) Also fetch recent history from the retriever to cover what we don't have locally
+            const retrieverHistory: AsyncGenerator<Cube> = (this.cubeRetriever as CubeRetriever)
+                .getNotifications(room.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
 
-            // Then fetch historical messages via the network-aware retriever.
-            // Fire-and-forget; dedup logic prevents duplicates with the subscription.
-            this.loadHistoricalMessages(roomId).catch(error => {
-                logger.error(`Chat: Error loading historical messages after subscribing for room ${roomId}: ${error}`);
-            });
+            // Merge streams: future first (already active), plus retriever history
+            room.subscription = futureCubes
+                ? mergeAsyncGenerators(futureCubes, retrieverHistory)
+                : mergeAsyncGenerators(retrieverHistory);
+
+            // Start processing stream immediately (local history is loaded separately for responsiveness)
+            this.processRoomMessageStream(roomId);
         } catch (error) {
             logger.error(`Chat: Error starting subscription for room ${roomId}: ${error}`);
             this.contentAreaView.showError(`Failed to start real-time updates for room "${room.name}".`);
@@ -320,7 +331,12 @@ export class ChatController extends VerityController {
                 };
                 
                 this.rooms.set(storedRoom.id, room);
-                await this.startRoomSubscription(storedRoom.id);
+                // Load local history first for responsiveness
+                await this.loadHistoricalMessages(storedRoom.id);
+                // Start live subscription in background
+                this.startRoomSubscription(storedRoom.id).catch(error => {
+                    logger.error(`Chat: Error starting subscription for room ${storedRoom.name}: ${error}`);
+                });
             }
             
             // Switch to first room if any
@@ -357,9 +373,9 @@ export class ChatController extends VerityController {
         try {
             logger.trace(`Chat: Loading historical messages for room ${roomId}`);
             
-            // Get recent messages via the network-aware retriever (do not rely on local-only store)
+            // Get messages from the local store for instant population
             const historicalCubes: AsyncGenerator<Cube> = 
-                (this.cubeRetriever as CubeRetriever).getNotifications(room.notificationKey, { 
+                this.cubeStore.getNotifications(room.notificationKey, { 
                     format: RetrievalFormat.Cube
                 }) as AsyncGenerator<Cube>;
             
@@ -444,5 +460,7 @@ export class ChatController extends VerityController {
         }
         room.processedCubeKeys = processedKeysToKeep;
     }
+
+    
 }
 
