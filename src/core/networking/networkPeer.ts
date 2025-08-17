@@ -548,34 +548,27 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     // TODO: Limit the number of subscriptions
     private async handleSubscribeCube(msg: CubeRequestMessage): Promise<void> {
         const requestedKeys: CubeKey[] = Array.from(msg.cubeKeys());
-        // check if we even have all requested Cubes
-        let cubeUnavailable: boolean = false;
+        // Collect cube information for existing cubes
         const currentHashes: Buffer[] = [];
         for (const key of requestedKeys) {
             const cubeInfo: CubeInfo = await this.cubeStore.getCubeInfo(key);
-            if (cubeInfo === undefined) {
-                cubeUnavailable = true;
-                break;
+            if (cubeInfo !== undefined) {
+                currentHashes.push(await cubeInfo.getCube().getHash());
+            } else {
+                // For non-existent cubes, we'll still accept the subscription but with empty hash
+                // This allows subscription-only behavior for future updates
+                currentHashes.push(Buffer.alloc(32));  // 32-byte empty hash to maintain consistent format
             }
-            currentHashes.push(await cubeInfo.getCube().getHash());
         }
-        // Can we even fulfil this request?
-        if (cubeUnavailable) {
-            logger.trace(`NetworkPeer ${this.toString()}: handleSubscribeCube(): refusing subscription as we don't have one or more of the requested Cubes`);
-            const reply = new SubscriptionConfirmationMessage(
-                SubscriptionResponseCode.RequestedKeyNotAvailable,
-                requestedKeys);
-            this.sendMessage(reply);
-            return;
-        }
-        // All good, subscription accepted! Register it...
+        
+        // Accept all subscriptions, even for non-existent cubes
         let i=0;  // for debug output only
         for (const key of requestedKeys) {
             this.addCubeSubscription(key);
             i++;
         }
         logger.trace(`NetworkPeer ${this.toString()}: handleSubscribeCube(): recorded ${i} Cube subscriptions`);
-        // ... and send a confirmation
+        // Send confirmation for all subscriptions
         const reply = new SubscriptionConfirmationMessage(
             SubscriptionResponseCode.SubscriptionConfirmed,
             requestedKeys,
@@ -642,7 +635,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     }
 
     private handleSubscriptionConfirmation(msg: SubscriptionConfirmationMessage): void {
-        this.networkManager.scheduler.handleSubscriptionConfirmation(msg);
+        this.networkManager.scheduler.handleSubscriptionConfirmation(msg, this);
     }
 
 
@@ -889,12 +882,8 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     private sendSubscribedCubeUpdate: (cubeInfo: CubeInfo) => void = cubeInfo => {
         const cube: Cube = cubeInfo.getCube();
         if (this._cubeSubscriptions.has(cube.getKeyStringIfAvailable())) {
-            const binaryCube: Buffer = cube.getBinaryDataIfAvailable();
-            if (binaryCube === undefined) {
-                logger.warn(`NetworkPeer ${this.toString()}.sendSubscribedCubeUpdate(): I was called on an apparently uncompiled Cube. This should not happen. Doing nothing.`);
-                return;
-            }
-            const reply = new CubeResponseMessage([cube.getBinaryDataIfAvailable()]);
+            // Send KeyResponse with ExpressSync mode instead of full cube
+            const reply = new KeyResponseMessage(KeyRequestMode.ExpressSync, [cubeInfo]);
             this.sendMessage(reply);
         }
     }
@@ -907,13 +896,18 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     //  otherwise, event subscription will not properly cancel on close
     private sendNotificationUpdate: (notificationKey: CubeKey, cube: Cube) => void = (notificationKey, cube) => {
         if (this._notificationSubscriptions.has(keyVariants(notificationKey).keyString)) {
-            const binaryCube: Buffer = cube.getBinaryDataIfAvailable();
-            if (binaryCube === undefined) {
-                logger.warn(`NetworkPeer ${this.toString()}.sendNotificationUpdate(): I was called on an apparently uncompiled Cube. This should not happen. Doing nothing.`);
-                return;
-            }
-            const reply = new CubeResponseMessage([cube.getBinaryDataIfAvailable()]);
-            this.sendMessage(reply);
+            // For notification updates, we need to create a CubeInfo from the cube
+            // Since this is triggered by the notificationAdded event, we should be able to get the CubeInfo
+            this.networkManager.cubeStore.getCubeInfo(cube.getKeyIfAvailable())
+                .then(cubeInfo => {
+                    if (cubeInfo) {
+                        const reply = new KeyResponseMessage(KeyRequestMode.ExpressSync, [cubeInfo]);
+                        this.sendMessage(reply);
+                    }
+                })
+                .catch(err => {
+                    logger.warn(`NetworkPeer ${this.toString()}.sendNotificationUpdate(): Failed to get CubeInfo: ${err}`);
+                });
         }
     }
 

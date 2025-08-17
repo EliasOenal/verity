@@ -1072,20 +1072,19 @@ describe('networkManager - WebSocket connection end-to-end tests', () => {
 
         beforeAll(async () => {
           // Set up two nodes, a "server" and a "client".
-          // Note that both are actually peers and both are light nodes.
-          // Obviously, the client could also choose to use a full node as server.
+          // The server needs to be a full node to accept subscriptions.
           server = new NetworkManager(
             new CubeStore(testCubeStoreParams),
             new PeerDB(),
             {
-              ...lightNodeMinimalFeatures,
+              ...fullNodeMinimalFeatures,  // full node (subscription provider)
               transports: new Map([[SupportedTransports.ws, 3025]]),
             }
           );
           client = new NetworkManager(
             new CubeStore(testCubeStoreParams),
             new PeerDB(),
-            lightNodeMinimalFeatures,
+            lightNodeMinimalFeatures,  // light node (subscriber)
           );
           await Promise.all(
             [server.cubeStore.readyPromise, client.cubeStore.readyPromise]);

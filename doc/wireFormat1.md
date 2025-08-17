@@ -102,6 +102,9 @@
 
   - `SubscribeCube`: Requests all *future* Cube updates for the keys supplied.
     - Message follows the exact same structure as a CubeRequest.
+    - When future updates occur, the subscribed peer will send a KeyResponse message
+      in Express Sync Mode (0x05) containing the cube metadata. The receiving node
+      can then request the full cube data if needed and if not already in its store.
     - TODO: Provide a way to select a subscription duration
     - TODO: Provide a way to cancel a subscription before it expires.
     - TODO: Provide for an efficient way to extend subscription, e.g. using

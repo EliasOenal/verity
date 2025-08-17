@@ -75,7 +75,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
               SubscriptionResponseCode.SubscriptionConfirmed,
               [testKey], [await cube.getHash()], Settings.CUBE_SUBSCRIPTION_PERIOD
             );
-            scheduler.handleSubscriptionConfirmation(resp);
+            scheduler.handleSubscriptionConfirmation(resp, dummyPeer);
 
             await subPromise;
             // expect subscription to be registered
@@ -86,7 +86,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
             expect(sendSubscribeCube.mock.lastCall![0]).toContainEqual(testKey);
           });
 
-          it('will first request the Cube if not present locally', async() => {
+          it('will subscribe without automatically requesting missing cubes', async() => {
             // prepare test Cube
             const cube = Cube.Create({
               fields: CubeField.RawContent(CubeType.PIC, "Cubus sum"),
@@ -97,38 +97,30 @@ describe('RequestScheduler subscribeCube() tests', () => {
             // prepare spy
             const sendSubscribeCube = vi.spyOn(dummyPeer, 'sendSubscribeCube');
 
-            // make request
+            // make subscription request (cube is not present locally)
             const subPromise: Promise<CubeSubscription> = scheduler.subscribeCube(testKey);
-            await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
 
-            // Assert that a CubeRequest has been scheduled first
-            // as the Cube is not yet present locally
-            const preliminaryCubeRequest = scheduler.existingCubeRequest(testKey);
-            expect(preliminaryCubeRequest).toBeTruthy();
+            // Give the subscription request time to be registered
+            await new Promise(resolve => setTimeout(resolve, 10));
 
-            // Assert that the subscription has *not* been registered yet as the
-            // preliminary CubeRequest is still running
-            expect(scheduler.cubeAlreadySubscribed(testKey)).toBe(false);
-
-            // mock response to preliminary CubeRequest
-            scheduler.handleCubesDelivered([await cube.getBinaryData()], dummyPeer);
-            const preliminaryCubeInfo = await preliminaryCubeRequest;
-            expect(await preliminaryCubeInfo.getCube().getHash()).toEqual(await cube.getHash());
-            // Yield control once again to allow the subscription to be registered
-            await new Promise(resolve => setTimeout(resolve, 100));  // give it some time
-
-            // mock peer response
+            // mock peer response to subscription request
             const resp = new SubscriptionConfirmationMessage(
               SubscriptionResponseCode.SubscriptionConfirmed,
               [testKey], [await cube.getHash()], Settings.CUBE_SUBSCRIPTION_PERIOD
             );
-            scheduler.handleSubscriptionConfirmation(resp);
+            scheduler.handleSubscriptionConfirmation(resp, dummyPeer);
+
             await subPromise;
 
-            // Assert that the subscription has now been registered
+            // Assert that NO cube request was automatically scheduled
+            // (the new behavior is that subscribeCube does not implicitly call requestCube)
+            const implicitCubeRequest = scheduler.existingCubeRequest(testKey);
+            expect(implicitCubeRequest).toBeFalsy();
+
+            // Assert that the subscription has been registered successfully
             expect(scheduler.cubeAlreadySubscribed(testKey)).toBe(true);
 
-            // Assert that the subscription request has been now been sent
+            // Assert that the subscription request was sent
             expect(sendSubscribeCube).toHaveBeenCalledTimes(1);
             expect(sendSubscribeCube.mock.lastCall![0]).toContainEqual(testKey);
           });
@@ -153,7 +145,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
               SubscriptionResponseCode.SubscriptionConfirmed,
               [testKey], [await cube.getHash()], 100
             );
-            scheduler.handleSubscriptionConfirmation(resp);
+            scheduler.handleSubscriptionConfirmation(resp, dummyPeer);
 
             // expect mock peer to have received one subscription request
             expect(sendSubscribeCube).toHaveBeenCalledTimes(1);
@@ -172,7 +164,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
               SubscriptionResponseCode.SubscriptionConfirmed,
               [testKey], [await cube.getHash()], Settings.CUBE_SUBSCRIPTION_PERIOD
             );
-            scheduler.handleSubscriptionConfirmation(renewalResp);
+            scheduler.handleSubscriptionConfirmation(renewalResp, dummyPeer);
 
             // yield control to allow subscription renewal to be processed
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -211,7 +203,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
               SubscriptionResponseCode.SubscriptionConfirmed,
               [testKey], [await cube.getHash()], 100
             );
-            scheduler.handleSubscriptionConfirmation(resp);
+            scheduler.handleSubscriptionConfirmation(resp, dummyPeer);
 
             // expect renewal time to be set to halfway through the subscription period,
             // rather than the user-defined value

@@ -82,8 +82,9 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
    * Subscribe to any updates to a single Cube.
    * To achieve this, we will network-subscribe to the key provided with a
    * single remote note.
-   * If we currently do not have the specified Cube, we will try to request it
-   * and yield it once received.
+   * This method only establishes a subscription for future updates. If you need
+   * to fetch the current version of the cube, call getCube() or getCubeInfo() 
+   * separately before or after subscribing.
    * Note: In case the requested Cube is already in our local store, this call
    *   will *not* yield the currently stored version. Only updates will be
    *   yielded.
@@ -114,9 +115,9 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
       },
     );
 
-    // Have our scheduler actually network-subscribe the requested Cube
+    // Have our scheduler actually network-subscribe the requested Cube first
+    // This needs to happen synchronously to ensure we don't miss any updates
     options.outputSubPromise = this.requestScheduler.subscribeCube(key);
-    // TODO error handling
 
     return generator;
   }

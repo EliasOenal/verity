@@ -43,7 +43,7 @@ describe('CubeRetriever e2e tests', () => {
       new PeerDB(),
       {
         ...testCoreOptions,
-        lightNode: true,
+        lightNode: false,  // full node (subscription provider)
         transports: new Map([[SupportedTransports.ws, 18002]]),
       },
     );
@@ -149,6 +149,11 @@ describe('CubeRetriever e2e tests', () => {
         requiredDifficulty, publicKey, privateKey,
       });
       await remote.cubeStore.addCube(remoteUpdate);
+
+      // Explicitly request the remote update to trigger local cubeAdded event
+      // (since subscribeCube no longer implicitly requests existing data)
+      // Use requestScheduler directly because cubeRetriever.getCube won't update mutable cubes
+      await cubeRetriever.requestScheduler.requestCube(asCubeKey(publicKey));
 
       await new Promise(resolve => setTimeout(resolve, 1000));  // give it some time
     });
