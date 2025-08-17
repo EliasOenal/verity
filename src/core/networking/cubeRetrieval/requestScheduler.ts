@@ -267,15 +267,20 @@ export class RequestScheduler implements Shuttable {
     }
 
     let ourCubeInfo: CubeInfo;
-    // If this is a CubeSubscription: Do we even have this Cube locally?
-    // If we don't have it, does it even exist on the network?
+    // If this is a CubeSubscription: Try to get the cube locally or from the network
+    // With multi-node subscriptions, we don't require the cube to exist before subscribing
+    // since the subscription itself provides a mechanism to receive the cube
     if (options.type === MessageClass.SubscribeCube) {
       ourCubeInfo = await this.networkManager.cubeStore.getCubeInfo(key.keyString);
       if (ourCubeInfo === undefined) {
-        ourCubeInfo = await this.requestCube(key.keyString);
+        // Try to get the cube from the network, but don't fail subscription if we can't
+        try {
+          ourCubeInfo = await this.requestCube(key.keyString);
+        } catch (error) {
+          logger.trace(`RequestScheduler.subscribeCube(): Could not initially fetch Cube ${key.keyString}, but proceeding with subscription: ${error}`);
+        }
         if (ourCubeInfo === undefined) {
-          logger.trace(`RequestScheduler.subscribeCube(): Could not find Cube ${key.keyString} locally or remotely`);
-          return undefined;
+          logger.trace(`RequestScheduler.subscribeCube(): Cube ${key.keyString} not found locally or remotely, but proceeding with subscription for potential future updates`);
         }
       }
     }
@@ -329,6 +334,20 @@ export class RequestScheduler implements Shuttable {
         if (subscriptionResponse.responseCode === SubscriptionResponseCode.SubscriptionConfirmed &&
             subscriptionResponse.subscriptionDuration &&
             subscriptionResponse.requestedKeyBlob.equals(key.binaryKey)) {
+          
+          // For cube subscriptions, try to fetch any updates from the peer without version checks
+          if (options.type === MessageClass.SubscribeCube) {
+            // If we don't have the cube locally, or if the remote has a different version, try to fetch it
+            if (ourCubeInfo === undefined || !subscriptionResponse.cubesHashBlob.equals(await ourCubeInfo.getCube().getHash())) {
+              // Attempt to get the remote version to ensure we have the latest data
+              // Don't fail subscription based on this, just try to get updates
+              try {
+                await this.requestCube(key.keyString, { requestFrom: peer });
+              } catch (error) {
+                logger.trace(`RequestScheduler.subscribeCube(): Could not fetch update from peer ${peer.toString()} for ${key.keyString}, but continuing with subscription: ${error}`);
+              }
+            }
+          }
           
           // Accept subscription from any willing full node for multi-node resilience
           successfulPeers.push(peer);
