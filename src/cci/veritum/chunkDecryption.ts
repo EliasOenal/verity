@@ -266,7 +266,6 @@ function DecryptionDecompileFields(
   intermediateFieldDef.positionalFront = {};
   intermediateFieldDef.positionalBack = {};
   const parser: FieldParser = new FieldParser(intermediateFieldDef);
-  
   const decryptedFields: VerityFields =
     parser.decompileFields(Buffer.from(plaintext)) as VerityFields;
     
@@ -288,9 +287,6 @@ function DecryptionReplaceEncryptedField(
     logger.trace("Decrypt(): ENCRYPTED field not found");
     return fields;
   }
-
-  // Note: decryptedFields validation is done in DecryptionDecompileFields
-  // If we reach here, decryptedFields should be valid and non-empty
 
   // Insert the decrypted fields at the found index
   const output: VerityFields = new VerityFields(undefined, fields.fieldDefinition);
