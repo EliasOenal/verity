@@ -174,12 +174,6 @@ function PostprocessPlaintext(
   const decryptedFields: VerityFields = DecryptionDecompileFields(
     plaintext, input.fieldDefinition);
 
-  // Verify that we got some decrypted fields
-  if (!decryptedFields || !decryptedFields.all || decryptedFields.all.length === 0) {
-    logger.trace("Decrypt(): Failed to parse any fields from decrypted plaintext, keeping original fields");
-    return input;
-  }
-
   // Replace the ENCRYPTED field with the decrypted fields
   const output: VerityFields = DecryptionReplaceEncryptedField(
     input, decryptedFields);
@@ -268,25 +262,20 @@ function DecryptionDecompileFields(
     plaintext: Buffer,
     fieldDefinition: FieldDefinition,
 ): VerityFields {
-  // Check for valid plaintext
-  if (!plaintext || plaintext.length === 0) {
-    logger.trace("Decrypt(): Cannot decompile fields from empty plaintext");
-    return new VerityFields(undefined, fieldDefinition);
-  }
-
   const intermediateFieldDef: FieldDefinition = Object.assign({}, fieldDefinition);
   intermediateFieldDef.positionalFront = {};
   intermediateFieldDef.positionalBack = {};
   const parser: FieldParser = new FieldParser(intermediateFieldDef);
   
-  try {
-    const decryptedFields: VerityFields =
-      parser.decompileFields(Buffer.from(plaintext)) as VerityFields;
-    return decryptedFields;
-  } catch (error) {
-    logger.trace(`Decrypt(): Failed to decompile fields from plaintext: ${error.message}`);
-    return new VerityFields(undefined, fieldDefinition);
+  const decryptedFields: VerityFields =
+    parser.decompileFields(Buffer.from(plaintext)) as VerityFields;
+    
+  // Validate that field parsing produced results
+  if (!decryptedFields || !decryptedFields.all || decryptedFields.all.length === 0) {
+    throw new Error(`Field parsing failed: no fields could be parsed from ${plaintext.length} bytes of decrypted plaintext`);
   }
+  
+  return decryptedFields;
 }
 
 function DecryptionReplaceEncryptedField(
@@ -300,11 +289,8 @@ function DecryptionReplaceEncryptedField(
     return fields;
   }
 
-  // Check if we have any decrypted fields to replace with
-  if (!decryptedFields || !decryptedFields.all || decryptedFields.all.length === 0) {
-    logger.trace("Decrypt(): No decrypted fields to replace ENCRYPTED field with, keeping original fields");
-    return fields;
-  }
+  // Note: decryptedFields validation is done in DecryptionDecompileFields
+  // If we reach here, decryptedFields should be valid and non-empty
 
   // Insert the decrypted fields at the found index
   const output: VerityFields = new VerityFields(undefined, fields.fieldDefinition);
