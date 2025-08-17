@@ -280,20 +280,32 @@ export class RequestScheduler implements Shuttable {
       }
     }
 
-    // Subscribe to all connected full nodes instead of just one
+    // Subscribe to all connected full nodes instead of just one, or fall back to any node if no full nodes available
     // Get all online peers that are full nodes
     const fullNodePeers = this.networkManager.onlinePeers.filter(peer => 
         peer.remoteNodeType === NodeType.Full
     );
 
-    if (fullNodePeers.length === 0) {
-      logger.warn(`RequestScheduler.subscribeCube(): Could not subscribe to ${options.type === MessageClass.SubscribeCube ? 'Cube' : options.type === MessageClass.SubscribeNotifications ? 'Notification' : 'unknown sub type ' + options.type + ' '} ${key.keyString} because no full nodes are available.`);
-      return undefined;
+    let targetPeers: NetworkPeerIf[];
+    if (fullNodePeers.length > 0) {
+      // Prefer full nodes - use the first one for now (TODO: expand to all full nodes)
+      targetPeers = [fullNodePeers[0]];
+      logger.trace(`RequestScheduler.subscribeCube(): Using full node ${targetPeers[0].toString()} for subscription`);
+    } else {
+      // Fall back to any available peer for backward compatibility
+      const availablePeers = this.networkManager.onlinePeers;
+      if (availablePeers.length === 0) {
+        logger.warn(`RequestScheduler.subscribeCube(): Could not subscribe to ${options.type === MessageClass.SubscribeCube ? 'Cube' : options.type === MessageClass.SubscribeNotifications ? 'Notification' : 'unknown sub type ' + options.type + ' '} ${key.keyString} because no peers are available.`);
+        return undefined;
+      }
+      // Use best peer strategy for light node fallback
+      const strat: RequestStrategy = new BestScoreStrategy();
+      const selectedPeer = strat.select(availablePeers);
+      targetPeers = [selectedPeer];
+      logger.trace(`RequestScheduler.subscribeCube(): No full nodes available, falling back to peer ${targetPeers[0].toString()} for subscription`);
     }
 
-    // For now, subscribe to the first full node using existing logic
-    // TODO: Expand this to subscribe to ALL full nodes
-    const targetPeer = fullNodePeers[0];
+    const targetPeer = targetPeers[0];
     
     // Send subscription request
     targetPeer.sendSubscribeCube([key.binaryKey as CubeKey], options.type);
