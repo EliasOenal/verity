@@ -43,9 +43,9 @@ describe('NetworkManager cube offering', () => {
 
   test('expressSync should do nothing with empty cubeInfos array', () => {
     // Should not throw or cause any issues
-    networkManager.expressSync([]);
-    networkManager.expressSync(null as any);
-    networkManager.expressSync(undefined as any);
+    networkManager.broadcastKey([]);
+    networkManager.broadcastKey(null as any);
+    networkManager.broadcastKey(undefined as any);
   });
 
   test('expressSync should do nothing when no full nodes are connected', () => {
@@ -66,7 +66,7 @@ describe('NetworkManager cube offering', () => {
     // Should not send anything since no full nodes are connected
     const sendMessageSpy = vi.spyOn(lightPeer, 'sendMessage');
     
-    networkManager.expressSync([cubeInfo]);
+    networkManager.broadcastKey([cubeInfo]);
     
     expect(sendMessageSpy).not.toHaveBeenCalled();
   });
@@ -102,7 +102,7 @@ describe('NetworkManager cube offering', () => {
     const lightPeerSendSpy = vi.spyOn(lightPeer, 'sendMessage');
     const offlineFullPeerSendSpy = vi.spyOn(offlineFullPeer, 'sendMessage');
     
-    networkManager.expressSync([cubeInfo]);
+    networkManager.broadcastKey([cubeInfo]);
     
     // Only the online full node should receive the offer
     expect(fullPeerSendSpy).toHaveBeenCalledTimes(1);
@@ -147,7 +147,7 @@ describe('NetworkManager cube offering', () => {
     const fullPeer1SendSpy = vi.spyOn(fullPeer1, 'sendMessage');
     const fullPeer2SendSpy = vi.spyOn(fullPeer2, 'sendMessage');
     
-    networkManager.expressSync([cubeInfo1, cubeInfo2]);
+    networkManager.broadcastKey([cubeInfo1, cubeInfo2]);
     
     // Both full nodes should receive the offer
     expect(fullPeer1SendSpy).toHaveBeenCalledTimes(1);
@@ -184,7 +184,7 @@ describe('NetworkManager cube offering', () => {
     
     // Should not throw despite the sendMessage error
     expect(() => {
-      networkManager.expressSync([cubeInfo]);
+      networkManager.broadcastKey([cubeInfo]);
     }).not.toThrow();
   });
 
@@ -204,7 +204,7 @@ describe('NetworkManager cube offering', () => {
 
     const sendMessageSpy = vi.spyOn(fullPeer, 'sendMessage');
     
-    networkManager.expressSync([cubeInfo]);
+    networkManager.broadcastKey([cubeInfo]);
     
     expect(sendMessageSpy).toHaveBeenCalledTimes(1);
     const sentMessage = sendMessageSpy.mock.calls[0][0] as KeyResponseMessage;
@@ -229,7 +229,7 @@ describe('NetworkManager cube offering', () => {
 
     // Should not throw
     expect(() => {
-      dummyManager.expressSync([cubeInfo]);
+      dummyManager.broadcastKey([cubeInfo]);
     }).not.toThrow();
   });
 });

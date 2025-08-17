@@ -50,7 +50,7 @@ export class DummyNetworkManager extends EventEmitter implements NetworkManagerI
   }
   getRecentKeys(): CubeKey[] { return []; }
   handlePeerUpdated(peer: NetworkPeerIf): void { }
-  expressSync(cubeInfos: CubeInfo[]): void {
+  broadcastKey(cubeInfos: CubeInfo[]): void {
     // Dummy implementation - does nothing
   }
 }

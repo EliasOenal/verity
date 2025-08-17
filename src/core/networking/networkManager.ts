@@ -247,7 +247,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
      * interfering with regular sync processes.
      * @param cubeInfos Array of CubeInfo objects to offer
      */
-    expressSync(cubeInfos: CubeInfo[]): void {
+    broadcastKey(cubeInfos: CubeInfo[]): void {
         if (!cubeInfos || cubeInfos.length === 0) {
             return;
         }
@@ -258,21 +258,21 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         );
 
         if (fullNodePeers.length === 0) {
-            logger.trace('NetworkManager.expressSync(): No connected full nodes to offer cubes to');
+            logger.trace('NetworkManager.broadcastKey(): No connected full nodes to offer cubes to');
             return;
         }
 
         // Create a KeyResponse message with ExpressSync mode containing the cube metadata
         const keyResponse = new KeyResponseMessage(KeyRequestMode.ExpressSync, cubeInfos);
         
-        logger.trace(`NetworkManager.expressSync(): Offering ${cubeInfos.length} cube(s) to ${fullNodePeers.length} full node(s)`);
+        logger.trace(`NetworkManager.broadcastKey(): Offering ${cubeInfos.length} cube(s) to ${fullNodePeers.length} full node(s)`);
         
         // Send the unsolicited KeyResponse to all connected full nodes
         for (const peer of fullNodePeers) {
             try {
                 peer.sendMessage(keyResponse);
             } catch (error) {
-                logger.warn(`NetworkManager.expressSync(): Error sending cube offer to peer ${peer.toString()}: ${error}`);
+                logger.warn(`NetworkManager.broadcastKey(): Error sending cube offer to peer ${peer.toString()}: ${error}`);
             }
         }
     }

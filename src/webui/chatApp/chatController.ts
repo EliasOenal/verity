@@ -288,7 +288,7 @@ export class ChatController extends VerityController {
             
             // Offer new cubes to all connected peers
             const cubeInfo = await chatCube.getCubeInfo();
-            this.node.networkManager.expressSync([cubeInfo]);
+            this.node.networkManager.broadcastKey([cubeInfo]);
         } catch (error) {
             logger.error(`Chat: Error sending message: ${error}`);
             this.contentAreaView.showError("Failed to send message. Please try again.");
