@@ -329,6 +329,12 @@ export class RequestScheduler implements Shuttable {
 
     logger.trace(`RequestScheduler.subscribeCube(): Successfully subscribed to ${key.keyString} on 1 full node`);
 
+    // For notification subscriptions, whitelist the peer to accept unsolicited KeyResponse messages
+    // This is needed because notification cubes have different keys than the notification key subscribed to
+    if (options.type === MessageClass.SubscribeNotifications) {
+      this.expectKeyResponse(targetPeer, subscriptionResponse.subscriptionDuration);
+    }
+
     // Register this subscription
     const sub: CubeSubscription = new CubeSubscription(
       subscriptionResponse.subscriptionDuration,
