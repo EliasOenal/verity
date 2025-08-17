@@ -270,9 +270,17 @@ export class RequestScheduler implements Shuttable {
     // If this is a CubeSubscription: Try to get the cube locally
     // Note: We no longer automatically request missing cubes - callers should 
     // explicitly call requestCube() first if they want the current version
+    // Exception: For subscription renewals, we DO request the cube to catch up on missed updates
     if (options.type === MessageClass.SubscribeCube) {
       ourCubeInfo = await this.networkManager.cubeStore.getCubeInfo(key.keyString);
-      if (ourCubeInfo === undefined) {
+      if (options.thisIsARenewal) {
+        logger.trace(`RequestScheduler.subscribeCube(): Renewal for ${key.keyString} - requesting cube to catch up on any missed updates`);
+        // For renewals, request the cube to catch up on any missed updates
+        // Make this non-blocking so it doesn't interfere with subscription timing
+        this.requestCube(key.binaryKey as CubeKey).catch(error => {
+          logger.debug(`RequestScheduler.subscribeCube(): Failed to request cube during renewal for ${key.keyString}: ${error}`);
+        });
+      } else if (ourCubeInfo === undefined) {
         logger.trace(`RequestScheduler.subscribeCube(): Cube ${key.keyString} not found locally, but proceeding with subscription for potential future updates`);
       }
     }
