@@ -114,9 +114,16 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
       },
     );
 
-    // Have our scheduler actually network-subscribe the requested Cube
+    // Have our scheduler actually network-subscribe the requested Cube first
+    // This needs to happen synchronously to ensure we don't miss any updates
     options.outputSubPromise = this.requestScheduler.subscribeCube(key);
-    // TODO error handling
+
+    // Then try to fetch the cube if it doesn't exist locally
+    // This maintains the high-level behavior of getting initial state when subscribing
+    this.getCubeInfo(key).catch(() => {
+      // If initial fetch fails, that's okay - we still have the subscription
+      // for future updates
+    });
 
     return generator;
   }

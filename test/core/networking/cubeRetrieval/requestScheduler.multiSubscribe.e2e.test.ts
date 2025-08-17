@@ -121,11 +121,11 @@ describe('RequestScheduler multi-node subscription e2e tests', () => {
     expect(await remote1.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote2.cubeStore.getNumberOfStoredCubes()).toBe(1);
 
-    // Subscribe to the MUC
+    // Subscribe to the MUC (first request to get initial cube)
+    await local.scheduler.requestCube(mucKey);
     const subPromise: Promise<CubeSubscription> = local.scheduler.subscribeCube(mucKey);
     
-    // Wait for cube to be received and subscription to complete
-    await local.cubeStore.expectCube(mucKey);
+    // Wait for subscription to complete
     const subscription = await subPromise;
     
     // Verify subscription is established
@@ -192,10 +192,11 @@ describe('RequestScheduler multi-node subscription e2e tests', () => {
     expect(await remote2.cubeStore.getNumberOfStoredCubes()).toBe(0);
 
     // Subscribe to the MUC - should succeed with partial success
+    // First request the cube since it's only available on remote1
+    await local.scheduler.requestCube(mucKey);
     const subPromise: Promise<CubeSubscription> = local.scheduler.subscribeCube(mucKey);
     
-    // Wait for cube to be received and subscription to complete
-    await local.cubeStore.expectCube(mucKey);
+    // Wait for subscription to complete
     const subscription = await subPromise;
     
     // Verify subscription is established despite one node not having the cube

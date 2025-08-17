@@ -267,21 +267,13 @@ export class RequestScheduler implements Shuttable {
     }
 
     let ourCubeInfo: CubeInfo;
-    // If this is a CubeSubscription: Try to get the cube locally or from the network
-    // With multi-node subscriptions, we don't require the cube to exist before subscribing
-    // since the subscription itself provides a mechanism to receive the cube
+    // If this is a CubeSubscription: Try to get the cube locally
+    // Note: We no longer automatically request missing cubes - callers should 
+    // explicitly call requestCube() first if they want the current version
     if (options.type === MessageClass.SubscribeCube) {
       ourCubeInfo = await this.networkManager.cubeStore.getCubeInfo(key.keyString);
       if (ourCubeInfo === undefined) {
-        // Try to get the cube from the network, but don't fail subscription if we can't
-        try {
-          ourCubeInfo = await this.requestCube(key.keyString);
-        } catch (error) {
-          logger.trace(`RequestScheduler.subscribeCube(): Could not initially fetch Cube ${key.keyString}, but proceeding with subscription: ${error}`);
-        }
-        if (ourCubeInfo === undefined) {
-          logger.trace(`RequestScheduler.subscribeCube(): Cube ${key.keyString} not found locally or remotely, but proceeding with subscription for potential future updates`);
-        }
+        logger.trace(`RequestScheduler.subscribeCube(): Cube ${key.keyString} not found locally, but proceeding with subscription for potential future updates`);
       }
     }
 
@@ -335,18 +327,11 @@ export class RequestScheduler implements Shuttable {
             subscriptionResponse.subscriptionDuration &&
             subscriptionResponse.requestedKeyBlob.equals(key.binaryKey)) {
           
-          // For cube subscriptions, try to fetch any updates from the peer without version checks
+          // For cube subscriptions, check if we should try to get updates
+          // Note: We no longer automatically fetch cubes during subscription.
+          // Callers should explicitly call requestCube() if they want current data.
           if (options.type === MessageClass.SubscribeCube) {
-            // If we don't have the cube locally, or if the remote has a different version, try to fetch it
-            if (ourCubeInfo === undefined || !subscriptionResponse.cubesHashBlob.equals(await ourCubeInfo.getCube().getHash())) {
-              // Attempt to get the remote version to ensure we have the latest data
-              // Don't fail subscription based on this, just try to get updates
-              try {
-                await this.requestCube(key.keyString, { requestFrom: peer });
-              } catch (error) {
-                logger.trace(`RequestScheduler.subscribeCube(): Could not fetch update from peer ${peer.toString()} for ${key.keyString}, but continuing with subscription: ${error}`);
-              }
-            }
+            logger.trace(`RequestScheduler.subscribeCube(): Successfully subscribed to ${key.keyString} on peer ${peer.toString()}, subscription will receive future updates`);
           }
           
           // Accept subscription from any willing full node for multi-node resilience

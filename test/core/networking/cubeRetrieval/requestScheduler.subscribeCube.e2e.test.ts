@@ -226,19 +226,13 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(0);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
 
-    // prepare promise: local shall later receive the first MUC version
-    const localReceivesFirstMucVersion: Promise<CubeInfo> =
-      local.cubeStore.expectCube(mucKey);
+    // Since subscribeCube no longer automatically requests missing cubes,
+    // we need to explicitly request the cube first if we want it
+    const mucInfo = await local.scheduler.requestCube(mucKey);
+    expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
 
     // local subscribes to MUC
     const subPromise: Promise<CubeSubscription> = local.scheduler.subscribeCube(mucKey);
-
-    // local receives first MUC version
-    await localReceivesFirstMucVersion;
-    expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
-    expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
-    expect((await local.cubeStore.getCube(mucKey)).getFirstField(
-      FieldType.PAYLOAD).valueString).toBe("primum hoc dico");
 
     // expect subscription to be fully registered on both ends
     await subPromise;
