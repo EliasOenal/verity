@@ -330,26 +330,10 @@ export class RequestScheduler implements Shuttable {
             subscriptionResponse.subscriptionDuration &&
             subscriptionResponse.requestedKeyBlob.equals(key.binaryKey)) {
           
-          // For cube subscriptions, check version compatibility
-          let versionCompatible = true;
-          if (options.type === MessageClass.SubscribeCube) {
-            if (!subscriptionResponse.cubesHashBlob.equals(await ourCubeInfo.getCube().getHash())) {
-              const remoteCubeInfo: CubeInfo = await this.requestCube(
-                key.keyString, { requestFrom: peer });
-              // Skip this peer if it doesn't have the cube or has an older version
-              if (remoteCubeInfo === undefined || 
-                  cubeContest(remoteCubeInfo, ourCubeInfo) !== remoteCubeInfo) {
-                logger.warn(`RequestScheduler.subscribeCube(): Peer ${peer.toString()} has incompatible version for ${key.keyString}, skipping`);
-                versionCompatible = false;
-              }
-            }
-          }
-          
-          if (versionCompatible) {
-            successfulPeers.push(peer);
-            successfulResponses.push(subscriptionResponse);
-            logger.trace(`RequestScheduler.subscribeCube(): Successfully subscribed to ${key.keyString} on peer ${peer.toString()}`);
-          }
+          // Accept subscription from any willing full node for multi-node resilience
+          successfulPeers.push(peer);
+          successfulResponses.push(subscriptionResponse);
+          logger.trace(`RequestScheduler.subscribeCube(): Successfully subscribed to ${key.keyString} on peer ${peer.toString()}`);
         } else {
           logger.warn(`RequestScheduler.subscribeCube(): Subscription to ${key.keyString} was rejected by peer ${peer.toString()}`);
         }
