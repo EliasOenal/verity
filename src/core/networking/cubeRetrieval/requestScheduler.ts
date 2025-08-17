@@ -570,11 +570,12 @@ export class RequestScheduler implements Shuttable {
       // IMPORTANT: Do NOT also add to requestedNotifications here; otherwise a
       // subsequent performCubeRequest() will send a direct NotificationRequest
       // in addition to the KeyRequest, leading to duplicate deliveries.
-      this.expectedNotifications.set(key.keyString, req);
+  this.expectedNotifications.set(key.keyString, req);
       const filter: CubeFilterOptions = {
         notifies: key.binaryKey as NotificationKey,
       }
-      this.performKeyRequest(undefined, filter);
+  // Keep KeyResponse whitelisting alive for the duration of this request's timeout
+  this.performKeyRequest(undefined, filter, timeout);
       // KeyResponse will automatically be handled in handleKeysOffered()
       return req.promise;
     }
@@ -900,7 +901,11 @@ export class RequestScheduler implements Shuttable {
     this.scheduleKeyRequest();
   }
 
-  private performKeyRequest(peerSelected?: NetworkPeerIf, options: CubeFilterOptions = {}): void {
+  private performKeyRequest(
+    peerSelected?: NetworkPeerIf,
+    options: CubeFilterOptions = {},
+    expectedResponseTimeout?: number,
+  ): void {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
 
@@ -912,7 +917,7 @@ export class RequestScheduler implements Shuttable {
       return;
     }
 
-    if (this.options.lightNode) this.expectKeyResponse(peerSelected);
+  if (this.options.lightNode) this.expectKeyResponse(peerSelected, expectedResponseTimeout ?? Settings.NETWORK_TIMEOUT);
 
     // We will now translate the supplied filter options to our crappy
     // non-orthogonal 1.0 wire format. Non-fulfillable requests will be
