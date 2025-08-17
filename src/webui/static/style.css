@@ -347,7 +347,6 @@ li.verityPeer {
   overflow-wrap: anywhere;
 }
 
-
 /*
  * Cube explorer
  */
@@ -372,8 +371,6 @@ table.veritySchematicCube {
   text-wrap: wrap;
   word-break: break-all;
 }
-
-
 
 /* Identity edit form */
 img.verityEditIdentityAvatar {
@@ -422,7 +419,7 @@ img.verityEditIdentityAvatar {
 .verityChatApp {
   max-width: 900px;
   margin: 0.5rem auto 0 auto;
-  height: calc(100vh - 200px);
+  height: calc(100vh - 40px);
   display: flex;
   flex-direction: column;
   background: var(--bs-body-bg);
@@ -432,7 +429,7 @@ img.verityEditIdentityAvatar {
 }
 
 .verityChatHeader {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #00b7ff, #1f5bff);
   color: white;
   padding: 1rem 1.5rem;
   display: flex;
@@ -469,7 +466,7 @@ img.verityEditIdentityAvatar {
   display: flex;
   gap: 0.25rem;
   padding: 0.75rem 1.5rem;
-  background: var(--bs-gray-100);
+  background: var(--bs-gray-50);
   border-bottom: 1px solid var(--bs-border-color);
   overflow-x: auto;
   flex-shrink: 0;
@@ -636,7 +633,7 @@ img.verityEditIdentityAvatar {
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .verityChatApp {
-    height: calc(100vh - 180px);
+    height: calc(100vh - 20px);
     border-radius: 0;
     margin: 1rem 0 0 0;
     max-width: none;
@@ -674,21 +671,5 @@ img.verityEditIdentityAvatar {
   
   .verityChatForm {
     padding: 0.75rem 1rem;
-  }
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .verityChatApp {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  }
-  
-  .verityChatMessage {
-    background: var(--bs-gray-800);
-    border-color: var(--bs-gray-700);
-  }
-  
-  .verityChatMessage:hover {
-    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.05);
   }
 }
