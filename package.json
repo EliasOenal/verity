@@ -34,7 +34,7 @@
     "@types/ws": "^8.5.14",
     "@typescript-eslint/eslint-plugin": "^8.24.0",
     "axios": "^1.9.0",
-    "copy-webpack-plugin": "^12.0.2",
+    "copy-webpack-plugin": "^13.0.1",
     "eslint": "^9.27.0",
     "jsdom": "^26.0.0",
     "libsodium-wrappers": "^0.7.15",
