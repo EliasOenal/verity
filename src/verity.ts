@@ -18,6 +18,7 @@ import sodium, { KeyPair } from 'libsodium-wrappers-sumo'
 import { Buffer } from 'buffer';
 import { isBrowser, isNode, isWebWorker, isJsDom, isDeno } from "browser-or-node";
 import * as fs from 'fs/promises';
+import * as fssync from 'fs';
 
 let readline: any;
 let cmd;
@@ -88,6 +89,13 @@ class VerityCmdClient {
             description: "If arguments is a number, start a libp2p WebSocket listener on specified TCP port, which also makes this node a WebRTC connection broker. Alternatively, argument can be a full libp2p multiaddr to listen on. You can provide multiple arguments for multiple listen addresses.",
             defaultValue: () => undefined,
           }),
+          libp2pWss: cmd.option({
+            type: cmd.number,
+            long: "libp2p-wss",
+            env: "LIBP2P_WSS",
+            description: "Additionally listen for libp2p over secure WebSockets (WSS) on this TCP port. Requires cert.pem and key.pem in the working directory.",
+            defaultValue: () => undefined,
+          }),
           peer: cmd.multioption({
             type: cmd.array(cmd.string),
             long: "peer",
@@ -115,7 +123,7 @@ class VerityCmdClient {
             defaultValue: () => undefined,
           })
         },
-        handler: ({ ws, libp2p, peer, tracker, nopersist, pubaddr }) => {
+        handler: ({ ws, libp2p, libp2pWss, peer, tracker, nopersist, pubaddr }) => {
           if (!ws && !libp2p && !peer && !tracker && !nopersist && !pubaddr) {
             // use defaults if no options specified neither on the command line nor on construction
             logger.info("Note: Will start with default settings as you did not specify any command line options. Use --help for options.")
@@ -135,7 +143,33 @@ class VerityCmdClient {
             }
             // Apply config
             options.transports = new Map();
-            if (libp2p) options.transports.set(SupportedTransports.libp2p, libp2p);
+            // Build libp2p listen set with optional WSS augmentation
+            if (libp2p || libp2pWss) {
+              const listen: (string|number)[] = [];
+              if (libp2p) listen.push(...libp2p);
+              // Auto-enable WSS when certs are present and only numeric -l were given
+              const haveCerts = fssync.existsSync('./cert.pem') && fssync.existsSync('./key.pem');
+              if (libp2pWss) {
+                listen.push(`/ip4/0.0.0.0/tcp/${libp2pWss}/wss`);
+              } else if (haveCerts && libp2p && libp2p.length > 0) {
+                // For every numeric port in -l, also add wss on port+1
+                const added: string[] = [];
+                for (const spec of libp2p) {
+                  // treat numeric-like values
+                  const n = Number(spec);
+                  if (!Number.isNaN(n)) {
+                    const wssPort = (n + 1).toString();
+                    const addr = `/ip4/0.0.0.0/tcp/${wssPort}/wss`;
+                    listen.push(addr);
+                    added.push(`${n}->${wssPort}`);
+                  }
+                }
+                if (added.length) {
+                  logger.info(`Detected cert.pem/key.pem - also listening on WSS (auto): ${added.join(', ')}`);
+                }
+              }
+              options.transports.set(SupportedTransports.libp2p, listen);
+            }
             if (ws) options.transports.set(SupportedTransports.ws, ws);
             if (peer) {
               for (const onepeer of peer) {

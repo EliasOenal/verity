@@ -16,6 +16,7 @@ import { webSockets } from "@libp2p/websockets";
 import { createLibp2p } from "libp2p";
 import { circuitRelayTransport, circuitRelayServer } from "@libp2p/circuit-relay-v2";
 import { identify } from "@libp2p/identify";
+import { ping } from "@libp2p/ping";
 import type { Libp2p } from "@libp2p/interface";
 import * as filters from '@libp2p/websockets/filters'
 import { createServer } from 'https';
@@ -85,12 +86,9 @@ export class Libp2pTransport extends NetworkTransport {
   async start(): Promise<void> {
     // Pre-create libp2p components:
     let transports = [];
-    // webSockets() transport object: Should we use HTTPs / WSS or plain text?
-    if (isNode &&  // no listening allowed on the browser in any case
-        (this.listen.some((listenString) =>  // any listen String calls for HTTPs
-          // Note: this is a really ugly way to parse a Multiaddr, but as libp2p wants
-          // a multiaddr *string* rather than a multiaddr object, this is easiest way
-          listenString.includes("/wss") || listenString.includes("/tls")))) {
+    // Single WebSockets transport; enable HTTPS if any /wss listener is configured
+    const hasWss = isNode && this.listen.some(l => l.includes('/wss') || l.includes('/tls'));
+    if (hasWss) {
       const httpsServer = createServer({
         // TODO HACKHACK: do something other than hardcoding a cert file name.
         // Literally anything else.
@@ -98,12 +96,12 @@ export class Libp2pTransport extends NetworkTransport {
         key: readFileSync('./key.pem'),
       });
       transports.push(webSockets({
-        filter: filters.all,  // allow all kinds of connections for testing, effectively disabling sanitizing - maybe TODO remove this?
+        filter: filters.all,
         https: httpsServer,
       }));
     } else {
       transports.push(webSockets({
-        filter: filters.all,  // allow all kinds of connections for testing, effectively disabling sanitizing - maybe TODO remove this?
+        filter: filters.all,
       }));
     }
 
@@ -147,8 +145,21 @@ export class Libp2pTransport extends NetworkTransport {
     };
     logger.trace("Libp2pServer: publicAddress " + this.options['publicAddress']);
     if (this.options?.publicAddress) {
-      // TODO HACKHACK actually parse the provided address and combine them with the provided listeners
-      addresses['announce'] = [`/dns4/${this.options.publicAddress}/tcp/1985/wss/`];
+      // Build announce addresses for each tcp ws/wss listener we have
+      const announces: string[] = [];
+      for (const l of this.listen) {
+        if (l.includes('/tcp/') && (l.includes('/ws') || l.includes('/wss') || l.includes('/tls'))) {
+          const m = l.match(/\/tcp\/(\d+)/);
+          const port = m && m[1] ? m[1] : '1985';
+          const scheme = (l.includes('/wss') || l.includes('/tls')) ? 'wss' : 'ws';
+          announces.push(`/dns4/${this.options.publicAddress}/tcp/${port}/${scheme}/`);
+        }
+      }
+      // Fallback to a sensible default if none matched
+      if (announces.length === 0) {
+        announces.push(`/dns4/${this.options.publicAddress}/tcp/1985/ws/`);
+      }
+      addresses['announce'] = announces;
     }
 
     // Now that we preconfigured all the components, fire up the Libp2pNode object:
@@ -160,6 +171,7 @@ export class Libp2pTransport extends NetworkTransport {
       streamMuxers: [yamux()],
       services: {
         identify: identify(),  // finds out stuff like our own observed address and protocols supported by remote node
+        ping: ping(),          // respond to /ipfs/ping/1.0.0 to keep libp2p connection monitor happy
         relay: circuitRelayServer({
           reservations: {
             maxReservations: Settings.MAXIMUM_CONNECTIONS*100,  // maybe a bit much?

@@ -80,9 +80,24 @@ export class Libp2pConnection extends TransportConnection {
 
   async handleStreams() {
     // HACKHACK reserve relay slot -- this doesn't really belong here but w/e
-    if (this.transport.circuitRelayTransport) {
-      this.transport.circuitRelayTransport.reservationStore.addRelay(
-        this.conn.remotePeer, "configured");
+    // Note: In browsers the relay service object shape differs and may not expose
+    // reservationStore.addRelay; calling it caused a TypeError and broke WS dials.
+    try {
+      // Prefer a browser-friendly API if available
+      const nodeAny: any = this.transport.node as any;
+      const relaySvc: any = nodeAny?.services?.relay ?? this.transport.circuitRelayTransport;
+      if (relaySvc) {
+        if (typeof relaySvc.reserve === 'function') {
+          await relaySvc.reserve(this.conn.remotePeer);
+        } else if (typeof relaySvc.client?.reserve === 'function') {
+          await relaySvc.client.reserve(this.conn.remotePeer);
+        } else if (typeof relaySvc.reservationStore?.addRelay === 'function') {
+          relaySvc.reservationStore.addRelay(this.conn.remotePeer, "configured");
+        }
+      }
+    } catch (err) {
+      logger.trace(`${this.toString()}: Skipping relay reservation (not available): ${err?.toString() ?? err}`);
+      // Best-effort only; continue without reservation.
     }
 
     let msg: Uint8ArrayList;
