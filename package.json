@@ -18,6 +18,7 @@
   "scripts": {
     "start": "node --import=extensionless/register dist/verity.js",
     "test": "npm run vitest",
+    "test:browser": "npm run vitest -- test/browser/",
     "vitest": "./node_modules/.bin/vitest run",
     "webpack": "webpack",
     "build": "tsc -p tsconfig.build.json",
