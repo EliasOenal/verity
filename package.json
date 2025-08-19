@@ -19,6 +19,8 @@
     "start": "node --import=extensionless/register dist/verity.js",
     "test": "npm run vitest",
     "test:browser": "npm run vitest -- test/browser/",
+    "test:playwright": "npx playwright test",
+    "test:playwright:ui": "npx playwright test --ui",
     "vitest": "./node_modules/.bin/vitest run",
     "webpack": "webpack",
     "build": "tsc -p tsconfig.build.json",
