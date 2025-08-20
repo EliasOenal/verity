@@ -25,9 +25,9 @@ export interface CubeCreationResult {
  * Initialize Verity in a browser page and wait for it to be ready
  * Automatically applies test optimizations for faster execution (equivalent to testCoreOptions)
  */
-export async function initializeVerityInBrowser(page: Page): Promise<void> {
-  // Navigate to the Verity web application
-  await page.goto('/');
+export async function initializeVerityInBrowser(page: Page, testApp: string = 'full-node-test.html'): Promise<void> {
+  // Navigate to the specific Verity test application
+  await page.goto(`/${testApp}`);
   
   // Wait for the application to load
   await page.waitForSelector('body', { state: 'visible' });
@@ -97,78 +97,94 @@ export async function createTestCubeInBrowser(
 ): Promise<CubeCreationResult> {
   return await page.evaluate(async (content) => {
     try {
-      const cockpit = window.verity.cockpit;
-      const cubeStore = window.verity.node.cubeStore;
-      const nodeId = window.verity.node.networkManager?.idString || 'unknown';
+      if (!window.verity?.node?.cubeStore) {
+        return { success: false, error: 'Verity node or cubeStore not available' };
+      }
       
-      // Get initial count
-      const initialCount = await cubeStore.getNumberOfStoredCubes();
+      const node = window.verity.node;
+      const cubeStore = node.cubeStore;
       
-      // Create a veritum with unique content for semantic meaningfulness
-      const veritum = cockpit.prepareVeritum();
-      
-      // Add unique content to ensure different cubes are created
-      // This makes the test semantically meaningful rather than relying on timing
-      const uniqueContent = content || `Test cube from ${nodeId} at ${Date.now()}-${Math.random()}`;
-      
-      // Try to add content through fields if available (best effort)
-      try {
-        if (veritum.fields && veritum.fields.insertTillFull) {
-          // Create fields with the unique content
-          const payloadField = { type: 4, data: new TextEncoder().encode(uniqueContent) }; // PAYLOAD type
-          veritum.fields.insertTillFull([payloadField]);
+      // Check if cockpit is available (for full implementations)
+      if (window.verity.cockpit && window.verity.VerityField) {
+        const cockpit = window.verity.cockpit;
+        const VerityField = window.verity.VerityField;
+        const nodeId = node.networkManager?.idString || 'unknown';
+        
+        // Get initial count
+        const initialCount = await cubeStore.getNumberOfStoredCubes();
+        
+        // Add unique content to ensure different cubes are created
+        const uniqueContent = content || `Test cube from ${nodeId} at ${Date.now()}-${Math.random()}`;
+        
+        // Create a veritum with unique content for semantic meaningfulness
+        const payloadField = VerityField.Payload(uniqueContent);
+        const veritum = cockpit.prepareVeritum({
+          fields: payloadField
+        });
+        
+        // Compile the veritum
+        await veritum.compile();
+        
+        // Get the compiled cubes
+        const cubes = Array.from(veritum.chunks);
+        if (cubes.length === 0) {
+          return { success: false, error: 'No cubes generated from veritum' };
         }
-      } catch (e) {
-        // If field insertion fails, fall back to timing-based differentiation
-        await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50));
-      }
-      
-      // Compile the veritum
-      await veritum.compile();
-      
-      // Get the compiled cubes
-      const cubes = Array.from(veritum.chunks);
-      if (cubes.length === 0) {
-        return { success: false, error: 'No cubes generated from veritum' };
-      }
-      
-      const cube = cubes[0];
-      
-      // Get the cube key before adding to store
-      const key = await cube.getKey();
-      
-      // Check if cube already exists
-      const alreadyExists = await cubeStore.hasCube(key);
-      if (alreadyExists) {
-        return { 
-          success: false, 
-          error: 'Cube with this key already exists (duplicate key generated)',
-          cubeKey: key,
-          keyHex: key.toString('hex').substring(0, 32) + '...'
-        };
-      }
-      
-      // Add to the cube store
-      await cubeStore.addCube(cube);
-      
-      // Verify it was actually stored
-      const finalCount = await cubeStore.getNumberOfStoredCubes();
-      const wasStored = finalCount > initialCount;
-      
-      if (!wasStored) {
+        
+        const cube = cubes[0];
+        
+        // Get the cube key before adding to store
+        const key = await cube.getKey();
+        
+        // Check if cube already exists
+        const alreadyExists = await cubeStore.hasCube(key);
+        if (alreadyExists) {
+          return { 
+            success: false, 
+            error: 'Cube with this key already exists (duplicate key generated)',
+            cubeKey: key,
+            keyHex: key.toString('hex').substring(0, 32) + '...'
+          };
+        }
+        
+        // Add to the cube store
+        await cubeStore.addCube(cube);
+        
+        // Verify it was actually stored
+        const finalCount = await cubeStore.getNumberOfStoredCubes();
+        const wasStored = finalCount > initialCount;
+        
+        if (!wasStored) {
+          return {
+            success: false,
+            error: 'Cube was not stored successfully (storage failed)',
+            cubeKey: key,
+            keyHex: key.toString('hex').substring(0, 32) + '...'
+          };
+        }
+        
         return {
-          success: false,
-          error: 'Cube was not stored successfully (storage failed)',
+          success: true,
           cubeKey: key,
           keyHex: key.toString('hex').substring(0, 32) + '...'
         };
+      } else {
+        // Fallback for test environments without full cockpit - use test utilities
+        if (window.verity.testUtils && window.verity.testUtils.createTestCube) {
+          const result = await window.verity.testUtils.createTestCube(content);
+          return {
+            success: result.success || false,
+            error: result.error || (result.success ? undefined : 'Test cube creation failed'),
+            cubeKey: result.cubeKey || undefined,
+            keyHex: result.keyHex || (result.cubeKey ? result.cubeKey.toString().substring(0, 32) + '...' : undefined)
+          };
+        } else {
+          return { 
+            success: false, 
+            error: 'Neither cockpit nor test utilities available for cube creation' 
+          };
+        }
       }
-      
-      return {
-        success: true,
-        cubeKey: key,
-        keyHex: key.toString('hex').substring(0, 32) + '...'
-      };
     } catch (error) {
       return {
         success: false,

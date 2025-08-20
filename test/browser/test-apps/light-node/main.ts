@@ -8,10 +8,13 @@
 import { isBrowser } from 'browser-or-node';
 import sodium from 'libsodium-wrappers-sumo';
 import { VerityNode } from '../../../../src/cci/verityNode';
+import { Cockpit } from '../../../../src/cci/cockpit';
+import { VerityField } from '../../../../src/cci/cube/verityField';
 import { testCoreOptions } from '../../../core/testcore.definition';
 import { testCciOptions } from '../../../cci/testcci.definitions';
 
 let verityNode: VerityNode | null = null;
+let cockpit: Cockpit | null = null;
 
 async function initializeLightNodeTest(): Promise<void> {
   if (!isBrowser) {
@@ -38,11 +41,16 @@ async function initializeLightNodeTest(): Promise<void> {
     await verityNode.readyPromise;
     console.log('VerityNode (light) initialized successfully');
 
+    // Create cockpit for veritum operations
+    cockpit = new Cockpit(verityNode);
+
     // Create Verity interface that Playwright tests expect
     (window as any).verity = {
       nodeType: 'light-node',
       node: verityNode,
       cubeStore: verityNode.cubeStore,
+      cockpit: cockpit,  // Add cockpit for cube creation
+      VerityField: VerityField,  // Export VerityField for Playwright tests
       testUtils: {
         createTestData: async () => {
           const data = `LIGHT-NODE-${Date.now()}-${Math.random()}`;

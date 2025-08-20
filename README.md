@@ -43,8 +43,40 @@ npm run start -- -w 1984 -t
 ```
 
 ## Tests ##
-```
+
+### Running Tests ###
+
+#### Node.js Tests ####
+Run the main Node.js test suite (includes 900+ tests):
+```bash
 npm test
+```
+
+Run a subset of tests (CI command - faster execution):
+```bash
+npm test -- --run test/core/ test/cci/ test/web/controller/ test/app/zw/model/
+```
+
+#### Browser Tests ####
+Run Playwright browser tests in real browsers:
+```bash
+# Run all Playwright browser tests (56 tests)
+npm run test:playwright
+
+# Interactive test runner with UI
+npm run test:playwright:ui
+```
+
+#### Building and Serving ####
+```bash
+# Build TypeScript code
+npm run build
+
+# Run development server for manual testing
+npm run server
+
+# Start support node (CLI application)
+npm run start -- -w 1984 -t
 ```
 
 ### Browser Testing ###

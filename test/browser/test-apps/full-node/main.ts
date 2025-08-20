@@ -8,10 +8,13 @@
 import { isBrowser } from 'browser-or-node';
 import sodium from 'libsodium-wrappers-sumo';
 import { VerityNode } from '../../../../src/cci/verityNode';
+import { Cockpit } from '../../../../src/cci/cockpit';
+import { VerityField } from '../../../../src/cci/cube/verityField';
 import { testCoreOptions } from '../../../core/testcore.definition';
 import { testCciOptions } from '../../../cci/testcci.definitions';
 
 let verityNode: VerityNode | null = null;
+let cockpit: Cockpit | null = null;
 
 async function initializeFullNodeTest(): Promise<void> {
   if (!isBrowser) {
@@ -38,11 +41,16 @@ async function initializeFullNodeTest(): Promise<void> {
     await verityNode.readyPromise;
     console.log('VerityNode initialized successfully');
 
+    // Create cockpit for veritum operations
+    cockpit = new Cockpit(verityNode);
+
     // Create Verity interface that Playwright tests expect
     (window as any).verity = {
       nodeType: 'full-node',
       node: verityNode,
       cubeStore: verityNode.cubeStore,
+      cockpit: cockpit,  // Add cockpit for cube creation
+      VerityField: VerityField,  // Export VerityField for Playwright tests
       testUtils: {
         createTestData: async () => {
           const data = `FULL-NODE-${Date.now()}-${Math.random()}`;
@@ -65,18 +73,47 @@ async function initializeFullNodeTest(): Promise<void> {
         },
 
         createTestCube: async (content?: string) => {
-          if (!verityNode) {
-            throw new Error('VerityNode not initialized');
+          if (!verityNode || !cockpit) {
+            throw new Error('VerityNode or Cockpit not initialized');
           }
           
-          const testContent = content || `TEST-CUBE-${Date.now()}-${Math.random()}`;
-          // Create a simple cube using the cube store
-          // For now, return a mock result - we'll implement real cube creation if needed
-          return {
-            success: true,
-            content: testContent,
-            timestamp: Date.now()
-          };
+          try {
+            const testContent = content || `TEST-CUBE-${Date.now()}-${Math.random()}`;
+            
+            // Create a veritum using the cockpit with proper payload field
+            const payloadField = VerityField.Payload(testContent);
+            const veritum = cockpit.prepareVeritum({
+              fields: payloadField
+            });
+            
+            // Compile the veritum
+            await veritum.compile();
+            
+            // Get the cubes
+            const cubes = Array.from(veritum.chunks);
+            if (cubes.length === 0) {
+              return { success: false, error: 'No cubes generated from veritum' };
+            }
+            
+            const cube = cubes[0];
+            const key = await cube.getKey();
+            
+            // Add to store
+            await verityNode.cubeStore.addCube(cube);
+            
+            return {
+              success: true,
+              content: testContent,
+              cubeKey: key,
+              keyHex: key.toString('hex').substring(0, 32) + '...',
+              timestamp: Date.now()
+            };
+          } catch (error) {
+            return {
+              success: false,
+              error: error.message
+            };
+          }
         }
       }
     };
@@ -98,6 +135,7 @@ async function initializeFullNodeTest(): Promise<void> {
         <p><strong>Cubes:</strong> <span id="cubeCount">${verityNode.cubeStore.getNumberOfStoredCubes()}</span></p>
         <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
         <p><strong>Test Optimizations:</strong> Active</p>
+        <p><strong>Cockpit:</strong> Available</p>
       `;
     }
 
