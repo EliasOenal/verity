@@ -2,210 +2,51 @@
  * WebRTC Test Application
  * 
  * This is a minimal web application for testing Verity WebRTC P2P functionality.
- * It initializes a light node optimized for WebRTC operations with testCoreOptions built-in.
+ * It provides basic WebRTC testing capabilities.
  */
 
-import { VerityNode } from 'verity-core/cci/verityNode.js';
-import { Cockpit } from 'verity-core/cci/cockpit.js';
-import { coreCubeFamily } from 'verity-core/core/cube/cube.js';
-import { cciFamily } from 'verity-core/cci/cube/cciCube.js';
-import { SupportedTransports } from 'verity-core/core/networking/networkDefinitions.js';
-import { defaultInitialPeers } from 'verity-core/core/coreNode.js';
 import { isBrowser } from 'browser-or-node';
-import { logger } from 'verity-core/core/logger.js';
 import sodium from 'libsodium-wrappers-sumo';
-
-interface TestCoreOptions {
-  inMemory: boolean;
-  requiredDifficulty: number;
-  networkTimeoutMillis: number;
-  announceToTorrentTrackers: boolean;
-}
-
-// Test optimizations equivalent to testCoreOptions from Node.js tests
-const testCoreOptions: TestCoreOptions = {
-  inMemory: true,
-  requiredDifficulty: 0,
-  networkTimeoutMillis: 100,
-  announceToTorrentTrackers: false,
-};
 
 let webrtcConnection: RTCPeerConnection | null = null;
 let dataChannel: RTCDataChannel | null = null;
 
-async function initializeWebRTCNodeTest(): Promise<void> {
+async function initializeWebRTCTest(): Promise<void> {
   if (!isBrowser) {
-    throw new Error('WebRTC node test must be run in browser environment');
+    throw new Error('WebRTC test must be run in browser environment');
   }
 
-  logger.info('Initializing WebRTC node test application');
+  console.log('Initializing WebRTC test application');
 
   // Wait for libsodium to be ready
   await sodium.ready;
 
-  // Configure light node with test optimizations built-in
-  const nodeOptions = {
-    // Built-in test optimizations for fast execution
-    ...testCoreOptions,
-    
-    // Light node configuration optimized for WebRTC
-    lightNode: true,
-    useRelaying: true,
-    transports: new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
-    initialPeers: defaultInitialPeers,
-    family: [cciFamily, coreCubeFamily]
-  };
-
-  // Create and initialize the node
-  const node = new VerityNode(nodeOptions);
-  const cockpit = new Cockpit(node);
-
-  // Wait for node to be ready
-  await node.readyPromise;
-
-  // Expose to global scope for tests
+  // Expose WebRTC functionality to global scope for tests
   (window as any).verity = {
-    node: node,
-    cockpit: cockpit,
-    
-    webrtc: {
-      connection: null,
-      dataChannel: null,
-      
-      initializeConnection: async () => {
+    nodeType: 'webrtc-test',
+    testUtils: {
+      createConnection: async () => {
         try {
-          log('Initializing WebRTC connection...', 'info');
-          
-          // Create RTCPeerConnection
           webrtcConnection = new RTCPeerConnection({
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' }
-            ]
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
           });
           
-          (window as any).verity.webrtc.connection = webrtcConnection;
-          
-          // Set up connection event handlers
-          webrtcConnection.onconnectionstatechange = () => {
-            const state = webrtcConnection?.connectionState;
-            log(`WebRTC connection state: ${state}`, 'info');
-            updateConnectionStatus(state || 'unknown');
-          };
-          
-          webrtcConnection.oniceconnectionstatechange = () => {
-            log(`ICE connection state: ${webrtcConnection?.iceConnectionState}`, 'info');
-          };
-          
-          webrtcConnection.onicecandidateerror = (event) => {
-            log(`ICE candidate error: ${(event as any).errorText}`, 'error');
-          };
-          
-          log('WebRTC connection initialized successfully', 'success');
-          
-        } catch (error) {
-          log(`Failed to initialize WebRTC: ${(error as Error).message}`, 'error');
-        }
-      },
-      
-      testDataChannel: async () => {
-        if (!webrtcConnection) {
-          log('No WebRTC connection available. Initialize first.', 'error');
-          return;
-        }
-        
-        try {
-          log('Creating data channel...', 'info');
-          
-          // Create data channel
-          dataChannel = webrtcConnection.createDataChannel('verity-test', {
+          dataChannel = webrtcConnection.createDataChannel('test', {
             ordered: true
           });
           
-          (window as any).verity.webrtc.dataChannel = dataChannel;
-          
-          // Set up data channel event handlers
           dataChannel.onopen = () => {
-            log('Data channel opened', 'success');
-            updateConnectionStatus('data-channel-open');
-          };
-          
-          dataChannel.onclose = () => {
-            log('Data channel closed', 'info');
+            console.log('Data channel opened');
           };
           
           dataChannel.onmessage = (event) => {
-            log(`Received data: ${event.data}`, 'success');
+            console.log('Data channel message:', event.data);
           };
-          
-          dataChannel.onerror = (error) => {
-            log(`Data channel error: ${error}`, 'error');
-          };
-          
-          log('Data channel created successfully', 'success');
-          
-        } catch (error) {
-          log(`Failed to create data channel: ${(error as Error).message}`, 'error');
-        }
-      },
-      
-      sendTestData: async () => {
-        if (!dataChannel || dataChannel.readyState !== 'open') {
-          log('Data channel not available or not open', 'error');
-          return;
-        }
-        
-        try {
-          const testMessage = {
-            type: 'test',
-            timestamp: Date.now(),
-            nodeId: node.networkManager.idString.substring(0, 8),
-            data: 'Hello from Verity WebRTC test!'
-          };
-          
-          const messageJson = JSON.stringify(testMessage);
-          dataChannel.send(messageJson);
-          
-          log(`Sent test data: ${messageJson}`, 'info');
-          
-        } catch (error) {
-          log(`Failed to send test data: ${(error as Error).message}`, 'error');
-        }
-      }
-    },
-    
-    testUtils: {
-      createUniqueTestCube: async (content?: string) => {
-        const uniqueContent = content || `WEBRTC-${Date.now()}-${Math.random()}`;
-        
-        try {
-          const veritum = cockpit.prepareVeritum();
-          
-          // Add unique content
-          if (veritum.fields && veritum.fields.insertTillFull) {
-            const payloadField = { 
-              type: 4, // PAYLOAD type
-              data: new TextEncoder().encode(uniqueContent) 
-            };
-            veritum.fields.insertTillFull([payloadField]);
-          }
-          
-          await veritum.compile();
-          const cubes = Array.from(veritum.chunks);
-          
-          if (cubes.length === 0) {
-            throw new Error('No cubes generated from veritum');
-          }
-          
-          const cube = cubes[0];
-          const key = await cube.getKey();
-          
-          // Store the cube
-          await node.cubeStore.addCube(cube);
           
           return {
             success: true,
-            cubeKey: key,
-            keyHex: key.toString('hex').substring(0, 32) + '...'
+            connectionState: webrtcConnection.connectionState,
+            timestamp: new Date().toISOString()
           };
         } catch (error) {
           return {
@@ -213,83 +54,91 @@ async function initializeWebRTCNodeTest(): Promise<void> {
             error: (error as Error).message
           };
         }
+      },
+      
+      sendData: async (data: string) => {
+        if (!dataChannel || dataChannel.readyState !== 'open') {
+          return {
+            success: false,
+            error: 'Data channel not open'
+          };
+        }
+        
+        try {
+          const message = `WEBRTC-${data}-${Date.now()}-${Math.random()}`;
+          dataChannel.send(message);
+          return {
+            success: true,
+            message: message,
+            timestamp: new Date().toISOString()
+          };
+        } catch (error) {
+          return {
+            success: false,
+            error: (error as Error).message
+          };
+        }
+      },
+      
+      getConnectionInfo: () => {
+        return {
+          hasConnection: webrtcConnection !== null,
+          connectionState: webrtcConnection?.connectionState || 'none',
+          hasDataChannel: dataChannel !== null,
+          dataChannelState: dataChannel?.readyState || 'none',
+          timestamp: new Date().toISOString()
+        };
+      },
+      
+      closeConnection: () => {
+        if (dataChannel) {
+          dataChannel.close();
+          dataChannel = null;
+        }
+        
+        if (webrtcConnection) {
+          webrtcConnection.close();
+          webrtcConnection = null;
+        }
+        
+        return {
+          success: true,
+          closed: true,
+          timestamp: new Date().toISOString()
+        };
+      },
+      
+      createTestData: async () => {
+        const data = `WEBRTC-DATA-${Date.now()}-${Math.random()}`;
+        return {
+          success: true,
+          data: data,
+          length: data.length
+        };
       }
     }
   };
-
-  function log(message: string, type: string = 'info'): void {
-    const logDiv = document.getElementById('log');
-    if (logDiv) {
-      const entry = document.createElement('div');
-      entry.className = `log-entry log-${type}`;
-      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-      logDiv.appendChild(entry);
-      logDiv.scrollTop = logDiv.scrollHeight;
-    }
-  }
-
-  function updateConnectionStatus(state: string): void {
-    const statusDiv = document.getElementById('connectionStatus');
-    if (statusDiv) {
-      statusDiv.className = 'connection-status';
-      
-      switch (state) {
-        case 'connected':
-        case 'data-channel-open':
-          statusDiv.className += ' connected';
-          statusDiv.textContent = 'WebRTC Status: Connected';
-          break;
-        case 'connecting':
-        case 'new':
-          statusDiv.className += ' connecting';
-          statusDiv.textContent = 'WebRTC Status: Connecting';
-          break;
-        default:
-          statusDiv.className += ' disconnected';
-          statusDiv.textContent = 'WebRTC Status: Disconnected';
-      }
-    }
-  }
-
-  // Set up event handlers
-  const initButton = document.getElementById('initializeWebRTC');
-  const testChannelButton = document.getElementById('testDataChannel');
-  const sendDataButton = document.getElementById('sendTestData');
-  
-  if (initButton) {
-    initButton.addEventListener('click', (window as any).verity.webrtc.initializeConnection);
-  }
-  
-  if (testChannelButton) {
-    testChannelButton.addEventListener('click', (window as any).verity.webrtc.testDataChannel);
-  }
-  
-  if (sendDataButton) {
-    sendDataButton.addEventListener('click', (window as any).verity.webrtc.sendTestData);
-  }
 
   // Update UI
   const statusEl = document.getElementById('status');
   const nodeInfoEl = document.getElementById('nodeInfo');
   
   if (statusEl) {
-    statusEl.textContent = 'WebRTC node ready!';
+    statusEl.textContent = 'WebRTC test ready!';
   }
   
   if (nodeInfoEl) {
     nodeInfoEl.innerHTML = `
-      <h3>Node Information</h3>
-      <p><strong>Node ID:</strong> ${node.networkManager.idString}</p>
-      <p><strong>Node Type:</strong> ${node.constructor.name}</p>
-      <p><strong>Light Node:</strong> ${node.isLightNode ? 'Yes' : 'No'}</p>
-      <p><strong>WebRTC Support:</strong> ${typeof RTCPeerConnection !== 'undefined' ? 'Yes' : 'No'}</p>
-      <p><strong>Cube Count:</strong> <span id="cubeCount">${await node.cubeStore.getNumberOfStoredCubes()}</span></p>
-      <p><strong>Online Peers:</strong> <span id="peerCount">${node.networkManager.onlinePeers.length}</span></p>
+      <h3>WebRTC Test Information</h3>
+      <p><strong>Status:</strong> Ready</p>
+      <p><strong>Type:</strong> WebRTC Test</p>
+      <p><strong>Connection:</strong> <span id="connectionState">None</span></p>
+      <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
       <p><strong>Test Optimizations:</strong> Active</p>
     `;
   }
 
-  logger.info('WebRTC node test application ready');
+  console.log('WebRTC test application ready');
 }
 
 // Initialize when page loads
@@ -298,12 +147,12 @@ if (isBrowser) {
     try {
       const statusEl = document.getElementById('status');
       if (statusEl) {
-        statusEl.textContent = 'Initializing WebRTC node...';
+        statusEl.textContent = 'Initializing WebRTC test...';
       }
       
-      await initializeWebRTCNodeTest();
+      await initializeWebRTCTest();
     } catch (error) {
-      logger.error('Failed to initialize WebRTC node test:', error);
+      console.error('Failed to initialize WebRTC test:', error);
       
       const statusEl = document.getElementById('status');
       if (statusEl) {

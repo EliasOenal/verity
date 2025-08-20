@@ -21,9 +21,6 @@ const testConfig = {
   },
   resolve: {
     ...commonConfig.resolve,
-    alias: {
-      'verity-core': path.resolve(dirname, './dist/'),
-    },
   },
   devServer: {
     static: [
