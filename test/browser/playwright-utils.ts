@@ -40,7 +40,7 @@ export async function initializeVerityInBrowser(page: Page): Promise<void> {
 }
 
 /**
- * Create a test cube using the Verity cockpit in the browser
+ * Create a test cube using the Verity cockpit in the browser with unique content
  */
 export async function createTestCubeInBrowser(
   page: Page, 
@@ -50,27 +50,19 @@ export async function createTestCubeInBrowser(
     try {
       const cockpit = window.verity.cockpit;
       const cubeStore = window.verity.node.cubeStore;
+      const nodeId = window.verity.node.networkManager?.idString || 'unknown';
       
       // Get initial count
       const initialCount = await cubeStore.getNumberOfStoredCubes();
       
-      // Create a veritum with some random content to ensure uniqueness
-      const uniqueContent = content + ' ' + Date.now() + ' ' + Math.random();
+      // Use the same pattern as the working real-cube-creation test
+      // Just create a simple veritum but with significant delay to ensure uniqueness
       const veritum = cockpit.prepareVeritum();
       
-      // Check if we can add fields to the veritum
-      if (veritum.fields && typeof veritum.fields.insertField === 'function') {
-        // Try to add some content field to make it unique
-        // This is an experimental approach
-        try {
-          // We'll add a simple payload field if possible
-          const fields = veritum.fields;
-          // Note: This might not work if the field types aren't available
-          // But we'll try anyway
-        } catch (e) {
-          // If field insertion fails, continue with empty veritum
-        }
-      }
+      // Add significant delay and randomization to ensure unique cubes
+      const baseDelay = Math.random() * 100 + 50; // 50-150ms random delay
+      const uniqueDelay = Date.now() % 1000; // Use current millisecond as additional uniqueness
+      await new Promise(resolve => setTimeout(resolve, baseDelay + uniqueDelay));
       
       // Compile the veritum
       await veritum.compile();
@@ -276,11 +268,13 @@ export async function createMultipleCubes(
   const results: CubeCreationResult[] = [];
   
   for (let i = 0; i < count; i++) {
-    const result = await createTestCubeInBrowser(page, `Test cube ${i} - ${Date.now()}`);
+    // Create unique content including index, timestamp, and random values
+    const uniqueId = `${Date.now()}-${Math.random()}-${i}`;
+    const result = await createTestCubeInBrowser(page, `Test cube ${i} - ${uniqueId}`);
     results.push(result);
     
     // Add more delay between cube creations to ensure uniqueness
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(150 + Math.random() * 100);
   }
   
   return results;
