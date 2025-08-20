@@ -195,9 +195,9 @@ npm run webpack
 - If accidentally committed, use `git rm` to remove them and include the removal in the commit
 
 ### Using testCoreOptions for Performance
-When creating tests that use CoreNode instances:
+When creating tests that use CoreNode or CubeStore instances:
 - Import `testCoreOptions` from `test/core/testcore.definition.ts`
-- Use `{...testCoreOptions, ...specificOptions}` when creating CoreNode instances
+- Use `{...testCoreOptions, ...specificOptions}` when creating CoreNode or CubeStore instances
 - For browser tests, use the optimized `initializeVerityInBrowser()` function which automatically applies test optimizations
 - testCoreOptions provide faster execution with `inMemory: true`, `requiredDifficulty: 0`, `networkTimeoutMillis: 100`, and other performance settings
 
