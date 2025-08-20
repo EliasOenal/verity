@@ -45,7 +45,7 @@ npm run start
 ## Tests ##
 
 ### Node.js Tests ###
-Run the main Node.js test suite
+Run the main Node.js test suite (4,676+ tests):
 ```bash
 npm test
 ```
@@ -56,11 +56,20 @@ npm test -- --run test/core/ test/cci/ test/web/controller/ test/app/zw/model/
 ```
 
 ### Browser Tests ###
-Run Playwright browser tests in real browsers:
+Run Playwright browser tests that validate Verity's real browser functionality (33 tests):
 ```bash
-# Run all Playwright browser tests (56 tests)
+# Run all Playwright browser tests
 npm run test:playwright
 
 # Interactive test runner with UI
 npm run test:playwright:ui
 ```
+
+The browser tests use real Chromium browsers to validate:
+- Verity node initialization and operations
+- Cube creation, storage, and retrieval in browser environments  
+- Multi-node scenarios with independent browser contexts
+- Network connectivity and P2P protocols
+- Advanced topology configurations (star, mesh, ring, hybrid)
+- WebRTC data channels and peer-to-peer communication
+- IndexedDB storage integration
