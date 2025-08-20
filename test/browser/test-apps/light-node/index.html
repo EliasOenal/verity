@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verity Light Node Test</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Verity Light Node Test Environment</h1>
+        <div id="status" class="status">Initializing...</div>
+        <div id="nodeInfo" class="node-info"></div>
+        
+        <div class="test-controls">
+            <h3>Test Controls</h3>
+            <button id="createTestCube" onclick="window.testUtils?.createTestCube()">Create Test Cube</button>
+            <button id="createMultipleCubes" onclick="window.testUtils?.createMultipleCubes()">Create 3 Test Cubes</button>
+            <button id="getNodeStats" onclick="window.testUtils?.showNodeStats()">Show Node Stats</button>
+        </div>
+        
+        <div id="output" class="output"></div>
+    </div>
+    
+    <script src="light-node-test.js"></script>
+    <script>
+        // Additional test utilities available to tests
+        window.testUtils = {
+            createTestCube: async function() {
+                if (!window.verity) {
+                    console.error('Verity not available');
+                    return;
+                }
+                
+                const result = await window.verity.testUtils.createUniqueTestCube();
+                const output = document.getElementById('output');
+                if (output) {
+                    output.innerHTML += `<p>Created cube: ${result.success ? result.keyHex : result.error}</p>`;
+                }
+                
+                // Update cube count
+                const cubeCount = await window.verity.node.cubeStore.getNumberOfStoredCubes();
+                const countEl = document.getElementById('cubeCount');
+                if (countEl) {
+                    countEl.textContent = cubeCount.toString();
+                }
+            },
+            
+            createMultipleCubes: async function() {
+                if (!window.verity) {
+                    console.error('Verity not available');
+                    return;
+                }
+                
+                const output = document.getElementById('output');
+                if (output) {
+                    output.innerHTML += '<p>Creating multiple cubes...</p>';
+                }
+                
+                const results = await window.verity.testUtils.createMultipleTestCubes(3);
+                const successful = results.filter(r => r.success);
+                
+                if (output) {
+                    output.innerHTML += `<p>Created ${successful.length}/3 cubes successfully</p>`;
+                    successful.forEach((result, i) => {
+                        output.innerHTML += `<p>Cube ${i + 1}: ${result.keyHex}</p>`;
+                    });
+                }
+                
+                // Update cube count
+                const cubeCount = await window.verity.node.cubeStore.getNumberOfStoredCubes();
+                const countEl = document.getElementById('cubeCount');
+                if (countEl) {
+                    countEl.textContent = cubeCount.toString();
+                }
+            },
+            
+            showNodeStats: async function() {
+                if (!window.verity) {
+                    console.error('Verity not available');
+                    return;
+                }
+                
+                const cubeCount = await window.verity.node.cubeStore.getNumberOfStoredCubes();
+                const peerCount = window.verity.node.networkManager.onlinePeers.length;
+                const output = document.getElementById('output');
+                if (output) {
+                    output.innerHTML += `<p>Stats - Cubes: ${cubeCount}, Peers: ${peerCount}</p>`;
+                }
+            }
+        };
+    </script>
+</body>
+</html>

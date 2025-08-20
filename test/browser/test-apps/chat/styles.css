@@ -1,0 +1,172 @@
+/* Chat Test Application Styles */
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+h1 {
+    color: #333;
+    border-bottom: 2px solid #17a2b8;
+    padding-bottom: 10px;
+}
+
+.status {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    font-weight: bold;
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.status:contains("ready") {
+    background-color: #d4edda;
+    color: #155724;
+    border-color: #c3e6cb;
+}
+
+.node-info {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 15px 0;
+    border-left: 4px solid #17a2b8;
+}
+
+.node-info h3 {
+    margin-top: 0;
+    color: #17a2b8;
+}
+
+.node-info p {
+    margin: 5px 0;
+}
+
+.chat-interface {
+    background-color: #e8f6f8;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 15px 0;
+    border: 1px solid #17a2b8;
+}
+
+.chat-interface h3 {
+    margin-top: 0;
+    color: #0c5460;
+}
+
+.messages {
+    height: 250px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 15px;
+    background-color: white;
+}
+
+.message {
+    margin: 8px 0;
+    padding: 8px;
+    border-radius: 5px;
+}
+
+.message.sent {
+    background-color: #e3f2fd;
+    border-left: 3px solid #2196f3;
+}
+
+.message.received {
+    background-color: #f3e5f5;
+    border-left: 3px solid #9c27b0;
+}
+
+.message strong {
+    color: #333;
+}
+
+.message small {
+    color: #666;
+    font-size: 12px;
+}
+
+.message-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.message-form input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.message-form button {
+    background-color: #17a2b8;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.message-form button:hover {
+    background-color: #138496;
+}
+
+.test-controls {
+    background-color: #e2f7f7;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 15px 0;
+}
+
+.test-controls h3 {
+    margin-top: 0;
+    color: #0c5460;
+}
+
+.test-controls button {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    margin: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.test-controls button:hover {
+    background-color: #5a6268;
+}
+
+.output {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 15px;
+    margin: 15px 0;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+}
+
+.output p {
+    margin: 5px 0;
+    padding: 2px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.output p:last-child {
+    border-bottom: none;
+}

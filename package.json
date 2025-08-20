@@ -21,6 +21,7 @@
     "test:browser": "npm run vitest -- test/browser/",
     "test:playwright": "npx playwright test",
     "test:playwright:ui": "npx playwright test --ui",
+    "test:server": "webpack serve --config webpack.test.mjs",
     "vitest": "./node_modules/.bin/vitest run",
     "webpack": "webpack",
     "build": "tsc -p tsconfig.build.json",

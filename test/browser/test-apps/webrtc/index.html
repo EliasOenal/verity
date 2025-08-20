@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verity WebRTC Test</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Verity WebRTC Test Environment</h1>
+        <div id="status" class="status">Initializing...</div>
+        <div id="nodeInfo" class="node-info"></div>
+        
+        <div class="webrtc-interface">
+            <h3>WebRTC P2P Testing</h3>
+            <div id="connectionStatus" class="connection-status disconnected">
+                WebRTC Status: Disconnected
+            </div>
+            
+            <div class="webrtc-controls">
+                <button id="initializeWebRTC">Initialize WebRTC</button>
+                <button id="testDataChannel">Test Data Channel</button>
+                <button id="sendTestData">Send Test Data</button>
+            </div>
+            
+            <div id="log" class="log"></div>
+        </div>
+        
+        <div class="test-controls">
+            <h3>Test Controls</h3>
+            <button onclick="window.testUtils?.createTestCube()">Create Test Cube</button>
+            <button onclick="window.testUtils?.showWebRTCStats()">Show WebRTC Stats</button>
+            <button onclick="window.testUtils?.clearLog()">Clear Log</button>
+        </div>
+        
+        <div id="output" class="output"></div>
+    </div>
+    
+    <script src="webrtc-test.js"></script>
+    <script>
+        // Additional test utilities available to tests
+        window.testUtils = {
+            createTestCube: async function() {
+                if (!window.verity) {
+                    console.error('Verity not available');
+                    return;
+                }
+                
+                const result = await window.verity.testUtils.createUniqueTestCube();
+                const output = document.getElementById('output');
+                if (output) {
+                    output.innerHTML += `<p>Created cube: ${result.success ? result.keyHex : result.error}</p>`;
+                }
+                
+                // Update cube count
+                const cubeCount = await window.verity.node.cubeStore.getNumberOfStoredCubes();
+                const countEl = document.getElementById('cubeCount');
+                if (countEl) {
+                    countEl.textContent = cubeCount.toString();
+                }
+            },
+            
+            showWebRTCStats: function() {
+                if (!window.verity) {
+                    console.error('Verity not available');
+                    return;
+                }
+                
+                const webrtc = window.verity.webrtc;
+                const stats = {
+                    hasConnection: !!webrtc.connection,
+                    connectionState: webrtc.connection?.connectionState || 'N/A',
+                    iceConnectionState: webrtc.connection?.iceConnectionState || 'N/A',
+                    hasDataChannel: !!webrtc.dataChannel,
+                    dataChannelState: webrtc.dataChannel?.readyState || 'N/A'
+                };
+                
+                const output = document.getElementById('output');
+                if (output) {
+                    output.innerHTML += `<p>WebRTC Stats: ${JSON.stringify(stats, null, 2)}</p>`;
+                }
+            },
+            
+            clearLog: function() {
+                const log = document.getElementById('log');
+                if (log) {
+                    log.innerHTML = '';
+                }
+                
+                const output = document.getElementById('output');
+                if (output) {
+                    output.innerHTML += '<p>Log cleared</p>';
+                }
+            },
+            
+            showNodeStats: async function() {
+                if (!window.verity) {
+                    console.error('Verity not available');
+                    return;
+                }
+                
+                const cubeCount = await window.verity.node.cubeStore.getNumberOfStoredCubes();
+                const peerCount = window.verity.node.networkManager.onlinePeers.length;
+                const output = document.getElementById('output');
+                if (output) {
+                    output.innerHTML += `<p>Node Stats - Cubes: ${cubeCount}, Peers: ${peerCount}</p>`;
+                }
+            }
+        };
+    </script>
+</body>
+</html>
