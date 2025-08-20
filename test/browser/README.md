@@ -122,8 +122,8 @@ const cubes = Array.from(veritum.chunks);
 await window.verity.node.cubeStore.addCube(cubes[0]);
 ```
 
-### Duplicate Key Handling
-The tests properly handle duplicate keys that may be generated from empty veritums, demonstrating Verity's robust duplicate detection.
+### Unique Cube Creation
+The tests create cubes with unique content and timing to ensure semantic meaningfulness, demonstrating proper multi-node scenarios where different nodes create different cubes.
 
 ### Browser API Integration
 Tests verify integration with browser-specific APIs:

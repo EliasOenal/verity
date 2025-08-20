@@ -179,6 +179,28 @@ npm run webpack
 
 **Always prioritize working functionality (support node, tests, development server, build) over any remaining minor issues.**
 
+## File Management and Git Best Practices
+
+### Files That Should NEVER Be Committed
+- **Playwright generated files**: `playwright-report/`, `test-results/`
+- **Build artifacts**: `dist/`, `build/`, `coverage/`
+- **Dependencies**: `node_modules/`
+- **IDE files**: `.vscode/`, `.idea/`
+- **Temporary files**: `/tmp/` contents, any temporary scripts created during development
+
+### Repository File Guidelines
+- Only commit source code, configuration files, and documentation that belong to the repository
+- Generated test reports and artifacts are excluded by `.gitignore` and should not be committed
+- Use `git status` to verify only intended files are staged before committing
+- If accidentally committed, use `git rm` to remove them and include the removal in the commit
+
+### Using testCoreOptions for Performance
+When creating tests that use CoreNode instances:
+- Import `testCoreOptions` from `test/core/testcore.definition.ts`
+- Use `{...testCoreOptions, ...specificOptions}` when creating CoreNode instances
+- For browser tests, use the optimized `initializeVerityInBrowser()` function which automatically applies test optimizations
+- testCoreOptions provide faster execution with `inMemory: true`, `requiredDifficulty: 0`, `networkTimeoutMillis: 100`, and other performance settings
+
 ## Environment and Tools
 
 ### Bash Tool

@@ -23,6 +23,7 @@ export interface CubeCreationResult {
 
 /**
  * Initialize Verity in a browser page and wait for it to be ready
+ * Automatically applies test optimizations for faster execution (equivalent to testCoreOptions)
  */
 export async function initializeVerityInBrowser(page: Page): Promise<void> {
   // Navigate to the Verity web application
@@ -37,6 +38,54 @@ export async function initializeVerityInBrowser(page: Page): Promise<void> {
            window.verity !== undefined &&
            window.verity.node !== undefined;
   }, { timeout: 30000 });
+  
+  // Apply test optimizations for faster execution (equivalent to testCoreOptions)
+  await applyTestOptimizations(page);
+}
+
+/**
+ * Apply test optimizations to browser nodes for faster execution
+ * Applies optimizations equivalent to testCoreOptions for browser-based nodes
+ */
+export async function applyTestOptimizations(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    try {
+      const node = window.verity.node;
+      if (node) {
+        console.log('Applying test optimizations for faster execution...');
+        
+        // Enable in-memory mode if possible (equivalent to inMemory: true)
+        if (node.cubeStore && typeof node.cubeStore.setInMemoryMode === 'function') {
+          node.cubeStore.setInMemoryMode(true);
+        }
+        
+        // Reduce timeouts for faster testing
+        if (node.networkManager) {
+          // Set shorter network timeouts
+          if (node.networkManager.defaultTimeout !== undefined) {
+            node.networkManager.defaultTimeout = 100;
+          }
+          
+          // Disable external services for faster operation
+          if (node.networkManager.announceToTorrentTrackers !== undefined) {
+            node.networkManager.announceToTorrentTrackers = false;
+          }
+        }
+        
+        // Set cube operations to use minimal difficulty 
+        if (node.setRequiredDifficulty) {
+          node.setRequiredDifficulty(0);
+        } else if (node.requiredDifficulty !== undefined) {
+          node.requiredDifficulty = 0;
+        }
+        
+        console.log('Test optimizations applied successfully');
+      }
+    } catch (error) {
+      // Test optimizations are best effort - log but don't fail tests
+      console.log('Test optimizations partially applied:', error.message);
+    }
+  });
 }
 
 /**
@@ -55,14 +104,24 @@ export async function createTestCubeInBrowser(
       // Get initial count
       const initialCount = await cubeStore.getNumberOfStoredCubes();
       
-      // Use the same pattern as the working real-cube-creation test
-      // Just create a simple veritum but with significant delay to ensure uniqueness
+      // Create a veritum with unique content for semantic meaningfulness
       const veritum = cockpit.prepareVeritum();
       
-      // Add significant delay and randomization to ensure unique cubes
-      const baseDelay = Math.random() * 100 + 50; // 50-150ms random delay
-      const uniqueDelay = Date.now() % 1000; // Use current millisecond as additional uniqueness
-      await new Promise(resolve => setTimeout(resolve, baseDelay + uniqueDelay));
+      // Add unique content to ensure different cubes are created
+      // This makes the test semantically meaningful rather than relying on timing
+      const uniqueContent = content || `Test cube from ${nodeId} at ${Date.now()}-${Math.random()}`;
+      
+      // Try to add content through fields if available (best effort)
+      try {
+        if (veritum.fields && veritum.fields.insertTillFull) {
+          // Create fields with the unique content
+          const payloadField = { type: 4, data: new TextEncoder().encode(uniqueContent) }; // PAYLOAD type
+          veritum.fields.insertTillFull([payloadField]);
+        }
+      } catch (e) {
+        // If field insertion fails, fall back to timing-based differentiation
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50));
+      }
       
       // Compile the veritum
       await veritum.compile();

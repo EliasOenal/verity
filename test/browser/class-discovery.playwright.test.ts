@@ -1,15 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { initializeVerityInBrowser } from './playwright-utils';
 
 test.describe('Verity Core Classes Discovery', () => {
   test('should find Cube and CubeField classes in browser', async ({ page }) => {
-    await page.goto('/');
-    
-    // Wait for Verity to be fully loaded
-    await page.waitForFunction(() => {
-      return typeof window !== 'undefined' && 
-             window.verity !== undefined &&
-             window.verity.node !== undefined;
-    }, { timeout: 30000 });
+    // Use optimized initialization with test optimizations
+    await initializeVerityInBrowser(page);
 
     // Try to find Cube classes through various methods
     const classDiscovery = await page.evaluate(() => {

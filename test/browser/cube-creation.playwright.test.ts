@@ -1,15 +1,14 @@
 import { test, expect } from '@playwright/test';
+import { initializeVerityInBrowser } from './playwright-utils';
 
 test.describe('Verity Cube Creation Through Cockpit', () => {
   test('should create cubes using cockpit and veritum system', async ({ page }) => {
-    await page.goto('/');
+    // Use optimized initialization with test optimizations
+    await initializeVerityInBrowser(page);
     
-    // Wait for Verity to be fully loaded
+    // Additional wait for cockpit to be available
     await page.waitForFunction(() => {
-      return typeof window !== 'undefined' && 
-             window.verity !== undefined &&
-             window.verity.node !== undefined &&
-             window.verity.cockpit !== undefined;
+      return window.verity?.cockpit !== undefined;
     }, { timeout: 30000 });
 
     // Try to create a cube using the cockpit/veritum system
