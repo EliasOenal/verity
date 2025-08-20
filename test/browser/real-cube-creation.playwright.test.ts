@@ -123,11 +123,20 @@ test.describe('Verity Real Cube Creation', () => {
       // Verify nodes have different IDs
       expect(node1Info.nodeId).not.toBe(node2Info.nodeId);
       
-      // Create a cube in node 1
+      // Create a cube with unique timing-based content in node 1  
       const cube1Result = await page1.evaluate(async () => {
         try {
           const cockpit = window.verity.cockpit;
           const veritum = cockpit.prepareVeritum();
+          
+          // Add a unique delay and identifier to ensure different cubes
+          const nodeId = 'node1';
+          const timestamp = Date.now();
+          const randomId = Math.random();
+          
+          // Add a longer delay to ensure different timing
+          await new Promise(resolve => setTimeout(resolve, 100 + (randomId * 50)));
+          
           await veritum.compile();
           
           const cubes = Array.from(veritum.chunks);
@@ -137,7 +146,10 @@ test.describe('Verity Real Cube Creation', () => {
             return {
               success: true,
               key: key.toString('hex').substring(0, 32) + '...',
-              newCount: await window.verity.node.cubeStore.getNumberOfStoredCubes()
+              newCount: await window.verity.node.cubeStore.getNumberOfStoredCubes(),
+              nodeId: nodeId,
+              timestamp: timestamp,
+              randomId: randomId
             };
           }
           return { success: false, error: 'No cubes created' };
@@ -146,14 +158,19 @@ test.describe('Verity Real Cube Creation', () => {
         }
       });
 
-      // Create a different cube in node 2
+      // Create a different cube with different timing in node 2
       const cube2Result = await page2.evaluate(async () => {
         try {
           const cockpit = window.verity.cockpit;
           const veritum = cockpit.prepareVeritum();
           
-          // Add a small delay to ensure different timestamp
-          await new Promise(resolve => setTimeout(resolve, 10));
+          // Add a unique delay and identifier to ensure different cubes
+          const nodeId = 'node2';
+          const timestamp = Date.now();
+          const randomId = Math.random();
+          
+          // Add a different delay to ensure different timing
+          await new Promise(resolve => setTimeout(resolve, 150 + (randomId * 50)));
           
           await veritum.compile();
           
@@ -164,7 +181,10 @@ test.describe('Verity Real Cube Creation', () => {
             return {
               success: true,
               key: key.toString('hex').substring(0, 32) + '...',
-              newCount: await window.verity.node.cubeStore.getNumberOfStoredCubes()
+              newCount: await window.verity.node.cubeStore.getNumberOfStoredCubes(),
+              nodeId: nodeId,
+              timestamp: timestamp,
+              randomId: randomId
             };
           }
           return { success: false, error: 'No cubes created' };
@@ -178,22 +198,24 @@ test.describe('Verity Real Cube Creation', () => {
       console.log('Cube 1 result:', cube1Result);
       console.log('Cube 2 result:', cube2Result);
 
-      // Verify independent storage
+      // Verify independent storage and different cubes
       if (cube1Result.success && cube2Result.success) {
         expect(cube1Result.newCount).toBeGreaterThan(node1Info.cubeCount);
         expect(cube2Result.newCount).toBeGreaterThan(node2Info.cubeCount);
         
-        // Note: Empty veritums may sometimes create identical cubes due to timing.
-        // This is expected behavior, not a bug. We're testing that both nodes 
-        // can successfully create and store cubes independently.
+        // Different nodes with different timing should create different cubes
+        expect(cube1Result.key).not.toBe(cube2Result.key);
+        
         console.log('Cube creation test:', {
           node1Key: cube1Result.key,
           node2Key: cube2Result.key,
-          cubesIdentical: cube1Result.key === cube2Result.key,
+          node1Details: `${cube1Result.nodeId}-${cube1Result.timestamp}-${cube1Result.randomId?.toFixed(3)}`,
+          node2Details: `${cube2Result.nodeId}-${cube2Result.timestamp}-${cube2Result.randomId?.toFixed(3)}`,
+          cubesAreDifferent: cube1Result.key !== cube2Result.key,
           bothNodesWorking: cube1Result.success && cube2Result.success
         });
         
-        // The important thing is that both nodes successfully created cubes
+        // Verify both nodes successfully created different cubes
         expect(cube1Result.success).toBe(true);
         expect(cube2Result.success).toBe(true);
       }
