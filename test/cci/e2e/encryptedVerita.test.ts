@@ -38,7 +38,7 @@ describe('Transmission of encrypted Verita', () => {
       // Publish it encrypted solely for the recipient
       logger.debug('Publishing encrypted veritum for recipient');
       await net.sender.publishVeritum(
-        veritum, { recipients: net.recipient.identity, addAsPost: true });
+        veritum, { recipients: net.recipient.identity, addAsPost: false });
       const key: CubeKey = veritum.getKeyIfAvailable();
       expect(key).toBeDefined();
       
@@ -52,10 +52,14 @@ describe('Transmission of encrypted Verita', () => {
       const veritumAlreadyArrived: CubeInfo = await net.fullNode2.cubeStore.getCubeInfo(key);
       const veritumPropagated = veritumAlreadyArrived ? Promise.resolve() : veritumWillPropagate;
 
-      // The veritum is automatically referenced through Identity MUC since addAsPost: true
+      // Reference Veritum through Identity MUC
+      // Note: This is also possible to do automatically through publishVeritum();
+      //   in fact, we just opted out of it above.
+      //   That's because publishVeritum does many things at once, one of those
+      //   is calculate the key. If we use it, we don't manage to create our
+      //   propagation promises in time.
+      net.sender.identity.addPost(veritum.getKeyIfAvailable());
       expect(net.sender.identity.getPostCount()).toBe(1);
-      
-      // Store the identity to propagate the reference
       net.sender.identity.store();
       const idPropagated: Promise<CubeInfo> =
         net.fullNode2.cubeStore.expectCube(net.sender.identity.key);

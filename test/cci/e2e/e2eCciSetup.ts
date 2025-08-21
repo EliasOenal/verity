@@ -25,9 +25,9 @@ export class cciLineShapedNetwork {
 
     // make recipient
     const recipientId: Identity = await Identity.Construct(
-      core.sender.cubeRetriever, Buffer.alloc(
+      core.recipient.cubeRetriever, Buffer.alloc(
         NetConstants.CUBE_KEY_SIZE, 0x1337));
-    const recipient: Cockpit = new Cockpit(core.sender,  { identity: recipientId });
+    const recipient: Cockpit = new Cockpit(core.recipient,  { identity: recipientId });
 
     // bring it all together
     const ret = new this(sender, core.fullNode1, core.fullNode2, recipient);
