@@ -21,6 +21,15 @@ export interface CubeCreationResult {
   keyHex?: string;
 }
 
+export interface TestServerInfo {
+  isRunning: boolean;
+  port: number;
+  nodeId: string;
+  cubeCount: number;
+  peerCount: number;
+  address: string;
+}
+
 /**
  * Initialize Verity in a browser page and wait for it to be ready
  * Automatically applies test optimizations for faster execution (equivalent to testCoreOptions)
@@ -367,4 +376,130 @@ declare global {
       peerController: any;
     };
   }
+}
+
+/**
+ * Connect a browser node to a test server
+ */
+export async function connectBrowserNodeToServer(page: Page, serverAddress: string): Promise<{ success: boolean; peerCount: number; error?: string }> {
+  return await page.evaluate(async (address) => {
+    try {
+      const node = window.verity.node;
+      if (!node || !node.networkManager) {
+        return { success: false, peerCount: 0, error: 'Node or NetworkManager not available' };
+      }
+
+      // Parse server address (e.g., "ws://localhost:19000")
+      const url = new URL(address);
+      const host = url.hostname;
+      const port = parseInt(url.port);
+
+      // Connect to the test server
+      const peer = node.networkManager.connect({
+        address: { ip: host, port: port }
+      });
+
+      // Wait for connection or timeout
+      await new Promise((resolve, reject) => {
+        let timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
+        
+        if (peer.onlinePromise) {
+          peer.onlinePromise.then(() => {
+            clearTimeout(timeout);
+            resolve(true);
+          }).catch(reject);
+        } else {
+          // If no onlinePromise, try to wait for online status
+          let checkCount = 0;
+          const checkInterval = setInterval(() => {
+            checkCount++;
+            if (peer.online || checkCount > 50) {
+              clearInterval(checkInterval);
+              clearTimeout(timeout);
+              resolve(peer.online);
+            }
+          }, 100);
+        }
+      });
+
+      return {
+        success: true,
+        peerCount: node.networkManager.onlinePeers.length,
+        connectedTo: address
+      };
+    } catch (error) {
+      return { 
+        success: false, 
+        peerCount: 0, 
+        error: error.message 
+      };
+    }
+  }, serverAddress);
+}
+
+/**
+ * Get connection status of a browser node
+ */
+export async function getBrowserNodeConnectionStatus(page: Page): Promise<{ 
+  nodeId: string; 
+  peerCount: number; 
+  onlinePeers: string[]; 
+  isNetworkReady: boolean;
+}> {
+  return await page.evaluate(async () => {
+    const node = window.verity.node;
+    if (!node || !node.networkManager) {
+      return {
+        nodeId: 'unknown',
+        peerCount: 0,
+        onlinePeers: [],
+        isNetworkReady: false
+      };
+    }
+
+    const onlinePeers = node.networkManager.onlinePeers.map(peer => 
+      peer.idString ? peer.idString.substring(0, 16) + '...' : 'unknown'
+    );
+
+    return {
+      nodeId: node.networkManager.idString.substring(0, 16) + '...',
+      peerCount: node.networkManager.onlinePeers.length,
+      onlinePeers,
+      isNetworkReady: node.networkManager.online
+    };
+  });
+}
+
+/**
+ * Request a cube from the network (real cube retrieval)
+ */
+export async function requestCubeFromNetwork(page: Page, cubeKey: string): Promise<{ success: boolean; found: boolean; error?: string }> {
+  return await page.evaluate(async (key) => {
+    try {
+      const node = window.verity.node;
+      if (!node) {
+        return { success: false, found: false, error: 'Node not available' };
+      }
+
+      // Check if cube exists locally first
+      const hasLocally = await node.cubeStore.hasCube(key);
+      if (hasLocally) {
+        return { success: true, found: true };
+      }
+
+      // Attempt to retrieve from network
+      if (node.cubeRetriever) {
+        try {
+          const cube = await node.cubeRetriever.getCube(key);
+          return { success: true, found: !!cube };
+        } catch (error) {
+          return { success: true, found: false, error: 'Cube not found in network' };
+        }
+      }
+
+      return { success: false, found: false, error: 'CubeRetriever not available' };
+    } catch (error) {
+      return { success: false, found: false, error: error.message };
+    }
+  }, cubeKey);
 }
