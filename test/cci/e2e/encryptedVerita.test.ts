@@ -58,6 +58,15 @@ describe('Transmission of encrypted Verita', () => {
     });
 
     test('recipient receives and decrypts Veritum', async() => {
+      // Wait a bit longer to ensure network propagation is complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Verify that both identities have proper encryption keys before proceeding
+      expect(net.sender.identity.encryptionPrivateKey).toBeDefined();
+      expect(net.sender.identity.encryptionPublicKey).toBeDefined();
+      expect(net.recipient.identity.encryptionPrivateKey).toBeDefined();
+      expect(net.recipient.identity.encryptionPublicKey).toBeDefined();
+      
       // Recipient learns about sender out of band and subscribes to them
       // TODO: expose this though a simplified cciCockpit API
       const sub: Identity = await Identity.Construct(
@@ -67,17 +76,36 @@ describe('Transmission of encrypted Verita', () => {
       expect(sub.getPostCount()).toEqual(1);  // TODO fix: this sometimes fails
       const key: CubeKey = Array.from(sub.getPostKeys())[0];
       expect(key).toBeDefined();
+      
+      // Use the original recipient identity for decryption since it has the encryption keys
       const retrieved: Veritum = await net.recipient.getVeritum(key);
       // expect Veritum received
       expect(retrieved).toBeDefined();
-      // expect Veritum decrypted
+      
+      // Add detailed debugging for encryption/decryption
+      const encryptedField = retrieved.getFirstField(FieldType.ENCRYPTED);
+      if (encryptedField) {
+        console.log("ENCRYPTED field found with length:", encryptedField.value?.length);
+      } else {
+        console.log("No ENCRYPTED field found");
+      }
+      
+      // Check if decryption was successful by looking for absence of ENCRYPTED field
       expect(retrieved.getFirstField(FieldType.ENCRYPTED)).not.toBeDefined();
 
-      // TODO FIXME this sometimes fails and I don't know why :(
-      expect(retrieved.getFirstField(FieldType.PAYLOAD)).toBeDefined();
+      // Verify payload is properly decrypted
+      const payloadField = retrieved.getFirstField(FieldType.PAYLOAD);
+      if (!payloadField) {
+        // Add debugging information about available fields
+        console.log("Available field types:", retrieved.getFields().map(f => f.type));
+        console.log("Recipient encryption keys available:", 
+          !!net.recipient.identity.encryptionPrivateKey,
+          !!net.recipient.identity.encryptionPublicKey);
+      }
+      expect(payloadField).toBeDefined();
 
       // expect plaintext to be restored correctly
-      expect(retrieved.getFirstField(FieldType.PAYLOAD).valueString).toBe(plaintext);  // TODO fix: this sometimes fails
+      expect(payloadField.valueString).toBe(plaintext);
     });
   });  // Publishing an encrypted Veritum for a single recipient
 });
