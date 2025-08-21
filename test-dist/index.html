@@ -63,7 +63,7 @@
                 }
                 
                 const history = window.verity.testUtils.getChatHistory();
-                const cubeCount = window.verity.node.cubeStore.getNumberOfStoredCubes();
+                const cubeCount = window.verity.cubeStore ? window.verity.cubeStore.getNumberOfStoredCubes() : 0;
                 
                 const output = document.getElementById('output');
                 if (output) {
@@ -102,14 +102,19 @@
             updateCounts: async function() {
                 if (!window.verity) return;
                 
-                const cubeCount = await window.verity.node.cubeStore.getNumberOfStoredCubes();
-                const messageCount = window.verity.testUtils.getChatHistory().length;
-                
-                const cubeCountEl = document.getElementById('cubeCount');
-                const messageCountEl = document.getElementById('messageCount');
-                
-                if (cubeCountEl) cubeCountEl.textContent = cubeCount.toString();
-                if (messageCountEl) messageCountEl.textContent = messageCount.toString();
+                try {
+                    const cubeCount = window.verity.cubeStore ? window.verity.cubeStore.getNumberOfStoredCubes() : 0;
+                    const messageCount = window.verity.testUtils.getChatHistory ? window.verity.testUtils.getChatHistory().length : 0;
+                    
+                    const cubeCountEl = document.getElementById('cubeCount');
+                    const messageCountEl = document.getElementById('messageCount');
+                    
+                    if (cubeCountEl) cubeCountEl.textContent = cubeCount.toString();
+                    if (messageCountEl) messageCountEl.textContent = messageCount.toString();
+                } catch (error) {
+                    // Ignore errors in update counts - this is just for UI display
+                    console.log('Error updating counts (non-critical):', error.message);
+                }
             }
         };
         

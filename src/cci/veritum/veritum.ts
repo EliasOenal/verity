@@ -25,6 +25,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   private _chunks: cciCube[];
   get chunks(): Iterable<cciCube> { return this._chunks }
 
+  declare protected _fields: VerityFields;
   declare options: VeritumCreateOptions;
 
   get publicKey(): Buffer { return this.options.publicKey }
@@ -74,7 +75,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
         // We'll keep the original's options
         ...copyFrom.options,
         // but we'll make a shallow copy of its fields object.
-        fields: new VerityFields(copyFrom._fields as VerityFields, (copyFrom._fields as VerityFields).fieldDefinition),
+        fields: new VerityFields(copyFrom._fields, copyFrom._fields.fieldDefinition),
       }
       super({...options, cubeType: copyFrom.cubeType});
       this._chunks = copyFrom._chunks ?? [];
@@ -205,10 +206,10 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   // Note: The following two methods have been copied from cciCube.
   //   That's not perfectly DRY, but come on, they're single line methods.
   getRelationships(type?: RelationshipType): Array<Relationship> {
-    return (this._fields as VerityFields).getRelationships(type);
+    return this._fields.getRelationships(type);
   }
   public getFirstRelationship(type?: number): Relationship {
-    return (this._fields as VerityFields).getFirstRelationship(type);
+    return this._fields.getFirstRelationship(type);
   }
 
 
