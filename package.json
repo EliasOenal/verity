@@ -57,7 +57,7 @@
     "@libp2p/identify": "^3.0.39",
     "@libp2p/mplex": "^11.0.47",
     "@libp2p/ping": "^2.0.37",
-    "@libp2p/webrtc": "^5.2.23",
+    "@libp2p/webrtc": "^5.2.24",
     "@libp2p/websockets": "^9.2.19",
     "@multiavatar/multiavatar": "^1.0.7",
     "@scure/bip39": "^1.6.0",
