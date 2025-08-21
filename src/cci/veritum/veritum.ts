@@ -25,7 +25,6 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
   private _chunks: cciCube[];
   get chunks(): Iterable<cciCube> { return this._chunks }
 
-  declare protected _fields: VerityFields;
   declare options: VeritumCreateOptions;
 
   get publicKey(): Buffer { return this.options.publicKey }
