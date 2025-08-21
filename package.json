@@ -25,7 +25,7 @@
     "lint": "node_modules/.bin/eslint"
   },
   "author": "Elias Oenal, Victor Hahn",
-  "license": "proprietary (open source option coming soon)",
+  "license": "BSD-3-Clause-Clear",
   "devDependencies": {
     "@eslint/js": "^9.19.0",
     "@types/eslint__js": "^8.42.3",
