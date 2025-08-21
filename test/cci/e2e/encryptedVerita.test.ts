@@ -6,6 +6,7 @@ import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Identity } from "../../../src/cci/identity/identity";
 import { Veritum } from "../../../src/cci/veritum/veritum";
+import { logger } from "../../../src/core/logger";
 
 import { cciLineShapedNetwork } from "./e2eCciSetup";
 
@@ -20,28 +21,28 @@ describe('Transmission of encrypted Verita', () => {
       // Create a simple line-shaped network
       net = await cciLineShapedNetwork.Create(61201, 61202);
 
+      logger.debug('Network created, preparing encrypted veritum');
+      
+      // Verify encryption keys are available before proceeding
+      expect(net.sender.identity.encryptionPrivateKey).toBeDefined();
+      expect(net.sender.identity.encryptionPublicKey).toBeDefined();
+      expect(net.recipient.identity.encryptionPrivateKey).toBeDefined();
+      expect(net.recipient.identity.encryptionPublicKey).toBeDefined();
+
       // Sculpt a simple Veritum
       const veritum: Veritum = net.sender.prepareVeritum(
         { fields: VerityField.Payload(plaintext) });
       
-      // Debug: check recipient encryption key before encryption
-      console.log("Sender encryption keys:", {
-        privateKey: !!net.sender.identity.encryptionPrivateKey,
-        publicKey: !!net.sender.identity.encryptionPublicKey,
-        publicKeyLength: net.sender.identity.encryptionPublicKey?.length
-      });
-      console.log("Recipient encryption keys:", {
-        privateKey: !!net.recipient.identity.encryptionPrivateKey,
-        publicKey: !!net.recipient.identity.encryptionPublicKey,
-        publicKeyLength: net.recipient.identity.encryptionPublicKey?.length
-      });
-      console.log("Veritum fields before encryption:", veritum.getFields().map(f => f.type));
+      logger.debug(`Veritum prepared with fields: ${veritum.getFields().map(f => f.type).join(', ')}`);
       
       // Publish it encrypted solely for the recipient
+      logger.debug('Publishing encrypted veritum for recipient');
       await net.sender.publishVeritum(
-        veritum, { recipients: net.recipient.identity, addAsPost: false });
+        veritum, { recipients: net.recipient.identity, addAsPost: true });
       const key: CubeKey = veritum.getKeyIfAvailable();
       expect(key).toBeDefined();
+      
+      logger.debug(`Veritum published with key: ${key.toString('hex')}`);
 
       // Note: Creating the veritumPropagated promise here is a bit late, as
       //   propagation already started while we awaited publishVeritum().
@@ -51,88 +52,97 @@ describe('Transmission of encrypted Verita', () => {
       const veritumAlreadyArrived: CubeInfo = await net.fullNode2.cubeStore.getCubeInfo(key);
       const veritumPropagated = veritumAlreadyArrived ? Promise.resolve() : veritumWillPropagate;
 
-      // Reference Veritum thorugh Identity MUC
-      // Note: This is also possible to do automatically through publishVeritum();
-      //   in fact, we just opted out of it above.
-      //   That's because publishVeritum does many things at once, one of those
-      //   is calculate the key. If we use it, we don't manage to create our
-      //   propagation promises in time.
-      net.sender.identity.addPost(veritum.getKeyIfAvailable());
+      // The veritum is automatically referenced through Identity MUC since addAsPost: true
       expect(net.sender.identity.getPostCount()).toBe(1);
+      
+      // Store the identity to propagate the reference
       net.sender.identity.store();
       const idPropagated: Promise<CubeInfo> =
         net.fullNode2.cubeStore.expectCube(net.sender.identity.key);
 
+      logger.debug('Waiting for network propagation');
       // give it some time to propagate through the network
       await Promise.all([veritumPropagated, idPropagated]);
+      logger.debug('Network propagation complete');
 
       // verify test setup
       const propagated: cciCube = await net.fullNode2.cubeStore.getCube(key);
       expect(propagated).toBeDefined();
+      logger.debug('Test setup verification complete');
     });
 
     test('recipient receives and decrypts Veritum', async() => {
-      // Wait longer to ensure network propagation is complete
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Verify that both identities have proper encryption keys before proceeding
+      // Verify that both identities have proper encryption keys
       expect(net.sender.identity.encryptionPrivateKey).toBeDefined();
       expect(net.sender.identity.encryptionPublicKey).toBeDefined();
       expect(net.recipient.identity.encryptionPrivateKey).toBeDefined();
       expect(net.recipient.identity.encryptionPublicKey).toBeDefined();
       
+      logger.debug('Starting recipient receives and decrypts Veritum test');
+      
       // Recipient learns about sender out of band and subscribes to them
       // TODO: expose this though a simplified cciCockpit API
-      const sub: Identity = await Identity.Construct(
+      let sub: Identity = await Identity.Construct(
         net.recipient.node.cubeRetriever,
         await net.recipient.node.cubeRetriever.getCube(net.sender.identity.key) as cciCube
       );
       
-      // Wait for the post to be properly available
+      // Wait for the post to be properly propagated with retry logic
       let retries = 0;
-      while (sub.getPostCount() === 0 && retries < 10) {
+      const maxRetries = 20;
+      while (sub.getPostCount() === 0 && retries < maxRetries) {
+        logger.debug(`Waiting for post propagation, attempt ${retries + 1}/${maxRetries}`);
         await new Promise(resolve => setTimeout(resolve, 100));
         retries++;
+        
+        // Reconstruct the identity to get the latest state
+        sub = await Identity.Construct(
+          net.recipient.node.cubeRetriever,
+          await net.recipient.node.cubeRetriever.getCube(net.sender.identity.key) as cciCube
+        );
       }
-      expect(sub.getPostCount()).toEqual(1);
       
+      if (sub.getPostCount() > 0) {
+        logger.debug(`Post found after ${retries} attempts`);
+      }
+      
+      expect(sub.getPostCount()).toEqual(1);
       const key: CubeKey = Array.from(sub.getPostKeys())[0];
       expect(key).toBeDefined();
       
-      // Wait a bit more to ensure the encrypted cube is available
-      await new Promise(resolve => setTimeout(resolve, 200));
+      logger.debug(`Retrieving veritum with key: ${key.toString('hex')}`);
       
-      // Use the original recipient identity for decryption since it has the encryption keys
+      // Debug: Check if we can get the cube directly from the store first
+      const cubeFromStore = await net.recipient.node.cubeStore.getCube(key);
+      if (cubeFromStore?.fields?.fieldTypes) {
+        logger.debug(`Cube from store field types: ${cubeFromStore.fields.fieldTypes.join(', ')}`);
+      } else {
+        logger.debug(`Cube from store has unexpected structure: ${Object.keys(cubeFromStore || {}).join(', ')}`);
+      }
+      
+      // Use the original recipient identity for decryption since it has the proper encryption keys
       const retrieved: Veritum = await net.recipient.getVeritum(key);
       
       // expect Veritum received
       expect(retrieved).toBeDefined();
       
-      // Add detailed debugging for encryption/decryption
+      // Check field types for debugging
+      const availableFieldTypes = retrieved.getFields().map(f => f.type);
+      logger.debug(`Available field types: ${availableFieldTypes.join(', ')}`);
+      
+      // expect Veritum decrypted (no ENCRYPTED field should remain)
       const encryptedField = retrieved.getFirstField(FieldType.ENCRYPTED);
-      const payloadField = retrieved.getFirstField(FieldType.PAYLOAD);
-      
-      if (!encryptedField && !payloadField) {
-        // This indicates the cube was never encrypted or the wrong cube was retrieved
-        console.log("Neither ENCRYPTED nor PAYLOAD field found");
-        console.log("Available field types:", retrieved.getFields().map(f => f.type));
-        console.log("Veritum key:", key.toString('hex'));
-        
-        // This is the known flaky behavior - skip the test for now
-        console.log("Skipping test due to known encryption race condition");
-        return;
-      }
-      
       if (encryptedField) {
-        console.log("ENCRYPTED field found with length:", encryptedField.value?.length);
-        // If we still have an ENCRYPTED field, decryption failed
-        expect(encryptedField).toBeUndefined();
-      } else {
-        // Check if decryption was successful (no ENCRYPTED field, but PAYLOAD field exists)
-        expect(encryptedField).not.toBeDefined();
+        logger.error(`ENCRYPTED field still present with length: ${encryptedField.value?.length}`);
       }
+      expect(encryptedField).not.toBeDefined();
 
-      // Verify payload is properly decrypted
+      // expect PAYLOAD field to be present after decryption
+      const payloadField = retrieved.getFirstField(FieldType.PAYLOAD);
+      if (!payloadField) {
+        logger.error('PAYLOAD field missing after decryption');
+        logger.error(`Retrieved veritum fields: ${availableFieldTypes.join(', ')}`);
+      }
       expect(payloadField).toBeDefined();
 
       // expect plaintext to be restored correctly
