@@ -12,7 +12,7 @@ export const commonConfig = {
         use: {
           loader: 'ts-loader',
           options: {
-            configFile: 'tsconfig.build.json'
+            configFile: 'tsconfig.webpack.json'
           },
         },
         exclude: /node_modules/,
@@ -23,7 +23,7 @@ export const commonConfig = {
           loader: 'ts-loader',
           options: {
             allowTsInNodeModules: true, // Allow processing files in node_modules
-            configFile: 'tsconfig.build.json'
+            configFile: 'tsconfig.webpack.json'
           },
         },
         include: /node_modules\/verity\/src/, // Only include files in node_modules/verity/src

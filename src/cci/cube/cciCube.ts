@@ -55,8 +55,6 @@ export class cciCube extends Cube {
     return cube;
   }
 
-  declare protected _fields: VerityFields;
-
   /** Reactivate an existing, binary cube */
   constructor(
     binaryData: Buffer,
@@ -148,16 +146,16 @@ export class cciCube extends Cube {
   //###
 
   getRelationships(type?: RelationshipType): Relationship[] {
-    return this._fields.getRelationships(type);
+    return (this._fields as VerityFields).getRelationships(type);
   }
   public getFirstRelationship(type?: number): Relationship {
-    return this._fields.getFirstRelationship(type);
+    return (this._fields as VerityFields).getFirstRelationship(type);
   }
   insertTillFull(
     fields: Iterable<CubeField>,
     position: FieldPosition = FieldPosition.BEFORE_BACK_POSITIONALS,
   ): number {
-    return this._fields.insertTillFull(fields, position);
+    return (this._fields as VerityFields).insertTillFull(fields, position);
   }
 
 }
