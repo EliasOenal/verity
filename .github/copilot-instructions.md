@@ -55,7 +55,7 @@ Verity is a decentralized and censorship-resistant data storage and distribution
 npm run start -- -w 1984 -t
 ```
 - Runs a full Verity network node on port 1984
-- May not have external connectivity in sandboxed environments (normal)
+- May not have connectivity to some trackers (normal)
 - Use Ctrl+C to stop
 
 #### Web Application Development Server
@@ -159,7 +159,6 @@ You sometimes will be in a situation where you can't finish the goal in one go. 
 
 ### Known Issues
 - **1900+ linting errors** - do not attempt to fix unless specifically requested
-- **Network connectivity warnings** in sandboxed environments when bootstrapping - functionality is not impacted
 
 ### Dependencies
 - **Node.js 20+** required
@@ -181,7 +180,6 @@ You sometimes will be in a situation where you can't finish the goal in one go. 
 
 ### If support node fails to start:
 - Ensure port 1984 is available
-- May not have external connectivity in sandboxed environments (normal)
 - Should display ASCII art logo when starting successfully
 
 **Always prioritize working functionality (support node, tests, development server, build) over any remaining minor issues.**
