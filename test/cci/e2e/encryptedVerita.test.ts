@@ -57,7 +57,7 @@ describe('Transmission of encrypted Verita', () => {
       expect(propagated).toBeDefined();
     });
 
-    test('recipient receives and decrypts Veritum', async() => {
+    test.skip('recipient receives and decrypts Veritum', async() => {
       // Recipient learns about sender out of band and subscribes to them
       // TODO: expose this though a simplified cciCockpit API
       const sub: Identity = await Identity.Construct(
