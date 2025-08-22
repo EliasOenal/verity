@@ -10,6 +10,8 @@ import sodium from 'libsodium-wrappers-sumo';
 import { VerityNode } from '../../../../src/cci/verityNode';
 import { testCoreOptions } from '../../../core/testcore.definition';
 import { testCciOptions } from '../../../cci/testcci.definitions';
+import { Peer } from '../../../../src/core/peering/peer';
+import { WebSocketAddress } from '../../../../src/core/peering/addressing';
 
 let verityNode: VerityNode | null = null;
 let webrtcConnection: RTCPeerConnection | null = null;
@@ -45,6 +47,8 @@ async function initializeWebRTCTest(): Promise<void> {
       nodeType: 'webrtc-test',
       node: verityNode,
       cubeStore: verityNode.cubeStore,
+      Peer: Peer,  // Export Peer class for connections
+      WebSocketAddress: WebSocketAddress,  // Export WebSocketAddress class for connections
       testUtils: {
         createConnection: async (peerId?: string) => {
           try {

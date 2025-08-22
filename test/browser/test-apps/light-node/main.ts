@@ -12,6 +12,8 @@ import { Cockpit } from '../../../../src/cci/cockpit';
 import { VerityField } from '../../../../src/cci/cube/verityField';
 import { testCoreOptions } from '../../../core/testcore.definition';
 import { testCciOptions } from '../../../cci/testcci.definitions';
+import { Peer } from '../../../../src/core/peering/peer';
+import { WebSocketAddress } from '../../../../src/core/peering/addressing';
 
 let verityNode: VerityNode | null = null;
 let cockpit: Cockpit | null = null;
@@ -51,6 +53,8 @@ async function initializeLightNodeTest(): Promise<void> {
       cubeStore: verityNode.cubeStore,
       cockpit: cockpit,  // Add cockpit for cube creation
       VerityField: VerityField,  // Export VerityField for Playwright tests
+      Peer: Peer,  // Export Peer class for connections
+      WebSocketAddress: WebSocketAddress,  // Export WebSocketAddress class for connections
       testUtils: {
         createTestData: async () => {
           const data = `LIGHT-NODE-${Date.now()}-${Math.random()}`;

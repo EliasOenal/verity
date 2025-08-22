@@ -10,6 +10,8 @@ import sodium from 'libsodium-wrappers-sumo';
 import { VerityNode } from '../../../../src/cci/verityNode';
 import { testCoreOptions } from '../../../core/testcore.definition';
 import { testCciOptions } from '../../../cci/testcci.definitions';
+import { Peer } from '../../../../src/core/peering/peer';
+import { WebSocketAddress } from '../../../../src/core/peering/addressing';
 
 interface ChatMessage {
   text: string;
@@ -51,6 +53,8 @@ async function initializeChatTest(): Promise<void> {
       nodeType: 'chat-test',
       node: verityNode,
       cubeStore: verityNode.cubeStore,
+      Peer: Peer,  // Export Peer class for connections
+      WebSocketAddress: WebSocketAddress,  // Export WebSocketAddress class for connections
       testUtils: {
         sendMessage: async (text: string, sender?: string) => {
           const message: ChatMessage = {

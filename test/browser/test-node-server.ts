@@ -72,8 +72,11 @@ export class TestNodeServer {
     return this.coreNode?.networkManager.idString || '';
   }
 
-  getCubeCount(): number {
-    return this.coreNode?.cubeStore.getNumberOfStoredCubes() || 0;
+  async getCubeCount(): Promise<number> {
+    if (!this.coreNode) {
+      return 0;
+    }
+    return await this.coreNode.cubeStore.getNumberOfStoredCubes();
   }
 
   getPeerCount(): number {
@@ -106,12 +109,12 @@ export class TestNodeServer {
     }
   }
 
-  getServerInfo() {
+  async getServerInfo() {
     return {
       isRunning: this.isRunning,
       port: this.port,
       nodeId: this.getNodeId().substring(0, 16) + '...',
-      cubeCount: this.getCubeCount(),
+      cubeCount: await this.getCubeCount(),
       peerCount: this.getPeerCount(),
       address: `ws://localhost:${this.port}`
     };

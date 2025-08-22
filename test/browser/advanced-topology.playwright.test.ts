@@ -77,7 +77,7 @@ test.describe('Real Verity Network Topology Tests', () => {
         centralNodePeers,
         edgeNodesConnected: nodeStatuses.every(s => s.isNetworkReady),
         cubesCreated: successfulCubes.length,
-        centralNodeCubes: testServer.getCubeCount()
+        centralNodeCubes: await testServer.getCubeCount()
       });
       
     } finally {
@@ -226,7 +226,7 @@ test.describe('Real Verity Network Topology Tests', () => {
         finalDistribution: finalCounts,
         expectedDistribution: expectedLoads,
         serverHandledPeers: testServer.getPeerCount(),
-        serverCubeCount: testServer.getCubeCount()
+        serverCubeCount: await testServer.getCubeCount()
       });
       
     } finally {

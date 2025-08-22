@@ -66,7 +66,7 @@ test.describe('Real Verity Multi-Node Functionality Tests', () => {
     const browserCubeCount = await getCubeCountFromBrowser(page);
     expect(browserCubeCount).toBeGreaterThanOrEqual(1);
     
-    const serverCubeCount = testServer.getCubeCount();
+    const serverCubeCount = await testServer.getCubeCount();
     expect(serverCubeCount).toBeGreaterThanOrEqual(1);
     
     console.log('Cube exchange test:', {
@@ -181,7 +181,7 @@ test.describe('Real Verity Multi-Node Functionality Tests', () => {
       // Check cube counts
       const count1 = await getCubeCountFromBrowser(page1);
       const count2 = await getCubeCountFromBrowser(page2);
-      const serverCount = testServer.getCubeCount();
+      const serverCount = await testServer.getCubeCount();
       
       expect(count1).toBeGreaterThanOrEqual(1); // At least the cube it created
       expect(serverCount).toBeGreaterThanOrEqual(2); // At least the server cubes
@@ -296,7 +296,7 @@ test.describe('Real Verity Multi-Node Functionality Tests', () => {
       );
       
       const totalCubesInNodes = finalCubeCounts.reduce((sum, count) => sum + count, 0);
-      const serverCubeCount = testServer.getCubeCount();
+      const serverCubeCount = await testServer.getCubeCount();
       
       console.log('Distributed storage test:', {
         nodesCreated: pages.length,

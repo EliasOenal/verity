@@ -394,31 +394,34 @@ export async function connectBrowserNodeToServer(page: Page, serverAddress: stri
       const host = url.hostname;
       const port = parseInt(url.port);
 
-      // Connect to the test server
-      const peer = node.networkManager.connect({
-        address: { ip: host, port: port }
-      });
+      // Need to import the classes for proper connection
+      // First check if they're available on the window
+      if (!window.verity.Peer || !window.verity.WebSocketAddress) {
+        return { success: false, peerCount: 0, error: 'Peer and WebSocketAddress classes not available' };
+      }
 
-      // Wait for connection or timeout
+      // Create proper Peer object with WebSocketAddress
+      const wsAddress = new window.verity.WebSocketAddress(host, port);
+      const peer = new window.verity.Peer(wsAddress);
+      
+      // Connect to the test server using the proper Peer object
+      const networkPeer = node.networkManager.connect(peer);
+
+      // Wait for connection with timeout
       await new Promise((resolve, reject) => {
-        let timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
+        const timeout = setTimeout(() => reject(new Error('Connection timeout after 5 seconds')), 5000);
         
-        if (peer.onlinePromise) {
-          peer.onlinePromise.then(() => {
+        if (networkPeer.onlinePromise) {
+          networkPeer.onlinePromise.then(() => {
             clearTimeout(timeout);
             resolve(true);
-          }).catch(reject);
+          }).catch((error) => {
+            clearTimeout(timeout);
+            reject(error);
+          });
         } else {
-          // If no onlinePromise, try to wait for online status
-          let checkCount = 0;
-          const checkInterval = setInterval(() => {
-            checkCount++;
-            if (peer.online || checkCount > 50) {
-              clearInterval(checkInterval);
-              clearTimeout(timeout);
-              resolve(peer.online);
-            }
-          }, 100);
+          clearTimeout(timeout);
+          reject(new Error('NetworkPeer does not have onlinePromise'));
         }
       });
 
