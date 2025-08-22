@@ -261,7 +261,7 @@ test.describe('Real Advanced Multi-Node Scenarios', () => {
         postRecoveryConnected: recoveryStates.some(s => s.isNetworkReady),
         cubesBeforePartition: [cube1.success, cube2.success],
         cubesAfterRecovery: [postRecoveryCube1.success, postRecoveryCube2.success],
-        finalCubeCounts,
+        finalCubeCounts: finalCounts,
         serverPeersAfterRecovery: testServer.getPeerCount()
       });
       
