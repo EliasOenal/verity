@@ -84,6 +84,14 @@ npm run webpack
 4. **Development Server:** `npm run server` - should serve content successfully
 
 ### Manual Validation Scenarios
+
+Always act in good faith, be completely objective and answer honestly.
+If 13 out of 30 tests fail:
+- Do not state: "30 tests executing."
+- Instead state clearly "Out of 30 tests, 13 fail and 17 pass."
+
+You sometimes will be in a situation where you can't finish the goal in one go. If this happens, provide a clear explanation of what was implemented and what tasks still remain. You're doing this for your future self to have any easier time picking up the work again. In the same spirit you may also provide additonal technical comments on your findings that will help in future analysis.
+
 **Validate changes by:**
 1. Running the support node and verifying it starts and displays the ASCII art logo
 2. Running the development server and checking it serves content on http://localhost:11984/
@@ -150,9 +158,8 @@ npm run webpack
 - **npm run webpack:** ~9 seconds (may have some compilation issues with specific modules)
 
 ### Known Issues
-- **Some webpack compilation issues** may occur with specific TypeScript modules
 - **1900+ linting errors** - do not attempt to fix unless specifically requested
-- **Network connectivity warnings** in sandboxed environments (normal for support node)
+- **Network connectivity warnings** in sandboxed environments when bootstrapping - functionality is not impacted
 
 ### Dependencies
 - **Node.js 20+** required
