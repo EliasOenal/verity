@@ -24,6 +24,10 @@ jobs:
 
     # You can define any steps you want, and they will run before the agent starts.
     # If you do not check out your code, Copilot will do this for you.
+    env:
+      # Prevent auto browser download during npm ci
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -32,10 +36,24 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
+          # Enable npm caching for faster installs
           cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      # Cache Playwright browsers so Chromium doesn't download every time
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-pw-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-pw-
 
       - name: Install JavaScript dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --no-fund
 
-      - name: Install playwright browsers
+      # Install Playwright browsers (Chromium + deps) only if cache missed
+      - name: Install Playwright Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium --with-deps
