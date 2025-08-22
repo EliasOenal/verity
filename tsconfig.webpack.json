@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["test"],
+  "compilerOptions": {
+    "noEmit": false,
+    "target": "ES2020",
+    "useDefineForClassFields": false
+  }
+}

@@ -356,8 +356,6 @@ export class Cube extends VeritableBaseImplementation implements Veritable {
         return this.Create(options);
     }
 
-    declare protected _fields: CubeFields;
-
     /** @deprecated Use methods defined in Veritable instead */
     public get fields(): CubeFields {
         // TODO: This is very dangerous as obviously accessing the raw fields

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verity Full Node Test</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Verity Full Node Test Environment</h1>
+        <div id="status" class="status">Initializing...</div>
+        <div id="nodeInfo" class="node-info"></div>
+        
+        <div class="test-controls">
+            <h3>Test Controls</h3>
+            <button id="createTestCube" onclick="window.testUtils?.createTestCube()">Create Test Cube</button>
+            <button id="getNodeStats" onclick="window.testUtils?.showNodeStats()">Show Node Stats</button>
+        </div>
+        
+        <div id="output" class="output"></div>
+    </div>
+    
+    <script src="full-node-test.js"></script>
+    <script>
+        // Additional test utilities available to tests
+        window.testUtils = {
+            createTestCube: async function() {
+                if (!window.verity) {
+                    console.error('Verity not available');
+                    return;
+                }
+                
+                const result = await window.verity.testUtils.createUniqueTestCube();
+                const output = document.getElementById('output');
+                if (output) {
+                    output.innerHTML += `<p>Created cube: ${result.success ? result.keyHex : result.error}</p>`;
+                }
+            },
+            
+            showNodeStats: async function() {
+                if (!window.verity) {
+                    console.error('Verity not available');
+                    return;
+                }
+                
+                const cubeCount = await window.verity.node.cubeStore.getNumberOfStoredCubes();
+                const output = document.getElementById('output');
+                if (output) {
+                    output.innerHTML += `<p>Current cube count: ${cubeCount}</p>`;
+                }
+            }
+        };
+    </script>
+</body>
+</html>

@@ -80,3 +80,10 @@ logo/
 # AI foo for developers who are too lazy to code themselves
 .aider*
 aider
+
+# Playwright test artifacts (generated files, should not be committed)
+playwright-report/
+test-results/
+
+# Test application build artifacts (generated files, should not be committed)
+test-dist/

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verity Chat Test</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Verity Chat Test Environment</h1>
+        <div id="status" class="status">Initializing...</div>
+        <div id="nodeInfo" class="node-info"></div>
+        
+        <div class="chat-interface">
+            <h3>Chat Interface</h3>
+            <div id="messages" class="messages"></div>
+            
+            <form id="messageForm" class="message-form">
+                <input type="text" id="messageInput" placeholder="Type a message..." required>
+                <button type="submit">Send</button>
+                <button type="button" onclick="window.testUtils?.sendTestMessage()">Send Test Message</button>
+            </form>
+        </div>
+        
+        <div class="test-controls">
+            <h3>Test Controls</h3>
+            <button onclick="window.testUtils?.showChatStats()">Show Chat Stats</button>
+            <button onclick="window.testUtils?.clearChat()">Clear Chat</button>
+            <button onclick="window.testUtils?.exportChatHistory()">Export History</button>
+        </div>
+        
+        <div id="output" class="output"></div>
+    </div>
+    
+    <script src="chat-test.js"></script>
+    <script>
+        // Additional test utilities available to tests
+        window.testUtils = {
+            sendTestMessage: async function() {
+                if (!window.verity) {
+                    console.error('Verity not available');
+                    return;
+                }
+                
+                const result = await window.verity.testUtils.sendTestMessage();
+                
+                if (result.success) {
+                    // Update counts
+                    this.updateCounts();
+                } else {
+                    const output = document.getElementById('output');
+                    if (output) {
+                        output.innerHTML += `<p>Failed to send test message: ${result.error}</p>`;
+                    }
+                }
+            },
+            
+            showChatStats: function() {
+                if (!window.verity) {
+                    console.error('Verity not available');
+                    return;
+                }
+                
+                const history = window.verity.testUtils.getChatHistory();
+                const cubeCount = window.verity.cubeStore ? window.verity.cubeStore.getNumberOfStoredCubes() : 0;
+                
+                const output = document.getElementById('output');
+                if (output) {
+                    output.innerHTML += `<p>Chat Stats - Messages: ${history.length}, Total Cubes: ${cubeCount}</p>`;
+                }
+            },
+            
+            clearChat: function() {
+                if (!window.verity) {
+                    console.error('Verity not available');
+                    return;
+                }
+                
+                window.verity.testUtils.clearChat();
+                this.updateCounts();
+                
+                const output = document.getElementById('output');
+                if (output) {
+                    output.innerHTML += '<p>Chat history cleared</p>';
+                }
+            },
+            
+            exportChatHistory: function() {
+                if (!window.verity) {
+                    console.error('Verity not available');
+                    return;
+                }
+                
+                const history = window.verity.testUtils.getChatHistory();
+                const output = document.getElementById('output');
+                if (output) {
+                    output.innerHTML += `<p>Chat History: ${JSON.stringify(history, null, 2)}</p>`;
+                }
+            },
+            
+            updateCounts: async function() {
+                if (!window.verity) return;
+                
+                try {
+                    const cubeCount = window.verity.cubeStore ? window.verity.cubeStore.getNumberOfStoredCubes() : 0;
+                    const messageCount = window.verity.testUtils.getChatHistory ? window.verity.testUtils.getChatHistory().length : 0;
+                    
+                    const cubeCountEl = document.getElementById('cubeCount');
+                    const messageCountEl = document.getElementById('messageCount');
+                    
+                    if (cubeCountEl) cubeCountEl.textContent = cubeCount.toString();
+                    if (messageCountEl) messageCountEl.textContent = messageCount.toString();
+                } catch (error) {
+                    // Ignore errors in update counts - this is just for UI display
+                    console.log('Error updating counts (non-critical):', error.message);
+                }
+            }
+        };
+        
+        // Update counts periodically
+        setInterval(() => {
+            if (window.testUtils && window.verity) {
+                window.testUtils.updateCounts();
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

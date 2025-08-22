@@ -39,10 +39,29 @@ An end-user will typically not need this.
 
 ```
 npm run build
-npm run start -- -w 1984 -t
+npm run start
 ```
 
 ## Tests ##
-```
+
+### Node.js Tests ###
+Run the main Node.js test suite:
+```bash
 npm test
 ```
+
+Run a subset of tests (CI command):
+```bash
+npm test -- --run test/core/ test/cci/ test/web/controller/ test/app/zw/model/
+```
+
+### Browser Tests ###
+Run Playwright browser tests:
+```bash
+# Run all Playwright browser tests
+npm run test:playwright
+
+# Interactive test runner with UI
+npm run test:playwright:ui
+```
+

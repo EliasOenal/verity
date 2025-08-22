@@ -1,0 +1,179 @@
+/* WebRTC Test Application Styles */
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+h1 {
+    color: #333;
+    border-bottom: 2px solid #6f42c1;
+    padding-bottom: 10px;
+}
+
+.status {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    font-weight: bold;
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.status:contains("ready") {
+    background-color: #d4edda;
+    color: #155724;
+    border-color: #c3e6cb;
+}
+
+.node-info {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 15px 0;
+    border-left: 4px solid #6f42c1;
+}
+
+.node-info h3 {
+    margin-top: 0;
+    color: #6f42c1;
+}
+
+.node-info p {
+    margin: 5px 0;
+}
+
+.webrtc-interface {
+    background-color: #f3e8ff;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 15px 0;
+    border: 1px solid #6f42c1;
+}
+
+.webrtc-interface h3 {
+    margin-top: 0;
+    color: #4c2a85;
+}
+
+.connection-status {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.connection-status.connected {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.connection-status.disconnected {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.connection-status.connecting {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.webrtc-controls {
+    margin: 15px 0;
+}
+
+.webrtc-controls button {
+    background-color: #6f42c1;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    margin: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.webrtc-controls button:hover {
+    background-color: #5a359a;
+}
+
+.log {
+    height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 10px;
+    background-color: white;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.log-entry {
+    margin: 2px 0;
+    padding: 1px 0;
+}
+
+.log-info {
+    color: #007bff;
+}
+
+.log-error {
+    color: #dc3545;
+}
+
+.log-success {
+    color: #28a745;
+}
+
+.test-controls {
+    background-color: #ede7f6;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 15px 0;
+}
+
+.test-controls h3 {
+    margin-top: 0;
+    color: #4c2a85;
+}
+
+.test-controls button {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    margin: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.test-controls button:hover {
+    background-color: #5a6268;
+}
+
+.output {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 15px;
+    margin: 15px 0;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+}
+
+.output p {
+    margin: 5px 0;
+    padding: 2px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.output p:last-child {
+    border-bottom: none;
+}

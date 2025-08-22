@@ -12,6 +12,7 @@ class silent extends DefaultReporter {
 export default defineConfig({
   test: {
     include: ['test/**/*.test.ts'],
+    exclude: ['test/browser/**/*.playwright.test.ts'],
     globals: true,
     pool: 'forks',
     poolOptions: {
