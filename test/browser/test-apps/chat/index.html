@@ -14,6 +14,7 @@
         
         <div class="chat-interface">
             <h3>Chat Interface</h3>
+            <div id="chatMessages" class="chat-messages"></div>
             <div id="messages" class="messages"></div>
             
             <form id="messageForm" class="message-form">
@@ -35,6 +36,35 @@
     
     <script src="chat-test.js"></script>
     <script>
+        // Form submission handler to prevent page reload
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageForm = document.getElementById('messageForm');
+            const messageInput = document.getElementById('messageInput');
+            
+            if (messageForm && messageInput) {
+                messageForm.addEventListener('submit', async function(e) {
+                    e.preventDefault(); // Prevent page reload
+                    
+                    const message = messageInput.value.trim();
+                    if (message && window.verity) {
+                        try {
+                            const result = await window.verity.testUtils.sendMessage(message);
+                            if (result.success) {
+                                messageInput.value = ''; // Clear input
+                                // Update counts
+                                if (window.testUtils && window.testUtils.updateCounts) {
+                                    await window.testUtils.updateCounts();
+                                }
+                            } else {
+                                console.error('Failed to send message:', result.error);
+                            }
+                        } catch (error) {
+                            console.error('Error sending message:', error);
+                        }
+                    }
+                });
+            }
+        });
         // Additional test utilities available to tests
         window.testUtils = {
             sendTestMessage: async function() {
@@ -56,14 +86,14 @@
                 }
             },
             
-            showChatStats: function() {
+            showChatStats: async function() {
                 if (!window.verity) {
                     console.error('Verity not available');
                     return;
                 }
                 
                 const history = window.verity.testUtils.getChatHistory();
-                const cubeCount = window.verity.cubeStore ? window.verity.cubeStore.getNumberOfStoredCubes() : 0;
+                const cubeCount = await window.verity.cubeStore.getNumberOfStoredCubes();
                 
                 const output = document.getElementById('output');
                 if (output) {
@@ -103,7 +133,7 @@
                 if (!window.verity) return;
                 
                 try {
-                    const cubeCount = window.verity.cubeStore ? window.verity.cubeStore.getNumberOfStoredCubes() : 0;
+                    const cubeCount = await window.verity.cubeStore.getNumberOfStoredCubes();
                     const messageCount = window.verity.testUtils.getChatHistory ? window.verity.testUtils.getChatHistory().length : 0;
                     
                     const cubeCountEl = document.getElementById('cubeCount');

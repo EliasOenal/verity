@@ -12,6 +12,8 @@ import { testCoreOptions } from '../../../core/testcore.definition';
 import { testCciOptions } from '../../../cci/testcci.definitions';
 import { Peer } from '../../../../src/core/peering/peer';
 import { WebSocketAddress } from '../../../../src/core/peering/addressing';
+import { ChatApplication } from '../../../../src/app/chatApplication';
+import { NotificationKey } from '../../../../src/core/cube/cube.definitions';
 
 interface ChatMessage {
   text: string;
@@ -32,6 +34,9 @@ async function initializeChatTest(): Promise<void> {
   await sodium.ready;
 
   const messages: ChatMessage[] = [];
+  
+  // Create a notification key for chat room (32 bytes)
+  const chatNotificationKey = Buffer.alloc(32, 0x42) as NotificationKey;
 
   try {
     // Create a real VerityNode with test optimizations for fast execution
@@ -63,21 +68,44 @@ async function initializeChatTest(): Promise<void> {
             sender: sender || 'testUser'
           };
           
-          messages.push(message);
-          
-          // Update UI if available
-          const chatBox = document.getElementById('chatMessages');
-          if (chatBox) {
-            const messageDiv = document.createElement('div');
-            messageDiv.innerHTML = `<strong>${message.sender}:</strong> ${message.text} <em>(${message.timestamp})</em>`;
-            chatBox.appendChild(messageDiv);
+          try {
+            // Create actual chat cube using ChatApplication
+            const chatCube = await ChatApplication.createChatCube(
+              message.sender,
+              message.text,
+              chatNotificationKey
+            );
+            
+            // Add cube to the cube store
+            await verityNode.cubeStore.addCube(chatCube);
+            
+            // Add to local message history
+            messages.push(message);
+            
+            // Update UI if available
+            const chatBox = document.getElementById('chatMessages');
+            if (chatBox) {
+              const messageDiv = document.createElement('div');
+              messageDiv.innerHTML = `<strong>${message.sender}:</strong> ${message.text} <em>(${message.timestamp})</em>`;
+              chatBox.appendChild(messageDiv);
+            }
+            
+            console.log(`Created chat cube with key: ${await chatCube.getKeyString()}`);
+            
+            return {
+              success: true,
+              message: message,
+              cubeKey: await chatCube.getKeyString(),
+              totalMessages: messages.length
+            };
+          } catch (error) {
+            console.error('Error creating chat cube:', error);
+            return {
+              success: false,
+              error: (error as Error).message,
+              totalMessages: messages.length
+            };
           }
-          
-          return {
-            success: true,
-            message: message,
-            totalMessages: messages.length
-          };
         },
         
         getMessages: () => {
@@ -132,13 +160,14 @@ async function initializeChatTest(): Promise<void> {
     }
     
     if (nodeInfoEl) {
+      const cubeCount = await verityNode.cubeStore.getNumberOfStoredCubes();
       nodeInfoEl.innerHTML = `
         <h3>Chat Test Information</h3>
         <p><strong>Status:</strong> Ready</p>
         <p><strong>Type:</strong> Chat Test</p>
         <p><strong>Node ID:</strong> chat-${Date.now()}</p>
         <p><strong>Messages:</strong> <span id="messageCount">0</span></p>
-        <p><strong>Cubes:</strong> <span id="cubeCount">${verityNode.cubeStore.getNumberOfStoredCubes()}</span></p>
+        <p><strong>Cubes:</strong> <span id="cubeCount">${cubeCount}</span></p>
         <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
         <p><strong>Test Optimizations:</strong> Active</p>
       `;
