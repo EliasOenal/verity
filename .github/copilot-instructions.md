@@ -14,29 +14,31 @@ Verity is a decentralized and censorship-resistant data storage and distribution
    npm install
    ```
    - **NEVER CANCEL: Takes 8+ minutes to complete.** Set timeout to 15+ minutes.
-   - Shows deprecated package warnings (this is normal)
+   - Should have been called by environment initialization
 
 2. **Build TypeScript Code:**
    ```bash
    npm run build
    ```
-   - Fast: ~7 seconds
+   - Fast: ~10 seconds
    - Should complete successfully
 
-3. **Run Tests:**
+3. **Run Node.js Tests:**
    ```bash
    npm test
    ```
    - **NEVER CANCEL: Takes 3+ minutes to complete.** Set timeout to 10+ minutes.
-   - Runs all 78 test files with 900+ tests using vitest
+   - Runs all 80+ test files with 4500+ tests using vitest
+   - This command is used in CI (GitHub Actions)
    - Should pass consistently
 
-4. **Run Subset of Tests (CI Command):**
+4. **Run Playwright Tests:**
    ```bash
-   npm test -- --run test/core/ test/cci/ test/web/controller/ test/app/zw/model/
+   npm run test:playwright
    ```
-   - Skips slow UI tests
-   - This is the command used in CI (GitHub Actions)
+   - **NEVER CANCEL: Takes 2+ minutes to complete.** Set timeout to 10+ minutes.
+   - Runs all 35+ tests using playwright
+   - This command is used in CI (GitHub Actions)
    - Should pass consistently
 
 4. **Lint Code:**
@@ -58,7 +60,7 @@ npm run start -- -w 1984 -t
 - May not have connectivity to some trackers (normal)
 - Use Ctrl+C to stop
 
-#### Web Application Development Server
+#### Web Demo Application Development Server
 ```bash
 npm run server
 ```
@@ -66,14 +68,21 @@ npm run server
 - Should serve content successfully
 - Use Ctrl+C to stop
 
-#### Web Application Build (HAS MINOR ISSUES)
+#### Web Playwright Test Application Development Server
+```bash
+npm run server
+```
+- Runs webpack dev server on http://localhost:11985/
+- Should serve Verity Chat Test Environment successfully
+- Used as base for playwright tests
+- Use Ctrl+C to stop
+
+#### Web Demo Application Build
 ```bash
 npm run webpack
 ```
-- **May have some TypeScript compilation issues with specific files**
-- Generally works but may show errors for certain modules
 - The development server (`npm run server`) is preferred for development
-- Takes ~9 seconds to fail
+- Takes ~9 seconds to run
 
 ## Validation Requirements
 
@@ -153,8 +162,10 @@ You sometimes will be in a situation where you can't finish the goal in one go. 
 - **npm install:** 8+ minutes - **NEVER CANCEL**
 - **npm run build:** ~7 seconds (should complete successfully)
 - **npm test:** 3+ minutes (should pass consistently) - **NEVER CANCEL**
+- **npm run test\:playwright\:** 2+ minutes (should pass consistently) - **NEVER CANCEL**
 - **npm run lint:** ~8 seconds (1900+ errors but exits successfully)
-- **npm run server:** ~11 seconds to start (should serve successfully)
+- **npm run server:** ~15 seconds to start (should serve successfully)
+- **npm run test\:server\:** ~15 seconds to start (should serve successfully)
 - **npm run webpack:** ~9 seconds (may have some compilation issues with specific modules)
 
 ### Known Issues
