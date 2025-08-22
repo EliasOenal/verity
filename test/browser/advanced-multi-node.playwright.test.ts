@@ -8,7 +8,8 @@ import {
   shutdownBrowserNode,
   createMultipleCubes,
   connectBrowserNodeToServer,
-  getBrowserNodeConnectionStatus
+  getBrowserNodeConnectionStatus,
+  waitForNetworkReady
 } from './playwright-utils';
 
 test.describe('Real Advanced Multi-Node Scenarios', () => {
@@ -328,9 +329,9 @@ test.describe('Real Advanced Multi-Node Scenarios', () => {
       expect(cubeCreationResults.length).toBeGreaterThanOrEqual(6); // Most should succeed
       expect(statusQueries.length).toBe(4);
       
-      // Get final states
+      // Get final states - use waitForNetworkReady for stable status
       const finalCounts = await Promise.all(pages.map(page => getCubeCountFromBrowser(page)));
-      const finalStatuses = await Promise.all(pages.map(page => getBrowserNodeConnectionStatus(page)));
+      const finalStatuses = await Promise.all(pages.map(page => waitForNetworkReady(page, 15000)));
       
       const totalTime = endTime - startTime;
       const throughput = (cubeCreationResults.length * 1000) / totalTime;

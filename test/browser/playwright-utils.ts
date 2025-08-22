@@ -474,6 +474,38 @@ export async function getBrowserNodeConnectionStatus(page: Page): Promise<{
 }
 
 /**
+ * Wait for a browser node to be network ready with retry logic
+ */
+export async function waitForNetworkReady(page: Page, timeoutMs: number = 15000): Promise<{ 
+  nodeId: string; 
+  peerCount: number; 
+  onlinePeers: string[]; 
+  isNetworkReady: boolean;
+}> {
+  const startTime = Date.now();
+  let lastStatus = null;
+  
+  while (Date.now() - startTime < timeoutMs) {
+    const status = await getBrowserNodeConnectionStatus(page);
+    lastStatus = status;
+    
+    console.log(`waitForNetworkReady check: isReady=${status.isNetworkReady}, peers=${status.peerCount}, elapsed=${Date.now() - startTime}ms`);
+    
+    if (status.isNetworkReady && status.peerCount > 0) {
+      console.log(`Network ready achieved in ${Date.now() - startTime}ms`);
+      return status;
+    }
+    
+    // Wait a bit before checking again
+    await page.waitForTimeout(300);
+  }
+  
+  console.warn(`waitForNetworkReady timeout after ${timeoutMs}ms. Final status:`, lastStatus);
+  // Return final status even if not ready (for debugging)
+  return lastStatus || await getBrowserNodeConnectionStatus(page);
+}
+
+/**
  * Request a cube from the network (real cube retrieval)
  */
 export async function requestCubeFromNetwork(page: Page, cubeKey: string): Promise<{ success: boolean; found: boolean; error?: string }> {
