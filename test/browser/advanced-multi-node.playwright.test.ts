@@ -13,13 +13,18 @@ import {
 
 test.describe('Real Advanced Multi-Node Scenarios', () => {
   let testServer: TestNodeServer;
+  let testPort: number;
 
-  test.beforeAll(async () => {
-    testServer = await getTestServer(19002);
+  test.beforeAll(async ({ }, testInfo) => {
+    // Start test server with worker-specific port
+    const workerIndex = testInfo.workerIndex;
+    testPort = 19000 + workerIndex;
+    testServer = await getTestServer(workerIndex, 19000);
+    console.log(`Test server started on port ${testPort} for worker ${workerIndex}:`, await testServer.getServerInfo());
   });
 
   test.afterAll(async () => {
-    await shutdownTestServer(19002);
+    await shutdownTestServer(testPort);
   });
 
   test.afterEach(async ({ page }) => {
@@ -43,7 +48,7 @@ test.describe('Real Advanced Multi-Node Scenarios', () => {
       
       // Connect all to test server
       await Promise.all(pages.map(page => 
-        connectBrowserNodeToServer(page, 'ws://localhost:19002')
+        connectBrowserNodeToServer(page, `ws://localhost:${testPort}`)
       ));
       
       // Get node information
@@ -108,15 +113,15 @@ test.describe('Real Advanced Multi-Node Scenarios', () => {
     try {
       // Initialize nodes sequentially to simulate real-world discovery
       await initializeVerityInBrowser(page1);
-      await connectBrowserNodeToServer(page1, 'ws://localhost:19002');
+      await connectBrowserNodeToServer(page1, `ws://localhost:${testPort}`);
       await page1.waitForTimeout(500);
       
       await initializeVerityInBrowser(page2);
-      await connectBrowserNodeToServer(page2, 'ws://localhost:19002');
+      await connectBrowserNodeToServer(page2, `ws://localhost:${testPort}`);
       await page2.waitForTimeout(500);
       
       await initializeVerityInBrowser(page3);
-      await connectBrowserNodeToServer(page3, 'ws://localhost:19002');
+      await connectBrowserNodeToServer(page3, `ws://localhost:${testPort}`);
       await page3.waitForTimeout(500);
       
       // Test real peer discovery process
@@ -171,7 +176,7 @@ test.describe('Real Advanced Multi-Node Scenarios', () => {
     }
   });
 
-  test('should test real network partition and recovery scenarios', async ({ browser }) => {
+  test('should test real network partition and recovery scenarios', async ({ browser }, testInfo) => {
     const context1 = await browser.newContext();
     const context2 = await browser.newContext();
     
@@ -186,8 +191,8 @@ test.describe('Real Advanced Multi-Node Scenarios', () => {
       
       // Connect both to server
       await Promise.all([
-        connectBrowserNodeToServer(page1, 'ws://localhost:19002'),
-        connectBrowserNodeToServer(page2, 'ws://localhost:19002')
+        connectBrowserNodeToServer(page1, `ws://localhost:${testPort}`),
+        connectBrowserNodeToServer(page2, `ws://localhost:${testPort}`)
       ]);
       
       // Create cubes before partition
@@ -227,12 +232,12 @@ test.describe('Real Advanced Multi-Node Scenarios', () => {
       
       // Restart server to test recovery
       console.log('Restarting server for recovery test...');
-      testServer = await getTestServer(19002);
+      testServer = await getTestServer(testInfo.workerIndex, 19000);
       
       // Attempt to reconnect
       await Promise.all([
-        connectBrowserNodeToServer(page1, 'ws://localhost:19002'),
-        connectBrowserNodeToServer(page2, 'ws://localhost:19002')
+        connectBrowserNodeToServer(page1, `ws://localhost:${testPort}`),
+        connectBrowserNodeToServer(page2, `ws://localhost:${testPort}`)
       ]);
       
       // Wait for recovery
@@ -288,7 +293,7 @@ test.describe('Real Advanced Multi-Node Scenarios', () => {
       
       // Connect all to server
       await Promise.all(pages.map(page => 
-        connectBrowserNodeToServer(page, 'ws://localhost:19002')
+        connectBrowserNodeToServer(page, `ws://localhost:${testPort}`)
       ));
       
       // Wait for all connections to stabilize
@@ -359,7 +364,7 @@ test.describe('Real Advanced Multi-Node Scenarios', () => {
     try {
       await Promise.all(pages.map(page => initializeVerityInBrowser(page)));
       await Promise.all(pages.map(page => 
-        connectBrowserNodeToServer(page, 'ws://localhost:19002')
+        connectBrowserNodeToServer(page, `ws://localhost:${testPort}`)
       ));
       
       // Simulate different workload patterns

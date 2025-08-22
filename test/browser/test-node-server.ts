@@ -124,7 +124,29 @@ export class TestNodeServer {
 // Port-based server management for parallel test execution
 const testServers = new Map<number, TestNodeServer>();
 
-export async function getTestServer(port: number = 19000): Promise<TestNodeServer> {
+/**
+ * Get a test server with dynamic port allocation for parallel execution
+ * @param workerIndex Worker index from Playwright (0, 1, 2, etc.)
+ * @param basePort Base port to start from (default: 19000)
+ * @returns TestNodeServer instance
+ */
+export async function getTestServer(workerIndex: number = 0, basePort: number = 19000): Promise<TestNodeServer> {
+  // Allocate port based on worker index to avoid conflicts
+  const port = basePort + workerIndex;
+  
+  if (!testServers.has(port)) {
+    const server = new TestNodeServer(port);
+    await server.start();
+    testServers.set(port, server);
+  }
+  return testServers.get(port)!;
+}
+
+/**
+ * Legacy function for backward compatibility with hardcoded ports
+ * @deprecated Use getTestServer(workerIndex) instead
+ */
+export async function getTestServerLegacy(port: number = 19000): Promise<TestNodeServer> {
   if (!testServers.has(port)) {
     const server = new TestNodeServer(port);
     await server.start();

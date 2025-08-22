@@ -12,13 +12,18 @@ import {
 
 test.describe('Real Verity Network Topology Tests', () => {
   let testServer: TestNodeServer;
+  let testPort: number;
 
-  test.beforeAll(async () => {
-    testServer = await getTestServer(19001);
+  test.beforeAll(async ({ }, testInfo) => {
+    // Start test server with worker-specific port
+    const workerIndex = testInfo.workerIndex;
+    testPort = 19000 + workerIndex;
+    testServer = await getTestServer(workerIndex, 19000);
+    console.log(`Test server started on port ${testPort} for worker ${workerIndex}:`, await testServer.getServerInfo());
   });
 
   test.afterAll(async () => {
-    await shutdownTestServer(19001);
+    await shutdownTestServer(testPort);
   });
 
   test.afterEach(async ({ page }) => {
@@ -36,7 +41,7 @@ test.describe('Real Verity Network Topology Tests', () => {
       
       // Connect all browser nodes to the central full node (star topology)
       const connectionResults = await Promise.all(
-        pages.map(page => connectBrowserNodeToServer(page, 'ws://localhost:19001'))
+        pages.map(page => connectBrowserNodeToServer(page, `ws://localhost:${testPort}`))
       );
       
       // Verify all connections successful
@@ -96,7 +101,7 @@ test.describe('Real Verity Network Topology Tests', () => {
       
       // Connect all nodes to the server (hierarchical with server as root)
       await Promise.all(
-        pages.map(page => connectBrowserNodeToServer(page, 'ws://localhost:19001'))
+        pages.map(page => connectBrowserNodeToServer(page, `ws://localhost:${testPort}`))
       );
       
       // Verify hierarchical structure - all nodes connect through server
@@ -171,7 +176,7 @@ test.describe('Real Verity Network Topology Tests', () => {
       
       // Connect all nodes
       await Promise.all(
-        pages.map(page => connectBrowserNodeToServer(page, 'ws://localhost:19001'))
+        pages.map(page => connectBrowserNodeToServer(page, `ws://localhost:${testPort}`))
       );
       
       // Test varying workloads per node
@@ -246,7 +251,7 @@ test.describe('Real Verity Network Topology Tests', () => {
       // Phase 1: Start with 2 nodes
       await Promise.all(initialPages.map(page => initializeVerityInBrowser(page)));
       await Promise.all(
-        initialPages.map(page => connectBrowserNodeToServer(page, 'ws://localhost:19001'))
+        initialPages.map(page => connectBrowserNodeToServer(page, `ws://localhost:${testPort}`))
       );
       
       const phase1Statuses = await Promise.all(
@@ -262,7 +267,7 @@ test.describe('Real Verity Network Topology Tests', () => {
       
       await Promise.all(additionalPages.map(page => initializeVerityInBrowser(page)));
       await Promise.all(
-        additionalPages.map(page => connectBrowserNodeToServer(page, 'ws://localhost:19001'))
+        additionalPages.map(page => connectBrowserNodeToServer(page, `ws://localhost:${testPort}`))
       );
       
       const allPages = [...initialPages, ...additionalPages];

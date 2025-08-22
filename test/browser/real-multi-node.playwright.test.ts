@@ -13,15 +13,19 @@ import {
 
 test.describe('Real Verity Multi-Node Functionality Tests', () => {
   let testServer: TestNodeServer;
+  let testPort: number;
 
-  test.beforeAll(async () => {
+  test.beforeAll(async ({ }, testInfo) => {
     // Start a real Node.js full node that browser nodes can connect to
-    testServer = await getTestServer(19000);
-    console.log('Test server started:', testServer.getServerInfo());
+    // Use worker index to allocate unique ports for parallel execution
+    const workerIndex = testInfo.workerIndex;
+    testPort = 19000 + workerIndex;
+    testServer = await getTestServer(workerIndex, 19000);
+    console.log(`Test server started on port ${testPort} for worker ${workerIndex}:`, await testServer.getServerInfo());
   });
 
   test.afterAll(async () => {
-    await shutdownTestServer(19000);
+    await shutdownTestServer(testPort);
   });
 
   test.afterEach(async ({ page }) => {
@@ -33,7 +37,7 @@ test.describe('Real Verity Multi-Node Functionality Tests', () => {
     await initializeVerityInBrowser(page);
     
     // Connect to test server
-    const connectionResult = await connectBrowserNodeToServer(page, 'ws://localhost:19000');
+    const connectionResult = await connectBrowserNodeToServer(page, `ws://localhost:${testPort}`);
     
     expect(connectionResult.success).toBe(true);
     expect(connectionResult.peerCount).toBeGreaterThanOrEqual(1);
@@ -52,7 +56,7 @@ test.describe('Real Verity Multi-Node Functionality Tests', () => {
 
   test('should exchange real cubes between browser node and server', async ({ page }) => {
     await initializeVerityInBrowser(page);
-    await connectBrowserNodeToServer(page, 'ws://localhost:19000');
+    await connectBrowserNodeToServer(page, `ws://localhost:${testPort}`);
     
     // Create a cube in the browser node
     const browserCube = await createTestCubeInBrowser(page, 'Browser cube for exchange test');
@@ -93,7 +97,7 @@ test.describe('Real Verity Multi-Node Functionality Tests', () => {
       
       // Connect all browser nodes to the server
       const connectionResults = await Promise.all(
-        pages.map(page => connectBrowserNodeToServer(page, 'ws://localhost:19000'))
+        pages.map(page => connectBrowserNodeToServer(page, `ws://localhost:${testPort}`))
       );
       
       connectionResults.forEach((result, index) => {
@@ -160,8 +164,8 @@ test.describe('Real Verity Multi-Node Functionality Tests', () => {
       
       // Connect both to server
       await Promise.all([
-        connectBrowserNodeToServer(page1, 'ws://localhost:19000'),
-        connectBrowserNodeToServer(page2, 'ws://localhost:19000')
+        connectBrowserNodeToServer(page1, `ws://localhost:${testPort}`),
+        connectBrowserNodeToServer(page2, `ws://localhost:${testPort}`)
       ]);
       
       // Create a cube in node 1
@@ -203,11 +207,11 @@ test.describe('Real Verity Multi-Node Functionality Tests', () => {
     }
   });
 
-  test('should test real network resilience and reconnection', async ({ page }) => {
+  test('should test real network resilience and reconnection', async ({ page }, testInfo) => {
     await initializeVerityInBrowser(page);
     
     // Initial connection
-    const initialConnection = await connectBrowserNodeToServer(page, 'ws://localhost:19000');
+    const initialConnection = await connectBrowserNodeToServer(page, `ws://localhost:${testPort}`);
     expect(initialConnection.success).toBe(true);
     
     const initialStatus = await getBrowserNodeConnectionStatus(page);
@@ -229,11 +233,11 @@ test.describe('Real Verity Multi-Node Functionality Tests', () => {
     console.log('Status after server shutdown:', disconnectedStatus);
     
     // Restart server
-    testServer = await getTestServer(19000);
+    testServer = await getTestServer(testInfo.workerIndex, 19000);
     console.log('Server restarted');
     
     // Try to reconnect
-    const reconnectionResult = await connectBrowserNodeToServer(page, 'ws://localhost:19000');
+    const reconnectionResult = await connectBrowserNodeToServer(page, `ws://localhost:${testPort}`);
     
     // Check final status
     const finalStatus = await getBrowserNodeConnectionStatus(page);
@@ -264,7 +268,7 @@ test.describe('Real Verity Multi-Node Functionality Tests', () => {
       
       // Connect all to server
       await Promise.all(pages.map(page => 
-        connectBrowserNodeToServer(page, 'ws://localhost:19000')
+        connectBrowserNodeToServer(page, `ws://localhost:${testPort}`)
       ));
       
       // Verify all connected
