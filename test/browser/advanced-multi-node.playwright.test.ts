@@ -19,7 +19,7 @@ test.describe('Real Advanced Multi-Node Scenarios', () => {
   });
 
   test.afterAll(async () => {
-    await shutdownTestServer();
+    await shutdownTestServer(19002);
   });
 
   test.afterEach(async ({ page }) => {

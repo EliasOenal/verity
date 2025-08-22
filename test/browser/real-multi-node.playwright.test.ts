@@ -21,7 +21,7 @@ test.describe('Real Verity Multi-Node Functionality Tests', () => {
   });
 
   test.afterAll(async () => {
-    await shutdownTestServer();
+    await shutdownTestServer(19000);
   });
 
   test.afterEach(async ({ page }) => {

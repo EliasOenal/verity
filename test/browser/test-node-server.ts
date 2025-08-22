@@ -121,33 +121,44 @@ export class TestNodeServer {
   }
 }
 
-// Global server instance for sharing between tests
-let globalTestServer: TestNodeServer | null = null;
+// Port-based server management for parallel test execution
+const testServers = new Map<number, TestNodeServer>();
 
 export async function getTestServer(port: number = 19000): Promise<TestNodeServer> {
-  if (!globalTestServer) {
-    globalTestServer = new TestNodeServer(port);
-    await globalTestServer.start();
+  if (!testServers.has(port)) {
+    const server = new TestNodeServer(port);
+    await server.start();
+    testServers.set(port, server);
   }
-  return globalTestServer;
+  return testServers.get(port)!;
 }
 
-export async function shutdownTestServer(): Promise<void> {
-  if (globalTestServer) {
-    await globalTestServer.shutdown();
-    globalTestServer = null;
+export async function shutdownTestServer(port?: number): Promise<void> {
+  if (port !== undefined) {
+    // Shutdown specific server
+    const server = testServers.get(port);
+    if (server) {
+      await server.shutdown();
+      testServers.delete(port);
+    }
+  } else {
+    // Shutdown all servers
+    for (const [serverPort, server] of testServers.entries()) {
+      await server.shutdown();
+      testServers.delete(serverPort);
+    }
   }
 }
 
 // Handle process cleanup
 process.on('exit', () => {
-  if (globalTestServer) {
-    globalTestServer.shutdown().catch(console.error);
+  for (const server of testServers.values()) {
+    server.shutdown().catch(console.error);
   }
 });
 
 process.on('SIGINT', () => {
-  if (globalTestServer) {
-    globalTestServer.shutdown().then(() => process.exit(0)).catch(console.error);
-  }
+  Promise.all(
+    Array.from(testServers.values()).map(server => server.shutdown())
+  ).then(() => process.exit(0)).catch(console.error);
 });

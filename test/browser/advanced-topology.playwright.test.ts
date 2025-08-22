@@ -18,7 +18,7 @@ test.describe('Real Verity Network Topology Tests', () => {
   });
 
   test.afterAll(async () => {
-    await shutdownTestServer();
+    await shutdownTestServer(19001);
   });
 
   test.afterEach(async ({ page }) => {
@@ -239,6 +239,8 @@ test.describe('Real Verity Network Topology Tests', () => {
     // Test network adaptation by adding and removing nodes dynamically
     const initialContexts = await Promise.all(Array(2).fill(0).map(() => browser.newContext()));
     const initialPages = await Promise.all(initialContexts.map(ctx => ctx.newPage()));
+    let additionalContexts: any[] = [];
+    let additionalPages: any[] = [];
     
     try {
       // Phase 1: Start with 2 nodes
@@ -255,8 +257,8 @@ test.describe('Real Verity Network Topology Tests', () => {
       console.log('Phase 1 - Initial network:', { nodes: 2, serverPeers: testServer.getPeerCount() });
       
       // Phase 2: Add 2 more nodes (network growth)
-      const additionalContexts = await Promise.all(Array(2).fill(0).map(() => browser.newContext()));
-      const additionalPages = await Promise.all(additionalContexts.map(ctx => ctx.newPage()));
+      additionalContexts = await Promise.all(Array(2).fill(0).map(() => browser.newContext()));
+      additionalPages = await Promise.all(additionalContexts.map(ctx => ctx.newPage()));
       
       await Promise.all(additionalPages.map(page => initializeVerityInBrowser(page)));
       await Promise.all(
@@ -306,10 +308,10 @@ test.describe('Real Verity Network Topology Tests', () => {
       });
       
     } finally {
-      await Promise.all([...initialPages, ...additionalPages.slice(0, -1)].map(page => 
+      await Promise.all([...initialPages, ...additionalPages].map(page => 
         shutdownBrowserNode(page).catch(() => {}) // Ignore errors for already closed pages
       ));
-      await Promise.all([...initialContexts, additionalContexts[0]].map(ctx => 
+      await Promise.all([...initialContexts, ...additionalContexts].map(ctx => 
         ctx.close().catch(() => {})
       ));
     }
