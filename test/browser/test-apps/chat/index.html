@@ -24,12 +24,7 @@
             </form>
         </div>
         
-        <div class="test-controls">
-            <h3>Test Controls</h3>
-            <button onclick="window.testUtils?.showChatStats()">Show Chat Stats</button>
-            <button onclick="window.testUtils?.clearChat()">Clear Chat</button>
-            <button onclick="window.testUtils?.exportChatHistory()">Export History</button>
-        </div>
+
         
         <div id="output" class="output"></div>
     </div>
@@ -83,49 +78,6 @@
                     if (output) {
                         output.innerHTML += `<p>Failed to send test message: ${result.error}</p>`;
                     }
-                }
-            },
-            
-            showChatStats: async function() {
-                if (!window.verity) {
-                    console.error('Verity not available');
-                    return;
-                }
-                
-                const history = window.verity.testUtils.getChatHistory();
-                const cubeCount = await window.verity.cubeStore.getNumberOfStoredCubes();
-                
-                const output = document.getElementById('output');
-                if (output) {
-                    output.innerHTML += `<p>Chat Stats - Messages: ${history.length}, Total Cubes: ${cubeCount}</p>`;
-                }
-            },
-            
-            clearChat: function() {
-                if (!window.verity) {
-                    console.error('Verity not available');
-                    return;
-                }
-                
-                window.verity.testUtils.clearChat();
-                this.updateCounts();
-                
-                const output = document.getElementById('output');
-                if (output) {
-                    output.innerHTML += '<p>Chat history cleared</p>';
-                }
-            },
-            
-            exportChatHistory: function() {
-                if (!window.verity) {
-                    console.error('Verity not available');
-                    return;
-                }
-                
-                const history = window.verity.testUtils.getChatHistory();
-                const output = document.getElementById('output');
-                if (output) {
-                    output.innerHTML += `<p>Chat History: ${JSON.stringify(history, null, 2)}</p>`;
                 }
             },
             
