@@ -59,6 +59,35 @@ h1 {
     color: #0c5460;
 }
 
+.chat-messages {
+    height: 250px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 15px;
+    background-color: white;
+}
+
+.chat-message {
+    margin: 8px 0;
+    padding: 8px;
+    border-radius: 5px;
+    background-color: #f8f9fa;
+    border-left: 3px solid #6c757d;
+}
+
+.chat-message.peer-message {
+    background-color: #e8f5e8;
+    border-left: 3px solid #28a745;
+}
+
+.peer-indicator {
+    color: #28a745;
+    font-weight: bold;
+    font-size: 12px;
+}
+
 .messages {
     height: 250px;
     overflow-y: auto;
