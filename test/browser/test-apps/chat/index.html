@@ -31,7 +31,6 @@
                 <button type="submit">Connect to Peer</button>
                 <button type="button" onclick="window.testUtils?.disconnectPeers()">Disconnect All</button>
             </form>
-            <div id="peerStatus" class="peer-status"></div>
         </div>
 
         
@@ -79,27 +78,18 @@
                     if (peerAddress && window.verity) {
                         try {
                             const result = await window.verity.testUtils.connectToPeer(peerAddress);
-                            const peerStatus = document.getElementById('peerStatus');
                             if (result.success) {
                                 peerInput.value = ''; // Clear input
-                                if (peerStatus) {
-                                    peerStatus.innerHTML = `<p style="color: green;">Connected to ${peerAddress}. Known peers: ${result.knownPeers}, Active: ${result.activePeers}</p>`;
-                                }
+                                console.log(`Connected to ${peerAddress}. Known peers: ${result.knownPeers}, Active: ${result.activePeers}`);
                                 // Update counts
                                 if (window.testUtils && window.testUtils.updateCounts) {
                                     await window.testUtils.updateCounts();
                                 }
                             } else {
-                                if (peerStatus) {
-                                    peerStatus.innerHTML = `<p style="color: red;">Failed to connect: ${result.error}</p>`;
-                                }
+                                console.error(`Failed to connect: ${result.error}`);
                             }
                         } catch (error) {
                             console.error('Error connecting to peer:', error);
-                            const peerStatus = document.getElementById('peerStatus');
-                            if (peerStatus) {
-                                peerStatus.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
-                            }
                         }
                     }
                 });
@@ -154,52 +144,22 @@
                 
                 try {
                     const result = await window.verity.testUtils.disconnectFromPeers();
-                    const peerStatus = document.getElementById('peerStatus');
                     
                     if (result.success) {
-                        if (peerStatus) {
-                            peerStatus.innerHTML = `<p style="color: blue;">${result.message}</p>`;
-                        }
                         // Update counts
                         this.updateCounts();
                         console.log('Disconnected from all peers');
                     } else {
-                        if (peerStatus) {
-                            peerStatus.innerHTML = `<p style="color: red;">Failed to disconnect: ${result.error}</p>`;
-                        }
+                        console.error(`Failed to disconnect: ${result.error}`);
                     }
                 } catch (error) {
                     console.error('Error disconnecting from peers:', error);
-                    const peerStatus = document.getElementById('peerStatus');
-                    if (peerStatus) {
-                        peerStatus.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
-                    }
                 }
             },
             
             updatePeerConnectionStatus: function() {
-                if (!window.verity) return;
-                
-                try {
-                    const networkInfo = window.verity.testUtils.getNetworkInfo();
-                    const peerStatus = document.getElementById('peerStatus');
-                    
-                    if (peerStatus && networkInfo) {
-                        const knownPeers = networkInfo.knownPeers || 0;
-                        const activePeers = networkInfo.activePeers || 0;
-                        
-                        if (activePeers > 0) {
-                            peerStatus.innerHTML = `<p style="color: green;">Connected to peers. Known peers: ${knownPeers}, Active: ${activePeers}</p>`;
-                        } else if (knownPeers > 0) {
-                            peerStatus.innerHTML = `<p style="color: orange;">Connecting to peers... Known peers: ${knownPeers}, Active: ${activePeers}</p>`;
-                        } else {
-                            peerStatus.innerHTML = `<p style="color: gray;">No peer connections. Ready for manual connection.</p>`;
-                        }
-                    }
-                } catch (error) {
-                    // Ignore errors in peer status update - this is just for UI display
-                    console.log('Error updating peer connection status (non-critical):', error.message);
-                }
+                // This function is no longer needed since peer status is shown in the main info section
+                // All peer status updates are handled by the main status update interval
             }
         };
         

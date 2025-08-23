@@ -428,18 +428,26 @@ async function startChatRoomSubscription(): Promise<void> {
     // Load local history first to populate interface immediately
     await loadLocalChatHistory();
     
-    // Enable live subscription for future messages only
+    // 1) Enable live subscription for future messages
     let futureCubes: AsyncGenerator<Cube> | undefined;
     if ('subscribeNotifications' in verityNode.cubeRetriever) {
       futureCubes = (verityNode.cubeRetriever as CubeRetriever)
         .subscribeNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube });
-      
-      // Only subscribe to future notifications - don't fetch history from network
-      currentChatRoom.subscription = mergeAsyncGenerators(futureCubes);
-      
-      // Start processing future messages only
-      processRoomMessageStream();
     }
+
+    // 2) Also fetch recent history from network peers to get cubes we don't have locally
+    const retrieverHistory: AsyncGenerator<Cube> = (verityNode.cubeRetriever as CubeRetriever)
+      .getNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
+
+    // Merge streams: future notifications + network history retrieval
+    currentChatRoom.subscription = futureCubes
+      ? mergeAsyncGenerators(futureCubes, retrieverHistory)
+      : mergeAsyncGenerators(retrieverHistory);
+      
+    // Start processing both future and historical messages from network
+    processRoomMessageStream();
+    
+    console.log('Started P2P subscription with network history retrieval');
   } catch (error) {
     console.error(`Error starting P2P subscription: ${error}`);
   }
@@ -498,7 +506,7 @@ async function loadLocalChatHistory(): Promise<void> {
 }
 
 /**
- * Process incoming chat cubes from network peers (future messages only)
+ * Process incoming chat cubes from network peers (both historical and future messages)
  */
 async function processRoomMessageStream(): Promise<void> {
   if (!currentChatRoom?.subscription || currentChatRoom.isProcessingMessages) {
@@ -506,7 +514,7 @@ async function processRoomMessageStream(): Promise<void> {
   }
 
   currentChatRoom.isProcessingMessages = true;
-  console.log('Started processing P2P message stream (future messages only)');
+  console.log('Started processing P2P message stream (historical + future messages)');
 
   try {
     for await (const cube of currentChatRoom.subscription) {
