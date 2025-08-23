@@ -73,6 +73,14 @@ export interface CubeSubscribeOptions extends CubeRequestOptions {
   thisIsARenewal?: boolean;
 
   /**
+   * Defines which remote nodes we will try to subscribe with.
+   * Currently only supports filtering by node type, or `any`.
+   * @default `any`
+   */
+  // TODO low prio: allow passing a list of peers
+  subscriptionProviders?: NodeType | 'any';
+
+  /**
    * Do not set this property manually.
    * It will automatically set for you based on whether you call
    * subscribeCube() or subscribeNotifications().
@@ -255,6 +263,7 @@ export class RequestScheduler implements Shuttable {
     options.timeout ??= this.options.requestTimeout;
     options.type ??= MessageClass.SubscribeCube;
     options.renewSubscriptionsBeforeExpiryMillis ??= Settings.RENEW_SUBCRIPTION_BEFORE_EXPIRY_MILLIS;
+    options.subscriptionProviders ??= 'any';
     const subMap = options.type === MessageClass.SubscribeNotifications?
       this.subscribedNotifications : this.subscribedCubes;
 
@@ -266,64 +275,70 @@ export class RequestScheduler implements Shuttable {
       return undefined;  // TODO why undefined?!?!?!? return existing sub!
     }
 
-    // Subscribe to connected full nodes only
-    // Get all online peers that are full nodes
-    const fullNodePeers = this.networkManager.onlinePeers.filter(peer => 
-        peer.remoteNodeType === NodeType.Full
-    );
-
-    if (fullNodePeers.length === 0) {
-      logger.warn(`RequestScheduler.subscribeCube(): Could not subscribe to ${options.type === MessageClass.SubscribeCube ? 'Cube' : options.type === MessageClass.SubscribeNotifications ? 'Notification' : 'unknown sub type ' + options.type + ' '} ${key.keyString} because no full nodes are available.`);
+    // Get all eligible online peers
+    let eligiblePeers: NetworkPeerIf[];
+    if (options.subscriptionProviders === 'any') {
+      eligiblePeers = this.networkManager.onlinePeers;
+    } else if (options.subscriptionProviders in NodeType) {
+      eligiblePeers = this.networkManager.onlinePeers.filter(peer =>
+          peer.remoteNodeType === options.subscriptionProviders
+      );
+    } else {
+      logger.warn(`RequestScheduler.subscribeCube(): Unknown subscription provider selection: ${options.subscriptionProviders}`);
       return undefined;
     }
 
-    // Subscribe to ALL connected full nodes for resilience
-    logger.trace(`RequestScheduler.subscribeCube(): Attempting to subscribe to ${fullNodePeers.length} full nodes for ${key.keyString}`);
-    
-    // Send subscription requests to all full nodes
+    if (eligiblePeers.length === 0) {
+      logger.warn(`RequestScheduler.subscribeCube(): Could not subscribe to ${options.type === MessageClass.SubscribeCube ? 'Cube' : options.type === MessageClass.SubscribeNotifications ? 'Notification' : 'unknown sub type ' + options.type + ' '} ${key.keyString} because no eligible nodes are available.`);
+      return undefined;
+    }
+
+    // Subscribe to ALL connected eligible nodes for resilience
+    // TODO parametrise limit
+    logger.trace(`RequestScheduler.subscribeCube(): Attempting to subscribe to ${key.keyString} with ${eligiblePeers.length} peers`);
     const pendingRequests: Map<NetworkPeerIf, SubscriptionRequest> = new Map();
-    for (const peer of fullNodePeers) {
+    for (const peer of eligiblePeers) {
       peer.sendSubscribeCube([key.binaryKey as CubeKey], options.type);
-      
+
       // Create a unique request key for each peer to avoid conflicts
       const peerRequestKey = `${peer.idString}-${key.keyString}`;
       const req = new SubscriptionRequest(Settings.NETWORK_TIMEOUT, { key: key.binaryKey });
       this.pendingSubscriptionConfirmations.set(peerRequestKey, req);
       pendingRequests.set(peer, req);
     }
-    
+
     // Wait for all responses (or timeout)
     const responses = await Promise.allSettled(Array.from(pendingRequests.values()).map(req => req.promise));
-    
+
     // Process responses and collect successful subscriptions
     const successfulPeers: NetworkPeerIf[] = [];
     const successfulResponses: SubscriptionConfirmationMessage[] = [];
     let index = 0;
-    
-    for (const peer of fullNodePeers) {
+
+    for (const peer of eligiblePeers) {
       const response = responses[index];
       index++;
-      
+
       // Clean up the pending request
       const peerRequestKey = `${peer.idString}-${key.keyString}`;
       this.pendingSubscriptionConfirmations.delete(peerRequestKey);
-      
+
       if (response.status === 'fulfilled' && response.value) {
         const subscriptionResponse = response.value;
-        
+
         // Check if subscription was confirmed
         if (subscriptionResponse.responseCode === SubscriptionResponseCode.SubscriptionConfirmed &&
             subscriptionResponse.subscriptionDuration &&
             subscriptionResponse.requestedKeyBlob.equals(key.binaryKey)) {
-          
+
           // For cube subscriptions, check if we should try to get updates
           // Note: We no longer automatically fetch cubes during subscription.
           // Callers should explicitly call requestCube() if they want current data.
           if (options.type === MessageClass.SubscribeCube) {
             logger.trace(`RequestScheduler.subscribeCube(): Successfully subscribed to ${key.keyString} on peer ${peer.toString()}, subscription will receive future updates`);
           }
-          
-          // Accept subscription from any willing full node for multi-node resilience
+
+          // Accept subscription from any willing node for multi-node resilience
           successfulPeers.push(peer);
           successfulResponses.push(subscriptionResponse);
           logger.trace(`RequestScheduler.subscribeCube(): Successfully subscribed to ${key.keyString} on peer ${peer.toString()}`);
@@ -334,14 +349,14 @@ export class RequestScheduler implements Shuttable {
         logger.warn(`RequestScheduler.subscribeCube(): No response or timeout from peer ${peer.toString()} for subscription to ${key.keyString}`);
       }
     }
-    
+
     // Check if at least one subscription succeeded
     if (successfulPeers.length === 0) {
       logger.warn(`RequestScheduler.subscribeCube(): All subscription attempts failed for ${key.keyString}`);
       return undefined;
     }
-    
-    logger.trace(`RequestScheduler.subscribeCube(): Successfully subscribed to ${key.keyString} on ${successfulPeers.length} full nodes`);
+
+    logger.trace(`RequestScheduler.subscribeCube(): Successfully subscribed to ${key.keyString} with ${successfulPeers.length} peers`);
 
     // For notification subscriptions, whitelist all successful peers to accept unsolicited KeyResponse messages
     // This is needed because notification cubes have different keys than the notification key subscribed to
@@ -434,7 +449,7 @@ export class RequestScheduler implements Shuttable {
     // fetch the pending request using peer-specific key if peer is provided
     const keyBlob = keyVariants(msg.requestedKeyBlob);
     let requestKey = keyBlob.keyString;
-    
+
     // Try peer-specific key first if we have peer information
     if (fromPeer) {
       const peerSpecificKey = `${fromPeer.idString}-${keyBlob.keyString}`;
@@ -442,7 +457,7 @@ export class RequestScheduler implements Shuttable {
         requestKey = peerSpecificKey;
       }
     }
-    
+
     const req: SubscriptionRequest = this.pendingSubscriptionConfirmations.get(requestKey);
     if (req !== undefined) {
       // mark the request fulfilled
