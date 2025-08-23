@@ -43,7 +43,7 @@ describe('Cube subscription e2e tests', () => {
       privateKey = Buffer.from(keyPair.privateKey);
 
       // prepare a test network
-      net = await LineShapedNetwork.Create(61301, 61302, {
+      net = await LineShapedNetwork.Create(61401, 61402, {
         cubeSubscriptionPeriod: 1000,
       });
 
@@ -227,7 +227,7 @@ describe('Cube subscription e2e tests', () => {
     it('will not yield missed updates automatically (must be explicitly requested)', () => {
       // The subscription should not have automatically delivered the missed update
       expect(containsCube(received, key, missedUpdateContent)).toBe(false);
-      
+
       // To get the missed update, you need to explicitly request it
       // This demonstrates the new behavior where subscription and requests are separate
     });
