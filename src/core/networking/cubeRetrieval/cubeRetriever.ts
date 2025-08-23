@@ -155,7 +155,8 @@ export class CubeRetriever implements CubeRetrievalInterface<CubeRequestOptions>
     });
 
     // Fire a single network request for new notifications
-    const req = this.requestScheduler.requestNotifications(recipient);
+    // Use direct cube request mode for light nodes to ensure proper notification retrieval
+    const req = this.requestScheduler.requestNotifications(recipient, 0, 5000, true);
     req.then(async () => {
       // HACKHACK: Wait a few more millis before terminating.
       // The reason for this is that RequestScheduler resolves it's requestNotifications()

@@ -79,7 +79,7 @@ async function initializeChatTest(): Promise<void> {
       announceToTorrentTrackers: false, // Not supported in browser
       networkTimeoutMillis: 5000, // Reasonable timeout for testing
       autoConnect: false, // DO NOT auto-connect - manual connections only
-      // Use WebRTC transport for browser compatibility when connecting manually
+      // Use WebRTC transport for browser P2P compatibility - WebSocket connections handled manually
       transports: new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
       initialPeers: [], // No initial peers - completely offline by default
       useRelaying: false, // Disable relaying for cleaner testing
@@ -435,17 +435,27 @@ async function startChatRoomSubscription(): Promise<void> {
         .subscribeNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube });
     }
 
-    // 2) Also fetch recent history from network peers to get cubes we don't have locally
-    const retrieverHistory: AsyncGenerator<Cube> = (verityNode.cubeRetriever as CubeRetriever)
-      .getNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
+    // 2) Wait a moment for peer connection to be fully established before requesting history
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Merge streams: future notifications + network history retrieval
-    currentChatRoom.subscription = futureCubes
-      ? mergeAsyncGenerators(futureCubes, retrieverHistory)
-      : mergeAsyncGenerators(retrieverHistory);
-      
-    // Start processing both future and historical messages from network
-    processRoomMessageStream();
+    // 3) Make a single network history request with proper termination
+    try {
+      console.log('Requesting historical cubes from network peers...');
+      const retrieverHistory: AsyncGenerator<Cube> = (verityNode.cubeRetriever as CubeRetriever)
+        .getNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
+
+      // Process network history separately and with limits to prevent infinite loops
+      processNetworkHistoryOnce(retrieverHistory);
+    } catch (historyError) {
+      console.warn('Network history retrieval failed (non-critical):', historyError);
+    }
+
+    // 4) Set up future subscription only (without history to avoid duplicate processing)
+    if (futureCubes) {
+      currentChatRoom.subscription = futureCubes;
+      // Start processing future messages only
+      processRoomMessageStream();
+    }
     
     console.log('Started P2P subscription with network history retrieval');
   } catch (error) {
@@ -502,6 +512,88 @@ async function loadLocalChatHistory(): Promise<void> {
     console.log(`Loaded ${currentChatRoom.messages.length} local messages`);
   } catch (error) {
     console.error(`Error loading local history: ${error}`);
+  }
+}
+
+/**
+ * Process network history retrieval once with proper termination to prevent infinite loops
+ */
+async function processNetworkHistoryOnce(historyGenerator: AsyncGenerator<Cube>): Promise<void> {
+  if (!currentChatRoom) {
+    return;
+  }
+
+  console.log('Processing network history for historical messages...');
+  let processedCount = 0;
+  const maxHistoryItems = 100; // Limit to prevent infinite loops
+  const timeoutMs = 10000; // 10 second timeout
+
+  try {
+    const historyPromise = (async () => {
+      for await (const cube of historyGenerator) {
+        if (!cube || !currentChatRoom) break;
+        
+        try {
+          const cubeKey = await cube.getKeyString();
+          
+          // Skip if we've already processed this cube
+          if (currentChatRoom.processedCubeKeys.has(cubeKey)) {
+            console.log(`Skipping already processed historical cube: ${cubeKey.substring(0, 8)}...`);
+            continue;
+          }
+          
+          // Parse chat message from cube
+          const chatMessage = await parseChatCubeToMessage(cube);
+          if (chatMessage) {
+            chatMessage.cubeKey = cubeKey;
+            
+            // Mark as processed first to prevent any race conditions
+            currentChatRoom.processedCubeKeys.add(cubeKey);
+            
+            // Add to message history
+            currentChatRoom.messages.push(chatMessage);
+            
+            // Sort messages by timestamp to maintain order
+            currentChatRoom.messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+            
+            // Update UI
+            updateChatMessagesUI();
+            
+            console.log(`Retrieved historical message from network: ${chatMessage.sender}: ${chatMessage.text}`);
+            processedCount++;
+          }
+
+          // Prevent infinite loops by limiting number of processed items
+          if (processedCount >= maxHistoryItems) {
+            console.log(`Reached maximum history items (${maxHistoryItems}), stopping history processing`);
+            break;
+          }
+        } catch (error) {
+          console.warn(`Error processing historical cube: ${error}`);
+        }
+      }
+    })();
+
+    // Race against timeout to prevent hanging
+    await Promise.race([
+      historyPromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('History timeout')), timeoutMs))
+    ]);
+
+    console.log(`Network history processing completed. Retrieved ${processedCount} historical messages.`);
+  } catch (error) {
+    if (error.message === 'History timeout') {
+      console.log(`Network history processing timed out after ${timeoutMs}ms. Retrieved ${processedCount} messages.`);
+    } else {
+      console.warn(`Network history processing error: ${error}`);
+    }
+  } finally {
+    // Ensure the generator is properly closed
+    try {
+      await historyGenerator.return(undefined);
+    } catch (cleanupError) {
+      console.warn('Error cleaning up history generator:', cleanupError);
+    }
   }
 }
 
