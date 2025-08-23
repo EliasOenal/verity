@@ -52,7 +52,7 @@ async function initializeChatTest(): Promise<void> {
   // Wait for libsodium to be ready
   await sodium.ready;
 
-  const messages: ChatMessage[] = [];
+  const messages: ChatMessage[] = []; // Kept for backward compatibility only
   
   // Create a default chat room for testing peer-to-peer connectivity
   const defaultRoomName = 'test-chat-room';
@@ -70,27 +70,27 @@ async function initializeChatTest(): Promise<void> {
   };
 
   try {
-    // Create a real VerityNode with enhanced networking for better peer connectivity
+    // Create a real VerityNode for offline testing - no auto-connect to public network
     verityNode = new VerityNode({
       ...testCciOptions,
       lightNode: false,  // Full node for chat capabilities
       inMemory: true,    // Fast in-memory storage for testing
       requiredDifficulty: 0,  // No proof-of-work for testing
       announceToTorrentTrackers: false, // Not supported in browser
-      networkTimeoutMillis: 10000, // Longer timeout for better connectivity
-      autoConnect: true, // Enable auto-connection to peers
-      // Use WebRTC transport like demo app for better browser connectivity
+      networkTimeoutMillis: 5000, // Reasonable timeout for testing
+      autoConnect: false, // DO NOT auto-connect - manual connections only
+      // Use WebRTC transport for browser compatibility when connecting manually
       transports: new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
-      initialPeers: defaultInitialPeers, // Connect to default tracker peers
-      useRelaying: true, // Enable relaying for better connectivity
+      initialPeers: [], // No initial peers - completely offline by default
+      useRelaying: false, // Disable relaying for cleaner testing
     });
 
     await verityNode.readyPromise;
-    console.log('VerityNode (chat) initialized successfully');
+    console.log('VerityNode (chat) initialized successfully - OFFLINE MODE');
 
-    // Start peer-to-peer chat subscription for receiving messages from other nodes
-    await startChatRoomSubscription();
-    console.log('Started peer-to-peer chat subscription');
+    // DO NOT start peer-to-peer subscription automatically
+    // Users must manually connect to peers first
+    console.log('Chat test ready - use manual peer connection to test P2P functionality');
 
     // Create Verity interface that Playwright tests expect
     (window as any).verity = {
@@ -118,44 +118,58 @@ async function initializeChatTest(): Promise<void> {
             // Add cube to the cube store
             await verityNode.cubeStore.addCube(chatCube);
             
+            const cubeKey = await chatCube.getKeyString();
+            message.cubeKey = cubeKey;
+            
+            // Mark this cube as processed to avoid duplication when subscription picks it up
+            if (currentChatRoom) {
+              currentChatRoom.processedCubeKeys.add(cubeKey);
+            }
+            
             // Broadcast cube to connected peers for testing peer-to-peer exchange
+            const knownPeers = verityNode.peerDB.peersVerified.size + verityNode.peerDB.peersExchangeable.size;
             try {
               const cubeInfo = await chatCube.getCubeInfo();
               verityNode.networkManager.broadcastKey([cubeInfo]);
-              console.log(`Broadcasted cube to ${verityNode.peerDB.peersVerified.size + verityNode.peerDB.peersExchangeable.size} known peers`);
+              console.log(`Broadcasted cube to ${knownPeers} known peers`);
             } catch (broadcastError) {
               console.warn('Failed to broadcast cube to peers:', broadcastError);
               // Continue - local storage still works
             }
             
-            // Add to local message history
-            messages.push(message);
+            // Add to local message history immediately for responsive UI
+            if (currentChatRoom) {
+              currentChatRoom.messages.push(message);
+              // Sort messages by timestamp
+              currentChatRoom.messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+            }
             
             // Update UI if available
             updateChatMessagesUI();
             
-            console.log(`Created chat cube with key: ${await chatCube.getKeyString()}`);
+            console.log(`Created chat cube with key: ${cubeKey}`);
             
             return {
               success: true,
               message: message,
-              cubeKey: await chatCube.getKeyString(),
-              totalMessages: messages.length
+              cubeKey: cubeKey,
+              totalMessages: currentChatRoom?.messages.length || 0,
+              knownPeers: knownPeers
             };
           } catch (error) {
             console.error('Error creating chat cube:', error);
             return {
               success: false,
               error: (error as Error).message,
-              totalMessages: messages.length
+              totalMessages: currentChatRoom?.messages.length || 0
             };
           }
         },
         
         getMessages: () => {
           return {
-            messages: messages,
-            count: messages.length
+            messages: currentChatRoom?.messages || [],
+            count: currentChatRoom?.messages.length || 0
           };
         },
         
@@ -172,7 +186,7 @@ async function initializeChatTest(): Promise<void> {
 
         // Get chat history and network information
         getChatHistory: () => {
-          return currentChatRoom?.messages || messages;
+          return currentChatRoom?.messages || [];
         },
 
         sendTestMessage: async () => {
@@ -187,9 +201,98 @@ async function initializeChatTest(): Promise<void> {
             activePeers: verityNode.peerDB.peersExchangeable.size,
             networkManager: verityNode.networkManager.constructor.name
           };
+        },
+
+        // Manual peer connection for testing
+        connectToPeer: async (peerAddress: string) => {
+          if (!verityNode) {
+            return { success: false, error: 'VerityNode not initialized' };
+          }
+          
+          try {
+            console.log(`Attempting to connect to peer: ${peerAddress}`);
+            
+            // Parse peer address and create Peer object
+            let peer: Peer;
+            if (peerAddress.startsWith('ws://') || peerAddress.startsWith('wss://')) {
+              // WebSocket address
+              peer = new Peer(new WebSocketAddress(peerAddress));
+            } else {
+              // Try to parse as generic address
+              peer = new Peer(new WebSocketAddress(peerAddress));
+            }
+            
+            // Add peer to database using learnPeer and connect using NetworkManager
+            verityNode.peerDB.learnPeer(peer);
+            const networkPeer = verityNode.networkManager.connect(peer);
+            
+            // Start chat subscription after successful connection
+            if (!currentChatRoom?.subscription) {
+              await startChatRoomSubscription();
+              console.log('Started P2P chat subscription after peer connection');
+            }
+            
+            const knownPeers = verityNode.peerDB.peersVerified.size + verityNode.peerDB.peersExchangeable.size;
+            const activePeers = verityNode.peerDB.peersExchangeable.size;
+            
+            return {
+              success: true,
+              peerAddress: peerAddress,
+              knownPeers: knownPeers,
+              activePeers: activePeers
+            };
+          } catch (error) {
+            console.error('Error connecting to peer:', error);
+            return {
+              success: false,
+              error: (error as Error).message
+            };
+          }
+        },
+
+        // Disconnect from all peers (return to offline mode)
+        disconnectFromPeers: async () => {
+          if (!verityNode) {
+            return { success: false, error: 'VerityNode not initialized' };
+          }
+          
+          try {
+            console.log('Disconnecting from all peers');
+            
+            // Stop chat subscription
+            if (currentChatRoom?.subscription) {
+              currentChatRoom.subscription.return(undefined);
+              currentChatRoom.subscription = null;
+              currentChatRoom.isProcessingMessages = false;
+            }
+            
+            // Close all network peers
+            for (const networkPeer of verityNode.networkManager.onlinePeers) {
+              verityNode.networkManager.handlePeerClosed(networkPeer);
+            }
+            
+            // Clear peer database
+            verityNode.peerDB.peersExchangeable.clear();
+            verityNode.peerDB.peersVerified.clear();
+            verityNode.peerDB.peersUnverified.clear();
+            
+            return {
+              success: true,
+              message: 'Disconnected from all peers - back to offline mode'
+            };
+          } catch (error) {
+            console.error('Error disconnecting from peers:', error);
+            return {
+              success: false,
+              error: (error as Error).message
+            };
+          }
         }
       }
     };
+
+    // Don't load local chat history on startup - only when connecting to peers
+    // This prevents seeing old messages from previous test runs
 
     // Update UI
     const statusEl = document.getElementById('status');
@@ -206,16 +309,16 @@ async function initializeChatTest(): Promise<void> {
       
       nodeInfoEl.innerHTML = `
         <h3>Chat Test Information</h3>
-        <p><strong>Status:</strong> Ready with P2P Networking</p>
-        <p><strong>Type:</strong> Chat Test with WebRTC Connectivity</p>
+        <p><strong>Status:</strong> Ready - OFFLINE MODE</p>
+        <p><strong>Type:</strong> Chat Test (Manual Peer Connection)</p>
         <p><strong>Chat Room:</strong> ${currentChatRoom.name}</p>
         <p><strong>Node ID:</strong> chat-${Date.now()}</p>
         <p><strong>Messages:</strong> <span id="messageCount">0</span></p>
         <p><strong>Cubes:</strong> <span id="cubeCount">${cubeCount}</span></p>
         <p><strong>Known Peers:</strong> <span id="knownPeersCount">${knownPeers}</span></p>
         <p><strong>Active Peers:</strong> <span id="activePeersCount">${activePeers}</span></p>
-        <p><strong>Network Status:</strong> <span id="networkStatus">Connecting...</span></p>
-        <p><strong>P2P Subscription:</strong> <span id="subscriptionStatus">Active</span></p>
+        <p><strong>Network Status:</strong> <span id="networkStatus">Offline</span></p>
+        <p><strong>P2P Subscription:</strong> <span id="subscriptionStatus">Inactive</span></p>
         <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
         <p><strong>Test Optimizations:</strong> Active</p>
       `;
@@ -247,7 +350,7 @@ async function initializeChatTest(): Promise<void> {
           }
           
           if (subscriptionStatusEl) {
-            if (currentChatRoom?.subscription && !currentChatRoom.isProcessingMessages) {
+            if (currentChatRoom?.subscription && updatedActivePeers > 0) {
               subscriptionStatusEl.textContent = 'Active';
               subscriptionStatusEl.style.color = 'green';
             } else if (currentChatRoom?.isProcessingMessages) {
@@ -301,6 +404,7 @@ if (isBrowser) {
 
 /**
  * Start subscription to receive chat messages from other peers
+ * Only call this after manually connecting to peers
  */
 async function startChatRoomSubscription(): Promise<void> {
   if (!verityNode || !currentChatRoom || currentChatRoom.subscription) {
@@ -310,42 +414,44 @@ async function startChatRoomSubscription(): Promise<void> {
   console.log(`Starting P2P subscription for chat room: ${currentChatRoom.name}`);
   
   try {
-    // Enable live subscription for future messages
+    // Load local history first to populate interface immediately
+    await loadLocalChatHistory();
+    
+    // Enable live subscription for future messages only
     let futureCubes: AsyncGenerator<Cube> | undefined;
     if ('subscribeNotifications' in verityNode.cubeRetriever) {
       futureCubes = (verityNode.cubeRetriever as CubeRetriever)
         .subscribeNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube });
+      
+      // Only subscribe to future notifications - don't fetch history from network
+      currentChatRoom.subscription = mergeAsyncGenerators(futureCubes);
+      
+      // Start processing future messages only
+      processRoomMessageStream();
     }
-
-    // Fetch recent history from other peers
-    const retrieverHistory: AsyncGenerator<Cube> = (verityNode.cubeRetriever as CubeRetriever)
-      .getNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
-
-    // Merge streams: future notifications + existing history from peers
-    currentChatRoom.subscription = futureCubes
-      ? mergeAsyncGenerators(futureCubes, retrieverHistory)
-      : mergeAsyncGenerators(retrieverHistory);
-
-    // Start processing received cubes from peers
-    processRoomMessageStream();
   } catch (error) {
     console.error(`Error starting P2P subscription: ${error}`);
   }
 }
 
 /**
- * Process incoming chat cubes from other peers
+ * Load chat history from local storage only (no network fetch)
  */
-async function processRoomMessageStream(): Promise<void> {
-  if (!currentChatRoom?.subscription || currentChatRoom.isProcessingMessages) {
+async function loadLocalChatHistory(): Promise<void> {
+  if (!verityNode || !currentChatRoom) {
     return;
   }
 
-  currentChatRoom.isProcessingMessages = true;
-  console.log('Started processing P2P message stream');
-
+  console.log(`Loading local chat history for room: ${currentChatRoom.name}`);
+  
   try {
-    for await (const cube of currentChatRoom.subscription) {
+    // Get messages from the local store only
+    const localCubes: AsyncGenerator<Cube> = 
+      verityNode.cubeStore.getNotifications(currentChatRoom.notificationKey, { 
+        format: RetrievalFormat.Cube
+      }) as AsyncGenerator<Cube>;
+
+    for await (const cube of localCubes) {
       try {
         const cubeKey = await cube.getKeyString();
         
@@ -354,7 +460,7 @@ async function processRoomMessageStream(): Promise<void> {
           continue;
         }
         
-        // Parse chat message from cube
+        // Parse chat message from local cube
         const chatMessage = await parseChatCubeToMessage(cube);
         if (chatMessage) {
           chatMessage.cubeKey = cubeKey;
@@ -362,6 +468,59 @@ async function processRoomMessageStream(): Promise<void> {
           // Add to message history
           currentChatRoom.messages.push(chatMessage);
           currentChatRoom.processedCubeKeys.add(cubeKey);
+        }
+      } catch (error) {
+        console.warn(`Error processing local cube: ${error}`);
+      }
+    }
+    
+    // Sort messages by timestamp
+    currentChatRoom.messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    
+    // Update UI
+    updateChatMessagesUI();
+    
+    console.log(`Loaded ${currentChatRoom.messages.length} local messages`);
+  } catch (error) {
+    console.error(`Error loading local history: ${error}`);
+  }
+}
+
+/**
+ * Process incoming chat cubes from network peers (future messages only)
+ */
+async function processRoomMessageStream(): Promise<void> {
+  if (!currentChatRoom?.subscription || currentChatRoom.isProcessingMessages) {
+    return;
+  }
+
+  currentChatRoom.isProcessingMessages = true;
+  console.log('Started processing P2P message stream (future messages only)');
+
+  try {
+    for await (const cube of currentChatRoom.subscription) {
+      try {
+        const cubeKey = await cube.getKeyString();
+        
+        // Skip if we've already processed this cube (avoid duplicates)
+        if (currentChatRoom.processedCubeKeys.has(cubeKey)) {
+          console.log(`Skipping duplicate cube: ${cubeKey}`);
+          continue;
+        }
+        
+        // Parse chat message from cube
+        const chatMessage = await parseChatCubeToMessage(cube);
+        if (chatMessage) {
+          chatMessage.cubeKey = cubeKey;
+          
+          // Mark as processed first to prevent any race conditions
+          currentChatRoom.processedCubeKeys.add(cubeKey);
+          
+          // Add to message history
+          currentChatRoom.messages.push(chatMessage);
+          
+          // Sort messages by timestamp to maintain order
+          currentChatRoom.messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
           
           // Update UI
           updateChatMessagesUI();
@@ -447,19 +606,33 @@ function updateChatMessagesUI(): void {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'chat-message';
     
-    const isFromPeer = message.cubeKey && !message.sender.includes('test'); // Simple heuristic
+    // Improved logic to determine if message is from a peer
+    const isFromLocalUser = message.sender.includes('test') || message.sender === 'testBot';
+    const isFromPeer = message.cubeKey && !isFromLocalUser;
+    
     if (isFromPeer) {
       messageDiv.classList.add('peer-message');
+    } else {
+      messageDiv.classList.add('local-message');
     }
+    
+    const messageTime = new Date(message.timestamp).toLocaleTimeString();
     
     messageDiv.innerHTML = `
       <strong>${message.sender}:</strong> ${message.text} 
-      <em>(${message.timestamp})</em>
-      ${isFromPeer ? ' <span class="peer-indicator">[from peer]</span>' : ''}
+      <em>(${messageTime})</em>
+      ${isFromPeer ? ' <span class="peer-indicator" style="color: green; font-weight: bold;">[from peer]</span>' : ''}
+      ${message.cubeKey ? ` <span class="cube-key" style="font-size: 0.8em; color: gray;">[${message.cubeKey.substring(0, 8)}...]</span>` : ''}
     `;
     chatBox.appendChild(messageDiv);
   }
   
   // Scroll to bottom
   chatBox.scrollTop = chatBox.scrollHeight;
+  
+  // Update message count in the UI
+  const messageCountEl = document.getElementById('messageCount');
+  if (messageCountEl) {
+    messageCountEl.textContent = currentChatRoom.messages.length.toString();
+  }
 }

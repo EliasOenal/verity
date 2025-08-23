@@ -15,7 +15,6 @@
         <div class="chat-interface">
             <h3>Chat Interface</h3>
             <div id="chatMessages" class="chat-messages"></div>
-            <div id="messages" class="messages"></div>
             
             <form id="messageForm" class="message-form">
                 <input type="text" id="messageInput" placeholder="Type a message..." required>
@@ -24,6 +23,16 @@
             </form>
         </div>
         
+        <div class="peer-connection">
+            <h3>Peer Connection (Manual)</h3>
+            <p><em>Connect to other nodes to test P2P chat functionality</em></p>
+            <form id="peerForm" class="peer-form">
+                <input type="text" id="peerInput" placeholder="ws://localhost:1984 or wss://node.example.com" required>
+                <button type="submit">Connect to Peer</button>
+                <button type="button" onclick="window.testUtils?.disconnectPeers()">Disconnect All</button>
+            </form>
+            <div id="peerStatus" class="peer-status"></div>
+        </div>
 
         
         <div id="output" class="output"></div>
@@ -35,6 +44,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             const messageForm = document.getElementById('messageForm');
             const messageInput = document.getElementById('messageInput');
+            const peerForm = document.getElementById('peerForm');
+            const peerInput = document.getElementById('peerInput');
             
             if (messageForm && messageInput) {
                 messageForm.addEventListener('submit', async function(e) {
@@ -55,6 +66,40 @@
                             }
                         } catch (error) {
                             console.error('Error sending message:', error);
+                        }
+                    }
+                });
+            }
+            
+            if (peerForm && peerInput) {
+                peerForm.addEventListener('submit', async function(e) {
+                    e.preventDefault(); // Prevent page reload
+                    
+                    const peerAddress = peerInput.value.trim();
+                    if (peerAddress && window.verity) {
+                        try {
+                            const result = await window.verity.testUtils.connectToPeer(peerAddress);
+                            const peerStatus = document.getElementById('peerStatus');
+                            if (result.success) {
+                                peerInput.value = ''; // Clear input
+                                if (peerStatus) {
+                                    peerStatus.innerHTML = `<p style="color: green;">Connected to ${peerAddress}. Known peers: ${result.knownPeers}, Active: ${result.activePeers}</p>`;
+                                }
+                                // Update counts
+                                if (window.testUtils && window.testUtils.updateCounts) {
+                                    await window.testUtils.updateCounts();
+                                }
+                            } else {
+                                if (peerStatus) {
+                                    peerStatus.innerHTML = `<p style="color: red;">Failed to connect: ${result.error}</p>`;
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error connecting to peer:', error);
+                            const peerStatus = document.getElementById('peerStatus');
+                            if (peerStatus) {
+                                peerStatus.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                            }
                         }
                     }
                 });
@@ -96,6 +141,37 @@
                 } catch (error) {
                     // Ignore errors in update counts - this is just for UI display
                     console.log('Error updating counts (non-critical):', error.message);
+                }
+            },
+            
+            disconnectPeers: async function() {
+                if (!window.verity) {
+                    console.error('Verity not available');
+                    return;
+                }
+                
+                try {
+                    const result = await window.verity.testUtils.disconnectFromPeers();
+                    const peerStatus = document.getElementById('peerStatus');
+                    
+                    if (result.success) {
+                        if (peerStatus) {
+                            peerStatus.innerHTML = `<p style="color: blue;">${result.message}</p>`;
+                        }
+                        // Update counts
+                        this.updateCounts();
+                        console.log('Disconnected from all peers');
+                    } else {
+                        if (peerStatus) {
+                            peerStatus.innerHTML = `<p style="color: red;">Failed to disconnect: ${result.error}</p>`;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error disconnecting from peers:', error);
+                    const peerStatus = document.getElementById('peerStatus');
+                    if (peerStatus) {
+                        peerStatus.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                    }
                 }
             }
         };
