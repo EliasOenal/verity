@@ -435,29 +435,20 @@ async function startChatRoomSubscription(): Promise<void> {
         .subscribeNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube });
     }
 
-    // 2) Wait a moment for peer connection to be fully established before requesting history
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // 2) Also fetch network history from the retriever to cover what we don't have locally
+    const retrieverHistory: AsyncGenerator<Cube> = (verityNode.cubeRetriever as CubeRetriever)
+      .getNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
 
-    // 3) Make a single network history request with proper termination
-    try {
-      console.log('Requesting historical cubes from network peers...');
-      const retrieverHistory: AsyncGenerator<Cube> = (verityNode.cubeRetriever as CubeRetriever)
-        .getNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
+    // 3) Merge streams: future first (already active), plus retriever history
+    // This is the same pattern as the demo chat app for complete P2P synchronization
+    currentChatRoom.subscription = futureCubes
+      ? mergeAsyncGenerators(futureCubes, retrieverHistory)
+      : mergeAsyncGenerators(retrieverHistory);
 
-      // Process network history separately and with limits to prevent infinite loops
-      processNetworkHistoryOnce(retrieverHistory);
-    } catch (historyError) {
-      console.warn('Network history retrieval failed (non-critical):', historyError);
-    }
-
-    // 4) Set up future subscription only (without history to avoid duplicate processing)
-    if (futureCubes) {
-      currentChatRoom.subscription = futureCubes;
-      // Start processing future messages only
-      processRoomMessageStream();
-    }
+    // 4) Start processing merged stream immediately (local history is loaded separately for responsiveness)
+    processRoomMessageStream();
     
-    console.log('Started P2P subscription with network history retrieval');
+    console.log('Started P2P subscription with merged network history and future notifications');
   } catch (error) {
     console.error(`Error starting P2P subscription: ${error}`);
   }
@@ -516,88 +507,6 @@ async function loadLocalChatHistory(): Promise<void> {
 }
 
 /**
- * Process network history retrieval once with proper termination to prevent infinite loops
- */
-async function processNetworkHistoryOnce(historyGenerator: AsyncGenerator<Cube>): Promise<void> {
-  if (!currentChatRoom) {
-    return;
-  }
-
-  console.log('Processing network history for historical messages...');
-  let processedCount = 0;
-  const maxHistoryItems = 100; // Limit to prevent infinite loops
-  const timeoutMs = 10000; // 10 second timeout
-
-  try {
-    const historyPromise = (async () => {
-      for await (const cube of historyGenerator) {
-        if (!cube || !currentChatRoom) break;
-        
-        try {
-          const cubeKey = await cube.getKeyString();
-          
-          // Skip if we've already processed this cube
-          if (currentChatRoom.processedCubeKeys.has(cubeKey)) {
-            console.log(`Skipping already processed historical cube: ${cubeKey.substring(0, 8)}...`);
-            continue;
-          }
-          
-          // Parse chat message from cube
-          const chatMessage = await parseChatCubeToMessage(cube);
-          if (chatMessage) {
-            chatMessage.cubeKey = cubeKey;
-            
-            // Mark as processed first to prevent any race conditions
-            currentChatRoom.processedCubeKeys.add(cubeKey);
-            
-            // Add to message history
-            currentChatRoom.messages.push(chatMessage);
-            
-            // Sort messages by timestamp to maintain order
-            currentChatRoom.messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-            
-            // Update UI
-            updateChatMessagesUI();
-            
-            console.log(`Retrieved historical message from network: ${chatMessage.sender}: ${chatMessage.text}`);
-            processedCount++;
-          }
-
-          // Prevent infinite loops by limiting number of processed items
-          if (processedCount >= maxHistoryItems) {
-            console.log(`Reached maximum history items (${maxHistoryItems}), stopping history processing`);
-            break;
-          }
-        } catch (error) {
-          console.warn(`Error processing historical cube: ${error}`);
-        }
-      }
-    })();
-
-    // Race against timeout to prevent hanging
-    await Promise.race([
-      historyPromise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('History timeout')), timeoutMs))
-    ]);
-
-    console.log(`Network history processing completed. Retrieved ${processedCount} historical messages.`);
-  } catch (error) {
-    if (error.message === 'History timeout') {
-      console.log(`Network history processing timed out after ${timeoutMs}ms. Retrieved ${processedCount} messages.`);
-    } else {
-      console.warn(`Network history processing error: ${error}`);
-    }
-  } finally {
-    // Ensure the generator is properly closed
-    try {
-      await historyGenerator.return(undefined);
-    } catch (cleanupError) {
-      console.warn('Error cleaning up history generator:', cleanupError);
-    }
-  }
-}
-
-/**
  * Process incoming chat cubes from network peers (both historical and future messages)
  */
 async function processRoomMessageStream(): Promise<void> {
@@ -615,7 +524,7 @@ async function processRoomMessageStream(): Promise<void> {
         
         // Skip if we've already processed this cube (avoid duplicates)
         if (currentChatRoom.processedCubeKeys.has(cubeKey)) {
-          console.log(`Skipping duplicate cube: ${cubeKey}`);
+          console.log(`Skipping duplicate cube: ${cubeKey.substring(0, 8)}...`);
           continue;
         }
         
@@ -718,8 +627,9 @@ function updateChatMessagesUI(): void {
     messageDiv.className = 'chat-message';
     
     // Improved logic to determine if message is from a peer
-    const isFromLocalUser = message.sender.includes('test') || message.sender === 'testBot';
-    const isFromPeer = message.cubeKey && !isFromLocalUser;
+    // A message is from a peer if it has a cube key and the sender is NOT a local test user
+    const isLocalTestUser = message.sender.includes('test') || message.sender === 'testBot' || message.sender === 'testUser';
+    const isFromPeer = message.cubeKey && !isLocalTestUser;
     
     if (isFromPeer) {
       messageDiv.classList.add('peer-message');
