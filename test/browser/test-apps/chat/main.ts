@@ -73,7 +73,7 @@ async function initializeChatTest(): Promise<void> {
     // Create a real VerityNode for offline testing - no auto-connect to public network
     verityNode = new VerityNode({
       ...testCciOptions,
-      lightNode: false,  // Full node for chat capabilities
+      lightNode: true,   // Light node - only stores own cubes, doesn't download everything
       inMemory: true,    // Fast in-memory storage for testing
       requiredDifficulty: 0,  // No proof-of-work for testing
       announceToTorrentTrackers: false, // Not supported in browser
@@ -86,7 +86,7 @@ async function initializeChatTest(): Promise<void> {
     });
 
     await verityNode.readyPromise;
-    console.log('VerityNode (chat) initialized successfully - OFFLINE MODE');
+    console.log('VerityNode (chat light node) initialized successfully - OFFLINE MODE');
 
     // DO NOT start peer-to-peer subscription automatically
     // Users must manually connect to peers first
@@ -310,7 +310,7 @@ async function initializeChatTest(): Promise<void> {
       nodeInfoEl.innerHTML = `
         <h3>Chat Test Information</h3>
         <p><strong>Status:</strong> Ready - OFFLINE MODE</p>
-        <p><strong>Type:</strong> Chat Test (Manual Peer Connection)</p>
+        <p><strong>Type:</strong> Chat Test (Light Node, Manual Peer Connection)</p>
         <p><strong>Chat Room:</strong> ${currentChatRoom.name}</p>
         <p><strong>Node ID:</strong> chat-${Date.now()}</p>
         <p><strong>Messages:</strong> <span id="messageCount">0</span></p>
