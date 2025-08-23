@@ -303,13 +303,15 @@ async function initializeChatTest(): Promise<void> {
     }
     
     if (nodeInfoEl) {
-      const cubeCount = await verityNode.cubeStore.getNumberOfStoredCubes();
+      // For light node testing, avoid expensive getNumberOfStoredCubes() call
+      // Instead track cubes locally for better performance
+      const cubeCount = currentChatRoom?.processedCubeKeys.size || 0;
       const knownPeers = verityNode.peerDB.peersVerified.size + verityNode.peerDB.peersExchangeable.size;
       const activePeers = verityNode.peerDB.peersExchangeable.size;
       
       nodeInfoEl.innerHTML = `
         <h3>Chat Test Information</h3>
-        <p><strong>Status:</strong> Ready - OFFLINE MODE</p>
+        <p><strong>Status:</strong> <span id="mainStatus">Ready - OFFLINE MODE</span></p>
         <p><strong>Type:</strong> Chat Test (Light Node, Manual Peer Connection)</p>
         <p><strong>Chat Room:</strong> ${currentChatRoom.name}</p>
         <p><strong>Node ID:</strong> chat-${Date.now()}</p>
@@ -333,19 +335,28 @@ async function initializeChatTest(): Promise<void> {
           const activePeersEl = document.getElementById('activePeersCount');
           const networkStatusEl = document.getElementById('networkStatus');
           const subscriptionStatusEl = document.getElementById('subscriptionStatus');
+          const mainStatusEl = document.getElementById('mainStatus');
           
           if (knownPeersEl) knownPeersEl.textContent = updatedKnownPeers.toString();
           if (activePeersEl) activePeersEl.textContent = updatedActivePeers.toString();
-          if (networkStatusEl) {
+          
+          // Update both network status and main status consistently
+          if (networkStatusEl && mainStatusEl) {
             if (updatedActivePeers > 0) {
               networkStatusEl.textContent = 'Connected';
               networkStatusEl.style.color = 'green';
+              mainStatusEl.textContent = 'Ready - CONNECTED MODE';
+              mainStatusEl.style.color = 'green';
             } else if (updatedKnownPeers > 0) {
               networkStatusEl.textContent = 'Connecting...';
               networkStatusEl.style.color = 'orange';
+              mainStatusEl.textContent = 'Ready - CONNECTING...';
+              mainStatusEl.style.color = 'orange';
             } else {
               networkStatusEl.textContent = 'Offline';
               networkStatusEl.style.color = 'red';
+              mainStatusEl.textContent = 'Ready - OFFLINE MODE';
+              mainStatusEl.style.color = 'red';
             }
           }
           
