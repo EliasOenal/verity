@@ -15,6 +15,9 @@ export default defineConfig({
     exclude: ['test/browser/**/*.playwright.test.ts'],
     globals: true,
     pool: 'forks',
+    // Enforce at least 4 workers; allow override with VITEST_MAX_WORKERS (never below 4)
+    minWorkers: 4,
+    maxWorkers: Math.max(4, Number(process.env.VITEST_MAX_WORKERS || 4)),
     poolOptions: {
       // uncomment the following line if you want strictly sequential runs for debugging
       // forks: { singleFork: true, },
@@ -23,10 +26,9 @@ export default defineConfig({
       }
     },
     sequence: { hooks: 'list', },
-    // uncomment the following line to suppress all vitest output,
-    // preventing our own debug output from being overwritten
-    // @ts-expect-error it's okay, trust me
-    // reporters: [silent],
+  // Uncomment the following lines to suppress all vitest output,
+  // preventing our own debug output from being overwritten
+  // reporters: [silent],
   },
   plugins: [
     rawPlugin({

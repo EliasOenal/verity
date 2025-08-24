@@ -14,7 +14,7 @@
         
         <div class="chat-interface">
             <h3>Chat Interface</h3>
-            <div id="messages" class="messages"></div>
+            <div id="chatMessages" class="chat-messages"></div>
             
             <form id="messageForm" class="message-form">
                 <input type="text" id="messageInput" placeholder="Type a message..." required>
@@ -23,18 +23,78 @@
             </form>
         </div>
         
-        <div class="test-controls">
-            <h3>Test Controls</h3>
-            <button onclick="window.testUtils?.showChatStats()">Show Chat Stats</button>
-            <button onclick="window.testUtils?.clearChat()">Clear Chat</button>
-            <button onclick="window.testUtils?.exportChatHistory()">Export History</button>
+        <div class="peer-connection">
+            <h3>Peer Connection (Manual)</h3>
+            <p><em>Connect to other nodes to test P2P chat functionality</em></p>
+            <form id="peerForm" class="peer-form">
+                <input type="text" id="peerInput" placeholder="ws://localhost:1984 or wss://node.example.com" value="ws://localhost:1984" required>
+                <button type="submit">Connect to Peer</button>
+                <button type="button" onclick="window.testUtils?.disconnectPeers()">Disconnect All</button>
+            </form>
         </div>
+
         
         <div id="output" class="output"></div>
     </div>
     
-    <script src="chat-test.js"></script>
+    <script src="/chat-test.js"></script>
     <script>
+        // Form submission handler to prevent page reload
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageForm = document.getElementById('messageForm');
+            const messageInput = document.getElementById('messageInput');
+            const peerForm = document.getElementById('peerForm');
+            const peerInput = document.getElementById('peerInput');
+            
+            if (messageForm && messageInput) {
+                messageForm.addEventListener('submit', async function(e) {
+                    e.preventDefault(); // Prevent page reload
+                    
+                    const message = messageInput.value.trim();
+                    if (message && window.verity) {
+                        try {
+                            const result = await window.verity.testUtils.sendMessage(message);
+                            if (result.success) {
+                                messageInput.value = ''; // Clear input
+                                // Update counts
+                                if (window.testUtils && window.testUtils.updateCounts) {
+                                    await window.testUtils.updateCounts();
+                                }
+                            } else {
+                                console.error('Failed to send message:', result.error);
+                            }
+                        } catch (error) {
+                            console.error('Error sending message:', error);
+                        }
+                    }
+                });
+            }
+            
+            if (peerForm && peerInput) {
+                peerForm.addEventListener('submit', async function(e) {
+                    e.preventDefault(); // Prevent page reload
+                    
+                    const peerAddress = peerInput.value.trim();
+                    if (peerAddress && window.verity) {
+                        try {
+                            const result = await window.verity.testUtils.connectToPeer(peerAddress);
+                            if (result.success) {
+                                peerInput.value = ''; // Clear input
+                                console.log(`Connected to ${peerAddress}. Known peers: ${result.knownPeers}, Active: ${result.activePeers}`);
+                                // Update counts
+                                if (window.testUtils && window.testUtils.updateCounts) {
+                                    await window.testUtils.updateCounts();
+                                }
+                            } else {
+                                console.error(`Failed to connect: ${result.error}`);
+                            }
+                        } catch (error) {
+                            console.error('Error connecting to peer:', error);
+                        }
+                    }
+                });
+            }
+        });
         // Additional test utilities available to tests
         window.testUtils = {
             sendTestMessage: async function() {
@@ -56,54 +116,13 @@
                 }
             },
             
-            showChatStats: function() {
-                if (!window.verity) {
-                    console.error('Verity not available');
-                    return;
-                }
-                
-                const history = window.verity.testUtils.getChatHistory();
-                const cubeCount = window.verity.cubeStore ? window.verity.cubeStore.getNumberOfStoredCubes() : 0;
-                
-                const output = document.getElementById('output');
-                if (output) {
-                    output.innerHTML += `<p>Chat Stats - Messages: ${history.length}, Total Cubes: ${cubeCount}</p>`;
-                }
-            },
-            
-            clearChat: function() {
-                if (!window.verity) {
-                    console.error('Verity not available');
-                    return;
-                }
-                
-                window.verity.testUtils.clearChat();
-                this.updateCounts();
-                
-                const output = document.getElementById('output');
-                if (output) {
-                    output.innerHTML += '<p>Chat history cleared</p>';
-                }
-            },
-            
-            exportChatHistory: function() {
-                if (!window.verity) {
-                    console.error('Verity not available');
-                    return;
-                }
-                
-                const history = window.verity.testUtils.getChatHistory();
-                const output = document.getElementById('output');
-                if (output) {
-                    output.innerHTML += `<p>Chat History: ${JSON.stringify(history, null, 2)}</p>`;
-                }
-            },
-            
             updateCounts: async function() {
                 if (!window.verity) return;
                 
                 try {
-                    const cubeCount = window.verity.cubeStore ? window.verity.cubeStore.getNumberOfStoredCubes() : 0;
+                    // For light node testing, avoid expensive getNumberOfStoredCubes() call
+                    // Use a simple count based on processed cubes instead
+                    const cubeCount = window.verity.testUtils.getMessages().count || 0;
                     const messageCount = window.verity.testUtils.getChatHistory ? window.verity.testUtils.getChatHistory().length : 0;
                     
                     const cubeCountEl = document.getElementById('cubeCount');
@@ -115,6 +134,32 @@
                     // Ignore errors in update counts - this is just for UI display
                     console.log('Error updating counts (non-critical):', error.message);
                 }
+            },
+            
+            disconnectPeers: async function() {
+                if (!window.verity) {
+                    console.error('Verity not available');
+                    return;
+                }
+                
+                try {
+                    const result = await window.verity.testUtils.disconnectFromPeers();
+                    
+                    if (result.success) {
+                        // Update counts
+                        this.updateCounts();
+                        console.log('Disconnected from all peers');
+                    } else {
+                        console.error(`Failed to disconnect: ${result.error}`);
+                    }
+                } catch (error) {
+                    console.error('Error disconnecting from peers:', error);
+                }
+            },
+            
+            updatePeerConnectionStatus: function() {
+                // This function is no longer needed since peer status is shown in the main info section
+                // All peer status updates are handled by the main status update interval
             }
         };
         
@@ -122,6 +167,8 @@
         setInterval(() => {
             if (window.testUtils && window.verity) {
                 window.testUtils.updateCounts();
+                // Also update peer connection status to show real-time data
+                window.testUtils.updatePeerConnectionStatus();
             }
         }, 2000);
     </script>

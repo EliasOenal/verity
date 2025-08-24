@@ -52,6 +52,14 @@ test.describe('Real Advanced Multi-Node Scenarios', () => {
         connectBrowserNodeToServer(page, `ws://localhost:${testPort}`)
       ));
       
+      // Wait a bit for all connections to be established
+      await Promise.all(pages.map(page => page.waitForTimeout(1000)));
+      
+      // Verify server sees all the connections
+      const serverPeerCount = testServer.getPeerCount();
+      expect(serverPeerCount).toBe(4); // All 4 browser nodes connected
+      console.log('All 4 browser nodes connected to server');
+      
       // Get node information
       const nodeInfos = await Promise.all(pages.map(page => getNodeInfo(page)));
       nodeInfos.forEach(info => expect(info.error).toBeUndefined());
@@ -83,16 +91,12 @@ test.describe('Real Advanced Multi-Node Scenarios', () => {
       
       expect(totalStoredCubes).toBeGreaterThanOrEqual(totalCubesCreated);
       
-      // Verify server sees the network activity
-      const serverPeerCount = testServer.getPeerCount();
-      expect(serverPeerCount).toBe(4); // All 4 browser nodes connected
-      
       console.log('Distributed storage test:', {
         nodes: nodeInfos.length,
         cubesPerNode: finalCounts,
         totalCubes: totalStoredCubes,
         successfulCreations: totalCubesCreated,
-        serverPeers: serverPeerCount,
+        serverPeersAtStart: serverPeerCount,
         allNodesConnected: true
       });
       

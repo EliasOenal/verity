@@ -59,6 +59,102 @@ h1 {
     color: #0c5460;
 }
 
+.chat-messages {
+    height: 250px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 15px;
+    background-color: white;
+}
+
+.chat-message {
+    margin: 8px 0;
+    padding: 8px;
+    border-radius: 5px;
+    background-color: #f8f9fa;
+    border-left: 3px solid #6c757d;
+}
+
+.chat-message.peer-message {
+    background-color: #e8f5e8;
+    border-left: 3px solid #28a745;
+}
+
+.chat-message.local-message {
+    background-color: #e3f2fd;
+    border-left: 3px solid #2196f3;
+}
+
+.peer-indicator {
+    color: #28a745;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.cube-key {
+    color: #6c757d;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+}
+
+.peer-connection {
+    background-color: #fff3cd;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 15px 0;
+    border: 1px solid #ffeaa7;
+}
+
+.peer-connection h3 {
+    margin-top: 0;
+    color: #856404;
+}
+
+.peer-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.peer-form input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: 'Courier New', monospace;
+}
+
+.peer-form button {
+    background-color: #ffc107;
+    color: #212529;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.peer-form button:hover {
+    background-color: #e0a800;
+}
+
+.peer-status {
+    padding: 8px;
+    border-radius: 4px;
+    min-height: 20px;
+}
+
+.peer-status p {
+    margin: 0;
+    font-size: 14px;
+    font-weight: bold;
+}
+
 .messages {
     height: 250px;
     overflow-y: auto;

@@ -1,10 +1,11 @@
 # Verity - Decentralized Data Storage Platform
 
-Verity is a decentralized and censorship-resistant data storage and distribution platform built with TypeScript/Node.js. It uses unique "cube" structures (1kB data blocks) synchronized across peer-to-peer nodes. The project includes both a support node (CLI) and a microblogging web application demo.
+Verity is a decentralized and censorship-resistant data storage and distribution platform built with TypeScript/Node.js. It uses unique "cube" structures (1kB data blocks) synchronized across peer-to-peer nodes. The project includes both a support node (CLI) and a web application demo.
 
 **ALWAYS follow these instructions first and only fallback to search or bash commands when you encounter information that contradicts or is missing from these instructions.**
 
 ## Working Effectively
+**You have a total runtime of 59 minutes per session, make the most of it. Only exit sessions early if your task is truly finished. If in doubt, utilize additional time for verification and further improvements.**
 
 ### Bootstrap and Build the Repository
 **CRITICAL: NEVER CANCEL long-running commands. Builds and tests may take several minutes.**
@@ -25,7 +26,7 @@ Verity is a decentralized and censorship-resistant data storage and distribution
 
 3. **Run Node.js Tests:**
    ```bash
-   npm test
+   npm run test -- --workers=4
    ```
    - **NEVER CANCEL: Takes 3+ minutes to complete.** Set timeout to 10+ minutes.
    - Runs all 80+ test files with 4500+ tests using vitest
@@ -34,7 +35,7 @@ Verity is a decentralized and censorship-resistant data storage and distribution
 
 4. **Run Playwright Tests:**
    ```bash
-   npm run test:playwright
+   npm run test:playwright -- --workers=4
    ```
    - **NEVER CANCEL: Takes 2+ minutes to complete.** Set timeout to 10+ minutes.
    - Runs all 35+ tests using playwright
@@ -54,7 +55,7 @@ Verity is a decentralized and censorship-resistant data storage and distribution
 
 #### Support Node (CLI Application)
 ```bash
-npm run start -- -w 1984 -t
+npm run start -- -w 1984
 ```
 - Runs a full Verity network node on port 1984
 - May not have connectivity to some trackers (normal)
@@ -89,7 +90,7 @@ npm run webpack
 ### Always Run These Validation Steps After Changes
 1. **Build Check:** `npm run build` - should complete successfully
 2. **Test Suite:** `npm test` - should pass consistently
-3. **Support Node:** `npm run start -- -w 1984 -t` - must start successfully and show ASCII art
+3. **Support Node:** `npm run start -- -w 1984` - must start successfully and show ASCII art
 4. **Development Server:** `npm run server` - should serve content successfully
 
 ### Manual Validation Scenarios
@@ -195,6 +196,54 @@ You sometimes will be in a situation where you can't finish the goal in one go. 
 
 **Always prioritize working functionality (support node, tests, development server, build) over any remaining minor issues.**
 
+## Critical Testing and Development Guidelines
+
+### Test-First Development Approach
+**CRITICAL: All functionality changes MUST be thoroughly tested with comprehensive end-to-end workflows before considering them complete.**
+
+1. **Complete Workflow Testing:** When working on P2P or networking features, ALWAYS test the complete offline → connect → upload → disconnect → reconnect → retrieve workflow. Partial testing is insufficient.
+
+2. **Cross-Browser P2P Validation:** For any P2P functionality:
+   - Test with multiple browser instances connecting to the same node
+   - Verify cube synchronization works across disconnections and reconnections
+   - Manually validate the exact scenario: Browser1 creates cube → disconnects → Browser2 connects → retrieves cube
+
+3. **Never Trust Surface-Level Success:** If UI shows "success" but core functionality fails, investigate deeper. Status indicators must reflect actual system state, not optimistic assumptions.
+
+### Manual Testing Requirements
+
+**MANDATORY before declaring any P2P feature complete:**
+1. Start support node: `npm run start -- -w 1984`
+2. Open Browser 1, connect to support node, create/send content
+3. Disconnect Browser 1
+4. Open Browser 2, connect to same support node
+5. Verify Browser 2 retrieves content from Browser 1
+6. Test UI consistency - status should accurately reflect connection state
+
+### Test Coverage Standards
+
+**Playwright tests MUST cover:**
+- Complete user workflows, not just individual operations  
+- UI state consistency (peer counts, connection status, etc.)
+- Cross-browser synchronization scenarios
+- Proper error handling and recovery
+- Both light node and full node behaviors appropriately
+
+**Tests should FAIL immediately when:**
+- Core P2P functionality breaks
+- Status displays become inconsistent with actual state
+- Cross-browser cube synchronization fails
+- Node types behave incorrectly (light nodes downloading everything)
+
+### Development Iteration Protocol
+
+1. **Start with manual testing** of the complete workflow
+2. **Write failing tests** that demonstrate the issue
+3. **Implement fixes** incrementally
+4. **Re-test manually** after each change
+5. **Verify automated tests** catch the original issue
+6. **Only proceed** when both manual and automated validation pass
+
 ## File Management and Git Best Practices
 
 ### Files That Should NEVER Be Committed
@@ -218,6 +267,9 @@ When creating tests that use CoreNode or CubeStore instances:
 - testCoreOptions provide faster execution with `inMemory: true`, `requiredDifficulty: 0`, `networkTimeoutMillis: 100`, and other performance settings
 
 ## Environment and Tools
+
+### Environment Runtime
+**Each session of your Linux VM environment lasts 59 minutes — use the full time. Only end early if the task is fully complete; otherwise, use remaining time for checks and improvements.**
 
 ### Bash Tool
 - Your bash tool has a limited execution time of 600 seconds (10 minutes).
