@@ -46,7 +46,7 @@ test.describe('Cross-Browser P2P Cube Synchronization Tests', () => {
     await shutdownBrowserNode(page);
   });
 
-  test('CRITICAL: should document cross-browser cube retrieval workflow', async ({ browser }) => {
+  test('should document cross-browser cube retrieval workflow', async ({ browser }) => {
     // This test documents the cross-browser P2P workflow and its current limitations
     // It verifies basic connectivity and cube creation, but cross-browser retrieval 
     // has known limitations that require further investigation
@@ -392,7 +392,7 @@ test.describe('Chat Test Application P2P Verification', () => {
     }
   });
 
-  test('CRITICAL: should test cross-browser chat cube retrieval workflow', async ({ browser }) => {
+  test('should test comprehensive cross-browser chat cube retrieval workflow', async ({ browser }) => {
     // This test implements the exact workflow that was manually verified with 10+ cubes:
     // 1. Browser 1 creates 10 messages offline → connects to nodejs node → uploads all cubes
     // 2. Browser 1 disconnects
@@ -542,14 +542,9 @@ test.describe('Chat Test Application P2P Verification', () => {
         // Verify at least some messages were retrieved successfully
         expect(retrievedMessages).toBeGreaterThan(0);
         
-        // For high-quality P2P, we expect most cubes to be retrieved
-        if (retrievedMessages >= 8) {
-          console.log('EXCELLENT: High-quality cross-browser P2P synchronization');
-        } else if (retrievedMessages >= 5) {
-          console.log('GOOD: Moderate cross-browser P2P synchronization');
-        } else {
-          console.log('BASIC: Limited cross-browser P2P synchronization - may need optimization');
-        }
+        // For reliable P2P, we expect ALL cubes to be retrieved
+        expect(retrievedMessages).toBe(10);
+        console.log('EXCELLENT: Complete cross-browser P2P synchronization - all cubes retrieved');
         
         // Check that retrieved messages maintain proper metadata
         const firstRetrievedMessage = page2.locator('.chat-message').first();

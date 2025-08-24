@@ -209,12 +209,63 @@ test.describe('Real Verity Multi-Node Functionality Tests', () => {
     }
   });
 
-  test.skip('CRITICAL: should test real cross-browser cube retrieval after disconnection', async ({ browser }) => {
-    // This test is redundant - the same functionality is comprehensively tested in:
-    // cross-browser-p2p.playwright.test.ts > "CRITICAL: should test cross-browser chat cube retrieval workflow"
-    // which tests 10 cubes instead of 1 and covers the exact same workflow with better performance
+  test('should test real cross-browser cube retrieval after disconnection', async ({ browser }) => {
+    // Verify the exact failing workflow: create cube → disconnect → reconnect → retrieve
+    test.setTimeout(20 * 1000); // 20 second timeout for this comprehensive test
     
-    // Skipping to avoid test duplication and timeout issues
+    const context1 = await browser.newContext();
+    const context2 = await browser.newContext();
+    
+    const page1 = await context1.newPage();
+    const page2 = await context2.newPage();
+    
+    try {
+      // Phase 1: Browser 1 creates cube and uploads
+      await initializeVerityInBrowser(page1);
+      await connectBrowserNodeToServer(page1, `ws://localhost:${testPort}`);
+      await waitForNetworkReady(page1, 10000);
+      
+      const testCube = await createTestCubeInBrowser(page1, 'Cross-browser retrieval test cube');
+      expect(testCube.success).toBe(true);
+      console.log('Browser 1 created cube:', testCube.keyHex);
+      
+      // Wait for cube to be uploaded to server
+      await page1.waitForTimeout(2000);
+      
+      // Phase 2: Browser 1 disconnects
+      await shutdownBrowserNode(page1);
+      await context1.close();
+      
+      // Verify server still has the cube data
+      const serverCubeCount = await testServer.getCubeCount();
+      expect(serverCubeCount).toBeGreaterThan(0);
+      console.log('Server cube count after Browser 1 disconnect:', serverCubeCount);
+      
+      // Phase 3: Browser 2 connects and should retrieve the cube
+      await initializeVerityInBrowser(page2);
+      await connectBrowserNodeToServer(page2, `ws://localhost:${testPort}`);
+      await waitForNetworkReady(page2, 10000);
+      
+      // Wait for network history synchronization
+      await page2.waitForTimeout(3000);
+      
+      // Critical test: Browser 2 should be able to retrieve Browser 1's cube
+      const retrievalResult = await requestCubeFromNetwork(page2, testCube.keyHex);
+      console.log('Cross-browser retrieval result:', retrievalResult);
+      
+      expect(retrievalResult.success).toBe(true);
+      expect(retrievalResult.found).toBe(true);
+      
+      // Verify Browser 2 now has the cube
+      const hasCube = await hasCubeInBrowser(page2, testCube.keyHex);
+      expect(hasCube).toBe(true);
+      
+      console.log('✅ Cross-browser cube retrieval after disconnection PASSED');
+      
+    } finally {
+      await shutdownBrowserNode(page2);
+      await context2.close();
+    }
   });
 
   test('should test real network resilience and reconnection', async ({ page }, testInfo) => {
@@ -311,7 +362,7 @@ test.describe('Real Verity Multi-Node Functionality Tests', () => {
       const allCubeResults = await Promise.all(cubeCreationTasks);
       const successfulCubes = allCubeResults.filter(result => result.success);
       
-      expect(successfulCubes.length).toBeGreaterThanOrEqual(8); // Expect most cubes to be created
+      expect(successfulCubes.length).toBe(10); // Expect ALL cubes to be created successfully
       
       // Check cube distribution
       const finalCubeCounts = await Promise.all(

@@ -250,7 +250,7 @@ test.describe('Verity Chat P2P Connection Tests', () => {
     // This is now implemented with the merged stream approach matching the demo app
   });
 
-  test('CRITICAL: should test actual cross-browser P2P cube retrieval with support node', async ({ browser }) => {
+  test('should test cross-browser P2P cube retrieval with support node', async ({ browser }) => {
     // This test performs the EXACT workflow that was failing before the fix
     // Browser 1 → connect → send message → disconnect
     // Browser 2 → connect → retrieve message from Browser 1

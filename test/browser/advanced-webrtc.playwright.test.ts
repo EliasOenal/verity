@@ -113,8 +113,7 @@ test.describe('Advanced WebRTC P2P Connectivity Tests', () => {
             ice2CandidatesCount: ice2Candidates.length,
             dataChannelCreated: !!dataChannel1,
             dataChannelReceived: !!dataChannel2,
-            messages: messagesReceived,
-            networkEnvironment: 'sandboxed' // Indicate this is in a restricted environment
+            messages: messagesReceived
           };
         } catch (error) {
           return { success: false, error: error.message };
@@ -124,20 +123,10 @@ test.describe('Advanced WebRTC P2P Connectivity Tests', () => {
       expect(connectionResult.success).toBe(true);
       expect(connectionResult.dataChannelCreated).toBe(true);
       
-      // In sandboxed environments, WebRTC connections may not fully establish
-      // but the infrastructure should still be functional
-      if (connectionResult.networkEnvironment === 'sandboxed') {
-        // Verify WebRTC APIs are available and functional
-        expect(connectionResult.dataChannelCreated).toBe(true);
-        // ICE candidates may not be generated in restricted environments
-        expect(connectionResult.ice1CandidatesCount).toBeGreaterThanOrEqual(0);
-        expect(connectionResult.ice2CandidatesCount).toBeGreaterThanOrEqual(0);
-      } else {
-        // In unrestricted environments, expect full connectivity
-        expect(connectionResult.dataChannelReceived).toBe(true);
-        expect(connectionResult.ice1CandidatesCount).toBeGreaterThan(0);
-        expect(connectionResult.ice2CandidatesCount).toBeGreaterThan(0);
-      }
+      // Expect full WebRTC connectivity and functionality
+      expect(connectionResult.dataChannelReceived).toBe(true);
+      expect(connectionResult.ice1CandidatesCount).toBeGreaterThan(0);
+      expect(connectionResult.ice2CandidatesCount).toBeGreaterThan(0);
       
       console.log('WebRTC P2P connection test:', connectionResult);
       
@@ -242,8 +231,7 @@ test.describe('Advanced WebRTC P2P Connectivity Tests', () => {
           return {
             success: true,
             messagesSent: syncMessages.length > 0,
-            messageTypes: syncMessages,
-            networkEnvironment: 'sandboxed'
+            messageTypes: syncMessages
           };
         } catch (error) {
           return { success: false, error: error.message };
@@ -252,13 +240,10 @@ test.describe('Advanced WebRTC P2P Connectivity Tests', () => {
       
       expect(syncResult.success).toBe(true);
       
-      // In sandboxed environments, messaging may not work fully
-      if (syncResult.networkEnvironment === 'sandboxed') {
-        expect(syncResult.messageTypes).toBeDefined();
-        expect(Array.isArray(syncResult.messageTypes)).toBe(true);
-      } else {
-        expect(syncResult.messagesSent).toBe(true);
-      }
+      // Expect full messaging functionality 
+      expect(syncResult.messagesSent).toBe(true);
+      expect(syncResult.messageTypes).toBeDefined();
+      expect(Array.isArray(syncResult.messageTypes)).toBe(true);
       
       console.log('Cube sync over WebRTC test:', syncResult);
       
@@ -369,8 +354,7 @@ test.describe('Advanced WebRTC P2P Connectivity Tests', () => {
             connectionStates,
             iceGatheringStates,
             finalState,
-            stunServersUsed: stunServers.length,
-            networkEnvironment: 'sandboxed'
+            stunServersUsed: stunServers.length
           };
         } catch (error) {
           return { success: false, error: error.message };
@@ -380,14 +364,9 @@ test.describe('Advanced WebRTC P2P Connectivity Tests', () => {
       expect(relayTest.success).toBe(true);
       expect(relayTest.stunServersUsed).toBe(2);
       
-      // In sandboxed environments, ICE candidates may not be generated
-      if (relayTest.networkEnvironment === 'sandboxed') {
-        expect(relayTest.candidatesCollected.pc1).toBeGreaterThanOrEqual(0);
-        expect(relayTest.candidatesCollected.pc2).toBeGreaterThanOrEqual(0);
-      } else {
-        expect(relayTest.candidatesCollected.pc1).toBeGreaterThan(0);
-        expect(relayTest.candidatesCollected.pc2).toBeGreaterThan(0);
-      }
+      // Expect full ICE candidate generation
+      expect(relayTest.candidatesCollected.pc1).toBeGreaterThan(0);
+      expect(relayTest.candidatesCollected.pc2).toBeGreaterThan(0);
       
       console.log('WebRTC STUN relay test:', relayTest);
       
@@ -543,7 +522,7 @@ test.describe('Advanced WebRTC P2P Connectivity Tests', () => {
                     messagesSent++;
                   }
                 } catch (error) {
-                  // In sandboxed environments, sending may fail
+                  // Sending failed
                   console.warn('Send failed:', error);
                 }
               }
@@ -569,8 +548,7 @@ test.describe('Advanced WebRTC P2P Connectivity Tests', () => {
             messagesSent,
             messagesReceived,
             latency,
-            throughputRatio: messagesSent > 0 ? messagesReceived / messagesSent : 0,
-            networkEnvironment: 'sandboxed'
+            throughputRatio: messagesSent > 0 ? messagesReceived / messagesSent : 0
           };
         } catch (error) {
           return { success: false, error: error.message };
@@ -579,16 +557,10 @@ test.describe('Advanced WebRTC P2P Connectivity Tests', () => {
       
       expect(bandwidthTest.success).toBe(true);
       
-      // In sandboxed environments, message sending may not work
-      if (bandwidthTest.networkEnvironment === 'sandboxed') {
-        expect(bandwidthTest.messagesSent).toBeGreaterThanOrEqual(0);
-        expect(bandwidthTest.latency).toBeGreaterThanOrEqual(0);
-        expect(bandwidthTest.throughputRatio).toBeGreaterThanOrEqual(0);
-      } else {
-        expect(bandwidthTest.messagesSent).toBe(10);
-        expect(bandwidthTest.latency).toBeGreaterThan(0);
-        expect(bandwidthTest.throughputRatio).toBeGreaterThan(0);
-      }
+      // Expect full message sending functionality
+      expect(bandwidthTest.messagesSent).toBe(10);
+      expect(bandwidthTest.latency).toBeGreaterThan(0);
+      expect(bandwidthTest.throughputRatio).toBeGreaterThan(0);
       
       console.log('Bandwidth test:', bandwidthTest);
       
