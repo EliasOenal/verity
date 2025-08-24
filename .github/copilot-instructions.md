@@ -5,6 +5,7 @@ Verity is a decentralized and censorship-resistant data storage and distribution
 **ALWAYS follow these instructions first and only fallback to search or bash commands when you encounter information that contradicts or is missing from these instructions.**
 
 ## Working Effectively
+**You have a total runtime of 59 minutes per session, make the most of it. Only exit sessions early if your task is truly finished. If in doubt, utilize additional time for verification and further improvements.**
 
 ### Bootstrap and Build the Repository
 **CRITICAL: NEVER CANCEL long-running commands. Builds and tests may take several minutes.**
