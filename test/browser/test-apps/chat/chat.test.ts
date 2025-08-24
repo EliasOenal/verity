@@ -11,7 +11,7 @@
 
 import { test, expect } from '@playwright/test';
 
-const CHAT_TEST_URL = 'http://localhost:11985/index.html';
+const CHAT_TEST_URL = 'http://localhost:11985/chat/index.html';
 
 test.describe('Verity Chat Test Environment', () => {
   
@@ -19,9 +19,9 @@ test.describe('Verity Chat Test Environment', () => {
     // Navigate to chat test application
     await page.goto(CHAT_TEST_URL);
     
-    // Wait for the application to initialize
-    await page.waitForSelector('h1:has-text("Verity Chat Test Environment")');
-    await page.waitForSelector('#nodeInfo:has-text("Chat test ready!")');
+    // Wait for the application to initialize with shorter timeout
+    await page.waitForSelector('h1:has-text("Verity Chat Test Environment")', { timeout: 5000 });
+    await page.waitForSelector('#status:has-text("Chat test ready!")', { timeout: 8000 });
   });
 
   test('should start in offline mode without auto-connecting', async ({ page }) => {
@@ -104,7 +104,7 @@ test.describe('Verity Chat Test Environment', () => {
     await expect(messageElement.locator('strong')).toContainText('testUser:');
     
     // Check for timestamp
-    await expect(messageElement.locator('emphasis')).toContainText(/\(\d{1,2}:\d{2}:\d{2} [AP]M\)/);
+    await expect(messageElement.locator('em')).toContainText(/\(\d{1,2}:\d{2}:\d{2} [AP]M\)/);
     
     // Check for cube key
     await expect(messageElement.locator('.cube-key')).toContainText(/\[[a-f0-9]{8}...\]/);
@@ -151,7 +151,7 @@ test.describe('Verity Chat Test Environment', () => {
   test('should show accurate status information', async ({ page }) => {
     // Verify initial status shows offline mode
     await expect(page.locator('text=Ready - OFFLINE MODE')).toBeVisible();
-    await expect(page.locator('text=Chat Test (Manual Peer Connection)')).toBeVisible();
+    await expect(page.locator('text=Chat Test (Light Node, Manual Peer Connection)')).toBeVisible();
     await expect(page.locator('text=test-chat-room')).toBeVisible();
     
     // Verify test optimizations are active
@@ -261,7 +261,7 @@ test.describe('Verity Chat P2P Connection Tests', () => {
       supportNodeProcess = exec('npm run start -- -w 19850 -t', { cwd: process.cwd() });
       
       // Wait for support node to start
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       const context1 = await browser.newContext();
       const context2 = await browser.newContext();
@@ -317,12 +317,12 @@ test.describe('Verity Chat P2P Connection Tests', () => {
         await page2.click('button:has-text("Connect to Peer")');
         
         // Wait for connection and network synchronization
-        await page2.waitForTimeout(4000);
+        await page2.waitForTimeout(2000);
         await expect(page2.locator('text=Ready - CONNECTED MODE')).toBeVisible();
         
         // CRITICAL ASSERTION: Browser 2 should now see messages from Browser 1
         // This was failing before the merged stream fix
-        await expect(page2.locator('text=Connected message from Browser 1')).toBeVisible({ timeout: 10000 });
+        await expect(page2.locator('text=Connected message from Browser 1')).toBeVisible({ timeout: 5000 });
         
         // Verify Browser 2 received the cube via network history
         await expect(page2.locator('#messageCount')).toContainText('1');

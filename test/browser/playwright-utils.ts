@@ -185,7 +185,7 @@ export async function createTestCubeInBrowser(
             success: result.success || false,
             error: result.error || (result.success ? undefined : 'Test cube creation failed'),
             cubeKey: result.cubeKey || undefined,
-            keyHex: result.keyHex || (result.cubeKey ? result.cubeKey.toString().substring(0, 32) + '...' : undefined)
+            keyHex: result.keyHex || result.cubeKey
           };
         } else {
           return { 

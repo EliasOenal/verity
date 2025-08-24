@@ -9,7 +9,6 @@ import { isBrowser } from 'browser-or-node';
 import sodium from 'libsodium-wrappers-sumo';
 import { VerityNode } from '../../../../src/cci/verityNode';
 import { testCoreOptions } from '../../../core/testcore.definition';
-import { testCciOptions } from '../../../cci/testcci.definitions';
 import { Peer } from '../../../../src/core/peering/peer';
 import { WebSocketAddress } from '../../../../src/core/peering/addressing';
 import { ChatApplication } from '../../../../src/app/chatApplication';
@@ -72,14 +71,14 @@ async function initializeChatTest(): Promise<void> {
   try {
     // Create a real VerityNode for offline testing - no auto-connect to public network
     verityNode = new VerityNode({
-      ...testCciOptions,
+      ...testCoreOptions,  // Use testCoreOptions instead of testCciOptions for faster init
       lightNode: true,   // Light node - only stores own cubes, doesn't download everything
       inMemory: true,    // Fast in-memory storage for testing
       requiredDifficulty: 0,  // No proof-of-work for testing
       announceToTorrentTrackers: false, // Not supported in browser
-      networkTimeoutMillis: 5000, // Reasonable timeout for testing
+      networkTimeoutMillis: 1000, // Short timeout for testing
       autoConnect: false, // DO NOT auto-connect - manual connections only
-      // Use WebRTC transport for browser P2P compatibility - WebSocket connections handled manually
+      // Browser configuration - no server transports, only client WebSocket and WebRTC via libp2p
       transports: new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
       initialPeers: [], // No initial peers - completely offline by default
       useRelaying: false, // Disable relaying for cleaner testing
