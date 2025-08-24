@@ -586,11 +586,11 @@ async function processRoomMessageStream(): Promise<void> {
 
 /**
  * Parse a chat cube into a ChatMessage
- * This follows the same pattern as the demo chat controller for consistency
+ * Uses only the proper ChatApplication.parseChatCube method - same as demo app
  */
 async function parseChatCubeToMessage(cube: Cube): Promise<ChatMessage | null> {
   try {
-    // Use the proper ChatApplication.parseChatCube method - same as demo app
+    // Use only the proper ChatApplication.parseChatCube method - same as demo app
     const cciCube: cciCube = cube as cciCube;
     const { username, message } = ChatApplication.parseChatCube(cciCube);
     
@@ -602,32 +602,25 @@ async function parseChatCubeToMessage(cube: Cube): Promise<ChatMessage | null> {
   } catch (error) {
     console.warn(`Error parsing chat cube: ${error}`);
     
-    // Only try simple field extraction as fallback - avoid complex heuristics that can cause corruption
-    try {
-      const usernameField = cube.getFirstField(FieldType.USERNAME);
-      const payloadField = cube.getFirstField(FieldType.PAYLOAD);
-      
-      if (usernameField && payloadField) {
-        const username = usernameField.valueString || usernameField.value.toString('utf-8');
-        const message = payloadField.value.toString('utf-8');
-        
-        return {
-          text: message,
-          sender: username,
-          timestamp: new Date().toISOString(),
-        };
-      }
-    } catch (fallbackError) {
-      console.warn(`Error in fallback parsing: ${fallbackError}`);
-    }
-    
-    // If both methods fail, log the cube structure for debugging
+    // Log the cube structure for debugging
+    const fields = Array.from(cube.getFields());
+    const fieldTypes = fields.map(field => ({ type: field.type, length: field.length }));
     console.warn('Failed to parse cube, structure:', {
       cubeType: (cube as any).cubeType,
-      fieldsCount: Array.from(cube.getFields()).length,
+      fieldsCount: fields.length,
+      fieldTypes: fieldTypes,
       hasUsernameField: !!cube.getFirstField(FieldType.USERNAME),
-      hasPayloadField: !!cube.getFirstField(FieldType.PAYLOAD)
+      hasPayloadField: !!cube.getFirstField(FieldType.PAYLOAD),
+      usernameFieldType: FieldType.USERNAME,
+      payloadFieldType: FieldType.PAYLOAD,
+      applicationFieldType: FieldType.APPLICATION
     });
+    
+    // Check each field type specifically
+    for (let i = 0; i < fields.length; i++) {
+      const field = fields[i];
+      console.warn(`Field ${i}: type=${field.type}, expected USERNAME=${FieldType.USERNAME}, PAYLOAD=${FieldType.PAYLOAD}, APPLICATION=${FieldType.APPLICATION}`);
+    }
     
     return null;
   }
