@@ -192,8 +192,9 @@ test.describe('Verity Chat P2P Connection Tests', () => {
     await page.click('button:has-text("Send")');
     await expect(page.locator('text=Offline after failed connection')).toBeVisible();
     
-    // Verify input is cleared on connection attempt
-    await expect(page.locator('#peerInput')).toHaveValue('');
+    // Verify input is NOT cleared on failed connection attempt (better UX)
+    // This allows user to retry or edit the address without retyping
+    await expect(page.locator('#peerInput')).toHaveValue('ws://nonexistent:9999');
   });
 
   test('should maintain offline functionality when connection fails', async ({ page }) => {

@@ -15,7 +15,7 @@ export default defineConfig({
   workers: Math.max(4, Number(process.env.PW_WORKERS || 4)),
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
-  /* Global test timeout - max 10 seconds as requested */
+  /* Global test timeout - max 10 seconds as requested, with exceptions for specific tests */
   timeout: 10 * 1000,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
