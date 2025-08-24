@@ -20,7 +20,8 @@ import { RetrievalFormat } from '../../../../src/cci/veritum/veritum.definitions
 import { Cube } from '../../../../src/core/cube/cube';
 import { CubeRetriever } from '../../../../src/core/networking/cubeRetrieval/cubeRetriever';
 import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
-import { cciCube } from '../../../../src/cci/cube/cciCube';
+import { cciFamily } from '../../../../src/cci/cube/cciCube';
+import { coreCubeFamily } from '../../../../src/core/cube/cube';
 
 interface ChatMessage {
   text: string;
@@ -70,9 +71,10 @@ async function initializeChatTest(): Promise<void> {
   };
 
   try {
-    // Create a real VerityNode for offline testing - no auto-connect to public network
+    // Create a real VerityNode with CCI cube family for proper chat cube handling
     verityNode = new VerityNode({
-      ...testCoreOptions,  // Use testCoreOptions instead of testCciOptions for faster init
+      ...testCoreOptions,  // Use testCoreOptions as base for performance
+      family: [cciFamily, coreCubeFamily], // Support both CCI and core cube families like the demo app
       lightNode: true,   // Light node - only stores own cubes, doesn't download everything
       inMemory: true,    // Fast in-memory storage for testing
       requiredDifficulty: 0,  // No proof-of-work for testing
@@ -586,11 +588,11 @@ async function processRoomMessageStream(): Promise<void> {
 
 /**
  * Parse a chat cube into a ChatMessage
- * Works with the actual cube format created by ChatApplication.createChatCube()
+ * Uses the exact same method as the demo chat application - no fallback parsing
  */
 async function parseChatCubeToMessage(cube: Cube): Promise<ChatMessage | null> {
   try {
-    // First, try the standard ChatApplication.parseChatCube method
+    // Use the exact same parsing method as the demo chat application
     const cciCube: cciCube = cube as cciCube;
     const { username, message } = ChatApplication.parseChatCube(cciCube);
     
@@ -600,90 +602,15 @@ async function parseChatCubeToMessage(cube: Cube): Promise<ChatMessage | null> {
       timestamp: new Date(cciCube.getDate() * 1000).toISOString(),
     };
   } catch (error) {
-    console.warn(`Standard parsing failed: ${error}, attempting raw content parsing`);
+    console.error(`ChatApplication.parseChatCube() failed - this indicates a fundamental cube creation/transmission issue: ${error}`);
     
-    // If standard parsing fails, try to extract from raw content
-    // The actual cubes created contain core fields instead of CCI fields
-    try {
-      // Check if this is a FROZEN_NOTIFY cube (type 17)
-      if ((cube as any).cubeType !== 17) {
-        console.warn('Not a FROZEN_NOTIFY cube, cannot parse');
-        return null;
-      }
-      
-      // Try to get FROZEN_NOTIFY_RAWCONTENT field (type 2102)
-      const rawContentField = cube.getFirstField(2102);
-      if (!rawContentField) {
-        console.warn('No FROZEN_NOTIFY_RAWCONTENT field found');
-        return null;
-      }
-      
-      // Parse the raw content to extract clean text
-      const rawContent = rawContentField.value;
-      
-      // Look for the pattern: the message appears to be after "testUser@" 
-      // and before certain control characters
-      let cleanMessage = '';
-      let sender = 'Unknown';
-      
-      // Convert to string and look for text patterns
-      const rawString = rawContent.toString('utf-8');
-      
-      // Extract sender (look for "testUser" pattern)
-      if (rawString.includes('testUser')) {
-        sender = 'testUser';
-      }
-      
-      // Extract message text using pattern matching
-      // The message appears after "testUser@" and before control characters
-      const senderMatch = rawString.match(/testUser@(.+?)[\x7f\x00]/);
-      if (senderMatch && senderMatch[1]) {
-        cleanMessage = senderMatch[1].replace(/[^\x20-\x7E]/g, '').trim();
-      } else {
-        // Fallback: look for any readable text in the raw content
-        const readableText = rawString.replace(/[^\x20-\x7E]/g, ' ').trim();
-        const words = readableText.split(/\s+/).filter(word => word.length > 2);
-        if (words.length > 0) {
-          // Take the longest contiguous readable text
-          cleanMessage = words.join(' ');
-        }
-      }
-      
-      // If we found a clean message, return it
-      if (cleanMessage && cleanMessage.length > 0) {
-        return {
-          text: cleanMessage,
-          sender: sender,
-          timestamp: new Date().toISOString(),
-        };
-      }
-      
-      console.warn('Could not extract chat data from raw content');
-      return null;
-      
-    } catch (rawError) {
-      console.warn(`Raw content parsing failed: ${rawError}`);
-    }
-    
-    // Log the cube structure for debugging
+    // Log cube details for debugging the field type mismatch
     const fields = Array.from(cube.getFields());
-    const fieldTypes = fields.map(field => ({ type: field.type, length: field.length }));
-    console.warn('Failed to parse cube, structure:', {
+    console.error('Cube details for debugging:', {
       cubeType: (cube as any).cubeType,
       fieldsCount: fields.length,
-      fieldTypes: fieldTypes,
-      hasUsernameField: !!cube.getFirstField(FieldType.USERNAME),
-      hasPayloadField: !!cube.getFirstField(FieldType.PAYLOAD),
-      usernameFieldType: FieldType.USERNAME,
-      payloadFieldType: FieldType.PAYLOAD,
-      applicationFieldType: FieldType.APPLICATION
+      fieldTypes: fields.map(field => ({ type: field.type, length: field.length })),
     });
-    
-    // Check each field type specifically
-    for (let i = 0; i < fields.length; i++) {
-      const field = fields[i];
-      console.warn(`Field ${i}: type=${field.type}, expected USERNAME=${FieldType.USERNAME}, PAYLOAD=${FieldType.PAYLOAD}, APPLICATION=${FieldType.APPLICATION}`);
-    }
     
     return null;
   }
