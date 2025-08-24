@@ -268,6 +268,9 @@ When creating tests that use CoreNode or CubeStore instances:
 
 ## Environment and Tools
 
+### Environment Runtime
+**Each session of your Linux VM environment lasts 59 minutes — use the full time. Only end early if the task is fully complete; otherwise, use remaining time for checks and improvements.**
+
 ### Bash Tool
 - Your bash tool has a limited execution time of 600 seconds (10 minutes).
 - After the timeout, it detaches to background. Use `read_bash` to re-attach and continue working, or `stop_bash` to abort.
