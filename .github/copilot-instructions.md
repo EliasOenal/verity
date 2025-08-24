@@ -209,15 +209,10 @@ You sometimes will be in a situation where you can't finish the goal in one go. 
 
 3. **Never Trust Surface-Level Success:** If UI shows "success" but core functionality fails, investigate deeper. Status indicators must reflect actual system state, not optimistic assumptions.
 
-4. **Light Node vs Full Node Awareness:** 
-   - Light nodes (`lightNode: true`) should NOT download all cubes indiscriminately
-   - Full nodes (`lightNode: false`) are expected to download extensively
-   - Always verify the correct node type for test scenarios
-
 ### Manual Testing Requirements
 
 **MANDATORY before declaring any P2P feature complete:**
-1. Start support node: `npm run start -- -w 1984 -t`
+1. Start support node: `npm run start -- -w 1984`
 2. Open Browser 1, connect to support node, create/send content
 3. Disconnect Browser 1
 4. Open Browser 2, connect to same support node
@@ -247,8 +242,6 @@ You sometimes will be in a situation where you can't finish the goal in one go. 
 4. **Re-test manually** after each change
 5. **Verify automated tests** catch the original issue
 6. **Only proceed** when both manual and automated validation pass
-
-**Key Lesson:** Surface-level success indicators can be misleading. Always verify that the core functionality (P2P cube exchange) actually works through the complete intended workflow before considering any networking feature complete.
 
 ## File Management and Git Best Practices
 
