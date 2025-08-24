@@ -195,6 +195,61 @@ You sometimes will be in a situation where you can't finish the goal in one go. 
 
 **Always prioritize working functionality (support node, tests, development server, build) over any remaining minor issues.**
 
+## Critical Testing and Development Guidelines
+
+### Test-First Development Approach
+**CRITICAL: All functionality changes MUST be thoroughly tested with comprehensive end-to-end workflows before considering them complete.**
+
+1. **Complete Workflow Testing:** When working on P2P or networking features, ALWAYS test the complete offline → connect → upload → disconnect → reconnect → retrieve workflow. Partial testing is insufficient.
+
+2. **Cross-Browser P2P Validation:** For any P2P functionality:
+   - Test with multiple browser instances connecting to the same node
+   - Verify cube synchronization works across disconnections and reconnections
+   - Manually validate the exact scenario: Browser1 creates cube → disconnects → Browser2 connects → retrieves cube
+
+3. **Never Trust Surface-Level Success:** If UI shows "success" but core functionality fails, investigate deeper. Status indicators must reflect actual system state, not optimistic assumptions.
+
+4. **Light Node vs Full Node Awareness:** 
+   - Light nodes (`lightNode: true`) should NOT download all cubes indiscriminately
+   - Full nodes (`lightNode: false`) are expected to download extensively
+   - Always verify the correct node type for test scenarios
+
+### Manual Testing Requirements
+
+**MANDATORY before declaring any P2P feature complete:**
+1. Start support node: `npm run start -- -w 1984 -t`
+2. Open Browser 1, connect to support node, create/send content
+3. Disconnect Browser 1
+4. Open Browser 2, connect to same support node
+5. Verify Browser 2 retrieves content from Browser 1
+6. Test UI consistency - status should accurately reflect connection state
+
+### Test Coverage Standards
+
+**Playwright tests MUST cover:**
+- Complete user workflows, not just individual operations  
+- UI state consistency (peer counts, connection status, etc.)
+- Cross-browser synchronization scenarios
+- Proper error handling and recovery
+- Both light node and full node behaviors appropriately
+
+**Tests should FAIL immediately when:**
+- Core P2P functionality breaks
+- Status displays become inconsistent with actual state
+- Cross-browser cube synchronization fails
+- Node types behave incorrectly (light nodes downloading everything)
+
+### Development Iteration Protocol
+
+1. **Start with manual testing** of the complete workflow
+2. **Write failing tests** that demonstrate the issue
+3. **Implement fixes** incrementally
+4. **Re-test manually** after each change
+5. **Verify automated tests** catch the original issue
+6. **Only proceed** when both manual and automated validation pass
+
+**Key Lesson:** Surface-level success indicators can be misleading. Always verify that the core functionality (P2P cube exchange) actually works through the complete intended workflow before considering any networking feature complete.
+
 ## File Management and Git Best Practices
 
 ### Files That Should NEVER Be Committed
