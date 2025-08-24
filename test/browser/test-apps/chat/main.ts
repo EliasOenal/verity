@@ -20,6 +20,7 @@ import { RetrievalFormat } from '../../../../src/cci/veritum/veritum.definitions
 import { Cube } from '../../../../src/core/cube/cube';
 import { CubeRetriever } from '../../../../src/core/networking/cubeRetrieval/cubeRetriever';
 import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
+import { cciCube } from '../../../../src/cci/cube/cciCube';
 
 interface ChatMessage {
   text: string;
@@ -225,10 +226,25 @@ async function initializeChatTest(): Promise<void> {
             verityNode.peerDB.learnPeer(peer);
             const networkPeer = verityNode.networkManager.connect(peer);
             
-            // Start chat subscription after successful connection
+            // Wait for peer to be fully connected and exchangeable before starting subscription
+            // This fixes the race condition where subscription starts before peer is ready
+            await new Promise<void>((resolve) => {
+              const checkPeerReady = () => {
+                const activePeers = verityNode.peerDB.peersExchangeable.size;
+                if (activePeers > 0) {
+                  resolve();
+                } else {
+                  // Check again in 100ms
+                  setTimeout(checkPeerReady, 100);
+                }
+              };
+              checkPeerReady();
+            });
+            
+            // Start chat subscription after peer is fully ready
             if (!currentChatRoom?.subscription) {
               await startChatRoomSubscription();
-              console.log('Started P2P chat subscription after peer connection');
+              console.log('Started P2P chat subscription after peer connection is fully established');
             }
             
             const knownPeers = verityNode.peerDB.peersVerified.size + verityNode.peerDB.peersExchangeable.size;
@@ -414,7 +430,7 @@ if (isBrowser) {
 
 /**
  * Start subscription to receive chat messages from other peers
- * Only call this after manually connecting to peers
+ * Only call this after manually connecting to peers and peer is fully ready
  */
 async function startChatRoomSubscription(): Promise<void> {
   if (!verityNode || !currentChatRoom || currentChatRoom.subscription) {
@@ -427,16 +443,26 @@ async function startChatRoomSubscription(): Promise<void> {
     // Load local history first to populate interface immediately
     await loadLocalChatHistory();
     
+    // Verify we have active peers before starting network subscription
+    const activePeers = verityNode.peerDB.peersExchangeable.size;
+    console.log(`Active peers available for network retrieval: ${activePeers}`);
+    
+    if (activePeers === 0) {
+      console.warn('No active peers available for network retrieval - subscription will only work for local cubes');
+    }
+    
     // 1) Enable live subscription for future messages
     let futureCubes: AsyncGenerator<Cube> | undefined;
     if ('subscribeNotifications' in verityNode.cubeRetriever) {
       futureCubes = (verityNode.cubeRetriever as CubeRetriever)
         .subscribeNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube });
+      console.log('Enabled live subscription for future notifications');
     }
 
     // 2) Also fetch network history from the retriever to cover what we don't have locally
     const retrieverHistory: AsyncGenerator<Cube> = (verityNode.cubeRetriever as CubeRetriever)
       .getNotifications(currentChatRoom.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
+    console.log('Starting network history retrieval from connected peers');
 
     // 3) Merge streams: future first (already active), plus retriever history
     // This is the same pattern as the demo chat app for complete P2P synchronization
@@ -563,51 +589,62 @@ async function processRoomMessageStream(): Promise<void> {
  */
 async function parseChatCubeToMessage(cube: Cube): Promise<ChatMessage | null> {
   try {
-    // Use the same parsing logic as ChatApplication.parseChatCube
-    // Chat cubes use FieldType.USERNAME and FieldType.PAYLOAD
-    const usernameField = cube.getFirstField(FieldType.USERNAME);
-    const payloadField = cube.getFirstField(FieldType.PAYLOAD);
+    // Use the proper ChatApplication.parseChatCube method
+    const cciCube: cciCube = cube as cciCube;
+    const { username, message } = ChatApplication.parseChatCube(cciCube);
     
-    if (usernameField && payloadField) {
-      return {
-        text: payloadField.value.toString('utf-8'),
-        sender: usernameField.valueString || usernameField.value.toString(),
-        timestamp: new Date().toISOString(),
-      };
-    }
-    
-    // Fallback: try to get fields by iterating through all fields
-    const fields = Array.from(cube.getFields());
-    let message = '';
-    let author = '';
-    
-    for (const field of fields) {
-      // Try to match field types - this is a best-effort approach
-      const fieldValue = field.value?.toString() || '';
-      if (fieldValue.length > 0 && fieldValue.length < 500) {
-        // Heuristic: shorter fields are likely to be authors, longer ones messages
-        if (fieldValue.length < 50 && !author) {
-          author = fieldValue;
-        } else if (fieldValue.length >= 50 && !message) {
-          message = fieldValue;
-        } else if (!message) {
-          message = fieldValue;
+    return {
+      text: message,
+      sender: username,
+      timestamp: new Date(cciCube.getDate() * 1000).toISOString(),
+    };
+  } catch (error) {
+    // Fallback: try to parse as before for non-chat cubes
+    try {
+      const usernameField = cube.getFirstField(FieldType.USERNAME);
+      const payloadField = cube.getFirstField(FieldType.PAYLOAD);
+      
+      if (usernameField && payloadField) {
+        return {
+          text: payloadField.value.toString('utf-8'),
+          sender: usernameField.valueString || usernameField.value.toString(),
+          timestamp: new Date().toISOString(),
+        };
+      }
+      
+      // Last resort: try to get fields by iterating through all fields
+      const fields = Array.from(cube.getFields());
+      let message = '';
+      let author = '';
+      
+      for (const field of fields) {
+        // Try to match field types - this is a best-effort approach
+        const fieldValue = field.value?.toString('utf-8') || '';
+        if (fieldValue.length > 0 && fieldValue.length < 500) {
+          // Heuristic: shorter fields are likely to be authors, longer ones messages
+          if (fieldValue.length < 50 && !author) {
+            author = fieldValue;
+          } else if (fieldValue.length >= 50 && !message) {
+            message = fieldValue;
+          } else if (!message) {
+            message = fieldValue;
+          }
         }
       }
+      
+      if (message && author) {
+        return {
+          text: message,
+          sender: author,
+          timestamp: new Date().toISOString(),
+        };
+      }
+      
+      return null;
+    } catch (fallbackError) {
+      console.warn(`Error parsing cube with fallback method: ${fallbackError}`);
+      return null;
     }
-    
-    if (message && author) {
-      return {
-        text: message,
-        sender: author,
-        timestamp: new Date().toISOString(),
-      };
-    }
-    
-    return null;
-  } catch (error) {
-    console.warn(`Error parsing chat cube: ${error}`);
-    return null;
   }
 }
 
