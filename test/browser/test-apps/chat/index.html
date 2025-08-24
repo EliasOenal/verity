@@ -27,7 +27,7 @@
             <h3>Peer Connection (Manual)</h3>
             <p><em>Connect to other nodes to test P2P chat functionality</em></p>
             <form id="peerForm" class="peer-form">
-                <input type="text" id="peerInput" placeholder="ws://localhost:1984 or wss://node.example.com" required>
+                <input type="text" id="peerInput" placeholder="ws://localhost:1984 or wss://node.example.com" value="ws://localhost:1984" required>
                 <button type="submit">Connect to Peer</button>
                 <button type="button" onclick="window.testUtils?.disconnectPeers()">Disconnect All</button>
             </form>

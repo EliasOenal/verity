@@ -20,7 +20,7 @@ import { RetrievalFormat } from '../../../../src/cci/veritum/veritum.definitions
 import { Cube } from '../../../../src/core/cube/cube';
 import { CubeRetriever } from '../../../../src/core/networking/cubeRetrieval/cubeRetriever';
 import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
-import { cciFamily } from '../../../../src/cci/cube/cciCube';
+import { cciFamily, cciCube } from '../../../../src/cci/cube/cciCube';
 import { coreCubeFamily } from '../../../../src/core/cube/cube';
 
 interface ChatMessage {
