@@ -55,7 +55,7 @@ Verity is a decentralized and censorship-resistant data storage and distribution
 
 #### Support Node (CLI Application)
 ```bash
-npm run start -- -w 1984 -t
+npm run start -- -w 1984
 ```
 - Runs a full Verity network node on port 1984
 - May not have connectivity to some trackers (normal)
@@ -90,7 +90,7 @@ npm run webpack
 ### Always Run These Validation Steps After Changes
 1. **Build Check:** `npm run build` - should complete successfully
 2. **Test Suite:** `npm test` - should pass consistently
-3. **Support Node:** `npm run start -- -w 1984 -t` - must start successfully and show ASCII art
+3. **Support Node:** `npm run start -- -w 1984` - must start successfully and show ASCII art
 4. **Development Server:** `npm run server` - should serve content successfully
 
 ### Manual Validation Scenarios
