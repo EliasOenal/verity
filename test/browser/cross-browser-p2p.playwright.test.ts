@@ -482,7 +482,7 @@ test.describe('Chat Test Application P2P Verification', () => {
       await page2.click('button:has-text("Connect to Peer")');
       
       // Wait for connection and comprehensive cube retrieval (longer wait for 10 cubes)
-      await page2.waitForTimeout(4000);
+      await page2.waitForTimeout(2000);
       
       // Verify connected state
       await expect(page2.locator('text=Ready - CONNECTED MODE')).toBeVisible();
