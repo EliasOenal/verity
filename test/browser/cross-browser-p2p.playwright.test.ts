@@ -362,7 +362,7 @@ test.describe('Chat Test Application P2P Verification', () => {
   // These tests specifically verify that the chat test application
   // implements the correct P2P patterns and doesn't regress
   
-  const CHAT_TEST_URL = 'http://localhost:11985/index.html';
+  const CHAT_TEST_URL = 'http://localhost:11985/chat/index.html';
   
   test('should demonstrate chat test app P2P workflow', async ({ page, browser }) => {
     // This test documents and verifies the chat test app behavior
@@ -374,7 +374,7 @@ test.describe('Chat Test Application P2P Verification', () => {
     try {
       await page.goto(CHAT_TEST_URL);
       await page.waitForSelector('h1:has-text("Verity Chat Test Environment")');
-      await page.waitForSelector('#nodeInfo:has-text("Chat test ready!")');
+      await page.waitForSelector('#status:has-text("Chat test ready!")', { timeout: 8000 });
       
       // Verify starts in offline mode (important for light node behavior)
       await expect(page.locator('text=Ready - OFFLINE MODE')).toBeVisible();
