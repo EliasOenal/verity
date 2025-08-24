@@ -586,10 +586,11 @@ async function processRoomMessageStream(): Promise<void> {
 
 /**
  * Parse a chat cube into a ChatMessage
+ * This follows the same pattern as the demo chat controller for consistency
  */
 async function parseChatCubeToMessage(cube: Cube): Promise<ChatMessage | null> {
   try {
-    // Use the proper ChatApplication.parseChatCube method
+    // Use the proper ChatApplication.parseChatCube method - same as demo app
     const cciCube: cciCube = cube as cciCube;
     const { username, message } = ChatApplication.parseChatCube(cciCube);
     
@@ -599,52 +600,36 @@ async function parseChatCubeToMessage(cube: Cube): Promise<ChatMessage | null> {
       timestamp: new Date(cciCube.getDate() * 1000).toISOString(),
     };
   } catch (error) {
-    // Fallback: try to parse as before for non-chat cubes
+    console.warn(`Error parsing chat cube: ${error}`);
+    
+    // Only try simple field extraction as fallback - avoid complex heuristics that can cause corruption
     try {
       const usernameField = cube.getFirstField(FieldType.USERNAME);
       const payloadField = cube.getFirstField(FieldType.PAYLOAD);
       
       if (usernameField && payloadField) {
-        return {
-          text: payloadField.value.toString('utf-8'),
-          sender: usernameField.valueString || usernameField.value.toString(),
-          timestamp: new Date().toISOString(),
-        };
-      }
-      
-      // Last resort: try to get fields by iterating through all fields
-      const fields = Array.from(cube.getFields());
-      let message = '';
-      let author = '';
-      
-      for (const field of fields) {
-        // Try to match field types - this is a best-effort approach
-        const fieldValue = field.value?.toString('utf-8') || '';
-        if (fieldValue.length > 0 && fieldValue.length < 500) {
-          // Heuristic: shorter fields are likely to be authors, longer ones messages
-          if (fieldValue.length < 50 && !author) {
-            author = fieldValue;
-          } else if (fieldValue.length >= 50 && !message) {
-            message = fieldValue;
-          } else if (!message) {
-            message = fieldValue;
-          }
-        }
-      }
-      
-      if (message && author) {
+        const username = usernameField.valueString || usernameField.value.toString('utf-8');
+        const message = payloadField.value.toString('utf-8');
+        
         return {
           text: message,
-          sender: author,
+          sender: username,
           timestamp: new Date().toISOString(),
         };
       }
-      
-      return null;
     } catch (fallbackError) {
-      console.warn(`Error parsing cube with fallback method: ${fallbackError}`);
-      return null;
+      console.warn(`Error in fallback parsing: ${fallbackError}`);
     }
+    
+    // If both methods fail, log the cube structure for debugging
+    console.warn('Failed to parse cube, structure:', {
+      cubeType: (cube as any).cubeType,
+      fieldsCount: Array.from(cube.getFields()).length,
+      hasUsernameField: !!cube.getFirstField(FieldType.USERNAME),
+      hasPayloadField: !!cube.getFirstField(FieldType.PAYLOAD)
+    });
+    
+    return null;
   }
 }
 
