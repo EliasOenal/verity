@@ -1,6 +1,6 @@
 # Verity - Decentralized Data Storage Platform
 
-Verity is a decentralized and censorship-resistant data storage and distribution platform built with TypeScript/Node.js. It uses unique "cube" structures (1kB data blocks) synchronized across peer-to-peer nodes. The project includes both a support node (CLI) and a microblogging web application demo.
+Verity is a decentralized and censorship-resistant data storage and distribution platform built with TypeScript/Node.js. It uses unique "cube" structures (1kB data blocks) synchronized across peer-to-peer nodes. The project includes both a support node (CLI) and a web application demo.
 
 **ALWAYS follow these instructions first and only fallback to search or bash commands when you encounter information that contradicts or is missing from these instructions.**
 
@@ -26,7 +26,7 @@ Verity is a decentralized and censorship-resistant data storage and distribution
 
 3. **Run Node.js Tests:**
    ```bash
-   npm test
+   npm run test -- --workers=4
    ```
    - **NEVER CANCEL: Takes 3+ minutes to complete.** Set timeout to 10+ minutes.
    - Runs all 80+ test files with 4500+ tests using vitest
@@ -35,7 +35,7 @@ Verity is a decentralized and censorship-resistant data storage and distribution
 
 4. **Run Playwright Tests:**
    ```bash
-   npm run test:playwright
+   npm run test:playwright -- --workers=4
    ```
    - **NEVER CANCEL: Takes 2+ minutes to complete.** Set timeout to 10+ minutes.
    - Runs all 35+ tests using playwright
