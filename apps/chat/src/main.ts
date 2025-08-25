@@ -1,4 +1,6 @@
 import { ChatAppController } from "./chatAppController";
+// Import modern chat styles (processed by webpack)
+import "../chat.css";
 import { isBrowser } from "browser-or-node";
 import { logger } from "../../../src/core/logger";
 import { VerityNode } from "../../../src/cci/verityNode";
@@ -31,7 +33,8 @@ export async function webmain() {
     logger.info("Verity node is ready");
     
     // Create cockpit for cube operations
-    const cockpit = new Cockpit(node, { identity: () => undefined });
+  // No identity management in lightweight chat demo; cockpit can work without explicit identity
+  const cockpit = new Cockpit(node, { identity: undefined as any });
     
     // Create a simple context for the controllers
     const context = {
@@ -44,18 +47,7 @@ export async function webmain() {
     const chatController = new ChatAppController(context);
     
     // Set up global access (for compatibility with existing templates)
-    (window as any).verity = {
-      node,
-      currentController: {
-        changeDisplayTo: (shallDisplay: number) => {
-          chatController.getPeerController().changeDisplayTo(shallDisplay);
-        }
-      },
-      peerController: chatController.getPeerController(),
-      nav: {
-        closeCurrentController: () => {} // No-op for standalone app
-      }
-    };
+  (window as any).verity = { node };
     
     // Initialize the chat app
     await chatController.showChatApp();

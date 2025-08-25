@@ -1,349 +1,96 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-theme="light">
 <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Verity Chat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <link href="vera.svg" rel="icon" type="image/png" />
-  <link href="bootstrap.min.css" rel="stylesheet" />
-  <link href="bootstrap-icons.min.css" rel="stylesheet" />
-  <link href="manifest.json" rel="manifest" />
-  <script src="bootstrap.bundle.min.js"></script>
-  <script src="frontend.js" defer></script>
+  <link rel="icon" type="image/svg+xml" href="vera.svg" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="chat.css" />
+  <script>
+    // Initial theme (no FOUC)
+    (()=>{const prefersDark=matchMedia('(prefers-color-scheme: dark)').matches;const saved=localStorage.getItem('vc-theme');document.documentElement.dataset.theme=saved|| (prefersDark?'dark':'light');})();
+  </script>
   <script src="verityUI.js" defer></script>
-  <script>
-    // This script tag prevents a flash of unstyled content (FOUC) on page load
-    // and should not be moved.
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      document.documentElement.setAttribute('data-bs-theme', 'dark');
-    }
-  </script>
-  <style>
-    @import url('style.css');
-    
-    /* Chat app specific styles */
-    body {
-      margin: 0;
-      padding: 0;
-    }
-    
-    .container-fluid[style*="max-width: 600px"] {
-      max-height: calc(100vh - 10px);
-      overflow-y: auto;
-      margin-bottom: 0;
-    }
-    
-    /* Ensure chat messages container has reasonable height */
-    .verityChatMessagesContainer {
-      max-height: 35vh;
-      overflow-y: auto;
-    }
-    
-    /* Make network panel content scrollable if needed and adjust height */
-    #verityPeersPanelContent {
-      max-height: 35vh;
-      overflow-y: auto;
-    }
-    
-    /* Reduce overall container padding to save space */
-    .container-fluid {
-      padding-top: 5px;
-      padding-bottom: 5px;
-    }
-    
-    /* Reduce margins on peer panel */
-    #verityPeersPanel {
-      margin-top: 10px;
-    }
-  </style>
 </head>
-
 <body>
-  <div class="content-wrapper">
-    <div class="container-fluid">
-      <div class="row" id="globalrow">
-        
-        <!-- Hidden elements needed by VeraAnimationController to prevent errors -->
-        <div id="veraNest" class="hidden" style="display: none;">
-          <img src="vera.svg" class="img-fluid vera-anim vera-spin veraLogo"
-            id="veralogo" alt="" />
-        </div>
-        
-        <!-- Light/dark theme switch (top right) -->
-        <button class="btn btn-link dark-mode-toggle fade-in"
-                id="verityThemeSwitch" onclick="toggleDarkMode()" type="button"
-                style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
-          <span id="theme-icon">
-            <!-- The icon will be set here by the updateIcon function -->
-          </span>
-        </button>
-
-        <!-- Main content area container with proper Bootstrap responsive layout -->
-        <div class="col-12">
-          <div class="container-fluid px-0" id="verityContentCol" style="max-width: 100%; overflow-x: hidden;">
-            
-            <!-- Main content area for chat and network panel -->
-            <div class="container-fluid" style="max-width: 600px;">
-              <!-- Chat content -->
-              <div id="verityContentArea"></div>
-              
-              <!-- Peers panel - minimizable and positioned below chat within same container -->
-              <div id="verityPeersPanel" class="card mt-3">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                  <h6 class="mb-0">Network</h6>
-                  <div class="d-flex align-items-center">
-                    <!-- Online status indicator -->
-                    <div id="verityOnlineStatusArea" class="me-3">
-                      <a class="verityOnlineStatus" href="#" onclick="false" style="display: none">
-                        <span class="redDot"></span>Offline
-                      </a>
-                    </div>
-                    <!-- Minimize/maximize button -->
-                    <button class="btn btn-sm btn-outline-secondary" id="verityPeersPanelToggle" onclick="togglePeersPanel()">
-                      <i class="bi bi-chevron-up" id="verityPeersPanelIcon"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="card-body" id="verityPeersPanelContent" style="overflow-x: auto;">
-                  <!-- Peer management content will be inserted here -->
-                </div>
-              </div>
-            </div>
-            
-            <!-- Back button area (hidden by default) -->
-            <div id="verityBackArea" class="mt-3 mt-sm-5 me-2" style="display: none;">
-              <a href="#" id="verityBackButton" class="bi bi-arrow-left"
-                 onclick="window.verity.nav.closeCurrentController()"></a>
-            </div>
-          </div>
+  <header class="vc-header">
+    <div class="vc-brand">
+      <img class="vc-logo" src="vera.svg" alt="Verity" />
+      <span>Verity Chat</span>
+    </div>
+    <div class="vc-status-group">
+      <!-- Keep both elements for legacy OnlineView wiring -->
+      <span id="onlineStatusArea" class="verityOnlineStatus" hidden></span>
+      <span id="verityOnlineStatusArea" hidden></span>
+  <button id="userPanelBtn" class="vc-icon-btn" aria-expanded="false" title="User / Username" data-tip="User settings">👤</button>
+  <button id="roomPanelBtn" class="vc-icon-btn" aria-expanded="false" title="Rooms / Join" data-tip="Join or switch rooms">🗨️</button>
+      <button id="networkToggleBtn" class="vc-icon-btn" aria-expanded="false" title="Network / Peers" data-tip="View connected peers">⚡</button>
+      <button id="themeToggleBtn" class="vc-icon-btn" title="Toggle theme" data-tip="Toggle light/dark theme">🌓</button>
+    </div>
+  </header>
+  <!-- Flyout panels -->
+  <section id="userPanel" aria-hidden="true" class="vc-fly-panel" data-open="false">
+    <div class="vc-fly-header">
+      <h2>User</h2>
+      <button class="vc-icon-btn" data-close-panel="userPanel" title="Close">✕</button>
+    </div>
+    <div class="vc-fly-content">
+      <div class="vc-field-row">
+        <label class="vc-label">Username</label>
+        <div class="vc-inline">
+          <input class="vc-input verityUsernameInput" placeholder="Anonymous" maxlength="48" />
+          <button type="button" class="vc-btn primary verityUsernameSet">Set</button>
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Minimize peers panel functionality -->
-  <script>
-    let peersPanelMinimized = true; // Start minimized
-    
-    function togglePeersPanel() {
-      const content = document.getElementById('verityPeersPanelContent');
-      const icon = document.getElementById('verityPeersPanelIcon');
-      
-      if (peersPanelMinimized) {
-        content.style.display = 'block';
-        icon.className = 'bi bi-chevron-up';
-        peersPanelMinimized = false;
-      } else {
-        content.style.display = 'none';
-        icon.className = 'bi bi-chevron-down';
-        peersPanelMinimized = true;
-      }
-    }
-    
-    // Start with minimized peers panel
-    document.addEventListener('DOMContentLoaded', function() {
-      const content = document.getElementById('verityPeersPanelContent');
-      const icon = document.getElementById('verityPeersPanelIcon');
-      if (content && icon) {
-        content.style.display = 'none';
-        icon.className = 'bi bi-chevron-down';
-      }
-    });
-  </script>
-
-  <!-- TEMPLATES -->
-  
-  <!-- Peer related templates -->
-  <template id="verityPeerViewTemplate">
-    <div class="verityPeerView">
-      <h6 class="mb-3">Peer Management</h6>
-      <p class="verityMyIdParagraph small">My peer ID:
-        <span class="verityMyId">01234567890ABCDEF</span>
-      </p>
-      <p class="form-check form-switch">
-        <input class="verityAutoConnectSwitch form-check-input"
-               type="checkbox" role="switch"
-               onclick="window.verity.peerController.toggleAutoConnect(this)"
-               checked />
-        Auto-connect peers
-      </p>
-      <div class="verityNewPeerDiv mb-3">
-        <form class="verityNewPeerForm input-group"
-              action="javascript:void(0);"
-              onsubmit="window.verity.peerController.connectPeer(this);">
-          <div class="form-floating">
-            <input id="verityNewPeerInput" class="form-control verityNewPeerInput"
-                   maxlength="600" placeholder="New peer address" required />
-            <label class="form-label" for="verityNewPeerInput">New peer address</label>
-          </div>
-          <button class="btn btn-primary verityNewPeerButton" type="submit">
-            Connect
-          </button>
-        </form>
-      </div>
-
-      <ul class="nav nav-tabs verityPeerTypeNav">
-        <li class="nav-item verityPeerTypeNavItem">
-          <a class="nav-link verityPeerTypeNavLink active" href="#"
-             data-verityShallDisplay="1"
-             onclick="window.verity.currentController.changeDisplayTo(1)">
-            Connected
-          </a>
-        </li>
-        <li class="nav-item verityPeerTypeNavItem">
-          <a class="nav-link verityPeerTypeNavLink" href="#"
-            data-verityShallDisplay="2"
-             onclick="window.verity.currentController.changeDisplayTo(2)">
-            Exchangeable
-          </a>
-        </li>
-        <li class="nav-item verityPeerTypeNavItem">
-          <a class="nav-link verityPeerTypeNavLink" href="#"
-            data-verityShallDisplay="3"
-             onclick="window.verity.currentController.changeDisplayTo(3)">
-            Verified
-          </a>
-        </li>
-        <li class="nav-item verityPeerTypeNavItem">
-          <a class="nav-link verityPeerTypeNavLink" href="#"
-            data-verityShallDisplay="4"
-             onclick="window.verity.currentController.changeDisplayTo(4)">
-            Unverified
-          </a>
-        </li>
-      </ul>
-
-      <ul class="verityPeerList">
-        <!-- Peer entries will be populated dynamically -->
-      </ul>
-      
-      <!-- Template for individual peer entries (separate from the peer list) -->
-      <li class="verityPeer card move-fade-in">
-        <table class="table card-body verityPeerTable">
-          <tr class="verityPeerDataRow">
-            <th class="verityPeerDataHeader">ID</th>
-            <td class="verityPeerData verityPeerId">
-              <!-- Peer ID will be set dynamically -->
-            </td>
-          </tr>
-          <tr class="verityPeerDataRow verityPeerStatusRow">
-            <th class="verityPeerDataHeader">Status</th>
-            <td class="verityPeerData verityPeerStatus"><!-- Status will be set dynamically --></td>
-          </tr>
-          <tr class="verityPeerDataRow verityPeerNodeTypeRow">
-            <th class="verityPeerDataHeader">Node Type</th>
-            <td class="verityPeerData verityPeerNodeType"><!-- Node type will be set dynamically --></td>
-          </tr>
-          <tr class="verityPeerDataRow verityPeerConnRow">
-            <th class="verityPeerDataHeader">Connected through</th>
-            <td class="verityPeerData verityPeerConn">
-              <!-- Connection address will be set dynamically -->
-            </td>
-          </tr>
-          <tr class="verityPeerDataRow verityPeerScoreRow">
-            <th class="verityPeerDataHeader">Trust score</th>
-            <td class="verityPeerData verityPeerScore"><!-- Trust score will be set dynamically --></td>
-          </tr>
-          <tr class="verityPeerDataRow verityPeerTransmissionRow">
-            <th class="verityPeerDataHeader">Messages transmitted</th>
-            <td class="verityPeerData">
-              Sent: <span class="verityPeerTxMsg"><!-- Sent messages will be set dynamically --></span>
-              (<span class="verityPeerTxSize"><!-- Sent bytes will be set dynamically --></span> total)<br/>
-              Received: <span class="verityPeerRxMsg"><!-- Received messages will be set dynamically --></span>
-              (<span class="verityPeerRxSize"><!-- Received bytes will be set dynamically --></span> total)
-            </td>
-          </tr>
-          <tr class="verityPeerDataRow">
-            <th class="verityPeerDataHeader">Known addresses</th>
-            <td class="verityPeerData verityPeerAddresses">
-              <ol class="verityPeerAddressList">
-                <!-- Address list will be populated dynamically -->
-              </ol>
-            </td>
-          </tr>
-        </table>
-        <p class="verityPeerConnectionControls">
-          <button class="verityPeerConnectButton btn btn-success me-1"
-                  data-peerid="e66c51d5130992aac3be542a5df17996"
-                  onclick="window.verity.peerController.connectPeer(this)">
-            Connect
-          </button>
-          <button class="verityPeerReconnectButton btn btn-warning me-1"
-                  data-peerid="e66c51d5130992aac3be542a5df17996"
-                  onclick="window.verity.peerController.reconnectPeer(this)">
-            Reconnect
-          </button>
-          <button class="verityPeerDisconnectButton btn btn-danger me-1"
-                  data-peerid="e66c51d5130992aac3be542a5df17996"
-                  onclick="window.verity.peerController.disconnectPeer(this)">
-            Disconnect
-          </button>
-        </p>
-      </li>
-      
-      <!-- Separate button templates for peer actions -->
-      <button class="verityPeerConnectButton btn btn-success me-1" style="display: none;">
-        Connect
-      </button>
-      <button class="verityPeerReconnectButton btn btn-warning me-1" style="display: none;">
-        Reconnect
-      </button>
-      <button class="verityPeerDisconnectButton btn btn-danger me-1" style="display: none;">
-        Disconnect
-      </button>
+  </section>
+  <section id="roomPanel" aria-hidden="true" class="vc-fly-panel" data-open="false">
+    <div class="vc-fly-header">
+      <h2>Room</h2>
+      <button class="vc-icon-btn" data-close-panel="roomPanel" title="Close">✕</button>
     </div>
-  </template>
+    <div class="vc-fly-content">
+      <div class="vc-field-row">
+        <label class="vc-label">Join Room</label>
+        <div class="vc-inline">
+          <input class="vc-input verityRoomNameInput" placeholder="Room" maxlength="64" />
+          <button type="button" class="vc-btn primary verityJoinRoom">Join</button>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="networkPanel" aria-hidden="true" class="vc-fly-panel" data-open="false">
+    <div class="vc-fly-header">
+      <h2>Network</h2>
+      <button id="closeNetworkBtn" class="vc-icon-btn" data-close-panel="networkPanel" title="Hide network">✕</button>
+    </div>
+    <div id="networkPanelContent" class="vc-fly-content"></div>
+  </section>
 
-  <!-- Chat Application related templates -->
+  <main class="vc-main" aria-label="Chat area">
+    <div id="verityContentArea" class="vc-content-root"></div>
+  </main>
+
+  <!-- Chat Template (minimal DOM, legacy hooks preserved) -->
   <template id="verityChatAppTemplate">
-    <div class="verityChatApp">
-      <div class="verityChatHeader">
-        <h2 class="verityChatTitle">Chat</h2>
-        <div class="verityActiveRoomIndicator">
-          <span class="verityActiveRoomName">No rooms joined</span>
-        </div>
+    <div class="verityChatApp vc-chat-app">
+  <!-- User & Room inputs moved to top flyout panels -->
+
+      <div class="vc-panel">
+        <div class="vc-rooms verityChatRoomTabs" aria-label="Joined rooms"></div>
       </div>
-      
-      <div class="verityChatError alert alert-danger" style="display: none;"></div>
-      
-      <!-- User Setup Section -->
-      <div class="verityChatUserSetup">
-        <div class="input-group mb-3">
-          <span class="input-group-text">👤</span>
-          <input type="text" class="form-control verityUsernameInput" placeholder="Enter your username" required>
-          <button class="btn btn-outline-primary verityUsernameSet" type="button">Set</button>
-        </div>
-      </div>
-      
-      <!-- Room Management Section -->
-      <div class="verityChatRoomManagement">
-        <div class="input-group mb-3">
-          <span class="input-group-text">🏠</span>
-          <input type="text" class="form-control verityRoomNameInput" placeholder="Enter room name to join">
-          <button class="btn btn-primary verityJoinRoom" type="button">Join Room</button>
-        </div>
-      </div>
-      
-      <!-- Room Tabs -->
-      <div class="verityChatRoomTabs"></div>
-      
-      <!-- Messages Area -->
-      <div class="verityChatMessagesContainer">
-        <div class="verityChatMessages"></div>
-      </div>
-      
-      <!-- Message Input -->
-      <form class="verityChatForm">
-        <div class="input-group">
-          <input type="text" class="form-control verityMessageInput" placeholder="Type your message..." required>
-          <button type="submit" class="btn btn-primary">
-            <span class="d-none d-sm-inline">Send</span>
-            <span class="d-sm-none">📤</span>
-          </button>
-        </div>
+
+      <div class="vc-messages"><div class="verityChatMessages"></div></div>
+
+      <form class="vc-panel vc-send verityChatForm" autocomplete="off">
+        <input class="vc-input verityMessageInput" placeholder="Type your message..." />
+        <button class="vc-btn primary" type="submit">Send</button>
       </form>
+
+      <div class="vc-error verityChatError" hidden></div>
+  <footer class="vc-footer"><a href="https://github.com/EliasOenal/verity" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none" data-tip="Open project repository">Messaging over Verity ♥️</a></footer>
     </div>
   </template>
-
 </body>
 </html>

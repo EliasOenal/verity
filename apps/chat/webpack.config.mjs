@@ -41,6 +41,8 @@ if (copyPlugin) {
   
   // Add our custom index.html
   copyPlugin.patterns.push({ from: './apps/chat/index.html' });
+  // Copy chat specific assets (css)
+  copyPlugin.patterns.push({ from: './apps/chat/chat.css' });
 }
 
 export default chatConfig;
