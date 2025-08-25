@@ -26,9 +26,10 @@
     "webpack": "webpack",
     "build": "tsc -p tsconfig.build.json",
     "server": "webpack serve",
-    "lint": "node_modules/.bin/eslint",
-    "chat:build": "webpack --config apps/chat/webpack.config.mjs",
-    "chat:serve": "webpack serve --config apps/chat/webpack.config.mjs"
+  "lint": "node_modules/.bin/eslint",
+  "chat:build": "webpack --config apps/chat/webpack.config.mjs",
+  "chat:serve": "webpack serve --config apps/chat/webpack.config.mjs",
+  "chat:build:prod": "webpack --config apps/chat/webpack.prod.config.mjs"
   },
   "author": "Elias Oenal, Victor Hahn",
   "license": "BSD-3-Clause-Clear",
