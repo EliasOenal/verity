@@ -16,6 +16,8 @@ export async function webmain() {
     lightNode: true,
     // Disable startup animation to avoid issues with missing elements
     startupAnimation: false,
+    // Disable identity features completely for the standalone chat app
+    disableIdentity: true,
   });
   
   await ui.node.shutdownPromise;

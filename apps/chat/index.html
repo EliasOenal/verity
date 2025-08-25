@@ -32,9 +32,6 @@
             id="veralogo" alt="" />
         </div>
         
-        <!-- Hidden identity area needed by IdentityController -->
-        <div id="verityIdentityArea" style="display: none;"></div>
-        
         <!-- Light/dark theme switch (top right) -->
         <button class="btn btn-link dark-mode-toggle fade-in"
                 id="verityThemeSwitch" onclick="toggleDarkMode()" type="button"
@@ -297,32 +294,6 @@
           </button>
         </div>
       </form>
-    </div>
-  </template>
-
-  <!-- Identity related templates (minimal set needed for IdentityController) -->
-  <template id="verityIdentityRowTemplate">
-    <div class="verityIdentityRow">
-      <div class="verityIdentityAvatarArea">
-        <img src="unknownuser.svg" alt="" height="100%"
-            class="verityIdentityAvatar" id="verityIdentityAvatar" />
-      </div>
-      <div class="verityMyIdentityInfoArea">
-        <div class="verityNotLoggedIn">
-          <b>Not logged in</b><br />
-          <a href="#" class="verityIdentityLoginLink" onclick="false">
-            Log in
-          </a>
-        </div>
-        <div class="verityMyIdentityInfo">
-          <b class="verityIdentityDisplayname">Usor probus veritatem tuendus</b><br />
-          <a href="#" class="verityIdentityEditLink" onclick="false">
-            Edit
-          </a> · <a href="#" class="verityIdentityLogoutLink" onclick="false">
-            Logout
-          </a>
-        </div>
-      </div>
     </div>
   </template>
 
