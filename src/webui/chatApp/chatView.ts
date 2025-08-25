@@ -1,5 +1,6 @@
 import { VerityView } from "../verityView";
 import { ChatController, ChatRoom } from "./chatController";
+import DOMPurify from 'dompurify';
 
 export class ChatView extends VerityView {
     declare readonly controller: ChatController;
@@ -91,12 +92,14 @@ export class ChatView extends VerityView {
             
             // Create a more structured message layout
             const timeString = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const safeUsername = DOMPurify.sanitize(username, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+            const safeMessage = DOMPurify.sanitize(message, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
             messageElement.innerHTML = `
                 <div class="verityMessageHeader">
-                    <span class="verityMessageUsername">${this.escapeHtml(username)}</span>
+                    <span class="verityMessageUsername">${safeUsername}</span>
                     <span class="verityMessageTimestamp">${timeString}</span>
                 </div>
-                <div class="verityMessageContent">${this.escapeHtml(message)}</div>
+                <div class="verityMessageContent">${safeMessage}</div>
             `;
             this.messageList.appendChild(messageElement);
         }
@@ -125,8 +128,9 @@ export class ChatView extends VerityView {
                 tab.classList.add('hasUnread');
             }
             
+            const safeRoomName = DOMPurify.sanitize(room.name, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
             tab.innerHTML = `
-                <span class="roomName">${this.escapeHtml(room.name)}</span>
+                <span class="roomName">${safeRoomName}</span>
                 ${room.unreadCount > 0 ? `<span class="unreadBadge">${room.unreadCount}</span>` : ''}
                 <button class="closeRoom" data-room-id="${room.id}" title="Leave room">×</button>
             `;
@@ -159,15 +163,6 @@ export class ChatView extends VerityView {
                 tabElement.classList.remove('active');
             }
         });
-    }
-
-    private escapeHtml(unsafe: string): string {
-        return unsafe
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
     }
 
     private isScrolledToBottom(): boolean {

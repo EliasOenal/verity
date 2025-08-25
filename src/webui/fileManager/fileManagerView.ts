@@ -1,5 +1,6 @@
 import { VerityView } from "../verityView";
 import { FileManagerController } from "./fileManagerController";
+import DOMPurify from 'dompurify';
 
 export class FileManagerView extends VerityView {
   private uploadForm: HTMLFormElement;
@@ -113,12 +114,14 @@ export class FileManagerView extends VerityView {
   }
 
   showUploadSuccess(fileName: string, cubeKeys: string[]): void {
+    const safeFileName = DOMPurify.sanitize(fileName, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+    const safeKeys = cubeKeys.map(k => DOMPurify.sanitize(k, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }));
     this.uploadMessageArea.innerHTML = `
       <div class="alert alert-success">
-        <p>File "${fileName}" uploaded successfully!</p>
+        <p>File "${safeFileName}" uploaded successfully!</p>
         <p>Cube keys: (Hint: Use first key in [img][/img] tags.)</p>
         <ul class="mb-0">
-          ${cubeKeys.map(key => `<li>${key}</li>`).join('')}
+          ${safeKeys.map(key => `<li>${key}</li>`).join('')}
         </ul>
       </div>
     `;
@@ -126,39 +129,45 @@ export class FileManagerView extends VerityView {
   }
 
   showUploadError(errorMessage: string): void {
+    const safeError = DOMPurify.sanitize(errorMessage, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
     this.uploadMessageArea.innerHTML = `
       <div class="alert alert-danger">
-        Upload failed: ${errorMessage}
+        Upload failed: ${safeError}
       </div>
     `;
     this.hideProgressBar();
   }
 
   showInspectedFile(fileName: string, fileSize: number, imageUrl?: string): void {
+    const safeFileName = DOMPurify.sanitize(fileName, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+    const safeFileSize = DOMPurify.sanitize(fileSize.toString(), { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
     let content = `
       <div class="alert alert-info">
-        <p class="mb-1">File Name: ${fileName}</p>
-        <p class="mb-1">File Size: ${fileSize} bytes</p>
+        <p class="mb-1">File Name: ${safeFileName}</p>
+        <p class="mb-1">File Size: ${safeFileSize} bytes</p>
     `;
     if (imageUrl) {
-      content += `<img src="${imageUrl}" alt="${fileName}" class="img-fluid mt-2">`;
+      const safeImageUrl = DOMPurify.sanitize(imageUrl, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+      content += `<img src="${safeImageUrl}" alt="${safeFileName}" class="img-fluid mt-2">`;
     }
     content += `</div>`;
     this.downloadMessageArea.innerHTML = content;
   }
 
   showDownloadSuccess(fileName: string): void {
+    const safeFileName = DOMPurify.sanitize(fileName, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
     this.downloadMessageArea.innerHTML = `
       <div class="alert alert-success">
-        File "${fileName}" downloaded successfully!
+        File "${safeFileName}" downloaded successfully!
       </div>
     `;
   }
 
   showDownloadError(errorMessage: string): void {
+    const safeError = DOMPurify.sanitize(errorMessage, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
     this.downloadMessageArea.innerHTML = `
       <div class="alert alert-danger">
-        Download failed: ${errorMessage}
+        Download failed: ${safeError}
       </div>
     `;
   }
