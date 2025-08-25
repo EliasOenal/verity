@@ -1,4 +1,3 @@
-import { ControllerContext, VerityController } from "../../../src/webui/verityController";
 import { ChatController } from "../../../src/webui/chatApp/chatController";
 import { PeerController } from "../../../src/webui/peer/peerController";
 import { logger } from "../../../src/core/logger";
@@ -8,16 +7,17 @@ import { logger } from "../../../src/core/logger";
  * This controller manages both the chat functionality and peer management
  * in a simplified interface.
  */
-export class ChatAppController extends VerityController {
+export class ChatAppController {
     private chatController: ChatController;
     private peerController: PeerController;
+    private context: any;
 
-    constructor(parent: ControllerContext) {
-        super(parent);
+    constructor(context: any) {
+        this.context = context;
         
         // Initialize sub-controllers
-        this.chatController = new ChatController(parent);
-        this.peerController = new PeerController(parent);
+        this.chatController = new ChatController(context);
+        this.peerController = new PeerController(context);
     }
 
     /**
@@ -64,10 +64,13 @@ export class ChatAppController extends VerityController {
     /**
      * Clean shutdown of both controllers
      */
-    async shutdown(unshow: boolean = true, callback: boolean = true): Promise<void> {
-        await this.chatController.shutdown(unshow, callback);
-        await this.peerController.shutdown(unshow, callback);
-        await super.shutdown(unshow, callback);
+    async shutdown(): Promise<void> {
+        if (this.chatController?.shutdown) {
+            await this.chatController.shutdown();
+        }
+        if (this.peerController?.shutdown) {
+            await this.peerController.shutdown();
+        }
     }
 
     /**
