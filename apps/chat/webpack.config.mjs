@@ -27,7 +27,6 @@ chatConfig.devServer = {
   allowedHosts: 'all',
   hot: false, // Disable hot module replacement completely
   liveReload: false, // Disable live reload to prevent constant refreshing
-  watchFiles: false, // Disable file watching to prevent reload loops
   client: {
     logging: 'warn',
     reconnect: false,
