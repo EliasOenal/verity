@@ -44,9 +44,13 @@ export async function webmain() {
     const chatController = new ChatAppController(context);
     
     // Set up global access (for compatibility with existing templates)
-    window.verity = {
+    (window as any).verity = {
       node,
-      currentController: chatController,
+      currentController: {
+        changeDisplayTo: (shallDisplay: number) => {
+          chatController.getPeerController().changeDisplayTo(shallDisplay);
+        }
+      },
       peerController: chatController.getPeerController(),
       nav: {
         closeCurrentController: () => {} // No-op for standalone app
