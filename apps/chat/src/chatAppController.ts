@@ -139,7 +139,25 @@ export class ChatAppController {
         usernameInput.value = this.chatController.getUsername();
         usernameSet.addEventListener('click',()=>this.chatController.setUsername(usernameInput.value));
         usernameInput.addEventListener('keypress',e=>{ if(e.key==='Enter'){ e.preventDefault(); this.chatController.setUsername(usernameInput.value); }});
-        const join=()=>{ this.chatController.joinRoom(roomInput.value); roomInput.value=''; this.refreshRooms(); };
+        const join=async()=>{
+            const newRoomName = roomInput.value;
+            if(!newRoomName) return;
+            await this.chatController.joinRoom(newRoomName);
+            roomInput.value='';
+            this.refreshRooms();
+            // Attempt auto-scroll after initial render & any async history load.
+            // We try a few animation frames plus a short timeout to catch late messages.
+            const msgList = document.querySelector('.verityChatMessages') as HTMLElement | null;
+            if(msgList){
+                const scrollBottom = ()=>{ msgList.scrollTop = msgList.scrollHeight; };
+                // Immediate
+                scrollBottom();
+                // Next frame
+                requestAnimationFrame(scrollBottom);
+                // After short delay (captures async history population)
+                setTimeout(scrollBottom, 120);
+            }
+        };
         joinBtn.addEventListener('click',join);
         roomInput.addEventListener('keypress',e=>{ if(e.key==='Enter'){ e.preventDefault(); join(); }});
         form.addEventListener('submit',e=>{ e.preventDefault(); if(msgInput.value.trim()){ this.chatController.sendMessage(this.chatController.getUsername(), msgInput.value.trim()); msgInput.value=''; }});
@@ -186,7 +204,19 @@ export class ChatAppController {
     // Remove extras
     for(const el of existing){ const k = el.getAttribute('data-k'); if(k && !neededKeys.has(k)) el.remove(); }
     // Append missing in chronological order
-    for(const m of active.messages){ const key = (m.cubeKey||'')+m.timestamp.getTime(); if(listEl.querySelector(`.verityChatMessage[data-k="${key}"]`)) continue; const el=document.createElement('div'); el.className='verityChatMessage'; el.setAttribute('data-k', key); const time=m.timestamp.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); el.innerHTML=`<div class="verityMessageHeader"><span class="verityMessageUsername">${m.username}</span><span class="verityMessageTimestamp">${time}</span></div><div class="verityMessageContent">${m.message}</div>`; listEl.appendChild(el); }
+    for(const m of active.messages){
+        const key = (m.cubeKey||'')+m.timestamp.getTime();
+        if(listEl.querySelector(`.verityChatMessage[data-k="${key}"]`)) continue;
+        const el=document.createElement('div');
+        el.className='verityChatMessage';
+        el.setAttribute('data-k', key);
+        const timeShort = m.timestamp.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        // Tooltip: full cube key and full timestamp (ISO) for precision
+        const fullKey = m.cubeKey || '(no cube key)';
+        el.title = `Cube: ${fullKey}\nTime: ${m.timestamp.toISOString()}`;
+        el.innerHTML=`<div class="verityMessageHeader"><span class="verityMessageUsername">${m.username}</span><span class="verityMessageTimestamp">${timeShort}</span></div><div class="verityMessageContent">${m.message}</div>`;
+        listEl.appendChild(el);
+    }
     if(shouldStick) listEl.scrollTop = listEl.scrollHeight; }
 
     /**
