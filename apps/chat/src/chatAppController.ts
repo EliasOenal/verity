@@ -57,6 +57,9 @@ export class ChatAppController {
             this.peerController.onlineView.show();
         }
         
+        // Clear the peer list of any template data before starting real peer display
+        this.peerController.contentAreaView.clearAll();
+        
         // Start peer redisplay (which is the main operation for peer management)
         this.peerController.redisplayPeers();
     }
