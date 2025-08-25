@@ -11,6 +11,8 @@ const chatConfig = {
   entry: {
     chatApp: './apps/chat/src/main.ts', // distinct bundle name
   },
+  // Provide readable bundle without eval wrappers
+  devtool: 'source-map',
   output: {
     filename: '[name].js',
     path: path.resolve(dirname, './dist'),

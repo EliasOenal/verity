@@ -32,13 +32,13 @@ export class LocalChatController {
     this.rooms.set(roomId,room);
     this.switchToRoom(roomId);
     this.onRoomsChanged?.();
-    // If we're online, perform immediate historical load + live subscription.
-    // If offline, defer both to the online event (historical load is cheap but skipping keeps logic simple and retries guaranteed).
+    // Always pre-populate from local store (even if offline) so user sees cached history immediately.
+    await this.loadHistoricalMessages(roomId);
+    // Only start live subscription if online; otherwise defer subscription start until online event.
     if(this.node.networkManager.online){
-      await this.loadHistoricalMessages(roomId);
       this.startRoomSubscription(roomId).catch(err=>logger.error('Chat: subscription error '+err));
     } else {
-      this.bindOnlineListener();
+      this.bindOnlineListener(); // ensures subscription starts later
     }
     await this.saveRooms();
   }
@@ -62,13 +62,13 @@ export class LocalChatController {
   }
   async loadPersisted(){ await this.storage.waitForReady(); const settings = await this.storage.loadSettings(); this.username=settings.username; for(const stored of settings.joinedRooms){ const notificationKey = ChatStorage.hexToNotificationKey(stored.notificationKey); const room:LocalChatRoom={id:stored.id,name:stored.name,notificationKey,messages:[] as LocalChatRoom['messages'],unreadCount:0,subscription:null,isProcessingMessages:false,processedCubeKeys:new Set(),seenCubeKeys:new Set(),lastSeenTimestamp:Date.now()}; this.rooms.set(stored.id,room); }
   if(this.rooms.size){ this.activeRoomId=[...this.rooms.keys()][0]; }
-  // Start/refresh subscriptions only if online; otherwise defer.
+  // Always pre-populate rooms from local store; start subscriptions only if online.
+  for(const id of this.rooms.keys()){
+    await this.loadHistoricalMessages(id);
+  }
   if(this.node.networkManager.online){
-    for(const id of this.rooms.keys()){
-      await this.loadHistoricalMessages(id);
-      this.startRoomSubscription(id).catch(()=>{});
-    }
-  }else{
+    for(const id of this.rooms.keys()) this.startRoomSubscription(id).catch(()=>{});
+  } else {
     this.bindOnlineListener();
   }
   // First-run default room logic: only if user truly has no rooms stored and flag not set
@@ -89,7 +89,10 @@ export class LocalChatController {
       // Re-trigger historical loads + subscriptions now that network is available.
       (async()=>{
         for(const id of this.rooms.keys()){
-          await this.loadHistoricalMessages(id);
+          const room = this.rooms.get(id);
+          if(room && room.messages.length===0){
+            await this.loadHistoricalMessages(id);
+          }
           this.startRoomSubscription(id).catch(()=>{});
         }
         // Update UI after bulk refresh
