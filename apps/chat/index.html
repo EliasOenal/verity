@@ -18,7 +18,27 @@
       document.documentElement.setAttribute('data-bs-theme', 'dark');
     }
   </script>
-  <style>@import url('style.css');</style>
+  <style>
+    @import url('style.css');
+    
+    /* Chat app specific styles */
+    .container-fluid[style*="max-width: 600px"] {
+      max-height: 100vh;
+      overflow-y: auto;
+    }
+    
+    /* Ensure chat messages container has reasonable height */
+    .verityChatMessagesContainer {
+      max-height: 40vh;
+      overflow-y: auto;
+    }
+    
+    /* Make network panel content scrollable if needed */
+    #verityPeersPanelContent {
+      max-height: 50vh;
+      overflow-y: auto;
+    }
+  </style>
 </head>
 
 <body>
@@ -177,64 +197,67 @@
       </ul>
 
       <ul class="verityPeerList">
-        <li class="verityPeer card move-fade-in">
-          <table class="table card-body verityPeerTable">
-            <tr class="verityPeerDataRow">
-              <th class="verityPeerDataHeader">ID</th>
-              <td class="verityPeerData verityPeerId">
-                <!-- Peer ID will be set dynamically -->
-              </td>
-            </tr>
-            <tr class="verityPeerDataRow verityPeerStatusRow">
-              <th class="verityPeerDataHeader">Status</th>
-              <td class="verityPeerData verityPeerStatus"><!-- Status will be set dynamically --></td>
-            </tr>
-            <tr class="verityPeerDataRow verityPeerNodeTypeRow">
-              <th class="verityPeerDataHeader">Node Type</th>
-              <td class="verityPeerData verityPeerNodeType"><!-- Node type will be set dynamically --></td>
-            </tr>
-            <tr class="verityPeerDataRow verityPeerConnRow">
-              <th class="verityPeerDataHeader">Connected through</th>
-              <td class="verityPeerData verityPeerConn">
-                <!-- Connection address will be set dynamically -->
-              </td>
-            </tr>
-            <tr class="verityPeerDataRow verityPeerScoreRow">
-              <th class="verityPeerDataHeader">Trust score</th>
-              <td class="verityPeerData verityPeerScore"><!-- Trust score will be set dynamically --></td>
-            </tr>
-            <tr class="verityPeerDataRow verityPeerTransmissionRow">
-              <th class="verityPeerDataHeader">Messages transmitted</th>
-              <td class="verityPeerData">
-                Sent: <span class="verityPeerTxMsg"><!-- Sent messages will be set dynamically --></span>
-                (<span class="verityPeerTxSize"><!-- Sent bytes will be set dynamically --></span> total)<br/>
-                Received: <span class="verityPeerRxMsg"><!-- Received messages will be set dynamically --></span>
-                (<span class="verityPeerRxSize"><!-- Received bytes will be set dynamically --></span> total)
-              </td>
-            </tr>
-            <tr class="verityPeerDataRow">
-              <th class="verityPeerDataHeader">Known addresses</th>
-              <td class="verityPeerData verityPeerAddresses">
-                <ol class="verityPeerAddressList">
-                  <!-- Address list will be populated dynamically -->
-                </ol>
-              </td>
-            </tr>
-          </table>
-          <p class="verityPeerConnectionControls">
-            <button class="verityPeerConnectButton btn btn-success me-1"
-                    data-peerid="e66c51d5130992aac3be542a5df17996"
-                    onclick="window.verity.peerController.reconnectPeer(this)">
-              Reconnect
-            </button>
-            <button class="verityPeerDisconnectButton btn btn-danger me-1"
-                    data-peerid="e66c51d5130992aac3be542a5df17996"
-                    onclick="window.verity.peerController.disconnectPeer(this)">
-              Disconnect
-            </button>
-          </p>
-        </li>
+        <!-- Peer entries will be populated dynamically -->
       </ul>
+      
+      <!-- Template for individual peer entries (separate from the peer list) -->
+      <li class="verityPeer card move-fade-in" style="display: none;">
+        <table class="table card-body verityPeerTable">
+          <tr class="verityPeerDataRow">
+            <th class="verityPeerDataHeader">ID</th>
+            <td class="verityPeerData verityPeerId">
+              <!-- Peer ID will be set dynamically -->
+            </td>
+          </tr>
+          <tr class="verityPeerDataRow verityPeerStatusRow">
+            <th class="verityPeerDataHeader">Status</th>
+            <td class="verityPeerData verityPeerStatus"><!-- Status will be set dynamically --></td>
+          </tr>
+          <tr class="verityPeerDataRow verityPeerNodeTypeRow">
+            <th class="verityPeerDataHeader">Node Type</th>
+            <td class="verityPeerData verityPeerNodeType"><!-- Node type will be set dynamically --></td>
+          </tr>
+          <tr class="verityPeerDataRow verityPeerConnRow">
+            <th class="verityPeerDataHeader">Connected through</th>
+            <td class="verityPeerData verityPeerConn">
+              <!-- Connection address will be set dynamically -->
+            </td>
+          </tr>
+          <tr class="verityPeerDataRow verityPeerScoreRow">
+            <th class="verityPeerDataHeader">Trust score</th>
+            <td class="verityPeerData verityPeerScore"><!-- Trust score will be set dynamically --></td>
+          </tr>
+          <tr class="verityPeerDataRow verityPeerTransmissionRow">
+            <th class="verityPeerDataHeader">Messages transmitted</th>
+            <td class="verityPeerData">
+              Sent: <span class="verityPeerTxMsg"><!-- Sent messages will be set dynamically --></span>
+              (<span class="verityPeerTxSize"><!-- Sent bytes will be set dynamically --></span> total)<br/>
+              Received: <span class="verityPeerRxMsg"><!-- Received messages will be set dynamically --></span>
+              (<span class="verityPeerRxSize"><!-- Received bytes will be set dynamically --></span> total)
+            </td>
+          </tr>
+          <tr class="verityPeerDataRow">
+            <th class="verityPeerDataHeader">Known addresses</th>
+            <td class="verityPeerData verityPeerAddresses">
+              <ol class="verityPeerAddressList">
+                <!-- Address list will be populated dynamically -->
+              </ol>
+            </td>
+          </tr>
+        </table>
+        <p class="verityPeerConnectionControls">
+          <button class="verityPeerConnectButton btn btn-success me-1"
+                  data-peerid="e66c51d5130992aac3be542a5df17996"
+                  onclick="window.verity.peerController.reconnectPeer(this)">
+            Reconnect
+          </button>
+          <button class="verityPeerDisconnectButton btn btn-danger me-1"
+                  data-peerid="e66c51d5130992aac3be542a5df17996"
+                  onclick="window.verity.peerController.disconnectPeer(this)">
+            Disconnect
+          </button>
+        </p>
+      </li>
     </div>
   </template>
 
