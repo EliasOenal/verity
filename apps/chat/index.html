@@ -248,6 +248,11 @@
         <p class="verityPeerConnectionControls">
           <button class="verityPeerConnectButton btn btn-success me-1"
                   data-peerid="e66c51d5130992aac3be542a5df17996"
+                  onclick="window.verity.peerController.connectPeer(this)">
+            Connect
+          </button>
+          <button class="verityPeerReconnectButton btn btn-warning me-1"
+                  data-peerid="e66c51d5130992aac3be542a5df17996"
                   onclick="window.verity.peerController.reconnectPeer(this)">
             Reconnect
           </button>
@@ -258,6 +263,17 @@
           </button>
         </p>
       </li>
+      
+      <!-- Separate button templates for peer actions -->
+      <button class="verityPeerConnectButton btn btn-success me-1" style="display: none;">
+        Connect
+      </button>
+      <button class="verityPeerReconnectButton btn btn-warning me-1" style="display: none;">
+        Reconnect
+      </button>
+      <button class="verityPeerDisconnectButton btn btn-danger me-1" style="display: none;">
+        Disconnect
+      </button>
     </div>
   </template>
 
