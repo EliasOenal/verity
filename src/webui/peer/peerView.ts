@@ -55,6 +55,8 @@ export class PeerView extends VerityView {
     }
     // Display data, then show this peer container
     this.redrawPeerData(peer, li);
+    // Make the peer element visible
+    li.style.display = 'block';
     if (newli) this.peerList.appendChild(li);
     return li;
   }

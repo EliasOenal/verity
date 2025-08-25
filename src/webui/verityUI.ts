@@ -17,6 +17,7 @@ import { Cockpit } from '../cci/cockpit';
 
 import { PeerController } from './peer/peerController';
 import { IdentityController } from './identity/identityController';
+import { NoOpIdentityController } from './identity/noOpIdentityController';
 import { NavigationController } from './navigation/navigationController';
 import { VeraAnimationController } from './veraAnimationController';
 import { CubeExplorerController } from './cubeExplorer/cubeExplorerController';
@@ -45,6 +46,12 @@ export interface VerityOptions extends VerityNodeOptions, VerityUiOptions, Ident
    * @default true
    **/
   startupAnimation?: boolean;
+  
+  /**
+   * Whether to disable identity features completely
+   * @default false
+   **/
+  disableIdentity?: boolean;
 }
 
 
@@ -62,6 +69,7 @@ export class VerityUI implements ControllerContext {
   static async Construct(options: VerityOptions): Promise<VerityUI> {
     // set default options
     options.startupAnimation ??= true;
+    options.disableIdentity ??= false;
 
     // Initiate startup animation (unless disabled)
     const vera = new VeraAnimationController();
@@ -118,14 +126,18 @@ export class VerityUI implements ControllerContext {
 
     // All done, now update the DOM and stop the startup animation
     ui.nav.navigationView.show();  // display navbar items
-    ui.identityController.loginStatusView.show();  // display Identity status
+    if (!options.disableIdentity) {
+      ui.identityController.loginStatusView.show();  // display Identity status (only if enabled)
+    }
     ui.peerController.onlineView.show();
     ui.currentController?.contentAreaView?.show();  // display initial nav
     if (options.startupAnimation) vera.stop();
     return ui;
   }
 
-  get identity(): Identity { return this.identityController.identity; }
+  get identity(): Identity { 
+    return this.identityController.identity; 
+  }
 
   readonly nav: NavigationController = new NavigationController(this);
   readonly peerController: PeerController;
@@ -145,7 +157,14 @@ export class VerityUI implements ControllerContext {
     // first, as they're part of the mandatory controller context.
     this.cockpit = new Cockpit(this.node,
       { identity: () => this.identityController?.identity ?? undefined });
-    this.identityController = new IdentityController(this, options);
+    
+    // Use NoOpIdentityController if identity features are disabled
+    if (options.disableIdentity) {
+      this.identityController = new NoOpIdentityController(this) as any;
+    } else {
+      this.identityController = new IdentityController(this, options);
+    }
+    
     this.peerController = new PeerController(this);
   }
 
