@@ -22,21 +22,38 @@
     @import url('style.css');
     
     /* Chat app specific styles */
+    body {
+      margin: 0;
+      padding: 0;
+    }
+    
     .container-fluid[style*="max-width: 600px"] {
-      max-height: 100vh;
+      max-height: calc(100vh - 10px);
       overflow-y: auto;
+      margin-bottom: 0;
     }
     
     /* Ensure chat messages container has reasonable height */
     .verityChatMessagesContainer {
-      max-height: 40vh;
+      max-height: 35vh;
       overflow-y: auto;
     }
     
-    /* Make network panel content scrollable if needed */
+    /* Make network panel content scrollable if needed and adjust height */
     #verityPeersPanelContent {
-      max-height: 50vh;
+      max-height: 35vh;
       overflow-y: auto;
+    }
+    
+    /* Reduce overall container padding to save space */
+    .container-fluid {
+      padding-top: 5px;
+      padding-bottom: 5px;
+    }
+    
+    /* Reduce margins on peer panel */
+    #verityPeersPanel {
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -201,7 +218,7 @@
       </ul>
       
       <!-- Template for individual peer entries (separate from the peer list) -->
-      <li class="verityPeer card move-fade-in" style="display: none;">
+      <li class="verityPeer card move-fade-in">
         <table class="table card-body verityPeerTable">
           <tr class="verityPeerDataRow">
             <th class="verityPeerDataHeader">ID</th>
