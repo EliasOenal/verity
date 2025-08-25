@@ -25,6 +25,13 @@ chatConfig.devServer = {
   compress: true,
   port: 11986, // Different port for chat app
   allowedHosts: 'all',
+  hot: false, // Disable hot module replacement completely
+  liveReload: false, // Disable live reload to prevent constant refreshing
+  watchFiles: false, // Disable file watching to prevent reload loops
+  client: {
+    logging: 'warn',
+    reconnect: false,
+  },
 };
 
 // Find the existing CopyWebpackPlugin and modify its patterns

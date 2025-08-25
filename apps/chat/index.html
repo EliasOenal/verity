@@ -43,10 +43,13 @@
 
         <!-- Main content area container with proper Bootstrap responsive layout -->
         <div class="col-12">
-          <div class="container-fluid px-0" id="verityContentCol">
+          <div class="container-fluid px-0" id="verityContentCol" style="max-width: 100%; overflow-x: hidden;">
             
-            <!-- Peers panel - minimizable and positioned at top -->
-            <div id="verityPeersPanel" class="card mb-3">
+            <!-- Main content area for chat -->
+            <div id="verityContentArea"></div>
+            
+            <!-- Peers panel - minimizable and positioned below chat -->
+            <div id="verityPeersPanel" class="card mt-3" style="max-width: 100%;">
               <div class="card-header d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">Network</h6>
                 <div class="d-flex align-items-center">
@@ -62,7 +65,7 @@
                   </button>
                 </div>
               </div>
-              <div class="card-body" id="verityPeersPanelContent">
+              <div class="card-body" id="verityPeersPanelContent" style="max-width: 100%; overflow-x: auto;">
                 <!-- Peer management content will be inserted here -->
               </div>
             </div>
@@ -72,9 +75,6 @@
               <a href="#" id="verityBackButton" class="bi bi-arrow-left"
                  onclick="window.verity.nav.closeCurrentController()"></a>
             </div>
-            
-            <!-- Main content area for chat -->
-            <div id="verityContentArea"></div>
           </div>
         </div>
       </div>
@@ -179,54 +179,41 @@
             <tr class="verityPeerDataRow">
               <th class="verityPeerDataHeader">ID</th>
               <td class="verityPeerData verityPeerId">
-                13371337133713371337133713371337
+                <!-- Peer ID will be set dynamically -->
               </td>
             </tr>
             <tr class="verityPeerDataRow verityPeerStatusRow">
               <th class="verityPeerDataHeader">Status</th>
-              <td class="verityPeerData verityPeerStatus">OK</td>
+              <td class="verityPeerData verityPeerStatus"><!-- Status will be set dynamically --></td>
             </tr>
             <tr class="verityPeerDataRow verityPeerNodeTypeRow">
               <th class="verityPeerDataHeader">Node Type</th>
-              <td class="verityPeerData verityPeerNodeType">Full</td>
+              <td class="verityPeerData verityPeerNodeType"><!-- Node type will be set dynamically --></td>
             </tr>
             <tr class="verityPeerDataRow verityPeerConnRow">
               <th class="verityPeerDataHeader">Connected through</th>
               <td class="verityPeerData verityPeerConn">
-                scheme://address.tld:123456789/
+                <!-- Connection address will be set dynamically -->
               </td>
             </tr>
             <tr class="verityPeerDataRow verityPeerScoreRow">
               <th class="verityPeerDataHeader">Trust score</th>
-              <td class="verityPeerData verityPeerScore">over 9000</td>
+              <td class="verityPeerData verityPeerScore"><!-- Trust score will be set dynamically --></td>
             </tr>
             <tr class="verityPeerDataRow verityPeerTransmissionRow">
               <th class="verityPeerDataHeader">Messages transmitted</th>
               <td class="verityPeerData">
-                Sent: <span class="verityPeerTxMsg">over 9000</span>
-                (<span class="verityPeerTxSize">10000QB</span> total)<br/>
-                Received: <span class="verityPeerRxMsg">over 9000</span>
-                (<span class="verityPeerRxSize">10000QB</span> total)
+                Sent: <span class="verityPeerTxMsg"><!-- Sent messages will be set dynamically --></span>
+                (<span class="verityPeerTxSize"><!-- Sent bytes will be set dynamically --></span> total)<br/>
+                Received: <span class="verityPeerRxMsg"><!-- Received messages will be set dynamically --></span>
+                (<span class="verityPeerRxSize"><!-- Received bytes will be set dynamically --></span> total)
               </td>
             </tr>
             <tr class="verityPeerDataRow">
               <th class="verityPeerDataHeader">Known addresses</th>
               <td class="verityPeerData verityPeerAddresses">
                 <ol class="verityPeerAddressList">
-                  <li value="0">ws://demonstration.address <br />
-                    <button type="button" data-peerid="13371337133713371337133713371337"
-                    data-addrindex="1" class="veritySmallButton btn btn-outline-primary active"
-                    onclick="window.verity.peerController.makeAddressPrimary(this)">
-                      Primary
-                    </button>
-                  </li>
-                  <li value="1">/dns4/demonstration.address/tcp/1985/wss/ <br/>
-                    <button type="button" data-peerid="13371337133713371337133713371337"
-                    data-addrindex="1" class="veritySmallButton btn btn-outline-primary"
-                    onclick="window.verity.peerController.makeAddressPrimary(this)">
-                      Primary
-                    </button>
-                  </li>
+                  <!-- Address list will be populated dynamically -->
                 </ol>
               </td>
             </tr>
