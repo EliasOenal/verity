@@ -35,7 +35,18 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      # Cache Playwright browsers
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Type check
+        run: tsc
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests (Vitest)
+        run: npm run test -- --workers=4
+
       - name: Cache Playwright browsers
         id: pw-cache
         uses: actions/cache@v4
@@ -45,19 +56,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pw-
 
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-
       # Install Chromium + system deps only when cache miss
       - name: Install Playwright Chromium (and OS deps if needed)
         if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium --with-deps
-
-      - name: Build
-        run: npm run build
-
-      - name: Unit tests (Vitest)
-        run: npm run test -- --workers=4
 
       - name: E2E tests (Playwright, Chromium only)
         run: npx playwright test --project=$PW_PROJECT --workers=4
