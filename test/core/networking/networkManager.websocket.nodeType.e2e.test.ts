@@ -5,6 +5,14 @@ import { testCoreOptions } from "../testcore.definition";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
+// AI QA: These AI-generated tests should be written as NetworkManager tests
+//   rather than CoreNode tests, as they do not rely or test any other component.
+//   (CoreNode is just a wrapper around all Verity core components require to
+//   run a node, which includes NetworkManager.)
+//   They should also be integrated into the existing networkManager.websocket.e2e
+//   test suite; a single field in the HELLO message does not justify its own
+//   test suite.
+
 describe('Node Type Integration Tests', () => {
   test('full node should advertise full node type and detect light node peer', async () => {
     // Create a full node (lightNode: false)
@@ -24,7 +32,7 @@ describe('Node Type Integration Tests', () => {
       initialPeers: [new AddressAbstraction("ws://127.0.0.1:61200")],
     });
     await lightNode.readyPromise;
-    
+
     // Wait for nodes to come online and connect
     await fullNode.onlinePromise;
     await lightNode.onlinePromise;
@@ -63,7 +71,7 @@ describe('Node Type Integration Tests', () => {
       initialPeers: [new AddressAbstraction("ws://127.0.0.1:61201")],
     });
     await lightNode2.readyPromise;
-    
+
     // Wait for nodes to come online and connect
     await lightNode1.onlinePromise;
     await lightNode2.onlinePromise;
@@ -102,7 +110,7 @@ describe('Node Type Integration Tests', () => {
       initialPeers: [new AddressAbstraction("ws://127.0.0.1:61202")],
     });
     await fullNode2.readyPromise;
-    
+
     // Wait for nodes to come online and connect
     await fullNode1.onlinePromise;
     await fullNode2.onlinePromise;

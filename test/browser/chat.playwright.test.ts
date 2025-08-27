@@ -20,8 +20,8 @@ test.describe('Verity Chat Test Environment', () => {
     await page.goto(CHAT_TEST_URL);
     
     // Wait for the application to initialize with shorter timeout
-    await page.waitForSelector('h1:has-text("Verity Chat Test Environment")', { timeout: 5000 });
-    await page.waitForSelector('#status:has-text("Chat test ready!")', { timeout: 8000 });
+    await page.waitForSelector('h1:has-text("Verity Chat Test Environment")', { timeout: 3000 });
+    await page.waitForSelector('#status:has-text("Chat test ready!")', { timeout: 3000 });
   });
 
   test('should start in offline mode without auto-connecting', async ({ page }) => {
@@ -178,7 +178,7 @@ test.describe('Verity Chat P2P Connection Tests', () => {
   
   test('should handle connection attempts gracefully', async ({ page }) => {
     await page.goto(CHAT_TEST_URL);
-    await page.waitForSelector('#status:has-text("Chat test ready!")', { timeout: 8000 });
+    await page.waitForSelector('#status:has-text("Chat test ready!")', { timeout: 3000 });
     
     // Try to connect to non-existent peer
     await page.fill('#peerInput', 'ws://nonexistent:9999');
@@ -199,7 +199,7 @@ test.describe('Verity Chat P2P Connection Tests', () => {
 
   test('should maintain offline functionality when connection fails', async ({ page }) => {
     await page.goto(CHAT_TEST_URL);
-    await page.waitForSelector('#status:has-text("Chat test ready!")', { timeout: 8000 });
+    await page.waitForSelector('#status:has-text("Chat test ready!")', { timeout: 3000 });
     
     // Try to connect to non-existent peer
     await page.fill('#peerInput', 'ws://invalid:1234');
@@ -224,7 +224,7 @@ test.describe('Verity Chat P2P Connection Tests', () => {
     // which is complex in playwright, so this test documents the expected behavior
     
     await page.goto(CHAT_TEST_URL);
-    await page.waitForSelector('#status:has-text("Chat test ready!")', { timeout: 8000 });
+    await page.waitForSelector('#status:has-text("Chat test ready!")', { timeout: 3000 });
     
     // Verify the application has the necessary P2P infrastructure
     await expect(page.locator('text=Manual Peer Connection')).toBeVisible();

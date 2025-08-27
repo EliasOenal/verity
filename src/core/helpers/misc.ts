@@ -16,9 +16,9 @@ export function fibonacci(n: number) {
  * Returns the current time if no args given.
  * Converts any time given in unix milliseconds to full seconds.
  */
-export function unixtime(millis: number = undefined): number {
-  if (millis === undefined) millis = Date.now();
-  return Math.floor(millis / 1000);
+export function unixtime(millis?: number): number {
+  const m = millis === undefined ? Date.now() : millis;
+  return Math.floor(m / 1000);
 }
 
 /**

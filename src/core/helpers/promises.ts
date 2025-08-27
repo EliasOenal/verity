@@ -4,6 +4,7 @@
  **/
 export class DeferredPromise<T = void> {
   public promise: Promise<T>;
+  // Allow resolve to accept undefined when T includes it
   public resolve!: (value: T) => void;
   public reject!: (reason?: any) => void;
 
@@ -23,10 +24,12 @@ export class DeferredPromise<T = void> {
  * the task can be cancelled by calling its cancel() method, which is equivalent
  * to calling resolve(undefined).
  */
-export class CancellableTask<T> extends DeferredPromise<T> {
+export class CancellableTask<T = void> extends DeferredPromise<T | undefined> {
   public cancel(): void {
-    this.resolve(undefined);
-}}
+    // Resolve with undefined to indicate cancellation
+    this.resolve(undefined as any);
+  }
+}
 
 /**
  * Type guard that recognizes a CancellableTask by a `.promise` with a `.then`.

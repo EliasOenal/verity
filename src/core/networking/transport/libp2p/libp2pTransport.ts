@@ -31,8 +31,8 @@ import { isNode } from "browser-or-node";
 
 // TODO: try to move more server/listener specific stuff into Libp2pServer
 export class Libp2pTransport extends NetworkTransport {
-  private listen: string[] = [];
-  private _node: Libp2p;  // libp2p types are much to complicated for my humble brain
+  readonly listen: string[] = [];
+  private _node: Libp2p;
   public circuitRelayTransport: any = undefined;  // class CircuitRelayTransport not exported by lib
   get node() { return this._node }
 

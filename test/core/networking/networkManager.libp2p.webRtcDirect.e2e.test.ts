@@ -13,6 +13,11 @@ import { Buffer } from 'buffer';
 import { Libp2pTransport } from '../../../src/core/networking/transport/libp2p/libp2pTransport';
 import type { NetworkPeerIf } from '../../../src/core/networking/networkPeerIf';
 
+// AI QA: These AI-generated tests should be written as NetworkManager tests
+//   rather than CoreNode tests, as they do not rely or test any other component.
+//   (CoreNode is just a wrapper around all Verity core components require to
+//   run a node, which includes NetworkManager.)
+
 describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
   it('should configure WebRTC-Direct transport and verify multiaddrs', async () => {
     // Create node configured with libp2p transport
@@ -24,30 +29,30 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
         [SupportedTransports.libp2p, 16001],
       ]),
     });
-    
+
     await node.readyPromise;
-    
+
     // Give the transport some time to start up properly
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Get the node's transport and verify WebRTC-Direct configuration
     const nodeTransport = node.networkManager.transports.get(SupportedTransports.libp2p) as Libp2pTransport;
     expect(nodeTransport).toBeDefined();
-    
+
     const multiaddrs = nodeTransport!.node.getMultiaddrs();
     console.log('Node multiaddrs:', multiaddrs.map(ma => ma.toString()));
-    
+
     // Verify WebRTC-Direct addresses are present (enabled by default on Node.js)
-    const webrtcDirectAddrs = multiaddrs.filter(ma => 
+    const webrtcDirectAddrs = multiaddrs.filter(ma =>
       ma.toString().includes('/webrtc-direct/') && ma.toString().includes('/certhash/'));
-    
+
     expect(webrtcDirectAddrs.length).toBeGreaterThan(0);
     console.log('WebRTC-Direct addresses found:', webrtcDirectAddrs.map(ma => ma.toString()));
-    
+
     // Verify address format
     const webrtcDirectAddr = webrtcDirectAddrs[0];
     expect(webrtcDirectAddr.toString()).toMatch(/\/ip4\/[\d\.]+\/udp\/\d+\/webrtc-direct\/certhash\/[a-zA-Z0-9_-]+\/p2p\/[a-zA-Z0-9]+/);
-    
+
     await node.shutdown();
   }, 8000);
 
@@ -57,7 +62,7 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
       ...testCoreOptions,
       lightNode: false,
       transports: new Map([
-        [SupportedTransports.libp2p, 16005], 
+        [SupportedTransports.libp2p, 16005],
       ]),
     });
     await listener.readyPromise;
@@ -68,9 +73,9 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
     // Get WebRTC-Direct address
     const listenerTransport = listener.networkManager.transports.get(SupportedTransports.libp2p) as Libp2pTransport;
     const multiaddrs = listenerTransport!.node.getMultiaddrs();
-    const webrtcDirectAddr = multiaddrs.find(ma => 
+    const webrtcDirectAddr = multiaddrs.find(ma =>
       ma.toString().includes('/webrtc-direct/') && ma.toString().includes('/certhash/'));
-    
+
     // Verify WebRTC-Direct is configured
     expect(webrtcDirectAddr).toBeDefined();
     expect(webrtcDirectAddr!.toString()).toContain('/webrtc-direct/');
@@ -102,24 +107,24 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
       dialer.onlinePromise,
       new Promise((_, reject) => setTimeout(() => reject(new Error('Dialer connection timeout')), 8000))
     ]);
-    
+
     // Wait for incoming peer to be registered on listener side
     await Promise.race([
       listenerIncomingPeerPromise,
       new Promise((_, reject) => setTimeout(() => reject(new Error('Listener incoming peer timeout')), 5000))
     ]);
-    
+
     // Wait for listener side to complete HELLO exchange
     await Promise.race([
       listenerToDialer!.onlinePromise,
       new Promise((_, reject) => setTimeout(() => reject(new Error('Listener peer online timeout')), 5000))
     ]);
-    
+
     // Verify connection was established on both sides
     expect(dialer.networkManager.onlinePeers.length).toBeGreaterThan(0);
     expect(listener.networkManager.onlinePeers.length).toBeGreaterThan(0);
     console.log('WebRTC-Direct connection established successfully');
-    
+
     // Test cube transmission over WebRTC-Direct
     const testCube = Cube.Frozen({
       fields: [
@@ -127,19 +132,19 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
       ],
       requiredDifficulty: 0,
     });
-    
+
     await listener.cubeStore.addCube(testCube);
-    
+
     // Retrieve cube over WebRTC-Direct connection
     const retrievedCube = await Promise.race([
       dialer.cubeRetriever.getCube(testCube.getKeyIfAvailable()!),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Cube retrieval timeout')), 3000))
     ]);
-    
+
     expect(retrievedCube).toBeDefined();
     expect((retrievedCube as Cube).getKeyIfAvailable()).toEqual(testCube.getKeyIfAvailable());
     console.log('Successfully transmitted cube over WebRTC-Direct connection');
-    
+
     await Promise.all([
       listener.shutdown(),
       dialer.shutdown(),
@@ -152,17 +157,17 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
       ...testCoreOptions,
       lightNode: true,
       transports: new Map([
-        [SupportedTransports.libp2p, 16007], 
+        [SupportedTransports.libp2p, 16007],
       ]),
     });
     await sender.readyPromise;
 
     // Create recipient node with WebRTC-Direct enabled (default on Node.js)
     const recipient: CoreNode = new CoreNode({
-      ...testCoreOptions, 
+      ...testCoreOptions,
       lightNode: true,
       transports: new Map([
-        [SupportedTransports.libp2p, 16008], 
+        [SupportedTransports.libp2p, 16008],
       ]),
     });
     await recipient.readyPromise;
@@ -173,26 +178,26 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
     // Verify both nodes have WebRTC-Direct capability
     const senderTransport = sender.networkManager.transports.get(SupportedTransports.libp2p) as Libp2pTransport;
     const recipientTransport = recipient.networkManager.transports.get(SupportedTransports.libp2p) as Libp2pTransport;
-    
+
     expect(senderTransport).toBeDefined();
     expect(recipientTransport).toBeDefined();
-    
+
     const senderAddrs = senderTransport!.node.getMultiaddrs();
     const recipientAddrs = recipientTransport!.node.getMultiaddrs();
-    
+
     const senderWebRTCDirect = senderAddrs.find(ma => ma.toString().includes('/webrtc-direct/'));
     const recipientWebRTCDirect = recipientAddrs.find(ma => ma.toString().includes('/webrtc-direct/'));
-    
+
     expect(senderWebRTCDirect).toBeDefined();
     expect(recipientWebRTCDirect).toBeDefined();
-    
+
     console.log('Sender WebRTC-Direct addr:', senderWebRTCDirect?.toString());
     console.log('Recipient WebRTC-Direct addr:', recipientWebRTCDirect?.toString());
-    
+
     // Verify both nodes are capable of WebRTC-Direct connectivity for notifications
     expect(senderWebRTCDirect!.toString()).toMatch(/\/webrtc-direct\/certhash\//);
     expect(recipientWebRTCDirect!.toString()).toMatch(/\/webrtc-direct\/certhash\//);
-    
+
     console.log('Both nodes successfully configured with WebRTC-Direct capability');
 
     await Promise.all([
