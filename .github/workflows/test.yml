@@ -56,6 +56,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Type check
+        run: tsc
+
       - name: Unit tests (Vitest)
         run: npm run test -- --workers=4
 
