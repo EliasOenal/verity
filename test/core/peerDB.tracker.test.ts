@@ -6,6 +6,8 @@ import axios from 'axios';
 // Mock axios to test tracker functionality without real network calls
 vi.mock('axios');
 const mockedAxios = vi.mocked(axios);
+// Cast mockedAxios.get to a Vitest mock type for proper typings
+const mockedAxiosGet = mockedAxios.get as unknown as ReturnType<typeof vi.fn>;
 
 describe('PeerDB Tracker Announcements', () => {
     let peerDB: PeerDB;
@@ -24,15 +26,15 @@ describe('PeerDB Tracker Announcements', () => {
         const mockResponse = {
             data: Buffer.from('d8:intervali1800e5:peers0:e', 'ascii') // Empty peers bencode response
         };
-        mockedAxios.get.mockResolvedValue(mockResponse);
+        mockedAxiosGet.mockResolvedValue(mockResponse);
 
         await peerDB.announce();
 
         // Verify that the new tracker URLs are being used
-        expect(mockedAxios.get).toHaveBeenCalledTimes(11); // Should have 11 new trackers
+        expect(mockedAxiosGet).toHaveBeenCalledTimes(11); // Should have 11 new trackers
 
-        const calledUrls = mockedAxios.get.mock.calls.map(call => call[0].split('?')[0]);
-        
+        const calledUrls = mockedAxiosGet.mock.calls.map(call => call[0].split('?')[0]);
+
         // Verify new trackers are in the list
         expect(calledUrls).toContain('https://tracker.opentrackr.org:443/announce');
         expect(calledUrls).toContain('http://bt1.archive.org:6969/announce');
@@ -42,19 +44,19 @@ describe('PeerDB Tracker Announcements', () => {
 
     it('should handle tracker timeout gracefully', async () => {
         // Mock timeout error
-        mockedAxios.get.mockRejectedValue(new Error('timeout of 5000ms exceeded'));
+        mockedAxiosGet.mockRejectedValue(new Error('timeout of 5000ms exceeded'));
 
         await peerDB.announce();
 
         // Should log the error and continue
-        expect(mockedAxios.get).toHaveBeenCalled();
+        expect(mockedAxiosGet).toHaveBeenCalled();
         // No peers should be learned from failed requests
         expect(peerDB.peersUnverified.size).toBe(0);
     });
 
     it('should handle mixed success/failure responses', async () => {
         // Mock some trackers succeeding and others failing
-        mockedAxios.get
+        mockedAxiosGet
             .mockResolvedValueOnce({ data: Buffer.from('d8:intervali1800e5:peers6:\x7f\x00\x00\x01\x1f\x90e', 'ascii') }) // Success with 1 peer
             .mockRejectedValueOnce(new Error('getaddrinfo ENOTFOUND'))  // DNS failure
             .mockResolvedValueOnce({ data: Buffer.from('d8:intervali1800e5:peers0:e', 'ascii') }) // Success with 0 peers
@@ -70,12 +72,12 @@ describe('PeerDB Tracker Announcements', () => {
         const mockResponse = {
             data: Buffer.from('d8:intervali1800e5:peers0:e', 'ascii')
         };
-        mockedAxios.get.mockResolvedValue(mockResponse);
+        mockedAxiosGet.mockResolvedValue(mockResponse);
 
         await peerDB.announce();
 
         // Check that at least one request was made with correct parameters
-        const firstCall = mockedAxios.get.mock.calls[0];
+        const firstCall = mockedAxiosGet.mock.calls[0];
         expect(firstCall[0]).toContain('info_hash=Ministry+of+Truth%00%00%00');
         expect(firstCall[0]).toContain('port=1984');
 
@@ -91,11 +93,11 @@ describe('PeerDB Tracker Announcements', () => {
         const mockResponse = {
             data: Buffer.from('d8:intervali1800e5:peers0:e', 'ascii')
         };
-        mockedAxios.get.mockResolvedValue(mockResponse);
+        mockedAxiosGet.mockResolvedValue(mockResponse);
 
         await peerDB.announce(testTrackers);
 
-        expect(mockedAxios.get).toHaveBeenCalledTimes(1);
-        expect(mockedAxios.get.mock.calls[0][0]).toContain('test-tracker.example.com');
+        expect(mockedAxiosGet).toHaveBeenCalledTimes(1);
+        expect(mockedAxiosGet.mock.calls[0][0]).toContain('test-tracker.example.com');
     });
 });
