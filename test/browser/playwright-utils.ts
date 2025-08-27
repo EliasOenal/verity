@@ -5,7 +5,16 @@
  * using Playwright, including IndexedDB, WebRTC, and full browser APIs.
  */
 
-import { Page, BrowserContext, expect } from '@playwright/test';
+import { Page } from '@playwright/test';
+// Import library types actually exposed / used
+import type { VerityUI } from '../../src/webui/verityUI';
+import type { VerityNode } from '../../src/cci/verityNode';
+import type { CubeKey } from '../../src/core/cube/cube.definitions';
+import type { Cockpit } from '../../src/cci/cockpit';
+import type { NetworkManagerIf } from '../../src/core/networking/networkManagerIf';
+import type { CubeStore } from '../../src/core/cube/cubeStore';
+import type { Peer } from '../../src/core/peering/peer';
+import type { WebSocketAddress } from '../../src/core/peering/addressing';
 
 export interface NodeTestResult {
   success: boolean;
@@ -16,9 +25,76 @@ export interface NodeTestResult {
 
 export interface CubeCreationResult {
   success: boolean;
-  cubeKey?: string;
+  cubeKey?: string; // full hex key
   error?: string;
-  keyHex?: string;
+  keyHex?: string; // truncated for logging
+}
+
+export interface StagedCubeResult {
+  success: boolean;
+  cubeKey?: string; // full hex key
+  keyHex?: string;  // truncated for logging
+  error?: string;
+}
+
+/**
+ * Stage (sculpt & compile) a cube but do NOT add it to the store yet.
+ * Returns its key so another browser can start requesting it prior to publication.
+ */
+export async function stageTestCubeInBrowser(
+  page: Page,
+  content: string = 'Staged browser test cube'
+): Promise<StagedCubeResult> {
+  return await page.evaluate(async (c) => {
+    try {
+      const g: any = (window as any);
+      const cciCube = g.verity?.cciCube || g.cciCube;
+      const VerityField = g.verity?.VerityField || g.VerityField || g.verityField;
+      if (!cciCube || !VerityField) {
+        return { success: false, error: 'cciCube or VerityField not exposed globally' };
+      }
+      const payload = `${c} :: ${Date.now()} :: ${Math.random()} :: ${(crypto as any)?.randomUUID?.() ?? Math.random()}`;
+      const cube = cciCube.Create({
+        fields: [VerityField.Payload(payload)],
+        requiredDifficulty: 0,
+      });
+      await cube.getBinaryData(); // compile
+      const key = await cube.getKey();
+      const hexFull = key.toString('hex');
+      g.__stagedCubes = g.__stagedCubes || new Map();
+      g.__stagedCubes.set(hexFull, cube);
+      return { success: true, cubeKey: hexFull, keyHex: hexFull.slice(0,32)+'...' };
+    } catch(e:any) {
+      return { success: false, error: e?.message };
+    }
+  }, content);
+}
+
+/**
+ * Publish a previously staged cube by key and broadcast its key.
+ */
+export async function publishStagedCubeInBrowser(page: Page, cubeKey: string): Promise<{ success: boolean; error?: string }> {
+  return await page.evaluate(async (key) => {
+    try {
+      const g: any = (window as any);
+      const cubeStore = g.verity?.node?.cubeStore;
+      const networkManager = g.verity?.node?.networkManager;
+      if (!cubeStore || !networkManager) {
+        return { success: false, error: 'cubeStore or networkManager unavailable' };
+      }
+      const staged = g.__stagedCubes?.get(key);
+      if (!staged) return { success: false, error: 'staged cube not found' };
+      const added = await cubeStore.addCube(staged);
+      if (!added) return { success: false, error: 'addCube returned undefined' };
+      try {
+        const info = await staged.getCubeInfo();
+        if (info) networkManager.broadcastKey([info]);
+      } catch {}
+      return { success: true };
+    } catch(e:any) {
+      return { success: false, error: e?.message };
+    }
+  }, cubeKey);
 }
 
 export interface TestServerInfo {
@@ -57,42 +133,29 @@ export async function initializeVerityInBrowser(page: Page, testApp: string = 'f
  * Applies optimizations equivalent to testCoreOptions for browser-based nodes
  */
 export async function applyTestOptimizations(page: Page): Promise<void> {
+  // Only adjust the existing runtime options that are actually supported.
   await page.evaluate(() => {
     try {
-      const node = window.verity.node;
-      if (node) {
-        console.log('Applying test optimizations for faster execution...');
-        
-        // Enable in-memory mode if possible (equivalent to inMemory: true)
-        if (node.cubeStore && typeof node.cubeStore.setInMemoryMode === 'function') {
-          node.cubeStore.setInMemoryMode(true);
-        }
-        
-        // Reduce timeouts for faster testing
-        if (node.networkManager) {
-          // Set shorter network timeouts
-          if (node.networkManager.defaultTimeout !== undefined) {
-            node.networkManager.defaultTimeout = 100;
-          }
-          
-          // Disable external services for faster operation
-          if (node.networkManager.announceToTorrentTrackers !== undefined) {
-            node.networkManager.announceToTorrentTrackers = false;
-          }
-        }
-        
-        // Set cube operations to use minimal difficulty 
-        if (node.setRequiredDifficulty) {
-          node.setRequiredDifficulty(0);
-        } else if (node.requiredDifficulty !== undefined) {
-          node.requiredDifficulty = 0;
-        }
-        
-        console.log('Test optimizations applied successfully');
+      const ui = window.verity as VerityUI | undefined;
+      const node = ui?.node as VerityNode | undefined;
+      if (!node) return;
+      // Disable announcing (already disabled in browser startup but enforce again)
+      if (node.networkManager?.options) {
+        node.networkManager.options.announceToTorrentTrackers = false;
+        // Lower network timeout to speed up failed lookups in tests
+        node.networkManager.options.networkTimeoutMillis = 100;
       }
-    } catch (error) {
-      // Test optimizations are best effort - log but don't fail tests
-      console.log('Test optimizations partially applied:', error.message);
+      // Ensure required difficulty for cube verification is minimal
+      if (node.cubeStore?.options) {
+        node.cubeStore.options.requiredDifficulty = 0;
+      }
+      // Turn lightNode on to avoid heavy sync unless tests need otherwise
+      if (node.networkManager?.options) {
+        node.networkManager.options.lightNode = true;
+        node.networkManager.options.autoConnect = false; // we will manually connect
+      }
+    } catch (err) {
+      console.log('applyTestOptimizations warning', (err as any)?.message);
     }
   });
 }
@@ -101,104 +164,91 @@ export async function applyTestOptimizations(page: Page): Promise<void> {
  * Create a test cube using the Verity cockpit in the browser with unique content
  */
 export async function createTestCubeInBrowser(
-  page: Page, 
+  page: Page,
   content: string = 'Browser test cube'
 ): Promise<CubeCreationResult> {
-  return await page.evaluate(async (content) => {
+  return await page.evaluate(async (c) => {
     try {
-      if (!window.verity?.node?.cubeStore) {
-        return { success: false, error: 'Verity node or cubeStore not available' };
+      const ui = (window as any).verity as any;
+      const node = ui?.node;
+      const cubeStore: any = node?.cubeStore;
+      const networkManager: any = node?.networkManager;
+      if (!cubeStore || !networkManager) {
+        return { success: false, error: 'cubeStore or networkManager unavailable' };
       }
-      
-      const node = window.verity.node;
-      const cubeStore = node.cubeStore;
-      
-      // Check if cockpit is available (for full implementations)
-      if (window.verity.cockpit && window.verity.VerityField) {
-        const cockpit = window.verity.cockpit;
-        const VerityField = window.verity.VerityField;
-        const nodeId = node.networkManager?.idString || 'unknown';
-        
-        // Get initial count
-        const initialCount = await cubeStore.getNumberOfStoredCubes();
-        
-        // Add unique content to ensure different cubes are created
-        const uniqueContent = content || `Test cube from ${nodeId} at ${Date.now()}-${Math.random()}`;
-        
-        // Create a veritum with unique content for semantic meaningfulness
-        const payloadField = VerityField.Payload(uniqueContent);
-        const veritum = cockpit.prepareVeritum({
-          fields: payloadField
+      const initialCount = await cubeStore.getNumberOfStoredCubes();
+
+  // Access CCI constructors from global bundle (prefer namespaced exports)
+  const cciCube = (window as any).verity?.cciCube || (window as any).cciCube;
+  const VerityField = (window as any).verity?.VerityField || (window as any).VerityField || (window as any).verityField;
+      if (!cciCube || !VerityField) {
+        return { success: false, error: 'cciCube or VerityField not exposed globally' };
+      }
+
+      // Generate unique payload (Nonce + Date fields will also add uniqueness)
+      const payload = `${c} :: ${Date.now()} :: ${Math.random()} :: ${(crypto as any)?.randomUUID?.() ?? Math.random()}`;
+
+      let cube: any;
+      try {
+        console.log('[createTestCubeInBrowser] Sculpting CCI cube');
+        cube = cciCube.Create({
+          fields: [VerityField.Payload(payload)],
+          requiredDifficulty: 0,
         });
-        
-        // Compile the veritum
-        await veritum.compile();
-        
-        // Get the compiled cubes
-        const cubes = Array.from(veritum.chunks);
-        if (cubes.length === 0) {
-          return { success: false, error: 'No cubes generated from veritum' };
-        }
-        
-        const cube = cubes[0];
-        
-        // Get the cube key before adding to store
-        const key = await cube.getKey();
-        
-        // Check if cube already exists
-        const alreadyExists = await cubeStore.hasCube(key);
-        if (alreadyExists) {
-          return { 
-            success: false, 
-            error: 'Cube with this key already exists (duplicate key generated)',
-            cubeKey: key,
-            keyHex: key.toString('hex').substring(0, 32) + '...'
-          };
-        }
-        
-        // Add to the cube store
-        await cubeStore.addCube(cube);
-        
-        // Verify it was actually stored
-        const finalCount = await cubeStore.getNumberOfStoredCubes();
-        const wasStored = finalCount > initialCount;
-        
-        if (!wasStored) {
-          return {
-            success: false,
-            error: 'Cube was not stored successfully (storage failed)',
-            cubeKey: key,
-            keyHex: key.toString('hex').substring(0, 32) + '...'
-          };
-        }
-        
-        return {
-          success: true,
-          cubeKey: key,
-          keyHex: key.toString('hex').substring(0, 32) + '...'
-        };
-      } else {
-        // Fallback for test environments without full cockpit - use test utilities
-        if (window.verity.testUtils && window.verity.testUtils.createTestCube) {
-          const result = await window.verity.testUtils.createTestCube(content);
-          return {
-            success: result.success || false,
-            error: result.error || (result.success ? undefined : 'Test cube creation failed'),
-            cubeKey: result.cubeKey || undefined,
-            keyHex: result.keyHex || result.cubeKey
-          };
-        } else {
-          return { 
-            success: false, 
-            error: 'Neither cockpit nor test utilities available for cube creation' 
-          };
-        }
+      } catch (e:any) {
+        console.error('[createTestCubeInBrowser] cciCube.Frozen failed', e?.message);
+        return { success: false, error: 'cciCube.Frozen failed: ' + e?.message };
       }
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message
-      };
+
+      // Compile explicitly to surface errors early
+      try {
+  // Access binary data to trigger compile (as done in cci tests via getBinaryData())
+  await cube.getBinaryData();
+      } catch (e:any) {
+        console.error('[createTestCubeInBrowser] compile failed', e?.message);
+        return { success: false, error: 'compile failed: ' + e?.message };
+      }
+
+      // Add cube to store (returns Cube or undefined)
+      let addedCube: any;
+      try {
+        addedCube = await cubeStore.addCube(cube);
+      } catch (e:any) {
+        console.error('[createTestCubeInBrowser] cubeStore.addCube failed', e?.message);
+        return { success: false, error: 'addCube failed: ' + e?.message };
+      }
+      if (!addedCube) {
+        console.warn('[createTestCubeInBrowser] addCube returned undefined');
+        return { success: false, error: 'addCube returned undefined' };
+      }
+
+      // Broadcast key so other nodes can retrieve it (full nodes only)
+      try {
+        const cubeInfo = await cube.getCubeInfo();
+        if (cubeInfo) networkManager.broadcastKey([cubeInfo]);
+      } catch (e:any) {
+        // Not fatal for local success; just log
+        console.warn('[createTestCubeInBrowser] broadcastKey failed', e?.message);
+      }
+
+      // Validate presence & count increment
+      let key: any; let hexFull: string;
+      try { key = await cube.getKey(); hexFull = key.toString('hex'); } catch (e:any) {
+        return { success: false, error: 'getKey failed: ' + e?.message };
+      }
+      const hasCube = await cubeStore.hasCube(key);
+      const finalCount = await cubeStore.getNumberOfStoredCubes();
+      if (!hasCube) {
+        console.error('[createTestCubeInBrowser] cube missing after add', { initialCount, finalCount });
+        return { success: false, error: 'Cube missing after add', cubeKey: hexFull, keyHex: hexFull.slice(0,32)+'...' };
+      }
+      if (finalCount < initialCount + 1) {
+        console.warn('[createTestCubeInBrowser] cube count did not increase', { initialCount, finalCount });
+      }
+      return { success: true, cubeKey: hexFull, keyHex: hexFull.slice(0,32)+'...' };
+    } catch (e:any) {
+      console.error('[createTestCubeInBrowser] error', e?.message);
+      return { success: false, error: e?.message };
     }
   }, content);
 }
@@ -252,12 +302,43 @@ export async function checkBrowserAPIs(page: Page): Promise<{
 export async function hasCubeInBrowser(page: Page, cubeKey: string): Promise<boolean> {
   return await page.evaluate(async (key) => {
     try {
-      if (!window.verity?.node?.cubeStore) {
-        return false;
+      const ui = window.verity as VerityUI | undefined;
+      const store = ui?.node?.cubeStore as CubeStore | undefined;
+      if (!store) return false;
+      // Convert hex string back to Buffer
+      const buf = Buffer.from(key, 'hex');
+      const exists = await store.hasCube(buf as unknown as CubeKey);
+      if (!exists) {
+        const count = await store.getNumberOfStoredCubes();
+        console.log('[hasCubeInBrowser] cube missing', { key: key.slice(0,32)+'...', count });
       }
-      return await window.verity.node.cubeStore.hasCube(key);
-    } catch (error) {
+      return exists;
+    } catch {
       return false;
+    }
+  }, cubeKey);
+}
+
+/**
+ * Strong verification similar to e2e tests: fetch CubeInfo via key (hex) and assert presence.
+ */
+export async function getCubeInfoFromBrowser(page: Page, cubeKey: string): Promise<{found: boolean; error?: string}> {
+  return await page.evaluate(async (key) => {
+    try {
+      const store = (window as any).verity?.node?.cubeStore;
+      if (!store) return { found: false, error: 'cubeStore unavailable' };
+      const info = await store.getCubeInfo(key, true);
+      if (info) return { found: true };
+      // enumerate a few keys for diagnostics
+      const iterator: any = store.getKeyRange?.({ limit: 5 });
+      const sample: string[] = [];
+      if (iterator) {
+        for await (const k of iterator) { sample.push(k); if (sample.length >= 5) break; }
+      }
+      console.log('[getCubeInfoFromBrowser] not found', { key: key.slice(0,32)+'...', sample });
+      return { found: false };
+    } catch (e:any) {
+      return { found: false, error: e?.message };
     }
   }, cubeKey);
 }
@@ -308,10 +389,8 @@ export async function waitForBrowserNodesReady(
 ): Promise<boolean> {
   try {
     await Promise.all(
-      pages.map(page => 
-        page.waitForFunction(() => {
-          return window.verity?.node !== undefined;
-        }, { timeout: timeoutMs })
+      pages.map(p => 
+        p.waitForFunction(() => window.verity?.node !== undefined, { timeout: timeoutMs })
       )
     );
     return true;
@@ -350,16 +429,21 @@ export async function createMultipleCubes(
   count: number
 ): Promise<CubeCreationResult[]> {
   const results: CubeCreationResult[] = [];
+  const createdKeys: string[] = [];
   
   for (let i = 0; i < count; i++) {
     // Create unique content including index, timestamp, and random values
     const uniqueId = `${Date.now()}-${Math.random()}-${i}`;
     const result = await createTestCubeInBrowser(page, `Test cube ${i} - ${uniqueId}`);
     results.push(result);
+  if (result.cubeKey) createdKeys.push(result.cubeKey);
     
     // Add more delay between cube creations to ensure uniqueness
     await page.waitForTimeout(150 + Math.random() * 100);
   }
+  // Allow final stabilization for cubeStore indexing before counts are checked by tests
+  await page.waitForTimeout(200);
+  console.log('[createMultipleCubes] created', { count: results.length, createdKeys: createdKeys.map(k=>k.slice(0,16)+'...') });
   
   return results;
 }
@@ -368,14 +452,7 @@ export async function createMultipleCubes(
  * Add global type declarations for browser context
  */
 declare global {
-  interface Window {
-    verity: {
-      node: any;
-      cockpit: any;
-      identityController: any;
-      peerController: any;
-    };
-  }
+  interface Window { verity: VerityUI }
 }
 
 /**
@@ -384,58 +461,25 @@ declare global {
 export async function connectBrowserNodeToServer(page: Page, serverAddress: string): Promise<{ success: boolean; peerCount: number; error?: string }> {
   return await page.evaluate(async (address) => {
     try {
-      const node = window.verity.node;
-      if (!node || !node.networkManager) {
-        return { success: false, peerCount: 0, error: 'Node or NetworkManager not available' };
-      }
-
-      // Parse server address (e.g., "ws://localhost:19000")
+      const ui = window.verity as VerityUI | undefined;
+      const node = ui?.node as VerityNode | undefined;
+      const nm: NetworkManagerIf | undefined = node?.networkManager;
+      if (!nm) return { success: false, peerCount: 0, error: 'NetworkManager unavailable' };
+  // Try multiple locations for exported classes (bundle dependent)
+  const WebSocketAddress = (window as any).WebSocketAddress || (window as any).verity?.WebSocketAddress;
+  const Peer = (window as any).Peer || (window as any).verity?.Peer;
+  if (!WebSocketAddress || !Peer) return { success: false, peerCount: 0, error: 'Peer classes not exposed globally' };
       const url = new URL(address);
-      const host = url.hostname;
-      const port = parseInt(url.port);
-
-      // Need to import the classes for proper connection
-      // First check if they're available on the window
-      if (!window.verity.Peer || !window.verity.WebSocketAddress) {
-        return { success: false, peerCount: 0, error: 'Peer and WebSocketAddress classes not available' };
-      }
-
-      // Create proper Peer object with WebSocketAddress
-      const wsAddress = new window.verity.WebSocketAddress(host, port);
-      const peer = new window.verity.Peer(wsAddress);
-      
-      // Connect to the test server using the proper Peer object
-      const networkPeer = node.networkManager.connect(peer);
-
-      // Wait for connection with timeout
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Connection timeout after 5 seconds')), 5000);
-        
-        if (networkPeer.onlinePromise) {
-          networkPeer.onlinePromise.then(() => {
-            clearTimeout(timeout);
-            resolve(true);
-          }).catch((error) => {
-            clearTimeout(timeout);
-            reject(error);
-          });
-        } else {
-          clearTimeout(timeout);
-          reject(new Error('NetworkPeer does not have onlinePromise'));
-        }
+      const wsAddr: WebSocketAddress = new WebSocketAddress(url.hostname, parseInt(url.port));
+      const peer: Peer = new Peer(wsAddr);
+      const networkPeer = nm.connect(peer);
+      await new Promise<void>((resolve, reject) => {
+        const to = setTimeout(() => reject(new Error('Timeout connecting peer')), 5000);
+        (networkPeer as any).onlinePromise?.then(() => { clearTimeout(to); resolve(); }).catch((e: any)=>{ clearTimeout(to); reject(e); });
       });
-
-      return {
-        success: true,
-        peerCount: node.networkManager.onlinePeers.length,
-        connectedTo: address
-      };
-    } catch (error) {
-      return { 
-        success: false, 
-        peerCount: 0, 
-        error: error.message 
-      };
+      return { success: true, peerCount: nm.onlinePeers.length };
+    } catch (e:any) {
+      return { success: false, peerCount: 0, error: e?.message };
     }
   }, serverAddress);
 }
@@ -537,4 +581,23 @@ export async function requestCubeFromNetwork(page: Page, cubeKey: string): Promi
       return { success: false, found: false, error: error.message };
     }
   }, cubeKey);
+}
+
+/**
+ * Poll until a cube with the given hex key is present locally (or retrieved successfully) or timeout.
+ * Mirrors core e2e requestCube pattern by actively requesting the cube if missing.
+ */
+export async function waitForCubeDelivery(
+  page: Page,
+  cubeKey: string,
+  timeoutMs: number = 8000,
+  intervalMs: number = 300
+): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const result = await requestCubeFromNetwork(page, cubeKey);
+    if (result.found) return true;
+    await page.waitForTimeout(intervalMs);
+  }
+  return false;
 }

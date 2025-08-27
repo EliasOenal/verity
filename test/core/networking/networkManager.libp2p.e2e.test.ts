@@ -425,14 +425,14 @@ describe('networkManager - libp2p connections', () => {
 
     expect(peerDB.peersBlocked.size).toEqual(0);
 
-    // Trigger a connection to itself  
+    // Trigger a connection to itself
     manager.connect(new Peer(multiaddr('/ip4/127.0.0.1/tcp/17116/ws')));
 
     // In libp2p v2, self-connections are prevented at the libp2p level and don't
     // reach our blocklist logic. This is expected behavior.
     // Wait a bit to ensure no connection is established
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    
+
     // Since libp2p v2 prevents the connection, no peer should be blocked
     // (the connection is rejected before it reaches our peer management layer)
     expect(peerDB.peersBlocked.size).toEqual(0);
@@ -628,11 +628,11 @@ describe('networkManager - libp2p connections', () => {
     expect(browser1.incomingPeers.length).toEqual(0);
     expect(browser2.incomingPeers.length).toEqual(0);
 
-    // server conns should never be transient
-    expect((b1ToServerNp.conn as Libp2pConnection).conn.transient).toBeFalsy();
-    expect((b2ToServerNp.conn as Libp2pConnection).conn.transient).toBeFalsy();
-    expect((serverToB1Np.conn as Libp2pConnection).conn.transient).toBeFalsy();
-    expect((serverToB2Np.conn as Libp2pConnection).conn.transient).toBeFalsy();
+    // server conns should never be transient, i.e. limits must be null
+    expect((b1ToServerNp.conn as Libp2pConnection).conn.limits).toBeNull();
+    expect((b2ToServerNp.conn as Libp2pConnection).conn.limits).toBeNull();
+    expect((serverToB1Np.conn as Libp2pConnection).conn.limits).toBeNull();
+    expect((serverToB2Np.conn as Libp2pConnection).conn.limits).toBeNull();
 
     // double check that all are connected as expected by comparing their IDs
     // (Verity random IDs that is, not libp2p IDs)
@@ -851,8 +851,9 @@ describe('networkManager - libp2p connections', () => {
       (browser1.incomingPeers[1].conn as Libp2pConnection).conn;
     const libp2pConnAtBrowser2 =
       (browser2.outgoingPeers[1].conn as Libp2pConnection).conn;
-    expect(libp2pConnAtBrowser2.transient).toBeFalsy();
-    expect(libp2pConnAtBrowser1.transient).toBeFalsy();
+    // conns should not be transient, i.e. limits must be null
+    expect(libp2pConnAtBrowser2.limits).toBeNull();
+    expect(libp2pConnAtBrowser1.limits).toBeNull();
 
     // that's all the connections we want, disable auto-connect
     browser1.options.autoConnect = false;

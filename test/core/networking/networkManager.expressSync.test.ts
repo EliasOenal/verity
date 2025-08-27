@@ -12,11 +12,6 @@ import { asCubeKey } from "../../../src/core/cube/keyUtil";
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
-// Extend DummyNetworkPeer to add remoteNodeType property for testing
-class TestNetworkPeer extends DummyNetworkPeer {
-  remoteNodeType?: NodeType;
-}
-
 describe('NetworkManager cube offering', () => {
   let networkManager: NetworkManager;
   let cubeStore: CubeStore;
@@ -30,7 +25,7 @@ describe('NetworkManager cube offering', () => {
     cubeStore = new CubeStore(testCoreOptions);
     await cubeStore.readyPromise;
     peerDB = new PeerDB();
-    
+
     networkManager = new NetworkManager(cubeStore, peerDB, {
       transports: new Map(),
       lightNode: false // Make sure we're testing as a full node
@@ -58,16 +53,16 @@ describe('NetworkManager cube offering', () => {
     });
 
     // Create a light node peer
-    const lightPeer = new TestNetworkPeer(networkManager);
+    const lightPeer = new DummyNetworkPeer(networkManager);
     lightPeer.remoteNodeType = NodeType.Light;
     lightPeer.online = true;
     networkManager.incomingPeers.push(lightPeer);
 
     // Should not send anything since no full nodes are connected
     const sendMessageSpy = vi.spyOn(lightPeer, 'sendMessage');
-    
+
     networkManager.broadcastKey([cubeInfo]);
-    
+
     expect(sendMessageSpy).not.toHaveBeenCalled();
   });
 
@@ -81,19 +76,19 @@ describe('NetworkManager cube offering', () => {
     });
 
     // Create a full node peer
-    const fullPeer = new TestNetworkPeer(networkManager);
+    const fullPeer = new DummyNetworkPeer(networkManager);
     fullPeer.remoteNodeType = NodeType.Full;
     fullPeer.online = true;
     networkManager.incomingPeers.push(fullPeer);
 
     // Create a light node peer
-    const lightPeer = new TestNetworkPeer(networkManager);
+    const lightPeer = new DummyNetworkPeer(networkManager);
     lightPeer.remoteNodeType = NodeType.Light;
     lightPeer.online = true;
     networkManager.outgoingPeers.push(lightPeer);
 
     // Create an offline full node peer
-    const offlineFullPeer = new TestNetworkPeer(networkManager);
+    const offlineFullPeer = new DummyNetworkPeer(networkManager);
     offlineFullPeer.remoteNodeType = NodeType.Full;
     offlineFullPeer.online = false;
     networkManager.outgoingPeers.push(offlineFullPeer);
@@ -101,9 +96,9 @@ describe('NetworkManager cube offering', () => {
     const fullPeerSendSpy = vi.spyOn(fullPeer, 'sendMessage');
     const lightPeerSendSpy = vi.spyOn(lightPeer, 'sendMessage');
     const offlineFullPeerSendSpy = vi.spyOn(offlineFullPeer, 'sendMessage');
-    
+
     networkManager.broadcastKey([cubeInfo]);
-    
+
     // Only the online full node should receive the offer
     expect(fullPeerSendSpy).toHaveBeenCalledTimes(1);
     expect(lightPeerSendSpy).not.toHaveBeenCalled();
@@ -134,21 +129,21 @@ describe('NetworkManager cube offering', () => {
     });
 
     // Create two full node peers
-    const fullPeer1 = new TestNetworkPeer(networkManager);
+    const fullPeer1 = new DummyNetworkPeer(networkManager);
     fullPeer1.remoteNodeType = NodeType.Full;
     fullPeer1.online = true;
     networkManager.incomingPeers.push(fullPeer1);
 
-    const fullPeer2 = new TestNetworkPeer(networkManager);
+    const fullPeer2 = new DummyNetworkPeer(networkManager);
     fullPeer2.remoteNodeType = NodeType.Full;
     fullPeer2.online = true;
     networkManager.outgoingPeers.push(fullPeer2);
 
     const fullPeer1SendSpy = vi.spyOn(fullPeer1, 'sendMessage');
     const fullPeer2SendSpy = vi.spyOn(fullPeer2, 'sendMessage');
-    
+
     networkManager.broadcastKey([cubeInfo1, cubeInfo2]);
-    
+
     // Both full nodes should receive the offer
     expect(fullPeer1SendSpy).toHaveBeenCalledTimes(1);
     expect(fullPeer2SendSpy).toHaveBeenCalledTimes(1);
@@ -156,7 +151,7 @@ describe('NetworkManager cube offering', () => {
     // Verify the message contains both cubes
     const sentMessage1 = fullPeer1SendSpy.mock.calls[0][0] as KeyResponseMessage;
     const sentMessage2 = fullPeer2SendSpy.mock.calls[0][0] as KeyResponseMessage;
-    
+
     expect(sentMessage1.mode).toBe(KeyRequestMode.ExpressSync);
     expect(sentMessage1.keyCount).toBe(2);
     expect(sentMessage2.mode).toBe(KeyRequestMode.ExpressSync);
@@ -172,7 +167,7 @@ describe('NetworkManager cube offering', () => {
       updatecount: 0
     });
 
-    const fullPeer = new TestNetworkPeer(networkManager);
+    const fullPeer = new DummyNetworkPeer(networkManager);
     fullPeer.remoteNodeType = NodeType.Full;
     fullPeer.online = true;
     networkManager.incomingPeers.push(fullPeer);
@@ -181,7 +176,7 @@ describe('NetworkManager cube offering', () => {
     vi.spyOn(fullPeer, 'sendMessage').mockImplementation(() => {
       throw new Error('Network error');
     });
-    
+
     // Should not throw despite the sendMessage error
     expect(() => {
       networkManager.broadcastKey([cubeInfo]);
@@ -197,18 +192,18 @@ describe('NetworkManager cube offering', () => {
       updatecount: 0
     });
 
-    const fullPeer = new TestNetworkPeer(networkManager);
+    const fullPeer = new DummyNetworkPeer(networkManager);
     fullPeer.remoteNodeType = NodeType.Full;
     fullPeer.online = true;
     networkManager.incomingPeers.push(fullPeer);
 
     const sendMessageSpy = vi.spyOn(fullPeer, 'sendMessage');
-    
+
     networkManager.broadcastKey([cubeInfo]);
-    
+
     expect(sendMessageSpy).toHaveBeenCalledTimes(1);
     const sentMessage = sendMessageSpy.mock.calls[0][0] as KeyResponseMessage;
-    
+
     // Verify it's using the new ExpressSync mode, not SlidingWindow
     expect(sentMessage.mode).toBe(KeyRequestMode.ExpressSync);
     expect(sentMessage.mode).not.toBe(KeyRequestMode.SlidingWindow);

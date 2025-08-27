@@ -1,16 +1,20 @@
 export class ShortenableTimeout {
-  private timeoutId: ReturnType<typeof setTimeout> = undefined;
-  private startTime: number = undefined;
-  private delay: number = undefined;
+  // These values are only defined while an active timeout is scheduled.
+  private timeoutId?: ReturnType<typeof setTimeout>;
+  private startTime?: number;
+  private delay?: number;
 
   constructor(
       private callback: () => void,
-      private context: Object = undefined,
-  ){
-  }
+      private context?: object,
+  ){}
 
-  getRemainingTime(): number {
-    if (!this.startTime) return undefined;
+  /**
+   * Remaining time (ms) before the currently scheduled timeout fires.
+   * Returns undefined if no timeout is active.
+   */
+  getRemainingTime(): number | undefined {
+    if (this.startTime === undefined || this.delay === undefined) return undefined;
     const elapsedTime = Date.now() - this.startTime;
     return this.delay - elapsedTime;
   }
@@ -28,9 +32,10 @@ export class ShortenableTimeout {
   }
 
   clear(): void {
+    if (this.timeoutId !== undefined) clearTimeout(this.timeoutId);
+    this.timeoutId = undefined;
     this.startTime = undefined;
     this.delay = undefined;
-    if (this.timeoutId) clearTimeout(this.timeoutId);
   }
 
   private setUpTimeout(delay: number): void {
@@ -42,6 +47,7 @@ export class ShortenableTimeout {
 
   private invokeTimeout(): void {
     this.clear();
-    this.callback.call(this.context);
+    // Use provided context if any; otherwise undefined (normal for functions not using `this`).
+    this.callback.call(this.context as any);
   }
 }

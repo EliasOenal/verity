@@ -1496,10 +1496,7 @@ describe('VeritumRetriever', () => {
 
         // Get the first notification from subscription
         const iterator = subscriptionGen[Symbol.asyncIterator]();
-        const result = await Promise.race([
-          iterator.next(),
-          new Promise(resolve => setTimeout(() => resolve({ value: undefined, done: true }), 1000))
-        ]);
+        const result = await iterator.next();
 
         expect(result.done).toBe(false);
         expect(result.value).toBeDefined();
@@ -1535,10 +1532,7 @@ describe('VeritumRetriever', () => {
 
         // Get the first notification from subscription
         const iterator = subscriptionGen[Symbol.asyncIterator]();
-        const result = await Promise.race([
-          iterator.next(),
-          new Promise(resolve => setTimeout(() => resolve({ value: undefined, done: true }), 1000))
-        ]);
+        const result = await iterator.next();
 
         expect(result.done).toBe(false);
         expect(result.value).toBeDefined();

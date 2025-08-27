@@ -55,7 +55,8 @@ export class RecursiveEmitter extends EventEmitter implements ReadyPromise, Shut
 
   private async recursiveSubscribe(record: RecursiveEmitterRecord, depth: number): Promise<void> {
     // Prevent infinite recursion
-    if (depth > this.options.depth) {
+  const maxDepth = this.options.depth ?? 10; // safety default
+  if (depth > maxDepth) {
       logger.trace("RecursiveEmitter.recursiveSubscribe(): max recursion depth reached, skipping further references");
       return Promise.resolve();
     }
@@ -106,7 +107,6 @@ export class RecursiveEmitter extends EventEmitter implements ReadyPromise, Shut
   }
   private _shutdown: boolean = false;
   get shuttingDown(): boolean { return this._shutdown }
-  private shutdownPromiseResolve: () => void;
-  shutdownPromise: Promise<void> =
-    new Promise(resolve => this.shutdownPromiseResolve = resolve);
+  private shutdownPromiseResolve!: () => void;
+  shutdownPromise: Promise<void> = new Promise(resolve => { this.shutdownPromiseResolve = resolve; });
 }

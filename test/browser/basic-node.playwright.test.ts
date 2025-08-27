@@ -7,6 +7,7 @@ import {
   getNodeInfo,
   createMultipleCubes,
   hasCubeInBrowser,
+  getCubeInfoFromBrowser,
   shutdownBrowserNode
 } from './playwright-utils';
 
@@ -69,10 +70,16 @@ test.describe('Verity Browser Node Tests (Real Browser)', () => {
     const finalCount = await getCubeCountFromBrowser(page);
     expect(finalCount).toBeGreaterThanOrEqual(initialCount + successfulCubes.length);
     
-    // Verify each successful cube exists in storage
+    // Verify each successful cube exists in storage with small retry to allow async persistence
     for (const result of successfulCubes) {
-      const exists = await hasCubeInBrowser(page, result.cubeKey!);
-      expect(exists).toBe(true);
+      if (!result.cubeKey) continue;
+      let found = false;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const info = await getCubeInfoFromBrowser(page, result.cubeKey);
+        if (info.found) { found = true; break; }
+        await page.waitForTimeout(60);
+      }
+      expect(found).toBe(true);
     }
     
     console.log('Multiple cubes test:', { 

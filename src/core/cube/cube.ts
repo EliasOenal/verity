@@ -26,8 +26,8 @@ import { Buffer } from 'buffer';
 // Note: Cannot be moved to separate file as it uses coreCubeFamily as a default
 //       param, moving it would cause a circular dependency.
 export abstract class VeritableBaseImplementation implements Veritable {
-    protected _fields: CubeFields;
-    readonly options: CubeCreateOptions;
+    protected _fields!: CubeFields;
+    readonly options!: CubeCreateOptions;
 
 
     constructor(options: CubeCreateOptions);

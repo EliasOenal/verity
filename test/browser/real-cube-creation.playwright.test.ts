@@ -12,17 +12,9 @@ test.describe('Verity Real Cube Creation', () => {
         const cockpit = window.verity.cockpit;
         
         // Prepare a veritum with some content
-        const veritum = cockpit.prepareVeritum();
-        
-        // The Veritum should have fields that we can access
-        const fields = veritum.fields || veritum._fields;
-        if (!fields) {
-          return { error: 'No fields property found on veritum' };
-        }
-        
-        // Try to find available field methods
-        const fieldMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(fields))
-          .filter(prop => typeof fields[prop] === 'function');
+  const veritum = cockpit.prepareVeritum();
+  // Fields are internal; we only verify that compile/key retrieval works.
+  const fieldMethods: string[] = [];
         
         // Check if we can insert content-related fields
         let contentInserted = false;
@@ -37,16 +29,16 @@ test.describe('Verity Real Cube Creation', () => {
         let compilationResult = null;
         try {
           await veritum.compile();
-          const key = await veritum.getKey();
+          const keyString = await veritum.getKeyString();
           
           // Now try to add it to the cube store
-          const cubes = Array.from(veritum.chunks);
+          const cubes = Array.from(veritum.chunks as Iterable<any>);
           if (cubes.length > 0) {
             await cubeStore.addCube(cubes[0]);
             const newCount = await cubeStore.getNumberOfStoredCubes();
             compilationResult = {
               success: true,
-              keyString: key.toString('hex').substring(0, 32) + '...',
+              keyString: keyString.slice(0, 32) + '...',
               chunksCreated: cubes.length,
               cubeCountBefore: initialCount,
               cubeCountAfter: newCount
@@ -59,7 +51,6 @@ test.describe('Verity Real Cube Creation', () => {
         return {
           fieldMethods,
           veritumConstructor: veritum.constructor.name,
-          fieldsConstructor: fields.constructor.name,
           compilationResult,
           contentInserted,
           insertionError

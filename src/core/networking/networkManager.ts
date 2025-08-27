@@ -27,12 +27,8 @@ import { Buffer } from 'buffer';
 
 import * as cryptolib from 'crypto';
 import { NetworkManagerIf, NetworkManagerOptions, SetNetworkManagerDefaults } from './networkManagerIf';
-let crypto;
-if (isBrowser || isWebWorker) {
-    crypto = window.crypto;
-} else {
-    crypto = cryptolib;
-}
+// Use a narrowed union type for crypto to satisfy both browser and node usage.
+const cryptoObj: Crypto | typeof cryptolib = (isBrowser || isWebWorker) ? window.crypto : cryptolib;
 
 /**
  * The NetworkManager is the central coordinating instance responsible for
@@ -86,7 +82,8 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
      * @returns True if the window is full, false otherwise
      */
     isRecentKeysWindowFull(): boolean {
-        return this.recentKeysWindow.length >= this.options.recentKeyWindowSize;
+        const limit = this.options.recentKeyWindowSize ?? Settings.RECENT_KEY_WINDOW_SIZE;
+        return this.recentKeysWindow.length >= limit;
     }
 
     /**
@@ -104,7 +101,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
     private isConnectingPeers: boolean = false;
 
     /** Timer used by connectPeers() to respect connection intervals. */
-    private connectPeersInterval: NodeJS.Timeout = undefined;
+    private connectPeersInterval?: NodeJS.Timeout;
 
     /**
      *  True if we have at least one fully connected peer,
@@ -112,14 +109,13 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
      */
     private _online: boolean = false;
 
-    private shutdownPromiseResolve: () => void;
-    shutdownPromise: Promise<void> =
-        new Promise(resolve => this.shutdownPromiseResolve = resolve);
+    private shutdownPromiseResolve!: () => void;
+    shutdownPromise: Promise<void> = new Promise(resolve => { this.shutdownPromiseResolve = resolve; });
 
     /** Local ephemeral peer ID, generated at random each start */
-    protected _id?: Buffer = undefined;
-    get id(): Buffer { return this._id }
-    get idString(): string { return this._id?.toString('hex') }
+    protected _id?: Buffer;
+    get id(): Buffer { if (!this._id) throw new VerityError('NetworkManager.id accessed before initialization'); return this._id; }
+    get idString(): string { return this._id ? this._id.toString('hex') : ''; }
 
     /**
      * Create a new NetworkManager.
@@ -163,7 +159,13 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         // Set a random peer ID
         // Maybe TODO: try to use the same peer ID for transports that themselves
         // require a peer ID, i.e. libp2p
-        this._id = Buffer.from(crypto.getRandomValues(new Uint8Array(NetConstants.PEER_ID_SIZE)));
+        // getRandomValues exists on both Web Crypto and Node's webcrypto (v19+); fallback for cryptolib if needed.
+        if ('getRandomValues' in cryptoObj) {
+            this._id = Buffer.from((cryptoObj as Crypto).getRandomValues(new Uint8Array(NetConstants.PEER_ID_SIZE)));
+        } else {
+            // Fallback using node crypto randomBytes
+            this._id = Buffer.from((cryptolib as any).randomBytes(NetConstants.PEER_ID_SIZE));
+        }
 
         // Set up event listener for cubeAdded event
         this._cubeStore.on('cubeAdded', this.handleCubeAdded);
@@ -353,9 +355,9 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         clearInterval(this.connectPeersInterval);  // will re-set if necessary
         // Only connect a new peer if we're not over the maximum,
         // and if we're not already in the process of connecting new peers
-        if (this.outgoingPeers.length + this.incomingPeers.length <
-                this.options.maximumConnections) {
-            const connectTo: Peer = this._peerDB.selectPeerToConnect(
+        const maximumConnections = this.options.maximumConnections ?? Settings.MAXIMUM_CONNECTIONS;
+        if (this.outgoingPeers.length + this.incomingPeers.length < maximumConnections) {
+            const connectTo: Peer | undefined = this._peerDB.selectPeerToConnect(
                 this.outgoingPeers.concat(this.incomingPeers));  // this is not efficient -- severity: low (run only while connecting new peers and max once per second)
             // logger.trace(`NetworkManager: autoConnectPeers() running, next up is ${connectTo?.toString()}`);
             if (connectTo){
@@ -371,16 +373,18 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
                     // connection attempts and use a much smaller interval when
                     // unsuccessful. In case of getting spammed with fake nodes,
                     // this currently takes forever till we even try a legit one.
+                    const interval = this.options.newPeerInterval ?? Settings.NEW_PEER_INTERVAL;
                     this.connectPeersInterval = setInterval(() =>
-                        this.autoConnectPeers(true), this.options.newPeerInterval);
+                        this.autoConnectPeers(true), interval);
                 } catch (error) {
-                    logger.trace("NetworkManager: Connection attempt failed, retrying in " + this.options.connectRetryInterval/1000 + " seconds");
+                    const retryInterval = this.options.connectRetryInterval ?? Settings.CONNECT_RETRY_INTERVAL;
+                    logger.trace("NetworkManager: Connection attempt failed, retrying in " + retryInterval/1000 + " seconds");
                     // Note this does not actually catch failed connections,
                     // it just catched failed *connect calls*.
                     // Actual connection failure usually happens much later down
                     // the line (async) and does not get detected here.
                     this.connectPeersInterval = setInterval(() =>
-                        this.autoConnectPeers(true), this.options.connectRetryInterval);
+                        this.autoConnectPeers(true), retryInterval);
                 }
             } else {  // no suitable peers found, so stop trying
                 // TODO HACKHACK:

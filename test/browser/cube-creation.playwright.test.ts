@@ -65,23 +65,17 @@ test.describe('Verity Cube Creation Through Cockpit', () => {
         const veritumMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(veritum))
           .filter(prop => typeof veritum[prop] === 'function');
         
-        let contentResult = null;
-        if (veritumMethods.includes('addContent')) {
-          try {
-            veritum.addContent('Browser test message from playwright');
-            contentResult = { success: true };
-          } catch (e) {
-            contentResult = { success: false, error: e.message };
-          }
-        }
+  // Older APIs may have exposed addContent; current Veritum does not.
+  // We simply compile the empty Veritum to obtain a key.
+  const contentResult = { skipped: true } as const;
 
         // Try to compile and get key
         let compileResult = null;
         if (veritumMethods.includes('compile')) {
           try {
             await veritum.compile();
-            const key = await veritum.getKey();
-            compileResult = { success: true, key: key.substring(0, 32) + '...' };
+            const keyString = await veritum.getKeyString();
+            compileResult = { success: true, key: keyString.slice(0, 32) + '...' };
           } catch (e) {
             compileResult = { success: false, error: e.message };
           }

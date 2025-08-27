@@ -25,6 +25,8 @@ import {
   requestCubeFromNetwork,
   hasCubeInBrowser
 } from './playwright-utils';
+import { waitForCubeDelivery } from './playwright-utils';
+import { stageTestCubeInBrowser, publishStagedCubeInBrowser } from './playwright-utils';
 
 test.describe('Cross-Browser P2P Cube Synchronization Tests', () => {
   let testServer: TestNodeServer;
@@ -102,9 +104,12 @@ test.describe('Cross-Browser P2P Cube Synchronization Tests', () => {
       const status2 = await waitForNetworkReady(page2, 3000);
       expect(status2.isNetworkReady).toBe(true);
       
-      // Document the scenario (cube retrieval currently has limitations)
-      const initialCubeCount2 = await getCubeCountFromBrowser(page2);
-      expect(initialCubeCount2).toBe(0);
+  // Assert Browser 2 can retrieve the cube created by Browser 1 (strict e2e guarantee)
+  // Use full cube key (not truncated display keyHex) for retrieval parity with core e2e
+  const delivered = await waitForCubeDelivery(page2, cube1.cubeKey, 8000, 400);
+  expect(delivered).toBe(true);
+  const cubeCount2 = await getCubeCountFromBrowser(page2);
+  console.log('Cross-browser retrieval verification:', { cubeDelivered: delivered, cubeCount2 });
       
       console.log('Cross-browser workflow test completed:', {
         browser1NodeId: node1Info.nodeId,
@@ -113,16 +118,17 @@ test.describe('Cross-Browser P2P Cube Synchronization Tests', () => {
         browser1Connected: connection1.success,
         browser2Connected: connection2.success,
         browser1Cubes: cubeCount1,
-        browser2Cubes: initialCubeCount2,
-        note: 'Cross-browser cube retrieval has known limitations'
+  browser2Cubes: cubeCount2,
+  note: 'Cross-browser cube retrieval enforced'
       });
       
       // Verify basic functionality works
       expect(connection1.success).toBe(true);
-      expect(connection2.success).toBe(true);
-      expect(status1.isNetworkReady).toBe(true);
-      expect(status2.isNetworkReady).toBe(true);
-      expect(cube1.success).toBe(true);
+  expect(connection2.success).toBe(true);
+  expect(status1.isNetworkReady).toBe(true);
+  expect(status2.isNetworkReady).toBe(true);
+  expect(cube1.success).toBe(true);
+  expect(delivered).toBe(true);
       
     } finally {
       try {
@@ -135,6 +141,56 @@ test.describe('Cross-Browser P2P Cube Synchronization Tests', () => {
       } catch (error) {
         console.log('Note: Context close error (non-critical):', error.message);
       }
+    }
+  });
+
+  test('should allow requesting a cube before it is published (parity with core e2e request)', async ({ browser }) => {
+    // Mirrors core e2e cubeRequest test: recipient requests before sender publishes
+    const context1 = await browser.newContext(); // publisher
+    const context2 = await browser.newContext(); // requester
+    const pagePublisher = await context1.newPage();
+    const pageRequester = await context2.newPage();
+    try {
+      await Promise.all([
+        initializeVerityInBrowser(pagePublisher, 'light-node-test.html'),
+        initializeVerityInBrowser(pageRequester, 'light-node-test.html')
+      ]);
+      await Promise.all([
+        connectBrowserNodeToServer(pagePublisher, `ws://localhost:${testPort}`),
+        connectBrowserNodeToServer(pageRequester, `ws://localhost:${testPort}`)
+      ]);
+      await Promise.all([
+        waitForNetworkReady(pagePublisher, 5000),
+        waitForNetworkReady(pageRequester, 5000)
+      ]);
+
+      // Stage cube (compile but not added)
+      const staged = await stageTestCubeInBrowser(pagePublisher, 'Pre-publish staged cube');
+      expect(staged.success).toBe(true);
+      const cubeKey = staged.cubeKey!;
+
+      // Start polling (request) from requester BEFORE publication
+      const pollingPromise = waitForCubeDelivery(pageRequester, cubeKey, 8000, 300);
+
+      // Small delay to ensure request loop starts
+      await pageRequester.waitForTimeout(300);
+
+      // Publish cube now
+      const published = await publishStagedCubeInBrowser(pagePublisher, cubeKey);
+      expect(published.success).toBe(true);
+
+      // Expect requester eventually retrieves it
+      const delivered = await pollingPromise;
+      expect(delivered).toBe(true);
+    } finally {
+      await Promise.all([
+        shutdownBrowserNode(pagePublisher),
+        shutdownBrowserNode(pageRequester)
+      ]);
+      await Promise.all([
+        context1.close(),
+        context2.close()
+      ]);
     }
   });
 
@@ -253,13 +309,12 @@ test.describe('Cross-Browser P2P Cube Synchronization Tests', () => {
         page2.waitForTimeout(2000)
       ]);
       
-      // Attempt cross-browser retrieval (may not succeed due to current limitations)
-      const [retrieval1, retrieval2] = await Promise.all([
-        requestCubeFromNetwork(page1, cube2.keyHex).catch(e => ({ success: false, found: false, error: e.message })),
-        requestCubeFromNetwork(page2, cube1.keyHex).catch(e => ({ success: false, found: false, error: e.message }))
+      // Enforce cross-browser retrieval (strict)
+      const [delivered1, delivered2] = await Promise.all([
+  waitForCubeDelivery(page1, cube2.cubeKey, 8000, 400),
+  waitForCubeDelivery(page2, cube1.cubeKey, 8000, 400)
       ]);
-      
-      console.log('Bidirectional retrieval results:', { retrieval1, retrieval2 });
+      console.log('Bidirectional retrieval results (strict):', { delivered1, delivered2 });
       
       // Verify both browsers can create cubes and maintain connectivity
       const [count1, count2] = await Promise.all([
@@ -274,9 +329,12 @@ test.describe('Cross-Browser P2P Cube Synchronization Tests', () => {
       console.log('Bidirectional test results:', {
         browser1Cubes: count1,
         browser2Cubes: count2,
-        crossRetrieval1: retrieval1.found,
-        crossRetrieval2: retrieval2.found
+        delivered1,
+        delivered2
       });
+
+      expect(delivered1).toBe(true);
+      expect(delivered2).toBe(true);
       
     } finally {
       await Promise.all([
@@ -536,7 +594,7 @@ test.describe('Chat Test Application P2P Verification', () => {
       // - Browser 2 can connect to the same nodejs node
       // - Cross-browser cube retrieval is attempted comprehensively
       
-      if (retrievedMessages > 0) {
+  if (retrievedMessages > 0) {
         console.log(`Cross-browser cube retrieval SUCCESSFUL: ${retrievedMessages}/${10} cubes retrieved`);
         
         // Verify at least some messages were retrieved successfully
@@ -553,14 +611,14 @@ test.describe('Chat Test Application P2P Verification', () => {
         await expect(firstRetrievedMessage.locator('.cube-key')).toContainText(/\[[a-f0-9]{8}...\]/);
         
       } else {
-        console.log('Cross-browser cube retrieval not working - comprehensive test failed');
-        // Don't fail the test immediately to allow debugging
+        console.log('Cross-browser cube retrieval not working - failing test (strict e2e)');
         console.log('Browser 2 status for debugging:', {
           messageCount: messageCount2,
           cubeCount: cubeCount2,
           networkStatus: await page2.locator('#networkStatus').textContent(),
           subscriptionStatus: await page2.locator('#subscriptionStatus').textContent()
         });
+        expect(retrievedMessages).toBeGreaterThan(0); // force failure with diagnostics
       }
       
       console.log('Comprehensive cross-browser P2P test completed');
