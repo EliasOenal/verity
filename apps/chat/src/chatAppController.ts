@@ -214,7 +214,25 @@ export class ChatAppController {
         // Tooltip: full cube key and full timestamp (ISO) for precision
         const fullKey = m.cubeKey || '(no cube key)';
         el.title = `Cube: ${fullKey}\nTime: ${m.timestamp.toISOString()}`;
-        el.innerHTML=`<div class="verityMessageHeader"><span class="verityMessageUsername">${m.username}</span><span class="verityMessageTimestamp">${timeShort}</span></div><div class="verityMessageContent">${m.message}</div>`;
+        const header = document.createElement('div');
+        header.className = 'verityMessageHeader';
+        const userSpan = document.createElement('span');
+        userSpan.className = 'verityMessageUsername';
+        userSpan.textContent = m.username;
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'verityMessageTimestamp';
+        timeSpan.textContent = timeShort;
+        header.appendChild(userSpan);
+        header.appendChild(timeSpan);
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'verityMessageContent';
+        const lines = (m.message || '').split(/\n/);
+        lines.forEach((line, idx) => {
+            if(idx>0) contentDiv.appendChild(document.createElement('br'));
+            contentDiv.appendChild(document.createTextNode(line));
+        });
+        el.appendChild(header);
+        el.appendChild(contentDiv);
         listEl.appendChild(el);
     }
     if(shouldStick) listEl.scrollTop = listEl.scrollHeight; }
