@@ -1,5 +1,4 @@
 import { ChatAppController } from "./chatAppController";
-// Import modern chat styles (processed by webpack)
 import "../chat.css";
 import { isBrowser } from "browser-or-node";
 import { logger } from "../../../src/core/logger";
@@ -8,18 +7,25 @@ import { SupportedTransports } from "../../../src/core/networking/networkDefinit
 import { defaultInitialPeers } from "../../../src/core/coreNode";
 import { cciFamily } from "../../../src/cci/cube/cciCube";
 import { coreCubeFamily } from "../../../src/core/cube/cube";
-import { Cockpit } from "../../../src/cci/cockpit";
-import sodium from 'libsodium-wrappers-sumo';
+import sodium from "libsodium-wrappers-sumo";
 
 export async function webmain() {
   try {
-    logger.info('Starting chat app');
-    
+    logger.info("Starting chat app");
+
     await sodium.ready;
-    
-    // Create a minimal Verity node for the chat app
+
+    // Construct a Verity light node.
+    // Key options (most apps can start from this same shape):
+    // - transports: choose libp2p over WebRTC (browser‑friendly). Each entry is a tuple of transport -> multiaddrs
+    // - initialPeers: known bootstrap peers
+    // - inMemory: false => persist cubes to IndexedDB/Level (chat history survives reload)
+    // - lightNode: true => don't store/relay *all* cubes, only what we request (smaller resource footprint)
+    // - useRelaying: enable WebRTC relay usage for NAT traversal
+    // - family: restrict accepted cube families (CCI + core primitives)
+    // - announceToTorrentTrackers: disabled (not supported in browsers)
     const nodeOptions = {
-      transports: new Map([[SupportedTransports.libp2p, ['/webrtc']]]),
+      transports: new Map([[SupportedTransports.libp2p, ["/webrtc"]]]),
       initialPeers: defaultInitialPeers,
       inMemory: false,
       lightNode: true,
@@ -27,39 +33,27 @@ export async function webmain() {
       family: [cciFamily, coreCubeFamily],
       announceToTorrentTrackers: false,
     };
-    
+
     const node = new VerityNode(nodeOptions);
+    // readyPromise resolves only after networking + stores + crypto subsystems have initialised.
     await node.readyPromise;
     logger.info("Verity node is ready");
-    
-    // Create cockpit for cube operations
-  // No identity management in lightweight chat demo; cockpit can work without explicit identity
-  const cockpit = new Cockpit(node, { identity: undefined as any });
-    
-    // Create a simple context for the controllers
-    const context = {
-      node,
-      identity: undefined,
-      cockpit
-    };
-    
-    // Initialize the chat app controller directly
-    const chatController = new ChatAppController(context);
-    
-    // Set up global access (for compatibility with existing templates)
-  (window as any).verity = { node };
-    
-    // Initialize the chat app
+
+    const chatController = new ChatAppController({ node });
+
+    (window as any).verity = { node };
+
     await chatController.showChatApp();
-    
-    logger.info('Chat app initialized successfully');
-    
-    // Wait for shutdown
+
+    logger.info("Chat app initialized successfully");
+
+    // (Optional) If the page lifecycle wants to coordinate clean shutdown, wait here.
+    // For a single‑page application this will usually never resolve until tab close.
     await node.shutdownPromise;
   } catch (error) {
     logger.error(`Failed to start chat app: ${error}`);
   }
-};
+}
 
 if (isBrowser) webmain();
 else logger.error("This Verity Chat app must be run in the browser.");

@@ -1,96 +1,185 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Verity Chat</title>
-  <link rel="icon" type="image/svg+xml" href="vera.svg" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="chat.css" />
-  <script>
-    // Initial theme (no FOUC)
-    (()=>{const prefersDark=matchMedia('(prefers-color-scheme: dark)').matches;const saved=localStorage.getItem('vc-theme');document.documentElement.dataset.theme=saved|| (prefersDark?'dark':'light');})();
-  </script>
-  <script src="chatApp.js" defer></script>
-</head>
-<body>
-  <header class="vc-header">
-    <div class="vc-brand">
-      <img class="vc-logo" src="vera.svg" alt="Verity" />
-      <span>Verity Chat</span>
-    </div>
-    <div class="vc-status-group">
-      <!-- Keep both elements for legacy OnlineView wiring -->
-      <span id="onlineStatusArea" class="verityOnlineStatus" hidden></span>
-      <span id="verityOnlineStatusArea" hidden></span>
-  <button id="userPanelBtn" class="vc-icon-btn" aria-expanded="false" title="User / Username" data-tip="User settings">👤</button>
-  <button id="roomPanelBtn" class="vc-icon-btn" aria-expanded="false" title="Rooms / Join" data-tip="Join or switch rooms">🗨️</button>
-      <button id="networkToggleBtn" class="vc-icon-btn" aria-expanded="false" title="Network / Peers" data-tip="View connected peers">⚡</button>
-      <button id="themeToggleBtn" class="vc-icon-btn" title="Toggle theme" data-tip="Toggle light/dark theme">🌓</button>
-    </div>
-  </header>
-  <!-- Flyout panels -->
-  <section id="userPanel" aria-hidden="true" class="vc-fly-panel" data-open="false">
-    <div class="vc-fly-header">
-      <h2>User</h2>
-      <button class="vc-icon-btn" data-close-panel="userPanel" title="Close">✕</button>
-    </div>
-    <div class="vc-fly-content">
-      <div class="vc-field-row">
-        <label class="vc-label">Username</label>
-        <div class="vc-inline">
-          <input class="vc-input verityUsernameInput" placeholder="Anonymous" maxlength="48" />
-          <button type="button" class="vc-btn primary verityUsernameSet">Set</button>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Verity Chat</title>
+    <link rel="icon" type="image/svg+xml" href="vera.svg" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="chat.css" />
+    <script>
+      // Initial theme (no FOUC)
+      (() => {
+        const prefersDark = matchMedia("(prefers-color-scheme: dark)").matches;
+        const saved = localStorage.getItem("vc-theme");
+        document.documentElement.dataset.theme =
+          saved || (prefersDark ? "dark" : "light");
+      })();
+    </script>
+    <script src="chatApp.js" defer></script>
+  </head>
+  <body>
+    <header class="vc-header">
+      <div class="vc-brand">
+        <img class="vc-logo" src="vera.svg" alt="Verity" />
+        <span>Verity Chat</span>
+      </div>
+      <div class="vc-status-group">
+        <!-- Keep both elements for legacy OnlineView wiring -->
+        <span id="onlineStatusArea" class="verityOnlineStatus" hidden></span>
+        <span id="verityOnlineStatusArea" hidden></span>
+        <button
+          id="userPanelBtn"
+          class="vc-icon-btn"
+          aria-expanded="false"
+          title="User / Username"
+          data-tip="User settings"
+        >
+          👤
+        </button>
+        <button
+          id="roomPanelBtn"
+          class="vc-icon-btn"
+          aria-expanded="false"
+          title="Rooms / Join"
+          data-tip="Join or switch rooms"
+        >
+          🗨️
+        </button>
+        <button
+          id="networkToggleBtn"
+          class="vc-icon-btn"
+          aria-expanded="false"
+          title="Network / Peers"
+          data-tip="View connected peers"
+        >
+          ⚡
+        </button>
+        <button
+          id="themeToggleBtn"
+          class="vc-icon-btn"
+          title="Toggle theme"
+          data-tip="Toggle light/dark theme"
+        >
+          🌓
+        </button>
+      </div>
+    </header>
+    <!-- Flyout panels -->
+    <section
+      id="userPanel"
+      aria-hidden="true"
+      class="vc-fly-panel"
+      data-open="false"
+    >
+      <div class="vc-fly-header">
+        <h2>User</h2>
+        <button class="vc-icon-btn" data-close-panel="userPanel" title="Close">
+          ✕
+        </button>
+      </div>
+      <div class="vc-fly-content">
+        <div class="vc-field-row">
+          <label class="vc-label">Username</label>
+          <div class="vc-inline">
+            <input
+              class="vc-input verityUsernameInput"
+              placeholder="Anonymous"
+              maxlength="48"
+            />
+            <button type="button" class="vc-btn primary verityUsernameSet">
+              Set
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
-  <section id="roomPanel" aria-hidden="true" class="vc-fly-panel" data-open="false">
-    <div class="vc-fly-header">
-      <h2>Room</h2>
-      <button class="vc-icon-btn" data-close-panel="roomPanel" title="Close">✕</button>
-    </div>
-    <div class="vc-fly-content">
-      <div class="vc-field-row">
-        <label class="vc-label">Join Room</label>
-        <div class="vc-inline">
-          <input class="vc-input verityRoomNameInput" placeholder="Room" maxlength="64" />
-          <button type="button" class="vc-btn primary verityJoinRoom">Join</button>
+    </section>
+    <section
+      id="roomPanel"
+      aria-hidden="true"
+      class="vc-fly-panel"
+      data-open="false"
+    >
+      <div class="vc-fly-header">
+        <h2>Room</h2>
+        <button class="vc-icon-btn" data-close-panel="roomPanel" title="Close">
+          ✕
+        </button>
+      </div>
+      <div class="vc-fly-content">
+        <div class="vc-field-row">
+          <label class="vc-label">Join Room</label>
+          <div class="vc-inline">
+            <input
+              class="vc-input verityRoomNameInput"
+              placeholder="Room"
+              maxlength="64"
+            />
+            <button type="button" class="vc-btn primary verityJoinRoom">
+              Join
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
-  <section id="networkPanel" aria-hidden="true" class="vc-fly-panel" data-open="false">
-    <div class="vc-fly-header">
-      <h2>Network</h2>
-      <button id="closeNetworkBtn" class="vc-icon-btn" data-close-panel="networkPanel" title="Hide network">✕</button>
-    </div>
-    <div id="networkPanelContent" class="vc-fly-content"></div>
-  </section>
-
-  <main class="vc-main" aria-label="Chat area">
-    <div id="verityContentArea" class="vc-content-root"></div>
-  </main>
-
-  <!-- Chat Template (minimal DOM, legacy hooks preserved) -->
-  <template id="verityChatAppTemplate">
-    <div class="verityChatApp vc-chat-app">
-  <!-- User & Room inputs moved to top flyout panels -->
-
-      <div class="vc-panel">
-        <div class="vc-rooms verityChatRoomTabs" aria-label="Joined rooms"></div>
+    </section>
+    <section
+      id="networkPanel"
+      aria-hidden="true"
+      class="vc-fly-panel"
+      data-open="false"
+    >
+      <div class="vc-fly-header">
+        <h2>Network</h2>
+        <button
+          id="closeNetworkBtn"
+          class="vc-icon-btn"
+          data-close-panel="networkPanel"
+          title="Hide network"
+        >
+          ✕
+        </button>
       </div>
+      <div id="networkPanelContent" class="vc-fly-content"></div>
+    </section>
 
-      <div class="vc-messages"><div class="verityChatMessages"></div></div>
+    <main class="vc-main" aria-label="Chat area">
+      <div id="verityContentArea" class="vc-content-root"></div>
+    </main>
 
-      <form class="vc-panel vc-send verityChatForm" autocomplete="off">
-        <input class="vc-input verityMessageInput" placeholder="Type your message..." />
-        <button class="vc-btn primary" type="submit">Send</button>
-      </form>
+    <!-- Chat Template (minimal DOM, legacy hooks preserved) -->
+    <template id="verityChatAppTemplate">
+      <div class="verityChatApp vc-chat-app">
+        <!-- User & Room inputs moved to top flyout panels -->
 
-      <div class="vc-error verityChatError" hidden></div>
-  <footer class="vc-footer"><a href="https://github.com/EliasOenal/verity" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none" data-tip="Open project repository">Messaging over Verity ♥️</a></footer>
-    </div>
-  </template>
-</body>
+        <div class="vc-panel">
+          <div
+            class="vc-rooms verityChatRoomTabs"
+            aria-label="Joined rooms"
+          ></div>
+        </div>
+
+        <div class="vc-messages"><div class="verityChatMessages"></div></div>
+
+        <form class="vc-panel vc-send verityChatForm" autocomplete="off">
+          <input
+            class="vc-input verityMessageInput"
+            placeholder="Type your message..."
+          />
+          <button class="vc-btn primary" type="submit">Send</button>
+        </form>
+
+        <div class="vc-error verityChatError" hidden></div>
+        <footer class="vc-footer">
+          <a
+            href="https://github.com/EliasOenal/verity"
+            target="_blank"
+            rel="noopener noreferrer"
+            style="color: inherit; text-decoration: none"
+            data-tip="Open project repository"
+            >Messaging over Verity ♥️</a
+          >
+        </footer>
+      </div>
+    </template>
+  </body>
 </html>
