@@ -60,35 +60,35 @@ export interface CubeFilterOptions {
  * and converted to model data on demand by subclass-specific methods.
  */
 export abstract class NetworkMessage extends BaseField {
-  static fromBinary(message: Buffer): NetworkMessage {
+  static fromBinary<T extends NetworkMessage>(message: Buffer): T {
     const type: MessageClass = NetworkMessage.MessageClass(message);
     const value: Buffer = message.subarray(NetConstants.MESSAGE_CLASS_SIZE);
     switch (type) {
       case MessageClass.Hello:
-        return new HelloMessage(value);
+        return new HelloMessage(value) as NetworkMessage as T;
       case MessageClass.KeyRequest:
-        return new KeyRequestMessage(value);
+        return new KeyRequestMessage(value) as NetworkMessage as T;
       case MessageClass.KeyResponse:
-        return new KeyResponseMessage(value);
+        return new KeyResponseMessage(value) as NetworkMessage as T;
       case MessageClass.CubeRequest:
-        return new CubeRequestMessage(value);
+        return new CubeRequestMessage(value) as NetworkMessage as T;
       case MessageClass.SubscribeCube:
-        return new SubscribeCubeMessage(value, type);
+        return new SubscribeCubeMessage(value, type) as NetworkMessage as T;
       case MessageClass.SubscribeNotifications:
-        return new SubscribeCubeMessage(value, type);
+        return new SubscribeCubeMessage(value, type) as NetworkMessage as T;
       case MessageClass.SubscriptionConfirmation:
-        return new SubscriptionConfirmationMessage(value);
+        return new SubscriptionConfirmationMessage(value) as NetworkMessage as T;
       case MessageClass.CubeResponse:
-        return new CubeResponseMessage(value);
+        return new CubeResponseMessage(value) as NetworkMessage as T;
       case MessageClass.MyServerAddress:
-        return new ServerAddressMessage(value);
+        return new ServerAddressMessage(value) as NetworkMessage as T;
       case MessageClass.PeerRequest:
-        return new PeerRequestMessage();
+        return new PeerRequestMessage() as NetworkMessage as T;
       case MessageClass.PeerResponse:
-        return new PeerResponseMessage(value);
+        return new PeerResponseMessage(value) as NetworkMessage as T;
       case MessageClass.NotificationRequest:
         // NotificationRequests are a special kind of CubeRequests
-        return new CubeRequestMessage(value, MessageClass.NotificationRequest);
+        return new CubeRequestMessage(value, MessageClass.NotificationRequest) as NetworkMessage as T;
       default:
         throw new VerityError("NetworkMessage.fromBinary: Cannot parse message of unknown type " + type);
     }
