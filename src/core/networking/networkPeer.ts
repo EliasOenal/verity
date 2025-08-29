@@ -1,5 +1,5 @@
 import { Settings } from '../settings';
-import { unixtime } from '../helpers/misc';
+import { ArrayFromAsync, unixtime } from '../helpers/misc';
 
 import { CubeFilterOptions, CubeRequestMessage, CubeResponseMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, NetworkMessage, PeerRequestMessage, PeerResponseMessage, ServerAddressMessage, SubscriptionConfirmationMessage, SubscriptionResponseCode } from './networkMessage';
 import { MessageClass, NetConstants, SupportedTransports, NodeType } from './networkDefinitions';
@@ -379,8 +379,8 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
             this._id = msg.remoteId;
             this.remoteNodeType = msg.nodeType;
             this._status.advance(NetworkPeerLifecycle.ONLINE);
-            
-            const nodeTypeStr = this.remoteNodeType === NodeType.Full ? 'full' : 
+
+            const nodeTypeStr = this.remoteNodeType === NodeType.Full ? 'full' :
                                this.remoteNodeType === NodeType.Light ? 'light' : 'unknown';
             logger.trace(`NetworkPeer ${this.toString()}: received HELLO from ${nodeTypeStr} node, peer now considered online`);
 
@@ -449,13 +449,20 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         return cubeInfos.filter((info): info is CubeInfo => info !== undefined);
     }
 
-    private async handleSequentialStoreSyncKeyRequest(
+    private handleSequentialStoreSyncKeyRequest(
             startKey: CubeKey,
             keyCount: number,
             sublevel: Sublevels = Sublevels.CUBES,
     ): Promise<CubeInfo[]> {
         // This method should be implemented in the CubeStore class
-        return await this.cubeStore.getSucceedingCubeInfos(startKey, keyCount, sublevel);
+        const gen = this.cubeStore.getCubeInfoRange({
+            gte: startKey,
+            limit: keyCount,
+            wraparound: true,
+            sublevel,
+        });
+        const cubeInfos: Promise<CubeInfo[]> = ArrayFromAsync(gen);
+        return cubeInfos;
     }
 
     /**
@@ -560,7 +567,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
                 currentHashes.push(Buffer.alloc(32));  // 32-byte empty hash to maintain consistent format
             }
         }
-        
+
         // Accept all subscriptions, even for non-existent cubes
         let i=0;  // for debug output only
         for (const key of requestedKeys) {
@@ -802,12 +809,12 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
     toLongString() {
         let ret: string = "";
         ret += "NetworkPeer ID#" + this.idString + " connected through " + this.conn?.toString();
-        
+
         // Add node type information
-        const nodeTypeStr = this.remoteNodeType === NodeType.Full ? 'Full' : 
+        const nodeTypeStr = this.remoteNodeType === NodeType.Full ? 'Full' :
                            this.remoteNodeType === NodeType.Light ? 'Light' : 'Unknown';
         ret += `, node type: ${nodeTypeStr}`;
-        
+
         if (this.addresses.length) {
             ret += ", addresses:\n";
             for (let i=0; i<this.addresses.length; i++) {

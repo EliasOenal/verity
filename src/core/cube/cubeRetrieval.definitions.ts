@@ -1,9 +1,11 @@
-import { EventEmitter } from "events";
-import { Cube } from "./cube";
-import { CubeKey, GetCubeOptions, NotificationKey } from "./cube.definitions";
-import { CubeInfo } from "./cubeInfo";
-import { CubeStore } from "./cubeStore";
-import { Veritable } from "./veritable.definition";
+import type { CubeKey, GetCubeOptions, NotificationKey } from "./cube.definitions";
+import type { Cube } from "./cube";
+import type { CubeInfo } from "./cubeInfo";
+import type { CubeStore } from "./cubeStore";
+import type { Veritable } from "./veritable.definition";
+import type { Sublevels } from "./levelBackend";
+
+import type { EventEmitter } from "events";
 
 /**
  * A generalised interface for objects that can retrieve Cubes.
@@ -23,10 +25,29 @@ export type CubeIteratorOptions = {
   lt?: CubeKey | NotificationKey;
   lte?: CubeKey | NotificationKey;
   limit?: number;
+
+  // BUGBUG TODO: not all methods accepting CubeIteratorOptions support asString
   asString?: boolean;
+
+  // BUGBUG TODO: not all methods accepting CubeIteratorOptions support wraparound
   wraparound?: boolean;
-  reverse?: boolean;
 };
+
+export type CubeIteratorOptionsSublevel = {
+  /**
+   * Which database (sublevel) to use.
+   * @default Sublevels.CUBES
+   */
+  sublevel?: Sublevels;
+
+  /**
+   * If false, which is the default, return/yield values will be CubeKeys,
+   * meaning we will perform the necessary conversion for you, if any.
+   * (The technical reason is that only on the CUBES sublevel the database
+   * keys are actually Cube keys; on all other sublevels, they are prefixed.)
+   */
+  getRawSublevelKeys?: boolean;
+}
 
 
 export interface CubeEmitterEvents extends Record<string, any[]> {

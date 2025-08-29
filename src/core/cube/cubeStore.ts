@@ -19,7 +19,7 @@ import { logger } from "../logger";
 import { EventEmitter } from "events";
 import { WeakValueMap } from "weakref";
 import { Buffer } from "buffer";
-import { CubeEmitterEvents, CubeRetrievalInterface, CubeEmitter, CubeIteratorOptions } from "./cubeRetrieval.definitions";
+import { CubeEmitterEvents, CubeRetrievalInterface, CubeEmitter, CubeIteratorOptions, CubeIteratorOptionsSublevel } from "./cubeRetrieval.definitions";
 import { GetCubeOptions } from "./cube.definitions";
 
 // TODO: we need to be able to pin certain cubes
@@ -422,19 +422,30 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
    *     effectively means that you will first receive all keys matching your
    *     filter and then keys not matching your filter. Note that there is
    *     no further guarantee about the order of keys returned.
-   * Note that the reverse option is currently unsupported!
    */
-  getKeyRange(options?: CubeIteratorOptions & { asString: true}): AsyncGenerator<string>;
-  getKeyRange(options?: CubeIteratorOptions): AsyncGenerator<CubeKey>;
+  getKeyRange(options?: CubeIteratorOptions & CubeIteratorOptionsSublevel & { asString: true}): AsyncGenerator<string>;
+  getKeyRange(options?: CubeIteratorOptions & CubeIteratorOptionsSublevel): AsyncGenerator<CubeKey>;
   async *getKeyRange(
-    options: CubeIteratorOptions = {},
+    options?: CubeIteratorOptions & CubeIteratorOptionsSublevel,
   ): AsyncGenerator<CubeKey | string> {
+    // normalise input
+    options = options ? { ...options } : {};
+    // set defaults
+    options.sublevel ??= Sublevels.CUBES;
+    options.limit ??= 1000;
+
     let first: string = undefined;
     let count: number = 0;
-    const limit = options.limit ?? 1000;
 
-    for await (const key of this.leveldb.getKeyRange(Sublevels.CUBES, options)) {
-      if (count >= limit) break;  // respect limit
+    for await (let key of this.leveldb.getKeyRange(options.sublevel, options)) {
+      if (!options.getRawSublevelKeys && options.sublevel !== Sublevels.CUBES) {
+        // HACKHACK:
+        // Only in the CUBES sublevel ("the main DB") is a key actually a Cube key.
+        // All others are just indexing concatenations containing the actual
+        // Cube key at the very end.
+        key = key.subarray(key.length - NetConstants.CUBE_KEY_SIZE);
+      }
+
       // We will keep track of the first key returned, this is only used
       // in case wraparound is true.
       if (first === undefined) first = keyVariants(key).keyString;
@@ -444,13 +455,13 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
       else {
         yield keyVariants(key).binaryKey as CubeKey;
       }
-      // Keep track of number of keys returned, break once limit reached
+      // Keep track of number of keys returned
       count++;
     }
 
-    if (  // handle wraparound if requested and output limit not reached
-      options.wraparound &&
-      (!options.limit || count < options.limit) &&
+    if (  // handle wraparound
+      options.wraparound &&  // if requested
+      (options.limit === undefined || count < options.limit) &&  // if output limit not reached
       // wraparound only makes sense if we filtered anything in the first place
       (options.gt || options.gte) &&
       // forward-iterating wraparound make no sense combined with lower bound
@@ -460,18 +471,17 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
       for await (const key of this.getKeyRange({
         lte: options.gt,  // include everything including just what we skipped before
         lt: options.gte,  // include everything up to but excluding what we started with before
-        limit: options.limit,
+        limit: options.limit - count,
         asString: options.asString,
-        wraparound: false
+        wraparound: false,
       })) {
+        if (count >= options.limit) break;  // respect limit
         // even on wraparound we don't want to return the same key twice
         // note: this should never happen as the filtering above should
-        // already have taken care of this
-        if (keyVariants(key).keyString === first) break;
-        // yield key and keep count, break once limit reached
+        //       already have taken care of this
+        // yield key and keep count
         yield key;
         count++;
-        if (count >= limit) break;
       }
     }
   }
@@ -484,9 +494,9 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
    *   See getKeyRange() for options documentation.
    */
   async *getCubeInfoRange(
-    options: CubeIteratorOptions = {},
+    options: CubeIteratorOptions & CubeIteratorOptionsSublevel = {},
   ): AsyncGenerator<CubeInfo> {
-    for await (const key of this.getKeyRange({ ...options, asString: true })) {
+    for await (const key of this.getKeyRange(options)) {
       yield await this.getCubeInfo(key);
     }
   }
@@ -505,38 +515,6 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
       return asCubeKey(key);
     else
       return undefined;
-  }
-
-  /**
-   * Get a specified number of CubeInfos succeeding a given input key.
-   * @param startKey The key to start from (exclusive).
-   * @param count The number of CubeInfos to retrieve.
-   * @returns An array of CubeInfos succeeding the input key.
-   * @deprecated Given that keys are stored sorted in LevelDB, this method is a duplicate
-   *   of getCubeInfoRange() and we should get rid of it. This will also avoid
-   *   doing about a thousand array pushes each request which is not efficient.
-   */
-  async getSucceedingCubeInfos(
-    startKey: CubeKey,
-    count: number,
-    sublevel: Sublevels = Sublevels.CUBES,
-  ): Promise<CubeInfo[]> {
-    const keys = await this.leveldb.getSucceedingKeys(sublevel, startKey, count);
-    const cubeInfos: CubeInfo[] = [];
-    for (let key of keys) {
-      if (sublevel !== Sublevels.CUBES) {
-        // HACKHACK... TODO niceify
-        // Only in the CUBES sublevel ("the main DB") is a key actually a Cube key.
-        // All others are just indexing concatenations containing the actual
-        // Cube key at the very end.
-        key = key.subarray(key.length - NetConstants.CUBE_KEY_SIZE);
-      }
-      const cubeInfo = await this.getCubeInfo(asCubeKey(key));
-      if (cubeInfo) {
-        cubeInfos.push(cubeInfo);
-      }
-    }
-    return cubeInfos;
   }
 
   async *getNotificationCubeInfos(recipientKey: Buffer|string): AsyncGenerator<CubeInfo> {
@@ -614,6 +592,8 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
 
     // pruning will be performed in batches to prevent main thread lags --
     // prepare batch function
+    // maybe TODO: remove batching logic; control is yielded after each key
+    //   anyway due to await
     const checkAndPruneCubes = async () => {
       const batchSize = 50;
       for (let i = 0; i < batchSize && index < cubeKeys.length; i++, index++) {
