@@ -43,7 +43,7 @@
     "axios": "^1.9.0",
     "copy-webpack-plugin": "^13.0.1",
     "eslint": "^9.34.0",
-    "fake-indexeddb": "^6.1.0",
+    "fake-indexeddb": "^6.2.0",
     "jsdom": "^26.0.0",
     "libsodium-wrappers": "^0.7.15",
     "playwright": "^1.55.0",
