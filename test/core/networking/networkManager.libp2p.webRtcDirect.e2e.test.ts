@@ -40,14 +40,14 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
     expect(nodeTransport).toBeDefined();
 
     const multiaddrs = nodeTransport!.node.getMultiaddrs();
-    console.log('Node multiaddrs:', multiaddrs.map(ma => ma.toString()));
+    // console.log('Node multiaddrs:', multiaddrs.map(ma => ma.toString()));
 
     // Verify WebRTC-Direct addresses are present (enabled by default on Node.js)
     const webrtcDirectAddrs = multiaddrs.filter(ma =>
       ma.toString().includes('/webrtc-direct/') && ma.toString().includes('/certhash/'));
 
     expect(webrtcDirectAddrs.length).toBeGreaterThan(0);
-    console.log('WebRTC-Direct addresses found:', webrtcDirectAddrs.map(ma => ma.toString()));
+    // console.log('WebRTC-Direct addresses found:', webrtcDirectAddrs.map(ma => ma.toString()));
 
     // Verify address format
     const webrtcDirectAddr = webrtcDirectAddrs[0];
@@ -79,7 +79,7 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
     // Verify WebRTC-Direct is configured
     expect(webrtcDirectAddr).toBeDefined();
     expect(webrtcDirectAddr!.toString()).toContain('/webrtc-direct/');
-    console.log('Using WebRTC-Direct address for connection:', webrtcDirectAddr!.toString());
+    // console.log('Using WebRTC-Direct address for connection:', webrtcDirectAddr!.toString());
 
     // Set up promise to capture incoming peer on listener side
     let listenerToDialer: NetworkPeerIf;
@@ -123,7 +123,7 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
     // Verify connection was established on both sides
     expect(dialer.networkManager.onlinePeers.length).toBeGreaterThan(0);
     expect(listener.networkManager.onlinePeers.length).toBeGreaterThan(0);
-    console.log('WebRTC-Direct connection established successfully');
+    // console.log('WebRTC-Direct connection established successfully');
 
     // Test cube transmission over WebRTC-Direct
     const testCube = Cube.Frozen({
@@ -143,7 +143,7 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
 
     expect(retrievedCube).toBeDefined();
     expect((retrievedCube as Cube).getKeyIfAvailable()).toEqual(testCube.getKeyIfAvailable());
-    console.log('Successfully transmitted cube over WebRTC-Direct connection');
+    // console.log('Successfully transmitted cube over WebRTC-Direct connection');
 
     await Promise.all([
       listener.shutdown(),
@@ -191,14 +191,14 @@ describe('WebRTC-Direct end-to-end connectivity with Verity nodes', () => {
     expect(senderWebRTCDirect).toBeDefined();
     expect(recipientWebRTCDirect).toBeDefined();
 
-    console.log('Sender WebRTC-Direct addr:', senderWebRTCDirect?.toString());
-    console.log('Recipient WebRTC-Direct addr:', recipientWebRTCDirect?.toString());
+    // console.log('Sender WebRTC-Direct addr:', senderWebRTCDirect?.toString());
+    // console.log('Recipient WebRTC-Direct addr:', recipientWebRTCDirect?.toString());
 
     // Verify both nodes are capable of WebRTC-Direct connectivity for notifications
     expect(senderWebRTCDirect!.toString()).toMatch(/\/webrtc-direct\/certhash\//);
     expect(recipientWebRTCDirect!.toString()).toMatch(/\/webrtc-direct\/certhash\//);
 
-    console.log('Both nodes successfully configured with WebRTC-Direct capability');
+    // console.log('Both nodes successfully configured with WebRTC-Direct capability');
 
     await Promise.all([
       sender.shutdown(),

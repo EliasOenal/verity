@@ -24,7 +24,7 @@ describe('WebRTC-Direct minimal test', () => {
 
     await node.start();
 
-    console.log('Minimal WebRTC-Direct node multiaddrs:', node.getMultiaddrs().map(ma => ma.toString()));
+    // console.log('Minimal WebRTC-Direct node multiaddrs:', node.getMultiaddrs().map(ma => ma.toString()));
 
     expect(node.status).toBe('started');
     expect(node.getMultiaddrs().length).toBeGreaterThan(0);

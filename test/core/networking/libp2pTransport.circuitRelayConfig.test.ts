@@ -25,7 +25,7 @@ describe('libp2p WebRTC circuit relay configuration verification', () => {
     expect(transport.node.status).toBe('started');
 
     // The fact that we got here without the circuit relay error means the configuration is correct
-    console.log('libp2p transport created successfully with WebRTC and circuit relay');
+    // console.log('libp2p transport created successfully with WebRTC and circuit relay');
 
     await transport.shutdown();
   }, 10000);
@@ -44,7 +44,7 @@ describe('libp2p WebRTC circuit relay configuration verification', () => {
       ma.toString().includes('/ws') && ma.toString().includes('/p2p/'));
     expect(hasWebSocketAddr).toBe(true);
 
-    console.log('Generated multiaddrs:', multiaddrs.map(ma => ma.toString()));
+    // console.log('Generated multiaddrs:', multiaddrs.map(ma => ma.toString()));
 
     await transport.shutdown();
   }, 10000);

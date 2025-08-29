@@ -316,7 +316,7 @@ describe('VeritumRetriever', () => {
           chunks.push(iteratorResult.value as cciCube);
           expect(iteratorResult.done).toBe(false);
           gen.next().then((iteratorResult: IteratorResult<cciCube, boolean>) => {
-            console.error("check performed")
+            // console.error("check performed")
             expect(iteratorResult.done).toBe(true);
           })
         })
