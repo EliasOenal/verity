@@ -18,6 +18,7 @@ import { keyVariants } from './keyUtil';
 //     would have to be done in the CubeStore
 
 // Enums for the databases
+// TODO move to definitions file
 export enum Sublevels{
   BASE_DB = 0,
   CUBES = 1,
@@ -265,57 +266,6 @@ export class LevelBackend {
       logger.error(`Error retrieving key at position ${position}: ${error}`);
       return undefined;
     }
-  }
-
-  /**
-   * Get a specified number of keys succeeding a given input key.
-   * @param startKey The key to start from (exclusive).
-   * @param count The number of keys to retrieve.
-   * @returns An array of keys succeeding the input key.
-   * @deprecated Given that keys are stored sorted in LevelDB, this method is a duplicate
-   *   of getKeyRange() and we should get rid of it. This will also avoid
-   *   doing about a thousand array pushes each request which is not efficient.
-   */
-  async getSucceedingKeys(sublevel: Sublevels, startKey: Buffer, count: number): Promise<Buffer[]> {
-    let subDB = this.subDB(sublevel);
-
-    const keys: Buffer[] = [];
-    let iterator = subDB.iterator({
-      gt: startKey,
-      limit: count,
-      keys: true,
-      values: false
-    });
-
-    try {
-      for await (const [key] of iterator) {
-        keys.push(key);
-      }
-    } catch (error) {
-      logger.error(`Error retrieving succeeding keys: ${error}`);
-      throw new levelBackendError(`Failed to retrieve succeeding keys: ${error}`);
-    }
-
-    // If we haven't collected enough keys, wrap around to the beginning
-    if (keys.length < count) {
-      iterator = subDB.iterator({
-        limit: count - keys.length,
-        keys: true,
-        values: false
-      });
-
-      try {
-        for await (const [key] of iterator) {
-          keys.push(key);
-          if (keys.length === count) break;
-        }
-      } catch (error) {
-        logger.error(`Error retrieving wrapped-around keys: ${error}`);
-        throw new levelBackendError(`Failed to retrieve wrapped-around keys: ${error}`);
-      }
-    }
-
-    return keys;
   }
 
   /** Deletes everything. Handle with care. */
