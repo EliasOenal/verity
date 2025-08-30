@@ -18,17 +18,21 @@ import { CubeFields } from '../../../src/core/cube/cubeFields';
 
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { asNotificationKey, keyVariants } from '../../../src';
+import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 
 // declarations
 let cubeStore: CubeStore;
 const reducedDifficulty = 0;
 
 // helper functions
-async function populateStore(num: number): Promise<CubeKey[]> {
+async function populateStore(num: number, notify?: NotificationKey): Promise<CubeKey[]> {
   const keys: CubeKey[] = [];
+  const cubeType = notify ? CubeType.PIC_NOTIFY : CubeType.PIC;
   for (let i = 0; i < num; i++) {
-    const cube = Cube.Frozen({
-      fields: CubeField.RawContent(CubeType.FROZEN, `Cubus numero ${i}`),
+    const cube = Cube.Create({
+      cubeType,
+      fields: CubeField.RawContent(cubeType, `Cubus numero ${i}`),
       requiredDifficulty: reducedDifficulty
     })
     keys.push(await cube.getKey());
@@ -690,7 +694,62 @@ describe('cubeStore', () => {
             }
             expect(resultKeys).toHaveLength(0);
           });
-        });
+
+          it('supports filtering on the notification DBs with just Cube keys', async () => {
+            // create five notifications to the same key
+            const n = 5;
+            const notificationKey = asNotificationKey(
+              Buffer.alloc(NetConstants.NOTIFY_SIZE, 0x1337));
+            const notifications: Cube[] = [];
+            for (let i = 0; i < n; i++) {
+              const notification = Cube.Create({
+                cubeType: CubeType.PIC_NOTIFY,
+                fields: [
+                  CubeField.Notify(notificationKey),
+                  CubeField.RawContent(CubeType.PIC_NOTIFY, `Notification numero ${i}`),
+                ],
+                requiredDifficulty: reducedDifficulty
+              });
+              notifications.push(notification);
+              await cubeStore.addCube(notification);
+            }
+
+            const keyStrings: string[] = notifications
+              .map((n) => n.getKeyStringIfAvailable())
+              .sort();
+            expect(keyStrings).toHaveLength(n);
+
+            // perform tests
+            expect(await ArrayFromAsync(cubeStore.getKeyRange({
+              gte: keyVariants(keyStrings[1]).binaryKey as CubeKey,
+              lt: keyVariants(keyStrings[3]).binaryKey as CubeKey,
+              autoConvertInputKeys: true,
+              getRawSublevelKeys: false,
+              asString: true,
+            }))).toEqual([
+              keyStrings[1],
+              keyStrings[2],
+            ]);
+
+            expect(await ArrayFromAsync(cubeStore.getKeyRange({
+              gte: keyVariants(keyStrings[3]).binaryKey as CubeKey,
+              lt: keyVariants(keyStrings[4]).binaryKey as CubeKey,
+              autoConvertInputKeys: true,
+              getRawSublevelKeys: false,
+              asString: true,
+            }))).toEqual([
+              keyStrings[3],
+            ]);
+
+            expect(await ArrayFromAsync(cubeStore.getKeyRange({
+              gt: keyVariants(keyStrings[3]).binaryKey as CubeKey,
+              lt: keyVariants(keyStrings[4]).binaryKey as CubeKey,
+              autoConvertInputKeys: true,
+              getRawSublevelKeys: false,
+              asString: true,
+            }))).toEqual([ ]);
+          });
+        });  // getKeyRange()
 
         describe('deleting Cubes', () => {
           it.todo('write tests for deleting Cubes');
@@ -1104,3 +1163,4 @@ describe('cubeStore', () => {
     });
   });
 });
+
