@@ -428,11 +428,22 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
   async *getKeyRange(
     options?: CubeIteratorOptions & CubeIteratorOptionsSublevel,
   ): AsyncGenerator<CubeKey | string> {
-    // normalise input
+    // create or copy options object
     options = options ? { ...options } : {};
-    // set defaults
+    // set default options
     options.sublevel ??= Sublevels.CUBES;
+    options.getRawSublevelKeys ??= false;
+    options.autoConvertInputKeys ??= true;
     options.limit ??= 1000;
+
+    // normalise input
+    if (options.autoConvertInputKeys && options.sublevel !== Sublevels.CUBES) {
+      // TODO: this is NOT an efficient solution (O(n)) and needs to be replaced
+      options.gt = await this.leveldb.autocompletePartialKey(options.gt, options.sublevel) as CubeKey;
+      options.gte = await this.leveldb.autocompletePartialKey(options.gte, options.sublevel) as CubeKey;
+      options.lt = await this.leveldb.autocompletePartialKey(options.lt, options.sublevel) as CubeKey;
+      options.lte = await this.leveldb.autocompletePartialKey(options.lte, options.sublevel) as CubeKey;
+    }
 
     let first: string = undefined;
     let count: number = 0;

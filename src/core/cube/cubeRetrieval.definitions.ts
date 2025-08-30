@@ -45,8 +45,18 @@ export type CubeIteratorOptionsSublevel = {
    * meaning we will perform the necessary conversion for you, if any.
    * (The technical reason is that only on the CUBES sublevel the database
    * keys are actually Cube keys; on all other sublevels, they are prefixed.)
+   * @default false
    */
   getRawSublevelKeys?: boolean;
+
+  /**
+   * If true, which is the default, all keys you input (such as limit --
+   * gt, gte, etc) will automatically converted to proper database keys, if necessary.
+   * (The technical reason is that only on the CUBES sublevel the database
+   * keys are actually Cube keys; on all other sublevels, they are prefixed.)
+   * @default true
+   */
+  autoConvertInputKeys?: boolean;
 }
 
 
