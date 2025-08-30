@@ -35,6 +35,9 @@ export interface LevelBackendOptions {
 export class LevelBackend {
   readonly ready: Promise<void>;
   private db: any; // Level or MemoryLevel
+
+  // TODO low prio: Cube-specific stuff should be handled by CubeStore,
+  //      not the generalised LevelBackend
   private dbCubes: any;
   private dbNotifyIndexTime: any;
   private dbNotifyIndexDiff: any;
@@ -90,6 +93,7 @@ export class LevelBackend {
   }
 
   // Resolve enum to sublevel instance
+  // TODO: CubeStore-specific, move there
   private subDB(sublevel: Sublevels): any {
     let subDB: any = undefined;
     switch(sublevel) {
@@ -300,6 +304,23 @@ export class LevelBackend {
       // Not implemented
       return -1;
     }
+  }
+
+  /**
+   * Completes an incomplete sublevel key to the first matching full key.
+   * Used to convert a bare CubeKey to the full database key on all sublevels
+   * other than CUBES.
+   * @deprecated This method is not efficient -- O(n)
+   */
+  async autocompletePartialKey(incompleteKey: Buffer, sublevel: Sublevels): Promise<Buffer> {
+    let subDB = this.subDB(sublevel);
+    const keyIterator = subDB.keys();
+    for await (const key of keyIterator) {
+      if (key.indexOf(incompleteKey) !== -1) {  // if key contains incompleteKey
+        return this.ifMemoryLevelCopyBuffer(key);
+      }
+    }
+    return undefined;
   }
 
   async shutdown(sublevel: Sublevels): Promise<void> {
