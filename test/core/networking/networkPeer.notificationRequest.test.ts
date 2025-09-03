@@ -15,6 +15,7 @@ import { requiredDifficulty, testCoreOptions } from "../testcore.definition";
 
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { ArrayFromAsync } from "../../../src/core/helpers/misc";
 
 function randomNotificationKey(): NotificationKey {
   return asNotificationKey(
@@ -157,6 +158,12 @@ describe('NetworkPeer notification request tests', () => {
       });
       await cubeStore.addCube(notification3);
 
+      // verify test setup:
+      // - we have three notifications to this key in store
+      const notifications: Cube[] = await ArrayFromAsync(
+        cubeStore.getNotifications(notificationKey));
+      expect(notifications).toHaveLength(3);
+
       // take note of current message count,
       // so we can later assert that exactly one new message was sent
       const msgCountBefore = conn.sentMessages.length;
@@ -165,6 +172,12 @@ describe('NetworkPeer notification request tests', () => {
       const req = new KeyRequestMessage(KeyRequestMode.NotificationChallenge, {
         notifies: notificationKey,
       });
+
+      // verify message:
+      // - after compiling and decompiling, it still refers to the same notification key
+      const compiled = req.value;
+      const decompiled = new KeyRequestMessage(compiled);
+      expect(decompiled.notifies).toEqual(notificationKey);
 
       // perform test
       await (peer as any).handleKeyRequest(req);
