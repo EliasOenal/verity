@@ -1,12 +1,11 @@
 import { Cube } from "../../../src/core/cube/cube";
-import { CubeKey, CubeType, NotificationKey } from "../../../src/core/cube/cube.definitions";
-import { asNotificationKey, keyVariants } from "../../../src/core/cube/keyUtil";
+import { CubeType, NotificationKey } from "../../../src/core/cube/cube.definitions";
+import { asNotificationKey } from "../../../src/core/cube/keyUtil";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
-import { calculateHash } from "../../../src/core/cube/cubeUtil";
 import { MessageClass, NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { NetworkManagerIf } from "../../../src/core/networking/networkManagerIf";
-import { CubeResponseMessage, NetworkMessage, SubscribeCubeMessage, SubscribeNotificationsMessage, SubscriptionConfirmationMessage, SubscriptionResponseCode, KeyResponseMessage, KeyRequestMode, KeyRequestMessage } from "../../../src/core/networking/networkMessage";
+import { NetworkMessage, KeyResponseMessage, KeyRequestMode, KeyRequestMessage } from "../../../src/core/networking/networkMessage";
 import { NetworkPeer } from "../../../src/core/networking/networkPeer";
 import { DummyTransportConnection } from "../../../src/core/networking/testingDummies/dummyTransportConnection";
 import { DummyNetworkManager } from "../../../src/core/networking/testingDummies/dummyNetworkManager";
@@ -68,8 +67,15 @@ describe('NetworkPeer notification request tests', () => {
       const unavailableNotificationKey = randomNotificationKey();
 
       // prepare message
-      const req = new KeyRequestMessage(KeyRequestMode.NotificationChallenge,
-        { notifies: unavailableNotificationKey });
+      const req = new KeyRequestMessage(
+        KeyRequestMode.NotificationChallenge,
+        NetConstants.MAX_CUBES_PER_MESSAGE,
+        Buffer.concat([
+          unavailableNotificationKey,
+          Buffer.alloc(NetConstants.CHALLENGE_LEVEL_SIZE, 0),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0),
+        ]),
+      );
 
       // perform test
       await (peer as any).handleKeyRequest(req);
@@ -103,8 +109,15 @@ describe('NetworkPeer notification request tests', () => {
       const msgCountBefore = conn.sentMessages.length;
 
       // prepare message
-      const req = new KeyRequestMessage(KeyRequestMode.NotificationChallenge,
-        { notifies: notificationKey });
+      const req = new KeyRequestMessage(
+        KeyRequestMode.NotificationChallenge,
+        NetConstants.MAX_CUBES_PER_MESSAGE,
+        Buffer.concat([
+          notificationKey,
+          Buffer.alloc(NetConstants.CHALLENGE_LEVEL_SIZE, 0),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0),
+        ]),
+      );
 
       // perform test
       await (peer as any).handleKeyRequest(req);
@@ -169,15 +182,15 @@ describe('NetworkPeer notification request tests', () => {
       const msgCountBefore = conn.sentMessages.length;
 
       // prepare message
-      const req = new KeyRequestMessage(KeyRequestMode.NotificationChallenge, {
-        notifies: notificationKey,
-      });
-
-      // verify message:
-      // - after compiling and decompiling, it still refers to the same notification key
-      const compiled = req.value;
-      const decompiled = new KeyRequestMessage(compiled);
-      expect(decompiled.notifies).toEqual(notificationKey);
+      const req = new KeyRequestMessage(
+        KeyRequestMode.NotificationChallenge,
+        NetConstants.MAX_CUBES_PER_MESSAGE,
+        Buffer.concat([
+          notificationKey,
+          Buffer.alloc(NetConstants.CHALLENGE_LEVEL_SIZE, 0),
+          Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0),
+        ]),
+      );
 
       // perform test
       await (peer as any).handleKeyRequest(req);
@@ -227,9 +240,15 @@ describe('NetworkPeer notification request tests', () => {
 
           // prepare message
           const unavailableNotificationKey = randomNotificationKey();
-          const req = new KeyRequestMessage(KeyRequestMode.NotificationChallenge, {
-            notifies: unavailableNotificationKey,
-          });
+          const req = new KeyRequestMessage(
+            KeyRequestMode.NotificationChallenge,
+            NetConstants.MAX_CUBES_PER_MESSAGE,
+            Buffer.concat([
+              unavailableNotificationKey,
+              Buffer.alloc(NetConstants.CHALLENGE_LEVEL_SIZE, 0),
+              Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0),
+            ]),
+          );
 
           // perform test
           await (peer as any).handleKeyRequest(req);
@@ -252,9 +271,15 @@ describe('NetworkPeer notification request tests', () => {
 
           // prepare message
           const notificationKey = randomNotificationKey();
-          const req = new KeyRequestMessage(KeyRequestMode.NotificationChallenge, {
-            notifies: notificationKey,
-          });
+          const req = new KeyRequestMessage(
+            KeyRequestMode.NotificationChallenge,
+            NetConstants.MAX_CUBES_PER_MESSAGE,
+            Buffer.concat([
+              notificationKey,
+              Buffer.alloc(NetConstants.CHALLENGE_LEVEL_SIZE, 0),
+              Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0),
+            ]),
+          );
 
           // perform test
           await (peer as any).handleKeyRequest(req);

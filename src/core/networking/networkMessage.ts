@@ -15,38 +15,6 @@ import { Peer } from "../peering/peer";
 
 import { Buffer } from 'buffer';
 
-export interface CubeFilterOptions {
-  /** no more than this number of Cubes or records */
-  maxCount?: number;
-
-  /** TODO implement -- only Cubes of specified type -- keep in mind Notify Cubes have a different type */
-  cubeType?: CubeType,
-
-  /** TODO implement -- only Cubes with a hashcash level of this or higher */
-  difficulty?: number,
-
-  /** TODO implement -- only Cubes younger than this Unix timestamp */
-  timeMin?: number,
-
-  /** TODO implement -- only Cubes older than this Unix timestamp */
-  timeMax?: number,
-
-  /** only Cubes with a notification field referring to this key */
-  notifies?: NotificationKey,
-
-  /**
-   * Request to start returning keys from this key.
-   * This is currently only implemented for KeyRequests.
-   * Note that this does not imply a request to sort the returned keys in any
-   * way and the response can and frequently will contain keys smaller than
-   * the supplied one.
-   * The use case of this option is traversing a remote node's store, split
-   * over multiple requests.
-   **/
-  startKey?: CubeKey,
-}
-
-
 // The following describes our wire format 1.0.
 // All messages are hand-crafted.
 // At some point, we should replace this mess with a new format that makes
@@ -148,32 +116,32 @@ export enum KeyRequestMode {
 }
 
 export class KeyRequestMessage extends NetworkMessage {
-  /**
-   * The 1.0 wire format is non-orthogonal and only allowed a very limited
-   * combination of filters.
-   * Hopefully we'll fix that in the next one.
-   */
-  static filterLegal(filter: CubeFilterOptions): boolean {
-    if (filter.cubeType ||
-      (filter.difficulty && !filter.notifies) ||
-      ((filter.timeMin || filter.timeMax) && !filter.notifies) ||
-      (filter.difficulty && (filter.timeMax || filter.timeMin))
-    ) {
-      return false;
-    } else return true; // maybe, if I didn't miss something
-  }
-
-  static compile(mode: KeyRequestMode, options: CubeFilterOptions = {}): Buffer {
-    if (!KeyRequestMessage.filterLegal(options)) {
-      logger.warn("KeyRequestMessage constructor: The supplied combinations of CubeFilterOptions is not supported in the 1.0 wire format, will ignore some of them. This should not happen.");  // none of that would be necessary with a proper orthogonal wire format
-    }
-    let bufferSize = NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE;
+  static compile(
+    mode: KeyRequestMode,
+    keyCount: number = NetConstants.MAX_CUBES_PER_MESSAGE,
+    startKey?: Buffer,
+  ): Buffer {
+    // Calculate message length
+    let dbKeySize: number;
     if (mode === KeyRequestMode.NotificationChallenge) {
-      bufferSize += NetConstants.NOTIFY_SIZE + NetConstants.CHALLENGE_LEVEL_SIZE;
+      dbKeySize =
+        NetConstants.NOTIFY_SIZE +
+        NetConstants.CHALLENGE_LEVEL_SIZE +
+        NetConstants.CUBE_KEY_SIZE;
     } else if (mode === KeyRequestMode.NotificationTimestamp) {
-      bufferSize += NetConstants.NOTIFY_SIZE + 2*NetConstants.TIMESTAMP_SIZE;
+      dbKeySize =
+        NetConstants.NOTIFY_SIZE +
+        NetConstants.TIMESTAMP_SIZE +
+        NetConstants.CUBE_KEY_SIZE;
+    } else {
+      dbKeySize = NetConstants.CUBE_KEY_SIZE;
     }
+    const bufferSize =
+      NetConstants.KEY_REQUEST_MODE_SIZE +
+      NetConstants.KEY_COUNT_SIZE +
+      dbKeySize;
 
+    // Allocate message buffer
     const buffer = Buffer.alloc(bufferSize);
     let offset = 0;
 
@@ -182,49 +150,17 @@ export class KeyRequestMessage extends NetworkMessage {
     offset += NetConstants.KEY_REQUEST_MODE_SIZE;
 
     // Write key count
-    const keyCount = options.maxCount ?? NetConstants.MAX_CUBES_PER_MESSAGE;
     buffer.writeUIntBE(keyCount, offset, NetConstants.KEY_COUNT_SIZE);
     offset += NetConstants.KEY_COUNT_SIZE;
 
-    // Write start key or zeros if not provided
-    let startKey: CubeKey;
-    if (options.startKey) {
-      if (Settings.RUNTIME_ASSERTIONS && options.startKey.length !== NetConstants.CUBE_KEY_SIZE) {
-        logger.trace(`KeyRequestMessage constructor: Received invalid startKey of size ${options.startKey.length}, should be ${NetConstants.CUBE_KEY_SIZE}; will start at zero instead.`);
-      }
-      startKey = options.startKey;
-    } else {
-      startKey = asCubeKey(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0));
+    // Write start key, or zeros if not provided
+    if (startKey !== undefined && startKey.length !== dbKeySize) {
+      logger.warn(`KeyRequestMessage constructor: Received invalid startKey of size ${startKey.length}, should be ${dbKeySize}; will start at zero instead.`);
+      startKey = undefined;
     }
+    if (startKey === undefined) startKey = Buffer.alloc(dbKeySize, 0);
     startKey.copy(buffer, offset);
     offset += NetConstants.CUBE_KEY_SIZE;
-
-    if (mode === KeyRequestMode.NotificationChallenge ||
-        mode === KeyRequestMode.NotificationTimestamp) {
-      // write notification recipient key... but do some checks first
-      if (options.notifies === undefined) {
-        throw new ApiMisuseError("KeyRequestMessage constructor: Cannot construct a KeyRequest in a Notification mode if you don't supply the notification recipient key.");  // none of that would be necessary with a proper orthogonal wire format
-      }
-      if (options.notifies.length !== NetConstants.NOTIFY_SIZE) {
-        throw new FieldError(`KeyRequestMessage constructor: Got invalid notify recipient of length ${options.notifies.length}, should be ${NetConstants.NOTIFY_SIZE}`);
-      }
-      options.notifies.copy(buffer, offset);
-      offset += NetConstants.NOTIFY_SIZE;
-
-      // if in Notification w/ Challenge constraint mode, write the minimum challenge
-      if (mode === KeyRequestMode.NotificationChallenge) {
-        buffer.writeUIntBE(options.difficulty ?? 0, offset, NetConstants.CHALLENGE_LEVEL_SIZE);
-        offset += NetConstants.CHALLENGE_LEVEL_SIZE;
-      }
-
-      // if in Notification w/ Timestamp constraint mode, write the timestamps
-      if (mode === KeyRequestMode.NotificationTimestamp) {
-        buffer.writeUIntBE(options.timeMin ?? 0, offset, NetConstants.TIMESTAMP_SIZE);
-        offset += NetConstants.TIMESTAMP_SIZE;
-        buffer.writeUIntBE(options.timeMax ?? Math.pow(2, 8*NetConstants.TIMESTAMP_SIZE)-1, offset, NetConstants.TIMESTAMP_SIZE);
-        offset += NetConstants.TIMESTAMP_SIZE;
-      }
-    }
 
     return buffer;
   }
@@ -237,100 +173,20 @@ export class KeyRequestMessage extends NetworkMessage {
     return this.value.readUInt32BE(NetConstants.KEY_REQUEST_MODE_SIZE);
   }
 
-  get startKey(): CubeKey {
+  get startKey(): Buffer {
     const startIndex: number =
       NetConstants.KEY_REQUEST_MODE_SIZE +
       NetConstants.KEY_COUNT_SIZE;
-    const endIndex: number =
-      startIndex +
-      NetConstants.CUBE_KEY_SIZE;
-    return this.value.subarray(startIndex, endIndex) as CubeKey;
-  }
-
-  get notifies(): Buffer {
-    if (this.mode !== KeyRequestMode.NotificationChallenge &&
-        this.mode !== KeyRequestMode.NotificationTimestamp) {
-      return undefined;
-    }
-    const startIndex: number =
-      NetConstants.KEY_REQUEST_MODE_SIZE +
-      NetConstants.KEY_COUNT_SIZE +
-      NetConstants.CUBE_KEY_SIZE;
-    const endIndex: number =
-      startIndex +
-      NetConstants.NOTIFY_SIZE;
-    if (this.value.length < endIndex) {
-      logger.warn("KeyRequestMessage.notifies: Invalid KeyRequestMessage. Cannot fetch notification recipient key as message is too short.");
-      return undefined;
-    }
-    return this.value.subarray(startIndex, endIndex);
-  }
-
-  get difficulty(): number {
-    if (this.mode !== KeyRequestMode.NotificationChallenge) {
-      return undefined;
-    }
-    const startIndex: number =
-      NetConstants.KEY_REQUEST_MODE_SIZE +
-      NetConstants.KEY_COUNT_SIZE +
-      NetConstants.CUBE_KEY_SIZE +
-      NetConstants.NOTIFY_SIZE;
-    const endIndex: number =
-      startIndex +
-      NetConstants.CHALLENGE_LEVEL_SIZE;
-    if (this.value.length < endIndex) {
-      logger.warn("KeyRequestMessage.difficulty: Invalid KeyRequestMessage. Cannot fetch difficulty as message is too short.");
-      return undefined;
-    }
-    return this.value.readUIntBE(startIndex, NetConstants.CHALLENGE_LEVEL_SIZE);
-  }
-
-  get timeMin(): number {
-    if (this.mode !== KeyRequestMode.NotificationTimestamp) {
-      return undefined;
-    }
-    const startIndex: number =
-      NetConstants.KEY_REQUEST_MODE_SIZE +
-      NetConstants.KEY_COUNT_SIZE +
-      NetConstants.CUBE_KEY_SIZE +
-      NetConstants.NOTIFY_SIZE;
-    const endIndex: number =
-      startIndex +
-      NetConstants.TIMESTAMP_SIZE;
-    if (this.value.length < endIndex) {
-      logger.warn("KeyRequestMessage.timeMin: Invalid KeyRequestMessage. Cannot fetch minimum timestamp as message is too short.");
-      return undefined;
-    }
-    return this.value.readUIntBE(startIndex, NetConstants.TIMESTAMP_SIZE);
-  }
-
-  get timeMax(): number {
-    if (this.mode !== KeyRequestMode.NotificationTimestamp) {
-      return undefined;
-    }
-    const startIndex: number =
-      NetConstants.KEY_REQUEST_MODE_SIZE +
-      NetConstants.KEY_COUNT_SIZE +
-      NetConstants.CUBE_KEY_SIZE +
-      NetConstants.NOTIFY_SIZE +
-      NetConstants.TIMESTAMP_SIZE;
-    const endIndex: number =
-      startIndex +
-      NetConstants.TIMESTAMP_SIZE;
-    if (this.value.length < endIndex) {
-      logger.warn("KeyRequestMessage.timeMax: Invalid KeyRequestMessage. Cannot fetch maximum timestamp as message is too short.");
-      return undefined;
-    }
-    return this.value.readUIntBE(startIndex, NetConstants.TIMESTAMP_SIZE);
+    return this.value.subarray(startIndex);
   }
 
   constructor(buffer: Buffer);
-  constructor(mode: KeyRequestMode, options?: CubeFilterOptions);
-  constructor(modeOrBuffer: KeyRequestMode|Buffer, options: CubeFilterOptions = {}) {
+  constructor(mode: KeyRequestMode, keyCount?: number, startKey?: Buffer);
+  constructor(modeOrBuffer: KeyRequestMode|Buffer, keyCount?: number, startKey?: Buffer) {
     if (Buffer.isBuffer(modeOrBuffer)) {
       super(MessageClass.KeyRequest, modeOrBuffer);
     } else if (modeOrBuffer in KeyRequestMode) {
-      super(MessageClass.KeyRequest, KeyRequestMessage.compile(modeOrBuffer, options));
+      super(MessageClass.KeyRequest, KeyRequestMessage.compile(modeOrBuffer, keyCount, startKey));
     } else {
       throw new ApiMisuseError("KeyRequestMessage constructor: Invalid first parameter, must be Buffer or KeyRequestMode.");
     }

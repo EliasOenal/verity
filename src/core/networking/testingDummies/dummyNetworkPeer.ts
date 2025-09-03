@@ -1,5 +1,5 @@
 import type { NetworkPeerIf } from '../networkPeerIf';
-import { type NetworkMessage, type CubeFilterOptions, type SubscriptionResponseCode, type SubscriptionConfirmationMessage, KeyRequestMode, ServerAddressMessage, KeyRequestMessage, CubeRequestMessage, SubscribeCubeMessage, PeerRequestMessage } from '../networkMessage';
+import { type NetworkMessage, type SubscriptionResponseCode, type SubscriptionConfirmationMessage, KeyRequestMode, ServerAddressMessage, KeyRequestMessage, CubeRequestMessage, SubscribeCubeMessage, PeerRequestMessage } from '../networkMessage';
 import type { NetworkStats, NetworkPeerLifecycle, NetworkPeerOptions } from '../networkPeerIf';
 import type { NetworkManagerIf } from '../networkManagerIf';
 
@@ -27,7 +27,7 @@ export class DummyNetworkPeer extends Peer implements NetworkPeerIf {
     sendMessage(msg: NetworkMessage): void { this.sentMessages.push(msg) }
     sendMyServerAddress(): void { this.sentMessages.push(new ServerAddressMessage(this.address)) }
     sendKeyRequests(): void { this.sentMessages.push(new KeyRequestMessage(KeyRequestMode.SequentialStoreSync)) }
-    sendSpecificKeyRequest(mode: KeyRequestMode, options: CubeFilterOptions = {}): void { }
+    sendSpecificKeyRequest(mode: KeyRequestMode, keyCount?: number, startKey?: Buffer): void { }
     sendCubeRequest(keys: CubeKey[]): void { this.sentMessages.push(new CubeRequestMessage(keys)) }
 
     async sendSubscribeCube(

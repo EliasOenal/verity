@@ -61,7 +61,7 @@ describe('HelloMessage', () => {
     it('should create HelloMessage with full node type', () => {
       const peerId = Buffer.from('abcdefghijklmnop', 'ascii');
       const helloMessage = new HelloMessage(peerId, NodeType.Full);
-      
+
       expect(helloMessage.type).toEqual(MessageClass.Hello);
       expect(helloMessage.remoteId).toEqual(peerId);
       expect(helloMessage.nodeType).toEqual(NodeType.Full);
@@ -71,7 +71,7 @@ describe('HelloMessage', () => {
     it('should create HelloMessage with light node type', () => {
       const peerId = Buffer.from('abcdefghijklmnop', 'ascii');
       const helloMessage = new HelloMessage(peerId, NodeType.Light);
-      
+
       expect(helloMessage.type).toEqual(MessageClass.Hello);
       expect(helloMessage.remoteId).toEqual(peerId);
       expect(helloMessage.nodeType).toEqual(NodeType.Light);
@@ -83,7 +83,7 @@ describe('HelloMessage', () => {
       const buffer = Buffer.alloc(NetConstants.PEER_ID_SIZE + NetConstants.NODE_TYPE_SIZE);
       peerId.copy(buffer, 0);
       buffer.writeUInt8(NodeType.Full, NetConstants.PEER_ID_SIZE);
-      
+
       const helloMessage = new HelloMessage(buffer);
       expect(helloMessage.remoteId).toEqual(peerId);
       expect(helloMessage.nodeType).toEqual(NodeType.Full);
@@ -92,7 +92,7 @@ describe('HelloMessage', () => {
     it('should return undefined nodeType for messages without node type field', () => {
       const buffer = Buffer.from('abcdefghijklmnop', 'ascii'); // Only 16 bytes (peer ID)
       const helloMessage = new HelloMessage(buffer);
-      
+
       expect(helloMessage.remoteId).toEqual(buffer);
       expect(helloMessage.nodeType).toBeUndefined();
     });
@@ -102,7 +102,7 @@ describe('HelloMessage', () => {
       const buffer = Buffer.alloc(NetConstants.PEER_ID_SIZE + NetConstants.NODE_TYPE_SIZE);
       peerId.copy(buffer, 0);
       buffer.writeUInt8(0xFF, NetConstants.PEER_ID_SIZE); // Invalid node type
-      
+
       const helloMessage = new HelloMessage(buffer);
       expect(helloMessage.remoteId).toEqual(peerId);
       expect(helloMessage.nodeType).toBeUndefined();
@@ -114,7 +114,7 @@ describe('HelloMessage', () => {
       messageBuffer.writeUInt8(MessageClass.Hello, 0);
       peerId.copy(messageBuffer, NetConstants.MESSAGE_CLASS_SIZE);
       messageBuffer.writeUInt8(NodeType.Light, NetConstants.MESSAGE_CLASS_SIZE + NetConstants.PEER_ID_SIZE);
-      
+
       const helloMessage = NetworkMessage.fromBinary(messageBuffer) as HelloMessage;
       expect(helloMessage).toBeInstanceOf(HelloMessage);
       expect(helloMessage.remoteId).toEqual(peerId);
@@ -126,7 +126,7 @@ describe('HelloMessage', () => {
         Buffer.alloc(NetConstants.MESSAGE_CLASS_SIZE, MessageClass.Hello),
         Buffer.from('abcdefghijklmnop', 'ascii'),
       ])) as HelloMessage;
-      
+
       expect(oldHelloMessage).toBeInstanceOf(HelloMessage);
       expect(oldHelloMessage.remoteId).toEqual(Buffer.from('abcdefghijklmnop', 'ascii'));
       expect(oldHelloMessage.nodeType).toBeUndefined();
@@ -138,10 +138,8 @@ describe('KeyRequestMessage', () => {
   describe('compilation', () => {
     it('should create a valid KeyRequestMessage in SlidingWindow mode', () => {
       const keyRequestMessage = new KeyRequestMessage(
-        KeyRequestMode.SlidingWindow, {
-          maxCount: 10,
-          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey,
-      });
+        KeyRequestMode.SlidingWindow, 10, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42)
+      );
       expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
       expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
       // verify length
@@ -159,10 +157,8 @@ describe('KeyRequestMessage', () => {
 
     it('should create a valid KeyRequestMessage in Sequential Store Sync mode', () => {
       const keyRequestMessage = new KeyRequestMessage(
-        KeyRequestMode.SequentialStoreSync, {
-          maxCount: 5,
-          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
-      });
+        KeyRequestMode.SequentialStoreSync, 5, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137)
+      );
       expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
       expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
       // verify length
@@ -180,12 +176,9 @@ describe('KeyRequestMessage', () => {
 
     it('should create a valid KeyRequestMessage in Notification w/ Challenge Constraint mode', () => {
       const keyRequestMessage = new KeyRequestMessage(
-        KeyRequestMode.NotificationChallenge, {
-          maxCount: 5,
-          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
-          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69) as NotificationKey,
-          difficulty: 42,
-        }
+        KeyRequestMode.NotificationChallenge,
+        5,
+        Buffer.alloc(NetConstants.NOTIFY_SIZE + NetConstants.CHALLENGE_LEVEL_SIZE + NetConstants.CUBE_KEY_SIZE, 137),
       );
       expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
       expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
@@ -198,28 +191,12 @@ describe('KeyRequestMessage', () => {
       // verify start key
       expect(keyRequestMessage.value.subarray(
         NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE,  // start index
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE  // end index
-      )).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
-      // verify notify
-      expect(keyRequestMessage.value.subarray(
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE,  // start index
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE  // end index
-      )).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE, 69));
-      // verify min difficulty
-      expect(keyRequestMessage.value.readUIntBE(
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE,  // start index
-        NetConstants.CHALLENGE_LEVEL_SIZE  // read length
-      )).toEqual(42);
+      )).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE + NetConstants.CHALLENGE_LEVEL_SIZE + NetConstants.CUBE_KEY_SIZE, 137));
     });
 
-    it('should create a valid KeyRequestMessage in Notification w/ Challenge Constraint mode w/ a default challenge of 0', () => {
+    it('should create a valid KeyRequestMessage in Notification w/ Challenge Constraint mode w/ a default start key of 0', () => {
       const keyRequestMessage = new KeyRequestMessage(
-        KeyRequestMode.NotificationChallenge, {
-          maxCount: 5,
-          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
-          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69) as NotificationKey,
-        }
-      );
+        KeyRequestMode.NotificationChallenge, 5);
       expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
       expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
       // verify length
@@ -231,38 +208,24 @@ describe('KeyRequestMessage', () => {
       // verify start key
       expect(keyRequestMessage.value.subarray(
         NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE,  // start index
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE  // end index
-      )).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
-      // verify notify
-      expect(keyRequestMessage.value.subarray(
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE,  // start index
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE  // end index
-      )).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE, 69));
-      // verify min difficulty
-      expect(keyRequestMessage.value.readUIntBE(
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE,  // start index
-        NetConstants.CHALLENGE_LEVEL_SIZE  // read length
-      )).toEqual(0);
+      )).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE + NetConstants.CHALLENGE_LEVEL_SIZE + NetConstants.CUBE_KEY_SIZE, 0));
     });
 
     it('should create a valid KeyRequestMessage in Notification w/ Timestamp constraint mode', () => {
       const keyRequestMessage = new KeyRequestMessage(
-        KeyRequestMode.NotificationTimestamp, {
-          maxCount: 5,
-          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
-          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69) as NotificationKey,
-          timeMin: 42,
-          timeMax: 1337,
-      });
+        KeyRequestMode.NotificationTimestamp,
+        5,
+        Buffer.alloc(NetConstants.NOTIFY_SIZE + NetConstants.TIMESTAMP_SIZE + NetConstants.CUBE_KEY_SIZE, 137),
+      );
       expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
       expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
       // verify length
       expect(keyRequestMessage.value.length).toEqual(
         NetConstants.KEY_REQUEST_MODE_SIZE +
         NetConstants.KEY_COUNT_SIZE +
-        NetConstants.CUBE_KEY_SIZE +
         NetConstants.NOTIFY_SIZE +
-        2*NetConstants.TIMESTAMP_SIZE
+        NetConstants.TIMESTAMP_SIZE +
+        NetConstants.CUBE_KEY_SIZE
       );
       // verify mode
       expect(keyRequestMessage.value.readUIntBE(0, NetConstants.KEY_REQUEST_MODE_SIZE)).toEqual(KeyRequestMode.NotificationTimestamp);
@@ -271,40 +234,22 @@ describe('KeyRequestMessage', () => {
       // verify start key
       expect(keyRequestMessage.value.subarray(
         NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE,  // start index
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE  // end index
-      )).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
-      // verify notify
-      expect(keyRequestMessage.value.subarray(
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE,  // start index
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE  // end index
-      )).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE, 69));
-      // verify timestamps
-      expect(keyRequestMessage.value.readUIntBE(
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE,  // start index
-        NetConstants.TIMESTAMP_SIZE  // read length
-      )).toEqual(42);
-      expect(keyRequestMessage.value.readUIntBE(
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE + NetConstants.TIMESTAMP_SIZE,  // start index
-        NetConstants.TIMESTAMP_SIZE  // read length
-      )).toEqual(1337);
+      )).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE + NetConstants.TIMESTAMP_SIZE + NetConstants.CUBE_KEY_SIZE, 137));
     });
 
-    it('should create a valid KeyRequestMessage in Notification w/ Timestamp constraint mode with default timestamps', () => {
+    it('should create a valid KeyRequestMessage in Notification w/ Timestamp constraint mode w/ a default start key of zero', () => {
       const keyRequestMessage = new KeyRequestMessage(
-        KeyRequestMode.NotificationTimestamp, {
-          maxCount: 5,
-          startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
-          notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69) as NotificationKey,
-      });
+        KeyRequestMode.NotificationTimestamp,
+        5);
       expect(keyRequestMessage.type).toEqual(MessageClass.KeyRequest);
       expect(keyRequestMessage.value).toBeInstanceOf(Buffer);
       // verify length
       expect(keyRequestMessage.value.length).toEqual(
         NetConstants.KEY_REQUEST_MODE_SIZE +
         NetConstants.KEY_COUNT_SIZE +
-        NetConstants.CUBE_KEY_SIZE +
         NetConstants.NOTIFY_SIZE +
-        2*NetConstants.TIMESTAMP_SIZE
+        NetConstants.TIMESTAMP_SIZE +
+        NetConstants.CUBE_KEY_SIZE
       );
       // verify mode
       expect(keyRequestMessage.value.readUIntBE(0, NetConstants.KEY_REQUEST_MODE_SIZE)).toEqual(KeyRequestMode.NotificationTimestamp);
@@ -313,32 +258,17 @@ describe('KeyRequestMessage', () => {
       // verify start key
       expect(keyRequestMessage.value.subarray(
         NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE,  // start index
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE  // end index
-      )).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
-      // verify notify
-      expect(keyRequestMessage.value.subarray(
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE,  // start index
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE  // end index
-      )).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE, 69));
-      // verify min timestamp
-      expect(keyRequestMessage.value.subarray(
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE,  // start index
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE + NetConstants.TIMESTAMP_SIZE  // end index
-      )).toEqual(Buffer.alloc(NetConstants.TIMESTAMP_SIZE, 0));
-      // verify max timestamp
-      expect(keyRequestMessage.value.subarray(
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE + NetConstants.TIMESTAMP_SIZE,  // start index
-        NetConstants.KEY_REQUEST_MODE_SIZE + NetConstants.KEY_COUNT_SIZE + NetConstants.CUBE_KEY_SIZE + NetConstants.NOTIFY_SIZE + 2*NetConstants.TIMESTAMP_SIZE  // end index
-      )).toEqual(Buffer.alloc(NetConstants.TIMESTAMP_SIZE, 0xff));
+      )).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE + NetConstants.TIMESTAMP_SIZE + NetConstants.CUBE_KEY_SIZE, 0));
     });
   });  // compilation
 
   describe('round trip', () => {
     it('should decompile a valid KeyRequestMessage in SlidingWindow mode', () => {
-      const compiling = new KeyRequestMessage(KeyRequestMode.SlidingWindow, {
-        maxCount: 5,
-        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
-      });
+      const compiling = new KeyRequestMessage(
+        KeyRequestMode.SlidingWindow,
+        5,
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
+      );
       const msg = new KeyRequestMessage(compiling.value);
 
       expect(msg.type).toEqual(MessageClass.KeyRequest);
@@ -349,10 +279,10 @@ describe('KeyRequestMessage', () => {
     });
 
     it('should decompile a valid KeyRequestMessage in Sequential Store Sync mode', () => {
-      const compiling = new KeyRequestMessage(KeyRequestMode.SequentialStoreSync, {
-        maxCount: 5,
-        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
-      });
+      const compiling = new KeyRequestMessage(KeyRequestMode.SequentialStoreSync,
+        5,
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137),
+      );
       const msg = new KeyRequestMessage(compiling.value);
 
       expect(msg.type).toEqual(MessageClass.KeyRequest);
@@ -363,41 +293,35 @@ describe('KeyRequestMessage', () => {
     });
 
     it('should decompile a valid KeyRequestMessage in Notification w/ Challenge Constraint mode', () => {
-      const compiling = new KeyRequestMessage(KeyRequestMode.NotificationChallenge, {
-        maxCount: 5,
-        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
-        notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69) as NotificationKey,
-        difficulty: 42,
-      });
+      const compiling = new KeyRequestMessage(KeyRequestMode.NotificationChallenge,
+        5,
+        Buffer.alloc(NetConstants.NOTIFY_SIZE + NetConstants.CHALLENGE_LEVEL_SIZE + NetConstants.CUBE_KEY_SIZE, 137),
+      );
       const msg = new KeyRequestMessage(compiling.value);
 
       expect(msg.type).toEqual(MessageClass.KeyRequest);
       expect(msg.value).toEqual(compiling.value);
 
       expect(msg.keyCount).toEqual(5);
-      expect(msg.startKey).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
-      expect(msg.notifies).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE, 69));
-      expect(msg.difficulty).toEqual(42);
+      expect(msg.startKey).toEqual(
+        Buffer.alloc(NetConstants.NOTIFY_SIZE + NetConstants.CHALLENGE_LEVEL_SIZE + NetConstants.CUBE_KEY_SIZE, 137)
+      );
     });
 
     it('should decompile a valid KeyRequestMessage in Notification w/ Timestamp Constraint mode', () => {
-      const compiling = new KeyRequestMessage(KeyRequestMode.NotificationTimestamp, {
-        maxCount: 5,
-        startKey: Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137) as CubeKey,
-        notifies: Buffer.alloc(NetConstants.NOTIFY_SIZE, 69) as NotificationKey,
-        timeMin: 42,
-        timeMax: 31337,
-      });
+      const compiling = new KeyRequestMessage(KeyRequestMode.NotificationTimestamp,
+        5,
+        Buffer.alloc(NetConstants.NOTIFY_SIZE + NetConstants.TIMESTAMP_SIZE + NetConstants.CUBE_KEY_SIZE, 137),
+      );
       const msg = new KeyRequestMessage(compiling.value);
 
       expect(msg.type).toEqual(MessageClass.KeyRequest);
       expect(msg.value).toEqual(compiling.value);
 
       expect(msg.keyCount).toEqual(5);
-      expect(msg.startKey).toEqual(Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 137));
-      expect(msg.notifies).toEqual(Buffer.alloc(NetConstants.NOTIFY_SIZE, 69));
-      expect(msg.timeMin).toEqual(42);
-      expect(msg.timeMax).toEqual(31337);
+      expect(msg.startKey).toEqual(
+        Buffer.alloc(NetConstants.NOTIFY_SIZE + NetConstants.TIMESTAMP_SIZE + NetConstants.CUBE_KEY_SIZE, 137)
+      );
     });
   });
 });  // KeyRequestMessage

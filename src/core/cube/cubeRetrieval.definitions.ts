@@ -20,10 +20,10 @@ export interface CubeRetrievalInterface<OptionsType = GetCubeOptions> {
 }
 
 export type CubeIteratorOptions = {
-  gt?: CubeKey | NotificationKey;
-  gte?: CubeKey | NotificationKey;
-  lt?: CubeKey | NotificationKey;
-  lte?: CubeKey | NotificationKey;
+  gt?: Buffer;
+  gte?: Buffer;
+  lt?: Buffer;
+  lte?: Buffer;
   limit?: number;
 
   // BUGBUG TODO: not all methods accepting CubeIteratorOptions support asString
