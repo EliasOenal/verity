@@ -1,8 +1,9 @@
 import { NetConstants } from "../networking/networkDefinitions";
 import { Cube } from "./cube";
-import { CubeType, CubeFieldType, CubeError } from "./cube.definitions";
+import { CubeType, CubeFieldType, CubeError, NotificationKey, CubeKey } from "./cube.definitions";
 import { CubeStore } from "./cubeStore";
 import { logger } from "../logger";
+import { Sublevels } from "./levelBackend";
 
 export async function autoIncrementPmuc(cube: Cube, store: CubeStore): Promise<void> {
   // If this is a PMUC and the PMUC_UPDATE_COUNT field has not been set
@@ -40,17 +41,73 @@ export async function autoIncrementPmuc(cube: Cube, store: CubeStore): Promise<v
 }
 
 /**
+ * Calculates the database key on the notifications sublevels
+ * for a given (notification) Cube.
+ * This is done by concatenating first the notification (recipient) key,
+ * then either the timestamp or difficulty based on the sublevel,
+ * and finally the Cube key.
+ **/
+async function getNotificationKey(
+    sublevel: Sublevels,
+    param1: Cube|NotificationKey,
+    middleParam?: number|Buffer,
+    cubeKey?: CubeKey
+): Promise<Buffer> {
+    let recipient: Buffer;
+    let middlePart: Buffer;
+
+    const middlePartSize = (sublevel === Sublevels.INDEX_TIME) ? NetConstants.TIMESTAMP_SIZE : 1;
+    const functionName = (sublevel === Sublevels.INDEX_TIME) ? 'getNotificationDateKey' : 'getNotificationDifficultyKey';
+
+    if (param1 instanceof Cube) {
+        recipient = param1.getFirstField(CubeFieldType.NOTIFY)?.value;
+        cubeKey = await param1.getKey();
+        if (sublevel === Sublevels.INDEX_TIME) {
+            middlePart = param1.getFirstField(CubeFieldType.DATE)?.value;
+        }
+        else { // ByDifficulty
+            const difficulty = param1.getDifficulty();
+            middlePart = Buffer.alloc(1);
+            middlePart.writeUInt8(difficulty);
+        }
+    } else {
+        recipient = param1;
+        if (Buffer.isBuffer(middleParam)) {
+            middlePart = middleParam;
+        }
+        else if (sublevel === Sublevels.INDEX_TIME) {
+            middlePart = Buffer.alloc(NetConstants.TIMESTAMP_SIZE);
+            middlePart.writeUIntBE(middleParam as number, 0, NetConstants.TIMESTAMP_SIZE);
+        }
+        else { // ByDifficulty
+            middlePart = Buffer.alloc(1);
+            middlePart.writeUInt8(middleParam as number);
+        }
+    }
+
+    if (
+        recipient?.length !== NetConstants.NOTIFY_SIZE ||
+        middlePart?.length !== middlePartSize ||
+        cubeKey?.length !== NetConstants.CUBE_KEY_SIZE
+    ) {
+        logger.info(`cubeStoreUtil.${functionName}(): Invalid input; returning undefined.`);
+        return undefined;
+    }
+
+    return Buffer.concat([recipient, middlePart, cubeKey]);
+}
+
+/**
  * Calculates the database key on the notifications-by-date sublevel
  * for a given (notification) Cube.
  * This is done by concatenating the notification (recipient) key, timestamp,
  * and cube key.
  **/
-export async function getNotificationDateKey(cube: Cube): Promise<Buffer> {
-  const recipient: Buffer = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
-  if (!recipient) return undefined;
-  let dateBuffer: Buffer = Buffer.alloc(NetConstants.TIMESTAMP_SIZE);
-  dateBuffer.writeUIntBE(cube.getDate(), 0, NetConstants.TIMESTAMP_SIZE);
-  return Buffer.concat([recipient, dateBuffer, await cube.getKey()]);
+export async function getNotificationDateKey(cube: Cube): Promise<Buffer>;
+export async function getNotificationDateKey(recipient: NotificationKey, timestamp: number|Buffer, cubeKey: CubeKey): Promise<Buffer>;
+
+export async function getNotificationDateKey(param1: Cube|NotificationKey, timestamp?: number|Buffer, cubeKey?: CubeKey): Promise<Buffer> {
+  return getNotificationKey(Sublevels.INDEX_TIME, param1, timestamp, cubeKey);
 }
 
 /**
@@ -59,10 +116,9 @@ export async function getNotificationDateKey(cube: Cube): Promise<Buffer> {
  * This is done by concatenating the notification (recipient) key, difficulty,
  * and cube key.
  **/
-export async function getNotificationDifficultyKey(cube: Cube): Promise<Buffer> {
-  const recipient: Buffer = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
-  if (!recipient) return undefined;
-  let difficultyBuffer: Buffer = Buffer.alloc(1);
-  difficultyBuffer.writeUInt8(cube.getDifficulty());
-  return Buffer.concat([recipient, difficultyBuffer, await cube.getKey()]);
+export async function getNotificationDifficultyKey(cube: Cube): Promise<Buffer>;
+export async function getNotificationDifficultyKey(recipient: NotificationKey, difficulty: number|Buffer, cubeKey: CubeKey): Promise<Buffer>;
+
+export async function getNotificationDifficultyKey(param1: Cube|NotificationKey, difficulty?: number|Buffer, cubeKey?: CubeKey): Promise<Buffer> {
+  return getNotificationKey(Sublevels.INDEX_DIFF, param1, difficulty, cubeKey);
 }
