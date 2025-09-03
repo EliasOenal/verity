@@ -38,3 +38,31 @@ export async function autoIncrementPmuc(cube: Cube, store: CubeStore): Promise<v
     }
   }
 }
+
+/**
+ * Calculates the database key on the notifications-by-date sublevel
+ * for a given (notification) Cube.
+ * This is done by concatenating the notification (recipient) key, timestamp,
+ * and cube key.
+ **/
+export async function getNotificationDateKey(cube: Cube): Promise<Buffer> {
+  const recipient: Buffer = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
+  if (!recipient) return undefined;
+  let dateBuffer: Buffer = Buffer.alloc(NetConstants.TIMESTAMP_SIZE);
+  dateBuffer.writeUIntBE(cube.getDate(), 0, NetConstants.TIMESTAMP_SIZE);
+  return Buffer.concat([recipient, dateBuffer, await cube.getKey()]);
+}
+
+/**
+ * Calculates the database key on the notifications-by-difficulty sublevel
+ * for a given (notification) Cube.
+ * This is done by concatenating the notification (recipient) key, difficulty,
+ * and cube key.
+ **/
+export async function getNotificationDifficultyKey(cube: Cube): Promise<Buffer> {
+  const recipient: Buffer = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
+  if (!recipient) return undefined;
+  let difficultyBuffer: Buffer = Buffer.alloc(1);
+  difficultyBuffer.writeUInt8(cube.getDifficulty());
+  return Buffer.concat([recipient, difficultyBuffer, await cube.getKey()]);
+}

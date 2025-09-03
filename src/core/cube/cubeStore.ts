@@ -10,7 +10,7 @@ import { CubeInfo } from "./cubeInfo";
 import { cubeContest, shouldRetainCube, getCurrentEpoch, activateCube } from "./cubeUtil";
 import { asCubeKey, keyVariants, asNotificationKey } from "./keyUtil";
 import { LevelBackend, Sublevels } from "./levelBackend";
-import { autoIncrementPmuc } from "./cubeStoreUtil";
+import { autoIncrementPmuc, getNotificationDateKey, getNotificationDifficultyKey } from "./cubeStoreUtil";
 
 import { NetConstants } from "../networking/networkDefinitions";
 import { TreeOfWisdom } from "../tow";
@@ -659,26 +659,6 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
     await this.leveldb?.wipeAll(Sublevels.CUBES);
   }
 
-  // Concatenate recipient, timestamp and cube key to create index key #1
-  // TODO make static or move to CubeUtil
-  private async getNotificationDateKey(cube: Cube): Promise<Buffer> {
-    const recipient: Buffer = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
-    if (!recipient) return undefined;
-    let dateBuffer: Buffer = Buffer.alloc(NetConstants.TIMESTAMP_SIZE);
-    dateBuffer.writeUIntBE(cube.getDate(), 0, NetConstants.TIMESTAMP_SIZE);
-    return Buffer.concat([recipient, dateBuffer, await cube.getKey()]);
-  }
-
-  // Concatenate recipient, difficulty and cube key to create index key #2
-  // TODO make static or move to CubeUtil
-  private async getNotificationDifficultyKey(cube: Cube): Promise<Buffer> {
-    const recipient: Buffer = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
-    if (!recipient) return undefined;
-    let difficultyBuffer: Buffer = Buffer.alloc(1);
-    difficultyBuffer.writeUInt8(cube.getDifficulty());
-    return Buffer.concat([recipient, difficultyBuffer, await cube.getKey()]);
-  }
-
   private async addNotification(cube: Cube): Promise<void> {
     // does this Cube even have a notification field?
     const recipient: Buffer = cube.getFirstField(CubeFieldType.NOTIFY)?.value;
@@ -689,9 +669,9 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
       return;
     }
 
-    let dateIndexKey: Buffer = await this.getNotificationDateKey(cube);
+    let dateIndexKey: Buffer = await getNotificationDateKey(cube);
     if(await this.leveldb.get(Sublevels.INDEX_TIME, dateIndexKey, true)) return; // already indexed - levelDB is sequentially consistent
-    let difficultyIndexKey: Buffer = await this.getNotificationDifficultyKey(cube);
+    let difficultyIndexKey: Buffer = await getNotificationDifficultyKey(cube);
     // There may not be a need to await this.
     await this.leveldb.store(Sublevels.INDEX_TIME, dateIndexKey, Buffer.alloc(0));
     await this.leveldb.store(Sublevels.INDEX_DIFF, difficultyIndexKey, Buffer.alloc(0));
@@ -709,8 +689,8 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
       return;
     }
 
-    let dateIndexKey: Buffer = await this.getNotificationDateKey(cube);
-    let difficultyIndexKey: Buffer = await this.getNotificationDifficultyKey(cube);
+    let dateIndexKey: Buffer = await getNotificationDateKey(cube);
+    let difficultyIndexKey: Buffer = await getNotificationDifficultyKey(cube);
 
     // We don't await deletion
     this.leveldb.delete(Sublevels.INDEX_TIME, dateIndexKey);
