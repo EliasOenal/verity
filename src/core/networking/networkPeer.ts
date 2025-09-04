@@ -1,7 +1,7 @@
 import { Settings } from '../settings';
 import { ArrayFromAsync, unixtime } from '../helpers/misc';
 
-import { CubeFilterOptions, CubeRequestMessage, CubeResponseMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, NetworkMessage, PeerRequestMessage, PeerResponseMessage, ServerAddressMessage, SubscriptionConfirmationMessage, SubscriptionResponseCode } from './networkMessage';
+import { CubeRequestMessage, CubeResponseMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, NetworkMessage, PeerRequestMessage, PeerResponseMessage, ServerAddressMessage, SubscriptionConfirmationMessage, SubscriptionResponseCode } from './networkMessage';
 import { MessageClass, NetConstants, SupportedTransports, NodeType } from './networkDefinitions';
 import { KeyRequestMode } from './networkMessage';
 import { TransportConnection } from './transport/transportConnection';
@@ -404,7 +404,7 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
      * Handle a KeyRequest message.
      */
     private async handleKeyRequest(msg: KeyRequestMessage): Promise<void> {
-        try {
+        // try {
             const mode = msg.mode;
             const keyCount = msg.keyCount || NetConstants.MAX_CUBES_PER_MESSAGE;
             const startKey = msg.startKey;
@@ -414,19 +414,45 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
             switch (mode) {
                 case KeyRequestMode.SlidingWindow:
                     cubes = await this.handleSlidingWindowKeyRequest(
-                        startKey, keyCount);
+                        startKey as CubeKey, keyCount);
                     break;
                 case KeyRequestMode.SequentialStoreSync:
-                    cubes = await this.handleSequentialStoreSyncKeyRequest(
-                        startKey, keyCount, Sublevels.CUBES);
+                    cubes = await ArrayFromAsync(this.cubeStore.getCubeInfoRange({
+                        sublevel: Sublevels.CUBES,
+                        gt: startKey,
+                        limit: keyCount,
+                        wraparound: true,
+                    }));
                     break;
                 case KeyRequestMode.NotificationChallenge:
-                    cubes = await this.handleSequentialStoreSyncKeyRequest(
-                        startKey, keyCount, Sublevels.INDEX_DIFF);
+                    cubes = await ArrayFromAsync(this.cubeStore.getCubeInfoRange({
+                        sublevel: Sublevels.INDEX_DIFF,
+                        limit: keyCount,
+                        gt: startKey,
+                        // Craft an upper database key bound to ensure only keys
+                        // to the requested notification recipient will be returned
+                        lte: startKey?.length >= NetConstants.NOTIFY_SIZE
+                            ? Buffer.concat([
+                                startKey.subarray(0, NetConstants.NOTIFY_SIZE),
+                                Buffer.alloc(NetConstants.CHALLENGE_LEVEL_SIZE, 0xff),
+                                Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0xff)])
+                            : undefined,
+                    }));
                     break;
                 case KeyRequestMode.NotificationTimestamp:
-                    cubes = await this.handleSequentialStoreSyncKeyRequest(
-                        startKey, keyCount, Sublevels.INDEX_TIME);
+                    cubes = await ArrayFromAsync(this.cubeStore.getCubeInfoRange({
+                        sublevel: Sublevels.INDEX_TIME,
+                        gt: startKey,
+                        limit: keyCount,
+                        // Craft an upper database key bound to ensure only keys
+                        // to the requested notification recipient will be returned
+                        lte: startKey?.length >= NetConstants.NOTIFY_SIZE
+                            ? Buffer.concat([
+                                startKey.subarray(0, NetConstants.NOTIFY_SIZE),
+                                Buffer.alloc(NetConstants.CHALLENGE_LEVEL_SIZE, 0xff),
+                                Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0xff)])
+                            : undefined,
+                    }));
                     break;
                 default:
                     logger.warn(`NetworkPeer ${this.toString()}: Received unknown KeyRequest mode: ${mode}`);
@@ -435,9 +461,9 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
             const reply: KeyResponseMessage = new KeyResponseMessage(mode, cubes);
             logger.trace(`NetworkPeer ${this.toString()}: handleKeyRequest: sending ${cubes.length} cube keys in ${KeyRequestMode[mode]} mode`);
             this.sendMessage(reply);
-        } catch (err) {
-            logger.warn(`NetworkPeer ${this.toString()}: Error handling KeyRequest: ${err}`);
-        }
+        // } catch (err) {
+        //     logger.warn(`NetworkPeer ${this.toString()}: Error handling KeyRequest: ${err}`);
+        // }
     }
 
     private async handleSlidingWindowKeyRequest(startKey: CubeKey, keyCount: number): Promise<CubeInfo[]> {
@@ -447,22 +473,6 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
 
         const cubeInfos = await Promise.all(recentKeys.map(key => this.cubeStore.getCubeInfo(key)));
         return cubeInfos.filter((info): info is CubeInfo => info !== undefined);
-    }
-
-    private handleSequentialStoreSyncKeyRequest(
-            startKey: CubeKey,
-            keyCount: number,
-            sublevel: Sublevels = Sublevels.CUBES,
-    ): Promise<CubeInfo[]> {
-        // This method should be implemented in the CubeStore class
-        const gen = this.cubeStore.getCubeInfoRange({
-            gte: startKey,
-            limit: keyCount,
-            wraparound: true,
-            sublevel,
-        });
-        const cubeInfos: Promise<CubeInfo[]> = ArrayFromAsync(gen);
-        return cubeInfos;
     }
 
     /**
@@ -703,11 +713,11 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
         if (this.lastSlidingWindowKey === undefined) {
             this.sendSpecificKeyRequest(KeyRequestMode.SlidingWindow);
         } else {
-            this.sendSpecificKeyRequest(KeyRequestMode.SlidingWindow, {startKey: this.lastSlidingWindowKey});
+            this.sendSpecificKeyRequest(KeyRequestMode.SlidingWindow, NetConstants.MAX_CUBES_PER_MESSAGE, this.lastSlidingWindowKey);
         }
 
         if (this.lastSequentialSyncKey !== undefined) {
-            this.sendSpecificKeyRequest(KeyRequestMode.SequentialStoreSync, {startKey: this.lastSequentialSyncKey});
+            this.sendSpecificKeyRequest(KeyRequestMode.SequentialStoreSync, NetConstants.MAX_CUBES_PER_MESSAGE, this.lastSequentialSyncKey);
         } else {
             // To sync the store we need a starting point
             // Next call we should hopefully have one
@@ -724,10 +734,11 @@ export class NetworkPeer extends Peer implements NetworkPeerIf{
      */
     sendSpecificKeyRequest(
             mode: KeyRequestMode,
-            options: CubeFilterOptions = {},
+            keyCount: number = NetConstants.MAX_CUBES_PER_MESSAGE,
+            startKey?: Buffer,
     ): void {
-        logger.trace(`NetworkPeer ${this.toString()}: sending KeyRequest in ${KeyRequestMode[mode]} mode, requesting ${options.maxCount ?? 'the default number of'} keys, starting from ${options?.startKey?.toString('hex') ?? 'zero'}`);
-        const msg: KeyRequestMessage = new KeyRequestMessage(mode, options);
+        logger.trace(`NetworkPeer ${this.toString()}: sending KeyRequest in ${KeyRequestMode[mode]} mode, requesting ${keyCount} keys, starting from ${startKey?.toString('hex') ?? 'zero'}`);
+        const msg: KeyRequestMessage = new KeyRequestMessage(mode, keyCount, startKey);
         this.setTimeout();  // expect a timely reply to this request
         this.sendMessage(msg);
     }

@@ -2,7 +2,7 @@ import { CubeKey, NotificationKey } from '../cube/cube.definitions';
 import type { AddressAbstraction } from '../peering/addressing';
 import type { Peer } from '../peering/peer';
 import type { MessageClass, NodeType } from './networkDefinitions';
-import type { NetworkMessage, KeyRequestMode, CubeFilterOptions } from './networkMessage';
+import type { NetworkMessage, KeyRequestMode } from './networkMessage';
 import type { TransportConnection } from './transport/transportConnection';
 
 
@@ -20,7 +20,7 @@ export interface NetworkPeerIf extends Peer {
     sendMessage(msg: NetworkMessage): void;
     sendMyServerAddress(): void;
     sendKeyRequests(): void;
-    sendSpecificKeyRequest(mode: KeyRequestMode, options?: CubeFilterOptions): void;
+    sendSpecificKeyRequest(mode: KeyRequestMode, keyCount?: number, startKey?: Buffer): void;
     sendCubeRequest(keys: CubeKey[]): void;
     sendSubscribeCube(keys: CubeKey[], type?: MessageClass.SubscribeCube | MessageClass.SubscribeNotifications): void;
     sendNotificationRequest(keys: NotificationKey[]): void; // maybe deprecated

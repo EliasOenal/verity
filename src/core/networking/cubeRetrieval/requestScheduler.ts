@@ -6,7 +6,7 @@ import type { CubeInfo } from '../../cube/cubeInfo';
 import { Settings } from '../../settings';
 import { Shuttable } from '../../helpers/coreInterfaces';
 import { MessageClass, NetConstants, NetworkPeerError, NodeType } from '../networkDefinitions';
-import { CubeFilterOptions, KeyRequestMessage, KeyRequestMode, SubscriptionConfirmationMessage, SubscriptionResponseCode } from '../networkMessage';
+import { KeyRequestMessage, KeyRequestMode, SubscriptionConfirmationMessage, SubscriptionResponseCode } from '../networkMessage';
 
 import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
 import { CubeFieldType, GetCubeOptions, type NotificationKey, type CubeKey } from '../../cube/cube.definitions';
@@ -585,12 +585,26 @@ export class RequestScheduler implements Shuttable {
       // IMPORTANT: Do NOT also add to requestedNotifications here; otherwise a
       // subsequent performCubeRequest() will send a direct NotificationRequest
       // in addition to the KeyRequest, leading to duplicate deliveries.
-  this.expectedNotifications.set(key.keyString, req);
-      const filter: CubeFilterOptions = {
-        notifies: key.binaryKey as NotificationKey,
-      }
-  // Keep KeyResponse whitelisting alive for the duration of this request's timeout
-  this.performKeyRequest(undefined, filter, timeout);
+      this.expectedNotifications.set(key.keyString, req);
+
+      // Craft the database start key:
+      const startKey = Buffer.concat([
+        // - We want notifications to the specified recipient key
+        recipientKey,
+        // No challenge restriction (TODO parametrise)
+        Buffer.alloc(NetConstants.CHALLENGE_LEVEL_SIZE, 0),
+        // Start from the first notification (TODO should re-request in case there are more notifications than MAX_CUBES_PER_MESSAGE)
+        Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0),
+      ]);
+
+      // Keep KeyResponse whitelisting alive for the duration of this request's timeout
+      this.performKeyRequest(
+        undefined,  // auto-select peer
+        KeyRequestMode.NotificationChallenge,
+        NetConstants.MAX_CUBES_PER_MESSAGE,
+        startKey,
+        timeout
+      );
       // KeyResponse will automatically be handled in handleKeysOffered()
       return req.promise;
     }
@@ -840,6 +854,11 @@ export class RequestScheduler implements Shuttable {
     if (this._shutdown) return;
     this.cubeRequestTimer.clear();  // cancel timer calling this exact function
     const reschedule: boolean = this.performCubeRequest(peerSelected);
+    // TODO BUGBUG: We should probably always schedule the next request
+    //   as long as there are open requests. If I understand it correctly, the
+    //   current implementation will stop scheduling requests if there are no
+    //   suitable peers (i.e. if we are offline), not resuming them when
+    //   we come back online.
     if (reschedule) this.scheduleCubeRequest();
   }
 
@@ -918,7 +937,9 @@ export class RequestScheduler implements Shuttable {
 
   private performKeyRequest(
     peerSelected?: NetworkPeerIf,
-    options: CubeFilterOptions = {},
+    mode?: KeyRequestMode,
+    keyCount: number = NetConstants.MAX_CUBES_PER_MESSAGE,
+    startKey?: Buffer,
     expectedResponseTimeout?: number,
   ): void {
     // do not accept any calls if this scheduler has already been shut down
@@ -932,23 +953,12 @@ export class RequestScheduler implements Shuttable {
       return;
     }
 
-  if (this.options.lightNode) this.expectKeyResponse(peerSelected, expectedResponseTimeout ?? Settings.NETWORK_TIMEOUT);
+    if (this.options.lightNode) this.expectKeyResponse(peerSelected, expectedResponseTimeout ?? Settings.NETWORK_TIMEOUT);
 
-    // We will now translate the supplied filter options to our crappy
-    // non-orthogonal 1.0 wire format. Non-fulfillable requests will be
-    // ignored. Hopefully we can get rid of this crap once we introduce a
-    // sensible wire format.
-    if (!KeyRequestMessage.filterLegal(options)) {
-      logger.trace('RequestScheduler.performKeyRequest(): Unfulfillable combination of filters; doing nothing.');
-      return;
-    }
     // do we need to send a specific key request?
-    let mode: KeyRequestMode = undefined;
-    if (options.notifies && (options.timeMin || options.timeMax)) mode = KeyRequestMode.NotificationTimestamp;
-    else if (options.notifies) mode = KeyRequestMode.NotificationChallenge;
     if (mode !== undefined) {
       // if so, send the required one
-      peerSelected.sendSpecificKeyRequest(mode, options);
+      peerSelected.sendSpecificKeyRequest(mode, keyCount, startKey);
     }
     else {
       // otherwise, let the peer decide which mode(s) to use

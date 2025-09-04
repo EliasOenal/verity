@@ -18,17 +18,21 @@ import { CubeFields } from '../../../src/core/cube/cubeFields';
 
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { asNotificationKey, keyVariants } from '../../../src';
+import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 
 // declarations
 let cubeStore: CubeStore;
 const reducedDifficulty = 0;
 
 // helper functions
-async function populateStore(num: number): Promise<CubeKey[]> {
+async function populateStore(num: number, notify?: NotificationKey): Promise<CubeKey[]> {
   const keys: CubeKey[] = [];
+  const cubeType = notify ? CubeType.PIC_NOTIFY : CubeType.PIC;
   for (let i = 0; i < num; i++) {
-    const cube = Cube.Frozen({
-      fields: CubeField.RawContent(CubeType.FROZEN, `Cubus numero ${i}`),
+    const cube = Cube.Create({
+      cubeType,
+      fields: CubeField.RawContent(cubeType, `Cubus numero ${i}`),
       requiredDifficulty: reducedDifficulty
     })
     keys.push(await cube.getKey());
@@ -690,7 +694,81 @@ describe('cubeStore', () => {
             }
             expect(resultKeys).toHaveLength(0);
           });
-        });
+
+          it('supports filtering on the notification DBs with full database keys', async () => {
+            // create five notifications to the same key
+            const n = 5;
+            const notificationKey = asNotificationKey(
+              Buffer.alloc(NetConstants.NOTIFY_SIZE, 0x1337));
+            const notifications: Cube[] = [];
+            for (let i = 0; i < n; i++) {
+              const notification = Cube.Create({
+                cubeType: CubeType.PIC_NOTIFY,
+                fields: [
+                  CubeField.Notify(notificationKey),
+                  CubeField.Date(148302000 + 1),  // fixed dates, thus fixed keys for ease of debugging
+                  CubeField.RawContent(CubeType.PIC_NOTIFY, `Notification numero ${i}`),
+                ],
+                requiredDifficulty: reducedDifficulty
+              });
+              notifications.push(notification);
+              await cubeStore.addCube(notification);
+            }
+
+            const keyStrings: string[] = notifications
+              .map((n) => n.getKeyStringIfAvailable())
+              .sort();
+            expect(keyStrings).toHaveLength(n);
+
+            // perform tests:
+            // - all keys
+            const dbKeyStrings: string [] = await ArrayFromAsync(cubeStore.getKeyRange({
+              sublevel: Sublevels.INDEX_DIFF,
+              getRawSublevelKeys: true,
+              asString: true,
+            }));
+
+            // check that the raw DB keys actually represent the correct Cube keys
+            expect(dbKeyStrings
+              .map(k => k.substring(k.length-NetConstants.CUBE_KEY_SIZE*2))
+              .sort())
+              .toEqual(keyStrings);
+
+            // - range inclusive to exclusive with two matching keys: [1, 3)
+            expect(await ArrayFromAsync(cubeStore.getKeyRange({
+              sublevel: Sublevels.INDEX_DIFF,
+              gte: keyVariants(dbKeyStrings[1]).binaryKey as CubeKey,
+              lt: keyVariants(dbKeyStrings[3]).binaryKey as CubeKey,
+              getRawSublevelKeys: true,
+              asString: true,
+            }))).toEqual([
+              dbKeyStrings[1],
+              dbKeyStrings[2],
+            ]);
+
+            // - range inclusive to exclusive with a single matching key: (3, 4]
+            expect(await ArrayFromAsync(cubeStore.getKeyRange({
+              sublevel: Sublevels.INDEX_DIFF,
+              gte: keyVariants(dbKeyStrings[3]).binaryKey as CubeKey,
+              lt: keyVariants(dbKeyStrings[4]).binaryKey as CubeKey,
+              getRawSublevelKeys: true,
+              asString: true,
+            }))).toEqual([
+              dbKeyStrings[3],
+            ]);
+
+            // - empty range exclusive to exclusive: (3, 4)
+            expect(await ArrayFromAsync(cubeStore.getKeyRange({
+              sublevel: Sublevels.INDEX_DIFF,
+              gt: keyVariants(dbKeyStrings[3]).binaryKey as CubeKey,
+              lt: keyVariants(dbKeyStrings[4]).binaryKey as CubeKey,
+              getRawSublevelKeys: true,
+              asString: true,
+            }))).toEqual([ ]);
+          });  // supports filtering on the notification DBs with full database keys
+
+          it.todo('supports filtering on the notification DBs with just Cube keys');
+        });  // getKeyRange()
 
         describe('deleting Cubes', () => {
           it.todo('write tests for deleting Cubes');
@@ -1104,3 +1182,4 @@ describe('cubeStore', () => {
     });
   });
 });
+

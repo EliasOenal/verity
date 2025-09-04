@@ -428,10 +428,11 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
   async *getKeyRange(
     options?: CubeIteratorOptions & CubeIteratorOptionsSublevel,
   ): AsyncGenerator<CubeKey | string> {
-    // normalise input
+    // create or copy options object
     options = options ? { ...options } : {};
-    // set defaults
+    // set default options
     options.sublevel ??= Sublevels.CUBES;
+    options.getRawSublevelKeys ??= false;
     options.limit ??= 1000;
 
     let first: string = undefined;
