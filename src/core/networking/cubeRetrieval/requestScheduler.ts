@@ -854,7 +854,7 @@ export class RequestScheduler implements Shuttable {
     if (this._shutdown) return;
     this.cubeRequestTimer.clear();  // cancel timer calling this exact function
     const reschedule: boolean = this.performCubeRequest(peerSelected);
-    // TODO BUGBUG: We should probably always schedulke the next request
+    // TODO BUGBUG: We should probably always schedule the next request
     //   as long as there are open requests. If I understand it correctly, the
     //   current implementation will stop scheduling requests if there are no
     //   suitable peers (i.e. if we are offline), not resuming them when
