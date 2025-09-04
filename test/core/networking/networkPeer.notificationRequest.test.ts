@@ -265,12 +265,22 @@ describe('NetworkPeer notification request tests', () => {
         });
 
         it('will still return a single-key KeyResponse if there are notifications to the zero key present in addition to the requested one', async () => {
+          const notificationKey = randomNotificationKey();
+          const notification = Cube.Create({
+            cubeType: CubeType.PIC_NOTIFY,
+            fields: [
+              CubeField.Notify(notificationKey),
+              CubeField.RawContent(CubeType.PIC_NOTIFY, "Notificatio unica"),
+            ],
+            requiredDifficulty,
+          });
+          await cubeStore.addCube(notification);
+
           // take note of current message count,
           // so we can later assert that exactly one new message was sent
           const msgCountBefore = conn.sentMessages.length;
 
           // prepare message
-          const notificationKey = randomNotificationKey();
           const req = new KeyRequestMessage(
             KeyRequestMode.NotificationChallenge,
             NetConstants.MAX_CUBES_PER_MESSAGE,
@@ -297,7 +307,7 @@ describe('NetworkPeer notification request tests', () => {
           // retrieve cube info from message
           const cubeInfos = Array.from(msg.cubeInfos());
           expect(cubeInfos).toHaveLength(1);
-          expect(cubeInfos[0].key).toEqual(notificationKey);
+          expect(cubeInfos[0].key).toEqual(await notification.getKey());
         });
       });
     });
