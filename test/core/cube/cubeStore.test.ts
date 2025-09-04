@@ -724,7 +724,6 @@ describe('cubeStore', () => {
             // - all keys
             const dbKeyStrings: string [] = await ArrayFromAsync(cubeStore.getKeyRange({
               sublevel: Sublevels.INDEX_DIFF,
-              autoConvertInputKeys: true,
               getRawSublevelKeys: true,
               asString: true,
             }));
@@ -740,7 +739,6 @@ describe('cubeStore', () => {
               sublevel: Sublevels.INDEX_DIFF,
               gte: keyVariants(dbKeyStrings[1]).binaryKey as CubeKey,
               lt: keyVariants(dbKeyStrings[3]).binaryKey as CubeKey,
-              autoConvertInputKeys: false,
               getRawSublevelKeys: true,
               asString: true,
             }))).toEqual([
@@ -753,7 +751,6 @@ describe('cubeStore', () => {
               sublevel: Sublevels.INDEX_DIFF,
               gte: keyVariants(dbKeyStrings[3]).binaryKey as CubeKey,
               lt: keyVariants(dbKeyStrings[4]).binaryKey as CubeKey,
-              autoConvertInputKeys: false,
               getRawSublevelKeys: true,
               asString: true,
             }))).toEqual([
@@ -765,7 +762,6 @@ describe('cubeStore', () => {
               sublevel: Sublevels.INDEX_DIFF,
               gt: keyVariants(dbKeyStrings[3]).binaryKey as CubeKey,
               lt: keyVariants(dbKeyStrings[4]).binaryKey as CubeKey,
-              autoConvertInputKeys: false,
               getRawSublevelKeys: true,
               asString: true,
             }))).toEqual([ ]);

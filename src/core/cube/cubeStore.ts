@@ -433,17 +433,7 @@ export class CubeStore extends EventEmitter<CubeEmitterEvents> implements CubeRe
     // set default options
     options.sublevel ??= Sublevels.CUBES;
     options.getRawSublevelKeys ??= false;
-    options.autoConvertInputKeys ??= true;
     options.limit ??= 1000;
-
-    // normalise input
-    if (options.autoConvertInputKeys && options.sublevel !== Sublevels.CUBES) {
-      // TODO: this is NOT an efficient solution (O(n)) and needs to be replaced
-      if (options.gt) options.gt = await this.leveldb.autocompletePartialKey(options.gt, options.sublevel) as CubeKey;
-      if (options.gte) options.gte = await this.leveldb.autocompletePartialKey(options.gte, options.sublevel) as CubeKey;
-      if (options.lt) options.lt = await this.leveldb.autocompletePartialKey(options.lt, options.sublevel) as CubeKey;
-      if (options.lte) options.lte = await this.leveldb.autocompletePartialKey(options.lte, options.sublevel) as CubeKey;
-    }
 
     let first: string = undefined;
     let count: number = 0;
