@@ -20,7 +20,7 @@ describe('Node Type Integration Tests', () => {
       ...testCoreOptions,
       lightNode: false,
       transports: new Map([
-        [SupportedTransports.ws, 61200],
+        [SupportedTransports.ws, 61500],
       ]),
     });
     await fullNode.readyPromise;
@@ -29,7 +29,7 @@ describe('Node Type Integration Tests', () => {
     const lightNode: CoreNode = new CoreNode({
       ...testCoreOptions,
       lightNode: true,
-      initialPeers: [new AddressAbstraction("ws://127.0.0.1:61200")],
+      initialPeers: [new AddressAbstraction("ws://127.0.0.1:61500")],
     });
     await lightNode.readyPromise;
 
@@ -59,7 +59,7 @@ describe('Node Type Integration Tests', () => {
       ...testCoreOptions,
       lightNode: true,
       transports: new Map([
-        [SupportedTransports.ws, 61201],
+        [SupportedTransports.ws, 61501],
       ]),
     });
     await lightNode1.readyPromise;
@@ -68,7 +68,7 @@ describe('Node Type Integration Tests', () => {
     const lightNode2: CoreNode = new CoreNode({
       ...testCoreOptions,
       lightNode: true,
-      initialPeers: [new AddressAbstraction("ws://127.0.0.1:61201")],
+      initialPeers: [new AddressAbstraction("ws://127.0.0.1:61501")],
     });
     await lightNode2.readyPromise;
 
@@ -98,7 +98,7 @@ describe('Node Type Integration Tests', () => {
       ...testCoreOptions,
       lightNode: false,
       transports: new Map([
-        [SupportedTransports.ws, 61202],
+        [SupportedTransports.ws, 61502],
       ]),
     });
     await fullNode1.readyPromise;
@@ -107,7 +107,7 @@ describe('Node Type Integration Tests', () => {
     const fullNode2: CoreNode = new CoreNode({
       ...testCoreOptions,
       lightNode: false,
-      initialPeers: [new AddressAbstraction("ws://127.0.0.1:61202")],
+      initialPeers: [new AddressAbstraction("ws://127.0.0.1:61502")],
     });
     await fullNode2.readyPromise;
 
