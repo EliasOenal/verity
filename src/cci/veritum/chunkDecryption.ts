@@ -107,7 +107,7 @@ function DecryptWithPresharedKey(
 }
 
 
-function DecryptWithKeyDerivation(
+export function DecryptWithKeyDerivation(
   input: VerityFields,
   privateKey: Buffer,
 ): CryptStateOutput {
