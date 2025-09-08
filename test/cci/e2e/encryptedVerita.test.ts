@@ -9,11 +9,6 @@ import { VerityField } from "../../../src/cci/cube/verityField";
 import { Identity } from "../../../src/cci/identity/identity";
 import { Veritum } from "../../../src/cci/veritum/veritum";
 
-import { ChunkDecrypt } from "../../../src/cci/veritum/veritumEncryption";
-import { Decrypt, DecryptWithKeyDerivation } from "../../../src/cci/veritum/chunkDecryption";
-import { VerityFields } from "../../../src/cci/cube/verityFields";
-import { CryptStateOutput } from "../../../src/cci/veritum/encryption.definitions";
-
 import { cciLineShapedNetwork } from "./e2eCciSetup";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
@@ -23,7 +18,7 @@ describe('Transmission of encrypted Verita', () => {
     let net: cciLineShapedNetwork;
     const plaintext = "Nuntius secretus quem nemo praeter te legere potest";
 
-    beforeAll(async () => {
+    test('recipient receives and decrypts Veritum', async() => {
       // Create a simple line-shaped network
       net = await cciLineShapedNetwork.Create(61201, 61202);
 
@@ -39,17 +34,11 @@ describe('Transmission of encrypted Verita', () => {
       // - Key should be valid
       expect(key.length).toBe(NetConstants.CUBE_KEY_SIZE);
       // - Veritum should consist of a single Cube
-      const chunks: cciCube[] = Array.from(veritum.chunks);
-      expect(chunks).toHaveLength(1);
+      const originalChunks: cciCube[] = Array.from(veritum.chunks);
+      expect(originalChunks).toHaveLength(1);
       // - Encrypted chunk has an ENCRYPTED but no PAYLOAD field
-      expect(chunks[0].getFirstField(FieldType.ENCRYPTED)).toBeDefined();
-      expect(chunks[0].getFirstField(FieldType.PAYLOAD)).toBeUndefined();
-      // - Veritum should be decryptable by the recipient
-      const testDecryption = Veritum.FromChunks(chunks, {
-        recipientPrivateKey: net.recipient.identity.encryptionPrivateKey,
-      });
-      expect(testDecryption.getFirstField(FieldType.PAYLOAD)).toBeDefined();
-      expect(testDecryption.getFirstField(FieldType.ENCRYPTED)).toBeUndefined();
+      expect(originalChunks[0].getFirstField(FieldType.ENCRYPTED)).toBeDefined();
+      expect(originalChunks[0].getFirstField(FieldType.PAYLOAD)).toBeUndefined();
 
       // Reference Veritum thorugh Identity MUC
       // Note: This is also possible to do automatically through publishVeritum();
@@ -76,9 +65,7 @@ describe('Transmission of encrypted Verita', () => {
       // verify test setup
       const propagated: cciCube = await net.fullNode2.cubeStore.getCube(key);
       expect(propagated).toBeDefined();
-    });
 
-    test.skip('recipient receives and decrypts Veritum', async() => {
       // Recipient learns about sender out of band and subscribes to them
       // TODO: expose this though a simplified cciCockpit API
       const sub: Identity = await Identity.Construct(
@@ -86,70 +73,45 @@ describe('Transmission of encrypted Verita', () => {
         await net.recipient.node.cubeRetriever.getCube(net.sender.identity.key) as cciCube
       );
       expect(sub.getPostCount()).toEqual(1);  // TODO fix: this sometimes fails
-      const key: CubeKey = Array.from(sub.getPostKeys())[0];
-      expect(key).toBeDefined();
-      const retrieved: Veritum = await net.recipient.getVeritum(key);
+      const retrievedKey: CubeKey = Array.from(sub.getPostKeys())[0];
+      expect(retrievedKey.equals(key)).toBe(true);
+      const retrieved: Veritum = await net.recipient.getVeritum(retrievedKey);
       // expect Veritum received
       expect(retrieved).toBeDefined();
 
       // debugging intermezzo (see Github#835):
-      // Attempt a manual decryption first, both using Veritum.FromChunks and
-      // using low level primitives.
-      // (Further below, we will still expect the Veritum to have been auto-decrypted
-      // on the initial retrieval.)
-      // - Manual decryption using Veritum.FromChunks
+      // Attempt a manual decryption first.
+      // Below, we will still expect the Veritum to have been auto-decrypted
+      // on the initial retrieval.
+      // - Original Veritum as present on sender-side should be decryptable by the recipient
+      const testDecryption = Veritum.FromChunks(originalChunks, {
+        recipientPrivateKey: net.recipient.identity.encryptionPrivateKey,
+      });
+      expect(testDecryption.getFirstField(FieldType.PAYLOAD)).toBeDefined();
+      expect(testDecryption.getFirstField(FieldType.ENCRYPTED)).toBeUndefined();
+      // - Veritum received over the wire at recipient-side should be identical
       const manualDecryptionCipherchunk: cciCube =
         await net.recipient.node.cubeStore.getCube(key);
-      const manualVeritumDecryptionPlain: Veritum = Veritum.FromChunks(
+      expect(manualDecryptionCipherchunk.getBinaryDataIfAvailable().length).toBe(NetConstants.CUBE_SIZE);
+      expect(originalChunks[0].getBinaryDataIfAvailable()
+        .equals(manualDecryptionCipherchunk.getBinaryDataIfAvailable()))
+        .toBe(true);
+      // - Veritum received over the wire at recipient-side should be decryptable
+      const manualDecryptionPlain: Veritum = Veritum.FromChunks(
         [manualDecryptionCipherchunk],
         { recipientPrivateKey: net.recipient.identity.encryptionPrivateKey }
       );
-      expect.soft(manualVeritumDecryptionPlain.getFirstField(FieldType.PAYLOAD)).toBeDefined();
-      expect.soft(manualVeritumDecryptionPlain.getFirstField(FieldType.PAYLOAD).valueString).toBe(plaintext);
-      expect.soft(manualVeritumDecryptionPlain.getFirstField(FieldType.ENCRYPTED)).toBeUndefined();
-
-      // - Manual decryption using ChunkDecrypt (the intermediate primitive
-      //   used to decrypt a collection of chunks)
-      const manualChunkDecryptionPlain: cciCube[] = Array.from(ChunkDecrypt(
-        [manualDecryptionCipherchunk],
-        { recipientPrivateKey: net.recipient.identity.encryptionPrivateKey }
-      ));
-      expect.soft(manualChunkDecryptionPlain).toHaveLength(1);
-      expect.soft(manualChunkDecryptionPlain[0].getFirstField(FieldType.PAYLOAD)).toBeDefined();
-      expect.soft(manualChunkDecryptionPlain[0].getFirstField(FieldType.PAYLOAD).valueString).toBe(plaintext);
-      expect.soft(manualChunkDecryptionPlain[0].getFirstField(FieldType.ENCRYPTED)).toBeUndefined();
-
-      // - Manual decryption using Decrypt(), which decrypts a single field set,
-      //   but still branches out for the individual encryption variants
-      const manualDecryptionModeAutodetectPlain: VerityFields = Decrypt(
-        manualDecryptionCipherchunk.fields,
-        { recipientPrivateKey: net.recipient.identity.encryptionPrivateKey }
-      );
-      expect.soft(manualDecryptionModeAutodetectPlain).toBeDefined();
-      expect.soft(manualDecryptionModeAutodetectPlain.getFirst(FieldType.PAYLOAD)).toBeDefined();
-      expect.soft(manualDecryptionModeAutodetectPlain.getFirst(FieldType.PAYLOAD).valueString).toBe(plaintext);
-      expect.soft(manualDecryptionModeAutodetectPlain.getFirst(FieldType.ENCRYPTED)).toBeUndefined();
-
-      // - Very low level manual decryption using DecryptWithKeyDerivation(),
-      //   which assumes the particular encryption variant we expect
-      //   (which is: public key included with ciphertext, key derivation)
-      //   It's so low-level I had to export it just for this test!
-      const manualDecryptionModeKeyDerivationPlain: CryptStateOutput = DecryptWithKeyDerivation(
-        manualDecryptionCipherchunk.fields,
-        net.recipient.identity.encryptionPrivateKey,
-      );
-      expect.soft(manualDecryptionModeKeyDerivationPlain.result).toBeDefined();
-      expect.soft(manualDecryptionModeKeyDerivationPlain.result.getFirst(FieldType.PAYLOAD)).toBeDefined();
-      expect.soft(manualDecryptionModeKeyDerivationPlain.result.getFirst(FieldType.PAYLOAD).valueString).toBe(plaintext);
-      expect.soft(manualDecryptionModeKeyDerivationPlain.result.getFirst(FieldType.ENCRYPTED)).toBeUndefined();
+      expect(manualDecryptionPlain.getFirstField(FieldType.PAYLOAD)).toBeDefined();
+      expect(manualDecryptionPlain.getFirstField(FieldType.PAYLOAD).valueString).toBe(plaintext);
+      expect(manualDecryptionPlain.getFirstField(FieldType.ENCRYPTED)).toBeUndefined();
 
       // expect Veritum auto-decrypted on initial retrieval
-      expect.soft(retrieved.getFirstField(FieldType.ENCRYPTED)).not.toBeDefined();
+      expect(retrieved.getFirstField(FieldType.ENCRYPTED)).not.toBeDefined();
       // TODO FIXME this sometimes fails and I don't know why :(
-      expect.soft(retrieved.getFirstField(FieldType.PAYLOAD)).toBeDefined();
+      expect(retrieved.getFirstField(FieldType.PAYLOAD)).toBeDefined();
 
       // expect plaintext to be restored correctly
       expect(retrieved.getFirstField(FieldType.PAYLOAD).valueString).toBe(plaintext);  // TODO fix: this sometimes fails
     });
-  });  // Publishing an encrypted Veritum for a single recipient
+  }, 20000);  // Publishing an encrypted Veritum for a single recipient
 });
