@@ -99,7 +99,8 @@ describe('Transmission of encrypted Verita', () => {
         .equals(chunkReceived.getBinaryDataIfAvailable()))
         .toBe(true);
       // Should obviously not be the same object, though
-      expect(originalChunks[0]).not.toBe(chunkReceived);
+      expect.soft(originalChunks[0]).not.toBe(chunkReceived);
+      expect.soft(net.sender.node.cubeStore).not.toBe(net.recipient.node.cubeStore);
 
       // Attempt decryption on different level (debugging Github#835).
       // - Manual high level decryption using the Veritum API (sender-side)
