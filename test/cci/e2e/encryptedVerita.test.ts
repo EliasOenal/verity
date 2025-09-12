@@ -16,6 +16,7 @@ import { CryptStateOutput } from "../../../src/cci/veritum/encryption.definition
 import { cciLineShapedNetwork } from "./e2eCciSetup";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
+import { logger } from "../../../src/core/logger";
 
 describe('Transmission of encrypted Verita', () => {
   describe('Publishing an encrypted Veritum for a single recipient', () => {
@@ -47,6 +48,8 @@ describe('Transmission of encrypted Verita', () => {
       // - Encrypted chunk has an ENCRYPTED but no PAYLOAD field
       expect(originalChunks[0].getFirstField(FieldType.ENCRYPTED)).toBeDefined();
       expect(originalChunks[0].getFirstField(FieldType.PAYLOAD)).toBeUndefined();
+
+      logger.info(`e2e test using Veritum ${key.toString('hex')}, binary data: ${originalChunks[0].getBinaryDataIfAvailable().toString('hex')}`);
 
       // Reference Veritum thorugh Identity MUC
       // Note: This is also possible to do automatically through publishVeritum();
