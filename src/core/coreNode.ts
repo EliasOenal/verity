@@ -77,6 +77,8 @@ export class CoreNode implements CoreNodeIf {
   }
 
   constructor(options: CoreNodeOptions = {}){
+    // copy options object to prevent proliferation of internal state
+    options = {...options};
     // set default options
     options.transports ??= new Map();  // TODO use sensible default
     options.initialPeers ??= defaultInitialPeers;
