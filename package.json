@@ -40,7 +40,7 @@
     "@types/libsodium-wrappers-sumo": "^0.7.8",
     "@types/ws": "^8.5.14",
     "@typescript-eslint/eslint-plugin": "^8.24.0",
-    "axios": "^1.9.0",
+    "axios": "^1.12.0",
     "copy-webpack-plugin": "^13.0.1",
     "eslint": "^9.35.0",
     "fake-indexeddb": "^6.2.2",
