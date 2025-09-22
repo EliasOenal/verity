@@ -76,7 +76,7 @@
     "bencodec": "^3.0.1",
     "browser-or-node": "^3.0.0",
     "buffer": "^6.0.3",
-    "cmd-ts": "^0.14.1",
+    "cmd-ts": "^0.14.2",
     "data-structure-typed": "^2.0.1",
     "dompurify": "^3.2.4",
     "events": "^3.3.0",
