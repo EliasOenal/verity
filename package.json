@@ -46,7 +46,7 @@
     "fake-indexeddb": "^6.2.2",
     "jsdom": "^27.0.0",
     "libsodium-wrappers": "^0.7.15",
-    "playwright": "^1.55.0",
+    "playwright": "^1.55.1",
     "promise.withresolvers": "^1.0.3",
     "raw-loader": "^4.0.2",
     "ts-loader": "^9.5.4",
