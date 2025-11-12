@@ -80,7 +80,7 @@
     "data-structure-typed": "^2.1.0",
     "dompurify": "^3.2.7",
     "events": "^3.3.0",
-    "extensionless": "^1.9.9",
+    "extensionless": "^2.0.2",
     "isomorphic-ws": "^5.0.0",
     "it-pipe": "^3.0.1",
     "js-sha3": "^0.9.3",
