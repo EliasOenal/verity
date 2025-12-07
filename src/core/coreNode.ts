@@ -80,7 +80,7 @@ export class CoreNode implements CoreNodeIf {
     // copy options object to prevent proliferation of internal state
     options = {...options};
     // set default options
-    options.transports ??= new Map();  // TODO use sensible default
+    options.transports ??= new Map();
     options.initialPeers ??= defaultInitialPeers;
     options.inMemory ??= true;
 

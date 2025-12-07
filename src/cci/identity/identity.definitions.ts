@@ -82,6 +82,10 @@ export interface IdentityOptions {
    */
   idmucApplicationString?: string,
 
+  /**
+   * If specified, this Identity's root Cube will be a notification Cube,
+   * with the specified key as its notification key.
+   */
   idmucNotificationKey?: NotificationKey,
 
   /**
