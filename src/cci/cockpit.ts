@@ -22,7 +22,20 @@ export interface CockpitOptions {
 }
 
 export interface PublishVeritumOptions extends VeritumCompileOptions {
+  /**
+   * Whether to add the veritum as a public post to the user's Identity
+   * @default true
+   */
   addAsPost?: boolean;
+
+  /**
+   * The Identity this Cockpit belongs to
+   * (in most use cases that means the currently logged in user).
+   * Cockpits can also be used anonymously, in which case they will obviously
+   * lack Identity integration features such as indexing published Verita
+   * as public posts.
+   * @default undefined
+   */
   identity?: Identity;
 }
 

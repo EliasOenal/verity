@@ -43,7 +43,9 @@ export interface MakePostOptions extends CubeCreateOptions {
  * Don't forget to add it to your cubeStore!
  * Don't forget to call Identity.store() on your Identity object afterwards!
  * @throws When post is too large to fit Cube
+ * @deprecated Client should use CCI Cockpit instead
  */
+// TODO move to CCI (or even better get rid of it entirely)
 export async function makePost(
     text: string,
     options: MakePostOptions = {},
