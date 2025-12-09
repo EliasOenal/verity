@@ -166,7 +166,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     // Fetch Identity -- either from IdentityStore if already constructed, or
     // reconstruct it from the network
     const identity: Identity =
-      await options.identityStore.retrieveIdentity(keyPair.publicKey as CubeKey);
+      await options.identityStore.retrieveIdentity(keyPair.publicKey as CubeKey, options);
 
     // If the Identity was found, supply the master key
     identity?.supplyMasterKey?.(options.masterKey);

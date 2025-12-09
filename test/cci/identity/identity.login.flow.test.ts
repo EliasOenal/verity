@@ -43,7 +43,7 @@ describe('Identity (login workflow tests)', () => {
         beforeAll(async () => {
           // Create an Identity
           original = await Identity.Create(
-            node.cubeRetriever, username, password, idTestOptions);
+            node.cubeRetriever, username, password, { ...options });
           // and a Cockpit for it
           cockpit = new Cockpit(node, {
             identity: original,
@@ -58,9 +58,10 @@ describe('Identity (login workflow tests)', () => {
 
         it('should be able to log in again', async () => {
           const restored = await Identity.Load(node.cubeRetriever, {
-            ...idTestOptions,
+            ...options,
             username, password,
           });
+          await restored.fullyParsed;
           expect(restored).toBeInstanceOf(Identity);
           expect(restored.masterKey.equals(original.masterKey)).toBe(true);
           expect(restored.publicKey.equals(original.publicKey)).toBe(true);
