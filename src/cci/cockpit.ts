@@ -29,6 +29,17 @@ export interface PublishVeritumOptions extends VeritumCompileOptions {
   addAsPost?: boolean;
 
   /**
+   * Whether to add an AUTHORHINT relationship field to the Veritum,
+   * pointing to the publishing Identity.
+   * This obviously requires that an Identity is used to publish the Veritum.
+   * Should only be used in combination with addAsPost, as author hints
+   * are supposed to be disregarded unless corroborated by a corresponding MYPOST
+   * relationship from the Identity.
+   * @default - follows addAsPost, which itself defaults to true
+   */
+  addAuthorHint?: boolean;
+
+  /**
    * The Identity this Cockpit belongs to
    * (in most use cases that means the currently logged in user).
    * Cockpits can also be used anonymously, in which case they will obviously
