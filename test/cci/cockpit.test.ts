@@ -1,6 +1,7 @@
 import { VerityNodeIf, dummyVerityNode } from "../../src/cci/verityNode";
 import { Cockpit } from "../../src/cci/cockpit";
 import { FieldType } from "../../src/cci/cube/cciCube.definitions";
+import { RelationshipType } from "../../src/cci/cube/relationship";
 import { VerityField } from "../../src/cci/cube/verityField";
 import { Identity } from "../../src/cci/identity/identity";
 import { Veritum } from "../../src/cci/veritum/veritum";
@@ -148,6 +149,148 @@ describe('cci Cockpit', () => {
         if (loggedIn) it('stores the Veritum as a post in my Identity by default', async() => {
           expect(identity.hasPost(await veritum.getKey())).toBe(true);
         });
+      });
+
+      describe('publishVeritum() with addAuthorHint option', () => {
+        if (loggedIn) {
+          it('adds AUTHORHINT relationship by default (when addAsPost defaults to true)', async() => {
+            const veritum = await cockpit.publishVeritum({
+              cubeType: CubeType.FROZEN,
+              fields: VerityField.Payload("Testing default addAuthorHint"),
+              requiredDifficulty: requiredDifficulty,
+            });
+
+            // Verify AUTHORHINT relationship exists in first chunk
+            const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
+            expect(relationships.length).toBe(1);
+            expect(relationships[0].type).toBe(RelationshipType.AUTHORHINT);
+            expect(relationships[0].remoteKey).toEqual(identity.key);
+          });
+
+          it('adds AUTHORHINT when explicitly set to true', async() => {
+            const veritum = await cockpit.publishVeritum({
+              cubeType: CubeType.FROZEN,
+              fields: VerityField.Payload("Testing explicit addAuthorHint=true"),
+              requiredDifficulty: requiredDifficulty,
+              addAuthorHint: true,
+            });
+
+            // Verify AUTHORHINT relationship exists
+            const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
+            expect(relationships.length).toBe(1);
+            expect(relationships[0].remoteKey).toEqual(identity.key);
+          });
+
+          it('does not add AUTHORHINT when explicitly set to false', async() => {
+            const veritum = await cockpit.publishVeritum({
+              cubeType: CubeType.FROZEN,
+              fields: VerityField.Payload("Testing addAuthorHint=false"),
+              requiredDifficulty: requiredDifficulty,
+              addAuthorHint: false,
+            });
+
+            // Verify no AUTHORHINT relationship exists
+            const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
+            expect(relationships.length).toBe(0);
+          });
+
+          it('does not add AUTHORHINT when addAsPost is false (even if addAuthorHint not explicitly set)', async() => {
+            const veritum = await cockpit.publishVeritum({
+              cubeType: CubeType.FROZEN,
+              fields: VerityField.Payload("Testing addAsPost=false"),
+              requiredDifficulty: requiredDifficulty,
+              addAsPost: false,
+            });
+
+            // Verify no AUTHORHINT relationship exists (follows addAsPost default)
+            const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
+            expect(relationships.length).toBe(0);
+          });
+
+          it('adds AUTHORHINT when both addAsPost and addAuthorHint are explicitly true', async() => {
+            const veritum = await cockpit.publishVeritum({
+              cubeType: CubeType.FROZEN,
+              fields: VerityField.Payload("Testing both options true"),
+              requiredDifficulty: requiredDifficulty,
+              addAsPost: true,
+              addAuthorHint: true,
+            });
+
+            // Verify AUTHORHINT relationship exists
+            const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
+            expect(relationships.length).toBe(1);
+            expect(identity.hasPost(await veritum.getKey())).toBe(true);
+          });
+
+          it('can override: adds AUTHORHINT even when addAsPost is false if addAuthorHint is explicitly true', async() => {
+            const veritum = await cockpit.publishVeritum({
+              cubeType: CubeType.FROZEN,
+              fields: VerityField.Payload("Testing override: addAsPost=false, addAuthorHint=true"),
+              requiredDifficulty: requiredDifficulty,
+              addAsPost: false,
+              addAuthorHint: true,
+            });
+
+            // Verify AUTHORHINT exists but it's not added as post
+            const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
+            expect(relationships.length).toBe(1);
+            expect(identity.hasPost(await veritum.getKey())).toBe(false);
+          });
+
+          it('adds AUTHORHINT to first chunk in multi-chunk Veritum', async() => {
+            const veritum = await cockpit.publishVeritum({
+              cubeType: CubeType.FROZEN,
+              fields: VerityField.Payload(tooLong),
+              requiredDifficulty: requiredDifficulty,
+            });
+
+            // Verify it's a multi-chunk Veritum
+            const chunks = Array.from(veritum.chunks);
+            expect(chunks.length).toBeGreaterThan(1);
+
+            // Verify AUTHORHINT is only in first chunk
+            const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
+            expect(relationships.length).toBe(1);
+
+            // The AUTHORHINT should be in the compiled veritum's field list
+            // which represents the first chunk before splitting
+            expect(relationships[0].remoteKey).toEqual(identity.key);
+          });
+
+          it('adds AUTHORHINT to encrypted Veritum', async() => {
+            const veritum = await cockpit.publishVeritum({
+              cubeType: CubeType.FROZEN,
+              fields: VerityField.Payload("Encrypted content with author hint"),
+              requiredDifficulty: requiredDifficulty,
+              recipients: remote1,
+            });
+
+            // The AUTHORHINT should be present (it gets encrypted along with other fields)
+            // To verify, we need to decrypt
+            const restored = Veritum.FromChunks(veritum.chunks, {
+              recipientPrivateKey: remote1.encryptionPrivateKey,
+            });
+
+            const relationships = restored.getRelationships(RelationshipType.AUTHORHINT);
+            expect(relationships.length).toBe(1);
+            expect(relationships[0].remoteKey).toEqual(identity.key);
+          });
+        }
+
+        if (!loggedIn) {
+          it('does not add AUTHORHINT when no identity is present (logged out)', async() => {
+            const veritum = await cockpit.publishVeritum({
+              cubeType: CubeType.FROZEN,
+              fields: VerityField.Payload("Testing without identity"),
+              requiredDifficulty: requiredDifficulty,
+              addAuthorHint: true,  // impossible to fulfil
+            });
+
+            // Verify no AUTHORHINT relationship exists
+            const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
+            expect(relationships.length).toBe(0);
+          });
+        }
       });
 
       describe('getVeritum()', () => {

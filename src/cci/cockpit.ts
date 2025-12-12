@@ -6,11 +6,14 @@ import { CubeInfo } from "../core/cube/cubeInfo";
 import { CubeStore } from "../core/cube/cubeStore";
 import { Veritable } from "../core/cube/veritable.definition";
 import { asCubeKey } from "../core/cube/keyUtil";
+import { FieldPosition } from "../core/fields/baseFields";
 
 import { CubeRequestOptions } from "../core/networking/cubeRetrieval/requestScheduler";
 
 import { dummyVerityNode, VerityNodeIf, VerityNodeOptions } from "./verityNode";
 import { cciCube } from "./cube/cciCube";
+import { Relationship, RelationshipType } from "./cube/relationship";
+import { VerityField } from "./cube/verityField";
 import { Identity } from "./identity/identity";
 import { Veritum } from "./veritum/veritum";
 import { VeritumCompileOptions } from "./veritum/veritum.definitions";
@@ -27,6 +30,17 @@ export interface PublishVeritumOptions extends VeritumCompileOptions {
    * @default true
    */
   addAsPost?: boolean;
+
+  /**
+   * Whether to add an AUTHORHINT relationship field to the Veritum,
+   * pointing to the publishing Identity.
+   * This obviously requires that an Identity is used to publish the Veritum.
+   * Should only be used in combination with addAsPost, as author hints
+   * are supposed to be disregarded unless corroborated by a corresponding MYPOST
+   * relationship from the Identity.
+   * @default - follows addAsPost, which itself defaults to true
+   */
+  addAuthorHint?: boolean;
 
   /**
    * The Identity this Cockpit belongs to
@@ -93,10 +107,18 @@ export class Cockpit implements VeritumRetrievalInterface {
 
     // Set default options
     options.addAsPost ??= true;
+    options.addAuthorHint ??= options.addAsPost;
     // Use this cockpit's identity by default.
     // Besides allowing overrides, this assignment also ensures the Identity
     // cannot change while this call is in progress (Cockpit supports Identity changes).
     options.identity = this.identity;
+
+    // Add AUTHORHINT relationship if requested and we have an identity
+    if (options.identity && options.addAuthorHint) {
+      const authorHintRel = new Relationship(RelationshipType.AUTHORHINT, options.identity.key);
+      const authorHintField = VerityField.RelatesTo(authorHintRel);
+      veritum.insertField(FieldPosition.AFTER_FRONT_POSITIONALS, authorHintField);
+    }
 
     // maybe TODO: When encryption is enabled, auto-add self as additional recipient
     //   by default? Sculpting Verita not readable by self seems like a trap.
