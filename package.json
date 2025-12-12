@@ -25,6 +25,7 @@
     "vitest": "./node_modules/.bin/vitest run",
     "webpack": "webpack",
     "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
     "server": "webpack serve",
   "lint": "node_modules/.bin/eslint",
   "chat:build": "webpack --config apps/chat/webpack.config.mjs",
