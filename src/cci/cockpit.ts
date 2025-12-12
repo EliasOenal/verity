@@ -117,7 +117,7 @@ export class Cockpit implements VeritumRetrievalInterface {
     if (options.identity && options.addAuthorHint) {
       const authorHintRel = new Relationship(RelationshipType.AUTHORHINT, options.identity.key);
       const authorHintField = VerityField.RelatesTo(authorHintRel);
-      veritum.manipulateFields().insertField(FieldPosition.BEFORE_BACK_POSITIONALS, authorHintField);
+      veritum.insertField(FieldPosition.AFTER_FRONT_POSITIONALS, authorHintField);
     }
 
     // maybe TODO: When encryption is enabled, auto-add self as additional recipient

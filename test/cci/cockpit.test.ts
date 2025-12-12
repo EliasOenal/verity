@@ -159,7 +159,7 @@ describe('cci Cockpit', () => {
               fields: VerityField.Payload("Testing default addAuthorHint"),
               requiredDifficulty: requiredDifficulty,
             });
-            
+
             // Verify AUTHORHINT relationship exists in first chunk
             const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
             expect(relationships.length).toBe(1);
@@ -174,7 +174,7 @@ describe('cci Cockpit', () => {
               requiredDifficulty: requiredDifficulty,
               addAuthorHint: true,
             });
-            
+
             // Verify AUTHORHINT relationship exists
             const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
             expect(relationships.length).toBe(1);
@@ -188,7 +188,7 @@ describe('cci Cockpit', () => {
               requiredDifficulty: requiredDifficulty,
               addAuthorHint: false,
             });
-            
+
             // Verify no AUTHORHINT relationship exists
             const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
             expect(relationships.length).toBe(0);
@@ -201,7 +201,7 @@ describe('cci Cockpit', () => {
               requiredDifficulty: requiredDifficulty,
               addAsPost: false,
             });
-            
+
             // Verify no AUTHORHINT relationship exists (follows addAsPost default)
             const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
             expect(relationships.length).toBe(0);
@@ -215,7 +215,7 @@ describe('cci Cockpit', () => {
               addAsPost: true,
               addAuthorHint: true,
             });
-            
+
             // Verify AUTHORHINT relationship exists
             const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
             expect(relationships.length).toBe(1);
@@ -230,7 +230,7 @@ describe('cci Cockpit', () => {
               addAsPost: false,
               addAuthorHint: true,
             });
-            
+
             // Verify AUTHORHINT exists but it's not added as post
             const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
             expect(relationships.length).toBe(1);
@@ -243,15 +243,15 @@ describe('cci Cockpit', () => {
               fields: VerityField.Payload(tooLong),
               requiredDifficulty: requiredDifficulty,
             });
-            
+
             // Verify it's a multi-chunk Veritum
             const chunks = Array.from(veritum.chunks);
             expect(chunks.length).toBeGreaterThan(1);
-            
+
             // Verify AUTHORHINT is only in first chunk
             const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
             expect(relationships.length).toBe(1);
-            
+
             // The AUTHORHINT should be in the compiled veritum's field list
             // which represents the first chunk before splitting
             expect(relationships[0].remoteKey).toEqual(identity.key);
@@ -264,13 +264,13 @@ describe('cci Cockpit', () => {
               requiredDifficulty: requiredDifficulty,
               recipients: remote1,
             });
-            
+
             // The AUTHORHINT should be present (it gets encrypted along with other fields)
             // To verify, we need to decrypt
             const restored = Veritum.FromChunks(veritum.chunks, {
               recipientPrivateKey: remote1.encryptionPrivateKey,
             });
-            
+
             const relationships = restored.getRelationships(RelationshipType.AUTHORHINT);
             expect(relationships.length).toBe(1);
             expect(relationships[0].remoteKey).toEqual(identity.key);
@@ -283,8 +283,9 @@ describe('cci Cockpit', () => {
               cubeType: CubeType.FROZEN,
               fields: VerityField.Payload("Testing without identity"),
               requiredDifficulty: requiredDifficulty,
+              addAuthorHint: true,  // impossible to fulfil
             });
-            
+
             // Verify no AUTHORHINT relationship exists
             const relationships = veritum.getRelationships(RelationshipType.AUTHORHINT);
             expect(relationships.length).toBe(0);
