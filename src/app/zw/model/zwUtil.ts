@@ -6,20 +6,20 @@
 import { Settings } from "../../../core/settings";
 import { NetConstants } from "../../../core/networking/networkDefinitions";
 
-import { Cube } from "../../../core/cube/cube";
-import { CubeCreateOptions } from '../../../core/cube/cube.definitions';
-import { CubeKey, CubeType } from "../../../core/cube/cube.definitions";
+import { CoreCube } from "../../../core/cube/coreCube";
+import { CubeCreateOptions } from '../../../core/cube/coreCube.definitions';
+import { CubeKey, CubeType } from "../../../core/cube/coreCube.definitions";
 import { mergeAsyncGenerators } from "../../../core/helpers/asyncGenerators";
 import { CubeStore } from "../../../core/cube/cubeStore";
 import { CubeRetrievalInterface } from "../../../core/cube/cubeRetrieval.definitions";
 import { logger } from "../../../core/logger";
 
-import { MediaTypes, FieldType, FieldLength } from "../../../cci/cube/cciCube.definitions";
+import { MediaTypes, FieldType, FieldLength } from "../../../cci/cube/cube.definitions";
 import { VerityField } from "../../../cci/cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition } from "../../../cci/cube/verityFields";
 import { Relationship, RelationshipType } from "../../../cci/cube/relationship";
-import { cciCube, cciFamily } from "../../../cci/cube/cciCube";
-import { isCci } from "../../../cci/cube/cciCubeUtil";
+import { Cube, cciFamily } from "../../../cci/cube/cube";
+import { isCci } from "../../../cci/cube/cubeUtil";
 import { RetrievalFormat } from "../../../cci/veritum/veritum.definitions";
 import { RecursiveRelResolvingPostInfo, RecursiveRelResolvingGetPostsGenerator } from "../../../cci/identity/identity.definitions";
 import { Identity } from "../../../cci/identity/identity";
@@ -49,11 +49,11 @@ export interface MakePostOptions extends CubeCreateOptions {
 export async function makePost(
     text: string,
     options: MakePostOptions = {},
-): Promise<cciCube> {
+): Promise<Cube> {
   // set default options
   options.requiredDifficulty ??= Settings.REQUIRED_DIFFICULTY;
   // prepare Cube
-  const cube: cciCube = cciCube.Frozen({
+  const cube: Cube = Cube.Frozen({
     family: cciFamily, requiredDifficulty: options.requiredDifficulty, fields: [
       VerityField.Application(("ZW")),
       VerityField.MediaType(MediaTypes.TEXT),
@@ -99,7 +99,7 @@ export const maxPostSize: number =  // calculate maximum posts size by creating 
       new Relationship(RelationshipType.MYPOST, Buffer.alloc(NetConstants.CUBE_KEY_SIZE) as CubeKey)),
   ], cciFrozenFieldDefinition).bytesRemaining();
 
-export function assertZwCube(cube: Cube): boolean {
+export function assertZwCube(cube: CoreCube): boolean {
   if (!(isCci(cube))) {
     logger.trace("assertZwCube: Supplied object is not a CCI Cube");
     return false;
@@ -124,7 +124,7 @@ export function assertZwCube(cube: Cube): boolean {
   return true;
 }
 
-export function assertZwMuc(cube: Cube): boolean {
+export function assertZwMuc(cube: CoreCube): boolean {
   if (cube?.cubeType !== CubeType.MUC &&
       cube?.cubeType !== CubeType.MUC_NOTIFY &&
       cube?.cubeType !== CubeType.PMUC &&
@@ -135,9 +135,9 @@ export function assertZwMuc(cube: Cube): boolean {
   else return assertZwCube(cube);
 }
 
-export async function isPostDisplayable(postInfo: RecursiveRelResolvingPostInfo<Cube>): Promise<boolean> {
+export async function isPostDisplayable(postInfo: RecursiveRelResolvingPostInfo<CoreCube>): Promise<boolean> {
   // is this even a valid ZwCube?
-  const cube: Cube = postInfo.main;
+  const cube: CoreCube = postInfo.main;
   if (!assertZwCube(cube)) {
     logger.trace("isPostDisplayable(): Rejecting a Cube as it's not ZW");
     return false;
@@ -176,8 +176,8 @@ export async function isPostDisplayable(postInfo: RecursiveRelResolvingPostInfo<
 export function wotPostGenerator(
     identity: Identity,
     subscriptionDepth: number,
-): RecursiveRelResolvingGetPostsGenerator<Cube> {
-  const gen: RecursiveRelResolvingGetPostsGenerator<Cube> = identity.getPosts({
+): RecursiveRelResolvingGetPostsGenerator<CoreCube> {
+  const gen: RecursiveRelResolvingGetPostsGenerator<CoreCube> = identity.getPosts({
     subscriptionDepth,
     format: RetrievalFormat.Cube,
     metadata: true,
@@ -191,9 +191,9 @@ export function wotPostGenerator(
 export function explorePostGenerator(
     retriever: CubeRetrievalInterface,
     idStore: IdentityStore,
-): RecursiveRelResolvingGetPostsGenerator<Cube> {
+): RecursiveRelResolvingGetPostsGenerator<CoreCube> {
   // start an endless fetch of ZW Identities and store them all in a list
-  const postGenerator = mergeAsyncGenerators() as RecursiveRelResolvingGetPostsGenerator<Cube>;
+  const postGenerator = mergeAsyncGenerators() as RecursiveRelResolvingGetPostsGenerator<CoreCube>;
   postGenerator.setEndless();
 
   const identityGen: AsyncGenerator<Identity> = notifyingIdentities(
@@ -204,7 +204,7 @@ export function explorePostGenerator(
   );
   (async() => {
     for await (const identity of identityGen) {
-      const postsGen: RecursiveRelResolvingGetPostsGenerator<Cube> =
+      const postsGen: RecursiveRelResolvingGetPostsGenerator<CoreCube> =
         identity.getPosts({
           subscriptionDepth: 0,
           format: RetrievalFormat.Cube,

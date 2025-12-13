@@ -1,6 +1,6 @@
-import { CubeKey } from '../core/cube/cube.definitions';
+import { CubeKey } from '../core/cube/coreCube.definitions';
 import { CubeInfo } from '../core/cube/cubeInfo'
-import { Cube } from '../core/cube/cube';
+import { CoreCube } from '../core/cube/coreCube';
 
 import { VerityFields } from './cube/verityFields';
 import { Relationship } from './cube/relationship';
@@ -13,14 +13,14 @@ import { EventEmitter } from 'events';
 import { Buffer } from 'buffer';
 
 type RelationshipClassConstructor = new (type: number, remoteKey: CubeKey) => Relationship;
-export function defaultGetFieldsFunc(cube: Cube): BaseFields {
+export function defaultGetFieldsFunc(cube: CoreCube): BaseFields {
   return cube?.fields;
 }
 
 export class AnnotationEngine extends EventEmitter {
   static Construct(
     cubeEmitter: CubeEmitter,
-    getFields: (cube: Cube) => BaseFields = defaultGetFieldsFunc,
+    getFields: (cube: CoreCube) => BaseFields = defaultGetFieldsFunc,
     relationshipClass: RelationshipClassConstructor = Relationship,
     limitRelationshipTypes: Map<number, number> = undefined
   ): Promise<AnnotationEngine> {
@@ -65,7 +65,7 @@ export class AnnotationEngine extends EventEmitter {
    * alias to cube.fields.
    */
       public readonly cubeEmitter: CubeEmitter,
-      public readonly getFields: (cube: Cube) => BaseFields = defaultGetFieldsFunc,
+      public readonly getFields: (cube: CoreCube) => BaseFields = defaultGetFieldsFunc,
       public readonly relationshipClass: RelationshipClassConstructor = Relationship,
 
       /**
@@ -95,7 +95,7 @@ export class AnnotationEngine extends EventEmitter {
     }
 
     // logger.trace(`AnnotationEngine: Auto-annotating cube ${cubeInfo.key.toString('hex')}`);
-    const cube: Cube = cubeInfo.getCube();  // TODO: CCI CubeInfos should learn what kind of Cube they represent much earlier in the process
+    const cube: CoreCube = cubeInfo.getCube();  // TODO: CCI CubeInfos should learn what kind of Cube they represent much earlier in the process
 
     // does this Cube even have a valid field structure?
     const fields: VerityFields = this.getFields(cube) as VerityFields;

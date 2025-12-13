@@ -1,7 +1,7 @@
 import { Settings } from '../../../src/core/settings';
-import { Cube } from '../../../src/core/cube/cube';
+import { CoreCube } from '../../../src/core/cube/coreCube';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
-import { CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeType } from '../../../src/core/cube/coreCube.definitions';
 import { CubeField } from '../../../src/core/cube/cubeField';
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
@@ -20,7 +20,7 @@ describe('CubeStore Retention Policy', () => {
     });
 
     it('should reject a cube with a past date', async () => {
-        const pastCube = Cube.Frozen({requiredDifficulty: reducedDifficulty});
+        const pastCube = CoreCube.Frozen({requiredDifficulty: reducedDifficulty});
         pastCube.setDate(Math.floor(Date.now() / 1000) - (365 * 24 * 60 * 60)); // 1 year ago
 
         let result = await cubeStore.addCube(pastCube);
@@ -28,7 +28,7 @@ describe('CubeStore Retention Policy', () => {
     });
 
     it('should reject a cube with a future date', async () => {
-        const futureCube = Cube.Frozen({requiredDifficulty: reducedDifficulty});
+        const futureCube = CoreCube.Frozen({requiredDifficulty: reducedDifficulty});
         futureCube.setDate(Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60)); // 1 year in the future
 
         let result = await cubeStore.addCube(futureCube);
@@ -39,7 +39,7 @@ describe('CubeStore Retention Policy', () => {
         // TODO reduce challenge level for tests -- currently running on full
         // due to lifetime becoming negative on low challenge levels
         // https://github.com/EliasOenal/verity/issues/134
-        const currentCube = Cube.Frozen({
+        const currentCube = CoreCube.Frozen({
             fields: CubeField.RawContent(CubeType.FROZEN,
                 "Cubi recentes accipiendi sunt"),
             requiredDifficulty: Settings.REQUIRED_DIFFICULTY
@@ -48,7 +48,7 @@ describe('CubeStore Retention Policy', () => {
 
         await cubeStore.addCube(currentCube);
 
-        const storedCube: Cube = await cubeStore.getCube(currentCube.getKeyIfAvailable());
+        const storedCube: CoreCube = await cubeStore.getCube(currentCube.getKeyIfAvailable());
         expect(storedCube).toBeDefined();
         expect(storedCube!.getHash()).toEqual(currentCube.getHash());
     });

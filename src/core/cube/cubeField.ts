@@ -1,7 +1,7 @@
 import type { FieldFactoryParam } from '../fields/fieldParser';
 
 import { Settings } from '../settings';
-import { CubeFieldLength, CubeFieldType, CubeType, FieldError, NotificationKey, RawcontentFieldType } from './cube.definitions';
+import { CubeFieldLength, CubeFieldType, CubeType, FieldError, NotificationKey, RawcontentFieldType } from './coreCube.definitions';
 import { unixtime } from '../helpers/misc';
 
 import { BaseField } from '../fields/baseField';

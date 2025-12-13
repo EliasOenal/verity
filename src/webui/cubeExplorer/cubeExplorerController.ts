@@ -1,10 +1,10 @@
-import { coreCubeFamily, type Cube } from "../../core/cube/cube";
+import { coreCubeFamily, type CoreCube } from "../../core/cube/coreCube";
 import type { CubeField } from "../../core/cube/cubeField";
 import { logger } from "../../core/logger";
 import { getElementAboveByClassName } from "../helpers/dom";
 import { CubeExplorerView } from "./cubeExplorerView";
 import { ControllerContext, VerityController, VerityControllerOptions } from "../verityController";
-import type { CubeKey } from "../../core/cube/cube.definitions";
+import type { CubeKey } from "../../core/cube/coreCube.definitions";
 import { CubeStore } from "../../core/cube/cubeStore";
 
 export interface CubeFilter {
@@ -164,7 +164,7 @@ export class CubeExplorerController extends VerityController {
   }
 
   async renderCubeDetails(key: string): Promise<void> {
-    const cube: Cube = await this.getCube(key);
+    const cube: CoreCube = await this.getCube(key);
     if (cube === undefined) {
       this.contentAreaView.makeCubeAlert(key, "danger", "Unable to parse cube");
       return;
@@ -186,7 +186,7 @@ export class CubeExplorerController extends VerityController {
       logger.warn("CubeExplorerController.changeEncoding(): Could not find my elems and attrs, did you mess with my DOM elements?!");
       return;
     }
-    let cube: Cube = await this.getCube(cubeKeyString);
+    let cube: CoreCube = await this.getCube(cubeKeyString);
     if (!cube) {
       logger.warn("CubeExplorerController.changeEncoding(): could not find Cube " + cubeKeyString);
       return;
@@ -207,8 +207,8 @@ export class CubeExplorerController extends VerityController {
 
   // TODO: try to parse as different families before resorting to raw
   // if more CubeFamily definitions are available
-  async getCube(key: CubeKey | string): Promise<Cube> {
-    let cube: Cube = await this.cubeStore.getCube(key);  // TODO: Add option to parse as something other than this CubeStore's default family
+  async getCube(key: CubeKey | string): Promise<CoreCube> {
+    let cube: CoreCube = await this.cubeStore.getCube(key);  // TODO: Add option to parse as something other than this CubeStore's default family
     if (cube === undefined) {  // unparseable, retry as raw
       cube = await this.cubeStore.getCube(key, {family: coreCubeFamily});
     }

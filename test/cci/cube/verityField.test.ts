@@ -1,7 +1,7 @@
-import { FieldType, MediaTypes } from "../../../src/cci/cube/cciCube.definitions";
+import { FieldType, MediaTypes } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
-import { CubeKey, FieldError } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, FieldError } from "../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 

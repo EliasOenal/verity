@@ -10,8 +10,8 @@ import { Libp2pConnection } from '../../../src/core/networking/transport/libp2p/
 import { Libp2pTransport } from '../../../src/core/networking/transport/libp2p/libp2pTransport';
 import { AddressAbstraction } from '../../../src/core/peering/addressing';
 
-import { CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
-import { Cube } from '../../../src/core/cube/cube';
+import { CubeFieldType, CubeKey, CubeType } from '../../../src/core/cube/coreCube.definitions';
+import { CoreCube } from '../../../src/core/cube/coreCube';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { CubeField } from '../../../src/core/cube/cubeField';
 import { CubeFields } from '../../../src/core/cube/cubeFields';
@@ -255,7 +255,7 @@ describe('networkManager - libp2p connections', () => {
 
     // Create new cubes at peer 1
     for (let i = 0; i < numberOfCubes; i++) {
-      const cube = Cube.Frozen({
+      const cube = CoreCube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN,
           `Cubus inutilis numero ${i} amplitudinem retis tuam consumens`),
         requiredDifficulty: reducedDifficulty
@@ -275,7 +275,7 @@ describe('networkManager - libp2p connections', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     for await (const key of cubeStore.getKeyRange({ limit: Infinity })) {
-      expect(await cubeStore2.getCube(key)).toBeInstanceOf(Cube);
+      expect(await cubeStore2.getCube(key)).toBeInstanceOf(CoreCube);
     }
 
     // sync cubes from peer 2 to peer 3
@@ -289,7 +289,7 @@ describe('networkManager - libp2p connections', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     for await (const key of cubeStore2.getKeyRange({ limit: Infinity })) {
-      expect(await cubeStore3.getCube(key)).toBeInstanceOf(Cube);
+      expect(await cubeStore3.getCube(key)).toBeInstanceOf(CoreCube);
     }
 
     // shutdown
@@ -333,13 +333,13 @@ describe('networkManager - libp2p connections', () => {
 
     // just defining some vars, bear with me...
     let counterBuffer: Buffer;
-    let muc: Cube;
+    let muc: CoreCube;
     let mucKey: CubeKey;
     let receivedFields: CubeFields;
 
     // Create MUC at peer 1
     counterBuffer = Buffer.from("Prima versio cubi usoris mutabilis mei.");
-    muc = Cube.MUC(
+    muc = CoreCube.MUC(
       Buffer.from(keyPair.publicKey),
       Buffer.from(keyPair.privateKey),
       {
@@ -364,7 +364,7 @@ describe('networkManager - libp2p connections', () => {
 
     // check MUC has been received correctly at peer 2
     expect(await cubeStore2.getNumberOfStoredCubes()).toEqual(1);
-    expect(await cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
+    expect(await cubeStore2.getCube(mucKey)).toBeInstanceOf(CoreCube);
     expect((await (await cubeStore2.getCube(mucKey))?.getHash())!.equals(
       firstMucHash)).toBeTruthy();
     receivedFields = (await cubeStore2.getCube(mucKey))?.fields!;
@@ -374,7 +374,7 @@ describe('networkManager - libp2p connections', () => {
     // update MUC at peer 1
     await new Promise(resolve => setTimeout(resolve, 1000));  // wait one second as we don't have better time resolution
     counterBuffer = Buffer.from("Secunda versio cubi usoris mutabilis mei.");
-    muc = Cube.MUC(
+    muc = CoreCube.MUC(
       Buffer.from(keyPair.publicKey),
       Buffer.from(keyPair.privateKey),
       {
@@ -398,7 +398,7 @@ describe('networkManager - libp2p connections', () => {
 
     // check MUC has been updated correctly at peer 2
     expect(await cubeStore2.getNumberOfStoredCubes()).toEqual(1);
-    expect(await cubeStore2.getCube(mucKey)).toBeInstanceOf(Cube);
+    expect(await cubeStore2.getCube(mucKey)).toBeInstanceOf(CoreCube);
     expect((await (await cubeStore2.getCube(mucKey))?.getHash())!.equals(secondMucHash)).toBeTruthy();
     receivedFields = (await cubeStore2.getCube(mucKey))?.fields!;
     expect(receivedFields?.getFirst(CubeFieldType.MUC_RAWCONTENT).valueString).
@@ -676,14 +676,14 @@ describe('networkManager - libp2p connections', () => {
 
     // share a Cube between the browsers
     {  // browser1 to browser2
-      const cubeSent: Cube = Cube.Frozen({
+      const cubeSent: CoreCube = CoreCube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus directe ad collegam meum iturus est"),
         requiredDifficulty: reducedDifficulty  // no hashcash for faster testing
       });
       await browser1.cubeStore.addCube(cubeSent);
       // anticipate arrival of Cube at browser 2
       expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
-      let cubeReceived: Cube;
+      let cubeReceived: CoreCube;
       const cubeReceivedPromise = new Promise<void>(
         (resolve) => browser2.cubeStore.once('cubeAdded', (cubeInfo: CubeInfo) => {
           cubeReceived = cubeInfo.getCube();
@@ -695,7 +695,7 @@ describe('networkManager - libp2p connections', () => {
       b2ToB1Np.sendCubeRequest([await cubeSent.getKey()]);
       await cubeReceivedPromise;
       expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(1);
-      expect(cubeReceived!).toBeInstanceOf(Cube);
+      expect(cubeReceived!).toBeInstanceOf(CoreCube);
       expect(cubeReceived!.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).
         valueString).toContain(
           "Hic cubus directe ad collegam meum iturus est");
@@ -723,7 +723,7 @@ describe('networkManager - libp2p connections', () => {
     // Now with the server guaranteed to no longer be present, share another Cube
     // between the browsers
     {  // browser2 to browser1
-      const cubeSent: Cube = Cube.Frozen({
+      const cubeSent: CoreCube = CoreCube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, "Gratias collega, cubus tuus aestimatur."),
         requiredDifficulty: reducedDifficulty  // no hashcash for faster testing
       });
@@ -732,7 +732,7 @@ describe('networkManager - libp2p connections', () => {
       expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(2);
 
       // anticipate arrival of Cube at browser 1
-      let cubeReceived: Cube;
+      let cubeReceived: CoreCube;
       const cubeReceivedPromise = new Promise<void>(
         (resolve) => browser1.cubeStore.on('cubeAdded', (cubeInfo: CubeInfo) => {
           cubeReceived = cubeInfo.getCube();
@@ -750,7 +750,7 @@ describe('networkManager - libp2p connections', () => {
       // direct WebRTC connection using a genuine, native WebRTC stream
 
       expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(2);
-      expect(cubeReceived!).toBeInstanceOf(Cube);
+      expect(cubeReceived!).toBeInstanceOf(CoreCube);
       expect(cubeReceived!.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).
         valueString).toContain(
           "Gratias collega, cubus tuus aestimatur.");
@@ -882,7 +882,7 @@ describe('networkManager - libp2p connections', () => {
     // Create a Cube and exchange it between browsers
     expect(browser1.cubeStore.getNumberOfStoredCubes()).toEqual(0);
     expect(browser2.cubeStore.getNumberOfStoredCubes()).toEqual(0);
-    const cube: Cube = Cube.Frozen({
+    const cube: CoreCube = CoreCube.Frozen({
       fields: CubeField.RawContent(CubeType.FROZEN, "Hic cubus directe ad collegam meum iturus est"),
       requiredDifficulty: reducedDifficulty  // no hashcash for faster testing
     });
@@ -902,8 +902,8 @@ describe('networkManager - libp2p connections', () => {
       }
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    const recovered: Cube = await browser2.cubeStore.getCube(cubeKey);
-    expect(recovered).toBeInstanceOf(Cube);
+    const recovered: CoreCube = await browser2.cubeStore.getCube(cubeKey);
+    expect(recovered).toBeInstanceOf(CoreCube);
     expect(recovered.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).
       toContain("Hic cubus directe ad collegam meum iturus est");
 

@@ -1,10 +1,10 @@
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
-import { cciCube } from "../../../../src/cci/cube/cciCube";
+import { Cube } from "../../../../src/cci/cube/cube";
 import { TestWorld } from "../testWorld";
 import { explorePostGenerator, isPostDisplayable, wotPostGenerator } from '../../../../src/app/zw/model/zwUtil';
 import { PostInfo, RecursiveRelResolvingPostInfo } from '../../../../src/cci/identity/identity.definitions';
-import { Cube } from '../../../../src/core/cube/cube';
+import { CoreCube } from '../../../../src/core/cube/coreCube';
 import { ArrayFromAsync } from '../../../../src/core/helpers/misc';
 import { Veritable } from '../../../../src/core/cube/veritable.definition';
 import { IdentityStore } from '../../../../src/cci/identity/identityStore';
@@ -18,39 +18,39 @@ describe('post generators', () => {
     });
 
     test('expect all Identity MUCs in store', async () => {
-      expect(await w.cubeStore.getCube(w.protagonist.key)).toBeInstanceOf(cciCube);
-      expect(await w.cubeStore.getCube(w.directSub.key)).toBeInstanceOf(cciCube);
-      expect(await w.cubeStore.getCube(w.indirectSub.key)).toBeInstanceOf(cciCube);
-      expect(await w.cubeStore.getCube(w.thirdLevelSub.key)).toBeInstanceOf(cciCube);
-      expect(await w.cubeStore.getCube(w.unrelatedId.key)).toBeInstanceOf(cciCube);
+      expect(await w.cubeStore.getCube(w.protagonist.key)).toBeInstanceOf(Cube);
+      expect(await w.cubeStore.getCube(w.directSub.key)).toBeInstanceOf(Cube);
+      expect(await w.cubeStore.getCube(w.indirectSub.key)).toBeInstanceOf(Cube);
+      expect(await w.cubeStore.getCube(w.thirdLevelSub.key)).toBeInstanceOf(Cube);
+      expect(await w.cubeStore.getCube(w.unrelatedId.key)).toBeInstanceOf(Cube);
     });
 
     test('expect all posts to be in store, except of course the unavailable one', async() => {
-      expect(await w.cubeStore.getCube(await w.posts[0].own.getKey())).toBeInstanceOf(cciCube);
-      expect(await w.cubeStore.getCube(await w.posts[0].ownDirect.getKey())).toBeInstanceOf(cciCube);
-      expect(await w.cubeStore.getCube(await w.posts[0].ownIndirect.getKey())).toBeInstanceOf(cciCube);
-      expect(await w.cubeStore.getCube(await w.posts[0].ownThird.getKey())).toBeInstanceOf(cciCube);
-      expect(await w.cubeStore.getCube(await w.posts[0].ownUnrelatedUnanswered.getKey())).toBeInstanceOf(cciCube);
-      expect(await w.cubeStore.getCube(await w.posts[0].ownUnrelatedAnswered.getKey())).toBeInstanceOf(cciCube);
-      expect(await w.cubeStore.getCube(await w.posts[0].ownUnrelatedSub.getKey())).toBeInstanceOf(cciCube);
+      expect(await w.cubeStore.getCube(await w.posts[0].own.getKey())).toBeInstanceOf(Cube);
+      expect(await w.cubeStore.getCube(await w.posts[0].ownDirect.getKey())).toBeInstanceOf(Cube);
+      expect(await w.cubeStore.getCube(await w.posts[0].ownIndirect.getKey())).toBeInstanceOf(Cube);
+      expect(await w.cubeStore.getCube(await w.posts[0].ownThird.getKey())).toBeInstanceOf(Cube);
+      expect(await w.cubeStore.getCube(await w.posts[0].ownUnrelatedUnanswered.getKey())).toBeInstanceOf(Cube);
+      expect(await w.cubeStore.getCube(await w.posts[0].ownUnrelatedAnswered.getKey())).toBeInstanceOf(Cube);
+      expect(await w.cubeStore.getCube(await w.posts[0].ownUnrelatedSub.getKey())).toBeInstanceOf(Cube);
 
-      expect(await w.cubeStore.getCube(await w.posts[0].directUnreplied.getKey())).toBeInstanceOf(cciCube);
-      expect(await w.cubeStore.getCube(await w.posts[0].directThird.getKey())).toBeInstanceOf(cciCube);
+      expect(await w.cubeStore.getCube(await w.posts[0].directUnreplied.getKey())).toBeInstanceOf(Cube);
+      expect(await w.cubeStore.getCube(await w.posts[0].directThird.getKey())).toBeInstanceOf(Cube);
 
-      expect(await w.cubeStore.getCube(await w.posts[0].indirectUnreplied.getKey())).toBeInstanceOf(cciCube);
+      expect(await w.cubeStore.getCube(await w.posts[0].indirectUnreplied.getKey())).toBeInstanceOf(Cube);
 
-      expect(await w.cubeStore.getCube(await w.posts[0].thirdUnreplied.getKey())).toBeInstanceOf(cciCube);
+      expect(await w.cubeStore.getCube(await w.posts[0].thirdUnreplied.getKey())).toBeInstanceOf(Cube);
 
-      expect(await w.cubeStore.getCube(await w.posts[0].unrelatedUnanswered.getKey())).toBeInstanceOf(cciCube);
+      expect(await w.cubeStore.getCube(await w.posts[0].unrelatedUnanswered.getKey())).toBeInstanceOf(Cube);
 
-      expect(await w.cubeStore.getCube(await w.posts[0].unrelatedAnsweredBySub.getKey())).toBeInstanceOf(cciCube);
-      expect(await w.cubeStore.getCube(await w.posts[0].unrelatedSub.getKey())).toBeInstanceOf(cciCube);
+      expect(await w.cubeStore.getCube(await w.posts[0].unrelatedAnsweredBySub.getKey())).toBeInstanceOf(Cube);
+      expect(await w.cubeStore.getCube(await w.posts[0].unrelatedSub.getKey())).toBeInstanceOf(Cube);
 
-      expect(await w.cubeStore.getCube(await w.posts[0].unrelatedAnsweredByProtagonist.getKey())).toBeInstanceOf(cciCube);
-      expect(await w.cubeStore.getCube(await w.posts[0].unrelatedOwn.getKey())).toBeInstanceOf(cciCube);
+      expect(await w.cubeStore.getCube(await w.posts[0].unrelatedAnsweredByProtagonist.getKey())).toBeInstanceOf(Cube);
+      expect(await w.cubeStore.getCube(await w.posts[0].unrelatedOwn.getKey())).toBeInstanceOf(Cube);
 
       expect(await w.cubeStore.getCube(await w.posts[0].subUnavailable.getKey())).toBeUndefined();
-      expect(await w.cubeStore.getCube(await w.posts[0].subUnavailableIndirect.getKey())).toBeInstanceOf(cciCube);
+      expect(await w.cubeStore.getCube(await w.posts[0].subUnavailableIndirect.getKey())).toBeInstanceOf(Cube);
     });
 
     test('expect all posts to be listed by their authors', async () => {
@@ -82,18 +82,18 @@ describe('post generators', () => {
     });
   });
 
-  async function shouldDisplay(post: Veritable, list: RecursiveRelResolvingPostInfo<Cube>[]) {
+  async function shouldDisplay(post: Veritable, list: RecursiveRelResolvingPostInfo<CoreCube>[]) {
     const postInfo = list.find((p) => p.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable());
     expect(postInfo).toBeDefined();
     expect(await isPostDisplayable(postInfo!)).toBe(true);
   }
 
-  function shouldNotGenerate(post: Veritable, list: RecursiveRelResolvingPostInfo<Cube>[]) {
+  function shouldNotGenerate(post: Veritable, list: RecursiveRelResolvingPostInfo<CoreCube>[]) {
     const postInfo = list.find((p) => p.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable());
     expect(postInfo).toBeUndefined();
   }
 
-  async function shouldGenerateButNotDisplay(post: Veritable, list: RecursiveRelResolvingPostInfo<Cube>[]) {
+  async function shouldGenerateButNotDisplay(post: Veritable, list: RecursiveRelResolvingPostInfo<CoreCube>[]) {
     const postInfo = list.find((p) => p.main.getKeyStringIfAvailable() === post.getKeyStringIfAvailable());
     expect(postInfo).toBeDefined();
     expect(await isPostDisplayable(postInfo!)).toBe(false);
@@ -101,7 +101,7 @@ describe('post generators', () => {
 
   describe('full WOT', () => {
     let w: TestWorld;
-    const list: RecursiveRelResolvingPostInfo<Cube>[] = [];
+    const list: RecursiveRelResolvingPostInfo<CoreCube>[] = [];
     beforeAll(async () => {
       w = new TestWorld({ subscriptions: true });
       await w.setup();
@@ -181,7 +181,7 @@ describe('post generators', () => {
 
   describe('explore unknown authors through notifications', () => {
     let w: TestWorld;
-    const list: RecursiveRelResolvingPostInfo<Cube>[] = [];
+    const list: RecursiveRelResolvingPostInfo<CoreCube>[] = [];
 
     beforeAll(async () => {
       w = new TestWorld({ subscriptions: false });

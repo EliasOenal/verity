@@ -1,4 +1,4 @@
-import { cciCube, cciFamily } from "../../../src/cci/cube/cciCube";
+import { Cube, cciFamily } from "../../../src/cci/cube/cube";
 import { Identity } from "../../../src/cci/identity/identity";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 
@@ -47,7 +47,7 @@ describe("Identity (separate MUC storage test suite for long-running tests)", ()
       id.store(); // note there's no "await"
 
       id.name = "Probator Minimae Distantiae Temporis";
-      const thirdMuc: cciCube = await id.store(); // with await this time
+      const thirdMuc: Cube = await id.store(); // with await this time
       expect(thirdMuc).toEqual(id.muc);
       expect(thirdMuc.getHashIfAvailable()).toEqual(
         id.muc.getHashIfAvailable()

@@ -1,5 +1,5 @@
-import { Cube } from "../../../src/core/cube/cube";
-import { CubeFieldType, CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
+import { CoreCube } from "../../../src/core/cube/coreCube";
+import { CubeFieldType, CubeKey, CubeType } from "../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 import { asCubeKey, keyVariants } from "../../../src/core/cube/keyUtil";
@@ -27,10 +27,10 @@ describe('Cube subscription e2e tests', () => {
     const concurrentUpdateSender = 'duos dominos habeo';
     const concurrentUpdateRecipient = 'de potestate mea pugnant';
     const updateAfterSubscriptionEnded = 'nemo hunc nuntium videbit';
-    let originalMuc: Cube;
+    let originalMuc: CoreCube;
     let key: CubeKey;
     let privateKey: Buffer;
-    let received: Cube[];
+    let received: CoreCube[];
 
     beforeAll(async () => {
       // initialise vars
@@ -48,13 +48,13 @@ describe('Cube subscription e2e tests', () => {
       });
 
       // recipient subscribes to the MUC
-      const subGen: AsyncGenerator<Cube> =
+      const subGen: AsyncGenerator<CoreCube> =
         net.recipient.cubeRetriever.subscribeCube(key);
       // push the received cubes into an array for easier testing
       (async () => { for await (const cube of subGen) received.push(cube)})();
 
       // sculpt the original MUC at the sender
-      originalMuc = Cube.Create({
+      originalMuc = CoreCube.Create({
         cubeType: CubeType.MUC,
         privateKey,
         publicKey: key, requiredDifficulty,
@@ -93,7 +93,7 @@ describe('Cube subscription e2e tests', () => {
 
     it('will receive MUC updates while subscribed', async () => {
       // sender updates the MUC
-      const updatedMuc = Cube.Create({
+      const updatedMuc = CoreCube.Create({
         cubeType: CubeType.MUC,
         privateKey,
         publicKey: key,
@@ -140,7 +140,7 @@ describe('Cube subscription e2e tests', () => {
     it('will keep receiving updates through the renewed subscription', async() => {
       // Let's update the MUC at the sender.
       // sender updates the MUC
-      const updatedMuc = Cube.Create({
+      const updatedMuc = CoreCube.Create({
         cubeType: CubeType.MUC,
         privateKey,
         publicKey: key,
@@ -183,7 +183,7 @@ describe('Cube subscription e2e tests', () => {
       expect(fn2ToRecpt.cubeSubscriptions).not.toContain(keyVariants(key).keyString);
 
       // Have the sender update the MUC once again
-      const updatedMuc = Cube.Create({
+      const updatedMuc = CoreCube.Create({
         cubeType: CubeType.MUC,
         privateKey,
         publicKey: key,
@@ -247,7 +247,7 @@ describe('Cube subscription e2e tests', () => {
         await net.sender.networkManager.scheduler.subscribeCube(key);
 
       // Sender updates the MUC once again
-      const senderUpdate = Cube.Create({
+      const senderUpdate = CoreCube.Create({
         cubeType: CubeType.MUC,
         privateKey,
         publicKey: key,
@@ -261,7 +261,7 @@ describe('Cube subscription e2e tests', () => {
 
       // Recipient now also pushes an update,
       // before having received the sender's latest version.
-      const recipientUpdate = Cube.Create({
+      const recipientUpdate = CoreCube.Create({
         cubeType: CubeType.MUC,
         privateKey,
         publicKey: key,
@@ -298,7 +298,7 @@ describe('Cube subscription e2e tests', () => {
 
     it('will stop receiving updates after a subscription is cancelled and expired', async () => {
       // Fetch the recipient's current MUC version
-      const muc: Cube = await net.recipient.cubeStore.getCube(key);
+      const muc: CoreCube = await net.recipient.cubeStore.getCube(key);
       // Fetch current subscription
       const sub: CubeSubscription =
         net.recipient.networkManager.scheduler.cubeSubscriptionDetails(key);
@@ -308,7 +308,7 @@ describe('Cube subscription e2e tests', () => {
       await sub.promise;  // denotes expiry
 
       // Sender updates the MUC once again
-      const updatedMuc = Cube.Create({
+      const updatedMuc = CoreCube.Create({
         cubeType: CubeType.MUC,
         privateKey,
         publicKey: key,
@@ -352,7 +352,7 @@ async function waitForMucContent(cubeStore: CubeStore, key: CubeKey, expectedCon
   }
 }
 
-function containsCube(list: Cube[], key: CubeKey, expectedContent: string): boolean {
+function containsCube(list: CoreCube[], key: CubeKey, expectedContent: string): boolean {
   for (const cube of list) {
     if (cube.publicKey.equals(key)) {
       const field = cube.getFirstField(CubeFieldType.MUC_RAWCONTENT);

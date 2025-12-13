@@ -1,6 +1,6 @@
 import { KeyPair } from "../../../src/cci/helpers/cryptography";
-import { Cube } from "../../../src/core/cube/cube";
-import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
+import { CoreCube } from "../../../src/core/cube/coreCube";
+import { CubeKey, CubeType } from "../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 import { calculateHash } from "../../../src/core/cube/cubeUtil";
@@ -26,10 +26,10 @@ describe('NetworkPeer CubeSubscription tests', () => {
   let networkManager: NetworkManagerIf;
   let cubeStore: CubeStore;
   let peerDB: PeerDB;
-  let available: Cube;
+  let available: CoreCube;
   let availableKey: CubeKey;
   let availableHash: Buffer;
-  let available2: Cube;
+  let available2: CoreCube;
   let availableKey2: CubeKey;
   let availableHash2: Buffer;
   let conn: DummyTransportConnection;
@@ -47,7 +47,7 @@ describe('NetworkPeer CubeSubscription tests', () => {
       publicKey: Buffer.from(keys.publicKey),
       privateKey: Buffer.from(keys.privateKey),
     };
-    available = Cube.Create({
+    available = CoreCube.Create({
       cubeType: CubeType.MUC,
       publicKey: keyPair.publicKey,
       privateKey: keyPair.privateKey,
@@ -67,7 +67,7 @@ describe('NetworkPeer CubeSubscription tests', () => {
       publicKey: Buffer.from(keys2.publicKey),
       privateKey: Buffer.from(keys2.privateKey),
     };
-    available2 = Cube.Create({
+    available2 = CoreCube.Create({
       cubeType: CubeType.MUC,
       publicKey: keyPair2.publicKey,
       privateKey: keyPair2.privateKey,
@@ -239,7 +239,7 @@ describe('NetworkPeer CubeSubscription tests', () => {
         await (peer as any).handleSubscribeCube(req);
 
         // update Cube
-        available = Cube.Create({
+        available = CoreCube.Create({
           cubeType: CubeType.MUC,
           publicKey: keyPair.publicKey,
           privateKey: keyPair.privateKey,

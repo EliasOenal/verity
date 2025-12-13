@@ -1,5 +1,5 @@
-import { Cube } from "../../../src/core/cube/cube";
-import { CubeFieldType, CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
+import { CoreCube } from "../../../src/core/cube/coreCube";
+import { CubeFieldType, CubeKey, CubeType } from "../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { requiredDifficulty } from "../testcore.definition";
 import { LineShapedNetwork } from "./e2eSetup";
@@ -24,7 +24,7 @@ describe('Cube request e2e tests', () => {
       await net.sender.cubeStore.addCube(cube);
 
       const req = net.recipient.networkManager.scheduler.requestCube(key);
-      const received: Cube = (await req).getCube();
+      const received: CoreCube = (await req).getCube();
       expect(received.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).
         toContain("cubus sum");
     });
@@ -38,16 +38,16 @@ describe('Cube request e2e tests', () => {
 
       await net.sender.cubeStore.addCube(cube);
 
-      const received: Cube = (await req).getCube();
+      const received: CoreCube = (await req).getCube();
       expect(received.getFirstField(CubeFieldType.FROZEN_RAWCONTENT).valueString).
         toContain("cubus sum");
     }, 20000);
 });
 
 
-function testCube(): Cube {
+function testCube(): CoreCube {
   const content = "cubus sum";
-  const cube = Cube.Create({
+  const cube = CoreCube.Create({
     cubeType: CubeType.FROZEN,
     fields: CubeField.RawContent(CubeType.FROZEN, content),
     requiredDifficulty,

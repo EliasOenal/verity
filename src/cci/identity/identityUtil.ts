@@ -1,6 +1,6 @@
 import type { CubeInfo } from "../../core/cube/cubeInfo";
 
-import { CubeType } from "../../core/cube/cube.definitions";
+import { CubeType } from "../../core/cube/coreCube.definitions";
 import { DEFAULT_IDMUC_CONTEXT_STRING, IdentityOptions, IDMUC_MASTERINDEX } from "./identity.definitions";
 import { deriveSigningKeypair, KeyPair } from "../helpers/cryptography";
 

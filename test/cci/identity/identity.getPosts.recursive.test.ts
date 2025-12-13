@@ -1,8 +1,8 @@
 import { Veritable } from '../../../src/core/cube/veritable.definition';
-import { Cube } from '../../../src/core/cube/cube';
+import { CoreCube } from '../../../src/core/cube/coreCube';
 
-import { cciCube } from '../../../src/cci/cube/cciCube';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { Cube } from '../../../src/cci/cube/cube';
+import { FieldType } from '../../../src/cci/cube/cube.definitions';
 import { Relationship, RelationshipType } from '../../../src/cci/cube/relationship';
 import { Veritum } from '../../../src/cci/veritum/veritum';
 import { ResolveRelsRecursiveResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
@@ -31,7 +31,7 @@ async function hasPost(list: Veritable[]|PostInfo<Veritable>[], post: Veritable,
   if (veritum['main'] !== undefined) veritum = (veritum as unknown as PostInfo<Veritable>).main;
   // correct format?
   if (format === RetrievalFormat.Veritum) expect(veritum).toBeInstanceOf(Veritum);
-  if (format === RetrievalFormat.Cube) expect(veritum).toBeInstanceOf(cciCube);
+  if (format === RetrievalFormat.Cube) expect(veritum).toBeInstanceOf(Cube);
 
   if (shouldResolveBasePost) {
     const rel: Relationship = (veritum as Veritum).getFirstRelationship(RelationshipType.REPLY_TO);
@@ -61,13 +61,13 @@ describe('Identity: getPosts generator; recursive retrieval of own posts and pos
     let w: TestWorld;
     let postsGenDirectVeritum: GetPostsGenerator<Veritum>;
     let postsGenPostInfoVeritum: GetPostsGenerator<PostInfo<Veritum>>;
-    let postsGenDirectCube: GetPostsGenerator<Cube>;
-    let postsGenPostInfoCube: GetPostsGenerator<PostInfo<Cube>>;
+    let postsGenDirectCube: GetPostsGenerator<CoreCube>;
+    let postsGenPostInfoCube: GetPostsGenerator<PostInfo<CoreCube>>;
 
     const postsDirectVeritum: Veritum[] = [];
     const postsPostInfoVeritum: PostInfo<Veritum>[] = [];
-    const postsDirectCube: Cube[] = [];
-    const postsPostInfoCube: PostInfo<Cube>[] = [];
+    const postsDirectCube: CoreCube[] = [];
+    const postsPostInfoCube: PostInfo<CoreCube>[] = [];
 
     beforeAll(async () => {
       // prepare test setup

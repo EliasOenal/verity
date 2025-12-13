@@ -3,10 +3,10 @@ import type { CubeField } from "../../core/cube/cubeField";
 import { FieldPosition } from "../../core/fields/baseFields";
 import { CubeFields, FieldParserTable } from "../../core/cube/cubeFields";
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
-import { CubeType, FrozenNotifyPositionalBack, FrozenPositionalBack, FrozenPositionalFront, MucNotifyPositionalBack, MucPositionalBack, MucPositionalFront, PicNotifyPositionalBack, PicPositionalBack, PicPositionalFront, PmucNotifyPositionalBack, PmucPositionalBack, PmucPositionalFront } from "../../core/cube/cube.definitions";
+import { CubeType, FrozenNotifyPositionalBack, FrozenPositionalBack, FrozenPositionalFront, MucNotifyPositionalBack, MucPositionalBack, MucPositionalFront, PicNotifyPositionalBack, PicPositionalBack, PicPositionalFront, PmucNotifyPositionalBack, PmucPositionalBack, PmucPositionalFront } from "../../core/cube/coreCube.definitions";
 import { FrozenDefaultFields, FrozenNotifyDefaultFields, MucDefaultFields, MucNotifyDefaultFields, PicDefaultFields, PicNotifyDefaultFields, PmucDefaultFields, PmucNotifyDefaultFields } from "../../core/cube/cubeField";
 
-import { FieldType, FieldLength } from "./cciCube.definitions";
+import { FieldType, FieldLength } from "./cube.definitions";
 import { VerityField } from "./verityField";
 import { Relationship, RelationshipType } from "./relationship";
 
@@ -90,7 +90,7 @@ export class VerityFields extends CubeFields {
 
 // NOTE: Never move this to another file. This only works if it is defined
 // strictly after cciField and cciFields.
-// For the same reason, cciFamily is defined in the same file as cciCube.
+// For the same reason, cciFamily is defined in the same file as Cube.
 // Javascript is crazy.
 export const cciFrozenFieldDefinition: FieldDefinition = {
   fieldNames: FieldType,

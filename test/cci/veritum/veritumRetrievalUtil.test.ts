@@ -2,23 +2,23 @@ import sodium from 'libsodium-wrappers-sumo'
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
-import { cciCube } from '../../../src/cci/cube/cciCube';
+import { Cube } from '../../../src/cci/cube/cube';
 import { testCciOptions } from '../testcci.definitions';
 import { VerityField } from '../../../src/cci/cube/verityField';
 import { RelationshipType } from '../../../src/cci/cube/relationship';
 import { resolveRels, resolveRelsRecursive, ResolveRelsRecursiveResult, ResolveRelsResult } from '../../../src/cci/veritum/veritumRetrievalUtil';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
-import { CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
+import { FieldType } from '../../../src/cci/cube/cube.definitions';
+import { CubeKey, CubeType } from '../../../src/core/cube/coreCube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 
 describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', () => {
   let cubeStore: CubeStore;
 
-  let leaf1: cciCube, leaf2: cciCube, leaf3: cciCube;
-  let singleMyPost: cciCube, twoMyPosts: cciCube, replyToPlusMyPost: cciCube;
-  let unresolvableRel: cciCube, indirectlyUnresolvableRel: cciCube;
-  let cubeA: cciCube, cubeB: cciCube, cubeC: cciCube;
-  let cycleA: cciCube, cycleB: cciCube, cycleC: cciCube;
+  let leaf1: Cube, leaf2: Cube, leaf3: Cube;
+  let singleMyPost: Cube, twoMyPosts: Cube, replyToPlusMyPost: Cube;
+  let unresolvableRel: Cube, indirectlyUnresolvableRel: Cube;
+  let cubeA: Cube, cubeB: Cube, cubeC: Cube;
+  let cycleA: Cube, cycleB: Cube, cycleC: Cube;
 
   beforeAll(async () => {
     // Wait for any needed crypto initialization.
@@ -27,21 +27,21 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
     await cubeStore.readyPromise;
 
     // --- Create leaf cubes (i.e. having no further references) ---
-    leaf1 = cciCube.Create({
+    leaf1 = Cube.Create({
       fields: [VerityField.Payload("Hic cubus ab aliis cubis refertur")],
       requiredDifficulty: 0,
     });
     const leaf1Key = await leaf1.getKey();
     await cubeStore.addCube(leaf1);
 
-    leaf2 = cciCube.Create({
+    leaf2 = Cube.Create({
       fields: [VerityField.Payload("Hic cubus quoque ab aliis cubis refertur")],
       requiredDifficulty: 0,
     });
     const leaf2Key = await leaf2.getKey();
     await cubeStore.addCube(leaf2);
 
-    leaf3 = cciCube.Create({
+    leaf3 = Cube.Create({
       fields: [VerityField.Payload("Alius cubus ab aliis refertur")],
       requiredDifficulty: 0,
     });
@@ -49,7 +49,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
     await cubeStore.addCube(leaf3);
 
     // --- Create cubes with relationships (first level) ---
-    singleMyPost = cciCube.Create({
+    singleMyPost = Cube.Create({
       fields: [
         VerityField.Payload("Ecce, dominus meus hunc alium cubum interessantem scripsit"),
         VerityField.RelatesTo(RelationshipType.MYPOST, leaf1Key),
@@ -57,7 +57,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       requiredDifficulty: 0,
     });
 
-    twoMyPosts = cciCube.Create({
+    twoMyPosts = Cube.Create({
       fields: [
         VerityField.Payload("Dominus meus sapiens plures alios cubos interessantes scripsit"),
         VerityField.RelatesTo(RelationshipType.MYPOST, leaf1Key),
@@ -66,7 +66,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       requiredDifficulty: 0,
     });
 
-    replyToPlusMyPost = cciCube.Create({
+    replyToPlusMyPost = Cube.Create({
       fields: [
         VerityField.Payload("Tam sapiens est ut cubis alienis respondeat"),
         VerityField.RelatesTo(RelationshipType.REPLY_TO, leaf3Key),
@@ -77,7 +77,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
     });
 
     // Sculpt a Cube with an unresolvable relationship.
-    unresolvableRel = cciCube.Create({
+    unresolvableRel = Cube.Create({
       fields: [
         VerityField.Payload("Mysterium manebit quid significem"),
         VerityField.RelatesTo(RelationshipType.REPLY_TO,
@@ -87,21 +87,21 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
     await cubeStore.addCube(unresolvableRel);
 
     // Sculpt a Cube with an indirectly unresolvable relationship
-    indirectlyUnresolvableRel = cciCube.Create({
+    indirectlyUnresolvableRel = Cube.Create({
       fields: [
         VerityField.Payload("Haec catena cuborum fracta est"),
         VerityField.RelatesTo(RelationshipType.REPLY_TO, unresolvableRelKey),
     ]});
 
     // --- Create a chain: cubeA -> cubeB -> cubeC (with cubeC being a leaf cube) ---
-    cubeC = cciCube.Create({
+    cubeC = Cube.Create({
       fields: [VerityField.Payload("Cube C")],
       requiredDifficulty: 0,
     });
     await cubeStore.addCube(cubeC);
     const cubeCKey = await cubeC.getKey();
 
-    cubeB = cciCube.Create({
+    cubeB = Cube.Create({
       fields: [
         VerityField.Payload("Cube B"),
         VerityField.RelatesTo(RelationshipType.REPLY_TO, cubeCKey),
@@ -111,7 +111,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
     await cubeStore.addCube(cubeB);
     const cubeBKey = await cubeB.getKey();
 
-    cubeA = cciCube.Create({
+    cubeA = Cube.Create({
       fields: [
         VerityField.Payload("Cube A"),
         VerityField.RelatesTo(RelationshipType.MYPOST, cubeBKey),
@@ -125,7 +125,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
     // cycleA has to be a signed type as cyclic rels are impossible
     // with hash-based types
     const keyPairCycleA = sodium.crypto_sign_keypair();
-    cycleA = cciCube.Create({
+    cycleA = Cube.Create({
       cubeType: CubeType.PMUC,
       fields: [VerityField.Payload("Cycle A")],
       requiredDifficulty: 0,
@@ -135,7 +135,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
     const cycleAKey = cycleA.getKeyIfAvailable();  // signed types always know their key
     // defer publishing of cyclyA until after we complete the cyclic chain
 
-    cycleB = cciCube.Create({
+    cycleB = Cube.Create({
       fields: [
         VerityField.Payload("Cycle B"),
         VerityField.RelatesTo(RelationshipType.REPLY_TO, cycleAKey), // cycle
@@ -145,7 +145,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
     await cubeStore.addCube(cycleB);
     const cycleBKey = await cycleB.getKey();
 
-    cycleC = cciCube.Create({
+    cycleC = Cube.Create({
       fields: [
         VerityField.Payload("Cycle C"),
         VerityField.RelatesTo(RelationshipType.REPLY_TO, cycleBKey), // cycle
@@ -199,7 +199,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       describe('test after awaiting', () => {
         it('has retrieved the referred Cube', async () => {
           const retrieved = await res[RelationshipType.MYPOST][0];
-          expect(retrieved).toBeInstanceOf(cciCube);
+          expect(retrieved).toBeInstanceOf(Cube);
           expect(retrieved.getFirstField(FieldType.PAYLOAD).valueString).toBe("Hic cubus ab aliis cubis refertur");
           expect(retrieved.equals(leaf1)).toBe(true);
         });
@@ -242,11 +242,11 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       describe('test after awaiting', () => {
         it('has retrieved the referred Cubes', async () => {
           const retrieved1 = await res[RelationshipType.MYPOST][0];
-          expect(retrieved1).toBeInstanceOf(cciCube);
+          expect(retrieved1).toBeInstanceOf(Cube);
           expect(retrieved1.equals(leaf1)).toBe(true);
 
           const retrieved2 = await res[RelationshipType.MYPOST][1];
-          expect(retrieved2).toBeInstanceOf(cciCube);
+          expect(retrieved2).toBeInstanceOf(Cube);
           expect(retrieved2.equals(leaf2)).toBe(true);
         });
       });
@@ -288,17 +288,17 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
       describe('test after awaiting', () => {
         it('has retrieved the Cube referred to as REPLY_TO', async () => {
           const retrieved = await res[RelationshipType.REPLY_TO][0];
-          expect(retrieved).toBeInstanceOf(cciCube);
+          expect(retrieved).toBeInstanceOf(Cube);
           expect(retrieved.equals(leaf3)).toBe(true);
         });
 
         it('has retrieved the Cubes referred to as MYPOST', async () => {
           const retrieved1 = await res[RelationshipType.MYPOST][0];
-          expect(retrieved1).toBeInstanceOf(cciCube);
+          expect(retrieved1).toBeInstanceOf(Cube);
           expect(retrieved1.equals(leaf1)).toBe(true);
 
           const retrieved2 = await res[RelationshipType.MYPOST][1];
-          expect(retrieved2).toBeInstanceOf(cciCube);
+          expect(retrieved2).toBeInstanceOf(Cube);
           expect(retrieved2.equals(leaf2)).toBe(true);
         });
       });
@@ -477,7 +477,7 @@ describe('VeritumRetrievalUtil resolveRels() / resolveRelsRecursive() tests', ()
 
       it('retrieves the referred cube', async () => {
         const resolvedMypost = await recursiveRes[RelationshipType.MYPOST][0];
-        expect(resolvedMypost.main).toBeInstanceOf(cciCube);
+        expect(resolvedMypost.main).toBeInstanceOf(Cube);
         expect(resolvedMypost.main.equals(leaf1)).toBe(true);
 
         // Since the referred Cube is a leaf, it should not have relationship properties

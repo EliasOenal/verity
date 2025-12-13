@@ -1,6 +1,6 @@
 /**
  * Test Node.js Full Node Server for Browser Testing
- * 
+ *
  * This creates a real Verity full node that browser nodes can connect to,
  * similar to the networking tests in test/core/networking/
  */
@@ -10,9 +10,9 @@ import { testCoreOptions } from '../core/testcore.definition';
 import { SupportedTransports } from '../../src/core/networking/networkDefinitions';
 import { WebSocketAddress } from '../../src/core/peering/addressing';
 import { Peer } from '../../src/core/peering/peer';
-import { Cube } from '../../src/core/cube/cube';
+import { CoreCube } from '../../src/core/cube/coreCube';
 import { CubeField } from '../../src/core/cube/cubeField';
-import { CubeType } from '../../src/core/cube/cube.definitions';
+import { CubeType } from '../../src/core/cube/coreCube.definitions';
 import { logger } from '../../src/core/logger';
 
 export class TestNodeServer {
@@ -89,7 +89,7 @@ export class TestNodeServer {
     }
 
     try {
-      const cube = Cube.Frozen({
+      const cube = CoreCube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, content),
         requiredDifficulty: 0,
       });
@@ -133,7 +133,7 @@ const testServers = new Map<number, TestNodeServer>();
 export async function getTestServer(workerIndex: number = 0, basePort: number = 19000): Promise<TestNodeServer> {
   // Allocate port based on worker index to avoid conflicts
   const port = basePort + workerIndex;
-  
+
   if (!testServers.has(port)) {
     const server = new TestNodeServer(port);
     await server.start();

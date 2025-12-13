@@ -1,7 +1,7 @@
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
-import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
-import { cciCube } from "../../../src/cci/cube/cciCube";
+import { FieldType } from "../../../src/cci/cube/cube.definitions";
+import { Cube } from "../../../src/cci/cube/cube";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../../src/cci/cube/verityFields";
 import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
@@ -157,9 +157,9 @@ describe('VerityFields', () => {
     });
 
     it('correctly sets and retrieves a reply_to relationship field in a full stack test', async () => {
-      const root: cciCube = cciCube.Frozen(
+      const root: Cube = Cube.Frozen(
         { fields: VerityField.Payload(Buffer.alloc(200)) });
-      const leaf: cciCube = cciCube.Frozen({
+      const leaf: Cube = Cube.Frozen({
         fields: [
           VerityField.Payload(Buffer.alloc(200)),
           VerityField.RelatesTo(new Relationship(

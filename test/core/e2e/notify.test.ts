@@ -1,5 +1,5 @@
-import { Cube } from "../../../src/core/cube/cube";
-import { CubeFieldType, CubeType, NotificationKey } from "../../../src/core/cube/cube.definitions";
+import { CoreCube } from "../../../src/core/cube/coreCube";
+import { CubeFieldType, CubeType, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { NetConstants, SupportedTransports } from "../../../src/core/networking/networkDefinitions";
@@ -51,7 +51,7 @@ describe('notification end-to-end tests', () => {
     const notificationKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42) as NotificationKey;
     const contentField = CubeField.RawContent(CubeType.FROZEN_NOTIFY,
       "Haec notificatio directe tradetur. Nulla deviatio acceptabilis est!");
-    const notification: Cube = Cube.Frozen({
+    const notification: CoreCube = CoreCube.Frozen({
       fields: [
         contentField,
         CubeField.Notify(notificationKey),
@@ -84,7 +84,7 @@ describe('notification end-to-end tests', () => {
     const notificationKey = Buffer.alloc(NetConstants.NOTIFY_SIZE, 42) as NotificationKey;
     const contentField = CubeField.RawContent(CubeType.FROZEN_NOTIFY,
       "Haec notificatio ad collegam meam directa est");
-    const notification: Cube = Cube.Frozen({
+    const notification: CoreCube = CoreCube.Frozen({
       fields: [
         contentField,
         CubeField.Notify(notificationKey),

@@ -2,7 +2,7 @@ import { ApiMisuseError, Settings, VerityError } from "../../core/settings";
 import { FieldDefinition, FieldParser } from "../../core/fields/fieldParser";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
-import { FieldType } from "../cube/cciCube.definitions";
+import { FieldType } from "../cube/cube.definitions";
 import { VerityField } from "../cube/verityField";
 import { VerityFields, cciFrozenFieldDefinition } from "../cube/verityFields";
 import { ContinuationDefaultExclusions } from "./veritum.definitions";

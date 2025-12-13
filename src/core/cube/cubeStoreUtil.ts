@@ -1,11 +1,11 @@
 import { NetConstants } from "../networking/networkDefinitions";
-import { Cube } from "./cube";
-import { CubeType, CubeFieldType, CubeError, NotificationKey, CubeKey } from "./cube.definitions";
+import { CoreCube } from "./coreCube";
+import { CubeType, CubeFieldType, CubeError, NotificationKey, CubeKey } from "./coreCube.definitions";
 import { CubeStore } from "./cubeStore";
 import { logger } from "../logger";
 import { Sublevels } from "./levelBackend";
 
-export async function autoIncrementPmuc(cube: Cube, store: CubeStore): Promise<void> {
+export async function autoIncrementPmuc(cube: CoreCube, store: CubeStore): Promise<void> {
   // If this is a PMUC and the PMUC_UPDATE_COUNT field has not been set
   // manually, attempt to auto-increment it.
   // TODO: Only auto-increment if this version actually differs from
@@ -49,7 +49,7 @@ export async function autoIncrementPmuc(cube: Cube, store: CubeStore): Promise<v
  **/
 async function getNotificationKey(
     sublevel: Sublevels,
-    param1: Cube|NotificationKey,
+    param1: CoreCube|NotificationKey,
     middleParam?: number|Buffer,
     cubeKey?: CubeKey
 ): Promise<Buffer> {
@@ -59,7 +59,7 @@ async function getNotificationKey(
     const middlePartSize = (sublevel === Sublevels.INDEX_TIME) ? NetConstants.TIMESTAMP_SIZE : 1;
     const functionName = (sublevel === Sublevels.INDEX_TIME) ? 'getNotificationDateKey' : 'getNotificationDifficultyKey';
 
-    if (param1 instanceof Cube) {
+    if (param1 instanceof CoreCube) {
         recipient = param1.getFirstField(CubeFieldType.NOTIFY)?.value;
         cubeKey = await param1.getKey();
         if (sublevel === Sublevels.INDEX_TIME) {
@@ -103,10 +103,10 @@ async function getNotificationKey(
  * This is done by concatenating the notification (recipient) key, timestamp,
  * and cube key.
  **/
-export async function getNotificationDateKey(cube: Cube): Promise<Buffer>;
+export async function getNotificationDateKey(cube: CoreCube): Promise<Buffer>;
 export async function getNotificationDateKey(recipient: NotificationKey, timestamp: number|Buffer, cubeKey: CubeKey): Promise<Buffer>;
 
-export async function getNotificationDateKey(param1: Cube|NotificationKey, timestamp?: number|Buffer, cubeKey?: CubeKey): Promise<Buffer> {
+export async function getNotificationDateKey(param1: CoreCube|NotificationKey, timestamp?: number|Buffer, cubeKey?: CubeKey): Promise<Buffer> {
   return getNotificationKey(Sublevels.INDEX_TIME, param1, timestamp, cubeKey);
 }
 
@@ -116,9 +116,9 @@ export async function getNotificationDateKey(param1: Cube|NotificationKey, times
  * This is done by concatenating the notification (recipient) key, difficulty,
  * and cube key.
  **/
-export async function getNotificationDifficultyKey(cube: Cube): Promise<Buffer>;
+export async function getNotificationDifficultyKey(cube: CoreCube): Promise<Buffer>;
 export async function getNotificationDifficultyKey(recipient: NotificationKey, difficulty: number|Buffer, cubeKey: CubeKey): Promise<Buffer>;
 
-export async function getNotificationDifficultyKey(param1: Cube|NotificationKey, difficulty?: number|Buffer, cubeKey?: CubeKey): Promise<Buffer> {
+export async function getNotificationDifficultyKey(param1: CoreCube|NotificationKey, difficulty?: number|Buffer, cubeKey?: CubeKey): Promise<Buffer> {
   return getNotificationKey(Sublevels.INDEX_DIFF, param1, difficulty, cubeKey);
 }

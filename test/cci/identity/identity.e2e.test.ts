@@ -1,5 +1,5 @@
 import { SupportedTransports } from "../../../src/core/networking/networkDefinitions";
-import { CubeKey } from "../../../src/core/cube/cube.definitions";
+import { CubeKey } from "../../../src/core/cube/coreCube.definitions";
 import { keyVariants } from "../../../src/core/cube/keyUtil";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 import { CubeRetriever } from "../../../src/core/networking/cubeRetrieval/cubeRetriever";
@@ -10,7 +10,7 @@ import { WebSocketAddress } from "../../../src/core/peering/addressing";
 import { PeerDB } from "../../../src/core/peering/peerDB";
 import { Peer } from "../../../src/core/peering/peer";
 
-import { cciCube } from "../../../src/cci/cube/cciCube";
+import { Cube } from "../../../src/cci/cube/cube";
 import { Identity } from "../../../src/cci/identity/identity";
 import { Avatar, AvatarScheme } from "../../../src/cci/identity/avatar";
 
@@ -92,7 +92,7 @@ describe('Identity: end-to-end tests', () => {
       // store 50 posts (guaranteed not to fit into the MUC and thus forcing
       // Identity to use sub-references)
       for (let i=0; i<TESTPOSTCOUNT; i++) {
-        const post: cciCube = await makePost(
+        const post: Cube = await makePost(
           (i+1).toString() + "res importantes diciendas habeo",
           { id: subject, requiredDifficulty:reducedDifficulty },
         );
@@ -141,7 +141,7 @@ describe('Identity: end-to-end tests', () => {
 
       // store the subject
       subject.muc.setDate(0);  // hack, just for the test let's not wait 5s for the MUC update
-      const muc: cciCube = await subject.store();
+      const muc: Cube = await subject.store();
 
       // just some sanity checks
       expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(0);

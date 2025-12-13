@@ -1,10 +1,10 @@
 Error.stackTraceLimit = Infinity;  // mooooaaaar stacktraces
 
-import { CubeType, NotificationKey } from './core/cube/cube.definitions';
+import { CubeType, NotificationKey } from './core/cube/coreCube.definitions';
 import { Settings } from './core/settings';
 import { SupportedTransports } from './core/networking/networkDefinitions';
 
-import { Cube } from './core/cube/cube';
+import { CoreCube } from './core/cube/coreCube';
 import { CubeField } from './core/cube/cubeField';
 import { CoreNode, CoreNodeOptions, defaultInitialPeers } from "./core/coreNode";
 import { AddressAbstraction } from './core/peering/addressing';
@@ -209,7 +209,7 @@ class VerityCmdClient {
     // concat buffer with message
     const messageBuffer = Buffer.concat(
       [Buffer.from("Hello MUC: ", 'utf8'), counterBuffer]);
-    const muc = Cube.MUC(
+    const muc = CoreCube.MUC(
       Buffer.from(this.options.keyPair.publicKey),
       Buffer.from(this.options.keyPair.privateKey),
       {fields: CubeField.RawContent(CubeType.MUC, messageBuffer)}
@@ -222,7 +222,7 @@ class VerityCmdClient {
     const notificationKey = Buffer.concat([Buffer.from("DEADBEEF", 'hex'), Buffer.alloc(28)]) as NotificationKey;
     const contentField = CubeField.RawContent(CubeType.FROZEN_NOTIFY,
       "DEADBEEF");
-    const notification: Cube = Cube.Frozen({
+    const notification: CoreCube = CoreCube.Frozen({
       fields: [
         contentField,
         CubeField.Notify(notificationKey),
@@ -233,7 +233,7 @@ class VerityCmdClient {
 
   /** Just for manual testing: Handler for the 'c' hotkey */
   public async makeNewCube(message: string = "Hello Verity") {
-    const cube = Cube.Frozen({fields: CubeField.RawContent(CubeType.FROZEN, message)});
+    const cube = CoreCube.Frozen({fields: CubeField.RawContent(CubeType.FROZEN, message)});
     this.node.cubeStore.addCube(cube);
   }
 

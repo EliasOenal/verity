@@ -2,12 +2,12 @@ import { ControllerContext, VerityController } from "../verityController";
 import { ChatView } from "./chatView";
 import { ChatApplication } from "../../app/chatApplication";
 import { logger } from "../../core/logger";
-import { cciCube, cciFamily } from "../../cci/cube/cciCube";
+import { Cube, cciFamily } from "../../cci/cube/cube";
 import { Buffer } from "buffer";
-import { NotificationKey } from "../../core/cube/cube.definitions";
+import { NotificationKey } from "../../core/cube/coreCube.definitions";
 import { mergeAsyncGenerators, MergedAsyncGenerator } from "../../core/helpers/asyncGenerators";
 import { RetrievalFormat } from "../../cci/veritum/veritum.definitions";
-import { Cube } from "../../core/cube/cube";
+import { CoreCube } from "../../core/cube/coreCube";
 import { CubeRetriever } from "../../core/networking/cubeRetrieval/cubeRetriever";
 import { ChatStorage, StoredChatRoom } from "./chatStorage";
 
@@ -17,7 +17,7 @@ export interface ChatRoom {
     notificationKey: NotificationKey;
     messages: Array<{ username: string, message: string, timestamp: Date, cubeKey?: string }>;
     unreadCount: number;
-    subscription: MergedAsyncGenerator<Cube> | null;
+    subscription: MergedAsyncGenerator<CoreCube> | null;
     isProcessingMessages: boolean;
     processedCubeKeys: Set<string>; // Track processed cube keys to avoid duplicates
     seenCubeKeys: Set<string>; // Track which messages have been seen by the user
@@ -43,14 +43,14 @@ export class ChatController extends VerityController {
         if (contentArea) {
             contentArea.innerHTML = '';
             contentArea.appendChild(this.contentAreaView.renderedView);
-            
+
             // Permanently hide the back button - it's not needed for chat navigation
             const backArea = document.getElementById("verityBackArea");
             if (backArea) {
                 backArea.style.display = "none";
                 backArea.style.visibility = "hidden";
             }
-            
+
             // Load persisted data
             await this.loadPersistedData();
         } else {
@@ -99,7 +99,7 @@ export class ChatController extends VerityController {
                 logger.error(`Chat: Error starting subscription for room ${roomName}: ${error}`);
                 this.contentAreaView.showError(`Failed to start real-time updates for room "${room.name}".`);
             });
-            
+
             // Save to storage
             await this.saveRoomsToStorage();
         } catch (error) {
@@ -126,7 +126,7 @@ export class ChatController extends VerityController {
         } else {
             this.contentAreaView.updateMessages([]);
         }
-        
+
         // Save to storage
         this.saveRoomsToStorage().catch(error => {
             logger.error(`Chat: Error saving rooms to storage: ${error}`);
@@ -140,14 +140,14 @@ export class ChatController extends VerityController {
         this.activeRoomId = roomId;
         room.unreadCount = 0;
         room.lastSeenTimestamp = Date.now();
-        
+
         // Mark all current messages as seen
         for (const message of room.messages) {
             if (message.cubeKey) {
                 room.seenCubeKeys.add(message.cubeKey);
             }
         }
-        
+
         this.contentAreaView.updateMessages(room.messages);
         this.contentAreaView.updateActiveRoom(roomId);
         this.contentAreaView.updateRoomList(Array.from(this.rooms.values()));
@@ -164,18 +164,18 @@ export class ChatController extends VerityController {
         }
 
         logger.trace(`Chat: Starting subscription for room ${roomId} with key: ${room.notificationKey.toString('hex')}`);
-        
+
         try {
             // 1) Enable live subscription first so we don't miss notifications
-            let futureCubes: AsyncGenerator<Cube> | undefined;
+            let futureCubes: AsyncGenerator<CoreCube> | undefined;
             if ('subscribeNotifications' in this.cubeRetriever) {
                 futureCubes = (this.cubeRetriever as CubeRetriever)
                     .subscribeNotifications(room.notificationKey, { format: RetrievalFormat.Cube });
             }
 
             // 2) Also fetch recent history from the retriever to cover what we don't have locally
-            const retrieverHistory: AsyncGenerator<Cube> = (this.cubeRetriever as CubeRetriever)
-                .getNotifications(room.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<Cube>;
+            const retrieverHistory: AsyncGenerator<CoreCube> = (this.cubeRetriever as CubeRetriever)
+                .getNotifications(room.notificationKey, { format: RetrievalFormat.Cube }) as AsyncGenerator<CoreCube>;
 
             // Merge streams: future first (already active), plus retriever history
             room.subscription = futureCubes
@@ -214,37 +214,37 @@ export class ChatController extends VerityController {
             for await (const cube of room.subscription) {
                 try {
                     if (!cube) continue;
-                    
+
                     const cubeKey = await cube.getKeyString();
-                    
+
                     // Skip if we've already processed this cube
                     if (room.processedCubeKeys.has(cubeKey)) {
                         continue;
                     }
-                    
-                    const cciCube: cciCube = cube as cciCube;
+
+                    const cciCube: Cube = cube as Cube;
                     const { username, message } = ChatApplication.parseChatCube(cciCube);
-                    const newMessage = { 
-                        username, 
-                        message, 
+                    const newMessage = {
+                        username,
+                        message,
                         timestamp: new Date(cciCube.getDate() * 1000),
                         cubeKey
                     };
-                    
+
                     // Mark this cube as processed
                     room.processedCubeKeys.add(cubeKey);
-                    
+
                     // Add to room's messages array (keeping sorted by timestamp)
                     room.messages.push(newMessage);
                     room.messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-                    
+
                     // Only increment unread count for truly new messages (not historical ones)
                     // and only if this isn't the active room
                     const isNewMessage = newMessage.timestamp.getTime() > room.lastSeenTimestamp;
                     if (this.activeRoomId !== roomId && isNewMessage && !room.seenCubeKeys.has(cubeKey)) {
                         room.unreadCount++;
                     }
-                    
+
                     // Update the UI
                     if (this.activeRoomId === roomId) {
                         this.contentAreaView.updateMessages([...room.messages]);
@@ -264,7 +264,7 @@ export class ChatController extends VerityController {
     setUsername(username: string): void {
         this.username = username || "Anonymous";
         logger.trace(`Chat: Username set to ${this.username}`);
-        
+
         // Save to storage
         this.storage.saveUsername(this.username).catch(error => {
             logger.error(`Chat: Error saving username to storage: ${error}`);
@@ -285,7 +285,7 @@ export class ChatController extends VerityController {
         try {
             const chatCube = await ChatApplication.createChatCube(username, message.trim(), activeRoom.notificationKey);
             await this.cubeStore.addCube(chatCube);
-            
+
             // Offer new cubes to all connected peers
             const cubeInfo = await chatCube.getCubeInfo();
             this.node.networkManager.broadcastKey([cubeInfo]);
@@ -309,11 +309,11 @@ export class ChatController extends VerityController {
         try {
             await this.storage.waitForReady();
             const settings = await this.storage.loadSettings();
-            
+
             // Restore username
             this.username = settings.username;
             this.contentAreaView.setUsername(this.username);
-            
+
             // Restore rooms
             for (const storedRoom of settings.joinedRooms) {
                 const notificationKey = ChatStorage.hexToNotificationKey(storedRoom.notificationKey);
@@ -329,7 +329,7 @@ export class ChatController extends VerityController {
                     seenCubeKeys: new Set<string>(),
                     lastSeenTimestamp: Date.now()
                 };
-                
+
                 this.rooms.set(storedRoom.id, room);
                 // Load local history first for responsiveness
                 await this.loadHistoricalMessages(storedRoom.id);
@@ -338,13 +338,13 @@ export class ChatController extends VerityController {
                     logger.error(`Chat: Error starting subscription for room ${storedRoom.name}: ${error}`);
                 });
             }
-            
+
             // Switch to first room if any
             if (this.rooms.size > 0) {
                 const firstRoomId = Array.from(this.rooms.keys())[0];
                 this.switchToRoom(firstRoomId);
             }
-            
+
             this.contentAreaView.updateRoomList(Array.from(this.rooms.values()));
             logger.trace('Chat: Persisted data loaded successfully');
         } catch (error) {
@@ -359,7 +359,7 @@ export class ChatController extends VerityController {
                 name: room.name,
                 notificationKey: ChatStorage.notificationKeyToHex(room.notificationKey)
             }));
-            
+
             await this.storage.saveJoinedRooms(storedRooms);
         } catch (error) {
             logger.error(`Chat: Error saving rooms to storage: ${error}`);
@@ -372,59 +372,59 @@ export class ChatController extends VerityController {
 
         try {
             logger.trace(`Chat: Loading historical messages for room ${roomId}`);
-            
+
             // Get messages from the local store for instant population
-            const historicalCubes: AsyncGenerator<Cube> = 
-                this.cubeStore.getNotifications(room.notificationKey, { 
+            const historicalCubes: AsyncGenerator<CoreCube> =
+                this.cubeStore.getNotifications(room.notificationKey, {
                     format: RetrievalFormat.Cube
-                }) as AsyncGenerator<Cube>;
-            
+                }) as AsyncGenerator<CoreCube>;
+
             const messages: Array<{ username: string, message: string, timestamp: Date, cubeKey: string }> = [];
-            
+
             for await (const cube of historicalCubes) {
                 try {
                     if (!cube) continue;
-                    
+
                     const cubeKey = await cube.getKeyString();
-                    
+
                     // Skip if we've already processed this cube
                     if (room.processedCubeKeys.has(cubeKey)) {
                         continue;
                     }
-                    
-                    const cciCube: cciCube = cube as cciCube;
+
+                    const cciCube: Cube = cube as Cube;
                     const { username, message } = ChatApplication.parseChatCube(cciCube);
-                    const newMessage = { 
-                        username, 
-                        message, 
+                    const newMessage = {
+                        username,
+                        message,
                         timestamp: new Date(cciCube.getDate() * 1000),
                         cubeKey
                     };
-                    
+
                     // Mark this cube as processed to avoid future duplicates
                     room.processedCubeKeys.add(cubeKey);
-                    
+
                     // Mark historical messages as seen (they don't count as new)
                     room.seenCubeKeys.add(cubeKey);
-                    
+
                     messages.push(newMessage);
                 } catch (error) {
                     logger.warn(`Chat: Error parsing historical chat cube for room ${roomId}: ${error}`);
                 }
             }
-            
+
             // Sort messages by timestamp and keep all fetched messages
             messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
             room.messages = messages;
-            
+
             // Clean up old seen message tracking
             this.cleanupOldSeenMessages(roomId);
-            
+
             // Update UI if this is the active room
             if (this.activeRoomId === roomId) {
                 this.contentAreaView.updateMessages([...room.messages]);
             }
-            
+
             logger.trace(`Chat: Loaded ${room.messages.length} historical messages for room ${roomId}`);
         } catch (error) {
             logger.error(`Chat: Error loading historical messages for room ${roomId}: ${error}`);
@@ -461,6 +461,6 @@ export class ChatController extends VerityController {
         room.processedCubeKeys = processedKeysToKeep;
     }
 
-    
+
 }
 

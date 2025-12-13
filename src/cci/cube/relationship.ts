@@ -1,8 +1,8 @@
 import { NetConstants } from "../../core/networking/networkDefinitions";
-import { CubeKey } from "../../core/cube/cube.definitions";
+import { CubeKey } from "../../core/cube/coreCube.definitions";
 import { asCubeKey } from "../../core/cube/keyUtil";
 
-import { FieldType } from "./cciCube.definitions";
+import { FieldType } from "./cube.definitions";
 import { VerityField } from "./verityField";
 
 import { logger } from "../../core/logger";

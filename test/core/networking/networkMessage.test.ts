@@ -1,5 +1,5 @@
-import { CubeKey, CubeType, NotificationKey } from "../../../src/core/cube/cube.definitions";
-import { Cube } from "../../../src/core/cube/cube";
+import { CubeKey, CubeType, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
+import { CoreCube } from "../../../src/core/cube/coreCube";
 import { CubeInfo } from "../../../src/core/cube/cubeInfo";
 import { MessageClass, NetConstants, NodeType } from "../../../src/core/networking/networkDefinitions";
 import { NetworkMessage, HelloMessage, KeyRequestMessage, KeyResponseMessage, CubeRequestMessage, CubeResponseMessage, ServerAddressMessage, PeerRequestMessage, PeerResponseMessage, KeyRequestMode, SubscriptionResponseCode, SubscriptionConfirmationMessage } from "../../../src/core/networking/networkMessage";
@@ -327,20 +327,20 @@ describe('KeyRequestMessage', () => {
 });  // KeyRequestMessage
 
 describe('KeyResponseMessage, CubeRequestMessage and CubeResponseMessage', () => {
-  let cube1: Cube, cube2: Cube, cube3: Cube;
+  let cube1: CoreCube, cube2: CoreCube, cube3: CoreCube;
   let cubeInfo1: CubeInfo, cubeInfo2: CubeInfo, cubeInfo3: CubeInfo;
 
   beforeAll(async () => {
     // prepare some cube keys
-    cube1 = Cube.Frozen({
+    cube1 = CoreCube.Frozen({
       fields: CubeField.RawContent(CubeType.FROZEN, "Primus cubus transmittendus est"),
       requiredDifficulty: 0,
     });
-    cube2 = Cube.Frozen({
+    cube2 = CoreCube.Frozen({
       fields: CubeField.RawContent(CubeType.FROZEN, "Secundus cubus transmittendus est"),
       requiredDifficulty: 0,
     });
-    cube3 = Cube.Frozen({
+    cube3 = CoreCube.Frozen({
       fields: CubeField.RawContent(CubeType.FROZEN, "Tertius cubus transmittendus est"),
       requiredDifficulty: 0,
     });

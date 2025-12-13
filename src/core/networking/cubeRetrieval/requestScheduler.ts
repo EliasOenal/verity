@@ -1,6 +1,6 @@
 import type { NetworkPeerIf } from '../networkPeerIf';
 import type { NetworkManagerIf } from '../networkManagerIf';
-import type { Cube } from '../../cube/cube';
+import type { CoreCube } from '../../cube/coreCube';
 import type { CubeInfo } from '../../cube/cubeInfo';
 
 import { Settings } from '../../settings';
@@ -9,7 +9,7 @@ import { MessageClass, NetConstants, NetworkPeerError, NodeType } from '../netwo
 import { KeyRequestMessage, KeyRequestMode, SubscriptionConfirmationMessage, SubscriptionResponseCode } from '../networkMessage';
 
 import { ShortenableTimeout } from '../../helpers/shortenableTimeout';
-import { CubeFieldType, GetCubeOptions, type NotificationKey, type CubeKey } from '../../cube/cube.definitions';
+import { CubeFieldType, GetCubeOptions, type NotificationKey, type CubeKey } from '../../cube/coreCube.definitions';
 import { cubeContest, getCurrentEpoch, shouldRetainCube } from '../../cube/cubeUtil';
 import { asCubeKey, keyVariants } from '../../cube/keyUtil';
 
@@ -715,7 +715,7 @@ export class RequestScheduler implements Shuttable {
     // do not accept any calls if this scheduler has already been shut down
     if (this._shutdown) return;
 
-    const delivered: Cube[] = [];
+    const delivered: CoreCube[] = [];
     for (const binaryCube of binaryCubes) {
       // first of all, activate this Cube
       const cube = this.networkManager.cubeStore.activateCube(binaryCube);

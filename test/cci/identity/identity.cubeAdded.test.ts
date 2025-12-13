@@ -1,13 +1,13 @@
 import { RecursiveEmitter } from '../../../src/core/helpers/recursiveEmitter';
-import { CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeType } from '../../../src/core/cube/coreCube.definitions';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
 import { Identity } from '../../../src/cci/identity/identity'
-import { cciCube } from '../../../src/cci/cube/cciCube';
+import { Cube } from '../../../src/cci/cube/cube';
 import { VerityField } from '../../../src/cci/cube/verityField';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { FieldType } from '../../../src/cci/cube/cube.definitions';
 
 import { testCubeStoreParams } from '../testcci.definitions';
 
@@ -65,7 +65,7 @@ describe('Identity: emitting cubeAdded events', () => {
           id.on('cubeAdded', (cubeInfo: CubeInfo) => resolve(cubeInfo));
         });
 
-        const post: cciCube = cciCube.Create({
+        const post: Cube = Cube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
           fields: VerityField.Payload("Nuntius"),
@@ -82,7 +82,7 @@ describe('Identity: emitting cubeAdded events', () => {
           id.on('cubeAdded', (cubeInfo: CubeInfo) => resolve(cubeInfo));
         });
 
-        const sub: cciCube = cciCube.Create({
+        const sub: Cube = Cube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
           fields: VerityField.Payload("Subscriptio"),
@@ -147,7 +147,7 @@ describe('Identity: emitting cubeAdded events', () => {
 
 
         it('will emit cubeAdded if a new post is added by a directly subscribed Identity', async () => {
-          const post: cciCube = cciCube.Create({
+          const post: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius"),
@@ -171,7 +171,7 @@ describe('Identity: emitting cubeAdded events', () => {
             });
           });
 
-          const sub: cciCube = cciCube.Create({
+          const sub: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Subscriptio"),
@@ -219,7 +219,7 @@ describe('Identity: emitting cubeAdded events', () => {
           });
 
           // have the newly subscribed-to user make a post
-          const post: cciCube = cciCube.Create({
+          const post: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius"),
@@ -290,7 +290,7 @@ describe('Identity: emitting cubeAdded events', () => {
             });
           });
 
-          const post: cciCube = cciCube.Create({
+          const post: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius"),
@@ -309,7 +309,7 @@ describe('Identity: emitting cubeAdded events', () => {
             });
           });
 
-          const sub: cciCube = cciCube.Create({
+          const sub: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Subscriptio"),
@@ -368,7 +368,7 @@ describe('Identity: emitting cubeAdded events', () => {
           });
 
           // have the new indirectly-subscribed-to user make a post
-          const post: cciCube = cciCube.Create({
+          const post: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius"),
@@ -404,7 +404,7 @@ describe('Identity: emitting cubeAdded events', () => {
           });
 
           // have the new indirectly-subscribed-to user make a post
-          const post: cciCube = cciCube.Create({
+          const post: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius"),
@@ -471,7 +471,7 @@ describe('Identity: emitting cubeAdded events', () => {
             });
           });
 
-          const post: cciCube = cciCube.Create({
+          const post: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius"),
@@ -492,7 +492,7 @@ describe('Identity: emitting cubeAdded events', () => {
             });
           });
 
-          const sub: cciCube = cciCube.Create({
+          const sub: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Subscriptio"),
@@ -580,7 +580,7 @@ describe('Identity: emitting cubeAdded events', () => {
           id.addPublicSubscription(id.key);
 
           // make a post
-          const post: cciCube = cciCube.Create({
+          const post: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius"),
@@ -696,7 +696,7 @@ describe('Identity: emitting cubeAdded events', () => {
           });
 
           // Create and add a post from id2
-          const post: cciCube = cciCube.Create({
+          const post: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius"),
@@ -862,7 +862,7 @@ describe('Identity: emitting cubeAdded events', () => {
           });
 
           // Create and add a post from id3
-          const post: cciCube = cciCube.Create({
+          const post: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius"),
@@ -971,7 +971,7 @@ describe('Identity: emitting cubeAdded events', () => {
         id.name = "protagonista qui illas probationes pro nobis administrabit"
 
         // Create a post
-        const post: cciCube = cciCube.Create({
+        const post: Cube = Cube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
           fields: VerityField.Payload("Nuntius"),

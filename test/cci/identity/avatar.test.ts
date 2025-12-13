@@ -1,6 +1,6 @@
 import { ApiMisuseError } from "../../../src/core/settings";
 
-import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { FieldType } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Avatar, AvatarScheme, AvatarSeedLength, UNKNOWNAVATAR } from "../../../src/cci/identity/avatar";
 

@@ -3,7 +3,7 @@ import { BaseField } from "../../../src/core/fields/baseField";
 import { BaseFields, FieldEqualityMetric, FieldPosition } from "../../../src/core/fields/baseFields";
 import { FieldNumericalParam, PositionalFields, FieldDefinition, FieldParser } from "../../../src/core/fields/fieldParser";
 import { CoreFrozenFieldDefinition } from "../../../src/core/cube/cubeFields";
-import { CubeFieldType, CubeType } from "../../../src/core/cube/cube.definitions";
+import { CubeFieldType, CubeType } from "../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../src/core/cube/cubeField";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';

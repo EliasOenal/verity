@@ -1,10 +1,10 @@
 import { Settings } from "../../../src/core/settings";
-import { cciCube, cciFamily } from "../../../src/cci/cube/cciCube";
-import { MediaTypes, FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { Cube, cciFamily } from "../../../src/cci/cube/cube";
+import { MediaTypes, FieldType } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Veritum } from "../../../src/cci/veritum/veritum";
-import { coreCubeFamily } from "../../../src/core/cube/cube";
-import { CubeKey, CubeType, DEFAULT_CUBE_TYPE, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/cube.definitions";
+import { coreCubeFamily } from "../../../src/core/cube/coreCube";
+import { CubeKey, CubeType, DEFAULT_CUBE_TYPE, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { enumNums } from "../../../src/core/helpers/misc";
 
@@ -227,9 +227,9 @@ describe('Veritum (basic tests)', () => {
                     binaryChunks.push(await chunk.getBinaryData());
                   }
                   // reactivate the chunks
-                  const reactivatedChunks: cciCube[] = [];
+                  const reactivatedChunks: Cube[] = [];
                   for (const binaryChunk of binaryChunks) {
-                    const reactivatedChunk: cciCube = new cciCube(binaryChunk);
+                    const reactivatedChunk: Cube = new Cube(binaryChunk);
                     reactivatedChunks.push(reactivatedChunk);
                   }
                   // reconstruct the Veritum from the reactivated chunks

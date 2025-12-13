@@ -1,19 +1,19 @@
-import { Cube } from "../../core/cube/cube";
-import { CubeCreateOptions } from '../../core/cube/cube.definitions';
-import { CubeType } from "../../core/cube/cube.definitions";
+import { CoreCube } from "../../core/cube/coreCube";
+import { CubeCreateOptions } from '../../core/cube/coreCube.definitions';
+import { CubeType } from "../../core/cube/coreCube.definitions";
 import { Settings } from "../../core/settings";
 import { deriveSigningKeypair, KeyPair } from "../helpers/cryptography";
-import { cciCube, cciFamily } from "./cciCube";
+import { Cube, cciFamily } from "./cube";
 import { VerityField } from "./verityField";
 import { VerityFields } from "./verityFields";
 
-export function isCci(cube: Cube): boolean {
-  if (cube instanceof cciCube && cube.assertCci()) return true;
+export function isCci(cube: CoreCube): boolean {
+  if (cube instanceof Cube && cube.assertCci()) return true;
   else return false;
 }
 
-export function ensureCci(cube: Cube): cciCube {
-  if (isCci(cube)) return cube as cciCube;
+export function ensureCci(cube: CoreCube): Cube {
+  if (isCci(cube)) return cube as Cube;
   else return undefined;
 }
 
@@ -28,7 +28,7 @@ export interface ExtensionMucOptions extends CubeCreateOptions {
 export function extensionMuc(
   masterKey: Uint8Array,
   options: ExtensionMucOptions = {},
-): cciCube {
+): Cube {
   // copy options and set defaults
   options = { ... options };
   options.cubeType ??= CubeType.PMUC;
@@ -65,6 +65,6 @@ export function extensionMuc(
   }
 
   // Create and return extension MUC
-  const extensionMuc: cciCube = cciCube.Create(options);
+  const extensionMuc: Cube = Cube.Create(options);
   return extensionMuc;
 }

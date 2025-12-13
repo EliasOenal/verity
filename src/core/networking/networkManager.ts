@@ -1,6 +1,6 @@
 import { Settings, VerityError } from '../settings';
 import { unixtime } from '../helpers/misc';
-import { CubeKey } from '../cube/cube.definitions';
+import { CubeKey } from '../cube/coreCube.definitions';
 
 import { MessageClass, NetConstants, SupportedTransports, NodeType } from './networkDefinitions';
 import { NetworkPeer } from './networkPeer';
@@ -255,7 +255,7 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
         }
 
         // Get all online peers that are full nodes
-        const fullNodePeers = this.onlinePeers.filter(peer => 
+        const fullNodePeers = this.onlinePeers.filter(peer =>
             peer.remoteNodeType === NodeType.Full
         );
 
@@ -266,9 +266,9 @@ export class NetworkManager extends EventEmitter implements NetworkManagerIf {
 
         // Create a KeyResponse message with ExpressSync mode containing the cube metadata
         const keyResponse = new KeyResponseMessage(KeyRequestMode.ExpressSync, cubeInfos);
-        
+
         logger.trace(`NetworkManager.broadcastKey(): Offering ${cubeInfos.length} cube(s) to ${fullNodePeers.length} full node(s)`);
-        
+
         // Send the unsolicited KeyResponse to all connected full nodes
         for (const peer of fullNodePeers) {
             try {

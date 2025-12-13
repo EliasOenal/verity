@@ -4,7 +4,7 @@ import { VeritumRetriever } from "./veritum/veritumRetriever";
 import { CubeStore } from "../core/cube/cubeStore";
 import { DummyNetworkManager } from "../core/networking/testingDummies/dummyNetworkManager";
 import { PeerDB } from "../core/peering/peerDB";
-import { cciFamily } from "./cube/cciCube";
+import { cciFamily } from "./cube/cube";
 
 export interface VerityNodeIf extends CoreNodeIf {
   veritumRetriever: VeritumRetriever<any>;

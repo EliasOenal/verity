@@ -1,9 +1,9 @@
 // cubeUtil.ts
 import { NetConstants } from '../networking/networkDefinitions';
 
-import { CubeError, CubeKey, CubeType, NonNotifyCubeType } from './cube.definitions';
+import { CubeError, CubeKey, CubeType, NonNotifyCubeType } from './coreCube.definitions';
 import { CubeFamilyDefinition } from './cubeFields';
-import { Cube } from './cube';
+import { CoreCube } from './coreCube';
 import { CubeInfo } from './cubeInfo';
 
 import { logger } from '../logger';
@@ -61,7 +61,7 @@ export const EPOCHS_PER_DAY = 16;
  *   c2 (int): Upper bound for the hashcash challenge level
  *
  * Returns:
- *  float: Cube lifetime in epochs (5400 Unix Seconds per epoch, 16 epochs per day)
+ *  float: CoreCube lifetime in epochs (5400 Unix Seconds per epoch, 16 epochs per day)
  */
 export function cubeLifetime(x: number, e1: number = 0, e2: number = 960, c1: number = 10, c2: number = 80): number {
     // Linear function parameters
@@ -194,7 +194,7 @@ export function countTrailingZeroBits(buffer: Buffer): number {
     return count;
 }
 
-export async function printCubeInfo(cube: Cube) {
+export async function printCubeInfo(cube: CoreCube) {
     console.log("Date: " + cube.getDate());
     console.log("Fields: ");
     for (const field of cube.fields.all) {
@@ -284,12 +284,12 @@ export function paddedBuffer(content: string | Buffer = "", length: number): Buf
   return buf;
 }
 
-export function activateCube<cubeClass extends Cube>(
+export function activateCube<cubeClass extends CoreCube>(
     binaryCube: Buffer,
     families: Iterable<CubeFamilyDefinition>,
 ): cubeClass {
   // try to reactivate Cube using one of my supported family settings
-  let cube: Cube;
+  let cube: CoreCube;
   for (const family of families) {
     try {
       cube = new family.cubeClass(binaryCube, { family: family });

@@ -1,12 +1,12 @@
-import type { CubeKey, NotificationKey } from "../../core/cube/cube.definitions";
+import type { CubeKey, NotificationKey } from "../../core/cube/coreCube.definitions";
 import type { Shuttable } from "../../core/helpers/coreInterfaces";
-import type { Cube } from "../../core/cube/cube";
+import type { CoreCube } from "../../core/cube/coreCube";
 import type { CubeInfo } from "../../core/cube/cubeInfo";
 import type { CubeRequestOptions, RequestScheduler } from "../../core/networking/cubeRetrieval/requestScheduler";
 import type { Veritable } from "../../core/cube/veritable.definition";
 import type { CubeStore } from "../../core/cube/cubeStore";
 import type { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
-import type { cciCube } from "../cube/cciCube";
+import type { Cube } from "../cube/cube";
 
 import { Settings } from "../../core/settings";
 import { ArrayFromAsync } from "../../core/helpers/misc";
@@ -70,27 +70,27 @@ export class VeritumRetriever
     return this.cubeRetriever.expectCube(keyInput);
   }
 
-  getCube<cubeClass extends Cube = cciCube>(
+  getCube<cubeClass extends CoreCube = Cube>(
       key: CubeKey | string,
       options: {resolveRels: true, metadata?: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsOptions,
   ): Promise<ResolveRelsResult>;
-  getCube<cubeClass extends Cube = cciCube>(
+  getCube<cubeClass extends CoreCube = Cube>(
       key: CubeKey | string,
       options: {resolveRels: 'recursive', metadata?: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
   ): Promise<ResolveRelsRecursiveResult>;
-  getCube<cubeClass extends Cube = cciCube>(
+  getCube<cubeClass extends CoreCube = Cube>(
     key: CubeKey | string,
     options: {metadata: true} & GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions,
-  ): Promise<MetadataEnhancedRetrieval<Cube>>;
-  getCube<cubeClass extends Cube = cciCube>(
+  ): Promise<MetadataEnhancedRetrieval<CoreCube>>;
+  getCube<cubeClass extends CoreCube = Cube>(
       key: CubeKey | string,
       options?: GetCubeOptionsT & GetVeritumOptions
   ): Promise<cubeClass>;
 // TODO implement auto-decryption of single encrypted Cubes
-  getCube<cubeClass extends Cube = cciCube>(
+  getCube<cubeClass extends CoreCube = Cube>(
       key: CubeKey | string,
       options: Partial<GetCubeOptionsT & GetVeritumOptions & ResolveRelsRecursiveOptions> = {}
-  ): Promise<cubeClass|ResolveRelsResult|ResolveRelsRecursiveResult|MetadataEnhancedRetrieval<Cube>> {
+  ): Promise<cubeClass|ResolveRelsResult|ResolveRelsRecursiveResult|MetadataEnhancedRetrieval<CoreCube>> {
     // set default options
     if (options.resolveRels) (options as GetVeritumOptions).metadata ??= true;
 
@@ -118,7 +118,7 @@ export class VeritumRetriever
     }
     // - None of that? Craft an empty meta data object then I guess.
     else return cubePromise.then(cube => {
-      const ret: MetadataEnhancedRetrieval<Cube> = {
+      const ret: MetadataEnhancedRetrieval<CoreCube> = {
         main: cube,
         done: Promise.resolve(),
         isDone: true,
@@ -157,7 +157,7 @@ export class VeritumRetriever
     if (options.resolveRels) (options as GetVeritumOptions).metadata ??= true;
 
     // Request this Veritum's chunk Cubes
-    const chunks: cciCube[] = await ArrayFromAsync(
+    const chunks: Cube[] = await ArrayFromAsync(
       this.getContinuationChunks(key, options));
     // maybe TODO: get rid of ugly Array conversion?
 
@@ -190,9 +190,9 @@ export class VeritumRetriever
   }
 
   // Overloads for getNotifications()
-  // Overloads using the `Cube` RetrievalFormat:
+  // Overloads using the `CoreCube` RetrievalFormat:
   // - Auto-resolving relationships, single level
-  getNotifications<cubeClass extends Cube>(
+  getNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -201,7 +201,7 @@ export class VeritumRetriever
     },
   ): AsyncGenerator<ResolveRelsResult<cubeClass>>;
   // - Auto-resolving relationships, recursive
-  getNotifications<cubeClass extends Cube>(
+  getNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -210,7 +210,7 @@ export class VeritumRetriever
     },
   ): AsyncGenerator<ResolveRelsRecursiveResult<cubeClass>>;
   // - Using metadata, but not auto-resolving relationships
-  getNotifications<cubeClass extends Cube>(
+  getNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -218,7 +218,7 @@ export class VeritumRetriever
     },
   ): AsyncGenerator<MetadataEnhancedRetrieval<cubeClass>>;
   // - Plain output, no metadata
-  getNotifications<cubeClass extends Cube>(
+  getNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -338,9 +338,9 @@ export class VeritumRetriever
   }
 
   // Overloads for subscribeNotifications()
-  // Overloads using the `Cube` RetrievalFormat:
+  // Overloads using the `CoreCube` RetrievalFormat:
   // - Auto-resolving relationships, single level
-  subscribeNotifications<cubeClass extends Cube>(
+  subscribeNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -349,7 +349,7 @@ export class VeritumRetriever
     },
   ): CancellableGenerator<ResolveRelsResult<cubeClass>>;
   // - Auto-resolving relationships, recursive
-  subscribeNotifications<cubeClass extends Cube>(
+  subscribeNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -358,7 +358,7 @@ export class VeritumRetriever
     },
   ): CancellableGenerator<ResolveRelsRecursiveResult<cubeClass>>;
   // - Using metadata, but not auto-resolving relationships
-  subscribeNotifications<cubeClass extends Cube>(
+  subscribeNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -366,7 +366,7 @@ export class VeritumRetriever
     },
   ): CancellableGenerator<MetadataEnhancedRetrieval<cubeClass>>;
   // - Plain output, no metadata
-  subscribeNotifications<cubeClass extends Cube>(
+  subscribeNotifications<cubeClass extends CoreCube>(
     keyInput: NotificationKey | string,
     options: GetNotificationsOptions & {
       format: RetrievalFormat.Cube,
@@ -474,7 +474,7 @@ export class VeritumRetriever
     yield undefined as any;
   }
   private createVeritumSubscriptionGenerator(
-    cubeNotifications: CancellableGenerator<Cube>,
+    cubeNotifications: CancellableGenerator<CoreCube>,
     options: GetNotificationsOptions,
   ): CancellableGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
     const generator = this.createVeritumSubscriptionGeneratorInternal(cubeNotifications, options);
@@ -488,7 +488,7 @@ export class VeritumRetriever
   }
 
   private async *createVeritumSubscriptionGeneratorInternal(
-    cubeNotifications: CancellableGenerator<Cube>,
+    cubeNotifications: CancellableGenerator<CoreCube>,
     options: GetNotificationsOptions,
   ): AsyncGenerator<Veritable|MetadataEnhancedRetrieval<Veritable>> {
     try {
@@ -526,7 +526,7 @@ export class VeritumRetriever
   async *getContinuationChunks(
     key: CubeKey | string,
     options: CubeRequestOptions|GetCubeOptionsT = {},  // undefined = will use RequestScheduler's default
-  ): AsyncGenerator<cciCube, boolean, void> {
+  ): AsyncGenerator<Cube, boolean, void> {
     // copy options object to avoid side effects
     options = {...options};
     // set default timeout
@@ -546,9 +546,9 @@ export class VeritumRetriever
     // learn their key, and to retrieved once we, you know, retrieved them.
     // Finally, they will be added to orderedChunks once we figured out
     // where they belong in the chain.
-    const retrieved: Map<string, cciCube> = new Map();
-    const orderedChunks: cciCube[] = [];
-    const currentlyRetrieving: Set<Promise<cciCube>> = new Set();
+    const retrieved: Map<string, Cube> = new Map();
+    const orderedChunks: Cube[] = [];
+    const currentlyRetrieving: Set<Promise<Cube>> = new Set();
 
     // Let's define some helper functions:
     // This will act as the main body of this AsyncGenerator and be called
@@ -557,7 +557,7 @@ export class VeritumRetriever
     // are retrieved in parallel and may arrive out of order.
     // (Yielding is instead governed by the nextChunkPromise, which gets updated
     // whenever we happen to receive the next chunk in order.)
-    const chunkRetrieved = (key: CubeKey|string, chunk: cciCube, resolved: Promise<cciCube>): void => {
+    const chunkRetrieved = (key: CubeKey|string, chunk: Cube, resolved: Promise<Cube>): void => {
       if (timeoutReached || chunk === undefined) {
         // Retrieval failed, either due to timeout or due to missing chunk.
         // No matter if the failed chunk is the next in order or a completely
@@ -584,7 +584,7 @@ export class VeritumRetriever
 
         // schedule retrieval of referred chunk
         const retrievalPromise = this.cubeRetriever.getCube(
-          ref.remoteKey, options as GetCubeOptionsT) as Promise<cciCube>;
+          ref.remoteKey, options as GetCubeOptionsT) as Promise<Cube>;
         currentlyRetrieving.add(retrievalPromise);
         retrievalPromise.then((nextChunk) => chunkRetrieved(ref.remoteKey, nextChunk, retrievalPromise));
       }
@@ -685,8 +685,8 @@ export class VeritumRetriever
     // While we retrieve all those chunks we'll yield them one by once we
     // happen to retrieve the one that's next in line.
     // nextCubePromise represents the next chunk to be yielded.
-    let nextChunkPromiseResolve: (cube: cciCube) => void = undefined;
-    let nextChunkPromise: Promise<cciCube> = new Promise(resolve => {
+    let nextChunkPromiseResolve: (cube: Cube) => void = undefined;
+    let nextChunkPromise: Promise<Cube> = new Promise(resolve => {
       nextChunkPromiseResolve = resolve;
     });
 
@@ -700,14 +700,14 @@ export class VeritumRetriever
     this.timers.push(timer);
 
     // Finally, initiate retrievals by retrieving first Cube:
-    const firstChunkPromise: Promise<cciCube> =
-      this.cubeRetriever.getCube(key, options as GetCubeOptionsT) as Promise<cciCube>;
+    const firstChunkPromise: Promise<Cube> =
+      this.cubeRetriever.getCube(key, options as GetCubeOptionsT) as Promise<Cube>;
     currentlyRetrieving.add(firstChunkPromise);
     let firstChunkKey: CubeKey = undefined;
     firstChunkPromise.then(chunk => {
       if (chunk !== undefined) {
         firstChunkKey = chunk.getKeyIfAvailable();
-        chunkRetrieved(key, chunk as cciCube, firstChunkPromise);
+        chunkRetrieved(key, chunk as Cube, firstChunkPromise);
       } else {
         // retrieval failed, either due to timeout or due to unavailable chunk
         cleanup();
@@ -717,7 +717,7 @@ export class VeritumRetriever
     nextChunkPromise = firstChunkPromise;
 
     // Wait for all Cubes to be retrieved and yield them:
-    let chunk: cciCube;
+    let chunk: Cube;
     while ( (chunk = await nextChunkPromise) !== undefined ) {
       if (chunk === undefined) return false;  // retrieval failed
       yield chunk;

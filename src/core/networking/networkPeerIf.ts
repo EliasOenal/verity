@@ -1,4 +1,4 @@
-import { CubeKey, NotificationKey } from '../cube/cube.definitions';
+import { CubeKey, NotificationKey } from '../cube/coreCube.definitions';
 import type { AddressAbstraction } from '../peering/addressing';
 import type { Peer } from '../peering/peer';
 import type { MessageClass, NodeType } from './networkDefinitions';

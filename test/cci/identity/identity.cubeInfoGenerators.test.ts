@@ -1,13 +1,13 @@
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { FieldType } from '../../../src/cci/cube/cube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
-import { CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
+import { CubeKey, CubeType } from '../../../src/core/cube/coreCube.definitions';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
 import { Identity } from '../../../src/cci/identity/identity'
 import { IdentityOptions } from '../../../src/cci/identity/identity.definitions';
-import { cciCube } from '../../../src/cci/cube/cciCube';
+import { Cube } from '../../../src/cci/cube/cube';
 import { VerityField } from '../../../src/cci/cube/verityField';
 
 import { testCubeStoreParams } from '../testcci.definitions';
@@ -56,7 +56,7 @@ describe('Identity: CubeInfo generators', () => {
     describe('getPostCubeInfos()', async () => {
       it('retrieves CubeInfos for all of this Identity\'s posts', async () => {
         // prepare two posts
-        const post1: cciCube = cciCube.Create({
+        const post1: Cube = Cube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
           fields: VerityField.Payload("Nuntius primus"),
@@ -64,7 +64,7 @@ describe('Identity: CubeInfo generators', () => {
         await cubeStore.addCube(post1);
         id.addPost(post1.getKeyIfAvailable());
 
-        const post2: cciCube = cciCube.Create({
+        const post2: Cube = Cube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
           fields: VerityField.Payload("Nuntius secundus"),
@@ -93,7 +93,7 @@ describe('Identity: CubeInfo generators', () => {
 
       it('does not yield anything for unavailable posts', async () => {
         // prepare two posts
-        const post1: cciCube = cciCube.Create({
+        const post1: Cube = Cube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
           fields: VerityField.Payload("Nuntius primus"),
@@ -101,7 +101,7 @@ describe('Identity: CubeInfo generators', () => {
         // note we missed adding this post to the CubeStore
         id.addPost(post1.getKeyIfAvailable());
 
-        const post2: cciCube = cciCube.Create({
+        const post2: Cube = Cube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
           fields: VerityField.Payload("Nuntius secundus"),
@@ -122,7 +122,7 @@ describe('Identity: CubeInfo generators', () => {
     describe('getPublicSubscriptionCubeInfos()', () => {
       it('retrieves CubeInfos for all of this Identity\'s subscriptions', async () => {
         // prepare two fake subscriptions
-        const sub1: cciCube = cciCube.Create({
+        const sub1: Cube = Cube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
           fields: VerityField.Payload("Subscriptio prima"),
@@ -130,7 +130,7 @@ describe('Identity: CubeInfo generators', () => {
         await cubeStore.addCube(sub1);
         id.addPublicSubscription(sub1.getKeyIfAvailable());
 
-        const sub2: cciCube = cciCube.Create({
+        const sub2: Cube = Cube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
           fields: VerityField.Payload("Subscriptio secunda"),
@@ -159,7 +159,7 @@ describe('Identity: CubeInfo generators', () => {
 
       it('does not yield anything for unavailable subscriptions', async () => {
         // prepare two fake subscriptions
-        const sub1: cciCube = cciCube.Create({
+        const sub1: Cube = Cube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
           fields: VerityField.Payload("Subscriptio prima"),
@@ -167,7 +167,7 @@ describe('Identity: CubeInfo generators', () => {
         // note we missed adding this post to the CubeStore
         id.addPublicSubscription(sub1.getKeyIfAvailable());
 
-        const sub2: cciCube = cciCube.Create({
+        const sub2: Cube = Cube.Create({
           cubeType: CubeType.PIC,
           requiredDifficulty: 0,
           fields: VerityField.Payload("Subscriptio secunda"),
@@ -257,7 +257,7 @@ describe('Identity: CubeInfo generators', () => {
 
         it('yield the Identity\'s own posts and subscriptions', async () => {
           // prepare two posts
-          const post1: cciCube = cciCube.Create({
+          const post1: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius primus"),
@@ -265,7 +265,7 @@ describe('Identity: CubeInfo generators', () => {
           await cubeStore.addCube(post1);
           id.addPost(post1.getKeyIfAvailable());
 
-          const post2: cciCube = cciCube.Create({
+          const post2: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius secundus"),
@@ -304,7 +304,7 @@ describe('Identity: CubeInfo generators', () => {
       describe('tests with single level recursion', () => {
         it('yields the Identity\'s own stuff as well as all of the above for its two subscribed Identities', async () => {
           // make a post
-          const post: cciCube = cciCube.Create({
+          const post: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius primus"),
@@ -326,7 +326,7 @@ describe('Identity: CubeInfo generators', () => {
           id.addPublicSubscription(sub2.key);
 
           // for both of our two subscribed Identites, add a post and a fake subscription
-          const sub1Post: cciCube = cciCube.Create({
+          const sub1Post: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius primus"),
@@ -334,7 +334,7 @@ describe('Identity: CubeInfo generators', () => {
           await cubeStore.addCube(sub1Post);
           sub1.addPost(sub1Post.getKeyIfAvailable());
 
-          const sub1Sub: cciCube = cciCube.Create({
+          const sub1Sub: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Subscriptio prima"),
@@ -342,7 +342,7 @@ describe('Identity: CubeInfo generators', () => {
           await cubeStore.addCube(sub1Sub);
           sub1.addPublicSubscription(sub1Sub.getKeyIfAvailable());
 
-          const sub2Post: cciCube = cciCube.Create({
+          const sub2Post: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius secundus"),
@@ -350,7 +350,7 @@ describe('Identity: CubeInfo generators', () => {
           await cubeStore.addCube(sub2Post);
           sub2.addPost(sub2Post.getKeyIfAvailable());
 
-          const sub2Sub: cciCube = cciCube.Create({
+          const sub2Sub: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Subscriptio secunda"),
@@ -402,7 +402,7 @@ describe('Identity: CubeInfo generators', () => {
           sub1.addPublicSubscription(sub2.key);
 
           // for both of our two subscribed Identites, add a post and a fake subscription
-          const sub1Post: cciCube = cciCube.Create({
+          const sub1Post: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius primus"),
@@ -410,7 +410,7 @@ describe('Identity: CubeInfo generators', () => {
           await cubeStore.addCube(sub1Post);
           sub1.addPost(sub1Post.getKeyIfAvailable());
 
-          const sub1Sub: cciCube = cciCube.Create({
+          const sub1Sub: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Subscriptio prima"),
@@ -418,7 +418,7 @@ describe('Identity: CubeInfo generators', () => {
           await cubeStore.addCube(sub1Sub);
           sub1.addPublicSubscription(sub1Sub.getKeyIfAvailable());
 
-          const sub2Post: cciCube = cciCube.Create({
+          const sub2Post: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Nuntius secundus"),
@@ -426,7 +426,7 @@ describe('Identity: CubeInfo generators', () => {
           await cubeStore.addCube(sub2Post);
           sub2.addPost(sub2Post.getKeyIfAvailable());
 
-          const sub2Sub: cciCube = cciCube.Create({
+          const sub2Sub: Cube = Cube.Create({
             cubeType: CubeType.PIC,
             requiredDifficulty: 0,
             fields: VerityField.Payload("Subscriptio secunda"),
@@ -468,7 +468,7 @@ describe('Identity: CubeInfo generators', () => {
         describe('unavailable data', () => {
           it('will omit unavailable posts', async () => {
             // add an available and an unavailable post
-            const availablePost = cciCube.Create({
+            const availablePost = Cube.Create({
               cubeType: CubeType.PIC,
               requiredDifficulty: 0,
               fields: VerityField.Payload("Nuntius"),

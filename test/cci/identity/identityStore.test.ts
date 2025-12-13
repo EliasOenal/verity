@@ -8,7 +8,7 @@ import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterE
 import { IdentityStore } from '../../../src/cci/identity/identityStore';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
-import { CubeKey } from '../../../src/core/cube/cube.definitions';
+import { CubeKey } from '../../../src/core/cube/coreCube.definitions';
 
 describe('IdentityStore', () => {
   const reducedDifficulty = 0;  // no hash cash for testing

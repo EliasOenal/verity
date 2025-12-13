@@ -1,8 +1,8 @@
 import type { NetworkPeerIf } from '../../../../src/core/networking/networkPeerIf';
 
 import { ArrayFromAsync } from '../../../../src/core/helpers/misc';
-import { Cube } from "../../../../src/core/cube/cube";
-import { CubeKey, CubeType, NotificationKey } from "../../../../src/core/cube/cube.definitions";
+import { CoreCube } from "../../../../src/core/cube/coreCube";
+import { CubeKey, CubeType, NotificationKey } from "../../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../../src/core/cube/cubeField";
 import { CubeInfo } from "../../../../src/core/cube/cubeInfo";
 import { CubeStore } from "../../../../src/core/cube/cubeStore";
@@ -60,7 +60,7 @@ describe('CubeRetriever e2e tests', () => {
   describe('getCube() / getCubeInfo()', () => {
     it('retrieves a locally available Cube', async () => {
       // create Cube
-      const cube: Cube = Cube.Frozen({
+      const cube: CoreCube = CoreCube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, "Cubus localis in loco nostro disponibilis est"),
         requiredDifficulty,
       });
@@ -68,7 +68,7 @@ describe('CubeRetriever e2e tests', () => {
       const key: CubeKey = await cube.getKey();
 
       // retrieve Cube
-      const retrieved: Cube = await cubeRetriever.getCube(key);
+      const retrieved: CoreCube = await cubeRetriever.getCube(key);
       expect((await retrieved.getHash()).equals(key)).toBe(true);
       // retrieve CubeInfo
       const retrievedInfo: CubeInfo = await cubeRetriever.getCubeInfo(key);
@@ -78,7 +78,7 @@ describe('CubeRetriever e2e tests', () => {
 
     it('retrieves a Cube available remotely', async () => {
       // create Cube
-      const cube: Cube = Cube.Frozen({
+      const cube: CoreCube = CoreCube.Frozen({
         fields: CubeField.RawContent(CubeType.FROZEN, "Cubus remotus per rete petendus est"),
         requiredDifficulty,
       });
@@ -86,7 +86,7 @@ describe('CubeRetriever e2e tests', () => {
       const key: CubeKey = await cube.getKey();
 
       // retrieve Cube
-      const retrieved: Cube = await cubeRetriever.getCube(key);
+      const retrieved: CoreCube = await cubeRetriever.getCube(key);
       expect((await retrieved.getHash()).equals(key)).toBe(true);
       // retrieve CubeInfo
       const retrievedInfo: CubeInfo = await cubeRetriever.getCubeInfo(key);
@@ -97,10 +97,10 @@ describe('CubeRetriever e2e tests', () => {
 
 
   describe('subscribeCube()', () => {
-    let yielded: Cube[];
-    let preExisting: Cube;
-    let localUpdate: Cube;
-    let remoteUpdate: Cube;
+    let yielded: CoreCube[];
+    let preExisting: CoreCube;
+    let localUpdate: CoreCube;
+    let remoteUpdate: CoreCube;
 
     beforeAll(async () => {
       yielded = [];
@@ -111,7 +111,7 @@ describe('CubeRetriever e2e tests', () => {
       const privateKey = Buffer.from(keyPair.privateKey);
 
       // create pre-existing Cube
-      preExisting = Cube.Create({
+      preExisting = CoreCube.Create({
         cubeType: CubeType.PMUC,
         fields: [
           CubeField.RawContent(CubeType.PMUC, "hic cubus in repositus est"),
@@ -130,7 +130,7 @@ describe('CubeRetriever e2e tests', () => {
         }
       })();
 
-      localUpdate = Cube.Create({
+      localUpdate = CoreCube.Create({
         cubeType: CubeType.PMUC,
         fields: [
           CubeField.RawContent(CubeType.PMUC, "hic cubus loco renovatus est"),
@@ -140,7 +140,7 @@ describe('CubeRetriever e2e tests', () => {
       });
       await local.cubeStore.addCube(localUpdate);
 
-      remoteUpdate = Cube.Create({
+      remoteUpdate = CoreCube.Create({
         cubeType: CubeType.PMUC,
         fields: [
           CubeField.RawContent(CubeType.PMUC, "hic cubus remoto renovatus est"),
@@ -178,7 +178,7 @@ describe('CubeRetriever e2e tests', () => {
     beforeAll(async () => {
       // Sculpt two Cubes notifying recipientKey, and an irrelevant one
       // notifying irrelevantKey.
-      const notification1 = Cube.Create({
+      const notification1 = CoreCube.Create({
         cubeType: CubeType.PIC_NOTIFY,
         fields: [
           CubeField.RawContent(CubeType.PIC_NOTIFY, "Cubus notificationis"),
@@ -188,7 +188,7 @@ describe('CubeRetriever e2e tests', () => {
       });
       await local.cubeStore.addCube(notification1);
 
-      const notification2 = Cube.Create({
+      const notification2 = CoreCube.Create({
         cubeType:CubeType.FROZEN_NOTIFY,
         fields: [
             CubeField.Notify(recipientKey),  // mix up input field order for extra fuzzing
@@ -198,7 +198,7 @@ describe('CubeRetriever e2e tests', () => {
       });
       await local.cubeStore.addCube(notification2);
 
-      const irrelevant = Cube.Create({
+      const irrelevant = CoreCube.Create({
         cubeType: CubeType.PIC_NOTIFY,
         fields: [
           CubeField.RawContent(CubeType.PIC_NOTIFY, "Cubus irrelevans"),
@@ -215,7 +215,7 @@ describe('CubeRetriever e2e tests', () => {
     });
 
     it('fetches multiple locally available notifications', async () => {
-      const retrieved: Cube[] = await ArrayFromAsync(
+      const retrieved: CoreCube[] = await ArrayFromAsync(
         cubeRetriever.getNotifications(recipientKey)
       );
       expect(retrieved.length).toEqual(notificationCubeKeys.length);
@@ -227,7 +227,7 @@ describe('CubeRetriever e2e tests', () => {
 
     it('fetches multiple remote notifications', async () => {
       // sculpt two remote notifications
-      const remote1 = Cube.Create({
+      const remote1 = CoreCube.Create({
         cubeType: CubeType.PIC_NOTIFY,
         fields: [
           CubeField.RawContent(CubeType.PIC_NOTIFY, "monitum alienum"),
@@ -238,7 +238,7 @@ describe('CubeRetriever e2e tests', () => {
       await remote.cubeStore.addCube(remote1);
       const remote1Key = await remote1.getKey();
 
-      const remote2 = Cube.Create({
+      const remote2 = CoreCube.Create({
         cubeType: CubeType.PIC_NOTIFY,
         fields: [
           CubeField.RawContent(CubeType.PIC_NOTIFY, "aliud monitum alienum"),
@@ -250,7 +250,7 @@ describe('CubeRetriever e2e tests', () => {
       const remote2Key = await remote2.getKey();
 
       // run test
-      const retrieved: Cube[] = await ArrayFromAsync(
+      const retrieved: CoreCube[] = await ArrayFromAsync(
         cubeRetriever.getNotifications(recipientKey)
       );
       expect(retrieved.some(cube => cube.getKeyIfAvailable().equals(remote1Key))).toBe(true);

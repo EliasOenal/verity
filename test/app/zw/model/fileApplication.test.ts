@@ -1,7 +1,7 @@
-import { CubeKey } from '../../../../src/core/cube/cube.definitions';
+import { CubeKey } from '../../../../src/core/cube/coreCube.definitions';
 
-import { FieldType } from '../../../../src/cci/cube/cciCube.definitions';
-import { cciCube } from '../../../../src/cci/cube/cciCube';
+import { FieldType } from '../../../../src/cci/cube/cube.definitions';
+import { Cube } from '../../../../src/cci/cube/cube';
 import { VerityField } from '../../../../src/cci/cube/verityField';
 import { RelationshipType } from '../../../../src/cci/cube/relationship';
 
@@ -20,7 +20,7 @@ describe('FileApplication', () => {
 
     expect(cubes.length).toBe(1);
     const cube = cubes[0];
-    expect(cube).toBeInstanceOf(cciCube);
+    expect(cube).toBeInstanceOf(Cube);
 
     const applicationField = cube.getFields(FieldType.APPLICATION)[0];
     expect(applicationField.valueString).toBe('file');
@@ -43,7 +43,7 @@ describe('FileApplication', () => {
     expect(cubes.length).toBeGreaterThan(1);
 
     cubes.forEach((cube, index) => {
-      expect(cube).toBeInstanceOf(cciCube);
+      expect(cube).toBeInstanceOf(Cube);
 
       const applicationField = cube.getFields(FieldType.APPLICATION)[0];
       expect(applicationField.valueString).toBe('file');
@@ -99,7 +99,7 @@ describe('FileApplication', () => {
     });
 
     test('retrieveFile with non-file application cube', async () => {
-      const invalidCube = cciCube.Frozen({
+      const invalidCube = Cube.Frozen({
         fields: VerityField.Application('not-file')
       });
 

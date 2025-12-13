@@ -1,10 +1,10 @@
-import { cciCube } from "../../../src/cci/cube/cciCube";
-import { MediaTypes, FieldLength, FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { Cube } from "../../../src/cci/cube/cube";
+import { MediaTypes, FieldLength, FieldType } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
 import { Split, Recombine } from "../../../src/cci/veritum/continuation";
 import { Veritum } from "../../../src/cci/veritum/veritum";
-import { CubeKey, CubeType, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, CubeType, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/coreCube.definitions";
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 
 import { evenLonger, farTooLong, tooLong } from "../testcci.definitions";
@@ -29,7 +29,7 @@ describe('Continuation', () => {
   describe('manual Split() tests', () => {
     describe('splitting a single oversized payload field into two Cubes', async () => {
       let veritum: Veritum;
-      let splitCubes: cciCube[];
+      let splitCubes: Cube[];
       let payloadMacrofield: VerityField = VerityField.Payload(tooLong);
 
       const expectedFirstChunkPayloadLength = 1024  // Cube size
@@ -121,7 +121,7 @@ describe('Continuation', () => {
       });
 
       // run the test
-      const chunks: cciCube[] =
+      const chunks: Cube[] =
         await Split(veritum, {
           maxChunkSize: () => 500,
           requiredDifficulty: 0,
@@ -154,14 +154,14 @@ describe('Continuation', () => {
 
       // prepare a chunk transformation callback
       const missingLatinProficiency = "I can't understand you, you have no subtitles!";
-      const transformer: (chunk: cciCube) => void = (chunk: cciCube) => {
+      const transformer: (chunk: Cube) => void = (chunk: Cube) => {
         chunk.insertFieldBeforeBackPositionals(VerityField.Description(
           missingLatinProficiency
         ));
       }
 
       // run Split()
-      const chunks: cciCube[] =
+      const chunks: Cube[] =
         await Split(veritum, {
           maxChunkSize: () => 500,
           requiredDifficulty: 0,
@@ -180,7 +180,7 @@ describe('Continuation', () => {
   describe('manual Recombine() tests', () => {
     it('will not merge fields within the same chunk', () => {
       // This enables users to treat Verita the same as plain old single Cubes.
-      const cube: cciCube = cciCube.Create({
+      const cube: Cube = Cube.Create({
         fields: [
           VerityField.Date(),  // add DATE explicitly just to simplify comparison
           VerityField.Payload("Ego campus sum"),
@@ -236,7 +236,7 @@ describe('Continuation', () => {
             });
 
             // run the test: split, then recombine
-            const splitCubes: cciCube[] = await Split(veritum, {requiredDifficulty: 0});
+            const splitCubes: Cube[] = await Split(veritum, {requiredDifficulty: 0});
             expect(splitCubes.length).toEqual(2);
             recombined = Recombine(splitCubes, {requiredDifficulty: 0});
           });
@@ -269,7 +269,7 @@ describe('Continuation', () => {
 
         it('splits and restores a single extremely large payload field requiring more than two chunks', async () => {
           // prepare macro Cube
-          const macroCube = cciCube.Create({
+          const macroCube = Cube.Create({
             cubeType: cubeType,
             requiredDifficulty: 0,
             publicKey, privateKey,
@@ -278,7 +278,7 @@ describe('Continuation', () => {
           macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
           // run the test: split, then recombine
-          const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
+          const splitCubes: Cube[] = await Split(macroCube, {requiredDifficulty: 0});
           expect(splitCubes.length).toBeGreaterThan(11);
           const recombined: Veritum = Recombine(splitCubes, {requiredDifficulty: 0});
 
@@ -305,7 +305,7 @@ describe('Continuation', () => {
         it('splits and restores a long array of small fixed-length fields', async () => {
           const numFields = 500;
           // prepare macro Cube
-          const macroCube = cciCube.Create({
+          const macroCube = Cube.Create({
             cubeType: cubeType,
             requiredDifficulty: 0,
             publicKey, privateKey,
@@ -321,7 +321,7 @@ describe('Continuation', () => {
           }
 
           // split the Cube
-          const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
+          const splitCubes: Cube[] = await Split(macroCube, {requiredDifficulty: 0});
 
           // run some tests on the chunks: ensure that the total number of target
           // fields in the split is correct
@@ -347,7 +347,7 @@ describe('Continuation', () => {
         it('splits and restores a long array of small variable-length fields', async () => {
           const numFields = 500;
           // prepare macro Cube
-          const macroCube = cciCube.Create({
+          const macroCube = Cube.Create({
             cubeType: cubeType,
             requiredDifficulty: 0,
             publicKey, privateKey,
@@ -362,7 +362,7 @@ describe('Continuation', () => {
           }
 
           // split the Cube
-          const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
+          const splitCubes: Cube[] = await Split(macroCube, {requiredDifficulty: 0});
 
           // Run some tests on the chunks: ensure that the total number of target
           // fields in the split is correct.
@@ -391,7 +391,7 @@ describe('Continuation', () => {
         it('splits and restores a long array of different fields of different lengths', async () => {
           const numFields = 100;
           // prepare macro Cube
-          const macroCube = cciCube.Create({
+          const macroCube = Cube.Create({
             cubeType: cubeType,
             requiredDifficulty: 0,
             publicKey, privateKey,
@@ -416,7 +416,7 @@ describe('Continuation', () => {
           }
 
           // split the Cube
-          const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
+          const splitCubes: Cube[] = await Split(macroCube, {requiredDifficulty: 0});
 
           // run some tests on the chunks: ensure that the total number of target
           // fields in the split is correct
@@ -459,7 +459,7 @@ describe('Continuation', () => {
           }
 
           // split the Cube
-          const splitCubes: cciCube[] = await Split(veritum, {requiredDifficulty: 0});
+          const splitCubes: Cube[] = await Split(veritum, {requiredDifficulty: 0});
           expect(splitCubes).toHaveLength(2);
 
           // recombine
@@ -477,7 +477,7 @@ describe('Continuation', () => {
 
         it('preserves all CCI relationship except CONTINUED_IN', async () => {
           // prepare macro Cube
-          const macroCube = cciCube.Create({
+          const macroCube = Cube.Create({
             cubeType: cubeType,
             requiredDifficulty: 0,
             publicKey, privateKey,
@@ -501,7 +501,7 @@ describe('Continuation', () => {
             new Relationship(RelationshipType.CONTINUED_IN, Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 42) as CubeKey)));
 
           // run the test: split, then recombine
-          const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
+          const splitCubes: Cube[] = await Split(macroCube, {requiredDifficulty: 0});
           expect(splitCubes.length).toEqual(2);
           const recombined: Veritum = Recombine(splitCubes, {requiredDifficulty: 0});
 
@@ -526,7 +526,7 @@ describe('Continuation', () => {
       describe('edge cases', () => {
         it('produces a valid result even if Cube did not need splitting in the first place', async () => {
           // prepare a "macro" Cube that's not actually macro
-          const macroCube = cciCube.Create({
+          const macroCube = Cube.Create({
             cubeType: cubeType,
             requiredDifficulty: 0,
             publicKey, privateKey,
@@ -544,7 +544,7 @@ describe('Continuation', () => {
           }
 
           // split the Cube
-          const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
+          const splitCubes: Cube[] = await Split(macroCube, {requiredDifficulty: 0});
           expect(splitCubes.length).toBe(1);
 
           // run some tests on the chunks: ensure that the total number of target
@@ -600,7 +600,7 @@ describe('Continuation', () => {
           }
 
           // split and recombine
-          const splitCubes: cciCube[] = await Split(veritum, {requiredDifficulty: 0});
+          const splitCubes: Cube[] = await Split(veritum, {requiredDifficulty: 0});
           const recombined: Veritum = Recombine(splitCubes, {requiredDifficulty: 0});
 
           // verify result
@@ -675,7 +675,7 @@ describe('Continuation', () => {
             const originalFields = Array.from(veritum.getFields());
 
             // split and recombine the Veritum
-            const splitCubes: cciCube[] = await Split(veritum, {requiredDifficulty: 0});
+            const splitCubes: Cube[] = await Split(veritum, {requiredDifficulty: 0});
             const recombined: Veritum = Recombine(splitCubes, {requiredDifficulty: 0});
 
             // assert that all fields were correctly restored (manually)

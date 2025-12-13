@@ -1,8 +1,8 @@
 import { Buffer } from 'buffer';
 import sodium from 'libsodium-wrappers-sumo'
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
-import { Cube } from '../../../src/core/cube/cube';
-import { CubeKey, CubeType } from '../../../src/core/cube/cube.definitions';
+import { CoreCube } from '../../../src/core/cube/coreCube';
+import { CubeKey, CubeType } from '../../../src/core/cube/coreCube.definitions';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { CubeField } from '../../../src/core/cube/cubeField';
@@ -36,7 +36,7 @@ describe('CubeInfo', () => {
       });
 
       it('tries to activate the Cube to get the update count', async () => {
-        const cube: Cube = Cube.Create({
+        const cube: CoreCube = CoreCube.Create({
           cubeType: CubeType.PMUC,
           fields: CubeField.PmucUpdateCount(42),
           publicKey, privateKey,
@@ -69,7 +69,7 @@ describe('CubeInfo', () => {
 
     describe('active Cubes', () => {
       it('fetches the update count from the Cube', async () => {
-        const cube: Cube = Cube.Create({
+        const cube: CoreCube = CoreCube.Create({
           cubeType: CubeType.PMUC,
           fields: CubeField.PmucUpdateCount(42),
           publicKey, privateKey,
@@ -86,7 +86,7 @@ describe('CubeInfo', () => {
       });
 
       it('does not allow to override the update count', async () => {
-        const cube: Cube = Cube.Create({
+        const cube: CoreCube = CoreCube.Create({
           cubeType: CubeType.PMUC,
           fields: CubeField.PmucUpdateCount(42),
           publicKey, privateKey,

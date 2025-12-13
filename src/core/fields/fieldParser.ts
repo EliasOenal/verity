@@ -1,5 +1,5 @@
 import { ApiMisuseError, Settings } from "../settings";
-import { BinaryDataError, FieldError } from "../cube/cube.definitions";
+import { BinaryDataError, FieldError } from "../cube/coreCube.definitions";
 import { BaseField } from "./baseField";
 import { BaseFields } from "./baseFields";
 import { logger } from "../logger";

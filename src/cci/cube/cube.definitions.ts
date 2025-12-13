@@ -1,4 +1,4 @@
-import { CubeFieldType, CubeFieldLength } from "../../core/cube/cube.definitions";
+import { CubeFieldType, CubeFieldLength } from "../../core/cube/coreCube.definitions";
 import { FieldNumericalParam } from "../../core/fields/fieldParser";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 

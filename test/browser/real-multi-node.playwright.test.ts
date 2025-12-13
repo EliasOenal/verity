@@ -399,7 +399,7 @@ test.describe('Real Verity Multi-Node Functionality Tests', () => {
         successfulCreations: successfulCubes.length
       });
       
-      // Core assertion: Cube functionality works regardless of connection persistence
+      // Core assertion: CoreCube functionality works regardless of connection persistence
       expect(totalCubesInNodes).toBeGreaterThanOrEqual(8);
       
     } finally {

@@ -9,20 +9,20 @@ import { RecursiveEmitter } from '../../core/helpers/recursiveEmitter';
 import { logger } from '../../core/logger';
 
 import { Veritable } from '../../core/cube/veritable.definition';
-import { Cube } from '../../core/cube/cube';
+import { CoreCube } from '../../core/cube/coreCube';
 import { asCubeKey, KeyVariants, keyVariants } from '../../core/cube/keyUtil';
 import { CubeStore } from '../../core/cube/cubeStore';
 import { CubeEmitter, CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import { CubeInfo } from '../../core/cube/cubeInfo';
-import { CubeKey, CubeType } from '../../core/cube/cube.definitions';
+import { CubeKey, CubeType } from '../../core/cube/coreCube.definitions';
 
-import { FieldLength, FieldType } from '../cube/cciCube.definitions';
+import { FieldLength, FieldType } from '../cube/cube.definitions';
 import { KeyMismatchError, KeyPair, deriveEncryptionKeypair, deriveSigningKeypair } from '../helpers/cryptography';
 import { VerityField } from '../cube/verityField';
 import { VerityFields, cciPmucFieldDefinition, cciPmucParser } from '../cube/verityFields';
 import { Relationship, RelationshipType } from '../cube/relationship';
-import { cciCube, cciFamily } from '../cube/cciCube';
-import { ensureCci, extensionMuc } from '../cube/cciCubeUtil';
+import { Cube, cciFamily } from '../cube/cube';
+import { ensureCci, extensionMuc } from '../cube/cubeUtil';
 
 import { RetrievalFormat } from '../veritum/veritum.definitions';
 import { Veritum } from '../veritum/veritum';
@@ -232,7 +232,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    **/
   static async Construct(
     cubeStoreOrRetriever: CubeRetrievalInterface<any>,
-    mucOrMasterkey: cciCube | Buffer,
+    mucOrMasterkey: Cube | Buffer,
     options?: IdentityOptions,
   ): Promise<Identity> {
     await sodium.ready;
@@ -331,7 +331,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   private _encryptionPublicKey: Buffer;
 
   /** @member - The MUC in which this Identity information is stored and published */
-  private _muc: cciCube = undefined;
+  private _muc: Cube = undefined;
 
   /** List of own posts, in undefined order */
   private _posts: Set<string> = new Set();
@@ -344,8 +344,8 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    */
   private _publicSubscriptions: Set<string> = new Set();
 
-  private _publicSubscriptionIndices: Array<cciCube> = [];
-  get publicSubscriptionIndices(): Array<cciCube> {
+  private _publicSubscriptionIndices: Array<Cube> = [];
+  get publicSubscriptionIndices(): Array<Cube> {
     return this._publicSubscriptionIndices;
   }
 
@@ -356,7 +356,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    * remember their request in this promise. Any subsequent Identity changes
    * will then be handles in a single rebuild.
    */
-  private makeMucPromise: Promise<cciCube> = undefined;
+  private makeMucPromise: Promise<Cube> = undefined;
 
   /**
    * A promise which will resolve once this Identity has been fully parsed,
@@ -389,7 +389,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    */
     constructor(
       cubeStoreOrRetriever: CubeRetrievalInterface<any>|undefined,
-      mucOrMasterkey: cciCube | Buffer,
+      mucOrMasterkey: Cube | Buffer,
       readonly options: IdentityOptions = {},
   ){
     super();
@@ -427,7 +427,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     }
 
     // are we loading or creating an Identity?
-    if (mucOrMasterkey instanceof Cube) {  // checking for the more generic Cube instead of cciCube as this is the more correct branch compared to handling this as a KeyPair (also Cube subclass handling is not completely clean yet throughout our codebase)
+    if (mucOrMasterkey instanceof CoreCube) {  // checking for the more generic Cube instead of cciCube as this is the more correct branch compared to handling this as a KeyPair (also Cube subclass handling is not completely clean yet throughout our codebase)
       this.demarshall(mucOrMasterkey).then(() => {
         // TODO: this makes little sense outside of synthetic tests, see discussion in parseMuc() jsdoc
         this.fullyParsedPromiseResolve(this)
@@ -499,7 +499,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     return phrase;
   }
 
-  get muc(): cciCube { return this._muc; }
+  get muc(): Cube { return this._muc; }
 
   //###
   // #endregion
@@ -594,23 +594,23 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   }
 
   getPosts(options: GetPostsOptions & { format: RetrievalFormat.Veritum, metadata: true, resolveRels: true }): RelResolvingGetPostsGenerator<Veritum>;
-  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Cube, metadata: true, resolveRels: true} ): RelResolvingGetPostsGenerator<Cube>;
+  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Cube, metadata: true, resolveRels: true} ): RelResolvingGetPostsGenerator<CoreCube>;
   getPosts(options: GetPostsOptions & { format: RetrievalFormat.Veritum, metadata: true, resolveRels: 'recursive' }): RecursiveRelResolvingGetPostsGenerator<Veritum>;
-  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Cube, metadata: true, resolveRels: 'recursive'} ): RecursiveRelResolvingGetPostsGenerator<Cube>;
+  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Cube, metadata: true, resolveRels: 'recursive'} ): RecursiveRelResolvingGetPostsGenerator<CoreCube>;
   getPosts(options: GetPostsOptions & { format: RetrievalFormat.Veritum, metadata: true }): GetPostsGenerator<PostInfo<Veritum>>;
-  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Cube, metadata: true} ): GetPostsGenerator<PostInfo<Cube>>;
+  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Cube, metadata: true} ): GetPostsGenerator<PostInfo<CoreCube>>;
   getPosts(options: GetPostsOptions & { format: RetrievalFormat.Veritum, metadata?: false} ): GetPostsGenerator<Veritum>;
-  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Cube, metadata?: false} ): GetPostsGenerator<Cube>;
+  getPosts(options: GetPostsOptions & { format: RetrievalFormat.Cube, metadata?: false} ): GetPostsGenerator<CoreCube>;
   getPosts(options?: GetPostsOptions): GetPostsGenerator<Veritum>;
   getPosts(
     options: GetPostsOptions = {},
-  ): GetPostsGenerator<Cube|Veritum|PostInfo<Cube|Veritum>> {
+  ): GetPostsGenerator<CoreCube|Veritum|PostInfo<CoreCube|Veritum>> {
     // set default options
     options.format ??= this.veritumRetriever? RetrievalFormat.Veritum: RetrievalFormat.Cube;
     options.subscriptionDepth ??= 0;
 
     // Prepare output partials: A list of post generators
-    const generators: AsyncGenerator<Cube|Veritum|PostInfo<Cube|Veritum>>[] = [];
+    const generators: AsyncGenerator<CoreCube|Veritum|PostInfo<CoreCube|Veritum>>[] = [];
     // and a counter to keep track of how many of those represent Generators
     // yielding already-existing posts,
     // rather than subscribe-mode generators anticipating future posts.
@@ -634,14 +634,14 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
       else options.recursionExclude.add(this.keyString);
 
       // Get all my posts (as retrieval promises)
-      const minePromises: Promise<Cube|Veritum|PostInfo<Cube|Veritum>>[] = [];
+      const minePromises: Promise<CoreCube|Veritum|PostInfo<CoreCube|Veritum>>[] = [];
       // TODO BUGBUG FIXME: metadata resolution only works with a VeritumRetriever, not with a CubeRetriever
-      const retrievalFn: (key: CubeKey|string, options: GetVeritumOptions) => Promise<Cube|Veritum|PostInfo<Cube|Veritum>> =
+      const retrievalFn: (key: CubeKey|string, options: GetVeritumOptions) => Promise<CoreCube|Veritum|PostInfo<CoreCube|Veritum>> =
         options.format === RetrievalFormat.Veritum
           ? this.veritumRetriever.getVeritum.bind(this.veritumRetriever)
           : this.retriever.getCube.bind(this.cubeRetriever);
       for (const post of this.getPostKeyStrings()) {
-        const promise: Promise<Cube|Veritum|PostInfo<Cube|Veritum>> =
+        const promise: Promise<CoreCube|Veritum|PostInfo<CoreCube|Veritum>> =
           retrievalFn(post, { ...options, recipient: this });
         if (promise !== undefined) {
           if (options.metadata) {
@@ -725,7 +725,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     }
 
     // Merge all those generators
-    const ret: GetPostsGenerator<Cube|Veritum|PostInfo<Cube|Veritum>> =
+    const ret: GetPostsGenerator<CoreCube|Veritum|PostInfo<CoreCube|Veritum>> =
       mergeAsyncGenerators(...generators);
 
     // For subscription mode, let the caller know when we're done yielding
@@ -792,15 +792,15 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   }
 
   getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: RetrievalFormat.Veritum, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<Veritum>>;
-  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: RetrievalFormat.Cube, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<Cube>>;
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: RetrievalFormat.Cube, postInfo: true, subscribe?: boolean } ): AsyncGenerator<PostInfo<CoreCube>>;
   getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: RetrievalFormat.Veritum, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<Veritum>;
-  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: RetrievalFormat.Cube, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<Cube>;
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options: { format: RetrievalFormat.Cube, postInfo?: false, subscribe?: boolean } ): AsyncGenerator<CoreCube>;
   /**
    * Retrieves the posts by a specific subscribed Identity.
    * Note that this actually also works for non-subscribed users.
    */
-  getPublicSubscriptionPosts(keyInput: CubeKey|string, options?: GetPostsOptions): AsyncGenerator<Cube|Veritum|PostInfo<Cube|Veritum>>;
-  async *getPublicSubscriptionPosts(keyInput: CubeKey|string, options?: GetPostsOptions): AsyncGenerator<Cube|Veritum|PostInfo<Cube|Veritum>> {
+  getPublicSubscriptionPosts(keyInput: CubeKey|string, options?: GetPostsOptions): AsyncGenerator<CoreCube|Veritum|PostInfo<CoreCube|Veritum>>;
+  async *getPublicSubscriptionPosts(keyInput: CubeKey|string, options?: GetPostsOptions): AsyncGenerator<CoreCube|Veritum|PostInfo<CoreCube|Veritum>> {
     const identity: Identity = await this.getPublicSubscriptionIdentity(keyInput);
     if (identity !== undefined) {
       const gen = identity.getPosts(options);
@@ -878,7 +878,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    */
   // TODO guard this against double access similar to makeMUC() now that compilation
   //   is triggered here rather than there
-  async store():Promise<cciCube>{
+  async store():Promise<Cube>{
     // sanity checks
     if (this.cubeStore === undefined) {
       throw new VerityError("Identity.store(): This Identity is running in read-only mode (i.e. does not have a CubeStore reference), thus store() is not possible.");
@@ -905,7 +905,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   * changes have been performed to avoid spamming multiple MUC versions
   * (and having to compute hashcash for all of them).
   */
-  async marshall(): Promise<cciCube> {
+  async marshall(): Promise<Cube> {
     // Pre-run check:
     // Is there already a PMUC compilation in progress?
     // If so, do not start a competing process but just return their promise.
@@ -975,7 +975,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
           // note: key is always available as this is a MUC
     }
 
-    const newPmuc: cciCube = cciCube.Create({
+    const newPmuc: Cube = Cube.Create({
       cubeType: CubeType.PMUC,
       publicKey: this.publicKey,
       privateKey: this._muc.privateKey,
@@ -1053,7 +1053,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     let recursiveSubs: Set<string> = new Set(this._publicSubscriptions);
     if (curDepth < maxDepth) {
       for (const sub of this._publicSubscriptions) {
-        const muc: cciCube = ensureCci(await this.cubeRetriever.getCube(sub));
+        const muc: Cube = ensureCci(await this.cubeRetriever.getCube(sub));
         if (!muc) continue;
         let id: Identity;
         try {
@@ -1130,7 +1130,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         // TODO BUGBUG: This will currently not delete an unnecessary index cube
         //   if enough subs have been removed, effectively retaining the removed
         //   subs. The same applies if the number of subs is reduced to zero.
-        const indexCube: cciCube = extensionMuc(this.masterKey, {
+        const indexCube: Cube = extensionMuc(this.masterKey, {
           fields,
           subkeyIndex: i,
           contextString: "Subscription recommendation index",
@@ -1168,12 +1168,12 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    *   it will just resolve after the retrieval timeout and still be no good.
    *   We need to rethink that...
    */
-  private demarshall(muc: cciCube): Promise<void> {
+  private demarshall(muc: Cube): Promise<void> {
     if (Settings.RUNTIME_ASSERTIONS) {
       // disabled for now: Identity doesn't *really* require a cciCube object
       // and our codebase currently does not cleanly distinguish required
       // Cube classes yet
-      // if (!(muc instanceof cciCube)) {
+      // if (!(muc instanceof Cube)) {
       //   this.readyPromiseReject(new CubeError("Identity: Supplied Cube is not as CCI Cube"));
       //   return;
       // }
@@ -1257,7 +1257,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         ((incoming.cubeType === CubeType.PMUC || incoming.cubeType === CubeType.PMUC_NOTIFY) &&
           incoming.updatecount > this.muc.getFirstField(FieldType.PMUC_UPDATE_COUNT)?.value?.readUintBE?.(0, NetConstants.PMUC_UPDATE_COUNT_SIZE))
     ) {
-      this.demarshall(incoming.getCube() as cciCube);
+      this.demarshall(incoming.getCube() as Cube);
       logger.trace("Identity.mergeRemoteChanges: Adopting incoming root Cube");
     } else {
       logger.trace("Identity.mergeRemoteChanges: Rejecting incoming root Cube as mine is newer");
@@ -1266,7 +1266,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
 
   // TODO: check and limit recursion
   private async recursiveDemarshallPublicSubscriptions(
-      mucOrMucExtension: cciCube,
+      mucOrMucExtension: Cube,
       alreadyTraversedCubes: string[] = []
   ): Promise<void> {
     // sanity check
@@ -1303,9 +1303,9 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     const furtherIndices = fields.getRelationships(
       RelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX);
     for (const furtherIndex of furtherIndices) {
-      const furtherCube: Cube = await this.cubeRetriever.getCube(furtherIndex.remoteKey);
+      const furtherCube: CoreCube = await this.cubeRetriever.getCube(furtherIndex.remoteKey);
       if (furtherCube) {
-        await this.recursiveDemarshallPublicSubscriptions(furtherCube as cciCube, alreadyTraversedCubes);
+        await this.recursiveDemarshallPublicSubscriptions(furtherCube as Cube, alreadyTraversedCubes);
       }
     }
   }
@@ -1319,7 +1319,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
    */
   // TODO: check and limit recursion
   private recursiveDemarshallPostReferences(
-      mucOrMucExtension: Cube,
+      mucOrMucExtension: CoreCube,
       alreadyTraversedCubes: string[],  // TODO make this a Set
   ): Promise<void> {
     // sanity check
@@ -1376,7 +1376,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
           return;
         }
         // Parse & remember this post
-        const post: Cube = postInfo.getCube();
+        const post: CoreCube = postInfo.getCube();
         if (post === undefined) return;
         if (this.addPost(post.getKeyStringIfAvailable())) {
           // logger.trace(`Identity ${this.keyString} recursiveParsePostReferences(): Successfully recovered my post ${post.getKeyStringIfAvailable()}. Continuing recursion.`);
@@ -1460,7 +1460,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
   //###
 
   private async emitCubeAdded(
-      input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>,
+      input: CubeKey|string|CubeInfo|CoreCube|Promise<CubeInfo>,
   ): Promise<void> {
     if (!this.shouldIEmit('cubeAdded')) return;  // should I even emit?
     const cubeInfo = await this.retrieveCubeInfo(input);  // normalise input
@@ -1476,10 +1476,10 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     }
   }
 
-  private retrieveCubeInfo(input: CubeKey|string|CubeInfo|Cube|Promise<CubeInfo>): Promise<CubeInfo> {
+  private retrieveCubeInfo(input: CubeKey|string|CubeInfo|CoreCube|Promise<CubeInfo>): Promise<CubeInfo> {
     if (input instanceof CubeInfo) {
       return Promise.resolve(input);
-    } else if (input instanceof Cube) {
+    } else if (input instanceof CoreCube) {
       return input.getCubeInfo();
     } else if (input instanceof Promise) {
       return input;
@@ -1515,7 +1515,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
         return;
       }
       if (this.shouldIEmit('postAddedCube')) {  // recheck as we awaited something
-        const postInfo: PostInfo<Cube> = {
+        const postInfo: PostInfo<CoreCube> = {
           main: cube,
           author: this,
           done: Promise.resolve(),

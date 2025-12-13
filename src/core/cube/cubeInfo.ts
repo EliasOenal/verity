@@ -1,10 +1,10 @@
 import { NetConstants } from '../networking/networkDefinitions';
 import { ApiMisuseError } from '../settings';
 
-import { CubeType, CubeKey, CubeFieldType } from './cube.definitions';
-import { Cube, coreCubeFamily } from './cube'
+import { CubeType, CubeKey, CubeFieldType } from './coreCube.definitions';
+import { CoreCube, coreCubeFamily } from './coreCube'
 import { CubeFamilyDefinition } from './cubeFields';
-import { GetCubeOptions } from "./cube.definitions";
+import { GetCubeOptions } from "./coreCube.definitions";
 import { activateCube, dateFromBinary, typeFromBinary } from './cubeUtil';
 import { logger } from '../logger';
 
@@ -19,7 +19,7 @@ export interface CubeInfoOptions {
   key: CubeKey;
 
   /** The Cube this CubeInfo represents, either in binary form or as an instance */
-  cube?: Buffer | Cube;
+  cube?: Buffer | CoreCube;
 
   /**
    * The type of Cube (e.g. Frozen, MUC, IPC, ...)
@@ -142,7 +142,7 @@ export class CubeInfo {
 
   // @member objectCache: Will remember the last instantiated Cube object
   //                      for as long as the garbage collector keeps it alive
-  private objectCache: WeakRef<Cube> = undefined;
+  private objectCache: WeakRef<CoreCube> = undefined;
 
   // NOTE, maybe TODO: If binaryCube is specified, this CubeInfo could contain
   // contradictory information as we currently don't validate the details
@@ -157,7 +157,7 @@ export class CubeInfo {
     this._date = options.date;
     this._difficulty = options.difficulty;
 
-    if (options.cube instanceof Cube) {
+    if (options.cube instanceof CoreCube) {
       // active Cube
       this.binaryCube = options.cube.getBinaryDataIfAvailable();
       if(!this.binaryCube) {
@@ -216,7 +216,7 @@ export class CubeInfo {
    *  unparseable.
    * @throws Should not throw.
    */
-  getCube<cubeClass extends Cube>(
+  getCube<cubeClass extends CoreCube>(
     options: GetCubeOptions = {},
   ): cubeClass {
     // set default options
@@ -228,7 +228,7 @@ export class CubeInfo {
     // Can only used cached object when using default parser and Cube class.
     if (this.objectCache) {  // is there anything cached?
       if (families[0] === this.families[0]) {  // don't use cache unless default parsing
-        const cachedCube: Cube = this.objectCache.deref();
+        const cachedCube: CoreCube = this.objectCache.deref();
         if (cachedCube) {
           // logger.trace("cubeInfo: Yay! Saving us one instantiation");
           return this.objectCache.deref() as cubeClass;

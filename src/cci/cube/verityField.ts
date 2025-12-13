@@ -1,10 +1,10 @@
 import { Settings } from "../../core/settings";
 import { NetConstants } from "../../core/networking/networkDefinitions";
 
-import { CubeKey, FieldError } from "../../core/cube/cube.definitions";
+import { CubeKey, FieldError } from "../../core/cube/coreCube.definitions";
 import { CubeField } from "../../core/cube/cubeField";
 
-import { FieldType, MediaTypes, FieldLength } from "./cciCube.definitions";
+import { FieldType, MediaTypes, FieldLength } from "./cube.definitions";
 import { Relationship, RelationshipType } from "./relationship";
 
 import { Buffer } from 'buffer'

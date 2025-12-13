@@ -1,7 +1,7 @@
-import type { CubeKey } from "../../core/cube/cube.definitions";
+import type { CubeKey } from "../../core/cube/coreCube.definitions";
 import type { CubeRetrievalInterface } from "../../core/cube/cubeRetrieval.definitions";
 import type { Shuttable } from "../../core/helpers/coreInterfaces";
-import type { cciCube } from "../cube/cciCube";
+import type { Cube } from "../cube/cube";
 
 import type { IdentityOptions } from "./identity.definitions";
 
@@ -62,7 +62,7 @@ export class IdentityStore implements Shuttable {
       // Fetch Identity's root Cube from the network
       // Note: This interrupts the current call, making it possible for a concurrent
       // call to retrieve and store the same Identity we're trying to fetch.
-      const muc: cciCube = await this.cubeRetriever.getCube(key.binaryKey as CubeKey);
+      const muc: Cube = await this.cubeRetriever.getCube(key.binaryKey as CubeKey);
       const stored: Identity = this.getIdentity(keyInput);
       if (stored !== undefined) return stored;
       if (muc === undefined) {

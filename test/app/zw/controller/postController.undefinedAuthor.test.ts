@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { PostController, PostData } from '../../../../src/app/zw/webui/post/postController';
 import { DummyControllerContext } from '../../../../src/webui/testingDummies';
 import { loadZwTemplate } from '../ui/zwUiTestSetup';
-import type { cciCube } from '../../../../src/cci/cube/cciCube';
+import type { Cube } from '../../../../src/cci/cube/cube';
 import type { Identity } from '../../../../src/cci/identity/identity';
 
 /**
@@ -38,7 +38,7 @@ describe('PostController undefined author fix (#806)', () => {
     const mockPostData: Partial<PostData> = {
       main: {
         getKeyStringIfAvailable: () => 'test-key-123'
-      } as cciCube,
+      } as Cube,
       author: undefined  // This is the problematic scenario - author not yet resolved
     };
 
@@ -73,7 +73,7 @@ describe('PostController undefined author fix (#806)', () => {
     const mockPostData: Partial<PostData> = {
       main: {
         getKeyStringIfAvailable: () => 'test-key-456'
-      } as cciCube,
+      } as Cube,
       author: mockAuthor  // Author is now available
     };
 
@@ -105,7 +105,7 @@ describe('PostController undefined author fix (#806)', () => {
     const mockPostData: Partial<PostData> = {
       main: {
         getKeyStringIfAvailable: () => 'test-key-789'
-      } as cciCube,
+      } as Cube,
       author: mockAuthor
     };
 

@@ -1,6 +1,6 @@
 import { Settings } from "../../../../src/core/settings";
-import { Cube } from "../../../../src/core/cube/cube";
-import { CubeKey, CubeType } from "../../../../src/core/cube/cube.definitions";
+import { CoreCube } from "../../../../src/core/cube/coreCube";
+import { CubeKey, CubeType } from "../../../../src/core/cube/coreCube.definitions";
 import { CubeField } from "../../../../src/core/cube/cubeField";
 import { CubeStore } from "../../../../src/core/cube/cubeStore";
 import { CubeSubscription } from "../../../../src/core/networking/cubeRetrieval/pendingRequest";
@@ -57,7 +57,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
         describe('regular workflow', () => {
           it('sends a subscription request to any connected peer', async() => {
             // prepare test Cube
-            const cube = Cube.Create({
+            const cube = CoreCube.Create({
               fields: CubeField.RawContent(CubeType.PIC, "Cubus sum"),
               cubeType: CubeType.PIC, requiredDifficulty,
             });
@@ -88,7 +88,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
 
           it('will subscribe without automatically requesting missing cubes', async() => {
             // prepare test Cube
-            const cube = Cube.Create({
+            const cube = CoreCube.Create({
               fields: CubeField.RawContent(CubeType.PIC, "Cubus sum"),
               cubeType: CubeType.PIC, requiredDifficulty,
             });
@@ -127,7 +127,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
 
           it('will auto-renew a subscription before it times out', async() => {
             // prepare test Cube
-            const cube = Cube.Create({
+            const cube = CoreCube.Create({
               fields: CubeField.RawContent(CubeType.PIC, "Cubus sum"),
               cubeType: CubeType.PIC, requiredDifficulty,
             });
@@ -185,7 +185,7 @@ describe('RequestScheduler subscribeCube() tests', () => {
         describe('error handling', () => {
           it.todo('will not renew a subscription earlier than halfway through the subscription period', async() => {
             // prepare test Cube
-            const cube = Cube.Create({
+            const cube = CoreCube.Create({
               fields: CubeField.RawContent(CubeType.PIC, "Cubus sum"),
               cubeType: CubeType.PIC, requiredDifficulty,
             });

@@ -1,12 +1,12 @@
 import { Buffer } from "buffer";
-import { cciCube } from "../../../src/cci/cube/cciCube";
+import { Cube } from "../../../src/cci/cube/cube";
 import { VerityField } from "../../../src/cci/cube/verityField";
-import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { FieldType } from "../../../src/cci/cube/cube.definitions";
 import {
   CubeType,
   NotificationKey,
-} from "../../../src/core/cube/cube.definitions";
-import { Cube } from "../../../src/core/cube/cube";
+} from "../../../src/core/cube/coreCube.definitions";
+import { CoreCube } from "../../../src/core/cube/coreCube";
 
 const APPLICATION_IDENTIFIER = "chat";
 
@@ -20,11 +20,11 @@ export async function createChatCube(
   username: string,
   message: string,
   notificationKey: NotificationKey
-): Promise<cciCube> {
+): Promise<Cube> {
   if (!Buffer.isBuffer(notificationKey) || notificationKey.length !== 32) {
     throw new Error("Invalid notification key: must be 32 bytes");
   }
-  const cube: Cube = cciCube.Frozen({
+  const cube: CoreCube = Cube.Frozen({
     fields: [
       VerityField.Notify(notificationKey),
       VerityField.Application(APPLICATION_IDENTIFIER),
@@ -32,11 +32,11 @@ export async function createChatCube(
       VerityField.Payload(Buffer.from(message, "utf-8")),
     ],
   });
-  return cube as cciCube;
+  return cube as Cube;
 }
 
 // parseChatCube validates structure & extracts fields. Defensive checks reject non‑chat cubes early.
-export function parseChatCube(cube: cciCube): {
+export function parseChatCube(cube: Cube): {
   username: string;
   message: string;
   notificationKey: Buffer;

@@ -1,7 +1,7 @@
 import { ApiMisuseError, Settings } from "../../core/settings";
 import { FieldNumericalParam } from "../../core/fields/fieldParser";
 
-import { FieldType } from "../cube/cciCube.definitions";
+import { FieldType } from "../cube/cube.definitions";
 import { VerityField } from "../cube/verityField";
 
 import { Buffer } from 'buffer';

@@ -1,6 +1,6 @@
 import { Cockpit, VerityField, VerityNode } from "../../../src";
 import { makePost } from "../../../src/app/zw/model/zwUtil";
-import { cciCube } from "../../../src/cci/cube/cciCube";
+import { Cube } from "../../../src/cci/cube/cube";
 import { CrpytographyError } from "../../../src/cci/helpers/cryptography";
 import { Identity } from "../../../src/cci/identity/identity";
 import { IdentityOptions } from "../../../src/cci/identity/identity.definitions";

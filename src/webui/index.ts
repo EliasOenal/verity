@@ -1,4 +1,4 @@
-export * from './helpers';
+export * as helpers from './helpers';
 export * from './navigation';
 
 // Not exporting peer as apps don't need to interact with the PeerController.

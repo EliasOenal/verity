@@ -1,12 +1,12 @@
 import { NetConstants } from "../../../src/core/networking/networkDefinitions";
-import { CubeKey, CubeType } from "../../../src/core/cube/cube.definitions";
+import { CubeKey, CubeType } from "../../../src/core/cube/coreCube.definitions";
 import { asNotificationKey } from "../../../src/core/cube/keyUtil";
-import { Cube } from "../../../src/core/cube/cube";
+import { CoreCube } from "../../../src/core/cube/coreCube";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 
-import { FieldType, MediaTypes } from "../../../src/cci/cube/cciCube.definitions";
+import { FieldType, MediaTypes } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
-import { cciCube, cciFamily } from "../../../src/cci/cube/cciCube";
+import { Cube, cciFamily } from "../../../src/cci/cube/cube";
 import { IdentityOptions } from "../../../src/cci/identity/identity.definitions";
 import { Identity } from "../../../src/cci/identity/identity";
 import { cciFieldParsers, VerityFields } from "../../../src/cci/cube/verityFields";
@@ -58,12 +58,12 @@ let cubeStore: CubeStore;
       await cubeStore.addCube(post);
       expect(postkey).toBeInstanceOf(Buffer);
       expect(original.getPostCount()).toEqual(1);
-      expect((await cubeStore.getCube(Array.from(original.getPostKeyStrings())[0]) as Cube).getFirstField(FieldType.PAYLOAD).value.toString('utf-8')).
+      expect((await cubeStore.getCube(Array.from(original.getPostKeyStrings())[0]) as CoreCube).getFirstField(FieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
 
       // compile ID into MUC
-      const muc: cciCube = await original.marshall();
-      expect(muc).toBeInstanceOf(cciCube);
+      const muc: Cube = await original.marshall();
+      expect(muc).toBeInstanceOf(Cube);
       expect(muc.getKeyIfAvailable()).toEqual(original.key);
 
       // double check everything's in there
@@ -77,8 +77,8 @@ let cubeStore: CubeStore;
       expect(mucadded).toBe(muc);
 
       // Restore the Identity from the stored MUC
-      const restoredmuc: cciCube = await cubeStore.getCube(original.key) as cciCube;
-      expect(restoredmuc).toBeInstanceOf(cciCube);
+      const restoredmuc: Cube = await cubeStore.getCube(original.key) as Cube;
+      expect(restoredmuc).toBeInstanceOf(Cube);
       const restored: Identity = await Identity.Construct(cubeStore, restoredmuc);
       expect(restored).toBeInstanceOf(Identity);
       expect(restored.name).toEqual("Probator Identitatum");
@@ -86,7 +86,7 @@ let cubeStore: CubeStore;
       expect(restored.avatar.scheme).toEqual(AvatarScheme.MULTIAVATAR);
       expect(restored.avatar.seedString).toEqual("0102030405");
       expect(restored.getPostCount()).toEqual(1);
-      expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as Cube).getFirstField(
+      expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as CoreCube).getFirstField(
         FieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
       expect(restored.encryptionPublicKey.equals(original.encryptionPublicKey)).toBeTruthy();
@@ -109,7 +109,7 @@ let cubeStore: CubeStore;
 
       // compile ID into binary MUC
       const muc = await original.marshall();
-      expect(muc).toBeInstanceOf(cciCube);
+      expect(muc).toBeInstanceOf(Cube);
       const muckey = await muc.getKey();
       expect(muckey).toBeInstanceOf(Buffer);
       expect(muckey).toEqual(original.publicKey);
@@ -119,17 +119,17 @@ let cubeStore: CubeStore;
       expect(mucadded.getKeyIfAvailable()).toEqual(original.publicKey);
 
       // restore Identity from stored MUC
-      const restoredmuc: Cube = await cubeStore.getCube(await muc.getKey());
-      expect(restoredmuc).toBeInstanceOf(Cube);
+      const restoredmuc: CoreCube = await cubeStore.getCube(await muc.getKey());
+      expect(restoredmuc).toBeInstanceOf(CoreCube);
       const restored: Identity = await Identity.Construct(
-        cubeStore, restoredmuc as cciCube);
+        cubeStore, restoredmuc as Cube);
       expect(restored).toBeInstanceOf(Identity);
       expect(restored.name).toEqual("Probator Identitatum");
       expect(restored.profilepic[0]).toEqual(0xDA);
       expect(restored.avatar.scheme).toEqual(AvatarScheme.MULTIAVATAR);
       expect(restored.avatar.seedString).toEqual("0102030405");
       expect(restored.getPostCount()).toEqual(1);
-      expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as Cube).getFirstField(FieldType.PAYLOAD).value.toString('utf-8')).
+      expect((await cubeStore.getCube(Array.from(restored.getPostKeyStrings())[0]) as CoreCube).getFirstField(FieldType.PAYLOAD).value.toString('utf-8')).
         toEqual("Habeo res importantes dicere");
     }, 5000);
 
@@ -141,26 +141,26 @@ let cubeStore: CubeStore;
         idTestOptions
       );
       id.name = "Probator Identitatum";
-      const firstMuc: cciCube = await id.store();
+      const firstMuc: Cube = await id.store();
       const firstMucHash: Buffer = firstMuc.getHashIfAvailable();
-      expect(firstMuc).toBeInstanceOf(cciCube);
+      expect(firstMuc).toBeInstanceOf(Cube);
       expect(firstMucHash).toBeInstanceOf(Buffer);
       expect(id.name).toEqual("Probator Identitatum");
       expect(id.profilepic).toBeUndefined();
 
       id.profilepic = Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(0xda) as CubeKey;
-      const secondMuc: cciCube = await id.store();
+      const secondMuc: Cube = await id.store();
       const secondMucHash: Buffer = secondMuc.getHashIfAvailable();
-      expect(secondMuc).toBeInstanceOf(cciCube);
+      expect(secondMuc).toBeInstanceOf(Cube);
       expect(secondMucHash).toBeInstanceOf(Buffer);
       expect(secondMucHash.equals(firstMucHash)).toBeFalsy();
       expect(id.name).toEqual("Probator Identitatum");
       expect(id.profilepic).toBeInstanceOf(Buffer);
 
       id.name = "Probator Identitatum Repetitus";
-      const thirdMuc: cciCube = await id.store();
+      const thirdMuc: Cube = await id.store();
       const thirdMucHash: Buffer = thirdMuc.getHashIfAvailable();
-      expect(thirdMuc).toBeInstanceOf(cciCube);
+      expect(thirdMuc).toBeInstanceOf(Cube);
       expect(thirdMucHash).toBeInstanceOf(Buffer);
       expect(thirdMucHash.equals(firstMucHash)).toBeFalsy();
       expect(thirdMucHash.equals(secondMucHash)).toBeFalsy();
@@ -182,7 +182,7 @@ let cubeStore: CubeStore;
         id.name = "Probator condendi repetitionis " + i;
         id.avatar = new Avatar(
           "00000000" + i.toString(16).padStart(2, "0"), AvatarScheme.MULTIAVATAR);
-        const muc: cciCube = await id.marshall();
+        const muc: Cube = await id.marshall();
         muc.setDate(i);
         await muc.getBinaryData();
         const key = await muc.getKey();
@@ -191,8 +191,8 @@ let cubeStore: CubeStore;
         await cubeStore.addCube(muc);
 
         // reading it back
-        const restoredMuc = await cubeStore.getCube(key) as cciCube;
-        expect(restoredMuc).toBeInstanceOf(Cube);
+        const restoredMuc = await cubeStore.getCube(key) as Cube;
+        expect(restoredMuc).toBeInstanceOf(CoreCube);
         const restored: Identity = await Identity.Construct(cubeStore, restoredMuc, idTestOptions);
         expect(restored.name).toEqual("Probator condendi repetitionis " + i);
         expect(parseInt(restored.avatar.seedString, 16)).toEqual(i);
@@ -226,7 +226,7 @@ let cubeStore: CubeStore;
 
       // make some test posts
       for (let i=0; i<TESTPOSTCOUNT; i++) {
-        const post: cciCube = await makePost(
+        const post: Cube = await makePost(
           "I got " + (i+1).toString() + " important things to say",
           {
             id: original,
@@ -246,13 +246,13 @@ let cubeStore: CubeStore;
 
       // store the test Identity
       await original.store();
-      const muc: cciCube = original.muc;
+      const muc: Cube = original.muc;
       await cubeStore.addCube(muc);
 
       // perform actual test:
       // restore the Identity from the stored MUC
-      const restoredMuc: cciCube = await cubeStore.getCube(idkey);
-      expect(restoredMuc).toBeInstanceOf(cciCube);
+      const restoredMuc: Cube = await cubeStore.getCube(idkey);
+      expect(restoredMuc).toBeInstanceOf(Cube);
       const restored: Identity = await Identity.Construct(cubeStore, restoredMuc)
       expect(restored.getPostCount()).toEqual(TESTPOSTCOUNT);
       for (const expectedKey of testPostKeys) {
@@ -271,7 +271,7 @@ let cubeStore: CubeStore;
       const postPubKey: Buffer = Buffer.from(postKeyPair.publicKey);
       const postPrivKey: Buffer = Buffer.from(postKeyPair.privateKey);
       // Prepare the first post which will later complete the circular reference
-      const postA: cciCube = cciCube.MUC(postPubKey, postPrivKey, {
+      const postA: Cube = Cube.MUC(postPubKey, postPrivKey, {
         requiredDifficulty: reducedDifficulty,
         fields: [
           VerityField.Application(("Test")),
@@ -282,7 +282,7 @@ let cubeStore: CubeStore;
       });
       const keyA: CubeKey = postA.getKeyIfAvailable();  // MUC keys are always available
       // Craft the second post
-      const postB: cciCube = cciCube.Frozen({
+      const postB: Cube = Cube.Frozen({
         requiredDifficulty: reducedDifficulty,
         fields: [
           VerityField.Application(("Test")),
@@ -304,7 +304,7 @@ let cubeStore: CubeStore;
       const idKeyPair = sodium.crypto_sign_keypair();
       const idPubKey: Buffer = Buffer.from(idKeyPair.publicKey);
       const idPrivKey: Buffer = Buffer.from(idKeyPair.privateKey);
-      const idMuc: cciCube = cciCube.MUC(idPubKey, idPrivKey, {
+      const idMuc: Cube = Cube.MUC(idPubKey, idPrivKey, {
         requiredDifficulty: reducedDifficulty,
         fields: [
           VerityField.Application("ID"),
@@ -364,13 +364,13 @@ let cubeStore: CubeStore;
       }
 
       // Marshall Identity
-      const masterCube: cciCube = await subject.store();
+      const masterCube: Cube = await subject.store();
       // 40 subs should have required two index Cubes
       expect(subject.publicSubscriptionIndices.length).toEqual(2);
 
       // Master Cube stored in CubeStore?
-      const recoveredMaster: cciCube = await cubeStore.getCube(subject.key) as cciCube;
-      expect(recoveredMaster).toBeInstanceOf(cciCube);
+      const recoveredMaster: Cube = await cubeStore.getCube(subject.key) as Cube;
+      expect(recoveredMaster).toBeInstanceOf(Cube);
 
       // First subscription recommendation index referenced from the Identitiy root?
       const rel: Relationship = recoveredMaster.getFirstRelationship(
@@ -383,10 +383,10 @@ let cubeStore: CubeStore;
         )
       ).toBeTruthy();
       // First subscription recommendation index saved in CubeStore?
-      const firstIndexCube: cciCube = await cubeStore.getCube(
+      const firstIndexCube: Cube = await cubeStore.getCube(
         rel.remoteKey
-      ) as cciCube;
-      expect(firstIndexCube).toBeInstanceOf(cciCube);
+      ) as Cube;
+      expect(firstIndexCube).toBeInstanceOf(Cube);
       // First subscription recommendation index contains a subscription recommendation?
       expect(firstIndexCube.fields).toBeInstanceOf(VerityFields);
       expect(firstIndexCube.fields.length).toBeGreaterThan(1);
@@ -400,10 +400,10 @@ let cubeStore: CubeStore;
           RelationshipType.SUBSCRIPTION_RECOMMENDATION_INDEX
         );
       expect(secondIndexRel).toBeInstanceOf(Relationship);
-      const secondIndexCube: cciCube = await cubeStore.getCube(
+      const secondIndexCube: Cube = await cubeStore.getCube(
         secondIndexRel.remoteKey
-      ) as cciCube;
-      expect(secondIndexCube).toBeInstanceOf(cciCube);
+      ) as Cube;
+      expect(secondIndexCube).toBeInstanceOf(Cube);
 
       // let's put it all together:
       // all subscription recommendations correctly restored?
@@ -432,16 +432,16 @@ let cubeStore: CubeStore;
         expect(subject.hasPublicSubscription(other.key)).toBeTruthy();
       }
       subject.muc.setDate(0);  // hack, just for the test let's not wait 5s for the MUC update
-      const muc: cciCube = await subject.store();
+      const muc: Cube = await subject.store();
 
       // Good, 40 added. Now let's have a look at the extension MUCs.
-      const firstExtensionMuc: cciCube = subject.publicSubscriptionIndices[0];
+      const firstExtensionMuc: Cube = subject.publicSubscriptionIndices[0];
       const firstExtensionMucKey: CubeKey = firstExtensionMuc.getKeyIfAvailable();
       expect(firstExtensionMucKey).toBeInstanceOf(Buffer);
       const firstExtensionMucHash: Buffer = firstExtensionMuc.getHashIfAvailable();
       expect(firstExtensionMucHash).toBeInstanceOf(Buffer);
 
-      const secondExtensionMuc: cciCube = subject.publicSubscriptionIndices[1];
+      const secondExtensionMuc: Cube = subject.publicSubscriptionIndices[1];
       const secondExtensionMucKey: CubeKey = secondExtensionMuc.getKeyIfAvailable();
       expect(secondExtensionMucKey).toBeInstanceOf(Buffer);
       const secondExtensionMucHash: Buffer = secondExtensionMuc.getHashIfAvailable();
@@ -460,7 +460,7 @@ let cubeStore: CubeStore;
       // Extension MUC keys should not have changed.
       // First extension MUC hash should not have changed either,
       // but the second one's must have.
-      const firstExtensionMucAfterChange: cciCube = subject.publicSubscriptionIndices[0];
+      const firstExtensionMucAfterChange: Cube = subject.publicSubscriptionIndices[0];
       const firstExtensionMucKeyAfterChange: CubeKey = firstExtensionMucAfterChange.getKeyIfAvailable();
       expect(firstExtensionMucKeyAfterChange).toBeInstanceOf(Buffer);
       const firstExtensionMucHashAfterChange: Buffer = firstExtensionMucAfterChange.getHashIfAvailable();
@@ -468,7 +468,7 @@ let cubeStore: CubeStore;
       expect(firstExtensionMucKeyAfterChange.equals(firstExtensionMucKey)).toBeTruthy();
       // expect(firstExtensionMucHashAfterChange.equals(firstExtensionMucHash)).toBeTruthy();  // TODO fix -- the first extension should not have been re-sculpted since it's subscription content has not changed and it's relationship to the changed second extension MUC has not changed either (as MUC keys don't change)
 
-      const secondExtensionMucAfterChange: cciCube = subject.publicSubscriptionIndices[1];
+      const secondExtensionMucAfterChange: Cube = subject.publicSubscriptionIndices[1];
       const secondExtensionMucKeyAfterChange: CubeKey = secondExtensionMucAfterChange.getKeyIfAvailable();
       expect(secondExtensionMucKeyAfterChange).toBeInstanceOf(Buffer);
       const secondExtensionMucHashAfterChange: Buffer = secondExtensionMucAfterChange.getHashIfAvailable();
@@ -490,8 +490,8 @@ let cubeStore: CubeStore;
       }
       const id: Identity = new Identity(
         cubeStore, Buffer.alloc(sodium.crypto_sign_SEEDBYTES, 42), options);
-      const muc: cciCube = await id.marshall();
-      expect(muc).toBeInstanceOf(cciCube);
+      const muc: Cube = await id.marshall();
+      expect(muc).toBeInstanceOf(Cube);
       expect(muc.cubeType).toBe(CubeType.PMUC_NOTIFY);
       expect(muc.getFirstField(FieldType.NOTIFY).value.equals(notificationKey)).toBeTruthy();
     });
