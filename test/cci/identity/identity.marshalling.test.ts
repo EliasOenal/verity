@@ -6,10 +6,10 @@ import { CubeStore } from "../../../src/core/cube/cubeStore";
 
 import { FieldType, MediaTypes } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
-import { Cube, cciFamily } from "../../../src/cci/cube/cciCube";
+import { Cube, cubeFamily } from "../../../src/cci/cube/cciCube";
 import { IdentityOptions } from "../../../src/cci/identity/identity.definitions";
 import { Identity } from "../../../src/cci/identity/identity";
-import { cciFieldParsers, VerityFields } from "../../../src/cci/cube/verityFields";
+import { fieldParsers, VerityFields } from "../../../src/cci/cube/verityFields";
 import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
 import { Avatar, AvatarScheme } from "../../../src/cci/identity/avatar";
 
@@ -36,7 +36,7 @@ let cubeStore: CubeStore;
       inMemory: true,
       enableCubeCache: false,
       requiredDifficulty: 0, // require no hashcash for faster testing
-      family: cciFamily,
+      family: cubeFamily,
     });
     await cubeStore.readyPromise;
   });
@@ -172,7 +172,7 @@ let cubeStore: CubeStore;
       const idTestOptions = {
         persistance: undefined,
         minMucRebuildDelay: 0,
-        parsers: cciFieldParsers,
+        parsers: fieldParsers,
         requiredDifficulty: 1,
       }
       const id: Identity = await Identity.Create(

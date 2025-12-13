@@ -19,9 +19,9 @@ import { CubeKey, CubeType } from '../../core/cube/cube.definitions';
 import { FieldLength, FieldType } from '../cube/cciCube.definitions';
 import { KeyMismatchError, KeyPair, deriveEncryptionKeypair, deriveSigningKeypair } from '../helpers/cryptography';
 import { VerityField } from '../cube/verityField';
-import { VerityFields, cciPmucFieldDefinition, cciPmucParser } from '../cube/verityFields';
+import { VerityFields, pmucFieldDefinition, pmucParser } from '../cube/verityFields';
 import { Relationship, RelationshipType } from '../cube/relationship';
-import { Cube, cciFamily } from '../cube/cciCube';
+import { Cube, cubeFamily } from '../cube/cciCube';
 import { ensureCci, extensionMuc } from '../cube/cciCubeUtil';
 
 import { RetrievalFormat } from '../veritum/veritum.definitions';
@@ -1082,7 +1082,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
     // In each cube, reserve space for a further index references
     const reservedBytes =
       FieldLength[FieldType.RELATES_TO]  // rel itself
-      + cciPmucParser.getFieldHeaderLength(FieldType.RELATES_TO);  // field header
+      + pmucParser.getFieldHeaderLength(FieldType.RELATES_TO);  // field header
 
     // Not let's go ahead and build those field sets
     // maybe TODO: get rid of intermediate Array
@@ -1093,7 +1093,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
           fields.bytesRemaining() - reservedBytes < FieldLength[FieldType.RELATES_TO]  // rollover
       ) {
         if (fields !== undefined) fieldSets.push(fields);
-        fields = VerityFields.DefaultPositionals(cciPmucFieldDefinition);
+        fields = VerityFields.DefaultPositionals(pmucFieldDefinition);
         if (this.options.idmucApplicationString) {
           fields.insertFieldAfterFrontPositionals(
             VerityField.Application(this.options.idmucApplicationString));
@@ -1134,7 +1134,7 @@ export class Identity extends EventEmitter<IdentityEvents> implements CubeEmitte
           fields,
           subkeyIndex: i,
           contextString: "Subscription recommendation index",
-          family: cciFamily,
+          family: cubeFamily,
           cubeType: CubeType.PMUC,
           requiredDifficulty: this.options.requiredDifficulty,
         });

@@ -41,7 +41,7 @@ export interface CubeInfoOptions {
    * do nothing but store and forward Cubes.
    * For nodes actually doing stuff, chose the parser table matching your Cube
    * format. If you're using CCI, and we strongly recommend you do, choose
-   * cciFieldParsers.
+   * fieldParsers.
    */
   family?: CubeFamilyDefinition|CubeFamilyDefinition[];
 }

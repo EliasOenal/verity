@@ -11,7 +11,7 @@ import { CoreCube } from "../../core/cube/cube";
 import { CubeCreateOptions } from '../../core/cube/cube.definitions';
 
 import { VerityField } from "./verityField";
-import { VerityFields, cciFieldParsers } from "./verityFields";
+import { VerityFields, fieldParsers } from "./verityFields";
 import { FieldType } from "./cciCube.definitions";
 
 import { Buffer } from 'buffer';  // for browsers
@@ -21,7 +21,7 @@ export class Cube extends CoreCube {
       options: CubeCreateOptions = {},
   ): Cube {
     options = Object.assign({}, options);  // copy options to avoid messing up original
-    options.family ??= cciFamily;
+    options.family ??= cubeFamily;
     const cube: Cube = super.Create(options) as Cube;
     if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {
       throw new CubeError("Cube.Frozen: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
@@ -32,7 +32,7 @@ export class Cube extends CoreCube {
   /** @deprecated Use Create() directly please */
   static Frozen(options: CubeCreateOptions): Cube {
     options.cubeType = CubeType.FROZEN;
-    options.family = options?.family ?? cciFamily;
+    options.family = options?.family ?? cubeFamily;
     const cube: Cube = super.Frozen(options) as Cube;
     if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {
       throw new CubeError("Cube.Frozen: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
@@ -47,7 +47,7 @@ export class Cube extends CoreCube {
   ): Cube {
     options.cubeType = CubeType.MUC;
     if (options === undefined) options = {};
-    options.family = options?.family ?? cciFamily;
+    options.family = options?.family ?? cubeFamily;
     const cube: Cube = super.MUC(publicKey, privateKey, options) as Cube;
     if (Settings.RUNTIME_ASSERTIONS && !cube.assertCci?.()) {
       throw new CubeError("Cube.MUC: Freshly sculpted Cube does not in fact appear to be a CCI Cube");
@@ -78,7 +78,7 @@ export class Cube extends CoreCube {
     param1: Buffer | CubeType | Cube,
     options: CubeCreateOptions = {},
   ) {
-    options.family = options.family ?? cciFamily;
+    options.family = options.family ?? cubeFamily;
     super(param1, options)
   }
 
@@ -163,7 +163,7 @@ export class Cube extends CoreCube {
   // Note: Never move the family definition to another file as it must be
   // executed strictly after the cciCube implementation. You may get uncaught
   // ReferenceErrors otherwise.
-  export const cciFamily: CubeFamilyDefinition = {
+  export const cubeFamily: CubeFamilyDefinition = {
     cubeClass: Cube,
-    parsers: cciFieldParsers,
+    parsers: fieldParsers,
   }

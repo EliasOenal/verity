@@ -4,7 +4,7 @@ import { VeritableBaseImplementation } from "../../core/cube/cube";
 import { HasSignature, type CubeKey, DEFAULT_CUBE_TYPE } from "../../core/cube/cube.definitions";
 import { asCubeKey, keyVariants } from "../../core/cube/keyUtil";
 
-import { Cube, cciFamily } from "../cube/cciCube";
+import { Cube, cubeFamily } from "../cube/cciCube";
 import { Relationship, RelationshipType } from "../cube/relationship";
 import { VerityFields } from "../cube/verityFields";
 import { Split, Recombine } from "./continuation";
@@ -81,7 +81,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     } else {
       // creating new Veritum
       const options: VeritumCreateOptions = param1;
-      options.family ??= cciFamily;
+      options.family ??= cubeFamily;
       options.cubeType ??= DEFAULT_CUBE_TYPE;
       super(options);
       this._chunks = this.options.chunks ?? [];

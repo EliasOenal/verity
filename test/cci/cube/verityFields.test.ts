@@ -3,7 +3,7 @@ import { NetConstants } from "../../../src/core/networking/networkDefinitions";
 import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { Cube } from "../../../src/cci/cube/cciCube";
 import { VerityField } from "../../../src/cci/cube/verityField";
-import { VerityFields, cciFrozenFieldDefinition, cciFrozenParser } from "../../../src/cci/cube/verityFields";
+import { VerityFields, frozenFieldDefinition, cciFrozenParser } from "../../../src/cci/cube/verityFields";
 import { Relationship, RelationshipType } from "../../../src/cci/cube/relationship";
 
 import { vi, describe, expect, it, test, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
@@ -12,14 +12,14 @@ import { CubeKey } from "../../../src";
 describe('VerityFields', () => {
   describe('constructor', () => {
     it('should initialize with empty data if no data provided', () => {
-      const fields = new VerityFields(undefined, cciFrozenFieldDefinition);
+      const fields = new VerityFields(undefined, frozenFieldDefinition);
       expect(fields.length).toBe(0);
       expect(fields.getByteLength()).toBe(0);
     });
 
     it('should initialize with provided data', () => {
       const data = [new VerityField(1, Buffer.from('value1')), new VerityField(2, Buffer.from('value2'))];
-      const fields = new VerityFields(data, cciFrozenFieldDefinition);
+      const fields = new VerityFields(data, frozenFieldDefinition);
       expect(fields.length).toBe(2);
     });
   });
@@ -73,7 +73,7 @@ describe('VerityFields', () => {
 
   describe('getRelationships', () => {
     it('should return empty array if no relationships found', () => {
-      const fields = new VerityFields(undefined, cciFrozenFieldDefinition);
+      const fields = new VerityFields(undefined, frozenFieldDefinition);
       expect(fields.getRelationships()).toEqual([]);
     });
 
@@ -92,7 +92,7 @@ describe('VerityFields', () => {
           RelationshipType.SUBSCRIPTION_RECOMMENDATION,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(138) as CubeKey)),
       ];
-      const fields = new VerityFields(rels, cciFrozenFieldDefinition);
+      const fields = new VerityFields(rels, frozenFieldDefinition);
       expect(fields.getRelationships(RelationshipType.MYPOST).length).toBe(2);
     });
 
@@ -111,14 +111,14 @@ describe('VerityFields', () => {
           RelationshipType.SUBSCRIPTION_RECOMMENDATION,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(138) as CubeKey)),
       ];
-      const fields = new VerityFields(rels, cciFrozenFieldDefinition);
+      const fields = new VerityFields(rels, frozenFieldDefinition);
       expect(fields.getRelationships().length).toBe(4);
     });
   });
 
   describe('getFirstRelationship', () => {
     it('should return undefined if no relationships found', () => {
-      const fields = new VerityFields(undefined, cciFrozenFieldDefinition);
+      const fields = new VerityFields(undefined, frozenFieldDefinition);
       expect(fields.getFirstRelationship()).toBeUndefined();
     });
 
@@ -131,7 +131,7 @@ describe('VerityFields', () => {
           RelationshipType.SUBSCRIPTION_RECOMMENDATION,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137) as CubeKey)),
       ];
-      const fields = new VerityFields(rels, cciFrozenFieldDefinition);
+      const fields = new VerityFields(rels, frozenFieldDefinition);
       expect(fields.getFirstRelationship(
         RelationshipType.SUBSCRIPTION_RECOMMENDATION).type).toBe(
           RelationshipType.SUBSCRIPTION_RECOMMENDATION);
@@ -149,7 +149,7 @@ describe('VerityFields', () => {
           RelationshipType.SUBSCRIPTION_RECOMMENDATION,
           Buffer.alloc(NetConstants.CUBE_KEY_SIZE).fill(137) as CubeKey)),
       ];
-      const fields = new VerityFields(rels, cciFrozenFieldDefinition);
+      const fields = new VerityFields(rels, frozenFieldDefinition);
       expect(fields.getFirstRelationship().type).toBe(
         RelationshipType.MYPOST);
       expect(fields.getFirstRelationship().remoteKey).toEqual(
@@ -176,7 +176,7 @@ describe('VerityFields', () => {
 
   describe('insertTillFull', () => {
     it('should insert fields until cube is full', () => {
-      const fields = new VerityFields([], cciFrozenFieldDefinition);
+      const fields = new VerityFields([], frozenFieldDefinition);
       const latinBraggery = "Nullo campo iterari in aeternum potest";
       const field = VerityField.Payload(latinBraggery);
       const spaceAvailable = NetConstants.CUBE_SIZE;

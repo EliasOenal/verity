@@ -3,7 +3,7 @@ import { CubeCreateOptions } from '../../core/cube/cube.definitions';
 import { CubeType } from "../../core/cube/cube.definitions";
 import { Settings } from "../../core/settings";
 import { deriveSigningKeypair, KeyPair } from "../helpers/cryptography";
-import { Cube, cciFamily } from "./cciCube";
+import { Cube, cubeFamily } from "./cciCube";
 import { VerityField } from "./verityField";
 import { VerityFields } from "./verityFields";
 
@@ -32,7 +32,7 @@ export function extensionMuc(
   // copy options and set defaults
   options = { ... options };
   options.cubeType ??= CubeType.PMUC;
-  options.family ??= cciFamily;
+  options.family ??= cubeFamily;
   if (options.contextString === undefined) options.contextString = "MUC extension key";
   // normalise input
   if (!(options.fields instanceof VerityFields)) {

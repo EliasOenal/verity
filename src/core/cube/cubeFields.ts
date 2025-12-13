@@ -85,7 +85,7 @@ export class CubeFields extends BaseFields {
  * usually a subclass of Cube. The FieldParserTable defines how a Cube is
  * compiled and decompiled, i.e. how we parse its fields.
  * There are currently two main CubeFamily definitions, coreCubeFamily and
- * cciFamily. cciFamily describes Cubes parsed according to CCI rules and is,
+ * cubeFamily. cubeFamily describes Cubes parsed according to CCI rules and is,
  * obviously, relevant to CCI-compliant application.
  * coreCubeFamily describes Cubes for which we do not parse any TLV fields;
  * this is only relevant to server-only nodes which only store and forward

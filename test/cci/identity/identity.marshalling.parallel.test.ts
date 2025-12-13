@@ -1,4 +1,4 @@
-import { Cube, cciFamily } from "../../../src/cci/cube/cciCube";
+import { Cube, cubeFamily } from "../../../src/cci/cube/cciCube";
 import { Identity } from "../../../src/cci/identity/identity";
 import { CubeStore } from "../../../src/core/cube/cubeStore";
 
@@ -19,7 +19,7 @@ describe("Identity (separate MUC storage test suite for long-running tests)", ()
       inMemory: true,
       enableCubeCache: false,
       requiredDifficulty: 0, // require no hashcash for faster testing
-      family: cciFamily,
+      family: cubeFamily,
     });
   });
 

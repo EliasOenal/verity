@@ -258,7 +258,7 @@ export interface GetCubeOptions {
    * next one.
    * This does not apply when creating new Cubes / Veritables; in this case,
    * only a single definition must be supplied.
-   * @default - coreCubeFamily on the Core layer, cciFamily on the CCI layer.
+   * @default - coreCubeFamily on the Core layer, cubeFamily on the CCI layer.
    */
   family?: CubeFamilyDefinition | CubeFamilyDefinition[];
 }

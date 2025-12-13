@@ -1,7 +1,7 @@
 import { Cube } from "../../../src/cci/cube/cciCube";
 import { FieldLength, FieldType } from "../../../src/cci/cube/cciCube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
-import { VerityFields, cciFrozenFieldDefinition } from "../../../src/cci/cube/verityFields";
+import { VerityFields, frozenFieldDefinition } from "../../../src/cci/cube/verityFields";
 import { CubeFieldType, CubeType, FieldSizeError, HasNotify, HasSignature, NotificationKey } from "../../../src/core/cube/cube.definitions";
 import { typeFromBinary } from "../../../src/core/cube/cubeUtil";
 import { enumNums } from "../../../src/core/helpers/misc";
@@ -34,7 +34,7 @@ describe('cciCube', () => {
         VerityField.Payload("Ero celeber Cubus cum compilatus fuero."),
         VerityField.Date(),
         VerityField.Nonce(),
-      ], cciFrozenFieldDefinition);
+      ], frozenFieldDefinition);
       cube.setFields(fields);
       expect(cube.fields).toEqual(fields);
       expect(cube.getFirstField(FieldType.PAYLOAD).valueString).toContain(
@@ -52,7 +52,7 @@ describe('cciCube', () => {
         new VerityField(FieldType.PAYLOAD, Buffer.alloc(8020)),
         VerityField.Date(),
         VerityField.Nonce()
-      ], cciFrozenFieldDefinition); // Too long for the binary data
+      ], frozenFieldDefinition); // Too long for the binary data
       expect(() => cube.setFields(fields)).toThrow(FieldSizeError);
     });
   });
