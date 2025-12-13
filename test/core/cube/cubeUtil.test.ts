@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { CubeKey, CubeType, CubeError } from '../../../src/core/cube/cube.definitions';
+import { CubeKey, CubeType, CubeError } from '../../../src/core/cube/coreCube.definitions';
 import { CubeInfo } from '../../../src/core/cube/cubeInfo';
 import { cubeContest, cubeExpiration } from '../../../src/core/cube/cubeUtil';
 import { NetConstants } from '../../../src/core/networking/networkDefinitions';

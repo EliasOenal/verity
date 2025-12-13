@@ -3,7 +3,7 @@ import { MessageClass, NetConstants, NetworkError, NetworkMessageError, Supporte
 
 import { BaseField } from "../fields/baseField";
 
-import { CubeError, CubeKey, CubeType, FieldError, NotificationKey } from "../cube/cube.definitions";
+import { CubeError, CubeKey, CubeType, FieldError, NotificationKey } from "../cube/coreCube.definitions";
 import { CubeInfo } from "../cube/cubeInfo";
 import { calculateHash } from "../cube/cubeUtil";
 import { asCubeKey } from "../cube/keyUtil";

@@ -1,11 +1,11 @@
 import type { NetworkPeerIf } from '../../../../src/core/networking/networkPeerIf';
 import type { CubeSubscription } from '../../../../src/core/networking/cubeRetrieval/pendingRequest';
 
-import { cciFamily, cciCube } from "../../../../src/cci/cube/cciCube";
-import { FieldType } from "../../../../src/cci/cube/cciCube.definitions";
+import { cciFamily, Cube } from "../../../../src/cci/cube/cube";
+import { FieldType } from "../../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../../src/cci/cube/verityField";
-import { CubeKey } from "../../../../src/core/cube/cube.definitions";
-import { Cube } from "../../../../src/core/cube/cube";
+import { CubeKey } from "../../../../src/core/cube/coreCube.definitions";
+import { CoreCube } from "../../../../src/core/cube/coreCube";
 import { CubeStoreOptions, CubeStore } from "../../../../src/core/cube/cubeStore";
 import { keyVariants } from '../../../../src/core/cube/keyUtil';
 import { CubeInfo } from '../../../../src/core/cube/cubeInfo';
@@ -88,7 +88,7 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
 
     // create a test MUC
     const keyPair = sodium.crypto_sign_keypair();
-    let muc: Cube = cciCube.MUC(
+    let muc: CoreCube = Cube.MUC(
       Buffer.from(keyPair.publicKey), Buffer.from(keyPair.privateKey),
       {
         requiredDifficulty: reducedDifficulty,
@@ -123,7 +123,7 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
     muc.setDate(1715704520);  // a bit later than the last version
     await muc.compile();
     let result = await remote.cubeStore.addCube(muc);
-    expect(result).toBeInstanceOf(Cube);
+    expect(result).toBeInstanceOf(CoreCube);
     // just some sanity checks
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
@@ -146,7 +146,7 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
 
     // remote creates a MUC
     const keyPair = sodium.crypto_sign_keypair();
-    let muc: Cube = cciCube.MUC(
+    let muc: CoreCube = Cube.MUC(
       Buffer.from(keyPair.publicKey), Buffer.from(keyPair.privateKey),
       {
         requiredDifficulty: reducedDifficulty,
@@ -186,7 +186,7 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
     muc.setDate(1715704520);  // a bit later than the last version
     await muc.compile();
     let result = await remote.cubeStore.addCube(muc);
-    expect(result).toBeInstanceOf(Cube);
+    expect(result).toBeInstanceOf(CoreCube);
     // just some sanity checks
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);
@@ -209,7 +209,7 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
 
     // remote creates a MUC
     const keyPair = sodium.crypto_sign_keypair();
-    let muc: Cube = cciCube.MUC(
+    let muc: CoreCube = Cube.MUC(
       Buffer.from(keyPair.publicKey), Buffer.from(keyPair.privateKey),
       {
         requiredDifficulty: reducedDifficulty,
@@ -245,7 +245,7 @@ describe('RequestScheduler subscribeCube() e2e tests', () => {
     muc.setDate(1715704520);  // a bit later than the last version
     await muc.compile();
     let result = await remote.cubeStore.addCube(muc);
-    expect(result).toBeInstanceOf(Cube);
+    expect(result).toBeInstanceOf(CoreCube);
     // just some sanity checks
     expect(await local.cubeStore.getNumberOfStoredCubes()).toBe(1);
     expect(await remote.cubeStore.getNumberOfStoredCubes()).toBe(1);

@@ -1,11 +1,11 @@
-import { cciCube } from "../../../src/cci/cube/cciCube";
-import { FieldType } from "../../../src/cci/cube/cciCube.definitions";
+import { Cube } from "../../../src/cci/cube/cube";
+import { FieldType } from "../../../src/cci/cube/cube.definitions";
 import { VerityField } from "../../../src/cci/cube/verityField";
 import { KeyPair } from "../../../src/cci/helpers/cryptography";
 import { Decrypt } from "../../../src/cci/veritum/chunkDecryption";
 import { Veritum } from "../../../src/cci/veritum/veritum";
 import { ContinuationDefaultExclusions } from "../../../src/cci/veritum/veritum.definitions";
-import { CubeType } from "../../../src/core/cube/cube.definitions";
+import { CubeType } from "../../../src/core/cube/coreCube.definitions";
 import { requiredDifficulty, tooLong, evenLonger, farTooLong } from "../testcci.definitions";
 
 import sodium from 'libsodium-wrappers-sumo'
@@ -315,8 +315,8 @@ describe('CCI Veritum encryption', () => {
         // we may want to either reduce its impact or skip it in the future.
         it('can supply the correct key chunk for each recipient', async () => {
           for (const recipient of recipients) {
-            const keyChunk: cciCube = veritum.getRecipientKeyChunk(recipient.publicKey);
-            expect(keyChunk).toBeInstanceOf(cciCube);
+            const keyChunk: Cube = veritum.getRecipientKeyChunk(recipient.publicKey);
+            expect(keyChunk).toBeInstanceOf(Cube);
             // verify this is the correct key chunk by trying to decrypt it
             expect(keyChunk.getFirstField(FieldType.RELATES_TO)).toBeUndefined();
             const decryptedKeyChunk = Decrypt(keyChunk.manipulateFields(),
@@ -330,7 +330,7 @@ describe('CCI Veritum encryption', () => {
         // we may want to either reduce its impact or skip it in the future.
         it('is decryptable by all recipient if supplied with the correct key chunk', async () => {
           for (const recipient of recipients) {
-            const myChunks: cciCube[] = Array.from(
+            const myChunks: Cube[] = Array.from(
               veritum.getRecipientChunks(recipient.publicKey));
             const restored: Veritum = Veritum.FromChunks(myChunks, {
               recipientPrivateKey: recipient.privateKey });
@@ -345,8 +345,8 @@ describe('CCI Veritum encryption', () => {
           // not be able to decrypt the version of the Veritum including only
           // the last key chunk.
           const recipient = recipients[0];
-          const veritumWithCorrectKeyChunk: cciCube[] = [];
-          const veritumWithWrongKeyChunk: cciCube[] = [];
+          const veritumWithCorrectKeyChunk: Cube[] = [];
+          const veritumWithWrongKeyChunk: Cube[] = [];
           let i=0;
           for (const chunk of veritum.chunks) {
             if (i === 0) veritumWithCorrectKeyChunk.push(chunk);

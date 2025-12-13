@@ -3,7 +3,7 @@ import { FileManagerView } from "./fileManagerView";
 import { FileApplication } from "../../app/fileApplication";
 import { logger } from "../../core/logger";
 import { Buffer } from 'buffer';
-import { CubeKey } from "../../core/cube/cube.definitions";
+import { CubeKey } from "../../core/cube/coreCube.definitions";
 
 export class FileManagerController extends VerityController {
   declare public contentAreaView: FileManagerView;

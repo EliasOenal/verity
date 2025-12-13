@@ -1,11 +1,11 @@
 import { VerityNodeIf, dummyVerityNode } from "../../src/cci/verityNode";
 import { Cockpit } from "../../src/cci/cockpit";
-import { FieldType } from "../../src/cci/cube/cciCube.definitions";
+import { FieldType } from "../../src/cci/cube/cube.definitions";
 import { RelationshipType } from "../../src/cci/cube/relationship";
 import { VerityField } from "../../src/cci/cube/verityField";
 import { Identity } from "../../src/cci/identity/identity";
 import { Veritum } from "../../src/cci/veritum/veritum";
-import { CubeType } from "../../src/core/cube/cube.definitions";
+import { CubeType } from "../../src/core/cube/coreCube.definitions";
 import { NetConstants } from "../../src/core/networking/networkDefinitions";
 
 import { masterKey, idTestOptions, remote1MasterKey, remote2MasterKey, requiredDifficulty, tooLong } from "./testcci.definitions";

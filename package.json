@@ -8,6 +8,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "default": "./dist/core/index.js"
+    },
     "./webui": {
       "types": "./dist/webui/index.d.ts",
       "default": "./dist/webui/index.js"
@@ -24,7 +28,8 @@
     "test:server": "webpack serve --config webpack.test.mjs",
     "vitest": "./node_modules/.bin/vitest run",
     "webpack": "webpack",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "npm run typecheck && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
     "prepare": "npm run build",
     "server": "webpack serve",
   "lint": "node_modules/.bin/eslint",

@@ -1,11 +1,11 @@
 import type { CubeRetrievalInterface } from "../core/cube/cubeRetrieval.definitions";
-import type { CubeKey } from '../core/cube/cube.definitions';
+import type { CubeKey } from '../core/cube/coreCube.definitions';
 
-import { CubeType } from '../core/cube/cube.definitions';
+import { CubeType } from '../core/cube/coreCube.definitions';
 
-import { FieldType } from '../cci/cube/cciCube.definitions';
+import { FieldType } from '../cci/cube/cube.definitions';
 import { VerityField } from '../cci/cube/verityField';
-import { cciCube } from '../cci/cube/cciCube';
+import { Cube } from '../cci/cube/cube';
 import { Relationship, RelationshipType } from '../cci/cube/relationship';
 
 import { Buffer } from 'buffer';
@@ -13,8 +13,8 @@ import { Buffer } from 'buffer';
 export class FileApplication {
   private static readonly APPLICATION_IDENTIFIER = 'file';
 
-  static async createFileCubes(fileContent: Buffer, fileName: string, progressCallback?: (progress: number, remainingSize: number) => void): Promise<cciCube[]> {
-    const cubes: cciCube[] = [];
+  static async createFileCubes(fileContent: Buffer, fileName: string, progressCallback?: (progress: number, remainingSize: number) => void): Promise<Cube[]> {
+    const cubes: Cube[] = [];
     let remainingSize = fileContent.length;
     const totalSize = fileContent.length;
 
@@ -22,7 +22,7 @@ export class FileApplication {
     // Slice chunk size from the end of the file and add it to the payload field
     while (remainingSize > 0) {
       // Prepare Cube including boilerplate fields
-      const cube = cciCube.Frozen({ fields: [
+      const cube = Cube.Frozen({ fields: [
         VerityField.Application(this.APPLICATION_IDENTIFIER),
         VerityField.ContentName(fileName)
       ]});
@@ -72,7 +72,7 @@ export class FileApplication {
         throw new Error('File application requires immutable cubes');
       }
 
-      const cciCube = cube as cciCube;
+      const cciCube = cube as Cube;
 
       const applicationFields = cciCube.fields.get(FieldType.APPLICATION);
       if (!applicationFields || !applicationFields.some(field => field.valueString === this.APPLICATION_IDENTIFIER)) {

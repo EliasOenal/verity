@@ -1,10 +1,10 @@
 import type { Veritable } from "../../core/cube/veritable.definition";
 
-import { VeritableBaseImplementation } from "../../core/cube/cube";
-import { HasSignature, type CubeKey, DEFAULT_CUBE_TYPE } from "../../core/cube/cube.definitions";
+import { VeritableBaseImplementation } from "../../core/cube/coreCube";
+import { HasSignature, type CubeKey, DEFAULT_CUBE_TYPE } from "../../core/cube/coreCube.definitions";
 import { asCubeKey, keyVariants } from "../../core/cube/keyUtil";
 
-import { cciCube, cciFamily } from "../cube/cciCube";
+import { Cube, cciFamily } from "../cube/cube";
 import { Relationship, RelationshipType } from "../cube/relationship";
 import { VerityFields } from "../cube/verityFields";
 import { Split, Recombine } from "./continuation";
@@ -22,8 +22,8 @@ import { VeritumCreateOptions, VeritumFromChunksOptions, VeritumCompileOptions }
 //   and Cubes.
 
 export class Veritum extends VeritableBaseImplementation implements Veritable{
-  private _chunks: cciCube[];
-  get chunks(): Iterable<cciCube> { return this._chunks }
+  private _chunks: Cube[];
+  get chunks(): Iterable<Cube> { return this._chunks }
 
   declare options: VeritumCreateOptions;
 
@@ -36,12 +36,12 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
    * You will probably not need this.
    **/
   get keyChunkNo(): number { return this._keyChunkNo }
-  private recipientKeyChunkMap: Map<string, cciCube> = new Map();
+  private recipientKeyChunkMap: Map<string, Cube> = new Map();
 
-  static FromChunks(chunks: Iterable<cciCube>, options?: VeritumFromChunksOptions): Veritum {
+  static FromChunks(chunks: Iterable<Cube>, options?: VeritumFromChunksOptions): Veritum {
     // If decryption was requested, let's decrypt the chunks before recombining.
     // Will not get in our way if decryption was not requested.
-    let transformedChunks: Iterable<cciCube> = ChunkDecrypt(chunks, options);
+    let transformedChunks: Iterable<Cube> = ChunkDecrypt(chunks, options);
     const recombined: Veritum = Recombine(transformedChunks, options);
     // In case of an encrypted Veritum, the original chunks rather than the
     // transformed (decrypted) chunks should be retained. In case of non-signed
@@ -139,7 +139,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
       yield keyVariants(key).keyString;
     }
   }
-  getRecipientKeyChunk(recipientInput: Buffer|string): cciCube {
+  getRecipientKeyChunk(recipientInput: Buffer|string): Cube {
     const recipient: string = keyVariants(recipientInput).keyString;
     return this.recipientKeyChunkMap.get(recipient);
   };
@@ -151,8 +151,8 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
    * return all chunks.
    * Note that this the Veritum must be compile()d prior to calling this method.
    */
-  *getRecipientChunks(recipient: Buffer|string): Generator<cciCube> {
-    const keyChunk: cciCube = this.getRecipientKeyChunk(recipient);
+  *getRecipientChunks(recipient: Buffer|string): Generator<Cube> {
+    const keyChunk: Cube = this.getRecipientKeyChunk(recipient);
     if (keyChunk === undefined) return undefined;
     yield keyChunk;
     for (let i=this.keyChunkNo; i<this._chunks.length; i++) {
@@ -160,7 +160,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
     }
   }
 
-  async compile(optionsInput: VeritumCompileOptions = {}): Promise<Iterable<cciCube>> {
+  async compile(optionsInput: VeritumCompileOptions = {}): Promise<Iterable<Cube>> {
     await sodium.ready;  // needed in case of encrypted Verita
     const options: VeritumCompileOptions = {
       ...this.options,
@@ -179,7 +179,7 @@ export class Veritum extends VeritableBaseImplementation implements Veritable{
       requiredDifficulty: this.requiredDifficulty,
       maxChunkSize: (chunkIndex: number) =>
         encryptionHelper.spacePerChunk(chunkIndex),
-      chunkTransformationCallback: (chunk: cciCube, splitState: ChunkFinalisationState) =>
+      chunkTransformationCallback: (chunk: Cube, splitState: ChunkFinalisationState) =>
         encryptionHelper.transformChunk(chunk, splitState),
     }
     this._chunks = await Split(this, splitOptions);

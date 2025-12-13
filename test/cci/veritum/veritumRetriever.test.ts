@@ -1,6 +1,6 @@
 import { ArrayFromAsync } from '../../../src/core/helpers/misc';
-import { CubeType, CubeKey, NotificationKey } from '../../../src/core/cube/cube.definitions';
-import { Cube } from '../../../src/core/cube/cube';
+import { CubeType, CubeKey, NotificationKey } from '../../../src/core/cube/coreCube.definitions';
+import { CoreCube } from '../../../src/core/cube/coreCube';
 import { Veritable } from '../../../src/core/cube/veritable.definition';
 import { CubeStore } from '../../../src/core/cube/cubeStore';
 
@@ -13,8 +13,8 @@ import { CubeRetriever } from '../../../src/core/networking/cubeRetrieval/cubeRe
 
 import { PeerDB } from '../../../src/core/peering/peerDB';
 
-import { cciCube } from '../../../src/cci/cube/cciCube';
-import { FieldType } from '../../../src/cci/cube/cciCube.definitions';
+import { Cube } from '../../../src/cci/cube/cube';
+import { FieldType } from '../../../src/cci/cube/cube.definitions';
 import { RelationshipType } from '../../../src/cci/cube/relationship';
 import { VerityField } from '../../../src/cci/cube/verityField';
 import { Recombine, Split } from '../../../src/cci/veritum/continuation';
@@ -64,10 +64,10 @@ describe('VeritumRetriever', () => {
   });
 
   describe('getCube()', () => {
-    let cubeA: cciCube, cubeB: cciCube, cubeC: cciCube;
+    let cubeA: Cube, cubeB: Cube, cubeC: Cube;
 
     beforeAll(async () => {
-      cubeC = cciCube.Create({
+      cubeC = Cube.Create({
         fields: [
           VerityField.Payload("Ultimus cubus in catena cuborum"),
           VerityField.Date(148302000),  // fixed date, thus fixed key for ease of testing
@@ -76,7 +76,7 @@ describe('VeritumRetriever', () => {
       });
       const keyC = await cubeC.getKey();
 
-      cubeB = cciCube.Create({
+      cubeB = Cube.Create({
         fields: [
           VerityField.Payload("Secundus cubus in catena cuborum"),
           VerityField.RelatesTo(RelationshipType.REPLY_TO, keyC),
@@ -86,7 +86,7 @@ describe('VeritumRetriever', () => {
       });
       const keyB = await cubeB.getKey();
 
-      cubeA = cciCube.Create({
+      cubeA = Cube.Create({
         fields: [
           VerityField.Payload("Primus cubus in catena cuborum"),
           VerityField.RelatesTo(RelationshipType.REPLY_TO, keyB),
@@ -188,7 +188,7 @@ describe('VeritumRetriever', () => {
     describe('chunks already in store', () => {
       it('yields a single chunk already in store', async () => {
         // prepare test data
-        const cube: cciCube = cciCube.Create({
+        const cube: Cube = Cube.Create({
           cubeType: CubeType.FROZEN,
           fields: [
             VerityField.Payload("Hoc non est cadena continuationis"),
@@ -199,7 +199,7 @@ describe('VeritumRetriever', () => {
         expect(cube.getKeyIfAvailable()).toBeDefined();
 
         // fire the request
-        const chunks: cciCube[] = [];
+        const chunks: Cube[] = [];
         for await (const chunk of retriever.getContinuationChunks(cube.getKeyIfAvailable())) {
           chunks.push(chunk);
         }
@@ -212,7 +212,7 @@ describe('VeritumRetriever', () => {
 
       it('yields a 2-chunk continuation already in store', async () => {
         // prepare macro Cube
-        const macroCube = cciCube.Create({
+        const macroCube = Cube.Create({
           cubeType: CubeType.FROZEN,
           requiredDifficulty: 0,
         });
@@ -220,14 +220,14 @@ describe('VeritumRetriever', () => {
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube and add all parts to the store
-        const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
+        const splitCubes: Cube[] = await Split(macroCube, {requiredDifficulty: 0});
         expect(splitCubes.length).toBe(2);
         for (const cube of splitCubes) {
           await cubeStore.addCube(cube);
         }
 
         // fire the request
-        const chunks: cciCube[] = [];
+        const chunks: Cube[] = [];
         for await (const chunk of retriever.getContinuationChunks(splitCubes[0].getKeyIfAvailable())) {
           chunks.push(chunk);
         }
@@ -240,7 +240,7 @@ describe('VeritumRetriever', () => {
 
       it('yields a three-chunk continuation already in store', async () => {
         // prepare macro Cube
-        const macroCube = cciCube.Create({
+        const macroCube = Cube.Create({
           cubeType: CubeType.FROZEN,
           requiredDifficulty: 0,
         });
@@ -248,14 +248,14 @@ describe('VeritumRetriever', () => {
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube and add all parts to the store
-        const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
+        const splitCubes: Cube[] = await Split(macroCube, {requiredDifficulty: 0});
         expect(splitCubes.length).toBe(3);
         for (const cube of splitCubes) {
           await cubeStore.addCube(cube);
         }
 
         // fire the request
-        const chunks: cciCube[] = [];
+        const chunks: Cube[] = [];
         for await (const chunk of retriever.getContinuationChunks(splitCubes[0].getKeyIfAvailable())) {
           chunks.push(chunk);
         }
@@ -268,7 +268,7 @@ describe('VeritumRetriever', () => {
 
       it('yields a more-than-5-chunk continuation already in store', async () => {
         // prepare macro Cube
-        const macroCube = cciCube.Create({
+        const macroCube = Cube.Create({
           cubeType: CubeType.FROZEN,
           requiredDifficulty: 0,
         });
@@ -276,14 +276,14 @@ describe('VeritumRetriever', () => {
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube and add all parts to the store
-        const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
+        const splitCubes: Cube[] = await Split(macroCube, {requiredDifficulty: 0});
         expect(splitCubes.length).toBeGreaterThan(5);
         for (const cube of splitCubes) {
           await cubeStore.addCube(cube);
         }
 
         // fire the request
-        const chunks: cciCube[] = [];
+        const chunks: Cube[] = [];
         for await (const chunk of retriever.getContinuationChunks(splitCubes[0].getKeyIfAvailable())) {
           chunks.push(chunk);
         }
@@ -299,7 +299,7 @@ describe('VeritumRetriever', () => {
     describe('chunks arriving in correct order', () => {
       it('yields a single chunk arriving after the request', async () => {
         // prepare test data
-        const cube: cciCube = cciCube.Create({
+        const cube: Cube = Cube.Create({
           cubeType: CubeType.FROZEN,
           fields: [
             VerityField.Payload("Hoc non est cadena continuationis"),
@@ -310,12 +310,12 @@ describe('VeritumRetriever', () => {
         expect(cube.getKeyIfAvailable()).toBeDefined();
 
         // fire the request
-        const chunks: cciCube[] = [];
-        const gen: AsyncGenerator<cciCube> = retriever.getContinuationChunks(cube.getKeyIfAvailable());
-        gen.next().then((iteratorResult: IteratorResult<cciCube, boolean>) => {
-          chunks.push(iteratorResult.value as cciCube);
+        const chunks: Cube[] = [];
+        const gen: AsyncGenerator<Cube> = retriever.getContinuationChunks(cube.getKeyIfAvailable());
+        gen.next().then((iteratorResult: IteratorResult<Cube, boolean>) => {
+          chunks.push(iteratorResult.value as Cube);
           expect(iteratorResult.done).toBe(false);
-          gen.next().then((iteratorResult: IteratorResult<cciCube, boolean>) => {
+          gen.next().then((iteratorResult: IteratorResult<Cube, boolean>) => {
             // console.error("check performed")
             expect(iteratorResult.done).toBe(true);
           })
@@ -335,7 +335,7 @@ describe('VeritumRetriever', () => {
 
       it('yields a 2-chunk continuation arriving in correct order after the request', async () => {
         // prepare macro Cube
-        const macroCube = cciCube.Create({
+        const macroCube = Cube.Create({
           cubeType: CubeType.FROZEN,
           requiredDifficulty: 0,
         });
@@ -343,12 +343,12 @@ describe('VeritumRetriever', () => {
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube
-        const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
+        const splitCubes: Cube[] = await Split(macroCube, {requiredDifficulty: 0});
         expect(splitCubes.length).toBe(2);
         const continuationKey: CubeKey = await splitCubes[0].getKey();
 
         // fire the request
-        const chunks: cciCube[] = [];
+        const chunks: Cube[] = [];
         cubeStore.addCube(splitCubes[0]);
         let i=1;
         for await (const chunk of retriever.getContinuationChunks(
@@ -364,7 +364,7 @@ describe('VeritumRetriever', () => {
 
       it('yields a more-than-5-chunk continuation arriving in sequence', async () => {
         // prepare macro Cube
-        const macroCube = cciCube.Create({
+        const macroCube = Cube.Create({
           cubeType: CubeType.FROZEN,
           requiredDifficulty: 0,
         });
@@ -372,12 +372,12 @@ describe('VeritumRetriever', () => {
         macroCube.insertFieldBeforeBackPositionals(payloadMacrofield);
 
         // split the macro Cube
-        const splitCubes: cciCube[] = await Split(macroCube, {requiredDifficulty: 0});
+        const splitCubes: Cube[] = await Split(macroCube, {requiredDifficulty: 0});
         expect(splitCubes.length).toBeGreaterThan(5);
         const continuationKey: CubeKey = await splitCubes[0].getKey();
 
         // fire the request
-        const chunks: cciCube[] = [];
+        const chunks: Cube[] = [];
         // and while we're doing that, feed the chunks one by one
         await cubeStore.addCube(splitCubes[0]);
         let i=1;
@@ -423,8 +423,8 @@ describe('VeritumRetriever', () => {
 
       // Run test --
       // note we don't await the result just yet
-      const rGen: AsyncGenerator<cciCube> = retriever.getContinuationChunks(key);
-      const chunkPromise: Promise<cciCube[]> = ArrayFromAsync(rGen);
+      const rGen: AsyncGenerator<Cube> = retriever.getContinuationChunks(key);
+      const chunkPromise: Promise<Cube[]> = ArrayFromAsync(rGen);
 
       // simulate arrival of chunks by adding them to CubeStore --
       // note this happens after the request has been fired
@@ -435,7 +435,7 @@ describe('VeritumRetriever', () => {
       await cubeStore.addCube(originalChunks[0]);
 
       // All chunks have "arrived", so the retrieval promise should resolve
-      const retrievedChunks: cciCube[] = await chunkPromise;
+      const retrievedChunks: Cube[] = await chunkPromise;
 
       // Verify result
       expect(retrievedChunks).toHaveLength(2);
@@ -464,8 +464,8 @@ describe('VeritumRetriever', () => {
           expect(veritum.getKeyIfAvailable()).toBeDefined();
 
           // fire the request
-          const gen: AsyncGenerator<cciCube> = retriever.getContinuationChunks(veritum.getKeyIfAvailable());
-          const chunks: cciCube[] = await ArrayFromAsync(gen);
+          const gen: AsyncGenerator<Cube> = retriever.getContinuationChunks(veritum.getKeyIfAvailable());
+          const chunks: Cube[] = await ArrayFromAsync(gen);
           expect(chunks).toHaveLength(0);
           const returned = await gen.next();
           expect(returned.done).toBe(true);
@@ -492,7 +492,7 @@ describe('VeritumRetriever', () => {
           requiredDifficulty: 0,
         });
         await veritum.compile();
-        const chunk: cciCube = Array.from(veritum.chunks)[0];
+        const chunk: Cube = Array.from(veritum.chunks)[0];
         await cubeStore.addCube(chunk);
         const key: CubeKey = await veritum.getKey();
         expect(key.length).toBe(NetConstants.CUBE_KEY_SIZE);
@@ -516,7 +516,7 @@ describe('VeritumRetriever', () => {
           requiredDifficulty: 0,
         });
         await veritum.compile();
-        const chunks: cciCube[] = Array.from(veritum.chunks);
+        const chunks: Cube[] = Array.from(veritum.chunks);
         for (const chunk of chunks) cubeStore.addCube(chunk);
         const key: CubeKey = veritum.getKeyIfAvailable();
 
@@ -537,7 +537,7 @@ describe('VeritumRetriever', () => {
           requiredDifficulty: 0,
         });
         await veritum.compile();
-        const chunks: cciCube[] = Array.from(veritum.chunks);
+        const chunks: Cube[] = Array.from(veritum.chunks);
         for (const chunk of chunks) cubeStore.addCube(chunk);
         const key: CubeKey = veritum.getKeyIfAvailable();
 
@@ -578,7 +578,7 @@ describe('VeritumRetriever', () => {
 
         // Just for verification, also test a single Cube retrieval,
         // which for a single Cube Veritum is almost the same thing
-        const cubePromise: Promise<Cube> = retriever.cubeRetriever.getCube(key);
+        const cubePromise: Promise<CoreCube> = retriever.cubeRetriever.getCube(key);
 
         // wait a moment to simulate network latency
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -587,9 +587,9 @@ describe('VeritumRetriever', () => {
         scheduler.handleCubesDelivered([singleCubeBin], peer);
 
         // test that the single Cube has correctly retrieved first
-        const testCube: cciCube = await cubePromise as cciCube;
+        const testCube: Cube = await cubePromise as Cube;
         expect(testCube).toBeDefined();
-        expect(testCube instanceof cciCube).toBe(true);
+        expect(testCube instanceof Cube).toBe(true);
         expect(testCube.cubeType).toBe(CubeType.PIC);
         expect(testCube.getFirstField(FieldType.PAYLOAD).valueString).toEqual(short);
         expect(testCube.getFirstField(FieldType.DATE)).toBeDefined();
@@ -849,7 +849,7 @@ describe('VeritumRetriever', () => {
             for (const chunk of notification.chunks) await cubeStore.addCube(chunk);
 
             // verify test setup: assert Veritum compiled correctly
-            const chunks: cciCube[] = Array.from(notification.chunks);
+            const chunks: Cube[] = Array.from(notification.chunks);
             expect(chunks).toHaveLength(1);
             const key: CubeKey = await notification.getKey();
             expect(key).toHaveLength(NetConstants.CUBE_KEY_SIZE);
@@ -864,7 +864,7 @@ describe('VeritumRetriever', () => {
             const rootCubes: Veritable[] = await ArrayFromAsync(
               retriever.cubeRetriever.getNotifications(recipientKey));
             expect(rootCubes.length).toBe(1);
-            expect(rootCubes[0] instanceof cciCube).toBe(true);
+            expect(rootCubes[0] instanceof Cube).toBe(true);
             expect(rootCubes[0].getFirstField(FieldType.PAYLOAD).valueString).toEqual(latin);
             expect((await rootCubes[0].getKey()).equals(key)).toBe(true);
 
@@ -904,7 +904,7 @@ describe('VeritumRetriever', () => {
             const rootCubes: Veritable[] = await ArrayFromAsync(
               retriever.cubeRetriever.getNotifications(recipientKey));
             expect(rootCubes.length).toBe(1);
-            expect(rootCubes[0] instanceof cciCube).toBe(true);
+            expect(rootCubes[0] instanceof Cube).toBe(true);
 
             // run test
             const retrievedNotifications: Veritum[] = await ArrayFromAsync(
@@ -932,7 +932,7 @@ describe('VeritumRetriever', () => {
               requiredDifficulty: 0,
             });
             await first.compile();
-            const firstChunk: cciCube = Array.from(first.chunks)[0];
+            const firstChunk: Cube = Array.from(first.chunks)[0];
             await cubeStore.addCube(firstChunk);
 
             const secondLatin = "Haud minus magni momenti nuntiatio";
@@ -946,7 +946,7 @@ describe('VeritumRetriever', () => {
               requiredDifficulty: 0,
             });
             await second.compile();
-            const secondChunk: cciCube = Array.from(second.chunks)[0];
+            const secondChunk: Cube = Array.from(second.chunks)[0];
             await cubeStore.addCube(secondChunk);
 
             // Run test --
@@ -1304,7 +1304,7 @@ describe('VeritumRetriever', () => {
             requiredDifficulty: 0,
           });
           await first.compile();
-          const firstChunk: cciCube = Array.from(first.chunks)[0];
+          const firstChunk: Cube = Array.from(first.chunks)[0];
           const firstBin: Buffer = firstChunk.getBinaryDataIfAvailable();
           expect(firstBin.length).toBe(NetConstants.CUBE_SIZE);
 
@@ -1319,7 +1319,7 @@ describe('VeritumRetriever', () => {
             requiredDifficulty: 0,
           });
           await second.compile();
-          const secondChunk: cciCube = Array.from(second.chunks)[0];
+          const secondChunk: Cube = Array.from(second.chunks)[0];
           const secondBin: Buffer = secondChunk.getBinaryDataIfAvailable();
           expect(secondBin.length).toBe(NetConstants.CUBE_SIZE);
 
@@ -1440,11 +1440,11 @@ describe('VeritumRetriever', () => {
       });  // notifications retrieved over the wire
     });  // retrieval as Veritum
 
-    describe('retrieval as Cube', () => {
+    describe('retrieval as CoreCube', () => {
       describe('notifications already in store', () => {
         it('retrieves a single-Cube notification', async () => {
           const recipientKey: NotificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0xA1) as NotificationKey;
-          const notification = cciCube.Create({
+          const notification = Cube.Create({
             cubeType: CubeType.PIC_NOTIFY,
             fields: [
               VerityField.Payload("Nuntius brevis succinctus nec plures cubos requirens"),
@@ -1458,7 +1458,7 @@ describe('VeritumRetriever', () => {
           const gen = retriever.getNotifications(recipientKey, { format: RetrievalFormat.Cube });
           const res: Veritable[] = await ArrayFromAsync(gen);
           expect(res.length).toBe(1);
-          expect(res[0] instanceof cciCube).toBe(true);
+          expect(res[0] instanceof Cube).toBe(true);
           expect(res[0].equals(notification)).toBe(true);
         });
 
@@ -1507,12 +1507,12 @@ describe('VeritumRetriever', () => {
       });
     });
 
-    describe('retrieval as Cube', () => {
+    describe('retrieval as CoreCube', () => {
       it('can subscribe to notifications in Cube format', async () => {
         const recipientKey: NotificationKey = Buffer.alloc(NetConstants.CUBE_KEY_SIZE, 0xA3) as NotificationKey;
 
         // Create a test notification
-        const notification = cciCube.Create({
+        const notification = Cube.Create({
           cubeType: CubeType.PIC_NOTIFY,
           fields: [
             VerityField.Payload("Subscription test notification as cube"),
@@ -1536,7 +1536,7 @@ describe('VeritumRetriever', () => {
 
         expect(result.done).toBe(false);
         expect(result.value).toBeDefined();
-        expect(result.value instanceof cciCube).toBe(true);
+        expect(result.value instanceof Cube).toBe(true);
 
         // Clean up
         subscriptionGen.cancel();

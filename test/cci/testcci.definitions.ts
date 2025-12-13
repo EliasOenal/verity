@@ -1,10 +1,10 @@
 import type { IdentityOptions } from "../../src/cci/identity/identity.definitions";
 
-import { cciFamily } from "../../src/cci/cube/cciCube";
+import { cciFamily } from "../../src/cci/cube/cube";
 import { CubeStoreOptions } from "../../src/core/cube/cubeStore";
 import { testCoreOptions } from "../core/testcore.definition";
 import { VerityNodeOptions } from "../../src/cci/verityNode";
-import { coreCubeFamily } from "../../src/core/cube/cube";
+import { coreCubeFamily } from "../../src/core/cube/coreCube";
 
 export const testCubeStoreParams: CubeStoreOptions = {
   inMemory: true,
